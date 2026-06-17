@@ -14,14 +14,12 @@ import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/models/profile_model.dart';
 import 'package:hopetsit/views/profile/widgets/profile_settings_tabs.dart';
 import 'package:hopetsit/views/profile/widgets/profile_notification_bell.dart';
-import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/profile/my_rates_screen.dart';
 import 'package:hopetsit/views/reviews/my_reviews_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 // v23.1 — Mes cartes (Airwallex saved payment_consents) — sitter peut payer un PawSpot/PawFollow.
 import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
 import 'package:hopetsit/views/kyc/kyc_verification_screen.dart';
-import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
@@ -370,75 +368,46 @@ class SitterProfileScreen extends StatelessWidget {
   /// la fonte emoji du device garantit le même bounding box pour
   /// tous les caractères. Impossible d'être déformé.
   Widget _buildSitterQuickActions(SitterProfileController controller, Color accent, Color accentLight) {
+    // v446 — Daniel : juste 2 boutons rectangle arrondi BLEUS — Calendrier
+    // (gauche) + Mon portefeuille (droite). Boost via la carte PawBoost plus
+    // bas ; l'IBAN reste accessible via Mon portefeuille (retrait).
     return Row(
       children: [
-        _sitterQuickAction('📅', 'profile_my_availability'.tr, accent, accentLight,
+        _sitterWideAction('📅', 'profile_my_availability'.tr, accent,
             () => Get.to(() => const AvailabilityCalendarScreen())),
-        SizedBox(width: 8.w),
-        _sitterQuickAction('🛒', 'boost_shop_title'.tr, accent, accentLight,
-            () => Get.to(() => const CoinShopScreen())),
-        SizedBox(width: 8.w),
-        // v444 — Daniel : « Mon Wallet » juste À CÔTÉ de l'IBAN.
-        _sitterQuickAction('🏦', 'iban_title'.tr, accent, accentLight,
-            () => Get.to(() => const IbanSetupScreen())),
-        SizedBox(width: 8.w),
-        _sitterQuickAction('💼', 'wallet_menu_title'.tr, accent, accentLight,
+        SizedBox(width: 12.w),
+        _sitterWideAction('💼', 'wallet_menu_title'.tr, accent,
             () => Get.to(() => const WalletScreen())),
       ],
     );
   }
 
-  /// v23.1 part 144 — accepte un emoji (String) au lieu d'un IconData.
-  /// v23.1 part 145 — Daniel : "le cadre blanc qui est pas simetrique".
-  /// Cause : labels de longueurs différentes (1 ligne vs 2 lignes) →
-  /// hauteurs des cartes différentes. Fix : crossAxisAlignment.stretch
-  /// + IntrinsicHeight au niveau de la Row parente force toutes les
-  /// cartes à la même hauteur. Le label utilise maxLines:2 + minHeight
-  /// pour réserver 2 lignes minimum, peu importe la longueur du texte.
-  Widget _sitterQuickAction(String emoji, String label, Color accent, Color accentLight, VoidCallback onTap) {
+  /// v446 — bouton rectangle arrondi BLEU (Expanded) : emoji + label, texte
+  /// blanc, sur une seule ligne (remplace les anciennes cartes carrées).
+  Widget _sitterWideAction(
+      String emoji, String label, Color accent, VoidCallback onTap) {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Builder(
           builder: (context) => Container(
-            padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 4.w),
+            padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 10.w),
             decoration: BoxDecoration(
-              color: AppColors.card(context),
-              borderRadius: BorderRadius.circular(14.r),
-              boxShadow: AppColors.cardShadow(context),
+              color: accent,
+              borderRadius: BorderRadius.circular(16.r),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 44.w,
-                  height: 44.w,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: accentLight,
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: Text(
-                    emoji,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      height: 1.0,
-                    ),
-                  ),
-                ),
-                SizedBox(height: 6.h),
-                // v23.1 part 145 — SizedBox avec height fixe pour réserver
-                // l'espace de 2 lignes. Force toutes les cartes à la même
-                // hauteur visuelle même si certains labels font 1 ligne.
-                SizedBox(
-                  height: 26.h,
+                Text(emoji, style: TextStyle(fontSize: 18.sp)),
+                SizedBox(width: 8.w),
+                Flexible(
                   child: InterText(
                     text: label,
-                    fontSize: 9.sp,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary(context),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),

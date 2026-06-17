@@ -17,7 +17,6 @@ import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/loyalty_card.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/profile/promo_code_screen.dart';
-import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
 import 'package:hopetsit/widgets/boost_profile_card.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
@@ -318,67 +317,32 @@ class ProfileScreen extends StatelessWidget {
 
   /// Quick action cards row for owner.
   Widget _buildQuickActions(ProfileController controller) {
-    // v23.1.269 — Daniel : "le carré blanc à droite n'a pas la même taille que
-    // les deux autres". CAUSE : le label "Boutique" tient sur 1 ligne alors que
-    // "Modifier le profil des animaux" et "Historique des réservations" font 2
-    // lignes → cartes de hauteurs différentes (le Row centre verticalement).
-    // FIX : IntrinsicHeight + stretch → les 3 cartes ont la MÊME hauteur.
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _quickAction(Icons.pets, 'profile_edit_pets_profile'.tr,
-              controller.navigateToEditPetProfile),
-          SizedBox(width: 10.w),
-          _quickAction(Icons.history, 'profile_bookings_history'.tr,
-              controller.navigateToBookingsHistory),
-          SizedBox(width: 10.w),
-          _quickAction(Icons.rocket_launch, 'boost_shop_title'.tr,
-              () => Get.to(() => const CoinShopScreen())),
-        ],
-      ),
-    );
-  }
-
-  Widget _quickAction(IconData icon, String label, VoidCallback onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Builder(
-          builder: (context) => Container(
-            padding: EdgeInsets.symmetric(vertical: 14.h),
-            decoration: BoxDecoration(
-              color: AppColors.card(context),
-              borderRadius: BorderRadius.circular(14.r),
-              boxShadow: AppColors.cardShadow(context),
-            ),
-          child: Column(
-            // v23.1.269 — centre verticalement (les cartes ont désormais la
-            // même hauteur via IntrinsicHeight ; on centre le contenu pour que
-            // l'icône reste alignée même quand le label tient sur 1 ligne).
+    // v446 — Daniel : owner = UN SEUL grand bouton rectangle ORANGE « Modifier
+    // mon animal » (les 3 petites cartes Mes animaux / Historique / Boost sont
+    // retirées). Ouvre l'édition des animaux (navigateToEditPetProfile).
+    return Builder(
+      builder: (context) => GestureDetector(
+        onTap: controller.navigateToEditPetProfile,
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(vertical: 16.h),
+          decoration: BoxDecoration(
+            color: AppColors.primaryColor,
+            borderRadius: BorderRadius.circular(16.r),
+            boxShadow: AppColors.cardShadow(context),
+          ),
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 38.w,
-                height: 38.w,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                child: Icon(icon, size: 18.sp, color: AppColors.primaryColor),
-              ),
-              SizedBox(height: 6.h),
+              Icon(Icons.pets_rounded, color: Colors.white, size: 20.sp),
+              SizedBox(width: 10.w),
               InterText(
-                text: label,
-                fontSize: 10.sp,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary(context),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                text: 'pet_edit_animal'.tr,
+                fontSize: 15.sp,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
               ),
             ],
-          ),
           ),
         ),
       ),

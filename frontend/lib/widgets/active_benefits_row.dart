@@ -262,9 +262,10 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
     final onColor = color == const Color(0xFFE8A00A)
         ? const Color(0xFF1A1A1A)
         : Colors.white;
-    final double fs = widget.compact ? 10.sp : 11.sp;
+    // v446 — Daniel : badges PLUS PETITS (ils étaient coupés sur la droite).
+    final double fs = widget.compact ? 9.sp : 10.sp;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 4.h),
+      padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 3.h),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(20.r),
@@ -281,7 +282,7 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
         children: [
           Text(emoji, style: TextStyle(fontSize: fs)),
           if (daysLabel.isNotEmpty) ...[
-            SizedBox(width: 4.w),
+            SizedBox(width: 3.w),
             InterText(
               text: daysLabel,
               fontSize: fs,

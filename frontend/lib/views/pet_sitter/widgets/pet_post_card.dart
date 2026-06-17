@@ -393,7 +393,8 @@ class PetPostCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isReserved
                           ? AppColors.grey300Color.withValues(alpha: 0.4)
-                          : const Color(0xFF2563EB).withValues(alpha: 0.12),
+                          // v446 — Daniel : « Modifier » en ROSE sur Ma publication.
+                          : const Color(0xFFEC4899).withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
@@ -402,7 +403,7 @@ class PetPostCard extends StatelessWidget {
                         Icons.edit_outlined,
                         color: isReserved
                             ? AppColors.grey500Color
-                            : const Color(0xFF2563EB),
+                            : const Color(0xFFEC4899),
                         size: 20.sp,
                       ),
                       tooltip: 'post_action_edit'.tr,
@@ -744,9 +745,11 @@ class PetPostCard extends StatelessWidget {
                     icon: Icons.ios_share_rounded,
                     label: 'post_action_share'.tr,
                     isActive: false,
+                    // v446 — Daniel : « Partager » en ROSE sur Ma publication
+                    // (vue owner) ; reste couleur de rôle en vue prestataire.
                     accent: _isProviderView
                         ? _accent
-                        : const Color(0xFF2563EB),
+                        : const Color(0xFFEC4899),
                     onTap: onShare,
                   ),
                 ),
@@ -1555,7 +1558,9 @@ class PetPostCard extends StatelessWidget {
             SizedBox(width: 6.w),
             Flexible(
               child: InterText(
-                text: time,
+                // v446 — Daniel : icône + tiret + heure (style « nombre
+                // d'animaux ») → « 🕐 – 14:00 ».
+                text: '– $time',
                 fontSize: 12.5.sp,
                 fontWeight: FontWeight.w700,
                 color: const Color(0xFFF59E0B),

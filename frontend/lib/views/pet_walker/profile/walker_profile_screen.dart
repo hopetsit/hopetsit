@@ -21,7 +21,6 @@ import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart
 import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
 import 'package:hopetsit/views/kyc/kyc_verification_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
-import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/views/profile/blocked_users_screen.dart';
 import 'package:hopetsit/views/profile/change_password_screen.dart';
@@ -365,34 +364,20 @@ class WalkerProfileScreen extends StatelessWidget {
   // ═════════════════════════════════════════════════════════════════════════
 
   Widget _buildQuickActions(BuildContext context) {
-    // v23.1 part 144 — switch vers emojis (cf sitter_profile_screen).
+    // v446 — Daniel : juste 2 boutons rectangle arrondi GRIS — Calendrier
+    // (gauche) + Mon portefeuille (droite). Boost reste dans la carte PawBoost
+    // plus bas ; l'IBAN reste accessible via Mon portefeuille (retrait).
     return Row(
       children: [
-        _quickAction(
+        _wideAction(
           context,
           emoji: '📅',
           label: 'profile_quick_calendar'.tr,
           onTap: () =>
               Get.to(() => const AvailabilityCalendarScreen(role: 'walker')),
         ),
-        SizedBox(width: 8.w),
-        _quickAction(
-          context,
-          emoji: '🛒',
-          label: 'profile_quick_boost_shop'.tr,
-          onTap: () => Get.to(() => const CoinShopScreen()),
-        ),
-        SizedBox(width: 8.w),
-        // v444 — Daniel : « Mon Wallet » juste À CÔTÉ de l'IBAN (paiements
-        // regroupés : IBAN = destination de retrait, Wallet = solde/gains).
-        _quickAction(
-          context,
-          emoji: '🏦',
-          label: 'profile_quick_iban'.tr,
-          onTap: () => Get.to(() => const IbanSetupScreen()),
-        ),
-        SizedBox(width: 8.w),
-        _quickAction(
+        SizedBox(width: 12.w),
+        _wideAction(
           context,
           emoji: '💼',
           label: 'wallet_menu_title'.tr,
@@ -402,7 +387,8 @@ class WalkerProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _quickAction(
+  /// v446 — bouton rectangle arrondi GRIS (Expanded) : emoji + label sur 1 ligne.
+  Widget _wideAction(
     BuildContext context, {
     required String emoji,
     required String label,
@@ -412,45 +398,25 @@ class WalkerProfileScreen extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: EdgeInsets.symmetric(vertical: 14.h),
+          padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 10.w),
           decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(14.r),
-            boxShadow: AppColors.cardShadow(context),
+            color: Get.isDarkMode
+                ? const Color(0xFF2A2A2A)
+                : const Color(0xFFEDEDF0),
+            borderRadius: BorderRadius.circular(16.r),
           ),
-          child: Column(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // v23.1 part 144 — emoji rendu par la fonte système Android,
-              // garantit la même taille de bounding box pour tous les
-              // caractères. Impossible d'être "déformé".
-              Container(
-                width: 44.w,
-                height: 44.w,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _accentLight,
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: Text(
-                  emoji,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    height: 1.0,
-                  ),
-                ),
-              ),
-              SizedBox(height: 6.h),
-              // v23.1 part 145 — hauteur fixe pour 2 lignes → cartes
-              // symétriques même si labels de longueurs différentes.
-              SizedBox(
-                height: 26.h,
+              Text(emoji, style: TextStyle(fontSize: 18.sp)),
+              SizedBox(width: 8.w),
+              Flexible(
                 child: InterText(
                   text: label,
-                  fontSize: 9.sp,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary(context),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
