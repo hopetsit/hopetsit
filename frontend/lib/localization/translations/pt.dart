@@ -284,6 +284,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       // v451 — i18n fixes (new keys, parity ×6)
       'pet_age_months': 'meses',
       'pawmap_expand_map': 'Ampliar o mapa',
+      'pawmap_premium_spots_nearby': '@n PawSpot por perto',
       'common_view_profile': 'Ver perfil',
       'home_publish_walk': 'Publicar um passeio',
       'publish_end_time_same_day': 'Hora de fim (mesmo dia)',

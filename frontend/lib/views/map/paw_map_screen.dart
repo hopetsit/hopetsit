@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
@@ -206,6 +207,14 @@ class _PawMapScreenState extends State<PawMapScreen>
   Set<Polyline> _routePolylines = {};
   int? _routeDistanceMeters;
   bool _directionsLoading = false;
+
+  /// v452 — guidage Paw Map : empreinte animée qui AVANCE le long de
+  /// l'itinéraire (Daniel : « petite empreinte animée avançant sur le chemin »).
+  /// Hors cache de marqueurs (bouge à chaque tick sans tout réinvalider).
+  Timer? _routeAnimTimer;
+  List<LatLng> _routeAnimPoints = const [];
+  int _routeAnimIdx = 0;
+  LatLng? _routeAnimPos;
 
   /// Debounce the `onCameraIdle` callback so panning/zooming quickly doesn't
   /// fire 5+ POI/report requests in a row. 500 ms is short enough to feel
@@ -731,6 +740,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     WidgetsBinding.instance.removeObserver(this);
     _reloadDebounce?.cancel();
     _haloTimer?.cancel();
+    _routeAnimTimer?.cancel();
     _followWorker?.dispose();
     _myFollowWorker?.dispose();
     // v414 — Daniel : "qd l'app se ferme le direct s'éteint, je veux qu'il
@@ -1590,7 +1600,51 @@ class _PawMapScreenState extends State<PawMapScreen>
       _cachedMarkers = _buildMarkers();
       _cachedMarkersKey = key;
     }
+    // v452 — empreinte animée le long de l'itinéraire : marqueur unique ajouté
+    // PAR-DESSUS le cache (ne réinvalide pas tout le set à chaque tick).
+    if (_routeAnimPos != null) {
+      return {
+        ..._cachedMarkers!,
+        Marker(
+          markerId: const MarkerId('route_paw_progress'),
+          position: _routeAnimPos!,
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueOrange),
+          anchor: const Offset(0.5, 0.5),
+          flat: true,
+        ),
+      };
+    }
     return _cachedMarkers!;
+  }
+
+  /// v452 — anime l'empreinte le long des points de l'itinéraire + petite
+  /// vibration au départ (guidage discret, pas un GPS bavard).
+  void _startRouteAnimation(List<LatLng> points) {
+    _routeAnimTimer?.cancel();
+    _routeAnimPoints = points;
+    _routeAnimIdx = 0;
+    if (points.isEmpty) {
+      _routeAnimPos = null;
+      return;
+    }
+    _routeAnimPos = points.first;
+    HapticFeedback.lightImpact();
+    _routeAnimTimer = Timer.periodic(const Duration(milliseconds: 450), (t) {
+      if (!mounted || _routeAnimPoints.isEmpty) {
+        t.cancel();
+        return;
+      }
+      _routeAnimIdx = (_routeAnimIdx + 1) % _routeAnimPoints.length;
+      setState(() => _routeAnimPos = _routeAnimPoints[_routeAnimIdx]);
+    });
+  }
+
+  void _stopRouteAnimation() {
+    _routeAnimTimer?.cancel();
+    _routeAnimTimer = null;
+    _routeAnimPoints = const [];
+    _routeAnimPos = null;
   }
 
   Set<Marker> _buildMarkers() {
@@ -4679,6 +4733,8 @@ class _PawMapScreenState extends State<PawMapScreen>
         };
         _routeDistanceMeters = route.distanceMeters;
       });
+      // v452 — lance l'empreinte animée le long du trajet + vibration départ.
+      _startRouteAnimation(route.points);
       // Caméra : englobe tout le trajet.
       double minLat = route.points.first.latitude;
       double maxLat = minLat;
@@ -4724,6 +4780,7 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   /// Efface l'itinéraire en cours (bouton du bandeau).
   void _clearRoute() {
+    _stopRouteAnimation();
     setState(() {
       _routePolylines = {};
       _routeDistanceMeters = null;
@@ -4738,6 +4795,12 @@ class _PawMapScreenState extends State<PawMapScreen>
         : meters >= 1000
             ? '${(meters / 1000).toStringAsFixed(1)} km'
             : '$meters m';
+    // v452 — effet « Waze » Premium : pendant un itinéraire, on signale
+    // discrètement les PawSpot autour (abo PawSpot/Premium requis).
+    final premiumNearby = (_pawSpotController.premiumActive.value ||
+            _pawSpotController.pawspotActive.value) &&
+        _pawSpotController.spots.isNotEmpty;
+    final nearbyCount = _pawSpotController.spots.length;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 9.h),
       decoration: BoxDecoration(
@@ -4755,34 +4818,50 @@ class _PawMapScreenState extends State<PawMapScreen>
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.directions_walk_rounded,
-              size: 16.sp, color: const Color(0xFFEF4324)),
-          SizedBox(width: 6.w),
-          InterText(
-            text: distanceLabel,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF1F2937),
-          ),
-          SizedBox(width: 12.w),
-          GestureDetector(
-            onTap: _clearRoute,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF4324).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14.r),
-              ),
-              child: InterText(
-                text: 'directions_clear'.tr,
-                fontSize: 11.sp,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFFEF4324),
-              ),
+          if (premiumNearby) ...[
+            InterText(
+              text: '🐾 ${'pawmap_premium_spots_nearby'.trParams({'n': '$nearbyCount'})}',
+              fontSize: 10.5.sp,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFFE8A00A),
+              maxLines: 1,
             ),
+            SizedBox(height: 5.h),
+          ],
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.directions_walk_rounded,
+                  size: 16.sp, color: const Color(0xFFEF4324)),
+              SizedBox(width: 6.w),
+              InterText(
+                text: distanceLabel,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF1F2937),
+              ),
+              SizedBox(width: 12.w),
+              GestureDetector(
+                onTap: _clearRoute,
+                child: Container(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4324).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14.r),
+                  ),
+                  child: InterText(
+                    text: 'directions_clear'.tr,
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFFEF4324),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

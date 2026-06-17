@@ -79,7 +79,16 @@ class CustomNavigationBar extends StatelessWidget {
                   badgeIndex: 1, bg: bgColor,
                 ),
               ),
-              Expanded(child: _buildCenterMapButton(context, isDark, bgColor)),
+              Expanded(
+                child: _CenterPawMapButton(
+                  isSelected: currentIndex == 2,
+                  bg: bgColor,
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    onTap(2);
+                  },
+                ),
+              ),
               Expanded(
                 child: _buildNavItem(
                   context, 3, AppImages.calendarIcon, 'nav_bookings'.tr, isDark,
@@ -200,40 +209,143 @@ class CustomNavigationBar extends StatelessWidget {
     );
   }
 
-  Widget _buildCenterMapButton(BuildContext context, bool isDark, Color bg) {
-    final isSelected = currentIndex == 2;
-    final roleAccent = _activeColorForCurrentRole();
-    final roleAccentLight = Color.alphaBlend(
-      Colors.white.withValues(alpha: 0.25),
-      roleAccent,
-    );
+}
 
+/// v452 — Refonte du bouton central « Paw Map » (Daniel) : la fonctionnalité
+/// PHARE de l'app. Pill arrondi ORANGE plus grand que les autres onglets,
+/// surélevé, icône carte + patte + texte « Paw Map », ombre douce, légère
+/// animation au clic, et pulsation discrète + icône plus grande quand actif.
+/// Les autres onglets restent gris → Paw Map est le point focal.
+class _CenterPawMapButton extends StatefulWidget {
+  const _CenterPawMapButton({
+    required this.isSelected,
+    required this.onTap,
+    required this.bg,
+  });
+
+  final bool isSelected;
+  final VoidCallback onTap;
+  final Color bg;
+
+  @override
+  State<_CenterPawMapButton> createState() => _CenterPawMapButtonState();
+}
+
+class _CenterPawMapButtonState extends State<_CenterPawMapButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+  bool _pressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pulsation discrète (1.0 ↔ 1.05) uniquement quand l'onglet est actif.
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+      lowerBound: 1.0,
+      upperBound: 1.05,
+    );
+    if (widget.isSelected) _pulse.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant _CenterPawMapButton old) {
+    super.didUpdateWidget(old);
+    if (widget.isSelected && !_pulse.isAnimating) {
+      _pulse.repeat(reverse: true);
+    } else if (!widget.isSelected && _pulse.isAnimating) {
+      _pulse.stop();
+      _pulse.value = 1.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const orange = AppColors.primaryColor;
+    final iconSize = widget.isSelected ? 26.sp : 23.sp;
     return Container(
-      color: bg,
+      color: widget.bg,
       child: GestureDetector(
-        onTap: () {
-          HapticFeedback.mediumImpact();
-          onTap(2);
-        },
+        onTap: widget.onTap,
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp: (_) => setState(() => _pressed = false),
+        onTapCancel: () => setState(() => _pressed = false),
         behavior: HitTestBehavior.opaque,
         child: Center(
-          child: Container(
-            width: 46.w,
-            height: 46.w,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isSelected
-                    ? [roleAccent, roleAccentLight]
-                    : [roleAccent.withValues(alpha: 0.85), roleAccent],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          child: AnimatedScale(
+            // Légère animation au clic (s'enfonce un peu).
+            scale: _pressed ? 0.94 : 1.0,
+            duration: const Duration(milliseconds: 110),
+            child: ScaleTransition(
+              scale: _pulse,
+              child: Container(
+                // Pill plus large + surélevé (déborde un peu vers le haut).
+                margin: EdgeInsets.only(bottom: 2.h),
+                padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFF6B45), orange],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18.r),
+                  boxShadow: [
+                    BoxShadow(
+                      color: orange.withValues(alpha: widget.isSelected ? 0.45 : 0.30),
+                      blurRadius: widget.isSelected ? 14 : 9,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Icône carte + patte intégrée (toujours blanche).
+                    SizedBox(
+                      width: iconSize + 4,
+                      height: iconSize,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(Icons.map_rounded,
+                              size: iconSize, color: Colors.white),
+                          Positioned(
+                            top: -2.h,
+                            child: Container(
+                              padding: EdgeInsets.all(1.6.w),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.pets,
+                                  size: iconSize * 0.46, color: orange),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 2.h),
+                    Text(
+                      'Paw Map',
+                      style: TextStyle(
+                        fontSize: 9.5.sp,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        height: 1.0,
+                      ),
+                      maxLines: 1,
+                    ),
+                  ],
+                ),
               ),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.map_rounded,
-              size: 24.sp,
-              color: Colors.white,
             ),
           ),
         ),

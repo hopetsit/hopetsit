@@ -45,6 +45,7 @@ const Map<String, String> itITTranslations = <String, String>{
       // v451 — i18n fixes (new keys, parity ×6)
       'pet_age_months': 'mesi',
       'pawmap_expand_map': 'Ingrandisci la mappa',
+      'pawmap_premium_spots_nearby': '@n PawSpot nelle vicinanze',
       'common_view_profile': 'Vedi profilo',
       'home_publish_walk': 'Pubblica una passeggiata',
       'publish_end_time_same_day': 'Ora di fine (stesso giorno)',
