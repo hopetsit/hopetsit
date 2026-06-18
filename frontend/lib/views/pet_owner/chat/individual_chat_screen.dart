@@ -747,9 +747,12 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         return SafeArea(
           child: Column(
             children: [
-              // Messages List
+              // Messages List — v477 : fond légèrement teinté orange (owner),
+              // façon maquette Conversation.
               Expanded(
-                child: chatController.currentChatMessages.isEmpty
+                child: Container(
+                  color: const Color(0xFFFDF0EB),
+                  child: chatController.currentChatMessages.isEmpty
                     ? Center(
                         child: Padding(
                           padding: EdgeInsets.all(20.w),
@@ -776,6 +779,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                           return _buildMessageItem(message, chatController);
                         },
                       ),
+                ),
               ),
 
               // Message Input

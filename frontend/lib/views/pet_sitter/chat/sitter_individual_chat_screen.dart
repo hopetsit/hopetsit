@@ -506,9 +506,12 @@ class _SitterIndividualChatScreenState
         return SafeArea(
           child: Column(
             children: [
-              // Messages List
+              // Messages List — v477 : fond légèrement teinté de la couleur du
+              // rôle (bleu sitter / vert walker), façon maquette Conversation.
               Expanded(
-                child: chatController.currentChatMessages.isEmpty
+                child: Container(
+                  color: AppColors.primaryColor.withValues(alpha: 0.05),
+                  child: chatController.currentChatMessages.isEmpty
                     ? Center(
                         child: Padding(
                           padding: EdgeInsets.all(20.w),
@@ -535,6 +538,7 @@ class _SitterIndividualChatScreenState
                           return _buildMessageItem(message, chatController);
                         },
                       ),
+                ),
               ),
 
               // Message Input
