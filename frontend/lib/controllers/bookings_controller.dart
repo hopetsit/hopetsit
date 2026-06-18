@@ -167,7 +167,15 @@ class BookingsController extends GetxController {
 
       await loadBookings();
     } on ApiException catch (error) {
-      CustomSnackbar.showError(title: 'common_error'.tr, message: error.message);
+      // v462 — Daniel : « pop up en anglais ». On n'affiche PLUS le message
+      // backend brut (anglais) : on mappe le code HTTP vers un message
+      // localisé. 409 = fenêtre 72h fermée / non payé ; sinon erreur générique.
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: error.statusCode == 409
+            ? 'cancel_72h_closed_message'.tr
+            : 'cancel_72h_error'.tr,
+      );
     } catch (error) {
       CustomSnackbar.showError(
         title: 'common_error'.tr,

@@ -4,7 +4,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
@@ -585,17 +584,10 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
   }
 
   /// v23.1.161 — true si on est encore dans la fenetre 72h+ avant le service.
+  /// v462 — délègue au getter autoritaire du modèle (backend canSelfCancel +
+  /// filet local robuste). Plus de divergence frontend/backend.
   bool _isWithinSelfCancelWindow(BookingModel booking) {
-    final dateStr = booking.date.trim();
-    if (dateStr.isEmpty) return false;
-    try {
-      final parsed = DateTime.tryParse(dateStr) ??
-          DateFormat('dd/MM/yyyy').tryParse(dateStr);
-      if (parsed == null) return false;
-      return parsed.difference(DateTime.now()).inHours > 72;
-    } catch (_) {
-      return false;
-    }
+    return booking.isSelfCancelEligible;
   }
 
   Future<void> _confirmSelfCancel(BookingModel booking) async {

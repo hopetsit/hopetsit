@@ -649,17 +649,12 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
   }
 
   Widget _buildSelfCancelButton(BuildContext context, BookingModel booking) {
-    // Calculate if we're within the 72h window
-    final startDateStr = booking.date;
-    DateTime? startDate;
-    try {
-      startDate = DateTime.parse(startDateStr);
-    } catch (_) {}
-
-    final hoursUntilStart = startDate != null
-        ? startDate.difference(DateTime.now()).inHours
-        : 0;
-    final canFreeCancelation = hoursUntilStart > 72;
+    // v462 — éligibilité 72h AUTORITAIRE (backend) ; plus de re-parsing local
+    // fragile (l'ancien DateTime.parse échouait sur « dd/MM/yyyy » → bouton
+    // « Confirmer » caché → annulation impossible). Le getter retombe sur un
+    // recalcul local robuste si le backend n'a pas (encore) renvoyé le champ.
+    final canFreeCancelation = booking.isSelfCancelEligible;
+    final hoursUntilStart = booking.hoursUntilStartResolved;
 
     return Column(
       children: [

@@ -257,6 +257,73 @@ const sanitizeBooking = (bookingDoc) => {
       // Note: refundId is not included for security reasons
     };
   }
+  // v462 — Daniel : « le bouton annulation avant 72h ne marche pas + pop up
+  // en anglais ». Cause racine RÉCURRENTE (v161 / v254 / v449) : le frontend
+  // RE-CALCULAIT lui-même l'éligibilité 72h à partir de booking.date seul
+  // (minuit, sans timeSlot, en fuseau LOCAL) — un calcul DIFFÉRENT de celui
+  // du backend (resolveBookingStartDate = date + timeSlot). Quand les deux
+  // divergeaient, le bouton « Confirmer » s'affichait alors que le backend
+  // refusait → réponse 409 affichée telle quelle (message backend en ANGLAIS).
+  // Fix : le backend devient AUTORITAIRE et expose directement canSelfCancel
+  // + hoursUntilStart, calculés EXACTEMENT comme selfCancelWithRefund
+  // (mêmes règles : payé + statut non terminal + > 72h). Le frontend n'a plus
+  // qu'à lire le booléen → « bouton affiché » ⟺ « le backend acceptera ».
+  try {
+    const SEVENTY_TWO_HOURS = 72 * 60 * 60 * 1000;
+    // Réplique fidèle de parseTimeSlotToHoursMinutes (bookingController.js).
+    const parseSlot = (timeSlot) => {
+      if (!timeSlot || typeof timeSlot !== 'string') return null;
+      const cleaned = timeSlot.trim().toLowerCase().replace(/\s+/g, '');
+      const m = cleaned.match(/^(\d{1,2})[:h](\d{0,2})/);
+      if (!m) {
+        const ho = cleaned.match(/^(\d{1,2})h$/);
+        if (ho) {
+          const h = Number(ho[1]);
+          if (Number.isInteger(h) && h >= 0 && h <= 23) return { h, m: 0 };
+        }
+        return null;
+      }
+      const h = Number(m[1]);
+      const mm = m[2] === '' ? 0 : Number(m[2]);
+      if (!Number.isInteger(h) || !Number.isInteger(mm) || h < 0 || h > 23 || mm < 0 || mm > 59) {
+        return null;
+      }
+      return { h, m: mm };
+    };
+    // Réplique fidèle de resolveBookingStartDate (bookingController.js).
+    const raw = bookingDoc.startDate || bookingDoc.date || null;
+    let startMs = null;
+    if (raw) {
+      const parsed = new Date(raw);
+      if (!Number.isNaN(parsed.getTime())) {
+        const hasTimePart = typeof raw === 'string' && /T\d{2}:/.test(raw);
+        if (!hasTimePart) {
+          const hm = parseSlot(bookingDoc.timeSlot);
+          if (hm) parsed.setHours(hm.h, hm.m, 0, 0);
+          else parsed.setHours(0, 0, 0, 0);
+        }
+        startMs = parsed.getTime();
+      }
+    }
+    const statusLower = String(bookingDoc.status || '').toLowerCase();
+    const isPaidForCancel =
+      statusLower === 'paid' ||
+      String(bookingDoc.paymentStatus || '').toLowerCase() === 'paid' ||
+      !!bookingDoc.paidAt;
+    const notTerminal = !['cancelled', 'completed', 'refunded'].includes(statusLower);
+    if (startMs != null) {
+      const msUntilStart = startMs - Date.now();
+      booking.hoursUntilStart = Math.max(0, Math.round(msUntilStart / 3600000));
+      booking.canSelfCancel =
+        isPaidForCancel && notTerminal && msUntilStart > SEVENTY_TWO_HOURS;
+    } else {
+      booking.hoursUntilStart = null;
+      booking.canSelfCancel = false;
+    }
+  } catch (_) {
+    booking.hoursUntilStart = null;
+    booking.canSelfCancel = false;
+  }
   return booking;
 };
 

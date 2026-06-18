@@ -589,16 +589,10 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
   }
 
   Widget _buildSelfCancelButton(BuildContext context, BookingModel booking) {
-    final startDateStr = booking.date;
-    DateTime? startDate;
-    try {
-      startDate = DateTime.parse(startDateStr);
-    } catch (_) {}
-
-    final hoursUntilStart = startDate != null
-        ? startDate.difference(DateTime.now()).inHours
-        : 0;
-    final canFreeCancel = hoursUntilStart > 72;
+    // v462 — éligibilité 72h AUTORITAIRE (backend), avec filet local robuste.
+    // Évite l'ancien DateTime.parse fragile (échouait sur « dd/MM/yyyy »).
+    final canFreeCancel = booking.isSelfCancelEligible;
+    final hoursUntilStart = booking.hoursUntilStartResolved;
 
     return Column(
       children: [

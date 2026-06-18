@@ -92,6 +92,13 @@ class BookingModel {
   // On expose le rôle du provider tel qu'envoyé par l'API (`sitter` ou
   // `walker`) pour pouvoir afficher dynamiquement le label du bouton.
   final String? providerRole;
+  // v462 — éligibilité d'annulation 72h AUTORITAIRE, calculée par le backend
+  // (sanitizeBooking) avec la MÊME règle que selfCancelWithRefund. Évite que
+  // le frontend re-devine (cause racine récurrente du bug « bouton ne marche
+  // pas + pop up anglais »). Nullable = vieux backend pas encore déployé →
+  // on retombe sur un recalcul local robuste (cf. getters plus bas).
+  final bool? canSelfCancel;
+  final int? hoursUntilStart;
 
   BookingModel({
     required this.id,
@@ -125,6 +132,8 @@ class BookingModel {
     this.duration,
     this.specialInstructions,
     this.providerRole,
+    this.canSelfCancel,
+    this.hoursUntilStart,
   }) : pets = pets ?? [];
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
@@ -253,7 +262,52 @@ class BookingModel {
       specialInstructions:
           json['specialInstructions'] as String? ??
           json['special_instructions'] as String?,
+      // v462 — éligibilité 72h autoritaire renvoyée par le backend.
+      canSelfCancel: json['canSelfCancel'] as bool?,
+      hoursUntilStart: (json['hoursUntilStart'] as num?)?.toInt(),
     );
+  }
+
+  // ── v462 — Éligibilité annulation 72h ─────────────────────────────────
+  // On PRÉFÈRE toujours la valeur backend (canSelfCancel). Si elle est absente
+  // (vieux backend), on recalcule localement de façon ROBUSTE : on accepte les
+  // formats ISO « yyyy-MM-dd[…] » ET « dd/MM/yyyy », et on applique le seuil
+  // 72h. Ce recalcul reste conservateur (minuit, sans timeSlot) mais ne sert
+  // plus que de filet de sécurité — le backend est la source de vérité.
+  DateTime? _localStartDate() {
+    final s = date.trim();
+    if (s.isEmpty) return null;
+    final iso = DateTime.tryParse(s);
+    if (iso != null) return iso;
+    final m = RegExp(r'^(\d{1,2})/(\d{1,2})/(\d{4})').firstMatch(s);
+    if (m == null) return null;
+    final d = int.tryParse(m.group(1)!);
+    final mo = int.tryParse(m.group(2)!);
+    final y = int.tryParse(m.group(3)!);
+    if (d == null || mo == null || y == null) return null;
+    try {
+      return DateTime(y, mo, d);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// true si la réservation est annulable gratuitement (fenêtre > 72h). Lit la
+  /// valeur backend si présente, sinon recalcul local.
+  bool get isSelfCancelEligible {
+    if (canSelfCancel != null) return canSelfCancel!;
+    final dt = _localStartDate();
+    if (dt == null) return false;
+    return dt.difference(DateTime.now()).inHours > 72;
+  }
+
+  /// Nombre d'heures avant le début du service (pour l'affichage du dialogue).
+  int get hoursUntilStartResolved {
+    if (hoursUntilStart != null) return hoursUntilStart!;
+    final dt = _localStartDate();
+    if (dt == null) return 0;
+    final h = dt.difference(DateTime.now()).inHours;
+    return h < 0 ? 0 : h;
   }
 }
 

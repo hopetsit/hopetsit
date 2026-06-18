@@ -4,7 +4,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
@@ -423,16 +422,9 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
   /// v23.1.161 — true si le booking est a plus de 72h du service (fenetre
   /// self-cancel avec refund integral).
   bool _isWithinSelfCancelWindow(BookingModel booking) {
-    final dateStr = booking.date.trim();
-    if (dateStr.isEmpty) return false;
-    try {
-      final parsed = DateTime.tryParse(dateStr) ??
-          DateFormat('dd/MM/yyyy').tryParse(dateStr);
-      if (parsed == null) return false;
-      return parsed.difference(DateTime.now()).inHours > 72;
-    } catch (_) {
-      return false;
-    }
+    // v462 — délègue au getter autoritaire du modèle (backend canSelfCancel +
+    // filet local). Plus de divergence frontend/backend.
+    return booking.isSelfCancelEligible;
   }
 
   Future<void> _confirmSelfCancel(BookingModel booking) async {

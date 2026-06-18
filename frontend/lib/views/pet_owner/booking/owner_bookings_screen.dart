@@ -4,7 +4,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/views/reviews/reviews_screen.dart';
@@ -409,18 +408,11 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
   /// true si le booking est dans la fenetre 72h+ (donc annulable avec
   /// refund integral).
   bool _isWithinSelfCancelWindow(BookingModel booking) {
-    final dateStr = booking.date.trim();
-    if (dateStr.isEmpty) return false;
-    try {
-      // booking.date est typiquement "yyyy-MM-dd" ou "dd/MM/yyyy".
-      final parsed = DateTime.tryParse(dateStr) ??
-          DateFormat('dd/MM/yyyy').tryParse(dateStr);
-      if (parsed == null) return false;
-      final hoursUntilStart = parsed.difference(DateTime.now()).inHours;
-      return hoursUntilStart > 72;
-    } catch (_) {
-      return false;
-    }
+    // v462 — délègue au getter du modèle qui PRÉFÈRE la valeur backend
+    // (canSelfCancel) et retombe sur un recalcul local robuste sinon. Évite
+    // toute divergence frontend/backend (cause racine du « bouton ne marche
+    // pas + pop up anglais »).
+    return booking.isSelfCancelEligible;
   }
 
   Future<void> _confirmSelfCancel(BookingModel booking) async {

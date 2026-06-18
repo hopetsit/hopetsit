@@ -110,7 +110,13 @@ class SitterBookingsController extends GetxController {
 
       await loadBookings();
     } on ApiException catch (error) {
-      CustomSnackbar.showError(title: 'common_error'.tr, message: error.message);
+      // v462 — message localisé au lieu du message backend brut (anglais).
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: error.statusCode == 409
+            ? 'cancel_72h_closed_message'.tr
+            : 'cancel_72h_error'.tr,
+      );
     } catch (error) {
       CustomSnackbar.showError(
         title: 'common_error'.tr,
