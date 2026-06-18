@@ -34,10 +34,12 @@ class OnboardingScreen extends StatelessWidget {
             end: Alignment.bottomCenter,
             colors: isDark
                 ? [
+                    // v481b — Daniel : « filtre noir » en sombre. Dégradé chaud
+                    // orange → brun foncé (plus de bande noire dure en bas).
                     AppColors.primaryColor,
-                    AppColors.primaryColor.withValues(alpha: 0.92),
-                    AppColors.backgroundDark.withValues(alpha: 0.7),
-                    AppColors.backgroundDark,
+                    const Color(0xFFD8431C),
+                    const Color(0xFF8A2E12),
+                    const Color(0xFF4A1C0C),
                   ]
                 : [
                     AppColors.primaryColor,
@@ -66,27 +68,28 @@ class OnboardingScreen extends StatelessWidget {
           // collé en bas + scroll seulement si trop grand » :
           // LayoutBuilder + ConstrainedBox(minHeight) + IntrinsicHeight +
           // Column avec un Expanded comme spacer (flex:1) avant les CTA.
-          child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: 20.w),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: IntrinsicHeight(
-                  child: Column(
+          // v481b — BULLETPROOF : Column simple dans la SafeArea (hauteur
+          // bornée) + Spacer pour coller les CTA en bas. PLUS de
+          // SingleChildScrollView/IntrinsicHeight/Expanded (qui faisaient
+          // disparaître la grille + les boutons en release). Aucun overlay
+          // au-dessus des boutons.
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
+            child: Column(
               children: [
-                SizedBox(height: 16.h),
+                SizedBox(height: 12.h),
 
                 // v478 — maquette « App Opening » : logo héros en squircle
                 // blanc 124px + halo lumineux derrière + bord blanc + ombre.
                 SizedBox(
-                  height: 158.w,
+                  height: 132.w,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
                       // Halo lumineux (blanc en clair, orange en sombre).
                       Container(
-                        width: 200.w,
-                        height: 200.w,
+                        width: 172.w,
+                        height: 172.w,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
@@ -362,9 +365,6 @@ class OnboardingScreen extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-                ),
-              ),
             ),
           ),
         ),
