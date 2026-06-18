@@ -342,9 +342,17 @@ function PostCard({
         <div className="mt-3 space-y-2">
           {pets.map((p) => {
             const photosCount = (p.photos || []).filter((x) => x?.url).length;
+            // v465 — n'afficher l'âge que s'il est > 0 (un âge inconnu = 0 ou
+            // « 0m » ne doit rien afficher, comme dans l'app).
+            const ageNum =
+              typeof p.age === "number"
+                ? p.age
+                : parseInt(String(p.age ?? "").replace(/[^\d]/g, ""), 10);
             const meta = [
               p.breed,
-              typeof p.age === "number" ? t("posts_age_years").replace("@n", String(p.age)) : "",
+              Number.isFinite(ageNum) && ageNum > 0
+                ? t("posts_age_years").replace("@n", String(ageNum))
+                : "",
               p.sex === "male" ? t("posts_sex_male") : p.sex === "female" ? t("posts_sex_female") : "",
             ]
               .filter(Boolean)

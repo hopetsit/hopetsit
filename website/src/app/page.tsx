@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
-import { PawMapCTA } from "@/components/PawMapCTA";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
 export default function HomePage() {
@@ -77,13 +76,9 @@ export default function HomePage() {
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-ink-muted">
               {t("hero_sub")}
             </p>
-            {/* v23.1.452 — Daniel : la Paw Map est LE 1er élément que voit le
-                visiteur. CTA phare en tête du hero (priorité visuelle : 1) Paw
-                Map, 2) Télécharger l'app, 3) connexion web). */}
-            <div className="mt-8">
-              <PawMapCTA size="hero" />
-            </div>
-            <div className="mt-4 flex flex-wrap gap-3">
+            {/* v467 — Daniel : retirer le gros bouton « Ouvrir Paw Map » de la
+                page d'accueil. Les CTA Télécharger / Connexion suffisent. */}
+            <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="/download"
                 className="rounded-full bg-owner px-6 py-3 text-sm font-semibold text-white shadow-cta hover:bg-owner-dark"

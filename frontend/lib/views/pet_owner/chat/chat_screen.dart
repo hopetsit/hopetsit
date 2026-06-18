@@ -52,16 +52,22 @@ class ChatScreen extends StatelessWidget {
             // un bouton nouvelle conversation". FAB extended qui ouvre la
             // FriendsScreen sur l'onglet Mes amis (index 0) : l'user pick
             // un ami et tap le 💬 a cote du nom pour demarrer une conv.
-            floatingActionButton: FloatingActionButton.extended(
-              onPressed: () => Get.to(() => const FriendsScreen()),
-              backgroundColor: AppColors.primaryColor,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.chat_rounded),
-              label: Text(
-                'chat_new_conversation_btn'.tr,
-                style: TextStyle(
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w700,
+            // v465 — Daniel : le bouton « Nouvelle conversation » était caché
+            // derrière le menu du bas flottant. On le remonte (marge basse)
+            // pour qu'il flotte AU-DESSUS du menu, toujours cliquable.
+            floatingActionButton: Padding(
+              padding: EdgeInsets.only(bottom: 78.h),
+              child: FloatingActionButton.extended(
+                onPressed: () => Get.to(() => const FriendsScreen()),
+                backgroundColor: AppColors.primaryColor,
+                foregroundColor: Colors.white,
+                icon: const Icon(Icons.chat_rounded),
+                label: Text(
+                  'chat_new_conversation_btn'.tr,
+                  style: TextStyle(
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),

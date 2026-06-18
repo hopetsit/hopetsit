@@ -139,10 +139,10 @@ class ProfileScreen extends StatelessWidget {
           // v23.1.290 — hauteur MINIMALE (au lieu de fixe) : le header s'étend
           // si les badges passent sur 2 lignes (PawFollow + Famille + Boost +
           // PawSpot) au lieu de déborder sous le dégradé.
-          // v465 — Daniel : « ya rien sous les petits badges, ça prend de la
-          // place pour rien ». 200→160 (= bas de l'avatar) : on supprime
-          // l'espace vide sous les badges sans rogner l'avatar.
-          constraints: BoxConstraints(minHeight: 160.h),
+          // v465/v467 — Daniel : « toujours pas réduit ». On descend à 130
+          // (et l'avatar remonte à top:30) : rectangle nettement plus court,
+          // plus d'espace vide sous les badges.
+          constraints: BoxConstraints(minHeight: 130.h),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -238,7 +238,7 @@ class ProfileScreen extends StatelessWidget {
         // de 55r). Look "Instagram profile".
         Positioned(
           right: 20.w,
-          top: 60.h,
+          top: 30.h,
           child: _buildOwnerAvatar(controller),
         ),
       ],

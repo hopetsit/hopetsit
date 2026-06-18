@@ -2853,10 +2853,12 @@ class _PawMapScreenState extends State<PawMapScreen>
             ),
           ),
           // Bandeau Valider / Annuler.
+          // v465 — Daniel : le bandeau était caché derrière la barre Samsung.
+          // On ajoute l'inset système physique pour qu'il reste au-dessus.
           Positioned(
             left: 16.w,
             right: 16.w,
-            bottom: 16.h,
+            bottom: 16.h + MediaQuery.of(context).viewPadding.bottom,
             child: Row(
               children: [
                 Expanded(
@@ -3753,7 +3755,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// GoogleMap (instance dédiée, plein écran). La carte normale en dessous
   /// n'est JAMAIS redimensionnée → zéro carte blanche au retour.
   Widget _buildExpandedMapOverlay() {
-    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
     return Material(
       // Fond opaque (couleur du rôle) → aucun flash blanc pendant le 1er rendu.
       color: AppColors.scaffold(context),
@@ -3851,13 +3852,9 @@ class _PawMapScreenState extends State<PawMapScreen>
             ),
           ),
 
-          // EN BAS À GAUCHE : aucun changement → on garde le FAB Signaler
-          // (heroTag distinct car la carte normale en dessous a déjà 'reportFab').
-          Positioned(
-            left: 12.w,
-            bottom: 24.h + bottomInset,
-            child: _buildReportFab(heroTag: 'expReportFabBL'),
-          ),
+          // v465 — Daniel : « quand j'agrandis, enlève le bouton Signaler à
+          // gauche ». En mode agrandi on ne garde QUE les 2 boutons de droite
+          // (Signalement + Tag Spot). Le FAB Signaler bas-gauche est retiré.
         ],
       ),
     );
@@ -4290,6 +4287,11 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// (`IgnorePointer`) : il n'apparaît jamais sur la carte une fois enregistré
   /// — à Valider, seul l'emoji définitif reste.
   Widget _buildCenterReticle() {
+    // v465 — Daniel : « quand je tag un spot fais le point en ROSE pas rouge ».
+    // Tag PawSpot → repère ROSE (#EC1E79) ; signalement → repère ROUGE.
+    final reticleColor = _pickingSpotPos.value
+        ? const Color(0xFFEC1E79)
+        : const Color(0xFFDC2626);
     return IgnorePointer(
       child: Center(
         child: Padding(
@@ -4302,7 +4304,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 height: 26.w,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFDC2626).withValues(alpha: 0.18),
+                  color: reticleColor.withValues(alpha: 0.18),
                 ),
                 child: Center(
                   child: Container(
@@ -4310,7 +4312,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     height: 16.w,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFFDC2626),
+                      color: reticleColor,
                       border: Border.all(color: Colors.white, width: 2.5),
                       boxShadow: [
                         BoxShadow(
@@ -4326,7 +4328,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               Container(
                 width: 2.2.w,
                 height: 12.h,
-                color: const Color(0xFFDC2626),
+                color: reticleColor,
               ),
             ],
           ),

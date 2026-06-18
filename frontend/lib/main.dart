@@ -72,7 +72,10 @@ void main() async {
     systemNavigationBarColor: Color(0xFFE5E7EB),
     systemNavigationBarIconBrightness: Brightness.dark,
     systemNavigationBarDividerColor: Color(0xFFE5E7EB),
-    systemNavigationBarContrastEnforced: false,
+    // v465 — Daniel : « la barre Samsung est transparente, on voit des boutons
+    // derrière ». true = la barre système a un fond opaque (scrim) → plus de
+    // contenu visible/cliquable derrière elle.
+    systemNavigationBarContrastEnforced: true,
   ));
 
   await GetStorage.init();
@@ -200,7 +203,10 @@ class MyApp extends StatelessWidget {
             systemNavigationBarColor: Color(0xFFE5E7EB),
             systemNavigationBarIconBrightness: Brightness.dark,
             systemNavigationBarDividerColor: Color(0xFFE5E7EB),
-            systemNavigationBarContrastEnforced: false,
+            // v465 — Daniel : « la barre Samsung est transparente, on voit des boutons
+    // derrière ». true = la barre système a un fond opaque (scrim) → plus de
+    // contenu visible/cliquable derrière elle.
+    systemNavigationBarContrastEnforced: true,
           ),
           child: GestureDetector(
           onTap: () => FocusManager.instance.primaryFocus!.unfocus(),

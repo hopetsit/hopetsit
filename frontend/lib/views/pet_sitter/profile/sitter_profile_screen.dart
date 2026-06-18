@@ -134,8 +134,8 @@ class SitterProfileScreen extends StatelessWidget {
           width: double.infinity,
           // v23.1.290 — hauteur MINIMALE : le header s'étend si les badges
           // passent sur 2 lignes au lieu de déborder sous le dégradé.
-          // v465 — Daniel : moins d'espace vide sous les badges (200→160).
-          constraints: BoxConstraints(minHeight: 160.h),
+          // v465/v467 — Daniel : « toujours pas réduit » → 130 (bien plus court).
+          constraints: BoxConstraints(minHeight: 130.h),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
