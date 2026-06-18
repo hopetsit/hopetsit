@@ -367,9 +367,12 @@ class PetProfileScreen extends StatelessWidget {
                       size: 14.sp, color: AppColors.greyText),
                   SizedBox(width: 3.w),
                   InterText(
+                    // v465 — on filtre sur l'âge AFFICHÉ (vide si 0/inconnu) :
+                    // plus de « berger • » avec un point orphelin.
                     text: [
                       if (pet.breed.isNotEmpty) pet.breed,
-                      if (pet.age.isNotEmpty) petAgeDisplay(pet.age),
+                      if (petAgeDisplay(pet.age).isNotEmpty)
+                        petAgeDisplay(pet.age),
                     ].join(' • '),
                     fontSize: 13.sp,
                     color: AppColors.greyText,
@@ -481,7 +484,9 @@ class PetProfileScreen extends StatelessWidget {
         // 📏 Caractéristiques.
         _section('pet_characteristics'.tr, icon: Icons.straighten_rounded, [
           if (pet.breed.isNotEmpty) _kv('pet_breed'.tr, pet.breed),
-          if (pet.age.isNotEmpty) _kv('pet_age'.tr, petAgeDisplay(pet.age)),
+          // v465 — on masque la ligne Âge si l'âge affiché est vide (0/inconnu).
+          if (petAgeDisplay(pet.age).isNotEmpty)
+            _kv('pet_age'.tr, petAgeDisplay(pet.age)),
           if (sexLabel.isNotEmpty) _kv('pet_sex'.tr, sexLabel),
           if (pet.weight.isNotEmpty) _kv('pet_weight'.tr, '${pet.weight} kg'),
           if (pet.height.isNotEmpty) _kv('pet_height'.tr, '${pet.height} cm'),

@@ -140,6 +140,31 @@ function setExtraWords(words) {
 
 const STARS = (w) => '*'.repeat(Math.max(3, w.length));
 
+// v465 — Daniel : « PawSpot censure encore des mots espagnols innocents »
+// (« buen paseo para perros » → « buen ****** *** ********** »). Filet de
+// sécurité : une liste BLANCHE de mots courants et clairement inoffensifs
+// (fr/en/es/de/it/pt) qui ne doivent JAMAIS être masqués, même si un mot
+// interdit admin (EXTRA) ou un fragment éclaté venait à matcher. Vérifiée
+// AVANT toute détection, sur la forme dé-leetée (minuscule).
+const SAFE_WORDS = new Set([
+  // ES — mots du quotidien (PawSpot est très utilisé en Espagne)
+  'paseo', 'pasear', 'perro', 'perros', 'perra', 'perras', 'para', 'por',
+  'pueblo', 'parque', 'parques', 'plaza', 'calle', 'casa', 'campo', 'playa',
+  'cuidado', 'ocupado', 'cerrado', 'abierto', 'bueno', 'buena', 'buen',
+  'grande', 'pequeno', 'pequeño', 'sitio', 'lugar', 'zona', 'area', 'agua',
+  'comida', 'sombra', 'banco', 'fuente', 'arboles', 'arbol', 'gato', 'gatos',
+  'mascota', 'mascotas', 'animal', 'animales', 'tranquilo', 'limpio', 'seguro',
+  // FR
+  'promenade', 'chien', 'chiens', 'chat', 'chats', 'parc', 'rue', 'plage',
+  'propre', 'ouvert', 'fermé', 'ferme', 'tranquille', 'ombre', 'eau',
+  // EN
+  'walk', 'dog', 'dogs', 'cat', 'cats', 'park', 'beach', 'clean', 'open',
+  'closed', 'shade', 'water', 'pet', 'pets', 'quiet', 'safe',
+  // PT / IT / DE génériques fréquents
+  'passeio', 'cachorro', 'cao', 'praia', 'parque', 'passeggiata', 'cane',
+  'spiaggia', 'hund', 'park', 'strand',
+]);
+
 /**
  * Analyse + censure un texte.
  * @param {string} text
@@ -183,6 +208,8 @@ function moderateText(text) {
   // dé-leetée matche).
   const clean = working.replace(/[\p{L}\p{N}@$._\-*]+/gu, (token) => {
     const normalized = deLeet(token);
+    // v465 — mot clairement inoffensif → jamais censuré (anti faux positif).
+    if (SAFE_WORDS.has(normalized)) return token;
     PROFANITY_RE.lastIndex = 0;
     let hit = PROFANITY_RE.test(normalized);
     if (!hit && EXTRA_RE) {

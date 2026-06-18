@@ -9,10 +9,27 @@ import 'package:get/get.dart';
 String petAgeDisplay(String? rawAge) {
   final a = (rawAge ?? '').trim();
   if (a.isEmpty) return '';
-  final months = RegExp(r'^(\d+)\s*m$', caseSensitive: false).firstMatch(a);
-  if (months != null) return '${months.group(1)} ${'pet_age_months'.tr}';
-  final years = RegExp(r'^(\d+)\s*y$', caseSensitive: false).firstMatch(a);
-  if (years != null) return '${years.group(1)} ${'pet_age_unit'.tr}';
-  if (RegExp(r'^\d+$').hasMatch(a)) return '$a ${'pet_age_unit'.tr}';
+  // v465 — Daniel : « 0m ans » s'affichait encore. RACINE : un âge INCONNU
+  // (0) ne doit RIEN afficher du tout, et certaines valeurs arrivaient
+  // malformées (« 0m ans », « 0 mois »). On parse le nombre + l'unité de
+  // façon tolérante et on retourne '' dès que le nombre vaut 0.
+  // Mois : « 5m », « 5 m », « 5m ans » (malformé), « 5 mois ».
+  final months =
+      RegExp(r'^(\d+)\s*(?:m\b|mois)', caseSensitive: false).firstMatch(a);
+  if (months != null) {
+    final n = int.tryParse(months.group(1)!) ?? 0;
+    if (n <= 0) return ''; // âge inconnu → on n'affiche rien (fini « 0m ans »)
+    return '$n ${'pet_age_months'.tr}';
+  }
+  // Années : « 2y », « 2 ans », « 2 », « 2 años/years/jahre/anni/anos ».
+  final years = RegExp(
+    r'^(\d+)\s*(?:y\b|ans|años|years|jahre|anni|anos)?',
+    caseSensitive: false,
+  ).firstMatch(a);
+  if (years != null && years.group(1) != null) {
+    final n = int.tryParse(years.group(1)!) ?? 0;
+    if (n <= 0) return '';
+    return '$n ${'pet_age_unit'.tr}';
+  }
   return a; // forme inattendue → affichée telle quelle (jamais d'unité en trop)
 }

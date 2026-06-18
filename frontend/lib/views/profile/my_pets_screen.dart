@@ -243,7 +243,7 @@ class MyPetsScreen extends StatelessWidget {
                     spacing: 14.w,
                     runSpacing: 4.h,
                     children: [
-                      if (pet.age.isNotEmpty)
+                      if (petAgeDisplay(pet.age).isNotEmpty)
                         _petMetric(context, Icons.calendar_today_rounded,
                             petAgeDisplay(pet.age), accent),
                       if (pet.weight.isNotEmpty)

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { petTraitLabel } from "@/lib/petTraits";
 import {
   ApiError,
   RequestPost,
@@ -386,7 +387,7 @@ function PostCard({
                   <div className="mt-1 flex flex-wrap gap-1.5">
                     {p.characterTraits.map((tr) => (
                       <span key={tr} className="rounded-full bg-bg-soft px-2 py-0.5 text-xs text-ink">
-                        {tr}
+                        {petTraitLabel(tr, lang as string)}
                       </span>
                     ))}
                   </div>

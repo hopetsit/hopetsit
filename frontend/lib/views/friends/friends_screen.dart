@@ -302,7 +302,11 @@ class _FriendsTab extends StatelessWidget {
           );
         }
         return ListView.separated(
-          padding: EdgeInsets.all(12.w),
+          // v465 — Daniel : le dernier élément (et son bouton) était caché
+          // derrière la barre système Samsung. On ajoute une marge basse =
+          // inset système + 24 pour qu'il reste toujours visible/scrollable.
+          padding: EdgeInsets.fromLTRB(12.w, 12.w, 12.w,
+              24.h + MediaQuery.of(context).viewPadding.bottom),
           physics: const AlwaysScrollableScrollPhysics(),
           itemCount: controller.friends.length,
           separatorBuilder: (_, __) => SizedBox(height: 10.h),

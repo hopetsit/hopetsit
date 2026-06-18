@@ -8,7 +8,7 @@ import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/controllers/chat_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
-import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/map_ui_state.dart';
 
 /// v462 — NOUVEAU MENU (maquette Claude Design) appliqué AU VRAI wrapper de
 /// navigation (celui réellement monté). Barre flottante blanche arrondie +
@@ -142,11 +142,11 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    // v463 — Daniel : « le menu Samsung passe par-dessus ». On lit l'inset
-    // PHYSIQUE (viewPadding, fiable même en navigation gestuelle, contrairement
-    // à padding.bottom qui peut être sous-évalué) et on pose SOUS le menu une
-    // zone de sécurité colorée (couleur du rôle actif) → le menu n'est jamais
-    // collé au bord inférieur ni recouvert par la barre système Android.
+    // v465 — Daniel : « le menu doit être collé au menu Samsung ». On lit
+    // l'inset PHYSIQUE (viewPadding, fiable même en navigation gestuelle) et on
+    // colle le menu juste au-dessus de la barre système (plus de bande de
+    // sécurité colorée v464). Le menu clearance exactement l'inset → il n'est
+    // ni recouvert par la barre Samsung, ni espacé inutilement.
     final bottomInset = MediaQuery.of(context).viewPadding.bottom;
     return Scaffold(
       extendBody: true,
@@ -154,11 +154,13 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
         index: _currentIndex,
         children: widget.screens,
       ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      // v465 — en mode « carte agrandie » (PawMap), on MASQUE le menu pour que
+      // la carte soit plein écran et que Signaler / Tag Spot / les bandeaux de
+      // validation ne soient plus cachés derrière le menu.
+      bottomNavigationBar: Obx(() => pawMapExpanded.value
+          ? const SizedBox.shrink()
+          : Padding(
+        padding: EdgeInsets.fromLTRB(12, 0, 12, 2 + bottomInset),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           decoration: BoxDecoration(
@@ -188,17 +190,7 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
           ),
         ),
           ),
-          // v463 — Zone de sécurité Android/Samsung : bande de la couleur du
-          // rôle actif sous le menu (owner orange pâle / sitter bleu / walker
-          // vert). Le menu n'est jamais collé au bord ni recouvert par la barre
-          // système. height = inset physique (≥ 8 pour garder un petit espace).
-          Container(
-            width: double.infinity,
-            height: bottomInset > 0 ? bottomInset : 8,
-            color: AppColors.scaffold(context),
-          ),
-        ],
-      ),
+        ),
     );
   }
 

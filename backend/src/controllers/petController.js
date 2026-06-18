@@ -284,7 +284,11 @@ const serializeAge = (pet) => {
   if (!pet) return '';
   const n = Number(pet.age);
   if (pet.age != null && Number.isFinite(n) && n > 0) return String(n);
-  return calculateAge(pet.dob) || pet.dob || '';
+  // v465 — âge dérivé de dob : on NE renvoie PAS « 0m »/« 0y » (âge inconnu)
+  // qui s'affichait « 0m ans ». Si le dérivé vaut zéro, on renvoie '' (rien).
+  const derived = calculateAge(pet.dob) || pet.dob || '';
+  if (/^0+\s*[mMyY]?$/.test(String(derived).trim())) return '';
+  return derived;
 };
 
 const parseVaccinations = (vaccinationStr) => {

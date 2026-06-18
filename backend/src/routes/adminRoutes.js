@@ -200,9 +200,12 @@ async function refreshBannedWords() {
     if (!s || s.toLowerCase().startsWith('[auto]')) return;
     all.push(s);
     if (/\s/.test(s)) {
+      // v465 — on n'éclate plus en fragments TROP COURTS (≥ 4 au lieu de ≥ 2) :
+      // « de », « la », « el », « con »… devenaient des mots interdits et
+      // masquaient du texte innocent. La phrase entière reste gardée (ci-dessus).
       s.split(/[\s,;]+/).forEach((tok) => {
         const t = tok.trim();
-        if (t.length >= 2) all.push(t);
+        if (t.length >= 4) all.push(t);
       });
     }
   };

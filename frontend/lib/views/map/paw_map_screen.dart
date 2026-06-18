@@ -20,6 +20,7 @@ import 'package:hopetsit/services/friend_marker_service.dart';
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/widgets/golden_paw_coin.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -91,7 +92,10 @@ class _PawMapScreenState extends State<PawMapScreen>
   // calque possède sa PROPRE GoogleMap plein écran (instance dédiée, créée à
   // la bonne taille comme l'écran plein écran v457 qui marchait). false par
   // défaut = comportement actuel inchangé.
-  final RxBool _mapExpanded = false.obs;
+  // v465 — réf. à l'état GLOBAL partagé : le wrapper de navigation l'observe
+  // pour MASQUER le menu du bas en mode agrandi (sinon Signaler / Tag Spot /
+  // bandeaux de validation restent cachés derrière le menu).
+  final RxBool _mapExpanded = pawMapExpanded;
 
   /// v23.1.149 — Daniel : "paw map rien napparait le point de geolocolisation
   /// ou le halo nest pas la". `myLocationEnabled: true` du GoogleMap dépend
@@ -259,6 +263,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   @override
   void initState() {
     super.initState();
+    // v465 — on entre toujours en mode NORMAL (jamais bloqué en agrandi).
+    pawMapExpanded.value = false;
     // v23.1 part 243 round 3 — perf : pause _haloTimer quand l'app est
     // en background (Daniel : "sur certain portable sa lague"). Le timer
     // tickait toutes les 600ms meme avec l'app ecran eteint et forcait
@@ -3693,11 +3699,15 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   /// Bouton compact Agrandir / Réduire (≈ 50 % plus petit, discret).
+  /// v465 — en mode AGRANDI, fond ROSE intense (Daniel) ; en mode normal,
+  /// pilule blanche discrète.
   Widget _buildExpandPill({required bool expanded}) {
+    const pink = Color(0xFFEC1E79); // rose intense
+    final fg = expanded ? Colors.white : AppColors.textPrimary(context);
     return Padding(
       padding: EdgeInsets.only(top: 8.h),
       child: Material(
-        color: AppColors.card(context),
+        color: expanded ? pink : AppColors.card(context),
         borderRadius: BorderRadius.circular(14.r),
         child: InkWell(
           borderRadius: BorderRadius.circular(14.r),
@@ -3707,7 +3717,10 @@ class _PawMapScreenState extends State<PawMapScreen>
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14.r),
               border: Border.all(
-                  color: AppColors.greyText.withValues(alpha: 0.25)),
+                color: expanded
+                    ? pink
+                    : AppColors.greyText.withValues(alpha: 0.25),
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -3717,7 +3730,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                       ? Icons.close_fullscreen_rounded
                       : Icons.open_in_full_rounded,
                   size: 16.sp,
-                  color: AppColors.textPrimary(context),
+                  color: fg,
                 ),
                 SizedBox(height: 2.h),
                 InterText(
@@ -3726,7 +3739,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                       : 'pawmap_expand_short'.tr,
                   fontSize: 9.sp,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary(context),
+                  color: fg,
                 ),
               ],
             ),
