@@ -360,6 +360,19 @@ class EditPetScreen extends StatelessWidget {
                             },
                           ),
                           SizedBox(height: 16.h),
+                          // v471 — Daniel : « l'âge du chien n'apparaît nulle part ».
+                          // RACINE : il n'y avait AUCUN champ Âge dans le formulaire
+                          // (seulement la date de naissance, souvent non remplie) →
+                          // l'âge restait vide partout. Champ Âge (années) direct,
+                          // sauvegardé tel quel (priorité sur la date de naissance).
+                          CustomTextField(
+                            labelText: 'edit_pet_age_years'.tr,
+                            hintText: 'edit_pet_age_years'.tr,
+                            controller: controller.ageController,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.next,
+                          ),
+                          SizedBox(height: 16.h),
                           Row(
                             children: [
                               Expanded(

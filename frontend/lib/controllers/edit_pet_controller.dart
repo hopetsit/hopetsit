@@ -139,7 +139,11 @@ class EditPetController extends GetxController {
     currentAvatarUrl.value = pet.avatar.url;
 
     // Sprint 5 UI step 2 — enriched fields.
-    ageController.text = pet.age;
+    // v471 — Daniel : « l'âge n'apparaît nulle part ». Le champ Âge n'était PAS
+    // affiché dans le formulaire → jamais saisi → jamais enregistré (l'âge ne
+    // pouvait venir QUE de la date de naissance, souvent vide). On charge un
+    // nombre PROPRE (« 5y »/« 5 ans » → « 5 ») pour le champ Âge désormais visible.
+    ageController.text = pet.age.replaceAll(RegExp(r'[^0-9]'), '');
     behaviorController.text = pet.behavior;
     regularVetNameController.text = pet.regularVet.name;
     regularVetPhoneController.text = pet.regularVet.phone;

@@ -141,11 +141,11 @@ class ProfileScreen extends StatelessWidget {
           // v23.1.290 — hauteur MINIMALE (au lieu de fixe) : le header s'étend
           // si les badges passent sur 2 lignes (PawFollow + Famille + Boost +
           // PawSpot) au lieu de déborder sous le dégradé.
-          // v470 — Daniel : « les cadres orange/bleu/vert TOUJOURS pas réduits ».
-          // On descend le minHeight à 72 (le contenu logo+nom+badges fait
-          // désormais le vrai plancher) + avatar plus petit (80) → plus d'espace
-          // vide sous les badges.
-          constraints: BoxConstraints(minHeight: 72.h),
+          // v471 — Daniel : « réduis BEAUCOUP plus, juste un peu en dessous des
+          // badges ». On colle le cadre au contenu : minHeight 56 + padding
+          // vertical 3 + nom 18 + gap 2 + avatar 70 → le cadre s'arrête juste
+          // sous la ligne des badges, plus aucun vide.
+          constraints: BoxConstraints(minHeight: 56.h),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -159,7 +159,7 @@ class ProfileScreen extends StatelessWidget {
           ),
           child: SafeArea(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 6.h),
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 3.h),
               // v23.1 part 130 — Phase 6 audit P6-5 : Daniel "Photo profil
               // gene". L'avatar overlap les badges Premium/Boost/PawSpot.
               // Solution : on réserve 130.w à droite pour que la Column
@@ -207,10 +207,10 @@ class ProfileScreen extends StatelessWidget {
                             const ProfileNotificationBell(role: 'owner'),
                           ],
                         ),
-                        SizedBox(height: 6.h),
+                        SizedBox(height: 2.h),
                         Obx(() => PoppinsText(
                           text: controller.userName.value,
-                          fontSize: 22.sp,
+                          fontSize: 18.sp,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
                           maxLines: 1,
@@ -241,7 +241,7 @@ class ProfileScreen extends StatelessWidget {
         // de 55r). Look "Instagram profile".
         Positioned(
           right: 20.w,
-          top: 30.h,
+          top: 22.h,
           child: _buildOwnerAvatar(controller),
         ),
       ],
@@ -269,9 +269,9 @@ class ProfileScreen extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(55.r),
               child: Container(
-                // v470 — avatar réduit (80 au lieu de 100) → hero plus compact.
-                width: 80.w,
-                height: 80.w,
+                // v471 — avatar réduit (70) → hero encore plus compact.
+                width: 70.w,
+                height: 70.w,
                 color: AppColors.lightGrey,
                 child: isUploading
                     ? Center(
@@ -282,8 +282,8 @@ class ProfileScreen extends StatelessWidget {
                     : imageUrl.isNotEmpty
                     ? CachedNetworkImage(
                         imageUrl: imageUrl,
-                        width: 80.w,
-                        height: 80.w,
+                        width: 70.w,
+                        height: 70.w,
                         memCacheWidth: 300, // v235.
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(

@@ -154,9 +154,9 @@ class WalkerProfileScreen extends StatelessWidget {
           // passent sur 2 lignes au lieu de déborder sous le dégradé.
           // v465/v467/v469 — Daniel : « toujours trop grand » → 100 + padding
           // resserré (hero compact, plus d'espace vide sous les badges).
-          // v470 — Daniel : « cadre vert TOUJOURS pas réduit » → 76 + avatar
-          // plus petit (72) → hero compact, plus d'espace vide sous les badges.
-          constraints: BoxConstraints(minHeight: 76.h),
+          // v471 — Daniel : « réduis BEAUCOUP plus, juste sous les badges » → 58
+          // + padding/nom resserrés + avatar 72 → hero ultra-compact.
+          constraints: BoxConstraints(minHeight: 58.h),
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -170,7 +170,7 @@ class WalkerProfileScreen extends StatelessWidget {
           ),
           child: SafeArea(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 6.h),
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 3.h),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -226,12 +226,12 @@ class WalkerProfileScreen extends StatelessWidget {
                             const ProfileNotificationBell(role: 'walker'),
                           ],
                         ),
-                        SizedBox(height: 10.h),
+                        SizedBox(height: 3.h),
                         Obx(() => PoppinsText(
                               text: controller.userName.value.isEmpty
                                   ? 'walker_profile_title'.tr
                                   : controller.userName.value,
-                              fontSize: 22.sp,
+                              fontSize: 18.sp,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
                               maxLines: 1,

@@ -136,9 +136,9 @@ class SitterProfileScreen extends StatelessWidget {
           width: double.infinity,
           // v23.1.290 — hauteur MINIMALE : le header s'étend si les badges
           // passent sur 2 lignes au lieu de déborder sous le dégradé.
-          // v470 — Daniel : « cadre bleu TOUJOURS pas réduit » → 76 + avatar
-          // plus petit (radius 36) → hero compact, plus d'espace vide.
-          constraints: BoxConstraints(minHeight: 76.h),
+          // v471 — Daniel : « réduis BEAUCOUP plus, juste sous les badges » → 58
+          // + padding/nom resserrés + avatar radius 36 → hero ultra-compact.
+          constraints: BoxConstraints(minHeight: 58.h),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -152,7 +152,7 @@ class SitterProfileScreen extends StatelessWidget {
           ),
           child: SafeArea(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 6.h),
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 3.h),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -209,10 +209,10 @@ class SitterProfileScreen extends StatelessWidget {
                             const ProfileNotificationBell(role: 'sitter'),
                           ],
                         ),
-                        SizedBox(height: 8.h),
+                        SizedBox(height: 3.h),
                         Obx(() => PoppinsText(
                           text: controller.userName.value,
-                          fontSize: 22.sp,
+                          fontSize: 18.sp,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
                         )),
