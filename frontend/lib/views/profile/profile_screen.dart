@@ -67,6 +67,9 @@ class ProfileScreen extends StatelessWidget {
               return Container(
                 decoration: isBoosted
                     ? BoxDecoration(
+                        // v473 — suit les coins arrondis du nouvel en-tête.
+                        borderRadius:
+                            BorderRadius.vertical(bottom: Radius.circular(30.r)),
                         border: Border.all(color: boostGold, width: 3),
                         boxShadow: [
                           BoxShadow(
@@ -138,13 +141,11 @@ class ProfileScreen extends StatelessWidget {
         // Gradient background
         Container(
           width: double.infinity,
-          // v23.1.290 — hauteur MINIMALE (au lieu de fixe) : le header s'étend
-          // si les badges passent sur 2 lignes (PawFollow + Famille + Boost +
-          // PawSpot) au lieu de déborder sous le dégradé.
-          // v471 — Daniel : « réduis BEAUCOUP plus, juste un peu en dessous des
-          // badges ». On colle le cadre au contenu : minHeight 56 + padding
-          // vertical 3 + nom 18 + gap 2 + avatar 70 → le cadre s'arrête juste
-          // sous la ligne des badges, plus aucun vide.
+          // v473 — refonte MODERNE des en-têtes par rôle (Daniel) : cadre carte
+          // au dégradé, coins INFÉRIEURS arrondis (30) + ombre douce colorée =
+          // look HD avec profondeur, au lieu d'un bandeau plat. Hauteur compacte
+          // conservée (minHeight 56).
+          clipBehavior: Clip.antiAlias,
           constraints: BoxConstraints(minHeight: 56.h),
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -156,6 +157,14 @@ class ProfileScreen extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(30.r)),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryColor.withValues(alpha: 0.32),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: SafeArea(
             child: Padding(

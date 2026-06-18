@@ -138,6 +138,9 @@ class SitterProfileScreen extends StatelessWidget {
           // passent sur 2 lignes au lieu de déborder sous le dégradé.
           // v471 — Daniel : « réduis BEAUCOUP plus, juste sous les badges » → 58
           // + padding/nom resserrés + avatar radius 36 → hero ultra-compact.
+          // v473 — refonte MODERNE (Daniel) : coins inférieurs arrondis + ombre
+          // douce bleue = en-tête carte HD avec profondeur. Compact conservé.
+          clipBehavior: Clip.antiAlias,
           constraints: BoxConstraints(minHeight: 58.h),
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -149,6 +152,14 @@ class SitterProfileScreen extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(30.r)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0D47A1).withValues(alpha: 0.32),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: SafeArea(
             child: Padding(

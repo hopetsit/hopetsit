@@ -156,9 +156,12 @@ class WalkerProfileScreen extends StatelessWidget {
           // resserré (hero compact, plus d'espace vide sous les badges).
           // v471 — Daniel : « réduis BEAUCOUP plus, juste sous les badges » → 58
           // + padding/nom resserrés + avatar 72 → hero ultra-compact.
+          // v473 — refonte MODERNE (Daniel) : coins inférieurs arrondis + ombre
+          // douce verte = en-tête carte HD avec profondeur. Compact conservé.
+          clipBehavior: Clip.antiAlias,
           constraints: BoxConstraints(minHeight: 58.h),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
               colors: [
                 Color(0xFF1B5E20), // Dark green
                 _accent,
@@ -167,6 +170,14 @@ class WalkerProfileScreen extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(30.r)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF1B5E20).withValues(alpha: 0.32),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: SafeArea(
             child: Padding(
