@@ -2465,19 +2465,21 @@ class _PawMapScreenState extends State<PawMapScreen>
                     bottom: 84.h + MediaQuery.of(context).viewPadding.bottom,
                     child: Center(child: _buildDirectionsBanner()),
                   ),
-              ],
-            ),
+              // 2) Contrôles du haut EN SURIMPRESSION — placés DANS LE MÊME
+              // Stack que la carte + les FAB. v458 les mettait dans un Stack
+              // PARENT séparé → ils passaient SOUS la surface native Android de
+              // la GoogleMap (invisibles + non cliquables = « tout bloqué »),
+              // alors que les FAB de CE Stack s'affichent bien. On les remet
+              // donc ici, en dernier (donc au-dessus de la carte).
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: _buildTopControlsOverlay(),
+              ),
+            ],
           ),
-
-          // 2) Contrôles du haut EN SURIMPRESSION sur la carte (qui reste
-          // pleine taille en permanence). Le mode agrandi masque les 4 cartes
-          // + filtres ; la rangée « Partager ma position + Agrandir » reste.
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: _buildTopControlsOverlay(),
-          ),
+        ),
         ],
       ),
       ),
