@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
@@ -7,12 +8,24 @@ import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/controllers/chat_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
-import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/app_images.dart';
 
-/// v23.1 part 33 — TENTATIVE COMPLÈTEMENT NOUVELLE : utilise BottomNavigationBar
-/// natif Flutter au lieu de notre CustomNavigationBar custom. Si le bug du
-/// rectangle gris vient de notre widget custom, le natif l'éliminera.
+/// v462 — NOUVEAU MENU (maquette Claude Design) appliqué AU VRAI wrapper de
+/// navigation (celui réellement monté). Barre flottante blanche arrondie +
+/// icônes duotone SVG + bouton central « Paw Map » en pilule orange surélevée.
+///
+/// ⚠️ Le widget `CustomNavigationBar` (lib/widgets/custom_navigation_bar.dart)
+/// n'est PAS utilisé par l'app (code mort, supprimé du build par tree-shaking) :
+/// c'est CE wrapper-ci qui dessine la barre du bas. Toute modif visuelle du
+/// menu doit se faire ICI.
+///
+/// Logique 100% préservée : IndexedStack des écrans, onTap (setState +
+/// refresh notif onglet Accueil + reload conversations onglet Chat + resync
+/// badge chat serveur), badge non-lus Chat (rouge, unreadChat) + badge
+/// « action requise » Réservations (vert, pendingActionCount role-aware).
+const Color _kAccent = Color(0xFFF2741B);
+const Color _kAccentDark = Color(0xFFE0660F);
+const Color _kInactive = Color(0xFF7D7D82);
+
 class StackedNavigationWrapper extends StatefulWidget {
   final List<Widget> screens;
 
@@ -39,19 +52,8 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     Get.find<NotificationsController>().refreshUnreadCount();
   }
 
-  Color _activeColor() {
-    final role = Get.isRegistered<AuthController>()
-        ? (Get.find<AuthController>().userRole.value ?? 'owner').toLowerCase()
-        : 'owner';
-    if (role == 'walker') return const Color(0xFF16A34A);
-    if (role == 'sitter') return const Color(0xFF2563EB);
-    return AppColors.primaryColor;
-  }
-
-  /// v23.1.266 — Daniel : "un petit badge stylé pour la demande de
-  /// confirmation". Nombre de réservations en attente de l'action de
-  /// l'utilisateur (owner : à confirmer ; prestataire : à démarrer/terminer).
-  /// Role-aware : lit le bon contrôleur de réservations.
+  /// Nombre de réservations en attente d'action (owner : à confirmer ;
+  /// prestataire : à démarrer/terminer). Role-aware.
   int _bookingsBadgeCount() {
     final role = Get.isRegistered<AuthController>()
         ? (Get.find<AuthController>().userRole.value ?? 'owner').toLowerCase()
@@ -70,191 +72,238 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     return 0;
   }
 
+  void _onTap(int index) {
+    setState(() => _currentIndex = index);
+    if (index == 0) _refreshNotificationBadge();
+    if (index == 1) {
+      if (Get.isRegistered<ChatController>()) {
+        Get.find<ChatController>().reloadConversations();
+      }
+      if (Get.isRegistered<SitterChatController>()) {
+        Get.find<SitterChatController>().reloadConversations();
+      }
+      // v448 — resync sur le VRAI total serveur (ne pas forcer 0 localement).
+      if (Get.isRegistered<NotificationsController>()) {
+        Get.find<NotificationsController>().syncChatBadgeFromServer();
+      }
+    }
+  }
+
+  // ── Icônes duotone (SVG injecté selon actif/inactif) ──
+  String _hex(bool a) => a ? '#F2741B' : '#7D7D82';
+  String _lite(bool a) => a ? '#F2741B26' : '#7D7D8222';
+
+  String _pawSvg(bool a) {
+    final f = _hex(a);
+    return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="$f">
+<ellipse cx="6.4" cy="10.6" rx="2" ry="2.6"/><ellipse cx="10.3" cy="7.2" rx="2" ry="2.7"/>
+<ellipse cx="14.7" cy="7.2" rx="2" ry="2.7"/><ellipse cx="18.6" cy="10.6" rx="2" ry="2.6"/>
+<path d="M12.5 12c-2.6 0-4.8 1.9-5.5 4.1-.5 1.7.4 3.3 2.2 3.6 1 .2 1.8-.3 2.7-.5.4-.1.8-.1 1.2 0 .9.2 1.7.7 2.7.5 1.8-.3 2.7-1.9 2.2-3.6-.7-2.2-2.9-4.1-5.5-4.1Z"/></svg>''';
+  }
+
+  String _chatSvg(bool a) {
+    final s = _hex(a);
+    final l = _lite(a);
+    return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="$s" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+<path d="M12.2 4C7.4 4 3.6 7 3.6 11c0 1.7.7 3.2 1.8 4.4L4 19.7l4.5-1.4c1.1.4 2.4.6 3.7.6 4.8 0 8.6-3 8.6-7s-3.8-7-8.6-7.9Z" fill="$l" stroke="none"/>
+<path d="M12.2 4C7.4 4 3.6 7 3.6 11c0 1.7.7 3.2 1.8 4.4L4 19.7l4.5-1.4c1.1.4 2.4.6 3.7.6 4.8 0 8.6-3 8.6-7S17 4 12.2 4Z"/>
+<circle cx="8.9" cy="11.2" r="1" fill="$s" stroke="none"/><circle cx="12.3" cy="11.2" r="1" fill="$s" stroke="none"/><circle cx="15.7" cy="11.2" r="1" fill="$s" stroke="none"/></svg>''';
+  }
+
+  String _calSvg(bool a) {
+    final s = _hex(a);
+    final l = _lite(a);
+    return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="$s" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<rect x="3.4" y="4.8" width="17.2" height="15.8" rx="4.2" fill="$l" stroke="none"/>
+<rect x="3.4" y="4.8" width="17.2" height="15.8" rx="4.2"/>
+<path d="M3.5 9.4h17" stroke-width="1.9"/><path d="M7.8 3v3.4M16.2 3v3.4"/>
+<circle cx="8.3" cy="13.4" r="1.1" fill="$s" stroke="none"/><circle cx="12" cy="13.4" r="1.1" fill="$s" stroke="none"/><circle cx="15.7" cy="13.4" r="1.1" fill="$s" stroke="none"/>
+<circle cx="8.3" cy="16.9" r="1.1" fill="$s" stroke="none"/><circle cx="12" cy="16.9" r="1.1" fill="$s" stroke="none"/></svg>''';
+  }
+
+  String _userSvg(bool a) {
+    final s = _hex(a);
+    final l = _lite(a);
+    return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="$s" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M12 13.4c-4 0-7.2 2.6-7.2 6.6 0 .4.3.6.7.6h13c.4 0 .7-.2.7-.6 0-4-3.2-6.6-7.2-6.6Z" fill="$l" stroke="none"/>
+<circle cx="12" cy="8" r="3.8" fill="$l"/><circle cx="12" cy="8" r="3.8"/>
+<path d="M4.8 20.2c0-4 3.2-6.6 7.2-6.6s7.2 2.6 7.2 6.6"/></svg>''';
+  }
+
+  static const String _centreSvg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" fill="none">
+<path d="M3 11 7.5 9.2v11.6L3 22.6V11Z" fill="#fff" opacity="0.9"/>
+<path d="M20.5 9.2 25 11v11.6l-4.5-1.8V9.2Z" fill="#fff" opacity="0.9"/>
+<path d="M7.5 9.2 20.5 11v9.8L7.5 20.8V9.2Z" fill="#fff" opacity="0.9"/>
+<path d="M7.5 9.2v11.6M20.5 9.2v11.6" stroke="#F2741B" stroke-width="1" opacity="0.3" stroke-linecap="round"/>
+<path d="M14 2c-3.4 0-6.1 2.6-6.1 6 0 4.2 6.1 10.2 6.1 10.2S20.1 12.2 20.1 8c0-3.4-2.7-6-6.1-6Z" fill="#fff" stroke="#F2741B" stroke-width="1.1"/>
+<ellipse cx="11.4" cy="6.4" rx="0.95" ry="1.2" fill="#F2741B"/><ellipse cx="14" cy="5.5" rx="0.95" ry="1.2" fill="#F2741B"/><ellipse cx="16.6" cy="6.4" rx="0.95" ry="1.2" fill="#F2741B"/>
+<path d="M14 7.7c-1.5 0-2.7 1-3.1 2.2-.3.9.2 1.8 1.1 2 .5.1 1-.1 1.4-.2.4-.1.7-.1 1.1 0 .5.1.9.3 1.4.2.9-.2 1.4-1.1 1.1-2-.4-1.2-1.6-2.2-3-2.2Z" fill="#F2741B"/></svg>''';
+
   @override
   Widget build(BuildContext context) {
-    final activeColor = _activeColor();
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scaffold(
+      extendBody: true,
       body: IndexedStack(
         index: _currentIndex,
         children: widget.screens,
       ),
-      bottomNavigationBar: Theme(
-        data: Theme.of(context).copyWith(
-          // v23.1 part 33 — kill toute Material 3 highlight Indicator que
-          // Flutter pourrait injecter automatiquement.
-          splashFactory: NoSplash.splashFactory,
-          highlightColor: Colors.transparent,
-          splashColor: Colors.transparent,
+      bottomNavigationBar: Padding(
+        padding: EdgeInsets.fromLTRB(12, 0, 12, 8 + bottomInset),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF14141E).withValues(alpha: 0.10),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: const Color(0xFF14141E).withValues(alpha: 0.04),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              _navTab(0, _pawSvg, 'nav_home'.tr),
+              _navTab(1, _chatSvg, 'nav_chat'.tr, badge: _chatBadge),
+              _centerTab(),
+              _navTab(3, _calSvg, 'nav_bookings'.tr, badge: _bookingsBadge),
+              _navTab(4, _userSvg, 'nav_profile'.tr),
+            ],
+          ),
         ),
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: activeColor,
-          unselectedItemColor: const Color(0xFF9E9E9E),
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          selectedFontSize: 11,
-          unselectedFontSize: 11,
-          elevation: 8,
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() => _currentIndex = index);
-            if (index == 0) _refreshNotificationBadge();
-            if (index == 1) {
-              if (Get.isRegistered<ChatController>()) {
-                Get.find<ChatController>().reloadConversations();
-              }
-              if (Get.isRegistered<SitterChatController>()) {
-                Get.find<SitterChatController>().reloadConversations();
-              }
-              // v448 — AUDIT MESSAGERIE : NE PLUS forcer le badge à 0 ici.
-              // Mettre 0 localement alors que le serveur garde des conversations
-              // non lues = le badge « revient » au prochain resync/reconnexion.
-              // On resynchronise sur le VRAI total serveur (le badge ne descend
-              // que lorsque les conversations sont réellement ouvertes/lues).
-              // Aligné sur custom_navigation_bar.dart (fix v444).
-              if (Get.isRegistered<NotificationsController>()) {
-                Get.find<NotificationsController>().syncChatBadgeFromServer();
-              }
-            }
-          },
-          items: [
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                AppImages.pawIcon,
-                width: 22,
-                height: 22,
-                color: _currentIndex == 0 ? activeColor : const Color(0xFF9E9E9E),
-              ),
-              label: 'nav_home'.tr,
+      ),
+    );
+  }
+
+  Widget _navTab(int index, String Function(bool) svg, String label,
+      {Widget Function()? badge}) {
+    final active = _currentIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _onTap(index),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                SvgPicture.string(svg(active), width: 26, height: 26),
+                if (badge != null)
+                  Positioned(top: -5, right: -7, child: badge()),
+              ],
             ),
-            BottomNavigationBarItem(
-              // v23.1 part 63 — Bug H : red unread-chat badge on the chat
-              // tab icon. Reads NotificationsController.unreadChat (RxInt)
-              // which is bumped by chat_controller's "message:new" socket
-              // listener. The Obx auto-rebuilds when the counter changes.
-              icon: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Image.asset(
-                    AppImages.chatIcon,
-                    width: 22,
-                    height: 22,
-                    color: _currentIndex == 1
-                        ? activeColor
-                        : const Color(0xFF9E9E9E),
-                  ),
-                  if (Get.isRegistered<NotificationsController>())
-                    Positioned(
-                      top: -4,
-                      right: -6,
-                      child: Obx(() {
-                        final n = Get.find<NotificationsController>()
-                            .unreadChat
-                            .value;
-                        if (n <= 0) return const SizedBox.shrink();
-                        final label = n > 9 ? '9+' : n.toString();
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 1),
-                          constraints: const BoxConstraints(
-                              minWidth: 16, minHeight: 16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEF4324),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.white, width: 1.5),
-                          ),
-                          child: Text(
-                            label,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              height: 1.1,
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                ],
+            const SizedBox(height: 4),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                color: active ? _kAccent : _kInactive,
               ),
-              label: 'nav_chat'.tr,
-            ),
-            BottomNavigationBarItem(
-              icon: Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: activeColor,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.map_rounded,
-                  size: 20,
-                  color: Colors.white,
-                ),
-              ),
-              label: '',
-            ),
-            BottomNavigationBarItem(
-              // v23.1.266 — badge vert "action requise" (confirmer / démarrer /
-              // terminer un service) sur l'onglet Réservations.
-              icon: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Image.asset(
-                    AppImages.calendarIcon,
-                    width: 22,
-                    height: 22,
-                    color: _currentIndex == 3
-                        ? activeColor
-                        : const Color(0xFF9E9E9E),
-                  ),
-                  Positioned(
-                    top: -4,
-                    right: -6,
-                    child: Obx(() {
-                      final n = _bookingsBadgeCount();
-                      if (n <= 0) return const SizedBox.shrink();
-                      final label = n > 9 ? '9+' : n.toString();
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
-                        constraints: const BoxConstraints(
-                            minWidth: 16, minHeight: 16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF16A34A),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.white, width: 1.5),
-                        ),
-                        child: Text(
-                          label,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            height: 1.1,
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                ],
-              ),
-              label: 'nav_bookings'.tr,
-            ),
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                AppImages.personIcon,
-                width: 22,
-                height: 22,
-                color: _currentIndex == 4 ? activeColor : const Color(0xFF9E9E9E),
-              ),
-              label: 'nav_profile'.tr,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Badge ROUGE non-lus Chat (unreadChat).
+  Widget _chatBadge() {
+    if (!Get.isRegistered<NotificationsController>()) {
+      return const SizedBox.shrink();
+    }
+    return Obx(() {
+      final n = Get.find<NotificationsController>().unreadChat.value;
+      if (n <= 0) return const SizedBox.shrink();
+      return _pill(n > 9 ? '9+' : n.toString(), const Color(0xFFEF4324));
+    });
+  }
+
+  /// Badge VERT « action requise » Réservations (pendingActionCount).
+  Widget _bookingsBadge() {
+    return Obx(() {
+      final n = _bookingsBadgeCount();
+      if (n <= 0) return const SizedBox.shrink();
+      return _pill(n > 9 ? '9+' : n.toString(), const Color(0xFF16A34A));
+    });
+  }
+
+  Widget _pill(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          height: 1.1,
+        ),
+      ),
+    );
+  }
+
+  /// Bouton central « Paw Map » : pilule ORANGE surélevée + icône carte+pin+patte.
+  Widget _centerTab() {
+    final active = _currentIndex == 2;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _onTap(2),
+      child: AnimatedScale(
+        scale: active ? 1.04 : 1.0,
+        duration: const Duration(milliseconds: 160),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [_kAccent, _kAccentDark],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: _kAccent.withValues(alpha: 0.40),
+                blurRadius: 16,
+                offset: const Offset(0, 7),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SvgPicture.string(_centreSvg, width: 30, height: 30),
+              const SizedBox(height: 3),
+              const Text(
+                'Paw Map',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  height: 1.0,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

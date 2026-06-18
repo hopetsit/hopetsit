@@ -124,11 +124,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   // type de spot ('path_walk'...) ou '__golden__' (empreinte dorée 🐾).
   final Map<String, BitmapDescriptor> _spotEmojiMarkers = {};
   final RxBool _showReports = true.obs;
-  // v458 — Daniel : mode « agrandir la carte » EN PLACE et SÛR. La carte
-  // occupe TOUJOURS tout le body (jamais redimensionnée → jamais de blanc) ;
-  // ce flag masque seulement les contrôles du haut (4 cartes + filtres) pour
-  // voir la carte au maximum. false par défaut, non persisté.
-  final RxBool _mapExpanded = false.obs;
   final RxBool _showFriends = true.obs;
   final RxBool _showRequests = true.obs;
   // v23.1.285 — Daniel : "améliore le menu de la pawmap comme la photo".
@@ -2170,14 +2165,30 @@ class _PawMapScreenState extends State<PawMapScreen>
           ),
         ],
       ),
-      // v458 — Daniel : « agrandir » EN PLACE et SÛR. La carte remplit TOUT le
-      // body en permanence (taille FIXE → jamais redimensionnée → jamais de
-      // blanc Android) ; les contrôles du haut sont EN SURIMPRESSION. Le mode
-      // agrandi masque juste les 4 cartes + filtres → carte au maximum.
-      body: Stack(
+      body: Column(
         children: [
-          // 1) La carte + tous ses overlays occupent tout le body (taille fixe).
-          Positioned.fill(
+          // v21.1.1 — Banner "Live actif" : visible quand l'user broadcast
+          // sa position. Met en valeur PawFollow + permet stop rapide.
+          _buildLiveBroadcastBanner(),
+
+          // v23.1.184 — Daniel : "je veux que tu reorganise la paw map
+          // dans ce style" (mockup avec 4 grosses cartes colorees Suivre
+          // / Famille & Amis / Alertes / Signaler). Remplace les anciens
+          // _buildQuickSignalRow + _buildEmergencyRow qui faisaient
+          // doublon avec le FAB et chargeaient l'ecran.
+          _buildQuickActionsRow(),
+
+          // v23.1.363 — Daniel : Signalements/Mon cercle fusionnés sur LA
+          // MÊME ligne que Lieux/Tous/Rien (voir _buildCategoryFilterBar).
+
+          // v23.1.285 — Daniel : "améliore le menu de la pawmap comme la photo".
+          // Filtre catégories POI : bouton « Lieux (N) » + bouton « Tous », qui
+          // ouvre une checklist 2 colonnes repliable (au lieu des puces qui
+          // défilaient horizontalement et qu'on ne voyait pas en entier).
+          _buildCategoryFilterBar(),
+
+          // Map
+          Expanded(
             child: Stack(
               children: [
                 Obx(() {
@@ -2372,18 +2383,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // a déjà rechercher en haut à droite" (icône 🔍 de l'AppBar).
                 // La pill de recherche ville flottante est retirée. Les
                 // contrôles +/-/géoloc remontent en haut à droite.
-                // v458 — la carte occupe tout le body : les contrôles +/-/géoloc
-                // descendent au CENTRE-DROIT (sinon ils passent SOUS la
-                // surimpression des contrôles du haut). Masqués en mode agrandi.
                 Positioned(
+                  top: 12.h,
                   right: 12.w,
-                  top: 0,
-                  bottom: 0,
-                  child: Center(
-                    child: Obx(() => _mapExpanded.value
-                        ? const SizedBox.shrink()
-                        : _buildMapControlsStack()),
-                  ),
+                  child: _buildMapControlsStack(),
                 ),
 
                 // v23.1 part 67 — Daniel : "2 boutons qui se chevauchent".
@@ -2400,21 +2403,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 Positioned(
                   left: 12.w,
                   bottom: 24.h + MediaQuery.of(context).viewPadding.bottom,
-                  // v458 — rond Signaler TOUJOURS visible ; en mode agrandi on
-                  // AJOUTE au-dessus un rond « Tag spot » (PawSpot) pour taguer
-                  // un lieu (Daniel : agrandi = Signaler + PawSpot).
-                  child: Obx(() {
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_mapExpanded.value) ...[
-                          _buildTagSpotFab(),
-                          SizedBox(height: 12.h),
-                        ],
-                        _buildReportFab(),
-                      ],
-                    );
-                  }),
+                  child: _buildReportFab(),
                 ),
 
                 // v456 — POINT ROUGE FIXE au centre (placement précis), pour
@@ -2447,11 +2436,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     left: 72.w,
                     right: 12.w,
                     bottom: 12.h + MediaQuery.of(context).viewPadding.bottom,
-                    // v458 — masquée en mode agrandi (Daniel : agrandi = juste
-                    // les 2 boutons du haut + Signaler + Tag spot).
-                    child: Obx(() => _mapExpanded.value
-                        ? const SizedBox.shrink()
-                        : _buildAroundYouCard()),
+                    child: _buildAroundYouCard(),
                   )
                 else
                   Positioned(
@@ -2465,100 +2450,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                     bottom: 84.h + MediaQuery.of(context).viewPadding.bottom,
                     child: Center(child: _buildDirectionsBanner()),
                   ),
-              // 2) Contrôles du haut EN SURIMPRESSION — placés DANS LE MÊME
-              // Stack que la carte + les FAB. v458 les mettait dans un Stack
-              // PARENT séparé → ils passaient SOUS la surface native Android de
-              // la GoogleMap (invisibles + non cliquables = « tout bloqué »),
-              // alors que les FAB de CE Stack s'affichent bien. On les remet
-              // donc ici, en dernier (donc au-dessus de la carte).
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: _buildTopControlsOverlay(),
-              ),
-            ],
-          ),
-        ),
-        ],
-      ),
-      ),
-    );
-  }
-
-  /// v458 — contrôles du haut en surimpression. La rangée « Partager ma
-  /// position » (mi-largeur) + bouton ROSE Agrandir/Réduire reste TOUJOURS
-  /// visible ; les 4 grosses cartes + la barre de filtres ne s'affichent QUE
-  /// hors mode agrandi.
-  Widget _buildTopControlsOverlay() {
-    return Obx(() {
-      final expanded = _mapExpanded.value;
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildShareAndExpandRow(expanded),
-          if (!expanded) ...[
-            _buildQuickActionsRow(),
-            _buildCategoryFilterBar(),
-          ],
-        ],
-      );
-    });
-  }
-
-  /// Rangée : « Partager ma position » (mi-largeur) + bouton ROSE Agrandir /
-  /// Réduire la carte (Daniel : à droite, en rose, toujours visible).
-  Widget _buildShareAndExpandRow(bool expanded) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Partager ma position (réduite : prend la largeur restante).
-          Expanded(child: _buildLiveBroadcastBanner()),
-          SizedBox(width: 8.w),
-          // Bouton ROSE Agrandir / Réduire.
-          GestureDetector(
-            onTap: () => _mapExpanded.value = !_mapExpanded.value,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 14.w),
-              constraints: BoxConstraints(minWidth: 84.w),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEC407A),
-                borderRadius: BorderRadius.circular(16.r),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFEC407A).withValues(alpha: 0.35),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    expanded
-                        ? Icons.fullscreen_exit_rounded
-                        : Icons.fullscreen_rounded,
-                    color: Colors.white,
-                    size: 22.sp,
-                  ),
-                  SizedBox(height: 2.h),
-                  InterText(
-                    text: (expanded ? 'pawmap_reduce_map' : 'pawmap_expand_map')
-                        .tr,
-                    fontSize: 10.sp,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    maxLines: 1,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+              ],
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -3802,49 +3698,6 @@ class _PawMapScreenState extends State<PawMapScreen>
             text: 'pawmap_btn_send'.tr,
             fontSize: 10.sp,
             color: const Color(0xFFDC2626),
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// v458 — rond doré « Tag spot » (PawSpot) affiché AU-DESSUS de Signaler en
-  /// mode carte agrandie : lance le viseur de pose d'un PawSpot.
-  Widget _buildTagSpotFab() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 48.w,
-          height: 48.w,
-          child: FloatingActionButton(
-            heroTag: 'tagSpotFab',
-            backgroundColor: const Color(0xFFE8A00A),
-            elevation: 6,
-            shape: const CircleBorder(),
-            onPressed: _startSpotPicking,
-            child: GoldenPawCoin(size: 24.w),
-          ),
-        ),
-        SizedBox(height: 4.h),
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8.r),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: InterText(
-            text: 'pawmap_tag_spot'.tr,
-            fontSize: 10.sp,
-            color: const Color(0xFFB8810A),
             fontWeight: FontWeight.w800,
           ),
         ),
