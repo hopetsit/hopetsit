@@ -161,7 +161,11 @@ class SitterProfileScreen extends StatelessWidget {
               ),
             ],
           ),
-          child: SafeArea(
+          child: Stack(
+            children: [
+              _heroPaw(),
+              _heroDecoCircle(),
+              SafeArea(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 3.h),
               child: Row(
@@ -270,10 +274,37 @@ class SitterProfileScreen extends StatelessWidget {
               ),
             ),
           ),
+              ],
+            ),
         ),
       ],
     );
   }
+
+  /// 🐾 filigrane + cercle déco (maquette Daniel — profondeur HD).
+  Widget _heroPaw() => Positioned(
+        right: -26.w,
+        top: -24.h,
+        child: Transform.rotate(
+          angle: 0.31,
+          child: Text('🐾',
+              style: TextStyle(
+                  fontSize: 150.sp, color: Colors.white.withValues(alpha: 0.10))),
+        ),
+      );
+
+  Widget _heroDecoCircle() => Positioned(
+        left: -34.w,
+        bottom: -56.h,
+        child: Container(
+          width: 150.w,
+          height: 150.w,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withValues(alpha: 0.07),
+          ),
+        ),
+      );
 
   Widget _buildSitterAvatar(SitterProfileController controller, Color accent) {
     return Stack(

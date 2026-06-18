@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
+import 'package:hopetsit/controllers/my_pets_controller.dart';
 import 'package:hopetsit/models/profile_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/profile/widgets/profile_settings_tabs.dart';
@@ -135,126 +136,210 @@ class ProfileScreen extends StatelessWidget {
 
   /// Owner-specific hero: warm gradient header with centered avatar.
   Widget _buildOwnerHero(ProfileController controller) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // Gradient background
-        Container(
-          width: double.infinity,
-          // v473 — refonte MODERNE des en-têtes par rôle (Daniel) : cadre carte
-          // au dégradé, coins INFÉRIEURS arrondis (30) + ombre douce colorée =
-          // look HD avec profondeur, au lieu d'un bandeau plat. Hauteur compacte
-          // conservée (minHeight 56).
-          clipBehavior: Clip.antiAlias,
-          constraints: BoxConstraints(minHeight: 56.h),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.primaryColor,
-                AppColors.primaryColor.withValues(alpha: 0.8),
-                const Color(0xFFFF6B4A),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(30.r)),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primaryColor.withValues(alpha: 0.32),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
+    // v474 — refonte selon la maquette Daniel (Header Redesign) : carte
+    // dégradée HD avec 🐾 en filigrane + cercle déco (profondeur), chip rôle
+    // « verre dépoli », cloche, avatar à anneau + caméra, nom, badges, et la
+    // RANGÉE D'ANIMAUX (spécificité propriétaire) qui défile.
+    return Container(
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFF8753F), Color(0xFFF0562B), Color(0xFFDD431C)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(34.r)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryColor.withValues(alpha: 0.32),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
           ),
-          child: SafeArea(
+        ],
+      ),
+      child: Stack(
+        children: [
+          _heroPaw(),
+          _heroDecoCircle(),
+          SafeArea(
+            bottom: false,
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 3.h),
-              // v23.1 part 130 — Phase 6 audit P6-5 : Daniel "Photo profil
-              // gene". L'avatar overlap les badges Premium/Boost/PawSpot.
-              // Solution : on réserve 130.w à droite pour que la Column
-              // ne déborde plus sous l'avatar, et on remonte l'avatar à
-              // top:60 pour qu'il dépasse du hero sous forme de tuile
-              // classique "Instagram profile".
-              child: Row(
+              padding: EdgeInsets.fromLTRB(18.w, 8.h, 18.w, 18.h),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
+                  Row(
+                    children: [
+                      _heroRoleChip('role_pet_owner'.tr),
+                      const Spacer(),
+                      const ProfileNotificationBell(role: 'owner'),
+                    ],
+                  ),
+                  SizedBox(height: 16.h),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _buildOwnerAvatar(controller),
+                      SizedBox(width: 14.w),
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // v443 — Daniel : logo de l'app (ic_launcher) à la
-                            // place du pictogramme générique, à côté du rôle.
-                            Container(
-                              width: 26.w,
-                              height: 26.w,
-                              padding: EdgeInsets.all(2.w),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(7.r),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(5.r),
-                                child: Image.asset(
-                                  'assets/brand/png/ic_launcher.png',
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 8.w),
-                            PoppinsText(
-                              text: 'role_pet_owner'.tr,
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white.withValues(alpha: 0.9),
-                            ),
-                            const Spacer(),
-                            // v441 — cloche de notifications (demandes / amis /
-                            // paiements) en haut du hero, à gauche de l'avatar.
-                            const ProfileNotificationBell(role: 'owner'),
+                            Obx(() => PoppinsText(
+                                  text: controller.userName.value,
+                                  fontSize: 22.sp,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                )),
+                            SizedBox(height: 7.h),
+                            const ActiveBenefitsRow(compact: true),
                           ],
                         ),
-                        SizedBox(height: 2.h),
-                        Obx(() => PoppinsText(
-                          text: controller.userName.value,
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        )),
-                        // v23.1.299 — Daniel : "le mail apparaît dans le profil
-                        // en haut, enlève-le". On retire l'email du héros (owner,
-                        // sitter, walker) pour un en-tête épuré et cohérent.
-                        // v23.1 part 109 — badges Boost / PawSpot / Premium
-                        // visibles dans le header (rebuild auto via Obx).
-                        const ActiveBenefitsRow(compact: true),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  // v23.1 part 130 — Phase 6 audit P6-5 : reserve la zone
-                  // de l'avatar pour empêcher la Column de déborder.
-                  SizedBox(width: 110.w),
+                  _buildOwnerPetsStrip(),
                 ],
               ),
             ),
           ),
-        ),
-        // Avatar overlay
-        // v23.1 part 130 — Phase 6 audit P6-5 : top:60h (au lieu de 80)
-        // pour que l'avatar dépasse plus visiblement du hero. Avec
-        // hero 200h + avatar 100h, top 60 = bottom 160 = juste à
-        // l'intérieur du hero (40h de dépassement avec le border-radius
-        // de 55r). Look "Instagram profile".
-        Positioned(
-          right: 20.w,
-          top: 22.h,
-          child: _buildOwnerAvatar(controller),
-        ),
-      ],
+        ],
+      ),
     );
+  }
+
+  /// 🐾 en filigrane (coin haut-droit) — profondeur HD façon maquette.
+  Widget _heroPaw() => Positioned(
+        right: -26.w,
+        top: -24.h,
+        child: Transform.rotate(
+          angle: 0.31,
+          child: Text(
+            '🐾',
+            style: TextStyle(
+              fontSize: 150.sp,
+              color: Colors.white.withValues(alpha: 0.10),
+            ),
+          ),
+        ),
+      );
+
+  /// Cercle décoratif translucide (coin bas-gauche).
+  Widget _heroDecoCircle() => Positioned(
+        left: -34.w,
+        bottom: -56.h,
+        child: Container(
+          width: 150.w,
+          height: 150.w,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withValues(alpha: 0.07),
+          ),
+        ),
+      );
+
+  /// Chip « verre dépoli » : logo app + libellé du rôle.
+  Widget _heroRoleChip(String label) => Container(
+        padding: EdgeInsets.fromLTRB(6.w, 5.h, 13.w, 5.h),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.20),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6.r),
+              child: Image.asset('assets/brand/png/ic_launcher.png',
+                  width: 22.w, height: 22.w, fit: BoxFit.cover),
+            ),
+            SizedBox(width: 8.w),
+            InterText(
+              text: label,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ],
+        ),
+      );
+
+  /// Rangée horizontale des animaux du propriétaire (photo + nom + race),
+  /// défile si plus de 3. Câblée sur MyPetsController.
+  Widget _buildOwnerPetsStrip() {
+    final petsCtl = Get.isRegistered<MyPetsController>()
+        ? Get.find<MyPetsController>()
+        : Get.put(MyPetsController());
+    return Obx(() {
+      final pets = petsCtl.pets;
+      if (pets.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: EdgeInsets.only(top: 14.h),
+        child: SizedBox(
+          height: 46.h,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.zero,
+            itemCount: pets.length,
+            separatorBuilder: (_, __) => SizedBox(width: 10.w),
+            itemBuilder: (_, i) {
+              final p = pets[i];
+              return Container(
+                padding: EdgeInsets.fromLTRB(6.w, 6.h, 12.w, 6.h),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(14.r),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(
+                      radius: 17.r,
+                      backgroundColor: Colors.white24,
+                      backgroundImage: p.avatar.url.isNotEmpty
+                          ? CachedNetworkImageProvider(p.avatar.url)
+                          : null,
+                      child: p.avatar.url.isEmpty
+                          ? Icon(Icons.pets, size: 15.sp, color: Colors.white)
+                          : null,
+                    ),
+                    SizedBox(width: 9.w),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        InterText(
+                          text: p.petName,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          maxLines: 1,
+                        ),
+                        if (p.breed.isNotEmpty)
+                          InterText(
+                            text: p.breed,
+                            fontSize: 9.sp,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.72),
+                            maxLines: 1,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    });
   }
 
   Widget _buildOwnerAvatar(ProfileController controller) {
@@ -278,9 +363,9 @@ class ProfileScreen extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(55.r),
               child: Container(
-                // v473 — avatar réduit (60) → bandeau encore plus court.
-                width: 60.w,
-                height: 60.w,
+                // v474 — avatar maquette (70) à anneau blanc + bouton caméra.
+                width: 70.w,
+                height: 70.w,
                 color: AppColors.lightGrey,
                 child: isUploading
                     ? Center(
