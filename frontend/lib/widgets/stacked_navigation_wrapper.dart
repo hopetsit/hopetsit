@@ -159,27 +159,35 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
       // validation ne soient plus cachés derrière le menu.
       bottomNavigationBar: Obx(() => pawMapExpanded.value
           ? const SizedBox.shrink()
-          : Padding(
-        padding: EdgeInsets.fromLTRB(12, 0, 12, 2 + bottomInset),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF14141E).withValues(alpha: 0.10),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-              BoxShadow(
-                color: const Color(0xFF14141E).withValues(alpha: 0.04),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: Row(
+          // v467 — Daniel : « la barre de menu Paw Map bien horizontale de bout
+          // en bout ». Plus de pilule flottante à marges : barre PLEINE LARGEUR
+          // collée au bas, coins arrondis EN HAUT seulement, l'inset Samsung est
+          // ajouté EN PADDING BAS (les icônes restent au-dessus de la barre
+          // système).
+          : Container(
+        padding: EdgeInsets.only(
+          left: 10,
+          right: 10,
+          top: 8,
+          bottom: 8 + bottomInset,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF14141E).withValues(alpha: 0.10),
+              blurRadius: 24,
+              offset: const Offset(0, -4),
+            ),
+            BoxShadow(
+              color: const Color(0xFF14141E).withValues(alpha: 0.04),
+              blurRadius: 4,
+              offset: const Offset(0, -1),
+            ),
+          ],
+        ),
+        child: Row(
             children: [
               _navTab(0, _pawSvg, 'nav_home'.tr),
               _navTab(1, _chatSvg, 'nav_chat'.tr, badge: _chatBadge),
@@ -189,7 +197,6 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
             ],
           ),
         ),
-          ),
         ),
     );
   }
