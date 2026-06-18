@@ -224,11 +224,16 @@ class ChatScreen extends StatelessWidget {
         }
       },
       child: Container(
-        margin: EdgeInsets.only(bottom: 10.h),
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+        margin: EdgeInsets.only(bottom: 12.h),
+        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 15.h),
+        // v476 — maquette Messages : carte plus arrondie + fin liseré orange
+        // (accent rôle owner) + ombre douce.
         decoration: BoxDecoration(
           color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(14.r),
+          borderRadius: BorderRadius.circular(20.r),
+          border: Border.all(
+            color: AppColors.primaryColor.withValues(alpha: 0.12),
+          ),
           boxShadow: AppColors.cardShadow(context),
         ),
         child: Row(
@@ -296,23 +301,26 @@ class ChatScreen extends StatelessWidget {
                               )
                             : null,
                       ),
-                if (conversation.isOnline)
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 12.w,
-                      height: 12.h,
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.whiteColor,
-                          width: 2.w,
-                        ),
+                // v476 — maquette : pastille de présence TOUJOURS visible
+                // (vert = en ligne, gris = hors ligne).
+                Positioned(
+                  top: -1,
+                  right: -1,
+                  child: Container(
+                    width: 13.w,
+                    height: 13.w,
+                    decoration: BoxDecoration(
+                      color: conversation.isOnline
+                          ? const Color(0xFF1F8A4C)
+                          : const Color(0xFFB3AFA8),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.whiteColor,
+                        width: 2.5,
                       ),
                     ),
                   ),
+                ),
               ],
             ),
 
@@ -323,11 +331,11 @@ class ChatScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Contact name
+                  // Contact name — v476 maquette : gras prononcé.
                   PoppinsText(
                     text: conversation.contactName,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w400,
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary(context),
                   ),
 
@@ -390,31 +398,17 @@ class ChatScreen extends StatelessWidget {
                         await controller.deleteConversation(conversation.id);
                       }
                     },
+                    // v476 — maquette Messages : bouton supprimer = carré rose
+                    // arrondi avec corbeille (plus compact, plus moderne).
                     child: Container(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: 8.w, vertical: 3.h),
+                      width: 38.w,
+                      height: 38.w,
                       decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10.r),
-                        border: Border.all(
-                          color: Colors.red.withValues(alpha: 0.3),
-                          width: 0.8,
-                        ),
+                        color: const Color(0xFFFDE7E3),
+                        borderRadius: BorderRadius.circular(12.r),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.delete_outline_rounded,
-                              size: 12.sp, color: Colors.red),
-                          SizedBox(width: 3.w),
-                          InterText(
-                            text: 'chat_delete_short'.tr,
-                            fontSize: 10.sp,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.red,
-                          ),
-                        ],
-                      ),
+                      child: Icon(Icons.delete_outline_rounded,
+                          size: 18.sp, color: const Color(0xFFE2553B)),
                     ),
                   ),
                 ),
