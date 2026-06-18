@@ -162,7 +162,11 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
                           ),
                         ),
                         SizedBox(width: 6.w),
-                        VerifiedBadge(isVerified: w.verified),
+                        // v471 — Daniel : la pastille « vérifié » ne doit
+                        // apparaître QUE si le promeneur a PAYÉ la vérification
+                        // d'identité (KYC 3€) → `identityVerified`, pas le flag
+                        // large `verified` (qui était vrai pour tout le monde).
+                        VerifiedBadge(isVerified: w.identityVerified),
                       ],
                     ),
                     SizedBox(height: 4.h),
@@ -187,9 +191,10 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
                             color: const Color(0xFFFFB400), size: 18.sp),
                         SizedBox(width: 4.w),
                         InterText(
+                          // v471 — i18n : « Pas encore d'avis » était en dur FR.
                           text: w.rating > 0
-                              ? '${w.rating.toStringAsFixed(1)} (${w.reviewsCount} avis)'
-                              : 'Pas encore d\'avis',
+                              ? '${w.rating.toStringAsFixed(1)} (${w.reviewsCount})'
+                              : 'candidates_no_reviews'.tr,
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w600,
                         ),
@@ -203,16 +208,16 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
         ),
         SizedBox(height: 16.h),
 
-        // Bio
+        // Bio — v471 : libellés i18n (étaient en dur FR).
         if ((w.bio ?? '').isNotEmpty) ...[
-          _section('À propos', Icons.person_outline, w.bio!),
+          _section('walker_detail_about'.tr, Icons.person_outline, w.bio!),
           SizedBox(height: 12.h),
         ],
 
         // Localisation
         if ((w.city ?? '').isNotEmpty || w.address.isNotEmpty)
           _section(
-            'Localisation',
+            'sitter_detail_location'.tr,
             Icons.location_on_outlined,
             (w.city != null && w.city!.isNotEmpty) ? w.city! : w.address,
           ),
@@ -220,7 +225,7 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
 
         // Langue
         if (w.language.isNotEmpty)
-          _section('Langue parlée', Icons.language, w.language),
+          _section('walker_detail_language'.tr, Icons.language, w.language),
         SizedBox(height: 12.h),
 
         // Tarifs walking
@@ -247,7 +252,7 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
                         color: _walkerAccent, size: 20.sp),
                     SizedBox(width: 8.w),
                     PoppinsText(
-                      text: 'Tarifs',
+                      text: 'walker_detail_rates'.tr,
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary(context),

@@ -472,6 +472,10 @@ const Map<String, String> enUSTranslations = <String, String>{
       'invoice_status_refunded': 'Refunded',
       // Session v17 — role labels used by AirwallexPaymentScreen header chip.
       'role_walker': 'Walker',
+      'walker_detail_about': 'About',
+      'walker_detail_language': 'Spoken language',
+      'walker_detail_rates': 'Rates',
+      'walker_detail_walk_minutes': 'Walk @min min',
       'role_sitter': 'Petsitter',
       'role_provider': 'Provider',
       'provider_unknown': 'Provider',

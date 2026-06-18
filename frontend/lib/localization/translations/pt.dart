@@ -407,6 +407,10 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'time_days_ago': 'há @count dias',
       // Session v17 — role labels used by AirwallexPaymentScreen header chip.
       'role_walker': 'Passeador',
+      'walker_detail_about': 'Sobre',
+      'walker_detail_language': 'Idioma falado',
+      'walker_detail_rates': 'Tarifas',
+      'walker_detail_walk_minutes': 'Passeio @min min',
       'role_sitter': 'Babá de animais',
       'role_provider': 'Prestador',
       'provider_unknown': 'Prestador',

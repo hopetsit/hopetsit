@@ -160,6 +160,10 @@ const Map<String, String> esESTranslations = <String, String>{
 
       // Session v17 — role labels used by AirwallexPaymentScreen header chip.
       'role_walker': 'Paseador',
+      'walker_detail_about': 'Acerca de',
+      'walker_detail_language': 'Idioma hablado',
+      'walker_detail_rates': 'Tarifas',
+      'walker_detail_walk_minutes': 'Paseo @min min',
       'role_sitter': 'Petsitter',
       'role_provider': 'Proveedor',
       'provider_unknown': 'Proveedor',

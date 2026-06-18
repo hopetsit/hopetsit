@@ -485,6 +485,13 @@ const Map<String, String> frFRTranslations = <String, String>{
       'invoice_status_refunded': 'Remboursée',
       // Session v17 — role labels used by AirwallexPaymentScreen header chip.
       'role_walker': 'Promeneur',
+      // v471 — fiche promeneur : libellés i18n (étaient en dur en français →
+      // restaient FR même en espagnol). Daniel : « j'ai mis en espagnol, ça
+      // sort en français ».
+      'walker_detail_about': 'À propos',
+      'walker_detail_language': 'Langue parlée',
+      'walker_detail_rates': 'Tarifs',
+      'walker_detail_walk_minutes': 'Promenade @min min',
       'role_sitter': 'Petsitter',
       'role_provider': 'Prestataire',
       'provider_unknown': 'Prestataire',

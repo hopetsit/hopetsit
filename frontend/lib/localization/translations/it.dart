@@ -176,6 +176,10 @@ const Map<String, String> itITTranslations = <String, String>{
       'publish_request_ui_only_success': 'UI creata (non ancora pubblicata).',
       // Session v17 — role labels used by AirwallexPaymentScreen header chip.
       'role_walker': 'Dog sitter',
+      'walker_detail_about': 'Informazioni',
+      'walker_detail_language': 'Lingua parlata',
+      'walker_detail_rates': 'Tariffe',
+      'walker_detail_walk_minutes': 'Passeggiata @min min',
       'role_sitter': 'Petsitter',
       'role_provider': 'Fornitore',
       'provider_unknown': 'Fornitore',

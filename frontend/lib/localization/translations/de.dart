@@ -160,6 +160,10 @@ const Map<String, String> deDETranslations = <String, String>{
 
       // Session v17 — role labels used by AirwallexPaymentScreen header chip.
       'role_walker': 'Gassigeher',
+      'walker_detail_about': 'Über',
+      'walker_detail_language': 'Gesprochene Sprache',
+      'walker_detail_rates': 'Tarife',
+      'walker_detail_walk_minutes': 'Gassi @min Min',
       'role_sitter': 'Tiersitter',
       'role_provider': 'Anbieter',
       'provider_unknown': 'Anbieter',
