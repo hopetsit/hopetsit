@@ -281,14 +281,14 @@ class SitterProfileScreen extends StatelessWidget {
           ),
           child: Obx(
             () => CircleAvatar(
-              // v470 — avatar réduit (36 au lieu de 42) → hero plus compact.
-              radius: 36.r,
+              // v473 — avatar réduit (31) → bandeau encore plus court.
+              radius: 31.r,
               backgroundColor: AppColors.grey300Color,
               backgroundImage: controller.profileImageUrl.value.isNotEmpty
                   ? CachedNetworkImageProvider(controller.profileImageUrl.value)
                   : null,
               child: controller.profileImageUrl.value.isEmpty
-                  ? Icon(Icons.person, size: 34.sp, color: AppColors.greyColor)
+                  ? Icon(Icons.person, size: 30.sp, color: AppColors.greyColor)
                   : null,
             ),
           ),

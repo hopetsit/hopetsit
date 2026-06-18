@@ -260,14 +260,23 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
                   ],
                 ),
                 SizedBox(height: 10.h),
-                ...w.walkRates.where((r) => r.enabled && r.basePrice > 0).map(
+                // v472 — Daniel : « ce sont les ANCIENS tarifs, maintenant
+                // c'est 30 min / 1h / 2h ». On ne montre que les 3 paliers
+                // officiels (30/60/120 min) + libellé propre (30 min / 1h / 2h),
+                // au lieu de « Promenade X min » (en dur FR) avec le 90 min mort.
+                ...w.walkRates
+                    .where((r) =>
+                        r.enabled &&
+                        r.basePrice > 0 &&
+                        const [30, 60, 120].contains(r.durationMinutes))
+                    .map(
                       (r) => Padding(
                         padding: EdgeInsets.symmetric(vertical: 4.h),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             InterText(
-                              text: 'Promenade ${r.durationMinutes} min',
+                              text: _walkDurationLabel(r.durationMinutes),
                               fontSize: 13.sp,
                             ),
                             InterText(
@@ -437,6 +446,24 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
         ),
       ],
     );
+  }
+
+  // v472 — Daniel : nouveaux paliers walking « 30 min / 1h / 2h » (fini le
+  // 60/90/120). Libellé court et NEUTRE (h/min universels, pas besoin d'i18n)
+  // au lieu de « Promenade X min » en dur FR.
+  String _walkDurationLabel(int minutes) {
+    switch (minutes) {
+      case 30:
+        return '30 min';
+      case 60:
+        return '1 h';
+      case 90:
+        return '1 h 30';
+      case 120:
+        return '2 h';
+      default:
+        return '$minutes min';
+    }
   }
 
   Widget _section(String title, IconData icon, String body) {

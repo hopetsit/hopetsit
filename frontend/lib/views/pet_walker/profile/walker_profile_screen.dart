@@ -299,9 +299,9 @@ class WalkerProfileScreen extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(42.r),
               child: SizedBox(
-                // v470 — avatar réduit (72 au lieu de 84) → hero plus compact.
-                width: 72.w,
-                height: 72.w,
+                // v473 — avatar réduit (62) → bandeau encore plus court.
+                width: 62.w,
+                height: 62.w,
                 child: isUploading
                     ? Container(
                         color: AppColors.lightGrey,

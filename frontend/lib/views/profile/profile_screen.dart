@@ -269,9 +269,9 @@ class ProfileScreen extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(55.r),
               child: Container(
-                // v471 — avatar réduit (70) → hero encore plus compact.
-                width: 70.w,
-                height: 70.w,
+                // v473 — avatar réduit (60) → bandeau encore plus court.
+                width: 60.w,
+                height: 60.w,
                 color: AppColors.lightGrey,
                 child: isUploading
                     ? Center(
@@ -282,8 +282,8 @@ class ProfileScreen extends StatelessWidget {
                     : imageUrl.isNotEmpty
                     ? CachedNetworkImage(
                         imageUrl: imageUrl,
-                        width: 70.w,
-                        height: 70.w,
+                        width: 60.w,
+                        height: 60.w,
                         memCacheWidth: 300, // v235.
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(
