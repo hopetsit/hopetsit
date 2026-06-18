@@ -122,21 +122,33 @@ class SignupWizardScreen extends StatelessWidget {
             : 'signup_wizard_sub_walker';
     return Column(
       children: [
+        // v480 — maquette « Inscription Flow » : en-tête compact (paw rond
+        // 46px couleur du rôle + ombre) pour que l'étape tienne sans scroll.
         Container(
-          width: 54.w,
-          height: 54.w,
-          decoration: BoxDecoration(color: _accent, shape: BoxShape.circle),
-          child: Icon(Icons.pets_rounded, color: Colors.white, size: 28.sp),
+          width: 46.w,
+          height: 46.w,
+          decoration: BoxDecoration(
+            color: _accent,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: _accent.withValues(alpha: 0.35),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Icon(Icons.pets_rounded, color: Colors.white, size: 23.sp),
         ),
-        SizedBox(height: 10.h),
+        SizedBox(height: 8.h),
         PoppinsText(
           text: titleKey.tr.toUpperCase(),
-          fontSize: 17.sp,
-          fontWeight: FontWeight.w800,
+          fontSize: 16.sp,
+          fontWeight: FontWeight.w900,
           color: AppColors.textPrimary(context),
           textAlign: TextAlign.center,
         ),
-        SizedBox(height: 4.h),
+        SizedBox(height: 3.h),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 32.w),
           child: InterText(
@@ -855,39 +867,56 @@ class SignupWizardScreen extends StatelessWidget {
     final isLast = step == _steps - 1;
     return Container(
       padding: EdgeInsets.fromLTRB(20.w, 10.h, 20.w, 16.h),
-      child: Obx(() => SizedBox(
-            width: double.infinity,
-            height: 50.h,
-            child: ElevatedButton(
-              onPressed: c.isLoading.value
-                  ? null
-                  : () => _onNext(c, step, isLast),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _accent,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14.r),
-                ),
-              ),
-              child: c.isLoading.value
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2.5),
-                    )
-                  : PoppinsText(
-                      text: isLast
-                          ? (_isOwner
-                              ? 'signup_create_account'.tr
-                              : 'signup_create_profile'.tr)
-                          : 'common_next'.tr,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
+      // v480 — maquette « Inscription Flow » : bouton d'action en dégradé de
+      // la couleur du rôle, collé en bas (mêmes onNext/isLoading qu'avant).
+      child: Obx(() {
+        final loading = c.isLoading.value;
+        return Container(
+          width: double.infinity,
+          height: 52.h,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_accent, Color.lerp(_accent, Colors.black, 0.18)!],
             ),
-          )),
+            borderRadius: BorderRadius.circular(15.r),
+            boxShadow: [
+              BoxShadow(
+                color: _accent.withValues(alpha: 0.4),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(15.r),
+              onTap: loading ? null : () => _onNext(c, step, isLast),
+              child: Center(
+                child: loading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2.5),
+                      )
+                    : PoppinsText(
+                        text: isLast
+                            ? (_isOwner
+                                ? 'signup_create_account'.tr
+                                : 'signup_create_profile'.tr)
+                            : 'common_next'.tr,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+              ),
+            ),
+          ),
+        );
+      }),
     );
   }
 

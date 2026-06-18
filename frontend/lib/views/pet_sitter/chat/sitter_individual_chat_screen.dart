@@ -629,7 +629,11 @@ class _SitterIndividualChatScreenState
       child: Container(
       margin: EdgeInsets.only(bottom: 15.h),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        // v480 — maquette « Conversation » : reçu = bulle blanche à gauche,
+        // envoyé = bulle colorée à droite (alignement par rôle).
+        crossAxisAlignment: message.isFromCurrentUser
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: [
           // Sender info and timestamp
           Row(
@@ -805,13 +809,42 @@ class _SitterIndividualChatScreenState
               ),
             )
           else if (message.message.isNotEmpty) ...[
-            Padding(
-              padding: EdgeInsets.only(left: 41.w),
+            // v480 — bulle de message (colorée si envoyée, blanche si reçue).
+            Container(
+              constraints: BoxConstraints(maxWidth: 250.w),
+              margin: EdgeInsets.only(
+                  left: message.isFromCurrentUser ? 0 : 41.w),
+              padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+              decoration: BoxDecoration(
+                color: message.isFromCurrentUser
+                    ? AppColors.primaryColor
+                    : AppColors.card(context),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16.r),
+                  topRight: Radius.circular(16.r),
+                  bottomLeft:
+                      Radius.circular(message.isFromCurrentUser ? 16.r : 4.r),
+                  bottomRight:
+                      Radius.circular(message.isFromCurrentUser ? 4.r : 16.r),
+                ),
+                border: message.isFromCurrentUser
+                    ? null
+                    : Border.all(color: AppColors.grey300Color),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: InterText(
                 text: message.message,
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w400,
-                color: AppColors.textPrimary(context),
+                color: message.isFromCurrentUser
+                    ? Colors.white
+                    : AppColors.textPrimary(context),
               ),
             ),
             // v23.1 part 105 — bouton "Traduire" (cf TranslateMessageButton).
