@@ -48,7 +48,13 @@ const bookingSchema = new mongoose.Schema(
       // credited (creditWallet runs BEFORE payout) but the booking_paid
       // notif step that followed crashed with the now-corrupt payoutStatus
       // pseudo-state.
-      enum: ['pending', 'scheduled', 'processing', 'completed', 'failed', 'held', 'pending_manual_transfer'],
+      // v465 — Daniel : « Impossible d'annuler cette réservation ». RACINE :
+      // selfCancelWithRefund fait `payoutStatus = 'cancelled'` quand le payout
+      // était 'scheduled' (cas de TOUTE résa payée à venir), mais 'cancelled'
+      // n'était PAS dans l'enum → ValidationError sur save() → 500 → erreur
+      // générique côté app. On ajoute 'cancelled' (+ 'refunded' pour cohérence
+      // avec les remboursements de payout).
+      enum: ['pending', 'scheduled', 'processing', 'completed', 'failed', 'held', 'pending_manual_transfer', 'cancelled', 'refunded'],
       default: 'pending',
     },
     // v18.5 — #3 hold admin : montants dormants en attente que le provider
@@ -170,7 +176,9 @@ const bookingSchema = new mongoose.Schema(
     disputedAt: { type: Date, default: null },
     // Self-cancellation (72h window)
     cancelledAt: { type: Date, default: null },
-    cancelledBy: { type: String, enum: ['owner', 'sitter', null], default: null },
+    // v465 — ajout de 'walker' : selfCancelWithRefund pose cancelledBy='walker'
+    // quand un promeneur annule (sinon ValidationError sur save() → 500).
+    cancelledBy: { type: String, enum: ['owner', 'sitter', 'walker', null], default: null },
     cancellationReason: { type: String, default: null },
     // Cancellation tracking (for mutual agreement requirement)
     cancellation: {

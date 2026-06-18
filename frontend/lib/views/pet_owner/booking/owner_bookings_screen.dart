@@ -286,16 +286,30 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
       },
       child: Container(
         margin: EdgeInsets.only(bottom: 16.h),
-        padding: EdgeInsets.all(16.w),
+        // v465 — refonte carte : carte SURÉLEVÉE (ombre douce), coins 18,
+        // liseré orange role discret. Plus moderne, fini le simple cadre gris.
         decoration: BoxDecoration(
           color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(color: AppColors.grey300Color),
+          borderRadius: BorderRadius.circular(18.r),
+          border: Border.all(color: _ownerAccent.withValues(alpha: 0.18)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            // v465 — en-tête teinté role : statut à gauche, prestataire (avatar
+            // + nom) à droite, sur un bandeau orange pâle.
+            Container(
+              padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 14.h),
+              color: _ownerAccent.withValues(alpha: 0.06),
+              child: Row(
               children: [
                 _statusBadge(booking.status, booking.paymentStatus),
                 const Spacer(),
@@ -322,7 +336,7 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
                         child: InterText(
                           text: booking.sitter.name,
                           fontSize: 14.sp,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary(context),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -332,8 +346,13 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
                   ),
                 ),
               ],
+              ),
             ),
-            SizedBox(height: 16.h),
+            Padding(
+              padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 16.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
             _row(Icons.pets, 'sitter_bookings_pet_label'.tr,
                 booking.petName),
             SizedBox(height: 12.h),
@@ -397,6 +416,9 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
             if (booking.confirmationStatus == 'confirmed' ||
                 booking.status.toLowerCase() == 'completed')
               _ReviewPromptTile(booking: booking),
+                ],
+              ),
+            ),
           ],
         ),
       ),

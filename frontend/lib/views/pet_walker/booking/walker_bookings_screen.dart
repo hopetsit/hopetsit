@@ -273,10 +273,18 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
     return Container(
       margin: EdgeInsets.only(bottom: 16.h),
       padding: EdgeInsets.all(16.w),
+      // v465 — refonte : carte surélevée (ombre), coins 18, liseré vert rôle.
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.grey300Color),
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: _walkerAccent.withValues(alpha: 0.18)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
