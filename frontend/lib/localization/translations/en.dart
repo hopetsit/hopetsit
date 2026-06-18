@@ -13,6 +13,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       // v451 — i18n fixes (new keys, parity ×6)
       'pet_age_months': 'months',
       'pawmap_expand_map': 'Enlarge map',
+      'pawmap_fullscreen_title': 'Full-screen map',
       'pawmap_premium_spots_nearby': '@n PawSpot nearby',
       'common_view_profile': 'View profile',
       'home_publish_walk': 'Post a walk',

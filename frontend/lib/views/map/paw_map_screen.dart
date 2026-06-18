@@ -27,6 +27,7 @@ import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/friends/people_live_screen.dart';
 import 'package:hopetsit/views/map/alerts_screen.dart';
+import 'package:hopetsit/views/map/fullscreen_map_screen.dart';
 import 'package:hopetsit/views/map/pawspot_sheets.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -2404,6 +2405,43 @@ class _PawMapScreenState extends State<PawMapScreen>
                   left: 12.w,
                   bottom: 24.h + MediaQuery.of(context).viewPadding.bottom,
                   child: _buildReportFab(),
+                ),
+
+                // v457 — bouton « Agrandir » EN VERSION SÛRE : ouvre un écran
+                // carte plein écran DÉDIÉ (ne redimensionne pas cette carte →
+                // ne peut pas la blanchir). Idéal pour marcher / conduire.
+                Positioned(
+                  top: 12.h,
+                  left: 12.w,
+                  child: Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20.r),
+                    elevation: 4,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20.r),
+                      onTap: () => Get.to(() => FullScreenMapScreen(
+                            initialCenter: _currentCenter,
+                          )),
+                      child: Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.open_in_full_rounded,
+                                size: 18.sp, color: AppColors.primaryColor),
+                            SizedBox(width: 6.w),
+                            InterText(
+                              text: 'pawmap_expand_map'.tr,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF1F2937),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
 
                 // v456 — POINT ROUGE FIXE au centre (placement précis), pour
