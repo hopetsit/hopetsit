@@ -9,7 +9,6 @@ import 'package:hopetsit/views/auth/sign_up_as.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/rounded_text_button.dart';
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
@@ -29,25 +28,25 @@ class OnboardingScreen extends StatelessWidget {
           // circulaire + titre + description, CTA orange en bas avec icone
           // patte + fleche. Gradient dégradé du orange chaud au orange plus
           // clair en bas pour adoucir la transition vers les CTA.
+          // v482b — Daniel : « fais comme le design fournis » → dégradé
+          // EXACTEMENT comme la maquette « App Opening » : tout ORANGE en
+          // clair (#f0562b → #ed4f25 → #f87a52), pas de fondu vers le blanc ;
+          // dégradé sombre brun en mode sombre (#3a201a → #161210).
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: isDark
-                ? [
-                    // v481b — Daniel : « filtre noir » en sombre. Dégradé chaud
-                    // orange → brun foncé (plus de bande noire dure en bas).
-                    AppColors.primaryColor,
-                    const Color(0xFFD8431C),
-                    const Color(0xFF8A2E12),
-                    const Color(0xFF4A1C0C),
+                ? const [
+                    Color(0xFF3A201A),
+                    Color(0xFF1C1714),
+                    Color(0xFF161210),
                   ]
-                : [
-                    AppColors.primaryColor,
-                    const Color(0xFFFF6B45),
-                    const Color(0xFFFF9B7A),
-                    Colors.white,
+                : const [
+                    Color(0xFFF0562B),
+                    Color(0xFFED4F25),
+                    Color(0xFFF87A52),
                   ],
-            stops: const [0.0, 0.55, 0.78, 1.0],
+            stops: const [0.0, 0.55, 1.0],
           ),
         ),
         child: SafeArea(
@@ -226,38 +225,63 @@ class OnboardingScreen extends StatelessWidget {
                       // Padding horizontal sur la Row pour ramener la
                       // patte et la fleche vers l'interieur (16px de
                       // marge interne de chaque cote).
-                      CustomButton(
-                        onTap: () => Get.to(() => SignUpAsScreen()),
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16.w),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                width: 36.w,
-                                height: 36.w,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.22),
-                                  shape: BoxShape.circle,
+                      // v482b — maquette : S'inscrire = bouton BLANC (texte
+                      // orange) en clair ; dégradé orange (texte blanc) en
+                      // sombre. Câblage inchangé (→ SignUpAsScreen).
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => Get.to(() => SignUpAsScreen()),
+                          borderRadius: BorderRadius.circular(18.r),
+                          child: Container(
+                            height: 56.h,
+                            decoration: BoxDecoration(
+                              color: isDark ? null : Colors.white,
+                              gradient: isDark
+                                  ? const LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Color(0xFFFA8A3F),
+                                        Color(0xFFF0562B),
+                                      ],
+                                    )
+                                  : null,
+                              borderRadius: BorderRadius.circular(18.r),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.16),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
                                 ),
-                                child: Icon(
-                                  Icons.pets,
-                                  size: 18.sp,
-                                  color: Colors.white,
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.pets,
+                                    size: 18.sp,
+                                    color: isDark
+                                        ? Colors.white
+                                        : AppColors.primaryColor),
+                                SizedBox(width: 10.w),
+                                PoppinsText(
+                                  text: 'onboarding_signup'.tr,
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w900,
+                                  color: isDark
+                                      ? Colors.white
+                                      : AppColors.primaryColor,
                                 ),
-                              ),
-                              PoppinsText(
-                                text: 'onboarding_signup'.tr,
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                              Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                size: 16.sp,
-                                color: Colors.white,
-                              ),
-                            ],
+                                SizedBox(width: 8.w),
+                                Icon(Icons.arrow_forward_ios_rounded,
+                                    size: 14.sp,
+                                    color: (isDark
+                                            ? Colors.white
+                                            : AppColors.primaryColor)
+                                        .withValues(alpha: 0.7)),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -299,48 +323,18 @@ class OnboardingScreen extends StatelessWidget {
                         ),
                       ],
 
-                      SizedBox(height: 14.h),
+                      SizedBox(height: 16.h),
 
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Divider(
-                              color: isDark
-                                  ? AppColors.dividerDark
-                                  : AppColors.grey300Color,
-                              thickness: 1,
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 16.w),
-                            child: InterText(
-                              text: 'onboarding_or'.tr,
-                              fontSize: 13.sp,
-                              fontWeight: FontWeight.w400,
-                              color: AppColors.textSecondary(context),
-                            ),
-                          ),
-                          Expanded(
-                            child: Divider(
-                              color: isDark
-                                  ? AppColors.dividerDark
-                                  : AppColors.grey300Color,
-                              thickness: 1,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 12.h),
-
+                      // v482b — maquette : pas de séparateur « Ou continuer
+                      // avec » sur l'accueil. Juste « Vous avez un compte ? ».
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           InterText(
                             text: 'onboarding_have_account'.tr,
                             fontSize: 14.sp,
-                            fontWeight: FontWeight.w400,
-                            color: AppColors.textSecondary(context),
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.92),
                           ),
                           GestureDetector(
                             onTap: () => Get.to(() => const LoginScreen()),
@@ -352,8 +346,9 @@ class OnboardingScreen extends StatelessWidget {
                               child: InterText(
                                 text: 'title_login'.tr,
                                 fontSize: 14.sp,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primaryColor,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                textDecoration: TextDecoration.underline,
                               ),
                             ),
                           ),
@@ -487,14 +482,20 @@ class _SocialButton extends StatelessWidget {
         height: 52.h,
         width: double.infinity,
         decoration: BoxDecoration(
+          // v482b — maquette : sur le fond orange (clair) / sombre, le bouton
+          // Google est un bouton « verre » translucide blanc + bord blanc ;
+          // Apple reste noir.
           color: isOutlined
-              ? (isDark ? AppColors.cardDark : AppColors.whiteColor)
+              ? (isDark
+                  ? AppColors.cardDark
+                  : Colors.white.withValues(alpha: 0.16))
               : AppColors.blackColor,
           border: isOutlined
               ? Border.all(
                   color: isDark
                       ? AppColors.dividerDark
-                      : AppColors.grey300Color,
+                      : Colors.white.withValues(alpha: 0.40),
+                  width: 1.5,
                 )
               : null,
           borderRadius: BorderRadius.circular(16.r),
@@ -504,10 +505,8 @@ class _SocialButton extends StatelessWidget {
               ? SizedBox(
                   height: 24.r,
                   width: 24.r,
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      isOutlined ? AppColors.blackColor : AppColors.whiteColor,
-                    ),
+                  child: const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     strokeWidth: 2.5,
                   ),
                 )
@@ -525,18 +524,16 @@ class _SocialButton extends StatelessWidget {
                       Icon(
                         icon,
                         size: 22.sp,
-                        color: isOutlined
-                            ? AppColors.textPrimary(context)
-                            : AppColors.whiteColor,
+                        // v482b — texte/icône TOUJOURS blanc (fond orange en
+                        // clair, sombre en dark, noir pour Apple).
+                        color: Colors.white,
                       ),
                     SizedBox(width: 10.w),
                     InterText(
                       text: label,
                       fontSize: 15.sp,
-                      fontWeight: FontWeight.w500,
-                      color: isOutlined
-                          ? AppColors.textPrimary(context)
-                          : AppColors.whiteColor,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
                     ),
                   ],
                 ),
