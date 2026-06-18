@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
@@ -268,8 +269,10 @@ class _CenterPawMapButtonState extends State<_CenterPawMapButton>
 
   @override
   Widget build(BuildContext context) {
-    const orange = AppColors.primaryColor;
-    final iconSize = widget.isSelected ? 26.sp : 23.sp;
+    // v458 — Daniel : bouton EXACTEMENT comme la maquette → carré ARRONDI
+    // orange chaud (pas une pill), icône carte+pin+patte (SVG) et « Paw Map ».
+    const orangeShadow = Color(0xFFF07C1C);
+    final iconH = widget.isSelected ? 27.sp : 24.sp;
     return Container(
       color: widget.bg,
       child: GestureDetector(
@@ -286,19 +289,21 @@ class _CenterPawMapButtonState extends State<_CenterPawMapButton>
             child: ScaleTransition(
               scale: _pulse,
               child: Container(
-                // Pill plus large + surélevé (déborde un peu vers le haut).
+                // Carré arrondi surélevé (déborde un peu vers le haut).
                 margin: EdgeInsets.only(bottom: 2.h),
-                padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
                 decoration: BoxDecoration(
+                  // Orange chaud de la maquette (ambre → orange).
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFFF6B45), orange],
+                    colors: [Color(0xFFFAA64A), Color(0xFFF17C1B)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(18.r),
+                  borderRadius: BorderRadius.circular(20.r),
                   boxShadow: [
                     BoxShadow(
-                      color: orange.withValues(alpha: widget.isSelected ? 0.45 : 0.30),
+                      color: orangeShadow
+                          .withValues(alpha: widget.isSelected ? 0.45 : 0.32),
                       blurRadius: widget.isSelected ? 14 : 9,
                       offset: const Offset(0, 4),
                     ),
@@ -307,36 +312,16 @@ class _CenterPawMapButtonState extends State<_CenterPawMapButton>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Icône carte + patte intégrée (toujours blanche).
-                    SizedBox(
-                      width: iconSize + 4,
-                      height: iconSize,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        alignment: Alignment.center,
-                        children: [
-                          Icon(Icons.map_rounded,
-                              size: iconSize, color: Colors.white),
-                          Positioned(
-                            top: -2.h,
-                            child: Container(
-                              padding: EdgeInsets.all(1.6.w),
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(Icons.pets,
-                                  size: iconSize * 0.46, color: orange),
-                            ),
-                          ),
-                        ],
-                      ),
+                    // Icône carte pliée + pin + patte (SVG, comme la maquette).
+                    SvgPicture.asset(
+                      'assets/images/pawmap_nav.svg',
+                      height: iconH,
                     ),
                     SizedBox(height: 2.h),
                     Text(
                       'Paw Map',
                       style: TextStyle(
-                        fontSize: 9.5.sp,
+                        fontSize: 10.sp,
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
                         height: 1.0,

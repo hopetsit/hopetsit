@@ -240,7 +240,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       // Auto-filled from en.dart to avoid raw key names appearing in UI.
 
       // Auto-filled from en.dart
-      'common_no': 'No',
+      'common_no': 'Não',
       'common_cancel': 'Cancelar',
       'common_clear': 'Limpar',
       // v23.1 part 211 — pagina Alertas (mockup Daniel)
@@ -284,6 +284,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
       // v451 — i18n fixes (new keys, parity ×6)
       'pet_age_months': 'meses',
       'pawmap_expand_map': 'Ampliar o mapa',
+      'pawmap_reduce_map': 'Reduzir',
+      'pawmap_tag_spot': 'Marcar spot',
       'pawmap_fullscreen_title': 'Mapa em tela cheia',
       'pawmap_premium_spots_nearby': '@n PawSpot por perto',
       'common_view_profile': 'Ver perfil',
@@ -562,7 +564,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'post_comments_count_singular': 'Comentário @count',
       'post_comments_count_plural': 'Comentários @count',
       'time_hours_ago': '@count horas atrás',
-      'time_minutes_ago': '@count meses atrás',
+      'time_minutes_ago': '@count min atrás',
       'time_just_now': 'Agora mesmo',
       'posts_empty_title': 'Nenhuma postagem disponível',
       'posts_load_failed': 'Falha ao carregar postagens. Por favor, tente novamente.',
@@ -578,7 +580,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'sitter_filters_on': 'Filtros ativados',
       'sitter_no_requests_match': 'Nenhuma solicitação corresponde aos seus filtros.',
       'filter_requests_title': 'Filtrar solicitações',
-      'filter_clear': 'Claro',
+      'filter_clear': 'Limpar',
       'filter_apply': 'Aplicar',
       'filter_location': 'Localização',
       'filter_service_type': 'Tipo de serviço',
@@ -616,7 +618,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'label_terms_title': 'Termos e Política de Privacidade.',
       'or_sign_up_with': 'Ou cadastre-se com',
       'button_google': 'Google',
-      'button_apple': 'Maçã',
+      'button_apple': 'Apple',
       'button_create_account': 'Criar uma conta',
       'button_creating_account': 'Criando conta...',
       'button_logout': 'Sair',
@@ -670,7 +672,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'dont_have_account': 'Não tem uma conta?',
       'sign_up': 'Inscrever-se',
       // Onboarding screen
-      'onboarding_app_title': 'Animais domésticos sentados',
+      'onboarding_app_title': 'Pet-sitting',
       'onboarding_continue_with_google': 'Continuar com o Google',
       'onboarding_continue_with_apple': 'Continuar com a Apple',
       'onboarding_have_account': 'Tem uma conta?',
@@ -761,7 +763,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'label_city': 'Cidade',
       'location_getting': 'Recebendo...',
       'location_auto': 'Auto',
-      'location_map': 'Map',
+      'location_map': 'Mapa',
       'location_detected': 'Detectado: @city',
       'location_enter_city': 'Digite sua cidade',
       'error_city_required': 'Por favor insira sua cidade',
@@ -1392,8 +1394,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'create_pet_med_allergies_label': 'Alergias a medicamentos',
       'create_pet_med_allergies_hint': 'Insira alergias a medicamentos',
       'create_pet_category_label': 'Categoria',
-      'create_pet_category_dog': 'Dog',
-      'create_pet_category_cat': 'Cat',
+      'create_pet_category_dog': 'Cão',
+      'create_pet_category_cat': 'Gato',
       'create_pet_category_bird': 'Pássaro',
       'create_pet_category_rabbit': 'Coelho',
       'create_pet_category_other': 'Outro',
@@ -1422,7 +1424,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'send_request_pets_select_placeholder': 'Selecione',
       'send_request_dates_label': 'Datas',
       'send_request_start_label': 'Começar',
-      'send_request_end_label': 'End',
+      'send_request_end_label': 'Fim',
       'send_request_select_date': 'Selecione a data',
       'send_request_select_time': 'Selecione o horário',
       'send_request_service_type_label': 'Tipo de serviço',
@@ -1486,8 +1488,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'publish_request_fill_required': 'Por favor preencha todos os campos obrigatórios.',
       'publish_request_ui_only_success': 'UI de solicitação criada (ainda não publicada).',
       'publish_request_success': 'Pedido de reserva publicado com sucesso!',
-      'publish_request_service_walking': 'Andando',
-      'publish_request_service_boarding': 'Embarque',
+      'publish_request_service_walking': 'Passeio',
+      'publish_request_service_boarding': 'Hospedagem',
       'publish_request_service_daycare': 'Creche',
       'publish_request_service_pet_sitting': 'Cuidado de vários dias',
       'publish_request_service_walking_desc': 'Passeio curto ou longo, exclusivo passeadores',
@@ -1652,7 +1654,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'service_card_pay_now': 'Pague agora',
       'service_card_chat': 'Bater papo',
       'sitter_rating_with_count': '@rating (avaliações @count)',
-      'status_all_label': 'All',
+      'status_all_label': 'Todos',
       'status_failed_label': 'Fracassado',
       'status_refunded_label': 'Reembolsado',
       'status_payment_pending_label': 'Pagamento pendente',
@@ -1758,7 +1760,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'booking_agreement_net_amount_label': 'Valor líquido (para o babá)',
       'booking_agreement_today_at': 'Hoje em @time',
       'booking_agreement_yesterday_at': 'Ontem no @time',
-      'booking_agreement_at': 'at',
+      'booking_agreement_at': 'às',
       'card_save_failed': 'Falha ao salvar o cartão. Por favor, tente novamente.',
       'onboarding_profile_complete_success': 'Perfil concluído com sucesso!',
       'onboarding_profile_complete_failed': 'Falha ao completar o perfil. Por favor, tente novamente.',
@@ -1891,7 +1893,9 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'pet_photo_delete_title': 'Excluir foto',
       'pet_photo_delete_confirm': 'Tem certeza de que deseja excluir esta foto?',
       'pet_photo_deleted': 'Foto excluída com sucesso.',
-      'pet_photo_delete_failed'
+      // v458 — FIX bug : 'pet_photo_delete_failed' était orpheline (sans
+      // valeur ni virgule) → elle avalait 'edit_pet_age_behavior'. La vraie
+      // valeur de pet_photo_delete_failed existe plus bas dans ce fichier.
       // Sprint fix: missing UI strings (pet edit / CGU / post card)
       'edit_pet_age_behavior': 'Idade e comportamento',
       'edit_pet_age_years': 'Idade (anos)',
