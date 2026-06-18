@@ -62,28 +62,10 @@ class ProfileScreen extends StatelessWidget {
               });
               return const SizedBox.shrink();
             }),
-            Obx(() {
-              final isBoosted = ActiveBenefitsRow.boostActiveAccessor.value;
-              const boostGold = Color(0xFFD4AF37);
-              return Container(
-                decoration: isBoosted
-                    ? BoxDecoration(
-                        // v473 — suit les coins arrondis du nouvel en-tête.
-                        borderRadius:
-                            BorderRadius.vertical(bottom: Radius.circular(30.r)),
-                        border: Border.all(color: boostGold, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: boostGold.withValues(alpha: 0.45),
-                            blurRadius: 18,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      )
-                    : null,
-                child: _buildOwnerHero(controller),
-              );
-            }),
+            // v477 — maquette v2 : « Pas de contour jaune autour de la carte ».
+            // Le liseré doré PawBoost est retiré du héros owner ; le statut
+            // boost reste signalé par les badges/pastilles habituels.
+            _buildOwnerHero(controller),
 
             Padding(
               // v468 — dégage le bas au-dessus du menu pleine largeur
@@ -190,7 +172,7 @@ class ProfileScreen extends StatelessWidget {
                           children: [
                             Obx(() => PoppinsText(
                                   text: controller.userName.value,
-                                  fontSize: 22.sp,
+                                  fontSize: 28.sp,
                                   fontWeight: FontWeight.w900,
                                   color: Colors.white,
                                   maxLines: 1,
@@ -363,9 +345,9 @@ class ProfileScreen extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(55.r),
               child: Container(
-                // v474 — avatar maquette (70) à anneau blanc + bouton caméra.
-                width: 70.w,
-                height: 70.w,
+                // v477 — maquette v2 : avatar agrandi (84) anneau + caméra.
+                width: 84.w,
+                height: 84.w,
                 color: AppColors.lightGrey,
                 child: isUploading
                     ? Center(
@@ -376,8 +358,8 @@ class ProfileScreen extends StatelessWidget {
                     : imageUrl.isNotEmpty
                     ? CachedNetworkImage(
                         imageUrl: imageUrl,
-                        width: 60.w,
-                        height: 60.w,
+                        width: 84.w,
+                        height: 84.w,
                         memCacheWidth: 300, // v235.
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(

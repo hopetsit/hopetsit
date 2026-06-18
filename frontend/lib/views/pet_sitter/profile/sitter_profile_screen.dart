@@ -1,7 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/boost_profile_card.dart';
 import 'package:hopetsit/widgets/kyc_status_banner.dart';
 import 'package:hopetsit/widgets/my_kyc_verified_badge.dart';
@@ -35,30 +34,6 @@ import 'package:hopetsit/views/profile/bug_report_screen.dart';
 
 class SitterProfileScreen extends StatelessWidget {
   const SitterProfileScreen({super.key});
-
-  String _localizeService(String s) {
-    switch (s.toLowerCase().trim()) {
-      case 'dog walking':
-      case 'dog_walking':
-        return 'sitter_service_dog_walking'.tr;
-      case 'pet sitting':
-      case 'pet_sitting':
-        return 'choose_service_card_pet_sitting_title'.tr;
-      case 'house sitting':
-      case 'house_sitting':
-        return 'choose_service_card_house_sitting_title'.tr;
-      default:
-        // v23.1.299 — Daniel : "vérifie la traduction des petits badges".
-        // Filet de sécurité : une valeur de service inconnue ne s'affiche plus
-        // en brut (ex "house_sitting") mais prettifiée ("House Sitting").
-        return s
-            .replaceAll('_', ' ')
-            .split(' ')
-            .where((w) => w.isNotEmpty)
-            .map((w) => w[0].toUpperCase() + w.substring(1))
-            .join(' ');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -227,7 +202,7 @@ class SitterProfileScreen extends StatelessWidget {
                         SizedBox(height: 3.h),
                         Obx(() => PoppinsText(
                           text: controller.userName.value,
-                          fontSize: 18.sp,
+                          fontSize: 26.sp,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
                         )),
@@ -235,38 +210,22 @@ class SitterProfileScreen extends StatelessWidget {
                         // en haut, enlève-le". Email retiré du héros (owner,
                         // sitter, walker) pour un en-tête épuré et cohérent.
                         // v23.1 part 109 — badges Boost / PawSpot / Premium.
-                        const ActiveBenefitsRow(compact: true),
-                        SizedBox(height: 6.h),
-                        Obx(() {
-                          // Session v3.3 — dog walking est désormais une
-                          // prestation exclusive au rôle walker. On le filtre
-                          // du hero sitter pour ne laisser que garderie et
-                          // garde multi-jours (pet_sitting + house_sitting).
-                          final rawServices = controller.profile.value?.service ?? [];
-                          final services = rawServices
-                              .where((s) {
-                                final norm = s.toLowerCase().trim().replaceAll(' ', '_');
-                                return norm != 'dog_walking';
-                              })
-                              .toList();
-                          if (services.isEmpty) return const SizedBox.shrink();
-                          return Wrap(
-                            spacing: 4.w,
-                            children: services.take(3).map((s) => Container(
-                              padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4.r),
-                              ),
-                              child: InterText(
-                                text: _localizeService(s),
-                                fontSize: 10.sp,
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            )).toList(),
-                          );
-                        }),
+                        SizedBox(height: 8.h),
+                        // v477 — maquette v2 : pastille statut + 2 stats RÉELS
+                        // (jours actifs depuis l'inscription + note moyenne).
+                        _heroStatusPill('profile_status_available_sit'.tr),
+                        SizedBox(height: 12.h),
+                        Obx(() => Row(
+                              children: [
+                                _heroStat(
+                                    '${_daysActive(controller.profile.value?.createdAt)}',
+                                    'profile_days_active'.tr),
+                                SizedBox(width: 8.w),
+                                _heroStat(
+                                    '⭐ ${(controller.profile.value?.rating ?? 0).toStringAsFixed(1)}',
+                                    'stat_rating'.tr),
+                              ],
+                            )),
                       ],
                     ),
                   ),
@@ -282,6 +241,73 @@ class SitterProfileScreen extends StatelessWidget {
   }
 
   /// 🐾 filigrane + cercle déco (maquette Daniel — profondeur HD).
+  /// v477 — jours actifs RÉELS depuis l'inscription (createdAt → aujourd'hui).
+  int _daysActive(String? createdAt) {
+    if (createdAt == null || createdAt.trim().isEmpty) return 0;
+    final d = DateTime.tryParse(createdAt);
+    if (d == null) return 0;
+    final n = DateTime.now().difference(d).inDays;
+    return n < 0 ? 0 : n;
+  }
+
+  /// Pastille statut « Disponible · … » (verre dépoli blanc).
+  Widget _heroStatusPill(String label) => Container(
+        padding: EdgeInsets.symmetric(horizontal: 13.w, vertical: 5.h),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8.w,
+              height: 8.w,
+              decoration: const BoxDecoration(
+                  color: Color(0xFFBFE0FF), shape: BoxShape.circle),
+            ),
+            SizedBox(width: 7.w),
+            InterText(
+              text: label,
+              fontSize: 12.5.sp,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ],
+        ),
+      );
+
+  /// Carte stat (valeur + libellé) du header (verre dépoli).
+  Widget _heroStat(String value, String label) => Expanded(
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 11.h, horizontal: 4.w),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(15.r),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              InterText(
+                text: value,
+                fontSize: 19.sp,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+              SizedBox(height: 2.h),
+              InterText(
+                text: label,
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w800,
+                color: Colors.white.withValues(alpha: 0.78),
+              ),
+            ],
+          ),
+        ),
+      );
+
   Widget _heroPaw() => Positioned(
         right: -26.w,
         top: -24.h,
@@ -323,8 +349,8 @@ class SitterProfileScreen extends StatelessWidget {
           ),
           child: Obx(
             () => CircleAvatar(
-              // v473 — avatar réduit (31) → bandeau encore plus court.
-              radius: 31.r,
+              // v477 — maquette v2 : avatar agrandi (~84px) à anneau + caméra.
+              radius: 41.r,
               backgroundColor: AppColors.grey300Color,
               backgroundImage: controller.profileImageUrl.value.isNotEmpty
                   ? CachedNetworkImageProvider(controller.profileImageUrl.value)
