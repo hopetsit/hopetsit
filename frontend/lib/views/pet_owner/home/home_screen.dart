@@ -1535,7 +1535,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // Bottom padding pour eviter que le dernier item soit cache
               // par la pill flottante du bottom nav.
-              SliverToBoxAdapter(child: SizedBox(height: 100.h)),
+              // v468 — dégage le bas au-dessus du menu pleine largeur
+              SliverToBoxAdapter(
+                  child: SizedBox(
+                      height: 110.h + MediaQuery.of(context).viewPadding.bottom)),
             ],
           ),
         ),

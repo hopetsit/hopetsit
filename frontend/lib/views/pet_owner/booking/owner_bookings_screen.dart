@@ -190,7 +190,10 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
                 color: _ownerAccent,
                 onRefresh: () => _bookingsController.loadBookings(),
                 child: ListView.builder(
-                  padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 20.h),
+                  // v468 — dégager le bas pour passer AU-DESSUS de la barre de
+                  // menu pleine largeur (~80) + l'inset Samsung.
+                  padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w,
+                      110.h + MediaQuery.of(context).viewPadding.bottom),
                   itemCount: list.length,
                   itemBuilder: (context, index) =>
                       _buildBookingCard(list[index]),

@@ -131,11 +131,18 @@ async function enrichGoldenCreators(spots) {
   }
 }
 
+// v465 — Daniel : « PawSpot censure des mots innocents (étoiles) ». La
+// modération est désormais NON DESTRUCTIVE : on stocke le texte BRUT et on
+// censure À LA LECTURE (ici) avec les règles à jour. Avantage : un correctif
+// de modération s'applique RÉTROACTIVEMENT à tous les spots, et le texte
+// original n'est jamais perdu. (Les anciens spots déjà stockés censurés
+// restent tels quels — il faut les recréer.)
+const { moderateText: _moderateSpot } = require('../services/textModerationService');
 const spotJson = (s) => ({
   id: String(s._id),
   type: s.type,
-  name: s.name,
-  description: s.description || '',
+  name: _moderateSpot(s.name || '').clean,
+  description: _moderateSpot(s.description || '').clean,
   photoUrl: s.photoUrl || '',
   lat: Array.isArray(s.location?.coordinates) ? Number(s.location.coordinates[1]) : null,
   lng: Array.isArray(s.location?.coordinates) ? Number(s.location.coordinates[0]) : null,
@@ -411,18 +418,19 @@ router.post('/', requireAuth, async (req, res) => {
       }
     }
 
-    // Modération du texte (gros mots / menaces — service existant).
-    const { moderateText } = require('../services/textModerationService');
-    const cleanName = moderateText(String(name).trim()).clean;
-    const cleanDesc = moderateText(String(description || '').trim()).clean;
+    // v465 — modération NON DESTRUCTIVE : on stocke le texte BRUT (tronqué)
+    // et la censure se fait à la LECTURE dans spotJson (règles à jour,
+    // rétroactif, pas de perte de l'original).
+    const rawName = String(name).trim();
+    const rawDesc = String(description || '').trim();
 
     const spot = await PawSpot.create({
       creatorId: req.user.id,
       creatorModel: userModelFromRole(req.user.role),
       creatorName: meDoc?.name || '',
       type,
-      name: cleanName.slice(0, 80),
-      description: cleanDesc.slice(0, 500),
+      name: rawName.slice(0, 80),
+      description: rawDesc.slice(0, 500),
       photoUrl: String(photoUrl || '').slice(0, 500),
       location: {
         type: 'Point',
@@ -556,14 +564,14 @@ router.post('/:id/comment', requireAuth, async (req, res) => {
     if (!text) return res.status(400).json({ error: 'Comment text required.' });
     const spot = await PawSpot.findById(req.params.id);
     if (!spot || spot.hidden) return res.status(404).json({ error: 'Spot not found.' });
-    const { moderateText } = require('../services/textModerationService');
     const Model = modelForRole(req.user.role);
     const meDoc = await Model.findById(req.user.id).select('name').lean();
     spot.comments.push({
       authorId: req.user.id,
       authorModel: userModelFromRole(req.user.role),
       authorName: meDoc?.name || '',
-      text: moderateText(text).clean.slice(0, 300),
+      // v465 — texte BRUT stocké, censuré à la lecture (GET comments).
+      text: text.slice(0, 300),
     });
     await spot.save();
     await pawPoints.awardPoints({
@@ -588,7 +596,8 @@ router.get('/:id/comments', requireAuth, async (req, res) => {
       .map((c) => ({
         id: String(c._id),
         authorName: c.authorName || '',
-        text: c.text,
+        // v465 — censure à la lecture (non destructif, rétroactif).
+        text: _moderateSpot(c.text || '').clean,
         createdAt: c.createdAt,
       }));
     res.json({ comments });

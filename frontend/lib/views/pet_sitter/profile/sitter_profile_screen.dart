@@ -83,7 +83,9 @@ class SitterProfileScreen extends StatelessWidget {
             _buildSitterHero(controller, sitterAccent),
 
             Padding(
-              padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 100.h),
+              // v468 — dégage le bas au-dessus du menu pleine largeur
+              padding: EdgeInsets.fromLTRB(
+                  16.w, 0, 16.w, 110.h + MediaQuery.of(context).viewPadding.bottom),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -134,8 +136,9 @@ class SitterProfileScreen extends StatelessWidget {
           width: double.infinity,
           // v23.1.290 — hauteur MINIMALE : le header s'étend si les badges
           // passent sur 2 lignes au lieu de déborder sous le dégradé.
-          // v465/v467 — Daniel : « toujours pas réduit » → 130 (bien plus court).
-          constraints: BoxConstraints(minHeight: 130.h),
+          // v465/v467/v469 — Daniel : « toujours trop grand » → 100 + padding
+          // resserré (hero compact, plus d'espace vide sous les badges).
+          constraints: BoxConstraints(minHeight: 100.h),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -149,7 +152,7 @@ class SitterProfileScreen extends StatelessWidget {
           ),
           child: SafeArea(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 6.h),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

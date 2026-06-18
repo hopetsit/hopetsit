@@ -2148,11 +2148,17 @@ class _PawMapScreenState extends State<PawMapScreen>
         backgroundColor: AppColors.appBar(context),
         title: Row(
           children: [
-            // v414 — logo PawMap officiel (patte bleu→vert + chien & chat).
+            // v469 — Daniel : logo PawMap ORANGE comme le bouton du menu. On
+            // teinte le logo officiel en orange #F2741B (cohérent avec le
+            // bouton central « Paw Map »).
             SvgPicture.asset(
               'assets/images/pawmap_logo.svg',
               width: 26.w,
               height: 26.w,
+              colorFilter: const ColorFilter.mode(
+                Color(0xFFF2741B),
+                BlendMode.srcIn,
+              ),
             ),
             SizedBox(width: 8.w),
             InterText(
@@ -2424,7 +2430,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // est remontée pour ne plus le chevaucher (cf _buildAroundYouCard).
                 Positioned(
                   left: 12.w,
-                  bottom: 24.h + MediaQuery.of(context).viewPadding.bottom,
+                  // v468 — au-dessus de la barre de menu pleine largeur (~84)
+                  // + l'inset Samsung, sinon le FAB passe derrière le menu.
+                  bottom: 108.h + MediaQuery.of(context).viewPadding.bottom,
                   child: _buildReportFab(),
                 ),
 
@@ -2457,7 +2465,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // décale la carte « Autour de vous » pour ne pas le couvrir.
                     left: 72.w,
                     right: 12.w,
-                    bottom: 12.h + MediaQuery.of(context).viewPadding.bottom,
+                    // v468 — au-dessus de la barre de menu pleine largeur.
+                    bottom: 96.h + MediaQuery.of(context).viewPadding.bottom,
                     child: _buildAroundYouCard(),
                   )
                 else
@@ -2469,7 +2478,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // barre de gestes Android. On le remonte de tout l'inset
                     // système + une marge pour qu'il ne croise plus le FAB
                     // Signaler (bottom-right, à 24.h + inset).
-                    bottom: 84.h + MediaQuery.of(context).viewPadding.bottom,
+                    // v468 — relevé au-dessus de la barre de menu pleine largeur.
+                    bottom: 120.h + MediaQuery.of(context).viewPadding.bottom,
                     child: Center(child: _buildDirectionsBanner()),
                   ),
               ],
@@ -2858,7 +2868,11 @@ class _PawMapScreenState extends State<PawMapScreen>
           Positioned(
             left: 16.w,
             right: 16.w,
-            bottom: 16.h + MediaQuery.of(context).viewPadding.bottom,
+            // v468 — en mode NORMAL le menu (~84) couvre le bas → on relève le
+            // bandeau au-dessus ; en mode AGRANDI le menu est masqué → inset seul.
+            bottom: 16.h +
+                MediaQuery.of(context).viewPadding.bottom +
+                (pawMapExpanded.value ? 0 : 84.h),
             child: Row(
               children: [
                 Expanded(
@@ -4210,7 +4224,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     return Positioned(
       left: 12.w,
       right: 12.w,
-      bottom: 24.h + MediaQuery.of(context).viewPadding.bottom,
+      // v468 — au-dessus du menu pleine largeur en mode normal ; inset seul en
+      // mode agrandi (menu masqué).
+      bottom: 24.h +
+          MediaQuery.of(context).viewPadding.bottom +
+          (pawMapExpanded.value ? 0 : 84.h),
       child: Material(
         color: Colors.transparent,
         child: Container(

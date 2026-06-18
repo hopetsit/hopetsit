@@ -786,7 +786,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             color: AppColors.primaryColor,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.all(16.w),
+              // v468 — dégage le bas au-dessus du menu pleine largeur
+              padding: EdgeInsets.fromLTRB(
+                  16.w, 16.w, 16.w, 110.h + MediaQuery.of(context).viewPadding.bottom),
               child: Column(
                 children: [
                   // v21.1.1 — Quick action bar. Le rôle EST détecté au

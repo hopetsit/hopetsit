@@ -56,7 +56,10 @@ class ChatScreen extends StatelessWidget {
             // derrière le menu du bas flottant. On le remonte (marge basse)
             // pour qu'il flotte AU-DESSUS du menu, toujours cliquable.
             floatingActionButton: Padding(
-              padding: EdgeInsets.only(bottom: 78.h),
+              // v468 — au-dessus de la barre de menu PLEINE LARGEUR (~80) +
+              // l'inset Samsung, sinon le bouton passe derrière.
+              padding: EdgeInsets.only(
+                  bottom: 96.h + MediaQuery.of(context).viewPadding.bottom),
               child: FloatingActionButton.extended(
                 onPressed: () => Get.to(() => const FriendsScreen()),
                 backgroundColor: AppColors.primaryColor,

@@ -39,7 +39,9 @@ class WalkerHomescreen extends StatelessWidget {
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 16.h),
+          // v468 — dégage le bas au-dessus du menu pleine largeur
+          padding: EdgeInsets.fromLTRB(
+              24.w, 16.h, 24.w, 110.h + MediaQuery.of(context).viewPadding.bottom),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

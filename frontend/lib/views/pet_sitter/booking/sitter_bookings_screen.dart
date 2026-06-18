@@ -183,7 +183,9 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
                 color: _sitterAccent,
                 onRefresh: () => _bookingsController.loadBookings(),
                 child: ListView.builder(
-                  padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 20.h),
+                  // v468 — dégage le bas au-dessus du menu pleine largeur
+                  padding: EdgeInsets.fromLTRB(
+                      20.w, 16.h, 20.w, 110.h + MediaQuery.of(context).viewPadding.bottom),
                   itemCount: filteredBookings.length,
                   itemBuilder: (context, index) {
                     final booking = filteredBookings[index];

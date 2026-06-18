@@ -1192,10 +1192,15 @@ class PetPostCard extends StatelessWidget {
             ),
           ],
         ),
-        if (p.breed.isNotEmpty) ...[
+        // v469 — Daniel : afficher l'ÂGE du chien dans « Caractère de vos
+        // animaux » (à côté de la race), lors d'une publication.
+        if (p.breed.isNotEmpty || (p.age != null && p.age! > 0)) ...[
           SizedBox(height: 2.h),
           InterText(
-            text: p.breed,
+            text: [
+              if (p.breed.isNotEmpty) p.breed,
+              if (p.age != null && p.age! > 0) _ageLabel(p.age!),
+            ].join(' • '),
             fontSize: 12.sp,
             color: AppColors.greyText,
           ),

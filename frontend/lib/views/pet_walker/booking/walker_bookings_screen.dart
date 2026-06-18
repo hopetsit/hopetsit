@@ -184,7 +184,9 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
                   status: _selectedStatus == 'all' ? null : _selectedStatus,
                 ),
                 child: ListView.builder(
-                  padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 20.h),
+                  // v468 — dégage le bas au-dessus du menu pleine largeur
+                  padding: EdgeInsets.fromLTRB(
+                      20.w, 16.h, 20.w, 110.h + MediaQuery.of(context).viewPadding.bottom),
                   itemCount: list.length,
                   itemBuilder: (context, index) => _buildBookingCard(list[index]),
                 ),
