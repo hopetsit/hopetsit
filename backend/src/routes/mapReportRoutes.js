@@ -36,6 +36,13 @@ const ROLE_TO_MODEL_NAME = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' 
 // v23.1.293 — 'food' + 'trash' ajoutés en GRATUIT (Daniel).
 const FREE_REPORT_TYPES = ['aggressive_dog', 'hazard', 'water_active', 'dead_animal', 'food', 'trash', 'vet_open'];
 
+// v456 — Daniel : « aider pour un animal perdu = GRATUIT pour tous ». Un animal
+// perdu/trouvé doit être VISIBLE par tout le monde (sinon un free user ne voit
+// pas le pin et ne peut pas aider). On garde lost_pet/found_pet PREMIUM à la
+// CRÉATION (le propriétaire paie pour poster l'alerte), mais on les rend VISIBLES
+// à tous dans /nearby + confirmables gratuitement (cf /:id/confirm v452).
+const PUBLIC_VISIBLE_TYPES = [...FREE_REPORT_TYPES, 'lost_pet', 'found_pet'];
+
 function parseFloatOr(value, fallback) {
   const n = parseFloat(value);
   return Number.isFinite(n) ? n : fallback;
@@ -172,7 +179,7 @@ router.get('/diagnose-mine', requireAuth, attachPremium, async (req, res) => {
       if (r.expiresAt && new Date(r.expiresAt) < new Date()) {
         issues.push('EXPIRED');
       }
-      if (!req.isPremium && !FREE_REPORT_TYPES.includes(r.type)) {
+      if (!req.isPremium && !PUBLIC_VISIBLE_TYPES.includes(r.type)) {
         issues.push('PREMIUM_ONLY_FOR_FREE_USER');
       }
       if (meLat !== null && meLng !== null && coords && coords.length === 2 &&
@@ -283,7 +290,7 @@ router.get('/nearby', requireAuth, attachPremium, async (req, res) => {
       // Free users peuvent filtrer mais on intersect avec FREE_REPORT_TYPES.
       const allowed = req.isPremium
         ? typeList
-        : typeList.filter((t) => FREE_REPORT_TYPES.includes(t));
+        : typeList.filter((t) => PUBLIC_VISIBLE_TYPES.includes(t));
       if (allowed.length === 0) {
         return res.status(402).json({
           error: 'These report categories are Premium-only.',
@@ -293,8 +300,9 @@ router.get('/nearby', requireAuth, attachPremium, async (req, res) => {
       }
       filter.type = { $in: allowed };
     } else if (!req.isPremium) {
-      // No type filter + free user → restrict to free types.
-      filter.type = { $in: FREE_REPORT_TYPES };
+      // v456 — free user sans filtre : on montre les types gratuits + les
+      // animaux perdus/trouvés (visibles par tous pour pouvoir AIDER).
+      filter.type = { $in: PUBLIC_VISIBLE_TYPES };
     }
 
     const reports = await MapReport.find(filter)
