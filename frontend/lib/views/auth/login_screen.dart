@@ -107,77 +107,103 @@ class LoginScreen extends StatelessWidget {
 
                     SizedBox(height: 40.h),
 
-                    // ── Welcome greeting card with logo ──
+                    // v478 — maquette « App Opening » : bandeau de marque
+                    // arrondi (dégradé orange) avec logo + « Bon retour 👋 ».
                     Container(
-                      padding: EdgeInsets.all(24.w),
+                      width: double.infinity,
+                      padding: EdgeInsets.all(20.w),
                       decoration: BoxDecoration(
-                        color: AppColors.card(context),
-                        borderRadius: BorderRadius.circular(20.r),
-                        border: Border.all(
-                          color: AppColors.primaryColor.withValues(alpha: 0.15),
-                          width: 1,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppColors.primaryColor,
+                            isDark
+                                ? const Color(0xFFC93D18)
+                                : const Color(0xFFED4F25),
+                          ],
                         ),
+                        borderRadius: BorderRadius.circular(28.r),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primaryColor.withValues(alpha: 0.08),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
+                            color:
+                                AppColors.primaryColor.withValues(alpha: 0.35),
+                            blurRadius: 24,
+                            offset: const Offset(0, 12),
                           ),
                         ],
                       ),
-                      child: Column(
+                      child: Stack(
                         children: [
-                          // v22.1 — Logo : passage SVG → PNG pour fix l'effet
-                          // "tordu" (le SVG a un transform Y=471 hors-centre).
-                          // Carré strict via 64.w sur les 2 axes.
-                          Container(
-                            width: 64.w,
-                            height: 64.w,
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(16.r),
-                            ),
-                            padding: EdgeInsets.all(6.w),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12.r),
-                              child: Image.asset(
-                                'assets/brand/png/apple-icon-original.png',
-                                fit: BoxFit.cover,
+                          Positioned(
+                            right: -12.w,
+                            top: -18.h,
+                            child: Transform.rotate(
+                              angle: 0.28,
+                              child: Text(
+                                '🐾',
+                                style: TextStyle(
+                                  fontSize: 86.sp,
+                                  color: Colors.white.withValues(alpha: 0.12),
+                                ),
                               ),
                             ),
                           ),
-                          SizedBox(height: 16.h),
-                          // v23.1 part 138 — header avec un badge "Se connecter"
-                          // bien visible pour distinguer clairement de la page
-                          // d'inscription. Daniel : "distinguer ou s'inscrire
-                          // ou se connecter avec compte".
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryColor.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(12.r),
-                            ),
-                            child: PoppinsText(
-                              text: 'title_login'.tr.toUpperCase(),
-                              fontSize: 11.sp,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.primaryColor,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                          SizedBox(height: 12.h),
-                          PoppinsText(
-                            text: 'welcome_back'.tr,
-                            fontSize: 26.sp,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary(context),
-                          ),
-                          SizedBox(height: 8.h),
-                          InterText(
-                            text: 'login_subtitle'.tr,
-                            fontSize: 13.sp,
-                            color: AppColors.textSecondary(context),
-                            textAlign: TextAlign.center,
+                          Row(
+                            children: [
+                              // Logo squircle blanc.
+                              Container(
+                                width: 60.w,
+                                height: 60.w,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(18.r),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color:
+                                          Colors.black.withValues(alpha: 0.16),
+                                      blurRadius: 18,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                padding: EdgeInsets.all(6.w),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12.r),
+                                  child: Image.asset(
+                                    'assets/brand/png/apple-icon-original.png',
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 14.w),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    PoppinsText(
+                                      text: '${'welcome_back'.tr} 👋',
+                                      fontSize: 24.sp,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    SizedBox(height: 6.h),
+                                    InterText(
+                                      text: 'login_subtitle'.tr,
+                                      fontSize: 13.sp,
+                                      fontWeight: FontWeight.w600,
+                                      color:
+                                          Colors.white.withValues(alpha: 0.92),
+                                      maxLines: 2,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
