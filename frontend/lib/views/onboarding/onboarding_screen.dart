@@ -72,66 +72,36 @@ class OnboardingScreen extends StatelessWidget {
           // SingleChildScrollView/IntrinsicHeight/Expanded (qui faisaient
           // disparaître la grille + les boutons en release). Aucun overlay
           // au-dessus des boutons.
-          child: Padding(
+          child: SingleChildScrollView(
             padding: EdgeInsets.symmetric(horizontal: 20.w),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(height: 12.h),
+                SizedBox(height: 16.h),
 
-                // v478 — maquette « App Opening » : logo héros en squircle
-                // blanc 124px + halo lumineux derrière + bord blanc + ombre.
-                SizedBox(
-                  height: 132.w,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Halo lumineux (blanc en clair, orange en sombre).
-                      Container(
-                        width: 172.w,
-                        height: 172.w,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            colors: [
-                              isDark
-                                  ? AppColors.primaryColor
-                                      .withValues(alpha: 0.40)
-                                  : Colors.white.withValues(alpha: 0.50),
-                              Colors.transparent,
-                            ],
-                            stops: const [0.0, 0.7],
-                          ),
-                        ),
-                      ),
-                      // Squircle blanc avec le logo.
-                      Container(
-                        width: 124.w,
-                        height: 124.w,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(34.r),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            width: 4,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.28),
-                              blurRadius: 30,
-                              offset: const Offset(0, 16),
-                            ),
-                          ],
-                        ),
-                        padding: EdgeInsets.all(8.w),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(26.r),
-                          child: Image.asset(
-                            'assets/brand/png/apple-icon-original.png',
-                            fit: BoxFit.cover,
-                          ),
-                        ),
+                // v483b — logo SIMPLE (sans Stack ni halo RadialGradient, qui
+                // pouvaient casser le rendu en release et masquer la suite).
+                Container(
+                  width: 120.w,
+                  height: 120.w,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(32.r),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.20),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
                       ),
                     ],
+                  ),
+                  padding: EdgeInsets.all(10.w),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24.r),
+                    child: Image.asset(
+                      'assets/brand/png/apple-icon-original.png',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
 
@@ -154,7 +124,20 @@ class OnboardingScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
 
-                SizedBox(height: 26.h),
+                SizedBox(height: 8.h),
+                // v483b — marqueur de build TEMPORAIRE (diagnostic) : confirme
+                // quelle version est réellement installée. À retirer ensuite.
+                Text(
+                  'BUILD 23.1.484',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1,
+                  ),
+                ),
+
+                SizedBox(height: 20.h),
 
                 // v478 — maquette « App Opening » : grille 2×2 des 4 services
                 // (icône carrée teintée + titre + 1 ligne). Tout en i18n.
@@ -205,11 +188,11 @@ class OnboardingScreen extends StatelessWidget {
                   ],
                 ),
 
-                // v480 — spacer flex : pousse les CTA en bas, grille + boutons
-                // toujours visibles ; scroll seulement si l'écran est petit.
-                Expanded(child: SizedBox(height: 24.h)),
+                // v483b — gap fixe (le scroll gère les petits écrans ; PLUS
+                // d'Expanded, interdit dans un SingleChildScrollView).
+                SizedBox(height: 36.h),
 
-                // ── CTA Section (en bas, flux normal) ──
+                // ── CTA Section ──
                 Container(
                   width: double.infinity,
                   padding: EdgeInsets.symmetric(
