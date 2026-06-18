@@ -14,7 +14,6 @@ import 'package:hopetsit/models/profile_model.dart';
 import 'package:hopetsit/views/profile/widgets/profile_settings_tabs.dart';
 import 'package:hopetsit/views/profile/widgets/profile_notification_bell.dart';
 import 'package:hopetsit/views/profile/my_rates_screen.dart';
-import 'package:hopetsit/views/reviews/my_reviews_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 // v23.1 — Mes cartes (Airwallex saved payment_consents) — sitter peut payer un PawSpot/PawFollow.
 import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
@@ -66,9 +65,10 @@ class SitterProfileScreen extends StatelessWidget {
                 children: [
                   SizedBox(height: 16.h),
 
-                  // Sitter Stats Row
-                  _buildSitterStatsRow(controller, sitterAccent),
-                  SizedBox(height: 16.h),
+                  // v480 — maquette « Header v2 » : la carte blanche
+                  // « Note / Avis / Services » est MASQUÉE (l'en-tête affiche
+                  // déjà « jours actifs + Note » → évite le doublon). Méthode
+                  // _buildSitterStatsRow conservée mais plus appelée.
 
                   // Quick Pro Actions
                   _buildSitterQuickActions(controller, sitterAccent, sitterAccentLight),
@@ -382,56 +382,9 @@ class SitterProfileScreen extends StatelessWidget {
     );
   }
 
-  /// Stats row for sitter — rating, reviews, services.
-  Widget _buildSitterStatsRow(SitterProfileController controller, Color accent) {
-    return Obx(() {
-      final profile = controller.profile.value;
-      return Builder(
-        builder: (context) => Container(
-          padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 16.w),
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(14.r),
-            boxShadow: AppColors.cardShadow(context),
-          ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            // v23.1.292 — vraie note (avant codée en dur à '0.0').
-            _statItem((profile?.rating ?? 0).toStringAsFixed(1), 'stat_rating'.tr, Icons.star_rounded, Colors.amber),
-            Container(width: 1, height: 32.h, color: AppColors.divider(context)),
-            // v23.1.292 — vrai nombre d'avis + cliquable → liste des avis reçus.
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => Get.to(() => MyReviewsScreen(
-                    reviews: profile?.reviews ?? const [],
-                    rating: profile?.rating ?? 0,
-                    reviewsCount: profile?.reviewsCount ?? 0,
-                    accent: accent,
-                  )),
-              child: _statItem('${profile?.reviewsCount ?? 0}', 'stat_reviews'.tr, Icons.reviews_outlined, accent),
-            ),
-            Container(width: 1, height: 32.h, color: AppColors.divider(context)),
-            _statItem('${profile?.service.length ?? 0}', 'stat_services'.tr, Icons.work_outline_rounded, AppColors.greenColor),
-          ],
-        ),
-        ),
-      );
-    });
-  }
-
-  Widget _statItem(String value, String label, IconData icon, Color color) {
-    return Builder(
-      builder: (context) => Column(
-        children: [
-          Icon(icon, size: 18.sp, color: color),
-          SizedBox(height: 4.h),
-          PoppinsText(text: value, fontSize: 16.sp, fontWeight: FontWeight.w700, color: AppColors.textPrimary(context)),
-          InterText(text: label, fontSize: 10.sp, color: AppColors.textSecondary(context), fontWeight: FontWeight.w500),
-        ],
-      ),
-    );
-  }
+  // v480 — maquette « Header v2 » : carte « Note / Avis / Services » retirée
+  // (doublon avec les stats de l'en-tête). _buildSitterStatsRow + _statItem
+  // supprimés. La liste des avis reste accessible ailleurs (avis reçus).
 
   /// Quick actions: Earnings, Availability, Boost, IBAN.
   /// v23.1 part 144 — Daniel : 'icone tjr diforme' après 4 tentatives

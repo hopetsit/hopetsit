@@ -46,8 +46,10 @@ class ProfileNotificationBell extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
+            // v480 — maquette « Header v2 » : cloche en JAUNE doré (#FFCB2E)
+            // sur les 3 rôles (ne plus hériter du blanc du texte).
             Icon(Icons.notifications_rounded,
-                color: Colors.white, size: 22.sp),
+                color: const Color(0xFFFFCB2E), size: 22.sp),
             Positioned(
               top: 6.h,
               right: 8.w,

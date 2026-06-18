@@ -61,11 +61,20 @@ class OnboardingScreen extends StatelessWidget {
           // (logo + cartes + CTAs en bas). Plus de Spacer ni de
           // Flexible. Les cartes sont entierement visibles et le scroll
           // marche si l'ecran est petit.
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 20.w),
-            child: Column(
+          // v480 — FIX layout : la grille 2×2 + les boutons ne s'affichaient
+          // plus (poussés hors écran). Pattern « remplir la hauteur + footer
+          // collé en bas + scroll seulement si trop grand » :
+          // LayoutBuilder + ConstrainedBox(minHeight) + IntrinsicHeight +
+          // Column avec un Expanded comme spacer (flex:1) avant les CTA.
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(
               children: [
-                SizedBox(height: 20.h),
+                SizedBox(height: 16.h),
 
                 // v478 — maquette « App Opening » : logo héros en squircle
                 // blanc 124px + halo lumineux derrière + bord blanc + ombre.
@@ -194,9 +203,11 @@ class OnboardingScreen extends StatelessWidget {
                   ],
                 ),
 
-                SizedBox(height: 32.h),
+                // v480 — spacer flex : pousse les CTA en bas, grille + boutons
+                // toujours visibles ; scroll seulement si l'écran est petit.
+                Expanded(child: SizedBox(height: 24.h)),
 
-                // ── CTA Section (dans le scroll, sous les cartes) ──
+                // ── CTA Section (en bas, flux normal) ──
                 Container(
                   width: double.infinity,
                   padding: EdgeInsets.symmetric(
@@ -351,6 +362,9 @@ class OnboardingScreen extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+                ),
+              ),
             ),
           ),
         ),
