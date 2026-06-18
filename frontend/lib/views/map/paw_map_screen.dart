@@ -72,6 +72,12 @@ class PawMapScreen extends StatefulWidget {
 class _PawMapScreenState extends State<PawMapScreen>
     with WidgetsBindingObserver {
   final Completer<GoogleMapController> _mapCtl = Completer();
+  // v469 — Daniel : « quand la map est AGRANDIE je veux voir ET SUIVRE amis et
+  // famille ». Le calque plein écran possède sa PROPRE GoogleMap → il lui faut
+  // son propre contrôleur, sinon _startFollow animait la carte normale CACHÉE
+  // dessous (la caméra du calque restait figée). On garde ce ref tant que le
+  // calque est monté ; il est invalidé à la réduction.
+  GoogleMapController? _expandedCtl;
   late final PawMapController _poiController;
   late final MapReportController _reportController;
   late final FriendController _friendController;
@@ -1406,17 +1412,22 @@ class _PawMapScreenState extends State<PawMapScreen>
       // famille). Champ isPremium poussé par GET /friends/family/members.
       // v448 — Daniel : si la couche Premium est coupée manuellement
       // (_showPremiumLayer OFF), on n'applique plus l'or → membres en violet.
+      // v469 — Daniel : couronne 👑 Paw Premium visible par TOUS (pas que la
+      // famille). On réunit les membres famille premium ET les AMIS premium
+      // (flag isPremium désormais renvoyé par le backend pour chaque contact).
       final premiumMemberIds = !_showPremiumLayer.value
           ? <String>{}
-          : (friendCtl?.familyMembers
+          : (<String>{
+              ...((friendCtl?.familyMembers ?? const [])
                   .where((m) => m['isPremium'] == true)
                   .map((m) => ((m['id'] ?? m['userId'] ?? '')
                       .toString())
                       .trim()
-                      .toLowerCase())
-                  .where((id) => id.isNotEmpty)
-                  .toSet() ??
-              <String>{});
+                      .toLowerCase())),
+              ...((friendCtl?.friends ?? const [])
+                  .where((f) => f.other?.isPremium == true)
+                  .map((f) => (f.other?.id ?? '').trim().toLowerCase())),
+            }..removeWhere((id) => id.isEmpty));
       // v23.1 part 225 — Index userId → role (lowercase) tire de la
       // liste d'amis acceptes pour pouvoir override la couleur halo
       // selon le metier de l'ami qui broadcast.
@@ -1830,16 +1841,20 @@ class _PawMapScreenState extends State<PawMapScreen>
       // sur LEUR marqueur, prioritaire sur le violet famille.
       // v448 — couche Premium coupée manuellement (_showPremiumLayer OFF) →
       // set vide → pas d'or/couronne (membres en violet famille).
+      // v469 — couronne 👑 visible par TOUS : famille premium + AMIS premium.
       final premiumMemberIds = !_showPremiumLayer.value
           ? <String>{}
-          : _friendController.familyMembers
-              .where((m) => m['isPremium'] == true)
-              .map((m) => ((m['id'] ?? m['userId'] ?? '')
-                  .toString())
-                  .trim()
-                  .toLowerCase())
-              .where((id) => id.isNotEmpty)
-              .toSet();
+          : (<String>{
+              ..._friendController.familyMembers
+                  .where((m) => m['isPremium'] == true)
+                  .map((m) => ((m['id'] ?? m['userId'] ?? '')
+                      .toString())
+                      .trim()
+                      .toLowerCase()),
+              ..._friendController.friends
+                  .where((f) => f.other?.isPremium == true)
+                  .map((f) => (f.other?.id ?? '').trim().toLowerCase()),
+            }..removeWhere((id) => id.isEmpty));
       // v23.1.297 — Daniel : "compter famille ET amis". Le backend pousse
       // désormais aussi la position des membres famille (mapSocket). Lookup
       // id->map pour dessiner leur pin même s'ils ne sont PAS aussi des amis
@@ -2148,17 +2163,14 @@ class _PawMapScreenState extends State<PawMapScreen>
         backgroundColor: AppColors.appBar(context),
         title: Row(
           children: [
-            // v469 — Daniel : logo PawMap ORANGE comme le bouton du menu. On
-            // teinte le logo officiel en orange #F2741B (cohérent avec le
-            // bouton central « Paw Map »).
+            // v470 — Daniel : « tu as mis un point orange au lieu du logo ». Le
+            // colorFilter srcIn écrasait TOUT le logo (disque+pin+pattes) en un
+            // aplat orange = un simple point. On utilise désormais le VRAI logo
+            // orange (disque orange + pin blanc + pattes), SANS colorFilter.
             SvgPicture.asset(
-              'assets/images/pawmap_logo.svg',
-              width: 26.w,
-              height: 26.w,
-              colorFilter: const ColorFilter.mode(
-                Color(0xFFF2741B),
-                BlendMode.srcIn,
-              ),
+              'assets/images/pawmap_logo_orange.svg',
+              width: 28.w,
+              height: 28.w,
             ),
             SizedBox(width: 8.w),
             InterText(
@@ -2412,7 +2424,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // La pill de recherche ville flottante est retirée. Les
                 // contrôles +/-/géoloc remontent en haut à droite.
                 Positioned(
-                  top: 12.h,
+                  // v469 — Daniel : relever très légèrement la barre +/-/satellite
+                  // (elle touchait le bord du menu/panneau).
+                  top: 4.h,
                   right: 12.w,
                   child: _buildMapControlsStack(),
                 ),
@@ -2430,9 +2444,12 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // est remontée pour ne plus le chevaucher (cf _buildAroundYouCard).
                 Positioned(
                   left: 12.w,
-                  // v468 — au-dessus de la barre de menu pleine largeur (~84)
-                  // + l'inset Samsung, sinon le FAB passe derrière le menu.
-                  bottom: 108.h + MediaQuery.of(context).viewPadding.bottom,
+                  // v470 — Daniel : « en carte petite le bouton Signaler bas-
+                  // gauche est trop bas / inutilisable ». La barre pleine largeur
+                  // v468 est plus haute que l'ancienne pilule → on relève
+                  // franchement le FAB (132) + inset Samsung pour qu'il soit
+                  // bien au-dessus du menu et confortablement cliquable.
+                  bottom: 132.h + MediaQuery.of(context).viewPadding.bottom,
                   child: _buildReportFab(),
                 ),
 
@@ -2465,8 +2482,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // décale la carte « Autour de vous » pour ne pas le couvrir.
                     left: 72.w,
                     right: 12.w,
-                    // v468 — au-dessus de la barre de menu pleine largeur.
-                    bottom: 96.h + MediaQuery.of(context).viewPadding.bottom,
+                    // v470 — Daniel : « Autour de vous derrière le menu et trop
+                    // grand ». On relève la carte au-dessus du menu pleine
+                    // largeur (116) + inset ; la taille est réduite dans
+                    // _buildAroundYouCard (police + paddings + max 2 lignes).
+                    bottom: 116.h + MediaQuery.of(context).viewPadding.bottom,
                     child: _buildAroundYouCard(),
                   )
                 else
@@ -2478,8 +2498,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // barre de gestes Android. On le remonte de tout l'inset
                     // système + une marge pour qu'il ne croise plus le FAB
                     // Signaler (bottom-right, à 24.h + inset).
-                    // v468 — relevé au-dessus de la barre de menu pleine largeur.
-                    bottom: 120.h + MediaQuery.of(context).viewPadding.bottom,
+                    // v470 — relevé franchement au-dessus de la barre de menu
+                    // pleine largeur.
+                    bottom: 136.h + MediaQuery.of(context).viewPadding.bottom,
                     child: Center(child: _buildDirectionsBanner()),
                   ),
               ],
@@ -2665,8 +2686,16 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Recentre la caméra sur [target]. Marque le mouvement comme "programmatique"
   /// pendant ~800 ms pour que onCameraMoveStarted ne coupe pas le suivi.
   Future<void> _animateFollowCamera(LatLng target, {double? zoom}) async {
-    if (!_mapCtl.isCompleted) return;
-    final ctl = await _mapCtl.future;
+    // v469 — si la carte est AGRANDIE, on anime la caméra du calque (sa propre
+    // GoogleMap visible) ; sinon celle de la carte normale.
+    GoogleMapController? ctl;
+    if (pawMapExpanded.value && _expandedCtl != null) {
+      ctl = _expandedCtl;
+    } else {
+      if (!_mapCtl.isCompleted) return;
+      ctl = await _mapCtl.future;
+    }
+    if (ctl == null) return;
     _suppressFollowAutoStop = true;
     try {
       if (zoom != null) {
@@ -2868,11 +2897,13 @@ class _PawMapScreenState extends State<PawMapScreen>
           Positioned(
             left: 16.w,
             right: 16.w,
-            // v468 — en mode NORMAL le menu (~84) couvre le bas → on relève le
-            // bandeau au-dessus ; en mode AGRANDI le menu est masqué → inset seul.
+            // v470 — Daniel : « en carte agrandie les boutons Valider du tag
+            // sont derrière la barre Samsung ». En agrandi le menu est masqué
+            // mais l'inset seul ne suffisait pas → on garde un socle FIXE (48)
+            // au-dessus de la barre système. En normal, on dégage le menu (~96).
             bottom: 16.h +
                 MediaQuery.of(context).viewPadding.bottom +
-                (pawMapExpanded.value ? 0 : 84.h),
+                (pawMapExpanded.value ? 48.h : 96.h),
             child: Row(
               children: [
                 Expanded(
@@ -2957,12 +2988,14 @@ class _PawMapScreenState extends State<PawMapScreen>
           final db = _approxKm(b.latitude, b.longitude);
           return da.compareTo(db);
         });
-      final top = list.take(3).toList();
+      // v470 — Daniel : « Autour de vous trop grand ». On réduit à 2 entrées
+      // (au lieu de 3) + paddings resserrés pour une carte compacte.
+      final top = list.take(2).toList();
       return Container(
-        padding: EdgeInsets.fromLTRB(12.w, 10.h, 12.w, 10.h),
+        padding: EdgeInsets.fromLTRB(10.w, 8.h, 10.w, 8.h),
         decoration: BoxDecoration(
           color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(18.r),
+          borderRadius: BorderRadius.circular(16.r),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.10),
@@ -3016,9 +3049,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                 ),
               ],
             ),
-            SizedBox(height: 8.h),
+            SizedBox(height: 6.h),
             ...top.map((r) => Padding(
-                  padding: EdgeInsets.symmetric(vertical: 4.h),
+                  padding: EdgeInsets.symmetric(vertical: 3.h),
                   child: _buildAroundYouRow(r),
                 )),
           ],
@@ -3727,7 +3760,12 @@ class _PawMapScreenState extends State<PawMapScreen>
         borderRadius: BorderRadius.circular(14.r),
         child: InkWell(
           borderRadius: BorderRadius.circular(14.r),
-          onTap: () => _mapExpanded.value = !expanded,
+          onTap: () {
+            // v469 — en réduisant, on invalide le contrôleur du calque (sa
+            // GoogleMap va être démontée) → le suivi repasse sur _mapCtl.
+            if (expanded) _expandedCtl = null;
+            _mapExpanded.value = !expanded;
+          },
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 9.h),
             decoration: BoxDecoration(
@@ -3792,9 +3830,22 @@ class _PawMapScreenState extends State<PawMapScreen>
               return GoogleMap(
                 initialCameraPosition:
                     CameraPosition(target: _currentCenter, zoom: 13),
-                // Pas de Completer ici : le calque n'a pas de bouton zoom/géoloc
-                // (le pinch suffit) ; on évite tout conflit avec _mapCtl.
-                onMapCreated: (_) {},
+                // v469 — le calque a SON contrôleur (séparé de _mapCtl) pour que
+                // le suivi anime BIEN la carte agrandie visible, pas la carte
+                // normale cachée dessous.
+                onMapCreated: (c) {
+                  _expandedCtl = c;
+                  // Si on suit déjà quelqu'un au moment d'agrandir, on recolle
+                  // tout de suite la caméra du calque sur lui.
+                  final uid = _followUserId;
+                  if (uid != null) {
+                    final fp = _liveMap.friendPositions[uid];
+                    if (fp != null) {
+                      c.animateCamera(CameraUpdate.newLatLngZoom(
+                          LatLng(fp.latitude, fp.longitude), _followZoom));
+                    }
+                  }
+                },
                 onTap: (latLng) {
                   if (_pickingSpotPos.value || _pickingReportPos.value) {
                     setState(() => _pickedSpotPos = latLng);
@@ -4224,11 +4275,12 @@ class _PawMapScreenState extends State<PawMapScreen>
     return Positioned(
       left: 12.w,
       right: 12.w,
-      // v468 — au-dessus du menu pleine largeur en mode normal ; inset seul en
-      // mode agrandi (menu masqué).
+      // v470 — Daniel : en agrandi le bandeau « Signaler ici » passait derrière
+      // la barre Samsung → socle FIXE (48) au-dessus de la barre système ;
+      // en normal on dégage le menu pleine largeur (~96).
       bottom: 24.h +
           MediaQuery.of(context).viewPadding.bottom +
-          (pawMapExpanded.value ? 0 : 84.h),
+          (pawMapExpanded.value ? 48.h : 96.h),
       child: Material(
         color: Colors.transparent,
         child: Container(

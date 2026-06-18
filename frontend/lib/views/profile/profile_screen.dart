@@ -141,10 +141,11 @@ class ProfileScreen extends StatelessWidget {
           // v23.1.290 — hauteur MINIMALE (au lieu de fixe) : le header s'étend
           // si les badges passent sur 2 lignes (PawFollow + Famille + Boost +
           // PawSpot) au lieu de déborder sous le dégradé.
-          // v465/v467/v469 — Daniel : « toujours trop grand ». minHeight réduit
-          // (100) + padding vertical resserré + avatar plus petit → hero compact
-          // (le contenu logo+nom+badges fait le plancher, plus d'espace vide).
-          constraints: BoxConstraints(minHeight: 100.h),
+          // v470 — Daniel : « les cadres orange/bleu/vert TOUJOURS pas réduits ».
+          // On descend le minHeight à 72 (le contenu logo+nom+badges fait
+          // désormais le vrai plancher) + avatar plus petit (80) → plus d'espace
+          // vide sous les badges.
+          constraints: BoxConstraints(minHeight: 72.h),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -268,8 +269,9 @@ class ProfileScreen extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(55.r),
               child: Container(
-                width: 100.w,
-                height: 100.w,
+                // v470 — avatar réduit (80 au lieu de 100) → hero plus compact.
+                width: 80.w,
+                height: 80.w,
                 color: AppColors.lightGrey,
                 child: isUploading
                     ? Center(
@@ -280,8 +282,8 @@ class ProfileScreen extends StatelessWidget {
                     : imageUrl.isNotEmpty
                     ? CachedNetworkImage(
                         imageUrl: imageUrl,
-                        width: 100.w,
-                        height: 100.w,
+                        width: 80.w,
+                        height: 80.w,
                         memCacheWidth: 300, // v235.
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(

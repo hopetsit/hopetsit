@@ -117,10 +117,12 @@ export default function PawMapPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-16 md:py-24">
-      {/* v414 — logo PawMap (patte bleu→vert + chien & chat). */}
+      {/* v469 — Daniel : « met le nouveau logo orange comme le bouton ». Logo
+          PawMap orange (assorti au bouton Paw Map de l'app), remplace le
+          bleu→vert. */}
       <div className="mb-4 flex justify-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/pawmap_logo.svg" alt="PawMap" width={96} height={96} />
+        <img src="/pawmap_logo_orange.svg" alt="PawMap" width={96} height={96} />
       </div>
       <h1 className="text-center font-display text-4xl font-extrabold tracking-tight md:text-5xl">
         {t("pawmap_title")}

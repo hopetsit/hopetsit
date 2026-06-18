@@ -195,6 +195,8 @@ class FriendController extends GetxController {
               'hasPawFollow': otherHasPawFollow,
               // v23.1.280 — tier PawSpot pour l'anneau doré/bleu sur l'avatar.
               'pawSpotTier': (f['otherPawSpotTier'] ?? '').toString(),
+              // v469 — couronne Paw Premium visible par tous sur la carte.
+              'isPremium': f['otherIsPremium'] == true,
             }
           : {
               'id': '',

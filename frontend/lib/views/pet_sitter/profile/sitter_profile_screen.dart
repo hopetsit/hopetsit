@@ -136,9 +136,9 @@ class SitterProfileScreen extends StatelessWidget {
           width: double.infinity,
           // v23.1.290 — hauteur MINIMALE : le header s'étend si les badges
           // passent sur 2 lignes au lieu de déborder sous le dégradé.
-          // v465/v467/v469 — Daniel : « toujours trop grand » → 100 + padding
-          // resserré (hero compact, plus d'espace vide sous les badges).
-          constraints: BoxConstraints(minHeight: 100.h),
+          // v470 — Daniel : « cadre bleu TOUJOURS pas réduit » → 76 + avatar
+          // plus petit (radius 36) → hero compact, plus d'espace vide.
+          constraints: BoxConstraints(minHeight: 76.h),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -281,13 +281,14 @@ class SitterProfileScreen extends StatelessWidget {
           ),
           child: Obx(
             () => CircleAvatar(
-              radius: 42.r,
+              // v470 — avatar réduit (36 au lieu de 42) → hero plus compact.
+              radius: 36.r,
               backgroundColor: AppColors.grey300Color,
               backgroundImage: controller.profileImageUrl.value.isNotEmpty
                   ? CachedNetworkImageProvider(controller.profileImageUrl.value)
                   : null,
               child: controller.profileImageUrl.value.isEmpty
-                  ? Icon(Icons.person, size: 40.sp, color: AppColors.greyColor)
+                  ? Icon(Icons.person, size: 34.sp, color: AppColors.greyColor)
                   : null,
             ),
           ),

@@ -12,6 +12,28 @@ const logger = require('../utils/logger');
 
 const HOUSE_SITTING_VENUES = ['owners_home', 'sitters_home'];
 
+// v469 — Daniel : « l'âge du chien n'apparaît pas sur la publication ». RACINE :
+// on n'envoyait que le champ explicite `pet.age` (nombre d'années) ; quand
+// l'owner n'a renseigné QUE la date de naissance (dob), `pet.age` est null →
+// aucun âge affiché. On dérive donc l'âge en ANNÉES ENTIÈRES depuis dob en
+// fallback (cohérent avec l'affichage « X ans » de l'app et du site).
+const resolvePetAgeYears = (pet) => {
+  const n = Number(pet?.age);
+  if (pet?.age != null && Number.isFinite(n) && n > 0) return Math.round(n);
+  const dob = pet?.dob;
+  if (dob) {
+    const d = new Date(typeof dob === 'string' ? dob.trim() : dob);
+    if (!Number.isNaN(d.getTime())) {
+      const today = new Date();
+      let years = today.getFullYear() - d.getFullYear();
+      const m = today.getMonth() - d.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < d.getDate())) years -= 1;
+      if (years > 0) return years;
+    }
+  }
+  return null;
+};
+
 // v435 — Daniel : "ça me sort les 3 animaux". Bug : la sérialisation des
 // annonces renvoyait TOUS les animaux de l'owner (Pet.find({ ownerId })) pour
 // CHAQUE post, au lieu des seuls animaux SÉLECTIONNÉS pour ce post. On résout
@@ -132,11 +154,10 @@ const createPost = async (req, res) => {
       return res.status(403).json({ error: 'Owner context missing.' });
     }
 
-    // v23.1.319 — Daniel : auto-modération gros mots/menaces (multilingue) sur
-    // le corps de l'annonce. La détection email/tel ci-dessous reste valide
-    // (le filtre ne masque que les insultes, pas les emails/numéros).
-    const trimmedBody = require('../services/textModerationService')
-      .moderateText(typeof body === 'string' ? body.trim() : '').clean;
+    // v469 — modération NON-DESTRUCTIVE : on stocke le corps BRUT (trimé) ; la
+    // censure des gros mots se fait À LA LECTURE (sanitizePost). La détection
+    // email/tel ci-dessous reste valide et tourne sur le texte brut.
+    const trimmedBody = typeof body === 'string' ? body.trim() : '';
 
     if (!trimmedBody) {
       return res.status(400).json({ error: 'Post body is required.' });
@@ -231,9 +252,8 @@ const createPost = async (req, res) => {
     }
 
     if (typeof notes === 'string' && notes.trim()) {
-      // v23.1.319 — auto-modération aussi sur les notes.
-      postPayload.notes = require('../services/textModerationService')
-        .moderateText(notes.trim()).clean;
+      // v469 — notes stockées BRUTES (censure à la lecture, cf sanitizePost).
+      postPayload.notes = notes.trim();
     }
 
     // v404 — nombre d'animaux + types (annonce).
@@ -461,7 +481,7 @@ const listPosts = async (req, res) => {
           height: pet.height || '',
           // v442 — âge + sexe pour la bande animaux du détail d'annonce
           // prestataire (« 4 ans », chip « Mâle »). gender enum male/female/null.
-          age: typeof pet.age === 'number' ? pet.age : null,
+          age: resolvePetAgeYears(pet),
           sex: pet.gender || '',
           // v440 — compatibilité + statut vaccins + stérilisé/pucé pour
           // afficher ces infos sur l'annonce / le profil public de l'animal.
@@ -575,7 +595,7 @@ const getMediaPosts = async (req, res) => {
           height: pet.height || '',
           // v442 — âge + sexe pour la bande animaux du détail d'annonce
           // prestataire (« 4 ans », chip « Mâle »). gender enum male/female/null.
-          age: typeof pet.age === 'number' ? pet.age : null,
+          age: resolvePetAgeYears(pet),
           sex: pet.gender || '',
           // v440 — compatibilité + statut vaccins + stérilisé/pucé pour
           // afficher ces infos sur l'annonce / le profil public de l'animal.
@@ -755,7 +775,7 @@ const getRequestPosts = async (req, res) => {
           height: pet.height || '',
           // v442 — âge + sexe pour la bande animaux du détail d'annonce
           // prestataire (« 4 ans », chip « Mâle »). gender enum male/female/null.
-          age: typeof pet.age === 'number' ? pet.age : null,
+          age: resolvePetAgeYears(pet),
           sex: pet.gender || '',
           // v440 — compatibilité + statut vaccins + stérilisé/pucé pour
           // afficher ces infos sur l'annonce / le profil public de l'animal.
@@ -947,7 +967,10 @@ const getNearbyRequestPosts = async (req, res) => {
       ownerId: post.ownerId?._id?.toString() || '',
       ownerName: post.ownerId?.name || '',
       ownerAvatar: post.ownerId?.avatar?.url || '',
-      body: post.body || '',
+      // v469 — censure NON-DESTRUCTIVE à la lecture (cet endpoint sérialise à la
+      // main sans passer par sanitizePost).
+      body: require('../services/textModerationService')
+        .moderateText(post.body || '').clean,
       serviceTypes: post.serviceTypes || [],
       serviceLocation: post.serviceLocation || '',
       startDate: post.startDate,
@@ -1386,9 +1409,8 @@ const createPostWithMedia = async (req, res) => {
     }
 
     // Body is optional - use empty string if not provided
-    // v23.1.319 — auto-modération (gros mots/menaces) sur le corps du post média.
-    const trimmedBody = require('../services/textModerationService')
-      .moderateText(typeof body === 'string' ? body.trim() : '').clean;
+    // v469 — corps BRUT (censure à la lecture, cf sanitizePost).
+    const trimmedBody = typeof body === 'string' ? body.trim() : '';
 
     const postPayload = {
       ownerId,
@@ -1462,9 +1484,8 @@ const createPostWithMedia = async (req, res) => {
     }
 
     if (typeof notes === 'string' && notes.trim()) {
-      // v23.1.319 — auto-modération aussi sur les notes.
-      postPayload.notes = require('../services/textModerationService')
-        .moderateText(notes.trim()).clean;
+      // v469 — notes BRUTES (censure à la lecture, cf sanitizePost).
+      postPayload.notes = notes.trim();
     }
 
     // v404 — nombre d'animaux + types (annonce avec photos).
@@ -1558,8 +1579,7 @@ const updatePost = async (req, res) => {
       if (!trimmed) {
         return res.status(400).json({ error: 'Post body cannot be empty.' });
       }
-      // v441 — parité createPost : anti-leak email/téléphone + auto-modération
-      // gros mots sur le corps édité.
+      // v441 — parité createPost : anti-leak email/téléphone sur le corps édité.
       const contactCheck = _detectContactInfo(trimmed);
       if (contactCheck.hasContact) {
         return res.status(400).json({
@@ -1568,8 +1588,8 @@ const updatePost = async (req, res) => {
           detected: contactCheck.types,
         });
       }
-      post.body = require('../services/textModerationService')
-        .moderateText(trimmed).clean;
+      // v469 — corps BRUT (censure à la lecture, cf sanitizePost).
+      post.body = trimmed;
     }
 
     if (startDate !== undefined) {
@@ -1615,9 +1635,8 @@ const updatePost = async (req, res) => {
     }
 
     if (typeof notes === 'string') {
-      // v441 — auto-modération sur les notes (parité avec createPost).
-      post.notes = require('../services/textModerationService')
-        .moderateText(notes.trim()).clean;
+      // v469 — notes BRUTES (censure à la lecture, cf sanitizePost).
+      post.notes = notes.trim();
     }
 
     // v441 — lieu de garde (at_owner / at_sitter / both).

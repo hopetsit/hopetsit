@@ -1544,7 +1544,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         // v23.1 — FAB compact bottom-right : icône + uniquement, gradient,
         // taille discrète pour ne pas masquer le contenu.
-        floatingActionButton: Container(
+        // v469 — Daniel : le « + » publication passait DERRIÈRE le menu. On le
+        // remonte au-dessus de la barre pleine largeur (~96) + l'inset Samsung.
+        floatingActionButton: Padding(
+          padding: EdgeInsets.only(
+              bottom: 96.h + MediaQuery.of(context).viewPadding.bottom),
+          child: Container(
           width: 52.w,
           height: 52.w,
           decoration: BoxDecoration(
@@ -1576,6 +1581,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
+          ),
           ),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,

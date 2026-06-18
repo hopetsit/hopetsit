@@ -877,6 +877,17 @@ class PetPostCard extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary(context),
                 ),
+                // v470 — Daniel : « l'âge du chien n'apparaît pas ». On affiche
+                // l'âge aussi dans la vue compacte (feed owner) si connu.
+                if (p.age != null && p.age! > 0) ...[
+                  SizedBox(width: 6.w),
+                  InterText(
+                    text: '• ${_ageLabel(p.age!)}',
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary(context),
+                  ),
+                ],
                 SizedBox(width: 6.w),
                 InterText(
                   text: count <= 1

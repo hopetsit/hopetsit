@@ -154,7 +154,9 @@ class WalkerProfileScreen extends StatelessWidget {
           // passent sur 2 lignes au lieu de déborder sous le dégradé.
           // v465/v467/v469 — Daniel : « toujours trop grand » → 100 + padding
           // resserré (hero compact, plus d'espace vide sous les badges).
-          constraints: BoxConstraints(minHeight: 100.h),
+          // v470 — Daniel : « cadre vert TOUJOURS pas réduit » → 76 + avatar
+          // plus petit (72) → hero compact, plus d'espace vide sous les badges.
+          constraints: BoxConstraints(minHeight: 76.h),
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -297,8 +299,9 @@ class WalkerProfileScreen extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(42.r),
               child: SizedBox(
-                width: 84.w,
-                height: 84.w,
+                // v470 — avatar réduit (72 au lieu de 84) → hero plus compact.
+                width: 72.w,
+                height: 72.w,
                 child: isUploading
                     ? Container(
                         color: AppColors.lightGrey,

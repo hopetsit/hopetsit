@@ -13,6 +13,9 @@ class FriendProfile {
   // v23.1.280 — Daniel : "si l'ami a l'option PawSpot, anneau doré/bleu selon
   // l'option". Tier PawSpot actif ('bronze'|'silver'|'gold'|'platinum') ou ''.
   final String pawSpotTier;
+  // v469 — Daniel : couronne 👑 Paw Premium visible par TOUS. Backend
+  // (fetchUserMini) expose isPremium par contact.
+  final bool isPremium;
 
   const FriendProfile({
     required this.id,
@@ -22,6 +25,7 @@ class FriendProfile {
     this.city = '',
     this.hasPawFollow = false,
     this.pawSpotTier = '',
+    this.isPremium = false,
   });
 
   factory FriendProfile.fromJson(Map<String, dynamic> j) => FriendProfile(
@@ -32,6 +36,7 @@ class FriendProfile {
         city: (j['city'] as String?) ?? '',
         hasPawFollow: j['hasPawFollow'] == true,
         pawSpotTier: (j['pawSpotTier'] ?? '').toString().toLowerCase(),
+        isPremium: j['isPremium'] == true,
       );
 
   String get roleLowercase => model.toLowerCase();

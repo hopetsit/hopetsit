@@ -309,6 +309,18 @@ async function fetchUserMini(id, modelName) {
     const { hasActivePawFollow } = require('../models/UserSubscription');
     hasPawFollow = await hasActivePawFollow(u._id);
   } catch (_) {/* defensive — on continue sans le flag */}
+  // v469 — Daniel : « quand un profil est Paw Premium, qu'on se voie TOUS avec
+  // la couronne ». On expose isPremium pour CHAQUE contact (pas seulement la
+  // famille) → le frontend met la couronne 👑 sur la carte pour tout ami premium.
+  let isPremium = false;
+  try {
+    const UserSubscription = require('../models/UserSubscription');
+    const sub = await UserSubscription.findOne({
+      userId: u._id,
+      premiumExpiry: { $gt: new Date() },
+    }).select('_id').lean();
+    isPremium = !!sub;
+  } catch (_) {/* best-effort : pas de couronne plutôt qu'un 500 */}
   // v23.1 part 220 — Daniel : "juste le nom de l'utilisateur s'affiche
   // pas". Les users n'ont pas leur firstName/lastName populates dans
   // la DB (signup ne forcait pas le remplissage). Resultat : name vide
@@ -342,6 +354,8 @@ async function fetchUserMini(id, modelName) {
     hasPawFollow,
     // v23.1.280 — tier PawSpot actif (anneau coloré sur l'avatar).
     pawSpotTier,
+    // v469 — Paw Premium actif → couronne 👑 visible par tous sur la carte.
+    isPremium,
   };
 }
 
@@ -520,6 +534,17 @@ router.get('/diagnose', requireAuth, async (req, res) => {
                 .toString().toLowerCase() || 'bronze';
           }
         } catch (_) {/* defensive */}
+        // v469 — Daniel : couronne Paw Premium visible par TOUS sur la carte.
+        // Flag premium de l'ami (premiumExpiry actif) propagé au frontend.
+        let otherIsPremium = false;
+        try {
+          const UserSubscription = require('../models/UserSubscription');
+          const sub = await UserSubscription.findOne({
+            userId: otherId,
+            premiumExpiry: { $gt: new Date() },
+          }).select('_id').lean();
+          otherIsPremium = !!sub;
+        } catch (_) {/* defensive */}
         return {
           friendshipId: String(f._id),
           status: f.status,
@@ -539,6 +564,7 @@ router.get('/diagnose', requireAuth, async (req, res) => {
           otherAvatar: (otherDoc && otherDoc.avatar && otherDoc.avatar.url) || '',
           otherHasPawFollow,
           otherPawSpotTier,
+          otherIsPremium,
           createdAt: f.createdAt,
           acceptedAt: f.acceptedAt,
         };

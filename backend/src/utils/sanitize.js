@@ -1,5 +1,15 @@
 const { DEFAULT_CURRENCY } = require('./currency');
 const { formatLocationForResponse } = require('./location');
+// v469 — Daniel : « des annonces sortent des étoiles alors qu'il n'y a rien à
+// censurer ». RACINE : la modération était DESTRUCTIVE à l'écriture (on stockait
+// déjà le texte étoilé → impossible de récupérer l'original quand la règle se
+// corrige). On passe au modèle NON-DESTRUCTIF (comme PawSpot) : le texte BRUT
+// est stocké et on ne censure qu'À LA LECTURE, ici, dans le sérialiseur partagé.
+// Ainsi toute amélioration du filtre (mots blancs, ancrage) s'applique
+// rétroactivement aux annonces existantes — plus de faux positifs figés.
+const { moderateText: _moderatePostText } = require('./../services/textModerationService');
+const _cleanPostText = (v) =>
+  (typeof v === 'string' && v ? _moderatePostText(v).clean : v);
 
 const sanitizeDoc = (doc, { omit = [] } = {}) => {
   if (!doc) return null;
@@ -434,7 +444,7 @@ const sanitizePost = (postDoc) => {
       userRole: comment.userRole || 'Owner',
       authorName: comment.authorName || '',
       authorAvatar: comment.authorAvatar?.url || '',
-      body: comment.body || '',
+      body: _cleanPostText(comment.body || ''),
       createdAt: comment.createdAt || null,
     }));
     post.commentsCount = post.comments.length;
@@ -508,6 +518,12 @@ const sanitizePost = (postDoc) => {
   } else {
     post.notes = '';
   }
+
+  // v469 — censure NON-DESTRUCTIVE à la lecture (corps + notes). Le texte
+  // stocké reste BRUT ; on n'étoile que l'affichage utilisateur, avec la règle
+  // courante (mots blancs + ancrage mot entier) → fini les faux positifs figés.
+  post.body = _cleanPostText(post.body);
+  post.notes = _cleanPostText(post.notes);
 
   return post;
 };

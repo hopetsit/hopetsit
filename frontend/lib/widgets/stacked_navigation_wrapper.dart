@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
@@ -148,7 +150,18 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     // sécurité colorée v464). Le menu clearance exactement l'inset → il n'est
     // ni recouvert par la barre Samsung, ni espacé inutilement.
     final bottomInset = MediaQuery.of(context).viewPadding.bottom;
-    return Scaffold(
+    // v469 — Daniel : barre système Samsung teintée par RÔLE (owner orange pâle
+    // / sitter bleu pâle / walker vert pâle) au lieu du gris. Le wrapper se
+    // rebuild au changement d'onglet → la couleur suit le rôle courant.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: AppColors.scaffoldLightForRole(),
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: true,
+      ),
+      child: Scaffold(
       extendBody: true,
       body: IndexedStack(
         index: _currentIndex,
@@ -198,6 +211,7 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
           ),
         ),
         ),
+      ),
     );
   }
 

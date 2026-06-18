@@ -163,6 +163,29 @@ const SAFE_WORDS = new Set([
   // PT / IT / DE génériques fréquents
   'passeio', 'cachorro', 'cao', 'praia', 'parque', 'passeggiata', 'cane',
   'spiaggia', 'hund', 'park', 'strand',
+  // v469 — Daniel : « des annonces sortent des étoiles alors qu'il n'y a rien à
+  // censurer » (ex. « **** gentille »). Adjectifs descriptifs d'animaux,
+  // clairement inoffensifs, à ne JAMAIS masquer (fr/en/es/it/pt/de).
+  // FR
+  'gentil', 'gentille', 'gentils', 'gentilles', 'sage', 'sages', 'calme',
+  'calmes', 'doux', 'douce', 'mignon', 'mignonne', 'adorable', 'sociable',
+  'joueur', 'joueuse', 'affectueux', 'affectueuse', 'obeissant', 'obeissante',
+  'propre', 'proprette', 'docile', 'curieux', 'curieuse',
+  // EN
+  'kind', 'gentle', 'cute', 'lovely', 'friendly', 'playful', 'calm', 'sweet',
+  'cuddly', 'obedient', 'good', 'nice', 'happy', 'loving',
+  // ES
+  'amable', 'tierno', 'tierna', 'lindo', 'linda', 'cariñoso', 'cariñosa',
+  'carinoso', 'carinosa', 'juguetón', 'jugueton', 'tranquilo', 'tranquila',
+  'obediente', 'dócil', 'docil', 'simpático', 'simpatico', 'bonito', 'bonita',
+  // IT
+  'gentile', 'dolce', 'carino', 'carina', 'tranquillo', 'tranquilla',
+  'affettuoso', 'affettuosa', 'giocoso', 'giocosa', 'buono', 'bravo', 'brava',
+  // PT
+  'gentil', 'fofo', 'fofa', 'meigo', 'meiga', 'calmo', 'calma', 'brincalhão',
+  'brincalhao', 'obediente', 'simpático', 'simpatico', 'bonzinho',
+  // DE
+  'lieb', 'nett', 'ruhig', 'brav', 'verspielt', 'sanft', 'freundlich', 'suess',
 ]);
 
 /**

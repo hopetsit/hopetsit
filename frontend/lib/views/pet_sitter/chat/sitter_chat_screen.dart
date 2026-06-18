@@ -50,16 +50,24 @@ class SitterChatScreen extends StatelessWidget {
             // v23.1 part 244c — FAB "Nouvelle conversation" (Daniel feedback).
             // Voir note dans chat_screen.dart owner pour la logique :
             // ouvre FriendsScreen onglet Mes amis -> tap 💬 pour demarrer.
-            floatingActionButton: FloatingActionButton.extended(
-              onPressed: () => Get.to(() => const FriendsScreen()),
-              backgroundColor: AppColors.primaryColor,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.chat_rounded),
-              label: Text(
-                'chat_new_conversation_btn'.tr,
-                style: TextStyle(
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w700,
+            // v470 — Daniel : « bouton nouvelle conversation trop bas encore ».
+            // Le FAB sitter/walker n'avait PAS le Padding (contrairement à
+            // l'owner) → il passait derrière la barre de menu pleine largeur.
+            // On le remonte au-dessus du menu (~80) + inset Samsung, comme owner.
+            floatingActionButton: Padding(
+              padding: EdgeInsets.only(
+                  bottom: 96.h + MediaQuery.of(context).viewPadding.bottom),
+              child: FloatingActionButton.extended(
+                onPressed: () => Get.to(() => const FriendsScreen()),
+                backgroundColor: AppColors.primaryColor,
+                foregroundColor: Colors.white,
+                icon: const Icon(Icons.chat_rounded),
+                label: Text(
+                  'chat_new_conversation_btn'.tr,
+                  style: TextStyle(
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
