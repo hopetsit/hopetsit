@@ -12,6 +12,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       // v451 — i18n fixes (new keys, parity ×6)
       'pet_age_months': 'mois',
       'pawmap_expand_map': 'Agrandir la carte',
+      'pawmap_expand_short': 'Agrandir',
       'pawmap_reduce_map': 'Réduire',
       'pawmap_tag_spot': 'Tag spot',
       'pawmap_fullscreen_title': 'Carte plein écran',

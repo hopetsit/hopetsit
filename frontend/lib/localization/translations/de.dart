@@ -45,6 +45,7 @@ const Map<String, String> deDETranslations = <String, String>{
       // v451 — i18n fixes (new keys, parity ×6)
       'pet_age_months': 'Monate',
       'pawmap_expand_map': 'Karte vergrößern',
+      'pawmap_expand_short': 'Vergrößern',
       'pawmap_reduce_map': 'Verkleinern',
       'pawmap_tag_spot': 'Spot taggen',
       'pawmap_fullscreen_title': 'Vollbildkarte',

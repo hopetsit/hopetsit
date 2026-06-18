@@ -45,6 +45,7 @@ const Map<String, String> esESTranslations = <String, String>{
       // v451 — i18n fixes (new keys, parity ×6)
       'pet_age_months': 'meses',
       'pawmap_expand_map': 'Ampliar el mapa',
+      'pawmap_expand_short': 'Ampliar',
       'pawmap_reduce_map': 'Reducir',
       'pawmap_tag_spot': 'Marcar spot',
       'pawmap_fullscreen_title': 'Mapa pantalla completa',

@@ -83,6 +83,16 @@ class _PawMapScreenState extends State<PawMapScreen>
   // by IndexedStack keeping the screen built-but-hidden.
   LatLng _currentCenter = const LatLng(48.8566, 2.3522);
 
+  // v463 — Daniel : « agrandir la carte ». Mode carte agrandie = un CALQUE
+  // plein écran posé PAR-DESSUS la PawMap normale (laquelle reste montée et
+  // INTACTE en dessous : sa GoogleMap n'est JAMAIS redimensionnée ni détruite
+  // → zéro risque de carte blanche au retour, contrairement aux tentatives
+  // v451/v458 qui cachaient les panneaux et redimensionnaient la carte). Le
+  // calque possède sa PROPRE GoogleMap plein écran (instance dédiée, créée à
+  // la bonne taille comme l'écran plein écran v457 qui marchait). false par
+  // défaut = comportement actuel inchangé.
+  final RxBool _mapExpanded = false.obs;
+
   /// v23.1.149 — Daniel : "paw map rien napparait le point de geolocolisation
   /// ou le halo nest pas la". `myLocationEnabled: true` du GoogleMap dépend
   /// d'une permission OS qui peut être refusée silencieusement → aucun point
@@ -2165,11 +2175,17 @@ class _PawMapScreenState extends State<PawMapScreen>
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // v21.1.1 — Banner "Live actif" : visible quand l'user broadcast
-          // sa position. Met en valeur PawFollow + permet stop rapide.
-          _buildLiveBroadcastBanner(),
+          // ── PawMap NORMALE (inchangée) ──────────────────────────────────
+          // v463 — tout le contenu d'origine reste DANS cette Column : la
+          // GoogleMap normale n'est jamais redimensionnée ni détruite. Le mode
+          // agrandi est un calque posé par-dessus (voir plus bas).
+          Column(
+        children: [
+          // v463 — Daniel : barre du haut = [ Suivi en direct ON/OFF ] +
+          // bouton compact [ Agrandir ] sur la MÊME ligne.
+          _buildTopShareRow(),
 
           // v23.1.184 — Daniel : "je veux que tu reorganise la paw map
           // dans ce style" (mockup avec 4 grosses cartes colorees Suivre
@@ -2453,6 +2469,18 @@ class _PawMapScreenState extends State<PawMapScreen>
               ],
             ),
           ),
+        ],
+      ),
+
+          // ── CALQUE « carte agrandie » (par-dessus la PawMap normale) ────
+          // La PawMap normale ci-dessus reste montée et INTACTE (sa GoogleMap
+          // n'est jamais redimensionnée ni détruite). Ce calque possède sa
+          // PROPRE GoogleMap plein écran ; à la réduction il disparaît et la
+          // carte normale réapparaît telle quelle → zéro risque de carte
+          // blanche (contrairement aux tentatives v451/v458).
+          Obx(() => _mapExpanded.value
+              ? Positioned.fill(child: _buildExpandedMapOverlay())
+              : const SizedBox.shrink()),
         ],
       ),
       ),
@@ -3648,12 +3676,237 @@ class _PawMapScreenState extends State<PawMapScreen>
     });
   }
 
+  // ─── v463 — Mode « carte agrandie » ──────────────────────────────────────
+
+  /// Barre du haut (mode normal) : la bannière « Suivi en direct ON/OFF »
+  /// (inchangée) + un bouton COMPACT « Agrandir » sur la même ligne.
+  Widget _buildTopShareRow() {
+    return Row(
+      children: [
+        // La bannière conserve ses marges L/R = 12 → elle gère le bord gauche
+        // et l'écart avant le bouton.
+        Expanded(child: _buildLiveBroadcastBanner()),
+        _buildExpandPill(expanded: false),
+        SizedBox(width: 12.w),
+      ],
+    );
+  }
+
+  /// Bouton compact Agrandir / Réduire (≈ 50 % plus petit, discret).
+  Widget _buildExpandPill({required bool expanded}) {
+    return Padding(
+      padding: EdgeInsets.only(top: 8.h),
+      child: Material(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(14.r),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14.r),
+          onTap: () => _mapExpanded.value = !expanded,
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 9.h),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14.r),
+              border: Border.all(
+                  color: AppColors.greyText.withValues(alpha: 0.25)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  expanded
+                      ? Icons.close_fullscreen_rounded
+                      : Icons.open_in_full_rounded,
+                  size: 16.sp,
+                  color: AppColors.textPrimary(context),
+                ),
+                SizedBox(height: 2.h),
+                InterText(
+                  text: expanded
+                      ? 'pawmap_reduce_map'.tr
+                      : 'pawmap_expand_short'.tr,
+                  fontSize: 9.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Calque plein écran posé PAR-DESSUS la PawMap normale. Possède sa propre
+  /// GoogleMap (instance dédiée, plein écran). La carte normale en dessous
+  /// n'est JAMAIS redimensionnée → zéro carte blanche au retour.
+  Widget _buildExpandedMapOverlay() {
+    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
+    return Material(
+      // Fond opaque (couleur du rôle) → aucun flash blanc pendant le 1er rendu.
+      color: AppColors.scaffold(context),
+      child: Stack(
+        children: [
+          // Carte plein écran dédiée.
+          Positioned.fill(
+            child: Obx(() {
+              // Mêmes dépendances Obx que la carte normale (markers/halo/spots).
+              _poiController.visiblePois.length;
+              _reportController.reports.length;
+              _showPois.value;
+              _showReports.value;
+              _haloPhase.value;
+              _nearbyProviders.length;
+              _showProviders.value;
+              _showPawSpots.value;
+              _pawSpotController.spots.length;
+              // ignore: unused_local_variable
+              final markerRev = _friendMarkerService.rev.value;
+              return GoogleMap(
+                initialCameraPosition:
+                    CameraPosition(target: _currentCenter, zoom: 13),
+                // Pas de Completer ici : le calque n'a pas de bouton zoom/géoloc
+                // (le pinch suffit) ; on évite tout conflit avec _mapCtl.
+                onMapCreated: (_) {},
+                onTap: (latLng) {
+                  if (_pickingSpotPos.value || _pickingReportPos.value) {
+                    setState(() => _pickedSpotPos = latLng);
+                  }
+                },
+                onCameraMove: _onCameraMove,
+                onCameraIdle: _scheduleReload,
+                myLocationEnabled: true,
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                mapType: _mapType,
+                markers: _getMarkersFromCache(),
+                circles: _buildHaloCircles(),
+                polylines: _routePolylines,
+              );
+            }),
+          ),
+
+          // Repère central + bandeaux de validation (mêmes que la carte normale).
+          Obx(() => (_pickingSpotPos.value || _pickingReportPos.value)
+              ? _buildCenterReticle()
+              : const SizedBox.shrink()),
+          Obx(() => _pickingSpotPos.value
+              ? _buildSpotPickerOverlay()
+              : const SizedBox.shrink()),
+          Obx(() => _pickingReportPos.value
+              ? _buildReportPickerOverlay()
+              : const SizedBox.shrink()),
+
+          // EN HAUT : [ Suivi en direct ON/OFF ] [ Réduire la carte ]
+          Positioned(
+            top: 8.h,
+            left: 0,
+            right: 0,
+            child: Row(
+              children: [
+                Expanded(child: _buildLiveBroadcastBanner()),
+                _buildExpandPill(expanded: true),
+                SizedBox(width: 12.w),
+              ],
+            ),
+          ),
+
+          // À DROITE : 2 petits boutons flottants empilés (Signalement + Tag Spot).
+          Positioned(
+            right: 12.w,
+            top: 0,
+            bottom: 0,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildMiniActionFab(
+                  heroTag: 'expReportMini',
+                  icon: Icons.add_moderator_rounded,
+                  color: const Color(0xFFDC2626),
+                  label: 'pawmap_btn_send'.tr,
+                  onTap: _startReportPicking,
+                ),
+                SizedBox(height: 14.h),
+                _buildMiniActionFab(
+                  heroTag: 'expTagSpotMini',
+                  icon: Icons.add_location_alt_rounded,
+                  color: const Color(0xFFD9A441),
+                  label: 'pawmap_tag_spot'.tr,
+                  onTap: _startSpotPicking,
+                ),
+              ],
+            ),
+          ),
+
+          // EN BAS À GAUCHE : aucun changement → on garde le FAB Signaler
+          // (heroTag distinct car la carte normale en dessous a déjà 'reportFab').
+          Positioned(
+            left: 12.w,
+            bottom: 24.h + bottomInset,
+            child: _buildReportFab(heroTag: 'expReportFabBL'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Petit FAB flottant (icône ronde + mini-label) pour le mode agrandi.
+  Widget _buildMiniActionFab({
+    required Object heroTag,
+    required IconData icon,
+    required Color color,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 44.w,
+          height: 44.w,
+          child: FloatingActionButton(
+            heroTag: heroTag,
+            backgroundColor: color,
+            elevation: 5,
+            shape: const CircleBorder(),
+            onPressed: onTap,
+            child: Icon(icon, color: Colors.white, size: 20.sp),
+          ),
+        ),
+        SizedBox(height: 3.h),
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.h),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(7.r),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 3,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: InterText(
+            text: label,
+            fontSize: 8.5.sp,
+            color: color,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+
   // Premium users see all 9 types. The CreateReportSheet handles the per-type
   // lock UI and the final submit guard.
-  Widget _buildReportFab() {
+  Widget _buildReportFab({Object? heroTag = 'reportFab'}) {
     // v418 — Daniel : bouton « Signaler » compact en bas à gauche. FAB rond
     // (icône seule) avec mini label dessous pour rester clair, plus petit que
     // l'ancien FAB étendu.
+    // v463 — heroTag paramétrable : le calque « carte agrandie » réutilise ce
+    // FAB pendant que la carte normale (avec son propre 'reportFab') reste
+    // montée en dessous → on évite un conflit de Hero tag (2 héros identiques).
     void onTap() {
       // v449 — Daniel : « mieux régler l'endroit du signalement, comme Taguer
       // un lieu mais plus express ». Au lieu de déposer direct au centre, on
@@ -3670,7 +3923,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           width: 48.w,
           height: 48.w,
           child: FloatingActionButton(
-            heroTag: 'reportFab',
+            heroTag: heroTag,
             // v418 — maquette : bouton Signaler ROUGE avec bouclier blanc.
             backgroundColor: const Color(0xFFDC2626),
             elevation: 6,

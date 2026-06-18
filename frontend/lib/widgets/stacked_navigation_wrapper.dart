@@ -8,6 +8,7 @@ import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/controllers/chat_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 
 /// v462 — NOUVEAU MENU (maquette Claude Design) appliqué AU VRAI wrapper de
 /// navigation (celui réellement monté). Barre flottante blanche arrondie +
@@ -141,15 +142,23 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).padding.bottom;
+    // v463 — Daniel : « le menu Samsung passe par-dessus ». On lit l'inset
+    // PHYSIQUE (viewPadding, fiable même en navigation gestuelle, contrairement
+    // à padding.bottom qui peut être sous-évalué) et on pose SOUS le menu une
+    // zone de sécurité colorée (couleur du rôle actif) → le menu n'est jamais
+    // collé au bord inférieur ni recouvert par la barre système Android.
+    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
     return Scaffold(
       extendBody: true,
       body: IndexedStack(
         index: _currentIndex,
         children: widget.screens,
       ),
-      bottomNavigationBar: Padding(
-        padding: EdgeInsets.fromLTRB(12, 0, 12, 8 + bottomInset),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           decoration: BoxDecoration(
@@ -178,6 +187,17 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
             ],
           ),
         ),
+          ),
+          // v463 — Zone de sécurité Android/Samsung : bande de la couleur du
+          // rôle actif sous le menu (owner orange pâle / sitter bleu / walker
+          // vert). Le menu n'est jamais collé au bord ni recouvert par la barre
+          // système. height = inset physique (≥ 8 pour garder un petit espace).
+          Container(
+            width: double.infinity,
+            height: bottomInset > 0 ? bottomInset : 8,
+            color: AppColors.scaffold(context),
+          ),
+        ],
       ),
     );
   }
