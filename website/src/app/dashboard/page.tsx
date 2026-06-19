@@ -205,9 +205,15 @@ export default function DashboardPage() {
 
   const roleColor = user?.role === "owner" ? "owner" : user?.role === "walker" ? "walker" : "sitter";
 
+  const isOwner = user?.role === "owner";
+  const isProvider = user?.role === "sitter" || user?.role === "walker";
+
+  // v493 — Refonte design (design-only) : barre latérale persistante + zone
+  // principale (PawFollow live en haut, réservations, actions rapides).
+  // Aucune donnée/route/action changée — mêmes liens, mêmes handlers.
   return (
-    <div className="mx-auto max-w-2xl px-4 py-16 md:py-24">
-      {/* v23.1 part 146 — toast in-page pour les events socket reçus en live. */}
+    <div className="mx-auto max-w-6xl px-4 py-10 md:py-14">
+      {/* Toast live socket (inchangé). */}
       {liveToast && (
         <div
           role="status"
@@ -219,243 +225,273 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div
-        className={`rounded-3xl bg-${roleColor} p-8 text-white shadow-card md:p-12 ${
-          premiumLabel
-            ? "border-4 border-[#15120D] ring-4 ring-amber-400 shadow-[0_0_28px_rgba(232,160,10,0.45)]"
-            : ""
-        }`}
-      >
-        <div className="flex items-center justify-between">
-          {/* v406 — Daniel : le rôle s'affichait en brut (« OWNER »). On le
-              traduit (Propriétaire / Pet-sitter / Promeneur). */}
-          <div className="text-sm font-medium uppercase tracking-wider opacity-80">
-            {user?.role ? t(`dash_role_${user.role}`) : ""}
-          </div>
-          {/* v23.1 part 146 — indicateur de connexion socket temps réel.
-              Vert si connecté (events live arrivent), gris sinon. */}
-          <div
-            className="flex items-center gap-1.5 text-xs opacity-75"
-            title={socketConnected ? t("dash_live") : t("dash_offline")}
-          >
-            <span
-              className={`inline-block h-2 w-2 rounded-full ${
-                socketConnected ? "bg-green-400 animate-pulse" : "bg-white/40"
-              }`}
-              aria-hidden="true"
-            />
-            <span>{socketConnected ? t("dash_live") : t("dash_offline")}</span>
-          </div>
-        </div>
-        <h1 className="mt-2 flex flex-wrap items-center gap-3 font-display text-3xl font-extrabold md:text-4xl">
-          <span>{t("dash_welcome")}, {user?.name?.split(" ")[0] || "you"} 👋</span>
-          {premiumLabel && (
-            <span className="rounded-full border-2 border-amber-400 bg-gradient-to-r from-[#221C12] to-[#15120D] px-4 py-1.5 text-sm font-extrabold text-yellow-400 shadow-lg">
-              {premiumLabel}
-            </span>
-          )}
-        </h1>
-        <p className="mt-3 max-w-md text-white/85">{t("dash_sub")}</p>
+      <div className="md:grid md:grid-cols-[250px_1fr] md:gap-8">
+        {/* ── BARRE LATÉRALE ── identité + nav complète + rôle + déconnexion. */}
+        <aside className="md:sticky md:top-6 md:self-start">
+          <div className="rounded-[26px] border border-[#efe7e0] bg-white p-5 shadow-card">
+            <div className="flex items-center gap-3">
+              <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-${roleColor} text-xl text-white`}>
+                🐾
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-extrabold text-ink">
+                  {user?.name?.split(" ")[0] || "you"}
+                </div>
+                <div className="text-xs text-ink-muted">
+                  {user?.role ? t(`dash_role_${user.role}`) : ""}
+                </div>
+              </div>
+            </div>
 
-        <div className="mt-7 flex flex-wrap gap-3">
-          {/* v23.1 part 146 — vrai bouton bridge OTT (auto-login dans l'app)
-              au lieu d'un simple <a href="hopetsit://"> qui ne faisait rien
-              de plus que d'ouvrir l'app sur l'écran de splash. */}
-          <button
-            type="button"
-            onClick={handleOpenApp}
-            disabled={openingApp}
-            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-ink shadow-sm transition hover:bg-bg-soft disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {openingApp && (
-              <svg
-                className="h-4 w-4 animate-spin"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
+            {/* Premium discret. */}
+            {premiumLabel && (
+              <a
+                href="/boutique"
+                className="mt-3 flex items-center gap-2 rounded-full border border-amber-400 bg-gradient-to-r from-[#221C12] to-[#15120D] px-3 py-1.5 text-xs font-extrabold text-yellow-400"
               >
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
-                <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-              </svg>
+                <span>👑</span>
+                <span className="truncate">{premiumLabel}</span>
+              </a>
             )}
-            <span>{openingApp ? t("dash_opening_app") : t("dash_open_app")}</span>
-          </button>
+
+            {/* Navigation complète (tous les liens conservés). */}
+            <nav className="mt-4 space-y-0.5">
+              <SideLink href="/profile" emoji="👤" label={t("dash_card_profile_title")} />
+              <SideLink href="/bookings" emoji="📅" label={t("dash_card_bookings_title")} />
+              <SideLink
+                href="/posts"
+                emoji="📣"
+                label={isOwner ? t("posts_my_title") : t("posts_feed_title")}
+              />
+              {isOwner && <SideLink href="/pets" emoji="🐾" label={t("dash_card_pets_title")} />}
+              {isOwner && <SideLink href="/search" emoji="🔍" label={t("dash_card_search_title")} />}
+              {isProvider && <SideLink href="/sitter-setup" emoji="⚙️" label={t("dash_card_setup_title")} />}
+              <SideLink href="/chat" emoji="💬" label={t("dash_card_messages_title")} badge={unreadMsg} />
+              <SideLink href="/map" emoji="🗺️" label={t("dash_card_map_title")} />
+              <SideLink href="/pawpoints" emoji="🐾" label={t("dash_card_pawpoints_title")} />
+              <SideLink href="/family" emoji="👨‍👩‍👧" label={t("family_title")} />
+              <SideLink href="/boutique" emoji="🛍️" label={t("dash_card_shop_title")} />
+              <SideLink href="/invoices" emoji="🧾" label={t("dash_card_invoices_title")} />
+            </nav>
+
+            {/* Changement de rôle (discret). */}
+            <div className="mt-4 border-t border-[#efe7e0] pt-4">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">
+                {t("dash_switch_role_title")}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(["owner", "sitter", "walker"] as AuthRole[])
+                  .filter((r) => r !== user?.role)
+                  .map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => handleSwitchRole(r)}
+                      disabled={switchingRole !== null}
+                      className="rounded-full border border-ink/10 px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-ink/30 disabled:opacity-60"
+                    >
+                      {switchingRole === r ? "…" : roleLabel(r)}
+                    </button>
+                  ))}
+              </div>
+              {switchMsg && <p className="mt-2 text-xs text-ink-muted">{switchMsg}</p>}
+            </div>
+
+            {/* Email + déconnexion. */}
+            <div className="mt-4 border-t border-[#efe7e0] pt-4">
+              <div className="truncate text-xs text-ink-muted">{user?.email}</div>
+              <button
+                onClick={logout}
+                className="mt-2 w-full rounded-full border border-ink/10 px-4 py-2 text-sm font-semibold text-ink transition hover:border-ink/30"
+              >
+                {t("dash_logout")}
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* ── ZONE PRINCIPALE ── */}
+        <main className="mt-6 md:mt-0">
+          {/* En-tête de bienvenue (couleur du rôle). */}
+          <div
+            className={`rounded-[26px] bg-${roleColor} p-6 text-white shadow-card md:p-8 ${
+              premiumLabel ? "ring-2 ring-amber-400" : ""
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <h1 className="font-display text-2xl font-extrabold md:text-3xl">
+                {t("dash_welcome")}, {user?.name?.split(" ")[0] || "you"} 👋
+              </h1>
+              <div
+                className="flex items-center gap-1.5 text-xs opacity-80"
+                title={socketConnected ? t("dash_live") : t("dash_offline")}
+              >
+                <span
+                  className={`inline-block h-2 w-2 rounded-full ${
+                    socketConnected ? "bg-green-400 animate-pulse" : "bg-white/40"
+                  }`}
+                  aria-hidden="true"
+                />
+                <span>{socketConnected ? t("dash_live") : t("dash_offline")}</span>
+              </div>
+            </div>
+            <p className="mt-2 max-w-md text-sm text-white/85">{t("dash_sub")}</p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleOpenApp}
+                disabled={openingApp}
+                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-ink shadow-sm transition hover:bg-bg-soft disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {openingApp && (
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+                    <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                )}
+                <span>{openingApp ? t("dash_opening_app") : t("dash_open_app")}</span>
+              </button>
+              <Link
+                href="/download"
+                className="rounded-full border border-white/40 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
+              >
+                {t("dash_download_app")}
+              </Link>
+            </div>
+            {(openAppError || openAppHint) && (
+              <div className="mt-4 rounded-xl bg-white/15 px-4 py-3 text-sm text-white">
+                {openAppError ? <span role="alert">{openAppError}</span> : <span>{openAppHint}</span>}
+              </div>
+            )}
+          </div>
+
+          <NotificationBanner />
+
+          {/* PawFollow en direct — mis en avant tout en haut → /map. */}
           <Link
-            href="/download"
-            className="rounded-full border border-white/40 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
+            href="/map"
+            className="group mt-6 flex items-center gap-4 overflow-hidden rounded-[22px] border border-walker/30 bg-gradient-to-br from-walker-light via-white to-sitter-light/40 p-5 shadow-card transition hover:-translate-y-0.5 hover:shadow-xl"
           >
-            {t("dash_download_app")}
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-walker text-2xl text-white shadow-sm">
+              🛰️
+            </span>
+            <span className="flex-1">
+              <span className="block text-base font-extrabold text-ink">{t("dash_card_map_title")}</span>
+              <span className="block text-sm text-ink-muted">{t("dash_card_map_sub")}</span>
+            </span>
+            <span className="text-walker transition group-hover:translate-x-1">→</span>
           </Link>
-        </div>
 
-        {(openAppError || openAppHint) && (
-          <div className="mt-4 rounded-xl bg-white/15 px-4 py-3 text-sm text-white">
-            {openAppError ? (
-              <span role="alert">{openAppError}</span>
-            ) : (
-              <span>{openAppHint}</span>
-            )}
-          </div>
-        )}
-
-        {/* v402 — Changement de rôle depuis le web. Garde tous les abonnements
-            (le backend migre Premium/PawFollow/PawFamily/PawSpot). */}
-        <div className="mt-6 border-t border-white/20 pt-5">
-          <p className="text-sm font-semibold">{t("dash_switch_role_title")}</p>
-          <p className="mt-0.5 text-xs text-white/75">{t("dash_switch_role_sub")}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {(["owner", "sitter", "walker"] as AuthRole[])
-              .filter((r) => r !== user?.role)
-              .map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => handleSwitchRole(r)}
-                  disabled={switchingRole !== null}
-                  className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25 disabled:opacity-60"
-                >
-                  {switchingRole === r ? "…" : roleLabel(r)}
-                </button>
-              ))}
-          </div>
-          {switchMsg && <p className="mt-2 text-sm text-white/90">{switchMsg}</p>}
-        </div>
-      </div>
-
-      {/* v409 — Daniel : bandeau de notifications (demandes reçues,
-          acceptations, paiements) sous le titre, comme dans l'app. */}
-      <NotificationBanner />
-
-      {/* v23.1.394 — Daniel : « mon compte web en titre, mettre en valeur
-          les boutons ». Titre de section + cards relookées (NavCard). */}
-      {/* v23.1.398 — Daniel : « il manque le package langue pour Mon compte
-          web ». Tous les libellés de la section passent par t() (6 langues). */}
-      <h2 className="mt-10 font-display text-2xl font-extrabold text-ink">
-        {t("dash_account_section")}
-      </h2>
-      <p className="mt-1 text-sm text-ink-muted">
-        {t("dash_account_section_sub")}
-      </p>
-      <div className="mt-5 grid gap-3 md:grid-cols-2">
-        <NavCard
-          href="/profile"
-          emoji="👤"
-          title={t("dash_card_profile_title")}
-          subtitle={t("dash_card_profile_sub")}
-        />
-        {/* v413 — PawFamily : gérer jusqu'à 5 membres. */}
-        <NavCard
-          href="/family"
-          emoji="👨‍👩‍👧"
-          title={t("family_title")}
-          subtitle={t("family_subtitle")}
-        />
-        <NavCard
-          href="/bookings"
-          emoji="📅"
-          title={t("dash_card_bookings_title")}
-          subtitle={user?.role === "owner" ? t("dash_card_bookings_sub_owner") : t("dash_card_bookings_sub_provider")}
-        />
-        {/* v402 — Annonces : owner publie, sitter/walker répond. */}
-        <NavCard
-          href="/posts"
-          emoji="📣"
-          title={user?.role === "owner" ? t("posts_my_title") : t("posts_feed_title")}
-          subtitle={user?.role === "owner" ? t("posts_create_cta") : t("posts_contact")}
-        />
-        {user?.role === "owner" && (
-          <>
-            <NavCard
-              href="/pets"
-              emoji="🐾"
-              title={t("dash_card_pets_title")}
-              subtitle={t("dash_card_pets_sub")}
-            />
-            <NavCard
-              href="/search"
-              emoji="🔍"
-              title={t("dash_card_search_title")}
-              subtitle={t("dash_card_search_sub")}
-            />
-          </>
-        )}
-        {(user?.role === "sitter" || user?.role === "walker") && (
-          <NavCard
-            href="/sitter-setup"
-            emoji="⚙️"
-            title={t("dash_card_setup_title")}
-            subtitle={t("dash_card_setup_sub")}
-          />
-        )}
-        <NavCard
-          href="/chat"
-          emoji="💬"
-          title={t("dash_card_messages_title")}
-          subtitle={t("dash_card_messages_sub")}
-          badge={unreadMsg}
-        />
-        <NavCard
-          href="/map"
-          emoji="🗺️"
-          title={t("dash_card_map_title")}
-          subtitle={t("dash_card_map_sub")}
-        />
-        {/* v414 — PawPoints visibles sur le web (barème + récompenses). */}
-        <NavCard
-          href="/pawpoints"
-          emoji="🐾"
-          title={t("dash_card_pawpoints_title")}
-          subtitle={t("dash_card_pawpoints_sub")}
-        />
-        {/* v23.1.358 — Daniel : "efface amis en direct" — la carte « Mes
-            amis en direct » est supprimée : la couche PawFollow vit dans la
-            carte unique /map (chip PawFollow), déjà accessible via PawMap. */}
-        <NavCard
-          href="/boutique"
-          emoji="🛍️"
-          title={t("dash_card_shop_title")}
-          subtitle={t("dash_card_shop_sub")}
-        />
-        {/* v23.1.394 — Daniel : « fond noir et or pour le faire ressortir ». */}
-        <a
-          href="/boutique"
-          className="group flex items-center gap-4 rounded-2xl border-2 border-amber-400 bg-gradient-to-br from-[#221C12] to-[#15120D] p-5 shadow-card transition hover:brightness-110"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/pawpremium_logo.svg" alt="" width={44} height={44} />
-          <div>
-            <div className="font-display text-base font-extrabold text-yellow-400">
-              Paw Premium 👑
-            </div>
-            <div className="text-xs text-white/75">
-              {t("dash_premium_sub")}
-            </div>
-          </div>
-          <span className="ml-auto text-yellow-400 transition group-hover:translate-x-1">→</span>
-        </a>
-        <NavCard
-          href="/invoices"
-          emoji="🧾"
-          title={t("dash_card_invoices_title")}
-          subtitle={t("dash_card_invoices_sub")}
-        />
-      </div>
-
-      <div className="mt-8 rounded-2xl border border-ink/5 bg-white p-6 shadow-card">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-xs uppercase text-ink-soft">Email</div>
-            <div className="text-sm font-semibold text-ink">{user?.email}</div>
-          </div>
-          <button
-            onClick={logout}
-            className="rounded-full border border-ink/10 px-4 py-2 text-sm font-semibold text-ink hover:border-ink/30"
+          {/* Réservations en cours → /bookings. */}
+          <Link
+            href="/bookings"
+            className="group mt-4 flex items-center gap-4 rounded-[22px] border border-[#efe7e0] bg-white p-5 shadow-card transition hover:-translate-y-0.5 hover:shadow-xl"
           >
-            {t("dash_logout")}
-          </button>
-        </div>
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-owner-light text-2xl">
+              📅
+            </span>
+            <span className="flex-1">
+              <span className="block text-base font-extrabold text-ink">{t("dash_card_bookings_title")}</span>
+              <span className="block text-sm text-ink-muted">
+                {isOwner ? t("dash_card_bookings_sub_owner") : t("dash_card_bookings_sub_provider")}
+              </span>
+            </span>
+            <span className="text-owner transition group-hover:translate-x-1">→</span>
+          </Link>
+
+          {/* Actions rapides. */}
+          <h2 className="mt-8 font-display text-xl font-extrabold text-ink">{t("dash_account_section")}</h2>
+          <p className="mt-1 text-sm text-ink-muted">{t("dash_account_section_sub")}</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <NavCard
+              href="/posts"
+              emoji="📣"
+              title={isOwner ? t("posts_my_title") : t("posts_feed_title")}
+              subtitle={isOwner ? t("posts_create_cta") : t("posts_contact")}
+            />
+            <NavCard
+              href="/chat"
+              emoji="💬"
+              title={t("dash_card_messages_title")}
+              subtitle={t("dash_card_messages_sub")}
+              badge={unreadMsg}
+            />
+            {isOwner && (
+              <NavCard href="/pets" emoji="🐾" title={t("dash_card_pets_title")} subtitle={t("dash_card_pets_sub")} />
+            )}
+            {isOwner && (
+              <NavCard href="/search" emoji="🔍" title={t("dash_card_search_title")} subtitle={t("dash_card_search_sub")} />
+            )}
+            {isProvider && (
+              <NavCard href="/sitter-setup" emoji="⚙️" title={t("dash_card_setup_title")} subtitle={t("dash_card_setup_sub")} />
+            )}
+            <NavCard
+              href="/pawpoints"
+              emoji="🐾"
+              title={t("dash_card_pawpoints_title")}
+              subtitle={t("dash_card_pawpoints_sub")}
+            />
+            <NavCard
+              href="/invoices"
+              emoji="🧾"
+              title={t("dash_card_invoices_title")}
+              subtitle={t("dash_card_invoices_sub")}
+            />
+            <NavCard
+              href="/profile"
+              emoji="👤"
+              title={t("dash_card_profile_title")}
+              subtitle={t("dash_card_profile_sub")}
+            />
+          </div>
+
+          {/* Paw Premium — bande sombre/or (discrète, sous les actions). */}
+          <a
+            href="/boutique"
+            className="group mt-4 flex items-center gap-4 rounded-[22px] border-2 border-amber-400 bg-gradient-to-br from-[#221C12] to-[#15120D] p-5 shadow-card transition hover:brightness-110"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pawpremium_logo.svg" alt="" width={44} height={44} />
+            <div>
+              <div className="font-display text-base font-extrabold text-yellow-400">Paw Premium 👑</div>
+              <div className="text-xs text-white/75">{t("dash_premium_sub")}</div>
+            </div>
+            <span className="ml-auto text-yellow-400 transition group-hover:translate-x-1">→</span>
+          </a>
+        </main>
       </div>
     </div>
+  );
+}
+
+// v493 — lien de la barre latérale (compact, badge optionnel).
+function SideLink({
+  href,
+  emoji,
+  label,
+  badge,
+}: {
+  href: string;
+  emoji: string;
+  label: string;
+  badge?: number;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-ink transition hover:bg-bg-soft"
+    >
+      <span className="relative text-lg">
+        {emoji}
+        {badge && badge > 0 ? (
+          <span className="absolute -right-2 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+            {badge > 99 ? "99+" : badge}
+          </span>
+        ) : null}
+      </span>
+      <span className="flex-1 truncate">{label}</span>
+      <span className="text-ink-soft transition group-hover:translate-x-0.5">›</span>
+    </Link>
   );
 }
 
