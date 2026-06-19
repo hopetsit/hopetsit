@@ -870,6 +870,9 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
           // Sender info and timestamp
           Row(
             children: [
+              // v485b — maquette « Conversation » : avatar affiché seulement
+              // pour les messages REÇUS (les envoyés sont à droite sans avatar).
+              if (!message.isFromCurrentUser)
               CircleAvatar(
                 radius: 18.r,
                 backgroundColor: AppColors.grey300Color,
@@ -893,7 +896,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                       )
                     : null,
               ),
-              SizedBox(width: 8.w),
+              if (!message.isFromCurrentUser) SizedBox(width: 8.w),
               InterText(
                 text: message.senderName,
                 fontSize: 14.sp,
