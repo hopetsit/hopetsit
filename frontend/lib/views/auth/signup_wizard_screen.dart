@@ -289,7 +289,7 @@ class SignupWizardScreen extends StatelessWidget {
             Container(
               decoration: BoxDecoration(
                 border: Border.all(color: AppColors.greyColor.withValues(alpha: 0.4)),
-                borderRadius: BorderRadius.circular(10.r),
+                borderRadius: BorderRadius.circular(14.r),
               ),
               child: CountryCodePicker(
                 onChanged: (cc) {
@@ -408,10 +408,7 @@ class SignupWizardScreen extends StatelessWidget {
           controller: c.bioController,
           maxLines: 4,
           maxLength: 250,
-          decoration: InputDecoration(
-            hintText: 'signup_about_hint_owner'.tr,
-            border: const OutlineInputBorder(),
-          ),
+          decoration: _roundedDec(hint: 'signup_about_hint_owner'.tr),
         ),
       ],
     );
@@ -559,10 +556,7 @@ class SignupWizardScreen extends StatelessWidget {
           controller: c.bioController,
           maxLines: 4,
           maxLength: 250,
-          decoration: InputDecoration(
-            hintText: 'signup_about_hint'.tr,
-            border: const OutlineInputBorder(),
-          ),
+          decoration: _roundedDec(hint: 'signup_about_hint'.tr),
         ),
         SizedBox(height: 8.h),
         _label('signup_experience'.tr),
@@ -961,10 +955,30 @@ class SignupWizardScreen extends StatelessWidget {
         ),
       );
 
-  // v490 — Daniel : « gros bug gris pages 2 ». Le restyle v489 des champs
-  // (filled + Obx(()=>Builder()) sur le rayon) cassait le rendu EN RELEASE
-  // (champs = rectangles gris = ErrorWidget release). RETOUR au style simple
-  // et PROUVÉ (bordure Material par défaut) sur TOUS les champs.
+  // v490 — Daniel veut le design ARRONDI pour l'inscription, mais SANS le bug
+  // gris v489. Version SÛRE : bordure arrondie 14r + focus couleur du rôle.
+  // ⚠️ AUCUN `filled`, AUCUN `context`/`Builder`, AUCUN `Obx(()=>Builder())`
+  // (= EXACTEMENT ce qui plantait en release / blocs gris). Le thème gère les
+  // couleurs texte/label → dark-mode OK automatiquement.
+  InputDecoration _roundedDec(
+      {String? label, String? hint, String? suffixText, Widget? suffixIcon}) {
+    OutlineInputBorder b(Color c, double w) => OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14.r),
+          borderSide: BorderSide(color: c, width: w),
+        );
+    return InputDecoration(
+      labelText: (label == null || label.isEmpty) ? null : label,
+      hintText: hint,
+      suffixText: suffixText,
+      suffixIcon: suffixIcon,
+      isDense: true,
+      contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 13.h),
+      enabledBorder: b(AppColors.greyColor.withValues(alpha: 0.4), 1),
+      border: b(AppColors.greyColor.withValues(alpha: 0.4), 1),
+      focusedBorder: b(_accent, 1.8),
+    );
+  }
+
   Widget _field(TextEditingController ctrl, String label,
       {String? hint, TextInputType? kb, String? suffix, bool dense = false}) {
     return Padding(
@@ -972,13 +986,7 @@ class SignupWizardScreen extends StatelessWidget {
       child: TextField(
         controller: ctrl,
         keyboardType: kb,
-        decoration: InputDecoration(
-          labelText: label.isEmpty ? null : label,
-          hintText: hint,
-          suffixText: suffix,
-          border: const OutlineInputBorder(),
-          isDense: true,
-        ),
+        decoration: _roundedDec(label: label, hint: hint, suffixText: suffix),
       ),
     );
   }
@@ -992,7 +1000,7 @@ class SignupWizardScreen extends StatelessWidget {
       initialValue:
           items.contains(value) ? value : (items.isNotEmpty ? items.first : null),
       isExpanded: true,
-      decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+      decoration: _roundedDec(),
       items: items
           .map((e) => DropdownMenuItem(value: e, child: Text(e)))
           .toList(),
@@ -1002,13 +1010,14 @@ class SignupWizardScreen extends StatelessWidget {
 
   Widget _radiusDropdown(SignUpController c) {
     const opts = ['5', '10', '15', '20', '25', '30', '50', '100'];
+    // v490 — Obx lit `.value` DIRECTEMENT dans sa closure (PAS de Builder
+    // enfant) → pas de « improper use of GetX » → pas de bloc gris release.
     return Obx(() => DropdownButtonFormField<String>(
           initialValue: opts.contains(c.coverageRadius.value)
               ? c.coverageRadius.value
               : '20',
           isExpanded: true,
-          decoration:
-              const InputDecoration(border: OutlineInputBorder(), isDense: true),
+          decoration: _roundedDec(),
           items: opts
               .map((e) => DropdownMenuItem(value: e, child: Text('$e km')))
               .toList(),
@@ -1193,8 +1202,23 @@ class _PasswordFieldState extends State<_PasswordField> {
         onChanged: widget.onChanged,
         decoration: InputDecoration(
           labelText: widget.label,
-          border: const OutlineInputBorder(),
           isDense: true,
+          contentPadding:
+              EdgeInsets.symmetric(horizontal: 14.w, vertical: 13.h),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14.r),
+            borderSide: BorderSide(
+                color: AppColors.greyColor.withValues(alpha: 0.4), width: 1),
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14.r),
+            borderSide: BorderSide(
+                color: AppColors.greyColor.withValues(alpha: 0.4), width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14.r),
+            borderSide: BorderSide(color: widget.accent, width: 1.8),
+          ),
           suffixIcon: IconButton(
             icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility,
                 size: 20),

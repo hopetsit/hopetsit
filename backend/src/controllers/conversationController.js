@@ -153,14 +153,15 @@ const getChatList = async (req, res) => {
                   avatar: otherDoc.avatar?.url || '',
                   role: ROLE_MODELS[o.userModel] || 'owner',
                 };
-              } else {
-                otherParty = {
-                  id: '', name: 'Utilisateur supprimé',
-                  email: '', avatar: '', role: 'owner',
-                };
               }
+              // v490 — Daniel : un utilisateur SUPPRIMÉ (otherDoc introuvable)
+              // ne doit PLUS apparaître. Avant : ghost gris « Utilisateur
+              // supprimé ». Maintenant otherParty reste null → conversation
+              // retirée de la liste par le filtre `if (!otherParty)` ci-dessous.
             } catch (_) {/* defensive */}
           }
+          // Conversation amie avec un compte supprimé → on l'enlève.
+          if (!otherParty) return null;
           return { ...sanitized, otherParty, unreadCount: unread };
         }
 
@@ -188,6 +189,9 @@ const getChatList = async (req, res) => {
             };
           }
         }
+        // v490 — Daniel : compte supprimé (provider/owner introuvable après
+        // populate) → on retire la conversation au lieu d'afficher un ghost.
+        if (!otherParty) return null;
         return {
           ...sanitized,
           otherParty,
@@ -198,9 +202,13 @@ const getChatList = async (req, res) => {
       })
     );
 
-    res.json({ 
-      conversations: enhancedConversations,
-      count: enhancedConversations.length,
+    // v490 — retire les conversations dont l'autre participant a supprimé son
+    // compte (entrées null ci-dessus) → plus de « Utilisateur supprimé » gris.
+    const cleanedConversations = enhancedConversations.filter(Boolean);
+
+    res.json({
+      conversations: cleanedConversations,
+      count: cleanedConversations.length,
     });
   } catch (error) {
     logger.error('Get chat list error', error);

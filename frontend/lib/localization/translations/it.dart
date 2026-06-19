@@ -942,7 +942,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'role_pet_owner': 'Proprietario',
       // #106 — negozio: vantaggio comune a tutti gli abbonamenti.
       'shop_premium_reports_included': '20 segnalazioni premium utilizzabili',
-      'shop_nearby_members': '🌸 Vedi i membri Paw Map vicini a te (badge rosa)',
+      'shop_nearby_members': 'Vedi i membri Paw Map vicini a te (badge rosa)',
       'shop_promo_discount_note': '🎟️ codice promo -@percent%',
       // #107 — profilo del proprietario in sola lettura (vista fornitore).
       'owner_profile_title': 'Profilo del proprietario',

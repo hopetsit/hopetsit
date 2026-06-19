@@ -1174,7 +1174,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'role_pet_owner': 'Pet Owner',
       // #106 — shop: benefit shared by every subscription.
       'shop_premium_reports_included': '20 usable premium reports',
-      'shop_nearby_members': '🌸 See nearby Paw Map members around you (pink badge)',
+      'shop_nearby_members': 'See nearby Paw Map members around you (pink badge)',
       'shop_promo_discount_note': '🎟️ promo code -@percent%',
       // #107 — read-only owner profile (provider view).
       'owner_profile_title': 'Owner profile',

@@ -820,7 +820,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'role_pet_owner': 'Dono',
       // #106 — loja: benefício comum a todas as assinaturas.
       'shop_premium_reports_included': '20 sinalizações premium utilizáveis',
-      'shop_nearby_members': '🌸 Ver membros do Paw Map perto de você (selo rosa)',
+      'shop_nearby_members': 'Ver membros do Paw Map perto de você (selo rosa)',
       'shop_promo_discount_note': '🎟️ código promo -@percent%',
       // #107 — perfil do dono em somente leitura (vista do prestador).
       'owner_profile_title': 'Perfil do dono',

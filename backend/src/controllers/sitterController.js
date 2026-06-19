@@ -99,6 +99,11 @@ const findNearbySitters = async (req, res) => {
     // Build query filter
     const filter = {
       'location.coordinates': { $exists: true, $type: 'array' },
+      // v490 — Daniel : « les utilisateurs supprimés réapparaissent sur la
+      // carte ». On exclut les comptes suspended/banned du « autour de moi »
+      // (les comptes vraiment supprimés sont déjà hard-deletés). $nin garde
+      // 'active' ET les docs sans champ status (anciens).
+      status: { $nin: ['suspended', 'banned'] },
     };
 
     // v23.1 part 220 — Daniel : "owner ne voit pas sitter dans la meme

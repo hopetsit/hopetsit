@@ -2651,10 +2651,13 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // v488 — Daniel : 4 boutons RONDS (Voir spots / Tag spot / Voir
                 // signaux / Signaler) centrés verticalement à GAUCHE, petite
                 // carte (remplace l'unique FAB Signaler + les pilules).
+                // v490 — Daniel : le 4e bouton (Signaler) était coupé derrière
+                // le menu du bas. On borne la zone de centrage AU-DESSUS du menu
+                // (+ inset système) → les 4 boutons restent entièrement visibles.
                 Positioned(
                   left: 12.w,
                   top: 0,
-                  bottom: 0,
+                  bottom: 96.h + MediaQuery.of(context).viewPadding.bottom,
                   child: Center(child: _buildMapActionsColumn()),
                 ),
 
@@ -3108,7 +3111,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             // au-dessus de la barre système. En normal, on dégage le menu (~96).
             bottom: 16.h +
                 MediaQuery.of(context).viewPadding.bottom +
-                (pawMapExpanded.value ? 48.h : 96.h),
+                (pawMapExpanded.value ? 64.h : 116.h),
             child: Row(
               children: [
                 Expanded(
@@ -4358,7 +4361,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       // en normal on dégage le menu pleine largeur (~96).
       bottom: 24.h +
           MediaQuery.of(context).viewPadding.bottom +
-          (pawMapExpanded.value ? 48.h : 96.h),
+          (pawMapExpanded.value ? 64.h : 116.h),
       child: Material(
         color: Colors.transparent,
         child: Container(

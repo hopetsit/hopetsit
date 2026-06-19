@@ -21,6 +21,33 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/golden_paw_coin.dart';
 
+/// v491 — VRAI logo « membre Paw Map proche » : cercle rose dégradé + patte
+/// blanche (réplique du badge de la carte). Fonction TOP-LEVEL → partagée par
+/// l'onglet PawSpot et l'onglet Paw Premium (classes State distinctes).
+Widget _pawBadgeMini() {
+  return Container(
+    width: 24,
+    height: 24,
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFF06AA0), Color(0xFFE0568B)],
+      ),
+      shape: BoxShape.circle,
+      boxShadow: [
+        BoxShadow(
+          color: Color(0x55E0568B),
+          blurRadius: 4,
+          offset: Offset(0, 2),
+        ),
+      ],
+    ),
+    alignment: Alignment.center,
+    child: const Icon(Icons.pets_rounded, color: Colors.white, size: 13),
+  );
+}
+
 /// v444 — réduction promo « % » appliquée à l'affichage des prix de la boutique.
 ///
 /// Le flux code promo (PromoController) persiste, après consommation d'un code
@@ -1533,10 +1560,11 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
         'icon': Icons.shield_outlined,
         'text': 'shop_premium_reports_included'.tr,
       },
-      // v489 — Daniel : préciser l'option « membres Paw Map proches » (badge
-      // rose 🌸) débloquée par l'abonnement (PawSpot / PawPremium).
+      // v489/v491 — Daniel : option « membres Paw Map proches » avec le VRAI
+      // logo rose utilisateur (pas une icône générique). `pawBadge:true` → rendu
+      // par _pawBadgeMini() dans _buildFeaturesList.
       {
-        'icon': Icons.pets_rounded,
+        'pawBadge': true,
         'text': 'shop_nearby_members'.tr,
       },
     ];
@@ -1570,19 +1598,22 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 32.w,
-                    height: 32.w,
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8.r),
+                  if (f['pawBadge'] == true)
+                    _pawBadgeMini()
+                  else
+                    Container(
+                      width: 32.w,
+                      height: 32.w,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: Icon(
+                        f['icon'] as IconData,
+                        size: 16.sp,
+                        color: accent,
+                      ),
                     ),
-                    child: Icon(
-                      f['icon'] as IconData,
-                      size: 16.sp,
-                      color: accent,
-                    ),
-                  ),
                   SizedBox(width: 12.w),
                   Expanded(
                     child: InterText(
@@ -2353,32 +2384,48 @@ class _PawSpotTabState extends State<_PawSpotTab>
       'pawspot_feature_rewards'.tr,
       // #106 — 20 signalements premium utilisables inclus dans l'abo PawSpot.
       'shop_premium_reports_included'.tr,
-      // v489 — membres Paw Map proches (badge rose 🌸) visibles avec PawSpot.
-      'shop_nearby_members'.tr,
     ];
     return Column(
-      children: features
-          .map(
-            (f) => Padding(
-              padding: EdgeInsets.only(bottom: 6.h),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle_rounded, color: _gold, size: 16.sp),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: InterText(
-                      text: f,
-                      fontSize: 13.sp,
-                      color: AppColors.textPrimary(context),
-                    ),
+      children: [
+        ...features.map(
+          (f) => Padding(
+            padding: EdgeInsets.only(bottom: 6.h),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: _gold, size: 16.sp),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: InterText(
+                    text: f,
+                    fontSize: 13.sp,
+                    color: AppColors.textPrimary(context),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          )
-          .toList(),
+          ),
+        ),
+        // v491 — Daniel : montrer le VRAI logo rose « membre Paw Map » + phrase.
+        Padding(
+          padding: EdgeInsets.only(bottom: 6.h),
+          child: Row(
+            children: [
+              _pawBadgeMini(),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: InterText(
+                  text: 'shop_nearby_members'.tr,
+                  fontSize: 13.sp,
+                  color: AppColors.textPrimary(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
+
 
   /// d. Compteur de points + badge actuel + progression vers le suivant.
   Widget _buildPointsCard(BuildContext context) {
