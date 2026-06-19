@@ -288,10 +288,8 @@ class SignupWizardScreen extends StatelessWidget {
           children: [
             Container(
               decoration: BoxDecoration(
-                color: AppColors.card(context),
-                border: Border.all(
-                    color: AppColors.greyColor.withValues(alpha: 0.30)),
-                borderRadius: BorderRadius.circular(14.r),
+                border: Border.all(color: AppColors.greyColor.withValues(alpha: 0.4)),
+                borderRadius: BorderRadius.circular(10.r),
               ),
               child: CountryCodePicker(
                 onChanged: (cc) {
@@ -410,8 +408,10 @@ class SignupWizardScreen extends StatelessWidget {
           controller: c.bioController,
           maxLines: 4,
           maxLength: 250,
-          decoration: _inputDecoration(context,
-              hint: 'signup_about_hint_owner'.tr),
+          decoration: InputDecoration(
+            hintText: 'signup_about_hint_owner'.tr,
+            border: const OutlineInputBorder(),
+          ),
         ),
       ],
     );
@@ -559,7 +559,10 @@ class SignupWizardScreen extends StatelessWidget {
           controller: c.bioController,
           maxLines: 4,
           maxLength: 250,
-          decoration: _inputDecoration(context, hint: 'signup_about_hint'.tr),
+          decoration: InputDecoration(
+            hintText: 'signup_about_hint'.tr,
+            border: const OutlineInputBorder(),
+          ),
         ),
         SizedBox(height: 8.h),
         _label('signup_experience'.tr),
@@ -958,48 +961,23 @@ class SignupWizardScreen extends StatelessWidget {
         ),
       );
 
-  // v488 — finition « Inscription Flow » (présentation uniquement) : champ
-  // arrondi (14r), fond carte blanche, bord doux, focus teinté par rôle.
-  // Aucun câblage : seul `decoration` change.
-  InputDecoration _inputDecoration(
-    BuildContext context, {
-    String? label,
-    String? hint,
-    String? suffixText,
-    Widget? suffixIcon,
-  }) {
-    final soft = AppColors.greyColor.withValues(alpha: 0.30);
-    OutlineInputBorder b(Color col, double w) => OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14.r),
-          borderSide: BorderSide(color: col, width: w),
-        );
-    return InputDecoration(
-      labelText: (label == null || label.isEmpty) ? null : label,
-      hintText: hint,
-      suffixText: suffixText,
-      suffixIcon: suffixIcon,
-      filled: true,
-      fillColor: AppColors.card(context),
-      isDense: true,
-      contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 13.h),
-      floatingLabelStyle:
-          TextStyle(color: _accent, fontWeight: FontWeight.w600),
-      enabledBorder: b(soft, 1),
-      border: b(soft, 1),
-      focusedBorder: b(_accent, 1.7),
-    );
-  }
-
+  // v490 — Daniel : « gros bug gris pages 2 ». Le restyle v489 des champs
+  // (filled + Obx(()=>Builder()) sur le rayon) cassait le rendu EN RELEASE
+  // (champs = rectangles gris = ErrorWidget release). RETOUR au style simple
+  // et PROUVÉ (bordure Material par défaut) sur TOUS les champs.
   Widget _field(TextEditingController ctrl, String label,
       {String? hint, TextInputType? kb, String? suffix, bool dense = false}) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: dense ? 0 : 6.h),
-      child: Builder(
-        builder: (context) => TextField(
-          controller: ctrl,
-          keyboardType: kb,
-          decoration: _inputDecoration(context,
-              label: label, hint: hint, suffixText: suffix),
+      child: TextField(
+        controller: ctrl,
+        keyboardType: kb,
+        decoration: InputDecoration(
+          labelText: label.isEmpty ? null : label,
+          hintText: hint,
+          suffixText: suffix,
+          border: const OutlineInputBorder(),
+          isDense: true,
         ),
       ),
     );
@@ -1010,34 +988,31 @@ class SignupWizardScreen extends StatelessWidget {
     required List<String> items,
     required void Function(String?) onChanged,
   }) {
-    return Builder(
-      builder: (context) => DropdownButtonFormField<String>(
-        initialValue:
-            items.contains(value) ? value : (items.isNotEmpty ? items.first : null),
-        isExpanded: true,
-        decoration: _inputDecoration(context),
-        items: items
-            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-            .toList(),
-        onChanged: onChanged,
-      ),
+    return DropdownButtonFormField<String>(
+      initialValue:
+          items.contains(value) ? value : (items.isNotEmpty ? items.first : null),
+      isExpanded: true,
+      decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+      items: items
+          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+          .toList(),
+      onChanged: onChanged,
     );
   }
 
   Widget _radiusDropdown(SignUpController c) {
     const opts = ['5', '10', '15', '20', '25', '30', '50', '100'];
-    return Obx(() => Builder(
-          builder: (context) => DropdownButtonFormField<String>(
-            initialValue: opts.contains(c.coverageRadius.value)
-                ? c.coverageRadius.value
-                : '20',
-            isExpanded: true,
-            decoration: _inputDecoration(context),
-            items: opts
-                .map((e) => DropdownMenuItem(value: e, child: Text('$e km')))
-                .toList(),
-            onChanged: (v) => c.coverageRadius.value = v ?? '20',
-          ),
+    return Obx(() => DropdownButtonFormField<String>(
+          initialValue: opts.contains(c.coverageRadius.value)
+              ? c.coverageRadius.value
+              : '20',
+          isExpanded: true,
+          decoration:
+              const InputDecoration(border: OutlineInputBorder(), isDense: true),
+          items: opts
+              .map((e) => DropdownMenuItem(value: e, child: Text('$e km')))
+              .toList(),
+          onChanged: (v) => c.coverageRadius.value = v ?? '20',
         ));
   }
 
@@ -1218,27 +1193,8 @@ class _PasswordFieldState extends State<_PasswordField> {
         onChanged: widget.onChanged,
         decoration: InputDecoration(
           labelText: widget.label,
-          filled: true,
-          fillColor: AppColors.card(context),
+          border: const OutlineInputBorder(),
           isDense: true,
-          contentPadding:
-              EdgeInsets.symmetric(horizontal: 14.w, vertical: 13.h),
-          floatingLabelStyle:
-              TextStyle(color: widget.accent, fontWeight: FontWeight.w600),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14.r),
-            borderSide: BorderSide(
-                color: AppColors.greyColor.withValues(alpha: 0.30), width: 1),
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14.r),
-            borderSide: BorderSide(
-                color: AppColors.greyColor.withValues(alpha: 0.30), width: 1),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14.r),
-            borderSide: BorderSide(color: widget.accent, width: 1.7),
-          ),
           suffixIcon: IconButton(
             icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility,
                 size: 20),
