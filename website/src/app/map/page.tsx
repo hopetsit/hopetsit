@@ -85,11 +85,6 @@ const PoiMap = dynamic(() => import("@/components/PoiMap"), {
 // Tous les codes de catégorie POI.
 const ALL_CATEGORIES = Object.keys(POI_CATEGORY_LABELS) as PoiCategory[];
 
-// Couleurs brand des chips couches (cf. mobile v353) :
-// PawFollow violet / PawSpot doré, gris quand pas d'abonnement.
-const PAWFOLLOW_VIOLET = "#7C3AED";
-const PAWSPOT_GOLD = "#E8A00A";
-const CHIP_GRAY = "#6B7280";
 
 function roleFromModel(model: string): "walker" | "sitter" | "owner" {
   const m = (model || "").toLowerCase();
@@ -793,13 +788,6 @@ export default function MapPage() {
     "other",
   ];
 
-  const pawFollowSubscribed = !!(
-    benefits?.pawFollowActive || benefits?.familyActive
-  );
-  const pawSpotSubscribed = !!(
-    benefits?.pawspotActive || benefits?.premiumActive || benefits?.isPremium
-  );
-
   // v23.1.393 — multi-sélection : [] = tout afficher. v404 — « Rien » = aucun POI.
   const visiblePois = noneSelected
     ? []
@@ -827,83 +815,141 @@ export default function MapPage() {
         {t("map_pan_hint")}
       </p>
 
-      {/* v23.1 carte unique — chips couches PawFollow / PawSpots (une seule
-          ligne, scroll horizontal sur mobile). */}
-      <div className="mt-6 flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
-        <LayerChip
-          label={t("map_pawfollow_chip")}
-          crown={pawFollowSubscribed}
-          color={pawFollowSubscribed ? PAWFOLLOW_VIOLET : CHIP_GRAY}
-          active={showFriends}
-          onClick={toggleFriendsLayer}
-        />
-        <LayerChip
-          label={`${t("map_pawspots_chip")} 🐾`}
-          crown={pawSpotSubscribed}
-          color={pawSpotSubscribed ? PAWSPOT_GOLD : CHIP_GRAY}
-          active={showSpots}
-          onClick={() => setShowSpots((v) => !v)}
-        />
-        {/* v497 — Daniel : les 4 boutons PawMap de l'app sur le web.
-            Voir spots = chip PawSpots ci-dessus. Voir signaux + Tag spot +
-            Signaler ci-dessous (création gated abo PawSpot/Premium). */}
-        <LayerChip
-          label={t("map_reports_chip")}
-          crown={pawSpotSubscribed}
-          color={pawSpotSubscribed ? "#EF4324" : CHIP_GRAY}
-          active={showReports}
-          onClick={() => setShowReports((v) => !v)}
-        />
-        <button
-          type="button"
-          onClick={() => openCreate("spot")}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 transition hover:bg-amber-100"
-        >
-          🐾 {t("map_tag_spot_cta")}
-          {!pawSpotSubscribed && <span>👑</span>}
-        </button>
+      {/* v498 — Daniel : refonte de la barre de contrôles PawMap (maquette
+          PawMap-Boutons). La CARTE est inchangée ; on réutilise état + handlers.
+          1) Barre d'actions  2) Amis en direct  3) Abonnements actifs
+          (4) Filtrer par catégorie plus bas). */}
+      {/* 1) Barre d'actions */}
+      <div className="mt-6 flex flex-wrap items-center gap-2.5">
         <button
           type="button"
           onClick={() => openCreate("report")}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
+          className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:brightness-110"
+          style={{ backgroundColor: "#e5342a" }}
         >
           ⚠️ {t("map_report_cta")}
-          {!pawSpotSubscribed && <span>👑</span>}
         </button>
-        {showFriends && (
-          <span className="shrink-0 text-xs text-ink-muted">
-            {friendsLoading
-              ? t("common_loading")
-              : t("map_live_count").replace(
-                  "{count}",
-                  String(livePositionsList.length),
-                )}
+        <button
+          type="button"
+          onClick={() => setShowReports((v) => !v)}
+          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition hover:brightness-105 ${showReports ? "ring-2 ring-offset-1" : ""}`}
+          style={{ backgroundColor: "#fbe4e1", color: "#c0352b" }}
+        >
+          👁 {t("map_reports_chip")}
+        </button>
+        <span className="h-6 w-px bg-ink/15" aria-hidden />
+        <button
+          type="button"
+          onClick={() => openCreate("spot")}
+          className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:brightness-110"
+          style={{ backgroundColor: "#e83e8c" }}
+        >
+          🐾 {t("map_tag_spot_cta")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowSpots((v) => !v)}
+          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition hover:brightness-105 ${showSpots ? "ring-2 ring-offset-1" : ""}`}
+          style={{ backgroundColor: "#fce0ef", color: "#c2367f" }}
+        >
+          🐾 {t("map_spots_chip")}
+        </button>
+        {/* Légende : avatar membre ROSE (sans halo) + libellé Utilisateur. */}
+        <span className="ml-1 inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
+          <span
+            className="grid h-6 w-6 place-items-center rounded-full border-2 border-white text-[11px] shadow"
+            style={{ background: "linear-gradient(135deg,#F06AA0,#E0568B)" }}
+          >
+            🐾
           </span>
+          {t("map_member_legend")}
+        </span>
+      </div>
+
+      {/* 2) Bandeau « Amis en direct » : clic sur l'en-tête = charge/affiche la
+          couche amis ; chips cliquables = zoom sur l'ami. */}
+      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-ink/10 bg-white px-4 py-2.5 shadow-sm">
+        <button
+          type="button"
+          onClick={toggleFriendsLayer}
+          className="flex items-center gap-2"
+        >
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          </span>
+          <span className="text-sm font-extrabold text-ink">
+            {t("map_live_friends")}
+          </span>
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
+            {livePositionsList.length}
+          </span>
+        </button>
+        {friendsLoading && (
+          <span className="text-xs text-ink-muted">{t("common_loading")}</span>
         )}
-        {/* v23.1.364 — Daniel : "à côté d'amis en direct, les noms avec
-            rôle ; un clic sur la personne zoome sur elle". */}
         {showFriends &&
           livePositionsList.map((p) => (
             <button
-              key={`chip-${p.userId}`}
+              key={`lf-${p.userId}`}
               type="button"
               onClick={() =>
                 setFocusTarget({ lat: p.lat, lng: p.lng, ts: Date.now() })
               }
-              className="inline-flex shrink-0 items-center gap-1 rounded-xl border bg-white px-2 py-1 text-[11px] font-semibold transition hover:shadow"
-              style={{ borderColor: `${roleChipColor(p.role)}88`, color: roleChipColor(p.role) }}
+              className="inline-flex items-center gap-1.5 rounded-full border bg-white px-2 py-1 text-[11px] font-semibold transition hover:shadow"
+              style={{ borderColor: `${roleChipColor(p.role)}55`, color: roleChipColor(p.role) }}
             >
               <span
-                className="inline-block h-2 w-2 rounded-full"
+                className="grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold text-white"
                 style={{ backgroundColor: roleChipColor(p.role) }}
-              />
+              >
+                {(p.name || "?").charAt(0).toUpperCase()}
+              </span>
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
               {p.name} · {t(`role_${p.role}`)}
             </button>
           ))}
-        {routeLoading && (
-          <span className="shrink-0 text-xs text-ink-muted">⌛</span>
-        )}
       </div>
+
+      {/* 3) Bandeau « Abonnements actifs » : 1 puce par abo réellement actif. */}
+      {(() => {
+        const subs: { label: string; bg: string; fg: string }[] = [];
+        if (benefits?.premiumActive)
+          subs.push({ label: "PawPremium", bg: "#1c1b18", fg: "#e3bf5a" });
+        if (benefits?.pawspotActive)
+          subs.push({ label: "PawSpots", bg: "#fbf2d4", fg: "#8a6510" });
+        if (benefits?.familyActive)
+          subs.push({ label: "PawFamily", bg: "#f1ecfb", fg: "#5a31b0" });
+        if (benefits?.pawFollowActive)
+          subs.push({ label: "PawFollow", bg: "#ede7f9", fg: "#4f2ba6" });
+        if (!subs.length) return null;
+        return (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-ink/10 bg-white px-4 py-2.5 shadow-sm">
+            <span className="text-sm font-extrabold text-ink">
+              {t("map_active_subs")}
+            </span>
+            <span className="rounded-full bg-ink/10 px-2 py-0.5 text-xs font-bold text-ink">
+              {subs.length}
+            </span>
+            {subs.map((sb) => (
+              <span
+                key={sb.label}
+                className="rounded-full px-3 py-1 text-xs font-bold"
+                style={{ backgroundColor: sb.bg, color: sb.fg }}
+              >
+                {sb.label}
+              </span>
+            ))}
+            <button
+              type="button"
+              onClick={() => router.push("/boutique")}
+              className="ml-auto rounded-full border border-ink/15 px-3 py-1 text-xs font-semibold text-ink transition hover:bg-ink/5"
+            >
+              {t("map_manage")}
+            </button>
+          </div>
+        );
+      })()}
 
       {/* v23.1 carte unique — bandeau itinéraire : distance/durée + effacer. */}
       {route && (
@@ -1279,49 +1325,13 @@ function CategoryChip({
       onClick={onClick}
       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
         active
-          ? "border-walker bg-walker text-white"
+          ? "border-transparent text-white"
           : "border-ink/15 bg-white text-ink hover:border-ink/30"
       }`}
+      style={active ? { backgroundColor: "#1f8a4c", borderColor: "#1f8a4c" } : undefined}
     >
       <span aria-hidden="true">{emoji}</span>
       <span>{label}</span>
-    </button>
-  );
-}
-
-// v23.1 carte unique — chip toggle de couche (PawFollow / PawSpots). La
-// couleur signale l'abonnement (violet/doré + 👑) ou gris sans abonnement ;
-// l'état actif remplit le chip, inactif = outline.
-function LayerChip({
-  label,
-  crown,
-  color,
-  active,
-  onClick,
-}: {
-  label: string;
-  crown: boolean;
-  color: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex shrink-0 items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold transition"
-      style={
-        active
-          ? { backgroundColor: color, borderColor: color, color: "#FFFFFF" }
-          : {
-              backgroundColor: "#FFFFFF",
-              borderColor: `${color}66`,
-              color,
-            }
-      }
-    >
-      <span>{label}</span>
-      {crown && <span aria-hidden="true">👑</span>}
     </button>
   );
 }
