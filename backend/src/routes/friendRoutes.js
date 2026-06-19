@@ -64,6 +64,119 @@ router.post('/live-position', requireAuth, async (req, res) => {
   }
 });
 
+// v497 — Daniel : « icône rose = membres PawMap proches, TOUS RÔLES ». Choix
+// produit retenu : n'importe quel membre voit les autres membres ABONNÉS
+// (PawSpot / Premium / PawFollow / staff) proches — owners INCLUS — gated côté
+// app sur l'abo du VIEWER. (Avant, seul un owner voyait les sitters/walkers via
+// /sitters|walkers/nearby → ne couvrait pas owner↔owner.) Confidentialité : on
+// n'expose QUE les membres ayant eux-mêmes un abo actif (pas tout le monde).
+//   GET /friends/members/nearby?lat=&lng=&radiusInMeters=
+// Placé AVANT les routes /:id pour ne pas être éclipsé par un param.
+router.get('/members/nearby', requireAuth, async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lng = parseFloat(req.query.lng);
+    const radius = Math.min(
+      parseInt(req.query.radiusInMeters, 10) || 25000,
+      50000,
+    );
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return res.status(400).json({ error: 'lat and lng are required.' });
+    }
+    const now = new Date();
+    const u = me(req);
+    const UserSubscription = require('../models/UserSubscription');
+
+    // Identités du VIEWER (pour s'exclure soi-même sur les 3 rôles).
+    const ViewerModel = MODEL_BY_NAME[u.model] || Owner;
+    const viewer = await ViewerModel.findById(u.id)
+      .select('email oldId')
+      .lean();
+    const selfEmail = viewer?.email || null;
+    const selfOldId = viewer?.oldId != null ? String(viewer.oldId) : null;
+
+    const geo = {
+      location: {
+        $near: {
+          $geometry: { type: 'Point', coordinates: [lng, lat] },
+          $maxDistance: radius,
+        },
+      },
+    };
+    const sel =
+      'name avatar profilePicture location mapBoostExpiry mapBoostTier ' +
+      'isStaff isOnline oldId email';
+    const [owners, sitters, walkers] = await Promise.all([
+      Owner.find(geo).select(sel).limit(80).lean(),
+      Sitter.find(geo).select(sel).limit(80).lean(),
+      Walker.find(geo).select(sel).limit(80).lean(),
+    ]);
+    const tagged = [
+      ...owners.map((d) => ({ d, role: 'owner' })),
+      ...sitters.map((d) => ({ d, role: 'sitter' })),
+      ...walkers.map((d) => ({ d, role: 'walker' })),
+    ];
+
+    // Premium via abonnement (Premium / PawFollow individuel / Famille) — batch.
+    const ids = tagged.map((t) => t.d._id);
+    let subSet = new Set();
+    try {
+      const subs = await UserSubscription.find({
+        userId: { $in: ids },
+        $or: [
+          { premiumExpiry: { $gt: now } },
+          { currentPeriodEnd: { $gt: now } },
+          { familyExpiry: { $gt: now } },
+        ],
+      })
+        .select('userId')
+        .lean();
+      subSet = new Set(subs.map((s) => String(s.userId)));
+    } catch (subErr) {
+      logger.warn(`[friends/members/nearby] sub lookup failed : ${subErr?.message || subErr}`);
+    }
+
+    const avatarUrl = (a) =>
+      (a && (typeof a === 'object' ? a.url : a)) || '';
+    const members = [];
+    const seen = new Set();
+    for (const { d, role } of tagged) {
+      const idStr = String(d._id);
+      if (seen.has(idStr)) continue;
+      // S'exclure soi-même (mêmes _id / email / oldId sur les 3 rôles).
+      if (idStr === String(u.id)) continue;
+      if (selfEmail && d.email && d.email === selfEmail) continue;
+      if (selfOldId && d.oldId != null && String(d.oldId) === selfOldId) continue;
+
+      const pawspot = d.mapBoostExpiry && new Date(d.mapBoostExpiry) > now;
+      const premiumSub = subSet.has(idStr);
+      const staff = d.isStaff === true;
+      // Membre actif = abonné PawSpot / Premium / PawFollow / staff. Sinon exclu.
+      if (!pawspot && !premiumSub && !staff) continue;
+
+      const coords = d.location?.coordinates;
+      if (!Array.isArray(coords) || coords.length < 2) continue;
+
+      seen.add(idStr);
+      members.push({
+        id: idStr,
+        role,
+        name: d.name || '',
+        avatar: avatarUrl(d.avatar) || avatarUrl(d.profilePicture),
+        location: { coordinates: coords },
+        // couronne 👑 si Premium/staff ; anneau/halo rose pour tous les membres.
+        isPremium: premiumSub || staff,
+        isPawSpot: !!pawspot,
+        isOnline: d.isOnline !== false,
+      });
+    }
+    return res.json({ members, count: members.length });
+  } catch (e) {
+    logger.error('[friends/members/nearby]', e);
+    return res.status(500).json({ error: 'Unable to fetch nearby members.' });
+  }
+});
+
 /**
  * v23.1.266 — Résout l'abonnement PawFollow Famille DONT L'UTILISATEUR EST
  * TITULAIRE, avec SELF-HEAL.

@@ -1298,11 +1298,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     // owner sessions.
     if (_isSitterOrWalker) {
       futures.add(_loadNearbyRequests());
-    } else {
-      // v23.1 part 72 — owners see nearby walkers/sitters as map pins
-      // with PawSpot-boosted ones highlighted.
-      futures.add(_loadNearbyProviders());
     }
+    // v497 — Daniel : « membres PawMap proches » (badge rose) doivent être vus
+    // par TOUS les rôles (avant : owner uniquement). On charge la liste pour
+    // tout le monde (endpoint /friends/members/nearby = membres abonnés proches).
+    futures.add(_loadNearbyProviders());
     await Future.wait(futures);
   }
 
@@ -1318,28 +1318,29 @@ class _PawMapScreenState extends State<PawMapScreen>
         'lng': _currentCenter.longitude.toString(),
         'radiusInMeters': '25000',
       };
-      final results = await Future.wait([
-        api.get('/walkers/nearby', queryParameters: params, requiresAuth: true)
-            .catchError((_) => <String, dynamic>{}),
-        api.get('/sitters/nearby', queryParameters: params, requiresAuth: true)
-            .catchError((_) => <String, dynamic>{}),
-      ]);
-      final walkers = ((results[0] as Map?)?['walkers'] as List?) ?? const [];
-      final sitters = ((results[1] as Map?)?['sitters'] as List?) ?? const [];
+      // v497 — Daniel : « membres PawMap proches = TOUS les rôles (abonnés) ».
+      // On remplace /walkers|sitters/nearby (providers only, vu par owner only)
+      // par l'endpoint dédié /friends/members/nearby qui renvoie owners + sitters
+      // + walkers ABONNÉS (PawSpot/Premium/PawFollow/staff), proches, hors moi.
+      final res = await api
+          .get('/friends/members/nearby',
+              queryParameters: params, requiresAuth: true)
+          .catchError((_) => <String, dynamic>{});
+      final list = ((res as Map?)?['members'] as List?) ?? const [];
       final merged = <Map<String, dynamic>>[];
-      for (final w in walkers) {
-        if (w is Map) {
+      for (final m in list) {
+        if (m is Map) {
           merged.add({
-            ...Map<String, dynamic>.from(w),
-            '_role': 'walker',
-          });
-        }
-      }
-      for (final s in sitters) {
-        if (s is Map) {
-          merged.add({
-            ...Map<String, dynamic>.from(s),
-            '_role': 'sitter',
+            'id': (m['id'] ?? '').toString(),
+            '_role': (m['role'] ?? '').toString(),
+            'name': (m['name'] ?? '').toString(),
+            'avatar': m['avatar'] ?? '',
+            'location': m['location'],
+            // couronne 👑 = membre Premium/staff ; le badge/halo rose s'affiche
+            // pour TOUS les membres. isMapBoosted laissé false (crown=isPremium).
+            'isPremium': m['isPremium'] == true,
+            'isMapBoosted': false,
+            'isOnline': m['isOnline'] != false,
           });
         }
       }
@@ -1525,10 +1526,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     final friendLiveIds = _liveMap.friendPositions.keys
         .map((k) => k.trim().toLowerCase())
         .toSet();
-    // v489 — halo ROSE des membres proches : visible UNIQUEMENT si abonné
-    // PawSpot/PawPremium (mêmes règles que le badge rose dans _buildMarkers).
-    if (!_isSitterOrWalker &&
-        _showProviders.value &&
+    // v489/v497 — halo ROSE des membres proches : visible si abonné PawSpot/
+    // PawPremium (gating VIEWER), pour TOUS les rôles (v497 — drop
+    // !_isSitterOrWalker, comme le badge rose dans _buildMarkers).
+    if (_showProviders.value &&
         (_pawSpotController.pawspotActive.value ||
             _pawSpotController.premiumActive.value)) {
       for (final p in _nearbyProviders) {
@@ -1891,8 +1892,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     // Visible UNIQUEMENT si l'utilisateur courant est abonné PawSpot ou
     // PawPremium (sinon RIEN). Le halo rose ANIMÉ est le Circle de
     // _buildHaloCircles ; ici on pose le badge bitmap par-dessus.
-    final bool nearbyVisible = !_isSitterOrWalker &&
-        _showProviders.value &&
+    // v497 — Daniel : badge rose « membres proches » visible pour TOUS les rôles
+    // (avant `!_isSitterOrWalker` → gardien/promeneur ne voyaient rien). Reste
+    // gardé sur l'abo du VIEWER (PawSpot/PawPremium) + le toggle _showProviders.
+    final bool nearbyVisible = _showProviders.value &&
         (_pawSpotController.pawspotActive.value ||
             _pawSpotController.premiumActive.value);
     if (nearbyVisible) {
