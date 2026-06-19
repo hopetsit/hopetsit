@@ -394,4 +394,25 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
   });
 };
 
-module.exports = { sendNotification };
+// v497 — Daniel : « je suis en espagnol mais les notifs du site sortent en FR ».
+// Les notifs sont rendues à l'ENVOI (locale d'alors) puis STOCKÉES → un
+// changement de langue ne les retraduisait pas. Ce helper RE-REND le titre/corps
+// d'une notif depuis son `type` + `data` dans la langue COURANTE du lecteur
+// (utilisé par GET /notifications/my) → la langue des notifs suit l'UI, app+web.
+// Retourne null si aucun template (on garde alors le texte stocké).
+const renderNotificationContent = (type, data = {}, userLanguage) => {
+  try {
+    const locale = resolveLocale(userLanguage);
+    const tmpl = pickTemplate(locale, type);
+    if (!tmpl) return null;
+    const safeData = data && typeof data === 'object' ? data : {};
+    return {
+      title: render(tmpl.title, safeData),
+      body: render(tmpl.body, safeData),
+    };
+  } catch (_) {
+    return null;
+  }
+};
+
+module.exports = { sendNotification, renderNotificationContent };

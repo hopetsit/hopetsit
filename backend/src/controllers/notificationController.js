@@ -45,8 +45,33 @@ const getMyNotifications = async (req, res) => {
       cursor,
     });
 
+    // v497 — Daniel : « je suis en espagnol mais les notifs du site sont en FR ».
+    // On RE-REND titre/corps dans la langue COURANTE du lecteur (appLocale, ou
+    // language sinon) au lieu de la langue figée à l'envoi → app + web suivent
+    // la langue choisie. Fallback : texte stocké si pas de template.
+    let userLang = null;
+    try {
+      const Model =
+        role === 'sitter'
+          ? require('../models/Sitter')
+          : role === 'walker'
+            ? require('../models/Walker')
+            : require('../models/Owner');
+      const u = await Model.findById(userId).select('appLocale language').lean();
+      userLang = u?.appLocale || u?.language || null;
+    } catch (_) {/* locale inconnue → garde le texte stocké */}
+    const { renderNotificationContent } = require('../services/notificationSender');
+
     res.json({
-      notifications: items.map(mapNotification),
+      notifications: items.map((n) => {
+        const base = mapNotification(n);
+        const loc = renderNotificationContent(n.type, n.data, userLang);
+        if (loc && loc.title) {
+          base.title = loc.title;
+          base.body = loc.body;
+        }
+        return base;
+      }),
       nextCursor: items.length ? items[items.length - 1]._id.toString() : null,
       count: items.length,
     });

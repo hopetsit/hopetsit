@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { ApiError, AuthUser, AuthRole, clearAuth, getConversations, getStoredUser, openInApp, switchRole } from "@/lib/api";
+import { ApiError, AuthUser, AuthRole, clearAuth, getConversations, getStoredUser, openInApp, redeemPromo, switchRole } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
 import { disconnectSocket } from "@/lib/socket";
 import NotificationBanner from "@/components/NotificationBanner";
@@ -21,6 +21,12 @@ export default function DashboardPage() {
   // v402 — changement de rôle depuis le web (garde les abonnements).
   const [switchingRole, setSwitchingRole] = useState<AuthRole | null>(null);
   const [switchMsg, setSwitchMsg] = useState<string | null>(null);
+  // v497 — Daniel : « rajoute l'onglet code promo dans le dashboard du web ».
+  const [promoCode, setPromoCode] = useState("");
+  const [promoBusy, setPromoBusy] = useState(false);
+  const [promoMsg, setPromoMsg] = useState<{ ok: boolean; text: string } | null>(
+    null,
+  );
 
   // v23.1 part 146 — socket.io temps réel.
   const { connected: socketConnected } = useSocket();
@@ -171,6 +177,33 @@ export default function DashboardPage() {
     }
   }
 
+  // v497 — code promo depuis le dashboard (même endpoint /promo/redeem).
+  async function handleApplyPromo() {
+    const code = promoCode.trim();
+    if (!code || promoBusy) return;
+    setPromoBusy(true);
+    setPromoMsg(null);
+    try {
+      const res = await redeemPromo(code);
+      const type = res.reward?.rewardType;
+      setPromoMsg({
+        ok: true,
+        text:
+          type === "free_subscription"
+            ? t("promo_ok_sub")
+            : t("promo_ok_discount"),
+      });
+      setPromoCode("");
+    } catch (e) {
+      setPromoMsg({
+        ok: false,
+        text: e instanceof Error ? e.message : t("promo_invalid"),
+      });
+    } finally {
+      setPromoBusy(false);
+    }
+  }
+
   // v402 — bascule de rôle depuis le cadre orange. Le backend migre les
   // abonnements (Premium/PawFollow/PawFamily/PawSpot) et renvoie un nouveau
   // token, persisté par switchRole(). On rafraîchit ensuite le dashboard.
@@ -271,6 +304,8 @@ export default function DashboardPage() {
               <SideLink href="/pawpoints" emoji="🐾" label={t("dash_card_pawpoints_title")} />
               <SideLink href="/family" emoji="👨‍👩‍👧" label={t("family_title")} />
               <SideLink href="/boutique" emoji="🛍️" label={t("dash_card_shop_title")} />
+              {/* v497 — onglet Code promo (ancre vers la carte ci-dessous). */}
+              <SideLink href="#promo" emoji="🎟️" label={t("promo_title")} />
               <SideLink href="/invoices" emoji="🧾" label={t("dash_card_invoices_title")} />
             </nav>
 
@@ -458,6 +493,44 @@ export default function DashboardPage() {
             </div>
             <span className="ml-auto text-yellow-400 transition group-hover:translate-x-1">→</span>
           </a>
+
+          {/* v497 — Daniel : « onglet code promo dans le dashboard ». Carte
+              directement utilisable (même endpoint /promo/redeem que la boutique). */}
+          <div
+            id="promo"
+            className="mt-4 scroll-mt-24 rounded-[22px] border border-ink/10 bg-white p-5 shadow-card"
+          >
+            <p className="flex items-center gap-2 text-sm font-extrabold text-ink">
+              <span>🎟️</span> {t("promo_title")}
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <input
+                type="text"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleApplyPromo();
+                }}
+                placeholder={t("promo_placeholder")}
+                className="min-w-0 flex-1 rounded-full border border-ink/15 px-4 py-2.5 text-sm uppercase tracking-wide outline-none focus:border-amber-400"
+              />
+              <button
+                type="button"
+                onClick={handleApplyPromo}
+                disabled={promoBusy || !promoCode.trim()}
+                className="shrink-0 rounded-full bg-amber-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+              >
+                {promoBusy ? "…" : t("promo_apply")}
+              </button>
+            </div>
+            {promoMsg && (
+              <p
+                className={`mt-3 text-sm ${promoMsg.ok ? "text-emerald-700" : "text-red-700"}`}
+              >
+                {promoMsg.text}
+              </p>
+            )}
+          </div>
         </main>
       </div>
     </div>
