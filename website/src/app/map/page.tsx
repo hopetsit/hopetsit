@@ -34,6 +34,7 @@ import {
   MapReport,
   MapReportType,
   MyBenefits,
+  NearbyMember,
   PawSpot,
   PawSpotType,
   POI_CATEGORY_LABELS,
@@ -47,6 +48,7 @@ import {
   getMyBenefits,
   getMyFamily,
   getMyFriends,
+  getNearbyMembers,
   getNearbyPawSpots,
   getNearbyReports,
   getNearbyPois,
@@ -158,6 +160,8 @@ export default function MapPage() {
   // (« Voir signaux ») + modal de création (Tag spot / Signaler), gated abo.
   const [showReports, setShowReports] = useState(false);
   const [reports, setReports] = useState<MapReport[]>([]);
+  // v497 — membres PawMap proches (badge rose), visibles si VIEWER abonné.
+  const [members, setMembers] = useState<NearbyMember[]>([]);
   const [createKind, setCreateKind] = useState<null | "spot" | "report">(null);
   const [createType, setCreateType] = useState<string>("");
   const [createName, setCreateName] = useState("");
@@ -396,6 +400,32 @@ export default function MapPage() {
     }, 400);
     return () => clearTimeout(tid);
   }, [loading, showReports, center, router]);
+
+  // v497 — Daniel : « je vois les utilisateurs en rose sur le web ? ». Couche
+  // membres PawMap proches (badge rose), VISIBLE uniquement si le VIEWER est
+  // abonné (PawSpot/Premium) — comme l'app. Refetch au pan + à l'activation abo.
+  const membersSubscribed = !!(
+    benefits?.pawspotActive || benefits?.premiumActive || benefits?.isPremium
+  );
+  useEffect(() => {
+    if (loading || !membersSubscribed) {
+      setMembers([]);
+      return;
+    }
+    const tid = setTimeout(async () => {
+      try {
+        const list = await getNearbyMembers({
+          lat: center[0],
+          lng: center[1],
+          radiusInMeters: 25000,
+        });
+        setMembers(list);
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 401) router.replace("/login");
+      }
+    }, 400);
+    return () => clearTimeout(tid);
+  }, [loading, membersSubscribed, center, router]);
 
   // v23.1 carte unique — chargement lazy des amis/famille + dernières
   // positions (logique portée telle quelle depuis /friends/live).
@@ -1034,6 +1064,12 @@ export default function MapPage() {
           spotTypeLabels={spotTypeLabels}
           reports={showReports ? reports : []}
           reportTypeLabels={reportTypeLabels}
+          members={members}
+          memberRoleLabels={{
+            owner: t("role_owner"),
+            sitter: t("role_sitter"),
+            walker: t("role_walker"),
+          }}
           friendPositions={showFriends ? livePositionsList : []}
           familyIds={familyIds}
           premiumIds={premiumIds}

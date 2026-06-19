@@ -1897,6 +1897,39 @@ export async function syncAppLocale(locale: string): Promise<void> {
   });
 }
 
+// v497 — Daniel : « je vois les utilisateurs en rose sur le web ? ». Membres
+// PawMap proches (TOUS rôles, abonnés actifs) — même endpoint que l'app.
+export type NearbyMember = {
+  id: string;
+  role: string;
+  name: string;
+  avatar: string;
+  location: { coordinates: [number, number] };
+  isPremium: boolean;
+  isPawSpot: boolean;
+  isOnline: boolean;
+};
+export async function getNearbyMembers(opts: {
+  lat: number;
+  lng: number;
+  radiusInMeters?: number;
+}): Promise<NearbyMember[]> {
+  const qs = new URLSearchParams({
+    lat: String(opts.lat),
+    lng: String(opts.lng),
+  });
+  if (opts.radiusInMeters)
+    qs.set("radiusInMeters", String(opts.radiusInMeters));
+  const raw = await request<{ members?: NearbyMember[] }>(
+    `/friends/members/nearby?${qs.toString()}`,
+  );
+  return (raw.members || []).filter(
+    (m) =>
+      Array.isArray(m.location?.coordinates) &&
+      m.location.coordinates.length >= 2,
+  );
+}
+
 // v497 — création d'un PAWSPOT depuis le web (POST /pawspots). 402
 // PAWSPOT_REQUIRED si quota gratuit dépassé sans abo. Position = centre carte.
 export async function createPawSpot(opts: {

@@ -32,6 +32,7 @@ import L from "leaflet";
 import {
   MapReport,
   MapReportType,
+  NearbyMember,
   POI_CATEGORY_LABELS,
   PawSpot,
   PawSpotType,
@@ -316,6 +317,21 @@ function makeReportIcon(type: MapReportType): L.DivIcon {
   });
 }
 
+// v497 — membre PawMap proche : badge ROSE (dégradé) + patte blanche, couronne
+// 👑 si Premium, point vert/gris selon en ligne. Même style que l'app.
+function makeMemberIcon(premium: boolean, online: boolean): L.DivIcon {
+  const crown = premium
+    ? '<div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);font-size:12px;">👑</div>'
+    : "";
+  const dot = `<div style="position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;border:1.5px solid #fff;background:${online ? "#22C55E" : "#9CA3AF"};"></div>`;
+  return L.divIcon({
+    className: "",
+    html: `<div style="position:relative;width:30px;height:30px;">${crown}<div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:linear-gradient(135deg,#F06AA0,#E0568B);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);font-size:15px;">🐾</div>${dot}</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  });
+}
+
 export default function PoiMap({
   center,
   pois,
@@ -327,6 +343,8 @@ export default function PoiMap({
   spotTypeLabels,
   reports = [],
   reportTypeLabels,
+  members = [],
+  memberRoleLabels,
   friendPositions = [],
   familyIds = [],
   premiumIds = [],
@@ -356,6 +374,10 @@ export default function PoiMap({
   reports?: MapReport[];
   /** Labels i18n des types de signalement (popup). */
   reportTypeLabels?: Partial<Record<MapReportType, string>>;
+  /** v497 — membres PawMap proches (badge rose), abonnés. */
+  members?: NearbyMember[];
+  /** Labels i18n des rôles (owner/sitter/walker) pour le popup membre. */
+  memberRoleLabels?: Record<string, string>;
   /** v23.1 carte unique — amis/famille en direct (couche optionnelle). */
   friendPositions?: FriendLivePosition[];
   familyIds?: string[];
@@ -614,6 +636,34 @@ export default function PoiMap({
                       ✅ {r.confirmationsCount}
                     </div>
                   ) : null}
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+
+        {/* v497 — membres PawMap proches (badge ROSE) : abonnés actifs, tous
+            rôles, hors amis/famille. location.coordinates = [lng, lat]. */}
+        {members.map((m) => {
+          const c = m.location?.coordinates;
+          if (!Array.isArray(c) || c.length < 2) return null;
+          return (
+            <Marker
+              key={`member-${m.id}`}
+              position={[c[1], c[0]]}
+              icon={makeMemberIcon(!!m.isPremium, m.isOnline !== false)}
+              zIndexOffset={200}
+            >
+              <Popup>
+                <div className="text-sm" style={{ minWidth: 140 }}>
+                  <div className="mb-1 font-bold">
+                    {m.isPremium ? "👑 " : "🐾 "}
+                    {m.name || "Membre"}
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    {(memberRoleLabels && memberRoleLabels[m.role]) || m.role}
+                    {m.isOnline ? " · 🟢" : " · ⚪"}
+                  </div>
                 </div>
               </Popup>
             </Marker>
