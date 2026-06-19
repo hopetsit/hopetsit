@@ -1,7 +1,7 @@
 """
 HopeTSIT — Bundle le projet complet dans un ZIP pour transfert vers Mac.
 
-Sortie : ~/Downloads/HopeTSIT_FINAL_v23.1.146.zip
+Sortie : ~/Downloads/HopeTSIT_FINAL_v23.1.497.zip
 
 Exclut les artefacts non versionnés (recalculables avec `npm install` /
 `flutter pub get` / `pod install` côté Mac) pour rester sous une taille
@@ -17,7 +17,7 @@ from pathlib import Path
 # ─── Config ────────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent
 OUTPUT = (
-    Path.home() / "Downloads" / "HopeTSIT_FINAL_v23.1.146.zip"
+    Path.home() / "Downloads" / "HopeTSIT_FINAL_v23.1.497.zip"
 )
 
 # Dossiers à exclure (basés sur leur nom — n'importe où dans l'arbre).
