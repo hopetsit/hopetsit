@@ -70,6 +70,13 @@ export function clearAuth() {
   notifyAuthChange();
 }
 
+// v498 — Daniel : page web « Supprimer mon compte » (exigence Google Play).
+// Suppression RGPD complète côté backend (DELETE /users/me) : retire des amis/
+// familles/map, anonymise les données financières conservées par la loi.
+export async function deleteMyAccount(): Promise<void> {
+  await request("/users/me", { method: "DELETE" });
+}
+
 async function request<T>(
   path: string,
   init: RequestInit = {},

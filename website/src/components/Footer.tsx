@@ -73,6 +73,7 @@ export function Footer() {
       links: [
         { href: "/terms",    label: t("footer_terms") },
         { href: "/privacy",  label: t("footer_privacy") },
+        { href: "/delete-account", label: t("footer_delete_account") },
         { href: "/refund",   label: t("footer_refund") },
         { href: "/imprint",  label: t("footer_imprint") },
       ],
