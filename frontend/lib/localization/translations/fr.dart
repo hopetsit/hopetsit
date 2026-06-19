@@ -133,6 +133,8 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawfollow_feature_directions': 'Itinéraires vers les lieux gratuits de la PawMap (points d\'eau, parcs, restos…) inclus',
       'pawmap_tag_spot_btn': 'Taguer un lieu',
       'pawmap_view_spots_btn': 'Voir les spots',
+      'pawmap_view_reports_btn': 'Voir signaux',
+      'pawspot_legend_title': 'Types de spots',
       'pawspot_list_title': 'PawSpots à proximité',
       'pawspot_list_empty': 'Aucun PawSpot ici — tague le premier !',
       'pawmap_my_points_chip': 'Mes PawPoints : @points',
@@ -1219,6 +1221,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'role_pet_owner': 'Propriétaire',
       // #106 — boutique : bénéfice commun à tous les abonnements.
       'shop_premium_reports_included': '20 signalements premium utilisables',
+      'shop_nearby_members': '🌸 Voir les membres Paw Map proches autour de vous (badge rose)',
       'shop_promo_discount_note': '🎟️ code promo -@percent%',
       // #107 — profil propriétaire en lecture seule (vue prestataire).
       'owner_profile_title': 'Profil du propriétaire',

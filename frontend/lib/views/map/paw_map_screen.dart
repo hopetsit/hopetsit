@@ -125,7 +125,11 @@ class _PawMapScreenState extends State<PawMapScreen>
   // un flag STATIC qui survit aux remounts pendant toute la session app :
   // une fois ferme, la card reste fermee meme apres navigation. Reset au
   // restart de l'app (nouvelle session, nouveaux signalements).
-  static bool _aroundYouDismissedSession = false;
+  // v488 — Daniel : « enlève le pop-up "Signaler autour de moi" à chaque
+  // connexion ». La carte « Autour de vous » ne s'affiche plus
+  // automatiquement (défaut masqué) ; l'accès aux signalements proches se
+  // fera via le bouton rond « Voir signaux » (→ AlertsScreen).
+  static bool _aroundYouDismissedSession = true;
   late final RxBool _aroundYouVisible =
       (!_aroundYouDismissedSession).obs;
 
@@ -143,6 +147,17 @@ class _PawMapScreenState extends State<PawMapScreen>
   // v23.1.353 — marqueurs emoji des spots communautaires PawSpot. Clé =
   // type de spot ('path_walk'...) ou '__golden__' (empreinte dorée 🐾).
   final Map<String, BitmapDescriptor> _spotEmojiMarkers = {};
+  // v489 — Daniel (maquette « Map User Avatar ») : MINI-BADGE ROSE pour les
+  // membres Paw Map proches (ni amis ni famille). Cercle rose + patte blanche
+  // (membre anonyme, pas de photo) + point en/hors ligne + 👑 si premium.
+  // Clé = 'pb_<online>_<premium>_<selected>'. Rendu bitmap canvas mis en cache.
+  final Map<String, BitmapDescriptor> _pawBadgeMarkers = {};
+  // Bump à chaque badge rose généré → invalide la clé de cache des markers
+  // pour que le vrai badge remplace le fallback rose temporaire.
+  int _pawBadgeRev = 0;
+  // Membre rose actuellement sélectionné (tap) → état « sélectionné » (badge
+  // surélevé/foncé). null = aucun.
+  String? _selectedNearbyId;
   final RxBool _showReports = true.obs;
   final RxBool _showFriends = true.obs;
   final RxBool _showRequests = true.obs;
@@ -536,6 +551,192 @@ class _PawMapScreenState extends State<PawMapScreen>
     }).catchError((Object _) {
       _emojiGenInProgress.remove(genKey);
     });
+  }
+
+  // ── v489 — MINI-BADGE ROSE « membre Paw Map proche » (maquette Map User
+  // Avatar) ───────────────────────────────────────────────────────────────
+  /// Pré-génère (async, en cache) le badge rose pour un état donné. Fallback
+  /// pin rose le temps que le bitmap se calcule, puis setState pour le poser.
+  void _ensurePawBadgeMarker(bool online, bool premium, bool selected) {
+    final key = 'pb_${online ? 1 : 0}_${premium ? 1 : 0}_${selected ? 1 : 0}';
+    if (_pawBadgeMarkers.containsKey(key) ||
+        _emojiGenInProgress.contains(key)) {
+      return;
+    }
+    _emojiGenInProgress.add(key);
+    _buildPawBadgeBitmap(online: online, premium: premium, selected: selected)
+        .then((bd) {
+      _pawBadgeMarkers[key] = bd;
+      _emojiGenInProgress.remove(key);
+      _pawBadgeRev++;
+      if (mounted) setState(() {});
+    }).catchError((Object _) {
+      _emojiGenInProgress.remove(key);
+    });
+  }
+
+  /// Cercle rose (dégradé) + patte blanche centrée + anneau blanc + point
+  /// en/hors ligne (vert/gris) + petit badge doré 👑 si premium. Hors ligne =
+  /// teinte désaturée. Sélectionné = cercle surélevé/foncé + liseré externe.
+  Future<BitmapDescriptor> _buildPawBadgeBitmap({
+    required bool online,
+    required bool premium,
+    required bool selected,
+  }) async {
+    const double size = 72.0;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    const center = Offset(36, 38);
+    final double r = selected ? 25 : 24;
+    const pink = Color(0xFFF06AA0);
+    const pinkDark = Color(0xFFE0568B);
+    final Color fillTop = !online
+        ? const Color(0xFFC9A6B6)
+        : (selected ? pinkDark : pink);
+    final Color fillBottom =
+        online ? pinkDark : const Color(0xFFB89AAA);
+
+    // Ombre douce.
+    canvas.drawCircle(
+      center.translate(0, 2.5),
+      r,
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.22)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+    // Cercle rose dégradé.
+    final rect = Rect.fromCircle(center: center, radius: r);
+    canvas.drawCircle(
+      center,
+      r,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [fillTop, fillBottom],
+        ).createShader(rect),
+    );
+    // Anneau blanc.
+    canvas.drawCircle(
+      center,
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..color = Colors.white,
+    );
+    // Liseré externe (état sélectionné).
+    if (selected) {
+      canvas.drawCircle(
+        center,
+        r + 3,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = pinkDark.withValues(alpha: 0.6),
+      );
+    }
+    // Patte blanche centrée (membre anonyme — pas de photo).
+    _drawWhitePaw(canvas, center, r * 1.5);
+    // Point en/hors ligne (bas-droite).
+    final dotC = Offset(center.dx + r * 0.72, center.dy + r * 0.72);
+    canvas.drawCircle(dotC, 7.5, Paint()..color = Colors.white);
+    canvas.drawCircle(
+      dotC,
+      5.5,
+      Paint()
+        ..color =
+            online ? const Color(0xFF2ECC71) : const Color(0xFFC3C3C9),
+    );
+    // Badge doré 👑 (haut-droite) si membre premium.
+    if (premium) {
+      final crownC = Offset(center.dx + r * 0.74, center.dy - r * 0.74);
+      canvas.drawCircle(crownC, 9.5, Paint()..color = Colors.white);
+      canvas.drawCircle(
+        crownC,
+        8,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFFBE3A1), Color(0xFFF4C04A)],
+          ).createShader(Rect.fromCircle(center: crownC, radius: 8)),
+      );
+      final tp = TextPainter(
+        text: const TextSpan(text: '👑', style: TextStyle(fontSize: 10)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, crownC.translate(-tp.width / 2, -tp.height / 2));
+    }
+
+    final img =
+        await recorder.endRecording().toImage(size.toInt(), size.toInt());
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List(), width: 42);
+  }
+
+  /// Patte blanche (4 coussinets + paume) dessinée dans une boîte [paw] px
+  /// centrée sur [center]. Coordonnées calquées sur la patte SVG de la maquette
+  /// (viewBox 0..24).
+  void _drawWhitePaw(Canvas canvas, Offset center, double paw) {
+    final white = Paint()..color = Colors.white;
+    double sx(double vx) => center.dx + (vx - 12) / 24 * paw;
+    double sy(double vy) => center.dy + (vy - 12.5) / 24 * paw;
+    double sc(double v) => v / 24 * paw;
+    void toe(double vx, double vy, double rx, double ry) {
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(sx(vx), sy(vy)),
+          width: sc(rx) * 2,
+          height: sc(ry) * 2,
+        ),
+        white,
+      );
+    }
+
+    toe(6.4, 11, 2.0, 2.6);
+    toe(10.3, 7.4, 2.0, 2.7);
+    toe(14.7, 7.4, 2.0, 2.7);
+    toe(18.6, 11, 2.0, 2.6);
+    // Paume (coussinet central).
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(sx(12.5), sy(16.5)),
+        width: sc(11),
+        height: sc(8.5),
+      ),
+      white,
+    );
+  }
+
+  /// Tap sur un membre rose (badge OU halo) : marque l'état sélectionné +
+  /// ouvre l'info du membre (nom + rôle). Même comportement cliquable qu'avant.
+  void _onNearbyTap({
+    required String id,
+    required String role,
+    required String name,
+    required bool online,
+    required bool premium,
+  }) {
+    _selectedNearbyId = id;
+    if (mounted) setState(() {});
+    final emoji = role == 'walker' ? '🐕' : '🐾';
+    final title = name.isNotEmpty
+        ? name
+        : (role == 'walker'
+            ? 'pawmap_default_walker'.tr
+            : 'pawmap_default_sitter'.tr);
+    Get.snackbar(
+      '$emoji $title',
+      premium
+          ? 'mapboost_marker_active'.tr
+          : (role == 'walker'
+              ? 'role_pet_walker'.tr
+              : 'role_pet_sitter'.tr),
+      snackPosition: SnackPosition.BOTTOM,
+      margin: EdgeInsets.all(12.w),
+      duration: const Duration(seconds: 3),
+    );
   }
 
   /// Renders a circular white-bg marker with the emoji centered inside.
@@ -1324,7 +1525,12 @@ class _PawMapScreenState extends State<PawMapScreen>
     final friendLiveIds = _liveMap.friendPositions.keys
         .map((k) => k.trim().toLowerCase())
         .toSet();
-    if (!_isSitterOrWalker && _showProviders.value) {
+    // v489 — halo ROSE des membres proches : visible UNIQUEMENT si abonné
+    // PawSpot/PawPremium (mêmes règles que le badge rose dans _buildMarkers).
+    if (!_isSitterOrWalker &&
+        _showProviders.value &&
+        (_pawSpotController.pawspotActive.value ||
+            _pawSpotController.premiumActive.value)) {
       for (final p in _nearbyProviders) {
       final loc = p['location'] is Map ? p['location'] as Map : null;
       final coords = loc != null && loc['coordinates'] is List
@@ -1350,27 +1556,37 @@ class _PawMapScreenState extends State<PawMapScreen>
       // sinon couleur du rôle (walker vert / sitter bleu / owner orange).
       // L'anneau RESPIRE désormais avec _haloPhase (effet beacon) au lieu
       // d'être un cercle statique.
-      final bool providerPawSpot = p['isMapBoosted'] == true;
-      final roleColor = providerPawSpot
-          ? _goldPawSpot // or PawSpot
-          : role == 'walker'
-              ? const Color(0xFF16A34A) // vert walker
-              : role == 'sitter'
-                  ? const Color(0xFF2563EB) // bleu sitter
-                  : const Color(0xFFEF4324); // orange owner (fallback)
+      // v489 — Daniel (maquette « Map User Avatar ») : halo ROSE (membre Paw
+      // Map proche, inconnu) au lieu de la couleur de rôle. Le badge rose
+      // (patte blanche) est posé PAR-DESSUS dans _buildMarkers ; ce Circle =
+      // la pulsation rose animée. Tap → info du membre (idem badge).
+      final bool providerPremium =
+          p['isMapBoosted'] == true || p['isPremium'] == true;
+      final bool providerOnline =
+          p['isOnline'] != false && p['online'] != false;
+      const Color roseHalo = Color(0xFFF06AA0);
       final providerHp = _haloPhase.value; // 0..1
+      final providerName = (p['name'] ?? '').toString();
       circles.add(
         Circle(
           circleId: CircleId('halo_role_$id'),
           center: LatLng(lat, lng),
           radius: 25 + 35 * providerHp, // respiration 25 → 60m
-          fillColor: roleColor.withValues(
+          fillColor: roseHalo.withValues(
             alpha: (0.22 * (1 - providerHp)).clamp(0.0, 1.0),
           ),
-          strokeColor: roleColor.withValues(
+          strokeColor: roseHalo.withValues(
             alpha: (0.9 * (1 - providerHp) + 0.1).clamp(0.0, 1.0),
           ),
           strokeWidth: 3,
+          consumeTapEvents: true,
+          onTap: () => _onNearbyTap(
+            id: id,
+            role: role,
+            name: providerName,
+            online: providerOnline,
+            premium: providerPremium,
+          ),
         ),
       );
       }
@@ -1612,6 +1828,18 @@ class _PawMapScreenState extends State<PawMapScreen>
       // walker qui devient famille doit avoir son ring violet
       // instantanement.
       _friendController.familyMembers.length,
+      // v489 — badges roses « membres proches » : invalide le cache quand
+      // l'abonnement, la liste/état des membres, la sélection ou un nouveau
+      // bitmap badge changent.
+      _showProviders.value ? 1 : 0,
+      _pawSpotController.pawspotActive.value ? 1 : 0,
+      _pawSpotController.premiumActive.value ? 1 : 0,
+      _selectedNearbyId ?? '',
+      _pawBadgeRev,
+      _nearbyProviders
+          .map((p) =>
+              '${p['id'] ?? p['_id']}:${p['isMapBoosted'] == true || p['isPremium'] == true ? 1 : 0}:${p['isOnline'] != false && p['online'] != false ? 1 : 0}')
+          .join('|'),
     ].join('-');
     if (_cachedMarkers == null || _cachedMarkersKey != key) {
       _cachedMarkers = _buildMarkers();
@@ -1657,11 +1885,17 @@ class _PawMapScreenState extends State<PawMapScreen>
         );
       } catch (_) {/* defensive — le halo rôle reste visible */}
     }
-    // v23.1 part 72 — Bug 10 : render nearby providers (owner side).
-    // Boosted (isMapBoosted) get gold hue ; non-boosted get role color.
-    if (_showProviders.value && !_isSitterOrWalker) {
-      // v23.1.276 — dédup marqueurs : un provider qui est aussi un ami live ne
-      // reçoit PAS de pin provider — son marqueur ami (avatar) le représente.
+    // v489 — Daniel (maquette « Map User Avatar ») : les prestataires proches
+    // (ni amis ni famille) = MINI-BADGE ROSE (cercle rose + patte blanche +
+    // point en/hors ligne + 👑 si premium), CLIQUABLE (tap → info du membre).
+    // Visible UNIQUEMENT si l'utilisateur courant est abonné PawSpot ou
+    // PawPremium (sinon RIEN). Le halo rose ANIMÉ est le Circle de
+    // _buildHaloCircles ; ici on pose le badge bitmap par-dessus.
+    final bool nearbyVisible = !_isSitterOrWalker &&
+        _showProviders.value &&
+        (_pawSpotController.pawspotActive.value ||
+            _pawSpotController.premiumActive.value);
+    if (nearbyVisible) {
       final friendLiveIds = _liveMap.friendPositions.keys
           .map((k) => k.trim().toLowerCase())
           .toSet();
@@ -1675,61 +1909,33 @@ class _PawMapScreenState extends State<PawMapScreen>
         final lat = (coords[1] as num).toDouble();
         final id = (p['id'] ?? p['_id'] ?? '').toString();
         if (id.isEmpty) continue;
+        // Dédup : un membre qui est aussi un ami live garde son marqueur ami
+        // (photo) — pas de badge rose en double.
         if (friendLiveIds.contains(id.trim().toLowerCase())) continue;
-        final role = (p['_role'] ?? 'walker').toString();
+        final role = (p['_role'] ?? '').toString().toLowerCase();
         final name = (p['name'] ?? '').toString();
-        final isMapBoosted = p['isMapBoosted'] == true;
-        final isBoosted = p['isBoosted'] == true;
-        final mapTier = (p['mapBoostTier'] ?? '').toString();
-
-        // v23.1.152 — Daniel : "tout marche sauf la couluer des paw spot,
-        // pawspot dore etc". Avant : hueYellow (60) etait pale et hueAzure
-        // (210) pour bronze ne ressemblait pas a du bronze. Refondu avec
-        // des hues bruts pour avoir des pins visuellement coherents avec
-        // leur nom :
-        //   bronze   (24h)   → 15  (rouge-cuivre, evoque bronze)
-        //   silver   (7j)    → 195 (gris-bleu, evoque argent)
-        //   gold     (15j)   → 45  (ambre dore, vraiment dore)
-        //   platinum (30j)   → 30  (orange chaud) + halo anime
-        double hue;
-        if (isMapBoosted) {
-          switch (mapTier) {
-            case 'platinum':
-              hue = 30.0; // orange chaud
-              break;
-            case 'gold':
-              hue = 45.0; // ambre dore (vrai gold)
-              break;
-            case 'silver':
-              hue = 195.0; // bleu-gris argent
-              break;
-            case 'bronze':
-            default:
-              hue = 15.0; // rouge-cuivre
-          }
-        } else {
-          hue = role == 'walker'
-              ? BitmapDescriptor.hueGreen
-              : BitmapDescriptor.hueAzure;
-        }
-        final tierLabel = isMapBoosted
-            ? ({
-                'bronze': 'mapboost_marker_bronze'.tr,
-                'silver': 'mapboost_marker_silver'.tr,
-                'gold': 'mapboost_marker_gold'.tr,
-                'platinum': 'mapboost_marker_platinum'.tr,
-              }[mapTier] ?? 'mapboost_marker_active'.tr)
-            : (isBoosted ? 'mapboost_marker_profile_boosted'.tr : '');
-
+        final bool premium =
+            p['isMapBoosted'] == true || p['isPremium'] == true;
+        final bool online = p['isOnline'] != false && p['online'] != false;
+        final bool selected = _selectedNearbyId == id;
+        final icon = _pawBadgeMarkers[
+            'pb_${online ? 1 : 0}_${premium ? 1 : 0}_${selected ? 1 : 0}'];
+        if (icon == null) _ensurePawBadgeMarker(online, premium, selected);
         markers.add(
           Marker(
-            markerId: MarkerId('provider_${role}_$id'),
+            markerId: MarkerId('nearby_$id'),
             position: LatLng(lat, lng),
-            icon: BitmapDescriptor.defaultMarkerWithHue(hue),
-            infoWindow: InfoWindow(
-              title: '${role == 'walker' ? '🐕' : '🐾'} ${name.isNotEmpty ? name : (role == 'walker' ? 'pawmap_default_walker'.tr : 'pawmap_default_sitter'.tr)}'
-                  '${isMapBoosted ? ' ⭐' : (isBoosted ? ' 🚀' : '')}',
-              snippet: tierLabel,
+            icon: icon ??
+                BitmapDescriptor.defaultMarkerWithHue(
+                    BitmapDescriptor.hueRose),
+            anchor: const Offset(0.5, 0.5),
+            zIndexInt: selected ? 9 : 6,
+            onTap: () => _onNearbyTap(
+              id: id,
+              role: role,
+              name: name,
+              online: online,
+              premium: premium,
             ),
           ),
         );
@@ -2442,15 +2648,14 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // On le déplace en BAS À GAUCHE (était bottom-right) et on le
                 // rend compact (rond, icône seule). La carte « Autour de vous »
                 // est remontée pour ne plus le chevaucher (cf _buildAroundYouCard).
+                // v488 — Daniel : 4 boutons RONDS (Voir spots / Tag spot / Voir
+                // signaux / Signaler) centrés verticalement à GAUCHE, petite
+                // carte (remplace l'unique FAB Signaler + les pilules).
                 Positioned(
                   left: 12.w,
-                  // v470 — Daniel : « en carte petite le bouton Signaler bas-
-                  // gauche est trop bas / inutilisable ». La barre pleine largeur
-                  // v468 est plus haute que l'ancienne pilule → on relève
-                  // franchement le FAB (132) + inset Samsung pour qu'il soit
-                  // bien au-dessus du menu et confortablement cliquable.
-                  bottom: 132.h + MediaQuery.of(context).viewPadding.bottom,
-                  child: _buildReportFab(),
+                  top: 0,
+                  bottom: 0,
+                  child: Center(child: _buildMapActionsColumn()),
                 ),
 
                 // v456 — POINT ROUGE FIXE au centre (placement précis), pour
@@ -3660,9 +3865,12 @@ class _PawMapScreenState extends State<PawMapScreen>
               : null,
           color: on ? null : AppColors.card(context),
           borderRadius: BorderRadius.circular(16.r),
-          border: on
-              ? null
-              : Border.all(color: AppColors.greyText.withValues(alpha: 0.18)),
+          // v488 — Daniel : surbrillance contour VERT sur « Partager ma
+          // position » (toujours visible, ON comme OFF).
+          border: Border.all(
+            color: const Color(0xFF16A34A),
+            width: 2,
+          ),
           boxShadow: on
               ? [
                   BoxShadow(
@@ -3770,11 +3978,8 @@ class _PawMapScreenState extends State<PawMapScreen>
             padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 9.h),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14.r),
-              border: Border.all(
-                color: expanded
-                    ? pink
-                    : AppColors.greyText.withValues(alpha: 0.25),
-              ),
+              // v488 — Daniel : surbrillance contour ROSE sur Agrandir/Réduire.
+              border: Border.all(color: pink, width: 2),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -3889,45 +4094,70 @@ class _PawMapScreenState extends State<PawMapScreen>
             ),
           ),
 
-          // À DROITE : 2 petits boutons flottants empilés (Signalement + Tag Spot).
+          // v488 — Daniel : MÊMES 4 boutons ronds qu'en petite carte (Voir
+          // spots / Tag spot / Voir signaux / Signaler), centrés verticalement
+          // à GAUCHE, en mode agrandi aussi.
           Positioned(
-            right: 12.w,
+            left: 12.w,
             top: 0,
             bottom: 0,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildMiniActionFab(
-                  heroTag: 'expReportMini',
-                  icon: Icons.add_moderator_rounded,
-                  color: const Color(0xFFDC2626),
-                  label: 'pawmap_btn_send'.tr,
-                  onTap: _startReportPicking,
-                ),
-                SizedBox(height: 14.h),
-                _buildMiniActionFab(
-                  heroTag: 'expTagSpotMini',
-                  icon: Icons.add_location_alt_rounded,
-                  color: const Color(0xFFD9A441),
-                  label: 'pawmap_tag_spot'.tr,
-                  onTap: _startSpotPicking,
-                ),
-              ],
-            ),
+            child: Center(child: _buildMapActionsColumn()),
           ),
-
-          // v465 — Daniel : « quand j'agrandis, enlève le bouton Signaler à
-          // gauche ». En mode agrandi on ne garde QUE les 2 boutons de droite
-          // (Signalement + Tag Spot). Le FAB Signaler bas-gauche est retiré.
         ],
       ),
     );
   }
 
-  /// Petit FAB flottant (icône ronde + mini-label) pour le mode agrandi.
-  Widget _buildMiniActionFab({
-    required Object heroTag,
+
+  /// v488 — Daniel : 4 boutons RONDS à gauche (petite ET grande carte), de haut
+  /// en bas : Voir spots · Tag spot · Voir signaux · Signaler. Boutons Material
+  /// (PAS de FloatingActionButton → aucun conflit de Hero tag entre les 2
+  /// cartes coexistantes). Tag spot / Voir spots respectent l'abonnement
+  /// PawSpot (sinon → route boutique via _togglePawSpot). Signaler + Voir
+  /// signaux restent gratuits.
+  Widget _buildMapActionsColumn() {
+    return Obx(() {
+      final spotOk = _pawSpotController.pawspotActive.value;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _roundMapBtn(
+            icon: Icons.travel_explore_rounded,
+            color: const Color(0xFF2563EB),
+            label: 'pawmap_view_spots_btn'.tr,
+            onTap: () => spotOk
+                ? unawaited(_openSpotsList())
+                : unawaited(_togglePawSpot()),
+          ),
+          SizedBox(height: 12.h),
+          _roundMapBtn(
+            icon: Icons.add_location_alt_rounded,
+            color: const Color(0xFFD9A441),
+            label: 'pawmap_tag_spot'.tr,
+            onTap: () =>
+                spotOk ? _startSpotPicking() : unawaited(_togglePawSpot()),
+          ),
+          SizedBox(height: 12.h),
+          _roundMapBtn(
+            icon: Icons.notifications_active_rounded,
+            color: const Color(0xFFEA580C),
+            label: 'pawmap_view_reports_btn'.tr,
+            onTap: () => Get.to(() => const AlertsScreen()),
+          ),
+          SizedBox(height: 12.h),
+          _roundMapBtn(
+            icon: Icons.add_moderator_rounded,
+            color: const Color(0xFFDC2626),
+            label: 'pawmap_btn_send'.tr,
+            onTap: _startReportPicking,
+          ),
+        ],
+      );
+    });
+  }
+
+  /// Bouton rond (Material + InkWell, sans Hero) + mini-label dessous.
+  Widget _roundMapBtn({
     required IconData icon,
     required Color color,
     required String label,
@@ -3936,16 +4166,18 @@ class _PawMapScreenState extends State<PawMapScreen>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: 44.w,
-          height: 44.w,
-          child: FloatingActionButton(
-            heroTag: heroTag,
-            backgroundColor: color,
-            elevation: 5,
-            shape: const CircleBorder(),
-            onPressed: onTap,
-            child: Icon(icon, color: Colors.white, size: 20.sp),
+        Material(
+          color: color,
+          shape: const CircleBorder(),
+          elevation: 4,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: SizedBox(
+              width: 44.w,
+              height: 44.w,
+              child: Icon(icon, color: Colors.white, size: 20.sp),
+            ),
           ),
         ),
         SizedBox(height: 3.h),
@@ -3966,66 +4198,6 @@ class _PawMapScreenState extends State<PawMapScreen>
             text: label,
             fontSize: 8.5.sp,
             color: color,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Premium users see all 9 types. The CreateReportSheet handles the per-type
-  // lock UI and the final submit guard.
-  Widget _buildReportFab({Object? heroTag = 'reportFab'}) {
-    // v418 — Daniel : bouton « Signaler » compact en bas à gauche. FAB rond
-    // (icône seule) avec mini label dessous pour rester clair, plus petit que
-    // l'ancien FAB étendu.
-    // v463 — heroTag paramétrable : le calque « carte agrandie » réutilise ce
-    // FAB pendant que la carte normale (avec son propre 'reportFab') reste
-    // montée en dessous → on évite un conflit de Hero tag (2 héros identiques).
-    void onTap() {
-      // v449 — Daniel : « mieux régler l'endroit du signalement, comme Taguer
-      // un lieu mais plus express ». Au lieu de déposer direct au centre, on
-      // entre en mode VISEUR : pin rouge déplaçable + bandeau « Signaler ici »
-      // (un seul tap pour valider). La feuille de signalement s'ouvre ensuite
-      // au point choisi.
-      _startReportPicking();
-    }
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 48.w,
-          height: 48.w,
-          child: FloatingActionButton(
-            heroTag: heroTag,
-            // v418 — maquette : bouton Signaler ROUGE avec bouclier blanc.
-            backgroundColor: const Color(0xFFDC2626),
-            elevation: 6,
-            shape: const CircleBorder(),
-            onPressed: onTap,
-            child: Icon(Icons.add_moderator_rounded,
-                color: Colors.white, size: 22.sp),
-          ),
-        ),
-        SizedBox(height: 4.h),
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8.r),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: InterText(
-            text: 'pawmap_btn_send'.tr,
-            fontSize: 10.sp,
-            color: const Color(0xFFDC2626),
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -4136,112 +4308,18 @@ class _PawMapScreenState extends State<PawMapScreen>
                 ),
               ],
             ),
-            // v23.1.363 — Daniel : "Taguer un lieu et Voir les spots
-            // n'apparaissent que si PawSpot est en mode ON".
-            if (_showPawSpots.value) ...[
-              SizedBox(height: 6.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: _quickActionChip(
-                      label: 'pawmap_tag_spot_btn'.tr,
-                      icon: Icons.add_location_alt_rounded,
-                      accent: const Color(0xFFEC4899),
-                      onTap: _startSpotPicking,
-                    ),
-                  ),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: _quickActionChip(
-                      label: 'pawmap_view_spots_btn'.tr,
-                      icon: Icons.list_rounded,
-                      accent: const Color(0xFF2563EB),
-                      onTap: () => unawaited(_openSpotsList()),
-                    ),
-                  ),
-                ],
-              ),
-              // Légende des types (maquette).
-              SizedBox(height: 6.h),
-              _buildSpotLegend(),
-            ],
+            // v488 — Daniel : les pilules « Taguer un lieu / Voir les spots »
+            // ET la légende sont RETIRÉES de la carte. Tag spot / Voir spots
+            // sont désormais 2 des 4 boutons ronds à gauche ; la légende des
+            // types vit en bas de l'onglet PawSpot de la boutique.
           ],
         );
       }),
     );
   }
 
-  /// Légende des types de spots (pastille couleur + libellé court).
-  /// v449 — Daniel : "sur UNE seule ligne, aucun slide". On remplace le Wrap
-  /// (qui pouvait déborder sur 2 lignes) par UN SEUL Row de 5 items compacts,
-  /// chacun dans un Expanded → ils se partagent exactement la largeur, jamais
-  /// de scroll horizontal. Le libellé passe par un FittedBox(scaleDown) : il
-  /// reste ENTIER (jamais d'« … ») et se réduit un poil si la place manque
-  /// (libellés longs comme « Aire de jeux » / « Balneazione »). Petite
-  /// pastille + petite police + gaps serrés pour que les 5 tiennent sur un
-  /// écran de téléphone normal. Le type générique « Autre » est masqué.
-  Widget _buildSpotLegend() {
-    final legendTypes =
-        PawSpotTypes.all.where((t) => t != 'other').toList();
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14.r),
-        border: Border.all(
-          color: AppColors.greyText.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          for (final t in legendTypes)
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 1.w),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 9.w,
-                      height: 9.w,
-                      decoration: BoxDecoration(
-                        color: PawSpotTypes.color(t),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1),
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                PawSpotTypes.color(t).withValues(alpha: 0.4),
-                            blurRadius: 2,
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(width: 2.w),
-                    Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: InterText(
-                          text: 'pawspot_type_short_$t'.tr,
-                          fontSize: 9.sp,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF1F2937),
-                          maxLines: 1,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
+  // v488 — _buildSpotLegend retiré de la carte : la légende des types de spots
+  // est désormais affichée en bas de l'onglet PawSpot de la boutique.
 
   /// v23.1.360 — Daniel : "le tag ne marche pas, je ne peux pas sélectionner
   /// l'endroit". Mode VISEUR : un pin rose fixe au centre de la carte +
@@ -4695,50 +4773,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     await _promptSubscriptionRequired(3);
   }
 
-  /// Bouton d'action pleine largeur de la grille rapide (Taguer / Voir).
-  Widget _quickActionChip({
-    required String label,
-    required IconData icon,
-    required Color accent,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14.r),
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(color: accent.withValues(alpha: 0.55), width: 1.4),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 16.sp, color: accent),
-            SizedBox(width: 6.w),
-            Flexible(
-              child: InterText(
-                text: label,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF1F2937),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // v488 — _quickActionChip retiré : les pilules « Taguer un lieu / Voir les
+  // spots » sont remplacées par les boutons ronds gauche (_buildMapActionsColumn).
 
   /// « Voir les spots » : active la couche (même gating abo que le switch)
   /// puis ouvre la liste des spots à proximité avec mes PawPoints en tête.

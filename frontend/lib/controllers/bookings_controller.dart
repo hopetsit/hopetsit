@@ -19,7 +19,12 @@ class BookingsController extends GetxController {
   /// v23.1.266 — nb de réservations en attente de MON action (badge nav).
   /// Owner : services terminés par le prestataire, à confirmer/signaler.
   int get pendingActionCount => bookings
-      .where((b) => b.confirmationStatus == 'awaiting_confirmation')
+      .where((b) =>
+          // v488 — une réservation ANNULÉE/REMBOURSÉE ne doit plus compter
+          // dans le badge (sinon le « 1 » reste après annulation).
+          b.status.toLowerCase() != 'cancelled' &&
+          b.status.toLowerCase() != 'refunded' &&
+          b.confirmationStatus == 'awaiting_confirmation')
       .length;
 
   @override

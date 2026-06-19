@@ -73,9 +73,12 @@ class _NotificationCardState extends State<NotificationCard> {
       final actorRole = notification.actorRole.toLowerCase();
       if (actorRole == 'walker') return _walkerAccent;
       if (actorRole == 'sitter') return _sitterAccent;
-      return AppColors.primaryColor;
+      // v488 — Daniel : « la couleur des notifs pas à jour par rôle ». À défaut
+      // d'un rôle d'acteur, on suit le rôle COURANT de l'utilisateur (vert
+      // promeneur / bleu gardien / orange propriétaire) au lieu d'orange fixe.
+      return AppColors.activeRoleAccent();
     }
-    return AppColors.primaryColor;
+    return AppColors.activeRoleAccent();
   }
 
   String _formatTime(DateTime utc) {

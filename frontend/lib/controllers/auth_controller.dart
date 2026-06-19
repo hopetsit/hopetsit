@@ -287,26 +287,45 @@ class AuthController extends GetxController {
   }
 
   Future<void> _initializeGoogleSignIn() async {
-    _googleSignIn = GoogleSignIn.instance;
+    // v488 — Crash Crashlytics #2 (auth_controller:300, 5 users, builds
+    // 23.1.139→485) : `GoogleSignIn.initialize()` peut lever une
+    // `GoogleSignInException` (config Google Services manquante, Play Services
+    // indisponible/obsolète, double init…). Comme cette méthode était appelée
+    // en « fire-and-forget » dans onInit() SANS try/catch, l'exception
+    // asynchrone n'était attrapée par personne → erreur Flutter FATALE = crash
+    // au démarrage. On enveloppe TOUT : si l'init échoue, on log et on dégrade
+    // proprement (le bouton « Continuer avec Google » affichera une erreur
+    // traduite via le try/catch de loginWithGoogle, jamais de crash).
+    try {
+      _googleSignIn = GoogleSignIn.instance;
 
-    // Use the correct client IDs from Firebase configuration
-    await _googleSignIn.initialize(
-      clientId: Platform.isIOS
-          ? "470089536255-sedqnlp3c54m3jv0g21mcoq7a23i6487.apps.googleusercontent.com"
-          : "470089536255-q9nrquiekrp6vmjdua2gio42r19fsrd4.apps.googleusercontent.com",
-      serverClientId: Platform.isIOS
-          ? "470089536255-sedqnlp3c54m3jv0g21mcoq7a23i6487.apps.googleusercontent.com"
-          : "470089536255-q9nrquiekrp6vmjdua2gio42r19fsrd4.apps.googleusercontent.com",
-    );
+      // Use the correct client IDs from Firebase configuration
+      await _googleSignIn.initialize(
+        clientId: Platform.isIOS
+            ? "470089536255-sedqnlp3c54m3jv0g21mcoq7a23i6487.apps.googleusercontent.com"
+            : "470089536255-q9nrquiekrp6vmjdua2gio42r19fsrd4.apps.googleusercontent.com",
+        serverClientId: Platform.isIOS
+            ? "470089536255-sedqnlp3c54m3jv0g21mcoq7a23i6487.apps.googleusercontent.com"
+            : "470089536255-q9nrquiekrp6vmjdua2gio42r19fsrd4.apps.googleusercontent.com",
+      );
 
-    // Listen to authentication events
-    _googleSignIn.authenticationEvents.listen((event) {
-      _user = switch (event) {
-        GoogleSignInAuthenticationEventSignIn() => event.user,
-        GoogleSignInAuthenticationEventSignOut() => null,
-      };
-      update();
-    });
+      // Listen to authentication events. onError évite qu'une erreur du flux
+      // (déconnexion plugin, etc.) ne remonte en exception non attrapée.
+      _googleSignIn.authenticationEvents.listen(
+        (event) {
+          _user = switch (event) {
+            GoogleSignInAuthenticationEventSignIn() => event.user,
+            GoogleSignInAuthenticationEventSignOut() => null,
+          };
+          update();
+        },
+        onError: (Object e) {
+          debugPrint('[HOPETSIT] Google authEvents error (ignored): $e');
+        },
+      );
+    } catch (e) {
+      debugPrint('[HOPETSIT] Google Sign-In init failed (non-fatal): $e');
+    }
   }
 
   /// [role] When provided (e.g. from sign up screen), sends this role to the backend

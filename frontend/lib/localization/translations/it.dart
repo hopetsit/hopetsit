@@ -942,6 +942,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'role_pet_owner': 'Proprietario',
       // #106 — negozio: vantaggio comune a tutti gli abbonamenti.
       'shop_premium_reports_included': '20 segnalazioni premium utilizzabili',
+      'shop_nearby_members': '🌸 Vedi i membri Paw Map vicini a te (badge rosa)',
       'shop_promo_discount_note': '🎟️ codice promo -@percent%',
       // #107 — profilo del proprietario in sola lettura (vista fornitore).
       'owner_profile_title': 'Profilo del proprietario',
@@ -2991,6 +2992,8 @@ const Map<String, String> itITTranslations = <String, String>{
     'pawfollow_feature_directions': 'Itinerari verso i luoghi gratuiti della PawMap (fontanelle, parchi, ristoranti…) inclusi',
     'pawmap_tag_spot_btn': 'Tagga un luogo',
     'pawmap_view_spots_btn': 'Vedi spot',
+    'pawmap_view_reports_btn': 'Vedi segnali',
+    'pawspot_legend_title': 'Tipi di spot',
     'pawspot_list_title': 'PawSpot nelle vicinanze',
     'pawspot_list_empty': 'Ancora nessun PawSpot qui — tagga il primo!',
     'pawmap_my_points_chip': 'I miei PawPoints: @points',

@@ -685,6 +685,18 @@ class FriendController extends GetxController {
       return true;
     } catch (e) {
       debugPrint('[Friends] accept error: $e');
+      // v488 — Daniel : « cloche pas à jour, je clique Accepter et au lieu de
+      // "déjà accepté" ça met une erreur ». ACCEPT IDEMPOTENT : si la demande
+      // a déjà été traitée (acceptée ailleurs / cloche périmée), le backend
+      // renvoie une erreur. On rafraîchit ; si la demande n'est plus en
+      // attente, c'est qu'elle est déjà acceptée → on renvoie true (pas de
+      // faux message d'erreur, la carte passe en « accepté »).
+      try {
+        await refresh();
+        final stillPending =
+            incomingRequests.any((f) => f.id == friendshipId);
+        if (!stillPending) return true;
+      } catch (_) {/* défensif */}
       return false;
     }
   }

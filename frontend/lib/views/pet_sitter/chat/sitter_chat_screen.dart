@@ -56,7 +56,9 @@ class SitterChatScreen extends StatelessWidget {
             // On le remonte au-dessus du menu (~80) + inset Samsung, comme owner.
             floatingActionButton: Padding(
               padding: EdgeInsets.only(
-                  bottom: 96.h + MediaQuery.of(context).viewPadding.bottom),
+                  // v488 — Daniel : « nouvelle conversation toujours trop bas »
+                  // → remonté nettement au-dessus du menu flottant.
+                  bottom: 120.h + MediaQuery.of(context).viewPadding.bottom),
               child: FloatingActionButton.extended(
                 onPressed: () => Get.to(() => const FriendsScreen()),
                 backgroundColor: AppColors.primaryColor,

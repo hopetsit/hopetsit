@@ -457,7 +457,12 @@ export default function BoutiquePage() {
               </button>
             </div>
           </div>
-          <p className="mt-5 text-sm text-ink-muted">{t("pawspot_footer_note")}</p>
+          {/* v489 — option « membres Paw Map proches » (badge rose 🌸) incluse
+              avec PawSpot. */}
+          <p className="mt-4 rounded-2xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm font-semibold text-pink-700">
+            {t("pawspot_feat_nearby")}
+          </p>
+          <p className="mt-4 text-sm text-ink-muted">{t("pawspot_footer_note")}</p>
           <a
             href="/download"
             className="mt-6 inline-block rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white hover:bg-amber-600"
@@ -759,6 +764,8 @@ function PawPremiumSection({
   const features = [
     t("pawpremium_feat_pawfollow"),
     t("pawpremium_feat_pawspot"),
+    // v489 — membres Paw Map proches (badge rose 🌸) inclus avec Paw Premium.
+    t("pawpremium_feat_nearby"),
     t("pawpremium_feat_exclusive"),
     t("pawpremium_feat_badge"),
     t("pawpremium_feat_points"),

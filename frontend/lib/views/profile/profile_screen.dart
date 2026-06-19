@@ -70,7 +70,9 @@ class ProfileScreen extends StatelessWidget {
             Padding(
               // v468 — dégage le bas au-dessus du menu pleine largeur
               padding: EdgeInsets.fromLTRB(
-                  16.w, 0, 16.w, 110.h + MediaQuery.of(context).viewPadding.bottom),
+                  // v488 — Daniel : « Se déconnecter toujours trop bas » → on
+                  // dégage davantage le bas pour passer au-dessus du menu.
+                  16.w, 0, 16.w, 140.h + MediaQuery.of(context).viewPadding.bottom),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

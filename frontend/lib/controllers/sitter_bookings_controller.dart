@@ -20,8 +20,11 @@ class SitterBookingsController extends GetxController {
   /// Prestataire : services à démarrer (récupérer) ou à terminer (rendre).
   int get pendingActionCount => bookings
       .where((b) =>
-          b.confirmationStatus == 'awaiting_start' ||
-          b.confirmationStatus == 'in_progress')
+          // v488 — exclure annulé/remboursé du badge (sinon « 1 » persiste).
+          b.status.toLowerCase() != 'cancelled' &&
+          b.status.toLowerCase() != 'refunded' &&
+          (b.confirmationStatus == 'awaiting_start' ||
+              b.confirmationStatus == 'in_progress'))
       .length;
 
   @override

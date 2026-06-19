@@ -937,6 +937,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'role_pet_owner': 'Tierhalter',
       // #106 — Shop: Vorteil, der in jedem Abo enthalten ist.
       'shop_premium_reports_included': '20 nutzbare Premium-Meldungen',
+      'shop_nearby_members': '🌸 Paw-Map-Mitglieder in deiner Nähe sehen (rosa Abzeichen)',
       'shop_promo_discount_note': '🎟️ Promo-Code -@percent%',
       // #107 — schreibgeschütztes Halterprofil (Anbieteransicht).
       'owner_profile_title': 'Halterprofil',
@@ -2994,6 +2995,8 @@ const Map<String, String> deDETranslations = <String, String>{
     'pawfollow_feature_directions': 'Routen zu den kostenlosen PawMap-Orten (Wasserstellen, Parks, Restaurants…) inklusive',
     'pawmap_tag_spot_btn': 'Ort taggen',
     'pawmap_view_spots_btn': 'Spots ansehen',
+    'pawmap_view_reports_btn': 'Meldungen',
+    'pawspot_legend_title': 'Spot-Typen',
     'pawspot_list_title': 'PawSpots in der Nähe',
     'pawspot_list_empty': 'Noch kein PawSpot hier — tagge den ersten!',
     'pawmap_my_points_chip': 'Meine PawPoints: @points',

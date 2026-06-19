@@ -14,6 +14,8 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/post_purchase_refresh.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
+// v488 — légende des types de spots déplacée de la PawMap vers cet onglet.
+import 'package:hopetsit/controllers/pawspot_controller.dart' show PawSpotTypes;
 import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -1531,6 +1533,12 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
         'icon': Icons.shield_outlined,
         'text': 'shop_premium_reports_included'.tr,
       },
+      // v489 — Daniel : préciser l'option « membres Paw Map proches » (badge
+      // rose 🌸) débloquée par l'abonnement (PawSpot / PawPremium).
+      {
+        'icon': Icons.pets_rounded,
+        'text': 'shop_nearby_members'.tr,
+      },
     ];
 
     return Container(
@@ -1968,9 +1976,72 @@ class _PawSpotTabState extends State<_PawSpotTab>
             _buildRewardsCard(context),
             SizedBox(height: 18.h),
             _buildLeaderboardButton(context),
+            SizedBox(height: 18.h),
+            // v488 — Daniel : la légende des types de spots (déplacée depuis la
+            // PawMap) est affichée ici, en bas de l'onglet PawSpot.
+            _buildSpotTypesLegend(context),
             SizedBox(height: 40.h),
           ],
         ),
+      ),
+    );
+  }
+
+  /// v488 — Légende des types de spots PawSpot (pastille couleur + libellé),
+  /// déplacée de la carte vers la boutique. Petite carte titrée, 2 par ligne.
+  Widget _buildSpotTypesLegend(BuildContext context) {
+    final types = PawSpotTypes.all.where((t) => t != 'other').toList();
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(14.w),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'pawspot_legend_title'.tr,
+            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w800),
+          ),
+          SizedBox(height: 10.h),
+          Wrap(
+            spacing: 14.w,
+            runSpacing: 10.h,
+            children: [
+              for (final t in types)
+                SizedBox(
+                  width: 140.w,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 12.w,
+                        height: 12.w,
+                        decoration: BoxDecoration(
+                          color: PawSpotTypes.color(t),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 8.w),
+                      Expanded(
+                        child: Text(
+                          'pawspot_type_short_$t'.tr,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12.5.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -2282,6 +2353,8 @@ class _PawSpotTabState extends State<_PawSpotTab>
       'pawspot_feature_rewards'.tr,
       // #106 — 20 signalements premium utilisables inclus dans l'abo PawSpot.
       'shop_premium_reports_included'.tr,
+      // v489 — membres Paw Map proches (badge rose 🌸) visibles avec PawSpot.
+      'shop_nearby_members'.tr,
     ];
     return Column(
       children: features
