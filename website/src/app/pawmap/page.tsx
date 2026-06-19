@@ -125,27 +125,28 @@ export default function PawMapPage() {
       </div>
 
       {/* ── 4. DÉBLOQUEZ LES SPOTS PREMIUM ── une seule bande → Tarifs (/boutique).
-           Remplace TOUS les anciens pavés de prix (Premium/PawFollow/PawSpot). */}
-      <section className="mt-20 overflow-hidden rounded-[26px] bg-gradient-to-b from-[#221C12] to-[#15120D] p-8 text-center md:p-10">
+           Remplace TOUS les anciens pavés de prix (Premium/PawFollow/PawSpot).
+           v493 — plus d'air : marge haute + padding & espacements internes généreux. */}
+      <section className="mt-24 overflow-hidden rounded-[26px] bg-gradient-to-b from-[#221C12] to-[#15120D] p-9 text-center md:p-12">
         <div className="flex justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/pawpremium_logo.svg" alt="Paw Premium" width={64} height={64} />
+          <img src="/pawpremium_logo.svg" alt="Paw Premium" width={72} height={72} />
         </div>
-        <h2 className="mt-3 font-display text-2xl font-extrabold tracking-tight text-yellow-400 md:text-3xl">
+        <h2 className="mt-4 font-display text-2xl font-extrabold tracking-tight text-yellow-400 md:text-3xl">
           Paw Premium 👑
         </h2>
-        <p className="mx-auto mt-2 max-w-xl text-sm text-white/85">{t("pawpremium_subtitle")}</p>
-        <p className="mx-auto mt-2 max-w-xl text-xs text-white/60">{t("premium_signals_note")}</p>
+        <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/85">{t("pawpremium_subtitle")}</p>
+        <p className="mx-auto mt-3 max-w-xl text-xs leading-relaxed text-white/60">{t("premium_signals_note")}</p>
         <Link
           href="/boutique"
-          className="mt-6 inline-block rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-7 py-3.5 text-sm font-bold text-black shadow-cta transition hover:brightness-110"
+          className="mt-7 inline-block rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-7 py-3.5 text-sm font-bold text-black shadow-cta transition hover:brightness-110"
         >
           {t("pawpremium_cta")} →
         </Link>
       </section>
 
       {/* ── 5. CTA FINAL ── */}
-      <div className="mt-12 text-center">
+      <div className="mt-14 text-center">
         <Link
           href="/download"
           className="inline-block rounded-full bg-walker px-7 py-3.5 text-sm font-bold text-white shadow-cta transition hover:bg-walker-dark"

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
+import { PawMemberBadge } from "@/components/PawMemberBadge";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
 // v493 — Refonte design (design-only) : page d'accueil ramenée de ~9 sections
@@ -224,6 +225,13 @@ export default function HomePage() {
                   </div>
                   <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">{s.title}</p>
                   <p className="mt-2 text-sm leading-relaxed text-ink-muted">{s.body}</p>
+                  {/* v493 — PawSpot : « voir les membres proches » + badge rose. */}
+                  {isPs && (
+                    <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-pink-700">
+                      <PawMemberBadge size={18} />
+                      <span>{t("pawspot_feat_nearby")}</span>
+                    </p>
+                  )}
                   <div className="mt-5 flex items-center justify-between gap-2 border-t border-[#efe7e0] pt-4">
                     <span className={`text-sm font-extrabold ${titleCls}`}>{s.price}</span>
                     <Link
@@ -240,16 +248,17 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── 5. PAW PREMIUM ── une seule bande compacte (noir/or), CTA boutique. */}
-      <section className="bg-gradient-to-b from-[#221C12] to-[#15120D] py-16">
-        <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 px-4 text-center md:flex-row md:text-left">
+      {/* ── 5. PAW PREMIUM ── une seule bande compacte (noir/or), CTA boutique.
+           v493 — plus d'air : carte centrée avec marges, padding & gaps généreux. */}
+      <section className="px-4 py-20">
+        <div className="mx-auto flex max-w-4xl flex-col items-center gap-7 rounded-[26px] bg-gradient-to-b from-[#221C12] to-[#15120D] p-9 text-center md:flex-row md:gap-10 md:p-12 md:text-left">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/pawpremium_logo.svg" alt="Paw Premium" width={72} height={72} className="shrink-0" />
+          <img src="/pawpremium_logo.svg" alt="Paw Premium" width={80} height={80} className="shrink-0" />
           <div className="flex-1">
             <h2 className="font-display text-2xl font-extrabold tracking-tight text-yellow-400 md:text-3xl">
               Paw Premium 👑
             </h2>
-            <p className="mx-auto mt-2 max-w-xl text-sm text-white/85 md:mx-0">
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/85 md:mx-0">
               {t("home_pawpremium_blurb")}
             </p>
           </div>

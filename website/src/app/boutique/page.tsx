@@ -15,6 +15,7 @@
 
 import Link from "next/link";
 import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
+import { PawMemberBadge } from "@/components/PawMemberBadge";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
@@ -457,10 +458,11 @@ export default function BoutiquePage() {
               </button>
             </div>
           </div>
-          {/* v489 — option « membres Paw Map proches » (badge rose 🌸) incluse
-              avec PawSpot. */}
-          <p className="mt-4 rounded-2xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm font-semibold text-pink-700">
-            {t("pawspot_feat_nearby")}
+          {/* v489/v493 — option « voir les membres Paw Map proches » avec le
+              VRAI badge rose (cercle rose + patte blanche), incluse avec PawSpot. */}
+          <p className="mt-4 flex items-center gap-2.5 rounded-2xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm font-semibold text-pink-700">
+            <PawMemberBadge size={22} />
+            <span>{t("pawspot_feat_nearby")}</span>
           </p>
           <p className="mt-4 text-sm text-ink-muted">{t("pawspot_footer_note")}</p>
           <a
