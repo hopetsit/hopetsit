@@ -44,8 +44,10 @@ export default function HomePage() {
       name: "PawFollow",
       title: t("home_app2_title"),
       body: t("home_app2_body"),
-      price: t("home_pawfollow_price_line"),
-      cta: t("home_pawfollow_price_line"),
+      // v497 — Daniel : pas de prix sur PawFollow/PawSpot en accueil → CTA
+      // « Découvrir <marque> » à la place.
+      price: "",
+      cta: `${t("home_discover")} PawFollow`,
       href: "/boutique",
       accent: "violet",
     },
@@ -54,8 +56,8 @@ export default function HomePage() {
       name: "PawSpot",
       title: t("home_app3_title"),
       body: t("home_app3_body"),
-      price: t("home_pawspot_price_line"),
-      cta: t("home_pawspot_cta"),
+      price: "",
+      cta: `${t("home_discover")} PawSpot`,
       href: "/pawmap",
       accent: "amber",
     },
@@ -232,11 +234,15 @@ export default function HomePage() {
                       <span>{t("pawspot_feat_nearby")}</span>
                     </p>
                   )}
+                  {/* v497 — Daniel : pas de prix sur PawFollow/PawSpot → CTA
+                      « Découvrir … » seul, pleine largeur. PetSitting garde son prix. */}
                   <div className="mt-5 flex items-center justify-between gap-2 border-t border-[#efe7e0] pt-4">
-                    <span className={`text-sm font-extrabold ${titleCls}`}>{s.price}</span>
+                    {s.price ? (
+                      <span className={`text-sm font-extrabold ${titleCls}`}>{s.price}</span>
+                    ) : null}
                     <Link
                       href={s.href}
-                      className={`rounded-full px-4 py-2 text-xs font-bold text-white transition ${btn}`}
+                      className={`rounded-full px-4 py-2 text-xs font-bold text-white transition ${btn} ${s.price ? "" : "w-full text-center"}`}
                     >
                       {s.cta} →
                     </Link>
@@ -255,8 +261,11 @@ export default function HomePage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/pawpremium_logo.svg" alt="PawPremium" width={80} height={80} className="shrink-0" />
           <div className="flex-1">
-            <h2 className="font-display text-2xl font-extrabold tracking-tight text-yellow-400 md:text-3xl">
-              PawPremium 👑
+            {/* v497 — Daniel : PawPremium + couronne alignés horizontalement,
+                texte plus propre. */}
+            <h2 className="flex items-center justify-center gap-2 font-display text-2xl font-extrabold tracking-tight text-yellow-400 md:justify-start md:text-3xl">
+              <span>PawPremium</span>
+              <span aria-hidden className="text-xl md:text-2xl">👑</span>
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/85 md:mx-0">
               {t("home_pawpremium_blurb")}
@@ -266,7 +275,7 @@ export default function HomePage() {
             href="/boutique"
             className="shrink-0 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-7 py-3.5 text-sm font-bold text-black shadow-cta transition hover:brightness-110"
           >
-            {t("home_pawpremium_price_line")} →
+            {t("home_discover")} PawPremium →
           </Link>
         </div>
       </section>
