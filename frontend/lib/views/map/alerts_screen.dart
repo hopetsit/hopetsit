@@ -243,6 +243,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
   // diagnose qui retourne TOUS mes reports + la raison d'exclusion
   // de /nearby. Permet de voir si c'est un report (0,0), expired,
   // premium-only, trop loin, etc.
+  // v493 — bouton bug retiré de l'UI (Daniel) ; méthode conservée pour debug.
+  // ignore: unused_element
   Future<void> _runAlertsDiagnose() async {
     final pos = _myPos.value;
     try {
@@ -381,16 +383,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
             ],
           ),
           actions: [
-            // v23.1 part 222 — bouton diagnostic alertes. Appelle
-            // /map/reports/diagnose-mine et affiche TOUS mes reports
-            // + raison d'exclusion de /nearby (zombie 0,0, expired,
-            // premium-only, distance, etc.).
-            IconButton(
-              icon: Icon(Icons.bug_report_rounded,
-                  color: AppColors.primaryColor, size: 22.sp),
-              tooltip: 'alerts_diagnose_tooltip'.tr,
-              onPressed: _runAlertsDiagnose,
-            ),
+            // v493 — Daniel : retiré le bouton « bug » (diagnostic dev) en haut
+            // à droite de Mes signaux / Alertes. Le diagnostic reste accessible
+            // côté code (_runAlertsDiagnose) mais n'est plus exposé à l'user.
             IconButton(
               icon: Icon(Icons.search_rounded,
                   color: AppColors.primaryColor, size: 22.sp),

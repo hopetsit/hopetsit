@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/boost_profile_card.dart';
 import 'package:hopetsit/widgets/kyc_status_banner.dart';
 import 'package:hopetsit/widgets/my_kyc_verified_badge.dart';
@@ -219,6 +220,13 @@ class SitterProfileScreen extends StatelessWidget {
                                   SizedBox(height: 8.h),
                                   _heroStatusPill(
                                       'profile_status_available_sit'.tr),
+                                  // v493 — Daniel : les badges d'abonnement
+                                  // (PawFollow/PawSpot/Premium, jours restants)
+                                  // n'apparaissaient QUE chez l'owner. On les
+                                  // ajoute aussi au gardien : ActiveBenefitsRow
+                                  // lit /benefits (valable pour les 3 rôles).
+                                  SizedBox(height: 8.h),
+                                  const ActiveBenefitsRow(compact: true),
                                 ],
                               ),
                             ),

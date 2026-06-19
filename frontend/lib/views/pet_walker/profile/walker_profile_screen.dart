@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/boost_profile_card.dart';
 import 'package:hopetsit/widgets/kyc_status_banner.dart';
 import 'package:hopetsit/widgets/my_kyc_verified_badge.dart';
@@ -267,6 +268,11 @@ class WalkerProfileScreen extends StatelessWidget {
                                   SizedBox(height: 8.h),
                                   _heroStatusPill(
                                       'profile_status_available_walk'.tr),
+                                  // v493 — Daniel : badges d'abonnement
+                                  // (PawFollow/PawSpot/Premium) aussi chez le
+                                  // promeneur (avant : owner uniquement).
+                                  SizedBox(height: 8.h),
+                                  const ActiveBenefitsRow(compact: true),
                                 ],
                               ),
                             ),
