@@ -199,7 +199,33 @@ router.get(
       // ActiveBenefitsRow sans badge, PawFollow/PawSpot bloqués sur la carte,
       // et ReportPremiumHelper.isUnlocked privé de sa 2e source. On force donc
       // tous les drapeaux premium à true pour le staff (additif, lecture seule).
-      const isStaff = user.isStaff === true;
+      let isStaff = user.isStaff === true;
+      // v497 — Daniel : « j'ai mis mon ami STAFF mais il n'est toujours pas
+      // premium ». CAUSE : isStaff peut n'être posé que sur UN SEUL des 3 docs
+      // rôle (Owner/Sitter/Walker) — s'il se connecte sous un autre rôle, ce
+      // doc a isStaff=false → benefits ne le voit pas premium. La propagation
+      // admin (v495) ne corrige que les NOUVEAUX toggles. Pour les comptes DÉJÀ
+      // marqués staff, on relit isStaff sur les 3 docs de la même personne
+      // (même email/oldId) → premium garanti quel que soit le rôle, SANS devoir
+      // re-cocher dans l'admin ni réinstaller l'app. Lookup léger (1× /session).
+      if (!isStaff && (user.email || user.oldId)) {
+        try {
+          const Owner = require('../models/Owner');
+          const Sitter = require('../models/Sitter');
+          const Walker = require('../models/Walker');
+          const or = [];
+          if (user.email) or.push({ email: user.email });
+          if (user.oldId) or.push({ oldId: user.oldId });
+          const [o, s2, w] = await Promise.all([
+            Owner.findOne({ $or: or, isStaff: true }).select('_id').lean(),
+            Sitter.findOne({ $or: or, isStaff: true }).select('_id').lean(),
+            Walker.findOne({ $or: or, isStaff: true }).select('_id').lean(),
+          ]);
+          if (o || s2 || w) isStaff = true;
+        } catch (e) {
+          logger.warn(`[users/me/benefits] cross-role isStaff lookup failed : ${e.message}`);
+        }
+      }
 
       const payload = {
         role,

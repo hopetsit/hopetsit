@@ -127,8 +127,26 @@ router.get('/status', requireAuth, async (req, res) => {
       Walker: require('../models/Walker'),
     }[userModel];
     if (ModelCtor) {
-      const u = await ModelCtor.findById(userId).select('isStaff').lean();
-      if (u && u.isStaff) {
+      const u = await ModelCtor.findById(userId).select('isStaff email oldId').lean();
+      let staff = !!(u && u.isStaff);
+      // v497 — Daniel : isStaff peut n'être posé que sur UN des 3 docs rôle →
+      // si l'ami se connecte sous un autre rôle, il perd son premium staff. On
+      // relit isStaff sur les 3 docs (même email/oldId) → premium quel que soit
+      // le rôle, sans re-cocher dans l'admin. (Cf même fix /users/me/benefits.)
+      if (!staff && u && (u.email || u.oldId)) {
+        try {
+          const or = [];
+          if (u.email) or.push({ email: u.email });
+          if (u.oldId) or.push({ oldId: u.oldId });
+          const [o, s2, w] = await Promise.all([
+            require('../models/Owner').findOne({ $or: or, isStaff: true }).select('_id').lean(),
+            require('../models/Sitter').findOne({ $or: or, isStaff: true }).select('_id').lean(),
+            require('../models/Walker').findOne({ $or: or, isStaff: true }).select('_id').lean(),
+          ]);
+          if (o || s2 || w) staff = true;
+        } catch (_) {/* best-effort */}
+      }
+      if (staff) {
         return res.json({
           plan: 'staff',
           status: 'active',
