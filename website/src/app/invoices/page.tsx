@@ -50,8 +50,28 @@ export default function InvoicesPage() {
 
   function openInvoice(invoiceId: string) {
     const url = getInvoiceHtmlUrl(invoiceId);
-    if (!url) return;
-    window.open(url, "_blank", "noopener,noreferrer");
+    if (!url) {
+      // Pas de token -> session expirée : on renvoie au login plutôt que
+      // de cliquer dans le vide.
+      router.push("/login");
+      return;
+    }
+    // v498 — Daniel : « le bouton télécharger PDF ne marche pas ». L'ancien
+    // window.open(url, "_blank", "noopener,noreferrer") était ignoré par
+    // certains navigateurs / bloqueurs de popup (3e arg = window features →
+    // popup bloquée silencieusement). On ouvre via un <a target=_blank> (le
+    // moyen le plus fiable), avec repli navigation même onglet si bloqué.
+    try {
+      const a = document.createElement("a");
+      a.href = url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      window.location.href = url;
+    }
   }
 
   if (loading) {

@@ -211,10 +211,14 @@ const renderInvoiceHtml = async (req, res) => {
     const inv = await Invoice.findById(req.params.id).lean();
     if (!inv) return res.status(404).send('Invoice not found');
 
-    // Optional auth via query token — keep simple for a MVP, harden later.
+    // Optional auth via query token. v498 — Daniel : « le bouton télécharger
+    // PDF ne marche pas ». Une facture d'ABONNEMENT/PROMO n'a pas de providerId
+    // → `inv.providerId.toString()` levait un TypeError → 500 « Server error »
+    // (page blanche/erreur). On compare via String(... || '') (null-safe).
     if (req.user?.id) {
-      const isOwner = inv.ownerId.toString() === req.user.id;
-      const isProvider = inv.providerId.toString() === req.user.id;
+      const uid = String(req.user.id);
+      const isOwner = inv.ownerId ? String(inv.ownerId) === uid : false;
+      const isProvider = inv.providerId ? String(inv.providerId) === uid : false;
       const isAdmin = req.user.role === 'admin';
       if (!isOwner && !isProvider && !isAdmin) {
         return res.status(403).send('Access denied');
