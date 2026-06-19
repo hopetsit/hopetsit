@@ -273,7 +273,7 @@ async function fetchUserMini(id, modelName) {
   const Model = MODEL_BY_NAME[modelName];
   if (!Model) return null;
   const u = await Model.findById(id)
-    .select('firstName lastName profilePicture location city avatar email mapBoostExpiry mapBoostTier')
+    .select('firstName lastName profilePicture location city avatar email mapBoostExpiry mapBoostTier isStaff')
     .lean();
   if (!u) return null;
   // v23.1.280 — Daniel : "si l'ami a l'option PawSpot, anneau doré/bleu selon
@@ -308,6 +308,9 @@ async function fetchUserMini(id, modelName) {
     // live". On utilise désormais le MÊME helper que le socket → cohérent.
     const { hasActivePawFollow } = require('../models/UserSubscription');
     hasPawFollow = await hasActivePawFollow(u._id);
+    // v494 — un ami « premium STAFF » a TOUS les abos gratuits (dont PawFollow)
+    // → forcé dans « Personnes en live » + partage position, comme les autres.
+    if (!hasPawFollow && u.isStaff === true) hasPawFollow = true;
   } catch (_) {/* defensive — on continue sans le flag */}
   // v469 — Daniel : « quand un profil est Paw Premium, qu'on se voie TOUS avec
   // la couronne ». On expose isPremium pour CHAQUE contact (pas seulement la
@@ -320,6 +323,10 @@ async function fetchUserMini(id, modelName) {
       premiumExpiry: { $gt: new Date() },
     }).select('_id').lean();
     isPremium = !!sub;
+    // v494 — Daniel : un ami « premium STAFF » (premium offert via isStaff,
+    // SANS abonnement payant → pas de premiumExpiry) n'avait ni couronne ni
+    // badge. Le staff = premium gratuit illimité → on le compte comme premium.
+    if (!isPremium && u.isStaff === true) isPremium = true;
   } catch (_) {/* best-effort : pas de couronne plutôt qu'un 500 */}
   // v23.1 part 220 — Daniel : "juste le nom de l'utilisateur s'affiche
   // pas". Les users n'ont pas leur firstName/lastName populates dans

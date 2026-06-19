@@ -2925,9 +2925,32 @@ router.post('/users/:role/:id/staff', requireAdmin, async (req, res) => {
       id,
       { $set: { isStaff: !!isStaff } },
       { new: true },
-    ).select('name email isStaff');
+    ).select('name email isStaff oldId');
     if (!updated) return res.status(404).json({ error: 'User not found.' });
-    logger.info(`[admin] ${role} ${id} isStaff=${!!isStaff}`);
+    // v494 — Daniel : « j'ai mis mon ami premium staff mais le badge / la
+    // couronne n'apparaît pas ». CAUSE RACINE : isStaff n'était posé QUE sur le
+    // doc du rôle ciblé. 1 compte = 3 docs (Owner/Sitter/Walker séparés) → si
+    // l'ami se connecte sous un AUTRE rôle, ce doc gardait isStaff=false → pas
+    // de premium/couronne/badge. On propage le flag sur les 3 docs de la MÊME
+    // personne (même _id / email / oldId), comme gatherFcmTokens pour le push.
+    try {
+      const OwnerM = require('../models/Owner');
+      const SitterM = require('../models/Sitter');
+      const WalkerM = require('../models/Walker');
+      const or = [{ _id: id }];
+      if (updated.email) or.push({ email: updated.email });
+      if (updated.oldId) or.push({ oldId: updated.oldId });
+      await Promise.all([
+        OwnerM.updateMany({ $or: or }, { $set: { isStaff: !!isStaff } }),
+        SitterM.updateMany({ $or: or }, { $set: { isStaff: !!isStaff } }),
+        WalkerM.updateMany({ $or: or }, { $set: { isStaff: !!isStaff } }),
+      ]);
+    } catch (propErr) {
+      logger.warn(
+        `[admin/users/staff] cross-role propagation failed : ${propErr?.message || propErr}`,
+      );
+    }
+    logger.info(`[admin] ${role} ${id} isStaff=${!!isStaff} (propagé 3 rôles)`);
     res.json({
       id: updated._id.toString(),
       name: updated.name,

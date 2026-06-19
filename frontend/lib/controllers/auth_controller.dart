@@ -18,6 +18,7 @@ import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/app_constants.dart';
@@ -183,6 +184,12 @@ class AuthController extends GetxController {
       // v23.1 part 43 — re-register FCM token under new auth so phone push
       // notifications fire (sitter/walker/owner all need this each login).
       unawaited(_registerFcmTokenWithBackend());
+      // v494 — Daniel : « mon ami espagnol reçoit notifs + emails en FR ».
+      // CAUSE : appLocale n'était synchronisé qu'au chargement de l'accueil.
+      // On pousse la langue UI (choisie OU langue du téléphone) DÈS le login →
+      // notifications + emails partent dans la bonne langue (backend priorise
+      // appLocale sur language). Guard _syncedThisSession = 1 seule fois/session.
+      unawaited(LocalizationService.syncToBackend());
 
       // v22.5 — Bug R1 : multi-role detection
       final rawAvail = response['availableRoles'];
@@ -454,6 +461,12 @@ class AuthController extends GetxController {
         // for every push attempt, while the email channel still worked
         // because email was decrypted from the Owner doc directly.
         unawaited(_registerFcmTokenWithBackend());
+      // v494 — Daniel : « mon ami espagnol reçoit notifs + emails en FR ».
+      // CAUSE : appLocale n'était synchronisé qu'au chargement de l'accueil.
+      // On pousse la langue UI (choisie OU langue du téléphone) DÈS le login →
+      // notifications + emails partent dans la bonne langue (backend priorise
+      // appLocale sur language). Guard _syncedThisSession = 1 seule fois/session.
+      unawaited(LocalizationService.syncToBackend());
         // Same JWT-based role drift recovery as the password login path,
         // so role is consistent right after Google sign-in too.
         _syncRoleFromJwt();
@@ -693,6 +706,12 @@ class AuthController extends GetxController {
         // v23.1 part 46 — same FCM register fix as the Google path. Without
         // this Apple sign-in users never got phone push notifs.
         unawaited(_registerFcmTokenWithBackend());
+      // v494 — Daniel : « mon ami espagnol reçoit notifs + emails en FR ».
+      // CAUSE : appLocale n'était synchronisé qu'au chargement de l'accueil.
+      // On pousse la langue UI (choisie OU langue du téléphone) DÈS le login →
+      // notifications + emails partent dans la bonne langue (backend priorise
+      // appLocale sur language). Guard _syncedThisSession = 1 seule fois/session.
+      unawaited(LocalizationService.syncToBackend());
         _syncRoleFromJwt();
 
         // Same defensive check as Google sign-in: if the caller explicitly
@@ -1081,6 +1100,12 @@ class AuthController extends GetxController {
         // unknown to the new role's notification routing — push notifs
         // for that role would silently skip with "no fcmTokens".
         unawaited(_registerFcmTokenWithBackend());
+      // v494 — Daniel : « mon ami espagnol reçoit notifs + emails en FR ».
+      // CAUSE : appLocale n'était synchronisé qu'au chargement de l'accueil.
+      // On pousse la langue UI (choisie OU langue du téléphone) DÈS le login →
+      // notifications + emails partent dans la bonne langue (backend priorise
+      // appLocale sur language). Guard _syncedThisSession = 1 seule fois/session.
+      unawaited(LocalizationService.syncToBackend());
       }
 
       final userData = _extractUser(response);
@@ -1695,6 +1720,12 @@ class AuthController extends GetxController {
       // 3) FCM token — re-register sous la nouvelle auth, sinon les push
       // continuent à arriver pour l'ancien user.
       unawaited(_registerFcmTokenWithBackend());
+      // v494 — Daniel : « mon ami espagnol reçoit notifs + emails en FR ».
+      // CAUSE : appLocale n'était synchronisé qu'au chargement de l'accueil.
+      // On pousse la langue UI (choisie OU langue du téléphone) DÈS le login →
+      // notifications + emails partent dans la bonne langue (backend priorise
+      // appLocale sur language). Guard _syncedThisSession = 1 seule fois/session.
+      unawaited(LocalizationService.syncToBackend());
 
       // 4) User profile (optionnel — l'app peut le refetch via UserController).
       final userData = _extractUser(response);
