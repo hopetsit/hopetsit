@@ -10,6 +10,18 @@ import {
   ReactNode,
 } from "react";
 import { DEFAULT_LANG, Lang, LANGUAGES, t as bundles } from "./translations";
+import { getStoredUser, syncAppLocale } from "@/lib/api";
+
+// v497 — pousse la langue du site au backend (appLocale) si l'utilisateur est
+// connecté → notifications + emails suivent la langue choisie. Best-effort.
+function pushLocaleToBackend(l: Lang) {
+  try {
+    if (!getStoredUser()) return;
+    void syncAppLocale(l).catch(() => {});
+  } catch {
+    /* non connecté / réseau → ignoré */
+  }
+}
 
 type Ctx = {
   lang: Lang;
@@ -39,7 +51,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   // Hydrate from storage / browser locale on mount only.
   useEffect(() => {
-    setLangState(detectInitialLang());
+    const initial = detectInitialLang();
+    setLangState(initial);
+    // v497 — au chargement, si déjà connecté, pousse la langue au backend.
+    pushLocaleToBackend(initial);
   }, []);
 
   // Reflect choice in <html lang> for SEO + screen-readers.
@@ -56,6 +71,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
+    // v497 — synchronise la langue choisie au backend (notifs + emails).
+    pushLocaleToBackend(l);
   }, []);
 
   const t = useCallback(

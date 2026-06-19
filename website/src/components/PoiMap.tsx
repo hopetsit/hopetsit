@@ -30,6 +30,8 @@ import {
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import {
+  MapReport,
+  MapReportType,
   POI_CATEGORY_LABELS,
   PawSpot,
   PawSpotType,
@@ -285,6 +287,35 @@ function makeUserIcon(color: string, avatarUrl?: string | null, crown?: boolean)
   });
 }
 
+// v497 — Daniel : « voir les signaux sur le web ». Emoji par type de
+// signalement (markers de la couche reports), + icône Leaflet divIcon ronde.
+const REPORT_EMOJI: Record<MapReportType, string> = {
+  lost_pet: "🐾",
+  found_pet: "🔍",
+  aggressive_dog: "⚠️",
+  water_active: "💧",
+  dead_animal: "💀",
+  trap: "🪤",
+  poison: "☠️",
+  stray_pet: "🐈",
+  construction: "🚧",
+  food: "🍖",
+  trash: "🗑️",
+  vet_open: "🏥",
+  leash_required: "🦮",
+  heat_hot_ground: "🔥",
+  tick_zone: "🕷️",
+};
+function makeReportIcon(type: MapReportType): L.DivIcon {
+  const emoji = REPORT_EMOJI[type] || "🔔";
+  return L.divIcon({
+    className: "",
+    html: `<div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:50%;border:2px solid #EF4324;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:15px;">${emoji}</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  });
+}
+
 export default function PoiMap({
   center,
   pois,
@@ -294,6 +325,8 @@ export default function PoiMap({
   onMapMove,
   spots = [],
   spotTypeLabels,
+  reports = [],
+  reportTypeLabels,
   friendPositions = [],
   familyIds = [],
   premiumIds = [],
@@ -319,6 +352,10 @@ export default function PoiMap({
   spots?: PawSpot[];
   /** Labels i18n des types de spot (fournis par la page via t()). */
   spotTypeLabels?: Partial<Record<PawSpotType, string>>;
+  /** v497 — signalements PawMap (couche optionnelle « Voir signaux »). */
+  reports?: MapReport[];
+  /** Labels i18n des types de signalement (popup). */
+  reportTypeLabels?: Partial<Record<MapReportType, string>>;
   /** v23.1 carte unique — amis/famille en direct (couche optionnelle). */
   friendPositions?: FriendLivePosition[];
   familyIds?: string[];
@@ -550,6 +587,38 @@ export default function PoiMap({
             </Popup>
           </Marker>
         ))}
+
+        {/* v497 — couche « Voir signaux » : markers emoji par type + popup
+            (note + confirmations). location.coordinates = [lng, lat]. */}
+        {reports.map((r) => {
+          const c = r.location?.coordinates;
+          if (!Array.isArray(c) || c.length < 2) return null;
+          return (
+            <Marker
+              key={`report-${r._id}`}
+              position={[c[1], c[0]]}
+              icon={makeReportIcon(r.type)}
+              zIndexOffset={250}
+            >
+              <Popup>
+                <div className="text-sm" style={{ minWidth: 150 }}>
+                  <div className="mb-1 font-bold">
+                    {REPORT_EMOJI[r.type] || "🔔"}{" "}
+                    {reportTypeLabels?.[r.type] || r.type}
+                  </div>
+                  {r.note ? (
+                    <div className="mb-1 text-xs text-gray-700">{r.note}</div>
+                  ) : null}
+                  {typeof r.confirmationsCount === "number" ? (
+                    <div className="text-xs text-gray-600">
+                      ✅ {r.confirmationsCount}
+                    </div>
+                  ) : null}
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
 
         {/* v23.1 carte unique — couche PawFollow amis/famille en direct :
             halo couleur rôle + anneau violet famille + avatar (icônes

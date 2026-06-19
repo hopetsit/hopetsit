@@ -31,6 +31,8 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import {
   ApiError,
   FriendItem,
+  MapReport,
+  MapReportType,
   MyBenefits,
   PawSpot,
   PawSpotType,
@@ -38,12 +40,15 @@ import {
   Poi,
   PoiCategory,
   RouteResult,
+  createMapReport,
+  createPawSpot,
   getFriendLastPosition,
   getFriendsLivePositions,
   getMyBenefits,
   getMyFamily,
   getMyFriends,
   getNearbyPawSpots,
+  getNearbyReports,
   getNearbyPois,
   getPawSpotDirections,
   getStoredUser,
@@ -149,6 +154,16 @@ export default function MapPage() {
   const [showFriends, setShowFriends] = useState(false);
   const [showSpots, setShowSpots] = useState(false);
   const [spots, setSpots] = useState<PawSpot[]>([]);
+  // v497 — Daniel : « les 4 boutons PawMap sur le web » → couche signalements
+  // (« Voir signaux ») + modal de création (Tag spot / Signaler), gated abo.
+  const [showReports, setShowReports] = useState(false);
+  const [reports, setReports] = useState<MapReport[]>([]);
+  const [createKind, setCreateKind] = useState<null | "spot" | "report">(null);
+  const [createType, setCreateType] = useState<string>("");
+  const [createName, setCreateName] = useState("");
+  const [createNote, setCreateNote] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createErr, setCreateErr] = useState<string | null>(null);
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [friendsForMap, setFriendsForMap] = useState<FriendItem[]>([]);
   const [familyIds, setFamilyIds] = useState<string[]>([]);
@@ -363,6 +378,25 @@ export default function MapPage() {
     return () => clearTimeout(tid);
   }, [loading, showSpots, center, router]);
 
+  // v497 — couche « Voir signaux » : refetch des signalements quand active +
+  // pan de la carte (mirror de la couche spots).
+  useEffect(() => {
+    if (loading || !showReports) return;
+    const tid = setTimeout(async () => {
+      try {
+        const r = await getNearbyReports({
+          lat: center[0],
+          lng: center[1],
+          maxDistance: 25000,
+        });
+        setReports(r.reports);
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 401) router.replace("/login");
+      }
+    }, 400);
+    return () => clearTimeout(tid);
+  }, [loading, showReports, center, router]);
+
   // v23.1 carte unique — chargement lazy des amis/famille + dernières
   // positions (logique portée telle quelle depuis /friends/live).
   const loadFriends = useCallback(async () => {
@@ -525,6 +559,71 @@ export default function MapPage() {
     }
   }
 
+  // v497 — Tag spot / Signaler : gated sur l'abonnement (PawSpot/Premium).
+  // Sans abo → boutique. Avec abo → modal (type + note) ; position = CENTRE de
+  // la carte (l'user déplace la carte pour positionner, comme un viseur).
+  function openCreate(kind: "spot" | "report") {
+    const subbed = !!(
+      benefits?.pawspotActive || benefits?.premiumActive || benefits?.isPremium
+    );
+    if (!subbed) {
+      router.push("/boutique");
+      return;
+    }
+    setCreateKind(kind);
+    setCreateType(kind === "spot" ? "path_walk" : "lost_pet");
+    setCreateName("");
+    setCreateNote("");
+    setCreateErr(null);
+  }
+  async function submitCreate() {
+    if (creating || !createKind) return;
+    const lat = center[0];
+    const lng = center[1];
+    setCreating(true);
+    setCreateErr(null);
+    try {
+      if (createKind === "spot") {
+        if (!createName.trim()) {
+          setCreateErr(t("map_spot_name_ph"));
+          setCreating(false);
+          return;
+        }
+        await createPawSpot({
+          type: createType as PawSpotType,
+          name: createName.trim(),
+          description: createNote.trim(),
+          lat,
+          lng,
+        });
+        if (!showSpots) setShowSpots(true);
+        const list = await getNearbyPawSpots({ lat, lng, radius: 25000 });
+        setSpots(list);
+      } else {
+        await createMapReport({
+          type: createType as MapReportType,
+          lat,
+          lng,
+          note: createNote.trim(),
+        });
+        if (!showReports) setShowReports(true);
+        const r = await getNearbyReports({ lat, lng, maxDistance: 25000 });
+        setReports(r.reports);
+      }
+      setCreateKind(null);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 402) {
+        setCreateErr(t("map_create_locked"));
+      } else if (e instanceof ApiError && e.status === 401) {
+        router.replace("/login");
+      } else {
+        setCreateErr(t("map_create_error"));
+      }
+    } finally {
+      setCreating(false);
+    }
+  }
+
   // v23.1 carte unique — Itinéraire : géoloc navigateur fraîche, fallback
   // dernière position connue puis centre carte. 402 PAWFOLLOW_REQUIRED →
   // bandeau "inclus dans PawFollow / PawFamily" + lien /boutique.
@@ -623,6 +722,32 @@ export default function MapPage() {
     food_cafe: t("map_spot_type_food_cafe"),
     other: t("map_spot_type_other"),
   };
+  // v497 — libellés + options des types de signalement (modal « Signaler » +
+  // popup de la couche reports). Set restreint aux signalements essentiels.
+  const reportTypeLabels: Partial<Record<MapReportType, string>> = {
+    lost_pet: t("map_rtype_lost_pet"),
+    found_pet: t("map_rtype_found_pet"),
+    aggressive_dog: t("map_rtype_aggressive_dog"),
+    dead_animal: t("map_rtype_dead_animal"),
+    stray_pet: t("map_rtype_stray_pet"),
+    water_active: t("map_rtype_water_active"),
+  };
+  const reportOptions: { type: MapReportType; emoji: string }[] = [
+    { type: "lost_pet", emoji: "🐾" },
+    { type: "found_pet", emoji: "🔍" },
+    { type: "aggressive_dog", emoji: "⚠️" },
+    { type: "dead_animal", emoji: "💀" },
+    { type: "stray_pet", emoji: "🐈" },
+    { type: "water_active", emoji: "💧" },
+  ];
+  const spotOptions: PawSpotType[] = [
+    "path_walk",
+    "chill",
+    "playground",
+    "swimming",
+    "food_cafe",
+    "other",
+  ];
 
   const pawFollowSubscribed = !!(
     benefits?.pawFollowActive || benefits?.familyActive
@@ -675,6 +800,32 @@ export default function MapPage() {
           active={showSpots}
           onClick={() => setShowSpots((v) => !v)}
         />
+        {/* v497 — Daniel : les 4 boutons PawMap de l'app sur le web.
+            Voir spots = chip PawSpots ci-dessus. Voir signaux + Tag spot +
+            Signaler ci-dessous (création gated abo PawSpot/Premium). */}
+        <LayerChip
+          label={t("map_reports_chip")}
+          crown={pawSpotSubscribed}
+          color={pawSpotSubscribed ? "#EF4324" : CHIP_GRAY}
+          active={showReports}
+          onClick={() => setShowReports((v) => !v)}
+        />
+        <button
+          type="button"
+          onClick={() => openCreate("spot")}
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 transition hover:bg-amber-100"
+        >
+          🐾 {t("map_tag_spot_cta")}
+          {!pawSpotSubscribed && <span>👑</span>}
+        </button>
+        <button
+          type="button"
+          onClick={() => openCreate("report")}
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
+        >
+          ⚠️ {t("map_report_cta")}
+          {!pawSpotSubscribed && <span>👑</span>}
+        </button>
         {showFriends && (
           <span className="shrink-0 text-xs text-ink-muted">
             {friendsLoading
@@ -861,6 +1012,8 @@ export default function MapPage() {
           onMapMove={handleMapMove}
           spots={showSpots ? spots : []}
           spotTypeLabels={spotTypeLabels}
+          reports={showReports ? reports : []}
+          reportTypeLabels={reportTypeLabels}
           friendPositions={showFriends ? livePositionsList : []}
           familyIds={familyIds}
           premiumIds={premiumIds}
@@ -951,6 +1104,93 @@ export default function MapPage() {
       <div className="mt-8 rounded-2xl border border-ink/5 bg-bg-soft px-4 py-3 text-xs text-ink-muted">
         💡 {t("map_legend")}
       </div>
+
+      {/* v497 — modal de création Tag spot / Signaler. Position = CENTRE de la
+          carte (l'utilisateur déplace la carte pour positionner). */}
+      {createKind && (
+        <div
+          className="fixed inset-0 z-[2000] flex items-end justify-center bg-black/40 p-4 sm:items-center"
+          onClick={() => !creating && setCreateKind(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-display text-lg font-extrabold text-ink">
+              {createKind === "spot"
+                ? t("map_tag_spot_cta")
+                : t("map_report_cta")}
+            </h3>
+            <p className="mt-1 text-xs text-ink-muted">
+              {t("map_create_center_hint")}
+            </p>
+
+            <label className="mt-3 block text-xs font-semibold text-ink-muted">
+              {t("map_type_label")}
+            </label>
+            <select
+              value={createType}
+              onChange={(e) => setCreateType(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-ink/15 bg-white px-3 py-2 text-sm"
+            >
+              {createKind === "spot"
+                ? spotOptions.map((tp) => (
+                    <option key={tp} value={tp}>
+                      {spotTypeLabels[tp]}
+                    </option>
+                  ))
+                : reportOptions.map((o) => (
+                    <option key={o.type} value={o.type}>
+                      {o.emoji} {reportTypeLabels[o.type]}
+                    </option>
+                  ))}
+            </select>
+
+            {createKind === "spot" && (
+              <input
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+                placeholder={t("map_spot_name_ph")}
+                maxLength={80}
+                className="mt-3 w-full rounded-xl border border-ink/15 px-3 py-2 text-sm"
+              />
+            )}
+            <textarea
+              value={createNote}
+              onChange={(e) => setCreateNote(e.target.value)}
+              placeholder={t("map_note_ph")}
+              maxLength={300}
+              rows={2}
+              className="mt-3 w-full rounded-xl border border-ink/15 px-3 py-2 text-sm"
+            />
+
+            {createErr && (
+              <p className="mt-2 text-xs font-semibold text-red-600">
+                {createErr}
+              </p>
+            )}
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCreateKind(null)}
+                disabled={creating}
+                className="rounded-full px-4 py-2 text-sm font-semibold text-ink-muted hover:bg-ink/5"
+              >
+                {t("map_create_cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={submitCreate}
+                disabled={creating}
+                className="rounded-full bg-owner px-5 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-owner-dark disabled:opacity-60"
+              >
+                {creating ? "⌛" : t("map_create_submit")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

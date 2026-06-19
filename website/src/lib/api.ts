@@ -1810,6 +1810,29 @@ export async function getNearbyReports(opts: {
   };
 }
 
+// v497 — Daniel : « rajoute les 4 boutons PawMap sur le web ». Création d'un
+// SIGNALEMENT depuis le web (POST /map-reports). Gated côté backend (402
+// PREMIUM_REQUIRED pour les types premium) → la page /map catche l'ApiError et
+// propose la boutique. Position = centre de la carte.
+export async function createMapReport(opts: {
+  type: MapReportType;
+  lat: number;
+  lng: number;
+  note?: string;
+  city?: string;
+}): Promise<void> {
+  await request("/map-reports", {
+    method: "POST",
+    body: JSON.stringify({
+      type: opts.type,
+      lat: opts.lat,
+      lng: opts.lng,
+      note: opts.note || "",
+      city: opts.city || "",
+    }),
+  });
+}
+
 // ─── Carte unique /map : PawSpots communautaires + itinéraire + benefits ────
 // Daniel : "sur le site web, UNE SEULE carte". La page /map fusionne la
 // couche amis/famille en direct (ex /friends/live), les spots communautaires
@@ -1860,6 +1883,41 @@ export async function getNearbyPawSpots(opts: {
   return (raw.spots || []).filter(
     (s) => typeof s.lat === "number" && typeof s.lng === "number",
   );
+}
+
+// v497 — Daniel : « les notifs/emails manquent le pack langue sur le web ».
+// Le site ne poussait JAMAIS la langue choisie au backend (seule l'app le
+// faisait) → notifications + emails partaient dans la dernière langue connue.
+// On synchronise la langue UI du site (PATCH /users/me/app-locale) → notifs +
+// emails suivent désormais la langue du site. Best-effort, silencieux.
+export async function syncAppLocale(locale: string): Promise<void> {
+  await request("/users/me/app-locale", {
+    method: "PATCH",
+    body: JSON.stringify({ locale }),
+  });
+}
+
+// v497 — création d'un PAWSPOT depuis le web (POST /pawspots). 402
+// PAWSPOT_REQUIRED si quota gratuit dépassé sans abo. Position = centre carte.
+export async function createPawSpot(opts: {
+  type: PawSpotType;
+  name: string;
+  lat: number;
+  lng: number;
+  description?: string;
+  city?: string;
+}): Promise<void> {
+  await request("/pawspots", {
+    method: "POST",
+    body: JSON.stringify({
+      type: opts.type,
+      name: opts.name,
+      description: opts.description || "",
+      lat: opts.lat,
+      lng: opts.lng,
+      city: opts.city || "",
+    }),
+  });
 }
 
 export type RouteResult = {
