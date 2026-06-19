@@ -128,7 +128,7 @@ class OnboardingScreen extends StatelessWidget {
                 // v483b — marqueur de build TEMPORAIRE (diagnostic) : confirme
                 // quelle version est réellement installée. À retirer ensuite.
                 Text(
-                  'BUILD 23.1.484',
+                  'BUILD 23.1.485',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.6),
                     fontSize: 11.sp,
@@ -142,7 +142,10 @@ class OnboardingScreen extends StatelessWidget {
                 // v478 — maquette « App Opening » : grille 2×2 des 4 services
                 // (icône carrée teintée + titre + 1 ligne). Tout en i18n.
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  // v484b — CAUSE RACINE du « aucun bouton » : stretch + cartes
+                  // Expanded dans un scroll → calcul intrinsèque qui PLANTE le
+                  // rendu en release et masque tout le reste. → start.
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: _FeatureCard(
@@ -165,7 +168,10 @@ class OnboardingScreen extends StatelessWidget {
                 ),
                 SizedBox(height: 11.h),
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  // v484b — CAUSE RACINE du « aucun bouton » : stretch + cartes
+                  // Expanded dans un scroll → calcul intrinsèque qui PLANTE le
+                  // rendu en release et masque tout le reste. → start.
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: _FeatureCard(
