@@ -163,6 +163,13 @@ class AroundMeSearchBar extends StatelessWidget {
                     trackHeight: 4,
                     thumbShape:
                         const RoundSliderThumbShape(enabledThumbRadius: 9),
+                    // v494 — Daniel : la bulle « X km » qui apparaît en glissant
+                    // avait un fond MARRON (défaut du thème) → ROSE + texte blanc.
+                    valueIndicatorColor: const Color(0xFFEC4899),
+                    valueIndicatorTextStyle: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   child: Slider(
                     value: current,

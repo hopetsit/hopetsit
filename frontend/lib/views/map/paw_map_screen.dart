@@ -2651,14 +2651,14 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // v488 — Daniel : 4 boutons RONDS (Voir spots / Tag spot / Voir
                 // signaux / Signaler) centrés verticalement à GAUCHE, petite
                 // carte (remplace l'unique FAB Signaler + les pilules).
-                // v490 — Daniel : le 4e bouton (Signaler) était coupé derrière
-                // le menu du bas. On borne la zone de centrage AU-DESSUS du menu
-                // (+ inset système) → les 4 boutons restent entièrement visibles.
+                // v490/v494 — Daniel : le 4e bouton (Signaler) restait masqué par
+                // le menu. La colonne centrée était trop haute pour la petite
+                // carte. On l'ANCRE EN HAUT (top fixe) → les 4 boutons (compactés)
+                // stackent depuis le haut et tiennent au-dessus du menu.
                 Positioned(
                   left: 12.w,
-                  top: 0,
-                  bottom: 96.h + MediaQuery.of(context).viewPadding.bottom,
-                  child: Center(child: _buildMapActionsColumn()),
+                  top: 8.h,
+                  child: _buildMapActionsColumn(),
                 ),
 
                 // v456 — POINT ROUGE FIXE au centre (placement précis), pour
@@ -4132,7 +4132,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 ? unawaited(_openSpotsList())
                 : unawaited(_togglePawSpot()),
           ),
-          SizedBox(height: 12.h),
+          SizedBox(height: 8.h),
           _roundMapBtn(
             icon: Icons.add_location_alt_rounded,
             color: const Color(0xFFD9A441),
@@ -4140,14 +4140,14 @@ class _PawMapScreenState extends State<PawMapScreen>
             onTap: () =>
                 spotOk ? _startSpotPicking() : unawaited(_togglePawSpot()),
           ),
-          SizedBox(height: 12.h),
+          SizedBox(height: 8.h),
           _roundMapBtn(
             icon: Icons.notifications_active_rounded,
             color: const Color(0xFFEA580C),
             label: 'pawmap_view_reports_btn'.tr,
             onTap: () => Get.to(() => const AlertsScreen()),
           ),
-          SizedBox(height: 12.h),
+          SizedBox(height: 8.h),
           _roundMapBtn(
             icon: Icons.add_moderator_rounded,
             color: const Color(0xFFDC2626),
@@ -4177,9 +4177,12 @@ class _PawMapScreenState extends State<PawMapScreen>
             customBorder: const CircleBorder(),
             onTap: onTap,
             child: SizedBox(
-              width: 44.w,
-              height: 44.w,
-              child: Icon(icon, color: Colors.white, size: 20.sp),
+              // v494 — Daniel : « Signaler » (4e bouton) masqué par le menu sur
+              // la petite carte. Boutons compactés (44→38) + colonne ancrée en
+              // haut (cf. Positioned) pour que les 4 tiennent au-dessus du menu.
+              width: 38.w,
+              height: 38.w,
+              child: Icon(icon, color: Colors.white, size: 18.sp),
             ),
           ),
         ),

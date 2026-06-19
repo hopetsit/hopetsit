@@ -511,11 +511,29 @@ class SignupWizardScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle('signup_step_location'.tr),
+        // v494 — Daniel : « remets le bouton auto-détection ». Bouton PROÉMINENT
+        // « Détecter ma position » au-dessus du champ ville (en plus du mini
+        // bouton interne de CityLocationPicker), même handler getCurrentLocation.
+        Obx(() => OutlinedButton.icon(
+              onPressed: c.isGettingLocation.value
+                  ? null
+                  : c.getCurrentLocationFromMaps,
+              icon: Icon(Icons.my_location_rounded, size: 18.sp, color: _accent),
+              label: Text(c.isGettingLocation.value
+                  ? 'location_getting'.tr
+                  : 'signup_location_auto'.tr),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _accent,
+                side: BorderSide(color: _accent),
+                minimumSize: Size(double.infinity, 46.h),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14.r)),
+              ),
+            )),
+        SizedBox(height: 10.h),
         // v491 — Daniel : « quand on tape la ville ça ne reconnaît pas via map ».
-        // On remplace le champ texte simple par CityLocationPicker : autocomplete
-        // (on tape « Paris » → liste de villes → on sélectionne → lat/lng remplis
-        // pour bien mapper). Même widget que sign_up_screen + édition de profil.
-        // Inclut déjà les boutons « Ma position » + « Carte ».
+        // CityLocationPicker : autocomplete (on tape « Paris » → liste de villes
+        // → on sélectionne → lat/lng remplis pour bien mapper).
         Obx(() => CityLocationPicker(
               cityController: c.cityController,
               onGetLocation: () => c.getCurrentLocationFromMaps(),
