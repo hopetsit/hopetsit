@@ -12,6 +12,7 @@ import {
   getMyProfile,
   getStoredUser,
   getSubscriptionStatus,
+  redeemPromo,
   updateMyProfile,
   uploadMyAvatar,
   UserProfile,
@@ -53,6 +54,13 @@ export default function ProfilePage() {
 
   // v402 — chips d'abonnement (jours restants).
   const [subChips, setSubChips] = useState<SubChip[]>([]);
+  // v497 — Daniel : « code promo câblé sur le web » → parité avec l'app (qui
+  // l'a sur les 3 profils). Carte « Code promo » sur le profil web aussi.
+  const [promoCode, setPromoCode] = useState("");
+  const [promoBusy, setPromoBusy] = useState(false);
+  const [promoMsg, setPromoMsg] = useState<{ ok: boolean; text: string } | null>(
+    null,
+  );
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -138,6 +146,32 @@ export default function ProfilePage() {
       } catch { /* pas connecté / pas d'abo → aucune chip */ }
     })();
   }, []);
+
+  async function handleApplyPromo() {
+    const code = promoCode.trim();
+    if (!code || promoBusy) return;
+    setPromoBusy(true);
+    setPromoMsg(null);
+    try {
+      const res = await redeemPromo(code);
+      const type = res.reward?.rewardType;
+      setPromoMsg({
+        ok: true,
+        text:
+          type === "free_subscription"
+            ? t("promo_ok_sub")
+            : t("promo_ok_discount"),
+      });
+      setPromoCode("");
+    } catch (e) {
+      setPromoMsg({
+        ok: false,
+        text: e instanceof Error ? e.message : t("promo_invalid"),
+      });
+    } finally {
+      setPromoBusy(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -268,6 +302,39 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+
+      {/* v497 — Code promo sur le profil web (parité app : l'app l'a sur les 3
+          profils). Même endpoint /promo/redeem que la boutique. */}
+      <div className="mt-6 rounded-2xl border border-ink/10 bg-white p-4 shadow-card">
+        <p className="text-sm font-extrabold text-ink">{t("promo_title")}</p>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            value={promoCode}
+            onChange={(e) => setPromoCode(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleApplyPromo();
+            }}
+            placeholder={t("promo_placeholder")}
+            className="min-w-0 flex-1 rounded-full border border-ink/15 px-4 py-2.5 text-sm uppercase tracking-wide outline-none focus:border-amber-400"
+          />
+          <button
+            type="button"
+            onClick={handleApplyPromo}
+            disabled={promoBusy || !promoCode.trim()}
+            className="shrink-0 rounded-full bg-amber-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+          >
+            {promoBusy ? "…" : t("promo_apply")}
+          </button>
+        </div>
+        {promoMsg && (
+          <p
+            className={`mt-3 text-sm ${promoMsg.ok ? "text-emerald-700" : "text-red-700"}`}
+          >
+            {promoMsg.text}
+          </p>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
         <Field label="Nom complet">
