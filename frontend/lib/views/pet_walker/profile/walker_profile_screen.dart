@@ -185,15 +185,14 @@ class WalkerProfileScreen extends StatelessWidget {
               SafeArea(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 3.h),
-              child: Row(
+              // v486b — Daniel : « centrer photo + texte comme owner ».
+              // Structure owner-style : rangée du haut (chip rôle + cloche),
+              // puis avatar CENTRÉ verticalement avec le nom, puis stats pleine
+              // largeur. (Avant : avatar collé en haut à gauche = déséquilibré.)
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildWalkerAvatar(controller),
-                  SizedBox(width: 16.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
                         // v23.1 part 247 — Daniel : "met un badge jolie".
                         // Row contenant la role pill + le badge KYC verifie.
                         Row(
@@ -240,25 +239,37 @@ class WalkerProfileScreen extends StatelessWidget {
                             const ProfileNotificationBell(role: 'walker'),
                           ],
                         ),
-                        SizedBox(height: 3.h),
-                        Obx(() => PoppinsText(
-                              text: controller.userName.value.isEmpty
-                                  ? 'walker_profile_title'.tr
-                                  : controller.userName.value,
-                              fontSize: 26.sp,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            )),
-                        // v23.1.299 — Daniel : "le mail apparaît dans le profil
-                        // en haut, enlève-le". Email retiré du héros (owner,
-                        // sitter, walker) pour un en-tête épuré et cohérent.
-                        // v23.1 part 109 — badges Boost / PawSpot / Premium.
-                        SizedBox(height: 8.h),
-                        // v477 — maquette v2 : pastille statut + 2 stats RÉELS
-                        // (jours actifs depuis l'inscription + note moyenne).
-                        _heroStatusPill('profile_status_available_walk'.tr),
+                        SizedBox(height: 14.h),
+                        // v486b — avatar CENTRÉ verticalement avec le nom +
+                        // pastille statut (comme owner).
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _buildWalkerAvatar(controller),
+                            SizedBox(width: 16.w),
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Obx(() => PoppinsText(
+                                        text: controller.userName.value.isEmpty
+                                            ? 'walker_profile_title'.tr
+                                            : controller.userName.value,
+                                        fontSize: 26.sp,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      )),
+                                  SizedBox(height: 8.h),
+                                  _heroStatusPill(
+                                      'profile_status_available_walk'.tr),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                         SizedBox(height: 12.h),
                         Obx(() => Row(
                               children: [
@@ -271,9 +282,6 @@ class WalkerProfileScreen extends StatelessWidget {
                                     'stat_rating'.tr),
                               ],
                             )),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),

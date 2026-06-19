@@ -534,6 +534,10 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         scrolledUnderElevation: 0.5,
         surfaceTintColor: Colors.transparent,
         backgroundColor: AppColors.appBar(context),
+        // v486b — Daniel : la photo carrée était collée sur l'icône « partager
+        // téléphone ». titleSpacing 0 → la photo se cale à gauche, contre la
+        // flèche retour (plus d'espace avant les boutons d'action à droite).
+        titleSpacing: 0,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,

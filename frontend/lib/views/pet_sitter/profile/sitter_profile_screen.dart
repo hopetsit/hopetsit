@@ -143,18 +143,14 @@ class SitterProfileScreen extends StatelessWidget {
               SafeArea(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 3.h),
-              child: Row(
+              // v486b — Daniel : « centrer photo + texte comme owner ».
+              // Structure owner-style : rangée du haut (chip rôle + cloche),
+              // puis avatar CENTRÉ verticalement avec le nom, puis stats pleine
+              // largeur.
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Avatar
-                  _buildSitterAvatar(controller, accent),
-                  SizedBox(width: 16.w),
-                  // Info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
                         SizedBox(height: 4.h),
                         Row(
                           children: [
@@ -199,21 +195,33 @@ class SitterProfileScreen extends StatelessWidget {
                             const ProfileNotificationBell(role: 'sitter'),
                           ],
                         ),
-                        SizedBox(height: 3.h),
-                        Obx(() => PoppinsText(
-                          text: controller.userName.value,
-                          fontSize: 26.sp,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        )),
-                        // v23.1.299 — Daniel : "le mail apparaît dans le profil
-                        // en haut, enlève-le". Email retiré du héros (owner,
-                        // sitter, walker) pour un en-tête épuré et cohérent.
-                        // v23.1 part 109 — badges Boost / PawSpot / Premium.
-                        SizedBox(height: 8.h),
-                        // v477 — maquette v2 : pastille statut + 2 stats RÉELS
-                        // (jours actifs depuis l'inscription + note moyenne).
-                        _heroStatusPill('profile_status_available_sit'.tr),
+                        SizedBox(height: 14.h),
+                        // v486b — avatar CENTRÉ verticalement avec le nom +
+                        // pastille statut (comme owner).
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _buildSitterAvatar(controller, accent),
+                            SizedBox(width: 16.w),
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Obx(() => PoppinsText(
+                                        text: controller.userName.value,
+                                        fontSize: 26.sp,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      )),
+                                  SizedBox(height: 8.h),
+                                  _heroStatusPill(
+                                      'profile_status_available_sit'.tr),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                         SizedBox(height: 12.h),
                         Obx(() => Row(
                               children: [
@@ -226,9 +234,6 @@ class SitterProfileScreen extends StatelessWidget {
                                     'stat_rating'.tr),
                               ],
                             )),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
