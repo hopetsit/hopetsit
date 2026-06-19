@@ -1930,6 +1930,15 @@ export async function getNearbyMembers(opts: {
   );
 }
 
+// v497 — Daniel : « le compteur de visites du spot doit marcher sur le web ».
+// POST /pawspots/:id/visit (1×/user, géré backend) → renvoie le nouveau total.
+export async function visitSpot(id: string): Promise<number> {
+  const r = await request<{ visitsCount?: number }>(`/pawspots/${id}/visit`, {
+    method: "POST",
+  });
+  return typeof r?.visitsCount === "number" ? r.visitsCount : 0;
+}
+
 // v497 — création d'un PAWSPOT depuis le web (POST /pawspots). 402
 // PAWSPOT_REQUIRED si quota gratuit dépassé sans abo. Position = centre carte.
 export async function createPawSpot(opts: {

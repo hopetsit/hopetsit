@@ -345,6 +345,7 @@ export default function PoiMap({
   reportTypeLabels,
   members = [],
   memberRoleLabels,
+  onSpotVisit,
   friendPositions = [],
   familyIds = [],
   premiumIds = [],
@@ -378,6 +379,8 @@ export default function PoiMap({
   members?: NearbyMember[];
   /** Labels i18n des rôles (owner/sitter/walker) pour le popup membre. */
   memberRoleLabels?: Record<string, string>;
+  /** v497 — appelé à l'ouverture du popup d'un spot → compte la visite. */
+  onSpotVisit?: (id: string) => void;
   /** v23.1 carte unique — amis/famille en direct (couche optionnelle). */
   friendPositions?: FriendLivePosition[];
   familyIds?: string[];
@@ -566,6 +569,11 @@ export default function PoiMap({
             position={[spot.lat, spot.lng]}
             icon={makeSpotIcon(spot.type, spot.isGolden)}
             zIndexOffset={spot.isGolden ? 600 : 300}
+            eventHandlers={{
+              // v497 — ouvrir le popup d'un spot = une visite (comptée 1×/user
+              // côté backend), comme l'app.
+              popupopen: () => onSpotVisit?.(spot.id),
+            }}
           >
             <Popup>
               <div className="text-sm" style={{ minWidth: 170 }}>
@@ -578,7 +586,7 @@ export default function PoiMap({
                 </div>
                 <div className="mb-1 text-xs text-gray-700">
                   ❤️ {spot.likesCount} · ⭐{" "}
-                  {Number(spot.quality || 0).toFixed(1)}
+                  {Number(spot.quality || 0).toFixed(1)} · 👣 {spot.visitsCount}
                 </div>
                 {spot.photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element

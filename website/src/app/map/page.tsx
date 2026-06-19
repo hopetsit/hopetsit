@@ -54,6 +54,7 @@ import {
   getNearbyPois,
   getPawSpotDirections,
   getStoredUser,
+  visitSpot,
 } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
 import { getSocket } from "@/lib/socket";
@@ -580,6 +581,19 @@ export default function MapPage() {
     }
   }, [benefits, loadFriends]);
 
+  // v497 — visite d'un spot (ouverture popup) : compte côté backend (1×/user)
+  // + met à jour le compteur 👣 affiché localement avec le total renvoyé.
+  async function handleSpotVisit(id: string) {
+    try {
+      const vc = await visitSpot(id);
+      setSpots((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, visitsCount: vc } : s)),
+      );
+    } catch {
+      /* best-effort : le compteur se mettra à jour au prochain chargement */
+    }
+  }
+
   function toggleFriendsLayer() {
     const next = !showFriends;
     setShowFriends(next);
@@ -1062,6 +1076,7 @@ export default function MapPage() {
           onMapMove={handleMapMove}
           spots={showSpots ? spots : []}
           spotTypeLabels={spotTypeLabels}
+          onSpotVisit={handleSpotVisit}
           reports={showReports ? reports : []}
           reportTypeLabels={reportTypeLabels}
           members={members}
