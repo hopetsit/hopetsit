@@ -5,11 +5,11 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
 
 /**
- * v23.1.452 — Daniel : "la Paw Map est LA fonctionnalité phare du site".
+ * v23.1.452 — Daniel : "la PawMap est LA fonctionnalité phare du site".
  *
  * CTA orange premium réutilisable, 30-40% plus grand que les CTA normaux du
  * site (≈ px-4 py-2 text-sm) pour qu'il ressorte partout. Orange spécifique
- * Paw Map demandé par Daniel : #FF6A00 (hover #E85F00).
+ * PawMap demandé par Daniel : #FF6A00 (hover #E85F00).
  *
  *   - size="hero"     → grand format (hero des pages)
  *   - size="compact"  → format réduit (Header / Footer)

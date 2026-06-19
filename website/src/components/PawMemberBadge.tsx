@@ -1,6 +1,6 @@
-// v493 — Badge « membre Paw Map proche » : cercle ROSE dégradé + patte BLANCHE,
+// v493 — Badge « membre PawMap proche » : cercle ROSE dégradé + patte BLANCHE,
 // réplique web du mini-badge dessiné dans l'app (paw_map_screen._buildPawBadge).
-// Utilisé dans les sections PawSpot / Paw Premium pour illustrer l'option
+// Utilisé dans les sections PawSpot / PawPremium pour illustrer l'option
 // « voir les membres proches ». Purement décoratif (design-only).
 export function PawMemberBadge({ size = 24 }: { size?: number }) {
   const id = "pmb"; // gradient id (un seul usage visuel par page suffit)

@@ -131,12 +131,17 @@ const buildDeepLink = (type, params = {}) => {
     case 'friends':
     case 'friend_request':
     case 'live_tracking':
-      // /friends/live - page Next.js existante (hub amis + famille + suivi
-      // live, v246). NB : `/friends` seul n'a pas de page.tsx → 404 web, donc
-      // on cible `/friends/live`. Sur mobile, l'App Link
-      // https://hopetsit.com/friends/live a `pathSegments.first == 'friends'`
-      // → deep_link_service ouvre FriendsScreen (onglet Mes amis).
-      return `${BASE_URL}/friends/live`;
+      // v496 — Daniel : « depuis l'email, le bouton "Voir la demande" donne un
+      // GRAND ÉCRAN NOIR au lieu de rediriger vers /download ». L'ancien lien
+      // `/friends/live` ouvrait l'app sur un écran authentifié (écran noir si
+      // pas connecté) côté mobile, et redirigeait vers `/map` côté web (pas de
+      // fallback /download). On bascule sur le lien CANONIQUE `/open` (v449) :
+      //   - app installée + connecté → l'app s'ouvre (la demande est déjà dans
+      //     le bandeau d'accueil + la cloche) ;
+      //   - app installée + PAS connecté → onboarding (login), plus d'écran noir
+      //     (deep_link_service no-op gracieux v496) ;
+      //   - app absente / navigateur → /open redirige vers /download.
+      return APP_OPEN_LINK;
 
     case 'profile':
     case 'kyc':

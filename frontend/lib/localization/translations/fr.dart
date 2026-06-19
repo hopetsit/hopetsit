@@ -131,6 +131,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawspot_pick_confirm': 'Valider le spot',
       'pawspot_pick_cancel': 'Annuler',
       'pawfollow_feature_directions': 'Itinéraires vers les lieux gratuits de la PawMap (points d\'eau, parcs, restos…) inclus',
+      'pawfollow_feature_live_toggle': 'Bouton « Suivre en direct » (on/off) : tu me suis, je te suis — partage de position en temps réel',
       'pawmap_tag_spot_btn': 'Taguer un lieu',
       'pawmap_view_spots_btn': 'Voir les spots',
       'pawmap_view_reports_btn': 'Voir signaux',

@@ -6,7 +6,7 @@ import { PawMemberBadge } from "@/components/PawMemberBadge";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
 // v493 — Refonte design (design-only) : page d'accueil ramenée de ~9 sections
-// à 6 (Hero · Bande confiance · 3 rôles · 3 services · Paw Premium · CTA final).
+// à 6 (Hero · Bande confiance · 3 rôles · 3 services · PawPremium · CTA final).
 // Aucune donnée/route/logique modifiée : on réutilise EXACTEMENT les mêmes
 // clés i18n et les mêmes liens (/download, /login, /signup, /pawmap, /boutique).
 export default function HomePage() {
@@ -253,10 +253,10 @@ export default function HomePage() {
       <section className="px-4 py-20">
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-7 rounded-[26px] bg-gradient-to-b from-[#221C12] to-[#15120D] p-9 text-center md:flex-row md:gap-10 md:p-12 md:text-left">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/pawpremium_logo.svg" alt="Paw Premium" width={80} height={80} className="shrink-0" />
+          <img src="/pawpremium_logo.svg" alt="PawPremium" width={80} height={80} className="shrink-0" />
           <div className="flex-1">
             <h2 className="font-display text-2xl font-extrabold tracking-tight text-yellow-400 md:text-3xl">
-              Paw Premium 👑
+              PawPremium 👑
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/85 md:mx-0">
               {t("home_pawpremium_blurb")}

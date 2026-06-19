@@ -93,7 +93,7 @@ export function Footer() {
                 contact@hopetsit.com
               </a>
             </p>
-            {/* v23.1.452 — Daniel : CTA Paw Map (fonctionnalité phare) dans le
+            {/* v23.1.452 — Daniel : CTA PawMap (fonctionnalité phare) dans le
                 footer, présent sur chaque page. */}
             <div className="mt-5">
               <PawMapCTA size="compact" />

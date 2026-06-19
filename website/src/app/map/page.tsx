@@ -108,7 +108,7 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // v23.1.391 — statut Paw Premium : si l'abo est ACTIF (ou staff), le
+  // v23.1.391 — statut PawPremium : si l'abo est ACTIF (ou staff), le
   // bouton d'achat devient un chip d'état (Daniel : « le bouton me renvoie
   // à la boutique au lieu de me montrer mes amis et les pawspots »).
   const [premiumDays, setPremiumDays] = useState<number | null>(null);
@@ -378,7 +378,7 @@ export default function MapPage() {
       );
       const allFamily = (familyResp.members || []).filter((m) => !!m.id);
       setFamilyIds(allFamily.map((m) => m.id));
-      // v23.1.399 — membres Paw Premium (isPremium poussé par le backend).
+      // v23.1.399 — membres PawPremium (isPremium poussé par le backend).
       setPremiumIds(allFamily.filter((m) => m.isPremium).map((m) => m.id));
 
       // 2) friends élargis (friends + family synthétiques) pour résoudre
@@ -740,7 +740,7 @@ export default function MapPage() {
         </div>
       )}
 
-      {/* v23.1.388/391 — bouton Paw Premium : achat si PAS abonné, sinon
+      {/* v23.1.388/391 — bouton PawPremium : achat si PAS abonné, sinon
           chip d'état (amis + pawspots déjà visibles sur la carte). */}
       <div className="mt-3">
         {premiumDays !== null || isStaffSub ? (

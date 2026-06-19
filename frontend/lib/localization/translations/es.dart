@@ -2957,6 +2957,7 @@ const Map<String, String> esESTranslations = <String, String>{
     'pawspot_pick_confirm': 'Validar el spot',
     'pawspot_pick_cancel': 'Cancelar',
     'pawfollow_feature_directions': 'Rutas a los lugares gratuitos del PawMap (fuentes, parques, restaurantes…) incluidas',
+    'pawfollow_feature_live_toggle': 'Botón seguir en directo (on/off): tú me sigues, yo te sigo — ubicación en tiempo real',
     'pawmap_tag_spot_btn': 'Marcar un lugar',
     'pawmap_view_spots_btn': 'Ver spots',
     'pawmap_view_reports_btn': 'Ver alertas',

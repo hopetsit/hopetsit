@@ -369,7 +369,7 @@ export default function BoutiquePage() {
           onClick={() => setSection("mapboost")}
           icon={<PawSpotGoldCoin size={18} />}
         />
-        {/* v23.1.387 — Paw Premium : bundle PawFollow + PawSpot + exclusifs. */}
+        {/* v23.1.387 — PawPremium : bundle PawFollow + PawSpot + exclusifs. */}
         <SectionTab
           label={t("shop_tab_pawpremium")}
           active={section === "pawpremium"}
@@ -458,7 +458,7 @@ export default function BoutiquePage() {
               </button>
             </div>
           </div>
-          {/* v489/v493 — option « voir les membres Paw Map proches » avec le
+          {/* v489/v493 — option « voir les membres PawMap proches » avec le
               VRAI badge rose (cercle rose + patte blanche), incluse avec PawSpot. */}
           <p className="mt-4 flex items-center gap-2.5 rounded-2xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm font-semibold text-pink-700">
             <PawMemberBadge size={22} />
@@ -536,7 +536,7 @@ function BenefitsChips({
   const chips: { e: string; l: string; c: string }[] = [];
   if (staff) chips.push({ e: "⭐", l: "Staff — accès illimité", c: "bg-emerald-100 text-emerald-800" });
   if (status.premiumExpiry && days(status.premiumExpiry) > 0)
-    chips.push({ e: "👑", l: `Paw Premium · ${days(status.premiumExpiry)} j`, c: "bg-amber-100 text-amber-900" });
+    chips.push({ e: "👑", l: `PawPremium · ${days(status.premiumExpiry)} j`, c: "bg-amber-100 text-amber-900" });
   // v23.1.394 — Daniel : « le badge PawFollow n'apparaît plus » — pour les
   // comptes STAFF on l'affichait pas du tout ; désormais chip « illimité ».
   if (staff) {
@@ -686,8 +686,8 @@ function PlanCard({
     // v401 — Daniel : rebrand "PawFollow Famille" → "PawFamily" (mensuel/annuel).
     family: "PawFamily Mensuel",
     family_yearly: "PawFamily Annuel",
-    premium_monthly: "Paw Premium Mensuel",
-    premium_yearly: "Paw Premium Annuel",
+    premium_monthly: "PawPremium Mensuel",
+    premium_yearly: "PawPremium Annuel",
   };
 
   return (
@@ -735,7 +735,7 @@ function PlanCard({
   );
 }
 
-// ─── v23.1.387 — Paw Premium (bundle PawFollow + PawSpot + exclusifs) ───────
+// ─── v23.1.387 — PawPremium (bundle PawFollow + PawSpot + exclusifs) ───────
 // Vitrine noir/or fidèle au mockup Daniel : ruban « LE PLUS COMPLET 👑 »,
 // 6 avantages, prix barrés des deux abos séparés, -33%.
 function PawPremiumSection({
@@ -766,7 +766,7 @@ function PawPremiumSection({
   const features = [
     t("pawpremium_feat_pawfollow"),
     t("pawpremium_feat_pawspot"),
-    // v489 — membres Paw Map proches (badge rose 🌸) inclus avec Paw Premium.
+    // v489 — membres PawMap proches (badge rose 🌸) inclus avec PawPremium.
     t("pawpremium_feat_nearby"),
     t("pawpremium_feat_exclusive"),
     t("pawpremium_feat_badge"),
@@ -779,7 +779,7 @@ function PawPremiumSection({
       {bundleActive && (
         <div className="mb-6 flex items-center gap-3 rounded-2xl border-2 border-amber-400 bg-amber-50 p-5 shadow-card">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/pawpremium_logo.svg" alt="Paw Premium" width={34} height={34} />
+          <img src="/pawpremium_logo.svg" alt="PawPremium" width={34} height={34} />
           <p className="text-sm font-semibold text-ink">
             {t("pawpremium_active")}
             {expiry && (
@@ -797,10 +797,10 @@ function PawPremiumSection({
         </span>
         <div className="mt-5 flex justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/pawpremium_logo.svg" alt="Paw Premium" width={96} height={96} />
+          <img src="/pawpremium_logo.svg" alt="PawPremium" width={96} height={96} />
         </div>
         <h2 className="mt-3 font-display text-3xl font-extrabold text-yellow-400">
-          Paw Premium
+          PawPremium
         </h2>
         <p className="mx-auto mt-2 max-w-md text-sm text-white/85">
           {t("pawpremium_subtitle")}

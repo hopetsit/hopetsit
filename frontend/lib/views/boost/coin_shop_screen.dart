@@ -1535,6 +1535,12 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
         'icon': Icons.people_outline,
         'text': 'premium_feature_friends_tracking'.tr,
       },
+      // v496 — Daniel : « rajoute la phrase de suivi dans l'onglet PawFollow ».
+      // Bouton « Suivre en direct » on/off mutuel (tu me suis, je te suis).
+      {
+        'icon': Icons.share_location_rounded,
+        'text': 'pawfollow_feature_live_toggle'.tr,
+      },
       // v23.1.357 — Daniel : "précise qu'avec PawFollow/PawFamily tu as les
       // itinéraires vers les lieux GRATUITS de la PawMap (eau, parcs, restos)".
       {

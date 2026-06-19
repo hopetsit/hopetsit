@@ -6,7 +6,7 @@ import { PawMapCTA } from "@/components/PawMapCTA";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
 // v493 — Refonte design (design-only) : page PawMap recentrée sur la CARTE et
-// la communauté. Les pavés de prix (Paw Premium / PawFollow / PawSpot /
+// la communauté. Les pavés de prix (PawPremium / PawFollow / PawSpot /
 // PawPoints détaillés) sont RETIRÉS (ils vivent sur la page Tarifs = /boutique)
 // et remplacés par une seule bande « Débloquez les spots premium » → /boutique.
 // Aucune donnée/route/logique touchée : mêmes clés i18n, mêmes liens.
@@ -130,10 +130,10 @@ export default function PawMapPage() {
       <section className="mt-24 overflow-hidden rounded-[26px] bg-gradient-to-b from-[#221C12] to-[#15120D] p-9 text-center md:p-12">
         <div className="flex justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/pawpremium_logo.svg" alt="Paw Premium" width={72} height={72} />
+          <img src="/pawpremium_logo.svg" alt="PawPremium" width={72} height={72} />
         </div>
         <h2 className="mt-4 font-display text-2xl font-extrabold tracking-tight text-yellow-400 md:text-3xl">
-          Paw Premium 👑
+          PawPremium 👑
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/85">{t("pawpremium_subtitle")}</p>
         <p className="mx-auto mt-3 max-w-xl text-xs leading-relaxed text-white/60">{t("premium_signals_note")}</p>

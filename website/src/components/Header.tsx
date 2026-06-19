@@ -58,7 +58,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
-          {/* v458 — Daniel : retirer le bouton « Ouvrir la Paw Map » de la
+          {/* v458 — Daniel : retirer le bouton « Ouvrir la PawMap » de la
               barre du haut pour l'instant (il reste dans le footer + les pages). */}
           <LangSwitcher />
 
@@ -125,7 +125,7 @@ export function Header() {
 
       {open && (
         <nav className="border-t border-ink/5 bg-white px-4 py-2 md:hidden">
-          {/* v458 — bouton « Ouvrir la Paw Map » retiré du menu (barre du haut)
+          {/* v458 — bouton « Ouvrir la PawMap » retiré du menu (barre du haut)
               pour l'instant. */}
           {links.map((l) => (
             <Link

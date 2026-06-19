@@ -1012,7 +1012,7 @@ export type FamilyMember = {
   addedAt?: string;
   email?: string | null;
   status: "pending" | "active" | "declined" | string;
-  // v23.1.399 — Paw Premium actif → couronne 👑 + anneau OR sur la carte.
+  // v23.1.399 — PawPremium actif → couronne 👑 + anneau OR sur la carte.
   isPremium?: boolean;
 };
 
@@ -1900,7 +1900,7 @@ export type MyBenefits = {
   pawFollowActive: boolean;
   familyActive: boolean;
   pawspotActive: boolean;
-  // v23.1.391 — Paw Premium (bundle) + staff/abo individuel.
+  // v23.1.391 — PawPremium (bundle) + staff/abo individuel.
   premiumActive: boolean;
   isPremium: boolean;
 };
@@ -1947,7 +1947,7 @@ export type SubscriptionStatus = {
   plan: string | null;
   status: "active" | "cancelled" | "expired" | "none";
   isPremium: boolean;
-  // v23.1.387 — Paw Premium (bundle PawFollow + PawSpot + extras).
+  // v23.1.387 — PawPremium (bundle PawFollow + PawSpot + extras).
   premiumBundleActive?: boolean;
   familyActive?: boolean;
   familyExpiry?: string | null;

@@ -2993,6 +2993,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'pawspot_pick_confirm': 'Spot bestätigen',
     'pawspot_pick_cancel': 'Abbrechen',
     'pawfollow_feature_directions': 'Routen zu den kostenlosen PawMap-Orten (Wasserstellen, Parks, Restaurants…) inklusive',
+    'pawfollow_feature_live_toggle': 'Live-Folgen-Button (on/off): du folgst mir, ich folge dir — Standort in Echtzeit',
     'pawmap_tag_spot_btn': 'Ort taggen',
     'pawmap_view_spots_btn': 'Spots ansehen',
     'pawmap_view_reports_btn': 'Meldungen',

@@ -23,7 +23,7 @@ export default function LoginPage() {
     const cleanEmail = email.trim().toLowerCase();
     try {
       await login(cleanEmail, password);
-      // v23.1.452 — retour vers la page demandée (ex. la Paw Map) après login.
+      // v23.1.452 — retour vers la page demandée (ex. la PawMap) après login.
       // On lit `redirect` côté navigateur dans le handler pour éviter l'erreur
       // de build Next "useSearchParams must be wrapped in Suspense". On
       // n'accepte que les chemins internes (commençant par "/") par sécurité.

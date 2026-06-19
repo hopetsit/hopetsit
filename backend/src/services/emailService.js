@@ -1,7 +1,12 @@
 const nodemailer = require('nodemailer');
 const logger = require('../utils/logger');
 
-const BRAND_NAME = process.env.EMAIL_BRAND_NAME || 'HoPetSit';
+// v496 — Daniel : « on reçoit HopeTSIT au lieu de HoPetSit » comme nom
+// d'expéditeur. CAUSE : la var d'env EMAIL_BRAND_NAME sur Render valait
+// "HopeTSIT" (mauvaise casse) → elle écrasait le défaut. On FORCE désormais
+// la casse de marque correcte « HoPetSit » en dur, indépendamment de l'env
+// (qui restait mal configurée), pour que TOUS les emails affichent HoPetSit.
+const BRAND_NAME = 'HoPetSit';
 const SUPPORT_EMAIL = process.env.SMTP_FROM || process.env.SMTP_USER || 'hopetsit@gmail.com';
 
 const transporter = (() => {

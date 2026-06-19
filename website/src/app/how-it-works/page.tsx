@@ -65,7 +65,7 @@ export default function HowItWorksPage() {
         <p className="mx-auto mt-2 max-w-xl text-sm text-emerald-900/80">{t("hiw_track_body")}</p>
       </div>
 
-      {/* Vente : PawFollow · PawSpot · surtout Paw Premium. */}
+      {/* Vente : PawFollow · PawSpot · surtout PawPremium. */}
       <h2 className="mt-20 text-center font-display text-3xl font-extrabold tracking-tight text-ink">
         {t("hiw_subs_title")}
       </h2>
@@ -90,8 +90,8 @@ export default function HowItWorksPage() {
       </div>
       <div className="mt-6 rounded-3xl border-2 border-amber-400 bg-gradient-to-b from-[#221C12] to-[#15120D] p-8 text-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/pawpremium_logo.svg" alt="Paw Premium" width={72} height={72} className="mx-auto" />
-        <h3 className="mt-3 font-display text-2xl font-extrabold text-yellow-400">Paw Premium 👑</h3>
+        <img src="/pawpremium_logo.svg" alt="PawPremium" width={72} height={72} className="mx-auto" />
+        <h3 className="mt-3 font-display text-2xl font-extrabold text-yellow-400">PawPremium 👑</h3>
         <p className="mx-auto mt-2 max-w-xl text-sm text-white/85">{t("home_pawpremium_blurb")}</p>
         <p className="mt-3 text-sm font-semibold text-yellow-300">{t("home_pawpremium_price_line")}</p>
         <Link

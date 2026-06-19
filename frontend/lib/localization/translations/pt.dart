@@ -2828,6 +2828,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'pawspot_pick_confirm': 'Validar o spot',
     'pawspot_pick_cancel': 'Cancelar',
     'pawfollow_feature_directions': 'Itinerários para os locais gratuitos do PawMap (bebedouros, parques, restaurantes…) incluídos',
+    'pawfollow_feature_live_toggle': 'Botão seguir em direto (on/off): tu segues-me, eu sigo-te — localização em tempo real',
     'pawmap_tag_spot_btn': 'Marcar um local',
     'pawmap_view_spots_btn': 'Ver spots',
     'pawmap_view_reports_btn': 'Ver alertas',

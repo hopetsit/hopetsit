@@ -2990,6 +2990,7 @@ const Map<String, String> itITTranslations = <String, String>{
     'pawspot_pick_confirm': 'Convalida lo spot',
     'pawspot_pick_cancel': 'Annulla',
     'pawfollow_feature_directions': 'Itinerari verso i luoghi gratuiti della PawMap (fontanelle, parchi, ristoranti…) inclusi',
+    'pawfollow_feature_live_toggle': 'Pulsante segui in diretta (on/off): tu segui me, io seguo te — posizione in tempo reale',
     'pawmap_tag_spot_btn': 'Tagga un luogo',
     'pawmap_view_spots_btn': 'Vedi spot',
     'pawmap_view_reports_btn': 'Vedi segnali',

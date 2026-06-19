@@ -126,8 +126,8 @@ export default function ProfilePage() {
         const amber = "bg-amber-100 text-amber-800";
         const chips: SubChip[] = [];
         const pd = dleft(st.premiumExpiry);
-        if (pd > 0) chips.push({ label: `👑 Paw Premium · ${pd} j`, cls: gold });
-        else if (staff) chips.push({ label: "👑 Paw Premium · ∞", cls: gold });
+        if (pd > 0) chips.push({ label: `👑 PawPremium · ${pd} j`, cls: gold });
+        else if (staff) chips.push({ label: "👑 PawPremium · ∞", cls: gold });
         if ((st.plan === "monthly" || st.plan === "yearly") && dleft(st.currentPeriodEnd) > 0)
           chips.push({ label: `📍 PawFollow · ${dleft(st.currentPeriodEnd)} j`, cls: violet });
         const fd = dleft(st.familyExpiry);

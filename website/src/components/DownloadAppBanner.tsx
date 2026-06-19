@@ -5,12 +5,12 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 
 /**
  * v23.1.452 — Daniel : pousser fort le téléchargement de l'app, en priorité #2
- * derrière la Paw Map. Bannière de téléchargement présente sur TOUT le site
+ * derrière la PawMap. Bannière de téléchargement présente sur TOUT le site
  * (rendue dans layout.tsx), non masquable (toujours visible).
  *
  *   - Desktop (md+) : barre fine pleine largeur, dans le flux du document (pas
  *     fixe) → elle ne recouvre jamais le contenu ni le Header sticky. Discrète
- *     pour ne pas concurrencer le CTA Paw Map (priorité #1).
+ *     pour ne pas concurrencer le CTA PawMap (priorité #1).
  *   - Mobile (< md) : petit bouton flottant en bas à droite, toujours visible.
  */
 export function DownloadAppBanner() {

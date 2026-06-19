@@ -247,7 +247,7 @@ function makeSpotIcon(type: PawSpotType, isGolden: boolean): L.DivIcon {
 // v23.1.394 — Daniel : « ma position avec MON PROFIL, pas un point ». Si
 // l'avatar est dispo → photo ronde 40px, anneau couleur du rôle + halo
 // pulsé. Sinon, fallback sur l'ancien point.
-// v23.1.394 — `crown` : couronne 👑 sur l'avatar quand Paw Premium actif
+// v23.1.394 — `crown` : couronne 👑 sur l'avatar quand PawPremium actif
 // (Daniel : « je vois pas où doit être le badge — regarde ma position »).
 function makeUserIcon(color: string, avatarUrl?: string | null, crown?: boolean): L.DivIcon {
   if (avatarUrl) {
@@ -322,7 +322,7 @@ export default function PoiMap({
   /** v23.1 carte unique — amis/famille en direct (couche optionnelle). */
   friendPositions?: FriendLivePosition[];
   familyIds?: string[];
-  /** v23.1.399 — ids des membres Paw Premium → couronne 👑 + anneau OR. */
+  /** v23.1.399 — ids des membres PawPremium → couronne 👑 + anneau OR. */
   premiumIds?: string[];
   /** v23.1.358 — libellés i18n des rôles (owner/sitter/walker) pour le
       tooltip permanent « nom · rôle » sous chaque ami en direct. */

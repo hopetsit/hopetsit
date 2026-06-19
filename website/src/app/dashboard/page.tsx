@@ -39,9 +39,9 @@ export default function DashboardPage() {
           : false;
         if (st.premiumExpiry && new Date(st.premiumExpiry) > new Date()) {
           const d = Math.ceil((new Date(st.premiumExpiry).getTime() - Date.now()) / 86400000);
-          setPremiumLabel(`👑 Paw Premium · ${d} j`);
+          setPremiumLabel(`👑 PawPremium · ${d} j`);
         } else if (staff) {
-          setPremiumLabel("👑 Paw Premium · illimité ⭐");
+          setPremiumLabel("👑 PawPremium · illimité ⭐");
         }
       } catch { /* pas connecté / pas premium → rien */ }
     })();
@@ -445,7 +445,7 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* Paw Premium — bande sombre/or (discrète, sous les actions). */}
+          {/* PawPremium — bande sombre/or (discrète, sous les actions). */}
           <a
             href="/boutique"
             className="group mt-4 flex items-center gap-4 rounded-[22px] border-2 border-amber-400 bg-gradient-to-br from-[#221C12] to-[#15120D] p-5 shadow-card transition hover:brightness-110"
@@ -453,7 +453,7 @@ export default function DashboardPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/pawpremium_logo.svg" alt="" width={44} height={44} />
             <div>
-              <div className="font-display text-base font-extrabold text-yellow-400">Paw Premium 👑</div>
+              <div className="font-display text-base font-extrabold text-yellow-400">PawPremium 👑</div>
               <div className="text-xs text-white/75">{t("dash_premium_sub")}</div>
             </div>
             <span className="ml-auto text-yellow-400 transition group-hover:translate-x-1">→</span>

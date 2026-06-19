@@ -209,6 +209,24 @@ class DeepLinkService {
     // l'app est ouverte (ou ramenée au premier plan). Si l'utilisateur n'est
     // pas connecté, le splash/auth affiche le login puis l'accueil — flux
     // standard. On NE navigue donc nulle part : no-op gracieux.
+    // v496 — Daniel : « depuis l'email, mon ami a cliqué "Voir la demande" →
+    // GRAND ÉCRAN NOIR ». CAUSE RACINE : le lien App Link ouvre l'app et on
+    // faisait Get.to(FriendsScreen) (ou autre écran authentifié) MÊME quand
+    // l'utilisateur n'a PAS de session → l'écran exige auth + controllers non
+    // initialisés → rendu NOIR. FIX : sans session, on ne navigue NULLE PART
+    // (no-op gracieux) → le splash/onboarding affiche l'accueil public
+    // (S'inscrire / Se connecter), exactement comme /open. Le pending link est
+    // mémorisé pour reprise après login. Seuls open/app/auth passent sans
+    // session (auth gère sa propre connexion via OTT).
+    final isPublicLink = first == 'open' || first == 'app' || first == 'auth';
+    if (!isPublicLink && !_hasSession()) {
+      AppLogger.logInfo(
+        'DeepLink "$first" reçu SANS session → no-op gracieux '
+        '(onboarding/login s\'affiche au lieu d\'un écran noir). '
+        'La demande reste visible dans l\'app après connexion.',
+      );
+      return;
+    }
     if (first == 'open' || first == 'app') {
       AppLogger.logInfo('DeepLink /open — app ouverte (aucune navigation).');
       return;
@@ -292,6 +310,20 @@ class DeepLinkService {
       return (Get.find<AuthController>().userRole.value ?? '').toLowerCase();
     } catch (_) {
       return 'owner';
+    }
+  }
+
+  /// v496 — Y a-t-il une session active ? (JWT présent). Sert à éviter
+  /// d'ouvrir un écran authentifié (FriendsScreen, etc.) sur un appareil non
+  /// connecté → écran noir. Best-effort : si l'ApiClient n'est pas encore
+  /// enregistré (boot précoce), on considère « pas de session ».
+  bool _hasSession() {
+    try {
+      if (!Get.isRegistered<ApiClient>()) return false;
+      final t = Get.find<ApiClient>().authToken;
+      return t != null && t.isNotEmpty;
+    } catch (_) {
+      return false;
     }
   }
 
