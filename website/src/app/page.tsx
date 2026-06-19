@@ -4,6 +4,10 @@ import Link from "next/link";
 import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
+// v493 — Refonte design (design-only) : page d'accueil ramenée de ~9 sections
+// à 6 (Hero · Bande confiance · 3 rôles · 3 services · Paw Premium · CTA final).
+// Aucune donnée/route/logique modifiée : on réutilise EXACTEMENT les mêmes
+// clés i18n et les mêmes liens (/download, /login, /signup, /pawmap, /boutique).
 export default function HomePage() {
   const { t } = useT();
 
@@ -20,75 +24,67 @@ export default function HomePage() {
     { title: t("trust_map_title"),  body: t("trust_map_body"),  icon: "🗺️" },
   ];
 
-  // v23.1 part 240 — Daniel : "MET A JOUR TOUT LE SITE WEB AVEC LES
-  // NOUVELLES FONCTIONALITER deep work". Surfacing the 4 headline
-  // features added in v240 right on the homepage so visitors landing
-  // from social or organic search see the differentiation immediately.
-  const v240Features = [
+  // « 3 services, une seule app » — fusion des anciennes sections PawSpot /
+  // PawFollow / « 3 apps en 1 » (doublons) en UNE grille de 3 cartes, avec
+  // prix en ligne + 1 CTA chacun. Mêmes clés + mêmes routes qu'avant.
+  const services = [
     {
-      emoji: "👨‍👩‍👧",
-      title: t("v240_feat_family_title"),
-      body: t("v240_feat_family_body"),
-      color: "owner",
+      kind: "petsitting",
+      name: "PetSitting",
+      title: t("home_app1_title"),
+      body: t("home_app1_body"),
+      price: t("pricing_owner_price"),
+      cta: t("nav_signup"),
+      href: "/signup",
+      accent: "owner",
     },
     {
-      emoji: "📍",
-      title: t("v240_feat_pawspot_title"),
-      body: t("v240_feat_pawspot_body"),
-      color: "sitter",
+      kind: "pawfollow",
+      name: "PawFollow",
+      title: t("home_app2_title"),
+      body: t("home_app2_body"),
+      price: t("home_pawfollow_price_line"),
+      cta: t("home_pawfollow_price_line"),
+      href: "/boutique",
+      accent: "violet",
     },
     {
-      emoji: "🛰️",
-      title: t("v240_feat_live_title"),
-      body: t("v240_feat_live_body"),
-      color: "walker",
+      kind: "pawspot",
+      name: "PawSpot",
+      title: t("home_app3_title"),
+      body: t("home_app3_body"),
+      price: t("home_pawspot_price_line"),
+      cta: t("home_pawspot_cta"),
+      href: "/pawmap",
+      accent: "amber",
     },
-    {
-      emoji: "🪪",
-      title: t("v240_feat_kyc_title"),
-      body: t("v240_feat_kyc_body"),
-      color: "owner",
-    },
-  ] as const;
-
-  // v23.1.279 — Daniel : "mettre 4 façons d'utiliser HoPetSit + l'onglet
-  // PawFamily". La 4e carte (PawFamily) est en VIOLET = code couleur famille.
-  // v23.1.398 — Daniel : « change ça par 3 apps en 1, 3 cadres explicatifs
-  // courts et différents : PETSITTING · PAWFOLLOW · PAWSPOT ».
-  const apps3in1 = [
-    { kind: "petsitting", name: "PetSitting", title: t("home_app1_title"), body: t("home_app1_body") },
-    { kind: "pawfollow", name: "PawFollow", title: t("home_app2_title"), body: t("home_app2_body") },
-    { kind: "pawspot", name: "PawSpot", title: t("home_app3_title"), body: t("home_app3_body") },
   ] as const;
 
   return (
     <>
-      {/* Hero — orange gradient, the same accent as the mobile app primary. */}
+      {/* ── 1. HERO ── orange → blanc, carte sitter flottante. */}
       <section className="relative overflow-hidden bg-gradient-to-br from-owner-light via-white to-sitter-light/40">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-20 md:grid-cols-2 md:py-28">
           <div className="flex flex-col justify-center">
-            <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-owner/30 bg-white px-3 py-1 text-xs font-medium text-owner">
+            <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-owner/30 bg-white px-3 py-1 text-xs font-semibold text-owner">
               🇪🇺 29 European countries
             </span>
-            <h1 className="font-display text-4xl font-extrabold leading-tight tracking-tight text-ink md:text-5xl">
+            <h1 className="font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-ink md:text-6xl">
               {t("hero_title")}
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-ink-muted">
               {t("hero_sub")}
             </p>
-            {/* v467 — Daniel : retirer le gros bouton « Ouvrir Paw Map » de la
-                page d'accueil. Les CTA Télécharger / Connexion suffisent. */}
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="/download"
-                className="rounded-full bg-owner px-6 py-3 text-sm font-semibold text-white shadow-cta hover:bg-owner-dark"
+                className="rounded-full bg-owner px-7 py-3.5 text-sm font-bold text-white shadow-cta transition hover:bg-owner-dark"
               >
                 {t("hero_cta_app")}
               </Link>
-              {/* v404 — Daniel : bouton noir, texte orange → page connexion web. */}
               <Link
                 href="/login"
-                className="whitespace-nowrap rounded-full bg-[#111827] px-6 py-3 text-sm font-semibold text-white shadow-cta transition hover:bg-black"
+                className="whitespace-nowrap rounded-full bg-[#17141f] px-7 py-3.5 text-sm font-bold text-white shadow-cta transition hover:bg-black"
               >
                 {t("hero_cta_web_login")}
               </Link>
@@ -96,17 +92,21 @@ export default function HomePage() {
           </div>
 
           <div className="relative">
-            {/* Decorative hero card stack */}
             <div className="relative mx-auto w-full max-w-sm">
-              <div className="absolute -right-4 top-6 h-72 w-full rotate-3 rounded-3xl bg-sitter shadow-card" />
-              <div className="absolute -left-4 top-12 h-72 w-full -rotate-2 rounded-3xl bg-walker shadow-card" />
-              <div className="relative h-72 w-full rounded-3xl bg-white p-6 shadow-card ring-1 ring-ink/5">
-                <div className="flex items-start gap-3">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-owner-light text-2xl">🐕</div>
-                  <div>
-                    <div className="text-sm font-semibold text-ink">Sophie · {t("home_sophie_role")}</div>
-                    <div className="text-xs text-ink-muted">Lyon · 4.9 ★ · Top Sitter</div>
+              <div className="absolute -right-4 top-6 h-72 w-full rotate-3 rounded-[26px] bg-sitter shadow-card" />
+              <div className="absolute -left-4 top-12 h-72 w-full -rotate-2 rounded-[26px] bg-walker shadow-card" />
+              <div className="relative w-full rounded-[26px] border border-[#efe7e0] bg-white p-6 shadow-card">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-owner-light text-2xl">🐕</div>
+                    <div>
+                      <div className="text-sm font-bold text-ink">Sophie · {t("home_sophie_role")}</div>
+                      <div className="text-xs text-ink-muted">Lyon · 4.9 ★ · Top Sitter</div>
+                    </div>
                   </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-sitter-light px-2.5 py-1 text-[10px] font-bold text-sitter-dark">
+                    ✓
+                  </span>
                 </div>
                 <div className="mt-5 grid grid-cols-3 gap-2 text-center">
                   {[
@@ -135,24 +135,42 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Three roles */}
+      {/* ── 2. BANDE CONFIANCE COMPACTE ── fond sombre, 4 preuves en ligne
+           (fusion des anciennes sections « confiance » + « sécurité »). */}
+      <section className="bg-[#17141f] py-10">
+        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-6 px-4 md:grid-cols-4">
+          {trust.map((tr) => (
+            <div key={tr.title} className="flex items-start gap-3">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-owner text-base text-white">
+                {tr.icon}
+              </div>
+              <div>
+                <div className="text-sm font-bold text-white">{tr.title}</div>
+                <div className="mt-0.5 text-xs leading-snug text-white/60">{tr.body}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── 3. UNE APP, TROIS RÔLES ── 3 cartes. */}
       <section className="mx-auto max-w-6xl px-4 py-20">
         <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
           {t("roles_title")}
         </h2>
         <div className="mt-12 grid gap-6 md:grid-cols-3">
           {roles.map((r) => {
-            const accent = r.color; // tailwind picks the right brand colour
+            const accent = r.color;
             return (
               <div
                 key={r.title}
-                className={`group relative overflow-hidden rounded-2xl border border-ink/5 bg-white p-7 shadow-card transition-transform hover:-translate-y-1`}
+                className="group relative overflow-hidden rounded-[22px] border border-[#efe7e0] bg-white p-7 shadow-card transition-transform hover:-translate-y-1"
               >
-                <div className={`absolute inset-x-0 top-0 h-1 bg-${accent}`} />
+                <div className={`absolute inset-x-0 top-0 h-1.5 bg-${accent}`} />
                 <div className={`grid h-12 w-12 place-items-center rounded-2xl bg-${accent}-light text-2xl`}>
                   {r.emoji}
                 </div>
-                <h3 className="mt-5 text-lg font-bold text-ink">{r.title}</h3>
+                <h3 className="mt-5 text-lg font-extrabold text-ink">{r.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-ink-muted">{r.body}</p>
               </div>
             );
@@ -160,171 +178,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* v23.1.355 — Daniel : "parle du PawSpot sur la 1re page du site".
-          Section dédiée au nouveau PawSpot communautaire (spots tagués,
-          PawPoints, badges, empreinte dorée) — identité DORÉE. */}
-      <section className="bg-gradient-to-br from-amber-50 via-white to-amber-100/60 py-20">
-        <div className="mx-auto max-w-6xl px-4">
-          <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
-            <PawSpotGoldCoin size={40} className="mr-2 -mt-1" />
-            {t("home_pawspot_title")}
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-center text-base text-ink-muted">
-            {t("home_pawspot_sub")}
-          </p>
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
-            <div className="rounded-2xl border border-amber-200 bg-white p-6 shadow-card">
-              <div className="text-3xl">📍</div>
-              <h3 className="mt-3 text-base font-bold text-ink">{t("home_pawspot_b1_title")}</h3>
-              <p className="mt-2 text-sm text-ink-muted">{t("home_pawspot_b1_body")}</p>
-            </div>
-            <div className="rounded-2xl border border-amber-200 bg-white p-6 shadow-card">
-              <div className="text-3xl">🏆</div>
-              <h3 className="mt-3 text-base font-bold text-ink">{t("home_pawspot_b2_title")}</h3>
-              <p className="mt-2 text-sm text-ink-muted">{t("home_pawspot_b2_body")}</p>
-            </div>
-            <div className="rounded-2xl border-2 border-amber-400 bg-white p-6 shadow-card">
-              <PawSpotGoldCoin size={34} />
-              <h3 className="mt-3 text-base font-bold text-ink">{t("home_pawspot_b3_title")}</h3>
-              <p className="mt-2 text-sm text-ink-muted">{t("home_pawspot_b3_body")}</p>
-            </div>
-          </div>
-          <p className="mt-8 text-center text-sm font-semibold text-amber-700">
-            {t("home_pawspot_price_line")}
-          </p>
-          <div className="mt-5 text-center">
-            <Link
-              href="/pawmap"
-              className="inline-block rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white shadow-cta hover:bg-amber-600"
-            >
-              {t("home_pawspot_cta")} →
-            </Link>
-          </div>
-
-          {/* v23.1.390 — Daniel : « 3 cadres explicatifs pour CHAQUE produit ».
-              Section PawFollow (violet) — 3 cadres, comme PawSpot ci-dessus. */}
-        </div>
-      </section>
-
-      <section className="bg-gradient-to-br from-violet-50 via-white to-violet-100/60 py-20">
-        <div className="mx-auto max-w-6xl px-4">
-          <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/pawfollow_logo.svg" alt="" width={40} height={40} className="mr-2 -mt-1 inline" />
-            PawFollow
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-center text-base text-ink-muted">
-            {t("home_pawfollow_blurb")}
-          </p>
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
-            {[
-              { e: "🛰️", ti: t("home_pf_b1t"), bo: t("home_pf_b1b") },
-              { e: "👥", ti: t("home_pf_b2t"), bo: t("home_pf_b2b") },
-              { e: "🛡️", ti: t("home_pf_b3t"), bo: t("home_pf_b3b") },
-            ].map((b) => (
-              <div key={b.ti} className="rounded-2xl border border-violet-200 bg-white p-6 shadow-card">
-                <div className="text-3xl">{b.e}</div>
-                <h3 className="mt-3 text-base font-bold text-ink">{b.ti}</h3>
-                <p className="mt-2 text-sm text-ink-muted">{b.bo}</p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-8 text-center text-sm font-semibold text-violet-700">{t("home_rule_pawfollow")}</p>
-          <div className="mt-5 text-center">
-            <Link href="/boutique" className="inline-block rounded-full bg-violet-600 px-7 py-3 text-sm font-semibold text-white shadow-cta hover:bg-violet-700">
-              {t("home_pawfollow_price_line")} →
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Section Paw Premium (noir/or) — 3 cadres + CTA boutique. */}
-      <section className="bg-gradient-to-b from-[#221C12] to-[#15120D] py-20">
-        <div className="mx-auto max-w-6xl px-4">
-          <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-yellow-400 md:text-4xl">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/pawpremium_logo.svg" alt="" width={44} height={44} className="mr-2 -mt-1 inline" />
-            Paw Premium 👑
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-center text-base text-white/85">
-            {t("home_pawpremium_blurb")}
-          </p>
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
-            {[
-              { e: "🎁", ti: t("home_pp_b1t"), bo: t("home_pp_b1b") },
-              { e: "👑", ti: t("home_pp_b2t"), bo: t("home_pp_b2b") },
-              { e: "⚡", ti: t("home_pp_b3t"), bo: t("home_pp_b3b") },
-            ].map((b) => (
-              <div key={b.ti} className="rounded-2xl border border-amber-400/50 bg-white/5 p-6">
-                <div className="text-3xl">{b.e}</div>
-                <h3 className="mt-3 text-base font-bold text-yellow-300">{b.ti}</h3>
-                <p className="mt-2 text-sm text-white/80">{b.bo}</p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-8 text-center text-xs font-semibold text-white/70">{t("home_rule_pawpremium")}</p>
-          <div className="mt-5 text-center">
-            <Link href="/boutique" className="inline-block rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-7 py-3 text-sm font-bold text-black hover:brightness-110">
-              {t("home_pawpremium_price_line")} →
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Trust grid */}
-      <section className="bg-bg-soft py-20">
-        <div className="mx-auto max-w-6xl px-4">
-          <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
-            {t("trust_title")}
-          </h2>
-          <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {trust.map((tr) => (
-              <div key={tr.title} className="rounded-2xl bg-white p-6 shadow-card">
-                <div className="grid h-10 w-10 place-items-center rounded-full bg-owner text-lg text-white">
-                  {tr.icon}
-                </div>
-                <h3 className="mt-4 text-base font-bold text-ink">{tr.title}</h3>
-                <p className="mt-2 text-sm text-ink-muted">{tr.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* v23.1 part 240 — "What's new" feature spotlight (4 cards). */}
-      <section className="mx-auto max-w-6xl px-4 py-20">
-        <div className="mb-10 text-center">
-          <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-owner/30 bg-owner-light px-3 py-1 text-xs font-semibold uppercase tracking-wider text-owner">
-            ✨ {t("v240_new_eyebrow")}
-          </span>
-          <h2 className="font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
-            {t("v240_new_title")}
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-ink-muted">
-            {t("v240_new_sub")}
-          </p>
-        </div>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {v240Features.map((f) => (
-            <div
-              key={f.title}
-              className="group relative overflow-hidden rounded-2xl border border-ink/5 bg-white p-6 shadow-card transition-transform hover:-translate-y-1"
-            >
-              <div className={`absolute inset-x-0 top-0 h-1 bg-${f.color}`} />
-              <div
-                className={`mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-${f.color}-light text-2xl`}
-              >
-                {f.emoji}
-              </div>
-              <h3 className="text-base font-bold text-ink">{f.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-ink-muted">{f.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* v23.1.398 — Daniel : « 3 apps en 1 » — 3 cadres courts et distincts :
-          PetSitting (orange) · PawFollow (violet, logo) · PawSpot (or, pièce). */}
+      {/* ── 4. 3 SERVICES, UNE SEULE APP ── fusion PawSpot + PawFollow + « 3 apps
+           en 1 » : 3 cartes (PetSitting · PawFollow · PawSpot), prix en ligne +
+           1 CTA chacune. Mêmes routes /signup · /boutique · /pawmap. */}
       <section className="bg-bg-soft py-20">
         <div className="mx-auto max-w-6xl px-4">
           <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
@@ -334,35 +190,49 @@ export default function HomePage() {
             {t("home_3in1_sub")}
           </p>
           <div className="mt-12 grid gap-5 md:grid-cols-3">
-            {apps3in1.map((a) => {
-              const isPawfollow = a.kind === "pawfollow";
-              const isPawspot = a.kind === "pawspot";
-              const borderCls = isPawfollow
-                ? "border-violet-300 ring-1 ring-violet-200"
-                : isPawspot
-                  ? "border-amber-300 ring-1 ring-amber-200"
-                  : "border-owner/20 ring-1 ring-owner/10";
-              const barCls = isPawfollow ? "bg-violet-500" : isPawspot ? "bg-amber-400" : "bg-owner";
-              const titleCls = isPawfollow ? "text-violet-700" : isPawspot ? "text-amber-700" : "text-owner-dark";
+            {services.map((s) => {
+              const isPf = s.kind === "pawfollow";
+              const isPs = s.kind === "pawspot";
+              const ring = isPf
+                ? "border-violet-300"
+                : isPs
+                  ? "border-amber-300"
+                  : "border-owner/20";
+              const bar = isPf ? "bg-violet-500" : isPs ? "bg-amber-400" : "bg-owner";
+              const titleCls = isPf ? "text-violet-700" : isPs ? "text-amber-700" : "text-owner-dark";
+              const btn = isPf
+                ? "bg-violet-600 hover:bg-violet-700"
+                : isPs
+                  ? "bg-amber-500 hover:bg-amber-600"
+                  : "bg-owner hover:bg-owner-dark";
               return (
                 <div
-                  key={a.name}
-                  className={`group relative overflow-hidden rounded-2xl border bg-white p-7 shadow-card transition-transform hover:-translate-y-1 ${borderCls}`}
+                  key={s.name}
+                  className={`group relative flex flex-col overflow-hidden rounded-[22px] border bg-white p-7 shadow-card transition-transform hover:-translate-y-1 ${ring}`}
                 >
-                  <div className={`absolute inset-x-0 top-0 h-1.5 ${barCls}`} />
+                  <div className={`absolute inset-x-0 top-0 h-1.5 ${bar}`} />
                   <div className="mb-4 flex items-center gap-3">
-                    {isPawfollow ? (
+                    {isPf ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src="/pawfollow_logo.svg" alt="" width={48} height={48} />
-                    ) : isPawspot ? (
-                      <PawSpotGoldCoin size={48} />
+                      <img src="/pawfollow_logo.svg" alt="" width={46} height={46} />
+                    ) : isPs ? (
+                      <PawSpotGoldCoin size={46} />
                     ) : (
-                      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-owner-light text-2xl">🏠</div>
+                      <div className="grid h-11 w-11 place-items-center rounded-2xl bg-owner-light text-2xl">🏠</div>
                     )}
-                    <h3 className={`text-lg font-extrabold ${titleCls}`}>{a.name}</h3>
+                    <h3 className={`text-lg font-extrabold ${titleCls}`}>{s.name}</h3>
                   </div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">{a.title}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-muted">{a.body}</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">{s.title}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-muted">{s.body}</p>
+                  <div className="mt-5 flex items-center justify-between gap-2 border-t border-[#efe7e0] pt-4">
+                    <span className={`text-sm font-extrabold ${titleCls}`}>{s.price}</span>
+                    <Link
+                      href={s.href}
+                      className={`rounded-full px-4 py-2 text-xs font-bold text-white transition ${btn}`}
+                    >
+                      {s.cta} →
+                    </Link>
+                  </div>
                 </div>
               );
             })}
@@ -370,9 +240,31 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Big CTA */}
+      {/* ── 5. PAW PREMIUM ── une seule bande compacte (noir/or), CTA boutique. */}
+      <section className="bg-gradient-to-b from-[#221C12] to-[#15120D] py-16">
+        <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 px-4 text-center md:flex-row md:text-left">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/pawpremium_logo.svg" alt="Paw Premium" width={72} height={72} className="shrink-0" />
+          <div className="flex-1">
+            <h2 className="font-display text-2xl font-extrabold tracking-tight text-yellow-400 md:text-3xl">
+              Paw Premium 👑
+            </h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm text-white/85 md:mx-0">
+              {t("home_pawpremium_blurb")}
+            </p>
+          </div>
+          <Link
+            href="/boutique"
+            className="shrink-0 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-7 py-3.5 text-sm font-bold text-black shadow-cta transition hover:brightness-110"
+          >
+            {t("home_pawpremium_price_line")} →
+          </Link>
+        </div>
+      </section>
+
+      {/* ── 6. CTA FINAL ── */}
       <section className="mx-auto max-w-6xl px-4 py-20">
-        <div className="relative overflow-hidden rounded-3xl bg-owner p-10 text-white md:p-14">
+        <div className="relative overflow-hidden rounded-[26px] bg-owner p-10 text-white md:p-14">
           <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/10" />
           <div className="absolute -bottom-16 -left-10 h-48 w-48 rounded-full bg-white/10" />
           <div className="relative">
@@ -383,13 +275,13 @@ export default function HomePage() {
             <div className="mt-7 flex flex-wrap gap-3">
               <Link
                 href="/signup"
-                className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-owner hover:bg-bg-soft"
+                className="rounded-full bg-white px-6 py-3 text-sm font-bold text-owner hover:bg-bg-soft"
               >
                 {t("nav_signup")}
               </Link>
               <Link
                 href="/download"
-                className="rounded-full border border-white/40 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10"
+                className="rounded-full border border-white/40 px-6 py-3 text-sm font-bold text-white hover:bg-white/10"
               >
                 {t("nav_download")}
               </Link>
