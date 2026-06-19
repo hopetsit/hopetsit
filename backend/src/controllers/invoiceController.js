@@ -160,8 +160,13 @@ const listMyInvoices = async (req, res) => {
       .lean();
 
     // Hide the counterparty's email in the response (GDPR-friendly).
+    // v498 — Daniel : « Server error » au téléchargement PDF côté web. CAUSE :
+    // les docs `.lean()` exposent `_id` (pas `id`) → le site lisait `inv.id`
+    // === undefined → URL `/invoices/undefined/html` → findById('undefined')
+    // = CastError → 500. On expose `id` explicitement (en plus de `_id`).
     const sanitised = invoices.map((inv) => ({
       ...inv,
+      id: inv._id ? inv._id.toString() : undefined,
       ownerEmail: role === 'owner' ? inv.ownerEmail : undefined,
       providerEmail:
         role === 'sitter' || role === 'walker' ? inv.providerEmail : undefined,
@@ -208,6 +213,11 @@ const getInvoice = async (req, res) => {
  */
 const renderInvoiceHtml = async (req, res) => {
   try {
+    // v498 — id invalide (ex. 'undefined') → 404 propre au lieu d'un CastError
+    // qui finissait en 500 « Server error ».
+    if (!/^[0-9a-fA-F]{24}$/.test(String(req.params.id || ''))) {
+      return res.status(404).send('Invoice not found');
+    }
     const inv = await Invoice.findById(req.params.id).lean();
     if (!inv) return res.status(404).send('Invoice not found');
 

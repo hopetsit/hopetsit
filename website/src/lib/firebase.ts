@@ -18,10 +18,25 @@ import {
   Auth,
 } from "firebase/auth";
 
+// v498 — Daniel : « quand je me connecte via Google sur le web, on voit
+// l'adresse Render ». CAUSE : NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN était mal réglé
+// (pointait sur le backend Render) → le popup/redirect OAuth Google affichait
+// l'URL Render. Le domaine d'auth Firebase DOIT être `<projectId>.firebaseapp.com`
+// (toujours autorisé par défaut). On force ce domaine canonique dès que l'env
+// est absente OU ne ressemble pas à un domaine Firebase (ex. *.onrender.com).
+const _projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+const _rawAuthDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
+const _authDomain =
+  _rawAuthDomain && /(firebaseapp\.com|web\.app)$/i.test(_rawAuthDomain)
+    ? _rawAuthDomain
+    : _projectId
+      ? `${_projectId}.firebaseapp.com`
+      : _rawAuthDomain;
+
 const config = {
   apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain:        process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId:         process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  authDomain:        _authDomain,
+  projectId:         _projectId,
   appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
 };
