@@ -3284,6 +3284,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
   'signup_wizard_sub_sitter': 'Junte-se à comunidade de pet-sitters',
   'signup_wizard_sub_walker': 'Junte-se à comunidade de passeadores',
   'signup_step_personal': 'Informações pessoais',
+  'signup_photo_label': 'Foto de perfil',
+  'signup_photo_hint': 'Toque no círculo para adicionar a sua foto',
   'signup_field_name': 'Nome completo',
   'signup_field_dob': 'Data de nascimento',
   'signup_field_language': 'Idioma da app',

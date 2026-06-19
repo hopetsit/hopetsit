@@ -327,7 +327,7 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
               SvgPicture.string(_centreSvg, width: 30, height: 30),
               const SizedBox(height: 3),
               const Text(
-                'Paw Map',
+                'PawMap',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,

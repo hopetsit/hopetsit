@@ -3446,6 +3446,8 @@ const Map<String, String> enUSTranslations = <String, String>{
   'signup_wizard_sub_sitter': 'Join our community of trusted pet-sitters',
   'signup_wizard_sub_walker': 'Join our community of walkers',
   'signup_step_personal': 'Personal information',
+  'signup_photo_label': 'Profile photo',
+  'signup_photo_hint': 'Tap the circle to add your photo',
   'signup_field_name': 'Full name',
   'signup_field_dob': 'Date of birth',
   'signup_field_language': 'App language',

@@ -9,6 +9,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/city_location_picker.dart';
 
 /// v409 refonte — inscription en wizard 5 étapes (maquette « S'INSCRIRE COMME …
 /// »). Réutilise SignUpController (tag: userType) → l'auth/OTP existante n'est
@@ -239,37 +240,86 @@ class SignupWizardScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle('signup_step_personal'.tr),
-        Center(
-          child: GestureDetector(
-            onTap: c.pickProfileImage,
-            child: Obx(() {
-              final img = c.profileImageRx.value;
-              return Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 38.r,
-                    backgroundColor: _accent.withValues(alpha: 0.12),
-                    backgroundImage: img != null ? FileImage(img) : null,
-                    child: img == null
-                        ? Icon(Icons.person, size: 38.sp, color: _accent)
-                        : null,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      padding: EdgeInsets.all(5.w),
-                      decoration: BoxDecoration(
+        // v492 — Daniel : « tout le monde loupe l'ajout de la photo ». Bloc MIS
+        // EN ÉVIDENCE (carte teintée + anneau accent + halo) avec le libellé
+        // « Photo de profil » écrit À GAUCHE et le cercle photo à droite.
+        GestureDetector(
+          onTap: c.pickProfileImage,
+          child: Container(
+            padding: EdgeInsets.all(12.w),
+            decoration: BoxDecoration(
+              color: _accent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(
+                  color: _accent.withValues(alpha: 0.35), width: 1.4),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      PoppinsText(
+                        text: 'signup_photo_label'.tr,
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w800,
                         color: _accent,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
                       ),
-                      child: Icon(Icons.camera_alt, size: 12.sp, color: Colors.white),
-                    ),
+                      SizedBox(height: 4.h),
+                      InterText(
+                        text: 'signup_photo_hint'.tr,
+                        fontSize: 12.sp,
+                        color: AppColors.textSecondary(context),
+                      ),
+                    ],
                   ),
-                ],
-              );
-            }),
+                ),
+                SizedBox(width: 12.w),
+                Obx(() {
+                  final img = c.profileImageRx.value;
+                  return Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: _accent, width: 2.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _accent.withValues(alpha: 0.35),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: CircleAvatar(
+                          radius: 38.r,
+                          backgroundColor: _accent.withValues(alpha: 0.12),
+                          backgroundImage: img != null ? FileImage(img) : null,
+                          child: img == null
+                              ? Icon(Icons.add_a_photo_rounded,
+                                  size: 30.sp, color: _accent)
+                              : null,
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: EdgeInsets.all(5.w),
+                          decoration: BoxDecoration(
+                            color: _accent,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: Icon(Icons.camera_alt,
+                              size: 12.sp, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ],
+            ),
           ),
         ),
         SizedBox(height: 16.h),
@@ -461,18 +511,23 @@ class SignupWizardScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle('signup_step_location'.tr),
-        Obx(() => OutlinedButton.icon(
-              onPressed: c.isGettingLocation.value ? null : c.getCurrentLocationFromMaps,
-              icon: Icon(Icons.my_location_rounded, size: 18.sp, color: _accent),
-              label: Text('signup_location_auto'.tr),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _accent,
-                side: BorderSide(color: _accent),
-                minimumSize: Size(double.infinity, 44.h),
-              ),
+        // v491 — Daniel : « quand on tape la ville ça ne reconnaît pas via map ».
+        // On remplace le champ texte simple par CityLocationPicker : autocomplete
+        // (on tape « Paris » → liste de villes → on sélectionne → lat/lng remplis
+        // pour bien mapper). Même widget que sign_up_screen + édition de profil.
+        // Inclut déjà les boutons « Ma position » + « Carte ».
+        Obx(() => CityLocationPicker(
+              cityController: c.cityController,
+              onGetLocation: () => c.getCurrentLocationFromMaps(),
+              isGettingLocation: c.isGettingLocation.value,
+              detectedCity: c.userCity.value,
+              onLocationSelected: (city, lat, lng) {
+                c.userCity.value = city;
+                c.userLatitude.value = lat;
+                c.userLongitude.value = lng;
+              },
             )),
         SizedBox(height: 12.h),
-        _field(c.cityController, 'signup_field_city'.tr),
         _label('signup_field_radius'.tr),
         _radiusDropdown(c),
         SizedBox(height: 6.h),

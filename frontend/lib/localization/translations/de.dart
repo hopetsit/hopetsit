@@ -3449,6 +3449,8 @@ const Map<String, String> deDETranslations = <String, String>{
   'signup_wizard_sub_sitter': 'Werde Teil unserer Pet-Sitter-Community',
   'signup_wizard_sub_walker': 'Werde Teil unserer Gassigeher-Community',
   'signup_step_personal': 'Persönliche Daten',
+  'signup_photo_label': 'Profilfoto',
+  'signup_photo_hint': 'Tippe auf den Kreis, um dein Foto hinzuzufügen',
   'signup_field_name': 'Vollständiger Name',
   'signup_field_dob': 'Geburtsdatum',
   'signup_field_language': 'App-Sprache',

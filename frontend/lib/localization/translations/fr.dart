@@ -3468,6 +3468,8 @@ const Map<String, String> frFRTranslations = <String, String>{
   'signup_wizard_sub_sitter': 'Rejoignez notre communauté de pet-sitters de confiance',
   'signup_wizard_sub_walker': 'Rejoignez notre communauté de promeneurs',
   'signup_step_personal': 'Informations personnelles',
+  'signup_photo_label': 'Photo de profil',
+  'signup_photo_hint': 'Touchez le cercle pour ajouter votre photo',
   'signup_field_name': 'Nom complet',
   'signup_field_dob': 'Date de naissance',
   'signup_field_language': 'Langue de l’app',

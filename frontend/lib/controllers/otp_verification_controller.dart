@@ -215,11 +215,11 @@ class OtpVerificationController extends GetxController {
       // v20.2.1 — bug fix : si une photo de profil a été sélectionnée pendant
       // l'inscription, on l'upload maintenant que /auth/verify a renvoyé un
       // token (donc /users/me/profile-picture peut être appelé authentifié).
-      // Fire-and-forget : on ne bloque pas la nav si l'upload rate ; on log
-      // simplement et on garde le path pour qu'un nouvel essai puisse se
-      // faire la prochaine fois (ou que l'user le re-uploade depuis profil).
-      // ignore: discarded_futures
-      _uploadPendingSignupPhotoIfAny();
+      // v492 — Daniel : « la photo d'inscription n'apparaît pas dans le profil ».
+      // On ATTEND désormais l'upload (au lieu de fire-and-forget) pour que la
+      // photo soit bien sur le serveur ET dans le profil mis en cache AVANT
+      // d'arriver sur l'accueil/profil. Best-effort : ne throw jamais.
+      await _uploadPendingSignupPhotoIfAny();
 
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,
@@ -265,8 +265,25 @@ class OtpVerificationController extends GetxController {
       final UserRepository repo = Get.isRegistered<UserRepository>()
           ? Get.find<UserRepository>()
           : UserRepository(Get.find());
-      await repo.updateProfilePicture(file);
+      final result = await repo.updateProfilePicture(file);
       await _storage.remove(StorageKeys.pendingSignupPhotoPath);
+      // v492 — Daniel : la photo ne s'affichait pas dans le profil après
+      // inscription (le profil mis en cache n'avait pas l'avatar). On écrit
+      // l'URL renvoyée par le backend dans `user_profile` pour que l'en-tête
+      // de profil (3 rôles) l'affiche immédiatement, sans attendre un refetch.
+      try {
+        final avatarUrl = (result['avatar'] is Map)
+            ? (result['avatar']['url'] ?? '').toString()
+            : '';
+        if (avatarUrl.isNotEmpty) {
+          final prof = _storage.read<Map>(StorageKeys.userProfile);
+          if (prof != null) {
+            final updated = Map<String, dynamic>.from(prof);
+            updated['avatar'] = {'url': avatarUrl};
+            await _storage.write(StorageKeys.userProfile, updated);
+          }
+        }
+      } catch (_) {/* non-fatal */}
       AppLogger.logInfo('[otp] post-signup profile photo uploaded OK');
     } catch (e) {
       AppLogger.logError(

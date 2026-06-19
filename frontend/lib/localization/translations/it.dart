@@ -3444,6 +3444,8 @@ const Map<String, String> itITTranslations = <String, String>{
   'signup_wizard_sub_sitter': 'Unisciti alla community di pet-sitter',
   'signup_wizard_sub_walker': 'Unisciti alla community di dog walker',
   'signup_step_personal': 'Informazioni personali',
+  'signup_photo_label': 'Foto profilo',
+  'signup_photo_hint': 'Tocca il cerchio per aggiungere la tua foto',
   'signup_field_name': 'Nome completo',
   'signup_field_dob': 'Data di nascita',
   'signup_field_language': 'Lingua dell’app',

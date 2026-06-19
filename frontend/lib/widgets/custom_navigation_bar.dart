@@ -309,7 +309,7 @@ class _CenterPawMapButtonState extends State<_CenterPawMapButton>
                   ),
                   SizedBox(height: 3.h),
                   Text(
-                    'Paw Map',
+                    'PawMap',
                     maxLines: 1,
                     style: TextStyle(
                       fontSize: 13.sp,

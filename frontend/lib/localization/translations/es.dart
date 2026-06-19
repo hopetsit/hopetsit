@@ -3406,6 +3406,8 @@ const Map<String, String> esESTranslations = <String, String>{
   'signup_wizard_sub_sitter': 'Únete a nuestra comunidad de cuidadores',
   'signup_wizard_sub_walker': 'Únete a nuestra comunidad de paseadores',
   'signup_step_personal': 'Información personal',
+  'signup_photo_label': 'Foto de perfil',
+  'signup_photo_hint': 'Toca el círculo para añadir tu foto',
   'signup_field_name': 'Nombre completo',
   'signup_field_dob': 'Fecha de nacimiento',
   'signup_field_language': 'Idioma de la app',
