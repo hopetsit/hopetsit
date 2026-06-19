@@ -1003,6 +1003,26 @@ export default function MapPage() {
             <line x1="19" y1="12" x2="22.5" y2="12" />
           </svg>
         </button>
+        {/* v497 — Daniel : viseur de placement PRÉCIS pendant la création.
+            Point ROSE = Tag spot, point ROUGE = Signaler. Fixe au centre : on
+            déplace la carte dessous pour positionner au pixel près. */}
+        {createKind && (
+          <div className="pointer-events-none absolute left-1/2 top-1/2 z-[1100] -translate-x-1/2 -translate-y-1/2">
+            <div
+              className="h-5 w-5 rounded-full border-[2.5px] border-white shadow-lg"
+              style={{
+                backgroundColor: createKind === "spot" ? "#EC4899" : "#EF4324",
+              }}
+            />
+            <div
+              className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full"
+              style={{
+                border: `2px solid ${createKind === "spot" ? "#EC4899" : "#EF4324"}`,
+                opacity: 0.5,
+              }}
+            />
+          </div>
+        )}
         <PoiMap
           center={center}
           pois={visiblePois}
@@ -1108,14 +1128,10 @@ export default function MapPage() {
       {/* v497 — modal de création Tag spot / Signaler. Position = CENTRE de la
           carte (l'utilisateur déplace la carte pour positionner). */}
       {createKind && (
-        <div
-          className="fixed inset-0 z-[2000] flex items-end justify-center bg-black/40 p-4 sm:items-center"
-          onClick={() => !creating && setCreateKind(null)}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-x-0 bottom-0 z-[2000] flex justify-center p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl ring-1 ring-ink/10">
+            {/* v497 — feuille EN BAS (pas de fond noir plein écran) → la carte +
+                le viseur restent visibles pendant qu'on positionne. */}
             <h3 className="font-display text-lg font-extrabold text-ink">
               {createKind === "spot"
                 ? t("map_tag_spot_cta")
