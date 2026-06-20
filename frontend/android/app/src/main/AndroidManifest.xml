@@ -118,9 +118,11 @@
         </activity>
         <!-- Google Maps API Key -->
         <!-- v23.1 part 125 — Cette clé EST extraite de l'APK. Elle DOIT être
-             restreinte côté Google Cloud Console à `com.hopetsit.app` +
-             SHA-1 du keystore release. Sans ça, n'importe qui peut s'en
-             servir → facturation Google sur ton compte.
+             restreinte côté Google Cloud Console à `com.cardellihermanos.hopetsit`
+             (v498 renommage) + SHA-1 du keystore release. Sans ça, n'importe qui
+             peut s'en servir → facturation Google sur ton compte. ⚠️ v498 : après
+             le renommage du package, AJOUTER `com.cardellihermanos.hopetsit` + le
+             SHA-1 à la restriction de cette clé, sinon la carte reste grise.
              Voir docs/play-review/maps-key-restriction.md -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"

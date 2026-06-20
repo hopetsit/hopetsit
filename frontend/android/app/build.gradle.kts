@@ -24,7 +24,10 @@ if (hasReleaseKeystore) {
 }
 
 android {
-    namespace = "com.hopetsit.app"
+    // v498 — Daniel : Google Play exige le package com.cardellihermanos.hopetsit
+    // (= nom de la société CARDELLI HERMANOS LIMITED). Renommage complet du
+    // package Android (namespace = code/R class, applicationId = identité Play).
+    namespace = "com.cardellihermanos.hopetsit"
     compileSdk = flutter.compileSdkVersion
     // v20.0.6 — Pinned NDK to 27.0.12077973 (stable on Windows). NDK 28.2
     // had a CMake bug "CMAKE_CXX_COMPILER not set, after EnableLanguage"
@@ -42,7 +45,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.hopetsit.app"
+        applicationId = "com.cardellihermanos.hopetsit"
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

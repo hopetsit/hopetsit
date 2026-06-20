@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:470089536255:android:ea538012bc440cdd34b2ca",
         "android_client_info": {
-          "package_name": "com.hopetsit.app"
+          "package_name": "com.cardellihermanos.hopetsit"
         }
       },
       "oauth_client": [
@@ -17,7 +17,7 @@
           "client_id": "470089536255-3lc70geg1cublh2umtmo374pbrjomttb.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.hopetsit.app",
+            "package_name": "com.cardellihermanos.hopetsit",
             "certificate_hash": "2b08f1dc402a6999f5fb7312ecb0c7524da10d6b"
           }
         },
@@ -25,7 +25,7 @@
           "client_id": "470089536255-nn80cnl57e692oc29tvhm8jhkunrcupg.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.hopetsit.app",
+            "package_name": "com.cardellihermanos.hopetsit",
             "certificate_hash": "641e19912c1f2a8db5e81fb39dac08233014ed85"
           }
         },

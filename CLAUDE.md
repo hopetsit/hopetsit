@@ -47,10 +47,25 @@ PawPremium noir/or `#1c1726`→`#15120D` + or `#F4C04A`, badge membre rose
 `#F06AA0`→`#E0568B`. Web : font-display = Nunito.
 
 ## État actuel
-**Version app : 23.1.497** (APK + AAB livrés dans Downloads). Backend/site/admin
+**Version app : 23.1.498** (APK + AAB livrés dans Downloads). Backend/site/admin
 déployés. App ↔ web synchronisés (signalements, PawSpot + visites, PawPoints,
 membres roses sur la carte, code promo boutique+profil+dashboard, notifications
 traduites à la lecture dans la langue courante).
+
+### ⚠️ v498 — RENOMMAGE PACKAGE ANDROID `com.hopetsit.app` → `com.cardellihermanos.hopetsit`
+Exigence Google Play (= société CARDELLI HERMANOS LIMITED). Changé dans le CODE :
+`build.gradle.kts` (namespace + applicationId), MainActivity déplacé sous
+`kotlin/com/cardellihermanos/hopetsit/`, `google-services.json` (package_name
+Android), `website/.well-known/assetlinks.json` (2 entrées : ancien + nouveau).
+**iOS NON touché** (bundle id reste `com.hopetsit.app`, App Store séparé).
+**2 actions CONSOLE obligatoires côté Daniel (sinon login Google + carte cassés)** :
+1. **Firebase Console** → Project Settings → Add app (Android) → package
+   `com.cardellihermanos.hopetsit` → ajouter les SHA-1 du keystore release
+   (2B:08:F1:DC:… et 64:1E:19:91:…) → re-télécharger `google-services.json`.
+2. **Google Cloud Console** → la clé Maps `AIzaSyBw11dPKfWj…` → ajouter
+   `com.cardellihermanos.hopetsit` + SHA-1 à la restriction « Apps Android ».
+FCM marche via le `mobilesdk_app_id` existant. App Links déjà à jour (assetlinks
+2 entrées, même SHA-256).
 
 ## Lancer en local
 - Backend : `cd backend && npm install && npm run dev` (nécessite `.env`).
