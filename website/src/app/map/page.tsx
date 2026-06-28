@@ -99,7 +99,25 @@ export default function MapPage() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   // v23.1.397 — précision (mètres) du dernier relevé navigateur.
   const [userAccuracy, setUserAccuracy] = useState<number | null>(null);
-  const [center, setCenter] = useState<[number, number]>([48.8566, 2.3522]); // Paris default
+  // v500 — Daniel : « la carte s'ouvre sur Paris ». La géoloc navigateur recentre
+  // au 1er fix, mais Paris s'affichait avant (et en permanence si la géoloc est
+  // bloquée/lente sur PC). On démarre désormais sur la DERNIÈRE position connue
+  // (mémorisée en localStorage au précédent passage) → ouverture là où tu étais,
+  // sans attendre le GPS. Paris ne reste que pour un tout 1er usage sans géoloc.
+  const [center, setCenter] = useState<[number, number]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = window.localStorage.getItem("hopetsit:lastMapCenter");
+        if (saved) {
+          const p = JSON.parse(saved);
+          if (typeof p?.lat === "number" && typeof p?.lng === "number") {
+            return [p.lat, p.lng];
+          }
+        }
+      } catch {/* ignore */}
+    }
+    return [48.8566, 2.3522]; // Paris (fallback ultime)
+  });
   const [pois, setPois] = useState<Poi[]>([]);
   // v23.1.393 — Daniel : « je ne peux pas choisir rien ou sélectionner
   // plusieurs lieux ». Multi-sélection : [] = Tous ; sinon on filtre côté
@@ -283,6 +301,14 @@ export default function MapPage() {
           const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           setUserLocation(loc);
           setUserAccuracy(Math.round(acc));
+          // v500 — mémorise la dernière position pour rouvrir la carte ici la
+          // prochaine fois (plus de flash Paris).
+          try {
+            window.localStorage.setItem(
+              "hopetsit:lastMapCenter",
+              JSON.stringify(loc),
+            );
+          } catch {/* ignore */}
           if (firstFix) {
             firstFix = false;
             setCenter([loc.lat, loc.lng]);
