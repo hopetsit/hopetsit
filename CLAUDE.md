@@ -47,7 +47,7 @@ PawPremium noir/or `#1c1726`→`#15120D` + or `#F4C04A`, badge membre rose
 `#F06AA0`→`#E0568B`. Web : font-display = Nunito.
 
 ## État actuel
-**Version app : 23.1.498** (APK + AAB livrés dans Downloads). Backend/site/admin
+**Version app Android : 23.1.499** (APK + AAB livrés dans Downloads ; AAB **soumis en examen** sur Google Play). **iOS : build 502** (soumis App Store, géré sur Mac). Backend/site/admin
 déployés. App ↔ web synchronisés (signalements, PawSpot + visites, PawPoints,
 membres roses sur la carte, code promo boutique+profil+dashboard, notifications
 traduites à la lecture dans la langue courante).
@@ -66,6 +66,33 @@ Android), `website/.well-known/assetlinks.json` (2 entrées : ancien + nouveau).
    `com.cardellihermanos.hopetsit` + SHA-1 à la restriction « Apps Android ».
 FCM marche via le `mobilesdk_app_id` existant. App Links déjà à jour (assetlinks
 2 entrées, même SHA-256).
+**✅ FAIT côté Daniel** : Firebase + Maps key = SHA-1/SHA-256 de la **clé de signature Google Play**
+(`F3:0C:55:8A:…` / `6E:88:82:E5:…`) enregistrées → carte + login Google OK sur la version Store.
+assetlinks contient aussi la SHA-256 Google.
+
+### v499 — contournement conflit Play « 498 déjà utilisé »
+Bundle 498 déjà consommé dans la Play Console → impossible à ré-uploader. Bumpé en **499**
+(aucun changement de code, juste le versionCode) → uploadé + soumis Production.
+
+### Fixes récents (backend/web/admin, SANS rebuild app — déjà poussés sur origin)
+- **Couronne premium** réparée partout (app + web) : `isPremium` calculé à 4 endroits
+  (`fetchUserMini`, `members/nearby`, `live-positions`, web `premiumIds`) — tous passés en
+  **staff + cross-rôle (email/oldId)**. Web : `premiumIds` n'incluait que la famille → ajout des amis.
+  ⚠️ vieux compte sans couronne après ça = données email/oldId non liées entre ses 3 rôles.
+- **Admin** : colonne « Inscrit le » sur listes Sitters/Walkers ; payout affiche « IBAN (Airwallex) »
+  (plus « stripe » legacy).
+- **Apple Sign-In** : corrigé sur Mac (sign_in_with_apple + nonce + accessToken + entitlement),
+  voir `docs/claude-memory/apple-signin-fix-and-demo-account.md`. ⚠️ ces correctifs iOS sont
+  **locaux sur le Mac** (patch `HoPetSit_modifs_locales_20260625.patch`), peut-être pas tous sur origin.
+- **Compte démo store** : DOIT être email + mot de passe (pas Google/Apple à 2FA) — cause des
+  refus Apple ET Google.
+- **Suivi GPS** s'arrête ~1h sur Samsung = batterie OS (mettre l'app « Sans restriction »).
+
+### ⚠️ REPRENDRE SUR LE MAC (lire RESUME-MAC.md)
+Sur le Mac : **`git pull origin main`** pour récupérer le dernier code (renommage package
+Android v498/v499, fixes couronne, admin). **NE PAS écraser** le Mac avec le zip (ça effacerait
+les correctifs Apple locaux non commités). iOS = build sur Mac (Xcode / Codemagic), bundle
+reste `com.hopetsit.app`.
 
 ## Lancer en local
 - Backend : `cd backend && npm install && npm run dev` (nécessite `.env`).

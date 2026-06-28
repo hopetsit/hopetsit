@@ -17,7 +17,7 @@ from pathlib import Path
 # ─── Config ────────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent
 OUTPUT = (
-    Path.home() / "Downloads" / "HopeTSIT_FINAL_v23.1.497.zip"
+    Path.home() / "Downloads" / "HopeTSIT_FINAL_v23.1.499.zip"
 )
 
 # Dossiers à exclure (basés sur leur nom — n'importe où dans l'arbre).
