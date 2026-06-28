@@ -439,7 +439,18 @@ export default function MapPage() {
       const allFamily = (familyResp.members || []).filter((m) => !!m.id);
       setFamilyIds(allFamily.map((m) => m.id));
       // v23.1.399 — membres PawPremium (isPremium poussé par le backend).
-      setPremiumIds(allFamily.filter((m) => m.isPremium).map((m) => m.id));
+      // v500 — Daniel : « couronne premium pas affichée sur le web ». BUG :
+      // premiumIds ne venait QUE de la FAMILLE → un AMI premium (hors famille)
+      // n'avait jamais la couronne sur le web, alors que l'app la montre (elle
+      // lit isPremium par ami via fetchUserMini). FIX : premiumIds = amis
+      // premium (f.other.isPremium, renvoyé par le backend) + famille premium.
+      const _premIds = [
+        ...accepted
+          .filter((f) => f.other?.isPremium)
+          .map((f) => f.other.id),
+        ...allFamily.filter((m) => m.isPremium).map((m) => m.id),
+      ].filter(Boolean);
+      setPremiumIds([...new Set(_premIds)]);
 
       // 2) friends élargis (friends + family synthétiques) pour résoudre
       // les events socket des membres famille hors friend-list.

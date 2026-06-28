@@ -136,6 +136,35 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
       logger.warn(`[friends/members/nearby] sub lookup failed : ${subErr?.message || subErr}`);
     }
 
+    // v500 — Daniel : couronne staff absente sur la carte. `staff` ne lisait que
+    // d.isStaff du doc courant ; isStaff peut être sur un AUTRE rôle (même
+    // email/oldId). Batch léger (3 requêtes pour tous les candidats) → couronne
+    // cohérente avec /me/benefits et fetchUserMini.
+    let staffEmails = new Set();
+    let staffOldIds = new Set();
+    try {
+      const emails = [...new Set(tagged.map((t) => t.d.email).filter(Boolean))];
+      const oldIds = [...new Set(
+        tagged.map((t) => t.d.oldId).filter((v) => v != null).map(String),
+      )];
+      const orMatch = [];
+      if (emails.length) orMatch.push({ email: { $in: emails } });
+      if (oldIds.length) orMatch.push({ oldId: { $in: oldIds } });
+      if (orMatch.length) {
+        const staffDocs = (await Promise.all([
+          Owner.find({ $or: orMatch, isStaff: true }).select('email oldId').lean(),
+          Sitter.find({ $or: orMatch, isStaff: true }).select('email oldId').lean(),
+          Walker.find({ $or: orMatch, isStaff: true }).select('email oldId').lean(),
+        ])).flat();
+        for (const sd of staffDocs) {
+          if (sd.email) staffEmails.add(sd.email);
+          if (sd.oldId != null) staffOldIds.add(String(sd.oldId));
+        }
+      }
+    } catch (stErr) {
+      logger.warn(`[friends/members/nearby] staff cross-role lookup failed : ${stErr?.message || stErr}`);
+    }
+
     const avatarUrl = (a) =>
       (a && (typeof a === 'object' ? a.url : a)) || '';
     const members = [];
@@ -150,7 +179,9 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
 
       const pawspot = d.mapBoostExpiry && new Date(d.mapBoostExpiry) > now;
       const premiumSub = subSet.has(idStr);
-      const staff = d.isStaff === true;
+      const staff = d.isStaff === true
+        || (d.email && staffEmails.has(d.email))
+        || (d.oldId != null && staffOldIds.has(String(d.oldId)));
       // Membre actif = abonné PawSpot / Premium / PawFollow / staff. Sinon exclu.
       if (!pawspot && !premiumSub && !staff) continue;
 
@@ -639,7 +670,7 @@ router.get('/diagnose', requireAuth, async (req, res) => {
           ];
         const otherDoc = OtherModel
           ? await OtherModel.findById(otherId)
-              .select('firstName lastName email avatar mapBoostExpiry mapBoostTier')
+              .select('firstName lastName email avatar mapBoostExpiry mapBoostTier isStaff oldId')
               .lean()
           : null;
         // v23.1 part 220 — name fallback : firstName+lastName, sinon
@@ -686,6 +717,25 @@ router.get('/diagnose', requireAuth, async (req, res) => {
             premiumExpiry: { $gt: new Date() },
           }).select('_id').lean();
           otherIsPremium = !!sub;
+          // v500 — Daniel : couronne absente sur la carte pour les amis « premium
+          // STAFF ». Cette route ne comptait QUE l'abo payant (premiumExpiry),
+          // jamais isStaff → pas de couronne pour un staff. + relecture cross-rôle
+          // (email/oldId) comme fetchUserMini, pour les comptes staff sur un
+          // autre rôle (anciens profils).
+          if (!otherIsPremium && otherDoc && otherDoc.isStaff === true) {
+            otherIsPremium = true;
+          }
+          if (!otherIsPremium && otherDoc && (otherDoc.email || otherDoc.oldId != null)) {
+            const or = [];
+            if (otherDoc.email) or.push({ email: otherDoc.email });
+            if (otherDoc.oldId != null) or.push({ oldId: otherDoc.oldId });
+            const [o2, s3, w2] = await Promise.all([
+              Owner.findOne({ $or: or, isStaff: true }).select('_id').lean(),
+              Sitter.findOne({ $or: or, isStaff: true }).select('_id').lean(),
+              Walker.findOne({ $or: or, isStaff: true }).select('_id').lean(),
+            ]);
+            if (o2 || s3 || w2) otherIsPremium = true;
+          }
         } catch (_) {/* defensive */}
         return {
           friendshipId: String(f._id),

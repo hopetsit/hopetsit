@@ -925,6 +925,10 @@ export type FriendOther = {
   // l'option" (parité avec l'app). Tier PawSpot actif renvoyé par
   // fetchUserMini : 'bronze' | 'silver' | 'gold' | 'platinum' | null.
   pawSpotTier?: string | null;
+  // v500 — Daniel : « couronne premium pas sur le web ». Le backend renvoie
+  // isPremium par ami (fetchUserMini) mais le type ne l'exposait pas → la carte
+  // web ne pouvait pas mettre la couronne 👑 sur un ami premium.
+  isPremium?: boolean;
 };
 
 export type FriendItem = {
