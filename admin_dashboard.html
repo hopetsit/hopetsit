@@ -3686,7 +3686,7 @@ function renderSitters() {
   // user-controlled passe par escapeHtml. _id (ObjectId 24 hex) reste
   // safe à inliner en attribut.
   document.getElementById('sitters-table-body').innerHTML = `
-    <table><thead><tr><th>Nom</th><th>Email</th><th>Tarif horaire</th><th>Services</th><th>Vérifié</th><th>Boost</th><th>Payout</th><th>Staff</th><th>Actions</th></tr></thead>
+    <table><thead><tr><th>Nom</th><th>Email</th><th>Inscrit le</th><th>Tarif horaire</th><th>Services</th><th>Vérifié</th><th>Boost</th><th>Payout</th><th>Staff</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(s => {
       const boosted = s.boostExpiry && new Date(s.boostExpiry) > new Date();
       const boostDays = boosted ? Math.ceil((new Date(s.boostExpiry).getTime() - Date.now()) / 86400000) : 0;
@@ -3695,11 +3695,12 @@ function renderSitters() {
       <tr>
         <td><strong>${escapeHtml(s.name||'-')}</strong></td>
         <td style="color:var(--text-muted)">${escapeHtml(s.email||'-')}</td>
+        <td style="font-size:12px;color:var(--text-muted)">${fmtDate(s.createdAt)}</td>
         <td>€${(s.hourlyRate||0).toFixed(2)}/hr</td>
         <td style="font-size:12px">${services}</td>
         <td>${s.verified ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">En attente</span>'}</td>
         <td>${boosted ? `<span class="badge badge-orange">🔥 ${escapeHtml(s.boostTier||'boost')} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
-        <td><span class="badge badge-blue">${escapeHtml(s.payoutMethod||'airwallex')}</span></td>
+        <td><span class="badge badge-blue">${payoutMethodLabel(s.payoutMethod)}</span></td>
         <td>${s.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           ${!s.verified ? `<button class="action-btn btn-verify" onclick="verifySitter('${s._id}')">✓ Verify</button>` : ''}
@@ -3854,7 +3855,7 @@ function renderWalkers() {
   }
   // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
   document.getElementById('walkers-table-body').innerHTML = `
-    <table><thead><tr><th>Nom</th><th>Email</th><th>Tarif</th><th>Zone</th><th>Vérifié</th><th>Boost</th><th>Payout</th><th>Staff</th><th>Actions</th></tr></thead>
+    <table><thead><tr><th>Nom</th><th>Email</th><th>Inscrit le</th><th>Tarif</th><th>Zone</th><th>Vérifié</th><th>Boost</th><th>Payout</th><th>Staff</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(w => {
       const boosted = w.boostExpiry && new Date(w.boostExpiry) > new Date();
       const boostDays = boosted ? Math.ceil((new Date(w.boostExpiry).getTime() - Date.now()) / 86400000) : 0;
@@ -3868,11 +3869,12 @@ function renderWalkers() {
       <tr>
         <td><strong>${escapeHtml(w.name||'-')}</strong></td>
         <td style="color:var(--text-muted)">${escapeHtml(w.email||'-')}</td>
+        <td style="font-size:12px;color:var(--text-muted)">${fmtDate(w.createdAt)}</td>
         <td>${rate}</td>
         <td style="font-size:12px">${coverage}</td>
         <td>${w.verified ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">En attente</span>'}</td>
         <td>${boosted ? `<span class="badge badge-orange">🔥 ${escapeHtml(w.boostTier||'boost')} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
-        <td><span class="badge badge-blue">${escapeHtml(w.payoutMethod||'airwallex')}</span></td>
+        <td><span class="badge badge-blue">${payoutMethodLabel(w.payoutMethod)}</span></td>
         <td>${w.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           ${!w.verified ? `<button class="action-btn btn-verify" onclick="verifyWalker('${w._id}')">✓ Verify</button>` : ''}
