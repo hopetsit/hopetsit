@@ -386,7 +386,7 @@ async function fetchUserMini(id, modelName) {
   const Model = MODEL_BY_NAME[modelName];
   if (!Model) return null;
   const u = await Model.findById(id)
-    .select('firstName lastName profilePicture location city avatar email mapBoostExpiry mapBoostTier isStaff')
+    .select('firstName lastName profilePicture location city avatar email oldId mapBoostExpiry mapBoostTier isStaff')
     .lean();
   if (!u) return null;
   // v23.1.280 — Daniel : "si l'ami a l'option PawSpot, anneau doré/bleu selon
@@ -440,6 +440,28 @@ async function fetchUserMini(id, modelName) {
     // SANS abonnement payant → pas de premiumExpiry) n'avait ni couronne ni
     // badge. Le staff = premium gratuit illimité → on le compte comme premium.
     if (!isPremium && u.isStaff === true) isPremium = true;
+    // v500 — Daniel : « 2 anciens profils premium ne montrent pas la couronne
+    // aux autres ». CAUSE : ici on ne regardait QUE le doc du rôle de l'amitié
+    // (isStaff + sub sur ce userId). Mais une personne = 3 docs (Owner/Sitter/
+    // Walker, même email/oldId) ; si le staff/abo est sur un AUTRE rôle, la
+    // couronne manquait — alors que /me/benefits (cross-rôle) le voyait premium.
+    // FIX : même relecture cross-rôle (email/oldId) sur les 3 docs → couronne
+    // cohérente quel que soit le rôle de l'amitié. Ne tourne que si pas déjà
+    // premium (cas premium classique court-circuité → léger).
+    if (!isPremium && (u.email || u.oldId)) {
+      const or = [];
+      if (u.email) or.push({ email: u.email });
+      if (u.oldId) or.push({ oldId: u.oldId });
+      const [o, s2, w] = await Promise.all([
+        Owner.findOne({ $or: or, isStaff: true }).select('_id').lean(),
+        Sitter.findOne({ $or: or, isStaff: true }).select('_id').lean(),
+        Walker.findOne({ $or: or, isStaff: true }).select('_id').lean(),
+      ]);
+      if (o || s2 || w) {
+        isPremium = true;
+        hasPawFollow = true; // staff = tous les abos, dont PawFollow
+      }
+    }
   } catch (_) {/* best-effort : pas de couronne plutôt qu'un 500 */}
   // v23.1 part 220 — Daniel : "juste le nom de l'utilisateur s'affiche
   // pas". Les users n'ont pas leur firstName/lastName populates dans
