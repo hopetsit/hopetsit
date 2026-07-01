@@ -252,6 +252,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('payouts')"><span class="nav-icon">💰</span> <span data-i18n="nav_revenue">Mes revenus</span></div>
       <div class="nav-item" onclick="showPage('accounting')"><span class="nav-icon">📒</span> <span data-i18n="nav_accounting">Comptabilité</span></div>
       <div class="nav-item" onclick="showPage('payments')"><span class="nav-icon">💳</span> <span data-i18n="nav_payments">Paiements</span></div>
+      <!-- v500 — Daniel : « Activité boutique » rangée avec les finances. -->
+      <div class="nav-item" onclick="showPage('boosts')"><span class="nav-icon">🛍️</span> <span data-i18n="nav_shop_activity">Activité boutique</span></div>
       <div class="nav-item" onclick="showPage('invoices')"><span class="nav-icon">🧾</span> <span data-i18n="nav_invoices">Factures</span></div>
       <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> <span data-i18n="nav_iban">Virements IBAN</span></div>
       <div class="nav-item" onclick="showPage('wallets')"><span class="nav-icon">💼</span> <span data-i18n="nav_wallets">Portefeuilles</span></div>
@@ -282,7 +284,6 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- Boutique -->
       <div class="nav-section" style="margin-top:18px">🛍️ <span data-i18n="navsec_shop">Boutique</span></div>
-      <div class="nav-item" onclick="showPage('boosts')"><span class="nav-icon">🚀</span> <span data-i18n="nav_shop_activity">Activité boutique</span></div>
       <div class="nav-item" onclick="showPage('pricing')"><span class="nav-icon">💶</span> <span data-i18n="nav_pricing">Tarifs</span></div>
       <div class="nav-item" onclick="showPage('services')"><span class="nav-icon">🧰</span> <span data-i18n="nav_services">Services</span></div>
 
@@ -454,9 +455,67 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           Vue complète des transactions plateforme — paiements reçus, commissions perçues et virements aux providers.
         </p>
 
-        <!-- Summary cards -->
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px" id="payment-summary-cards">
+        <!-- v500 — Daniel : « une page de paiement claire ». Vue d'ensemble
+             globale (petsitting + boutique + dons + total HoPetSit). -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px" id="finance-overview-cards">
           <div class="loading"><div class="spinner"></div></div>
+        </div>
+
+        <!-- v500 — les 2 activités côte à côte : 🐾 PetSitting | 🛍️ Boutique -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(460px,1fr));gap:18px;align-items:start;margin-bottom:22px">
+
+          <!-- 🐾 ACTIVITÉ PETSITTING -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;min-width:0">
+            <div class="section-title" style="font-size:16px">🐾 <span data-i18n="finance_petsitting_title">Activité PetSitting</span></div>
+            <p style="color:var(--text-muted);font-size:12.5px;margin-bottom:12px" data-i18n="finance_petsitting_desc">Réservations payées, commissions plateforme et virements aux prestataires.</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px" id="payment-summary-cards">
+              <div class="loading"><div class="spinner"></div></div>
+            </div>
+            <!-- Filters -->
+            <div class="table-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+              <select class="filter-select" id="pay-filter-status" onchange="loadPayments()">
+                <option value="" data-i18n="filter_all_pay_status">Tous les statuts paiement</option>
+                <option value="paid" data-i18n="pay_paid">Payé</option>
+                <option value="failed" data-i18n="pay_failed">Échec</option>
+                <option value="refunded" data-i18n="pay_refunded">Remboursé</option>
+              </select>
+              <select class="filter-select" id="pay-filter-payout" onchange="loadPayments()">
+                <option value="" data-i18n="filter_all_payout_status">Tous les statuts payout</option>
+                <option value="pending" data-i18n="status_pending">En attente</option>
+                <option value="processing" data-i18n="status_processing">En cours</option>
+                <option value="completed" data-i18n="status_done">Terminé</option>
+                <option value="failed" data-i18n="pay_failed">Échec</option>
+              </select>
+              <select class="filter-select" id="pay-filter-provider" onchange="loadPayments()">
+                <option value="" data-i18n="filter_all_providers">Tous les providers</option>
+                <option value="airwallex">🌐 Airwallex</option>
+              </select>
+              <input type="date" class="filter-select" id="pay-filter-from" onchange="loadPayments()" data-i18n-title="from_date" title="From date" />
+              <input type="date" class="filter-select" id="pay-filter-to" onchange="loadPayments()" data-i18n-title="to_date" title="To date" />
+            </div>
+            <!-- Payments table -->
+            <div class="table-wrap">
+              <div id="payments-table-body">
+                <div class="loading"><div class="spinner"></div></div>
+              </div>
+            </div>
+            <!-- Pagination -->
+            <div style="display:flex;justify-content:center;gap:8px;margin-top:12px" id="payments-pagination"></div>
+          </div>
+
+          <!-- 🛍️ ACTIVITÉ BOUTIQUE (dons + vérifications d'identité inclus) -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;min-width:0">
+            <div class="section-title" style="font-size:16px">🛍️ <span data-i18n="finance_shop_title">Activité Boutique</span>
+              <button class="action-btn" style="margin-left:12px;background:#2563EB;color:#fff" onclick="showPage('boosts')"><span data-i18n="finance_shop_all">Voir tout</span> →</button>
+            </div>
+            <p style="color:var(--text-muted);font-size:12.5px;margin-bottom:12px" data-i18n="finance_shop_desc">Abonnements &amp; boosts, 🪪 vérifications d'identité et 🎁 dons.</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px" id="pay-shop-stats">
+              <div class="loading"><div class="spinner"></div></div>
+            </div>
+            <div class="table-wrap">
+              <div id="pay-shop-table"><div class="loading"><div class="spinner"></div></div></div>
+            </div>
+          </div>
         </div>
 
         <!-- v23.1.376 — Daniel : payouts prestataires par catégorie -->
@@ -490,38 +549,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="payment-breakdown-row">
         </div>
 
-        <!-- Filters -->
-        <div class="table-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-          <select class="filter-select" id="pay-filter-status" onchange="loadPayments()">
-            <option value="" data-i18n="filter_all_pay_status">Tous les statuts paiement</option>
-            <option value="paid" data-i18n="pay_paid">Payé</option>
-            <option value="failed" data-i18n="pay_failed">Échec</option>
-            <option value="refunded" data-i18n="pay_refunded">Remboursé</option>
-          </select>
-          <select class="filter-select" id="pay-filter-payout" onchange="loadPayments()">
-            <option value="" data-i18n="filter_all_payout_status">Tous les statuts payout</option>
-            <option value="pending" data-i18n="status_pending">En attente</option>
-            <option value="processing" data-i18n="status_processing">En cours</option>
-            <option value="completed" data-i18n="status_done">Terminé</option>
-            <option value="failed" data-i18n="pay_failed">Échec</option>
-          </select>
-          <select class="filter-select" id="pay-filter-provider" onchange="loadPayments()">
-            <option value="" data-i18n="filter_all_providers">Tous les providers</option>
-            <option value="airwallex">🌐 Airwallex</option>
-          </select>
-          <input type="date" class="filter-select" id="pay-filter-from" onchange="loadPayments()" data-i18n-title="from_date" title="From date" />
-          <input type="date" class="filter-select" id="pay-filter-to" onchange="loadPayments()" data-i18n-title="to_date" title="To date" />
-        </div>
-
-        <!-- Payments table -->
-        <div class="table-wrap">
-          <div id="payments-table-body">
-            <div class="loading"><div class="spinner"></div></div>
-          </div>
-        </div>
-
-        <!-- Pagination -->
-        <div style="display:flex;justify-content:center;gap:8px;margin-top:12px" id="payments-pagination"></div>
+        <!-- v500 — filtres + table paiements déplacés dans la colonne
+             « Activité PetSitting » (grille 2 colonnes en haut de page). -->
       </div>
 
       <!-- INVOICES (v23.1) -->
@@ -1085,7 +1114,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div id="page-boosts" class="page">
         <div class="section-title">🚀 <span data-i18n="boosts_title">Activité boutique</span></div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px" data-i18n="boosts_desc">
-          Tous les achats boutique (PawBoost, PawSpot, PawFollow/PawFamily, 👑 Paw Premium) pour pet-sitters, owners et walkers. Revenus, achats actifs, historique.
+          Tous les achats boutique (PawBoost, PawSpot, PawFollow/PawFamily, 👑 Paw Premium, 🪪 vérifications d'identité, 🎁 dons) pour pet-sitters, owners et walkers. Revenus, achats actifs, historique.
         </p>
         <div class="stats-grid" id="boosts-stats-grid"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
@@ -1096,6 +1125,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
             <option value="map_boost" data-i18n="boost_map_old">🗺️ Map Boost (ancien)</option>
             <option value="premium">⭐ PawFollow</option>
             <option value="chat_addon">💬 Chat add-on</option>
+            <option value="kyc">🪪 Vérification ID</option>
+            <option value="donation">🎁 Dons</option>
           </select>
           <select class="filter-select" id="boost-tier-filter" onchange="loadBoosts()">
             <option value="" data-i18n="filter_all_tiers">Toutes formules</option>
@@ -1664,6 +1695,95 @@ async function processWithdrawalsNow() {
 function refreshPaymentsPage() {
   try { loadPayments(); } catch (_) {}
   try { loadProviderPayouts(); } catch (_) {}
+  try { loadShopPanel(); } catch (_) {}
+}
+
+// ─── v500 — Daniel : « une page de paiement claire : activité petsitting et à
+// côté activité boutique ». La page Paiements combine désormais les 2 flux.
+// _finPay / _finShop mémorisent les derniers résumés pour la vue d'ensemble.
+let _finPay = null;
+let _finShop = null;
+
+function renderFinanceOverview() {
+  const el = document.getElementById('finance-overview-cards');
+  if (!el || (!_finPay && !_finShop)) return;
+  const fmt = (v) => `€${Number(v || 0).toFixed(2)}`;
+  const commission = _finPay?.summary?.totalCommission || 0;
+  const shopTotal = _finShop?.totalRevenue || 0;
+  const dons = _finShop?.productBreakdown?.donation?.revenue || 0;
+  const kyc = _finShop?.productBreakdown?.kyc?.revenue || 0;
+  el.innerHTML = `
+    <div class="stat-card" style="border-left:4px solid #22c55e">
+      <div style="font-size:13px;color:var(--text-muted)">🐾 Commissions PetSitting</div>
+      <div style="font-size:22px;font-weight:700;color:#22c55e">${fmt(commission)}</div>
+      <div style="font-size:11px;color:var(--text-muted)">${_finPay?.summary?.paidCount || 0} réservations payées</div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid #FFB300">
+      <div style="font-size:13px;color:var(--text-muted)">🛍️ Revenus Boutique</div>
+      <div style="font-size:22px;font-weight:700;color:#FFB300">${fmt(shopTotal)}</div>
+      <div style="font-size:11px;color:var(--text-muted)">${_finShop?.totalPurchases || 0} achats (abos, boosts, ID, dons)</div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid #8B5CF6">
+      <div style="font-size:13px;color:var(--text-muted)">🪪 Vérifications ID</div>
+      <div style="font-size:22px;font-weight:700;color:#8B5CF6">${fmt(kyc)}</div>
+      <div style="font-size:11px;color:var(--text-muted)">${_finShop?.productBreakdown?.kyc?.count || 0} vérifications payées</div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid #EC4899">
+      <div style="font-size:13px;color:var(--text-muted)">🎁 Dons</div>
+      <div style="font-size:22px;font-weight:700;color:#EC4899">${fmt(dons)}</div>
+      <div style="font-size:11px;color:var(--text-muted)">${_finShop?.productBreakdown?.donation?.count || 0} dons reçus</div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid #EF4324">
+      <div style="font-size:13px;color:var(--text-muted)">💶 Total HoPetSit</div>
+      <div style="font-size:22px;font-weight:700;color:#EF4324">${fmt(commission + shopTotal)}</div>
+      <div style="font-size:11px;color:var(--text-muted)">commissions + boutique</div>
+    </div>
+  `;
+}
+
+// Panneau « Activité Boutique » de la page Paiements : stats + 12 derniers
+// achats (PawPremium/PawFollow/PawSpot/PawBoost + 🪪 vérifications ID + 🎁 dons).
+async function loadShopPanel() {
+  const stats = document.getElementById('pay-shop-stats');
+  const tbl = document.getElementById('pay-shop-table');
+  if (!stats && !tbl) return;
+  try {
+    const d = await api('/admin/boosts?page=1&limit=12');
+    _finShop = d.summary || {};
+    renderFinanceOverview();
+    if (stats) {
+      const pb = _finShop.productBreakdown || {};
+      const cell = (k) => pb[k]
+        ? `<div class="stat-card" style="--accent:${PRODUCT_COLORS[k]}"><div class="stat-label">${PRODUCT_LABELS[k]}</div><div class="stat-value">€${(pb[k].revenue || 0).toFixed(2)}</div><div class="stat-sub">${pb[k].count} achats</div></div>`
+        : '';
+      stats.innerHTML = `
+        <div class="stat-card" style="--accent:var(--green)"><div class="stat-label">Revenus boutique</div><div class="stat-value" style="color:var(--green)">€${(_finShop.totalRevenue || 0).toFixed(2)}</div><div class="stat-sub">${_finShop.totalPurchases || 0} achats au total</div></div>
+        ${cell('pawpremium')}${cell('premium')}${cell('map_boost')}${cell('profile_boost')}${cell('kyc')}${cell('donation')}
+      `;
+    }
+    if (tbl) {
+      const rows = (d.purchases || []).map((p) => {
+        const cur = p.currency === 'GBP' ? '£' : p.currency === 'USD' ? '$' : p.currency === 'CHF' ? 'CHF ' : '€';
+        const st = p.oneShot
+          ? '<span class="badge badge-blue">✓ Payé</span>'
+          : p.isActive
+          ? '<span class="badge badge-green">Actif</span>'
+          : '<span class="badge badge-gray">Expiré</span>';
+        return `<tr>
+          <td style="font-size:12px;color:var(--text-muted)">${fmtDate(p.purchasedAt)}</td>
+          <td><strong>${escapeHtml(p.userName || '-')}</strong></td>
+          <td>${PRODUCT_LABELS[p.product] || escapeHtml(p.product || '-')}</td>
+          <td style="font-weight:600">${escapeHtml(cur)}${(p.amount || 0).toFixed(2)}</td>
+          <td>${st}</td>
+        </tr>`;
+      }).join('');
+      tbl.innerHTML = rows
+        ? `<table><thead><tr><th>Date</th><th>User</th><th data-i18n="th_product">Produit</th><th data-i18n="th_amount">Montant</th><th data-i18n="th_status">Statut</th></tr></thead><tbody>${rows}</tbody></table>`
+        : `<div class="empty-state"><div class="empty-icon">🛒</div>Aucun achat boutique pour le moment.</div>`;
+    }
+  } catch (e) {
+    if (tbl) tbl.innerHTML = `<div class="empty-state">⚠️ ${e.message}</div>`;
+  }
 }
 
 // v410 — Daniel : la colonne Méthode affichait « stripe » (legacy). Stripe est
@@ -1960,7 +2080,7 @@ function showPage(name) {
   if (name === 'filtre') loadFiltre();
   if (name === 'reportstats') loadReportStats();
   if (name === 'pawpoints') { loadPawPointsBoard(); loadRewards(); loadRedemptions(); }
-  if (name === 'payments') loadProviderPayouts();
+  if (name === 'payments') { loadProviderPayouts(); loadShopPanel(); }
   if (name === 'payouts') loadCompanySweeps();
   if (name === 'annonces') loadAnnonces();
 }
@@ -4112,6 +4232,9 @@ async function loadPayments(page) {
 }
 
 function renderPaymentSummary(summary, providers, payouts) {
+  // v500 — alimente la vue d'ensemble (petsitting + boutique) de la page.
+  _finPay = { summary, payouts };
+  try { renderFinanceOverview(); } catch (_) {}
   const fmt = (v) => `€${Number(v || 0).toFixed(2)}`;
   document.getElementById('payment-summary-cards').innerHTML = `
     <div class="stat-card" style="border-left:4px solid #22c55e">
@@ -4581,6 +4704,9 @@ const PRODUCT_LABELS = {
   pawpremium: '👑 Paw Premium',
   premium: '⭐ PawFollow',
   chat_addon: '💬 Chat add-on',
+  // v500 — Daniel : dons + paiements de vérification d'identité visibles.
+  donation: '🎁 Don',
+  kyc: '🪪 Vérification ID',
 };
 const PRODUCT_COLORS = {
   profile_boost: '#FF8C42',
@@ -4588,6 +4714,8 @@ const PRODUCT_COLORS = {
   pawpremium: '#FFD700',
   premium: '#FFB300',
   chat_addon: '#26C6DA',
+  donation: '#EC4899',
+  kyc: '#8B5CF6',
 };
 
 async function loadBoosts(page) {
@@ -4613,7 +4741,7 @@ function renderBoostStats(summary) {
   const grid = document.getElementById('boosts-stats-grid');
   const pb = summary.productBreakdown || {};
   let productHtml = '';
-  for (const k of ['profile_boost', 'map_boost', 'premium', 'pawpremium', 'chat_addon']) {
+  for (const k of ['profile_boost', 'map_boost', 'premium', 'pawpremium', 'chat_addon', 'kyc', 'donation']) {
     if (pb[k]) {
       productHtml += `<div class="stat-card" style="--accent:${PRODUCT_COLORS[k]}">
         <div class="stat-label">${PRODUCT_LABELS[k]}</div>
@@ -4638,7 +4766,10 @@ function renderBoostsTable(purchases, total) {
   let rows = '';
   for (const p of purchases) {
     const isActive = p.isActive === true;
-    const statusHtml = isActive
+    // v500 — dons + KYC = achats uniques (pas d'expiration) → badge « Payé ».
+    const statusHtml = p.oneShot
+      ? `<span class="badge badge-blue">✓ Payé</span>`
+      : isActive
       ? `<span class="badge badge-green">Actif</span>`
       : `<span class="badge badge-gray">Expired</span>`;
     const productKey = p.product || 'profile_boost';
@@ -5860,7 +5991,8 @@ async function toggleStaff(role, userId, isStaff) {
         bug_status_open: "🔴 Open", bug_status_in_progress: "🟡 In progress", bug_status_fixed: "✅ Fixed", bug_status_wontfix: "⚪ Won't fix", bug_status_duplicate: "📋 Duplicate",
         bug_status_open_plain: "Open", bug_status_in_progress_plain: "In progress", bug_status_fixed_plain: "Fixed", bug_status_wontfix_plain: "Won't fix", bug_status_duplicate_plain: "Duplicate",
         pawpremium_title: "Paw Premium — bundle", pawpremium_desc: "Paw Premium = PawFollow + PawSpot + exclusives (👑 badge, community points ×2, new-feature priority). €7.99/mo · €59.99/yr (-33% vs the two separately: €11.98 and €89.98). Full grid: PawFollow €6.99/mo · €49.99/yr — PawFamily €9.99/mo · €69.99/yr — PawSpot €4.99/mo · €39.99/yr — PawBoost €4.99→€24.99.", diag_account: "Account diagnostic",
-        boosts_title: "Shop activity", boosts_desc: "All shop purchases (PawBoost, PawSpot, PawFollow/PawFamily, 👑 Paw Premium) for pet-sitters, owners and walkers. Revenue, active purchases, history.", filter_all_products: "All products", boost_map_old: "🗺️ Map Boost (legacy)", filter_all_tiers: "All tiers", tier_monthly: "📆 Monthly", tier_yearly: "📅 Yearly", tier_family: "👨‍👩‍👧 Family",
+        boosts_title: "Shop activity", boosts_desc: "All shop purchases (PawBoost, PawSpot, PawFollow/PawFamily, 👑 Paw Premium, 🪪 ID verifications, 🎁 donations) for pet-sitters, owners and walkers. Revenue, active purchases, history.",
+        finance_petsitting_title: "PetSitting activity", finance_petsitting_desc: "Paid bookings, platform commissions and provider payouts.", finance_shop_title: "Shop activity", finance_shop_desc: "Subscriptions & boosts, 🪪 ID verifications and 🎁 donations.", finance_shop_all: "View all", filter_all_products: "All products", boost_map_old: "🗺️ Map Boost (legacy)", filter_all_tiers: "All tiers", tier_monthly: "📆 Monthly", tier_yearly: "📅 Yearly", tier_family: "👨‍👩‍👧 Family",
         annonces_title: "Listings & moderation", annonces_desc: "All listings (booking requests and media posts). Ban hides the listing from users while keeping the data in the DB (audit + analytics). Delete is permanent.", annonces_live: "Live", annonces_banned: "Banned", filter_all_types: "All types", annonces_requests: "Requests", annonces_media: "Media", annonces_search_ph: "🔍 Search in the text...",
         pawmap_title: "PawMap analytics", pawmap_desc: "Overview of POIs (vets, parks, water points...) and community reports (lost dog, hazard, water point, etc.). All reports are kept — even after 48h expiry — as a historical dataset. Useful to spot hotspots and detect abuse.",
         pawmap_seed_title: "Seed the map (OpenStreetMap)", pawmap_seed_desc: "Automatically loads POIs from OpenStreetMap for one country or all of Europe. Categories cover vets, dog parks, shops, groomers, water points, pet-friendly hotels/restaurants. The seed runs in the background (1-3 min per country). Click “All Europe + Switzerland” to load the 29 countries at once.",

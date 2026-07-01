@@ -151,6 +151,40 @@ const handleAirwallexWebhook = async (req, res) => {
           break;
         }
 
+        // v500 — Daniel : « les dons n'apparaissent pas dans l'activité
+        // boutique admin ». Un don n'était JAMAIS persisté en Mongo (PI
+        // Airwallex seulement) → on l'enregistre ici (upsert idempotent sur le
+        // paymentIntentId) pour que /admin/boosts puisse le lister.
+        if (purchaseType === 'donation') {
+          try {
+            const Donation = require('../models/Donation');
+            const roleToModel = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' };
+            const role = String(piMetadata.userRole || piMetadata.role || '').toLowerCase();
+            await Donation.updateOne(
+              { paymentIntentId: piId },
+              {
+                $setOnInsert: {
+                  paymentIntentId: piId,
+                  userId: piMetadata.userId || null,
+                  userModel: roleToModel[role] || null,
+                  userRole: role,
+                  name: piMetadata.userName || '',
+                  email: piMetadata.userEmail || '',
+                  // data.amount = centimes → unités.
+                  amount: Math.round(Number(data?.amount || 0)) / 100,
+                  currency: (data?.currency || piMetadata.currency || 'EUR').toUpperCase(),
+                  paidAt: new Date(),
+                },
+              },
+              { upsert: true },
+            );
+            logger.info(`✅ [airwallex.webhook] donation recorded from PI ${piId} (${(Number(data?.amount || 0) / 100).toFixed(2)} ${data?.currency || 'EUR'})`);
+          } catch (e) {
+            logger.error(`[airwallex.webhook] donation record failed for PI ${piId} : ${e.message}`);
+          }
+          break;
+        }
+
         // v23.1 — card verification flow ("Add card without payment").
         // We charged €0.50 just to attach a payment_consent ; the user
         // never agreed to be charged. Refund immediately so the bank entry

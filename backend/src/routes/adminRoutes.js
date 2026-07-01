@@ -1707,9 +1707,14 @@ router.get('/boosts', requireAdmin, async (req, res) => {
 
     const UserSubscription = require('../models/UserSubscription');
     const UserChatAddon = require('../models/UserChatAddon');
+    const Donation = require('../models/Donation');
 
     // Fetch boost purchases from all 3 user collections
-    const [sitters, owners, walkers, subs, chatAddons] = await Promise.all([
+    // v500 — Daniel : « ni les dons ni les paiements de vérification
+    // d'identité n'apparaissent dans l'activité boutique ». On agrège
+    // désormais AUSSI : les paiements KYC 3 EUR (kycPaidAt sur Sitter/Walker)
+    // + les dons (collection Donation, alimentée par le webhook Airwallex).
+    const [sitters, owners, walkers, subs, chatAddons, kycSitters, kycWalkers, donations] = await Promise.all([
       Sitter.find({ 'boostPurchases.0': { $exists: true } })
         .select('name email boostExpiry boostTier boostPurchases')
         .lean(),
@@ -1725,6 +1730,13 @@ router.get('/boosts', requireAdmin, async (req, res) => {
       UserChatAddon.find({ 'payments.0': { $exists: true } })
         .select('userId userModel payments currentPeriodEnd status')
         .lean(),
+      Sitter.find({ kycPaidAt: { $ne: null } })
+        .select('name email kycPaidAt kycPaymentIntentId kycStatus')
+        .lean(),
+      Walker.find({ kycPaidAt: { $ne: null } })
+        .select('name email kycPaidAt kycPaymentIntentId kycStatus')
+        .lean(),
+      Donation.find({}).lean().catch(() => []),
     ]);
 
     // Build a quick lookup for sub/addon userId → name+email so the UI
@@ -1842,6 +1854,50 @@ router.get('/boosts', requireAdmin, async (req, res) => {
           isActive,
         });
       }
+    }
+
+    // v500 — paiements KYC (vérification d'identité, 3 EUR one-shot).
+    const pushKyc = (users, role) => {
+      for (const u of users) {
+        allPurchases.push({
+          userId: u._id,
+          userName: u.name || '-',
+          userEmail: u.email || '-',
+          role,
+          product: 'kyc',
+          tier: null,
+          amount: 3,
+          currency: 'EUR',
+          days: null,
+          purchasedAt: u.kycPaidAt,
+          paymentProvider: 'airwallex',
+          paymentId: u.kycPaymentIntentId || '-',
+          isActive: true,
+          oneShot: true, // achat unique → l'UI affiche « Payé » (pas Actif/Expiré)
+        });
+      }
+    };
+    pushKyc(kycSitters, 'sitter');
+    pushKyc(kycWalkers, 'walker');
+
+    // v500 — dons (collection Donation, alimentée par le webhook Airwallex).
+    for (const d of donations) {
+      allPurchases.push({
+        userId: d.userId,
+        userName: d.name || '-',
+        userEmail: d.email || '-',
+        role: d.userRole || 'owner',
+        product: 'donation',
+        tier: null,
+        amount: d.amount,
+        currency: d.currency || 'EUR',
+        days: null,
+        purchasedAt: d.paidAt,
+        paymentProvider: 'airwallex',
+        paymentId: d.paymentIntentId || '-',
+        isActive: true,
+        oneShot: true,
+      });
     }
 
     // Filter by tier / role / product
