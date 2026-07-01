@@ -396,8 +396,28 @@ router.get('/stats', requireAdmin, async (req, res) => {
 
       const boostProfile = (pO || 0) + (pS || 0) + (pW || 0);
       const boostMap = (mO || 0) + (mS || 0) + (mW || 0);
+      // v503 — Daniel : « tableau de bord à jour » → la boutique inclut aussi
+      // les vérifications d'identité (3 EUR × payées) et les dons, comme
+      // /admin/payouts (Mes revenus / Comptabilité).
+      let kycT = 0;
+      try {
+        const [ksC2, kwC2] = await Promise.all([
+          Sitter.countDocuments({ kycPaidAt: { $ne: null } }),
+          Walker.countDocuments({ kycPaidAt: { $ne: null } }),
+        ]);
+        kycT = (ksC2 + kwC2) * 3;
+      } catch (_) {}
+      let donT = 0;
+      try {
+        const DonationM = require('../models/Donation');
+        const dA = await DonationM.aggregate([
+          { $match: { status: 'succeeded' } },
+          { $group: { _id: null, t: { $sum: { $ifNull: ['$amount', 0] } } } },
+        ]);
+        donT = dA[0]?.t || 0;
+      } catch (_) {}
       boutiqueTotal = parseFloat(
-        (boostProfile + boostMap + subsRevenue + chatTotal).toFixed(2),
+        (boostProfile + boostMap + subsRevenue + chatTotal + kycT + donT).toFixed(2),
       );
     } catch (e) {
       // best-effort : on n'empêche jamais le dashboard de charger.
@@ -2417,6 +2437,8 @@ router.delete('/posts/:id', requireAdmin, async (req, res) => {
 router.get('/pawmap/seed/countries', requireAdmin, (req, res) => {
   res.json({
     countries: mapPoiSeedService.ALL_EU_COUNTRIES,
+    // v503 — Daniel : USA + tous les états, comme les pays européens.
+    usStates: mapPoiSeedService.ALL_US_STATES,
     categories: Object.keys(mapPoiSeedService.CATEGORY_TAGS),
     bboxes: mapPoiSeedService.COUNTRY_BBOX,
   });

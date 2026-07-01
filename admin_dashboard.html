@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v502'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v503'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -226,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v502</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v503</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -273,7 +273,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('moderation')"><span class="nav-icon">🛡️</span> <span data-i18n="nav_moderation">Modération users</span></div>
       <div class="nav-item" onclick="showPage('loyalty')"><span class="nav-icon">🏆</span> <span data-i18n="nav_loyalty">Avantages fidélité</span></div>
       <div class="nav-item" onclick="showPage('pawfollow')"><span class="nav-icon">⭐</span> <span data-i18n="nav_pawfollow">PawFollow</span></div>
-      <div class="nav-item" onclick="showPage('pawpremium')"><span class="nav-icon">👑</span> <span data-i18n="nav_pawpremium">Paw Premium</span></div>
+      <div class="nav-item" onclick="showPage('pawpremium')"><span class="nav-icon">👑</span> <span data-i18n="nav_pawpremium">PawPremium</span></div>
       <div class="nav-item" onclick="showPage('pawspot')"><span class="nav-icon">🐾</span> <span data-i18n="nav_pawspot">PawSpot</span></div>
       <div class="nav-item" onclick="showPage('promotions')"><span class="nav-icon">🎟️</span> <span data-i18n="nav_promotions">Promotions</span></div>
       <div class="nav-item" onclick="showPage('filtre')"><span class="nav-icon">🛡️</span> <span data-i18n="nav_filtre">Filtre &amp; modération</span></div>
@@ -781,10 +781,10 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <!-- v23.1.365 — PAWFOLLOW (abos mensuel/annuel/famille par rôle) -->
       <div id="page-pawfollow" class="page">
         <div class="section-title">⭐ <span data-i18n="pawfollow_admin_title">PawFollow — abonnements</span>
-          <button class="action-btn" style="margin-left:12px;background:linear-gradient(90deg,#B8860B,#FFD700);color:#15120D;font-weight:700" onclick="giftPawPremium()">👑 <span data-i18n="gift_paw_premium">Offrir Paw Premium</span></button>
+          <button class="action-btn" style="margin-left:12px;background:linear-gradient(90deg,#B8860B,#FFD700);color:#15120D;font-weight:700" onclick="giftPawPremium()">👑 <span data-i18n="gift_paw_premium">Offrir PawPremium</span></button>
         </div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px" data-i18n="pawfollow_desc">
-          Abonnements ACTIFS par type de compte — PawFollow (6,99 €/mois · 49,99 €/an) · PawFamily (9,99 €/mois · 69,99 €/an) · 👑 Paw Premium = PawFollow + PawSpot + exclusifs (7,99 €/mois · 59,99 €/an, -33% vs séparés).
+          Abonnements ACTIFS par type de compte — PawFollow (6,99 €/mois · 49,99 €/an) · PawFamily (9,99 €/mois · 69,99 €/an) · 👑 PawPremium = PawFollow + PawSpot + exclusifs (7,99 €/mois · 59,99 €/an, -33% vs séparés).
         </p>
         <div class="stats-grid" id="pawfollow-summary"></div>
         <div style="margin-top:20px;overflow-x:auto">
@@ -836,8 +836,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           </label>
           <label id="promo-plan-wrap" style="font-size:12px;color:var(--text-muted)"><span data-i18n="promo_plan_offered">Forfait offert</span>
             <select id="promo-plan" class="filter-select" style="width:100%;margin-top:5px">
-              <option value="premium_monthly:30:">👑 Paw Premium — Mensuel</option>
-              <option value="premium_yearly:365:">👑 Paw Premium — Annuel</option>
+              <option value="premium_monthly:30:">👑 PawPremium — Mensuel</option>
+              <option value="premium_yearly:365:">👑 PawPremium — Annuel</option>
               <option value="monthly:30:">📍 PawFollow — Mensuel</option>
               <option value="yearly:365:">📍 PawFollow — Annuel</option>
               <option value="family:30:">👨‍👩‍👧 PawFamily — Mensuel</option>
@@ -1062,7 +1062,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         </div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:780px;line-height:1.6" data-i18n="payouts_desc">
           Tes commissions HoPetSit (20% sur réservations) +
-          paiements boutique (PawBoost, PawSpot, PawFollow/PawFamily, 👑 Paw Premium, 🪪 vérifications d'identité, 🎁 dons).
+          paiements boutique (PawBoost, PawSpot, PawFollow/PawFamily, 👑 PawPremium, 🪪 vérifications d'identité, 🎁 dons).
           La card verte « Solde retirable » ci-dessous est le montant que tu peux envoyer vers ton IBAN société d'un clic.
         </p>
         <div class="stats-grid" id="payouts-summary"></div>
@@ -1074,7 +1074,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div id="page-accounting" class="page">
         <div class="section-title">📒 <span data-i18n="acc_title">Comptabilité — Mon bilan</span></div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:820px;line-height:1.6">
-          <span data-i18n="acc_desc">Mes bénéfices HoPetSit uniquement : commissions plateforme sur les réservations + revenus boutique (PawBoost, PawSpot, PawFollow, 👑 Paw Premium). Hors paiements reversés aux prestataires. Pour mon comptable.</span>
+          <span data-i18n="acc_desc">Mes bénéfices HoPetSit uniquement : commissions plateforme sur les réservations + revenus boutique (PawBoost, PawSpot, PawFollow, 👑 PawPremium). Hors paiements reversés aux prestataires. Pour mon comptable.</span>
           <button class="action-btn btn-primary" style="margin-left:10px" onclick="exportAccountingCsv()">⬇️ <span data-i18n="acc_export">Exporter CSV</span></button>
         </p>
         <div class="stats-grid" id="accounting-summary"></div>
@@ -1104,14 +1104,14 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       </div>
 
       <!-- BOOSTS -->
-      <!-- v23.1.388 — section dédiée Paw Premium (Daniel) -->
+      <!-- v23.1.388 — section dédiée PawPremium (Daniel) -->
       <div id="page-pawpremium" class="page">
-        <div class="section-title">👑 <span data-i18n="pawpremium_title">Paw Premium — bundle</span>
-          <button class="action-btn" style="margin-left:12px;background:linear-gradient(90deg,#B8860B,#FFD700);color:#15120D;font-weight:700" onclick="giftPawPremium()">👑 <span data-i18n="gift_paw_premium">Offrir Paw Premium</span></button>
+        <div class="section-title">👑 <span data-i18n="pawpremium_title">PawPremium — bundle</span>
+          <button class="action-btn" style="margin-left:12px;background:linear-gradient(90deg,#B8860B,#FFD700);color:#15120D;font-weight:700" onclick="giftPawPremium()">👑 <span data-i18n="gift_paw_premium">Offrir PawPremium</span></button>
           <button class="action-btn" style="margin-left:8px;background:#2563EB;color:#fff" onclick="diagPawPremium()">🧪 <span data-i18n="diag_account">Diagnostic compte</span></button>
         </div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:760px" data-i18n="pawpremium_desc">
-          Paw Premium = PawFollow + PawSpot + exclusifs (badge 👑, points communauté ×2, priorité nouveautés).
+          PawPremium = PawFollow + PawSpot + exclusifs (badge 👑, points communauté ×2, priorité nouveautés).
           7,99 €/mois · 59,99 €/an (-33% vs les deux séparés : 11,98 € et 89,98 €).
           Grille complète : PawFollow 6,99/mois · 49,99/an — PawFamily 9,99/mois · 69,99/an — PawSpot 4,99/mois · 39,99/an — PawBoost 4,99→24,99 €.
         </p>
@@ -1126,14 +1126,14 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div id="page-boosts" class="page">
         <div class="section-title">🚀 <span data-i18n="boosts_title">Activité boutique</span></div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px" data-i18n="boosts_desc">
-          Tous les achats boutique (PawBoost, PawSpot, PawFollow/PawFamily, 👑 Paw Premium, 🪪 vérifications d'identité, 🎁 dons) pour pet-sitters, owners et walkers. Revenus, achats actifs, historique.
+          Tous les achats boutique (PawBoost, PawSpot, PawFollow/PawFamily, 👑 PawPremium, 🪪 vérifications d'identité, 🎁 dons) pour pet-sitters, owners et walkers. Revenus, achats actifs, historique.
         </p>
         <div class="stats-grid" id="boosts-stats-grid"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
           <select class="filter-select" id="boost-product-filter" onchange="loadBoosts()">
             <option value="" data-i18n="filter_all_products">Tous les produits</option>
             <option value="profile_boost">🚀 PawBoost profil</option>
-            <option value="pawpremium">👑 Paw Premium</option>
+            <option value="pawpremium">👑 PawPremium</option>
             <option value="map_boost" data-i18n="boost_map_old">🗺️ Map Boost (ancien)</option>
             <option value="premium">⭐ PawFollow / PawFamily</option>
             <option value="chat_addon">💬 Chat add-on</option>
@@ -1202,16 +1202,18 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
           <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px">🌱 <span data-i18n="pawmap_seed_title">Alimenter la carte (OpenStreetMap)</span></div>
           <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;max-width:720px" data-i18n="pawmap_seed_desc">
-            Charge automatiquement les POIs depuis OpenStreetMap pour un pays ou toute l'Europe.
+            Charge automatiquement les POIs depuis OpenStreetMap pour un pays européen, un état américain, toute l'Europe ou tous les USA.
             Les catégories couvrent vétos, parcs à chiens, boutiques, toiletteurs, points d'eau, hôtels/restos pet-friendly.
-            Le seed tourne en tâche de fond (1-3 min par pays). Clique « Tout l'Europe + Suisse » pour charger les 29 pays d'un coup.
+            Le seed tourne en tâche de fond (1-3 min par pays/état). « Tout l'Europe + Suisse » = 29 pays d'un coup ; « Tous les USA » = 50 états + DC.
           </p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
             <select id="seed-country-select" class="filter-select" style="min-width:180px">
               <!-- Populated dynamically -->
             </select>
-            <button class="action-btn btn-primary" onclick="startSeed()">🌱 <span data-i18n="pawmap_seed_country">Seed ce pays</span></button>
+            <button class="action-btn btn-primary" onclick="startSeed()">🌱 <span data-i18n="pawmap_seed_country">Seed ce pays / état</span></button>
             <button class="action-btn" onclick="startSeedBatch()" style="background:var(--orange);color:#fff;border:none">🌍 <span data-i18n="pawmap_seed_all">Tout l'Europe + Suisse (29 pays)</span></button>
+            <!-- v503 — Daniel : USA + tous les états, comme l'Europe. -->
+            <button class="action-btn" onclick="startSeedBatchUS()" style="background:#2563EB;color:#fff;border:none">🇺🇸 <span data-i18n="pawmap_seed_all_us">Tous les USA (50 états + DC)</span></button>
             <button class="action-btn" onclick="loadSeedJobs()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">↻ <span data-i18n="pawmap_refresh_jobs">Rafraîchir jobs</span></button>
           </div>
           <div id="seed-jobs" style="font-size:12px"></div>
@@ -1935,11 +1937,11 @@ async function loadPawFollowSubs() {
       card('🐕 Walkers — annuel', cell('walker').yearly, '#16A34A') +
       card('🐕 Walkers — famille', cell('walker').family, '#8B5CF6') +
       card('🐕 Walkers — 👑 Premium', cell('walker').premium, '#B8860B');
-    // v23.1.387 — + plans Paw Premium et Famille annuel.
+    // v23.1.387 — + plans PawPremium et Famille annuel.
     const planLabel = {
       monthly: '📆 Mensuel', yearly: '📅 Annuel',
       family: '👨‍👩‍👧 Famille', family_yearly: '👨‍👩‍👧 Famille Annuel',
-      premium_monthly: '👑 Paw Premium Mensuel', premium_yearly: '👑 Paw Premium Annuel',
+      premium_monthly: '👑 PawPremium Mensuel', premium_yearly: '👑 PawPremium Annuel',
     };
     const rows = (d.rows || []).map((r) =>
       `<tr><td>${r.name || '—'}</td><td>${r.email || '—'}</td><td>${r.role}</td><td>${planLabel[r.plan] || r.plan}</td><td>${r.expiry ? new Date(r.expiry).toLocaleDateString() : '—'}</td></tr>`).join('');
@@ -1951,7 +1953,7 @@ async function loadPawFollowSubs() {
   }
 }
 
-// v23.1.394 — Diagnostic Paw Premium par email : points, badge, timers,
+// v23.1.394 — Diagnostic PawPremium par email : points, badge, timers,
 // et si le ×2 points est actif — pour vérifier badge/classement/points.
 async function diagPawPremium() {
   const email = prompt('Email du compte à diagnostiquer :');
@@ -1975,9 +1977,9 @@ async function diagPawPremium() {
   } catch (e) { alert('Erreur : ' + (e.message || e)); }
 }
 
-// v23.1.387 — Offrir Paw Premium à un utilisateur (par email, tous rôles).
+// v23.1.387 — Offrir PawPremium à un utilisateur (par email, tous rôles).
 async function giftPawPremium() {
-  const email = prompt('Email du compte à qui offrir Paw Premium :');
+  const email = prompt('Email du compte à qui offrir PawPremium :');
   if (!email || !email.trim()) return;
   const daysRaw = prompt('Durée en jours (30 = mensuel, 365 = annuel) :', '30');
   const days = parseInt(daysRaw, 10);
@@ -1987,14 +1989,14 @@ async function giftPawPremium() {
     const lines = (r.granted || [])
       .map((g) => `• ${g.role} ${g.name || ''} → jusqu'au ${new Date(g.premiumExpiry).toLocaleDateString()}`)
       .join('\n');
-    alert(`👑 Paw Premium offert (+${r.days} j) :\n${lines}`);
+    alert(`👑 PawPremium offert (+${r.days} j) :\n${lines}`);
     loadPawFollowSubs();
   } catch (e) {
     alert('Erreur : ' + (e.message || e));
   }
 }
 
-// v23.1.388 — section Paw Premium : compteurs + abonnés (depuis le même
+// v23.1.388 — section PawPremium : compteurs + abonnés (depuis le même
 // endpoint que PawFollow, filtré premium).
 async function loadPawPremiumAdmin() {
   try {
@@ -2882,13 +2884,44 @@ const COUNTRY_FLAGS = {
   BG: '🇧🇬', EE: '🇪🇪', LV: '🇱🇻', LT: '🇱🇹', MT: '🇲🇹', CY: '🇨🇾',
 };
 
+// v503 — Daniel : USA + tous les états dans l'onglet PawMap, comme l'Europe.
+const US_STATE_NAMES = {
+  'US-AL': 'Alabama', 'US-AK': 'Alaska', 'US-AZ': 'Arizona', 'US-AR': 'Arkansas',
+  'US-CA': 'California', 'US-CO': 'Colorado', 'US-CT': 'Connecticut', 'US-DE': 'Delaware',
+  'US-FL': 'Florida', 'US-GA': 'Georgia', 'US-HI': 'Hawaii', 'US-ID': 'Idaho',
+  'US-IL': 'Illinois', 'US-IN': 'Indiana', 'US-IA': 'Iowa', 'US-KS': 'Kansas',
+  'US-KY': 'Kentucky', 'US-LA': 'Louisiana', 'US-ME': 'Maine', 'US-MD': 'Maryland',
+  'US-MA': 'Massachusetts', 'US-MI': 'Michigan', 'US-MN': 'Minnesota', 'US-MS': 'Mississippi',
+  'US-MO': 'Missouri', 'US-MT': 'Montana', 'US-NE': 'Nebraska', 'US-NV': 'Nevada',
+  'US-NH': 'New Hampshire', 'US-NJ': 'New Jersey', 'US-NM': 'New Mexico', 'US-NY': 'New York',
+  'US-NC': 'North Carolina', 'US-ND': 'North Dakota', 'US-OH': 'Ohio', 'US-OK': 'Oklahoma',
+  'US-OR': 'Oregon', 'US-PA': 'Pennsylvania', 'US-RI': 'Rhode Island', 'US-SC': 'South Carolina',
+  'US-SD': 'South Dakota', 'US-TN': 'Tennessee', 'US-TX': 'Texas', 'US-UT': 'Utah',
+  'US-VT': 'Vermont', 'US-VA': 'Virginia', 'US-WA': 'Washington', 'US-WV': 'West Virginia',
+  'US-WI': 'Wisconsin', 'US-WY': 'Wyoming', 'US-DC': 'Washington D.C.',
+};
+function seedFlag(code) {
+  return String(code || '').startsWith('US-') ? '🇺🇸' : (COUNTRY_FLAGS[code] || '');
+}
+function seedLabel(code) {
+  return US_STATE_NAMES[code] ? `${US_STATE_NAMES[code]} (${code})` : code;
+}
+let _seedUsStates = []; // rempli par loadSeedCountries (batch USA)
+
 async function loadSeedCountries() {
   try {
     const d = await api('/admin/pawmap/seed/countries');
+    _seedUsStates = d.usStates || [];
     const sel = document.getElementById('seed-country-select');
-    sel.innerHTML = d.countries
-      .map((c) => `<option value="${c}">${COUNTRY_FLAGS[c] || ''} ${c}</option>`)
+    const euOpts = d.countries
+      .map((c) => `<option value="${c}">${seedFlag(c)} ${c}</option>`)
       .join('');
+    const usOpts = _seedUsStates
+      .map((c) => `<option value="${c}">${seedFlag(c)} ${seedLabel(c)}</option>`)
+      .join('');
+    sel.innerHTML =
+      `<optgroup label="🌍 Europe">${euOpts}</optgroup>` +
+      (usOpts ? `<optgroup label="🇺🇸 USA — états">${usOpts}</optgroup>` : '');
   } catch (e) {
     console.error('loadSeedCountries', e);
   }
@@ -2898,9 +2931,21 @@ async function startSeed() {
   const country = document.getElementById('seed-country-select').value;
   try {
     const d = await api('/admin/pawmap/seed', 'POST', { country });
-    showToast(`🌱 Seed lancé pour ${COUNTRY_FLAGS[country] || ''} ${country}. Job ${d.jobId}.`);
+    showToast(`🌱 Seed lancé pour ${seedFlag(country)} ${seedLabel(country)}. Job ${d.jobId}.`);
     pollSeedJobs();
   } catch (e) { showToast('❌ ' + (e.message || 'Seed failed')); }
+}
+
+// v503 — batch USA : les 50 états + DC d'un coup (même mécanique que l'Europe).
+async function startSeedBatchUS() {
+  if (!_seedUsStates.length) { await loadSeedCountries(); }
+  if (!_seedUsStates.length) { showToast('❌ Liste des états indisponible — recharge la page.'); return; }
+  if (!confirm(`Lancer le seed pour les ${_seedUsStates.length} états des USA ? Peut prendre 1-2 heures au total. Le batch tourne en arrière-plan — tu peux fermer l'admin.`)) return;
+  try {
+    const d = await api('/admin/pawmap/seed/batch', 'POST', { countries: _seedUsStates });
+    showToast(`🇺🇸 Batch USA lancé (${_seedUsStates.length} états). Job ${d.jobId}.`);
+    pollSeedJobs();
+  } catch (e) { showToast('❌ ' + (e.message || 'Batch USA failed')); }
 }
 
 async function startSeedBatch() {
@@ -2944,7 +2989,7 @@ async function loadSeedJobs() {
         .map(([k, v]) => `${k}: ${v.inserted || 0}`)
         .join(' · ');
       return `<div style="background:var(--surface2);padding:10px;border-radius:8px;margin-bottom:8px;border-left:3px solid ${statusColor}">
-        <div style="font-weight:600">${COUNTRY_FLAGS[j.country] || ''} ${j.country} · ${j.status} · ${j.totalInserted} POIs · ${dur}</div>
+        <div style="font-weight:600">${seedFlag(j.country)} ${seedLabel(j.country)} · ${j.status} · ${j.totalInserted} POIs · ${dur}</div>
         <div style="color:var(--text-muted);font-size:11px">${byCat || '(pas encore de cat)'}</div>
       </div>`;
     }).join('');
@@ -3214,8 +3259,8 @@ const PRICING_CATS = [
   // PawFamily = famille.
   { key: 'premium',  label: '⭐ PawFollow',  tiers: ['monthly','yearly'] },
   { key: 'premium',  label: '👨‍👩‍👧 PawFamily', tiers: ['family','family_yearly'] },
-  // v23.1.393 — Paw Premium éditable (même clé data 'premium').
-  { key: 'premium',  label: '👑 Paw Premium', tiers: ['premium_monthly','premium_yearly'] },
+  // v23.1.393 — PawPremium éditable (même clé data 'premium').
+  { key: 'premium',  label: '👑 PawPremium', tiers: ['premium_monthly','premium_yearly'] },
   // v23.1.393 — Chat add-on retiré de l'admin (produit abandonné).
 ];
 
@@ -3646,18 +3691,26 @@ async function loadDashboard() {
     // rendu dans la grid.
     // v23.1.312 — Daniel : cartes Commission, Boutique bénéfice, À reverser aux
     // prestataires (wallets), Abonnements (nombre + revenus).
+    // v503 — Daniel : « tableau de bord clean et à jour ». Cartes réorganisées :
+    // 💶 FINANCES d'abord (avec Bénéfice total = commission + boutique, la
+    // boutique incluant désormais 🪪 vérifications ID + 🎁 dons côté backend),
+    // puis 👥 COMMUNAUTÉ.
+    const _benefTotal = (d.commissionTotal || 0) + (d.boutiqueTotal || 0);
     const stats = [
-      { label: 'Réservations', value: d.totalBookings, sub: `${d.pendingBookings} en attente`, accent: colors[0] },
-      { label: 'Réservations payées', value: d.paidBookings, sub: 'paiements aboutis', accent: colors[1] },
-      { label: 'CA brut réservations', value: `€${(d.totalRevenue||0).toFixed(2)}`, sub: 'total payé par les owners', accent: colors[2] },
+      // ── Finances ──
+      { label: '💶 Bénéfice total HoPetSit', value: `€${_benefTotal.toFixed(2)}`, sub: 'commissions + boutique (ID + dons inclus)', accent: colors[0] },
       { label: '💰 Commission 20%', value: `€${(d.commissionTotal||0).toFixed(2)}`, sub: 'ta part sur les réservations', accent: colors[1] },
-      { label: '🛍️ Boutique bénéfice', value: `€${(d.boutiqueTotal||0).toFixed(2)}`, sub: 'PawBoost + PawSpot + PawFollow + 👑 Paw Premium', accent: colors[3] },
+      { label: '🛍️ Boutique bénéfice', value: `€${(d.boutiqueTotal||0).toFixed(2)}`, sub: 'PawBoost + PawSpot + PawFollow + 👑 PawPremium + 🪪 ID + 🎁 Dons', accent: colors[3] },
+      { label: '📈 CA brut réservations', value: `€${(d.totalRevenue||0).toFixed(2)}`, sub: 'total payé par les owners', accent: colors[2] },
       { label: '↩️ À reverser aux prestataires', value: `€${(d.providerWalletTotal||0).toFixed(2)}`, sub: 'solde wallets sitters + walkers', accent: colors[4] },
       { label: '📦 Abonnements', value: d.subscriptions?.total || 0, sub: `€${(d.subscriptions?.totalRevenue||0).toFixed(2)} de revenus`, accent: colors[5] },
-      { label: 'Pet Sitters', value: d.totalSitters, sub: 'inscrits', accent: colors[3] },
-      { label: 'Pet Walkers', value: d.totalWalkers || 0, sub: 'inscrits', accent: colors[5] },
-      { label: 'Pet Owners', value: d.totalOwners, sub: 'inscrits', accent: colors[4] },
-      { label: 'Animaux', value: d.totalPets, sub: 'dans le système', accent: colors[6] },
+      // ── Communauté ──
+      { label: '📅 Réservations', value: d.totalBookings, sub: `${d.pendingBookings} en attente`, accent: colors[0] },
+      { label: '✅ Réservations payées', value: d.paidBookings, sub: 'paiements aboutis', accent: colors[1] },
+      { label: '🏠 Pet-sitters', value: d.totalSitters, sub: 'inscrits', accent: colors[3] },
+      { label: '🚶 Promeneurs', value: d.totalWalkers || 0, sub: 'inscrits', accent: colors[5] },
+      { label: '👤 Propriétaires', value: d.totalOwners, sub: 'inscrits', accent: colors[4] },
+      { label: '🐾 Animaux', value: d.totalPets, sub: 'dans le système', accent: colors[6] },
     ];
     // Répartition des abonnements par plan (quel plan les gens prennent).
     const planLabel = (p) => ({
@@ -3701,7 +3754,7 @@ async function loadDashboard() {
           <td>${escapeHtml(b.owner?.name || '-')}</td>
           <td>${escapeHtml(b.sitter?.name || '-')}</td>
           <td>€${(b.pricing?.totalPrice||b.totalAmount||0).toFixed(2)}</td>
-          <td><span class="badge badge-green">Paid</span></td>
+          <td><span class="badge badge-green">Payé</span></td>
         </tr>
       `).join('')}</tbody></table>
     ` : '<div class="empty-state"><div class="empty-icon">💳</div><div>Aucune réservation payée pour l\'instant.</div></div>';
@@ -4713,7 +4766,7 @@ const TIER_COLORS = {
 const PRODUCT_LABELS = {
   profile_boost: '🚀 PawBoost',
   map_boost: '🗺️ PawSpot',
-  pawpremium: '👑 Paw Premium',
+  pawpremium: '👑 PawPremium',
   // v502 — Daniel : les plans PawFamily sont comptés dans ce produit → le
   // libellé le dit explicitement.
   premium: '⭐ PawFollow/Family',
@@ -5008,7 +5061,7 @@ async function loadAdminPayouts() {
       '<tr><td><strong>🗺️ PawSpot</strong></td><td>'+(bb.mapBoost?.total||0).toFixed(2)+' EUR</td><td>'+(bb.mapBoost?.count||0)+'</td></tr>' +
       '<tr><td><strong>⭐ PawFollow</strong></td><td>'+(bb.pawFollow?.total||0).toFixed(2)+' EUR</td><td>'+(bb.pawFollow?.count||0)+'</td></tr>' +
       '<tr><td><strong>👨‍👩‍👧 PawFamily</strong></td><td>'+(bb.pawFamily?.total||0).toFixed(2)+' EUR</td><td>'+(bb.pawFamily?.count||0)+'</td></tr>' +
-      '<tr><td><strong>👑 Paw Premium</strong></td><td>'+(bb.pawPremium?.total||0).toFixed(2)+' EUR</td><td>'+(bb.pawPremium?.count||0)+'</td></tr>' +
+      '<tr><td><strong>👑 PawPremium</strong></td><td>'+(bb.pawPremium?.total||0).toFixed(2)+' EUR</td><td>'+(bb.pawPremium?.count||0)+'</td></tr>' +
       // v500 — Daniel : vérifications d'identité + dons visibles dans Mes revenus.
       '<tr><td><strong>🪪 Vérifications ID</strong></td><td>'+(bb.kyc?.total||0).toFixed(2)+' EUR</td><td>'+(bb.kyc?.count||0)+'</td></tr>' +
       '<tr><td><strong>🎁 Dons</strong></td><td>'+(bb.donations?.total||0).toFixed(2)+' EUR</td><td>'+(bb.donations?.count||0)+'</td></tr>' +
@@ -5071,7 +5124,7 @@ async function loadAccounting() {
       '<tr><td><strong>🚀 Boost profil</strong></td><td>' + f(bb.profileBoost && bb.profileBoost.total) + ' EUR</td><td>' + ((bb.profileBoost && bb.profileBoost.count) || 0) + '</td></tr>' +
       '<tr><td><strong>🗺️ PawSpot (map boost)</strong></td><td>' + f(bb.mapBoost && bb.mapBoost.total) + ' EUR</td><td>' + ((bb.mapBoost && bb.mapBoost.count) || 0) + '</td></tr>' +
       '<tr><td><strong>⭐ PawFollow / PawFamily</strong></td><td>' + f(bb.premium && bb.premium.total) + ' EUR</td><td>' + ((bb.premium && bb.premium.count) || 0) + '</td></tr>' +
-      '<tr><td><strong>👑 Paw Premium</strong></td><td>' + f(bb.pawPremium && bb.pawPremium.total) + ' EUR</td><td>' + ((bb.pawPremium && bb.pawPremium.count) || 0) + '</td></tr>' +
+      '<tr><td><strong>👑 PawPremium</strong></td><td>' + f(bb.pawPremium && bb.pawPremium.total) + ' EUR</td><td>' + ((bb.pawPremium && bb.pawPremium.count) || 0) + '</td></tr>' +
       // v500 — vérifications d'identité + dons dans le bilan comptable.
       '<tr><td><strong>🪪 Vérifications ID</strong></td><td>' + f(bb.kyc && bb.kyc.total) + ' EUR</td><td>' + ((bb.kyc && bb.kyc.count) || 0) + '</td></tr>' +
       '<tr><td><strong>🎁 Dons</strong></td><td>' + f(bb.donations && bb.donations.total) + ' EUR</td><td>' + ((bb.donations && bb.donations.count) || 0) + '</td></tr>' +
@@ -5844,9 +5897,9 @@ async function toggleStaff(role, userId, isStaff) {
         logout: "Déconnexion",
         loading: "Chargement...",
         navsec_overview: "Vue d'ensemble", navsec_users: "Utilisateurs", navsec_activity: "Activité", navsec_finance: "Mes finances", navsec_shop: "Boutique", navsec_content: "Contenu", navsec_system: "Système",
-        nav_dashboard: "Tableau de bord", nav_revenue: "Mes revenus", nav_owners: "Propriétaires", nav_sitters: "Pet-sitters", nav_walkers: "Promeneurs", nav_identity: "Vérifications ID", nav_moderation: "Modération users", nav_loyalty: "Avantages fidélité", nav_bookings: "Réservations", nav_listings: "Annonces", nav_chat: "Chat & messages", nav_reviews: "Avis utilisateurs", nav_reports: "Signalements", nav_payments: "Paiements", nav_invoices: "Factures", nav_iban: "Virements IBAN", nav_wallets: "Portefeuilles", nav_accounting: "Comptabilité", nav_shop_activity: "Activité boutique", nav_pricing: "Tarifs", nav_services: "Services", nav_terms: "CGU", nav_privacy: "Confidentialité", nav_pawmap: "PawMap", nav_bugs: "Bugs reportés", nav_pawfollow: "PawFollow", nav_pawpremium: "Paw Premium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_filtre: "Filtre & modération", nav_reportstats: "Signalements", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — abonnements", pawspot_admin_title: "PawSpot — abonnements & classement",
+        nav_dashboard: "Tableau de bord", nav_revenue: "Mes revenus", nav_owners: "Propriétaires", nav_sitters: "Pet-sitters", nav_walkers: "Promeneurs", nav_identity: "Vérifications ID", nav_moderation: "Modération users", nav_loyalty: "Avantages fidélité", nav_bookings: "Réservations", nav_listings: "Annonces", nav_chat: "Chat & messages", nav_reviews: "Avis utilisateurs", nav_reports: "Signalements", nav_payments: "Paiements", nav_invoices: "Factures", nav_iban: "Virements IBAN", nav_wallets: "Portefeuilles", nav_accounting: "Comptabilité", nav_shop_activity: "Activité boutique", nav_pricing: "Tarifs", nav_services: "Services", nav_terms: "CGU", nav_privacy: "Confidentialité", nav_pawmap: "PawMap", nav_bugs: "Bugs reportés", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_filtre: "Filtre & modération", nav_reportstats: "Signalements", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — abonnements", pawspot_admin_title: "PawSpot — abonnements & classement",
         acc_title: "Comptabilité — Mon bilan", acc_export: "Exporter CSV",
-        acc_desc: "Mes bénéfices HoPetSit uniquement : commissions plateforme sur les réservations + revenus boutique (PawBoost, PawSpot, PawFollow, 👑 Paw Premium). Hors paiements reversés aux prestataires. Pour mon comptable.",
+        acc_desc: "Mes bénéfices HoPetSit uniquement : commissions plateforme sur les réservations + revenus boutique (PawBoost, PawSpot, PawFollow, 👑 PawPremium). Hors paiements reversés aux prestataires. Pour mon comptable.",
         dash_overview: "Vue d'ensemble",
         dash_recent_payments: "Paiements récents",
         loyalty_title: "Avantages fidélité",
@@ -5885,7 +5938,7 @@ async function toggleStaff(role, userId, isStaff) {
         reports_title: "Signalements", reports_desc: "Signalements envoyés par les utilisateurs depuis les profils, commentaires, messages chat et photos. Utilise les filtres ci-dessous pour les trier.",
         wallets_title: "Portefeuilles providers", wallets_desc: "Solde du portefeuille des providers (pet-sitters + walkers). Le provider est crédité de 80% du tarif au début de la mission ; il peut ensuite utiliser ce solde pour la boutique ou le retirer vers son IBAN. Les retraits non éligibles (IBAN non vérifié) restent en attente.",
         chat_title: "Modération du chat", chat_desc: "Conversations récentes avec l'historique complet. Les admins peuvent supprimer un message abusif (soft-delete) ; le message reste visible ici pour l'audit, mais s'affiche comme « Message supprimé » dans l'app.", chat_refresh_convos: "Actualiser les conversations", chat_select_convo: "Sélectionne une conversation à gauche",
-        gift_paw_premium: "Offrir Paw Premium", pawfollow_desc: "Abonnements ACTIFS par type de compte — PawFollow (6,99 €/mois · 49,99 €/an) · PawFamily (9,99 €/mois · 69,99 €/an) · 👑 Paw Premium = PawFollow + PawSpot + exclusifs (7,99 €/mois · 59,99 €/an, -33% vs séparés).",
+        gift_paw_premium: "Offrir PawPremium", pawfollow_desc: "Abonnements ACTIFS par type de compte — PawFollow (6,99 €/mois · 49,99 €/an) · PawFamily (9,99 €/mois · 69,99 €/an) · 👑 PawPremium = PawFollow + PawSpot + exclusifs (7,99 €/mois · 59,99 €/an, -33% vs séparés).",
         export_spots_json: "Exporter les spots (JSON)", pawspot_desc: "Abonnements PawSpot (mensuel 4,99 € / annuel 39,99 € / essai 7 j) ACTIFS par type de compte, et classement PawPoints (pays dérivé de l'indicatif téléphonique).", pawpoints_ranking: "Classement PawPoints",
         promo_title: "Promotions — codes promo & campagnes", promo_desc: "Génère des codes promo (abonnement offert ou % de réduction) et envoie-les par email à tes clients. L'expéditeur reste l'adresse de marque HoPetSit (anti-spam) ; les réponses arrivent sur l'adresse Reply-To que tu choisis. Les clients saisiront leur code dans l'app (onglet « Offre » du profil) — à activer après la vidéo du vidéaste.",
         promo_step1: "1) Générer des codes", promo_step2: "2) Codes existants", promo_step3: "3) Envoyer une promo par email",
@@ -5901,12 +5954,12 @@ async function toggleStaff(role, userId, isStaff) {
         rw_title: "Titre", rw_icon: "Icône (emoji)", rw_cost: "Coût (PawPoints)", rw_kind: "Type", rw_value: "Valeur affichée", rw_stock: "Stock (0 = illimité)", rw_sort: "Ordre d'affichage", rw_active: "Active (visible)", rw_description: "Description", rw_desc_ph: "Détail de la récompense…",
         reward_kind_discount: "Réduction", reward_kind_subscription: "Abonnement offert", reward_kind_boost: "PawBoost offert", reward_kind_badge: "Badge / titre", reward_kind_goodie: "Goodie / autre",
         redemptions_title: "Échanges",
-        payouts_title: "Mes revenus & retraits", payouts_desc: "Tes commissions HoPetSit (20% sur réservations) + paiements boutique (PawBoost, PawSpot, PawFollow/PawFamily, 👑 Paw Premium). La card verte « Solde retirable » ci-dessous est le montant que tu peux envoyer vers ton IBAN société d'un clic.",
+        payouts_title: "Mes revenus & retraits", payouts_desc: "Tes commissions HoPetSit (20% sur réservations) + paiements boutique (PawBoost, PawSpot, PawFollow/PawFamily, 👑 PawPremium). La card verte « Solde retirable » ci-dessous est le montant que tu peux envoyer vers ton IBAN société d'un clic.",
         bugs_title: "Bugs signalés", bugs_desc: "Tous les bugs signalés par les utilisateurs depuis leur profil. Un email part automatiquement à hopetsit@gmail.com à chaque signalement.",
         bug_status_open: "🔴 Ouvert", bug_status_in_progress: "🟡 En cours", bug_status_fixed: "✅ Corrigé", bug_status_wontfix: "⚪ Ne sera pas corrigé", bug_status_duplicate: "📋 Doublon",
         bug_status_open_plain: "Ouvert", bug_status_in_progress_plain: "En cours", bug_status_fixed_plain: "Corrigé", bug_status_wontfix_plain: "Ne sera pas corrigé", bug_status_duplicate_plain: "Doublon",
-        pawpremium_title: "Paw Premium — bundle", pawpremium_desc: "Paw Premium = PawFollow + PawSpot + exclusifs (badge 👑, points communauté ×2, priorité nouveautés). 7,99 €/mois · 59,99 €/an (-33% vs les deux séparés : 11,98 € et 89,98 €). Grille complète : PawFollow 6,99/mois · 49,99/an — PawFamily 9,99/mois · 69,99/an — PawSpot 4,99/mois · 39,99/an — PawBoost 4,99→24,99 €.", diag_account: "Diagnostic compte",
-        boosts_title: "Activité boutique", boosts_desc: "Tous les achats boutique (PawBoost, PawSpot, PawFollow/PawFamily, 👑 Paw Premium) pour pet-sitters, owners et walkers. Revenus, achats actifs, historique.", filter_all_products: "Tous les produits", boost_map_old: "🗺️ Map Boost (ancien)", filter_all_tiers: "Toutes formules", tier_monthly: "📆 Mensuel", tier_yearly: "📅 Annuel", tier_family: "👨‍👩‍👧 Famille",
+        pawpremium_title: "PawPremium — bundle", pawpremium_desc: "PawPremium = PawFollow + PawSpot + exclusifs (badge 👑, points communauté ×2, priorité nouveautés). 7,99 €/mois · 59,99 €/an (-33% vs les deux séparés : 11,98 € et 89,98 €). Grille complète : PawFollow 6,99/mois · 49,99/an — PawFamily 9,99/mois · 69,99/an — PawSpot 4,99/mois · 39,99/an — PawBoost 4,99→24,99 €.", diag_account: "Diagnostic compte",
+        boosts_title: "Activité boutique", boosts_desc: "Tous les achats boutique (PawBoost, PawSpot, PawFollow/PawFamily, 👑 PawPremium) pour pet-sitters, owners et walkers. Revenus, achats actifs, historique.", filter_all_products: "Tous les produits", boost_map_old: "🗺️ Map Boost (ancien)", filter_all_tiers: "Toutes formules", tier_monthly: "📆 Mensuel", tier_yearly: "📅 Annuel", tier_family: "👨‍👩‍👧 Famille",
         annonces_title: "Annonces & modération", annonces_desc: "Toutes les annonces (demandes de réservation et posts média). Ban masque l'annonce côté utilisateurs tout en gardant les données en DB (audit + analytics). Supprimer est définitif.", annonces_live: "En ligne", annonces_banned: "Bannis", filter_all_types: "Tous types", annonces_requests: "Demandes", annonces_media: "Media", annonces_search_ph: "🔍 Rechercher dans le texte...",
         pawmap_title: "PawMap — analytique", pawmap_desc: "Vue d'ensemble des POIs (vétos, parcs, points d'eau...) et des signalements communautaires (chien perdu, danger, point d'eau, etc.). Tous les signalements sont conservés — même après expiration 48 h — comme dataset historique. Utile pour repérer les hotspots et détecter les abus.",
         pawmap_seed_title: "Alimenter la carte (OpenStreetMap)", pawmap_seed_desc: "Charge automatiquement les POIs depuis OpenStreetMap pour un pays ou toute l'Europe. Les catégories couvrent vétos, parcs à chiens, boutiques, toiletteurs, points d'eau, hôtels/restos pet-friendly. Le seed tourne en tâche de fond (1-3 min par pays). Clique « Tout l'Europe + Suisse » pour charger les 29 pays d'un coup.",
@@ -5931,7 +5984,7 @@ async function toggleStaff(role, userId, isStaff) {
         loyalty_owners_premium: "Owners Premium", loyalty_top_sitters: "Top Sitters (15% commission)", loyalty_top_walkers: "Top Walkers (15% commission)",
         empty_no_payment: "Aucun paiement.", empty_no_pending_verif: "Aucune vérification en attente.", empty_no_review: "Aucun avis.",
         empty_no_payout_filter: "Aucun payout pour ce filtre.", empty_no_withdrawal_filter: "Aucun retrait pour ce filtre.", empty_no_company_sweep: "Aucun retrait société pour l'instant.",
-        empty_no_active_sub: "Aucun abonnement actif.", empty_no_pawpremium_sub: "Aucun abonné Paw Premium pour le moment.", empty_no_pawpoints_yet: "Personne n'a encore de PawPoints.",
+        empty_no_active_sub: "Aucun abonnement actif.", empty_no_pawpremium_sub: "Aucun abonné PawPremium pour le moment.", empty_no_pawpoints_yet: "Personne n'a encore de PawPoints.",
         empty_no_code: "Aucun code pour le moment.", empty_no_client: "Aucun client.", empty_no_banned_word: "Aucun mot interdit personnalisé.",
         empty_no_report: "Aucun signalement.", empty_no_pawpoint: "Aucun PawPoint pour le moment.", empty_no_invoice_filter: "Aucune facture pour ce filtre.",
         empty_no_withdrawal: "Aucun retrait.", empty_no_payment_filter: "Aucun paiement ne correspond aux filtres.", empty_no_iban_submitted: "Aucun provider n'a soumis ses coordonnées bancaires.",
@@ -5951,7 +6004,7 @@ async function toggleStaff(role, userId, isStaff) {
         logout: "Logout",
         loading: "Loading...",
         navsec_overview: "Overview", navsec_users: "Users", navsec_activity: "Activity", navsec_finance: "My finances", navsec_shop: "Shop", navsec_content: "Content", navsec_system: "System",
-        nav_dashboard: "Dashboard", nav_revenue: "My revenue", nav_owners: "Owners", nav_sitters: "Pet-sitters", nav_walkers: "Walkers", nav_identity: "ID verifications", nav_moderation: "User moderation", nav_loyalty: "Loyalty benefits", nav_bookings: "Bookings", nav_listings: "Listings", nav_chat: "Chat & messages", nav_reviews: "User reviews", nav_reports: "Reports", nav_payments: "Payments", nav_invoices: "Invoices", nav_iban: "IBAN transfers", nav_wallets: "Wallets", nav_accounting: "Accounting", nav_shop_activity: "Shop activity", nav_pricing: "Pricing", nav_services: "Services", nav_terms: "Terms", nav_privacy: "Privacy", nav_pawmap: "PawMap", nav_bugs: "Bug reports", nav_pawfollow: "PawFollow", nav_pawpremium: "Paw Premium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_filtre: "Filter & moderation", nav_reportstats: "Reports", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — subscriptions", pawspot_admin_title: "PawSpot — subscriptions & ranking",
+        nav_dashboard: "Dashboard", nav_revenue: "My revenue", nav_owners: "Owners", nav_sitters: "Pet-sitters", nav_walkers: "Walkers", nav_identity: "ID verifications", nav_moderation: "User moderation", nav_loyalty: "Loyalty benefits", nav_bookings: "Bookings", nav_listings: "Listings", nav_chat: "Chat & messages", nav_reviews: "User reviews", nav_reports: "Reports", nav_payments: "Payments", nav_invoices: "Invoices", nav_iban: "IBAN transfers", nav_wallets: "Wallets", nav_accounting: "Accounting", nav_shop_activity: "Shop activity", nav_pricing: "Pricing", nav_services: "Services", nav_terms: "Terms", nav_privacy: "Privacy", nav_pawmap: "PawMap", nav_bugs: "Bug reports", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_filtre: "Filter & moderation", nav_reportstats: "Reports", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — subscriptions", pawspot_admin_title: "PawSpot — subscriptions & ranking",
         acc_title: "Accounting — My balance", acc_export: "Export CSV",
         acc_desc: "My HoPetSit profits only: platform commissions on bookings + shop revenue (Boost, PawSpot, Premium, Chat). Excludes payouts to providers. For my accountant.",
         dash_overview: "Overview",
@@ -5992,7 +6045,7 @@ async function toggleStaff(role, userId, isStaff) {
         reports_title: "Reports", reports_desc: "Reports sent by users from profiles, comments, chat messages and photos. Use the filters below to sort them.",
         wallets_title: "Provider wallets", wallets_desc: "Provider wallet balance (pet-sitters + walkers). The provider is credited 80% of the rate at the start of the mission; they can then use this balance in the shop or withdraw it to their IBAN. Ineligible withdrawals (unverified IBAN) stay pending.",
         chat_title: "Chat moderation", chat_desc: "Recent conversations with full history. Admins can delete an abusive message (soft-delete); the message stays visible here for audit, but shows as “Message deleted” in the app.", chat_refresh_convos: "Refresh conversations", chat_select_convo: "Select a conversation on the left",
-        gift_paw_premium: "Gift Paw Premium", pawfollow_desc: "ACTIVE subscriptions by account type — PawFollow (€6.99/mo · €49.99/yr) · PawFamily (€9.99/mo · €69.99/yr) · 👑 Paw Premium = PawFollow + PawSpot + exclusives (€7.99/mo · €59.99/yr, -33% vs separate).",
+        gift_paw_premium: "Gift PawPremium", pawfollow_desc: "ACTIVE subscriptions by account type — PawFollow (€6.99/mo · €49.99/yr) · PawFamily (€9.99/mo · €69.99/yr) · 👑 PawPremium = PawFollow + PawSpot + exclusives (€7.99/mo · €59.99/yr, -33% vs separate).",
         export_spots_json: "Export spots (JSON)", pawspot_desc: "ACTIVE PawSpot subscriptions (monthly €4.99 / yearly €39.99 / 7-day trial) by account type, and PawPoints ranking (country derived from phone code).", pawpoints_ranking: "PawPoints ranking",
         promo_title: "Promotions — promo codes & campaigns", promo_desc: "Generate promo codes (free subscription or % discount) and email them to your customers. The sender stays the HoPetSit brand address (anti-spam); replies arrive at the Reply-To address you choose. Customers enter their code in the app (profile “Offer” tab) — to activate after the videographer's video.",
         promo_step1: "1) Generate codes", promo_step2: "2) Existing codes", promo_step3: "3) Send a promo by email",
@@ -6008,12 +6061,12 @@ async function toggleStaff(role, userId, isStaff) {
         rw_title: "Title", rw_icon: "Icon (emoji)", rw_cost: "Cost (PawPoints)", rw_kind: "Type", rw_value: "Displayed value", rw_stock: "Stock (0 = unlimited)", rw_sort: "Display order", rw_active: "Active (visible)", rw_description: "Description", rw_desc_ph: "Reward details…",
         reward_kind_discount: "Discount", reward_kind_subscription: "Free subscription", reward_kind_boost: "Free PawBoost", reward_kind_badge: "Badge / title", reward_kind_goodie: "Goodie / other",
         redemptions_title: "Redemptions",
-        payouts_title: "My revenue & withdrawals", payouts_desc: "Your HoPetSit commissions (20% on bookings) + shop payments (PawBoost, PawSpot, PawFollow/PawFamily, 👑 Paw Premium). The green “Withdrawable balance” card below is the amount you can send to your company IBAN in one click.",
+        payouts_title: "My revenue & withdrawals", payouts_desc: "Your HoPetSit commissions (20% on bookings) + shop payments (PawBoost, PawSpot, PawFollow/PawFamily, 👑 PawPremium). The green “Withdrawable balance” card below is the amount you can send to your company IBAN in one click.",
         bugs_title: "Reported bugs", bugs_desc: "All bugs reported by users from their profile. An email is automatically sent to hopetsit@gmail.com on each report.",
         bug_status_open: "🔴 Open", bug_status_in_progress: "🟡 In progress", bug_status_fixed: "✅ Fixed", bug_status_wontfix: "⚪ Won't fix", bug_status_duplicate: "📋 Duplicate",
         bug_status_open_plain: "Open", bug_status_in_progress_plain: "In progress", bug_status_fixed_plain: "Fixed", bug_status_wontfix_plain: "Won't fix", bug_status_duplicate_plain: "Duplicate",
-        pawpremium_title: "Paw Premium — bundle", pawpremium_desc: "Paw Premium = PawFollow + PawSpot + exclusives (👑 badge, community points ×2, new-feature priority). €7.99/mo · €59.99/yr (-33% vs the two separately: €11.98 and €89.98). Full grid: PawFollow €6.99/mo · €49.99/yr — PawFamily €9.99/mo · €69.99/yr — PawSpot €4.99/mo · €39.99/yr — PawBoost €4.99→€24.99.", diag_account: "Account diagnostic",
-        boosts_title: "Shop activity", boosts_desc: "All shop purchases (PawBoost, PawSpot, PawFollow/PawFamily, 👑 Paw Premium, 🪪 ID verifications, 🎁 donations) for pet-sitters, owners and walkers. Revenue, active purchases, history.",
+        pawpremium_title: "PawPremium — bundle", pawpremium_desc: "PawPremium = PawFollow + PawSpot + exclusives (👑 badge, community points ×2, new-feature priority). €7.99/mo · €59.99/yr (-33% vs the two separately: €11.98 and €89.98). Full grid: PawFollow €6.99/mo · €49.99/yr — PawFamily €9.99/mo · €69.99/yr — PawSpot €4.99/mo · €39.99/yr — PawBoost €4.99→€24.99.", diag_account: "Account diagnostic",
+        boosts_title: "Shop activity", boosts_desc: "All shop purchases (PawBoost, PawSpot, PawFollow/PawFamily, 👑 PawPremium, 🪪 ID verifications, 🎁 donations) for pet-sitters, owners and walkers. Revenue, active purchases, history.",
         finance_petsitting_title: "PetSitting activity", finance_petsitting_desc: "Paid bookings, platform commissions and provider payouts.", finance_shop_title: "Shop activity", finance_shop_desc: "Subscriptions & boosts, 🪪 ID verifications and 🎁 donations.", finance_shop_all: "View all", filter_all_products: "All products", boost_map_old: "🗺️ Map Boost (legacy)", filter_all_tiers: "All tiers", tier_monthly: "📆 Monthly", tier_yearly: "📅 Yearly", tier_family: "👨‍👩‍👧 Family",
         annonces_title: "Listings & moderation", annonces_desc: "All listings (booking requests and media posts). Ban hides the listing from users while keeping the data in the DB (audit + analytics). Delete is permanent.", annonces_live: "Live", annonces_banned: "Banned", filter_all_types: "All types", annonces_requests: "Requests", annonces_media: "Media", annonces_search_ph: "🔍 Search in the text...",
         pawmap_title: "PawMap analytics", pawmap_desc: "Overview of POIs (vets, parks, water points...) and community reports (lost dog, hazard, water point, etc.). All reports are kept — even after 48h expiry — as a historical dataset. Useful to spot hotspots and detect abuse.",
@@ -6037,7 +6090,7 @@ async function toggleStaff(role, userId, isStaff) {
         loyalty_owners_premium: "Premium owners", loyalty_top_sitters: "Top Sitters (15% commission)", loyalty_top_walkers: "Top Walkers (15% commission)",
         empty_no_payment: "No payment.", empty_no_pending_verif: "No pending verification.", empty_no_review: "No review.",
         empty_no_payout_filter: "No payout for this filter.", empty_no_withdrawal_filter: "No withdrawal for this filter.", empty_no_company_sweep: "No company withdrawal yet.",
-        empty_no_active_sub: "No active subscription.", empty_no_pawpremium_sub: "No Paw Premium subscriber yet.", empty_no_pawpoints_yet: "Nobody has PawPoints yet.",
+        empty_no_active_sub: "No active subscription.", empty_no_pawpremium_sub: "No PawPremium subscriber yet.", empty_no_pawpoints_yet: "Nobody has PawPoints yet.",
         empty_no_code: "No code yet.", empty_no_client: "No customer.", empty_no_banned_word: "No custom banned word.",
         empty_no_report: "No report.", empty_no_pawpoint: "No PawPoint yet.", empty_no_invoice_filter: "No invoice for this filter.",
         empty_no_withdrawal: "No withdrawal.", empty_no_payment_filter: "No payment matches the filters.", empty_no_iban_submitted: "No provider has submitted their bank details.",
@@ -6057,7 +6110,7 @@ async function toggleStaff(role, userId, isStaff) {
         logout: "Cerrar sesión",
         loading: "Cargando...",
         navsec_overview: "Resumen", navsec_users: "Usuarios", navsec_activity: "Actividad", navsec_finance: "Mis finanzas", navsec_shop: "Tienda", navsec_content: "Contenido", navsec_system: "Sistema",
-        nav_dashboard: "Panel", nav_revenue: "Mis ingresos", nav_owners: "Propietarios", nav_sitters: "Cuidadores", nav_walkers: "Paseadores", nav_identity: "Verificaciones ID", nav_moderation: "Moderación usuarios", nav_loyalty: "Ventajas fidelidad", nav_bookings: "Reservas", nav_listings: "Anuncios", nav_chat: "Chat y mensajes", nav_reviews: "Opiniones", nav_reports: "Denuncias", nav_payments: "Pagos", nav_invoices: "Facturas", nav_iban: "Transferencias IBAN", nav_wallets: "Carteras", nav_accounting: "Contabilidad", nav_shop_activity: "Actividad tienda", nav_pricing: "Tarifas", nav_services: "Servicios", nav_terms: "Términos", nav_privacy: "Privacidad", nav_pawmap: "PawMap", nav_bugs: "Errores reportados", nav_pawfollow: "PawFollow", nav_pawpremium: "Paw Premium", nav_pawspot: "PawSpot", nav_promotions: "Promociones", nav_filtre: "Filtro y moderación", nav_reportstats: "Denuncias", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — suscripciones", pawspot_admin_title: "PawSpot — suscripciones y ranking",
+        nav_dashboard: "Panel", nav_revenue: "Mis ingresos", nav_owners: "Propietarios", nav_sitters: "Cuidadores", nav_walkers: "Paseadores", nav_identity: "Verificaciones ID", nav_moderation: "Moderación usuarios", nav_loyalty: "Ventajas fidelidad", nav_bookings: "Reservas", nav_listings: "Anuncios", nav_chat: "Chat y mensajes", nav_reviews: "Opiniones", nav_reports: "Denuncias", nav_payments: "Pagos", nav_invoices: "Facturas", nav_iban: "Transferencias IBAN", nav_wallets: "Carteras", nav_accounting: "Contabilidad", nav_shop_activity: "Actividad tienda", nav_pricing: "Tarifas", nav_services: "Servicios", nav_terms: "Términos", nav_privacy: "Privacidad", nav_pawmap: "PawMap", nav_bugs: "Errores reportados", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promociones", nav_filtre: "Filtro y moderación", nav_reportstats: "Denuncias", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — suscripciones", pawspot_admin_title: "PawSpot — suscripciones y ranking",
         acc_title: "Contabilidad — Mi balance", acc_export: "Exportar CSV",
         acc_desc: "Solo mis beneficios HoPetSit: comisiones de la plataforma sobre las reservas + ingresos de tienda (Boost, PawSpot, Premium, Chat). Sin los pagos a los proveedores. Para mi contable.",
         dash_overview: "Resumen",
@@ -6098,7 +6151,7 @@ async function toggleStaff(role, userId, isStaff) {
         reports_title: "Denuncias", reports_desc: "Denuncias enviadas por los usuarios desde los perfiles, comentarios, mensajes de chat y fotos. Usa los filtros de abajo para ordenarlas.",
         wallets_title: "Carteras de proveedores", wallets_desc: "Saldo de la cartera de los proveedores (cuidadores + paseadores). El proveedor recibe el 80% de la tarifa al inicio de la misión; luego puede usar este saldo en la tienda o retirarlo a su IBAN. Los retiros no elegibles (IBAN no verificado) quedan pendientes.",
         chat_title: "Moderación del chat", chat_desc: "Conversaciones recientes con el historial completo. Los administradores pueden eliminar un mensaje abusivo (soft-delete); el mensaje sigue visible aquí para auditoría, pero se muestra como «Mensaje eliminado» en la app.", chat_refresh_convos: "Actualizar las conversaciones", chat_select_convo: "Selecciona una conversación a la izquierda",
-        gift_paw_premium: "Regalar Paw Premium", pawfollow_desc: "Suscripciones ACTIVAS por tipo de cuenta — PawFollow (6,99 €/mes · 49,99 €/año) · PawFamily (9,99 €/mes · 69,99 €/año) · 👑 Paw Premium = PawFollow + PawSpot + exclusivos (7,99 €/mes · 59,99 €/año, -33% vs por separado).",
+        gift_paw_premium: "Regalar PawPremium", pawfollow_desc: "Suscripciones ACTIVAS por tipo de cuenta — PawFollow (6,99 €/mes · 49,99 €/año) · PawFamily (9,99 €/mes · 69,99 €/año) · 👑 PawPremium = PawFollow + PawSpot + exclusivos (7,99 €/mes · 59,99 €/año, -33% vs por separado).",
         export_spots_json: "Exportar los spots (JSON)", pawspot_desc: "Suscripciones PawSpot (mensual 4,99 € / anual 39,99 € / prueba 7 d) ACTIVAS por tipo de cuenta, y clasificación PawPoints (país derivado del prefijo telefónico).", pawpoints_ranking: "Clasificación PawPoints",
         promo_title: "Promociones — códigos promo y campañas", promo_desc: "Genera códigos promo (suscripción gratis o % de descuento) y envíalos por email a tus clientes. El remitente sigue siendo la dirección de marca HoPetSit (anti-spam); las respuestas llegan a la dirección Reply-To que elijas. Los clientes introducirán su código en la app (pestaña «Oferta» del perfil) — para activar tras el vídeo del videógrafo.",
         promo_step1: "1) Generar códigos", promo_step2: "2) Códigos existentes", promo_step3: "3) Enviar una promo por email",
@@ -6114,12 +6167,12 @@ async function toggleStaff(role, userId, isStaff) {
         rw_title: "Título", rw_icon: "Icono (emoji)", rw_cost: "Coste (PawPoints)", rw_kind: "Tipo", rw_value: "Valor mostrado", rw_stock: "Stock (0 = ilimitado)", rw_sort: "Orden de visualización", rw_active: "Activa (visible)", rw_description: "Descripción", rw_desc_ph: "Detalle de la recompensa…",
         reward_kind_discount: "Descuento", reward_kind_subscription: "Suscripción gratis", reward_kind_boost: "PawBoost gratis", reward_kind_badge: "Insignia / título", reward_kind_goodie: "Goodie / otro",
         redemptions_title: "Canjes",
-        payouts_title: "Mis ingresos y retiros", payouts_desc: "Tus comisiones HoPetSit (20% sobre reservas) + pagos de tienda (PawBoost, PawSpot, PawFollow/PawFamily, 👑 Paw Premium). La tarjeta verde «Saldo retirable» de abajo es el importe que puedes enviar a tu IBAN de empresa con un clic.",
+        payouts_title: "Mis ingresos y retiros", payouts_desc: "Tus comisiones HoPetSit (20% sobre reservas) + pagos de tienda (PawBoost, PawSpot, PawFollow/PawFamily, 👑 PawPremium). La tarjeta verde «Saldo retirable» de abajo es el importe que puedes enviar a tu IBAN de empresa con un clic.",
         bugs_title: "Errores reportados", bugs_desc: "Todos los errores reportados por los usuarios desde su perfil. Se envía automáticamente un email a hopetsit@gmail.com con cada reporte.",
         bug_status_open: "🔴 Abierto", bug_status_in_progress: "🟡 En curso", bug_status_fixed: "✅ Corregido", bug_status_wontfix: "⚪ No se corregirá", bug_status_duplicate: "📋 Duplicado",
         bug_status_open_plain: "Abierto", bug_status_in_progress_plain: "En curso", bug_status_fixed_plain: "Corregido", bug_status_wontfix_plain: "No se corregirá", bug_status_duplicate_plain: "Duplicado",
-        pawpremium_title: "Paw Premium — paquete", pawpremium_desc: "Paw Premium = PawFollow + PawSpot + exclusivos (insignia 👑, puntos comunidad ×2, prioridad en novedades). 7,99 €/mes · 59,99 €/año (-33% vs los dos por separado: 11,98 € y 89,98 €). Tabla completa: PawFollow 6,99/mes · 49,99/año — PawFamily 9,99/mes · 69,99/año — PawSpot 4,99/mes · 39,99/año — PawBoost 4,99→24,99 €.", diag_account: "Diagnóstico de cuenta",
-        boosts_title: "Actividad de la tienda", boosts_desc: "Todas las compras de tienda (PawBoost, PawSpot, PawFollow/PawFamily, 👑 Paw Premium) para cuidadores, propietarios y paseadores. Ingresos, compras activas, historial.", filter_all_products: "Todos los productos", boost_map_old: "🗺️ Map Boost (antiguo)", filter_all_tiers: "Todas las fórmulas", tier_monthly: "📆 Mensual", tier_yearly: "📅 Anual", tier_family: "👨‍👩‍👧 Familia",
+        pawpremium_title: "PawPremium — paquete", pawpremium_desc: "PawPremium = PawFollow + PawSpot + exclusivos (insignia 👑, puntos comunidad ×2, prioridad en novedades). 7,99 €/mes · 59,99 €/año (-33% vs los dos por separado: 11,98 € y 89,98 €). Tabla completa: PawFollow 6,99/mes · 49,99/año — PawFamily 9,99/mes · 69,99/año — PawSpot 4,99/mes · 39,99/año — PawBoost 4,99→24,99 €.", diag_account: "Diagnóstico de cuenta",
+        boosts_title: "Actividad de la tienda", boosts_desc: "Todas las compras de tienda (PawBoost, PawSpot, PawFollow/PawFamily, 👑 PawPremium) para cuidadores, propietarios y paseadores. Ingresos, compras activas, historial.", filter_all_products: "Todos los productos", boost_map_old: "🗺️ Map Boost (antiguo)", filter_all_tiers: "Todas las fórmulas", tier_monthly: "📆 Mensual", tier_yearly: "📅 Anual", tier_family: "👨‍👩‍👧 Familia",
         annonces_title: "Anuncios y moderación", annonces_desc: "Todos los anuncios (solicitudes de reserva y publicaciones de medios). Banear oculta el anuncio del lado de los usuarios manteniendo los datos en la BD (auditoría + analítica). Eliminar es definitivo.", annonces_live: "En línea", annonces_banned: "Baneados", filter_all_types: "Todos los tipos", annonces_requests: "Solicitudes", annonces_media: "Medios", annonces_search_ph: "🔍 Buscar en el texto...",
         pawmap_title: "PawMap — analítica", pawmap_desc: "Visión general de los POIs (veterinarios, parques, puntos de agua...) y de las denuncias comunitarias (perro perdido, peligro, punto de agua, etc.). Todas las denuncias se conservan — incluso tras expirar a las 48 h — como dataset histórico. Útil para detectar hotspots y abusos.",
         pawmap_seed_title: "Alimentar el mapa (OpenStreetMap)", pawmap_seed_desc: "Carga automáticamente los POIs desde OpenStreetMap para un país o toda Europa. Las categorías cubren veterinarios, parques caninos, tiendas, peluquerías, puntos de agua, hoteles/restaurantes pet-friendly. El seed corre en segundo plano (1-3 min por país). Pulsa «Toda Europa + Suiza» para cargar los 29 países de golpe.",
@@ -6142,7 +6195,7 @@ async function toggleStaff(role, userId, isStaff) {
         loyalty_owners_premium: "Propietarios Premium", loyalty_top_sitters: "Top Sitters (15% comisión)", loyalty_top_walkers: "Top Walkers (15% comisión)",
         empty_no_payment: "Sin pagos.", empty_no_pending_verif: "Sin verificaciones pendientes.", empty_no_review: "Sin opiniones.",
         empty_no_payout_filter: "Sin payout para este filtro.", empty_no_withdrawal_filter: "Sin retiros para este filtro.", empty_no_company_sweep: "Aún sin retiros de empresa.",
-        empty_no_active_sub: "Sin suscripción activa.", empty_no_pawpremium_sub: "Aún sin suscriptores Paw Premium.", empty_no_pawpoints_yet: "Nadie tiene PawPoints todavía.",
+        empty_no_active_sub: "Sin suscripción activa.", empty_no_pawpremium_sub: "Aún sin suscriptores PawPremium.", empty_no_pawpoints_yet: "Nadie tiene PawPoints todavía.",
         empty_no_code: "Aún sin códigos.", empty_no_client: "Sin clientes.", empty_no_banned_word: "Sin palabra prohibida personalizada.",
         empty_no_report: "Sin denuncias.", empty_no_pawpoint: "Aún sin PawPoints.", empty_no_invoice_filter: "Sin facturas para este filtro.",
         empty_no_withdrawal: "Sin retiros.", empty_no_payment_filter: "Ningún pago coincide con los filtros.", empty_no_iban_submitted: "Ningún proveedor ha enviado sus datos bancarios.",
