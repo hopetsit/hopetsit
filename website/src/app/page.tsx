@@ -156,6 +156,29 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── v505 — Daniel : VIDÉO DE PRÉSENTATION sur l'accueil. Fichier local
+           compressé (4K 156 Mo → 1080p 9,7 Mo, faststart) servi par Vercel.
+           preload="metadata" + poster → n'alourdit pas le chargement. */}
+      <section className="mx-auto max-w-5xl px-4 py-20">
+        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
+          {t("video_title")}
+        </h2>
+        <p className="mx-auto mt-3 max-w-2xl text-center text-ink-muted">
+          {t("video_sub")}
+        </p>
+        <div className="mt-10 overflow-hidden rounded-3xl border border-ink/10 shadow-2xl">
+          <video
+            controls
+            playsInline
+            preload="metadata"
+            poster="/videos/hopetsit_presentation_poster.jpg"
+            className="block h-auto w-full bg-black"
+          >
+            <source src="/videos/hopetsit_presentation.mp4" type="video/mp4" />
+          </video>
+        </div>
+      </section>
+
       {/* ── 3. UNE APP, TROIS RÔLES ── 3 cartes. */}
       <section className="mx-auto max-w-6xl px-4 py-20">
         <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
