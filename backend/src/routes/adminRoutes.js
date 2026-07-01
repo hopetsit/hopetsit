@@ -3249,13 +3249,28 @@ router.get('/payouts', requireAdmin, async (req, res) => {
       } catch (_) {}
     }
 
+    // v500 — Daniel : « les paiements de vérification d'identité n'apparaissent
+    // pas dans mes revenus ». KYC = 3 EUR one-shot par sitter/walker ayant payé
+    // (kycPaidAt posé par le webhook Airwallex).
+    let kycTotal = 0; let kycCount = 0;
+    try {
+      const [ksC, kwC] = await Promise.all([
+        Sitter.countDocuments({ kycPaidAt: { $ne: null } }),
+        Walker.countDocuments({ kycPaidAt: { $ne: null } }),
+      ]);
+      kycCount = ksC + kwC;
+      kycTotal = kycCount * 3;
+    } catch (_) { /* best-effort */ }
+
     const a = agg[0] || {};
     const commissionAllTime = a.totalCommission || 0;
     const subscriptionAllTime = subAgg[0]?.total || 0;
+    // v500 — boutique inclut désormais les vérifications d'identité (KYC) et
+    // les dons : c'est de l'argent réellement encaissé sur le compte Airwallex
+    // HoPetSit, donc compté dans les revenus et le solde retirable.
     const boutiqueAllTime =
-      profileBoostTotal + mapBoostTotal + subscriptionAllTime + chatAddonTotal;
-    // platformRevenue : commissions + boutique. Donations sont volontaires
-    // et listées séparément (pas comptées dans le retirable).
+      profileBoostTotal + mapBoostTotal + subscriptionAllTime + chatAddonTotal +
+      kycTotal + donationsTotal;
     const platformRevenue = commissionAllTime + boutiqueAllTime;
 
     // v23.1 part 99 — déjà retiré via le bouton « Retirer mes bénéfices »
@@ -3290,6 +3305,9 @@ router.get('/payouts', requireAdmin, async (req, res) => {
           pawFamily:    { total: pawFamilyTotal, count: pawFamilyCount },
           pawPremium:   { total: pawPremiumTotal, count: pawPremiumCount },
           chatAddon:    { total: chatAddonTotal,    count: chatAddonCount },
+          // v500 — vérifications d'identité + dons visibles dans le détail.
+          kyc:          { total: kycTotal,          count: kycCount },
+          donations:    { total: donationsTotal,    count: donationsCount },
         },
         cumulativeSwept,
         cumulativeSweepsCount,

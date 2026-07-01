@@ -31,6 +31,9 @@ const donationSchema = new mongoose.Schema(
     amount: { type: Number, required: true },
     currency: { type: String, default: 'EUR' },
     paidAt: { type: Date, default: Date.now },
+    // /admin/payouts et /admin/v2/revenue agrègent sur { status: 'succeeded' }
+    // (le webhook n'enregistre que les paiements réussis → défaut succeeded).
+    status: { type: String, default: 'succeeded' },
   },
   { timestamps: true },
 );
