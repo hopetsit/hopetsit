@@ -41,7 +41,7 @@ export type LegalDocByLang = Record<Lang, LegalDoc>;
 const TERMS_EN_SECTIONS: LegalSection[] = [
   { type: "p", html: `These Terms of Service (the "Terms") govern your use of the HoPetSit marketplace (the "Service"), operated by CARDELLI HERMANOS LIMITED (trading as HoPetSit), a company incorporated in Hong Kong (the "Company", "we", "us").` },
   { type: "h2", html: `1. The Service` },
-  { type: "p", html: `HoPetSit is a marketplace connecting pet owners with independent pet sitters and dog walkers across the European Union, United Kingdom, Switzerland, Norway and adjacent territories. We are <strong>not</strong> a provider of pet-care services ourselves. We facilitate matching, secure chat, payment processing and dispute resolution between users.` },
+  { type: "p", html: `HoPetSit is a marketplace connecting pet owners with independent pet sitters and dog walkers worldwide (177 countries, including the European Union, United Kingdom, Switzerland, Norway and the United States). We are <strong>not</strong> a provider of pet-care services ourselves. We facilitate matching, secure chat, payment processing and dispute resolution between users.` },
   { type: "h2", html: `2. Eligibility` },
   { type: "ul", html: [
     `You must be at least 18 years old to register as a sitter or walker.`,
@@ -188,7 +188,7 @@ export const TERMS: LegalDocByLang = {
     sections: [
     { type: "p", html: `These Terms of Service (the "Terms") govern your use of the HoPetSit marketplace (the "Service"), operated by CARDELLI HERMANOS LIMITED (trading as HoPetSit), a company incorporated in Hong Kong (the "Company", "we", "us").` },
     { type: "h2", html: `1. The Service` },
-    { type: "p", html: `HoPetSit is a marketplace connecting pet owners with independent pet sitters and dog walkers across the European Union, United Kingdom, Switzerland, Norway and adjacent territories. We are <strong>not</strong> a provider of pet-care services ourselves. We facilitate matching, secure chat, payment processing and dispute resolution between users.` },
+    { type: "p", html: `HoPetSit is a marketplace connecting pet owners with independent pet sitters and dog walkers worldwide (177 countries, including the European Union, United Kingdom, Switzerland, Norway and the United States). We are <strong>not</strong> a provider of pet-care services ourselves. We facilitate matching, secure chat, payment processing and dispute resolution between users.` },
     { type: "h2", html: `2. Eligibility` },
     { type: "ul", html: [
       `You must be at least 18 years old to register as a sitter or walker.`,
@@ -227,7 +227,7 @@ export const TERMS: LegalDocByLang = {
     sections: [
     { type: "p", html: `Les présentes conditions d'utilisation (les « Conditions ») régissent votre utilisation du marché HoPetSit (le « Service »), exploité par CARDELLI HERMANOS LIMITED (exerçant ses activités sous le nom de HoPetSit), une société constituée à Hong Kong (la « Société », « nous », « notre »).` },
     { type: "h2", html: `1. Le service` },
-    { type: "p", html: `HoPetSit est une place de marché mettant en relation les propriétaires d'animaux avec des gardiens d'animaux indépendants et des promeneurs de chiens dans l'Union européenne, au Royaume-Uni, en Suisse, en Norvège et dans les territoires adjacents. Nous sommes nous-mêmes <strong>not</strong> un fournisseur de services de soins pour animaux de compagnie. Nous facilitons la mise en relation, le chat sécurisé, le traitement des paiements et la résolution des litiges entre utilisateurs.` },
+    { type: "p", html: `HoPetSit est une place de marché mettant en relation les propriétaires d'animaux avec des gardiens d'animaux indépendants et des promeneurs de chiens partout dans le monde (177 pays, dont l'Union européenne, le Royaume-Uni, la Suisse, la Norvège et les États-Unis). Nous sommes nous-mêmes <strong>not</strong> un fournisseur de services de soins pour animaux de compagnie. Nous facilitons la mise en relation, le chat sécurisé, le traitement des paiements et la résolution des litiges entre utilisateurs.` },
     { type: "h2", html: `2. Éligibilité` },
     { type: "ul", html: [
       `Vous devez avoir au moins 18 ans pour vous inscrire en tant que gardien ou marcheur.`,
@@ -266,7 +266,7 @@ export const TERMS: LegalDocByLang = {
     sections: [
     { type: "p", html: `Estos Términos de servicio (los "Términos") rigen su uso del mercado HoPetSit (el "Servicio"), operado por CARDELLI HERMANOS LIMITED (que opera como HoPetSit), una empresa constituida en Hong Kong (la "Compañía", "nosotros", "nos").` },
     { type: "h2", html: `1. El Servicio` },
-    { type: "p", html: `HoPetSit es un mercado que conecta a los dueños de mascotas con cuidadores de mascotas y paseadores de perros independientes en toda la Unión Europea, el Reino Unido, Suiza, Noruega y territorios adyacentes. Somos <strong>not</strong> un proveedor de servicios de cuidado de mascotas. Facilitamos la coincidencia, el chat seguro, el procesamiento de pagos y la resolución de disputas entre usuarios.` },
+    { type: "p", html: `HoPetSit es un mercado que conecta a los dueños de mascotas con cuidadores de mascotas y paseadores de perros independientes en todo el mundo (177 países, incluidos la Unión Europea, el Reino Unido, Suiza, Noruega y los Estados Unidos). Somos <strong>not</strong> un proveedor de servicios de cuidado de mascotas. Facilitamos la coincidencia, el chat seguro, el procesamiento de pagos y la resolución de disputas entre usuarios.` },
     { type: "h2", html: `2. Elegibilidad` },
     { type: "ul", html: [
       `Debes tener al menos 18 años para registrarte como cuidador o paseador.`,
@@ -305,7 +305,7 @@ export const TERMS: LegalDocByLang = {
     sections: [
     { type: "p", html: `Diese Nutzungsbedingungen (die „Bedingungen“) regeln Ihre Nutzung des HoPetSit-Marktplatzes (der „Dienst“), der von CARDELLI HERMANOS LIMITED (firmierend als HoPetSit), einem in Hongkong eingetragenen Unternehmen (das „Unternehmen“, „wir“, „uns“), betrieben wird.` },
     { type: "h2", html: `1. Der Dienst` },
-    { type: "p", html: `HoPetSit ist ein Marktplatz, der Tierbesitzer mit unabhängigen Tiersittern und Hundeführern in der gesamten Europäischen Union, im Vereinigten Königreich, in der Schweiz, in Norwegen und in angrenzenden Gebieten verbindet. Wir sind selbst <strong>nicht</strong> ein Anbieter von Haustierbetreuungsdiensten. Wir ermöglichen Matching, sicheren Chat, Zahlungsabwicklung und Streitbeilegung zwischen Benutzern.` },
+    { type: "p", html: `HoPetSit ist ein Marktplatz, der Tierbesitzer mit unabhängigen Tiersittern und Hundeführern weltweit (177 Länder, einschließlich der Europäischen Union, des Vereinigten Königreichs, der Schweiz, Norwegens und der USA) verbindet. Wir sind selbst <strong>nicht</strong> ein Anbieter von Haustierbetreuungsdiensten. Wir ermöglichen Matching, sicheren Chat, Zahlungsabwicklung und Streitbeilegung zwischen Benutzern.` },
     { type: "h2", html: `2. Teilnahmeberechtigung` },
     { type: "ul", html: [
       `Um sich als Sitter oder Walker anzumelden, müssen Sie mindestens 18 Jahre alt sein.`,
@@ -344,7 +344,7 @@ export const TERMS: LegalDocByLang = {
     sections: [
     { type: "p", html: `I presenti Termini di servizio (i "Termini") regolano l'utilizzo del mercato HoPetSit (il "Servizio"), gestito da CARDELLI HERMANOS LIMITED (operante come HoPetSit), una società costituita a Hong Kong (la "Società", "noi", "ci").` },
     { type: "h2", html: `1. Il Servizio` },
-    { type: "p", html: `HoPetSit è un mercato che mette in contatto i proprietari di animali domestici con pet sitter e dog sitter indipendenti in tutta l'Unione Europea, Regno Unito, Svizzera, Norvegia e territori adiacenti. Siamo <strong>not</strong> un fornitore di servizi per la cura degli animali domestici. Facilitiamo l'abbinamento, la chat sicura, l'elaborazione dei pagamenti e la risoluzione delle controversie tra gli utenti.` },
+    { type: "p", html: `HoPetSit è un mercato che mette in contatto i proprietari di animali domestici con pet sitter e dog sitter indipendenti in tutto il mondo (177 paesi, inclusi Unione Europea, Regno Unito, Svizzera, Norvegia e Stati Uniti). Siamo <strong>not</strong> un fornitore di servizi per la cura degli animali domestici. Facilitiamo l'abbinamento, la chat sicura, l'elaborazione dei pagamenti e la risoluzione delle controversie tra gli utenti.` },
     { type: "h2", html: `2. Idoneità` },
     { type: "ul", html: [
       `Devi avere almeno 18 anni per registrarti come sitter o walker.`,
@@ -383,7 +383,7 @@ export const TERMS: LegalDocByLang = {
     sections: [
     { type: "p", html: `Estes Termos de Serviço (os "Termos") regem o uso do mercado HoPetSit (o "Serviço"), operado pela CARDELLI HERMANOS LIMITED (negociando como HoPetSit), uma empresa constituída em Hong Kong (a "Empresa", "nós", "nos").` },
     { type: "h2", html: `1. O serviço` },
-    { type: "p", html: `HoPetSit é um mercado que conecta proprietários de animais de estimação a babás e passeadores de cães independentes em toda a União Europeia, Reino Unido, Suíça, Noruega e territórios adjacentes. Somos <strong>not</strong>, fornecedores de serviços de cuidados com animais de estimação. Facilitamos a correspondência, bate-papo seguro, processamento de pagamentos e resolução de disputas entre usuários.` },
+    { type: "p", html: `HoPetSit é um mercado que conecta proprietários de animais de estimação a babás e passeadores de cães independentes em todo o mundo (177 países, incluindo União Europeia, Reino Unido, Suíça, Noruega e Estados Unidos). Somos <strong>not</strong>, fornecedores de serviços de cuidados com animais de estimação. Facilitamos a correspondência, bate-papo seguro, processamento de pagamentos e resolução de disputas entre usuários.` },
     { type: "h2", html: `2. Elegibilidade` },
     { type: "ul", html: [
       `Você deve ter pelo menos 18 anos para se registrar como babá ou andador.`,

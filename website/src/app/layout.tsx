@@ -11,24 +11,24 @@ const inter = Inter({ subsets: ["latin"], display: "swap" });
 export const metadata: Metadata = {
   metadataBase: new URL("https://hopetsit.com"),
   title: {
-    default: "HoPetSit — Pet sitters and dog walkers across Europe",
+    default: "HoPetSit — Pet sitters and dog walkers worldwide",
     template: "%s · HoPetSit",
   },
   description:
-    "Book trusted pet sitters and dog walkers in 29 European countries, or earn money taking care of pets you love. One app, three roles, full transparency.",
+    "Book trusted pet sitters and dog walkers in 177 countries worldwide — USA included — or earn money taking care of pets you love. One app, three roles, full transparency.",
   applicationName: "HoPetSit",
   authors: [{ name: "CARDELLI HERMANOS LIMITED" }],
   keywords: [
-    "pet sitter", "dog walker", "pet sitting Europe", "dog boarding",
+    "pet sitter", "dog walker", "pet sitting USA", "pet sitting worldwide", "dog boarding",
     "pet care marketplace", "HoPetSit", "garde animaux", "promeneur de chien",
   ],
   openGraph: {
     type: "website",
     siteName: "HoPetSit",
     url: "https://hopetsit.com",
-    title: "HoPetSit — Pet sitters and dog walkers across Europe",
+    title: "HoPetSit — Pet sitters and dog walkers worldwide",
     description:
-      "Trusted marketplace connecting pet owners with sitters and dog walkers in 29 European countries.",
+      "Trusted marketplace connecting pet owners with sitters and dog walkers in 177 countries worldwide.",
     images: [
       {
         url: "/logo.svg",
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "HoPetSit",
     description:
-      "Pet sitters and dog walkers across Europe. One app, three roles, full transparency.",
+      "Pet sitters and dog walkers worldwide. One app, three roles, full transparency.",
     images: ["/logo.svg"],
   },
   robots: { index: true, follow: true },
@@ -87,7 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   logo: "https://hopetsit.com/logo.svg",
                   email: "hopetsit@gmail.com",
                   description:
-                    "Trusted marketplace connecting pet owners with sitters and dog walkers across Europe.",
+                    "Trusted marketplace connecting pet owners with sitters and dog walkers worldwide.",
                   // v402 — référencement des réseaux sociaux officiels (Google
                   // les associe à la marque via sameAs).
                   sameAs: [

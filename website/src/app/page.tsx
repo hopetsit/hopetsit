@@ -70,7 +70,7 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-20 md:grid-cols-2 md:py-28">
           <div className="flex flex-col justify-center">
             <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-owner/30 bg-white px-3 py-1 text-xs font-semibold text-owner">
-              🇪🇺 29 European countries
+              🌍 {t("hero_badge")}
             </span>
             <h1 className="font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-ink md:text-6xl">
               {t("hero_title")}
