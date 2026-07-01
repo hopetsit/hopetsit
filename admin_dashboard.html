@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v500'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v501'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -126,6 +126,12 @@ header {
 /* TABLE */
 .section-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
 .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 32px; }
+/* v501 — page Paiements (2 colonnes) : tableaux larges → scroll horizontal
+   DANS la colonne au lieu de couper les dernières colonnes (Payout/Date/…). */
+#payments-table-body { overflow-x: auto; }
+#payments-table-body table { min-width: 900px; }
+#pay-shop-table { overflow-x: auto; }
+#pay-shop-table table { min-width: 430px; }
 .table-toolbar { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .search-input {
   background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
@@ -220,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v500</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v501</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -5041,7 +5047,7 @@ async function loadAccounting() {
     const boutique = Number(s.boutiqueAllTime || 0);
     sum.innerHTML =
       '<div class="stat-card" style="--accent:#EF4324"><div class="stat-label">💼 Commissions (réservations)</div><div class="stat-value">' + f(commission) + ' EUR</div><div class="stat-sub">' + (s.bookingCount || 0) + ' réservations payées</div></div>' +
-      '<div class="stat-card" style="--accent:#8B5CF6"><div class="stat-label">🛍️ Revenus boutique</div><div class="stat-value">' + f(boutique) + ' EUR</div><div class="stat-sub">PawBoost + PawSpot + PawFollow + 👑 Premium</div></div>' +
+      '<div class="stat-card" style="--accent:#8B5CF6"><div class="stat-label">🛍️ Revenus boutique</div><div class="stat-value">' + f(boutique) + ' EUR</div><div class="stat-sub">PawBoost + PawSpot + PawFollow + 👑 Premium + 🪪 ID + 🎁 Dons</div></div>' +
       '<div class="stat-card" style="--accent:#16A34A"><div class="stat-label">📒 Bénéfice total HoPetSit</div><div class="stat-value" style="color:var(--green)">' + f(commission + boutique) + ' EUR</div><div class="stat-sub">Commissions + Boutique</div></div>' +
       '<div class="stat-card" style="--accent:#0EA5E9"><div class="stat-label">📈 CA brut réservations</div><div class="stat-value">' + f(b.grossAllTime) + ' EUR</div><div class="stat-sub">total encaissé (avant reversement prestataires)</div></div>';
     det.innerHTML =
