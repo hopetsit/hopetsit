@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import BackLink from "@/components/BackLink";
 import {
   ApiError,
   createPet,
@@ -88,9 +89,9 @@ export default function PetsPage() {
         <p className="mt-2 text-sm text-ink-muted">
           La gestion des animaux est disponible pour les comptes Owner uniquement.
         </p>
-        <Link href="/dashboard" className="mt-6 inline-block text-sm text-walker hover:underline">
-          ← Retour au dashboard
-        </Link>
+        <div className="mt-6">
+          <BackLink href="/dashboard" label={t("nav_dashboard")} />
+        </div>
       </div>
     );
   }
@@ -98,9 +99,7 @@ export default function PetsPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
       <div className="mb-6 flex items-center justify-between">
-        <Link href="/dashboard" className="text-sm text-ink-muted hover:text-ink">
-          ← Dashboard
-        </Link>
+        <BackLink href="/dashboard" label={t("nav_dashboard")} />
         <button
           type="button"
           onClick={() => setEditMode({ mode: "new" })}

@@ -28,6 +28,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import BackLink from "@/components/BackLink";
 import {
   ApiError,
   FriendItem,
@@ -874,9 +875,7 @@ export default function MapPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 md:py-12">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <Link href="/dashboard" className="text-sm text-ink-muted hover:text-ink">
-          ← {t("nav_dashboard")}
-        </Link>
+        <BackLink href="/dashboard" label={t("nav_dashboard")} />
         {fetching && (
           <span className="text-xs text-ink-muted">{t("map_searching")}</span>
         )}

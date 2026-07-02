@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import BackLink from "@/components/BackLink";
 import {
   getPawPointsCatalog,
   getMyPawPoints,
@@ -152,6 +153,9 @@ export default function PawPointsPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 md:py-16">
+      <div className="mb-6">
+        <BackLink href="/dashboard" label={t("nav_dashboard")} />
+      </div>
       <div className="text-center">
         <div className="mx-auto mb-3 grid h-16 w-16 place-items-center rounded-2xl bg-amber-100 text-4xl">🐾</div>
         <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-5xl">PawPoints</h1>

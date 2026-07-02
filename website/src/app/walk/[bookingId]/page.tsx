@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import BackLink from "@/components/BackLink";
 import {
   ApiError,
   Booking,
@@ -98,9 +99,7 @@ export default function WalkPage() {
   if (!booking) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-24">
-        <Link href="/bookings" className="text-sm text-ink-muted hover:text-ink">
-          ← Mes réservations
-        </Link>
+        <BackLink href="/bookings" label={t("dash_card_bookings_title")} />
         <p className="mt-6 text-center text-ink-muted">{error || "Booking introuvable"}</p>
       </div>
     );
@@ -123,9 +122,7 @@ export default function WalkPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 md:py-16">
       <div className="mb-6">
-        <Link href="/bookings" className="text-sm text-ink-muted hover:text-ink">
-          ← Mes réservations
-        </Link>
+        <BackLink href="/bookings" label={t("dash_card_bookings_title")} />
       </div>
 
       <h1 className="font-display text-3xl font-extrabold md:text-4xl">

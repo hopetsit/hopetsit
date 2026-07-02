@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import BackLink from "@/components/BackLink";
 import {
   ApiError,
   createBooking,
@@ -167,9 +168,7 @@ export default function BookPage() {
   if (!provider) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-24">
-        <Link href="/search" className="text-sm text-ink-muted hover:text-ink">
-          ← Recherche
-        </Link>
+        <BackLink href="/search" label="Retour à la recherche" />
         <p className="mt-6 text-center text-ink-muted">{error || "Profil introuvable"}</p>
       </div>
     );
@@ -200,9 +199,7 @@ export default function BookPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 md:py-16">
       <div className="mb-6">
-        <Link href="/search" className="text-sm text-ink-muted hover:text-ink">
-          ← Retour à la recherche
-        </Link>
+        <BackLink href="/search" label="Retour à la recherche" />
       </div>
 
       {/* Profil provider */}

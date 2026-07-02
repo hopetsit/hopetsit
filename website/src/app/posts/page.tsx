@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import BackLink from "@/components/BackLink";
 import { petTraitLabel } from "@/lib/petTraits";
 import {
   ApiError,
@@ -76,6 +77,9 @@ export default function PostsPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 md:py-16">
+      <div className="mb-6">
+        <BackLink href="/dashboard" label={t("nav_dashboard")} />
+      </div>
       <div className="flex items-center justify-between gap-3">
         <h1 className="font-display text-2xl font-extrabold tracking-tight md:text-3xl">
           {isOwner ? t("posts_my_title") : t("posts_feed_title")}

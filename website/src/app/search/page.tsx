@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import BackLink from "@/components/BackLink";
 import {
   ApiError,
   getStoredUser,
@@ -72,9 +73,7 @@ export default function SearchPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 md:py-16">
       <div className="mb-6">
-        <Link href="/dashboard" className="text-sm text-ink-muted hover:text-ink">
-          ← Dashboard
-        </Link>
+        <BackLink href="/dashboard" label={t("nav_dashboard")} />
       </div>
 
       <h1 className="font-display text-3xl font-extrabold md:text-4xl">

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import BackLink from "@/components/BackLink";
 import {
   ApiError,
   Availability,
@@ -242,9 +243,7 @@ export default function SitterSetupPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 md:py-16">
       <div className="mb-6 flex items-center justify-between">
-        <Link href="/dashboard" className="text-sm text-ink-muted hover:text-ink">
-          ← Dashboard
-        </Link>
+        <BackLink href="/dashboard" label={t("nav_dashboard")} />
         <span className={`rounded-full bg-${roleColor} px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white`}>
           {user?.role}
         </span>

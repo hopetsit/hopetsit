@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import BackLink from "@/components/BackLink";
 import {
   FamilyMember,
   getMyFamily,
@@ -83,6 +84,9 @@ export default function FamilyPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-16 md:py-24">
+      <div className="mb-6">
+        <BackLink href="/dashboard" label={t("nav_dashboard")} />
+      </div>
       <h1 className="font-display text-3xl font-extrabold text-ink">
         👨‍👩‍👧 {t("family_title")}
       </h1>

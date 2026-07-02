@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import BackLink from "@/components/BackLink";
 import {
   ApiError,
   AuthRole,
@@ -364,9 +365,7 @@ export default function ChatPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 md:py-16">
       <div className="mb-6">
-        <Link href="/dashboard" className="text-sm text-ink-muted hover:text-ink">
-          ← {t("nav_dashboard")}
-        </Link>
+        <BackLink href="/dashboard" label={t("nav_dashboard")} />
       </div>
 
       {/* v248 — Header avec titre + bouton "Nouvelle conversation" qui
