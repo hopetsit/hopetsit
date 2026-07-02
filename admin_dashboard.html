@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v505'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v506'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -226,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v505</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v506</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -1071,7 +1071,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div class="section-title">📒 <span data-i18n="acc_title">Comptabilité — Mon bilan</span></div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:820px;line-height:1.6">
           <span data-i18n="acc_desc">Mes bénéfices HoPetSit uniquement : commissions plateforme sur les réservations + revenus boutique (PawBoost, PawSpot, PawFollow, 👑 PawPremium). Hors paiements reversés aux prestataires. Pour mon comptable.</span>
-          <button class="action-btn btn-primary" style="margin-left:10px" onclick="exportAccountingCsv()">⬇️ <span data-i18n="acc_export">Exporter CSV</span></button>
+          <span style="display:inline-flex;align-items:center;gap:6px;margin-left:10px;white-space:nowrap"><input type="date" class="filter-select" id="acc-from" title="Du (inclus)" /><span style="color:var(--text-muted)">→</span><input type="date" class="filter-select" id="acc-to" title="Au (inclus)" /><button class="action-btn btn-primary" onclick="exportAccountingCsv()">⬇️ <span data-i18n="acc_export">Exporter CSV</span></button></span>
         </p>
         <div class="stats-grid" id="accounting-summary"></div>
         <div style="margin-top:20px" id="accounting-details"></div>
@@ -4229,7 +4229,16 @@ function downloadCSV(filename, rows) {
 
 async function exportPaymentsCSV() {
   try {
-    const d = await api('/admin/payments?page=1&limit=10000');
+    // v506 — Daniel : export par période. Réutilise les champs Du/Au + filtres
+    // de la page → l'export contient exactement ce que tu as filtré (ex. 3 mois).
+    const _f = (id) => (document.getElementById(id) || {}).value || '';
+    const _pqs = new URLSearchParams({ page: '1', limit: '10000' });
+    if (_f('pay-filter-from')) _pqs.set('from', _f('pay-filter-from'));
+    if (_f('pay-filter-to')) _pqs.set('to', _f('pay-filter-to'));
+    if (_f('pay-filter-status')) _pqs.set('paymentStatus', _f('pay-filter-status'));
+    if (_f('pay-filter-payout')) _pqs.set('payoutStatus', _f('pay-filter-payout'));
+    if (_f('pay-filter-provider')) _pqs.set('paymentProvider', _f('pay-filter-provider'));
+    const d = await api('/admin/payments?' + _pqs.toString());
     const rows = [[
       'Date', 'Réservation', 'Owner', 'Prestataire', 'Rôle', 'Montant', 'Commission',
       'Net prestataire', 'Devise', 'Statut paiement', 'Statut payout', 'Provider', 'PaymentIntent',
@@ -4254,7 +4263,10 @@ async function exportPaymentsCSV() {
           x.amount ?? '', x.method || 'iban', x.status || '', x.airwallexId || '', x.failureReason || '']);
       }
     } catch (_) { /* section optionnelle */ }
-    downloadCSV('hopetsit_paiements_' + new Date().toISOString().slice(0, 10) + '.csv', rows);
+    const _psfx = (_f('pay-filter-from') || _f('pay-filter-to'))
+      ? (_f('pay-filter-from') || 'debut') + '_a_' + (_f('pay-filter-to') || new Date().toISOString().slice(0, 10))
+      : new Date().toISOString().slice(0, 10);
+    downloadCSV('hopetsit_paiements_' + _psfx + '.csv', rows);
   } catch (e) { alert('Export impossible : ' + (e.message || e)); }
 }
 
@@ -5174,14 +5186,28 @@ async function loadAccounting() {
   }
 }
 
-function exportAccountingCsv() {
-  const d = _accountingData;
+async function exportAccountingCsv() {
+  // v506 — Daniel : « choisir les dates pour exporter (ex. 3 mois) ».
+  // Si Du/Au remplis → recharge /admin/payouts?from&to (le backend filtre
+  // toutes les agrégations sur la période). Sinon → depuis le début (inchangé).
+  const accFrom = (document.getElementById('acc-from') || {}).value || '';
+  const accTo = (document.getElementById('acc-to') || {}).value || '';
+  let d = _accountingData;
+  if (accFrom || accTo) {
+    try {
+      const _qs = new URLSearchParams();
+      if (accFrom) _qs.set('from', accFrom);
+      if (accTo) _qs.set('to', accTo);
+      d = await api('/admin/payouts?' + _qs.toString());
+    } catch (e) { alert('Export impossible : ' + (e.message || e)); return; }
+  }
   if (!d) { alert('Ouvre d\'abord la page Comptabilité pour charger les données.'); return; }
   const s = d.summary || {}; const b = d.bookings || {}; const bb = s.boutiqueBreakdown || {};
   const f = (n) => Number(n || 0).toFixed(2);
   const rows = [
+    ['Periode', (accFrom || accTo) ? ('du ' + (accFrom || 'debut') + ' au ' + (accTo || "aujourd'hui")) : 'depuis le debut', '', ''],
     ['Categorie', 'Libelle', 'Montant_EUR', 'Nombre'],
-    ['Commissions', 'Total (toutes reservations)', f(s.commissionAllTime), s.bookingCount || 0],
+    ['Commissions', 'Total (periode exportee)', f(s.commissionAllTime), s.bookingCount || 0],
     ['Commissions', '7 derniers jours', f(b.last7d && b.last7d.commission), (b.last7d && b.last7d.count) || 0],
     ['Commissions', '30 derniers jours', f(b.last30d && b.last30d.commission), (b.last30d && b.last30d.count) || 0],
     ['Commissions', 'Ce mois', f(b.thisMonth && b.thisMonth.commission), (b.thisMonth && b.thisMonth.count) || 0],
@@ -5199,7 +5225,10 @@ function exportAccountingCsv() {
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'comptabilite_hopetsit_' + new Date().toISOString().slice(0, 10) + '.csv';
+  const _sfx = (accFrom || accTo)
+    ? (accFrom || 'debut') + '_a_' + (accTo || new Date().toISOString().slice(0, 10))
+    : new Date().toISOString().slice(0, 10);
+  a.href = url; a.download = 'comptabilite_hopetsit_' + _sfx + '.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }

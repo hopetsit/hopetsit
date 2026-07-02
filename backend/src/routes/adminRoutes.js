@@ -3165,6 +3165,26 @@ router.get('/payouts', requireAdmin, async (req, res) => {
     const start7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+    // v507 — Daniel : « export CSV avec choix des dates (ex. un fichier de
+    // 3 mois) ». Fenêtre OPTIONNELLE ?from=YYYY-MM-DD&to=YYYY-MM-DD appliquée
+    // à toutes les agrégations « depuis le début » (commissions, boutique,
+    // KYC, dons, retraits). Sans paramètres → comportement inchangé (la page
+    // charge sans dates). `to` est inclusif (fin de journée).
+    const qFrom = req.query.from ? new Date(String(req.query.from)) : null;
+    const qTo = req.query.to
+      ? new Date(new Date(String(req.query.to)).getTime() + 24 * 3600 * 1000 - 1)
+      : null;
+    const hasRange = !!(qFrom || qTo);
+    const rangeCond = () => {
+      const m = {};
+      if (qFrom) m.$gte = qFrom;
+      if (qTo) m.$lte = qTo;
+      return m;
+    };
+    // Étape $match optionnelle à insérer dans un pipeline (spread).
+    const rangeStage = (field) =>
+      hasRange ? [{ $match: { [field]: rangeCond() } }] : [];
+
     // v20.0.19 — CRITICAL FIX : le schéma Booking stocke les prix sous
     // `pricing.totalPrice` / `pricing.commission` / `pricing.netPayout`
     // (nested). L'aggregation admin sommait `$totalAmount` / `$commissionAmount`
@@ -3172,7 +3192,7 @@ router.get('/payouts', requireAdmin, async (req, res) => {
     // en permanence même avec 16 bookings payés. On utilise les bons champs.
     const [agg, last30Agg, last7Agg, monthAgg] = await Promise.all([
       Booking.aggregate([
-        { $match: { paymentStatus: 'paid' } },
+        { $match: { paymentStatus: 'paid', ...(hasRange ? { paidAt: rangeCond() } : {}) } },
         { $group: {
             _id: null,
             totalGross: { $sum: { $ifNull: ['$pricing.totalPrice', 0] } },
@@ -3196,6 +3216,7 @@ router.get('/payouts', requireAdmin, async (req, res) => {
 
     const subAgg = await Subscription.aggregate([
       { $unwind: { path: '$payments', preserveNullAndEmptyArrays: false } },
+      ...rangeStage('payments.paidAt'),
       { $group: { _id: null, total: { $sum: { $ifNull: ['$payments.amount', 0] } }, count: { $sum: 1 } } },
     ]);
 
@@ -3204,6 +3225,7 @@ router.get('/payouts', requireAdmin, async (req, res) => {
     // PawFamily (famille). Le plan 'family'/'famille' = PawFamily.
     const subByPlan = await Subscription.aggregate([
       { $unwind: { path: '$payments', preserveNullAndEmptyArrays: false } },
+      ...rangeStage('payments.paidAt'),
       { $group: {
         _id: '$payments.plan',
         total: { $sum: { $ifNull: ['$payments.amount', 0] } },
@@ -3226,7 +3248,7 @@ router.get('/payouts', requireAdmin, async (req, res) => {
     if (Donation) {
       try {
         const dAgg = await Donation.aggregate([
-          { $match: { status: 'succeeded' } },
+          { $match: { status: 'succeeded', ...(hasRange ? { paidAt: rangeCond() } : {}) } },
           { $group: { _id: null, total: { $sum: { $ifNull: ['$amount', 0] } }, count: { $sum: 1 } } },
         ]);
         donationsTotal = dAgg[0]?.total || 0;
@@ -3243,7 +3265,7 @@ router.get('/payouts', requireAdmin, async (req, res) => {
       const r = await Model.aggregate([
         { $match: { 'boostPurchases.0': { $exists: true } } },
         { $unwind: '$boostPurchases' },
-        { $match: { 'boostPurchases.kind': kind } },
+        { $match: { 'boostPurchases.kind': kind, ...(hasRange ? { 'boostPurchases.purchasedAt': rangeCond() } : {}) } },
         { $group: { _id: null, count: { $sum: 1 }, total: { $sum: { $ifNull: ['$boostPurchases.amount', 0] } } } },
       ]);
       return r[0] || { count: 0, total: 0 };
@@ -3266,6 +3288,7 @@ router.get('/payouts', requireAdmin, async (req, res) => {
       try {
         const cA = await UserChatAddon.aggregate([
           { $unwind: { path: '$payments', preserveNullAndEmptyArrays: false } },
+          ...rangeStage('payments.paidAt'),
           { $group: { _id: null, count: { $sum: 1 }, total: { $sum: { $ifNull: ['$payments.amount', 0] } } } },
         ]);
         chatAddonTotal = cA[0]?.total || 0;
@@ -3278,9 +3301,10 @@ router.get('/payouts', requireAdmin, async (req, res) => {
     // (kycPaidAt posé par le webhook Airwallex).
     let kycTotal = 0; let kycCount = 0;
     try {
+      const kycCond = { $ne: null, ...(hasRange ? rangeCond() : {}) };
       const [ksC, kwC] = await Promise.all([
-        Sitter.countDocuments({ kycPaidAt: { $ne: null } }),
-        Walker.countDocuments({ kycPaidAt: { $ne: null } }),
+        Sitter.countDocuments({ kycPaidAt: kycCond }),
+        Walker.countDocuments({ kycPaidAt: kycCond }),
       ]);
       kycCount = ksC + kwC;
       kycTotal = kycCount * 3;
@@ -3300,7 +3324,7 @@ router.get('/payouts', requireAdmin, async (req, res) => {
     // v23.1 part 99 — déjà retiré via le bouton « Retirer mes bénéfices »
     // (toutes les CompanySweep status != failed comptent comme déjà parti).
     const sweepAgg = await CompanySweep.aggregate([
-      { $match: { status: { $in: ['initiated', 'completed'] } } },
+      { $match: { status: { $in: ['initiated', 'completed'] }, ...(hasRange ? { createdAt: rangeCond() } : {}) } },
       { $group: { _id: null, total: { $sum: { $ifNull: ['$amount', 0] } }, count: { $sum: 1 } } },
     ]);
     const cumulativeSwept = Number(sweepAgg[0]?.total || 0);
