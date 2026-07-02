@@ -30,8 +30,10 @@ export default function PawMapPage() {
   // « Comment ça marche » communautaire en 3 étapes (Explorer → Taguer/noter →
   // PawPoints) — réutilise des clés existantes (aucune nouvelle traduction).
   // v506 — design : chaque étape a sa couleur (orange / rose / ambre).
+  // v507 — étape 1 : vraie phrase (pawmap_step1 ×6) au lieu du fragment
+  // « 🐾 Parcs, plages… » qui faisait bizarre en tête de carte.
   const steps = [
-    { n: "1", emoji: "🔍", body: t("pawmap_msg_places"), badge: "bg-owner", tint: "bg-owner-light" },
+    { n: "1", emoji: "🔍", body: t("pawmap_step1"), badge: "bg-owner", tint: "bg-owner-light" },
     { n: "2", emoji: "📍", body: t("pawspot_desc"), badge: "bg-[#e83e8c]", tint: "bg-pink-50" },
     { n: "3", emoji: "🐾", body: t("pawmap_pawpoints_desc"), badge: "bg-amber-500", tint: "bg-amber-50" },
   ];
@@ -58,10 +60,30 @@ export default function PawMapPage() {
           </div>
         </div>
 
-        {/* Aperçu visuel de la carte : pins par catégorie + chips de filtre +
-            un spot mis en avant (décoratif). */}
+        {/* Aperçu visuel de la carte (décoratif). v507 — design : rues stylisées
+            en fond, itinéraire pointillé, plus de pins, point « toi » qui pulse. */}
         <div className="relative">
-          <div className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-[26px] border border-[#efe7e0] bg-gradient-to-br from-walker-light via-white to-sitter-light/50 shadow-card">
+          <div className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-[26px] border border-[#efe7e0] bg-gradient-to-br from-walker-light via-white to-sitter-light/50 shadow-xl">
+            {/* rues stylisées + itinéraire pointillé */}
+            <svg
+              aria-hidden
+              className="absolute inset-0 h-full w-full"
+              viewBox="0 0 400 400"
+              fill="none"
+            >
+              <path d="M-20 120 L420 90" stroke="#16A34A" strokeOpacity="0.10" strokeWidth="14" />
+              <path d="M-20 250 L420 290" stroke="#2563EB" strokeOpacity="0.08" strokeWidth="18" />
+              <path d="M120 -20 L90 420" stroke="#EF4324" strokeOpacity="0.07" strokeWidth="12" />
+              <path d="M300 -20 L330 420" stroke="#16A34A" strokeOpacity="0.08" strokeWidth="10" />
+              <path
+                d="M90 280 C 150 230, 190 250, 248 208 S 330 150, 312 148"
+                stroke="#EF4324"
+                strokeOpacity="0.55"
+                strokeWidth="3.5"
+                strokeDasharray="2 9"
+                strokeLinecap="round"
+              />
+            </svg>
             {/* chips de filtre */}
             <div className="absolute left-3 right-3 top-3 flex flex-wrap gap-1.5">
               {cats.slice(0, 4).map((c) => (
@@ -70,28 +92,38 @@ export default function PawMapPage() {
                 </span>
               ))}
             </div>
+            {/* point « toi » qui pulse (départ de l'itinéraire) */}
+            <span className="absolute" style={{ top: "70%", left: "22.5%" }}>
+              <span className="absolute -translate-x-1/2 -translate-y-1/2">
+                <span className="absolute inline-flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full bg-sitter/40" />
+                <span className="relative block h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-sitter shadow" />
+              </span>
+            </span>
             {/* pins dispersés */}
             {[
-              { e: "🩺", top: "32%", left: "22%", bg: "bg-owner" },
+              { e: "🩺", top: "30%", left: "20%", bg: "bg-owner" },
               { e: "🌳", top: "52%", left: "62%", bg: "bg-walker" },
-              { e: "💧", top: "70%", left: "30%", bg: "bg-sitter" },
-              { e: "🍽️", top: "40%", left: "78%", bg: "bg-amber-500" },
+              { e: "💧", top: "78%", left: "44%", bg: "bg-sitter" },
+              { e: "🍽️", top: "37%", left: "78%", bg: "bg-amber-500" },
+              { e: "🏖️", top: "16%", left: "55%", bg: "bg-pink-500" },
+              { e: "✂️", top: "60%", left: "86%", bg: "bg-violet-500" },
             ].map((p) => (
               <span
                 key={p.e}
-                className={`absolute grid h-9 w-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full ${p.bg} text-base shadow-card ring-2 ring-white`}
+                className={`absolute grid h-9 w-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full ${p.bg} text-base shadow-card ring-2 ring-white transition hover:scale-110`}
                 style={{ top: p.top, left: p.left }}
               >
                 {p.e}
               </span>
             ))}
             {/* spot mis en avant */}
-            <div className="absolute bottom-3 left-3 right-3 flex items-center gap-3 rounded-2xl bg-white/95 p-3 shadow-card">
+            <div className="absolute bottom-3 left-3 right-3 flex items-center gap-3 rounded-2xl bg-white/95 p-3 shadow-card backdrop-blur">
               <PawSpotGoldCoin size={34} />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="truncate text-xs font-extrabold text-amber-700">{t("map_cat_park")}</div>
                 <div className="truncate text-[11px] text-ink-muted">4.9 ★ · PawSpot</div>
               </div>
+              <span className="rounded-full bg-walker-light px-2 py-0.5 text-[10px] font-bold text-walker-dark">800 m</span>
             </div>
           </div>
         </div>

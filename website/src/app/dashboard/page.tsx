@@ -413,36 +413,50 @@ export default function DashboardPage() {
 
           <NotificationBanner />
 
-          {/* PawFollow en direct — mis en avant tout en haut → /map. */}
+          {/* PawFollow en direct — mis en avant tout en haut → /map.
+              v507 — Daniel : « les deux gros boutons plus visibles, plus
+              colorés » → cartes pleines couleur (dégradé + texte blanc). */}
           <Link
             href="/map"
-            className="group mt-6 flex items-center gap-4 overflow-hidden rounded-[22px] border border-walker/30 bg-gradient-to-br from-walker-light via-white to-sitter-light/40 p-5 shadow-card transition hover:-translate-y-0.5 hover:shadow-xl"
+            className="group relative mt-6 flex items-center gap-4 overflow-hidden rounded-[22px] bg-gradient-to-r from-walker to-emerald-500 p-5 text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-2xl"
           >
-            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-walker text-2xl text-white shadow-sm">
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -right-3 -top-6 rotate-12 select-none text-[80px] leading-none opacity-10"
+            >
+              🗺️
+            </span>
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/20 text-2xl shadow-sm ring-1 ring-white/30">
               🛰️
             </span>
             <span className="flex-1">
-              <span className="block text-base font-extrabold text-ink">{t("dash_card_map_title")}</span>
-              <span className="block text-sm text-ink-muted">{t("dash_card_map_sub")}</span>
+              <span className="block text-base font-extrabold">{t("dash_card_map_title")}</span>
+              <span className="block text-sm text-white/85">{t("dash_card_map_sub")}</span>
             </span>
-            <span className="text-walker transition group-hover:translate-x-1">→</span>
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-white/20 text-lg transition group-hover:translate-x-1">→</span>
           </Link>
 
           {/* Réservations en cours → /bookings. */}
           <Link
             href="/bookings"
-            className="group mt-4 flex items-center gap-4 rounded-[22px] border border-[#efe7e0] bg-white p-5 shadow-card transition hover:-translate-y-0.5 hover:shadow-xl"
+            className="group relative mt-4 flex items-center gap-4 overflow-hidden rounded-[22px] bg-gradient-to-r from-owner to-[#ff7a45] p-5 text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-2xl"
           >
-            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-owner-light text-2xl">
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -right-3 -top-6 rotate-12 select-none text-[80px] leading-none opacity-10"
+            >
+              📅
+            </span>
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/20 text-2xl shadow-sm ring-1 ring-white/30">
               📅
             </span>
             <span className="flex-1">
-              <span className="block text-base font-extrabold text-ink">{t("dash_card_bookings_title")}</span>
-              <span className="block text-sm text-ink-muted">
+              <span className="block text-base font-extrabold">{t("dash_card_bookings_title")}</span>
+              <span className="block text-sm text-white/85">
                 {isOwner ? t("dash_card_bookings_sub_owner") : t("dash_card_bookings_sub_provider")}
               </span>
             </span>
-            <span className="text-owner transition group-hover:translate-x-1">→</span>
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-white/20 text-lg transition group-hover:translate-x-1">→</span>
           </Link>
 
           {/* Actions rapides. */}
