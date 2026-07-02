@@ -326,7 +326,8 @@ function makeMemberIcon(premium: boolean, online: boolean): L.DivIcon {
   const dot = `<div style="position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;border:1.5px solid #fff;background:${online ? "#22C55E" : "#9CA3AF"};"></div>`;
   return L.divIcon({
     className: "",
-    html: `<div style="position:relative;width:30px;height:30px;">${crown}<div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:linear-gradient(135deg,#F06AA0,#E0568B);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);font-size:15px;">🐾</div>${dot}</div>`,
+    // v505 — patte BLANCHE (logo officiel, comme l'app) au lieu de l'emoji 🐾.
+    html: `<div style="position:relative;width:30px;height:30px;">${crown}<div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:linear-gradient(135deg,#F06AA0,#E0568B);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);"><svg viewBox="0 0 24 24" width="15" height="15" fill="#fff"><ellipse cx="12" cy="15.6" rx="4.6" ry="3.7"/><ellipse cx="5.3" cy="10.9" rx="2" ry="2.6"/><ellipse cx="9.4" cy="7.4" rx="2" ry="2.7"/><ellipse cx="14.6" cy="7.4" rx="2" ry="2.7"/><ellipse cx="18.7" cy="10.9" rx="2" ry="2.6"/></svg></div>${dot}</div>`,
     iconSize: [30, 30],
     iconAnchor: [15, 15],
   });

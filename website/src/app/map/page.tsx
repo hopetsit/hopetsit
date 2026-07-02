@@ -267,6 +267,45 @@ export default function MapPage() {
     ts: number;
   } | null>(null);
 
+  // v505 — Daniel : recherche de ville à droite du titre. Géocodage Nominatim
+  // (même service que l'app) → setCenter → RecenterMap recentre la carte.
+  const [cityQuery, setCityQuery] = useState("");
+  const [citySearching, setCitySearching] = useState(false);
+  const [cityError, setCityError] = useState(false);
+  async function handleCitySearch(e: React.FormEvent) {
+    e.preventDefault();
+    const q = cityQuery.trim();
+    if (!q || citySearching) return;
+    setCitySearching(true);
+    setCityError(false);
+    try {
+      const resp = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=${encodeURIComponent(
+          typeof navigator !== "undefined" ? navigator.language : "fr",
+        )}&q=${encodeURIComponent(q)}`,
+      );
+      const results = (await resp.json()) as { lat: string; lon: string }[];
+      const hit = results?.[0];
+      if (hit && Number.isFinite(parseFloat(hit.lat))) {
+        const lat = parseFloat(hit.lat);
+        const lng = parseFloat(hit.lon);
+        setCenter([lat, lng]);
+        try {
+          window.localStorage.setItem(
+            "hopetsit:lastMapCenter",
+            JSON.stringify({ lat, lng }),
+          );
+        } catch {/* ignore */}
+      } else {
+        setCityError(true);
+      }
+    } catch {
+      setCityError(true);
+    } finally {
+      setCitySearching(false);
+    }
+  }
+
   // Auth + géolocalisation au mount.
   useEffect(() => {
     const me = getStoredUser();
@@ -843,14 +882,45 @@ export default function MapPage() {
         )}
       </div>
 
-      <h1 className="font-display text-3xl font-extrabold md:text-4xl">
-        {t("map_title")}
-      </h1>
-      <p className="mt-2 text-ink-muted">
-        {t("map_count_results").replace("{count}", String(visiblePois.length))}
-        {" "}
-        {t("map_pan_hint")}
-      </p>
+      {/* v505 — Daniel : « améliore le design + bouton rechercher ville à
+          droite ». Titre à gauche, recherche de ville à droite (Nominatim →
+          recentre la carte, même géocodeur que l'app). */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="font-display text-3xl font-extrabold md:text-4xl">
+            {t("map_title")}
+          </h1>
+          <p className="mt-2 text-ink-muted">
+            {t("map_count_results").replace("{count}", String(visiblePois.length))}
+            {" "}
+            {t("map_pan_hint")}
+          </p>
+        </div>
+        <form
+          onSubmit={handleCitySearch}
+          className="flex items-center gap-2 rounded-full border border-ink/10 bg-white p-1.5 pl-4 shadow-sm"
+        >
+          <span aria-hidden>📍</span>
+          <input
+            value={cityQuery}
+            onChange={(e) => { setCityQuery(e.target.value); setCityError(false); }}
+            placeholder={t("map_search_city_ph")}
+            className="w-40 bg-transparent text-sm outline-none placeholder:text-ink-soft md:w-52"
+          />
+          <button
+            type="submit"
+            disabled={citySearching || !cityQuery.trim()}
+            className="rounded-full bg-owner px-4 py-2 text-sm font-bold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {citySearching ? "…" : `🔍 ${t("map_search_city_btn")}`}
+          </button>
+        </form>
+      </div>
+      {cityError && (
+        <p className="mt-2 text-right text-xs font-semibold text-red-600">
+          {t("map_search_city_none")}
+        </p>
+      )}
 
       {/* v498 — Daniel : refonte de la barre de contrôles PawMap (maquette
           PawMap-Boutons). La CARTE est inchangée ; on réutilise état + handlers.
@@ -891,13 +961,20 @@ export default function MapPage() {
         >
           🐾 {t("map_spots_chip")}
         </button>
-        {/* Légende : avatar membre ROSE (sans halo) + libellé Utilisateur. */}
+        {/* Légende : avatar membre ROSE + PATTE BLANCHE (v505 — logo officiel,
+            comme l'app : patte blanche sur fond rose, plus d'emoji). */}
         <span className="ml-1 inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
           <span
-            className="grid h-6 w-6 place-items-center rounded-full border-2 border-white text-[11px] shadow"
+            className="grid h-6 w-6 place-items-center rounded-full border-2 border-white shadow"
             style={{ background: "linear-gradient(135deg,#F06AA0,#E0568B)" }}
           >
-            🐾
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="#fff" aria-hidden>
+              <ellipse cx="12" cy="15.6" rx="4.6" ry="3.7" />
+              <ellipse cx="5.3" cy="10.9" rx="2" ry="2.6" />
+              <ellipse cx="9.4" cy="7.4" rx="2" ry="2.7" />
+              <ellipse cx="14.6" cy="7.4" rx="2" ry="2.7" />
+              <ellipse cx="18.7" cy="10.9" rx="2" ry="2.6" />
+            </svg>
           </span>
           {t("map_member_legend")}
         </span>
