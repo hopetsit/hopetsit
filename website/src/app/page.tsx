@@ -288,7 +288,9 @@ export default function HomePage() {
           📱 {t("screens_title")}
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-ink-muted">{t("screens_sub")}</p>
-        <div className="mt-10 flex snap-x snap-mandatory gap-5 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* w-40 + gap-4 → les 6 captures tiennent SANS coupure dans max-w-6xl ;
+            first:ml-auto/last:mr-auto = centré quand ça tient, scroll sinon. */}
+        <div className="mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {[
             { src: "/screens/02_pawmap.jpg", alt: "PawMap" },
             { src: "/screens/03_sitter.jpg", alt: "Pet-sitters" },
@@ -305,7 +307,7 @@ export default function HomePage() {
               loading="lazy"
               width={640}
               height={1385}
-              className="w-56 shrink-0 snap-center rounded-[22px] shadow-xl ring-1 ring-black/5 transition hover:-translate-y-1 hover:shadow-2xl md:w-64"
+              className="w-40 shrink-0 snap-center rounded-2xl shadow-xl ring-1 ring-black/5 transition first:ml-auto last:mr-auto hover:-translate-y-1 hover:shadow-2xl"
             />
           ))}
         </div>
