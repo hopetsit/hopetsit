@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v504'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v505'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -226,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v504</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v505</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -1198,7 +1198,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
           <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px">🌱 <span data-i18n="pawmap_seed_title">Alimenter la carte (OpenStreetMap)</span></div>
           <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;max-width:720px" data-i18n="pawmap_seed_desc">
-            Charge automatiquement les POIs depuis OpenStreetMap pour un pays européen, un état américain, toute l'Europe ou tous les USA.
+            Charge automatiquement les POIs depuis OpenStreetMap pour un pays européen, un état américain, une province canadienne — ou toute l'Europe, tous les USA, tout le Canada.
             Les catégories couvrent vétos, parcs à chiens, boutiques, toiletteurs, points d'eau, hôtels/restos pet-friendly.
             Le seed tourne en tâche de fond (1-3 min par pays/état). « Tout l'Europe + Suisse » = 29 pays d'un coup ; « Tous les USA » = 50 états + DC.
           </p>
@@ -1210,6 +1210,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
             <button class="action-btn" onclick="startSeedBatch()" style="background:var(--orange);color:#fff;border:none">🌍 <span data-i18n="pawmap_seed_all">Tout l'Europe + Suisse (29 pays)</span></button>
             <!-- v503 — Daniel : USA + tous les états, comme l'Europe. -->
             <button class="action-btn" onclick="startSeedBatchUS()" style="background:#2563EB;color:#fff;border:none">🇺🇸 <span data-i18n="pawmap_seed_all_us">Tous les USA (50 états + DC)</span></button>
+            <!-- v505 — Daniel : Canada. -->
+            <button class="action-btn" onclick="startSeedBatchCA()" style="background:#DC2626;color:#fff;border:none">🇨🇦 <span data-i18n="pawmap_seed_all_ca">Tout le Canada (13 provinces)</span></button>
             <button class="action-btn" onclick="loadSeedJobs()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">↻ <span data-i18n="pawmap_refresh_jobs">Rafraîchir jobs</span></button>
           </div>
           <div id="seed-jobs" style="font-size:12px"></div>
@@ -2753,17 +2755,23 @@ async function deleteAnnonce(id) {
 //   • Breakdown table by report type (total / live / expired / hidden per type)
 //   • Breakdown table by POI category
 //   • Top 10 cities ranked by signal volume
-const REPORT_TYPE_LABELS = {
-  poop: '💩 Caca',
-  pee: '💧 Pipi',
-  water_active: '🚰 Point d\'eau OK',
-  water_broken: '🚱 Point d\'eau cassé',
-  hazard: '⚠️ Danger',
-  aggressive_dog: '😾 Chien agressif',
-  lost_pet: '🔎 Animal perdu',
-  found_pet: '🤝 Animal trouvé',
-  other: '📍 Autre',
+// v505 — Daniel : « mets à jour les logos Signalements par type et les
+// traductions ». AVANT : 9 types seulement (les 18 nouveaux s'affichaient en
+// clé brute genre "dead_animal"). Maintenant : les 27 types du backend
+// (models/MapReport.js), emoji + libellé traduit via t('rt_*') (fr/en/es).
+const REPORT_TYPE_EMOJI = {
+  poop: '💩', pee: '💧', water_active: '🚰', water_broken: '🚱',
+  hazard: '⚠️', aggressive_dog: '😾', lost_pet: '🔎', found_pet: '🤝',
+  other: '📍', dead_animal: '💀', trap: '🪤', poison: '☠️',
+  stray_pet: '🐈', construction: '🚧', busy_traffic: '🚗',
+  fire_smoke: '🔥', flood: '🌊', fallen_tree: '🌳', chemical: '🧪',
+  wildlife: '🐗', no_dogs_zone: '🚫', food: '🍖', trash: '🗑️',
+  vet_open: '🏥', leash_required: '🦮', heat_hot_ground: '🥵',
+  tick_zone: '🕷️',
 };
+function reportTypeLabel(ty) {
+  return (REPORT_TYPE_EMOJI[ty] || '🔔') + ' ' + t('rt_' + ty, ty);
+}
 const POI_CATEGORY_LABELS = {
   vet: '🏥 Vétérinaires',
   park: '🌳 Parcs',
@@ -2899,18 +2907,33 @@ const US_STATE_NAMES = {
   'US-VT': 'Vermont', 'US-VA': 'Virginia', 'US-WA': 'Washington', 'US-WV': 'West Virginia',
   'US-WI': 'Wisconsin', 'US-WY': 'Wyoming', 'US-DC': 'Washington D.C.',
 };
+// v505 — Daniel : « ajoute le Canada » (provinces + territoires).
+const CA_PROVINCE_NAMES = {
+  'CA-ON': 'Ontario', 'CA-QC': 'Québec', 'CA-BC': 'British Columbia',
+  'CA-AB': 'Alberta', 'CA-MB': 'Manitoba', 'CA-SK': 'Saskatchewan',
+  'CA-NS': 'Nova Scotia', 'CA-NB': 'New Brunswick',
+  'CA-NL': 'Newfoundland & Labrador', 'CA-PE': 'Prince Edward Island',
+  'CA-YT': 'Yukon', 'CA-NT': 'Northwest Territories', 'CA-NU': 'Nunavut',
+};
 function seedFlag(code) {
-  return String(code || '').startsWith('US-') ? '🇺🇸' : (COUNTRY_FLAGS[code] || '');
+  const c = String(code || '');
+  if (c.startsWith('US-')) return '🇺🇸';
+  if (c.startsWith('CA-')) return '🇨🇦';
+  return COUNTRY_FLAGS[code] || '';
 }
 function seedLabel(code) {
-  return US_STATE_NAMES[code] ? `${US_STATE_NAMES[code]} (${code})` : code;
+  if (US_STATE_NAMES[code]) return `${US_STATE_NAMES[code]} (${code})`;
+  if (CA_PROVINCE_NAMES[code]) return `${CA_PROVINCE_NAMES[code]} (${code})`;
+  return code;
 }
 let _seedUsStates = []; // rempli par loadSeedCountries (batch USA)
+let _seedCaProvinces = []; // rempli par loadSeedCountries (batch Canada)
 
 async function loadSeedCountries() {
   try {
     const d = await api('/admin/pawmap/seed/countries');
     _seedUsStates = d.usStates || [];
+    _seedCaProvinces = d.caProvinces || [];
     const sel = document.getElementById('seed-country-select');
     const euOpts = d.countries
       .map((c) => `<option value="${c}">${seedFlag(c)} ${c}</option>`)
@@ -2918,9 +2941,13 @@ async function loadSeedCountries() {
     const usOpts = _seedUsStates
       .map((c) => `<option value="${c}">${seedFlag(c)} ${seedLabel(c)}</option>`)
       .join('');
+    const caOpts = _seedCaProvinces
+      .map((c) => `<option value="${c}">${seedFlag(c)} ${seedLabel(c)}</option>`)
+      .join('');
     sel.innerHTML =
       `<optgroup label="🌍 Europe">${euOpts}</optgroup>` +
-      (usOpts ? `<optgroup label="🇺🇸 USA — états">${usOpts}</optgroup>` : '');
+      (usOpts ? `<optgroup label="🇺🇸 USA — états">${usOpts}</optgroup>` : '') +
+      (caOpts ? `<optgroup label="🇨🇦 Canada — provinces">${caOpts}</optgroup>` : '');
   } catch (e) {
     console.error('loadSeedCountries', e);
   }
@@ -2945,6 +2972,18 @@ async function startSeedBatchUS() {
     showToast(`🇺🇸 Batch USA lancé (${_seedUsStates.length} états). Job ${d.jobId}.`);
     pollSeedJobs();
   } catch (e) { showToast('❌ ' + (e.message || 'Batch USA failed')); }
+}
+
+// v505 — batch Canada : 10 provinces + 3 territoires d'un coup.
+async function startSeedBatchCA() {
+  if (!_seedCaProvinces.length) { await loadSeedCountries(); }
+  if (!_seedCaProvinces.length) { showToast('❌ Liste des provinces indisponible — recharge la page.'); return; }
+  if (!confirm(`Lancer le seed pour les ${_seedCaProvinces.length} provinces/territoires du Canada ? Peut prendre ~30-60 minutes au total. Le batch tourne en arrière-plan — tu peux fermer l'admin.`)) return;
+  try {
+    const d = await api('/admin/pawmap/seed/batch', 'POST', { countries: _seedCaProvinces });
+    showToast(`🇨🇦 Batch Canada lancé (${_seedCaProvinces.length} provinces). Job ${d.jobId}.`);
+    pollSeedJobs();
+  } catch (e) { showToast('❌ ' + (e.message || 'Batch Canada failed')); }
 }
 
 async function startSeedBatch() {
@@ -3017,7 +3056,7 @@ function renderPawmapStats(d) {
 
   // Reports by type table.
   const typeRows = (r.byType || []).map((row) => {
-    const label = REPORT_TYPE_LABELS[row.type] || row.type;
+    const label = reportTypeLabel(row.type);
     return `
       <tr>
         <td style="padding:10px;font-weight:600">${label}</td>
@@ -5888,6 +5927,33 @@ async function toggleStaff(role, userId, isStaff) {
   <script>
     const ADMIN_I18N = {
       fr: {
+        rt_poop: "Caca à ramasser",
+        rt_pee: "Pipi / marquage",
+        rt_water_active: "Point d'eau OK",
+        rt_water_broken: "Point d'eau cassé",
+        rt_hazard: "Danger",
+        rt_aggressive_dog: "Chien agressif",
+        rt_lost_pet: "Animal perdu",
+        rt_found_pet: "Animal trouvé",
+        rt_other: "Autre",
+        rt_dead_animal: "Animal décédé",
+        rt_trap: "Piège repéré",
+        rt_poison: "Appât empoisonné",
+        rt_stray_pet: "Animal errant",
+        rt_construction: "Zone de travaux",
+        rt_busy_traffic: "Route dangereuse",
+        rt_fire_smoke: "Incendie / fumée",
+        rt_flood: "Inondation",
+        rt_fallen_tree: "Arbre tombé",
+        rt_chemical: "Produits chimiques",
+        rt_wildlife: "Faune sauvage",
+        rt_no_dogs_zone: "Zone interdite aux chiens",
+        rt_food: "Nourriture au sol",
+        rt_trash: "Détritus",
+        rt_vet_open: "Vétérinaire ouvert",
+        rt_leash_required: "Laisse obligatoire",
+        rt_heat_hot_ground: "Sol brûlant",
+        rt_tick_zone: "Zone à tiques",
         login_sub: "Tableau de bord admin · Accès restreint",
         backend_url: "URL Backend",
         admin_email: "Email admin",
@@ -5995,6 +6061,33 @@ async function toggleStaff(role, userId, isStaff) {
         recent_5: "Les 5 récents",
       },
       en: {
+        rt_poop: "Poop to pick up",
+        rt_pee: "Pee / marking",
+        rt_water_active: "Water point OK",
+        rt_water_broken: "Broken water point",
+        rt_hazard: "Hazard",
+        rt_aggressive_dog: "Aggressive dog",
+        rt_lost_pet: "Lost pet",
+        rt_found_pet: "Found pet",
+        rt_other: "Other",
+        rt_dead_animal: "Dead animal",
+        rt_trap: "Animal trap",
+        rt_poison: "Poisoned bait",
+        rt_stray_pet: "Stray pet",
+        rt_construction: "Construction zone",
+        rt_busy_traffic: "Dangerous traffic",
+        rt_fire_smoke: "Fire / smoke",
+        rt_flood: "Flood",
+        rt_fallen_tree: "Fallen tree",
+        rt_chemical: "Chemicals",
+        rt_wildlife: "Wildlife",
+        rt_no_dogs_zone: "No-dogs zone",
+        rt_food: "Food on the ground",
+        rt_trash: "Trash",
+        rt_vet_open: "Vet open",
+        rt_leash_required: "Leash required",
+        rt_heat_hot_ground: "Hot ground",
+        rt_tick_zone: "Tick zone",
         login_sub: "Admin Dashboard · Restricted Access",
         backend_url: "Backend URL",
         admin_email: "Admin Email",
@@ -6101,6 +6194,33 @@ async function toggleStaff(role, userId, isStaff) {
         recent_5: "The 5 most recent",
       },
       es: {
+        rt_poop: "Caca por recoger",
+        rt_pee: "Pipí / marcaje",
+        rt_water_active: "Punto de agua OK",
+        rt_water_broken: "Punto de agua roto",
+        rt_hazard: "Peligro",
+        rt_aggressive_dog: "Perro agresivo",
+        rt_lost_pet: "Mascota perdida",
+        rt_found_pet: "Mascota encontrada",
+        rt_other: "Otro",
+        rt_dead_animal: "Animal muerto",
+        rt_trap: "Trampa detectada",
+        rt_poison: "Cebo envenenado",
+        rt_stray_pet: "Animal callejero",
+        rt_construction: "Zona de obras",
+        rt_busy_traffic: "Tráfico peligroso",
+        rt_fire_smoke: "Incendio / humo",
+        rt_flood: "Inundación",
+        rt_fallen_tree: "Árbol caído",
+        rt_chemical: "Químicos",
+        rt_wildlife: "Fauna salvaje",
+        rt_no_dogs_zone: "Zona sin perros",
+        rt_food: "Comida en el suelo",
+        rt_trash: "Basura",
+        rt_vet_open: "Veterinario abierto",
+        rt_leash_required: "Correa obligatoria",
+        rt_heat_hot_ground: "Suelo ardiente",
+        rt_tick_zone: "Zona de garrapatas",
         login_sub: "Panel de administración · Acceso restringido",
         backend_url: "URL del backend",
         admin_email: "Email de administrador",

@@ -2439,6 +2439,8 @@ router.get('/pawmap/seed/countries', requireAdmin, (req, res) => {
     countries: mapPoiSeedService.ALL_EU_COUNTRIES,
     // v503 — Daniel : USA + tous les états, comme les pays européens.
     usStates: mapPoiSeedService.ALL_US_STATES,
+    // v505 — Daniel : Canada (provinces + territoires).
+    caProvinces: mapPoiSeedService.ALL_CA_PROVINCES,
     categories: Object.keys(mapPoiSeedService.CATEGORY_TAGS),
     bboxes: mapPoiSeedService.COUNTRY_BBOX,
   });

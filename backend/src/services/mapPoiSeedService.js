@@ -143,9 +143,29 @@ const US_STATE_BBOX = {
   'US-DC': [38.79, -77.12, 39.0, -76.9], // Washington D.C.
 };
 const ALL_US_STATES = Object.keys(US_STATE_BBOX);
+
+// v505 — Daniel : « ajoute le Canada ». Même mécanique : province par
+// province (10 provinces + 3 territoires). [south, west, north, east]
+const CA_PROVINCE_BBOX = {
+  'CA-ON': [41.7, -95.2, 56.9, -74.3],   // Ontario
+  'CA-QC': [45.0, -79.8, 62.6, -57.1],   // Québec
+  'CA-BC': [48.3, -139.1, 60.0, -114.0], // British Columbia
+  'CA-AB': [49.0, -120.0, 60.0, -110.0], // Alberta
+  'CA-MB': [49.0, -102.0, 60.0, -89.0],  // Manitoba
+  'CA-SK': [49.0, -110.0, 60.0, -101.4], // Saskatchewan
+  'CA-NS': [43.4, -66.4, 47.1, -59.7],   // Nova Scotia
+  'CA-NB': [44.6, -69.1, 48.1, -63.7],   // New Brunswick
+  'CA-NL': [46.6, -67.8, 60.4, -52.6],   // Newfoundland & Labrador
+  'CA-PE': [45.9, -64.4, 47.1, -62.0],   // Prince Edward Island
+  'CA-YT': [60.0, -141.0, 69.7, -124.0], // Yukon
+  'CA-NT': [60.0, -136.5, 78.8, -102.0], // Northwest Territories
+  'CA-NU': [51.6, -120.7, 83.1, -61.1],  // Nunavut
+};
+const ALL_CA_PROVINCES = Object.keys(CA_PROVINCE_BBOX);
+
 // Fusion dans COUNTRY_BBOX → runSeed / runSeedBatch marchent tels quels
-// (lookup COUNTRY_BBOX['US-CA'] etc.).
-Object.assign(COUNTRY_BBOX, US_STATE_BBOX);
+// (lookup COUNTRY_BBOX['US-CA'] / COUNTRY_BBOX['CA-QC'] etc.).
+Object.assign(COUNTRY_BBOX, US_STATE_BBOX, CA_PROVINCE_BBOX);
 
 // ─── Job registry — simple in-memory tracker ────────────────────────────────
 // Resets on every server restart (Render redeploys), which is acceptable:
@@ -480,4 +500,7 @@ module.exports = {
   // v503 — états américains (seed état par état + batch USA).
   US_STATE_BBOX,
   ALL_US_STATES,
+  // v505 — provinces canadiennes (seed province par province + batch Canada).
+  CA_PROVINCE_BBOX,
+  ALL_CA_PROVINCES,
 };
