@@ -4213,11 +4213,34 @@ router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
           chatAddonT = cA[0]?.t || 0;
         } catch (_) {}
       }
+      // v506 — Daniel : « pourquoi ça me dit ça alors que les 3 € (vérif ID)
+      // sont payés et apparaissent dans le solde ? ». CAUSE : ce cap
+      // recalculait la boutique avec l'ANCIENNE formule (sans KYC ni dons)
+      // alors que la carte « Solde retirable » (/admin/payouts) les compte
+      // depuis v500 → écart d'exactement 3 € par vérification. On aligne :
+      // KYC (3 EUR × payées) + dons = argent réellement encaissé sur Airwallex.
+      let kycT = 0;
+      try {
+        const [ksS, kwS] = await Promise.all([
+          Sitter.countDocuments({ kycPaidAt: { $ne: null } }),
+          Walker.countDocuments({ kycPaidAt: { $ne: null } }),
+        ]);
+        kycT = (ksS + kwS) * 3;
+      } catch (_) {}
+      let donT = 0;
+      try {
+        const DonationM = require('../models/Donation');
+        const dA = await DonationM.aggregate([
+          { $match: { status: 'succeeded' } },
+          { $group: { _id: null, t: { $sum: { $ifNull: ['$amount', 0] } } } },
+        ]);
+        donT = dA[0]?.t || 0;
+      } catch (_) {}
       const commissions = bAgg[0]?.c || 0;
-      const boutique = pO + pS + pW + mO + mS + mW + (sAgg[0]?.t || 0) + chatAddonT;
+      const boutique = pO + pS + pW + mO + mS + mW + (sAgg[0]?.t || 0) + chatAddonT + kycT + donT;
       const swept = swAgg[0]?.t || 0;
       hopetsitCap = Math.max(0, commissions + boutique - swept);
-      logger.info(`[admin/sweep] hopetsitCap calc: commissions=${commissions} boutique=${boutique} swept=${swept} → cap=${hopetsitCap}`);
+      logger.info(`[admin/sweep] hopetsitCap calc: commissions=${commissions} boutique=${boutique} (kyc=${kycT} dons=${donT}) swept=${swept} → cap=${hopetsitCap}`);
     } catch (e) {
       logger.warn('[admin/sweep] hopetsitCap calc failed (non-fatal):', e.message);
     }
