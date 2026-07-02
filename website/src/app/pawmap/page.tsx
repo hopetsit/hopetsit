@@ -14,34 +14,40 @@ export default function PawMapPage() {
   const { t } = useT();
 
   // Clés map_cat_* déjà traduites dans les 6 langues.
+  // v506 — design : une teinte pastel PAR catégorie (au lieu du vert uniforme).
   const cats = [
-    { emoji: "🩺", label: t("map_cat_vet") },
-    { emoji: "🛒", label: t("map_cat_shop") },
-    { emoji: "✂️", label: t("map_cat_groomer") },
-    { emoji: "🌳", label: t("map_cat_park") },
-    { emoji: "🏖️", label: t("map_cat_beach") },
-    { emoji: "💧", label: t("map_cat_water") },
-    { emoji: "🎓", label: t("map_cat_trainer") },
-    { emoji: "🏨", label: t("map_cat_hotel") },
-    { emoji: "🍽️", label: t("map_cat_restaurant") },
+    { emoji: "🩺", label: t("map_cat_vet"), tint: "bg-red-50" },
+    { emoji: "🛒", label: t("map_cat_shop"), tint: "bg-blue-50" },
+    { emoji: "✂️", label: t("map_cat_groomer"), tint: "bg-pink-50" },
+    { emoji: "🌳", label: t("map_cat_park"), tint: "bg-green-50" },
+    { emoji: "🏖️", label: t("map_cat_beach"), tint: "bg-amber-50" },
+    { emoji: "💧", label: t("map_cat_water"), tint: "bg-cyan-50" },
+    { emoji: "🎓", label: t("map_cat_trainer"), tint: "bg-violet-50" },
+    { emoji: "🏨", label: t("map_cat_hotel"), tint: "bg-indigo-50" },
+    { emoji: "🍽️", label: t("map_cat_restaurant"), tint: "bg-orange-50" },
   ];
 
   // « Comment ça marche » communautaire en 3 étapes (Explorer → Taguer/noter →
   // PawPoints) — réutilise des clés existantes (aucune nouvelle traduction).
+  // v506 — design : chaque étape a sa couleur (orange / rose / ambre).
   const steps = [
-    { n: "1", emoji: "🔍", body: t("pawmap_msg_places") },
-    { n: "2", emoji: "📍", body: t("pawspot_desc") },
-    { n: "3", emoji: "🐾", body: t("pawmap_pawpoints_desc") },
+    { n: "1", emoji: "🔍", body: t("pawmap_msg_places"), badge: "bg-owner", tint: "bg-owner-light" },
+    { n: "2", emoji: "📍", body: t("pawspot_desc"), badge: "bg-[#e83e8c]", tint: "bg-pink-50" },
+    { n: "3", emoji: "🐾", body: t("pawmap_pawpoints_desc"), badge: "bg-amber-500", tint: "bg-amber-50" },
   ];
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-16 md:py-24">
-      {/* ── 1. HERO ── logo + titre + sous-titre + aperçu carte + CTA. */}
+      {/* ── 1. HERO ── logo + badge 177 pays + titre + sous-titre + aperçu
+           carte + CTA. v506 — design : badge héro + logo dans une pastille. */}
       <div className="grid items-center gap-10 md:grid-cols-2">
         <div className="text-center md:text-left">
-          <div className="mb-4 flex justify-center md:justify-start">
+          <div className="mb-5 flex items-center justify-center gap-4 md:justify-start">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/pawmap_logo_orange.svg" alt="PawMap" width={84} height={84} />
+            <img src="/pawmap_logo_orange.svg" alt="PawMap" width={84} height={84} className="drop-shadow-md" />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-owner/25 bg-white px-3 py-1 text-xs font-bold text-owner shadow-sm">
+              🌍 {t("hero_badge")}
+            </span>
           </div>
           <h1 className="font-display text-4xl font-extrabold tracking-tight text-ink md:text-5xl">
             {t("pawmap_title")}
@@ -98,8 +104,11 @@ export default function PawMapPage() {
         </h2>
         <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {cats.map((c) => (
-            <div key={c.label} className="flex items-center gap-3 rounded-2xl border border-[#efe7e0] bg-white p-4 shadow-card">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-walker-light text-xl">{c.emoji}</span>
+            <div
+              key={c.label}
+              className="flex items-center gap-3 rounded-2xl border border-[#efe7e0] bg-white p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-lg"
+            >
+              <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl text-xl ${c.tint}`}>{c.emoji}</span>
               <span className="text-sm font-semibold text-ink">{c.label}</span>
             </div>
           ))}
@@ -113,10 +122,13 @@ export default function PawMapPage() {
         </h2>
         <div className="mt-8 grid gap-5 md:grid-cols-3">
           {steps.map((s) => (
-            <div key={s.n} className="relative rounded-[22px] border border-[#efe7e0] bg-white p-6 shadow-card">
+            <div
+              key={s.n}
+              className="relative rounded-[22px] border border-[#efe7e0] bg-white p-6 shadow-card transition hover:-translate-y-0.5 hover:shadow-lg"
+            >
               <div className="flex items-center gap-3">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-walker text-sm font-extrabold text-white">{s.n}</span>
-                <span className="text-2xl">{s.emoji}</span>
+                <span className={`grid h-9 w-9 place-items-center rounded-full text-sm font-extrabold text-white shadow-sm ${s.badge}`}>{s.n}</span>
+                <span className={`grid h-11 w-11 place-items-center rounded-xl text-2xl ${s.tint}`}>{s.emoji}</span>
               </div>
               <p className="mt-4 text-sm leading-relaxed text-ink-muted">{s.body}</p>
             </div>

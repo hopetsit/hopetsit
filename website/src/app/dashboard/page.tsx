@@ -347,12 +347,23 @@ export default function DashboardPage() {
 
         {/* ── ZONE PRINCIPALE ── */}
         <main className="mt-6 md:mt-0">
-          {/* En-tête de bienvenue (couleur du rôle). */}
+          {/* En-tête de bienvenue (couleur du rôle).
+              v506 — design : patte en filigrane + halos doux (décoratif). */}
           <div
-            className={`rounded-[26px] bg-${roleColor} p-6 text-white shadow-card md:p-8 ${
+            className={`relative overflow-hidden rounded-[26px] bg-${roleColor} p-6 text-white shadow-card md:p-8 ${
               premiumLabel ? "ring-2 ring-amber-400" : ""
             }`}
           >
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -right-4 -top-10 rotate-12 select-none text-[130px] leading-none opacity-10"
+            >
+              🐾
+            </span>
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -bottom-20 -left-12 h-52 w-52 rounded-full bg-white/10"
+            />
             <div className="flex items-center justify-between">
               <h1 className="font-display text-2xl font-extrabold md:text-3xl">
                 {t("dash_welcome")}, {user?.name?.split(" ")[0] || "you"} 👋
@@ -441,40 +452,45 @@ export default function DashboardPage() {
             <NavCard
               href="/posts"
               emoji="📣"
+              tint="bg-orange-50"
               title={isOwner ? t("posts_my_title") : t("posts_feed_title")}
               subtitle={isOwner ? t("posts_create_cta") : t("posts_contact")}
             />
             <NavCard
               href="/chat"
               emoji="💬"
+              tint="bg-blue-50"
               title={t("dash_card_messages_title")}
               subtitle={t("dash_card_messages_sub")}
               badge={unreadMsg}
             />
             {isOwner && (
-              <NavCard href="/pets" emoji="🐾" title={t("dash_card_pets_title")} subtitle={t("dash_card_pets_sub")} />
+              <NavCard href="/pets" emoji="🐾" tint="bg-pink-50" title={t("dash_card_pets_title")} subtitle={t("dash_card_pets_sub")} />
             )}
             {isOwner && (
-              <NavCard href="/search" emoji="🔍" title={t("dash_card_search_title")} subtitle={t("dash_card_search_sub")} />
+              <NavCard href="/search" emoji="🔍" tint="bg-violet-50" title={t("dash_card_search_title")} subtitle={t("dash_card_search_sub")} />
             )}
             {isProvider && (
-              <NavCard href="/sitter-setup" emoji="⚙️" title={t("dash_card_setup_title")} subtitle={t("dash_card_setup_sub")} />
+              <NavCard href="/sitter-setup" emoji="⚙️" tint="bg-slate-100" title={t("dash_card_setup_title")} subtitle={t("dash_card_setup_sub")} />
             )}
             <NavCard
               href="/pawpoints"
               emoji="🐾"
+              tint="bg-amber-50"
               title={t("dash_card_pawpoints_title")}
               subtitle={t("dash_card_pawpoints_sub")}
             />
             <NavCard
               href="/invoices"
               emoji="🧾"
+              tint="bg-emerald-50"
               title={t("dash_card_invoices_title")}
               subtitle={t("dash_card_invoices_sub")}
             />
             <NavCard
               href="/profile"
               emoji="👤"
+              tint="bg-cyan-50"
               title={t("dash_card_profile_title")}
               subtitle={t("dash_card_profile_sub")}
             />
@@ -575,19 +591,22 @@ function NavCard({
   title,
   subtitle,
   badge,
+  tint,
 }: {
   href: string;
   emoji: string;
   title: string;
   subtitle: string;
   badge?: number;
+  /** v506 — design : teinte pastel de la pastille (une couleur par carte). */
+  tint?: string;
 }) {
   return (
     <Link
       href={href}
       className="group flex items-center gap-4 rounded-2xl border-2 border-ink/5 bg-white p-4 shadow-card transition hover:-translate-y-0.5 hover:border-owner/40 hover:shadow-xl"
     >
-      <span className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-owner-light to-amber-50 text-2xl shadow-sm transition group-hover:scale-110">
+      <span className={`relative flex h-12 w-12 items-center justify-center rounded-xl text-2xl shadow-sm transition group-hover:scale-110 ${tint || "bg-gradient-to-br from-owner-light to-amber-50"}`}>
         {emoji}
         {badge && badge > 0 ? (
           <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white shadow">
