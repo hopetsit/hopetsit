@@ -280,6 +280,37 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── v507 — L'APP EN IMAGES ── vraies captures store (Daniel, 6 visuels
+           /screens/01..06) en bande défilable horizontale. Les visuels ont déjà
+           leur fond orange + titre intégré → simples cartes arrondies. */}
+      <section className="mx-auto max-w-6xl px-4 py-20">
+        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
+          📱 {t("screens_title")}
+        </h2>
+        <p className="mx-auto mt-3 max-w-2xl text-center text-ink-muted">{t("screens_sub")}</p>
+        <div className="mt-10 flex snap-x snap-mandatory gap-5 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {[
+            { src: "/screens/02_pawmap.jpg", alt: "PawMap" },
+            { src: "/screens/03_sitter.jpg", alt: "Pet-sitters" },
+            { src: "/screens/05_live_tracking.jpg", alt: "PawFollow" },
+            { src: "/screens/04_chat.jpg", alt: "Chat" },
+            { src: "/screens/01_profile.jpg", alt: "Profil" },
+            { src: "/screens/06_payment.jpg", alt: "Paiement" },
+          ].map((s) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={s.src}
+              src={s.src}
+              alt={`HoPetSit — ${s.alt}`}
+              loading="lazy"
+              width={640}
+              height={1385}
+              className="w-56 shrink-0 snap-center rounded-[22px] shadow-xl ring-1 ring-black/5 transition hover:-translate-y-1 hover:shadow-2xl md:w-64"
+            />
+          ))}
+        </div>
+      </section>
+
       {/* ── 5. PAW PREMIUM ── une seule bande compacte (noir/or), CTA boutique.
            v493 — plus d'air : carte centrée avec marges, padding & gaps généreux. */}
       <section className="px-4 py-20">
