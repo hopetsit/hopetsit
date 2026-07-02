@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v503'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v504'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -226,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v503</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v504</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -467,68 +467,64 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           <div class="loading"><div class="spinner"></div></div>
         </div>
 
-        <!-- v500 — les 2 activités côte à côte : 🐾 PetSitting | 🛍️ Boutique -->
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(460px,1fr));gap:18px;align-items:start;margin-bottom:22px">
+        <!-- v504 — Daniel : « étends Activité Boutique à gauche, ajoute la
+             carte Dons, et mets Activité PetSitting en dessous ». Les 2
+             panneaux côte à côte laissaient un grand vide → Boutique en
+             PLEINE LARGEUR d'abord, PetSitting complet (résumé + transactions)
+             en dessous. -->
 
-          <!-- 🐾 ACTIVITÉ PETSITTING -->
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;min-width:0">
-            <div class="section-title" style="font-size:16px">🐾 <span data-i18n="finance_petsitting_title">Activité PetSitting</span></div>
-            <p style="color:var(--text-muted);font-size:12.5px;margin-bottom:12px" data-i18n="finance_petsitting_desc">Réservations payées, commissions plateforme et virements aux prestataires.</p>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px" id="payment-summary-cards">
-              <div class="loading"><div class="spinner"></div></div>
-            </div>
-            <p style="color:var(--text-muted);font-size:12px;margin:0">↓ <span data-i18n="finance_tx_hint">Le détail des transactions est en pleine largeur sous ces panneaux.</span></p>
+        <!-- 🛍️ ACTIVITÉ BOUTIQUE (dons + vérifications d'identité inclus) -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:22px">
+          <div class="section-title" style="font-size:16px">🛍️ <span data-i18n="finance_shop_title">Activité Boutique</span>
+            <button class="action-btn" style="margin-left:12px;background:#2563EB;color:#fff" onclick="showPage('boosts')"><span data-i18n="finance_shop_all">Voir tout</span> →</button>
           </div>
-
-          <!-- 🛍️ ACTIVITÉ BOUTIQUE (dons + vérifications d'identité inclus) -->
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;min-width:0">
-            <div class="section-title" style="font-size:16px">🛍️ <span data-i18n="finance_shop_title">Activité Boutique</span>
-              <button class="action-btn" style="margin-left:12px;background:#2563EB;color:#fff" onclick="showPage('boosts')"><span data-i18n="finance_shop_all">Voir tout</span> →</button>
-            </div>
-            <p style="color:var(--text-muted);font-size:12.5px;margin-bottom:12px" data-i18n="finance_shop_desc">Abonnements &amp; boosts, 🪪 vérifications d'identité et 🎁 dons.</p>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px" id="pay-shop-stats">
-              <div class="loading"><div class="spinner"></div></div>
-            </div>
-            <div class="table-wrap">
-              <div id="pay-shop-table"><div class="loading"><div class="spinner"></div></div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- v502 — Daniel : « la colonne est encore coupée, pas accès au bouton
-             Manage ». Le tableau des transactions (12 colonnes) passe en PLEINE
-             LARGEUR sous les 2 panneaux → toutes les colonnes visibles. -->
-        <div class="section-title" style="font-size:16px">💳 <span data-i18n="finance_tx_title">Transactions PetSitting</span></div>
-        <!-- Filters -->
-        <div class="table-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-          <select class="filter-select" id="pay-filter-status" onchange="loadPayments()">
-            <option value="" data-i18n="filter_all_pay_status">Tous les statuts paiement</option>
-            <option value="paid" data-i18n="pay_paid">Payé</option>
-            <option value="failed" data-i18n="pay_failed">Échec</option>
-            <option value="refunded" data-i18n="pay_refunded">Remboursé</option>
-          </select>
-          <select class="filter-select" id="pay-filter-payout" onchange="loadPayments()">
-            <option value="" data-i18n="filter_all_payout_status">Tous les statuts payout</option>
-            <option value="pending" data-i18n="status_pending">En attente</option>
-            <option value="processing" data-i18n="status_processing">En cours</option>
-            <option value="completed" data-i18n="status_done">Terminé</option>
-            <option value="failed" data-i18n="pay_failed">Échec</option>
-          </select>
-          <select class="filter-select" id="pay-filter-provider" onchange="loadPayments()">
-            <option value="" data-i18n="filter_all_providers">Tous les providers</option>
-            <option value="airwallex">🌐 Airwallex</option>
-          </select>
-          <input type="date" class="filter-select" id="pay-filter-from" onchange="loadPayments()" data-i18n-title="from_date" title="From date" />
-          <input type="date" class="filter-select" id="pay-filter-to" onchange="loadPayments()" data-i18n-title="to_date" title="To date" />
-        </div>
-        <!-- Payments table -->
-        <div class="table-wrap">
-          <div id="payments-table-body">
+          <p style="color:var(--text-muted);font-size:12.5px;margin-bottom:12px" data-i18n="finance_shop_desc">Abonnements &amp; boosts, 🪪 vérifications d'identité et 🎁 dons.</p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px" id="pay-shop-stats">
             <div class="loading"><div class="spinner"></div></div>
           </div>
+          <div class="table-wrap" style="margin-bottom:0">
+            <div id="pay-shop-table"><div class="loading"><div class="spinner"></div></div></div>
+          </div>
         </div>
-        <!-- Pagination -->
-        <div style="display:flex;justify-content:center;gap:8px;margin-top:12px" id="payments-pagination"></div>
+
+        <!-- 🐾 ACTIVITÉ PETSITTING — résumé + transactions, pleine largeur -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:22px">
+          <div class="section-title" style="font-size:16px">🐾 <span data-i18n="finance_petsitting_title">Activité PetSitting</span></div>
+          <p style="color:var(--text-muted);font-size:12.5px;margin-bottom:12px" data-i18n="finance_petsitting_desc">Réservations payées, commissions plateforme et virements aux prestataires.</p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px" id="payment-summary-cards">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+          <!-- Filters -->
+          <div class="table-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+            <select class="filter-select" id="pay-filter-status" onchange="loadPayments()">
+              <option value="" data-i18n="filter_all_pay_status">Tous les statuts paiement</option>
+              <option value="paid" data-i18n="pay_paid">Payé</option>
+              <option value="failed" data-i18n="pay_failed">Échec</option>
+              <option value="refunded" data-i18n="pay_refunded">Remboursé</option>
+            </select>
+            <select class="filter-select" id="pay-filter-payout" onchange="loadPayments()">
+              <option value="" data-i18n="filter_all_payout_status">Tous les statuts payout</option>
+              <option value="pending" data-i18n="status_pending">En attente</option>
+              <option value="processing" data-i18n="status_processing">En cours</option>
+              <option value="completed" data-i18n="status_done">Terminé</option>
+              <option value="failed" data-i18n="pay_failed">Échec</option>
+            </select>
+            <select class="filter-select" id="pay-filter-provider" onchange="loadPayments()">
+              <option value="" data-i18n="filter_all_providers">Tous les providers</option>
+              <option value="airwallex">🌐 Airwallex</option>
+            </select>
+            <input type="date" class="filter-select" id="pay-filter-from" onchange="loadPayments()" data-i18n-title="from_date" title="From date" />
+            <input type="date" class="filter-select" id="pay-filter-to" onchange="loadPayments()" data-i18n-title="to_date" title="To date" />
+          </div>
+          <!-- Payments table -->
+          <div class="table-wrap" style="margin-bottom:0">
+            <div id="payments-table-body">
+              <div class="loading"><div class="spinner"></div></div>
+            </div>
+          </div>
+          <!-- Pagination -->
+          <div style="display:flex;justify-content:center;gap:8px;margin-top:12px" id="payments-pagination"></div>
+        </div>
 
         <!-- v23.1.376 — Daniel : payouts prestataires par catégorie -->
         <div class="section-title" style="margin-top:8px">💸 <span data-i18n="payouts_providers_title">Payouts prestataires</span>
@@ -1767,9 +1763,12 @@ async function loadShopPanel() {
     renderFinanceOverview();
     if (stats) {
       const pb = _finShop.productBreakdown || {};
-      const cell = (k) => pb[k]
-        ? `<div class="stat-card" style="--accent:${PRODUCT_COLORS[k]}"><div class="stat-label">${PRODUCT_LABELS[k]}</div><div class="stat-value">€${(pb[k].revenue || 0).toFixed(2)}</div><div class="stat-sub">${pb[k].count} achats</div></div>`
-        : '';
+      // v504 — Daniel : la carte 🎁 Dons doit TOUJOURS être visible (avant,
+      // une carte sans achat disparaissait → pas de colonne Dons à 0 €).
+      const cell = (k) => {
+        const v = pb[k] || { revenue: 0, count: 0 };
+        return `<div class="stat-card" style="--accent:${PRODUCT_COLORS[k]}"><div class="stat-label">${PRODUCT_LABELS[k]}</div><div class="stat-value">€${(v.revenue || 0).toFixed(2)}</div><div class="stat-sub">${v.count || 0} achats</div></div>`;
+      };
       stats.innerHTML = `
         <div class="stat-card" style="--accent:var(--green)"><div class="stat-label">Revenus boutique</div><div class="stat-value" style="color:var(--green)">€${(_finShop.totalRevenue || 0).toFixed(2)}</div><div class="stat-sub">${_finShop.totalPurchases || 0} achats au total</div></div>
         ${cell('pawpremium')}${cell('premium')}${cell('map_boost')}${cell('profile_boost')}${cell('kyc')}${cell('donation')}
