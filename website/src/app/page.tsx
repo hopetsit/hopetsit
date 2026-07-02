@@ -166,7 +166,7 @@ export default function HomePage() {
         <p className="mx-auto mt-3 max-w-2xl text-center text-ink-muted">
           {t("video_sub")}
         </p>
-        <div className="mt-10 overflow-hidden rounded-3xl border border-ink/10 shadow-2xl">
+        <div className="mt-10 overflow-hidden rounded-3xl border border-ink/10 shadow-2xl ring-4 ring-owner/10">
           <video
             controls
             playsInline
@@ -190,10 +190,11 @@ export default function HomePage() {
             return (
               <div
                 key={r.title}
-                className="group relative overflow-hidden rounded-[22px] border border-[#efe7e0] bg-white p-7 shadow-card transition-transform hover:-translate-y-1"
+                className="group relative overflow-hidden rounded-[22px] border border-[#efe7e0] bg-white p-7 shadow-card transition hover:-translate-y-1 hover:shadow-xl"
               >
                 <div className={`absolute inset-x-0 top-0 h-1.5 bg-${accent}`} />
-                <div className={`grid h-12 w-12 place-items-center rounded-2xl bg-${accent}-light text-2xl`}>
+                {/* v507 — design : icône plus présente + zoom doux au survol. */}
+                <div className={`grid h-14 w-14 place-items-center rounded-2xl bg-${accent}-light text-3xl shadow-sm transition group-hover:scale-110`}>
                   {r.emoji}
                 </div>
                 <h3 className="mt-5 text-lg font-extrabold text-ink">{r.title}</h3>
@@ -234,7 +235,7 @@ export default function HomePage() {
               return (
                 <div
                   key={s.name}
-                  className={`group relative flex flex-col overflow-hidden rounded-[22px] border bg-white p-7 shadow-card transition-transform hover:-translate-y-1 ${ring}`}
+                  className={`group relative flex flex-col overflow-hidden rounded-[22px] border bg-white p-7 shadow-card transition hover:-translate-y-1 hover:shadow-xl ${ring}`}
                 >
                   <div className={`absolute inset-x-0 top-0 h-1.5 ${bar}`} />
                   <div className="mb-4 flex items-center gap-3">
@@ -249,17 +250,19 @@ export default function HomePage() {
                     <h3 className={`text-lg font-extrabold ${titleCls}`}>{s.name}</h3>
                   </div>
                   <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">{s.title}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-muted">{s.body}</p>
+                  <p className="mb-5 mt-2 text-sm leading-relaxed text-ink-muted">{s.body}</p>
                   {/* v493 — PawSpot : « voir les membres proches » + badge rose. */}
                   {isPs && (
-                    <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-pink-700">
+                    <p className="mb-4 flex items-center gap-2 text-xs font-semibold text-pink-700">
                       <PawMemberBadge size={18} />
                       <span>{t("pawspot_feat_nearby")}</span>
                     </p>
                   )}
                   {/* v497 — Daniel : pas de prix sur PawFollow/PawSpot → CTA
-                      « Découvrir … » seul, pleine largeur. PetSitting garde son prix. */}
-                  <div className="mt-5 flex items-center justify-between gap-2 border-t border-[#efe7e0] pt-4">
+                      « Découvrir … » seul, pleine largeur. PetSitting garde son prix.
+                      v507 — design : mt-auto → les 3 boutons ALIGNÉS en bas,
+                      quelle que soit la longueur du texte au-dessus. */}
+                  <div className="mt-auto flex items-center justify-between gap-2 border-t border-[#efe7e0] pt-4">
                     {s.price ? (
                       <span className={`text-sm font-extrabold ${titleCls}`}>{s.price}</span>
                     ) : null}
@@ -280,9 +283,16 @@ export default function HomePage() {
       {/* ── 5. PAW PREMIUM ── une seule bande compacte (noir/or), CTA boutique.
            v493 — plus d'air : carte centrée avec marges, padding & gaps généreux. */}
       <section className="px-4 py-20">
-        <div className="mx-auto flex max-w-4xl flex-col items-center gap-7 rounded-[26px] bg-gradient-to-b from-[#221C12] to-[#15120D] p-9 text-center md:flex-row md:gap-10 md:p-12 md:text-left">
+        <div className="relative mx-auto flex max-w-4xl flex-col items-center gap-7 overflow-hidden rounded-[26px] bg-gradient-to-b from-[#221C12] to-[#15120D] p-9 text-center shadow-2xl ring-1 ring-amber-400/40 md:flex-row md:gap-10 md:p-12 md:text-left">
+          {/* v507 — design : couronne en filigrane + liseré or. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -right-4 -top-8 rotate-12 select-none text-[110px] leading-none opacity-[0.07]"
+          >
+            👑
+          </span>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/pawpremium_logo.svg" alt="PawPremium" width={80} height={80} className="shrink-0" />
+          <img src="/pawpremium_logo.svg" alt="PawPremium" width={80} height={80} className="shrink-0 drop-shadow-[0_0_18px_rgba(244,192,74,0.35)]" />
           <div className="flex-1">
             {/* v497 — Daniel : PawPremium + couronne alignés horizontalement,
                 texte plus propre. */}
@@ -305,9 +315,16 @@ export default function HomePage() {
 
       {/* ── 6. CTA FINAL ── */}
       <section className="mx-auto max-w-6xl px-4 py-20">
-        <div className="relative overflow-hidden rounded-[26px] bg-owner p-10 text-white md:p-14">
+        <div className="relative overflow-hidden rounded-[26px] bg-gradient-to-br from-owner to-[#d93a1f] p-10 text-white shadow-2xl md:p-14">
           <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/10" />
           <div className="absolute -bottom-16 -left-10 h-48 w-48 rounded-full bg-white/10" />
+          {/* v507 — design : patte en filigrane + dégradé + CTA avec relief. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -bottom-6 right-8 -rotate-12 select-none text-[110px] leading-none opacity-10"
+          >
+            🐾
+          </span>
           <div className="relative">
             <h2 className="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
               {t("cta_join_title")}
@@ -316,13 +333,13 @@ export default function HomePage() {
             <div className="mt-7 flex flex-wrap gap-3">
               <Link
                 href="/signup"
-                className="rounded-full bg-white px-6 py-3 text-sm font-bold text-owner hover:bg-bg-soft"
+                className="rounded-full bg-white px-6 py-3 text-sm font-bold text-owner shadow-lg transition hover:-translate-y-0.5 hover:bg-bg-soft"
               >
                 {t("nav_signup")}
               </Link>
               <Link
                 href="/download"
-                className="rounded-full border border-white/40 px-6 py-3 text-sm font-bold text-white hover:bg-white/10"
+                className="rounded-full border border-white/40 px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-white/10"
               >
                 {t("nav_download")}
               </Link>
