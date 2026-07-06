@@ -217,7 +217,9 @@ async function activateSubscriptionFromWebhook({ piId, metadata }) {
   sub.history = history;
   sub.history.push({
     plan: planCanonical,
-    paymentProvider: 'airwallex',
+    // v503 — Apple IAP réutilise cette activation : provider paramétrable
+    // (métadata.provider), défaut 'airwallex' = comportement historique.
+    paymentProvider: metadata?.provider || 'airwallex',
     paymentId: piId,
     activatedAt: now,
     expiresAt: newExpiry,
@@ -312,7 +314,7 @@ async function activateBoostFromWebhook({ piId, metadata }) {
     currency,
     days,
     purchasedAt: now,
-    paymentProvider: 'airwallex',
+    paymentProvider: metadata?.provider || 'airwallex',
     paymentId: piId,
     kind: 'profile',
   });

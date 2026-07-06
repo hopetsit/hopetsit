@@ -203,6 +203,15 @@ const userSubscriptionSchema = new mongoose.Schema(
       required: true,
     },
 
+    // v503 — Apple IAP : originalTransactionId du 1er achat StoreKit. Sert au
+    // webhook App Store Server Notifications V2 (renouvellements/remboursements)
+    // pour retrouver l'abonné sans info utilisateur dans la notification.
+    appleOriginalTransactionId: {
+      type: String,
+      index: true,
+      sparse: true,
+    },
+
     // Plan type: pawpass (formerly premium), pawfollow, or none
     plan: {
       type: String,

@@ -134,6 +134,30 @@ app.post(
 );
 
 // v23.1 part 36 — Persona KYC webhook. Same pattern : raw body for HMAC verify.
+// v503 — Apple App Store Server Notifications V2 (renouvellements /
+// remboursements des abonnements IAP iOS). Body JSON { signedPayload } : le
+// JWS est signé Apple (chaîne x5c vérifiée dans appleIapService) → pas de
+// HMAC sur les bytes bruts, express.json suffit. TOUJOURS répondre 200 vite
+// (sinon Apple retente) ; le résultat du traitement part dans les logs.
+// URL à saisir dans App Store Connect (Production ET Sandbox, version 2) :
+//   https://hopetsit-backend.onrender.com/webhooks/apple-iap
+app.post(
+  '/webhooks/apple-iap',
+  express.json({ limit: '1mb' }),
+  async (req, res) => {
+    try {
+      const signedPayload = req.body?.signedPayload;
+      if (!signedPayload) return res.status(200).json({ ok: true, ignored: true });
+      const { handleNotification } = require('./services/appleIapService');
+      const out = await handleNotification(String(signedPayload));
+      return res.status(200).json({ ok: true, ...out });
+    } catch (e) {
+      require('./utils/logger').error('[webhooks/apple-iap]', e);
+      return res.status(200).json({ ok: false });
+    }
+  },
+);
+
 const { personaWebhook } = require('./controllers/kycController');
 app.post(
   '/webhooks/persona',
@@ -260,6 +284,8 @@ const versionedRoutes = [
   { path: '/map-reports', mw: [], router: mapReportRoutes },
   { path: '/map-boost', mw: [sensitiveLimiter], router: mapBoostRoutes },
   { path: '/subscriptions', mw: [sensitiveLimiter], router: subscriptionRoutes },
+  // v503 — Apple IAP (StoreKit 2) : validation des achats de l'app iOS.
+  { path: '/apple-iap', mw: [sensitiveLimiter], router: require('./routes/appleIapRoutes') },
   { path: '/chat-addon', mw: [sensitiveLimiter], router: chatAddonRoutes },
   { path: '/friends', mw: [], router: friendRoutes },
   { path: '/pawspots', mw: [], router: pawSpotRoutes },
