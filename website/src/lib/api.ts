@@ -955,6 +955,67 @@ export async function getMyFriends(): Promise<FriendItem[]> {
   }
 }
 
+// v509 — page « Mes amis » (Mon espace) : demandes reçues/envoyées,
+// accepter/refuser/annuler, recherche + ajout. MÊMES routes que l'app →
+// synchro automatique (le backend notifie l'app : bandeau + cloche + push).
+export type FriendRequests = { incoming: FriendItem[]; outgoing: FriendItem[] };
+
+export async function getFriendRequests(): Promise<FriendRequests> {
+  try {
+    const raw = await request<FriendRequests>(`/friends/requests`);
+    return {
+      incoming: Array.isArray(raw?.incoming) ? raw.incoming : [],
+      outgoing: Array.isArray(raw?.outgoing) ? raw.outgoing : [],
+    };
+  } catch (e) {
+    if (e instanceof ApiError && (e.status === 401 || e.status === 404)) {
+      return { incoming: [], outgoing: [] };
+    }
+    throw e;
+  }
+}
+
+export async function acceptFriendRequest(id: string): Promise<unknown> {
+  return request(`/friends/${id}/accept`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+// Refuser une demande reçue OU annuler une demande envoyée (même route,
+// le backend gère les deux côtés).
+export async function declineFriendRequest(id: string): Promise<unknown> {
+  return request(`/friends/${id}/decline`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export type UserSearchResult = {
+  id: string;
+  role: "owner" | "sitter" | "walker" | string;
+  name: string;
+  email?: string;
+  avatar?: string;
+};
+
+export async function searchUsers(q: string): Promise<UserSearchResult[]> {
+  const raw = await request<{ users?: UserSearchResult[] }>(
+    `/friends/search?q=${encodeURIComponent(q)}`,
+  );
+  return Array.isArray(raw?.users) ? raw.users : [];
+}
+
+export async function sendFriendRequest(
+  targetId: string,
+  targetRole: string,
+): Promise<unknown> {
+  return request(`/friends/request`, {
+    method: "POST",
+    body: JSON.stringify({ targetId, targetRole }),
+  });
+}
+
 export type FriendLastPosition = {
   lat: number | null;
   lng: number | null;

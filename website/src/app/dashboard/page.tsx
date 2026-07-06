@@ -302,6 +302,7 @@ export default function DashboardPage() {
               <SideLink href="/chat" emoji="💬" label={t("dash_card_messages_title")} badge={unreadMsg} />
               <SideLink href="/map" emoji="🗺️" label={t("dash_card_map_title")} />
               <SideLink href="/pawpoints" emoji="🐾" label={t("dash_card_pawpoints_title")} />
+              <SideLink href="/friends" emoji="👥" label={t("friends_title")} />
               <SideLink href="/family" emoji="👨‍👩‍👧" label={t("family_title")} />
               <SideLink href="/boutique" emoji="🛍️" label={t("dash_card_shop_title")} />
               {/* v497 — onglet Code promo (ancre vers la carte ci-dessous). */}
@@ -487,6 +488,13 @@ export default function DashboardPage() {
             {isProvider && (
               <NavCard href="/sitter-setup" emoji="⚙️" tint="bg-slate-100" title={t("dash_card_setup_title")} subtitle={t("dash_card_setup_sub")} />
             )}
+            <NavCard
+              href="/friends"
+              emoji="👥"
+              tint="bg-lime-50"
+              title={t("dash_card_friends_title")}
+              subtitle={t("dash_card_friends_sub")}
+            />
             <NavCard
               href="/pawpoints"
               emoji="🐾"
