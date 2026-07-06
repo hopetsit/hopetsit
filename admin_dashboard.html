@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v508'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v509'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -226,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v508</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v509</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -1213,6 +1213,14 @@ tr:hover td { background: rgba(255,255,255,0.02); }
             <!-- v505 — Daniel : Canada. -->
             <button class="action-btn" onclick="startSeedBatchCA()" style="background:#DC2626;color:#fff;border:none">🇨🇦 <span data-i18n="pawmap_seed_all_ca">Tout le Canada (13 provinces)</span></button>
             <button class="action-btn" onclick="loadSeedJobs()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">↻ <span data-i18n="pawmap_refresh_jobs">Rafraîchir jobs</span></button>
+          </div>
+          <!-- v509 — Daniel : « ajouter ville ou pays que je tape et rajoute
+               ds la paw map ». Tape n'importe quelle ville / région / pays
+               (ex. Cotonou, Bénin, Japon) → géocodage OpenStreetMap →
+               seed de la zone trouvée, même mécanique que les boutons. -->
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+            <input id="seed-place-input" class="search-input" style="min-width:280px" data-i18n-placeholder="pawmap_seed_place_ph" placeholder="📍 Ville ou pays (ex. Cotonou, Bénin, Japon…)" onkeydown="if(event.key==='Enter')startSeedPlace()">
+            <button class="action-btn" onclick="startSeedPlace()" style="background:#16A34A;color:#fff;border:none">📍 <span data-i18n="pawmap_seed_place_btn">Seed cette ville / ce pays</span></button>
           </div>
           <div id="seed-jobs" style="font-size:12px"></div>
         </div>
@@ -2958,6 +2966,22 @@ async function startSeed() {
   try {
     const d = await api('/admin/pawmap/seed', 'POST', { country });
     showToast(`🌱 Seed lancé pour ${seedFlag(country)} ${seedLabel(country)}. Job ${d.jobId}.`);
+    pollSeedJobs();
+  } catch (e) { showToast('❌ ' + (e.message || 'Seed failed')); }
+}
+
+// v509 — Daniel : « ajouter ville ou pays que je tape et rajoute ds la paw
+// map ». Le backend géocode le texte (Nominatim/OSM) puis lance le même
+// seed que les pays prédéfinis sur la zone trouvée (ville, région ou pays).
+async function startSeedPlace() {
+  const input = document.getElementById('seed-place-input');
+  const q = (input.value || '').trim();
+  if (q.length < 2) { showToast('❌ Tape une ville ou un pays (min. 2 lettres).'); return; }
+  try {
+    showToast('🔎 Recherche de « ' + q + ' »…');
+    const d = await api('/admin/pawmap/seed/place', 'POST', { query: q });
+    showToast('📍 Trouvé : ' + (d.place || q) + ' — seed lancé (1-3 min). Job ' + d.jobId + '.');
+    input.value = '';
     pollSeedJobs();
   } catch (e) { showToast('❌ ' + (e.message || 'Seed failed')); }
 }
@@ -6069,6 +6093,7 @@ async function toggleStaff(role, userId, isStaff) {
         pawmap_title: "PawMap — analytique", pawmap_desc: "Vue d'ensemble des POIs (vétos, parcs, points d'eau...) et des signalements communautaires (chien perdu, danger, point d'eau, etc.). Tous les signalements sont conservés — même après expiration 48 h — comme dataset historique. Utile pour repérer les hotspots et détecter les abus.",
         pawmap_seed_title: "Alimenter la carte (OpenStreetMap)", pawmap_seed_desc: "Charge automatiquement les POIs depuis OpenStreetMap pour un pays ou toute l'Europe. Les catégories couvrent vétos, parcs à chiens, boutiques, toiletteurs, points d'eau, hôtels/restos pet-friendly. Le seed tourne en tâche de fond (1-3 min par pays). Clique « Tout l'Europe + Suisse » pour charger les 29 pays d'un coup.",
         pawmap_seed_country: "Seed ce pays", pawmap_seed_all: "Tout l'Europe + Suisse (29 pays)", pawmap_refresh_jobs: "Rafraîchir jobs", pawmap_refresh_stats: "Rafraîchir les stats",
+        pawmap_seed_place_ph: "📍 Ville ou pays (ex. Cotonou, Bénin, Japon…)", pawmap_seed_place_btn: "Seed cette ville / ce pays",
         pawmap_flags_title: "Signalements abusifs (flags)", pawmap_flags_desc: "Liste des signalements communautaires qui ont reçu des « flag abuse » de la part d'utilisateurs. Un report est auto-masqué après 3 flags (hidden=true). Restaure ou supprime définitivement selon le contexte.", pawmap_flag_hidden: "🔒 Masqués (3+ flags)", pawmap_flag_visible: "👁️ Visibles (avec flags)", pawmap_flag_all: "📋 Tous",
         services_title: "Catalogue de services", services_desc: "Modifie les 3 services proposés aux propriétaires (Promenade / Garderie / Garde multi-jours) et les durées pré-configurées pour les promenades courtes et longues. Désactive « Actif » pour masquer temporairement un service de l'app. Les overrides de label & description sont optionnels — laisse vide pour utiliser les traductions par défaut.",
         pricing_title: "Tarifs boutique", pricing_desc: "Modifie la grille tarifaire live : Boost, PawSpot (abonnement communautaire), PawFollow / PawFamily et Chat add-on, dans les 4 devises supportées. Les changements prennent effet immédiatement dans l'app mobile — aucun redémarrage serveur requis. Utilise « Valeurs par défaut » pour restaurer les valeurs initiales du code.",
@@ -6204,6 +6229,7 @@ async function toggleStaff(role, userId, isStaff) {
         pawmap_title: "PawMap analytics", pawmap_desc: "Overview of POIs (vets, parks, water points...) and community reports (lost dog, hazard, water point, etc.). All reports are kept — even after 48h expiry — as a historical dataset. Useful to spot hotspots and detect abuse.",
         pawmap_seed_title: "Seed the map (OpenStreetMap)", pawmap_seed_desc: "Automatically loads POIs from OpenStreetMap for one country or all of Europe. Categories cover vets, dog parks, shops, groomers, water points, pet-friendly hotels/restaurants. The seed runs in the background (1-3 min per country). Click “All Europe + Switzerland” to load the 29 countries at once.",
         pawmap_seed_country: "Seed this country", pawmap_seed_all: "All Europe + Switzerland (29 countries)", pawmap_refresh_jobs: "Refresh jobs", pawmap_refresh_stats: "Refresh stats",
+        pawmap_seed_place_ph: "📍 City or country (e.g. Cotonou, Benin, Japan…)", pawmap_seed_place_btn: "Seed this city / country",
         pawmap_flags_title: "Abusive reports (flags)", pawmap_flags_desc: "List of community reports that received “flag abuse” from users. A report is auto-hidden after 3 flags (hidden=true). Restore or delete permanently depending on context.", pawmap_flag_hidden: "🔒 Hidden (3+ flags)", pawmap_flag_visible: "👁️ Visible (with flags)", pawmap_flag_all: "📋 All",
         services_title: "Service catalog", services_desc: "Edit the 3 services offered to owners (Walk / Day care / Multi-day boarding) and the pre-configured durations for short and long walks. Disable “Active” to temporarily hide a service from the app. Label & description overrides are optional — leave empty to use the default translations.",
         pricing_title: "Shop pricing", pricing_desc: "Edit the live pricing grid: Boost, PawSpot (community subscription), PawFollow / PawFamily and Chat add-on, in the 4 supported currencies. Changes take effect immediately in the mobile app — no server restart required. Use “Defaults” to restore the code's initial values.",

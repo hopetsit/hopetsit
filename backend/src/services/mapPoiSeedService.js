@@ -475,6 +475,106 @@ function runSeedBatch({ countries, categories, limit }) {
   return batchId;
 }
 
+// ─── v509 — Daniel : « ajouter ville ou pays que je tape et rajoute ds la
+// paw map ». Géocode le texte tapé via Nominatim (OpenStreetMap) → bounding
+// box → même mécanique de seed que les pays prédéfinis. Marche pour une
+// ville (Cotonou), une région (Bavière) ou un pays entier (Bénin, Japon…).
+async function geocodePlace(query) {
+  const res = await axios.get('https://nominatim.openstreetmap.org/search', {
+    params: { q: query, format: 'json', limit: 1, addressdetails: 1 },
+    headers: {
+      'Accept': 'application/json',
+      'User-Agent': 'HoPetSit/1.0 (admin seed; contact: hopetsit@gmail.com)',
+    },
+    timeout: 15000,
+  });
+  const hit = Array.isArray(res.data) ? res.data[0] : null;
+  if (!hit || !Array.isArray(hit.boundingbox) || hit.boundingbox.length !== 4) {
+    return null;
+  }
+  // Nominatim renvoie boundingbox = [south, north, west, east] (strings) ;
+  // notre format interne est [south, west, north, east].
+  const [s, n, w, e] = hit.boundingbox.map(Number);
+  if (![s, n, w, e].every(Number.isFinite)) return null;
+  return {
+    bbox: [s, w, n, e],
+    displayName: hit.display_name || String(query),
+    countryCode: String((hit.address && hit.address.country_code) || '').toUpperCase(),
+  };
+}
+
+function runSeedPlace({ bbox, label, countryCode, categories, limit }) {
+  if (!Array.isArray(bbox) || bbox.length !== 4 || !bbox.every(Number.isFinite)) {
+    throw new Error('Invalid bbox.');
+  }
+  // Garde-fou : au-delà d'une zone taille Brésil, Overpass timeout de toute
+  // façon (les très grands pays type USA/Canada sont déjà couverts par les
+  // batchs état par état) → message clair plutôt que des jobs en erreur.
+  const latSpan = Math.abs(bbox[2] - bbox[0]);
+  const lngSpan = Math.abs(bbox[3] - bbox[1]);
+  if (latSpan > 40 || lngSpan > 60) {
+    throw new Error(
+      'Zone trop grande pour un seul seed — tape une ville, une région ou un pays plus petit.',
+    );
+  }
+  const cats = categories && categories.length > 0
+    ? categories
+    : Object.keys(CATEGORY_TAGS).filter((k) => k !== 'trainerByName');
+
+  const jobId = `place-${Date.now()}`;
+  const job = {
+    id: jobId,
+    type: 'place',
+    // Affiché tel quel dans la liste des jobs de l'admin.
+    country: label,
+    bbox,
+    categories: cats,
+    status: 'running',
+    startedAt: new Date(),
+    finishedAt: null,
+    totalInserted: 0,
+    byCategory: {},
+    error: null,
+  };
+  jobs.set(jobId, job);
+
+  // Fire and forget — même sémantique que runSeed (timeout Render 30 s).
+  (async () => {
+    try {
+      for (const cat of cats) {
+        job.byCategory[cat] = { status: 'running' };
+        const res = await seedCategory({
+          category: cat,
+          bbox,
+          // location.country du POI : code pays ISO si Nominatim l'a donné
+          // (cohérent avec 'FR'/'US-CA'…), sinon le libellé tronqué.
+          country: countryCode || String(label || '').slice(0, 40),
+          limit,
+        });
+        job.byCategory[cat] = {
+          status: res.error ? 'error' : 'done',
+          inserted: res.inserted,
+          skipped: res.skipped,
+          error: res.error || null,
+        };
+        job.totalInserted += res.inserted;
+      }
+      job.status = 'done';
+      job.finishedAt = new Date();
+      logger.info?.(
+        `[seed:place] ${label} done — ${job.totalInserted} POIs inserted`,
+      );
+    } catch (e) {
+      job.status = 'error';
+      job.error = e.message;
+      job.finishedAt = new Date();
+      logger.error?.(`[seed:place] ${label} failed:`, e);
+    }
+  })();
+
+  return jobId;
+}
+
 function getSeedJob(jobId) {
   // v20.0.15 — fix: the Map is named `jobs` (line 79), not `SEED_JOBS`.
   return jobs.get(jobId) || null;
@@ -490,6 +590,9 @@ module.exports = {
   // Public API used by adminRoutes.js.
   runSeed,
   runSeedBatch,
+  // v509 — seed d'une ville / d'un pays tapé librement (géocodage Nominatim).
+  geocodePlace,
+  runSeedPlace,
   getJobStatus: getSeedJob,
   listJobs: listSeedJobs,
   // Internal helpers also re-exported for tests / reuse.

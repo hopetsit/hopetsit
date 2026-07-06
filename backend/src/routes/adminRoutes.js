@@ -2461,6 +2461,32 @@ router.post('/pawmap/seed', requireAdmin, (req, res) => {
   }
 });
 
+// v509 — Daniel : « ajouter ville ou pays que je tape et rajoute ds la paw
+// map ». Géocode le texte (Nominatim/OSM) puis lance le même seed OSM sur la
+// zone trouvée (ville, région ou pays). Répond après le géocodage pour
+// pouvoir dire à l'admin ce qui a été trouvé ; le seed tourne en fond.
+router.post('/pawmap/seed/place', requireAdmin, async (req, res) => {
+  try {
+    const { query, categories, limit } = req.body || {};
+    const q = String(query || '').trim();
+    if (q.length < 2) return res.status(400).json({ error: 'Missing place query.' });
+    const place = await mapPoiSeedService.geocodePlace(q);
+    if (!place) {
+      return res.status(404).json({ error: `Lieu introuvable : « ${q} »` });
+    }
+    const jobId = mapPoiSeedService.runSeedPlace({
+      bbox: place.bbox,
+      label: place.displayName,
+      countryCode: place.countryCode,
+      categories: Array.isArray(categories) ? categories : null,
+      limit: limit ? parseInt(limit, 10) : null,
+    });
+    res.json({ ok: true, jobId, place: place.displayName });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 router.post('/pawmap/seed/batch', requireAdmin, (req, res) => {
   try {
     const { countries, categories, limit } = req.body || {};
