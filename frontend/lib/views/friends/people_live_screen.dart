@@ -162,7 +162,7 @@ class PeopleLiveScreen extends StatelessWidget {
                   // focusUserId/Role/Name pour injecter une FriendPosition
                   // synthetique dans LiveMapService → halo violet (Owner) /
                   // vert (Walker) / bleu (Sitter) autour de l'ami.
-                  Get.to(() => PawMapScreen(
+                  Get.off(() => PawMapScreen(
                         initialLat: lat,
                         initialLng: lng,
                         focusUserId: other.id,

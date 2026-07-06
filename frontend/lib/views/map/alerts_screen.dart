@@ -1284,10 +1284,10 @@ class _ReportCard extends StatelessWidget {
           if (report.latitude == 0 && report.longitude == 0) {
             // Defensive : un report a (0,0) est invalide → on n'ouvre
             // pas la map (eviterait de zoomer au large de l'Afrique).
-            Get.to(() => const PawMapScreen());
+            Get.off(() => const PawMapScreen());
             return;
           }
-          Get.to(() => PawMapScreen(
+          Get.off(() => PawMapScreen(
                 initialLat: report.latitude,
                 initialLng: report.longitude,
               ));

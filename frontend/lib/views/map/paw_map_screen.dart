@@ -1136,6 +1136,21 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
   }
 
+  /// v500 — Daniel : « quand je tape plusieurs fois voir amis puis la map,
+  /// je dois faire plein de fois retour ». La boucle amis↔carte EMPILAIT une
+  /// nouvelle copie à chaque aller-retour. Quand CETTE carte est déjà un
+  /// écran empilé (ouverte depuis amis/alertes/en direct/chat), ouvrir un de
+  /// ces écrans la REMPLACE (Get.off) au lieu de s'empiler par-dessus →
+  /// UN SEUL retour ramène au menu du bas. Depuis l'onglet PawMap du menu
+  /// (pas empilé), on garde l'empilement normal (Get.to).
+  void _openScreen(Widget Function() page) {
+    if (Navigator.of(context).canPop()) {
+      Get.off(page);
+    } else {
+      Get.to(page);
+    }
+  }
+
   Future<void> _bootstrap() async {
     // v23.1.148 — Daniel : "fais que la paw map souvre sur notre geoloc pas a
     // paris". Avant : on attendait que `_mapCtl.isCompleted` soit true au
@@ -3252,7 +3267,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   ),
                 ),
                 GestureDetector(
-                  onTap: () => Get.to(() => const AlertsScreen()),
+                  onTap: () => _openScreen(() => const AlertsScreen()),
                   child: InterText(
                     text: 'pawmap_around_you_see_all'.tr,
                     fontSize: 11.sp,
@@ -3402,7 +3417,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     subtitle: 'pawmap_quick_circle_sub'.tr,
                     color: const Color(0xFF8B5CF6),
                     badgeCount: pending,
-                    onTap: () => Get.to(() => const FriendsScreen()),
+                    onTap: () => _openScreen(() => const FriendsScreen()),
                   );
                 }),
               ),
@@ -3413,7 +3428,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   title: 'pawmap_quick_alerts'.tr,
                   subtitle: 'pawmap_quick_alerts_sub'.tr,
                   color: const Color(0xFFF59E0B),
-                  onTap: () => Get.to(() => const AlertsScreen()),
+                  onTap: () => _openScreen(() => const AlertsScreen()),
                 ),
               ),
             ],
@@ -3427,7 +3442,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   title: 'pawmap_quick_live'.tr,
                   subtitle: 'pawmap_quick_live_sub'.tr,
                   color: const Color(0xFF16A34A),
-                  onTap: () => Get.to(() => const PeopleLiveScreen()),
+                  onTap: () => _openScreen(() => const PeopleLiveScreen()),
                 ),
               ),
               SizedBox(width: 10.w),
@@ -3437,7 +3452,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   title: 'pawmap_quick_my_reports'.tr,
                   subtitle: 'pawmap_quick_my_reports_sub'.tr,
                   color: const Color(0xFFDC2626),
-                  onTap: () => Get.to(() => const AlertsScreen()),
+                  onTap: () => _openScreen(() => const AlertsScreen()),
                 ),
               ),
             ],
@@ -4170,7 +4185,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             icon: Icons.notifications_active_rounded,
             color: const Color(0xFFEA580C),
             label: 'pawmap_view_reports_btn'.tr,
-            onTap: () => Get.to(() => const AlertsScreen()),
+            onTap: () => _openScreen(() => const AlertsScreen()),
           ),
           SizedBox(height: 8.h),
           _roundMapBtn(
