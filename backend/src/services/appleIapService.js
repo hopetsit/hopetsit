@@ -33,20 +33,24 @@ const APPLE_APP_APPLE_ID = Number(process.env.APPLE_APP_APPLE_ID || 6763645719);
 // kind 'subscription' → activateSubscriptionFromWebhook (plan + intervalDays)
 // kind 'pawspot'      → activatePawSpotFromWebhook (days)
 // kind 'boost'        → activateBoostFromWebhook (tier + days)
+// v508 — `price` = prix catalogue EUR App Store, enregistré dans la compta
+// admin (payments/boostPurchases provider 'apple_iap'). NB : Apple encaisse,
+// prend sa commission (15-30 %) puis verse le net sur le compte bancaire —
+// ces montants sont donc EXCLUS du solde retirable Airwallex côté admin.
 const PRODUCT_MAP = {
-  hopetsit_pawfollow_monthly: { kind: 'subscription', plan: 'monthly', intervalDays: 30 },
-  hopetsit_pawfollow_yearly: { kind: 'subscription', plan: 'yearly', intervalDays: 365 },
-  hopetsit_pawfamily_monthly: { kind: 'subscription', plan: 'family', intervalDays: 30 },
-  hopetsit_pawfamily_yearly: { kind: 'subscription', plan: 'family_yearly', intervalDays: 365 },
-  hopetsit_pawspot_monthly: { kind: 'pawspot', days: 30 },
-  hopetsit_pawspot_yearly: { kind: 'pawspot', days: 365 },
-  hopetsit_pawpremium_monthly: { kind: 'subscription', plan: 'premium_monthly', intervalDays: 30 },
-  hopetsit_pawpremium_yearly: { kind: 'subscription', plan: 'premium_yearly', intervalDays: 365 },
+  hopetsit_pawfollow_monthly: { kind: 'subscription', plan: 'monthly', intervalDays: 30, price: 4.99 },
+  hopetsit_pawfollow_yearly: { kind: 'subscription', plan: 'yearly', intervalDays: 365, price: 49.99 },
+  hopetsit_pawfamily_monthly: { kind: 'subscription', plan: 'family', intervalDays: 30, price: 9.99 },
+  hopetsit_pawfamily_yearly: { kind: 'subscription', plan: 'family_yearly', intervalDays: 365, price: 69.99 },
+  hopetsit_pawspot_monthly: { kind: 'pawspot', days: 30, price: 4.99 },
+  hopetsit_pawspot_yearly: { kind: 'pawspot', days: 365, price: 39.99 },
+  hopetsit_pawpremium_monthly: { kind: 'subscription', plan: 'premium_monthly', intervalDays: 30, price: 7.99 },
+  hopetsit_pawpremium_yearly: { kind: 'subscription', plan: 'premium_yearly', intervalDays: 365, price: 59.99 },
   // Tiers réels de l'app : bronze 3 j / silver 7 j / platinum 30 j
   // (gold 15 j masqué sur iOS — pas de produit Apple).
-  hopetsit_pawboost_t1: { kind: 'boost', tier: 'bronze', days: 3 },
-  hopetsit_pawboost_t2: { kind: 'boost', tier: 'silver', days: 7 },
-  hopetsit_pawboost_t3: { kind: 'boost', tier: 'platinum', days: 30 },
+  hopetsit_pawboost_t1: { kind: 'boost', tier: 'bronze', days: 3, price: 3.99 },
+  hopetsit_pawboost_t2: { kind: 'boost', tier: 'silver', days: 7, price: 9.99 },
+  hopetsit_pawboost_t3: { kind: 'boost', tier: 'platinum', days: 30, price: 19.99 },
 };
 
 // ── Vérificateurs Apple (Production + Sandbox), construits paresseusement ───
@@ -165,8 +169,40 @@ async function creditForTransaction({ userId, role, productId, transactionId, or
         days: mapping.days,
         currency: 'EUR',
         provider: 'apple_iap',
+        // v508 — prix catalogue enregistré dans boostPurchases.amount
+        // (visible dans l'activité boutique + revenus admin).
+        amount: mapping.price,
       },
     });
+  }
+
+  // v508 — comptabilité admin : enregistre le paiement (prix catalogue) dans
+  // sub.payments avec provider 'apple_iap' → visible dans Mes revenus /
+  // Comptabilité / Activité boutique, et EXCLU du solde retirable Airwallex.
+  // Idempotent : paymentIntentId = transactionId Apple.
+  const newlyCredited = !(result?.alreadyActivated || result?.deduplicated);
+  if (newlyCredited && mapping.kind !== 'boost' && mapping.price) {
+    try {
+      const UserSubscription = require('../models/UserSubscription');
+      const userModel = role === 'walker' ? 'Walker' : role === 'sitter' ? 'Sitter' : 'Owner';
+      const sub = await UserSubscription.findOne({ userId, userModel });
+      if (sub && !(sub.payments || []).some((pm) => pm.paymentIntentId === String(transactionId))) {
+        sub.payments = sub.payments || [];
+        sub.payments.push({
+          plan: mapping.kind === 'pawspot'
+            ? (mapping.days >= 365 ? 'pawspot_yearly' : 'pawspot_monthly')
+            : mapping.plan,
+          amount: mapping.price,
+          currency: 'EUR',
+          paidAt: new Date(),
+          paymentProvider: 'apple_iap',
+          paymentIntentId: String(transactionId),
+        });
+        await sub.save();
+      }
+    } catch (e) {
+      logger.warn(`[appleIap] enregistrement compta payments raté : ${e.message}`);
+    }
   }
 
   // Lien webhook : mémorise l'originalTransactionId sur la sub du rôle

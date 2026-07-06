@@ -183,7 +183,7 @@ const ADMIN_HTML_PATH = path.join(__dirname, '..', '..', 'admin_dashboard.html')
 // build is actually LIVE on Render (GET /__build). If /__build still returns an
 // old value after a push, Render did not redeploy (auto-deploy off / build
 // filter / failed deploy) — not a code problem.
-const ADMIN_BUILD = 'v507';
+const ADMIN_BUILD = 'v508';
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');

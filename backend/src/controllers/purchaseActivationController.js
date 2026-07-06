@@ -310,7 +310,9 @@ async function activateBoostFromWebhook({ piId, metadata }) {
   user.boostPurchases = user.boostPurchases || [];
   user.boostPurchases.push({
     tier,
-    amount: 0,
+    // v508 - Apple IAP passe le prix catalogue via metadata.amount ;
+    // Airwallex reste a 0 (montant trace ailleurs) = inchange.
+    amount: Number(metadata?.amount || 0),
     currency,
     days,
     purchasedAt: now,

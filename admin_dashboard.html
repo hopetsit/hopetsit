@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v507'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v508'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -226,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v507</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v508</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -1787,7 +1787,7 @@ async function loadShopPanel() {
         return `<tr>
           <td style="font-size:12px;color:var(--text-muted)">${fmtDate(p.purchasedAt)}</td>
           <td><strong>${escapeHtml(p.userName || '-')}</strong></td>
-          <td>${PRODUCT_LABELS[p.product] || escapeHtml(p.product || '-')}</td>
+          <td>${PRODUCT_LABELS[p.product] || escapeHtml(p.product || '-')}${p.paymentProvider === 'apple_iap' ? ' 🍎' : ''}</td>
           <td style="font-weight:600">${escapeHtml(cur)}${(p.amount || 0).toFixed(2)}</td>
           <td>${st}</td>
         </tr>`;
@@ -4816,6 +4816,8 @@ const TIER_COLORS = {
 const PRODUCT_LABELS = {
   profile_boost: '🚀 PawBoost',
   map_boost: '🗺️ PawSpot',
+  // v508 - abonnements PawSpot achetes via Apple IAP (plans pawspot_*).
+  pawspot_sub: '🐾 PawSpot abo',
   pawpremium: '👑 PawPremium',
   // v502 — Daniel : les plans PawFamily sont comptés dans ce produit → le
   // libellé le dit explicitement.
@@ -4828,6 +4830,7 @@ const PRODUCT_LABELS = {
 const PRODUCT_COLORS = {
   profile_boost: '#FF8C42',
   map_boost: '#42A5F5',
+  pawspot_sub: '#E8A00A',
   pawpremium: '#FFD700',
   premium: '#FFB300',
   chat_addon: '#26C6DA',
@@ -4890,7 +4893,7 @@ function renderBoostsTable(purchases, total) {
       ? `<span class="badge badge-green">Actif</span>`
       : `<span class="badge badge-gray">Expired</span>`;
     const productKey = p.product || 'profile_boost';
-    const productBadge = `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${PRODUCT_COLORS[productKey]||'#555'}22;color:${PRODUCT_COLORS[productKey]||'#888'}">${PRODUCT_LABELS[productKey]||productKey}</span>`;
+    const productBadge = `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${PRODUCT_COLORS[productKey]||'#555'}22;color:${PRODUCT_COLORS[productKey]||'#888'}">${PRODUCT_LABELS[productKey]||productKey}</span>${p.paymentProvider === 'apple_iap' ? ' 🍎' : ''}`;
     const tierBadge = p.tier
       ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${TIER_COLORS[p.tier]||'#555'}22;color:${TIER_COLORS[p.tier]||'#888'}">${TIER_LABELS[p.tier]||p.tier}${p.days?` · ${p.days}d`:''}</span>`
       : '-';
@@ -5093,10 +5096,15 @@ async function loadAdminPayouts() {
         '<div class="stat-value">' + (s.cumulativeSwept||0).toFixed(2) + ' EUR</div>' +
         '<div class="stat-sub">'+(s.cumulativeSweepsCount||0)+' retrait(s) au total</div>' +
       '</div>' +
+      '<div class="stat-card" style="--accent:#111827">' +
+        '<div class="stat-label">🍎 Ventes Apple (iOS)</div>' +
+        '<div class="stat-value">' + (s.appleTotal||0).toFixed(2) + ' EUR</div>' +
+        '<div class="stat-sub">'+(s.appleCount||0)+' achat(s) — versés par Apple sur ton compte bancaire (hors Airwallex)</div>' +
+      '</div>' +
       '<div class="stat-card" style="--accent:#16A34A">' +
         '<div class="stat-label">💰 Solde retirable</div>' +
         '<div class="stat-value" style="color:var(--green)">' + (s.hopetsitNetAvailable||0).toFixed(2) + ' EUR</div>' +
-        '<div class="stat-sub">Commission + Boutique − Déjà retiré</div>' +
+        '<div class="stat-sub">Commission + Boutique (hors Apple) − Déjà retiré</div>' +
       '</div>';
 
     det.innerHTML =
@@ -5178,9 +5186,10 @@ async function loadAccounting() {
       // v500 — vérifications d'identité + dons dans le bilan comptable.
       '<tr><td><strong>🪪 Vérifications ID</strong></td><td>' + f(bb.kyc && bb.kyc.total) + ' EUR</td><td>' + ((bb.kyc && bb.kyc.count) || 0) + '</td></tr>' +
       '<tr><td><strong>🎁 Dons</strong></td><td>' + f(bb.donations && bb.donations.total) + ' EUR</td><td>' + ((bb.donations && bb.donations.count) || 0) + '</td></tr>' +
+      '<tr><td><strong>🍎 dont ventes Apple (iOS)</strong></td><td>' + f(s.appleTotal) + ' EUR</td><td>' + (s.appleCount || 0) + '</td></tr>' +
       '<tr><td><strong>Total boutique</strong></td><td><strong>' + f(boutique) + ' EUR</strong></td><td></td></tr>' +
       '</tbody></table>' +
-      '<p style="margin-top:14px;color:var(--text-muted);font-size:13px">Note comptable : ces montants sont les <strong>bénéfices HoPetSit</strong> (commissions plateforme + boutique). Les paiements reversés aux prestataires (≈80%) ne sont PAS comptés ici.</p>';
+      '<p style="margin-top:14px;color:var(--text-muted);font-size:13px">Note comptable : ces montants sont les <strong>bénéfices HoPetSit</strong> (commissions plateforme + boutique). Les paiements reversés aux prestataires (≈80%) ne sont PAS comptés ici. Les <strong>ventes Apple (iOS)</strong> sont comptées dans les revenus mais l\'argent est encaissé par Apple, qui le verse (net de sa commission) directement sur le compte bancaire ~mensuellement : elles ne sont donc <strong>pas dans le solde retirable Airwallex</strong>.</p>';
   } catch (e) {
     det.innerHTML = '<div style="color:var(--red)">' + e.message + '</div>';
   }
@@ -5217,9 +5226,11 @@ async function exportAccountingCsv() {
     ['Boutique', 'Chat add-on', f(bb.chatAddon && bb.chatAddon.total), (bb.chatAddon && bb.chatAddon.count) || 0],
     ['Boutique', 'Verifications ID (KYC)', f(bb.kyc && bb.kyc.total), (bb.kyc && bb.kyc.count) || 0],
     ['Boutique', 'Dons', f(bb.donations && bb.donations.total), (bb.donations && bb.donations.count) || 0],
+    ['Boutique', 'dont ventes Apple (iOS) - versees par Apple', f(s.appleTotal), s.appleCount || 0],
     ['Boutique', 'Total boutique', f(s.boutiqueAllTime), ''],
     ['Total', 'Benefice HoPetSit (commissions + boutique)', f(Number(s.commissionAllTime || 0) + Number(s.boutiqueAllTime || 0)), ''],
     ['Info', 'CA brut reservations (avant reversement)', f(b.grossAllTime), b.count || 0],
+    ['Info', 'Solde retirable Airwallex (hors Apple)', f(s.hopetsitNetAvailable), ''],
   ];
   const csv = rows.map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });

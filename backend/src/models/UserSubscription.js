@@ -286,7 +286,8 @@ const userSubscriptionSchema = new mongoose.Schema(
         // v23.1.387 — + family_yearly et plans Paw Premium.
         plan: {
           type: String,
-          enum: ['monthly', 'yearly', 'solo', 'famille', 'family', 'family_yearly', 'premium_monthly', 'premium_yearly'],
+          // v508 - + plans PawSpot (achats Apple IAP comptabilises ici).
+          enum: ['monthly', 'yearly', 'solo', 'famille', 'family', 'family_yearly', 'premium_monthly', 'premium_yearly', 'pawspot_monthly', 'pawspot_yearly'],
         },
         amount: Number,
         currency: { type: String, default: 'EUR' },

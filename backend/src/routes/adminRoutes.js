@@ -1833,7 +1833,7 @@ router.get('/boosts', requireAdmin, async (req, res) => {
           userEmail: u.email || '-',
           role: (sub.userModel || '').toLowerCase(),
           // v23.1.393 — Paw Premium = produit distinct dans l'activité.
-          product: /^premium_/.test(String(p.plan || sub.plan || '')) ? 'pawpremium' : 'premium',
+          product: /^pawspot_/.test(String(p.plan || sub.plan || '')) ? 'pawspot_sub' : /^premium_/.test(String(p.plan || sub.plan || '')) ? 'pawpremium' : 'premium',
           tier: p.plan || sub.plan || 'monthly',
           amount: p.amount,
           currency: p.currency || 'EUR',
@@ -3235,12 +3235,16 @@ router.get('/payouts', requireAdmin, async (req, res) => {
     // v23.1.393 — + family_yearly côté Famille, et Paw Premium séparé.
     const isFamilyPlan = (p) => ['family', 'famille', 'family_yearly'].includes(String(p || '').toLowerCase());
     const isPremiumBundle = (p) => /^premium_/.test(String(p || '').toLowerCase());
+    // v508 - plans pawspot_* (achats Apple IAP) = bucket PawSpot dedie.
+    const isPawSpotPlan = (pl) => /^pawspot_/.test(String(pl || '').toLowerCase());
     let pawFamilyTotal = 0; let pawFamilyCount = 0;
     let pawFollowTotal = 0; let pawFollowCount = 0;
     let pawPremiumTotal = 0; let pawPremiumCount = 0;
+    let pawSpotSubsTotal = 0; let pawSpotSubsCount = 0;
     for (const r of (subByPlan || [])) {
       if (isPremiumBundle(r._id)) { pawPremiumTotal += r.total || 0; pawPremiumCount += r.count || 0; }
       else if (isFamilyPlan(r._id)) { pawFamilyTotal += r.total || 0; pawFamilyCount += r.count || 0; }
+      else if (isPawSpotPlan(r._id)) { pawSpotSubsTotal += r.total || 0; pawSpotSubsCount += r.count || 0; }
       else { pawFollowTotal += r.total || 0; pawFollowCount += r.count || 0; }
     }
 
@@ -3310,6 +3314,34 @@ router.get('/payouts', requireAdmin, async (req, res) => {
       kycTotal = kycCount * 3;
     } catch (_) { /* best-effort */ }
 
+    // v508 - Apple IAP : ventes realisees DANS l'app iOS (App Store). Ces
+    // montants sont encaisses par APPLE (verses ensuite par Apple sur le
+    // compte bancaire, nets de sa commission) : ils comptent dans les
+    // REVENUS mais sont EXCLUS du solde retirable Airwallex.
+    let appleTotal = 0; let appleCount = 0;
+    try {
+      const apSubs = await Subscription.aggregate([
+        { $unwind: { path: '$payments', preserveNullAndEmptyArrays: false } },
+        { $match: { 'payments.paymentProvider': 'apple_iap' } },
+        ...rangeStage('payments.paidAt'),
+        { $group: { _id: null, total: { $sum: { $ifNull: ['$payments.amount', 0] } }, count: { $sum: 1 } } },
+      ]);
+      appleTotal += apSubs[0]?.total || 0;
+      appleCount += apSubs[0]?.count || 0;
+      const apBoost = async (Model) => {
+        const r = await Model.aggregate([
+          { $match: { 'boostPurchases.0': { $exists: true } } },
+          { $unwind: '$boostPurchases' },
+          { $match: { 'boostPurchases.paymentProvider': 'apple_iap', ...(hasRange ? { 'boostPurchases.purchasedAt': rangeCond() } : {}) } },
+          { $group: { _id: null, total: { $sum: { $ifNull: ['$boostPurchases.amount', 0] } }, count: { $sum: 1 } } },
+        ]);
+        return r[0] || { total: 0, count: 0 };
+      };
+      const [apO, apS, apW] = await Promise.all([apBoost(Owner), apBoost(Sitter), apBoost(Walker)]);
+      appleTotal += apO.total + apS.total + apW.total;
+      appleCount += apO.count + apS.count + apW.count;
+    } catch (_) { /* best-effort */ }
+
     const a = agg[0] || {};
     const commissionAllTime = a.totalCommission || 0;
     const subscriptionAllTime = subAgg[0]?.total || 0;
@@ -3330,7 +3362,9 @@ router.get('/payouts', requireAdmin, async (req, res) => {
     const cumulativeSwept = Number(sweepAgg[0]?.total || 0);
     const cumulativeSweepsCount = Number(sweepAgg[0]?.count || 0);
     // Solde net HoPetSit retirable = revenus accumulés moins déjà retiré.
-    const hopetsitNetAvailable = Math.max(0, platformRevenue - cumulativeSwept);
+    // v508 - le solde retirable est sur AIRWALLEX : on exclut les ventes
+    // Apple (encaissees par Apple, versees separement sur le compte bancaire).
+    const hopetsitNetAvailable = Math.max(0, platformRevenue - appleTotal - cumulativeSwept);
 
     res.json({
       summary: {
@@ -3343,6 +3377,9 @@ router.get('/payouts', requireAdmin, async (req, res) => {
         donationsCount,
         // v23.1 part 99 — nouveaux champs
         boutiqueAllTime,
+        // v508 - ventes Apple (incluses dans les revenus, EXCLUES du retirable).
+        appleTotal,
+        appleCount,
         boutiqueBreakdown: {
           profileBoost: { total: profileBoostTotal, count: profileBoostCount },
           mapBoost:     { total: mapBoostTotal,     count: mapBoostCount },
@@ -3355,6 +3392,9 @@ router.get('/payouts', requireAdmin, async (req, res) => {
           chatAddon:    { total: chatAddonTotal,    count: chatAddonCount },
           // v500 — vérifications d'identité + dons visibles dans le détail.
           kyc:          { total: kycTotal,          count: kycCount },
+          // v508 - abos PawSpot achetes via Apple + total Apple.
+          pawSpotSubs:  { total: pawSpotSubsTotal,  count: pawSpotSubsCount },
+          apple:        { total: appleTotal,        count: appleCount },
           donations:    { total: donationsTotal,    count: donationsCount },
         },
         cumulativeSwept,
@@ -4207,6 +4247,8 @@ router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
         ]),
         Subscription.aggregate([
           { $unwind: { path: '$payments', preserveNullAndEmptyArrays: false } },
+          // v508 - les ventes Apple ne sont PAS sur Airwallex -> hors cap.
+          { $match: { 'payments.paymentProvider': { $ne: 'apple_iap' } } },
           { $group: { _id: null, t: { $sum: { $ifNull: ['$payments.amount', 0] } } } },
         ]),
         CompanySweep.aggregate([
@@ -4218,7 +4260,8 @@ router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
         const r = await Model.aggregate([
           { $match: { 'boostPurchases.0': { $exists: true } } },
           { $unwind: '$boostPurchases' },
-          { $match: { 'boostPurchases.kind': kind } },
+          // v508 - hors achats Apple (pas sur Airwallex).
+          { $match: { 'boostPurchases.kind': kind, 'boostPurchases.paymentProvider': { $ne: 'apple_iap' } } },
           { $group: { _id: null, t: { $sum: { $ifNull: ['$boostPurchases.amount', 0] } } } },
         ]);
         return r[0]?.t || 0;
