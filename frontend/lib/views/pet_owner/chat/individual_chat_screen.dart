@@ -11,6 +11,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/models/booking_model.dart';
+import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/tracking_request_sheet.dart';
 // v23.1 part 240 — LiveWalkMapScreen import retire : "Voir la carte" du
@@ -1215,34 +1216,82 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
       ),
       child: Obx(() {
         if (controller.isPaymentRequired.value) {
-          return Row(
+          // v500 — Daniel : « rajoute un message pour ne pas laisser
+          // l'utilisateur sans compréhension ». L'ancien mini-bandeau passait
+          // inaperçu (clavier qui « se ferme tout seul », retours store).
+          // Panneau clair : cadenas + titre + explication + 2 actions.
+          return Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: Text(
-                  'chat_payment_required_banner'.tr,
-                  style: TextStyle(
-                    fontSize: 13.sp,
-                    color: AppColors.grey700Color,
-                    fontWeight: FontWeight.w500,
+              Row(
+                children: [
+                  Icon(
+                    Icons.lock_rounded,
+                    size: 20.sp,
+                    color: AppColors.primaryColor,
                   ),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: Text(
+                      'chat_gate_title'.tr,
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 6.h),
+              Text(
+                'chat_gate_body'.tr,
+                style: TextStyle(
+                  fontSize: 12.5.sp,
+                  color: AppColors.grey700Color,
+                  height: 1.35,
                 ),
               ),
-              SizedBox(width: 12.w),
-              ElevatedButton(
-                onPressed: () => Get.back(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24.r),
+              SizedBox(height: 10.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Get.back(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24.r),
+                        ),
+                      ),
+                      child: Text(
+                        'chat_pay_now_button'.tr,
+                        style: TextStyle(
+                          color: AppColors.whiteColor,
+                          fontSize: 13.sp,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                child: Text(
-                  'chat_pay_now_button'.tr,
-                  style: TextStyle(
-                    color: AppColors.whiteColor,
-                    fontSize: 13.sp,
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Get.to(() => const CoinShopScreen()),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: AppColors.primaryColor),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24.r),
+                        ),
+                      ),
+                      child: Text(
+                        'chat_gate_shop'.tr,
+                        style: TextStyle(
+                          color: AppColors.primaryColor,
+                          fontSize: 13.sp,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ],
           );

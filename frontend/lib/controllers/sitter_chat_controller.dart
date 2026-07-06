@@ -168,6 +168,11 @@ class SitterChatController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   final RxBool isChatLocked = false.obs;
+
+  /// v500 — parité avec le chat owner : le backend renvoie 403
+  /// PAYMENT_REQUIRED tant que la réservation n'est pas payée. Avant, le
+  /// côté sitter/walker affichait juste une erreur générique incomprise.
+  final RxBool isPaymentRequired = false.obs;
   final RxList<File> selectedAttachments = <File>[].obs;
 
   // Store contact information for the current conversation
@@ -664,6 +669,7 @@ class SitterChatController extends GetxController {
       AppLogger.logDebug(
         'Loaded ${mappedMessages.length} messages for conversation $chatId',
       );
+      isPaymentRequired.value = false;
       currentChatMessages.value = mappedMessages;
     } catch (e) {
       final errorMessageStr = e.toString();
@@ -673,6 +679,23 @@ class SitterChatController extends GetxController {
       if (AuthController.isLoginRequiredError(errorMessageStr)) {
         await AuthController.handleLoginRequiredError();
         return;
+      }
+
+      // v500 — même détection PAYMENT_REQUIRED que le chat owner (le
+      // backend verrouille tant que la réservation n'est pas payée) :
+      // panneau clair + snackbar au lieu d'une erreur générique.
+      if (e is ApiException && e.statusCode == 403) {
+        final details = e.details;
+        final code = details is Map ? details['code']?.toString() : null;
+        if (code == 'PAYMENT_REQUIRED') {
+          isPaymentRequired.value = true;
+          currentChatMessages.value = [];
+          CustomSnackbar.showWarning(
+            title: 'chat_gate_title'.tr,
+            message: 'chat_gate_body'.tr,
+          );
+          return;
+        }
       }
 
       errorMessage.value = errorMessageStr;
@@ -1188,6 +1211,17 @@ class SitterChatController extends GetxController {
       selectedAttachments.value = attachmentsToSend;
       // Show error to user
       errorMessage.value = 'Failed to send message. Please try again.';
+      // v500 — Daniel (version Store) : « impossible d'envoyer des messages »
+      // sans AUCUN détail visible. On affiche la VRAIE raison renvoyée par le
+      // serveur (code + message) pour diagnostiquer sur l'appareil, au lieu
+      // du texte générique qui cache la cause.
+      final apiMsg = e is ApiException
+          ? '[${e.statusCode ?? '?'}] ${e.message}'
+          : e.toString();
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: apiMsg.length > 220 ? apiMsg.substring(0, 220) : apiMsg,
+      );
     }
   }
 

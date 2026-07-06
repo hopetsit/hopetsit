@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
+import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/repositories/chat_repository.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -542,7 +543,11 @@ class _SitterIndividualChatScreenState
               ),
 
               // Message Input
-              chatController.isChatLocked.value
+              // v500 — verrou « paiement requis » : panneau explicatif clair
+              // (avant : erreur générique et clavier qui se fermait sans raison).
+              chatController.isPaymentRequired.value
+                  ? _buildPaymentGateNotice()
+                  : chatController.isChatLocked.value
                   ? _buildChatLockedNotice()
                   : _buildMessageInput(chatController),
             ],
@@ -1140,6 +1145,76 @@ class _SitterIndividualChatScreenState
         fontSize: 13.sp,
         fontWeight: FontWeight.w500,
         color: AppColors.textSecondary(context),
+      ),
+    );
+  }
+
+  /// v500 — Daniel : « rajoute un message pour ne pas laisser l'utilisateur
+  /// sans compréhension ». Panneau clair côté prestataire quand le backend
+  /// verrouille le chat tant que la réservation n'est pas payée (le paiement
+  /// vient de l'owner → pas de bouton Payer ici, juste l'explication + la
+  /// boutique d'abonnements).
+  Widget _buildPaymentGateNotice() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        border: Border(
+          top: BorderSide(
+            color: AppColors.divider(context),
+            width: 1.w,
+          ),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.lock_rounded,
+                size: 20.sp,
+                color: AppColors.primaryColor,
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: InterText(
+                  text: 'chat_gate_title'.tr,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 6.h),
+          InterText(
+            text: 'chat_gate_body'.tr,
+            fontSize: 12.5.sp,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary(context),
+          ),
+          SizedBox(height: 10.h),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => Get.to(() => const CoinShopScreen()),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: AppColors.primaryColor),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24.r),
+                ),
+              ),
+              child: Text(
+                'chat_gate_shop'.tr,
+                style: TextStyle(
+                  color: AppColors.primaryColor,
+                  fontSize: 13.sp,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

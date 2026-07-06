@@ -267,6 +267,14 @@ class _PawMapScreenState extends State<PawMapScreen>
   Set<Marker>? _cachedMarkers;
   String _cachedMarkersKey = '';
 
+  /// v500 — Daniel (version Store, installation fraîche) : « les points ne
+  /// s'affichent pas, je dois mettre Rien puis Tous ». Le watchdog v352 ne
+  /// tournait PAS si la géoloc expirait (early return AVANT le watchdog) —
+  /// exactement le cas d'une 1re installation : la boîte de permission +
+  /// le 1er fix GPS dépassent les 8s → chargement initial raté et jamais
+  /// relancé. Compteur des relances du watchdog (max 3).
+  int _firstLoadRetries = 0;
+
   /// Cached role lookup — read once, used for layer gating and UI.
   String get _role {
     final auth = Get.isRegistered<AuthController>()
@@ -1138,11 +1146,21 @@ class _PawMapScreenState extends State<PawMapScreen>
     // le timeout géoloc à 8s (4s était trop court sur GPS lent / iOS au
     // démarrage).
     unawaited(_reloadAtCenter());
+    // v500 — watchdog TOUJOURS armé (avant, il n'était posé qu'après une
+    // géoloc réussie → sur installation fraîche, géoloc timeout = aucune
+    // relance et carte vide jusqu'au toggle Rien/Tous).
+    _scheduleFirstLoadWatchdog();
 
     try {
-      final loc = await LocationService()
+      var loc = await LocationService()
           .getCurrentLocation()
           .timeout(const Duration(seconds: 8), onTimeout: () => null);
+      // v500 — installation fraîche : la permission vient d'être accordée
+      // et le 1er fix GPS peut dépasser les 8s → on retente UNE fois plus
+      // longtemps au lieu d'abandonner (la carte restait sur Paris).
+      loc ??= await LocationService()
+          .getCurrentLocation()
+          .timeout(const Duration(seconds: 15), onTimeout: () => null);
       if (loc == null) return;
       final myCenter = LatLng(loc.latitude, loc.longitude);
       if (!mounted) return;
@@ -1200,26 +1218,30 @@ class _PawMapScreenState extends State<PawMapScreen>
       }
 
       await _reloadAtCenter();
-
-      // v23.1.352 — Daniel : "je dois mettre Rien puis Tous pour que les
-      // points apparaissent au lieu que ça apparaisse direct". Watchdog du
-      // 1er chargement : si 4s après le bootstrap les couches sont toujours
-      // vides (fetch initial raté : permission GPS tout juste accordée,
-      // réseau lent, course au boot), on relance UNE fois le chargement —
-      // plus besoin de toggler le filtre pour forcer l'affichage.
-      Future.delayed(const Duration(seconds: 4), () {
-        if (!mounted) return;
-        final nothingLoaded = _poiController.pois.isEmpty &&
-            _reportController.reports.isEmpty &&
-            _nearbyProviders.isEmpty;
-        if (nothingLoaded) {
-          debugPrint('[PawMap] first-load watchdog → retry reload');
-          unawaited(_reloadAtCenter());
-        }
-      });
     } catch (e) {
       debugPrint('[PawMap] bootstrap error: $e');
     }
+  }
+
+  /// v500 — remplace le watchdog v352 (un seul essai, et seulement si la
+  /// géoloc avait réussi). Tant que les 3 couches sont vides, on relance le
+  /// chargement toutes les 4s, jusqu'à 3 fois : couvre le token pas encore
+  /// prêt au boot, le réseau lent, ET la permission GPS accordée en retard
+  /// sur une installation fraîche (version Store).
+  void _scheduleFirstLoadWatchdog() {
+    Future.delayed(const Duration(seconds: 4), () {
+      if (!mounted) return;
+      final nothingLoaded = _poiController.pois.isEmpty &&
+          _reportController.reports.isEmpty &&
+          _nearbyProviders.isEmpty;
+      if (nothingLoaded && _firstLoadRetries < 3) {
+        _firstLoadRetries++;
+        debugPrint(
+            '[PawMap] first-load watchdog → retry $_firstLoadRetries/3');
+        unawaited(_reloadAtCenter());
+        _scheduleFirstLoadWatchdog();
+      }
+    });
   }
 
   /// v23.1.189 — Daniel : "faire bouton cherche une ville". Ouvre un

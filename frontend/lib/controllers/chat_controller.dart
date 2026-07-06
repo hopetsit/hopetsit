@@ -753,6 +753,15 @@ class ChatController extends GetxController {
           blockedBookingId.value =
               details is Map ? details['bookingId']?.toString() : null;
           currentChatMessages.value = [];
+          // v500 — Daniel : « rajoute un message quand ça arrive pour ne pas
+          // laisser l'utilisateur sans compréhension ». Avant : la saisie
+          // était remplacée par le mini-bandeau ~1s après l'ouverture → le
+          // clavier se fermait « tout seul » et l'utilisateur croyait à un
+          // bug (retours store). On explique clairement pourquoi.
+          CustomSnackbar.showWarning(
+            title: 'chat_gate_title'.tr,
+            message: 'chat_gate_body'.tr,
+          );
           return;
         }
         // 403 sans code PAYMENT_REQUIRED → surface le message backend
@@ -1299,6 +1308,17 @@ class ChatController extends GetxController {
       selectedAttachments.value = attachmentsToSend;
       // Show error to user
       errorMessage.value = 'Failed to send message. Please try again.';
+      // v500 — Daniel (version Store) : « impossible d'envoyer des messages »
+      // sans AUCUN détail visible. On affiche la VRAIE raison renvoyée par le
+      // serveur (code + message) pour diagnostiquer sur l'appareil, au lieu
+      // du texte générique qui cache la cause.
+      final apiMsg = e is ApiException
+          ? '[${e.statusCode ?? '?'}] ${e.message}'
+          : e.toString();
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: apiMsg.length > 220 ? apiMsg.substring(0, 220) : apiMsg,
+      );
     }
   }
 
