@@ -3,6 +3,7 @@
 import Link from "next/link";
 import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
 import { PawMemberBadge } from "@/components/PawMemberBadge";
+import StoreBadges from "@/components/StoreBadges";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
 // v493 — Refonte design (design-only) : page d'accueil ramenée de ~9 sections
@@ -91,6 +92,10 @@ export default function HomePage() {
               >
                 {t("hero_cta_web_login")}
               </Link>
+            </div>
+            {/* v508 — l'app est EN LIGNE sur Google Play 🎉 → badges stores. */}
+            <div className="mt-5">
+              <StoreBadges />
             </div>
           </div>
 
@@ -376,6 +381,10 @@ export default function HomePage() {
               >
                 {t("nav_download")}
               </Link>
+            </div>
+            {/* v508 — badges stores (Google Play EN LIGNE). */}
+            <div className="mt-5">
+              <StoreBadges />
             </div>
           </div>
         </div>

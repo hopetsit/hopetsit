@@ -1,10 +1,11 @@
 "use client";
 
+import StoreBadges from "@/components/StoreBadges";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
-// v23.1.317 — Daniel : "enlever l'APK du site web" (avant lancement Play Store ;
-// Google déconseille la distribution du même APK hors store). Le téléchargement
-// direct est retiré, on affiche "bientôt sur Google Play / App Store".
+// v508 — Daniel : l'app est EN LIGNE sur le Play Store 🎉 → vrais badges
+// stores (Google Play actif + hl=<langue>, App Store « bientôt »). Remplace
+// les deux cartes grises « soon » de la v317.
 
 export default function DownloadPage() {
   const { t } = useT();
@@ -16,28 +17,29 @@ export default function DownloadPage() {
       </h1>
       <p className="mt-4 text-center text-lg text-ink-muted">{t("dl_sub")}</p>
 
-      <div className="mt-12 grid gap-4">
-        <div className="flex items-center justify-between rounded-2xl border border-ink/10 bg-white p-5 opacity-70">
-          <span className="flex items-center gap-3">
-            <span className="text-2xl">🤖</span>
-            <span>
-              <span className="block text-xs uppercase tracking-wider text-ink-soft">Android · Google Play</span>
-              <span className="text-base font-bold text-ink">{t("dl_play")}</span>
-            </span>
-          </span>
-          <span className="text-xs text-ink-soft">soon</span>
-        </div>
+      <div className="mt-12 flex justify-center">
+        <StoreBadges center />
+      </div>
 
-        <div className="flex items-center justify-between rounded-2xl border border-ink/10 bg-white p-5 opacity-70">
-          <span className="flex items-center gap-3">
-            <span className="text-2xl">🍎</span>
-            <span>
-              <span className="block text-xs uppercase tracking-wider text-ink-soft">App Store</span>
-              <span className="text-base font-bold text-ink">{t("dl_app_store")}</span>
-            </span>
-          </span>
-          <span className="text-xs text-ink-soft">soon</span>
-        </div>
+      {/* Aperçu de l'app sous les badges (réutilise les captures store). */}
+      <div className="mt-14 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {[
+          "/screens/02_pawmap.jpg",
+          "/screens/03_sitter.jpg",
+          "/screens/05_live_tracking.jpg",
+          "/screens/04_chat.jpg",
+        ].map((src) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={src}
+            src={src}
+            alt="HoPetSit"
+            loading="lazy"
+            width={640}
+            height={1385}
+            className="w-36 shrink-0 snap-center rounded-2xl shadow-xl ring-1 ring-black/5 first:ml-auto last:mr-auto"
+          />
+        ))}
       </div>
     </div>
   );
