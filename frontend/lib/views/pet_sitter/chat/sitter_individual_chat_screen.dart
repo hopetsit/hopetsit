@@ -41,6 +41,14 @@ class _SitterIndividualChatScreenState
   late TextEditingController _localMessageController;
   VoidCallback? _sharedControllerListener;
 
+  /// v500 — Daniel : « le clavier s'ouvre mais se referme en une demi-
+  /// seconde ». FocusNode STABLE possédé par le State : sans lui, le
+  /// TextField gérait son focus en interne et un rebuild déclenché ~0,5 s
+  /// après l'ouverture (fin du rechargement réseau, resync badge, événement
+  /// socket) pouvait le faire sauter → clavier fermé. Ce nœud survit à
+  /// TOUS les rebuilds.
+  final FocusNode _inputFocusNode = FocusNode();
+
   @override
   void initState() {
     super.initState();
@@ -86,6 +94,11 @@ class _SitterIndividualChatScreenState
     super.didChangeDependencies();
     // Reload messages when screen becomes visible again
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // v500 — didChangeDependencies se déclenche AUSSI quand le CLAVIER
+      // s'ouvre (MediaQuery change). Si l'utilisateur est en train d'écrire,
+      // on ne recharge JAMAIS (le rechargement faisait sauter le focus →
+      // clavier refermé « tout seul »).
+      if (_inputFocusNode.hasFocus) return;
       if (mounted &&
           chatController.currentChatId.value != widget.conversationId) {
         chatController.setContactInfo(widget.contactName, widget.contactImage);
@@ -107,6 +120,7 @@ class _SitterIndividualChatScreenState
       );
     }
     _localMessageController.dispose();
+    _inputFocusNode.dispose();
     super.dispose();
   }
 
@@ -1081,6 +1095,7 @@ class _SitterIndividualChatScreenState
                   ),
                   child: TextField(
                     controller: _localMessageController,
+                    focusNode: _inputFocusNode,
                     decoration: InputDecoration(
                       hintText: 'chat_input_hint'.tr,
                       hintStyle: TextStyle(
