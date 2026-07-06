@@ -357,10 +357,16 @@ router.get('/directions', requireAuth, async (req, res) => {
       const data = await resp.json();
       const coords = data?.routes?.[0]?.geometry?.coordinates;
       if (Array.isArray(coords) && coords.length > 1) {
+        const distanceMeters = Math.round(data.routes[0].distance || 0);
+        // v509 — Daniel : « les kilomètres sont bons mais pas le temps à
+        // pied ». Le serveur OSRM public IGNORE le profil "foot" et renvoie
+        // une durée VOITURE. La distance reste bonne → on recalcule la durée
+        // piétonne nous-mêmes à 4,8 km/h (~12 min/km, comme Google Maps).
+        const WALK_SPEED_MPS = 4.8 / 3.6;
         return res.json({
           points: coords.map((c) => ({ lat: c[1], lng: c[0] })),
-          distanceMeters: Math.round(data.routes[0].distance || 0),
-          durationSeconds: Math.round(data.routes[0].duration || 0),
+          distanceMeters,
+          durationSeconds: Math.round(distanceMeters / WALK_SPEED_MPS),
           source: 'osrm',
         });
       }
