@@ -42,6 +42,17 @@ class LocalizationService {
     'pt': 'Português',
   };
 
+  /// v500 — Daniel : drapeaux dans le sélecteur de langue, avec le drapeau
+  /// AMÉRICAIN pour l'anglais (marché principal = USA, pas le Royaume-Uni).
+  static final Map<String, String> languageFlags = <String, String>{
+    'en': '🇺🇸',
+    'fr': '🇫🇷',
+    'es': '🇪🇸',
+    'de': '🇩🇪',
+    'it': '🇮🇹',
+    'pt': '🇵🇹',
+  };
+
   /// All supported locales for Flutter / GetX.
   static List<Locale> get supportedLocales =>
       _supportedLocaleMap.values.toList(growable: false);

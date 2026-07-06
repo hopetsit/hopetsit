@@ -128,8 +128,10 @@ class _LanguageTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final current = LocalizationService.getCurrentLanguageCode();
+    final flag = LocalizationService.languageFlags[current] ?? '';
     final currentLabel =
-        LocalizationService.languageLabels[current] ?? current.toUpperCase();
+        '$flag ${LocalizationService.languageLabels[current] ?? current.toUpperCase()}'
+            .trim();
     return GestureDetector(
       onTap: () => showAppLanguagePicker(context, accent),
       child: Container(
@@ -217,7 +219,9 @@ Future<void> showAppLanguagePicker(BuildContext context, Color accent) {
                   size: 20.sp,
                 ),
                 title: InterText(
-                  text: e.value,
+                  text:
+                      '${LocalizationService.languageFlags[e.key] ?? ''} ${e.value}'
+                          .trim(),
                   fontSize: 15.sp,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   color: AppColors.textPrimary(context),

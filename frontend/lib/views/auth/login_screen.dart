@@ -469,7 +469,9 @@ class LoginScreen extends StatelessWidget {
               final isSelected = entry.key == selectedCode;
               return ListTile(
                 title: InterText(
-                  text: entry.value,
+                  text:
+                      '${LocalizationService.languageFlags[entry.key] ?? ''} ${entry.value}'
+                          .trim(),
                   fontSize: 15.sp,
                   fontWeight: FontWeight.w500,
                   color:
