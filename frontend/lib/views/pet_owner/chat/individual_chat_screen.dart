@@ -682,7 +682,11 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         ],
       ),
       body: Obx(() {
-        if (chatController.isLoading.value) {
+        // v500 — spinner UNIQUEMENT quand LES MESSAGES de cette conversation
+        // chargent ET qu'il n'y a rien a afficher (jamais sur un refresh de
+        // la LISTE en arriere-plan, qui detruisait la saisie + le clavier).
+        if (chatController.isMessagesLoading.value &&
+            chatController.currentChatMessages.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
 

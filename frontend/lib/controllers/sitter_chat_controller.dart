@@ -166,6 +166,15 @@ class SitterChatController extends GetxController {
       <SitterChatMessage>[].obs;
   final RxString currentChatId = ''.obs;
   final RxBool isLoading = false.obs;
+
+  /// v500 — Daniel : « impossible d'ecrire, le clavier se referme tout seul ».
+  /// CAUSE RACINE : isLoading etait PARTAGE entre le chargement de la LISTE
+  /// des conversations et celui des MESSAGES de la conversation ouverte.
+  /// Chaque refresh de la liste en arriere-plan (socket message:new, resync
+  /// badge, activite web du meme compte) basculait l'ecran de conversation
+  /// sur le spinner plein ecran -> le champ de saisie etait detruit -> le
+  /// clavier se fermait instantanement. Flag DEDIE aux messages :
+  final RxBool isMessagesLoading = false.obs;
   final RxString errorMessage = ''.obs;
   final RxBool isChatLocked = false.obs;
 
@@ -621,7 +630,7 @@ class SitterChatController extends GetxController {
       _contactImage = contactImage;
     }
 
-    isLoading.value = true;
+    isMessagesLoading.value = true;
     errorMessage.value = '';
 
     try {
@@ -702,7 +711,7 @@ class SitterChatController extends GetxController {
       // Fallback to empty list on error
       currentChatMessages.value = [];
     } finally {
-      isLoading.value = false;
+      isMessagesLoading.value = false;
     }
   }
 
