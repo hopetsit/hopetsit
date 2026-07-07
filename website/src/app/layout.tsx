@@ -105,6 +105,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   publisher: { "@id": "https://hopetsit.com/#organization" },
                   inLanguage: ["en", "fr", "es", "de", "it", "pt"],
                 },
+                // v516 — SEO : l'app Android est LIVE sur Google Play →
+                // données structurées MobileApplication pour que Google
+                // associe le site et l'app (fiche enrichie + lien
+                // d'installation dans les résultats de recherche).
+                {
+                  "@type": "MobileApplication",
+                  "@id": "https://hopetsit.com/#app",
+                  name: "HoPetSit",
+                  operatingSystem: "ANDROID",
+                  applicationCategory: "LifestyleApplication",
+                  installUrl:
+                    "https://play.google.com/store/apps/details?id=com.cardellihermanos.hopetsit",
+                  url: "https://hopetsit.com/download",
+                  offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
+                  publisher: { "@id": "https://hopetsit.com/#organization" },
+                  inLanguage: ["en", "fr", "es", "de", "it", "pt"],
+                },
               ],
             }),
           }}
