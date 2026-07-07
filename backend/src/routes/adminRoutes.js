@@ -142,6 +142,33 @@ router.post('/promo/revoke', requireAdmin, async (req, res) => {
   }
 });
 
+// v512 — Daniel : « j'ai généré 100 codes et aucun moyen de les effacer ou
+// masquer ». Suppression (une ou plusieurs). Garde-fou : un code DÉJÀ
+// UTILISÉ n'est pas effacé (on garde l'historique) → désactivé à la place.
+router.post('/promo/delete', requireAdmin, async (req, res) => {
+  try {
+    const PromoCode = require('../models/PromoCode');
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(Boolean) : [];
+    if (!ids.length) return res.status(400).json({ error: 'ids requis.' });
+    const del = await PromoCode.deleteMany({
+      _id: { $in: ids },
+      $or: [{ usedCount: 0 }, { usedCount: { $exists: false } }],
+    });
+    const deact = await PromoCode.updateMany(
+      { _id: { $in: ids }, usedCount: { $gt: 0 } },
+      { $set: { isActive: false } },
+    );
+    return res.json({
+      ok: true,
+      deleted: del.deletedCount || 0,
+      deactivated: deact.modifiedCount || 0,
+    });
+  } catch (e) {
+    logger.error('[admin/promo/delete]', e);
+    return res.status(500).json({ error: 'Suppression échouée.' });
+  }
+});
+
 // POST /admin/promo/send-campaign — email promo à une liste de clients.
 // body: { recipients:[email], subject, message, replyTo?, promoCode?, ctaUrl? }
 router.post('/promo/send-campaign', requireAdmin, async (req, res) => {
