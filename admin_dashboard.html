@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v514'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v515'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -226,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v514</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v515</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -4012,6 +4012,26 @@ async function loadSitters() {
 // Les colonnes lisaient des champs LEGACY disparus (rates/coverage/hourlyRate).
 // Champs réels : user.country (ISO-2) + user.location.city (+ coverageCity
 // walker) ; tarifs sitter = servicePricing.*, walker = walkRates[].
+// v515 — Daniel : « vérifie la date d'inscription pour les 3 ». Les très
+// vieux comptes n'ont pas de createdAt → on retombe sur la date embarquée
+// dans l'ObjectId Mongo (les 8 premiers hex = secondes epoch), fiable pour
+// 100 % des documents.
+function signupTs(u) {
+  if (u && u.createdAt) {
+    const t = new Date(u.createdAt).getTime();
+    if (Number.isFinite(t) && t > 0) return t;
+  }
+  try {
+    const id = String((u && u._id) || '');
+    if (/^[0-9a-f]{24}$/i.test(id)) return parseInt(id.slice(0, 8), 16) * 1000;
+  } catch (_) { /* defensive */ }
+  return 0;
+}
+function signupDate(u) {
+  const ts = signupTs(u);
+  return ts ? fmtDate(ts) : '-';
+}
+
 function countryFlag(iso) {
   const c = String(iso || '').toUpperCase();
   if (!/^[A-Z]{2}$/.test(c)) return '';
@@ -4078,7 +4098,7 @@ function renderSitters() {
       <tr>
         <td><strong>${escapeHtml(s.name||'-')}</strong></td>
         <td style="color:var(--text-muted)">${escapeHtml(s.email||'-')}</td>
-        <td style="font-size:12px;color:var(--text-muted)">${fmtDate(s.createdAt)}</td>
+        <td style="font-size:12px;color:var(--text-muted)">${signupDate(s)}</td>
         <td style="font-size:12px">${zoneLabel(s)}</td>
         <td style="font-size:12px">${sitterRatesLabel(s)}</td>
         <td style="font-size:12px">${services}</td>
@@ -4131,8 +4151,10 @@ async function loadOwners() {
     const owners = (o.owners || []).map(u => ({ ...u, _role: 'owner' }));
     const sitters = (s.sitters || []).map(u => ({ ...u, _role: 'sitter' }));
     const walkers = (w.walkers || []).map(u => ({ ...u, _role: 'walker' }));
+    // v515 — tri par vraie date d'inscription (fallback ObjectId pour les
+    // vieux comptes sans createdAt, qui tombaient tout en bas).
     allOwners = [...owners, ...sitters, ...walkers]
-      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      .sort((a, b) => signupTs(b) - signupTs(a));
     allSitters = sitters; // keep legacy arrays for the dedicated pages
     allWalkers = walkers;
     renderOwners();
@@ -4174,7 +4196,7 @@ function renderOwners() {
         <td style="color:var(--text-muted)">${escapeHtml(u.email||'-')}</td>
         <td>${escapeHtml(u.mobile||'-')}</td>
         <td style="font-size:12px">${zoneLabel(u)}</td>
-        <td>${fmtDate(u.createdAt)}</td>
+        <td>${signupDate(u)}</td>
         <td>${u.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="action-btn" style="background:${u.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('${u._role}','${u._id}',${!u.isStaff})">${u.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button>
@@ -4255,7 +4277,7 @@ function renderWalkers() {
       <tr>
         <td><strong>${escapeHtml(w.name||'-')}</strong></td>
         <td style="color:var(--text-muted)">${escapeHtml(w.email||'-')}</td>
-        <td style="font-size:12px;color:var(--text-muted)">${fmtDate(w.createdAt)}</td>
+        <td style="font-size:12px;color:var(--text-muted)">${signupDate(w)}</td>
         <td>${rate}</td>
         <td style="font-size:12px">${coverage}</td>
         <td>${w.verified ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">En attente</span>'}</td>
