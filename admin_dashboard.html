@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v510'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v511'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -226,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v510</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v511</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -674,7 +674,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div class="section-title">🪪 <span data-i18n="identity_title">Vérifications d'identité (en attente)</span></div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;line-height:1.5">
           <span data-i18n="identity_desc1">Vérifie les pièces d'identité des pet-sitters et walkers. Documents confidentiels — accessibles uniquement aux admins.</span><br>
-          <span style="font-size:12px"><span class="badge badge-blue" data-i18n="identity_manual">Upload manuel</span> <span data-i18n="identity_manual_hint">= soumis directement par le user ·</span> <span class="badge badge-orange">Persona</span> <span data-i18n="identity_persona_hint">= vérification automatique payante (3€).</span></span><br>
+          <span style="font-size:12px"><span class="badge badge-blue" data-i18n="identity_manual">Upload manuel</span> <span data-i18n="identity_manual_hint">= soumis directement par le user ·</span> <span class="badge badge-orange">KYC auto</span> <span data-i18n="identity_persona_hint">= vérification automatique payante (3€) via Didit.</span></span><br>
           <strong style="color:var(--text)" data-i18n="identity_approve_word">Approuver</strong> <span data-i18n="identity_approve_hint">active immédiatement le badge ✓ Vérifié sur l'app du user.</span>
         </p>
         <div class="table-wrap">
@@ -1499,16 +1499,18 @@ async function loadIdentityVerifications() {
       return;
     }
     // v23.1 part 112 — affiche aussi le rôle + la source (manual upload
-    // VS Persona payant) pour distinguer les 2 flows. Le badge orange
-    // "Persona" indique que la vérif a été faite via le service tiers.
+    // VS KYC auto payant) pour distinguer les 2 flows.
+    // v511 — Daniel : Didit remplace Persona → étiquette NEUTRE « KYC auto »
+    // (les vieilles vérifs étaient Persona, les nouvelles sont Didit ; le
+    // backend renvoie source='persona' pour les deux, on ne change pas l'API).
     container.innerHTML = list.map(v => {
       const sourceBadge = v.source === 'persona'
-        ? '<span class="badge badge-orange" style="margin-left:6px">Persona</span>'
+        ? '<span class="badge badge-orange" style="margin-left:6px">KYC auto</span>'
         : '<span class="badge badge-blue" style="margin-left:6px">Upload manuel</span>';
       const docCell = v.documentUrl
         ? `<a href="${escapeHtml(v.documentUrl)}" target="_blank" rel="noopener">📄 Voir le document</a>`
         : (v.source === 'persona'
-            ? `<span style="color:var(--text-muted);font-size:12px">Vérification via Persona${v.kycApplicantId ? ' (#' + v.kycApplicantId + ')' : ''}</span>`
+            ? `<span style="color:var(--text-muted);font-size:12px">Vérification automatique (Didit)${v.kycApplicantId ? ' (#' + v.kycApplicantId + ')' : ''}</span>`
             : '<span style="color:var(--text-muted);font-size:12px">—</span>');
       return `
       <tr>
@@ -6062,7 +6064,7 @@ async function toggleStaff(role, userId, isStaff) {
         iban_verify_title: "Vérification IBAN des providers", iban_verify_desc: "Vérifie les coordonnées bancaires des sitters/walkers avant d'activer les payouts.",
         mod_title: "Modération des utilisateurs", mod_search_placeholder: "Rechercher par email ou nom…", mod_empty_hint: "Tape un email ou un nom puis clique sur Rechercher.",
         reviews_title: "Modération des avis", filter_reported: "Signalés", filter_hidden: "Masqués",
-        identity_title: "Vérifications d'identité (en attente)", identity_desc1: "Vérifie les pièces d'identité des pet-sitters et walkers. Documents confidentiels — accessibles uniquement aux admins.", identity_manual: "Upload manuel", identity_manual_hint: "= soumis directement par le user ·", identity_persona_hint: "= vérification automatique payante (3€).", identity_approve_word: "Approuver", identity_approve_hint: "active immédiatement le badge ✓ Vérifié sur l'app du user.",
+        identity_title: "Vérifications d'identité (en attente)", identity_desc1: "Vérifie les pièces d'identité des pet-sitters et walkers. Documents confidentiels — accessibles uniquement aux admins.", identity_manual: "Upload manuel", identity_manual_hint: "= soumis directement par le user ·", identity_persona_hint: "= vérification automatique payante (3€) via Didit.", identity_approve_word: "Approuver", identity_approve_hint: "active immédiatement le badge ✓ Vérifié sur l'app du user.",
         terms_title: "Conditions générales", terms_desc: "Édite les conditions affichées dans l'app mobile, par langue. Les changements sont visibles immédiatement par les utilisateurs. Si une langue n'a pas de document, l'app utilise le texte par défaut embarqué dans l'APK.", terms_textarea_ph: "Écris les conditions ici (texte brut, type Markdown, OK)...",
         reports_title: "Signalements", reports_desc: "Signalements envoyés par les utilisateurs depuis les profils, commentaires, messages chat et photos. Utilise les filtres ci-dessous pour les trier.",
         wallets_title: "Portefeuilles providers", wallets_desc: "Solde du portefeuille des providers (pet-sitters + walkers). Le provider est crédité de 80% du tarif au début de la mission ; il peut ensuite utiliser ce solde pour la boutique ou le retirer vers son IBAN. Les retraits non éligibles (IBAN non vérifié) restent en attente.",
@@ -6197,7 +6199,7 @@ async function toggleStaff(role, userId, isStaff) {
         iban_verify_title: "Provider IBAN verification", iban_verify_desc: "Verify the bank details of sitters/walkers before enabling payouts.",
         mod_title: "User moderation", mod_search_placeholder: "Search by email or name…", mod_empty_hint: "Type an email or a name then click Search.",
         reviews_title: "Review moderation", filter_reported: "Reported", filter_hidden: "Hidden",
-        identity_title: "Identity verifications (pending)", identity_desc1: "Verify the ID documents of pet-sitters and walkers. Confidential documents — admin-only access.", identity_manual: "Manual upload", identity_manual_hint: "= submitted directly by the user ·", identity_persona_hint: "= paid automatic verification (€3).", identity_approve_word: "Approve", identity_approve_hint: "instantly activates the ✓ Verified badge on the user's app.",
+        identity_title: "Identity verifications (pending)", identity_desc1: "Verify the ID documents of pet-sitters and walkers. Confidential documents — admin-only access.", identity_manual: "Manual upload", identity_manual_hint: "= submitted directly by the user ·", identity_persona_hint: "= paid automatic verification (€3) via Didit.", identity_approve_word: "Approve", identity_approve_hint: "instantly activates the ✓ Verified badge on the user's app.",
         terms_title: "Terms & conditions", terms_desc: "Edit the terms shown in the mobile app, per language. Changes are visible to users immediately. If a language has no document, the app uses the default text bundled in the APK.", terms_textarea_ph: "Write the terms here (plain text, Markdown OK)...",
         reports_title: "Reports", reports_desc: "Reports sent by users from profiles, comments, chat messages and photos. Use the filters below to sort them.",
         wallets_title: "Provider wallets", wallets_desc: "Provider wallet balance (pet-sitters + walkers). The provider is credited 80% of the rate at the start of the mission; they can then use this balance in the shop or withdraw it to their IBAN. Ineligible withdrawals (unverified IBAN) stay pending.",
