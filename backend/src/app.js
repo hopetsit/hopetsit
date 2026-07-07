@@ -158,7 +158,7 @@ app.post(
   },
 );
 
-const { personaWebhook } = require('./controllers/kycController');
+const { personaWebhook, diditWebhook } = require('./controllers/kycController');
 app.post(
   '/webhooks/persona',
   express.raw({ type: 'application/json' }),
@@ -169,6 +169,21 @@ app.post(
     next();
   },
   personaWebhook,
+);
+
+// v510 — Didit KYC webhook (remplace Persona dès que les env vars DIDIT_*
+// sont configurées). Même pattern : bytes bruts pour la vérif HMAC
+// (X-Signature + X-Timestamp). URL à mettre dans la console Didit :
+//   https://hopetsit-backend.onrender.com/webhooks/didit
+app.post(
+  '/webhooks/didit',
+  express.raw({ type: 'application/json' }),
+  (req, res, next) => {
+    req.rawBody = req.body instanceof Buffer ? req.body.toString('utf8') : '';
+    try { req.body = req.rawBody ? JSON.parse(req.rawBody) : {}; } catch (_) { req.body = {}; }
+    next();
+  },
+  diditWebhook,
 );
 
 app.use(express.json({ limit: '25mb' }));
@@ -183,7 +198,7 @@ const ADMIN_HTML_PATH = path.join(__dirname, '..', '..', 'admin_dashboard.html')
 // build is actually LIVE on Render (GET /__build). If /__build still returns an
 // old value after a push, Render did not redeploy (auto-deploy off / build
 // filter / failed deploy) — not a code problem.
-const ADMIN_BUILD = 'v509';
+const ADMIN_BUILD = 'v510';
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');

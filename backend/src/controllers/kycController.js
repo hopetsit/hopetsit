@@ -28,7 +28,16 @@ const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const airwallex = require('../services/airwallexService');
 const persona = require('../services/personaService');
+// v510 — Daniel : « remplacer Persona par Didit, sans rebuild l'app ».
+// Bascule automatique : dès que DIDIT_API_KEY + DIDIT_WORKFLOW_ID sont
+// configurés sur Render, tout le flux KYC passe par Didit ; sinon Persona
+// continue tel quel (zéro coupure). L'app ne voit AUCUNE différence : les
+// réponses gardent exactement les mêmes champs ({ inquiryId, oneTimeLink,
+// kycStatus }), seule l'URL ouverte dans la WebView change.
+const didit = require('../services/diditService');
 const logger = require('../utils/logger');
+
+const _useDidit = () => didit.isConfigured();
 
 const KYC_PRICE_EUR = 3; // 3 EUR fixed price
 
@@ -58,9 +67,10 @@ const initiatePayment = async (req, res) => {
     // frontend doesn't fall through to a generic 500. Operators just need
     // to set PERSONA_API_KEY (live or sandbox) + PERSONA_TEMPLATE_ID on
     // Render for live mode.
-    if (!process.env.PERSONA_API_KEY || !process.env.PERSONA_TEMPLATE_ID) {
+    // v510 — Didit configuré = OK même sans les env vars Persona.
+    if (!_useDidit() && (!process.env.PERSONA_API_KEY || !process.env.PERSONA_TEMPLATE_ID)) {
       logger.error(
-        '[kyc.initiatePayment] PERSONA env vars missing — KYC disabled until configured.',
+        '[kyc.initiatePayment] Neither DIDIT nor PERSONA env vars configured — KYC disabled.',
       );
       return res.status(503).json({
         error: 'Identity verification is temporarily unavailable. Please try again later.',
@@ -239,6 +249,69 @@ const startVerification = async (req, res) => {
         error: 'Payment required first. Call /kyc/initiate-payment.',
         kycStatus: user.kycStatus,
       });
+    }
+
+    // ── v510 — FLUX DIDIT (remplace Persona dès que configuré) ────────────
+    // Beaucoup plus simple que Persona : pas d'enfer 409 / one-time-link.
+    // 1. Si on a une session Didit stockée encore réutilisable → on renvoie
+    //    son URL. 2. Sinon on crée une session fraîche (gratuit chez Didit).
+    // Réponse STRICTEMENT au même format que Persona → app inchangée.
+    if (_useDidit()) {
+      try {
+        let sessionId = null;
+        let sessionUrl = null;
+        // Les ids Persona commencent par 'inq_' → on les ignore, on ne
+        // réutilise que les ids de session Didit (UUID).
+        const storedId = user.kycApplicantId && !String(user.kycApplicantId).startsWith('inq_')
+          ? user.kycApplicantId
+          : null;
+        if (storedId) {
+          try {
+            const existing = await didit.getSessionDecision(storedId);
+            if (didit.isSessionReusable(existing?.status) && (existing?.session_url || existing?.url)) {
+              sessionId = storedId;
+              sessionUrl = existing.session_url || existing.url;
+              logger.info(`[kyc.start] Reusing Didit session ${sessionId} (${existing.status}).`);
+            }
+          } catch (e) {
+            logger.warn(`[kyc.start] Stored Didit session ${storedId} lookup failed (${e?.status || ''} ${e?.message}) — creating fresh.`);
+          }
+        }
+        if (!sessionId) {
+          const session = await didit.createSession({
+            userId: user._id.toString(),
+            role,
+            email: user.email,
+          });
+          sessionId = session?.session_id || null;
+          sessionUrl = session?.url || null;
+        }
+        if (!sessionId || !sessionUrl) {
+          return res.status(502).json({
+            error: 'Identity verification session could not be created. Please try again later.',
+            code: 'DIDIT_SESSION_FAILED',
+          });
+        }
+        await Model.updateOne(
+          { _id: user._id },
+          { $set: { kycApplicantId: sessionId } },
+        );
+        user.kycApplicantId = sessionId;
+        // Mêmes clés que le flux Persona → l'app publiée ouvre l'URL telle
+        // quelle dans sa WebView, rien d'autre à changer.
+        return res.json({
+          inquiryId: sessionId,
+          oneTimeLink: sessionUrl,
+          kycStatus: user.kycStatus,
+        });
+      } catch (diditErr) {
+        logger.error(`[kyc.start] Didit session creation failed: ${diditErr?.message} status=${diditErr?.status}`);
+        return res.status(502).json({
+          error: 'Identity verification is temporarily unavailable. Please try again later.',
+          code: 'DIDIT_SESSION_FAILED',
+          details: diditErr?.data || diditErr?.message,
+        });
+      }
     }
 
     // v23.1 part 240 — Daniel screenshot : "toujour impossible de verifier
@@ -494,7 +567,59 @@ const getStatus = async (req, res) => {
     // l'API Persona si le user spam /kyc/status. Le timestamp de derniere
     // verif est stocke en RAM (cache process) — pas crucial qu'il soit
     // persistant, c'est juste un soft limit.
+    // ── v510 — poll Didit (même filet de sécurité que le poll Persona :
+    // si le webhook n'arrive pas, le statut se met à jour au prochain
+    // GET /kyc/status de l'app). Ignore les vieux ids Persona ('inq_...').
     if (
+      _useDidit() &&
+      user.kycStatus === 'pending_verification' &&
+      user.kycApplicantId &&
+      !String(user.kycApplicantId).startsWith('inq_') &&
+      _shouldPollPersona(user._id.toString())
+    ) {
+      try {
+        const session = await didit.getSessionDecision(user.kycApplicantId);
+        const diditStatus = session?.status || '';
+        logger.info(
+          `[kyc.getStatus] poll didit for user=${user._id} sessionStatus=${diditStatus}`,
+        );
+        const { newStatus, rejectionReason } = didit.mapStatus(diditStatus);
+        if (newStatus && newStatus !== user.kycStatus) {
+          const _dUpdate = {
+            kycStatus: newStatus,
+            kycRejectionReason: rejectionReason,
+          };
+          if (newStatus === 'verified') {
+            _dUpdate.kycVerifiedAt = new Date();
+            _dUpdate.verified = true;
+            user.kycVerifiedAt = _dUpdate.kycVerifiedAt;
+            user.verified = true;
+          }
+          await Model.updateOne({ _id: user._id }, { $set: _dUpdate });
+          user.kycStatus = newStatus;
+          user.kycRejectionReason = rejectionReason;
+          logger.info(
+            `✅ [kyc.getStatus.poll] ${role} ${user._id} → kycStatus=${newStatus} (didit webhook fallback)`,
+          );
+          try {
+            const { sendNotification } = require('../services/notificationSender');
+            const notifType = newStatus === 'verified' ? 'kyc_verified' : 'kyc_rejected';
+            sendNotification({
+              userId: user._id.toString(),
+              role,
+              type: notifType,
+              data: { kycStatus: newStatus, reason: rejectionReason },
+              actor: { role: 'system', id: null },
+            }).catch(() => {});
+          } catch (_) { /* noop */ }
+        }
+      } catch (pollErr) {
+        logger.warn(`[kyc.getStatus.poll] didit poll failed: ${pollErr.message}`);
+      }
+    }
+
+    if (
+      !_useDidit() &&
       user.kycStatus === 'pending_verification' &&
       user.kycApplicantId &&
       _shouldPollPersona(user._id.toString())
@@ -812,6 +937,91 @@ const personaWebhook = async (req, res) => {
   }
 };
 
+/**
+ * v510 — POST /webhooks/didit
+ * Reçoit les événements status.updated de Didit. Vérifie la signature
+ * HMAC (X-Signature sur les bytes bruts + X-Timestamp frais), retrouve le
+ * user via vendor_data = "role_userId" (même convention que le
+ * reference-id Persona) et applique le même mapping de statut que le poll.
+ * TOUJOURS répondre vite (200) pour éviter les retries Didit.
+ */
+const diditWebhook = async (req, res) => {
+  try {
+    const rawBody = req.rawBody || (req.body instanceof Buffer ? req.body.toString('utf8') : JSON.stringify(req.body));
+    const signature = req.headers['x-signature'];
+    const timestamp = req.headers['x-timestamp'];
+    if (!didit.verifyWebhookSignature(rawBody, signature, timestamp)) {
+      logger.warn('[didit.webhook] signature mismatch');
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+    const payload = typeof rawBody === 'string' ? JSON.parse(rawBody) : req.body;
+    const webhookType = payload?.webhook_type || '';
+    const sessionId = payload?.session_id || '';
+    const diditStatus = payload?.status || '';
+    const vendorData = payload?.vendor_data || '';
+    logger.info(
+      `[didit.webhook] type=${webhookType} session=${sessionId} status=${diditStatus} vendor=${vendorData}`,
+    );
+
+    // vendor_data = "role_userId" (comme le reference-id Persona).
+    const [role, userId] = String(vendorData).split('_');
+    const Model = _modelForRole(role);
+    if (!Model || !userId) {
+      logger.warn(`[didit.webhook] invalid vendor_data ${vendorData}`);
+      return res.status(200).json({ ok: true });
+    }
+    const user = await Model.findById(userId);
+    if (!user) return res.status(200).json({ ok: true });
+    if (user.kycApplicantId && user.kycApplicantId !== sessionId) {
+      // Vieille session (l'user a relancé) → on log mais on traite quand
+      // même : Approved reste Approved quel que soit l'id de session.
+      logger.warn(`[didit.webhook] session mismatch user=${userId} stored=${user.kycApplicantId} got=${sessionId}`);
+    }
+
+    const { newStatus, rejectionReason } = didit.mapStatus(diditStatus);
+    if (!newStatus || newStatus === user.kycStatus) {
+      return res.status(200).json({ ok: true });
+    }
+    // Ne jamais rétrograder un compte déjà vérifié (ex. webhook Expired
+    // d'une vieille session abandonnée qui arrive après l'approbation).
+    if (user.kycStatus === 'verified' && newStatus !== 'verified') {
+      logger.warn(`[didit.webhook] ignoring ${diditStatus} for already-verified ${role} ${userId}`);
+      return res.status(200).json({ ok: true });
+    }
+    const _dUpdate = {
+      kycStatus: newStatus,
+      kycRejectionReason: rejectionReason,
+    };
+    if (newStatus === 'verified') {
+      _dUpdate.kycVerifiedAt = new Date();
+      _dUpdate.verified = true; // sync legacy `verified` field
+    }
+    // updateOne pour bypass la revalidation 2dsphere (cf webhook Persona).
+    await Model.updateOne({ _id: user._id }, { $set: _dUpdate });
+    logger.info(`✅ [didit.webhook] ${role} ${userId} → kycStatus=${newStatus}`);
+
+    try {
+      const { sendNotification } = require('../services/notificationSender');
+      const notifType = newStatus === 'verified' ? 'kyc_verified' : 'kyc_rejected';
+      sendNotification({
+        userId: userId.toString(),
+        role,
+        type: notifType,
+        data: { kycStatus: newStatus, reason: rejectionReason },
+        actor: { role: 'system', id: null },
+      }).catch(() => {});
+    } catch (_) { /* noop */ }
+
+    return res.status(200).json({ ok: true });
+  } catch (e) {
+    logger.error(`[didit.webhook] ${e.message}`);
+    // 200 quand même : on a loggé, le poll getStatus rattrapera. Un 500
+    // ferait retenter Didit en boucle pour un payload qu'on ne sait pas
+    // traiter.
+    return res.status(200).json({ ok: true });
+  }
+};
+
 module.exports = {
   initiatePayment,
   startVerification,
@@ -819,4 +1029,5 @@ module.exports = {
   confirmPayment, // v23.1 part 75 — client-side KYC payment confirmation fallback
   onKycPaymentSucceeded,
   personaWebhook,
+  diditWebhook, // v510 — Didit remplace Persona (bascule par env vars)
 };
