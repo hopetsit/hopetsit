@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v512'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v513'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -226,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v512</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v513</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -879,6 +879,9 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div class="section-title" style="font-size:16px;margin-top:30px"><span data-i18n="promo_step2">2) Codes existants</span>
           <button class="action-btn" style="margin-left:10px" onclick="loadPromotions()">🔄 <span data-i18n="refresh">Actualiser</span></button>
           <!-- v512 — Daniel : « aucun moyen d'effacer ou masquer » les codes. -->
+          <!-- v513 — Daniel : « sélectionner tous les codes d'un coup » (la
+               case d'en-tête existait mais trop discrète → vrai bouton). -->
+          <button class="action-btn" style="margin-left:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border)" onclick="promoToggleSelectAllBtn()">☑️ <span data-i18n="promo_select_all">Tout sélectionner</span></button>
           <button class="action-btn" style="margin-left:6px;background:#DC2626;color:#fff" onclick="deleteSelectedPromos()">🗑️ <span data-i18n="promo_delete_selected">Supprimer la sélection</span></button>
           <label style="margin-left:12px;font-size:12px;color:var(--text-muted);font-weight:400;cursor:pointer">
             <input type="checkbox" id="promo-hide-inactive" checked onchange="renderPromoCodes(_promoCodes)"> <span data-i18n="promo_hide_inactive">Masquer les codes désactivés</span>
@@ -2251,6 +2254,16 @@ function renderPromoCodes(codes) {
 // v512 — coche/décoche toutes les lignes visibles.
 function promoSelectAll(box) {
   document.querySelectorAll('.promo-sel').forEach(function (cb) { cb.checked = box.checked; });
+}
+
+// v513 — bouton « Tout sélectionner » : coche tout ; re-clic = décoche tout.
+function promoToggleSelectAllBtn() {
+  const boxes = document.querySelectorAll('.promo-sel');
+  const allChecked = boxes.length > 0
+    && Array.from(boxes).every(function (cb) { return cb.checked; });
+  boxes.forEach(function (cb) { cb.checked = !allChecked; });
+  const selAll = document.getElementById('promo-selall');
+  if (selAll) selAll.checked = !allChecked;
 }
 
 // v512 — suppression (ids explicites ou sélection). Backend : les codes
@@ -6151,7 +6164,7 @@ async function toggleStaff(role, userId, isStaff) {
         promo_step1: "1) Générer des codes", promo_step2: "2) Codes existants", promo_step3: "3) Envoyer une promo par email",
         promo_reward_type: "Type de récompense", promo_reward_free_sub: "Abonnement offert", promo_reward_percent: "% de réduction", promo_plan_offered: "Forfait offert",
         promo_count: "Nombre de codes", promo_max_uses: "Usages par code (0 = illimité)", promo_expires_opt: "Expire le (optionnel)", promo_campaign_prefix: "Campagne (préfixe du code)", promo_generate_btn: "Générer les codes",
-        promo_mode: "Mode", promo_mode_single: "🎟️ UN seul code partagé (N personnes)", promo_mode_multi: "🎫 Plusieurs codes uniques (1 usage chacun)", promo_max_uses_people: "Nombre de personnes (0 = illimité)", promo_delete_selected: "Supprimer la sélection", promo_hide_inactive: "Masquer les codes désactivés",
+        promo_mode: "Mode", promo_mode_single: "🎟️ UN seul code partagé (N personnes)", promo_mode_multi: "🎫 Plusieurs codes uniques (1 usage chacun)", promo_max_uses_people: "Nombre de personnes (0 = illimité)", promo_delete_selected: "Supprimer la sélection", promo_hide_inactive: "Masquer les codes désactivés", promo_select_all: "Tout sélectionner",
         promo_replyto: "Adresse Reply-To (où arrivent les réponses)", promo_subject: "Sujet", promo_message: "Message", promo_message_ph: "Bonjour ! Profite de…", promo_code_include: "Code promo à inclure (optionnel)", promo_cta_link: "Lien du bouton (optionnel)",
         promo_recipients: "Destinataires", promo_filter_ph: "Filtrer nom/email…", promo_reload_title: "Recharger la liste (nouveaux utilisateurs)", promo_import_title: "Importer une liste d'emails (CSV/texte)", promo_export_title: "Exporter les emails clients en CSV", promo_send_btn: "Envoyer la campagne",
         filtre_title: "Filtre & modération", filtre_desc: "Les gros mots ci-dessous sont masqués automatiquement (***) dans les annonces et les messages, sur l'app ET le web. À l'ajout, le mot est traduit dans les 6 langues de l'app.", filtre_word_label: "Mot à interdire", filtre_word_ph: "ex. un gros mot", filtre_translate6: "Traduire 6 langues",
@@ -6287,7 +6300,7 @@ async function toggleStaff(role, userId, isStaff) {
         promo_step1: "1) Generate codes", promo_step2: "2) Existing codes", promo_step3: "3) Send a promo by email",
         promo_reward_type: "Reward type", promo_reward_free_sub: "Free subscription", promo_reward_percent: "% discount", promo_plan_offered: "Offered plan",
         promo_count: "Number of codes", promo_max_uses: "Uses per code (0 = unlimited)", promo_expires_opt: "Expires on (optional)", promo_campaign_prefix: "Campaign (code prefix)", promo_generate_btn: "Generate codes",
-        promo_mode: "Mode", promo_mode_single: "🎟️ ONE shared code (N people)", promo_mode_multi: "🎫 Multiple unique codes (1 use each)", promo_max_uses_people: "Number of people (0 = unlimited)", promo_delete_selected: "Delete selected", promo_hide_inactive: "Hide deactivated codes",
+        promo_mode: "Mode", promo_mode_single: "🎟️ ONE shared code (N people)", promo_mode_multi: "🎫 Multiple unique codes (1 use each)", promo_max_uses_people: "Number of people (0 = unlimited)", promo_delete_selected: "Delete selected", promo_hide_inactive: "Hide deactivated codes", promo_select_all: "Select all",
         promo_replyto: "Reply-To address (where replies arrive)", promo_subject: "Subject", promo_message: "Message", promo_message_ph: "Hi! Enjoy…", promo_code_include: "Promo code to include (optional)", promo_cta_link: "Button link (optional)",
         promo_recipients: "Recipients", promo_filter_ph: "Filter name/email…", promo_reload_title: "Reload the list (new users)", promo_import_title: "Import an email list (CSV/text)", promo_export_title: "Export customer emails to CSV", promo_send_btn: "Send the campaign",
         filtre_title: "Filter & moderation", filtre_desc: "The banned words below are automatically masked (***) in listings and messages, on the app AND the web. On add, the word is translated into the app's 6 languages.", filtre_word_label: "Word to ban", filtre_word_ph: "e.g. a swear word", filtre_translate6: "Translate 6 languages",
@@ -6422,7 +6435,7 @@ async function toggleStaff(role, userId, isStaff) {
         promo_step1: "1) Generar códigos", promo_step2: "2) Códigos existentes", promo_step3: "3) Enviar una promo por email",
         promo_reward_type: "Tipo de recompensa", promo_reward_free_sub: "Suscripción gratis", promo_reward_percent: "% de descuento", promo_plan_offered: "Plan ofrecido",
         promo_count: "Número de códigos", promo_max_uses: "Usos por código (0 = ilimitado)", promo_expires_opt: "Expira el (opcional)", promo_campaign_prefix: "Campaña (prefijo del código)", promo_generate_btn: "Generar los códigos",
-        promo_mode: "Modo", promo_mode_single: "🎟️ UN solo código compartido (N personas)", promo_mode_multi: "🎫 Varios códigos únicos (1 uso cada uno)", promo_max_uses_people: "Número de personas (0 = ilimitado)", promo_delete_selected: "Eliminar selección", promo_hide_inactive: "Ocultar códigos desactivados",
+        promo_mode: "Modo", promo_mode_single: "🎟️ UN solo código compartido (N personas)", promo_mode_multi: "🎫 Varios códigos únicos (1 uso cada uno)", promo_max_uses_people: "Número de personas (0 = ilimitado)", promo_delete_selected: "Eliminar selección", promo_hide_inactive: "Ocultar códigos desactivados", promo_select_all: "Seleccionar todo",
         promo_replyto: "Dirección Reply-To (donde llegan las respuestas)", promo_subject: "Asunto", promo_message: "Mensaje", promo_message_ph: "¡Hola! Aprovecha…", promo_code_include: "Código promo a incluir (opcional)", promo_cta_link: "Enlace del botón (opcional)",
         promo_recipients: "Destinatarios", promo_filter_ph: "Filtrar nombre/email…", promo_reload_title: "Recargar la lista (nuevos usuarios)", promo_import_title: "Importar una lista de emails (CSV/texto)", promo_export_title: "Exportar los emails de clientes en CSV", promo_send_btn: "Enviar la campaña",
         filtre_title: "Filtro y moderación", filtre_desc: "Las palabrotas de abajo se ocultan automáticamente (***) en los anuncios y los mensajes, en la app Y la web. Al añadirla, la palabra se traduce a los 6 idiomas de la app.", filtre_word_label: "Palabra a prohibir", filtre_word_ph: "ej. una palabrota", filtre_translate6: "Traducir 6 idiomas",
