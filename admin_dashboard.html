@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v513'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v514'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -226,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v513</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v514</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -4008,6 +4008,51 @@ async function loadSitters() {
     renderSitters();
   } catch(e) {}
 }
+// v514 — Daniel : « zone (pays + ville) d'inscription vide + colonne tarif ».
+// Les colonnes lisaient des champs LEGACY disparus (rates/coverage/hourlyRate).
+// Champs réels : user.country (ISO-2) + user.location.city (+ coverageCity
+// walker) ; tarifs sitter = servicePricing.*, walker = walkRates[].
+function countryFlag(iso) {
+  const c = String(iso || '').toUpperCase();
+  if (!/^[A-Z]{2}$/.test(c)) return '';
+  return String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65, 0x1F1E6 + c.charCodeAt(1) - 65);
+}
+function zoneLabel(u) {
+  // location.city (actuel) → city racine (legacy) → coverageCity (walker).
+  const city = (u.location && u.location.city) || u.city || u.coverageCity || '';
+  const country = u.country || '';
+  if (!city && !country) return '<span style="color:var(--text-muted)">—</span>';
+  const flag = countryFlag(country);
+  return escapeHtml([flag ? flag + ' ' + country : country, city].filter(Boolean).join(' · '));
+}
+function sitterRatesLabel(s) {
+  const parts = [];
+  const sp = s.servicePricing || {};
+  const add = function (label, v) {
+    if (v && v.basePrice != null && Number(v.basePrice) > 0) parts.push(label + ' ' + Number(v.basePrice) + '€');
+  };
+  add('Visite', sp.homeVisit);
+  add('Balade 30m', sp.dogWalking30);
+  add('Balade 1h', sp.dogWalking60);
+  add('Nuit', sp.overnightStay);
+  add('Séjour', sp.longStay);
+  if (!parts.length && Number(s.hourlyRate) > 0) parts.push(Number(s.hourlyRate) + '€/h');
+  if (Number(s.extraPetRate) > 0) parts.push('+' + Number(s.extraPetRate) + '€/animal');
+  return parts.length ? escapeHtml(parts.join(' · ')) : '<span style="color:var(--text-muted)">—</span>';
+}
+function walkerRatesLabel(w) {
+  const parts = (w.walkRates || [])
+    .filter(function (r) { return r && Number(r.basePrice) > 0 && r.enabled !== false; })
+    .sort(function (a, b) { return (a.durationMinutes || 0) - (b.durationMinutes || 0); })
+    .map(function (r) {
+      const d = Number(r.durationMinutes) || 0;
+      const lbl = (d >= 60 && d % 60 === 0) ? (d / 60) + 'h' : d + 'min';
+      return lbl + ' ' + Number(r.basePrice) + '€';
+    });
+  if (Number(w.extraPetRate) > 0) parts.push('+' + Number(w.extraPetRate) + '€/animal');
+  return parts.length ? escapeHtml(parts.join(' · ')) : '<span style="color:var(--text-muted)">—</span>';
+}
+
 function renderSitters() {
   const search = (document.getElementById('sitter-search')?.value || '').toLowerCase();
   const vf = document.getElementById('sitter-verified-filter')?.value || '';
@@ -4024,7 +4069,7 @@ function renderSitters() {
   // user-controlled passe par escapeHtml. _id (ObjectId 24 hex) reste
   // safe à inliner en attribut.
   document.getElementById('sitters-table-body').innerHTML = `
-    <table><thead><tr><th>Nom</th><th>Email</th><th>Inscrit le</th><th>Tarif horaire</th><th>Services</th><th>Vérifié</th><th>Boost</th><th>Payout</th><th>Staff</th><th>Actions</th></tr></thead>
+    <table><thead><tr><th>Nom</th><th>Email</th><th>Inscrit le</th><th>Zone</th><th>Tarifs</th><th>Services</th><th>Vérifié</th><th>Boost</th><th>Payout</th><th>Staff</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(s => {
       const boosted = s.boostExpiry && new Date(s.boostExpiry) > new Date();
       const boostDays = boosted ? Math.ceil((new Date(s.boostExpiry).getTime() - Date.now()) / 86400000) : 0;
@@ -4034,7 +4079,8 @@ function renderSitters() {
         <td><strong>${escapeHtml(s.name||'-')}</strong></td>
         <td style="color:var(--text-muted)">${escapeHtml(s.email||'-')}</td>
         <td style="font-size:12px;color:var(--text-muted)">${fmtDate(s.createdAt)}</td>
-        <td>€${(s.hourlyRate||0).toFixed(2)}/hr</td>
+        <td style="font-size:12px">${zoneLabel(s)}</td>
+        <td style="font-size:12px">${sitterRatesLabel(s)}</td>
         <td style="font-size:12px">${services}</td>
         <td>${s.verified ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">En attente</span>'}</td>
         <td>${boosted ? `<span class="badge badge-orange">🔥 ${escapeHtml(s.boostTier||'boost')} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
@@ -4118,7 +4164,7 @@ function renderOwners() {
   }
   // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
   document.getElementById('owners-table-body').innerHTML = `
-    <table><thead><tr><th>Rôle</th><th>Nom</th><th>Email</th><th>Téléphone</th><th>Inscrit le</th><th>Staff</th><th>Actions</th></tr></thead>
+    <table><thead><tr><th>Rôle</th><th>Nom</th><th>Email</th><th>Téléphone</th><th>Zone</th><th>Inscrit le</th><th>Staff</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(u => {
       const b = _ROLE_BADGE[u._role] || _ROLE_BADGE.owner;
       return `
@@ -4127,6 +4173,7 @@ function renderOwners() {
         <td><strong>${escapeHtml(u.name||'-')}</strong></td>
         <td style="color:var(--text-muted)">${escapeHtml(u.email||'-')}</td>
         <td>${escapeHtml(u.mobile||'-')}</td>
+        <td style="font-size:12px">${zoneLabel(u)}</td>
         <td>${fmtDate(u.createdAt)}</td>
         <td>${u.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
@@ -4197,12 +4244,13 @@ function renderWalkers() {
     <tbody>${filtered.map(w => {
       const boosted = w.boostExpiry && new Date(w.boostExpiry) > new Date();
       const boostDays = boosted ? Math.ceil((new Date(w.boostExpiry).getTime() - Date.now()) / 86400000) : 0;
-      const coverage = w.coverage
-        ? `${escapeHtml(w.coverage.city || '-')} · ${Number(w.coverage.radiusKm || 0)} km`
-        : '-';
-      const rate = w.rates && w.rates.length
-        ? `€${(w.rates[0].amount || 0).toFixed(2)}/${escapeHtml(String(w.rates[0].duration || '?'))}min`
-        : '—';
+      // v514 — les champs legacy w.coverage / w.rates n'existent plus →
+      // colonnes toujours vides. Champs réels : country + location.city /
+      // coverageCity + coverageRadiusKm, et walkRates[] pour les tarifs.
+      const hasZone = (w.location && w.location.city) || w.city || w.coverageCity || w.country;
+      const coverage = zoneLabel(w)
+        + (hasZone && Number(w.coverageRadiusKm) > 0 ? ` · ${Number(w.coverageRadiusKm)} km` : '');
+      const rate = walkerRatesLabel(w);
       return `
       <tr>
         <td><strong>${escapeHtml(w.name||'-')}</strong></td>
