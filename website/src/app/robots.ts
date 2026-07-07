@@ -21,7 +21,8 @@ export default function robots(): MetadataRoute.Robots {
         "/api/",
       ],
     },
-    sitemap: "https://hopetsit.com/sitemap.xml",
-    host: "https://hopetsit.com",
+    // v517 — hôte canonique = www (redirection 308 de l'apex).
+    sitemap: "https://www.hopetsit.com/sitemap.xml",
+    host: "https://www.hopetsit.com",
   };
 }

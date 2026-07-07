@@ -2,7 +2,11 @@ import type { MetadataRoute } from "next";
 
 // v23.1.267 — SEO : sitemap des pages publiques (était absent). metadataBase
 // est défini dans layout.tsx (https://hopetsit.com).
-const BASE = "https://hopetsit.com";
+// v517 — hôte canonique = www (Vercel redirige hopetsit.com → www en 308).
+// La propriété Search Console est https://www.hopetsit.com → les URLs du
+// sitemap doivent être sur le MÊME hôte, sinon elles comptent « hors
+// propriété » et l'indexation rame.
+const BASE = "https://www.hopetsit.com";
 
 const PUBLIC_PATHS = [
   "",
