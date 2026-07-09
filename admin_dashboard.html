@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v515'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v518'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -226,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v515</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v518</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -4617,9 +4617,14 @@ function renderPaymentsTable(payments, total) {
           <th>Propriétaire</th>
           <th>Pet-sitter</th>
           <th>Service</th>
-          <th>Total</th>
-          <th>Commission</th>
-          <th>Sitter Gets</th>
+          <!-- v518 — Daniel : « je veux voir combien paye le client, combien
+               gagne le prestataire et combien je touche de commission par
+               transaction ». Les 3 montants étaient DÉJÀ là (totalPrice /
+               commission / netPayout) mais avec des intitulés illisibles
+               (« Total », « Sitter Gets ») → en-têtes explicites. -->
+          <th>💳 Payé par le client</th>
+          <th>🏦 Ma commission</th>
+          <th>🐕 Gagné par le prestataire</th>
           <th>Provider</th>
           <th>Paiement</th>
           <th>Payout</th>

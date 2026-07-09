@@ -47,7 +47,7 @@ PawPremium noir/or `#1c1726`→`#15120D` + or `#F4C04A`, badge membre rose
 `#F06AA0`→`#E0568B`. Web : font-display = Nunito.
 
 ## État actuel
-**Version app Android : 23.1.500** (EN EXAMEN sur Google Play depuis le 06/07/2026 ; la v499 est LIVE dans 177 pays — fiche : https://play.google.com/store/apps/details?id=com.cardellihermanos.hopetsit). v500 = clavier chat (isLoading partagé liste/messages + FocusNode stable), points PawMap 1er lancement, panneau « chat verrouillé » clair, navigation retour (plus d'empilement amis↔carte), vraies erreurs d'envoi, drapeaux langue (🇺🇸 pour EN). **iOS : build 502** (soumis App Store, géré sur Mac). Backend/site/admin
+**Version app Android : 23.1.500** (EN EXAMEN sur Google Play depuis le 06/07/2026 ; la v499 est LIVE dans 177 pays — fiche : https://play.google.com/store/apps/details?id=com.cardellihermanos.hopetsit). v500 = clavier chat (isLoading partagé liste/messages + FocusNode stable), points PawMap 1er lancement, panneau « chat verrouillé » clair, navigation retour (plus d'empilement amis↔carte), vraies erreurs d'envoi, drapeaux langue (🇺🇸 pour EN). **iOS : ✅ ACCEPTÉE par Apple (08/07/2026)** — build 506 (Apple IAP + Apple Sign-In réécrit), fiche https://apps.apple.com/app/hopetsit/id6763645719 ; code iOS synchronisé sur origin (patch v506 appliqué du Mac au PC). Backend/site/admin
 déployés. App ↔ web synchronisés (signalements, PawSpot + visites, PawPoints,
 membres roses sur la carte, code promo boutique+profil+dashboard, notifications
 traduites à la lecture dans la langue courante).

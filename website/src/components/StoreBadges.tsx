@@ -6,15 +6,17 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 // L'app est EN LIGNE sur le Play Store (com.cardellihermanos.hopetsit).
 // - Google Play : lien réel, ?hl=<langue du site> → la fiche s'ouvre dans la
 //   bonne langue automatiquement.
-// - App Store : badge affiché mais « bientôt » (iOS en cours d'examen) —
-//   à activer dès la validation Apple.
+// v518 — APP APPROUVÉE PAR APPLE 🎉 : badge App Store activé. URL SANS code
+// pays (pas /ca/) → Apple redirige chaque visiteur vers SON App Store
+// national, dans sa langue (id 6763645719).
 // Design = maquette index.html de Daniel (badges noirs officiels).
 
 const PLAY_URL =
   "https://play.google.com/store/apps/details?id=com.cardellihermanos.hopetsit";
+const APP_STORE_URL = "https://apps.apple.com/app/hopetsit/id6763645719";
 
 export default function StoreBadges({ center = false }: { center?: boolean }) {
-  const { t, lang } = useT();
+  const { lang } = useT();
 
   const badge =
     "inline-flex items-center gap-3 rounded-xl border border-white/25 bg-black px-4 py-2.5 leading-none text-white transition";
@@ -56,10 +58,12 @@ export default function StoreBadges({ center = false }: { center?: boolean }) {
         </span>
       </a>
 
-      {/* App Store — bientôt (iOS en examen) */}
-      <span
-        className={`${badge} relative cursor-default opacity-60`}
-        title={t("store_ios_soon")}
+      {/* App Store — EN LIGNE (approuvé par Apple, v518) */}
+      <a
+        className={`${badge} hover:opacity-85`}
+        href={APP_STORE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
       >
         <svg
           width="26"
@@ -74,10 +78,7 @@ export default function StoreBadges({ center = false }: { center?: boolean }) {
           <span className="text-[11px] font-normal">Download on the</span>
           <span className="text-lg font-medium">App Store</span>
         </span>
-        <span className="absolute -right-2 -top-2 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-black shadow-sm">
-          {t("store_ios_soon")}
-        </span>
-      </span>
+      </a>
     </div>
   );
 }

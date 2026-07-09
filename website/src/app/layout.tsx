@@ -113,10 +113,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   "@type": "MobileApplication",
                   "@id": "https://hopetsit.com/#app",
                   name: "HoPetSit",
-                  operatingSystem: "ANDROID",
+                  // v518 — approuvée par Apple : dispo Android ET iOS.
+                  operatingSystem: "ANDROID, IOS",
                   applicationCategory: "LifestyleApplication",
                   installUrl:
                     "https://play.google.com/store/apps/details?id=com.cardellihermanos.hopetsit",
+                  sameAs: [
+                    "https://play.google.com/store/apps/details?id=com.cardellihermanos.hopetsit",
+                    "https://apps.apple.com/app/hopetsit/id6763645719",
+                  ],
                   url: "https://hopetsit.com/download",
                   offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
                   publisher: { "@id": "https://hopetsit.com/#organization" },
