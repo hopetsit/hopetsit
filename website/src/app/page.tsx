@@ -108,8 +108,11 @@ export default function HomePage() {
                   <div className="flex items-start gap-3">
                     <div className="grid h-12 w-12 place-items-center rounded-2xl bg-owner-light text-2xl">🐕</div>
                     <div>
-                      <div className="text-sm font-bold text-ink">Sophie · {t("home_sophie_role")}</div>
-                      <div className="text-xs text-ink-muted">Lyon · 4.9 ★ · Top Sitter</div>
+                      {/* v519 — Daniel : « prénom américain + USD » (marché
+                          mondial, USA inclus — la démo parle au plus grand
+                          nombre). Devises réelles listées sous la carte. */}
+                      <div className="text-sm font-bold text-ink">Emily · {t("home_sophie_role")}</div>
+                      <div className="text-xs text-ink-muted">New York · 4.9 ★ · Top Sitter</div>
                     </div>
                   </div>
                   <span className="inline-flex items-center gap-1 rounded-full bg-sitter-light px-2.5 py-1 text-[10px] font-bold text-sitter-dark">
@@ -118,9 +121,9 @@ export default function HomePage() {
                 </div>
                 <div className="mt-5 grid grid-cols-3 gap-2 text-center">
                   {[
-                    { t: t("home_card_day"), v: "€30" },
-                    { t: t("home_card_week"), v: "€180" },
-                    { t: t("home_card_month"), v: "€620" },
+                    { t: t("home_card_day"), v: "$30" },
+                    { t: t("home_card_week"), v: "$180" },
+                    { t: t("home_card_month"), v: "$620" },
                   ].map((x) => (
                     <div key={x.t} className="rounded-xl bg-bg-soft p-2">
                       <div className="text-[10px] uppercase tracking-wider text-ink-soft">{x.t}</div>
@@ -130,7 +133,7 @@ export default function HomePage() {
                 </div>
                 <div className="mt-5 rounded-xl bg-sitter-light/70 p-3">
                   <div className="text-[11px] uppercase text-sitter-dark">{t("home_est_earning")}</div>
-                  <div className="mt-1 text-2xl font-extrabold text-sitter-dark">€48.00</div>
+                  <div className="mt-1 text-2xl font-extrabold text-sitter-dark">$48.00</div>
                   <div className="text-[11px] text-ink-muted">{t("home_est_detail")}</div>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
@@ -138,6 +141,12 @@ export default function HomePage() {
                   <button className="rounded-full bg-owner py-2 text-xs font-semibold text-white">{t("home_card_request")}</button>
                 </div>
               </div>
+              {/* v519 — Daniel : « petite phrase en dessous de l'image » avec
+                  TOUTES les devises acceptées par l'app (pricingService :
+                  EUR / GBP / CHF / USD). */}
+              <p className="relative mt-5 text-center text-xs font-semibold text-ink-muted">
+                💱 {t("home_currencies")}
+              </p>
             </div>
           </div>
         </div>
