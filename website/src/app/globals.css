@@ -34,3 +34,16 @@ details > summary::-webkit-details-marker { display: none; }
   70%  { transform: scale(2.1); opacity: 0; }
   100% { transform: scale(2.1); opacity: 0; }
 }
+
+/* v520 - Daniel : "quand on passe la souris sur un des boutons je veux
+   un contour orange fluo" - sur TOUS les boutons du site. Regle globale :
+   tous les <button> + les liens styles en bouton (pilules rounded-full,
+   badges stores rounded-xl). Orange fluo #FF6A00 + halo lumineux. */
+button:not(:disabled):hover,
+input[type="submit"]:not(:disabled):hover,
+a[class*="rounded-full"]:hover,
+a[class*="rounded-xl"]:hover {
+  outline: 3px solid #FF6A00;
+  outline-offset: 2px;
+  box-shadow: 0 0 14px rgba(255, 106, 0, 0.6);
+}
