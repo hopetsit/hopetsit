@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
+import 'package:hopetsit/services/apple_iap_service.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/post_purchase_refresh.dart';
@@ -251,6 +252,32 @@ class SubscriptionController extends GetxController {
       }
       // outcome == cancelled → silent (user closed the sheet on purpose).
       return false;
+    } finally {
+      isPurchasing.value = false;
+      purchasingPlan.value = null;
+    }
+  }
+
+  /// v503 — variante iOS : achat intégré Apple (StoreKit) au lieu du flux
+  /// Airwallex (règle App Store 3.1.1). La validation + le crédit de
+  /// l'abonnement se font dans AppleIapService via POST /apple-iap/validate ;
+  /// ici on gère juste les flags de spinner et le refresh du statut.
+  Future<bool> purchaseWithApple(String plan) async {
+    if (isPurchasing.value) return false;
+    final productId = AppleIapService.productForSubscriptionPlan(plan);
+    if (productId == null) {
+      AppLogger.logError('[subscription] pas de produit Apple pour "$plan"');
+      return false;
+    }
+    isPurchasing.value = true;
+    purchasingPlan.value = plan;
+    try {
+      final ok = await AppleIapService.buy(productId);
+      if (ok) {
+        await loadStatus();
+        await refreshAfterPurchase();
+      }
+      return ok;
     } finally {
       isPurchasing.value = false;
       purchasingPlan.value = null;

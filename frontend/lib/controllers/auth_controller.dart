@@ -48,7 +48,8 @@ import 'package:hopetsit/views/pet_walker/bottom_wrapper/walker_nav_wrapper.dart
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/controllers/otp_verification_controller.dart';
 import 'package:hopetsit/widgets/paypal_email_dialog.dart';
-import 'package:the_apple_sign_in/the_apple_sign_in.dart';
+import 'package:crypto/crypto.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 /// Controller handling user authentication flows.
 class AuthController extends GetxController {
@@ -622,6 +623,11 @@ class AuthController extends GetxController {
   /// [role] When provided (e.g. from sign up screen), sends this role to the backend
   /// for new user creation. Use 'owner' or 'sitter'. If null, uses stored userRole.
   /// Implemented exactly like loginWithGoogle.
+  /// v500 — SHA-256 (hex) d'une chaîne, pour hacher le nonce envoyé à Apple.
+  String _sha256ofString(String input) {
+    return sha256.convert(utf8.encode(input)).toString();
+  }
+
   Future<void> loginWithApple({String? role}) async {
     try {
       // v23.1 part 200 — flag indépendant Apple
@@ -635,27 +641,43 @@ class AuthController extends GetxController {
         userRole.value = role;
       }
 
-      final AuthorizationResult result = await TheAppleSignIn.performRequests([
-        const AppleIdRequest(requestedScopes: [Scope.email, Scope.fullName]),
-      ]);
+      // v500 — Connexion Apple réécrite. firebase_auth 6.x EXIGE un « nonce »
+      // sécurisé que l'ancienne lib `the_apple_sign_in` ne pouvait pas envoyer
+      // → Firebase refusait (« Un problème est survenu »). On passe à
+      // `sign_in_with_apple` (recommandée par Firebase) : nonce brut envoyé à
+      // Firebase + son SHA-256 envoyé à Apple (anti-rejeu).
+      final String rawNonce = generateNonce();
+      final String hashedNonce = _sha256ofString(rawNonce);
 
-      if (result.status != AuthorizationStatus.authorized) {
-        if (result.status == AuthorizationStatus.cancelled) {
-          return;
-        }
-        throw ApiException(
-          result.status == AuthorizationStatus.error
-              ? 'Apple sign in failed: ${result.error?.localizedDescription}'
-              : 'Apple sign in was cancelled.',
+      final AuthorizationCredentialAppleID appleCredential =
+          await SignInWithApple.getAppleIDCredential(
+        scopes: const [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: hashedNonce,
+      );
+
+      final String? appleIdToken = appleCredential.identityToken;
+      if (appleIdToken == null || appleIdToken.isEmpty) {
+        CustomSnackbar.showError(
+          title: 'auth_apple_signin_failed',
+          message: 'auth_apple_signin_failed_generic',
         );
+        return;
       }
 
-      final AppleIdCredential credential = result.credential!;
-      final AuthCredential authCredential = OAuthProvider('apple.com')
+      // v501 — FIX invalid-credential : Firebase exige AUSSI le code
+      // d'autorisation Apple (authorizationCode) passé comme accessToken,
+      // sinon « [firebase_auth/invalid-credential] Invalid OAuth response
+      // from apple.com ». (Réf. FlutterFire #13242 ; l'ancienne lib l'envoyait,
+      // ma réécriture l'avait retiré.)
+      final OAuthCredential authCredential = OAuthProvider('apple.com')
           .credential(
-            idToken: String.fromCharCodes(credential.identityToken!),
-            accessToken: String.fromCharCodes(credential.authorizationCode!),
-          );
+        idToken: appleIdToken,
+        rawNonce: rawNonce,
+        accessToken: appleCredential.authorizationCode,
+      );
 
       await _auth.signInWithCredential(authCredential);
 
@@ -788,6 +810,15 @@ class AuthController extends GetxController {
           message: 'auth_apple_signin_failed_generic',
         );
       }
+    } on SignInWithAppleAuthorizationException catch (e) {
+      // v500 — l'utilisateur a annulé la feuille Apple → pas une erreur.
+      if (e.code == AuthorizationErrorCode.canceled) {
+        return;
+      }
+      CustomSnackbar.showError(
+        title: 'auth_apple_signin_failed',
+        message: 'auth_apple_signin_failed_generic',
+      );
     } on ApiException {
       CustomSnackbar.showError(
         title: 'auth_apple_signin_failed',

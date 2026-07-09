@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/views/auth/login_screen.dart';
 import 'package:hopetsit/views/auth/signup_wizard_screen.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
@@ -31,7 +32,19 @@ class SignUpAsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: 8.h),
-                BackButton(color: AppColors.textPrimary(context)),
+                BackButton(
+                  color: AppColors.textPrimary(context),
+                  // v502 — arrivée via Get.offAll (nouvel utilisateur
+                  // Apple/Google) = pile vide → le retour par défaut ne faisait
+                  // rien. On revient si possible, sinon on ouvre la connexion.
+                  onPressed: () {
+                    if (Navigator.of(context).canPop()) {
+                      Navigator.of(context).pop();
+                    } else {
+                      Get.offAll(() => const LoginScreen());
+                    }
+                  },
+                ),
                 SizedBox(height: 16.h),
                 // v23.1 part 138 — badge "Inscription" pour matcher le
                 // badge "Connexion" du LoginScreen et bien distinguer
@@ -114,7 +127,12 @@ class SignUpAsScreen extends StatelessWidget {
                       ),
                       SizedBox(width: 6.w),
                       GestureDetector(
-                        onTap: () => Get.back(),
+                        // v502 — "Se connecter" : on arrive souvent ici via
+                        // Get.offAll (ex : nouvel utilisateur Apple/Google) donc
+                        // la pile de navigation est VIDE → Get.back() ne faisait
+                        // rien (bouton mort). On ouvre explicitement l'écran de
+                        // connexion.
+                        onTap: () => Get.offAll(() => const LoginScreen()),
                         behavior: HitTestBehavior.opaque,
                         child: PoppinsText(
                           text: 'title_login'.tr,

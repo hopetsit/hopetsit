@@ -1934,7 +1934,11 @@ router.get('/family/members', requireAuth, async (req, res) => {
           // l'avatar dans l'onglet Famille de l'app (parité _FriendTile).
           pawSpotTier: mini?.pawSpotTier || null,
           // v23.1.398 — Paw Premium actif → couronne 👑 + anneau OR sur la carte.
-          isPremium: premiumSet.has(String(m.userId)),
+          // v500 — alignement amis/famille : fetchUserMini renvoie déjà isPremium
+          // AVEC le fallback staff (isStaff=true ⇒ premium). On l'OR avec
+          // premiumSet pour qu'un membre famille STAFF ait aussi la couronne,
+          // exactement comme dans la liste d'amis (cf. ligne ~442).
+          isPremium: premiumSet.has(String(m.userId)) || mini?.isPremium === true,
           // v451 — email pour la résolution premium CROSS-RÔLE (cf ci-dessous).
           _email: (mini?.email || '').toLowerCase(),
           // v451 — Daniel : « la famille garde le profil supprimé ». mini==null

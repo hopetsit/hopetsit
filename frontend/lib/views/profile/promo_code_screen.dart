@@ -1,12 +1,18 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 
 import 'package:hopetsit/controllers/promo_controller.dart';
 import 'package:hopetsit/repositories/promo_repository.dart';
+import 'package:hopetsit/services/apple_iap_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 
 /// Écran de saisie d'un code promo (accessible depuis les 3 profils).
@@ -31,11 +37,35 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
   late final PromoController _controller;
   final TextEditingController _textController = TextEditingController();
 
+  // v506 — spinner du bouton « Saisir un code App Store » (iOS).
+  bool _iosSheetBusy = false;
+
   @override
   void initState() {
     super.initState();
     // Instance dédiée à l'écran (pas de tag global), libérée à la fermeture.
     _controller = Get.put(PromoController(), tag: 'promo_screen');
+    // v506 — iOS : le purchaseStream doit écouter AVANT d'ouvrir la feuille de
+    // code Apple (la transaction offerte arrive par ce stream → validation
+    // backend → crédit, exactement comme un achat).
+    AppleIapService.init();
+  }
+
+  /// v506 — refus Apple 3.1.1 : les codes promo maison contournaient l'achat
+  /// intégré. Sur iOS on ouvre la feuille de code OFFICIELLE Apple (offer
+  /// codes créés dans App Store Connect) à la place du formulaire serveur.
+  Future<void> _openAppleCodeSheet() async {
+    if (_iosSheetBusy) return;
+    setState(() => _iosSheetBusy = true);
+    try {
+      final addition = InAppPurchase.instance
+          .getPlatformAddition<InAppPurchaseStoreKitPlatformAddition>();
+      await addition.presentCodeRedemptionSheet();
+    } catch (e) {
+      CustomSnackbar.showError(title: 'common_error'.tr, message: e.toString());
+    } finally {
+      if (mounted) setState(() => _iosSheetBusy = false);
+    }
   }
 
   @override
@@ -152,6 +182,10 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
             ),
             SizedBox(height: 24.h),
 
+            // v506 — refus Apple 3.1.1 : sur iOS le formulaire de code serveur
+            // est remplacé par la feuille de code OFFICIELLE App Store (offer
+            // codes App Store Connect). Android/web gardent les codes maison.
+            if (!Platform.isIOS) ...[
             // Code input.
             InterText(
               text: 'promo_field_label'.tr,
@@ -275,6 +309,38 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
               }
               return _rewardCard(context, res);
             }),
+            ] else ...[
+              // v506 — iOS : explication + ouverture de la feuille Apple.
+              InterText(
+                text: 'promo_ios_info'.tr,
+                fontSize: 13.sp,
+                color: AppColors.textSecondary(context),
+                maxLines: 5,
+              ),
+              SizedBox(height: 20.h),
+              CustomButton(
+                bgColor: widget.accent,
+                textColor: Colors.white,
+                radius: 16.r,
+                onTap: _iosSheetBusy ? null : _openAppleCodeSheet,
+                child: _iosSheetBusy
+                    ? SizedBox(
+                        width: 22.w,
+                        height: 22.w,
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : PoppinsText(
+                        text: 'promo_ios_button'.tr,
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+              ),
+            ],
           ],
         ),
       ),

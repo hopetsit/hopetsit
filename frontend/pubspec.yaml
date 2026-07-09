@@ -1,7 +1,7 @@
 name: hopetsit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 23.1.500+500
+version: 23.1.506+506
 
 environment:
   sdk: ^3.9.2
@@ -20,7 +20,6 @@ dependencies:
   firebase_auth: ^6.1.0
   firebase_messaging: ^16.0.2
   google_sign_in: ^7.2.0
-  the_apple_sign_in: ^1.1.1
   google_fonts: ^6.3.2
   flutter_local_notifications: ^19.4.2
   image_picker: ^1.2.0
@@ -104,6 +103,15 @@ dependencies:
   # v23.1 part 134 — bump à ^5.0.7 (la 4.1.3 dépendait de firebase_core
   # ^3.15.x incompatible avec notre firebase_core ^4.1.1).
   firebase_crashlytics: ^5.0.7
+  sign_in_with_apple: ^8.1.0
+  crypto: ^3.0.7
+  # v503 — règle Apple 3.1.1 : les abonnements/boosts achetés DANS l'app iOS
+  # doivent passer par l'achat intégré Apple (StoreKit). Android garde Airwallex.
+  in_app_purchase: ^3.2.0
+  # v506 — refus 3.1.1 (codes promo maison) : sur iOS l'écran code promo ouvre
+  # la feuille de code OFFICIELLE Apple (presentCodeRedemptionSheet, offer codes
+  # créés dans App Store Connect). Import direct → dépendance explicite.
+  in_app_purchase_storekit: ^0.4.0
 
 dev_dependencies:
   flutter_test:

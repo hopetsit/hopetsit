@@ -102,6 +102,18 @@ class PushNotificationService extends GetxService {
         sound: true,
       );
 
+      // v23.1.396b — iOS : attendre le token APNs AVANT getToken(), sinon FCM
+      // renvoie null au 1er lancement → token jamais enregistré → push iOS
+      // jamais livré (email OK). getAPNSToken() est iOS-only.
+      if (Platform.isIOS) {
+        String? apnsToken = await _messaging.getAPNSToken();
+        for (int i = 0; i < 6 && (apnsToken == null || apnsToken.isEmpty); i++) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          apnsToken = await _messaging.getAPNSToken();
+        }
+        debugPrint('APNs token ready: ${apnsToken != null}');
+      }
+
       // Get and cache the token.
       final token = await _messaging.getToken();
       fcmToken.value = token;
@@ -388,6 +400,16 @@ class PushNotificationService extends GetxService {
 
       String? token = fcmToken.value;
       if (token == null || token.isEmpty) {
+        // v23.1.396b — même fix iOS qu'à l'init : attendre le token APNs avant
+        // getToken() pour qu'un compte connecté après le boot enregistre bien
+        // son token (sinon push iOS jamais livré pour ce compte).
+        if (Platform.isIOS) {
+          String? apnsToken = await _messaging.getAPNSToken();
+          for (int i = 0; i < 6 && (apnsToken == null || apnsToken.isEmpty); i++) {
+            await Future.delayed(const Duration(milliseconds: 500));
+            apnsToken = await _messaging.getAPNSToken();
+          }
+        }
         token = await _messaging.getToken();
         fcmToken.value = token;
       }

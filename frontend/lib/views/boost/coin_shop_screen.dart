@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -8,6 +9,9 @@ import 'package:hopetsit/controllers/subscription_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
+// v503 — règle Apple 3.1.1 : sur iOS les abonnements/boosts s'achètent via
+// StoreKit (achat intégré Apple) au lieu du flux carte Airwallex.
+import 'package:hopetsit/services/apple_iap_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
@@ -20,6 +24,8 @@ import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/golden_paw_coin.dart';
+// v504 — refus 3.1.2(c) : liens CGU (EULA) + confidentialité dans la boutique.
+import 'package:url_launcher/url_launcher.dart';
 
 /// v491 — VRAI logo « membre Paw Map proche » : cercle rose dégradé + patte
 /// blanche (réplique du badge de la carte). Fonction TOP-LEVEL → partagée par
@@ -74,7 +80,10 @@ class _PromoDiscount {
   bool get isUsable => percent > 0 && percent < 100;
 
   /// Relit la réduction persistée. Renvoie `null` si absente / invalide.
+  /// v506 — refus Apple 3.1.1 : les réductions promo maison ne s'appliquent
+  /// JAMAIS sur iOS (facturation Apple) → aucun affichage promo en boutique.
   static _PromoDiscount? read() {
+    if (Platform.isIOS) return null;
     try {
       final raw = GetStorage().read(StorageKeys.redeemedPromoDiscount);
       if (raw == null) return null;
@@ -172,6 +181,55 @@ class CoinShopScreen extends StatefulWidget {
 }
 
 class _CoinShopScreenState extends State<CoinShopScreen> {
+  // v503 — spinner du bouton « Restaurer mes achats » (iOS uniquement).
+  bool _restoring = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // v503 — précharge les produits StoreKit (prix localisés Apple) dès
+    // l'ouverture de la boutique. No-op sur Android.
+    AppleIapService.init();
+  }
+
+  /// Bouton « Restaurer mes achats » — OBLIGATOIRE Apple. Les transactions
+  /// restaurées repassent par /apple-iap/validate (idempotent).
+  Future<void> _restorePurchases() async {
+    if (_restoring) return;
+    setState(() => _restoring = true);
+    try {
+      await AppleIapService.restorePurchases();
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'iap_restore_done'.tr,
+      );
+    } catch (e) {
+      CustomSnackbar.showError(title: 'common_error'.tr, message: e.toString());
+    } finally {
+      if (mounted) setState(() => _restoring = false);
+    }
+  }
+
+  /// v504 — lien légal du pied de boutique (CGU / confidentialité).
+  Widget _legalLink(String label, String url) {
+    return InkWell(
+      onTap: () =>
+          launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.sp,
+            color: AppColors.greyText,
+            decoration: TextDecoration.underline,
+            decorationColor: AppColors.greyText,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Ensure SubscriptionController is available.
@@ -253,6 +311,57 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
             _PawPremiumTab(),
           ],
         ),
+        // v503 — bouton « Restaurer mes achats » en bas de la boutique,
+        // iOS uniquement (exigence Apple pour les achats intégrés).
+        // v504 — refus 3.1.2(c) : + liens CGU (EULA) et Politique de
+        // confidentialité, exigés dans le flux d'achat des abonnements.
+        bottomNavigationBar: !Platform.isIOS
+            ? null
+            : SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton.icon(
+                      onPressed: _restoring ? null : _restorePurchases,
+                      icon: _restoring
+                          ? SizedBox(
+                              width: 14.w,
+                              height: 14.w,
+                              child:
+                                  const CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(Icons.restore_rounded, size: 18.sp),
+                      label: Text(
+                        'iap_restore_button'.tr,
+                        style: TextStyle(
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.greyText,
+                        padding: EdgeInsets.symmetric(vertical: 4.h),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.only(bottom: 6.h),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _legalLink('iap_terms_link'.tr,
+                              'https://hopetsit.com/cgu'),
+                          Text(' · ',
+                              style: TextStyle(
+                                  fontSize: 11.sp, color: AppColors.greyText)),
+                          _legalLink('iap_privacy_link'.tr,
+                              'https://hopetsit.com/privacy'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
       ),
     );
   }
@@ -384,6 +493,12 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
   /// have to know about wallet — backend rejects with INSUFFICIENT_BALANCE
   /// and we fall back to a clear message.
   Future<void> _confirmPayWithWallet(String tier) async {
+    // v503 — iOS : pas de paiement wallet pour un bien numérique (règle
+    // Apple 3.1.1) → le long-press se comporte comme un tap (achat intégré).
+    if (Platform.isIOS) {
+      await _purchaseBoost(tier);
+      return;
+    }
     final pkg = _packages.firstWhere(
       (p) => p['tier'] == tier,
       orElse: () => const <String, dynamic>{},
@@ -424,9 +539,14 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
     // vouloir chaque fois qu'il tape un tier. On force un dialog avant.
     if (!payWithWallet) {
       final pkg = _packages.firstWhereOrNull((p) => p['tier'] == tier);
-      final priceLabel = pkg != null
-          ? '${(pkg['amount'] as num).toStringAsFixed(2)} ${pkg['currency']}'
-          : '?';
+      // v503 — iOS : prix localisé Apple (StoreKit) si disponible.
+      final applePrice = Platform.isIOS
+          ? AppleIapService.priceLabel(AppleIapService.productForBoostTier(tier))
+          : null;
+      final priceLabel = applePrice ??
+          (pkg != null
+              ? '${(pkg['amount'] as num).toStringAsFixed(2)} ${pkg['currency']}'
+              : '?');
       // v23.1 part 243 — i18n. Was "${pkg['days']} jours" hardcoded FR.
       // Reuse mapboost_days_count which already handles "@count jour(s)".
       final daysLabel = pkg != null
@@ -464,6 +584,37 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
       _purchasing = true;
       _selectedTier = tier;
     });
+
+    // v503 — iOS : achat intégré Apple (règle 3.1.1). La validation +
+    // le crédit du boost se font via /apple-iap/validate dans le service.
+    if (Platform.isIOS) {
+      try {
+        final productId = AppleIapService.productForBoostTier(tier);
+        if (productId == null) {
+          throw Exception('iap_unavailable_msg'.tr);
+        }
+        final ok = await AppleIapService.buy(productId);
+        if (!mounted) return;
+        if (ok) {
+          CustomSnackbar.showSuccess(
+            title: 'boost_purchase_success_title'.tr,
+            message: 'boost_purchase_success_msg'.tr,
+          );
+          await _loadBoostStatus();
+        }
+        // annulation/échec → silencieux (la feuille Apple a déjà informé).
+      } catch (e) {
+        CustomSnackbar.showError(title: 'common_error'.tr, message: e.toString());
+      } finally {
+        if (mounted) {
+          setState(() {
+            _purchasing = false;
+            _selectedTier = null;
+          });
+        }
+      }
+      return;
+    }
 
     try {
       final api = Get.find<ApiClient>();
@@ -602,7 +753,15 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                     color: AppColors.greyText,
                   ),
                   SizedBox(height: 16.h),
-                  ..._packages.map((p) => _buildPackageCard(context, p)),
+                  // v503 — iOS : seuls les tiers câblés à un produit Apple
+                  // (bronze/silver/platinum) sont achetables ; gold masqué.
+                  ..._packages
+                      .where((p) =>
+                          !Platform.isIOS ||
+                          AppleIapService.productForBoostTier(
+                                  p['tier'] as String) !=
+                              null)
+                      .map((p) => _buildPackageCard(context, p)),
                   SizedBox(height: 20.h),
                   _buildHowItWorks(),
                   if (_history.isNotEmpty) ...[
@@ -777,20 +936,28 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                   Obx(() {
                     final cur = Get.find<SubscriptionController>().currency.value;
                     final sym = CurrencyHelper.symbol(cur);
+                    // v503 — iOS : prix localisé Apple (TVA incluse). Le
+                    // sous-prix « /jour » est masqué (calculé sur le prix
+                    // Airwallex, plus forcément aligné).
+                    final applePrice = Platform.isIOS
+                        ? AppleIapService.priceLabel(
+                            AppleIapService.productForBoostTier(tier))
+                        : null;
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         PoppinsText(
-                          text: '$sym$amount',
+                          text: applePrice ?? '$sym$amount',
                           fontSize: 22.sp,
                           fontWeight: FontWeight.w700,
                           color: AppColors.primaryColor,
                         ),
-                        InterText(
-                          text: '$sym${(amount / days).toStringAsFixed(1)}/${'boost_per_day'.tr}',
-                          fontSize: 10.sp,
-                          color: AppColors.greyText,
-                        ),
+                        if (applePrice == null)
+                          InterText(
+                            text: '$sym${(amount / days).toStringAsFixed(1)}/${'boost_per_day'.tr}',
+                            fontSize: 10.sp,
+                            color: AppColors.greyText,
+                          ),
                       ],
                     );
                   }),
@@ -1019,11 +1186,15 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
               // v23.1.278 — Daniel : "sépare bien sur la même page PawFollow :
               // un titre genre 'Suis ton animal', et PawFamily en violet pour
               // suivre en famille". 2 sections distinctes sur le même onglet.
-              Align(
-                alignment: Alignment.centerRight,
-                child: _buildCurrencyPicker(context, controller),
-              ),
-              SizedBox(height: 14.h),
+              // v503 — iOS : devise/prix imposés par Apple (StoreKit) → le
+              // sélecteur de devise Airwallex n'a plus de sens, on le masque.
+              if (!Platform.isIOS) ...[
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: _buildCurrencyPicker(context, controller),
+                ),
+                SizedBox(height: 14.h),
+              ],
               // ── Section 1 : Suis ton animal (PawFollow individuel) ──────
               _planSectionHeader(
                 context,
@@ -1313,8 +1484,15 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     // v444 — réduction promo « % » (affichage). On lit le code consommé et on
     // l'applique au prix de CE forfait s'il correspond. Display-only : le
     // montant débité reste calculé serveur (cf. _PromoDiscount doc).
+    // v503 — iOS : prix localisé Apple (StoreKit) ; les codes promo Airwallex
+    // ne s'appliquent pas à la facturation Apple → pas de prix barré.
+    final applePrice = Platform.isIOS
+        ? AppleIapService.priceLabel(
+            AppleIapService.productForSubscriptionPlan(plan.plan))
+        : null;
     final promo = _PromoDiscount.read();
-    final promoApplies = promo != null && promo.appliesTo(plan.plan);
+    final promoApplies =
+        applePrice == null && promo != null && promo.appliesTo(plan.plan);
     final shownAmount =
         promoApplies ? promo.discounted(plan.amount) : plan.amount;
     const priceColor = Color(0xFF7C3AED);
@@ -1409,17 +1587,20 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                           ),
                         ),
                       PoppinsText(
-                        text: CurrencyHelper.format(plan.currency, shownAmount),
+                        // v503 — iOS : prix Apple localisé (TVA incluse).
+                        text: applePrice ??
+                            CurrencyHelper.format(plan.currency, shownAmount),
                         fontSize: 22.sp,
                         fontWeight: FontWeight.w700,
                         // v23.1.276 — prix violet pour PawFollow Famille.
                         color: priceColor,
                       ),
-                      InterText(
-                        text: '${CurrencyHelper.format(plan.currency, plan.amountPerDay)}${'pawfollow_per_day_suffix'.tr}',
-                        fontSize: 10.sp,
-                        color: AppColors.greyText,
-                      ),
+                      if (applePrice == null)
+                        InterText(
+                          text: '${CurrencyHelper.format(plan.currency, plan.amountPerDay)}${'pawfollow_per_day_suffix'.tr}',
+                          fontSize: 10.sp,
+                          color: AppColors.greyText,
+                        ),
                       if (promoApplies) ...[
                         SizedBox(height: 4.h),
                         _PromoBadge(percent: promo.percent, accent: priceColor),
@@ -1660,7 +1841,10 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     String plan,
   ) async {
     try {
-      final ok = await controller.purchase(plan);
+      // v503 — iOS : achat intégré Apple (règle 3.1.1), sinon Airwallex.
+      final ok = Platform.isIOS
+          ? await controller.purchaseWithApple(plan)
+          : await controller.purchase(plan);
       if (!mounted) return;
       if (ok) {
         // v23.1.284 — Daniel : "les jours ne se rajoutent pas dans le bouton".
@@ -1824,6 +2008,12 @@ class _PawSpotTabState extends State<_PawSpotTab>
   /// Même pattern que le Boost tab — confirm dialog puis payWithWallet:true ;
   /// le backend rejette les owners avec un message clair.
   Future<void> _confirmPayWithWallet(String plan) async {
+    // v503 — iOS : pas de paiement wallet pour un bien numérique (règle
+    // Apple 3.1.1) → le long-press se comporte comme un tap (achat intégré).
+    if (Platform.isIOS) {
+      await _subscribe(plan);
+      return;
+    }
     final amount = plan == 'yearly' ? _yearlyPrice : _monthlyPrice;
     final ok = await Get.dialog<bool>(
       AlertDialog(
@@ -1856,6 +2046,10 @@ class _PawSpotTabState extends State<_PawSpotTab>
     final planLabel = plan == 'yearly'
         ? 'pawspot_plan_yearly'.tr
         : 'pawspot_plan_monthly'.tr;
+    // v503 — iOS : prix localisé Apple dans le dialog de confirmation.
+    final applePrice = Platform.isIOS
+        ? AppleIapService.priceLabel(AppleIapService.productForPawSpotPlan(plan))
+        : null;
 
     // Confirm dialog AVANT l'appel — même garde-fou que le Boost tab :
     // le backend active immédiatement les comptes staff dès le POST
@@ -1864,7 +2058,8 @@ class _PawSpotTabState extends State<_PawSpotTab>
       final confirmed = await Get.dialog<bool>(
         AlertDialog(
           title: const Text('PawSpot'),
-          content: Text('$planLabel · ${CurrencyHelper.format('EUR', price)}'),
+          content: Text(
+              '$planLabel · ${applePrice ?? CurrencyHelper.format('EUR', price)}'),
           actions: [
             TextButton(
               onPressed: () => Get.back(result: false),
@@ -1885,6 +2080,32 @@ class _PawSpotTabState extends State<_PawSpotTab>
     }
 
     setState(() => _purchasingPlan = plan);
+
+    // v503 — iOS : achat intégré Apple (règle 3.1.1). Validation + crédit
+    // via /apple-iap/validate dans AppleIapService.
+    if (Platform.isIOS) {
+      try {
+        final productId = AppleIapService.productForPawSpotPlan(plan);
+        if (productId == null) {
+          throw Exception('iap_unavailable_msg'.tr);
+        }
+        final ok = await AppleIapService.buy(productId);
+        if (!mounted) return;
+        if (ok) {
+          CustomSnackbar.showSuccess(
+            title: 'common_success'.tr,
+            message: 'premium_activated_msg'.tr,
+          );
+          await _loadPoints();
+        }
+      } catch (e) {
+        CustomSnackbar.showError(title: 'common_error'.tr, message: e.toString());
+      } finally {
+        if (mounted) setState(() => _purchasingPlan = null);
+      }
+      return;
+    }
+
     try {
       final api = Get.find<ApiClient>();
       final currency = Get.isRegistered<SubscriptionController>()
@@ -2258,11 +2479,17 @@ class _PawSpotTabState extends State<_PawSpotTab>
     final isPurchasing = _purchasingPlan != null;
     final isThisPlan = _purchasingPlan == plan;
     final isYearly = plan == 'yearly';
+    // v503 — iOS : prix localisé Apple (les codes promo Airwallex ne
+    // s'appliquent pas à la facturation Apple → pas de prix barré).
+    final applePrice = Platform.isIOS
+        ? AppleIapService.priceLabel(AppleIapService.productForPawSpotPlan(plan))
+        : null;
     // v444 — réduction promo « % » (affichage). L'abo PawSpot est un seul
     // forfait (plan canonique 'pawspot') → on applique au prix mensuel comme
     // annuel. Display-only (le montant débité reste calculé serveur).
     final promo = _PromoDiscount.read();
-    final promoApplies = promo != null && promo.appliesTo('pawspot');
+    final promoApplies =
+        applePrice == null && promo != null && promo.appliesTo('pawspot');
     final shownPrice = promoApplies ? promo.discounted(price) : price;
     return GestureDetector(
       onTap: isPurchasing ? null : () => _subscribe(plan),
@@ -2331,7 +2558,9 @@ class _PawSpotTabState extends State<_PawSpotTab>
                               ),
                             ),
                           PoppinsText(
-                            text: CurrencyHelper.format('EUR', shownPrice),
+                            // v503 — iOS : prix Apple localisé (TVA incluse).
+                            text: applePrice ??
+                                CurrencyHelper.format('EUR', shownPrice),
                             fontSize: 22.sp,
                             fontWeight: FontWeight.w800,
                             color: _gold,
@@ -2737,6 +2966,12 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
   // ── Achat ─────────────────────────────────────────────────────────────────
 
   Future<void> _confirmPayWithWallet(String plan) async {
+    // v503 — iOS : pas de paiement wallet pour un bien numérique (règle
+    // Apple 3.1.1) → le long-press se comporte comme un tap (achat intégré).
+    if (Platform.isIOS) {
+      await _subscribe(plan);
+      return;
+    }
     final amount = plan == 'premium_yearly' ? _yearlyPrice : _monthlyPrice;
     final ok = await Get.dialog<bool>(
       AlertDialog(
@@ -2769,12 +3004,18 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
     final planLabel = plan == 'premium_yearly'
         ? 'premium_bundle_plan_yearly'.tr
         : 'premium_bundle_plan_monthly'.tr;
+    // v503 — iOS : prix localisé Apple dans le dialog de confirmation.
+    final applePrice = Platform.isIOS
+        ? AppleIapService.priceLabel(
+            AppleIapService.productForSubscriptionPlan(plan))
+        : null;
 
     if (!payWithWallet) {
       final confirmed = await Get.dialog<bool>(
         AlertDialog(
           title: const Text('Paw Premium 👑'),
-          content: Text('$planLabel · ${CurrencyHelper.format('EUR', price)}'),
+          content: Text(
+              '$planLabel · ${applePrice ?? CurrencyHelper.format('EUR', price)}'),
           actions: [
             TextButton(
               onPressed: () => Get.back(result: false),
@@ -2795,6 +3036,32 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
     }
 
     setState(() => _purchasingPlan = plan);
+
+    // v503 — iOS : achat intégré Apple (règle 3.1.1). Validation + crédit
+    // via /apple-iap/validate dans AppleIapService.
+    if (Platform.isIOS) {
+      try {
+        final productId = AppleIapService.productForSubscriptionPlan(plan);
+        if (productId == null) {
+          throw Exception('iap_unavailable_msg'.tr);
+        }
+        final ok = await AppleIapService.buy(productId);
+        if (!mounted) return;
+        if (ok) {
+          CustomSnackbar.showSuccess(
+            title: 'common_success'.tr,
+            message: 'premium_bundle_activated_msg'.tr,
+          );
+          await _loadBenefits();
+        }
+      } catch (e) {
+        CustomSnackbar.showError(title: 'common_error'.tr, message: e.toString());
+      } finally {
+        if (mounted) setState(() => _purchasingPlan = null);
+      }
+      return;
+    }
+
     try {
       final api = Get.find<ApiClient>();
       final currency = Get.isRegistered<SubscriptionController>()
@@ -3117,11 +3384,18 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
     final isPurchasing = _purchasingPlan != null;
     final isThisPlan = _purchasingPlan == plan;
     final pct = (100 - price / separatePrice * 100).round();
+    // v503 — iOS : prix localisé Apple (les codes promo Airwallex ne
+    // s'appliquent pas à la facturation Apple → pas de double prix barré).
+    final applePrice = Platform.isIOS
+        ? AppleIapService.priceLabel(
+            AppleIapService.productForSubscriptionPlan(plan))
+        : null;
     // v444 — réduction promo « % » (affichage) sur le prix du bundle. On garde
     // le prix « 2 abos séparés » barré (économie structurelle) ET on applique
     // en plus le code promo si présent. Display-only (montant débité = serveur).
     final promo = _PromoDiscount.read();
-    final promoApplies = promo != null && promo.appliesTo(plan);
+    final promoApplies =
+        applePrice == null && promo != null && promo.appliesTo(plan);
     final shownPrice = promoApplies ? promo.discounted(price) : price;
     return GestureDetector(
       onTap: isPurchasing ? null : () => _subscribe(plan),
@@ -3161,7 +3435,9 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
                         ),
                       )
                     : PoppinsText(
-                        text: CurrencyHelper.format('EUR', shownPrice),
+                        // v503 — iOS : prix Apple localisé (TVA incluse).
+                        text: applePrice ??
+                            CurrencyHelper.format('EUR', shownPrice),
                         fontSize: 20.sp,
                         fontWeight: FontWeight.w800,
                         color: _goldLight,

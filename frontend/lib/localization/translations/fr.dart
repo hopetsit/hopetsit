@@ -795,7 +795,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'kyc_payment_required_msg': 'Tu dois payer les 3 EUR de frais de verification avant de lancer le scan ID + selfie.',
       'kyc_already_verified_title': 'Deja verifie',
       'kyc_already_verified_msg': 'Ton identite est deja verifiee — le badge "Verifie" est actif sur ton profil.',
-      'kyc_only_provider_msg': 'La verification Persona est reservee aux sitters et walkers.',
+      'kyc_only_provider_msg': 'La verification Didit est reservee aux sitters et walkers.',
       'pawfollow_request_sent_header': 'Demande de suivi en direct envoyée',
       'pawfollow_share_position_pending': 'Partage de position en attente',
       // v23.1 part 240 — i18n sweep complet (audit hardcoded strings).
@@ -3031,8 +3031,8 @@ const Map<String, String> frFRTranslations = <String, String>{
     'kyc_webview_title': 'Vérification d\'identité',
     // v23.1 part 243 — nouvelles clés i18n pour supprimer les strings hardcodées FR.
     'kyc_loading': 'Chargement...',
-    'kyc_launch_persona_btn': '⚡ Lancer la vérification Persona',
-    'kyc_relaunch_persona': 'Relancer la vérification Persona',
+    'kyc_launch_persona_btn': '⚡ Lancer la vérification Didit',
+    'kyc_relaunch_persona': 'Relancer la vérification Didit',
     'kyc_quick_verify_btn': '⚡ Vérification rapide — @price €',
     'kyc_hint_after_payment': 'Scan ID + selfie, vérification automatique ~2 minutes.',
     'kyc_hint_before_payment': 'Paiement 3 €, scan ID + selfie, ~2 minutes.',
@@ -3051,7 +3051,7 @@ const Map<String, String> frFRTranslations = <String, String>{
     'kyc_perm_blocked_title': 'Permission bloquée',
     'kyc_perm_blocked_msg': 'Tu as refusé l\'accès à la caméra de façon permanente. Ouvre les réglages pour réactiver, puis relance la vérification.',
     'kyc_perm_camera_title': 'Caméra requise',
-    'kyc_perm_camera_msg': 'Persona a besoin de la caméra pour scanner ta pièce d\'identité et prendre ton selfie. Accepte la permission puis réessaie.',
+    'kyc_perm_camera_msg': 'Didit a besoin de la caméra pour scanner ta pièce d\'identité et prendre ton selfie. Accepte la permission puis réessaie.',
     // v23.1 part 244 — booking + payment status labels (audit deep).
     'booking_status_pending': 'En attente',
     'booking_status_accepted': 'Acceptée',
@@ -3081,7 +3081,7 @@ const Map<String, String> frFRTranslations = <String, String>{
     'chat_new_conversation_btn': 'Nouvelle conversation',
     // v23.1 part 247 — beau badge KYC verifie sur profil sitter/walker.
     'kyc_badge_verified': 'Vérifié',
-    'kyc_badge_verified_tooltip': 'Identité vérifiée par Persona (scan ID + selfie).',
+    'kyc_badge_verified_tooltip': 'Identité vérifiée par Didit (scan ID + selfie).',
     'role_pet_walker': 'Promeneur',
     'role_pet_walker_desc': 'Je promène les chiens des propriétaires.',
     'auth_role_pet_walker': 'Promeneur',
@@ -3604,4 +3604,12 @@ const Map<String, String> frFRTranslations = <String, String>{
   'promo_plan_pawspot': 'PawSpot',
   'promo_plan_pawboost': 'PawBoost',
   'promo_plan_generic': 'l’abonnement',
+  // v503 — achat intégré Apple (iOS)
+  'iap_restore_button': 'Restaurer mes achats',
+  'iap_restore_done': 'Restauration lancée — tes achats Apple vont se resynchroniser.',
+  'iap_unavailable_msg': 'Achats intégrés Apple indisponibles sur cet appareil.',
+  'iap_terms_link': 'Conditions d\'utilisation (EULA)',
+  'iap_privacy_link': 'Politique de confidentialité',
+  'promo_ios_info': 'Sur iOS, les codes s\'utilisent via l\'App Store. Touche le bouton ci-dessous puis saisis ton code : l\'avantage s\'active automatiquement dans l\'app.',
+  'promo_ios_button': 'Saisir un code App Store',
 };
