@@ -47,10 +47,10 @@ PawPremium noir/or `#1c1726`→`#15120D` + or `#F4C04A`, badge membre rose
 `#F06AA0`→`#E0568B`. Web : font-display = Nunito.
 
 ## État actuel
-**Version app Android : 23.1.523 BUILDÉE le 12/07/2026** (APK + AAB dans
-`~/Downloads` côté PC : `HoPetSit_v23.1.523.apk` / `.aab`) — **PAS ENCORE
-uploadée sur Google Play** (Daniel doit publier l'AAB ou redonner l'accès
-Chrome). Contenu v523 : fix points PawMap invisibles (clé du cache marqueurs),
+**Version app Android : 23.1.523 SOUMISE sur Google Play le 12/07/2026**
+(déploiement complet, en examen ; la v500 est LIVE en attendant). Console :
+compte Google **allomoteurs@gmail.com** → compte développeur « Daniel
+Armando ». APK/AAB aussi dans `~/Downloads` côté PC. Contenu v523 : fix points PawMap invisibles (clé du cache marqueurs),
 recherche de ville sur la carte AGRANDIE (n'animait que la carte cachée),
 photo de profil stable multi-appareils (login n'écrase plus un avatar existant
 par du vide — `_saveUserProfile` dans auth_controller), icône tarifs
@@ -110,14 +110,14 @@ Android v498/v499, fixes couronne, admin). **NE PAS écraser** le Mac avec le zi
 les correctifs Apple locaux non commités). iOS = build sur Mac (Xcode / Codemagic), bundle
 reste `com.hopetsit.app`.
 
-### 📦 BUILD v523 FAIT (12/07/2026) — reste à PUBLIER sur Google Play
+### 📦 v523 SOUMISE sur Google Play le 12/07/2026 (examen en cours)
 Tous les correctifs en attente sont DANS la v523 (PawMap, Didit, avatar,
-icône tarifs, anglais US, recherche ville carte agrandie). L'AAB
-(`HoPetSit_v23.1.523.aab`, Downloads PC) doit être uploadé dans la Play
-Console (Production → nouvelle release → notes en 6 langues). ⚠️ Vérifier
-d'abord le statut de la v500 (soumise le 06/07) dans la console : si encore
-« en examen », la v523 la remplacera. Côté iOS, builder la 523 sur le Mac
-quand Daniel veut pousser une mise à jour App Store (mêmes correctifs).
+icône tarifs, anglais US, recherche ville carte agrandie). Release envoyée
+pour examen avec notes en 6 langues (en-GB/fr/de/es/it/pt) ; la v500 était
+déjà approuvée et LIVE avant l'envoi. Surveiller le statut dans la console
+(allomoteurs@gmail.com → « Daniel Armando »). Côté iOS, builder la 523 sur
+le Mac quand Daniel veut pousser la mise à jour App Store (guide :
+HoPetSit_iOS_Build_Guide_v23.1.523.pdf).
 
 ## Lancer en local
 - Backend : `cd backend && npm install && npm run dev` (nécessite `.env`).
