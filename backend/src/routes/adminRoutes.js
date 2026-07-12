@@ -3414,10 +3414,27 @@ router.get('/payouts', requireAdmin, async (req, res) => {
     ]);
     const cumulativeSwept = Number(sweepAgg[0]?.total || 0);
     const cumulativeSweepsCount = Number(sweepAgg[0]?.count || 0);
+    // v522 — ajustements comptables (reconstitution des commissions de
+    // paiements de test supprimés + corrections manuelles). Sans eux, les
+    // retraits historiques « mangent » les nouveaux revenus dès qu'on
+    // nettoie des paiements déjà encaissés.
+    let adjustmentsTotal = 0; let adjustmentsCount = 0;
+    try {
+      const AccountingAdjustment = require('../models/AccountingAdjustment');
+      const adjAgg = await AccountingAdjustment.aggregate([
+        ...(hasRange ? [{ $match: { createdAt: rangeCond() } }] : []),
+        { $group: { _id: null, t: { $sum: { $ifNull: ['$amount', 0] } }, n: { $sum: 1 } } },
+      ]);
+      adjustmentsTotal = Number(adjAgg[0]?.t || 0);
+      adjustmentsCount = Number(adjAgg[0]?.n || 0);
+    } catch (_) { /* best-effort */ }
     // Solde net HoPetSit retirable = revenus accumulés moins déjà retiré.
     // v508 - le solde retirable est sur AIRWALLEX : on exclut les ventes
     // Apple (encaissees par Apple, versees separement sur le compte bancaire).
-    const hopetsitNetAvailable = Math.max(0, platformRevenue - appleTotal - cumulativeSwept);
+    const hopetsitNetAvailable = Math.max(
+      0,
+      platformRevenue + adjustmentsTotal - appleTotal - cumulativeSwept,
+    );
 
     res.json({
       summary: {
@@ -3452,6 +3469,9 @@ router.get('/payouts', requireAdmin, async (req, res) => {
         },
         cumulativeSwept,
         cumulativeSweepsCount,
+        // v522 — ajustements comptables inclus dans le retirable.
+        adjustmentsTotal,
+        adjustmentsCount,
         hopetsitNetAvailable,
       },
       bookings: {
@@ -3649,6 +3669,56 @@ router.get('/payouts-debug', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── v522 — AJUSTEMENTS COMPTABLES (solde retirable) ────────────────────────
+// GET liste / POST création manuelle / DELETE suppression. Les ajustements
+// s'ajoutent aux revenus dans /admin/payouts et dans le cap de retrait.
+router.get('/adjustments', requireAdmin, async (req, res) => {
+  try {
+    const AccountingAdjustment = require('../models/AccountingAdjustment');
+    const items = await AccountingAdjustment.find().sort({ createdAt: -1 }).limit(100).lean();
+    const total = items.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+    return res.json({ items, total: Number(total.toFixed(2)) });
+  } catch (e) {
+    logger.error('[admin/adjustments:list]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/adjustments', requireAdmin, async (req, res) => {
+  try {
+    const amount = Number(req.body?.amount);
+    const note = String(req.body?.note || '').trim();
+    if (!Number.isFinite(amount) || amount === 0) {
+      return res.status(400).json({ error: 'Montant requis (≠ 0).' });
+    }
+    if (!note) return res.status(400).json({ error: 'Motif requis.' });
+    const AccountingAdjustment = require('../models/AccountingAdjustment');
+    const item = await AccountingAdjustment.create({
+      amount: Number(amount.toFixed(2)),
+      note,
+      source: 'manual',
+      createdBy: req.user?.email || 'admin',
+    });
+    logger.info(`[admin/adjustments] +${amount}€ (${note})`);
+    return res.status(201).json({ ok: true, item });
+  } catch (e) {
+    logger.error('[admin/adjustments:create]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete('/adjustments/:id', requireAdmin, async (req, res) => {
+  try {
+    const AccountingAdjustment = require('../models/AccountingAdjustment');
+    const r = await AccountingAdjustment.findByIdAndDelete(req.params.id);
+    if (!r) return res.status(404).json({ error: 'Ajustement introuvable.' });
+    return res.json({ ok: true });
+  } catch (e) {
+    logger.error('[admin/adjustments:delete]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /admin/cleanup-test-data — supprime les bookings (et donc leur
 // commission comptée) selon plusieurs critères. NON destructif sur les
 // utilisateurs/IBAN/etc — uniquement les bookings + leurs traces.
@@ -3736,9 +3806,37 @@ router.post('/cleanup-test-data', requireAdmin, async (req, res) => {
       });
     }
 
+    // v522 — Daniel : « mes 7 € de commission n'apparaissent pas dans le
+    // retirable ». CAUSE : supprimer des paiements DÉJÀ ENCAISSÉS efface
+    // leur commission des livres alors que les retraits (sweeps) restent
+    // comptés → le solde retirable écrase les revenus suivants. FIX : on
+    // re-crédite AUTOMATIQUEMENT la commission des réservations payées
+    // supprimées via un AccountingAdjustment (l'argent, lui, est bien passé
+    // par Airwallex).
+    let deletedCommission = 0;
+    try {
+      const cAgg = await Booking.aggregate([
+        { $match: { ...filter, paymentStatus: 'paid' } },
+        { $group: { _id: null, c: { $sum: { $ifNull: ['$pricing.commission', 0] } }, n: { $sum: 1 } } },
+      ]);
+      deletedCommission = Number((cAgg[0]?.c || 0).toFixed(2));
+      if (deletedCommission > 0) {
+        const AccountingAdjustment = require('../models/AccountingAdjustment');
+        await AccountingAdjustment.create({
+          amount: deletedCommission,
+          source: 'cleanup',
+          note: `Auto : commissions de ${cAgg[0]?.n || 0} paiement(s) supprimé(s) — ${description}`,
+          createdBy: req.user?.email || 'admin',
+        });
+        logger.info(`[admin/cleanup-test-data] adjustment auto +${deletedCommission}€ (commissions supprimées)`);
+      }
+    } catch (adjErr) {
+      logger.warn(`[admin/cleanup-test-data] adjustment auto failed: ${adjErr.message}`);
+    }
+
     const r = await Booking.deleteMany(filter);
     logger.info(`[admin/cleanup-test-data] mode=${mode} deleted=${r.deletedCount} (${description})`);
-    return res.json({ deleted: r.deletedCount, description });
+    return res.json({ deleted: r.deletedCount, description, adjustmentCreated: deletedCommission });
   } catch (e) {
     logger.error('[admin/cleanup-test-data]', e);
     return res.status(500).json({ error: e.message });
@@ -4359,8 +4457,19 @@ router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
       const commissions = bAgg[0]?.c || 0;
       const boutique = pO + pS + pW + mO + mS + mW + (sAgg[0]?.t || 0) + chatAddonT + kycT + donT;
       const swept = swAgg[0]?.t || 0;
-      hopetsitCap = Math.max(0, commissions + boutique - swept);
-      logger.info(`[admin/sweep] hopetsitCap calc: commissions=${commissions} boutique=${boutique} (kyc=${kycT} dons=${donT}) swept=${swept} → cap=${hopetsitCap}`);
+      // v522 — le cap doit inclure les ajustements comptables, sinon la
+      // carte « Solde retirable » affiche un montant que le bouton de
+      // retrait refuse ensuite (désalignement des deux formules).
+      let adjT = 0;
+      try {
+        const AccountingAdjustment = require('../models/AccountingAdjustment');
+        const aA = await AccountingAdjustment.aggregate([
+          { $group: { _id: null, t: { $sum: { $ifNull: ['$amount', 0] } } } },
+        ]);
+        adjT = aA[0]?.t || 0;
+      } catch (_) { /* best-effort */ }
+      hopetsitCap = Math.max(0, commissions + boutique + adjT - swept);
+      logger.info(`[admin/sweep] hopetsitCap calc: commissions=${commissions} boutique=${boutique} (kyc=${kycT} dons=${donT}) adj=${adjT} swept=${swept} → cap=${hopetsitCap}`);
     } catch (e) {
       logger.warn('[admin/sweep] hopetsitCap calc failed (non-fatal):', e.message);
     }
