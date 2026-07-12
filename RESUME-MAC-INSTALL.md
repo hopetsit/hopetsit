@@ -111,8 +111,12 @@ flutter doctor                               # environnement Flutter OK
 - **Le code iOS v506 (IAP + Apple Sign-In) est SYNCHRONISÉ sur origin**
   depuis le 12/07 (patch appliqué du Mac au PC) → un simple `git pull`
   suffit désormais, plus de correctifs « locaux au Mac » en attente.
-- Guide de build : `HoPetSit_iOS_Build_Guide_v23.1.xxx.pdf` (Downloads du
-  Mac) + `RESUME-MAC.md` à la racine.
+- Guide de build : `HoPetSit_iOS_Build_Guide_v23.1.523.pdf` (fourni avec ce
+  kit) + `RESUME-MAC.md` à la racine.
+- **Prochaine version iOS = 23.1.523** (déjà dans pubspec après `git pull`) :
+  elle embarque les fixes PawMap (points invisibles + recherche ville carte
+  agrandie), photo de profil multi-appareils, icône tarifs universelle,
+  anglais US et libellés Didit. Android v523 est déjà buildée côté PC.
 - Android peut aussi se builder ici : `cd frontend && flutter build apk
   --release` (grâce au keystore de l'étape 4). Règle Daniel : copier chaque
   APK dans `~/Downloads/HoPetSit_v23.1.<ver>.apk`.

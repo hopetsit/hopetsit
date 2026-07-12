@@ -47,10 +47,26 @@ PawPremium noir/or `#1c1726`→`#15120D` + or `#F4C04A`, badge membre rose
 `#F06AA0`→`#E0568B`. Web : font-display = Nunito.
 
 ## État actuel
-**Version app Android : 23.1.500** (EN EXAMEN sur Google Play depuis le 06/07/2026 ; la v499 est LIVE dans 177 pays — fiche : https://play.google.com/store/apps/details?id=com.cardellihermanos.hopetsit). v500 = clavier chat (isLoading partagé liste/messages + FocusNode stable), points PawMap 1er lancement, panneau « chat verrouillé » clair, navigation retour (plus d'empilement amis↔carte), vraies erreurs d'envoi, drapeaux langue (🇺🇸 pour EN). **iOS : ✅ ACCEPTÉE par Apple (08/07/2026)** — build 506 (Apple IAP + Apple Sign-In réécrit), fiche https://apps.apple.com/app/hopetsit/id6763645719 ; code iOS synchronisé sur origin (patch v506 appliqué du Mac au PC). Backend/site/admin
-déployés. App ↔ web synchronisés (signalements, PawSpot + visites, PawPoints,
-membres roses sur la carte, code promo boutique+profil+dashboard, notifications
-traduites à la lecture dans la langue courante).
+**Version app Android : 23.1.523 BUILDÉE le 12/07/2026** (APK + AAB dans
+`~/Downloads` côté PC : `HoPetSit_v23.1.523.apk` / `.aab`) — **PAS ENCORE
+uploadée sur Google Play** (Daniel doit publier l'AAB ou redonner l'accès
+Chrome). Contenu v523 : fix points PawMap invisibles (clé du cache marqueurs),
+recherche de ville sur la carte AGRANDIE (n'animait que la carte cachée),
+photo de profil stable multi-appareils (login n'écrase plus un avatar existant
+par du vide — `_saveUserProfile` dans auth_controller), icône tarifs
+€ → billets neutres (Icons.payments, 6 écrans), anglais AMÉRICANISÉ
+(Canceled/favorites/Color), libellés « Didit » (les 6 langues). Sur le Play
+Store : v500 soumise le 06/07 (statut à vérifier), v499 LIVE dans 177 pays —
+fiche : https://play.google.com/store/apps/details?id=com.cardellihermanos.hopetsit.
+**iOS : ✅ ACCEPTÉE par Apple (08/07/2026)** — build 506 (Apple IAP + Apple
+Sign-In réécrit), fiche https://apps.apple.com/app/hopetsit/id6763645719 ;
+code iOS synchronisé sur origin. Un prochain build iOS depuis le Mac (git pull
+puis build 523) embarquera les mêmes correctifs. Backend/site/admin déployés
+(**ADMIN_BUILD v524** : vérifications d'identité 3 € visibles dans l'onglet
+Paiements + cartes à jour, sans double comptage avec la boutique ; v522 =
+ajustements comptables ; v510 = Didit remplace Persona côté serveur).
+KYC : la 1re vérification Didit réelle (Daniel, sitter) est passée le 12/07 —
+session approuvée, badge ✓.
 
 ### ⚠️ v498 — RENOMMAGE PACKAGE ANDROID `com.hopetsit.app` → `com.cardellihermanos.hopetsit`
 Exigence Google Play (= société CARDELLI HERMANOS LIMITED). Changé dans le CODE :
@@ -94,13 +110,14 @@ Android v498/v499, fixes couronne, admin). **NE PAS écraser** le Mac avec le zi
 les correctifs Apple locaux non commités). iOS = build sur Mac (Xcode / Codemagic), bundle
 reste `com.hopetsit.app`.
 
-### 📦 PROCHAIN BUILD APK (v521) — correctifs déjà commités, en attente de build
-- **PawMap points invisibles** (Rien→Tous obligatoire / rien aux USA) : ROOT CAUSE =
-  clé du cache marqueurs basée sur la LONGUEUR seule (plafond 200 → Paris et NYC
-  = même clé). Fix commité (identité des POI dans la clé + setState post-reload).
-- **Textes « Persona » → Didit** dans l'app (kyc_launch_persona_btn…) — la vérif
-  tourne déjà sur Didit (v510), seuls les libellés sont en retard.
-- ⚠️ Ne PAS builder tant que la v500 est en examen Google Play.
+### 📦 BUILD v523 FAIT (12/07/2026) — reste à PUBLIER sur Google Play
+Tous les correctifs en attente sont DANS la v523 (PawMap, Didit, avatar,
+icône tarifs, anglais US, recherche ville carte agrandie). L'AAB
+(`HoPetSit_v23.1.523.aab`, Downloads PC) doit être uploadé dans la Play
+Console (Production → nouvelle release → notes en 6 langues). ⚠️ Vérifier
+d'abord le statut de la v500 (soumise le 06/07) dans la console : si encore
+« en examen », la v523 la remplacera. Côté iOS, builder la 523 sur le Mac
+quand Daniel veut pousser une mise à jour App Store (mêmes correctifs).
 
 ## Lancer en local
 - Backend : `cd backend && npm install && npm run dev` (nécessite `.env`).
