@@ -794,6 +794,31 @@ const confirmPayment = async (req, res) => {
  * succeeds (metadata.type === 'kyc'). Marks user kycStatus='pending_verification'
  * + kycPaidAt = now. Frontend must then POST /kyc/start to launch the inquiry.
  */
+// v525 — un paiement KYC encaissé qui ne peut activer AUCUN compte (compte
+// supprimé entre l'initiation et le webhook, ou compte déjà vérifié = double
+// paiement) était jeté silencieusement : argent sur Airwallex, invisible dans
+// les revenus admin (cas réel Daniel 12/07/2026). On le comptabilise en
+// AccountingAdjustment source='orphan_payment' (idempotent via ref=PI id).
+const _recordOrphanKycPayment = async (paymentIntent, reason) => {
+  try {
+    const AccountingAdjustment = require('../models/AccountingAdjustment');
+    const piId = paymentIntent?.id || null;
+    if (piId && await AccountingAdjustment.findOne({ ref: piId }).lean()) return; // webhook rejoué
+    // Airwallex : amount en centimes (cf. webhook donation).
+    const amount = Math.round(Number(paymentIntent?.amount || 300)) / 100;
+    await AccountingAdjustment.create({
+      amount,
+      note: `Paiement KYC orphelin (${reason}) — PI ${piId || '?'}, user ${paymentIntent?.metadata?.userId || '?'} (${paymentIntent?.metadata?.role || '?'}, ${paymentIntent?.metadata?.userEmail || '?'})`,
+      source: 'orphan_payment',
+      createdBy: 'system:kyc-webhook',
+      ref: piId,
+    });
+    logger.warn(`[kyc.onPaymentSucceeded] orphan KYC payment ${piId} (${reason}) → +${amount} EUR en ajustement comptable`);
+  } catch (e) {
+    logger.error(`[kyc.onPaymentSucceeded] orphan adjustment failed : ${e.message}`);
+  }
+};
+
 const onKycPaymentSucceeded = async (paymentIntent) => {
   try {
     const userId = paymentIntent?.metadata?.userId;
@@ -804,8 +829,18 @@ const onKycPaymentSucceeded = async (paymentIntent) => {
       return;
     }
     const user = await Model.findById(userId);
-    if (!user) return;
-    if (user.kycStatus === 'verified') return; // idempotent
+    if (!user) {
+      await _recordOrphanKycPayment(paymentIntent, 'compte introuvable/supprimé');
+      return;
+    }
+    if (user.kycStatus === 'verified') {
+      // Idempotent pour un webhook rejoué du MÊME paiement (ref déjà connue),
+      // mais un NOUVEAU paiement sur un compte déjà vérifié = double paiement.
+      if (paymentIntent?.id && paymentIntent.id !== user.kycPaymentIntentId) {
+        await _recordOrphanKycPayment(paymentIntent, 'compte déjà vérifié — double paiement');
+      }
+      return;
+    }
     // v23.1 part 127 — Phase 3 audit P3-10 : updateOne pour bypass la
     // revalidation 2dsphere (cf initiatePayment).
     const _pidNow = new Date();
