@@ -94,6 +94,14 @@ Android v498/v499, fixes couronne, admin). **NE PAS écraser** le Mac avec le zi
 les correctifs Apple locaux non commités). iOS = build sur Mac (Xcode / Codemagic), bundle
 reste `com.hopetsit.app`.
 
+### 📦 PROCHAIN BUILD APK (v521) — correctifs déjà commités, en attente de build
+- **PawMap points invisibles** (Rien→Tous obligatoire / rien aux USA) : ROOT CAUSE =
+  clé du cache marqueurs basée sur la LONGUEUR seule (plafond 200 → Paris et NYC
+  = même clé). Fix commité (identité des POI dans la clé + setState post-reload).
+- **Textes « Persona » → Didit** dans l'app (kyc_launch_persona_btn…) — la vérif
+  tourne déjà sur Didit (v510), seuls les libellés sont en retard.
+- ⚠️ Ne PAS builder tant que la v500 est en examen Google Play.
+
 ## Lancer en local
 - Backend : `cd backend && npm install && npm run dev` (nécessite `.env`).
 - Site : `cd website && npm install && npm run dev`.
