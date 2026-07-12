@@ -1622,11 +1622,33 @@ router.get('/payments', requireAdmin, async (req, res) => {
       if (to) filter.paidAt.$lte = new Date(to);
     }
 
-    const [bookings, total, aggregates] = await Promise.all([
+    // v524 — Daniel : « je veux que les vérifications d'identité apparaissent
+    // dans mes paiements ». Les paiements KYC (3 EUR one-shot, kycPaidAt sur
+    // Sitter/Walker) sont fusionnés avec les réservations : pas de prestataire
+    // ni de payout, la commission = 100 % du montant. Masqués seulement si un
+    // filtre les exclut par nature (statut != paid, filtre payout, provider
+    // != airwallex). Pagination : on récupère les réservations jusqu'à la fin
+    // de la page demandée, on fusionne avec les lignes KYC triées par date,
+    // puis on découpe la fenêtre de page.
+    const kycVisible =
+      (!paymentStatus || paymentStatus === 'paid') &&
+      !payoutStatus &&
+      (!paymentProvider || paymentProvider === 'airwallex');
+    const inKycRange = (d) => {
+      if (!from && !to) return true;
+      if (!d) return false;
+      const ts = new Date(d).getTime();
+      if (from && ts < new Date(from).getTime()) return false;
+      if (to && ts > new Date(to).getTime()) return false;
+      return true;
+    };
+    const pageN = Math.max(1, Number(page) || 1);
+    const limitN = Math.max(1, Number(limit) || 30);
+
+    const [bookings, total, aggregates, kycSitters, kycWalkers] = await Promise.all([
       Booking.find(filter)
         .sort({ paidAt: -1, createdAt: -1 })
-        .skip((Number(page) - 1) * Number(limit))
-        .limit(Number(limit))
+        .limit(pageN * limitN)
         .populate('ownerId', 'name email')
         .populate('sitterId', 'name email payoutMethod')
         .lean(),
@@ -1643,6 +1665,12 @@ router.get('/payments', requireAdmin, async (req, res) => {
           },
         },
       ]),
+      Sitter.find({ kycPaidAt: { $ne: null } })
+        .select('name email kycPaidAt kycPaymentIntentId')
+        .lean(),
+      Walker.find({ kycPaidAt: { $ne: null } })
+        .select('name email kycPaidAt kycPaymentIntentId')
+        .lean(),
     ]);
 
     // Provider breakdown
@@ -1672,42 +1700,99 @@ router.get('/payments', requireAdmin, async (req, res) => {
 
     const agg = aggregates[0] || { totalRevenue: 0, totalCommission: 0, totalPayouts: 0, count: 0 };
 
+    // v524 — lignes KYC fusionnées avec les réservations (voir plus haut).
+    const KYC_PRICE = 3;
+    const kycUsersAll = [...kycSitters, ...kycWalkers];
+    const kycRows = !kycVisible
+      ? []
+      : kycUsersAll
+          .filter((u) => inKycRange(u.kycPaidAt))
+          .map((u) => ({
+            _id: `kyc_${u._id}`,
+            type: 'kyc',
+            ownerName: u.name || '-',
+            ownerEmail: u.email || '',
+            sitterName: '—',
+            sitterEmail: '',
+            sitterPayoutMethod: '-',
+            serviceType: 'kyc',
+            date: u.kycPaidAt,
+            totalPrice: KYC_PRICE,
+            commission: KYC_PRICE,
+            netPayout: 0,
+            currency: 'EUR',
+            paymentStatus: 'paid',
+            payoutStatus: 'none',
+            paymentProvider: 'airwallex',
+            paidAt: u.kycPaidAt,
+            payoutAt: null,
+            payoutError: null,
+            airwallexPaymentIntentId: u.kycPaymentIntentId || null,
+            paypalOrderId: null,
+          }));
+
+    const bookingRows = bookings.map((b) => ({
+      _id: b._id,
+      type: 'booking',
+      ownerName: b.ownerId?.name || 'Unknown',
+      ownerEmail: b.ownerId?.email || '',
+      sitterName: b.sitterId?.name || 'Unknown',
+      sitterEmail: b.sitterId?.email || '',
+      sitterPayoutMethod: b.sitterId?.payoutMethod || 'stripe',
+      serviceType: b.serviceType || '-',
+      date: b.date,
+      totalPrice: b.pricing?.totalPrice || 0,
+      commission: b.pricing?.commission || 0,
+      netPayout: b.pricing?.netPayout || 0,
+      currency: b.pricing?.currency || 'EUR',
+      paymentStatus: b.paymentStatus,
+      payoutStatus: b.payoutStatus || 'pending',
+      paymentProvider: b.paymentProvider || '-',
+      paidAt: b.paidAt,
+      payoutAt: b.payoutAt,
+      payoutError: b.payoutError,
+      airwallexPaymentIntentId: b.airwallexPaymentIntentId,
+      paypalOrderId: b.paypalOrderId,
+    }));
+    const merged = [...bookingRows, ...kycRows].sort(
+      (x, y) =>
+        new Date(y.paidAt || y.date || 0).getTime() -
+        new Date(x.paidAt || x.date || 0).getTime(),
+    );
+    const start = (pageN - 1) * limitN;
+
     res.json({
-      payments: bookings.map((b) => ({
-        _id: b._id,
-        ownerName: b.ownerId?.name || 'Unknown',
-        ownerEmail: b.ownerId?.email || '',
-        sitterName: b.sitterId?.name || 'Unknown',
-        sitterEmail: b.sitterId?.email || '',
-        sitterPayoutMethod: b.sitterId?.payoutMethod || 'stripe',
-        serviceType: b.serviceType || '-',
-        date: b.date,
-        totalPrice: b.pricing?.totalPrice || 0,
-        commission: b.pricing?.commission || 0,
-        netPayout: b.pricing?.netPayout || 0,
-        currency: b.pricing?.currency || 'EUR',
-        paymentStatus: b.paymentStatus,
-        payoutStatus: b.payoutStatus || 'pending',
-        paymentProvider: b.paymentProvider || '-',
-        paidAt: b.paidAt,
-        payoutAt: b.payoutAt,
-        payoutError: b.payoutError,
-        airwallexPaymentIntentId: b.airwallexPaymentIntentId,
-        paypalOrderId: b.paypalOrderId,
-      })),
-      total,
-      page: Number(page),
-      limit: Number(limit),
+      payments: merged.slice(start, start + limitN),
+      total: total + kycRows.length,
+      page: pageN,
+      limit: limitN,
       summary: {
         totalRevenue: agg.totalRevenue,
         totalCommission: agg.totalCommission,
         totalPayouts: agg.totalPayouts,
         paidCount: agg.count,
+        // v524 — vérifs d'identité payées (all-time). Champs SÉPARÉS : l'UI
+        // les ajoute dans les cartes de l'onglet Paiements, mais la vue
+        // d'ensemble Finances garde totalCommission = réservations seules
+        // (le KYC est déjà compté dans les revenus boutique → pas de double
+        // comptage dans « Total HoPetSit »).
+        kycCount: kycUsersAll.length,
+        kycTotal: kycUsersAll.length * KYC_PRICE,
       },
-      providerBreakdown: providerBreakdown.reduce((acc, p) => {
-        acc[p._id || 'unknown'] = { count: p.count, total: p.total, commission: p.commission };
-        return acc;
-      }, {}),
+      providerBreakdown: (() => {
+        const map = providerBreakdown.reduce((acc, p) => {
+          acc[p._id || 'unknown'] = { count: p.count, total: p.total, commission: p.commission };
+          return acc;
+        }, {});
+        if (kycUsersAll.length) {
+          const aw = map.airwallex || { count: 0, total: 0, commission: 0 };
+          aw.count += kycUsersAll.length;
+          aw.total += kycUsersAll.length * KYC_PRICE;
+          aw.commission += kycUsersAll.length * KYC_PRICE;
+          map.airwallex = aw;
+        }
+        return map;
+      })(),
       payoutBreakdown: payoutBreakdown.reduce((acc, p) => {
         acc[p._id || 'pending'] = { count: p.count, total: p.total };
         return acc;

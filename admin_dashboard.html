@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v523'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v524'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -226,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v523</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v524</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -4597,13 +4597,13 @@ function renderPaymentSummary(summary, providers, payouts) {
   document.getElementById('payment-summary-cards').innerHTML = `
     <div class="stat-card" style="border-left:4px solid #22c55e">
       <div style="font-size:13px;color:var(--text-muted)">Total Revenue</div>
-      <div style="font-size:22px;font-weight:700;color:#22c55e">${fmt(summary.totalRevenue)}</div>
-      <div style="font-size:11px;color:var(--text-muted)">${summary.paidCount || 0} paid bookings</div>
+      <div style="font-size:22px;font-weight:700;color:#22c55e">${fmt((summary.totalRevenue || 0) + (summary.kycTotal || 0))}</div>
+      <div style="font-size:11px;color:var(--text-muted)">${summary.paidCount || 0} réservations payées${summary.kycCount ? ` + ${summary.kycCount} 🪪 vérif${summary.kycCount > 1 ? 's' : ''} ID` : ''}</div>
     </div>
     <div class="stat-card" style="border-left:4px solid #8b5cf6">
       <div style="font-size:13px;color:var(--text-muted)">Platform Commission</div>
-      <div style="font-size:22px;font-weight:700;color:#8b5cf6">${fmt(summary.totalCommission)}</div>
-      <div style="font-size:11px;color:var(--text-muted)">~20% of revenue</div>
+      <div style="font-size:22px;font-weight:700;color:#8b5cf6">${fmt((summary.totalCommission || 0) + (summary.kycTotal || 0))}</div>
+      <div style="font-size:11px;color:var(--text-muted)">commissions réservations${summary.kycCount ? ' + vérifs ID (100%)' : ''}</div>
     </div>
     <div class="stat-card" style="border-left:4px solid #3b82f6">
       <div style="font-size:13px;color:var(--text-muted)">Payouts prestataires (versés)</div>
@@ -4696,20 +4696,20 @@ function renderPaymentsTable(payments, total) {
             <td>${fmtDate(p.paidAt || p.date)}</td>
             <td title="${escapeHtml(p.ownerEmail)}">${escapeHtml(p.ownerName)}</td>
             <td title="${escapeHtml(p.sitterEmail)}">${escapeHtml(p.sitterName)}</td>
-            <td>${escapeHtml(typeof p.serviceType === 'object' ? (p.serviceType?.type || '-') : String(p.serviceType || '-'))}</td>
+            <td>${p.serviceType === 'kyc' ? '🪪 Vérification ID' : escapeHtml(typeof p.serviceType === 'object' ? (p.serviceType?.type || '-') : String(p.serviceType || '-'))}</td>
             <td style="font-weight:600">${fmt(p.currency, p.totalPrice)}</td>
             <td style="color:#8b5cf6">${fmt(p.currency, p.commission)}</td>
-            <td style="color:#22c55e;font-weight:600">${fmt(p.currency, p.netPayout)}</td>
+            <td style="color:#22c55e;font-weight:600">${p.type === 'kyc' ? '—' : fmt(p.currency, p.netPayout)}</td>
             <td>${provIcon(p.paymentProvider)} ${p.paymentProvider || '-'}</td>
             <td>${payBadge(p.paymentStatus)}</td>
-            <td>${payoutBadge(p.payoutStatus)}</td>
-            <td>${fmtDate(p.payoutAt)}</td>
-            <td>
+            <td>${p.type === 'kyc' ? '—' : payoutBadge(p.payoutStatus)}</td>
+            <td>${p.type === 'kyc' ? '—' : fmtDate(p.payoutAt)}</td>
+            <td>${p.type === 'kyc' ? '' : `
               <button class="action-btn" onclick="openPaymentDetail('${p._id}')" title="Manage" style="font-size:11px">⚙️</button>
               ${p.payoutStatus === 'failed' || p.payoutStatus === 'pending' ? `<button class="action-btn btn-verify" onclick="retryPayout('${p._id}')" title="Retry payout" style="font-size:11px">🔄</button>` : ''}
               ${p.paymentStatus === 'paid' ? `<button class="action-btn" onclick="adminRefund('${p._id}')" title="Rembourser le client" style="font-size:11px;color:var(--red)">💸</button>` : ''}
               ${(p.paymentStatus === 'pending' || p.paymentStatus === 'failed') ? `<button class="action-btn" onclick="adminCancelPayment('${p._id}')" title="Annuler le paiement" style="font-size:11px;color:var(--red)">🚫</button>` : ''}
-              ${p.payoutError ? `<span title="${escapeHtml(p.payoutError)}" style="cursor:help">⚠️</span>` : ''}
+              ${p.payoutError ? `<span title="${escapeHtml(p.payoutError)}" style="cursor:help">⚠️</span>` : ''}`}
             </td>
           </tr>
         `).join('')}
