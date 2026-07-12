@@ -1341,6 +1341,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     // tout le monde (endpoint /friends/members/nearby = membres abonnés proches).
     futures.add(_loadNearbyProviders());
     await Future.wait(futures);
+    // v521 — ceinture + bretelles pour le bug « points invisibles au 1er
+    // chargement » : après CHAQUE rechargement de données on force une
+    // reconstruction (la clé de cache ci-dessus fait le tri — no-op si le
+    // contenu n'a réellement pas changé).
+    if (mounted) setState(() {});
   }
 
   /// v23.1 part 72 — Bug 10 : fetch nearby walkers + sitters and merge
@@ -1814,6 +1819,15 @@ class _PawMapScreenState extends State<PawMapScreen>
     final key = [
       _nearbyProviders.length,
       _poiController.visiblePois.length,
+      // v521 — BUG « les points n'apparaissent pas / je dois faire Rien puis
+      // Tous » : la clé n'utilisait que le NOMBRE de POI. Or le backend
+      // plafonne à 200 → Paris (200) et New York (200) donnaient la MÊME
+      // clé → le cache n'était jamais invalidé quand on déplaçait la carte
+      // ou après le 1er chargement (contenu différent, longueur identique).
+      // On ajoute l'IDENTITÉ des POI (1er + dernier id) dans la clé.
+      _poiController.visiblePois.isNotEmpty
+          ? '${_poiController.visiblePois.first.id}:${_poiController.visiblePois.last.id}'
+          : '',
       _reportController.reports.length,
       _showProviders.value ? 1 : 0,
       _showPois.value ? 1 : 0,
