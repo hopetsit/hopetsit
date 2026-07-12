@@ -1122,6 +1122,18 @@ class _PawMapScreenState extends State<PawMapScreen>
       final target = LatLng(pos.latitude, pos.longitude);
       if (!mounted) return;
       setState(() => _currentCenter = target);
+      // v523 — Daniel : « carte agrandie + rechercher une ville ne marche
+      // pas ». La recherche n'animait QUE _mapCtl (la carte normale, cachée
+      // SOUS le calque agrandi) → aucun mouvement visible. Même logique que
+      // _animateFollowCamera (v469) : en mode agrandi on anime AUSSI
+      // _expandedCtl (la carte visible). On garde l'animation de la carte
+      // normale pour qu'elle soit déjà sur la ville au moment de réduire.
+      if (pawMapExpanded.value && _expandedCtl != null) {
+        try {
+          await _expandedCtl!
+              .animateCamera(CameraUpdate.newLatLngZoom(target, 13));
+        } catch (_) {/* calque pas prêt */}
+      }
       if (_mapCtl.isCompleted) {
         final ctl = await _mapCtl.future;
         await ctl.animateCamera(CameraUpdate.newLatLngZoom(target, 13));
