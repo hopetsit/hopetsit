@@ -592,7 +592,7 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
               labelStyle: TextStyle(color: AppColors.textSecondary(context)),
               hintText: widget.minWithdrawal.toStringAsFixed(2),
               hintStyle: TextStyle(color: AppColors.textSecondary(context)),
-              prefixIcon: Icon(Icons.euro, color: widget.roleColor),
+              prefixIcon: Icon(Icons.payments, color: widget.roleColor),
               filled: true,
               fillColor: AppColors.scaffold(context),
               border: OutlineInputBorder(

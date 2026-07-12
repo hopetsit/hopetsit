@@ -822,7 +822,7 @@ class WalkerProfileScreen extends StatelessWidget {
         // rates without scrolling through the full edit profile form.
         _settingsTile(
           'my_rates_section_title'.tr,
-          Icons.euro_rounded,
+          Icons.payments_rounded,
           () => Get.to(() => const MyRatesScreen(role: 'walker')),
           subtitle: 'my_rates_walker_hint'.tr,
           color: _accent,

@@ -1,7 +1,7 @@
-name: hopetsit
+﻿name: hopetsit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 23.1.506+506
+version: 23.1.523+523
 
 environment:
   sdk: ^3.9.2
@@ -33,7 +33,7 @@ dependencies:
   http: ^1.5.0
   share_plus: ^12.0.1
   mime: ^1.0.4
-  # v23.1 part 73 — Bug : generate the invoice as a real PDF on the
+  # v23.1 part 73 â€” Bug : generate the invoice as a real PDF on the
   # phone (Daniel : "facture se telecharge en htlm elle peux pas se
   # telecharger directement en pdf"). The `pdf` package builds a PDF
   # locally from InvoiceModel data ; `printing` shares it via the OS
@@ -45,72 +45,72 @@ dependencies:
   flutter_screenutil: ^5.9.3
   pinput: ^5.0.2
   get_storage: ^2.1.1
-  # v416 — service de fond pour le suivi en direct qui survit au swipe-kill
-  # (isolate séparé + foreground service Android START_STICKY).
+  # v416 â€” service de fond pour le suivi en direct qui survit au swipe-kill
+  # (isolate sÃ©parÃ© + foreground service Android START_STICKY).
   flutter_background_service: ^5.0.10
   webview_flutter: ^4.13.1
-  # depend_on_referenced_packages — ces implémentations plateforme sont
-  # importées directement dans lib/ (live_map_service, bug_report_screen,
-  # kyc_verification_screen) : elles doivent être des dépendances explicites.
+  # depend_on_referenced_packages â€” ces implÃ©mentations plateforme sont
+  # importÃ©es directement dans lib/ (live_map_service, bug_report_screen,
+  # kyc_verification_screen) : elles doivent Ãªtre des dÃ©pendances explicites.
   webview_flutter_android: ^4.10.11
   webview_flutter_wkwebview: ^3.23.5
   package_info_plus: ^9.0.0
   photo_view: ^0.14.0
-  # v21.1.1 — flutter_stripe SUPPRIMÉ. Pure Airwallex via webview HPP.
-  # v20.1 — Airwallex Payment SDK officiel (drop-in UI + Apple Pay + Google Pay).
-  # Stripe est conservé pendant la transition pour rollback instantané ; le
-  # provider est dispatché au runtime selon le champ `provider` retourné par
-  # le backend (PAYMENT_PROVIDER env var côté Render).
-  # ⚠️ Désactivé temporairement v20.1 : la v0.0.2 publique avait un bug
+  # v21.1.1 â€” flutter_stripe SUPPRIMÃ‰. Pure Airwallex via webview HPP.
+  # v20.1 â€” Airwallex Payment SDK officiel (drop-in UI + Apple Pay + Google Pay).
+  # Stripe est conservÃ© pendant la transition pour rollback instantanÃ© ; le
+  # provider est dispatchÃ© au runtime selon le champ `provider` retournÃ© par
+  # le backend (PAYMENT_PROVIDER env var cÃ´tÃ© Render).
+  # âš ï¸ DÃ©sactivÃ© temporairement v20.1 : la v0.0.2 publique avait un bug
   # (lib/ vide) ; on inspecte v0.1.13 dans une prochaine session avant
-  # d'activer (l'API exacte n'est pas encore documentée publiquement).
+  # d'activer (l'API exacte n'est pas encore documentÃ©e publiquement).
   # airwallex_payment_flutter: ^0.1.13
   shimmer: ^3.0.0
   flutter_dotenv: ^6.0.0
   country_code_picker: ^3.4.1
   geolocator: ^14.0.2
   geolocator_android: ^5.0.2
-  # v414 — dépendance directe (déjà transitive) pour utiliser AppleSettings
-  # (allowBackgroundLocationUpdates) → le suivi en direct survit en
-  # arrière-plan sur iOS aussi (UIBackgroundModes>location déjà dans Info.plist).
+  # v414 â€” dÃ©pendance directe (dÃ©jÃ  transitive) pour utiliser AppleSettings
+  # (allowBackgroundLocationUpdates) â†’ le suivi en direct survit en
+  # arriÃ¨re-plan sur iOS aussi (UIBackgroundModes>location dÃ©jÃ  dans Info.plist).
   geolocator_apple: ^2.3.13
   google_maps_flutter: ^2.14.0
   geocoding: ^4.0.0
   google_places_flutter: ^2.1.1
-  # v18.8 — deep link handler pour hopetsit://pay/:bookingId envoyé
-  # dans les emails "Bonne nouvelle, votre demande a été acceptée".
+  # v18.8 â€” deep link handler pour hopetsit://pay/:bookingId envoyÃ©
+  # dans les emails "Bonne nouvelle, votre demande a Ã©tÃ© acceptÃ©e".
   app_links: ^6.3.2
-  # v18.9.8 — url_launcher pour ouvrir l'URL Stripe Identity hosted.
+  # v18.9.8 â€” url_launcher pour ouvrir l'URL Stripe Identity hosted.
   # Pourquoi pas le SDK natif ? Le plugin flutter_stripe Identity est
-  # déprécié depuis 2024, Stripe recommande désormais le hosted flow
+  # dÃ©prÃ©ciÃ© depuis 2024, Stripe recommande dÃ©sormais le hosted flow
   # (user ouvre une URL, prend photo + selfie, revient via deep link).
-  # Le backend crée la session via stripeIdentityService.js et renvoie
+  # Le backend crÃ©e la session via stripeIdentityService.js et renvoie
   # l'url, on la launch telle quelle.
   url_launcher: ^6.3.1
-  # v22.5 — POLISH 2 : toasts modernes en remplacement des Get.snackbar
-  # encombrants. Slim ~64px, slide-from-top, swipe-dismiss, icône+couleur,
-  # auto-dismiss 3s. Utilisé via lib/widgets/modern_toast.dart et le shim
+  # v22.5 â€” POLISH 2 : toasts modernes en remplacement des Get.snackbar
+  # encombrants. Slim ~64px, slide-from-top, swipe-dismiss, icÃ´ne+couleur,
+  # auto-dismiss 3s. UtilisÃ© via lib/widgets/modern_toast.dart et le shim
   # CustomSnackbar (qui appelle ModernToast en interne, backward compat).
   awesome_snackbar_content: ^0.1.5
-  # v23.1 part 125 — Phase 2 audit C4. JWT + tokens sensibles déplacés
+  # v23.1 part 125 â€” Phase 2 audit C4. JWT + tokens sensibles dÃ©placÃ©s
   # depuis GetStorage (JSON en clair dans app docs dir) vers le keystore
   # Android (EncryptedSharedPreferences) / Keychain iOS. Inviolable sans
-  # root + clé device.
+  # root + clÃ© device.
   flutter_secure_storage: ^9.2.2
-  # v23.1 part 125 — Phase 2 audit L3. Crash reporting dans Firebase
-  # Console + Play Vitals (Sentry restait privé). Initialisé à partir
+  # v23.1 part 125 â€” Phase 2 audit L3. Crash reporting dans Firebase
+  # Console + Play Vitals (Sentry restait privÃ©). InitialisÃ© Ã  partir
   # de main.dart, captureUnhandledErrors + onError Flutter.
-  # v23.1 part 134 — bump à ^5.0.7 (la 4.1.3 dépendait de firebase_core
+  # v23.1 part 134 â€” bump Ã  ^5.0.7 (la 4.1.3 dÃ©pendait de firebase_core
   # ^3.15.x incompatible avec notre firebase_core ^4.1.1).
   firebase_crashlytics: ^5.0.7
   sign_in_with_apple: ^8.1.0
   crypto: ^3.0.7
-  # v503 — règle Apple 3.1.1 : les abonnements/boosts achetés DANS l'app iOS
-  # doivent passer par l'achat intégré Apple (StoreKit). Android garde Airwallex.
+  # v503 â€” rÃ¨gle Apple 3.1.1 : les abonnements/boosts achetÃ©s DANS l'app iOS
+  # doivent passer par l'achat intÃ©grÃ© Apple (StoreKit). Android garde Airwallex.
   in_app_purchase: ^3.2.0
-  # v506 — refus 3.1.1 (codes promo maison) : sur iOS l'écran code promo ouvre
+  # v506 â€” refus 3.1.1 (codes promo maison) : sur iOS l'Ã©cran code promo ouvre
   # la feuille de code OFFICIELLE Apple (presentCodeRedemptionSheet, offer codes
-  # créés dans App Store Connect). Import direct → dépendance explicite.
+  # crÃ©Ã©s dans App Store Connect). Import direct â†’ dÃ©pendance explicite.
   in_app_purchase_storekit: ^0.4.0
 
 dev_dependencies:
@@ -118,13 +118,13 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^5.0.0
-  # Session v16-1b — official HopeTSIT logo integration. flutter_launcher_icons
+  # Session v16-1b â€” official HopeTSIT logo integration. flutter_launcher_icons
   # reads the PNG source files under assets/brand/png/ and generates every
   # Android mipmap-* density + iOS AppIcon.appiconset size automatically.
   # Run: dart run flutter_launcher_icons
   flutter_launcher_icons: ^0.14.1
 
-# flutter_launcher_icons config — single source of truth for app icons.
+# flutter_launcher_icons config â€” single source of truth for app icons.
 # The SVGs in assets/brand/{android,apple}/ stay for reference (and future
 # manual edits); what the plugin actually uses are the 1024x1024 PNG rasters
 # generated under assets/brand/png/.
@@ -134,7 +134,7 @@ flutter_launcher_icons:
   image_path: "assets/brand/png/ic_launcher.png"
   image_path_ios: "assets/brand/png/apple-icon-original.png"
   # iOS 18 delivers 3 appearance variants (default / dark / tinted).
-  # The plugin ≥ 0.14 picks them up automatically and writes the right
+  # The plugin â‰¥ 0.14 picks them up automatically and writes the right
   # metadata in AppIcon.appiconset/Contents.json.
   image_path_ios_dark_transparent_background: "assets/brand/png/apple-icon-dark.png"
   image_path_ios_tinted_grayscale: "assets/brand/png/apple-icon-white.png"

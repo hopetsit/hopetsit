@@ -84,7 +84,7 @@ class _WalkerRates extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.euro_rounded, color: accent, size: 18.sp),
+                      Icon(Icons.payments_rounded, color: accent, size: 18.sp),
                       SizedBox(width: 8.w),
                       // v445 — Daniel : « la phrase déborde ». Sans Expanded le
                       // texte sortait du cadre (Row non borné). Expanded +
@@ -340,7 +340,7 @@ class _HeaderCard extends StatelessWidget {
         children: [
           Padding(
             padding: EdgeInsets.only(top: 2.h),
-            child: Icon(Icons.euro_rounded, size: 22.sp, color: accent),
+            child: Icon(Icons.payments_rounded, size: 22.sp, color: accent),
           ),
           SizedBox(width: 10.w),
           // v20.0.10 — explicit maxLines + softWrap so long translations

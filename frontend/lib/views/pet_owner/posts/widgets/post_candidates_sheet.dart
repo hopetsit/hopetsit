@@ -281,7 +281,7 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
           chip('candidates_sort_newest', _SortMode.newest,
               Icons.schedule_rounded),
           chip('candidates_sort_price', _SortMode.priceAsc,
-              Icons.euro_rounded),
+              Icons.payments_rounded),
           chip('candidates_sort_rating', _SortMode.ratingDesc,
               Icons.star_rounded),
         ],

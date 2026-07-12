@@ -227,6 +227,7 @@ class AuthController extends GetxController {
       }
 
       // Extract and save user data
+      // (v523 : via _saveUserProfile — préserve l'avatar existant.)
       final userData = _extractUser(response);
       if (userData != null) {
         // Add role to user data if not already present
@@ -234,7 +235,7 @@ class AuthController extends GetxController {
         if (role != null && !userDataWithRole.containsKey('role')) {
           userDataWithRole['role'] = role;
         }
-        await _storage.write(StorageKeys.userProfile, userDataWithRole);
+        await _saveUserProfile(userDataWithRole);
         debugPrint('[HOPETSIT] ✅ User profile saved:');
         debugPrint('[HOPETSIT]   - Name: ${userDataWithRole['name'] ?? 'N/A'}');
         debugPrint(
@@ -518,7 +519,7 @@ class AuthController extends GetxController {
           if (role != null) {
             userDataWithRole['role'] = role;
           }
-          await _storage.write(StorageKeys.userProfile, userDataWithRole);
+          await _saveUserProfile(userDataWithRole);
         }
 
         // Check if this is a new user (existingUser: false)
@@ -626,6 +627,30 @@ class AuthController extends GetxController {
   /// v500 — SHA-256 (hex) d'une chaîne, pour hacher le nonce envoyé à Apple.
   String _sha256ofString(String input) {
     return sha256.convert(utf8.encode(input)).toString();
+  }
+
+  /// v523 — Daniel : « avec le même compte, si je me connecte d'un Android
+  /// ou d'un iPhone, ma photo de profil disparaît et réapparaît ». CAUSE :
+  /// certaines réponses de connexion (Apple surtout — Apple ne fournit
+  /// jamais de photo) arrivent avec un avatar VIDE alors que le compte en a
+  /// un sur le serveur → on écrasait le cache local et toute l'UI perdait
+  /// la photo jusqu'au prochain refetch. RÈGLE : on ne rétrograde JAMAIS un
+  /// avatar existant vers du vide pour le même compte (même email).
+  Future<void> _saveUserProfile(Map<String, dynamic> profile) async {
+    try {
+      final old = _storage.read<Map<String, dynamic>>(StorageKeys.userProfile);
+      String urlOf(dynamic a) =>
+          a is Map ? (a['url'] ?? '').toString() : (a ?? '').toString();
+      final newHasAvatar = urlOf(profile['avatar']).isNotEmpty;
+      final oldHasAvatar = old != null && urlOf(old['avatar']).isNotEmpty;
+      final sameUser = old != null &&
+          (old['email'] ?? '').toString().toLowerCase() ==
+              (profile['email'] ?? '').toString().toLowerCase();
+      if (!newHasAvatar && oldHasAvatar && sameUser) {
+        profile['avatar'] = old['avatar'];
+      }
+    } catch (_) {/* défensif — au pire on écrit tel quel */}
+    await _storage.write(StorageKeys.userProfile, profile);
   }
 
   Future<void> loginWithApple({String? role}) async {
@@ -754,7 +779,7 @@ class AuthController extends GetxController {
           if (role != null && !userDataWithRole.containsKey('role')) {
             userDataWithRole['role'] = role;
           }
-          await _storage.write(StorageKeys.userProfile, userDataWithRole);
+          await _saveUserProfile(userDataWithRole);
         }
 
         final existingUser = response['existingUser'] as bool? ?? true;
@@ -1146,7 +1171,7 @@ class AuthController extends GetxController {
         if (role != null && !userDataWithRole.containsKey('role')) {
           userDataWithRole['role'] = role;
         }
-        await _storage.write(StorageKeys.userProfile, userDataWithRole);
+        await _saveUserProfile(userDataWithRole);
         debugPrint('[HOPETSIT] ✅ User profile updated after role switch');
       }
 
@@ -1763,7 +1788,7 @@ class AuthController extends GetxController {
       if (userData != null) {
         final withRole = Map<String, dynamic>.from(userData);
         withRole.putIfAbsent('role', () => role);
-        await _storage.write(StorageKeys.userProfile, withRole);
+        await _saveUserProfile(withRole);
       }
 
       // 5) Navigation. _navigateToHome() reset déjà les controllers

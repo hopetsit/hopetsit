@@ -1276,7 +1276,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                     color: _roleColor,
                     borderRadius: BorderRadius.circular(10.r),
                   ),
-                  child: Icon(Icons.euro_rounded,
+                  child: Icon(Icons.payments_rounded,
                       size: 18.sp, color: Colors.white),
                 ),
                 SizedBox(width: 10.w),

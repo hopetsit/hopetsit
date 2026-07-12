@@ -592,7 +592,7 @@ class SitterProfileScreen extends StatelessWidget {
         _buildSettingsTile(
           'my_rates_section_title'.tr,
           'my_rates_sitter_hint'.tr,
-          Icons.euro_rounded,
+          Icons.payments_rounded,
           _sitterAccent,
           () => Get.to(() => const MyRatesScreen(role: 'sitter')),
         ),
