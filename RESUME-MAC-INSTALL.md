@@ -67,6 +67,14 @@ Enfin supprime le dossier `_secrets-mac/` après la copie.
 
 `backend/.env` est déjà au bon endroit dans le zip — rien à faire.
 
+⚠️ **ATTENTION `.env` (découvert le 12/07/2026)** : le `MONGODB_URI` de ce
+fichier pointe sur une **VIEILLE base** (cluster « Petinsta », données
+d'avril). La production tourne sur Render avec SES PROPRES variables
+d'environnement (non incluses ici) → la prod n'est PAS affectée. Mais si tu
+lances le backend EN LOCAL avec ce `.env`, il parlera à la mauvaise base :
+ne t'en sers pas pour du vrai travail de données sans avoir demandé à
+Daniel l'URI de prod (visible dans Render → Environment).
+
 ## 5. Installer les dépendances
 
 ```bash
@@ -97,10 +105,12 @@ flutter doctor                               # environnement Flutter OK
 
 ## 8. Spécificités iOS (ce Mac est LA machine iOS)
 
-- Bundle iOS : `com.cardellihermanos.hopetsit` (renommé pour l'IAP Apple —
-  si le dossier existant du Mac dit autre chose, c'est LUI qui a raison,
-  encore une raison de ne pas l'écraser).
-- Build en cours : **503** (Apple IAP, soumis App Store).
+- Bundle iOS : `com.cardellihermanos.hopetsit` (renommé pour l'IAP Apple).
+- **✅ App iOS ACCEPTÉE par Apple (08/07/2026)** — build **506** en ligne :
+  https://apps.apple.com/app/hopetsit/id6763645719
+- **Le code iOS v506 (IAP + Apple Sign-In) est SYNCHRONISÉ sur origin**
+  depuis le 12/07 (patch appliqué du Mac au PC) → un simple `git pull`
+  suffit désormais, plus de correctifs « locaux au Mac » en attente.
 - Guide de build : `HoPetSit_iOS_Build_Guide_v23.1.xxx.pdf` (Downloads du
   Mac) + `RESUME-MAC.md` à la racine.
 - Android peut aussi se builder ici : `cd frontend && flutter build apk
