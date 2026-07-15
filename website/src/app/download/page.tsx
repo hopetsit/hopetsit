@@ -21,13 +21,15 @@ export default function DownloadPage() {
         <StoreBadges center />
       </div>
 
-      {/* Aperçu de l'app sous les badges (réutilise les captures store). */}
+      {/* Aperçu de l'app sous les badges (réutilise les captures store).
+          v525 — Daniel : nouvelles captures US (Dallas/$, suffixe _us pour
+          casser le cache CDN). */}
       <div className="mt-14 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {[
-          "/screens/02_pawmap.jpg",
-          "/screens/03_sitter.jpg",
-          "/screens/05_live_tracking.jpg",
-          "/screens/04_chat.jpg",
+          "/screens/02_pawmap_us.jpg",
+          "/screens/03_sitter_us.jpg",
+          "/screens/05_live_tracking_us.jpg",
+          "/screens/04_chat_us.jpg",
         ].map((src) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img
