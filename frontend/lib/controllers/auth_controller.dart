@@ -15,6 +15,7 @@ import 'package:hopetsit/repositories/auth_repository.dart';
 // vers la page SignUpAs quand le backend répond 400 ROLE_REQUIRED.
 import 'package:hopetsit/views/auth/sign_up_as.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
+import 'package:hopetsit/services/meta_events_service.dart';
 import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -530,6 +531,10 @@ class AuthController extends GetxController {
         );
 
         if (!existingUser) {
+          // v529 — signale l'inscription à Meta (optimisation campagnes install).
+          unawaited(
+            MetaEventsService.instance.logCompletedRegistration(method: 'google'),
+          );
           // New user - navigate to choose service screen
           final email =
               userData?['email']?.toString() ??
@@ -785,6 +790,10 @@ class AuthController extends GetxController {
         final existingUser = response['existingUser'] as bool? ?? true;
 
         if (!existingUser) {
+          // v529 — signale l'inscription à Meta (optimisation campagnes install).
+          unawaited(
+            MetaEventsService.instance.logCompletedRegistration(method: 'apple'),
+          );
           final email =
               userData?['email']?.toString() ??
               response['email']?.toString() ??

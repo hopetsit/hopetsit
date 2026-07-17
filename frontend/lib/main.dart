@@ -23,6 +23,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
+import 'package:hopetsit/services/meta_events_service.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -144,6 +145,15 @@ void main() async {
   final useDemo = (dotenv.env['AIRWALLEX_USE_DEMO'] ?? 'false').toLowerCase() == 'true';
   // ignore: discarded_futures
   AirwallexPaymentService.init(live: !useDemo);
+
+  // v529 — SDK Meta (App Events) : init APRÈS la première frame pour que la
+  // popup ATT iOS ne s'affiche pas par-dessus l'écran de lancement (Apple
+  // refuse le prompt tant que l'app n'est pas au premier plan et active).
+  // Fire-and-forget, non fatal.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    // ignore: discarded_futures
+    MetaEventsService.instance.init();
+  });
 
   // Sprint 8 step 6 — optional Sentry. Opt-in via SENTRY_DSN_FRONTEND in .env.
   final sentryDsn = dotenv.env['SENTRY_DSN_FRONTEND'] ?? '';

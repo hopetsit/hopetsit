@@ -1,7 +1,7 @@
 name: hopetsit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 23.1.528+528
+version: 23.1.529+529
 
 environment:
   sdk: ^3.9.2
@@ -112,6 +112,13 @@ dependencies:
   # la feuille de code OFFICIELLE Apple (presentCodeRedemptionSheet, offer codes
   # cr????s dans App Store Connect). Import direct ??? d??pendance explicite.
   in_app_purchase_storekit: ^0.4.0
+  # v529 ??? SDK Meta (App Events) : signale l'install + les events a Facebook
+  # pour debloquer les campagnes "Installations d'app" (2-4x moins cher/install
+  # que le detour Trafic->site). App Meta ID 27796356886626061. init dans
+  # main.dart. iOS exige le consentement ATT avant le tracking pub -> couple
+  # avec app_tracking_transparency (popup Apple obligatoire).
+  facebook_app_events: ^0.20.1
+  app_tracking_transparency: ^2.0.6
 
 dev_dependencies:
   flutter_test:

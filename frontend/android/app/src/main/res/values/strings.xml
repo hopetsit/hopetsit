@@ -6,4 +6,9 @@
 -->
 <resources>
     <string name="app_name">HoPetSit</string>
+    <!-- v529 — SDK Meta (App Events). Passer par une ressource string (plutôt
+         qu'une valeur littérale dans le manifeste) évite que l'ID numérique soit
+         interprété comme un int par le SDK Facebook. -->
+    <string name="facebook_app_id">27796356886626061</string>
+    <string name="facebook_client_token">e049d5910b49cbe5a989073f9979ab7f</string>
 </resources>

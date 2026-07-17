@@ -147,6 +147,17 @@
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="hopetsit_default_channel" />
 
+        <!-- v529 — SDK Meta (App Events) : identifiants de l'app Meta HoPetSit
+             (App ID 27796356886626061). Signale les installs/events à Facebook
+             pour débloquer les campagnes « Installations d'app ». Pas de popup
+             ATT sur Android (règle Apple uniquement) → attribution ~complète. -->
+        <meta-data
+            android:name="com.facebook.sdk.ApplicationId"
+            android:value="@string/facebook_app_id" />
+        <meta-data
+            android:name="com.facebook.sdk.ClientToken"
+            android:value="@string/facebook_client_token" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
