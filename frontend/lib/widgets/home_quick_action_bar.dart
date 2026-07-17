@@ -652,7 +652,8 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     if (s.contains('walking')) return 'Promenade';
     if (s.contains('day_care')) return 'Garderie';
     if (s.contains('boarding') || s.contains('overnight')) return 'Garde nuit';
-    if (s.contains('sitting')) return 'Pet-sitting';
+    // v527 — retour Jose (R3-1) : S majuscule, uniforme avec PawMap etc.
+    if (s.contains('sitting')) return 'Pet-Sitting';
     return raw.replaceAll('_', ' ');
   }
 
