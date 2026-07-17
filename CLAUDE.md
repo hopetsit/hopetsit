@@ -47,10 +47,15 @@ PawPremium noir/or `#1c1726`→`#15120D` + or `#F4C04A`, badge membre rose
 `#F06AA0`→`#E0568B`. Web : font-display = Nunito.
 
 ## État actuel
-**Version app Android : 23.1.523 SOUMISE sur Google Play le 12/07/2026**
-(déploiement complet, en examen ; la v500 est LIVE en attendant). Console :
-compte Google **allomoteurs@gmail.com** → compte développeur « Daniel
-Armando ». APK/AAB aussi dans `~/Downloads` côté PC. Contenu v523 : fix points PawMap invisibles (clé du cache marqueurs),
+**Version app Android : 23.1.527 SOUMISE sur Google Play le 17/07/2026**
+(déploiement complet, en examen ; la **v523 est LIVE** dans 177 pays depuis
+~mi-juillet). v527 = 15 retours du testeur espagnol Jose + Daniel :
+Pet-Sitting, dates localisées + auto-slash + validation 18 ans, âge animal
+auto, avatar composeur, PawPoints/Carte traduits, carte propriétaire sur
+demandes directes, fin d'inscription réactive, drapeau+indicatif du pays à
+l'inscription, amis/suivi cross-rôle (backend v526). Console : compte Google
+**allomoteurs@gmail.com** → compte développeur « Daniel Armando ». APK/AAB
+dans `~/Downloads` côté PC (HoPetSit_v23.1.527.apk/.aab). Contenu v523 : fix points PawMap invisibles (clé du cache marqueurs),
 recherche de ville sur la carte AGRANDIE (n'animait que la carte cachée),
 photo de profil stable multi-appareils (login n'écrase plus un avatar existant
 par du vide — `_saveUserProfile` dans auth_controller), icône tarifs
