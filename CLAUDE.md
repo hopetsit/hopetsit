@@ -47,9 +47,13 @@ PawPremium noir/or `#1c1726`→`#15120D` + or `#F4C04A`, badge membre rose
 `#F06AA0`→`#E0568B`. Web : font-display = Nunito.
 
 ## État actuel
-**Version app Android : 23.1.527 SOUMISE sur Google Play le 17/07/2026**
-(déploiement complet, en examen ; la **v523 est LIVE** dans 177 pays depuis
-~mi-juillet). v527 = 15 retours du testeur espagnol Jose + Daniel :
+**Version app Android : 23.1.528 SOUMISE sur Google Play le 17/07/2026 au
+soir** (déploiement complet, en examen ; la **v527 est LIVE** dans 177 pays —
+validée le jour même de sa soumission). v528 = v527 + dernier libellé
+Pet-Sitting (fallback barre d'accueil), rebuild de vérification après le
+faux-positif « corrections absentes » (cause : téléphone resté sur la version
+Store — signature Google ≠ clé locale, l'APK sideloadé ne s'installe pas
+par-dessus sans désinstaller). v527 = 15 retours du testeur espagnol Jose + Daniel :
 Pet-Sitting, dates localisées + auto-slash + validation 18 ans, âge animal
 auto, avatar composeur, PawPoints/Carte traduits, carte propriétaire sur
 demandes directes, fin d'inscription réactive, drapeau+indicatif du pays à
