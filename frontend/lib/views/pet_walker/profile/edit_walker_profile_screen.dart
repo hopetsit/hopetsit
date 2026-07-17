@@ -6,6 +6,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/edit_walker_profile_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/date_slash_formatter.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
@@ -150,9 +151,11 @@ class EditWalkerProfileScreen extends StatelessWidget {
                     // v426 — Date de naissance (collectée à l'inscription).
                     CustomTextField(
                       labelText: 'signup_field_dob'.tr,
-                      hintText: 'JJ/MM/AAAA',
+                      hintText: 'date_hint_dmy'.tr,
                       controller: controller.dobController,
                       keyboardType: TextInputType.datetime,
+                      // v527 — retour Jose : slashs auto pendant la saisie.
+                      inputFormatters: [DateSlashFormatter()],
                       textInputAction: TextInputAction.next,
                     ),
 

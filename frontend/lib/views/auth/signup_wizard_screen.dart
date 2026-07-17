@@ -1,5 +1,6 @@
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
@@ -7,6 +8,7 @@ import 'package:hopetsit/controllers/sign_up_controller.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/date_slash_formatter.dart';
 import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
@@ -324,8 +326,12 @@ class SignupWizardScreen extends StatelessWidget {
         ),
         SizedBox(height: 16.h),
         _field(c.nameController, 'signup_field_name'.tr),
+        // v527 — retour Jose : hint localisé (DD/MM/AAAA en espagnol…) +
+        // slashs insérés automatiquement pendant la saisie.
         _field(c.dobController, 'signup_field_dob'.tr,
-            hint: 'JJ/MM/AAAA', kb: TextInputType.datetime),
+            hint: 'date_hint_dmy'.tr,
+            kb: TextInputType.datetime,
+            formatters: [DateSlashFormatter()]),
         _label('signup_field_language'.tr),
         Obx(() => _dropdown(
               value: c.selectedLanguage.value,
@@ -1053,12 +1059,14 @@ class SignupWizardScreen extends StatelessWidget {
   }
 
   Widget _field(TextEditingController ctrl, String label,
-      {String? hint, TextInputType? kb, String? suffix, bool dense = false}) {
+      {String? hint, TextInputType? kb, String? suffix, bool dense = false,
+      List<TextInputFormatter>? formatters}) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: dense ? 0 : 6.h),
       child: TextField(
         controller: ctrl,
         keyboardType: kb,
+        inputFormatters: formatters,
         decoration: _roundedDec(label: label, hint: hint, suffixText: suffix),
       ),
     );
