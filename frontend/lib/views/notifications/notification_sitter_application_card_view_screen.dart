@@ -91,6 +91,11 @@ class _NotificationSitterApplicationCardViewScreenState
       netPayout: booking.pricing?.netAmount,
       currency: booking.pricing?.currency ?? booking.sitter.currency,
       providerRole: derivedRole,
+      // v527 — retour Jose (R3-6) : photo + nom + ville du propriétaire
+      // affichés en haut de la carte de demande.
+      ownerName: booking.owner.name,
+      ownerAvatar: booking.owner.avatar.url,
+      ownerCity: booking.owner.address,
     );
   }
 

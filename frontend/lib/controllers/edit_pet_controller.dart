@@ -119,10 +119,31 @@ class EditPetController extends GetxController {
     super.onClose();
   }
 
+  /// v527 — retour Jose (R3-7) : la base stocke la date de naissance en ISO
+  /// (YYYY-MM-DD) mais l'utilisateur doit voir JJ/MM/AAAA. Conversion pour
+  /// l'AFFICHAGE uniquement ; toute autre valeur reste telle quelle.
+  String _dobForDisplay(String raw) {
+    final t = raw.trim();
+    final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(t);
+    if (m == null) return t;
+    return '${m.group(3)}/${m.group(2)}/${m.group(1)}';
+  }
+
+  /// v527 — retour Jose (R3-7) : reconversion JJ/MM/AAAA → YYYY-MM-DD (format
+  /// canonique déjà stocké en base) avant l'envoi du payload ; toute autre
+  /// valeur part telle quelle (rétrocompat).
+  String _dobForPayload(String raw) {
+    final t = raw.trim();
+    final m = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$').firstMatch(t);
+    if (m == null) return t;
+    return '${m.group(3)}-${m.group(2)}-${m.group(1)}';
+  }
+
   void _populateFormFromPetData(PetModel pet) {
     petNameController.text = pet.petName;
     breedController.text = pet.breed;
-    dateOfBirthController.text = pet.dob;
+    // v527 — retour Jose (R3-7) : affichage local JJ/MM/AAAA.
+    dateOfBirthController.text = _dobForDisplay(pet.dob);
     weightController.text = pet.weight;
     heightController.text = pet.height;
     passportNumberController.text = pet.passportNumber;
@@ -347,7 +368,8 @@ class EditPetController extends GetxController {
       final petData = <String, dynamic>{
         'petName': petNameController.text.trim(),
         'breed': breedController.text.trim(),
-        'dob': dateOfBirthController.text.trim(),
+        // v527 — retour Jose (R3-7) : renvoi au format canonique YYYY-MM-DD.
+        'dob': _dobForPayload(dateOfBirthController.text),
         'weight': weightController.text.trim(),
         'height': heightCleaned,
         'passportNumber': passportNumberController.text.trim(),

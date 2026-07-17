@@ -339,7 +339,18 @@ class OtpVerificationController extends GetxController {
       // tout (services, animaux, tarifs…). FIX : signup ET login → auto-login
       // + redirection vers le home du BON rôle (owner = orange, sitter = bleu,
       // walker = vert). Plus aucune page garderie/add-animal après l'inscription.
-      await _retryLoginAfterVerification();
+      //
+      // v527 — retour Jose (R3-14) : « la fin de l'inscription est molle ».
+      // verifyCode() remettait isLoading à false dans son finally → pendant
+      // l'auto-login le bouton réaffichait « Continuer » comme si rien ne se
+      // passait. On garde le spinner visible pendant TOUT le chemin de succès
+      // (auto-login + navigation), remis à false quoi qu'il arrive.
+      isLoading.value = true;
+      try {
+        await _retryLoginAfterVerification();
+      } finally {
+        isLoading.value = false;
+      }
     }
   }
 
@@ -358,8 +369,10 @@ class OtpVerificationController extends GetxController {
 
       final authController = Get.find<AuthController>();
 
-      // Add a small delay to ensure the verification success snackbar is visible
-      await Future.delayed(const Duration(milliseconds: 800));
+      // v527 — retour Jose (R3-14) : délai artificiel 800 ms → 200 ms. Le
+      // snackbar de succès reste visible par-dessus le home après navigation,
+      // inutile de bloquer l'utilisateur presque 1 s sur l'écran OTP.
+      await Future.delayed(const Duration(milliseconds: 200));
 
       // v425 — Daniel : "j'ai créé promeneur, ça m'a ouvert sitter". Cause :
       // le backend résout le rôle par ordre fixe owner>sitter>walker, donc un

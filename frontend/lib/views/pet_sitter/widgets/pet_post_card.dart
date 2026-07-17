@@ -518,9 +518,12 @@ class PetPostCard extends StatelessWidget {
                       // pour qu'elle ne lise plus comme un bloc neutre.
                       color: _accent.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(14.r),
+                      // v527 — retour Jose (R3-13) : le cadre « Demande de
+                      // réservation » était trop discret (1 px, alpha 0.20).
+                      // Bordure 2 px + couleur de rôle plus franche, sobre.
                       border: Border.all(
-                        color: _accent.withValues(alpha: 0.20),
-                        width: 1.w,
+                        color: _accent.withValues(alpha: 0.45),
+                        width: 2.w,
                       ),
                     ),
                     child: Column(

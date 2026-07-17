@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -31,6 +32,13 @@ class PetSitterApplication {
   // sitter=bleu). Derivé du serviceType du booking côté caller.
   final String providerRole;
 
+  // v527 — retour Jose (R3-6) : le détail de demande vu par le prestataire
+  // n'affichait NI le nom NI la photo du propriétaire (seulement un bouton
+  // « Voir profil »). On expose les infos owner pour la petite carte en haut.
+  final String ownerName;
+  final String ownerAvatar;
+  final String ownerCity;
+
   PetSitterApplication({
     required this.id,
     required this.petName,
@@ -51,6 +59,10 @@ class PetSitterApplication {
     this.netPayout,
     this.currency,
     this.providerRole = 'sitter',
+    // v527 — retour Jose (R3-6) : infos propriétaire (optionnelles).
+    this.ownerName = '',
+    this.ownerAvatar = '',
+    this.ownerCity = '',
   });
 }
 
@@ -113,6 +125,14 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // v527 — retour Jose (R3-6) : petite carte PROPRIÉTAIRE en haut
+          // (photo + nom + ville) — avant, le prestataire ne voyait pas qui
+          // envoyait la demande sans ouvrir le bouton « Voir profil ».
+          if (application.ownerName.trim().isNotEmpty) ...[
+            _buildOwnerCard(context),
+            SizedBox(height: 12.h),
+          ],
+
           // Pet Profile Section
           _buildPetProfileSection(),
 
@@ -236,6 +256,78 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// v527 — retour Jose (R3-6) : carte propriétaire (CircleAvatar avec photo,
+  /// fallback icône personne, nom + ville si dispo). Même style de carte que
+  /// le reste de l'écran (fond doux, coins arrondis).
+  Widget _buildOwnerCard(BuildContext context) {
+    final avatarUrl = application.ownerAvatar.trim();
+    final city = application.ownerCity.trim();
+    return Padding(
+      padding: EdgeInsets.only(right: 16.w),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color: AppColors.detailBoxColor,
+          borderRadius: BorderRadius.circular(14.r),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 24.r,
+              backgroundColor: _roleAccent.withValues(alpha: 0.12),
+              backgroundImage: avatarUrl.isNotEmpty
+                  ? CachedNetworkImageProvider(avatarUrl, maxWidth: 150)
+                  : null,
+              child: avatarUrl.isEmpty
+                  ? Icon(Icons.person, size: 24.sp, color: _roleAccent)
+                  : null,
+            ),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InterText(
+                    text: application.ownerName.trim(),
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary(context),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (city.isNotEmpty) ...[
+                    SizedBox(height: 2.h),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 13.sp,
+                          color: AppColors.textSecondary(context),
+                        ),
+                        SizedBox(width: 3.w),
+                        Flexible(
+                          child: InterText(
+                            text: city,
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.textSecondary(context),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

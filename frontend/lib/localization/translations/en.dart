@@ -220,6 +220,14 @@ const Map<String, String> enUSTranslations = <String, String>{
       'pawpoints_rewards_title': 'Rewards',
       'pawpoints_rewards_sub': 'Redeem your points for rewards',
       'pawpoints_how_to_earn': 'How to earn points',
+      // v527 — retour Jose (R3-10) : règles de gain traduites par leur key
+      // (le backend envoie le label en FR ; fallback = label serveur).
+      'pawpoints_earn_spotCreated': 'Add a PawSpot',
+      'pawpoints_earn_photoAdded': 'Add a photo',
+      'pawpoints_earn_spotValidated': 'Spot validated by the community',
+      'pawpoints_earn_usefulComment': 'Helpful comment',
+      'pawpoints_earn_correctReport': 'Confirmed report',
+      'pawpoints_earn_spotPopular': 'Very popular spot (50 likes)',
       'pawpoints_rewards_empty': 'Rewards coming soon',
       'pawpoints_not_enough': 'Not enough PawPoints',
       'pawpoints_redeemed': 'Reward redeemed!',
@@ -2602,7 +2610,8 @@ const Map<String, String> enUSTranslations = <String, String>{
       'post_walk_time_one': 'time',
       'post_walk_times': 'times',
       'post_walk_about_section': 'About the walk',
-      'post_pets_character_section': 'Your pets’ character',
+      // v527 — retour Jose (R3-12) : formulation neutre (plus de « your »).
+      'post_pets_character_section': 'Character of the pets',
       'post_important_info_section': 'Important information',
       'post_view_dog_details': 'View the dog’s details',
       'post_view_pets': 'View the pets',
@@ -3455,6 +3464,9 @@ const Map<String, String> enUSTranslations = <String, String>{
   'signup_field_name': 'Full name',
   'signup_field_dob': 'Date of birth',
   'date_hint_dmy': 'DD/MM/YYYY',
+  // v527 — retour Jose (R3-9) : validation date de naissance.
+  'dob_invalid': 'Invalid date of birth (DD/MM/YYYY).',
+  'dob_minor': 'You must be at least 18 years old to use HoPetSit.',
   'signup_field_language': 'App language',
       'otp_title': 'Email verification',
       'otp_subtitle': 'Enter the code sent to',

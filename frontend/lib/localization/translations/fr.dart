@@ -220,6 +220,14 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawpoints_rewards_title': 'Récompenses',
       'pawpoints_rewards_sub': 'Échange tes points contre des récompenses',
       'pawpoints_how_to_earn': 'Comment gagner des points',
+      // v527 — retour Jose (R3-10) : règles de gain traduites par leur key
+      // (le backend envoie le label en FR ; fallback = label serveur).
+      'pawpoints_earn_spotCreated': 'Ajouter un PawSpot',
+      'pawpoints_earn_photoAdded': 'Ajouter une photo',
+      'pawpoints_earn_spotValidated': 'Spot validé par la communauté',
+      'pawpoints_earn_usefulComment': 'Commentaire utile',
+      'pawpoints_earn_correctReport': 'Signalement confirmé',
+      'pawpoints_earn_spotPopular': 'Spot très populaire (50 likes)',
       'pawpoints_rewards_empty': 'Les récompenses arrivent bientôt',
       'pawpoints_not_enough': 'Pas assez de PawPoints',
       'pawpoints_redeemed': 'Récompense échangée !',
@@ -2556,7 +2564,8 @@ const Map<String, String> frFRTranslations = <String, String>{
       'post_walk_time_one': 'fois',
       'post_walk_times': 'fois',
       'post_walk_about_section': 'À propos de la promenade',
-      'post_pets_character_section': 'Caractère de vos animaux',
+      // v527 — retour Jose (R3-12) : formulation neutre (plus de « vos »).
+      'post_pets_character_section': 'Caractère des animaux',
       'post_important_info_section': 'Informations importantes',
       'post_view_dog_details': 'Voir les détails du chien',
       'post_view_pets': 'Voir les animaux',
@@ -3477,6 +3486,9 @@ const Map<String, String> frFRTranslations = <String, String>{
   'signup_field_name': 'Nom complet',
   'signup_field_dob': 'Date de naissance',
   'date_hint_dmy': 'JJ/MM/AAAA',
+  // v527 — retour Jose (R3-9) : validation date de naissance.
+  'dob_invalid': 'Date de naissance invalide (JJ/MM/AAAA).',
+  'dob_minor': 'Tu dois avoir au moins 18 ans pour utiliser HoPetSit.',
   'signup_field_language': 'Langue de l’app',
       'otp_title': 'Vérification e-mail',
       'otp_subtitle': 'Entre le code envoyé à',

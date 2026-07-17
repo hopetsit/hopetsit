@@ -613,6 +613,11 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
       ownerId: booking.owner.id,
       status: booking.status,
       paymentStatus: booking.paymentStatus ?? 'pending',
+      // v527 — retour Jose (R3-6) : photo + nom + ville du propriétaire
+      // affichés en haut de la carte de demande.
+      ownerName: booking.owner.name,
+      ownerAvatar: booking.owner.avatar.url,
+      ownerCity: booking.owner.address,
     );
   }
 

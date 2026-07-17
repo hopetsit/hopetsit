@@ -12,6 +12,8 @@ import 'package:hopetsit/models/walker_model.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
+import 'package:hopetsit/utils/date_slash_formatter.dart'
+    show parseDdMmYyyy, ageInYears;
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -360,8 +362,30 @@ class EditWalkerProfileController extends GetxController {
       if (skills.isNotEmpty) payload['skills'] = skills;
       if (countryCode.isNotEmpty) payload['countryCode'] = countryCode;
 
+      // v527 — retour Jose (R3-9) : la date de naissance saisie (facultative)
+      // doit être RÉELLE (JJ/MM/AAAA), non future, et ≥ 18 ans. Sinon on
+      // bloque la sauvegarde avec un message clair.
+      final dobText = dobController.text.trim();
+      if (dobText.isNotEmpty) {
+        final birth = parseDdMmYyyy(dobText);
+        if (birth == null || birth.isAfter(DateTime.now())) {
+          CustomSnackbar.showError(
+            title: 'common_error'.tr,
+            message: 'dob_invalid'.tr,
+          );
+          return false;
+        }
+        if (ageInYears(birth) < 18) {
+          CustomSnackbar.showError(
+            title: 'common_error'.tr,
+            message: 'dob_minor'.tr,
+          );
+          return false;
+        }
+      }
+
       // v426 — synchro inscription↔profil : champs additifs du wizard 5 étapes.
-      payload['dateOfBirth'] = dobController.text.trim();
+      payload['dateOfBirth'] = dobText;
       payload['acceptedPetTypes'] = acceptedAnimals.toList();
       payload['experienceTags'] = experienceTags.toList();
       payload['service'] = selectedServices.toList();

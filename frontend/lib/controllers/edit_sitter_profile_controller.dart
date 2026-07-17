@@ -7,6 +7,8 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
+import 'package:hopetsit/utils/date_slash_formatter.dart'
+    show parseDdMmYyyy, ageInYears;
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
@@ -465,6 +467,28 @@ class EditSitterProfileController extends GetxController {
           message: 'snackbar_text_monthly_rate_must_be_greater_than_0'.tr,
         );
         return false;
+      }
+
+      // v527 — retour Jose (R3-9) : la date de naissance saisie (facultative)
+      // doit être RÉELLE (JJ/MM/AAAA), non future, et ≥ 18 ans. Sinon on
+      // bloque la sauvegarde avec un message clair.
+      final dobText = dobController.text.trim();
+      if (dobText.isNotEmpty) {
+        final birth = parseDdMmYyyy(dobText);
+        if (birth == null || birth.isAfter(DateTime.now())) {
+          CustomSnackbar.showError(
+            title: 'common_error'.tr,
+            message: 'dob_invalid'.tr,
+          );
+          return false;
+        }
+        if (ageInYears(birth) < 18) {
+          CustomSnackbar.showError(
+            title: 'common_error'.tr,
+            message: 'dob_minor'.tr,
+          );
+          return false;
+        }
       }
 
       // v20.0.19 — Save ONLY identity + location + bio/skills/language.

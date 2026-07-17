@@ -142,7 +142,9 @@ class PaymentManagementScreen extends StatelessWidget {
         _quickIcon(
           context,
           Icons.credit_card_rounded,
-          'Carte',
+          // v527 — retour Jose (R3-11) : « Carte » était en dur en français ;
+          // la clé existe déjà dans les 6 langues.
+          'payout_chip_card'.tr,
           false,
           const Color(0xFF7C3AED),
         ),

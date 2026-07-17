@@ -13,6 +13,8 @@ import 'package:hopetsit/views/auth/otp_verification_screen.dart';
 import 'package:hopetsit/controllers/otp_verification_controller.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/date_slash_formatter.dart'
+    show parseDdMmYyyy, ageInYears;
 import 'package:hopetsit/utils/storage_keys.dart';
 
 class SignUpController extends GetxController {
@@ -737,6 +739,19 @@ class SignUpController extends GetxController {
     if (e != null) return e;
     if (confirmPasswordController.text != passwordController.text) {
       return 'signup_pw_mismatch'.tr;
+    }
+    // v527 — retour Jose (R3-9) : si une date de naissance est saisie (champ
+    // toujours FACULTATIF), elle doit être une date RÉELLE (JJ/MM/AAAA), non
+    // future, et l'utilisateur doit avoir au moins 18 ans.
+    final dobText = dobController.text.trim();
+    if (dobText.isNotEmpty) {
+      final birth = parseDdMmYyyy(dobText);
+      if (birth == null || birth.isAfter(DateTime.now())) {
+        return 'dob_invalid'.tr;
+      }
+      if (ageInYears(birth) < 18) {
+        return 'dob_minor'.tr;
+      }
     }
     return null;
   }

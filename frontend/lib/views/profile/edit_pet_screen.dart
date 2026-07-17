@@ -8,6 +8,7 @@ import 'package:hopetsit/controllers/edit_pet_controller.dart';
 import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
+import 'package:hopetsit/utils/date_slash_formatter.dart' show ageInYears;
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/pet_extra_fields.dart';
@@ -354,8 +355,22 @@ class EditPetScreen extends StatelessWidget {
                                 lastDate: DateTime.now(),
                               );
                               if (picked != null) {
+                                // v527 — retour Jose (R3-7) : la date
+                                // s'affichait en ISO « 2021-11-01 ». On écrit
+                                // JJ/MM/AAAA (format local) et on préremplit
+                                // le champ Âge (années révolues) calculé
+                                // depuis la date choisie.
+                                final dd =
+                                    picked.day.toString().padLeft(2, '0');
+                                final mm =
+                                    picked.month.toString().padLeft(2, '0');
                                 controller.dateOfBirthController.text =
-                                    picked.toString().split(' ')[0];
+                                    '$dd/$mm/${picked.year}';
+                                final years = ageInYears(picked);
+                                if (years >= 0) {
+                                  controller.ageController.text =
+                                      years.toString();
+                                }
                               }
                             },
                           ),

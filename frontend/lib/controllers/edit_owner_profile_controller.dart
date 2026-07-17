@@ -7,6 +7,8 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
+import 'package:hopetsit/utils/date_slash_formatter.dart'
+    show parseDdMmYyyy, ageInYears;
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -294,8 +296,30 @@ class EditOwnerProfileController extends GetxController {
         payload['countryCode'] = countryCode;
       }
 
+      // v527 — retour Jose (R3-9) : la date de naissance saisie (facultative)
+      // doit être RÉELLE (JJ/MM/AAAA), non future, et ≥ 18 ans. Sinon on
+      // bloque la sauvegarde avec un message clair.
+      final dobText = dobController.text.trim();
+      if (dobText.isNotEmpty) {
+        final birth = parseDdMmYyyy(dobText);
+        if (birth == null || birth.isAfter(DateTime.now())) {
+          CustomSnackbar.showError(
+            title: 'common_error'.tr,
+            message: 'dob_invalid'.tr,
+          );
+          return false;
+        }
+        if (ageInYears(birth) < 18) {
+          CustomSnackbar.showError(
+            title: 'common_error'.tr,
+            message: 'dob_minor'.tr,
+          );
+          return false;
+        }
+      }
+
       // v426 — synchro inscription↔profil : champs additifs du wizard owner.
-      payload['dateOfBirth'] = dobController.text.trim();
+      payload['dateOfBirth'] = dobText;
       payload['searchPreferences'] = {
         'services': searchServices.toList(),
         'radiusKm': int.tryParse(searchRadius.value) ?? 20,

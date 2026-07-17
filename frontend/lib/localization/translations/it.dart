@@ -2133,7 +2133,8 @@ const Map<String, String> itITTranslations = <String, String>{
       'post_walk_time_one': 'volta',
       'post_walk_times': 'volte',
       'post_walk_about_section': 'Informazioni sulla passeggiata',
-      'post_pets_character_section': 'Carattere dei tuoi animali',
+      // v527 — retour Jose (R3-12) : formulation neutre (plus de « tuoi »).
+      'post_pets_character_section': 'Carattere degli animali',
       'post_important_info_section': 'Informazioni importanti',
       'post_view_dog_details': 'Vedi i dettagli del cane',
       'post_view_pets': 'Vedi gli animali',
@@ -3082,6 +3083,14 @@ const Map<String, String> itITTranslations = <String, String>{
       'pawpoints_rewards_title': 'Ricompense',
       'pawpoints_rewards_sub': 'Scambia i tuoi punti con ricompense',
       'pawpoints_how_to_earn': 'Come guadagnare punti',
+      // v527 — retour Jose (R3-10) : règles de gain traduites par leur key
+      // (le backend envoie le label en FR ; fallback = label serveur).
+      'pawpoints_earn_spotCreated': 'Aggiungi un PawSpot',
+      'pawpoints_earn_photoAdded': 'Aggiungi una foto',
+      'pawpoints_earn_spotValidated': 'Spot convalidato dalla community',
+      'pawpoints_earn_usefulComment': 'Commento utile',
+      'pawpoints_earn_correctReport': 'Segnalazione confermata',
+      'pawpoints_earn_spotPopular': 'Spot molto popolare (50 like)',
       'pawpoints_rewards_empty': 'Ricompense in arrivo',
       'pawpoints_not_enough': 'PawPoints insufficienti',
       'pawpoints_redeemed': 'Ricompensa riscattata',
@@ -3453,6 +3462,9 @@ const Map<String, String> itITTranslations = <String, String>{
   'signup_field_name': 'Nome completo',
   'signup_field_dob': 'Data di nascita',
   'date_hint_dmy': 'GG/MM/AAAA',
+  // v527 — retour Jose (R3-9) : validation date de naissance.
+  'dob_invalid': 'Data di nascita non valida (GG/MM/AAAA).',
+  'dob_minor': 'Devi avere almeno 18 anni per usare HoPetSit.',
   'signup_field_language': 'Lingua dell’app',
       'otp_title': 'Verifica e-mail',
       'otp_subtitle': 'Inserisci il codice inviato a',

@@ -1105,7 +1105,15 @@ class _RewardsSheetState extends State<_RewardsSheet> {
 
   Widget _earnRow(BuildContext context, Map<String, dynamic> r) {
     final icon = (r['icon'] ?? '➕').toString();
-    final label = (r['label'] ?? '').toString();
+    // v527 — retour Jose (R3-10) : le backend envoie le label en FRANÇAIS.
+    // On traduit côté app via la `key` de la règle (pawpoints_earn_<key>),
+    // avec fallback sur le label serveur si la clé i18n n'existe pas.
+    final ruleKey = (r['key'] ?? '').toString();
+    final i18nKey = 'pawpoints_earn_$ruleKey';
+    final translated = i18nKey.tr;
+    final label = (ruleKey.isNotEmpty && translated != i18nKey)
+        ? translated
+        : (r['label'] ?? '').toString();
     final pts = (r['points'] as num?)?.toInt() ?? 0;
     return Padding(
       padding: EdgeInsets.only(bottom: 6.h),

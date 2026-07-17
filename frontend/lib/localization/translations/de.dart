@@ -2156,7 +2156,8 @@ const Map<String, String> deDETranslations = <String, String>{
       'post_walk_time_one': 'Mal',
       'post_walk_times': 'Mal',
       'post_walk_about_section': 'Über den Spaziergang',
-      'post_pets_character_section': 'Charakter deiner Tiere',
+      // v527 — retour Jose (R3-12) : formulation neutre (plus de « deiner »).
+      'post_pets_character_section': 'Charakter der Tiere',
       'post_important_info_section': 'Wichtige Informationen',
       'post_view_dog_details': 'Details zum Hund ansehen',
       'post_view_pets': 'Tiere ansehen',
@@ -3085,6 +3086,14 @@ const Map<String, String> deDETranslations = <String, String>{
       'pawpoints_rewards_title': 'Prämien',
       'pawpoints_rewards_sub': 'Tausche deine Punkte gegen Belohnungen',
       'pawpoints_how_to_earn': 'So sammelst du Punkte',
+      // v527 — retour Jose (R3-10) : règles de gain traduites par leur key
+      // (le backend envoie le label en FR ; fallback = label serveur).
+      'pawpoints_earn_spotCreated': 'PawSpot hinzufügen',
+      'pawpoints_earn_photoAdded': 'Foto hinzufügen',
+      'pawpoints_earn_spotValidated': 'Von der Community bestätigter Spot',
+      'pawpoints_earn_usefulComment': 'Hilfreicher Kommentar',
+      'pawpoints_earn_correctReport': 'Bestätigte Meldung',
+      'pawpoints_earn_spotPopular': 'Sehr beliebter Spot (50 Likes)',
       'pawpoints_rewards_empty': 'Prämien bald verfügbar',
       'pawpoints_not_enough': 'Nicht genug PawPoints',
       'pawpoints_redeemed': 'Prämie eingelöst',
@@ -3458,6 +3467,9 @@ const Map<String, String> deDETranslations = <String, String>{
   'signup_field_name': 'Vollständiger Name',
   'signup_field_dob': 'Geburtsdatum',
   'date_hint_dmy': 'TT/MM/JJJJ',
+  // v527 — retour Jose (R3-9) : validation date de naissance.
+  'dob_invalid': 'Ungültiges Geburtsdatum (TT/MM/JJJJ).',
+  'dob_minor': 'Du musst mindestens 18 Jahre alt sein, um HoPetSit zu nutzen.',
   'signup_field_language': 'App-Sprache',
       'otp_title': 'E-Mail-Bestätigung',
       'otp_subtitle': 'Gib den gesendeten Code ein für',

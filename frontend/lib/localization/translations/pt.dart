@@ -2010,7 +2010,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'post_walk_time_one': 'vez',
       'post_walk_times': 'vezes',
       'post_walk_about_section': 'Sobre o passeio',
-      'post_pets_character_section': 'Caráter dos seus animais',
+      // v527 — retour Jose (R3-12) : formulation neutre (plus de « seus »).
+      'post_pets_character_section': 'Caráter dos animais',
       'post_important_info_section': 'Informações importantes',
       'post_view_dog_details': 'Ver os detalhes do cão',
       'post_view_pets': 'Ver os animais',
@@ -2920,6 +2921,14 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'pawpoints_rewards_title': 'Recompensas',
       'pawpoints_rewards_sub': 'Troca os teus pontos por recompensas',
       'pawpoints_how_to_earn': 'Como ganhar pontos',
+      // v527 — retour Jose (R3-10) : règles de gain traduites par leur key
+      // (le backend envoie le label en FR ; fallback = label serveur).
+      'pawpoints_earn_spotCreated': 'Adicionar um PawSpot',
+      'pawpoints_earn_photoAdded': 'Adicionar uma foto',
+      'pawpoints_earn_spotValidated': 'Spot validado pela comunidade',
+      'pawpoints_earn_usefulComment': 'Comentário útil',
+      'pawpoints_earn_correctReport': 'Denúncia confirmada',
+      'pawpoints_earn_spotPopular': 'Spot muito popular (50 likes)',
       'pawpoints_rewards_empty': 'Recompensas em breve',
       'pawpoints_not_enough': 'PawPoints insuficientes',
       'pawpoints_redeemed': 'Recompensa resgatada',
@@ -3293,6 +3302,9 @@ const Map<String, String> ptPTTranslations = <String, String>{
   'signup_field_name': 'Nome completo',
   'signup_field_dob': 'Data de nascimento',
   'date_hint_dmy': 'DD/MM/AAAA',
+  // v527 — retour Jose (R3-9) : validation date de naissance.
+  'dob_invalid': 'Data de nascimento inválida (DD/MM/AAAA).',
+  'dob_minor': 'Tens de ter pelo menos 18 anos para usar o HoPetSit.',
   'signup_field_language': 'Idioma da app',
       'otp_title': 'Verificação de e-mail',
       'otp_subtitle': 'Insere o código enviado para',
