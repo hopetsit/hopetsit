@@ -13,6 +13,8 @@ import 'package:hopetsit/views/auth/otp_verification_screen.dart';
 import 'package:hopetsit/controllers/otp_verification_controller.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:country_code_picker/country_code_picker.dart'
+    show CountryCode;
 import 'package:hopetsit/utils/date_slash_formatter.dart'
     show parseDdMmYyyy, ageInYears;
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -123,12 +125,20 @@ class SignUpController extends GetxController {
   // l'app ET l'indicatif téléphonique sont déduits de la locale du device
   // (Get.deviceLocale) : region ES → langue Español + indicatif +34. On ne fixe
   // QUE la valeur initiale (l'utilisateur reste libre de changer les deux).
-  /// ISO 3166-1 alpha-2 du device (ex. 'ES'/'FR'), fallback 'FR'. Utilisé comme
+  /// ISO 3166-1 alpha-2 du device (ex. 'ES'/'FR'). Utilisé comme
   /// `initialSelection` du CountryCodePicker dans le wizard d'inscription.
+  /// v527 — Daniel : « à l'inscription, drapeau + indicatif du pays où
+  /// l'utilisateur a téléchargé l'app (USA → 🇺🇸 +1, Espagne → 🇪🇸 +34…) ».
+  /// Fallback en cascade : région du device → langue du device (es → ES,
+  /// fr → FR…) → US (marché principal), au lieu de l'ancien FR figé.
   String get initialCountryIso {
     final iso = Get.deviceLocale?.countryCode?.toUpperCase();
     if (iso != null && RegExp(r'^[A-Z]{2}$').hasMatch(iso)) return iso;
-    return 'FR';
+    const langToCountry = {
+      'fr': 'FR', 'es': 'ES', 'de': 'DE', 'it': 'IT', 'pt': 'PT', 'en': 'US',
+    };
+    final lang = Get.deviceLocale?.languageCode.toLowerCase();
+    return langToCountry[lang] ?? 'US';
   }
 
   @override
@@ -148,6 +158,15 @@ class SignUpController extends GetxController {
     // Indicatif + pays par défaut = région du device (ISO-2 → on garde l'ISO
     // pour le CountryCodePicker, qui renverra l'indicatif via onChanged).
     selectedCountry.value = initialCountryIso;
+    // v527 — BUG racine du « 🇨🇦 +1 » de Jose : le picker AFFICHAIT le bon
+    // drapeau (initialSelection) mais selectedCountryCode restait sur son
+    // défaut '+1' tant que l'utilisateur ne TOUCHAIT pas le picker → le
+    // profil était enregistré avec +1 quel que soit le pays. On initialise
+    // l'indicatif à partir du même ISO que le drapeau affiché.
+    try {
+      final dial = CountryCode.fromCountryCode(initialCountryIso).dialCode;
+      if (dial != null && dial.isNotEmpty) selectedCountryCode.value = dial;
+    } catch (_) {/* ISO hors liste du package → on garde +1 */}
   }
 
   /// Règles mot de passe (pour la checklist live de l'étape 1).
