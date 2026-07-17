@@ -20,6 +20,10 @@ const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const logger = require('../utils/logger');
+// v526 — un humain = jusqu'à 3 docs de rôle (email/oldId). Les amitiés
+// référencent UN doc précis → toutes les lectures « par personne » doivent
+// matcher le groupe complet, sinon l'ami disparaît dès qu'il change de rôle.
+const { identityGroup } = require('../utils/identityGroup');
 
 const router = express.Router();
 
@@ -532,7 +536,10 @@ async function fetchUserMini(id, modelName) {
   };
 }
 
-async function enrichFriendship(friendship, viewerId, viewerHasPawFollow) {
+// v526 — viewerIds (Set optionnel) = TOUTES les identités du viewer ; sans
+// lui, un viewer connecté sous un autre rôle que celui de l'amitié était
+// pris pour « l'autre » et voyait les flags inversés.
+async function enrichFriendship(friendship, viewerId, viewerHasPawFollow, viewerIds) {
   // v23.1 part 226 — quand viewerHasPawFollow n'est pas explicitement
   // passe (cas des single-call sites apres mutation accept/share/etc),
   // on lookup soi-meme. Pour les bulk-call sites (/friends + /requests),
@@ -545,7 +552,9 @@ async function enrichFriendship(friendship, viewerId, viewerHasPawFollow) {
       viewerHasPawFollow = false;
     }
   }
-  const isRequester = String(friendship.requesterId) === String(viewerId);
+  const isRequester = viewerIds
+    ? viewerIds.has(String(friendship.requesterId))
+    : String(friendship.requesterId) === String(viewerId);
   let other = isRequester
     ? await fetchUserMini(friendship.addresseeId, friendship.addresseeModel)
     : await fetchUserMini(friendship.requesterId, friendship.requesterModel);
@@ -892,18 +901,22 @@ router.get('/', requireAuth, async (req, res) => {
     // filtre sur model rate des docs valides. On supprime ce filtre :
     // si f.addresseeId OR f.requesterId === user.id, c'est ma friendship
     // peu importe le model.
+    // v526 — cross-rôle : une amitié créée quand j'étais sitter doit rester
+    // visible quand je me connecte en owner/walker (app ET site web) → on
+    // matche TOUTES mes identités, pas seulement le doc du rôle courant.
+    const g = await identityGroup(user.id);
     const friendships = (await Friendship.find({
       status: 'accepted',
       $or: [
-        { requesterId: user.id },
-        { addresseeId: user.id },
+        { requesterId: { $in: g.ids } },
+        { addresseeId: { $in: g.ids } },
       ],
     })
       .sort({ acceptedAt: -1 })
       .lean()).filter(
         (f) =>
-          String(f.requesterId) === String(user.id) ||
-          String(f.addresseeId) === String(user.id),
+          g.set.has(String(f.requesterId)) ||
+          g.set.has(String(f.addresseeId)),
       );
     // v23.1 part 210 — diagnostic log
     logger.info(
@@ -939,7 +952,7 @@ router.get('/', requireAuth, async (req, res) => {
     const { hasActivePawFollow } = require('../models/UserSubscription');
     const viewerHasPawFollow = await hasActivePawFollow(user.id).catch(() => false);
     const enriched = await Promise.all(
-      friendships.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow)),
+      friendships.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow, g.set)),
     );
     // v451 — Daniel : « les anciens amis au profil supprimé restaient dans ma
     // liste — quand on supprime un compte, tout doit disparaître ». On NE garde
@@ -1015,18 +1028,21 @@ router.get('/requests', requireAuth, async (req, res) => {
     // pas pour une raison subtile (peut-etre trim, encodage, ou bug
     // Mongoose). On REWRITE en mode "fetch all + filter in JS" exactement
     // comme /diagnose pour garantir la coherence.
+    // v526 — cross-rôle : une demande envoyée à mon doc sitter doit être
+    // visible/acceptable même connecté en owner/walker (app ET site web).
+    const g = await identityGroup(user.id);
     const all = await Friendship.find({
       status: 'pending',
       $or: [
-        { addresseeId: user.id },
-        { requesterId: user.id },
+        { addresseeId: { $in: g.ids } },
+        { requesterId: { $in: g.ids } },
       ],
     }).lean();
     const incoming = all.filter(
-      (f) => String(f.addresseeId) === String(user.id),
+      (f) => g.set.has(String(f.addresseeId)),
     );
     const outgoing = all.filter(
-      (f) => String(f.requesterId) === String(user.id),
+      (f) => g.set.has(String(f.requesterId)) && !g.set.has(String(f.addresseeId)),
     );
     logger.info(
       `[friends/requests] user=${user.model}:${user.id} ` +
@@ -1068,8 +1084,8 @@ router.get('/requests', requireAuth, async (req, res) => {
     const { hasActivePawFollow } = require('../models/UserSubscription');
     const viewerHasPawFollow = await hasActivePawFollow(user.id).catch(() => false);
     const [incomingEnriched, outgoingEnriched] = await Promise.all([
-      Promise.all(incoming.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow))),
-      Promise.all(outgoing.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow))),
+      Promise.all(incoming.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow, g.set))),
+      Promise.all(outgoing.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow, g.set))),
     ]);
 
     res.json({
@@ -1096,7 +1112,15 @@ router.post('/request', requireAuth, async (req, res) => {
     }
 
     const user = me(req);
-    if (String(targetId) === String(user.id) && targetModel === user.model) {
+    // v526 — groupes d'identité des DEUX côtés : (1) impossible de s'ajouter
+    // soi-même via un autre de ses rôles, (2) une amitié existante entre les
+    // deux PERSONNES est détectée quel que soit le couple de rôles utilisé
+    // (sinon doublons + « déjà amis » incompréhensibles).
+    const [gMe, gOther] = await Promise.all([
+      identityGroup(user.id),
+      identityGroup(targetId),
+    ]);
+    if (gMe.set.has(String(targetId))) {
       return res.status(400).json({ error: 'Cannot befriend yourself.' });
     }
 
@@ -1106,25 +1130,18 @@ router.post('/request', requireAuth, async (req, res) => {
     // pending (>7 jours) bloque toute nouvelle demande. On considère
     // expirée une demande pending de >7 jours et on la supprime avant
     // de créer la nouvelle.
-    // v23.1 part 212 — Daniel : "jme co sur allomoteur aucune demande
-    // recu". On rend la detection de doublon case-insensitive sur model
-    // pour matcher les vieux docs en lowercase qui sinon createraient
-    // des doublons + creent l'illusion "deja amis".
-    const userModelVariants = [user.model, user.model.toLowerCase()];
-    const targetModelVariants = [targetModel, targetModel.toLowerCase()];
+    // v526 — la détection croise les groupes d'identité (remplace le match
+    // strict id+model de v212 : plus besoin des variantes de casse, on ne
+    // filtre plus sur model du tout).
     const existing = await Friendship.findOne({
       $or: [
         {
-          requesterId: user.id,
-          requesterModel: { $in: userModelVariants },
-          addresseeId: targetId,
-          addresseeModel: { $in: targetModelVariants },
+          requesterId: { $in: gMe.ids },
+          addresseeId: { $in: gOther.ids },
         },
         {
-          requesterId: targetId,
-          requesterModel: { $in: targetModelVariants },
-          addresseeId: user.id,
-          addresseeModel: { $in: userModelVariants },
+          requesterId: { $in: gOther.ids },
+          addresseeId: { $in: gMe.ids },
         },
       ],
     });
@@ -1133,9 +1150,7 @@ router.post('/request', requireAuth, async (req, res) => {
         ? (Date.now() - new Date(existing.createdAt).getTime()) /
           (1000 * 60 * 60 * 24)
         : 0;
-      const iAmRequester =
-        String(existing.requesterId) === String(user.id) &&
-        existing.requesterModel === user.model;
+      const iAmRequester = gMe.set.has(String(existing.requesterId));
       // v23.1.178 — Daniel : "demande amis erreur une demande est deja en
       // attente alors que sa marche pas". Cas pratique : Daniel a envoyé
       // une demande à witoulek hier, witoulek n'a jamais reçu de notif
@@ -1353,7 +1368,10 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
     const user = me(req);
     const f = await Friendship.findById(req.params.id);
     if (!f) return res.status(404).json({ error: 'Request not found.' });
-    if (String(f.addresseeId) !== String(user.id) || f.addresseeModel !== user.model) {
+    // v526 — cross-rôle : la demande peut viser un autre de mes docs de rôle
+    // (ex : reçue sur mon doc sitter, j'accepte depuis le site en owner).
+    const gAccept = await identityGroup(user.id);
+    if (!gAccept.set.has(String(f.addresseeId))) {
       return res.status(403).json({ error: 'Only the addressee can accept.' });
     }
     if (f.status !== 'pending') {
@@ -1417,7 +1435,7 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
       logger.warn('[friends/accept] socket emit failed', socketErr);
     }
 
-    res.json({ friendship: await enrichFriendship(f, user.id) });
+    res.json({ friendship: await enrichFriendship(f, user.id, undefined, gAccept.set) });
   } catch (e) {
     logger.error('[friends/accept]', e);
     res.status(500).json({ error: e.message });
@@ -1430,7 +1448,9 @@ router.post('/:id/decline', requireAuth, async (req, res) => {
     const user = me(req);
     const f = await Friendship.findById(req.params.id);
     if (!f) return res.status(404).json({ error: 'Request not found.' });
-    if (String(f.addresseeId) !== String(user.id) || f.addresseeModel !== user.model) {
+    // v526 — cross-rôle (cf. /accept).
+    const gDecline = await identityGroup(user.id);
+    if (!gDecline.set.has(String(f.addresseeId))) {
       return res.status(403).json({ error: 'Only the addressee can decline.' });
     }
     f.status = 'declined';
@@ -1449,9 +1469,11 @@ router.delete('/:id', requireAuth, async (req, res) => {
     const user = me(req);
     const f = await Friendship.findById(req.params.id);
     if (!f) return res.status(404).json({ error: 'Not found.' });
+    // v526 — cross-rôle : je peux retirer un ami depuis n'importe lequel de
+    // mes profils, pas seulement celui référencé dans l'amitié.
+    const gDel = await identityGroup(user.id);
     const isParty =
-      (String(f.requesterId) === String(user.id) && f.requesterModel === user.model) ||
-      (String(f.addresseeId) === String(user.id) && f.addresseeModel === user.model);
+      gDel.set.has(String(f.requesterId)) || gDel.set.has(String(f.addresseeId));
     if (!isParty) return res.status(403).json({ error: 'Not your friendship.' });
     await f.deleteOne();
     res.json({ ok: true });
@@ -1470,17 +1492,18 @@ router.post('/:id/share', requireAuth, async (req, res) => {
     if (!f || f.status !== 'accepted') {
       return res.status(404).json({ error: 'Accepted friendship not found.' });
     }
-    const isRequester =
-      String(f.requesterId) === String(user.id) && f.requesterModel === user.model;
-    const isAddressee =
-      String(f.addresseeId) === String(user.id) && f.addresseeModel === user.model;
+    // v526 — cross-rôle : le toggle marche depuis n'importe lequel de mes
+    // profils (le flag modifié reste celui de MON côté de l'amitié).
+    const gShare = await identityGroup(user.id);
+    const isRequester = gShare.set.has(String(f.requesterId));
+    const isAddressee = !isRequester && gShare.set.has(String(f.addresseeId));
     if (!isRequester && !isAddressee) {
       return res.status(403).json({ error: 'Not your friendship.' });
     }
     if (isRequester) f.requesterSharesPosition = !!share;
     if (isAddressee) f.addresseeSharesPosition = !!share;
     await f.save();
-    res.json({ friendship: await enrichFriendship(f, user.id) });
+    res.json({ friendship: await enrichFriendship(f, user.id, undefined, gShare.set) });
   } catch (e) {
     logger.error('[friends/share]', e);
     res.status(500).json({ error: e.message });
@@ -1517,11 +1540,17 @@ router.get('/:id/track-access', requireAuth, async (req, res) => {
     if (!otherId) return res.status(400).json({ error: 'Friend id required.' });
 
     // Friendship status check
+    // v526 — cross-rôle : l'amitié peut lier n'importe quel couple de nos
+    // docs de rôle respectifs.
+    const [gMeTrack, gOtherTrack] = await Promise.all([
+      identityGroup(user.id),
+      identityGroup(otherId),
+    ]);
     const friendship = await Friendship.findOne({
       status: 'accepted',
       $or: [
-        { requesterId: user.id, addresseeId: otherId },
-        { requesterId: otherId, addresseeId: user.id },
+        { requesterId: { $in: gMeTrack.ids }, addresseeId: { $in: gOtherTrack.ids } },
+        { requesterId: { $in: gOtherTrack.ids }, addresseeId: { $in: gMeTrack.ids } },
       ],
     }).lean();
     if (!friendship) {
@@ -1557,9 +1586,9 @@ router.get('/:id/track-access', requireAuth, async (req, res) => {
     // requesterSharesPosition / addresseeSharesPosition (cf. mapSocket.js:53-66
     // et Friendship.js:53-54).
     const otherSharesWithMe =
-      (String(friendship.requesterId) === String(otherId) &&
+      (gOtherTrack.set.has(String(friendship.requesterId)) &&
         friendship.requesterSharesPosition === true) ||
-      (String(friendship.addresseeId) === String(otherId) &&
+      (gOtherTrack.set.has(String(friendship.addresseeId)) &&
         friendship.addresseeSharesPosition === true);
     if (otherSharesWithMe) {
       return res.json({ canTrack: true, reason: 'shared' });
@@ -1598,11 +1627,16 @@ router.get('/:id/last-position', requireAuth, async (req, res) => {
     if (!otherId) return res.status(400).json({ error: 'Friend id required.' });
 
     // Reuse the track-access logic for security.
+    // v526 — cross-rôle des deux côtés (cf. /track-access).
+    const [gMeLp, gOtherLp] = await Promise.all([
+      identityGroup(user.id),
+      identityGroup(otherId),
+    ]);
     const friendship = await Friendship.findOne({
       status: 'accepted',
       $or: [
-        { requesterId: user.id, addresseeId: otherId },
-        { requesterId: otherId, addresseeId: user.id },
+        { requesterId: { $in: gMeLp.ids }, addresseeId: { $in: gOtherLp.ids } },
+        { requesterId: { $in: gOtherLp.ids }, addresseeId: { $in: gMeLp.ids } },
       ],
     }).lean();
 
@@ -1612,7 +1646,7 @@ router.get('/:id/last-position', requireAuth, async (req, res) => {
     // si PawFollow / famille — son choix manuel prime sur le bypass abo.
     // On lit son share-flag EN PREMIER : si false → 403 immediat.
     const otherShareFlag = friendship
-      ? (String(friendship.requesterId) === String(otherId)
+      ? (gOtherLp.set.has(String(friendship.requesterId))
           ? friendship.requesterSharesPosition
           : friendship.addresseeSharesPosition)
       : null;
@@ -1643,9 +1677,9 @@ router.get('/:id/last-position', requireAuth, async (req, res) => {
       // Per-friendship share flag.
       if (!canTrack) {
         const shares =
-          (String(friendship.requesterId) === String(otherId) &&
+          (gOtherLp.set.has(String(friendship.requesterId)) &&
             friendship.requesterSharesPosition === true) ||
-          (String(friendship.addresseeId) === String(otherId) &&
+          (gOtherLp.set.has(String(friendship.addresseeId)) &&
             friendship.addresseeSharesPosition === true);
         if (shares) canTrack = true;
       }
@@ -1658,32 +1692,35 @@ router.get('/:id/last-position', requireAuth, async (req, res) => {
       });
     }
 
-    // Determine the other's model (Owner/Sitter/Walker) by querying each.
-    let otherDoc = null;
-    let otherModel = null;
-    const Owner = require('../models/Owner');
-    const Sitter = require('../models/Sitter');
-    const Walker = require('../models/Walker');
-    for (const [Model, name] of [[Owner, 'Owner'], [Sitter, 'Sitter'], [Walker, 'Walker']]) {
-      try {
-        const doc = await Model.findById(otherId).select('location').lean();
-        if (doc) { otherDoc = doc; otherModel = name; break; }
-      } catch (_) {/* */}
+    // v526 — la position la plus FRAÎCHE parmi TOUS les docs de rôle de
+    // l'ami : s'il diffuse depuis son profil owner/walker, la position à
+    // jour est sur CE doc-là, pas sur celui référencé dans l'amitié.
+    const MODELS = { Owner: require('../models/Owner'), Sitter: require('../models/Sitter'), Walker: require('../models/Walker') };
+    let best = null;
+    for (const d of gOtherLp.docs) {
+      const Model = MODELS[d.model];
+      if (!Model) continue;
+      let doc = null;
+      try { doc = await Model.findById(d.id).select('location').lean(); } catch (_) {/* */}
+      const coords = doc?.location?.coordinates;
+      if (!Array.isArray(coords) || coords.length < 2) continue;
+      const at = doc.location?.updatedAt ? new Date(doc.location.updatedAt).getTime() : 0;
+      if (!best || at > best.at) {
+        best = { coords, at, model: d.model, city: doc.location?.city || '' };
+      }
     }
-    if (!otherDoc) {
+    if (!best && !gOtherLp.docs.length) {
       return res.status(404).json({ error: 'User not found.' });
     }
-
-    const coords = otherDoc.location?.coordinates;
-    if (!Array.isArray(coords) || coords.length < 2) {
-      return res.json({ lat: null, lng: null, otherModel });
+    if (!best) {
+      return res.json({ lat: null, lng: null, otherModel: gOtherLp.docs[0]?.model || null });
     }
     // GeoJSON stores [lng, lat]
     return res.json({
-      lat: Number(coords[1]),
-      lng: Number(coords[0]),
-      otherModel,
-      city: otherDoc.location?.city || '',
+      lat: Number(best.coords[1]),
+      lng: Number(best.coords[0]),
+      otherModel: best.model,
+      city: best.city,
     });
   } catch (e) {
     logger.error('[friends/last-position]', e);
@@ -1710,14 +1747,24 @@ router.get('/:id/last-position', requireAuth, async (req, res) => {
 router.get('/live-positions', requireAuth, async (req, res) => {
   try {
     const user = me(req);
+    // v526 — cross-rôle : (1) mes amitiés sont matchées sur TOUTES mes
+    // identités ; (2) pour chaque ami, on prend sa position la plus FRAÎCHE
+    // parmi ses 3 docs de rôle (il diffuse depuis son rôle COURANT, pas
+    // forcément celui référencé dans l'amitié).
+    const g = await identityGroup(user.id);
     const friendships = await Friendship.find({
       status: 'accepted',
-      $or: [{ requesterId: user.id }, { addresseeId: user.id }],
+      $or: [
+        { requesterId: { $in: g.ids } },
+        { addresseeId: { $in: g.ids } },
+      ],
     }).lean();
 
-    const Owner = require('../models/Owner');
-    const Sitter = require('../models/Sitter');
-    const Walker = require('../models/Walker');
+    const MODELS = {
+      Owner: require('../models/Owner'),
+      Sitter: require('../models/Sitter'),
+      Walker: require('../models/Walker'),
+    };
     const { hasActivePawFollow } = require('../models/UserSubscription');
     let minePawFollow = false;
     try { minePawFollow = await hasActivePawFollow(user.id); } catch (_) {/* */}
@@ -1725,9 +1772,10 @@ router.get('/live-positions', requireAuth, async (req, res) => {
     const MAX_AGE_MS = 24 * 60 * 60 * 1000; // fraîcheur : 24h max
     const now = Date.now();
     const positions = [];
+    const seenOther = new Set(); // dédoublonne si 2 amitiés couvrent la même personne
 
     for (const f of friendships) {
-      const iAmRequester = String(f.requesterId) === String(user.id);
+      const iAmRequester = g.set.has(String(f.requesterId));
       const otherId = iAmRequester ? String(f.addresseeId) : String(f.requesterId);
       const otherModel = iAmRequester ? f.addresseeModel : f.requesterModel;
 
@@ -1746,22 +1794,36 @@ router.get('/live-positions', requireAuth, async (req, res) => {
       if (!canTrack && otherShareFlag === true) canTrack = true;
       if (!canTrack) continue;
 
-      const Model =
-        otherModel === 'Walker' ? Walker : otherModel === 'Sitter' ? Sitter : Owner;
-      let doc = null;
-      try { doc = await Model.findById(otherId).select('location').lean(); } catch (_) {/* */}
-      const coords = doc?.location?.coordinates;
-      if (!Array.isArray(coords) || coords.length < 2) continue;
-      const at = doc.location?.updatedAt ? new Date(doc.location.updatedAt) : null;
-      if (at && now - at.getTime() > MAX_AGE_MS) continue; // trop vieille
+      const gOther = await identityGroup(otherId);
+      if ([...gOther.set].some((oid) => seenOther.has(oid))) continue;
+      gOther.set.forEach((oid) => seenOther.add(oid));
+
+      // Position la plus fraîche (< 24h) parmi tous ses docs de rôle.
+      let best = null;
+      for (const d of gOther.docs) {
+        const Model = MODELS[d.model];
+        if (!Model) continue;
+        let doc = null;
+        try { doc = await Model.findById(d.id).select('location').lean(); } catch (_) {/* */}
+        const coords = doc?.location?.coordinates;
+        if (!Array.isArray(coords) || coords.length < 2) continue;
+        const at = doc.location?.updatedAt ? new Date(doc.location.updatedAt) : null;
+        if (at && now - at.getTime() > MAX_AGE_MS) continue; // trop vieille
+        const t = at ? at.getTime() : 0;
+        if (!best || t > best.t) {
+          best = { coords, at, t, city: doc.location?.city || '' };
+        }
+      }
+      if (!best) continue;
 
       positions.push({
+        // userId = l'id référencé dans l'amitié → l'app matche ses markers.
         userId: otherId,
         role: String(otherModel || 'Owner').toLowerCase(),
-        lat: Number(coords[1]),
-        lng: Number(coords[0]),
-        at: at ? at.toISOString() : null,
-        city: doc.location?.city || '',
+        lat: Number(best.coords[1]),
+        lng: Number(best.coords[0]),
+        at: best.at ? best.at.toISOString() : null,
+        city: best.city,
       });
     }
 

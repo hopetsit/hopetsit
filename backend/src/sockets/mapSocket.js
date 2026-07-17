@@ -37,11 +37,19 @@ async function listPositionListeners(userId, role) {
   const model = ROLE_TO_MODEL_NAME[role];
   if (!model) return [];
 
+  // v526 — Daniel : « mon ami inscrit en sitter passe en owner/walker et je
+  // ne peux plus le suivre ». L'amitié référence UN doc de rôle précis ;
+  // quand le diffuseur émet depuis un AUTRE de ses rôles, la query stricte
+  // (userId, model) ne trouvait AUCUNE amitié → 0 listener → plus personne
+  // ne recevait sa position. On matche désormais TOUTES les identités de la
+  // personne (docs Owner/Sitter/Walker reliés par email/oldId).
+  const { identityGroup } = require('../utils/identityGroup');
+  const g = await identityGroup(userId);
   const friendships = await Friendship.find({
     status: 'accepted',
     $or: [
-      { requesterId: userId, requesterModel: model },
-      { addresseeId: userId, addresseeModel: model },
+      { requesterId: { $in: g.ids } },
+      { addresseeId: { $in: g.ids } },
     ],
   }).lean();
 
@@ -63,8 +71,8 @@ async function listPositionListeners(userId, role) {
 
   const listeners = [];
   for (const f of friendships) {
-    const isRequester =
-      String(f.requesterId) === String(userId) && f.requesterModel === model;
+    // v526 — « moi » = n'importe lequel de mes docs de rôle.
+    const isRequester = g.set.has(String(f.requesterId));
 
     const otherId = isRequester ? f.addresseeId : f.requesterId;
     const otherRole = (isRequester ? f.addresseeModel : f.requesterModel)
@@ -112,6 +120,10 @@ async function listPositionListeners(userId, role) {
     listeners.push({
       userId: otherId,
       role: otherRole,
+      // v526 — l'app du destinataire connaît le diffuseur par l'id référencé
+      // dans LEUR amitié (pas forcément le doc du rôle courant du diffuseur).
+      // On émet l'événement avec CET id pour que le marker matche côté app.
+      viewAsId: String(isRequester ? f.requesterId : f.addresseeId),
     });
   }
 
@@ -164,7 +176,8 @@ async function relayLivePosition({ userId, role, lat, lng, city, offline }) {
     const listeners = await listPositionListeners(userId, r);
     for (const l of listeners) {
       emitToUser(l.role, l.userId, 'map:friend-offline', {
-        userId, role: r, at: new Date().toISOString(),
+        // v526 — id traduit par destinataire (cf. listPositionListeners).
+        userId: l.viewAsId || userId, role: r, at: new Date().toISOString(),
       });
     }
     return 0;
@@ -192,7 +205,12 @@ async function relayLivePosition({ userId, role, lat, lng, city, offline }) {
     userId, role: r, lat, lng, at: new Date().toISOString(), city: city || '',
   };
   for (const l of listeners) {
-    emitToUser(l.role, l.userId, 'map:friend-position', event);
+    // v526 — id traduit par destinataire : son app matche le marker de l'ami
+    // via l'id référencé dans LEUR amitié.
+    emitToUser(l.role, l.userId, 'map:friend-position', {
+      ...event,
+      userId: l.viewAsId || userId,
+    });
   }
   return listeners.length;
 }
