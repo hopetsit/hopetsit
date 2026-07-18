@@ -47,9 +47,22 @@ PawPremium noir/or `#1c1726`→`#15120D` + or `#F4C04A`, badge membre rose
 `#F06AA0`→`#E0568B`. Web : font-display = Nunito.
 
 ## État actuel
-**Version app Android : 23.1.528 SOUMISE sur Google Play le 17/07/2026 au
-soir** (déploiement complet, en examen ; la **v527 est LIVE** dans 177 pays —
-validée le jour même de sa soumission). v528 = v527 + dernier libellé
+**Version app Android : 23.1.529 SOUMISE sur Google Play le 18/07/2026**
+(déploiement complet, en examen ; la **v528 est LIVE** dans 177 pays,
+validée en une nuit). **v529 = v528 + SDK Meta (App Events)** pour les
+campagnes d'installation Facebook/Instagram : `meta_events_service.dart`
+(App ID 27796356886626061), code poussé depuis le Mac (commit cbfba30e),
+build iOS 529 déjà soumis à Apple. Avec l'envoi de la v529, deux
+déclarations Play Console ont été complétées (OBLIGATOIRES à cause du SDK) :
+1) **Sécurité des données** → « Appareil ou autres ID » collectées +
+partagées, non éphémères, collecte requise, finalité « Publicité ou
+marketing » (collecte ET partage) ; 2) **Identifiant publicitaire** (Ad ID,
+Android 13) → « Oui », finalité « Publicité ou marketing » — sans cette 2e
+déclaration, la console BLOQUE l'envoi (bannière rouge « 1 problème »).
+Étape Meta restante : paramètres Android sur developers.facebook.com
+(package com.cardellihermanos.hopetsit, classe .MainActivity, hash
+ZB4ZkSwfKo216B+znawIIzAU7YU=) puis campagnes via Ads Manager
+943056412092153. v528 = v527 + dernier libellé
 Pet-Sitting (fallback barre d'accueil), rebuild de vérification après le
 faux-positif « corrections absentes » (cause : téléphone resté sur la version
 Store — signature Google ≠ clé locale, l'APK sideloadé ne s'installe pas
