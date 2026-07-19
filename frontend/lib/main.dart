@@ -1,3 +1,7 @@
+import 'dart:async' show TimeoutException;
+import 'dart:io'
+    show HttpException, SocketException, TlsException, WebSocketException;
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -28,6 +32,33 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
+
+// v530 — les coupures réseau passagères (WiFi qui décroche, requête
+// interrompue, serveur injoignable) étaient enregistrées fatal:true dans
+// Crashlytics → emails « Nouveaux problèmes provoquant de nombreux
+// plantages » pour 1 event isolé par version (523/527/529), alors que le
+// filet de sécurité rattrape l'erreur et que l'app ne se ferme pas. Ces
+// erreurs restent visibles dans Crashlytics mais en NON-FATAL ; tout le
+// reste demeure fatal.
+bool _isNetworkError(Object error) {
+  if (error is SocketException ||
+      error is HttpException ||
+      error is TlsException ||
+      error is WebSocketException ||
+      error is TimeoutException) {
+    return true;
+  }
+  // Clients HTTP qui enrobent l'erreur d'origine (http.ClientException,
+  // GetConnect) sans exposer un type de dart:io.
+  final text = error.toString();
+  return text.contains('ClientException') ||
+      text.contains('Failed host lookup') ||
+      text.contains('Connection closed') ||
+      text.contains('Connection reset') ||
+      text.contains('Connection refused') ||
+      text.contains('Network is unreachable') ||
+      text.contains('Software caused connection abort');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -114,10 +145,17 @@ void main() async {
     // visible côté Play Vitals.
     if (kReleaseMode) {
       await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
-      FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+      FlutterError.onError = (details) {
+        if (_isNetworkError(details.exception)) {
+          FirebaseCrashlytics.instance.recordFlutterError(details);
+        } else {
+          FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+        }
+      };
       // Capture aussi les async errors hors zone Flutter.
       WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
-        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        FirebaseCrashlytics.instance
+            .recordError(error, stack, fatal: !_isNetworkError(error));
         return true;
       };
     } else {
