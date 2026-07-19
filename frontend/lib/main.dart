@@ -28,6 +28,8 @@ import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/services/meta_events_service.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -112,6 +114,21 @@ void main() async {
 
   await GetStorage.init();
   await dotenv.load(fileName: ".env");
+
+  // v530 — Daniel : « dates en anglais (Jul 9, 2026) alors que l'app est en
+  // français ». Les DateFormat SANS locale explicite suivent Intl.defaultLocale
+  // — jamais réglé jusqu'ici → anglais partout (cloche notifs, commentaires,
+  // historique gains...). On initialise les symboles de dates des 6 langues
+  // puis on aligne Intl.defaultLocale sur la langue de l'app (aussi mis à
+  // jour à chaque changement de langue dans LocalizationService.updateLocale).
+  try {
+    for (final code in ['en_US', 'fr_FR', 'es_ES', 'de_DE', 'it_IT', 'pt_PT']) {
+      await initializeDateFormatting(code);
+    }
+    Intl.defaultLocale = LocalizationService.getInitialLocale().toString();
+  } catch (e) {
+    debugPrint('date formatting init failed: $e');
+  }
 
   // v23.1 part 125 — Phase 2 audit C4 : migrer le JWT depuis GetStorage
   // vers flutter_secure_storage (Keystore Android / Keychain iOS) au boot,

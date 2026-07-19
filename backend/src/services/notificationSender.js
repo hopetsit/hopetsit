@@ -71,6 +71,33 @@ const pickTemplate = (locale, type) => {
   return loadCatalog(FALLBACK_LOCALE)[type] || null;
 };
 
+// v530 — Daniel : « notifs mal traduites ». L'appLocale (langue UI synchronisée
+// par l'app) n'était lue QUE sur le doc du rôle notifié/lecteur. Or l'app ne la
+// synchronise que sur le rôle COURANT (PATCH /users/me/app-locale) → les 2
+// autres profils de la même personne gardaient appLocale vide et retombaient
+// sur le champ libre `language` (langues PARLÉES du profil, ex. « English »
+// chez un utilisateur français) → notifs/push/emails en anglais. On cherche
+// l'appLocale sur les 3 docs du groupe d'identité (même _id/email/oldId) —
+// même famille de correctifs que gatherFcmTokens (v407) et identityGroup (v526).
+const resolveAppLocaleAcrossRoles = async (primary, userId) => {
+  if (primary?.appLocale) return primary.appLocale;
+  try {
+    const or = [{ _id: userId }];
+    if (primary?.email) or.push({ email: primary.email });
+    if (primary?.oldId != null) or.push({ oldId: primary.oldId });
+    const [owners, sitters, walkers] = await Promise.all([
+      Owner.find({ $or: or }).select('appLocale').lean(),
+      Sitter.find({ $or: or }).select('appLocale').lean(),
+      Walker.find({ $or: or }).select('appLocale').lean(),
+    ]);
+    const withLocale = [...owners, ...sitters, ...walkers].find((d) => d.appLocale);
+    return withLocale ? withLocale.appLocale : null;
+  } catch (e) {
+    logger.warn(`[notif.locale] cross-role appLocale lookup failed : ${e?.message || e}`);
+    return null;
+  }
+};
+
 const resolveUser = async (role, userId) => {
   // Session v17 — walker added as first-class recipient alongside
   // owner/sitter. Notifications were silently dropped for walker before:
@@ -255,7 +282,9 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
   // v23.1.348 — Daniel : la langue suit le système. appLocale (code UI synchronisé
   // par l'app : choix manuel OU langue du téléphone) est PRIORITAIRE sur le champ
   // libre language (langues parlées affichées sur les profils prestataires).
-  const locale = resolveLocale(user.appLocale || user.language);
+  // v530 — appLocale cherchée sur les 3 docs de rôle de la personne.
+  const appLocale = await resolveAppLocaleAcrossRoles(user, userId);
+  const locale = resolveLocale(appLocale || user.language);
   const tmpl = pickTemplate(locale, type);
   if (!tmpl) {
     logger.warn(`[notif.skip] template missing type=${type} locale=${locale}`);
@@ -415,4 +444,8 @@ const renderNotificationContent = (type, data = {}, userLanguage) => {
   }
 };
 
-module.exports = { sendNotification, renderNotificationContent };
+module.exports = {
+  sendNotification,
+  renderNotificationContent,
+  resolveAppLocaleAcrossRoles,
+};

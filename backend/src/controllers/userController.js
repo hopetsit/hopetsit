@@ -1289,8 +1289,23 @@ const updateAppLocale = async (req, res) => {
       req.user.id,
       { appLocale: locale },
       { new: true },
-    ).select('appLocale');
+    ).select('appLocale email oldId');
     if (!result) return res.status(404).json({ error: 'User not found.' });
+    // v530 — Daniel : « notifs mal traduites ». La langue UI n'était écrite que
+    // sur le doc du rôle COURANT ; les 2 autres profils de la même personne
+    // (même email/oldId) gardaient appLocale vide → leurs notifs/push/emails
+    // retombaient sur le champ libre `language` (langues parlées). On propage
+    // aux 3 collections — même famille que gatherFcmTokens/identityGroup.
+    try {
+      const or = [{ _id: req.user.id }];
+      if (result.email) or.push({ email: result.email });
+      if (result.oldId != null) or.push({ oldId: result.oldId });
+      await Promise.all([Owner, Sitter, Walker].map((M) =>
+        M.updateMany({ $or: or }, { appLocale: locale }),
+      ));
+    } catch (e) {
+      logger.warn(`updateAppLocale cross-role propagation failed: ${e?.message || e}`);
+    }
     return res.json({ appLocale: result.appLocale });
   } catch (e) {
     logger.error('updateAppLocale error', e);

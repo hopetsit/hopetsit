@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:intl/intl.dart';
 
 import '../data/network/api_client.dart';
 import '../utils/storage_keys.dart';
@@ -81,6 +82,10 @@ class LocalizationService {
     final locale = _supportedLocaleMap[languageCode] ?? fallbackLocale;
     await storage.write(_languageCodeKey, languageCode);
     Get.updateLocale(locale);
+    // v530 — les DateFormat sans locale explicite (dates de la cloche notifs,
+    // commentaires...) suivent Intl.defaultLocale : on l'aligne sur la langue
+    // choisie (symboles des 6 langues initialisés au boot dans main()).
+    Intl.defaultLocale = locale.toString();
     // v23.1.348 — Daniel : "la langue doit suivre le système dès
     // l'installation". On synchronise la langue UI vers le backend
     // (user.appLocale) pour que notifications + emails partent dans la

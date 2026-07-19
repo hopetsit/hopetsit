@@ -1,6 +1,7 @@
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/models/app_notification_model.dart';
 
 class NotificationsRepository {
@@ -18,6 +19,11 @@ class NotificationsRepository {
     final query = <String, dynamic>{
       'limit': limit,
       if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      // v530 — Daniel : « notifs mal traduites ». On envoie la langue UI
+      // RÉELLE au moment de la lecture : le backend re-rend titre/corps dans
+      // cette langue, sans dépendre d'un appLocale pas encore synchronisé
+      // sur le doc du rôle courant.
+      'lang': LocalizationService.getCurrentLanguageCode(),
     };
 
     final response = await _apiClient.get(
