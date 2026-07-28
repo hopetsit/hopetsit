@@ -649,8 +649,22 @@ const getRequestPosts = async (req, res) => {
     }
 
     // Sprint 5 step 2 — filter requests by sitter's service preferences.
+    // v530 — on capture aussi la position ENREGISTRÉE du prestataire pour le
+    // plafond géographique appliqué plus bas (500 km).
+    let viewerCoords = null; // [lng, lat]
+    const captureViewerCoords = (doc) => {
+      const c = doc?.location?.coordinates;
+      if (
+        Array.isArray(c) && c.length === 2 &&
+        Number.isFinite(Number(c[0])) && Number.isFinite(Number(c[1])) &&
+        !(Number(c[0]) === 0 && Number(c[1]) === 0)
+      ) {
+        viewerCoords = [Number(c[0]), Number(c[1])];
+      }
+    };
     if (req.user?.role === 'sitter') {
-      const viewer = await Sitter.findById(req.user.id).select('canServiceAtOwner canServiceAtSitter').lean();
+      const viewer = await Sitter.findById(req.user.id).select('canServiceAtOwner canServiceAtSitter location').lean();
+      captureViewerCoords(viewer);
       if (viewer) {
         const allowed = [];
         if (viewer.canServiceAtOwner) allowed.push('at_owner');
@@ -677,10 +691,46 @@ const getRequestPosts = async (req, res) => {
     // Session avril 2026 — walkers only see posts that request a walk.
     if (req.user?.role === 'walker') {
       filter.serviceTypes = 'dog_walking';
+      // v530 — position enregistrée du walker pour le plafond géographique.
+      try {
+        const Walker = require('../models/Walker');
+        captureViewerCoords(
+          await Walker.findById(req.user.id).select('location').lean(),
+        );
+      } catch (_) { /* pas de coords → pas de plafond */ }
     }
 
     const posts = await Post.find(filter).sort({ createdAt: -1 }).populate('ownerId');
-    const visiblePosts = posts.filter((post) => !!post.ownerId);
+    let visiblePosts = posts.filter((post) => !!post.ownerId);
+
+    // v530 — Daniel : « des gens des USA voient mon annonce d'Espagne, des
+    // gens de France m'écrivent alors que je suis en Espagne ». Ce feed
+    // n'avait AUCUN filtre géographique serveur : chaque annonce partait chez
+    // tous les prestataires du monde (l'app ne filtrait que localement, et
+    // plus du tout au-delà du slider). Plafond dur : 500 km entre l'annonce
+    // et la position enregistrée du prestataire. Fail-open : annonce sans
+    // coordonnées ou prestataire sans position → on garde (vieux comptes).
+    // Ne s'applique pas quand on liste les annonces d'UN owner précis.
+    const MAX_FEED_DISTANCE_KM = 500;
+    if (viewerCoords && !ownerId) {
+      const toRadKm = (x) => (x * Math.PI) / 180;
+      const distKm = (lat1, lng1, lat2, lng2) => {
+        const dLat = toRadKm(lat2 - lat1);
+        const dLng = toRadKm(lng2 - lng1);
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(toRadKm(lat1)) * Math.cos(toRadKm(lat2)) * Math.sin(dLng / 2) ** 2;
+        return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      };
+      visiblePosts = visiblePosts.filter((post) => {
+        const plat = Number(post.location?.lat);
+        const plng = Number(post.location?.lng);
+        if (!Number.isFinite(plat) || !Number.isFinite(plng) || (plat === 0 && plng === 0)) {
+          return true;
+        }
+        return distKm(viewerCoords[1], viewerCoords[0], plat, plng) <= MAX_FEED_DISTANCE_KM;
+      });
+    }
 
     // v23.1 part 120 — Daniel : "jai fais une annonce acheter un boost
     // owner et y saafiche nulpar". Bug : l'enrichissement isOwnerBoosted /

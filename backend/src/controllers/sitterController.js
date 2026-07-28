@@ -36,7 +36,7 @@ const parseSkills = (skillsStr) => {
  */
 const findNearbySitters = async (req, res) => {
   try {
-    const { lat, lng, coordinates, radius, service, minRating, includeUnverified = false } = req.query;
+    const { lat, lng, coordinates, radius, radiusInMeters: radiusInMetersRaw, service, minRating, includeUnverified = false } = req.query;
 
     // Validate location input - accept either coordinates array or lat/lng
     let longitude = null;
@@ -77,24 +77,28 @@ const findNearbySitters = async (req, res) => {
       });
     }
 
-    // Optional radius filter (in kilometers)
-    // If not provided, show all sitters regardless of distance
+    // v530 — Daniel : « avec un grand rayon je vois les pet-sitters de TOUS
+    // les pays ». CAUSE RACINE : l'app envoie `radiusInMeters` (comme pour
+    // /walkers/nearby) mais ce endpoint ne lisait QUE `radius` (km) → le rayon
+    // était IGNORÉ → aucun maxDistance → résultats du monde entier, quel que
+    // soit le slider. On accepte désormais les DEUX paramètres, on CLAMP dans
+    // [0.1 ; 200] km au lieu de rejeter en 400 (l'app envoyait jusqu'à 500+ km),
+    // et sans paramètre on applique un plafond par défaut de 200 km (fini le
+    // « monde entier » silencieux) — aligné sur findNearbyWalkers.
     let radiusInMeters = null;
     let radiusInKm = null;
-    
-    if (radius !== undefined) {
-      radiusInKm = parseFloat(radius);
-      // v23.1 part 127 — Phase 3 audit P3-19 : cap à 200km pour aligner
-      // sur findNearbyWalkers et empêcher un full-scan DoS via un radius
-      // ridiculement grand. AVANT : jusqu'à 10000km (= toute la planète).
-      if (isNaN(radiusInKm) || radiusInKm <= 0 || radiusInKm > 200) {
-        return res.status(400).json({
-          error: 'Radius must be a positive number between 1 and 200 kilometers.',
-        });
-      }
-      // Convert radius from km to meters for MongoDB (MongoDB uses meters)
-      radiusInMeters = radiusInKm * 1000;
+
+    if (radiusInMetersRaw !== undefined) {
+      const parsed = parseFloat(radiusInMetersRaw);
+      radiusInKm = Number.isFinite(parsed) && parsed > 0 ? parsed / 1000 : 200;
+    } else if (radius !== undefined) {
+      const parsed = parseFloat(radius);
+      radiusInKm = Number.isFinite(parsed) && parsed > 0 ? parsed : 200;
+    } else {
+      radiusInKm = 200; // défaut : plus jamais « toute la planète »
     }
+    radiusInKm = Math.min(200, Math.max(0.1, radiusInKm));
+    radiusInMeters = radiusInKm * 1000;
 
     // Build query filter
     const filter = {
