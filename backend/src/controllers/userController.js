@@ -651,6 +651,11 @@ const deleteAccount = async (req, res) => {
       logger.warn(`[deleteAccount] secondary cascade failed (continuing): ${e?.message || e}`);
     }
 
+    // v530 — Daniel : « je veux voir qui se désinscrit ». Journal AVANT la
+    // suppression physique (source 'user' = suppression depuis l'app/le site).
+    const { logDeletedAccount } = require('../utils/deletedAccountLog');
+    await logDeletedAccount({ role, doc: account, source: 'user' });
+
     if (role === 'owner') {
       await Pet.deleteMany({ ownerId: userId });
       await Post.deleteMany({ ownerId: userId });

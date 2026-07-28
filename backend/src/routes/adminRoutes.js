@@ -641,7 +641,12 @@ router.patch('/sitters/:id/verify', requireAdmin, async (req, res) => {
 // ─── DELETE USER ─────────────────────────────────────────────────────────────
 router.delete('/sitters/:id', requireAdmin, async (req, res) => {
   try {
-    await Sitter.findByIdAndDelete(req.params.id);
+    const doc = await Sitter.findByIdAndDelete(req.params.id);
+    // v530 — journal des désinscriptions (bloc « Dernières désinscriptions »).
+    if (doc) {
+      const { logDeletedAccount } = require('../utils/deletedAccountLog');
+      await logDeletedAccount({ role: 'sitter', doc, source: 'admin' });
+    }
     res.json({ message: 'Sitter deleted.' });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -650,8 +655,31 @@ router.delete('/sitters/:id', requireAdmin, async (req, res) => {
 
 router.delete('/owners/:id', requireAdmin, async (req, res) => {
   try {
-    await Owner.findByIdAndDelete(req.params.id);
+    const doc = await Owner.findByIdAndDelete(req.params.id);
+    // v530 — journal des désinscriptions.
+    if (doc) {
+      const { logDeletedAccount } = require('../utils/deletedAccountLog');
+      await logDeletedAccount({ role: 'owner', doc, source: 'admin' });
+    }
     res.json({ message: 'Owner deleted.' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// v530 — Daniel : « je veux voir qui se désinscrit ». Journal des comptes
+// supprimés (app/site ET admin), rempli par utils/deletedAccountLog au moment
+// de chaque suppression — les docs étant effacés physiquement, c'est la seule
+// trace restante.
+router.get('/deleted-accounts', requireAdmin, async (req, res) => {
+  try {
+    const DeletedAccount = require('../models/DeletedAccount');
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    const deletions = await DeletedAccount.find({})
+      .sort({ deletedAt: -1 })
+      .limit(limit)
+      .lean();
+    res.json({ deletions });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -693,7 +721,12 @@ router.patch('/walkers/:id/verify', requireAdmin, async (req, res) => {
 
 router.delete('/walkers/:id', requireAdmin, async (req, res) => {
   try {
-    await Walker.findByIdAndDelete(req.params.id);
+    const doc = await Walker.findByIdAndDelete(req.params.id);
+    // v530 — journal des désinscriptions.
+    if (doc) {
+      const { logDeletedAccount } = require('../utils/deletedAccountLog');
+      await logDeletedAccount({ role: 'walker', doc, source: 'admin' });
+    }
     res.json({ message: 'Walker deleted.' });
   } catch (e) {
     res.status(500).json({ error: e.message });

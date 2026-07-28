@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v529'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v530'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -226,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v529</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v530</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -266,9 +266,9 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- Utilisateurs -->
       <div class="nav-section" style="margin-top:18px">👥 <span data-i18n="navsec_users">Utilisateurs</span></div>
-      <div class="nav-item" onclick="showPage('owners')"><span class="nav-icon">👤</span> <span data-i18n="nav_owners">Propriétaires</span></div>
-      <div class="nav-item" onclick="showPage('sitters')"><span class="nav-icon">🐕</span> <span data-i18n="nav_sitters">Pet-sitters</span></div>
-      <div class="nav-item" onclick="showPage('walkers')"><span class="nav-icon">🚶</span> <span data-i18n="nav_walkers">Promeneurs</span></div>
+      <!-- v530 — Daniel : un SEUL onglet « Utilisateurs » (la vue unifiée par
+           rôle existait déjà ici) ; onglets Pet-sitters / Promeneurs retirés. -->
+      <div class="nav-item" onclick="showPage('owners')"><span class="nav-icon">👥</span> <span data-i18n="nav_owners">Utilisateurs</span></div>
       <div class="nav-item" onclick="showPage('identity')"><span class="nav-icon">🪪</span> <span data-i18n="nav_identity">Vérifications ID</span></div>
       <div class="nav-item" onclick="showPage('moderation')"><span class="nav-icon">🛡️</span> <span data-i18n="nav_moderation">Modération users</span></div>
       <div class="nav-item" onclick="showPage('loyalty')"><span class="nav-icon">🏆</span> <span data-i18n="nav_loyalty">Avantages fidélité</span></div>
@@ -379,13 +379,26 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       </div>
 
       <!-- OWNERS — v20.0.7: unified view with owners + sitters + walkers,
-           filterable by role. Each row has its own Staff/Delete buttons. -->
+           filterable by role. Each row has its own Staff/Delete buttons.
+           v530 — onglet renommé « Utilisateurs » + blocs Dernières
+           inscriptions / Dernières désinscriptions (Daniel : « je veux voir
+           qui s'inscrit et se désinscrit »). -->
       <div id="page-owners" class="page">
-        <div class="section-title">👤 <span data-i18n="users_title">Tous les utilisateurs</span></div>
+        <div class="section-title">👥 <span data-i18n="users_title">Tous les utilisateurs</span></div>
         <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;max-width:720px" data-i18n="users_desc">
           Vue unifiée : propriétaires + pet-sitters + walkers. Filtre par rôle en haut.
           Utilise les boutons « Staff » pour accorder Premium gratuit, ou « Supprimer » pour effacer un compte.
         </p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-bottom:18px">
+          <div class="table-wrap" style="margin-bottom:0">
+            <div class="section-title" style="font-size:15px;margin-bottom:10px">🆕 <span data-i18n="users_signups">Dernières inscriptions</span></div>
+            <div id="signups-recent-body"><div class="loading"><div class="spinner"></div></div></div>
+          </div>
+          <div class="table-wrap" style="margin-bottom:0">
+            <div class="section-title" style="font-size:15px;margin-bottom:10px">🗑️ <span data-i18n="users_deletions">Dernières désinscriptions</span></div>
+            <div id="deletions-recent-body"><div class="loading"><div class="spinner"></div></div></div>
+          </div>
+        </div>
         <div class="table-wrap">
           <div class="table-toolbar">
             <input class="search-input" id="owner-search" data-i18n-placeholder="users_search_ph" placeholder="🔍 Rechercher par nom ou email..." oninput="renderOwners()"/>
@@ -4216,7 +4229,61 @@ async function loadOwners() {
     allSitters = sitters; // keep legacy arrays for the dedicated pages
     allWalkers = walkers;
     renderOwners();
+    // v530 — blocs « qui s'inscrit / qui se désinscrit » de l'onglet Utilisateurs.
+    renderRecentSignups();
+    loadDeletedAccounts();
   } catch (e) {}
+}
+
+// v530 — Daniel : « je veux voir qui s'inscrit ». Les 8 comptes les plus
+// récents (allOwners est déjà trié par date d'inscription décroissante).
+function renderRecentSignups() {
+  const el = document.getElementById('signups-recent-body');
+  if (!el) return;
+  const rows = (allOwners || []).slice(0, 8).map(u => {
+    const b = _ROLE_BADGE[u._role] || _ROLE_BADGE.owner;
+    return `<tr>
+      <td><span style="background:${b.color};color:#fff;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700">${b.icon} ${b.label}</span></td>
+      <td><strong>${escapeHtml(u.name || '-')}</strong></td>
+      <td style="color:var(--text-muted)">${escapeHtml(u.email || '-')}</td>
+      <td>${signupDate(u)}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = rows
+    ? `<table class="table"><thead><tr><th>${t('th_role')}</th><th>${t('th_name')}</th><th>${t('th_email')}</th><th>${t('th_registered')}</th></tr></thead><tbody>${rows}</tbody></table>`
+    : `<div style="color:var(--text-muted);font-size:13px;padding:12px">—</div>`;
+}
+
+// v530 — Daniel : « je veux voir qui se désinscrit ». Journal serveur des
+// comptes supprimés (app/site ET admin) — GET /admin/deleted-accounts, rempli
+// à chaque suppression depuis aujourd'hui (les suppressions antérieures n'ont
+// laissé aucune trace : les docs étaient effacés physiquement).
+async function loadDeletedAccounts() {
+  const el = document.getElementById('deletions-recent-body');
+  if (!el) return;
+  try {
+    const d = await api('/admin/deleted-accounts?limit=20');
+    const list = d.deletions || [];
+    if (!list.length) {
+      el.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:12px">${t('users_deletions_empty')}</div>`;
+      return;
+    }
+    const rows = list.map(x => {
+      const b = _ROLE_BADGE[x.role] || _ROLE_BADGE.owner;
+      const when = x.deletedAt ? new Date(x.deletedAt).toLocaleDateString() : '-';
+      const src = x.source === 'admin' ? '🛠️ Admin' : '📱 App';
+      return `<tr>
+        <td><span style="background:${b.color};color:#fff;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700">${b.icon} ${b.label}</span></td>
+        <td><strong>${escapeHtml(x.name || '-')}</strong></td>
+        <td style="color:var(--text-muted)">${escapeHtml(x.email || '-')}</td>
+        <td>${when}</td>
+        <td>${src}</td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<table class="table"><thead><tr><th>${t('th_role')}</th><th>${t('th_name')}</th><th>${t('th_email')}</th><th>${t('th_deleted_on')}</th><th>${t('th_source')}</th></tr></thead><tbody>${rows}</tbody></table>`;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:12px">${escapeHtml(e.message || 'error')}</div>`;
+  }
 }
 
 const _ROLE_BADGE = {
@@ -6261,7 +6328,7 @@ async function toggleStaff(role, userId, isStaff) {
         logout: "Déconnexion",
         loading: "Chargement...",
         navsec_overview: "Vue d'ensemble", navsec_users: "Utilisateurs", navsec_activity: "Activité", navsec_finance: "Mes finances", navsec_shop: "Boutique", navsec_content: "Contenu", navsec_system: "Système",
-        nav_dashboard: "Tableau de bord", nav_revenue: "Mes revenus", nav_owners: "Propriétaires", nav_sitters: "Pet-sitters", nav_walkers: "Promeneurs", nav_identity: "Vérifications ID", nav_moderation: "Modération users", nav_loyalty: "Avantages fidélité", nav_bookings: "Réservations", nav_listings: "Annonces", nav_chat: "Chat & messages", nav_reviews: "Avis utilisateurs", nav_reports: "Signalements", nav_payments: "Paiements", nav_invoices: "Factures", nav_iban: "Virements IBAN", nav_wallets: "Portefeuilles", nav_accounting: "Comptabilité", nav_shop_activity: "Activité boutique", nav_pricing: "Tarifs", nav_services: "Services", nav_terms: "CGU", nav_privacy: "Confidentialité", nav_pawmap: "PawMap", nav_bugs: "Bugs reportés", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_filtre: "Filtre & modération", nav_reportstats: "Signalements", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — abonnements", pawspot_admin_title: "PawSpot — abonnements & classement",
+        nav_dashboard: "Tableau de bord", nav_revenue: "Mes revenus", nav_owners: "Utilisateurs", users_signups: "Dernières inscriptions", users_deletions: "Dernières désinscriptions", users_deletions_empty: "Aucune désinscription enregistrée pour l'instant (suivi actif depuis le 20/07/2026)", th_deleted_on: "Désinscrit le", th_source: "Source", nav_sitters: "Pet-sitters", nav_walkers: "Promeneurs", nav_identity: "Vérifications ID", nav_moderation: "Modération users", nav_loyalty: "Avantages fidélité", nav_bookings: "Réservations", nav_listings: "Annonces", nav_chat: "Chat & messages", nav_reviews: "Avis utilisateurs", nav_reports: "Signalements", nav_payments: "Paiements", nav_invoices: "Factures", nav_iban: "Virements IBAN", nav_wallets: "Portefeuilles", nav_accounting: "Comptabilité", nav_shop_activity: "Activité boutique", nav_pricing: "Tarifs", nav_services: "Services", nav_terms: "CGU", nav_privacy: "Confidentialité", nav_pawmap: "PawMap", nav_bugs: "Bugs reportés", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_filtre: "Filtre & modération", nav_reportstats: "Signalements", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — abonnements", pawspot_admin_title: "PawSpot — abonnements & classement",
         acc_title: "Comptabilité — Mon bilan", acc_export: "Exporter CSV",
         acc_desc: "Mes bénéfices HoPetSit uniquement : commissions plateforme sur les réservations + revenus boutique (PawBoost, PawSpot, PawFollow, 👑 PawPremium). Hors paiements reversés aux prestataires. Pour mon comptable.",
         dash_overview: "Vue d'ensemble",
@@ -6397,7 +6464,7 @@ async function toggleStaff(role, userId, isStaff) {
         logout: "Logout",
         loading: "Loading...",
         navsec_overview: "Overview", navsec_users: "Users", navsec_activity: "Activity", navsec_finance: "My finances", navsec_shop: "Shop", navsec_content: "Content", navsec_system: "System",
-        nav_dashboard: "Dashboard", nav_revenue: "My revenue", nav_owners: "Owners", nav_sitters: "Pet-sitters", nav_walkers: "Walkers", nav_identity: "ID verifications", nav_moderation: "User moderation", nav_loyalty: "Loyalty benefits", nav_bookings: "Bookings", nav_listings: "Listings", nav_chat: "Chat & messages", nav_reviews: "User reviews", nav_reports: "Reports", nav_payments: "Payments", nav_invoices: "Invoices", nav_iban: "IBAN transfers", nav_wallets: "Wallets", nav_accounting: "Accounting", nav_shop_activity: "Shop activity", nav_pricing: "Pricing", nav_services: "Services", nav_terms: "Terms", nav_privacy: "Privacy", nav_pawmap: "PawMap", nav_bugs: "Bug reports", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_filtre: "Filter & moderation", nav_reportstats: "Reports", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — subscriptions", pawspot_admin_title: "PawSpot — subscriptions & ranking",
+        nav_dashboard: "Dashboard", nav_revenue: "My revenue", nav_owners: "Users", users_signups: "Latest signups", users_deletions: "Latest deletions", users_deletions_empty: "No account deletions recorded yet (tracking active since Jul 20, 2026)", th_deleted_on: "Deleted on", th_source: "Source", nav_sitters: "Pet-sitters", nav_walkers: "Walkers", nav_identity: "ID verifications", nav_moderation: "User moderation", nav_loyalty: "Loyalty benefits", nav_bookings: "Bookings", nav_listings: "Listings", nav_chat: "Chat & messages", nav_reviews: "User reviews", nav_reports: "Reports", nav_payments: "Payments", nav_invoices: "Invoices", nav_iban: "IBAN transfers", nav_wallets: "Wallets", nav_accounting: "Accounting", nav_shop_activity: "Shop activity", nav_pricing: "Pricing", nav_services: "Services", nav_terms: "Terms", nav_privacy: "Privacy", nav_pawmap: "PawMap", nav_bugs: "Bug reports", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_filtre: "Filter & moderation", nav_reportstats: "Reports", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — subscriptions", pawspot_admin_title: "PawSpot — subscriptions & ranking",
         acc_title: "Accounting — My balance", acc_export: "Export CSV",
         acc_desc: "My HoPetSit profits only: platform commissions on bookings + shop revenue (Boost, PawSpot, Premium, Chat). Excludes payouts to providers. For my accountant.",
         dash_overview: "Overview",
@@ -6532,7 +6599,7 @@ async function toggleStaff(role, userId, isStaff) {
         logout: "Cerrar sesión",
         loading: "Cargando...",
         navsec_overview: "Resumen", navsec_users: "Usuarios", navsec_activity: "Actividad", navsec_finance: "Mis finanzas", navsec_shop: "Tienda", navsec_content: "Contenido", navsec_system: "Sistema",
-        nav_dashboard: "Panel", nav_revenue: "Mis ingresos", nav_owners: "Propietarios", nav_sitters: "Cuidadores", nav_walkers: "Paseadores", nav_identity: "Verificaciones ID", nav_moderation: "Moderación usuarios", nav_loyalty: "Ventajas fidelidad", nav_bookings: "Reservas", nav_listings: "Anuncios", nav_chat: "Chat y mensajes", nav_reviews: "Opiniones", nav_reports: "Denuncias", nav_payments: "Pagos", nav_invoices: "Facturas", nav_iban: "Transferencias IBAN", nav_wallets: "Carteras", nav_accounting: "Contabilidad", nav_shop_activity: "Actividad tienda", nav_pricing: "Tarifas", nav_services: "Servicios", nav_terms: "Términos", nav_privacy: "Privacidad", nav_pawmap: "PawMap", nav_bugs: "Errores reportados", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promociones", nav_filtre: "Filtro y moderación", nav_reportstats: "Denuncias", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — suscripciones", pawspot_admin_title: "PawSpot — suscripciones y ranking",
+        nav_dashboard: "Panel", nav_revenue: "Mis ingresos", nav_owners: "Usuarios", users_signups: "Últimas inscripciones", users_deletions: "Últimas bajas", users_deletions_empty: "Ninguna baja registrada todavía (seguimiento activo desde el 20/07/2026)", th_deleted_on: "Baja el", th_source: "Origen", nav_sitters: "Cuidadores", nav_walkers: "Paseadores", nav_identity: "Verificaciones ID", nav_moderation: "Moderación usuarios", nav_loyalty: "Ventajas fidelidad", nav_bookings: "Reservas", nav_listings: "Anuncios", nav_chat: "Chat y mensajes", nav_reviews: "Opiniones", nav_reports: "Denuncias", nav_payments: "Pagos", nav_invoices: "Facturas", nav_iban: "Transferencias IBAN", nav_wallets: "Carteras", nav_accounting: "Contabilidad", nav_shop_activity: "Actividad tienda", nav_pricing: "Tarifas", nav_services: "Servicios", nav_terms: "Términos", nav_privacy: "Privacidad", nav_pawmap: "PawMap", nav_bugs: "Errores reportados", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promociones", nav_filtre: "Filtro y moderación", nav_reportstats: "Denuncias", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — suscripciones", pawspot_admin_title: "PawSpot — suscripciones y ranking",
         acc_title: "Contabilidad — Mi balance", acc_export: "Exportar CSV",
         acc_desc: "Solo mis beneficios HoPetSit: comisiones de la plataforma sobre las reservas + ingresos de tienda (Boost, PawSpot, Premium, Chat). Sin los pagos a los proveedores. Para mi contable.",
         dash_overview: "Resumen",
