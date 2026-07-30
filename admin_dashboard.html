@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v530'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v531'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -226,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v530</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v531</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -930,6 +930,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         </div>
         <div class="section-title" style="font-size:14px;margin-top:18px"><span data-i18n="promo_recipients">Destinataires</span>
           <input id="promo-search" type="text" data-i18n-placeholder="promo_filter_ph" placeholder="Filtrer nom/email…" class="search-input" style="margin-left:10px;width:220px" oninput="renderPromoClients()">
+          <!-- v531 — Daniel : tri réglable, plus récents d'abord par défaut. -->
+          <button class="action-btn" id="promo-sort-btn" style="margin-left:8px" onclick="togglePromoSort()">🔽 <span data-i18n="promo_sort_newest">Plus récents d'abord</span></button>
           <button class="action-btn" style="margin-left:8px" onclick="refreshPromoClients()" data-i18n-title="promo_reload_title" title="Recharger la liste (nouveaux utilisateurs)">🔄 <span data-i18n="refresh">Actualiser</span></button>
           <button class="action-btn" style="margin-left:6px" onclick="promoSelectAll(true)" data-i18n="select_all">Tout cocher</button>
           <button class="action-btn" style="margin-left:6px" onclick="promoSelectAll(false)" data-i18n="deselect_all">Tout décocher</button>
@@ -2417,8 +2419,13 @@ async function loadPromoClients() {
     const res = await Promise.all([
       api('/admin/owners?limit=1000'), api('/admin/sitters?limit=1000'), api('/admin/walkers?limit=1000'),
     ]);
+    // v531 — Daniel : « range la liste du dernier au premier ». On garde
+    // createdAt/_id pour trier par date d'inscription (signupTs) et afficher
+    // la date à côté de chaque destinataire.
     const norm = function (arr, role) {
-      return (arr || []).map(function (u) { return { name: u.name || '', email: u.email || '', role: role }; });
+      return (arr || []).map(function (u) {
+        return { name: u.name || '', email: u.email || '', role: role, createdAt: u.createdAt || null, _id: u._id || '' };
+      });
     };
     _promoClients = norm(res[0].owners, 'owner')
       .concat(norm(res[1].sitters, 'sitter'))
@@ -2427,11 +2434,29 @@ async function loadPromoClients() {
   } catch (e) { _promoClients = []; }
 }
 
+// v531 — Daniel : « range du dernier au premier + un bouton réglable, je
+// cherchais à chaque fois quel email venait de s'inscrire ». Tri par date
+// d'inscription, plus récents d'abord par défaut ; le bouton 🔽/🔼 inverse.
+let _promoSortNewestFirst = true;
+function togglePromoSort() {
+  _promoSortNewestFirst = !_promoSortNewestFirst;
+  const btn = document.getElementById('promo-sort-btn');
+  if (btn) {
+    btn.innerHTML = _promoSortNewestFirst
+      ? '🔽 <span>' + t('promo_sort_newest') + '</span>'
+      : '🔼 <span>' + t('promo_sort_oldest') + '</span>';
+  }
+  renderPromoClients();
+}
+
 function renderPromoClients() {
   const q = (document.getElementById('promo-search').value || '').toLowerCase();
   const box = document.getElementById('promo-clients');
   const list = _promoClients.filter(function (u) {
     return !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+  }).sort(function (a, b) {
+    // v531 — tri par date d'inscription (fallback ObjectId pour les vieux comptes).
+    return _promoSortNewestFirst ? signupTs(b) - signupTs(a) : signupTs(a) - signupTs(b);
   });
   if (!list.length) {
     box.innerHTML = `<div style="color:var(--text-muted);padding:8px">${t('empty_no_client')}</div>`;
@@ -2443,7 +2468,8 @@ function renderPromoClients() {
     return '<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;font-size:13px;border-radius:6px">'
       + '<input type="checkbox" class="promo-client-cb" data-email="' + u.email + '" ' + checked
       + ' onchange="promoCbChange(this)"><span style="flex:1">' + (u.name || '—')
-      + ' <span style="color:var(--text-muted)">· ' + u.email + ' · ' + u.role + '</span></span></label>';
+      + ' <span style="color:var(--text-muted)">· ' + u.email + ' · ' + u.role + '</span></span>'
+      + '<span style="color:var(--text-muted);font-size:12px;white-space:nowrap">' + signupDate(u) + '</span></label>';
   }).join('');
   updatePromoSelectedCount();
 }
@@ -6377,7 +6403,7 @@ async function toggleStaff(role, userId, isStaff) {
         promo_count: "Nombre de codes", promo_max_uses: "Usages par code (0 = illimité)", promo_expires_opt: "Expire le (optionnel)", promo_campaign_prefix: "Campagne (préfixe du code)", promo_generate_btn: "Générer les codes",
         promo_mode: "Mode", promo_mode_single: "🎟️ UN seul code partagé (N personnes)", promo_mode_multi: "🎫 Plusieurs codes uniques (1 usage chacun)", promo_max_uses_people: "Nombre de personnes (0 = illimité)", promo_delete_selected: "Supprimer la sélection", promo_hide_inactive: "Masquer les codes désactivés", promo_select_all: "Tout sélectionner",
         promo_replyto: "Adresse Reply-To (où arrivent les réponses)", promo_subject: "Sujet", promo_message: "Message", promo_message_ph: "Bonjour ! Profite de…", promo_code_include: "Code promo à inclure (optionnel)", promo_cta_link: "Lien du bouton (optionnel)",
-        promo_recipients: "Destinataires", promo_filter_ph: "Filtrer nom/email…", promo_reload_title: "Recharger la liste (nouveaux utilisateurs)", promo_import_title: "Importer une liste d'emails (CSV/texte)", promo_export_title: "Exporter les emails clients en CSV", promo_send_btn: "Envoyer la campagne",
+        promo_recipients: "Destinataires", promo_sort_newest: "Plus récents d'abord", promo_sort_oldest: "Plus anciens d'abord", promo_filter_ph: "Filtrer nom/email…", promo_reload_title: "Recharger la liste (nouveaux utilisateurs)", promo_import_title: "Importer une liste d'emails (CSV/texte)", promo_export_title: "Exporter les emails clients en CSV", promo_send_btn: "Envoyer la campagne",
         filtre_title: "Filtre & modération", filtre_desc: "Les gros mots ci-dessous sont masqués automatiquement (***) dans les annonces et les messages, sur l'app ET le web. À l'ajout, le mot est traduit dans les 6 langues de l'app.", filtre_word_label: "Mot à interdire", filtre_word_ph: "ex. un gros mot", filtre_translate6: "Traduire 6 langues",
         filtre_photos_title: "Photos & contenu", filtre_photos_desc: "Les photos pornographiques ou violentes sont bloquées automatiquement à l'envoi (Google Vision), sur l'app et le web — elles ne sont jamais publiées. Pour retirer un contenu déjà publié : onglet « Annonces » (bannir une annonce) ou « Modération users » / « Signalements ».",
         reportstats_title: "Signalements — utilisation par type", reportstats_desc: "Combien de fois chaque type de signalement a été utilisé (PawMap), pour savoir lesquels fonctionnent. Les types à 0 ne sont jamais utilisés.",
@@ -6513,7 +6539,7 @@ async function toggleStaff(role, userId, isStaff) {
         promo_count: "Number of codes", promo_max_uses: "Uses per code (0 = unlimited)", promo_expires_opt: "Expires on (optional)", promo_campaign_prefix: "Campaign (code prefix)", promo_generate_btn: "Generate codes",
         promo_mode: "Mode", promo_mode_single: "🎟️ ONE shared code (N people)", promo_mode_multi: "🎫 Multiple unique codes (1 use each)", promo_max_uses_people: "Number of people (0 = unlimited)", promo_delete_selected: "Delete selected", promo_hide_inactive: "Hide deactivated codes", promo_select_all: "Select all",
         promo_replyto: "Reply-To address (where replies arrive)", promo_subject: "Subject", promo_message: "Message", promo_message_ph: "Hi! Enjoy…", promo_code_include: "Promo code to include (optional)", promo_cta_link: "Button link (optional)",
-        promo_recipients: "Recipients", promo_filter_ph: "Filter name/email…", promo_reload_title: "Reload the list (new users)", promo_import_title: "Import an email list (CSV/text)", promo_export_title: "Export customer emails to CSV", promo_send_btn: "Send the campaign",
+        promo_recipients: "Recipients", promo_sort_newest: "Newest first", promo_sort_oldest: "Oldest first", promo_filter_ph: "Filter name/email…", promo_reload_title: "Reload the list (new users)", promo_import_title: "Import an email list (CSV/text)", promo_export_title: "Export customer emails to CSV", promo_send_btn: "Send the campaign",
         filtre_title: "Filter & moderation", filtre_desc: "The banned words below are automatically masked (***) in listings and messages, on the app AND the web. On add, the word is translated into the app's 6 languages.", filtre_word_label: "Word to ban", filtre_word_ph: "e.g. a swear word", filtre_translate6: "Translate 6 languages",
         filtre_photos_title: "Photos & content", filtre_photos_desc: "Pornographic or violent photos are automatically blocked on upload (Google Vision), on the app and the web — they are never published. To remove already-published content: “Listings” tab (ban a listing) or “User moderation” / “Reports”.",
         reportstats_title: "Reports — usage by type", reportstats_desc: "How many times each report type was used (PawMap), to know which ones work. Types at 0 are never used.",
@@ -6648,7 +6674,7 @@ async function toggleStaff(role, userId, isStaff) {
         promo_count: "Número de códigos", promo_max_uses: "Usos por código (0 = ilimitado)", promo_expires_opt: "Expira el (opcional)", promo_campaign_prefix: "Campaña (prefijo del código)", promo_generate_btn: "Generar los códigos",
         promo_mode: "Modo", promo_mode_single: "🎟️ UN solo código compartido (N personas)", promo_mode_multi: "🎫 Varios códigos únicos (1 uso cada uno)", promo_max_uses_people: "Número de personas (0 = ilimitado)", promo_delete_selected: "Eliminar selección", promo_hide_inactive: "Ocultar códigos desactivados", promo_select_all: "Seleccionar todo",
         promo_replyto: "Dirección Reply-To (donde llegan las respuestas)", promo_subject: "Asunto", promo_message: "Mensaje", promo_message_ph: "¡Hola! Aprovecha…", promo_code_include: "Código promo a incluir (opcional)", promo_cta_link: "Enlace del botón (opcional)",
-        promo_recipients: "Destinatarios", promo_filter_ph: "Filtrar nombre/email…", promo_reload_title: "Recargar la lista (nuevos usuarios)", promo_import_title: "Importar una lista de emails (CSV/texto)", promo_export_title: "Exportar los emails de clientes en CSV", promo_send_btn: "Enviar la campaña",
+        promo_recipients: "Destinatarios", promo_sort_newest: "Más recientes primero", promo_sort_oldest: "Más antiguos primero", promo_filter_ph: "Filtrar nombre/email…", promo_reload_title: "Recargar la lista (nuevos usuarios)", promo_import_title: "Importar una lista de emails (CSV/texto)", promo_export_title: "Exportar los emails de clientes en CSV", promo_send_btn: "Enviar la campaña",
         filtre_title: "Filtro y moderación", filtre_desc: "Las palabrotas de abajo se ocultan automáticamente (***) en los anuncios y los mensajes, en la app Y la web. Al añadirla, la palabra se traduce a los 6 idiomas de la app.", filtre_word_label: "Palabra a prohibir", filtre_word_ph: "ej. una palabrota", filtre_translate6: "Traducir 6 idiomas",
         filtre_photos_title: "Fotos y contenido", filtre_photos_desc: "Las fotos pornográficas o violentas se bloquean automáticamente al subirlas (Google Vision), en la app y la web — nunca se publican. Para retirar contenido ya publicado: pestaña «Anuncios» (banear un anuncio) o «Moderación usuarios» / «Denuncias».",
         reportstats_title: "Denuncias — uso por tipo", reportstats_desc: "Cuántas veces se usó cada tipo de denuncia (PawMap), para saber cuáles funcionan. Los tipos en 0 nunca se usan.",
