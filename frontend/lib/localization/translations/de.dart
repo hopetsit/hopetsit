@@ -2219,6 +2219,8 @@ const Map<String, String> deDETranslations = <String, String>{
     'duplicate_application_message': 'Du hast dich bereits auf diese Anzeige beworben. Warte auf die Antwort des Eigentümers.',
     'share_post_subject': 'HoPetSit-Anzeige — @petName',
     'share_post_body': 'Sieh dir diese Anzeige auf HoPetSit an: @link',
+    'share_profile_subject': 'Entdecke @name auf HoPetSit',
+    'share_profile_body': 'Ich empfehle dir @name auf HoPetSit, der App für Tierbetreuung und Gassi-Service 🐾 @link',
     'payout_iban_saved_success': 'IBAN gespeichert! Wartet auf Admin-Verifizierung.',
     'payout_method_updated': 'Auszahlungsmethode aktualisiert.',
     'payout_iban_verified': '✓ Verifiziert',

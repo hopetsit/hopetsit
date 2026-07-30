@@ -17,6 +17,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
+import 'package:share_plus/share_plus.dart';
 
 class Review {
   final String reviewerName;
@@ -92,6 +93,30 @@ class _ServiceProviderDetailContent extends StatelessWidget {
           ),
         ),
         actions: [
+          // v531 — retour testeur US : « I can't find a way to share or
+          // forward to friends ». Partage du profil prestataire via la
+          // feuille native (WhatsApp, Instagram, SMS, email…).
+          IconButton(
+            tooltip: 'post_action_share'.tr,
+            icon: const Icon(Icons.ios_share_rounded,
+                color: AppColors.primaryColor),
+            onPressed: () {
+              try {
+                final name = controller.sitter.value?.name ?? '';
+                final safeName = name.isEmpty ? 'HoPetSit' : name;
+                SharePlus.instance.share(ShareParams(
+                  text: 'share_profile_body'.trParams({
+                    'name': safeName,
+                    'link': 'https://hopetsit.com/download',
+                  }),
+                  subject:
+                      'share_profile_subject'.trParams({'name': safeName}),
+                ));
+              } catch (_) {
+                // Un échec de partage ne doit jamais faire planter l'écran.
+              }
+            },
+          ),
           IconButton(
             tooltip: 'report_dialog_title'.tr,
             icon: const Icon(Icons.flag_outlined, color: AppColors.primaryColor),

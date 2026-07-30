@@ -2673,6 +2673,9 @@ const Map<String, String> enUSTranslations = <String, String>{
     'duplicate_application_message': 'You already applied to this listing. Wait for the owner to reply.',
     'share_post_subject': 'HoPetSit listing — @petName',
     'share_post_body': 'Check out this listing on HoPetSit: @link',
+    // v531 — tester feedback: share a provider profile (WhatsApp, etc.).
+    'share_profile_subject': 'Check out @name on HoPetSit',
+    'share_profile_body': 'I recommend @name on HoPetSit, the pet-sitting and dog-walking app 🐾 @link',
     'payout_iban_saved_success': 'IBAN saved! Pending admin verification before first payout.',
     'payout_method_updated': 'Payout method updated.',
     'payout_iban_verified': '✓ Verified',

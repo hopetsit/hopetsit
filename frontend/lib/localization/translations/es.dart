@@ -2212,6 +2212,8 @@ const Map<String, String> esESTranslations = <String, String>{
     'duplicate_application_message': 'Ya has postulado a este anuncio. Espera la respuesta del propietario.',
     'share_post_subject': 'Anuncio HoPetSit — @petName',
     'share_post_body': 'Mira este anuncio en HoPetSit: @link',
+    'share_profile_subject': 'Descubre a @name en HoPetSit',
+    'share_profile_body': 'Te recomiendo a @name en HoPetSit, la app de cuidado y paseo de mascotas 🐾 @link',
     'payout_iban_saved_success': 'IBAN guardado. Pendiente de verificacion del admin.',
     'payout_method_updated': 'Metodo de pago actualizado.',
     'payout_iban_verified': '✓ Verificado',
