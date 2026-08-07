@@ -47,6 +47,15 @@ PawPremium noir/or `#1c1726`→`#15120D` + or `#F4C04A`, badge membre rose
 `#F06AA0`→`#E0568B`. Web : font-display = Nunito.
 
 ## État actuel
+**07/08/2026 (depuis le Mac) — v530 = v529 + Firebase Analytics (`sign_up`
+Google/Apple, service non bloquant) + partage de profil prestataire + geo
+mondial.** Contexte : campagne Google Ads Paris mise en pause, le tracking
+`sign_up` doit tourner ~1 semaine avant de relancer une campagne optimisée.
+AAB + APK v530 buildés et signés sur le Mac (`~/Downloads/HoPetSit_v23.1.530.*`),
+upload Play Console fait/en cours par Daniel depuis le Mac. Restera ensuite :
+lier Firebase ↔ Google Ads (Firebase Console → Intégrations), et le build
+iOS 530 au prochain cycle. Le PC doit juste `git pull` (commit 77490d4).
+
 **Version app Android : 23.1.529 SOUMISE sur Google Play le 18/07/2026**
 (déploiement complet, en examen ; la **v528 est LIVE** dans 177 pays,
 validée en une nuit). **v529 = v528 + SDK Meta (App Events)** pour les
