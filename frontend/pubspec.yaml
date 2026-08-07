@@ -1,7 +1,7 @@
 name: hopetsit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 23.1.529+529
+version: 23.1.530+530
 
 environment:
   sdk: ^3.9.2
@@ -119,6 +119,7 @@ dependencies:
   # avec app_tracking_transparency (popup Apple obligatoire).
   facebook_app_events: ^0.20.1
   app_tracking_transparency: ^2.0.6
+  firebase_analytics: ^12.4.6
 
 dev_dependencies:
   flutter_test:

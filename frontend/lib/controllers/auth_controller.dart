@@ -15,6 +15,7 @@ import 'package:hopetsit/repositories/auth_repository.dart';
 // vers la page SignUpAs quand le backend répond 400 ROLE_REQUIRED.
 import 'package:hopetsit/views/auth/sign_up_as.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
+import 'package:hopetsit/services/firebase_analytics_service.dart';
 import 'package:hopetsit/services/meta_events_service.dart';
 import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/services/socket_service.dart';
@@ -535,6 +536,11 @@ class AuthController extends GetxController {
           unawaited(
             MetaEventsService.instance.logCompletedRegistration(method: 'google'),
           );
+          // v532 — même signal vers Google Ads via Firebase Analytics, pour que
+          // l'algo optimise sur les inscriptions réelles et non sur les installs.
+          unawaited(
+            FirebaseAnalyticsService.instance.logSignUp(method: 'google'),
+          );
           // New user - navigate to choose service screen
           final email =
               userData?['email']?.toString() ??
@@ -793,6 +799,11 @@ class AuthController extends GetxController {
           // v529 — signale l'inscription à Meta (optimisation campagnes install).
           unawaited(
             MetaEventsService.instance.logCompletedRegistration(method: 'apple'),
+          );
+          // v532 — même signal vers Google Ads via Firebase Analytics, pour que
+          // l'algo optimise sur les inscriptions réelles et non sur les installs.
+          unawaited(
+            FirebaseAnalyticsService.instance.logSignUp(method: 'apple'),
           );
           final email =
               userData?['email']?.toString() ??

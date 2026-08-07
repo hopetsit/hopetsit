@@ -27,6 +27,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
+import 'package:hopetsit/services/firebase_analytics_service.dart';
 import 'package:hopetsit/services/meta_events_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
@@ -208,6 +209,10 @@ void main() async {
   WidgetsBinding.instance.addPostFrameCallback((_) {
     // ignore: discarded_futures
     MetaEventsService.instance.init();
+    // v532 — Firebase Analytics : canal par lequel Google Ads reçoit les events
+    // in-app (sign_up). Sans lui, Google n'optimise que sur le volume d'installs.
+    // ignore: discarded_futures
+    FirebaseAnalyticsService.instance.init();
   });
 
   // Sprint 8 step 6 — optional Sentry. Opt-in via SENTRY_DSN_FRONTEND in .env.
