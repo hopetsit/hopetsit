@@ -24,6 +24,14 @@ const PUBLIC_PATHS = [
   "/remboursement",
   "/login",
   "/signup",
+  // v531 — SEO : blog + pages villes (contenu statique indexable).
+  "/blog",
+  "/blog/combien-coute-un-pet-sitter",
+  "/blog/faire-garder-son-chien-pendant-les-vacances",
+  "/blog/how-much-does-a-dog-walker-cost",
+  "/petsitter/paris",
+  "/petsitter/madrid",
+  "/petsitter/dallas",
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
