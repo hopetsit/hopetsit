@@ -30,6 +30,7 @@ const PUBLIC_PATHS = [
   "/blog/faire-garder-son-chien-pendant-les-vacances",
   "/blog/how-much-does-a-dog-walker-cost",
   "/petsitter/paris",
+  "/devenir-petsitter/paris",
   "/petsitter/madrid",
   "/petsitter/dallas",
 ];
