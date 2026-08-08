@@ -78,12 +78,23 @@ export function Footer() {
         { href: "/imprint",  label: t("footer_imprint") },
       ],
     },
+    // v532 — SEO : maillage interne vers le blog et les pages villes
+    // (libellés volontairement statiques : chaque page est monolingue).
+    {
+      title: "Guides",
+      links: [
+        { href: "/blog", label: "Blog" },
+        { href: "/petsitter/paris",  label: "Pet sitter à Paris" },
+        { href: "/petsitter/madrid", label: "Cuidador en Madrid" },
+        { href: "/petsitter/dallas", label: "Pet sitter in Dallas" },
+      ],
+    },
   ];
 
   return (
     <footer className="border-t border-ink/5 bg-bg-soft">
       <div className="mx-auto max-w-6xl px-4 py-12">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-8 md:grid-cols-6">
           <div className="col-span-2">
             <LogoWithText />
             <p className="mt-3 max-w-sm text-sm text-ink-muted">

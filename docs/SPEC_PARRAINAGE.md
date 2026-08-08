@@ -51,12 +51,14 @@
 - Inscription : champ optionnel « Code de parrainage » (3 rôles).
 - Écran récap : « X amis invités · Y récompenses gagnées ».
 
-## Montants proposés (à valider par Daniel)
+## Montants — DÉCISION DANIEL (09/08/2026) : version 100 % PawPoints, 0 € de cash
 | Qui | Quoi | Quand |
 |---|---|---|
 | Filleul | 200 PawPoints | À l'inscription avec code |
-| Parrain | 3 € wallet | 1re réservation payée du filleul |
-| Parrain (variante éco) | 500 PawPoints | idem |
+| Parrain | 500 PawPoints | 1re réservation payée du filleul |
+
+(Aucune récompense en euros/wallet — coût monétaire nul pour HoPetSit.
+Implémentation reportée à plus tard, à la demande de Daniel.)
 
 Coût d'acquisition résultant : ~3 € par utilisateur ACTIF (vs 1,18 €/install
 non qualifié en pub payante — mais ici l'utilisateur a déjà réservé, donc la
