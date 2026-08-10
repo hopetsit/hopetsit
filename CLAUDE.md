@@ -47,14 +47,29 @@ PawPremium noir/or `#1c1726`→`#15120D` + or `#F4C04A`, badge membre rose
 `#F06AA0`→`#E0568B`. Web : font-display = Nunito.
 
 ## État actuel
-**07/08/2026 (depuis le Mac) — v530 = v529 + Firebase Analytics (`sign_up`
-Google/Apple, service non bloquant) + partage de profil prestataire + geo
-mondial.** Contexte : campagne Google Ads Paris mise en pause, le tracking
-`sign_up` doit tourner ~1 semaine avant de relancer une campagne optimisée.
-AAB + APK v530 buildés et signés sur le Mac (`~/Downloads/HoPetSit_v23.1.530.*`),
-upload Play Console fait/en cours par Daniel depuis le Mac. Restera ensuite :
-lier Firebase ↔ Google Ads (Firebase Console → Intégrations), et le build
-iOS 530 au prochain cycle. Le PC doit juste `git pull` (commit 77490d4).
+**10/08/2026 — Android 23.1.530 LIVE depuis le 09/08** (= v529 + Firebase
+Analytics `sign_up` + correctifs PC du 20/07 : Crashlytics réseau non-fatal,
+dates localisées + langue notifs cross-rôle, partage profil prestataire,
+plafonds géo recherche/annonces). **iOS : 1.6 = build 530 en review Apple**
+(1.5/529 live) avec ASO corrigée (mots-clés EN qui étaient en français !).
+**Fiche Play en examen** : nouveau nom « HoPetSit: Pet Sitting & Walks »,
+descriptions réécrites, 5 nouvelles captures. **NE PAS TOUCHER (le Mac
+gère)** : campagne Google Ads (compte 179-822-1590 — Paris ACTIVE 10 €/j,
+1,18 €/install ; Dallas en veille ; import conversion `sign_up` GA4
+p549064108 → optimisation inscriptions vers le 15/08), fiches stores en
+examen, captures App Store (le Mac fera la 1.7 après approbation 1.6).
+**Stratégie de croissance ACTÉE : Paris « supply-first »** — recruter 10 pet
+sitters parisiens AVANT de pousser les propriétaires (vrais utilisateurs
+actuels : 3 Paris + 3 USA ; Espagne/Pologne = Daniel et ses amis). Annonce
+Leboncoin publiée le 09/08 ; playbook + pack réseaux sociaux dans
+~/Downloads du Mac. **Web LIVE v531-533** : /blog (3 articles SEO),
+/petsitter/paris|madrid|dallas, /devenir-petsitter/paris, colonne Guides au
+footer. ⚠️ RÈGLE SEO : toute future page SEO = composant serveur STATIQUE
+(le reste du site est client-side i18n → invisible pour Google).
+**Parrainage** : spec dans `docs/SPEC_PARRAINAGE.md` (version 100 %
+PawPoints actée) — NE PAS coder sans le go de Daniel. **Prochain build APK
+= 532** (530 consommé par le Mac, v531 déjà utilisé par un déploiement
+admin PC — Utilisateurs/désinscriptions + tri Promotions).
 
 **Version app Android : 23.1.529 SOUMISE sur Google Play le 18/07/2026**
 (déploiement complet, en examen ; la **v528 est LIVE** dans 177 pays,
