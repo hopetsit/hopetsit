@@ -235,6 +235,20 @@ exports.payShop = async (req, res) => {
       return res.status(400).json({ error: 'Invalid amount.' });
     }
 
+    // v532 — SÉCURITÉ. Cet endpoint débitait le solde du montant envoyé par le
+    // CLIENT, sans aucun prix de référence côté serveur et — surtout — sans
+    // jamais activer le produit correspondant. Vérification faite, aucun
+    // client ne l'appelle (ni l'app Flutter, ni le site) : c'est une ébauche
+    // jamais branchée. En l'état, un appel malformé ou rejoué fait
+    // simplement disparaître l'argent d'un prestataire sans contrepartie.
+    // On le ferme tant que le paiement par solde n'est pas implémenté avec un
+    // tarif serveur + activation du produit dans la même transaction.
+    return res.status(501).json({
+      error: 'Le paiement par solde n\'est pas encore disponible.',
+      code: 'WALLET_PAYMENT_NOT_IMPLEMENTED',
+    });
+    /* eslint-disable no-unreachable */
+
     const result = await debitWallet({
       userId: req.user.id,
       userRole: role,
@@ -251,6 +265,7 @@ exports.payShop = async (req, res) => {
       newBalance: result.balance,
       currency: result.currency,
     });
+    /* eslint-enable no-unreachable */
   } catch (e) {
     if (e.code === 'INSUFFICIENT_BALANCE') {
       return res.status(400).json({

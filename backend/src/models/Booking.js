@@ -57,6 +57,15 @@ const bookingSchema = new mongoose.Schema(
       enum: ['pending', 'scheduled', 'processing', 'completed', 'failed', 'held', 'pending_manual_transfer', 'cancelled', 'refunded'],
       default: 'pending',
     },
+    // v532 — horodatage de la prise de verrou du versement. Le seul garde-fou
+    // anti-double-virement était `if (payoutStatus === 'completed') return`,
+    // une lecture faite AVANT l'envoi de l'argent : deux exécutions
+    // simultanées (tick du planificateur + confirmation manuelle, ou deux
+    // instances Render) lisaient toutes les deux « pas encore versé » et
+    // payaient le prestataire DEUX FOIS. On pose désormais un verrou atomique
+    // (payoutStatus → 'processing') et ce champ permet de le reprendre si un
+    // traitement est mort en cours de route.
+    payoutProcessingAt: { type: Date, default: null },
     // v18.5 — #3 hold admin : montants dormants en attente que le provider
     // configure son IBAN ou PayPal. `heldAmount` = part provider (netPayout,
     // = 80% du total). `heldSince` = quand on a marqué held (pour tracking

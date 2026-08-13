@@ -77,10 +77,31 @@ async function createInvoiceForBooking(booking) {
   }
 
   const gross = Number(booking.pricing?.totalPrice) || 0;
-  const commission = Number(booking.pricing?.commission)
-    || Math.round(gross * 0.2 * 100) / 100;
-  const netPayout = Number(booking.pricing?.netPayout)
-    || Math.round((gross - commission) * 100) / 100;
+  // v532 — le repli calculait la commission comme 20 % du TOTAL PAYÉ. Or notre
+  // modèle est « commission EN PLUS » : total = base × 1,20, donc la commission
+  // vaut base × 0,20 = total / 6 (≈ 16,67 % du total), pas 20 % du total. Sur
+  // une garde à 120 €, l'ancienne formule facturait 24 € de commission au lieu
+  // de 20 € et sous-estimait d'autant le net du prestataire — une facture
+  // fausse pour les deux parties. On privilégie maintenant le net réellement
+  // versé (source de vérité du virement) et on ne retombe sur un calcul que si
+  // la réservation n'a aucune donnée de prix.
+  const storedCommission = Number(booking.pricing?.commission);
+  const storedNet = Number(booking.pricing?.netPayout);
+  let commission;
+  let netPayout;
+  if (Number.isFinite(storedCommission) && storedCommission > 0) {
+    commission = storedCommission;
+    netPayout = Number.isFinite(storedNet) && storedNet > 0
+      ? storedNet
+      : Math.round((gross - commission) * 100) / 100;
+  } else if (Number.isFinite(storedNet) && storedNet > 0) {
+    netPayout = storedNet;
+    commission = Math.round((gross - netPayout) * 100) / 100;
+  } else {
+    // Aucune donnée : on inverse la formule du modèle (base = total / 1,20).
+    netPayout = Math.round((gross / 1.2) * 100) / 100;
+    commission = Math.round((gross - netPayout) * 100) / 100;
+  }
   const currency = (booking.pricing?.currency || 'EUR').toUpperCase();
 
   const invoice = await Invoice.create({

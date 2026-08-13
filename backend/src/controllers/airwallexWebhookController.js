@@ -170,15 +170,21 @@ const handleAirwallexWebhook = async (req, res) => {
                   userRole: role,
                   name: piMetadata.userName || '',
                   email: piMetadata.userEmail || '',
-                  // data.amount = centimes → unités.
-                  amount: Math.round(Number(data?.amount || 0)) / 100,
+                  // v532 — CORRECTION : Airwallex parle en unités MAJEURES
+                  // (20.00 = 20 €), pas en centimes — c'est d'ailleurs pour ça
+                  // que le service convertit avec centsToMajor() à l'envoi et
+                  // que le solde plateforme est lu tel quel. Diviser par 100
+                  // enregistrait un don de 20 € comme 0,20 € : les dons
+                  // comptent dans le revenu « boutique », donc ce chiffre
+                  // faussait aussi le bénéfice retirable du tableau de bord.
+                  amount: Math.round(Number(data?.amount || 0) * 100) / 100,
                   currency: (data?.currency || piMetadata.currency || 'EUR').toUpperCase(),
                   paidAt: new Date(),
                 },
               },
               { upsert: true },
             );
-            logger.info(`✅ [airwallex.webhook] donation recorded from PI ${piId} (${(Number(data?.amount || 0) / 100).toFixed(2)} ${data?.currency || 'EUR'})`);
+            logger.info(`✅ [airwallex.webhook] donation recorded from PI ${piId} (${Number(data?.amount || 0).toFixed(2)} ${data?.currency || 'EUR'})`);
           } catch (e) {
             logger.error(`[airwallex.webhook] donation record failed for PI ${piId} : ${e.message}`);
           }

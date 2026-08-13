@@ -41,7 +41,7 @@ const { assertSupportedCurrency, DEFAULT_CURRENCY } = require('../utils/currency
 const { countryToCurrency } = require('../utils/countryCurrency');
 const { createNotificationSafe } = require('../services/notificationService');
 const { sendNotification } = require('../services/notificationSender');
-const { onBookingCompleted, consumeLoyaltyDiscount, recomputeSitterStatus, recomputeWalkerStatus } = require('../services/loyaltyService');
+const { onBookingCompleted, consumeLoyaltyDiscount, restoreLoyaltyDiscount, recomputeSitterStatus, recomputeWalkerStatus } = require('../services/loyaltyService');
 const { mergeScheduleFromApplication, normalizeServiceType } = require('../utils/bookingAgreementFields');
 const {
   buildRequestFingerprint,
@@ -1083,6 +1083,38 @@ const processProviderPayoutForBooking = async (booking) => {
       return;
     }
 
+    // v532 — VERROU ANTI-DOUBLE-VIREMENT. Les contrôles ci-dessus lisent un
+    // document déjà chargé en mémoire : deux exécutions concurrentes (tick du
+    // planificateur pendant que l'owner confirme, relance admin, ou deux
+    // instances Render) voyaient toutes les deux `payoutStatus` différent de
+    // 'completed' et envoyaient l'argent CHACUNE. On prend maintenant le
+    // verrou de façon atomique en base : un seul gagnant.
+    // La condition de reprise (verrou de plus de 15 min) évite qu'un
+    // traitement interrompu bloque définitivement le versement.
+    const PAYOUT_LOCK_STALE_MS = 15 * 60 * 1000;
+    const claimed = await Booking.findOneAndUpdate(
+      {
+        _id: booking._id,
+        $or: [
+          { payoutStatus: { $nin: ['completed', 'processing'] } },
+          {
+            payoutStatus: 'processing',
+            payoutProcessingAt: { $lt: new Date(Date.now() - PAYOUT_LOCK_STALE_MS) },
+          },
+        ],
+      },
+      { $set: { payoutStatus: 'processing', payoutProcessingAt: new Date() } },
+      { new: true },
+    ).select('_id payoutStatus');
+    if (!claimed) {
+      logger.info(
+        `ℹ️ Payout déjà en cours ou terminé pour booking ${booking._id.toString()} — exécution concurrente ignorée.`,
+      );
+      return;
+    }
+    booking.payoutStatus = 'processing';
+    booking.payoutProcessingAt = new Date();
+
     // Session v17 — resolve sitter OR walker via the unified provider
     // helper. The "sitter" variable name is kept below to minimise diff in
     // the payoutMethod branches; semantically it now means "provider".
@@ -1801,6 +1833,43 @@ const cancelBooking = async (req, res) => {
  * Stripe → createRefund (by chargeId or paymentIntentId)
  * PayPal → refundPaypalCapture (by captureId)
  */
+/**
+ * v532 — PLAFOND DES REMISES : garantit qu'on encaisse toujours notre part.
+ *
+ * Le modèle est « commission EN PLUS » : le propriétaire paie
+ * `basePrice + commission`, le prestataire touche `basePrice` en entier. Notre
+ * seule marge sur une garde est donc la commission.
+ *
+ * Or les crédits (fidélité = 10 % du total d'une garde PRÉCÉDENTE, parrainage
+ * = 5 € fixes) étaient déduits du total encaissé SANS jamais réduire le
+ * versement au prestataire. Dès que le crédit dépassait la commission de la
+ * garde en cours, on payait le prestataire avec notre propre argent :
+ *   garde précédente 200 € de base → crédit de 24 €
+ *   garde suivante    50 € de base → commission 10 €, encaissé 60 − 24 = 36 €,
+ *   versé au prestataire 50 €      → PERTE SÈCHE de 14 € pour HoPetSit.
+ * Un crédit supérieur au total menait même à un PaymentIntent de 0 €.
+ *
+ * On plafonne donc la remise à la commission de la garde en cours : le client
+ * garde son avantage, le prestataire est payé plein tarif, et notre marge ne
+ * peut jamais devenir négative.
+ *
+ * @returns {number} montant de remise réellement applicable (≥ 0).
+ */
+const capDiscountToCommission = (booking, requestedDiscount) => {
+  const asked = Number(requestedDiscount) || 0;
+  if (asked <= 0) return 0;
+  const commission = Number(booking?.pricing?.commission) || 0;
+  if (commission <= 0) return 0;
+  const capped = Math.min(asked, commission);
+  if (capped < asked) {
+    logger.warn(
+      `[discount] remise plafonnée pour booking ${booking?._id} : ${asked}€ demandés → ${capped}€ ` +
+      '(limite = commission de la garde ; au-delà, HoPetSit paierait le prestataire de sa poche).',
+    );
+  }
+  return Math.round(capped * 100) / 100;
+};
+
 const refundBookingPayment = async (booking) => {
   if (booking.paymentProvider === 'paypal') {
     const captureId = booking.paypalCaptureId;
@@ -2467,10 +2536,21 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
   let loyaltyDiscountApplied = null;
   let effectiveTotal = totalPrice;
   if (body?.useLoyaltyCredit === true) {
+    // v532 — cf. note plus bas : on libère d'abord le crédit déjà rattaché à
+    // cette réservation pour ne pas en brûler un second à chaque nouvelle
+    // tentative de paiement.
+    await restoreLoyaltyDiscount(booking._id).catch(() => {});
     const discount = await consumeLoyaltyDiscount(ownerId, booking._id);
     if (discount.applied) {
-      effectiveTotal = Math.max(0, totalPrice - discount.discountAmount);
-      loyaltyDiscountApplied = discount;
+      // v532 — plafonné à notre commission (cf. capDiscountToCommission).
+      const usable = capDiscountToCommission(booking, discount.discountAmount);
+      if (usable > 0) {
+        effectiveTotal = Math.max(0, totalPrice - usable);
+        loyaltyDiscountApplied = { ...discount, discountAmount: usable };
+      } else {
+        // Rien d'applicable : on rend le crédit au lieu de le brûler.
+        await restoreLoyaltyDiscount(booking._id).catch(() => {});
+      }
     }
   }
 
@@ -2752,10 +2832,21 @@ const createBookingPaymentIntent = async (req, res) => {
     let loyaltyDiscountApplied = null;
     let effectiveTotal = totalPrice;
     if (req.body?.useLoyaltyCredit === true) {
+      // v532 — un crédit déjà « consommé » pour CETTE réservation (paiement
+      // abandonné, PaymentIntent expiré puis recréé) était perdu et un SECOND
+      // crédit était brûlé à la tentative suivante. On libère d'abord celui
+      // rattaché à la réservation : la nouvelle tentative réutilise le même.
+      await restoreLoyaltyDiscount(booking._id).catch(() => {});
       const discount = await consumeLoyaltyDiscount(ownerId, booking._id);
       if (discount.applied) {
-        effectiveTotal = Math.max(0, totalPrice - discount.discountAmount);
-        loyaltyDiscountApplied = discount;
+        // v532 — plafonné à notre commission (cf. capDiscountToCommission).
+        const usable = capDiscountToCommission(booking, discount.discountAmount);
+        if (usable > 0) {
+          effectiveTotal = Math.max(0, totalPrice - usable);
+          loyaltyDiscountApplied = { ...discount, discountAmount: usable };
+        } else {
+          await restoreLoyaltyDiscount(booking._id).catch(() => {});
+        }
       }
     }
     const amountInCents = Math.round(effectiveTotal * 100);
@@ -4382,17 +4473,22 @@ const retryBookingPayout = async (req, res) => {
 
     await processProviderPayoutForBooking(booking);
 
-    // Reload latest state
-    await booking.reload();
+    // v532 — `booking.reload()` N'EXISTE PAS dans Mongoose 8 : cette ligne
+    // levait un TypeError APRÈS l'envoi effectif du virement. Le catch
+    // répondait alors 500 « Unable to retry payout » — l'admin croyait à un
+    // échec et recliquait, ce qui pouvait payer le prestataire DEUX FOIS.
+    const fresh = await Booking.findById(id).select(
+      'payoutStatus payoutBatchId payoutAt payoutError',
+    );
 
     res.json({
-      bookingId: booking._id.toString(),
-      payoutStatus: booking.payoutStatus,
-      payoutBatchId: booking.payoutBatchId || null,
-      payoutAt: booking.payoutAt || null,
-      payoutError: booking.payoutError || null,
+      bookingId: String(id),
+      payoutStatus: fresh?.payoutStatus || booking.payoutStatus,
+      payoutBatchId: fresh?.payoutBatchId || booking.payoutBatchId || null,
+      payoutAt: fresh?.payoutAt || booking.payoutAt || null,
+      payoutError: fresh?.payoutError || booking.payoutError || null,
       message:
-        booking.payoutStatus === 'completed'
+        (fresh?.payoutStatus || booking.payoutStatus) === 'completed'
           ? 'Payout retried and completed successfully.'
           : 'Payout retry attempted. Check payoutStatus and payoutError for details.',
     });
@@ -5909,6 +6005,25 @@ const confirmService = async (req, res) => {
     }
     if (booking.confirmationStatus === 'disputed') {
       return res.status(409).json({ error: 'Booking is under dispute.', confirmationStatus: 'disputed' });
+    }
+    // v532 — GARDE TEMPORELLE (symétrique de celle de startService). Confirmer
+    // libère immédiatement l'argent au prestataire. Sans contrôle de date, un
+    // prestataire pouvait faire confirmer une garde prévue dans trois semaines
+    // (« valide juste pour finaliser la réservation ») et encaisser aussitôt,
+    // sans jamais garder l'animal — et le séquestre censé protéger le
+    // propriétaire ne servait plus à rien.
+    // On autorise la confirmation dès que la garde a commencé (démarrage
+    // enregistré) ou que l'heure prévue est atteinte, avec la même tolérance
+    // de 2 h qu'au démarrage.
+    if (booking.confirmationStatus !== 'in_progress') {
+      const startAt = resolveBookingStartDate(booking);
+      if (startAt && Date.now() < startAt.getTime() - EARLY_START_TOLERANCE_MS) {
+        return res.status(409).json({
+          error: 'Service has not started yet.',
+          code: 'SERVICE_NOT_STARTED_YET',
+          startsAt: startAt,
+        });
+      }
     }
     booking.confirmationStatus = 'confirmed';
     booking.ownerConfirmedAt = new Date();

@@ -3952,7 +3952,7 @@ async function loadDashboard() {
       { label: '💰 Commission 20%', value: `€${(d.commissionTotal||0).toFixed(2)}`, sub: 'ta part sur les réservations', accent: colors[1] },
       { label: '🛍️ Boutique bénéfice', value: `€${(d.boutiqueTotal||0).toFixed(2)}`, sub: 'PawBoost + PawSpot + PawFollow + 👑 PawPremium + 🪪 ID + 🎁 Dons', accent: colors[3] },
       { label: '📈 CA brut réservations', value: `€${(d.totalRevenue||0).toFixed(2)}`, sub: 'total payé par les owners', accent: colors[2] },
-      { label: '↩️ À reverser aux prestataires', value: `€${(d.providerWalletTotal||0).toFixed(2)}`, sub: 'solde wallets sitters + walkers', accent: colors[4] },
+      { label: '↩️ À reverser aux prestataires', value: `€${(d.providerWalletTotal||0).toFixed(2)}`, sub: 'wallets sitters + walkers + gardes payées non encore versées', accent: colors[4] },
       { label: '📦 Abonnements', value: d.subscriptions?.total || 0, sub: `€${(d.subscriptions?.totalRevenue||0).toFixed(2)} de revenus`, accent: colors[5] },
       // ── Communauté ──
       { label: '📅 Réservations', value: d.totalBookings, sub: `${d.pendingBookings} en attente`, accent: colors[0] },

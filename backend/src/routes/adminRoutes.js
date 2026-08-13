@@ -392,7 +392,29 @@ router.get('/stats', requireAdmin, async (req, res) => {
       ]);
 
       commissionTotal = commAgg[0]?.t || 0;
-      providerWalletTotal = (swSitter || 0) + (swWalker || 0);
+      // v532 — « À reverser aux prestataires » ne comptait QUE les soldes de
+      // portefeuille, c'est-à-dire l'argent DÉJÀ libéré. Tout l'argent
+      // séquestré — gardes payées par le client mais pas encore confirmées —
+      // était absent du chiffre, alors que c'est exactement ce qu'on doit
+      // encore verser. Le tableau de bord sous-estimait donc la dette envers
+      // les prestataires, et laissait croire à un bénéfice retirable plus
+      // élevé qu'en réalité. On ajoute le séquestre en attente.
+      let escrowTotal = 0;
+      try {
+        const escAgg = await Booking.aggregate([
+          {
+            $match: {
+              paymentStatus: 'paid',
+              payoutStatus: { $nin: ['completed', 'cancelled'] },
+            },
+          },
+          { $group: { _id: null, t: { $sum: { $ifNull: ['$pricing.netPayout', 0] } } } },
+        ]);
+        escrowTotal = escAgg[0]?.t || 0;
+      } catch (_) { /* best-effort */ }
+      providerWalletTotal = parseFloat(
+        ((swSitter || 0) + (swWalker || 0) + escrowTotal).toFixed(2),
+      );
 
       let chatTotal = 0; let chatCount = 0;
       if (UserChatAddon) {
@@ -1088,7 +1110,12 @@ router.patch('/sitters/:id/iban/verify', requireAdmin, async (req, res) => {
 });
 
 // ─── RETRY PAYOUT ─────────────────────────────────────────────────────────────
-router.post('/bookings/:id/retry-payout', requireAuth, requireRole('owner'), retryBookingPayout);
+// v532 — cette route ADMIN était gardée par `requireRole('owner')`. Deux
+// conséquences : (1) l'admin ne pouvait pas s'en servir s'il n'était pas
+// connecté en profil propriétaire ; (2) surtout, N'IMPORTE QUEL propriétaire
+// connecté pouvait relancer le virement de n'importe quelle réservation, sans
+// le moindre lien avec elle. On aligne sur le reste du dashboard : requireAdmin.
+router.post('/bookings/:id/retry-payout', requireAdmin, retryBookingPayout);
 
 // Sprint 5 step 7 — identity verification admin review.
 // Session v3.2 — now aggregates Sitter AND Walker submissions so the admin

@@ -218,6 +218,29 @@ const deletePaymentMethod = async (req, res) => {
     if (!consentId) {
       return res.status(400).json({ error: 'Payment method id is required.' });
     }
+    // v532 — IDOR : on supprimait l'identifiant reçu SANS vérifier qu'il
+    // appartenait bien à l'appelant. N'importe quel compte connecté pouvait
+    // donc supprimer la carte enregistrée d'un AUTRE utilisateur (et casser
+    // ses paiements) rien qu'en devinant/récupérant un id de consentement.
+    // On liste d'abord les cartes du client Airwallex de l'appelant et on
+    // refuse tout id qui n'y figure pas.
+    const Model = _roleModel(req.user.role);
+    const me = await Model.findById(req.user.id).lean();
+    if (!me) return res.status(404).json({ error: 'User not found.' });
+    const customer = await airwallex.findOrCreateCustomer({
+      userId: me._id.toString(),
+      email: me.email,
+      firstName: (me.name || '').split(' ')[0] || me.name || 'Customer',
+      lastName: (me.name || '').split(' ').slice(1).join(' ') || '',
+    });
+    const consents = customer?.id ? await airwallex.listPaymentMethods(customer.id) : null;
+    const owned = (consents?.items || []).some((c) => String(c.id) === String(consentId));
+    if (!owned) {
+      logger.warn(
+        `[ownerPayments] suppression de carte refusée : consent ${consentId} n'appartient pas à ${req.user.role} ${req.user.id}`,
+      );
+      return res.status(404).json({ error: 'Payment method not found.' });
+    }
     await airwallex.detachPaymentMethod(consentId);
     return res.json({ ok: true, deletedId: consentId });
   } catch (err) {

@@ -452,6 +452,20 @@ function constructWebhookEvent(rawBody, headers) {
   // discovers the webhook URL to forge events. The flag is loud-logged on
   // every event so it cannot be forgotten silently.
   if (String(process.env.AIRWALLEX_WEBHOOK_PERMISSIVE || '').toLowerCase() === 'true') {
+    // v532 — ce mode accepte n'importe quel corps de requête sans vérifier la
+    // signature : qui connaît l'URL du webhook peut s'offrir abonnements,
+    // boosts et activations en fabriquant de faux événements « paiement
+    // réussi ». Il ne dépendait que d'une variable d'environnement qu'on
+    // pouvait oublier active. On le neutralise DÉFINITIVEMENT en production :
+    // il ne reste utilisable que sur un environnement de test.
+    if (String(process.env.NODE_ENV || '').toLowerCase() === 'production') {
+      try {
+        require('../utils/logger').error(
+          '[airwallex.webhook] ⛔ AIRWALLEX_WEBHOOK_PERMISSIVE=true IGNORÉ en production : ' +
+          'la signature reste vérifiée. Retire cette variable sur Render.',
+        );
+      } catch (_) { /* logger optional */ }
+    } else {
     try {
       require('../utils/logger').warn(
         '[airwallex.webhook] ⚠️ PERMISSIVE MODE — signature NOT verified. ' +
@@ -462,6 +476,7 @@ function constructWebhookEvent(rawBody, headers) {
     try { event = JSON.parse(bodyStr); }
     catch { throw new Error('Webhook body is not valid JSON'); }
     return event;
+    }
   }
 
   // v23.1 part 44 — extended candidate list. Part 42/43 only tried 6 SHA-256
