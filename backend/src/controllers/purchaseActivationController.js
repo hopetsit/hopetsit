@@ -41,7 +41,34 @@ const _roleModelName = (role) => {
  * @param {string} opts.piId — Airwallex PaymentIntent id
  * @param {object} opts.metadata — PI metadata (userId, role, tier, days, currency, ...)
  */
+// v532 — verrou partage entre le webhook Airwallex et les endpoints /confirm
+// de la boutique. Les DEUX chemins activaient le meme achat sans se
+// concerter, et tous deux ETENDENT la periode : le client payait 1 mois et
+// en recevait 2. Le premier arrive pose la cle et active ; le second la voit
+// et s abstient.
+//
+// Retourne true si l activation peut avoir lieu, false si elle a deja ete
+// faite par l autre chemin. En cas d indisponibilite du registre, on
+// retourne true (mieux vaut activer un achat paye que de le perdre).
+async function _claimPurchase(piId, label) {
+  const id = String(piId || '').trim();
+  if (!id) return true;
+  try {
+    const ProcessedWebhook = require('../models/ProcessedWebhook');
+    await ProcessedWebhook.create({ eventId: `purchase:${id}` });
+    return true;
+  } catch (e) {
+    if (e && e.code === 11000) {
+      logger.info(`[${label}] achat ${id} deja active par l autre chemin — ignore`);
+      return false;
+    }
+    logger.warn(`[${label}] registre anti-rejeu indisponible (${e.message}) — on active`);
+    return true;
+  }
+}
+
 async function activateMapBoostFromWebhook({ piId, metadata }) {
+  if (!(await _claimPurchase(piId, 'map_boost'))) return { skipped: true, reason: 'already_activated' };
   const userId = metadata?.userId;
   const role = metadata?.role;
   const tier = metadata?.tier;
@@ -119,6 +146,7 @@ async function activateMapBoostFromWebhook({ piId, metadata }) {
  * Idempotent on the metadata.paymentId field of UserSubscription.history.
  */
 async function activateSubscriptionFromWebhook({ piId, metadata }) {
+  if (!(await _claimPurchase(piId, 'subscription'))) return { skipped: true, reason: 'already_activated' };
   const userId = metadata?.userId;
   const role = metadata?.role;
   const plan = metadata?.plan;
@@ -273,6 +301,7 @@ async function activateSubscriptionFromWebhook({ piId, metadata }) {
  * runs even if the client app crashes between pay and /confirm.
  */
 async function activateBoostFromWebhook({ piId, metadata }) {
+  if (!(await _claimPurchase(piId, 'boost'))) return { skipped: true, reason: 'already_activated' };
   const userId = metadata?.userId;
   const role = metadata?.role;
   const tier = metadata?.tier;
@@ -347,6 +376,7 @@ async function activateBoostFromWebhook({ piId, metadata }) {
  * activated it. Idempotent on UserChatAddon.history[].paymentId.
  */
 async function activateChatAddonFromWebhook({ piId, metadata }) {
+  if (!(await _claimPurchase(piId, 'chat_addon'))) return { skipped: true, reason: 'already_activated' };
   const userId = metadata?.userId;
   const role = metadata?.role;
   const intervalDays = Number(metadata?.intervalDays || 30);
@@ -369,28 +399,38 @@ async function activateChatAddonFromWebhook({ piId, metadata }) {
     });
   }
 
-  const history = addon.history || [];
-  if (history.some((h) => h.paymentId === piId)) {
+  // v532 — BUG : cette fonction écrivait `addon.history` et `addon.expiresAt`,
+  // deux champs qui N EXISTENT PAS dans le schéma UserChatAddon. Mongoose est
+  // en mode strict : il les jetait SILENCIEUSEMENT. Le log affichait
+  // « ✅ chat_addon activated », mais `currentPeriodEnd` — le seul champ lu par
+  // isCurrentlyActive() et chatAccessService — restait null. Résultat :
+  // l utilisateur payait l add-on chat et ne l obtenait JAMAIS.
+  // On écrit désormais les vrais champs du schéma (currentPeriodStart /
+  // currentPeriodEnd / payments), et la dédup se fait sur `payments`.
+  const payments = addon.payments || [];
+  if (payments.some((p) => p.paymentIntentId === piId)) {
     logger.info(`[purchaseActivation] chat_addon already activated for PI ${piId} — skipping`);
     return { alreadyActivated: true };
   }
 
   const now = new Date();
-  const currentExpiry = addon.expiresAt && new Date(addon.expiresAt) > now
-    ? new Date(addon.expiresAt) : now;
+  const currentExpiry = addon.currentPeriodEnd && new Date(addon.currentPeriodEnd) > now
+    ? new Date(addon.currentPeriodEnd) : now;
   const newExpiry = new Date(currentExpiry.getTime() + intervalDays * 86_400_000);
 
   addon.status = 'active';
-  addon.expiresAt = newExpiry;
+  addon.currentPeriodStart = addon.currentPeriodStart || now;
+  addon.currentPeriodEnd = newExpiry;
   addon.currency = currency;
-  addon.history = history;
-  addon.history.push({
-    paymentProvider: 'airwallex',
-    paymentId: piId,
-    activatedAt: now,
-    expiresAt: newExpiry,
-    intervalDays,
+  addon.payments = payments;
+  addon.payments.push({
+    amount: Number(metadata?.amount) || 0,
     currency,
+    paidAt: now,
+    paymentProvider: 'airwallex',
+    paymentIntentId: piId,
+    periodStart: currentExpiry,
+    periodEnd: newExpiry,
   });
   await addon.save();
 
@@ -418,6 +458,7 @@ async function activateChatAddonFromWebhook({ piId, metadata }) {
  * UserSubscription.history (kind 'pawspot').
  */
 async function activatePawSpotFromWebhook({ piId, metadata }) {
+  if (!(await _claimPurchase(piId, 'pawspot'))) return { skipped: true, reason: 'already_activated' };
   const UserSubscription = require('../models/UserSubscription');
   const userId = metadata?.userId;
   const role = String(metadata?.role || 'owner').toLowerCase();

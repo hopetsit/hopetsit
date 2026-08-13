@@ -855,16 +855,57 @@ router.post('/bookings/:id/refund', requireAdmin, async (req, res) => {
       const providerId = booking.sitterId || booking.walkerId;
       const providerRole = booking.sitterId ? 'sitter' : (booking.walkerId ? 'walker' : null);
       const net = Number(booking?.pricing?.netPayout) || 0;
-      const stillHeld =
-        providerId && providerRole && net > 0 &&
-        booking.payoutStatus !== 'completed' &&
-        booking.payoutStatus !== 'processing';
-      if (stillHeld) {
+      // v532 — CETTE CONDITION PRENAIT L'ARGENT DES AUTRES RÉSERVATIONS.
+      // Elle déduisait « l'argent dort encore dans le wallet » de
+      // payoutStatus. Or le crédit posé au PAIEMENT est `withdrawable:false`
+      // (historique seulement, walletBalance INCHANGÉ — cf. v23.1.330) : tant
+      // que le service n'est pas confirmé, RIEN n'a été ajouté au solde.
+      // L'ancien test débitait précisément dans ce cas-là → le solde du
+      // prestataire baissait de `net` alors que cette réservation ne lui avait
+      // jamais rien versé : on lui reprenait les gains d'AUTRES gardes déjà
+      // terminées et confirmées.
+      // On interroge maintenant le journal : on ne reprend que ce qui a
+      // réellement incrémenté le solde (crédit withdrawable), et jamais deux
+      // fois (reprise déjà enregistrée).
+      let reclaimable = 0;
+      if (providerId && providerRole && net > 0) {
+        const WalletTransaction = require('../models/WalletTransaction');
+        const [credited, alreadyReversed] = await Promise.all([
+          WalletTransaction.findOne({
+            userId: providerId,
+            bookingId: booking._id,
+            type: 'credit_booking',
+            status: { $in: ['completed', 'pending'] },
+            'meta.withdrawable': true,
+          }).lean(),
+          WalletTransaction.findOne({
+            userId: providerId,
+            bookingId: booking._id,
+            type: 'admin_adjustment',
+            'meta.reason': 'admin_refund_reversal',
+          }).lean(),
+        ]);
+        if (!credited) {
+          outcome.warnings.push(
+            'Aucun crédit encaissable pour cette réservation (argent encore séquestré) — rien à reprendre sur le wallet.',
+          );
+        } else if (alreadyReversed) {
+          outcome.warnings.push('Crédit wallet déjà repris pour cette réservation — pas de double reprise.');
+        } else if (booking.payoutStatus === 'completed' || booking.payoutStatus === 'processing') {
+          // L'argent est parti vers l'IBAN : impossible de le reprendre ici.
+          outcome.warnings.push(
+            'Virement déjà envoyé au prestataire (payoutStatus=' + booking.payoutStatus + ') — reprise impossible, à réclamer manuellement.',
+          );
+        } else {
+          reclaimable = Math.min(net, Number(credited.amount) || net);
+        }
+      }
+      if (reclaimable > 0) {
         const { debitWallet } = require('../services/walletService');
         await debitWallet({
           userId: String(providerId),
           userRole: providerRole,
-          amount: net,
+          amount: reclaimable,
           currency: booking?.pricing?.currency || 'EUR',
           type: 'admin_adjustment',
           bookingId: String(booking._id),
@@ -4716,10 +4757,34 @@ router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
     }
     const minSweepAmount = Number(req.body?.minSweepAmount) || 10;
     const currencies = Array.isArray(req.body?.currencies) ? req.body.currencies : null;
+    // v532 — TROU GRAVE : le retrait PARTIEL était plafonné à hopetsitCap
+    // (bénéfices nets) depuis la v99, mais le « tout retirer » — juste ici —
+    // appelait sweepPlatformBalance SANS plafond. Il vidait donc l'intégralité
+    // du solde Airwallex : commissions ET argent séquestré des réservations en
+    // cours ET portefeuilles des prestataires. Conséquence : les virements
+    // suivants aux gardiens/promeneurs échouaient faute de fonds, alors que
+    // leurs clients avaient bien payé. Le même plafond s'applique désormais
+    // aux deux chemins.
+    if (hopetsitCap == null) {
+      // Le calcul du plafond a échoué (base indisponible) : on refuse plutôt
+      // que de retirer à l'aveugle l'argent des prestataires.
+      return res.status(503).json({
+        error: 'Impossible de calculer le solde HoPetSit retirable pour le moment.',
+        hint: 'Réessaie dans un instant, ou retire un montant précis (retrait partiel).',
+      });
+    }
+    if (hopetsitCap <= 0) {
+      return res.status(400).json({
+        error: 'Aucun bénéfice HoPetSit retirable pour le moment (commissions + boutique − déjà retiré = 0).',
+        breakdown: { hopetsitNetAvailable: 0 },
+        hint: 'Le solde Airwallex restant appartient aux prestataires (réservations en cours et portefeuilles) : il ne doit pas être retiré.',
+      });
+    }
     const result = await _airwallex.sweepPlatformBalance({
       beneficiaryId,
       minSweepAmount,
       currencies,
+      maxTotalAmount: hopetsitCap,
     });
     // Persist each swept currency to history.
     for (const s of result.swept) {

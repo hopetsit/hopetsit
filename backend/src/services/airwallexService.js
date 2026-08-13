@@ -997,12 +997,19 @@ async function getPlatformBalance() {
  * @param {string} opts.beneficiaryId - Airwallex beneficiary id (Daniel's company bank).
  * @param {number} [opts.minSweepAmount=10] - Skip sweep if available < this in major units.
  * @param {string[]} [opts.currencies] - Optional whitelist (default: all currencies with balance).
+ * @param {number|null} [opts.maxTotalAmount=null] - v532 : PLAFOND global (bénéfices
+ *   HoPetSit nets). Sans lui, ce balayage vidait TOUT le solde Airwallex, y compris
+ *   l'argent séquestré des réservations en cours et les portefeuilles des prestataires :
+ *   les virements suivants échouaient faute de fonds. Le budget est partagé entre
+ *   toutes les devises et décrémenté 1:1 (volontairement conservateur : on ne
+ *   convertit pas, donc on ne peut jamais sortir plus que le plafond).
  * @returns {Promise<{swept: Array<{currency, amount, payoutId}>, skipped: Array<{currency, available, reason}>}>}
  */
 async function sweepPlatformBalance({
   beneficiaryId,
   minSweepAmount = 10,
   currencies = null,
+  maxTotalAmount = null,
 }) {
   if (!beneficiaryId) {
     throw new Error('beneficiaryId is required (set COMPANY_AIRWALLEX_BENEFICIARY_ID).');
@@ -1011,13 +1018,28 @@ async function sweepPlatformBalance({
   const items = (balance && Array.isArray(balance.items)) ? balance.items : [];
   const swept = [];
   const skipped = [];
+  const capped = Number.isFinite(maxTotalAmount) && maxTotalAmount !== null;
+  let remaining = capped ? Math.max(0, Number(maxTotalAmount)) : Infinity;
   for (const item of items) {
     const currency = (item.currency || '').toUpperCase();
     if (!currency) continue;
     if (currencies && !currencies.includes(currency)) continue;
-    const available = Number(item.available_amount || 0);
+    const balanceAvailable = Number(item.available_amount || 0);
+    // v532 — on ne retire jamais plus que les bénéfices HoPetSit restants :
+    // le surplus appartient aux prestataires (séquestre + portefeuilles).
+    const available = capped
+      ? Math.min(balanceAvailable, remaining)
+      : balanceAvailable;
+    if (capped && remaining < minSweepAmount) {
+      skipped.push({ currency, available: balanceAvailable, reason: 'cap_reached' });
+      continue;
+    }
     if (!Number.isFinite(available) || available < minSweepAmount) {
-      skipped.push({ currency, available, reason: 'below_min' });
+      skipped.push({
+        currency,
+        available: balanceAvailable,
+        reason: capped && available < balanceAvailable ? 'cap_reached' : 'below_min',
+      });
       continue;
     }
     try {
@@ -1038,11 +1060,12 @@ async function sweepPlatformBalance({
         amount: available,
         payoutId: payout?.id || null,
       });
+      if (capped) remaining = Math.max(0, remaining - available);
     } catch (e) {
       skipped.push({ currency, available, reason: 'payout_failed', error: e.message });
     }
   }
-  return { swept, skipped };
+  return { swept, skipped, capApplied: capped ? Number(maxTotalAmount) : null };
 }
 
 

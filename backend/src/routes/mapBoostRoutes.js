@@ -324,6 +324,14 @@ router.post('/confirm', requireAuth, async (req, res) => {
       });
     } catch (guardErr) {
       if (guardErr instanceof PaymentNotVerifiedError) {
+        // Deja consomme = le webhook Airwallex a active l achat avant nous.
+        // Ce n est pas une erreur : sans ce cas, l utilisateur verrait un
+        // message d echec alors qu il a paye ET que le produit est actif.
+        // C est aussi ce qui empeche la DOUBLE activation (1 paiement qui
+        // donnait 2 mois d abonnement).
+        if (guardErr.code === 'PAYMENT_INTENT_ALREADY_USED') {
+          return res.json({ success: true, alreadyActivated: true });
+        }
         return res.status(guardErr.status).json({
           error: guardErr.message,
           code: guardErr.code,

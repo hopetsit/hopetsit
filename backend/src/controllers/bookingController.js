@@ -1815,17 +1815,41 @@ const refundBookingPayment = async (booking) => {
   if (booking.paymentProvider === 'airwallex') {
     const piId = booking.airwallexPaymentIntentId;
     if (!piId) throw new Error('No Airwallex PaymentIntent ID to refund.');
+    // v532 — on remboursait `pricing.totalPrice` (le prix AFFICHÉ). Or ce
+    // n'est pas ce qui a été encaissé sur la carte dès qu'il y a eu une
+    // remise : code promo, PawPoints, ou paiement partiel par le
+    // portefeuille. Airwallex REFUSE tout remboursement supérieur au montant
+    // capturé → l'appel échouait en bloc et le client ne récupérait
+    // strictement RIEN (au lieu de récupérer ce qu'il avait payé).
+    // On lit donc le montant réellement capturé sur le PaymentIntent ; en
+    // dernier recours on omet `amount`, ce qui demande à Airwallex de
+    // rembourser l'intégralité du capturé.
+    let refundCents = null;
+    try {
+      const pi = await airwallex.retrievePaymentIntent(piId);
+      const capturedMajor = Number(
+        pi?.captured_amount != null ? pi.captured_amount : pi?.amount,
+      );
+      if (Number.isFinite(capturedMajor) && capturedMajor > 0) {
+        refundCents = Math.round(capturedMajor * 100);
+      }
+    } catch (e) {
+      logger.warn(
+        `[refundBookingPayment] lecture du PaymentIntent ${piId} impossible (${e.message}) — remboursement du montant capturé intégral.`,
+      );
+    }
     const grossCents = Math.round(
       ((booking.pricing && booking.pricing.totalPrice) ||
         booking.totalAmount ||
         0) * 100,
     );
-    if (!Number.isFinite(grossCents) || grossCents <= 0) {
-      throw new Error('Invalid booking amount for refund.');
+    // Filet de sécurité : ne jamais rembourser plus que le prix de la garde.
+    if (refundCents != null && grossCents > 0 && refundCents > grossCents) {
+      refundCents = grossCents;
     }
     const refund = await airwallex.createRefund({
       paymentIntentId: piId,
-      amount: grossCents,
+      ...(refundCents != null ? { amount: refundCents } : {}),
       reason: 'requested_by_customer',
       metadata: {
         type: 'booking_refund',
@@ -1838,7 +1862,7 @@ const refundBookingPayment = async (booking) => {
       await booking.save().catch(() => {});
     }
     logger.info(
-      `[refundBookingPayment] airwallex refund ${refund?.id} issued for booking ${booking._id} (€${grossCents / 100}).`,
+      `[refundBookingPayment] airwallex refund ${refund?.id} issued for booking ${booking._id} (${refundCents != null ? `€${refundCents / 100}` : 'montant capturé intégral'}).`,
     );
     return refund;
   }
@@ -4040,20 +4064,33 @@ const requestCancellation = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
 
-    const booking = await Booking.findById(id).populate('ownerId').populate('sitterId').populate('petIds');
+    // v532 — `walkerId` n'était PAS peuplé : sur une réservation de promenade
+    // `booking.sitterId` vaut null et la ligne `booking.sitterId._id` plantait
+    // en TypeError → 500. Aucune promenade payée ne pouvait être annulée.
+    const booking = await Booking.findById(id)
+      .populate('ownerId')
+      .populate('sitterId')
+      .populate('walkerId')
+      .populate('petIds');
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found.' });
     }
 
-    const ownerId = booking.ownerId._id.toString();
-    const sitterId = booking.sitterId._id.toString();
+    const ownerId = booking.ownerId?._id?.toString() || String(booking.ownerId || '');
+    const provider = getBookingProvider(booking);
+    const providerId = provider?.id || null;
 
-    // Verify user has permission
-    if (userRole === 'owner' && ownerId !== userId) {
+    // v532 — TROU D'AUTORISATION : seuls les rôles 'owner' et 'sitter' étaient
+    // vérifiés. Un compte de rôle 'walker' passait donc les deux tests sans
+    // aucun contrôle et pouvait annuler — et faire rembourser — la
+    // réservation de N'IMPORTE QUI. On vérifie désormais l'appartenance à la
+    // réservation, quel que soit le rôle.
+    const isOwner = ownerId && ownerId === userId;
+    const isProvider = providerId && providerId === userId;
+    if (!isOwner && !isProvider) {
       return res.status(403).json({ error: 'You do not have permission to cancel this booking.' });
     }
-
-    if (userRole === 'sitter' && sitterId !== userId) {
+    if (userRole === 'owner' && !isOwner) {
       return res.status(403).json({ error: 'You do not have permission to cancel this booking.' });
     }
 
@@ -4066,7 +4103,7 @@ const requestCancellation = async (req, res) => {
 
     // Mark cancellation request
     const now = new Date();
-    if (userRole === 'owner') {
+    if (isOwner) {
       booking.cancellation.ownerRequested = true;
       booking.cancellation.ownerConfirmed = true;
       if (!booking.cancellation.requestedAt) {
@@ -4082,61 +4119,86 @@ const requestCancellation = async (req, res) => {
 
     // Check if both parties have confirmed cancellation
     if (booking.cancellation.ownerConfirmed && booking.cancellation.sitterConfirmed) {
-      // Both parties agree - process refund
-      let chargeId = booking.stripeChargeId;
-      let paymentIntentStatus = null;
-      let refundProcessed = false;
-      
-      // If charge ID is missing, try to get it from payment intent
-      if (!chargeId && booking.airwallexPaymentIntentId) {
+      // Les deux parties sont d'accord → remboursement du propriétaire.
+      //
+      // v532 — CE BLOC NE REMBOURSAIT JAMAIS RIEN. Il était resté en logique
+      // Stripe : il cherchait un `stripeChargeId`, sinon le déduisait de
+      // `paymentIntent.latest_charge` — un champ qui N'EXISTE PAS chez
+      // Airwallex. `chargeId` restait donc toujours vide et on tombait dans la
+      // branche « pas de charge » : la réservation passait en `cancelled`,
+      // l'argent du propriétaire restait chez nous, et le message annonçait
+      // « aucun remboursement nécessaire ». Et dans le cas improbable où un
+      // vieux `stripeChargeId` traînait, `createRefund(chargeId)` passait une
+      // CHAÎNE à une fonction qui attend `{ paymentIntentId }` → exception
+      // « paymentIntentId is required » → 500.
+      // On passe par le helper `refundBookingPayment`, celui déjà utilisé par
+      // l'auto-annulation à 72 h et par l'admin (Airwallex ET PayPal).
+      booking.cancellation.confirmedAt = new Date();
+      // On coupe d'abord le versement au prestataire : sans ça, le planificateur
+      // de payouts pouvait libérer l'argent pendant qu'on rembourse.
+      booking.payoutStatus = 'cancelled';
+      const canRefund =
+        booking.paymentStatus === 'paid' &&
+        (booking.airwallexPaymentIntentId || booking.paypalCaptureId);
+      if (canRefund) {
         try {
-          const paymentIntent = await airwallex.retrievePaymentIntent(booking.airwallexPaymentIntentId);
-          paymentIntentStatus = paymentIntent.status;
-          
-          // Only proceed with refund if payment was actually successful
-          if ((paymentIntent.status || '').toUpperCase() === 'SUCCEEDED' && paymentIntent.latest_charge) {
-            chargeId = typeof paymentIntent.latest_charge === 'string' 
-              ? paymentIntent.latest_charge 
-              : paymentIntent.latest_charge.id;
-            // Save it for future use
-            booking.stripeChargeId = chargeId;
-          }
-        } catch (error) {
-          logger.error('Error retrieving payment intent for charge ID:', error);
-        }
-      } else if (booking.airwallexPaymentIntentId) {
-        // Check payment intent status even if we have charge ID
-        try {
-          const paymentIntent = await airwallex.retrievePaymentIntent(booking.airwallexPaymentIntentId);
-          paymentIntentStatus = paymentIntent.status;
-        } catch (error) {
-          logger.error('Error retrieving payment intent status:', error);
-        }
-      }
-      
-      if (chargeId) {
-        try {
-          const refund = await createRefund(chargeId);
-          booking.cancellation.refundId = refund.id;
+          const refund = await refundBookingPayment(booking);
+          booking.cancellation.refundId = refund?.id || null;
           booking.status = 'refunded';
-          booking.paymentStatus = 'refund'; // Update payment status
-          booking.cancellation.confirmedAt = new Date();
-          refundProcessed = true;
-          logger.info(`✅ Refund processed for booking ${booking._id}: ${refund.id}`);
+          booking.paymentStatus = 'refunded';
+          logger.info(`✅ Refund processed for booking ${booking._id}: ${refund?.id}`);
         } catch (refundError) {
           logger.error('Refund error:', refundError);
-          return res.status(500).json({ 
+          return res.status(502).json({
             error: 'Unable to process refund. Please try again later.',
-            details: refundError.message,
-            paymentIntentStatus: paymentIntentStatus
+            code: 'REFUND_FAILED',
           });
         }
+        // Reprise du crédit prestataire s'il avait déjà été rendu retirable
+        // (service confirmé puis annulé d'un commun accord). On ne touche au
+        // solde que si ce crédit précis l'avait bien incrémenté.
+        try {
+          const WalletTransaction = require('../models/WalletTransaction');
+          const prov = getBookingProvider(booking);
+          if (prov?.id && prov?.type) {
+            const [credited, alreadyReversed] = await Promise.all([
+              WalletTransaction.findOne({
+                userId: prov.id,
+                bookingId: booking._id,
+                type: 'credit_booking',
+                status: { $in: ['completed', 'pending'] },
+                'meta.withdrawable': true,
+              }).lean(),
+              WalletTransaction.findOne({
+                userId: prov.id,
+                bookingId: booking._id,
+                type: 'admin_adjustment',
+                'meta.reason': 'mutual_cancellation_reversal',
+              }).lean(),
+            ]);
+            if (credited && !alreadyReversed) {
+              const { debitWallet } = require('../services/walletService');
+              await debitWallet({
+                userId: prov.id,
+                userRole: prov.type,
+                amount: Number(credited.amount) || Number(booking?.pricing?.netPayout) || 0,
+                currency: booking?.pricing?.currency || 'EUR',
+                type: 'admin_adjustment',
+                bookingId: String(booking._id),
+                meta: { reason: 'mutual_cancellation_reversal' },
+              });
+            }
+          }
+        } catch (wErr) {
+          logger.error('[requestCancellation] reprise wallet échouée', wErr);
+        }
       } else {
-        // No charge ID available - payment was never completed or not successful
+        // Rien n'a été encaissé (ou paiement jamais confirmé) : simple annulation.
         booking.status = 'cancelled';
-        booking.paymentStatus = 'cancelled'; // Update payment status
-        booking.cancellation.confirmedAt = new Date();
-        logger.warn(`⚠️ Booking ${booking._id} cancelled but no charge ID available. Payment Intent Status: ${paymentIntentStatus || 'unknown'}`);
+        booking.paymentStatus = booking.paymentStatus === 'paid' ? 'cancelled' : booking.paymentStatus;
+        logger.warn(
+          `⚠️ Booking ${booking._id} annulée sans remboursement (paymentStatus=${booking.paymentStatus}, provider=${booking.paymentProvider || 'n/a'}).`,
+        );
       }
     }
 

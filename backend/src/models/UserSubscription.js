@@ -299,6 +299,31 @@ const userSubscriptionSchema = new mongoose.Schema(
       },
     ],
 
+    // v532 — CHAMP MANQUANT (bug majeur). Trois écrivains poussaient dans
+    // `sub.history` : purchaseActivationController (activation Airwallex ET
+    // Apple IAP), promoRoutes (code promo) et adminRoutes (cadeau PawPremium).
+    // Le champ n'était déclaré NULLE PART → Mongoose en mode strict jetait
+    // silencieusement l'écriture à chaque save(). Deux conséquences :
+    //  1. aucune trace d'activation (support/compta aveugles) ;
+    //  2. surtout, l'idempotence reposait dessus : `history.some(h =>
+    //     h.paymentId === piId)` était TOUJOURS faux, donc la restauration
+    //     d'achat Apple (« Restore purchases », rejouable à volonté par
+    //     l'utilisateur) ré-activait et PROLONGEAIT l'abonnement à chaque
+    //     appel — des mois gratuits en boucle.
+    // La liste est bornée à 100 entrées (voir pre('save')) pour éviter de
+    // faire enfler le document sur les comptes anciens.
+    history: [
+      {
+        plan: String,
+        paymentProvider: String, // airwallex | apple_iap | promo | admin_gift
+        paymentId: { type: String, index: true },
+        activatedAt: { type: Date, default: Date.now },
+        expiresAt: Date,
+        intervalDays: Number,
+        currency: { type: String, default: 'EUR' },
+      },
+    ],
+
     // Feature snapshot
     features: {
       type: Object,
@@ -368,6 +393,13 @@ userSubscriptionSchema.pre('save', function normalizeFamilyPlan(next) {
       if (p.plan === 'family') p.plan = 'famille';
       return p;
     });
+  }
+  // v532 — borne l'historique d'activations : on garde les 100 dernières.
+  // Assez pour couvrir 8 ans d'abonnement mensuel, et assez pour que la
+  // dédup par paymentId reste fiable (une restauration Apple rejoue des
+  // achats récents, jamais vieux de 100 renouvellements).
+  if (Array.isArray(this.history) && this.history.length > 100) {
+    this.history = this.history.slice(-100);
   }
   next();
 });
