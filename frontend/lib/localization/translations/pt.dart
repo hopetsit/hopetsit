@@ -245,6 +245,9 @@ const Map<String, String> ptPTTranslations = <String, String>{
       // Auto-filled from en.dart
       'common_no': 'Não',
       'common_cancel': 'Cancelar',
+      'pawspot_share': 'Partilhar este local',
+      'pawspot_share_message': 'Encontrei @name na HoPetSit, um otimo sitio para os nossos animais:',
+      'pawspot_share_copied': 'Link copiado',
       'handover_owner_code_title': 'Codigo de entrega',
       'handover_owner_code_desc': 'Da-o ao prestador quando lhe entregares o teu animal.',
       'handover_owner_code_copied': 'Codigo copiado',

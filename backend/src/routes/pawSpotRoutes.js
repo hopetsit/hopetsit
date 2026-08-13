@@ -169,6 +169,51 @@ const spotJson = (s) => ({
 // LECTURE
 // ════════════════════════════════════════════════════════════════════════════
 
+// v532 — GET /pawspots/public/:id — fiche PUBLIQUE d'un spot, SANS
+// authentification.
+//
+// Daniel : « améliore le partage de la carte entre amis sur WhatsApp, Insta
+// etc. pour faire de l'auto-pub ». Un lien partagé ne fait de la publicité que
+// s'il affiche un vrai aperçu (photo + nom + ville) dans la conversation ;
+// sinon c'est une URL nue que personne n'ouvre. La page /spot/[id] du site est
+// rendue côté SERVEUR et a besoin de ces données sans jeton — d'où cet
+// endpoint.
+//
+// On n'expose QUE ce qui est déjà public sur la carte communautaire : nom,
+// type, description, photo, ville et compteurs. Ni l'identifiant du créateur,
+// ni les listes de likes/visites, ni les commentaires.
+router.get('/public/:id', async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ error: 'Spot not found.' });
+    }
+    const s = await PawSpot.findById(req.params.id)
+      .select('type name description photoUrl location likesCount validationsCount communityValidated creatorName createdAt')
+      .lean();
+    if (!s) return res.status(404).json({ error: 'Spot not found.' });
+    const coords = Array.isArray(s.location?.coordinates) ? s.location.coordinates : [];
+    return res.json({
+      id: String(s._id),
+      type: s.type,
+      name: s.name || '',
+      description: s.description || '',
+      photoUrl: s.photoUrl || '',
+      city: s.location?.city || '',
+      lat: coords.length >= 2 ? Number(coords[1]) : null,
+      lng: coords.length >= 2 ? Number(coords[0]) : null,
+      likesCount: Number(s.likesCount) || 0,
+      validationsCount: Number(s.validationsCount) || 0,
+      communityValidated: s.communityValidated === true,
+      creatorName: s.creatorName || '',
+      createdAt: s.createdAt,
+    });
+  } catch (e) {
+    logger.error('[pawspots/public]', e);
+    return res.status(500).json({ error: 'Erreur spot.' });
+  }
+});
+
 // GET /pawspots/nearby?lat&lng&radius — spots autour (tous publics).
 router.get('/nearby', requireAuth, async (req, res) => {
   try {

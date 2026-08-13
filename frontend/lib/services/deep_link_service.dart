@@ -11,6 +11,8 @@ import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
+// v532 — lien de partage d'un PawSpot (/spot/<id>) → ouvre la carte.
+import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 // v23.1.286 — Daniel : "un mail message m'a ouvert la page Signaler".
@@ -271,6 +273,12 @@ class DeepLinkService {
                first == 'pawspot' || first == 'shop') {
       // emails subscription / map_boost → boutique (Paw Shop).
       Get.to(() => const CoinShopScreen());
+    } else if (first == 'spot') {
+      // v532 — lien de PARTAGE d'un PawSpot : https://hopetsit.com/spot/<id>.
+      // Quand l'app est installée, le lien doit l'ouvrir DIRECTEMENT sur la
+      // carte plutôt que sur le site — sinon un ami qui reçoit le lien sur
+      // WhatsApp reste dans son navigateur alors qu'il a déjà HoPetSit.
+      Get.to(() => const PawMapScreen());
     } else if (first == 'profile') {
       _openProfileScreen();
     } else if (first == 'friends' || first == 'amis' ||

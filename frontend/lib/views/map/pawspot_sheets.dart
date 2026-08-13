@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+// v532 — partage d'un spot (auto-promotion) + repli copie du lien.
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -649,6 +652,31 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
     );
   }
 
+  /// v532 — partage du spot vers WhatsApp / Instagram / SMS…
+  ///
+  /// Le message contient le nom du lieu, sa ville et le lien `/spot/<id>` du
+  /// site. Cette page est rendue côté SERVEUR : la messagerie affiche donc un
+  /// vrai aperçu (photo + titre), ce qui donne envie d'ouvrir — c'est tout
+  /// l'intérêt pour l'acquisition. Le paramètre `?from=app` permet de mesurer
+  /// ce que ce canal rapporte.
+  Future<void> _shareSpot() async {
+    final spot = widget.spot;
+    final url = 'https://www.hopetsit.com/spot/${spot.id}?from=app';
+    final text = '${'pawspot_share_message'.trParams({
+      'name': spot.name,
+    })}\n$url';
+    try {
+      await SharePlus.instance.share(ShareParams(text: text));
+    } catch (_) {
+      // Feuille de partage indisponible : on copie le lien en repli.
+      await Clipboard.setData(ClipboardData(text: url));
+      CustomSnackbar.showSuccess(
+        title: 'pawspot_share_copied'.tr,
+        message: '',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final spot = widget.spot;
@@ -881,6 +909,33 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
                   ),
                 ),
               ],
+            ),
+            // ── v532 — PARTAGE (auto-promotion) ──────────────────────────
+            // Daniel : « améliore le partage de la carte entre amis sur
+            // WhatsApp, Insta etc. pour faire de l'auto-pub ». Le lien pointe
+            // vers /spot/<id>, une page rendue côté serveur : la conversation
+            // affiche la photo du lieu, son nom et sa ville, puis propose de
+            // télécharger l'app. Sans cette page, on partageait une URL nue.
+            SizedBox(height: 10.h),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _shareSpot,
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 10.h),
+                  side: BorderSide(color: typeColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                ),
+                icon: Icon(Icons.ios_share_rounded, size: 15.sp, color: typeColor),
+                label: InterText(
+                  text: 'pawspot_share'.tr,
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w700,
+                  color: typeColor,
+                ),
+              ),
             ),
             // ── Boutons créateur : supprimer + mise en avant ─────────────
             if (_isCreator) ...[
