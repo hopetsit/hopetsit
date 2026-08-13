@@ -328,5 +328,11 @@
     "body": "Buone notizie: un membro HoPetSit ha segnalato di aver visto il tuo animale smarrito. Apri la Paw Map per vedere dove.",
     "emailSubject": "Qualcuno ha visto il tuo animale smarrito — HoPetSit",
     "emailBody": "<p>Buone notizie: un membro HoPetSit ha segnalato di aver visto il tuo animale smarrito. Apri la Paw Map per vedere la posizione.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EC407A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi sulla Paw Map</a></p>"
+  },
+  "booking_refunded": {
+    "title": "Prenotazione rimborsata",
+    "body": "La controversia è stata risolta: la prenotazione è rimborsata. L importo torna sul tuo metodo di pagamento entro 5-10 giorni.",
+    "emailSubject": "Prenotazione rimborsata — HoPetSit",
+    "emailBody": "<p>Il nostro team ha esaminato la controversia: la prenotazione è <strong>rimborsata</strong>. L importo torna sul tuo metodo di pagamento entro 5-10 giorni lavorativi.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi la prenotazione</a></p>"
   }
 }

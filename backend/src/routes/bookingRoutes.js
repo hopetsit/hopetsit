@@ -1020,16 +1020,26 @@ router.post(
 //   start/complete : réservés au provider (sitter/walker) assigné.
 //   confirm/dispute : réservés à l'owner. Les controllers re-vérifient
 //   l'appartenance exacte au booking.
+// v532 — start/complete acceptent désormais une PREUVE : photo horodatée
+// (multipart, champ `photo`) + code de remise à 4 chiffres (champ `code`,
+// vérifié au démarrage). `.single()` tolère une requête sans fichier, donc
+// les versions de l'app antérieures à la v532 continuent de fonctionner.
+const handoverUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 router.post(
   '/:id/service/start',
   requireAuth,
   requireRole('sitter', 'walker'),
+  handoverUpload.single('photo'),
   require('../controllers/bookingController').startService,
 );
 router.post(
   '/:id/service/complete',
   requireAuth,
   requireRole('sitter', 'walker'),
+  handoverUpload.single('photo'),
   require('../controllers/bookingController').completeService,
 );
 router.post(

@@ -328,5 +328,11 @@
     "body": "Gute Nachrichten: Ein HoPetSit-Mitglied hat gemeldet, dein vermisstes Tier gesehen zu haben. Öffne die Paw Map, um zu sehen wo.",
     "emailSubject": "Jemand hat dein vermisstes Tier gesehen — HoPetSit",
     "emailBody": "<p>Gute Nachrichten: Ein HoPetSit-Mitglied hat gemeldet, dein vermisstes Tier gesehen zu haben. Öffne die Paw Map, um den Ort zu sehen.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EC407A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Auf der Paw Map ansehen</a></p>"
+  },
+  "booking_refunded": {
+    "title": "Buchung erstattet",
+    "body": "Der Streitfall wurde entschieden: die Buchung wird erstattet. Der Betrag geht innerhalb von 5 bis 10 Tagen zurück.",
+    "emailSubject": "Buchung erstattet — HoPetSit",
+    "emailBody": "<p>Unser Team hat den Streitfall geprüft: die Buchung wird <strong>erstattet</strong>. Der Betrag geht innerhalb von 5 bis 10 Werktagen auf dein Zahlungsmittel zurück.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p>"
   }
 }

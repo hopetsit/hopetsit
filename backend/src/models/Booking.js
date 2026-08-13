@@ -174,6 +174,37 @@ const bookingSchema = new mongoose.Schema(
     autoReleaseAt: { type: Date, default: null },
     disputeReason: { type: String, default: null },
     disputedAt: { type: Date, default: null },
+    // v532 — PREUVE DE REMISE / RÉCUPÉRATION.
+    //
+    // Jusqu'ici le cycle ne reposait que sur deux boutons : aucune photo,
+    // aucun code, aucune position — en cas de litige (« il n'est jamais
+    // venu » contre « si, j'y étais »), la plateforme n'avait strictement
+    // aucun élément, et rien n'empêchait un prestataire d'enchaîner
+    // « récupéré » puis « rendu » sans jamais voir l'animal.
+    //
+    // handoverCode : 4 chiffres générés au paiement. Le PROPRIÉTAIRE le voit
+    // dans son app et le montre au prestataire, qui le saisit au moment de la
+    // remise — il ne peut donc pas valider à distance.
+    handoverCode: { type: String, default: null },
+    // Photos horodatées, prises par le prestataire (Cloudinary).
+    pickupProof: {
+      url: { type: String, default: '' },
+      publicId: { type: String, default: '' },
+      at: { type: Date, default: null },
+    },
+    returnProof: {
+      url: { type: String, default: '' },
+      publicId: { type: String, default: '' },
+      at: { type: Date, default: null },
+    },
+    // Arbitrage d'un litige par l'administrateur (cf. resolveDispute).
+    disputeResolvedAt: { type: Date, default: null },
+    disputeResolution: {
+      type: String,
+      enum: ['released', 'refunded', null],
+      default: null,
+    },
+    disputeResolutionNote: { type: String, default: null },
     // Self-cancellation (72h window)
     cancelledAt: { type: Date, default: null },
     // v465 — ajout de 'walker' : selfCancelWithRefund pose cancelledBy='walker'

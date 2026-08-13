@@ -1,5 +1,5 @@
 const express = require('express');
-const { retryBookingPayout } = require('../controllers/bookingController');
+const { retryBookingPayout, resolveDispute } = require('../controllers/bookingController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const Booking = require('../models/Booking');
 const Sitter = require('../models/Sitter');
@@ -732,6 +732,46 @@ router.delete('/walkers/:id', requireAdmin, async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// ─── LITIGES (v532) ───────────────────────────────────────────────────────────
+// Un litige gelait l argent DEFINITIVEMENT : aucune route, aucun ecran, aucun
+// SLA n en sortait. Ces deux endpoints donnent enfin la main a l administrateur.
+router.get('/disputes', requireAdmin, async (req, res) => {
+  try {
+    const Booking = require('../models/Booking');
+    const disputes = await Booking.find({ confirmationStatus: 'disputed' })
+      .populate('ownerId', 'name email')
+      .populate('sitterId', 'name email')
+      .populate('walkerId', 'name email')
+      .sort({ disputedAt: -1 })
+      .limit(200)
+      .lean();
+    res.json({
+      disputes: disputes.map((b) => ({
+        id: String(b._id),
+        disputedAt: b.disputedAt,
+        disputeReason: b.disputeReason || '',
+        amount: b.pricing?.totalPrice ?? b.totalAmount ?? 0,
+        currency: b.pricing?.currency || 'EUR',
+        serviceStartedAt: b.serviceStartedAt,
+        serviceEndedAt: b.serviceEndedAt,
+        pickupProofUrl: b.pickupProof?.url || null,
+        returnProofUrl: b.returnProof?.url || null,
+        owner: b.ownerId ? { name: b.ownerId.name } : null,
+        provider: b.walkerId
+          ? { name: b.walkerId.name, role: 'walker' }
+          : b.sitterId
+            ? { name: b.sitterId.name, role: 'sitter' }
+            : null,
+      })),
+      count: disputes.length,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/bookings/:id/resolve-dispute', requireAdmin, resolveDispute);
 
 // ─── UPDATE BOOKING STATUS ────────────────────────────────────────────────────
 router.patch('/bookings/:id', requireAdmin, async (req, res) => {

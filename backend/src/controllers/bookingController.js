@@ -10,6 +10,8 @@ const Review = require('../models/Review');
 const { sanitizeBooking, sanitizeConversation } = require('../utils/sanitize');
 const Conversation = require('../models/Conversation');
 const { isOwnerSitterInteractionBlocked } = require('../services/blockService');
+// v532 — photos de preuve de remise / récupération (cf. _saveHandoverPhoto).
+const { uploadMedia } = require('../services/cloudinary');
 const {
   getRecommendedPriceRange,
   calculateTotalWithAddOns,
@@ -905,6 +907,55 @@ const isBookingPayoutDue = (booking) => {
 // tôt en confirmant, ou bloquer via un litige.
 const CONFIRMATION_AUTO_RELEASE_MS = 48 * 60 * 60 * 1000;
 
+// v532 — PREUVE DE REMISE / RÉCUPÉRATION.
+//
+// Tolérance de démarrage anticipé : un prestataire peut arriver un peu en
+// avance, mais pas déclencher un service prévu dans trois semaines.
+const EARLY_START_TOLERANCE_MS = 2 * 60 * 60 * 1000;
+
+// Bascule d'application STRICTE de la preuve (photo + code).
+//
+// Pourquoi une bascule : la v530 est en production sur le Play Store et
+// n'envoie ni photo ni code. Rendre la preuve obligatoire immédiatement
+// empêcherait tous les utilisateurs non encore mis à jour de démarrer ou de
+// terminer une garde EN COURS. Par défaut on ENREGISTRE la preuve quand
+// l'app la fournit (v532+) sans bloquer les anciennes versions ; une fois la
+// v532 largement adoptée, passer HANDOVER_PROOF_REQUIRED=true sur Render
+// rend photo et code obligatoires, sans redéploiement de code.
+// À noter : la garde temporelle et l'ordre des étapes, eux, s'appliquent
+// TOUJOURS — ils ne dépendent d'aucune donnée envoyée par le client.
+const HANDOVER_PROOF_REQUIRED =
+  String(process.env.HANDOVER_PROOF_REQUIRED || '').toLowerCase() === 'true';
+
+/**
+ * Enregistre la photo de remise/récupération envoyée en multipart (`photo`).
+ *
+ * Retourne `{ url, publicId, at }` ou `null` si aucune photo n'a été fournie
+ * (anciennes versions de l'app). Best-effort : un échec Cloudinary ne bloque
+ * jamais le cycle de garde — on préfère un service qui avance sans preuve à
+ * un prestataire coincé devant la porte du client.
+ */
+const _saveHandoverPhoto = async (req, booking, kind) => {
+  const file = req.file;
+  if (!file || !file.buffer) return null;
+  try {
+    const dataUri = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    const uploadResult = await uploadMedia({
+      file: dataUri,
+      folder: `petsinsta/handover/${booking._id}`,
+      resourceType: 'image',
+    });
+    return {
+      url: uploadResult.url,
+      publicId: uploadResult.publicId,
+      at: new Date(),
+    };
+  } catch (e) {
+    logger.warn(`[handover] upload ${kind} failed (non-blocking): ${e?.message || e}`);
+    return null;
+  }
+};
+
 const schedulePayoutForBooking = async (booking) => {
   if (!booking) return;
   if (booking.payoutStatus === 'completed' || booking.payoutStatus === 'processing') {
@@ -920,6 +971,12 @@ const schedulePayoutForBooking = async (booking) => {
   // date à "maintenant" (cf confirmServiceCompletion).
   if (!booking.confirmationStatus || booking.confirmationStatus === 'none') {
     booking.confirmationStatus = 'awaiting_start';
+  }
+  // v532 — code de remise à 4 chiffres, généré une seule fois au paiement.
+  // Le propriétaire le voit dans son app et le montre au prestataire au
+  // moment de la remise ; sans lui, « J'ai récupéré l'animal » est refusé.
+  if (!booking.handoverCode) {
+    booking.handoverCode = String(Math.floor(1000 + Math.random() * 9000));
   }
   const endAt = resolveBookingEndDate(booking);
   const autoReleaseAt = new Date(endAt.getTime() + CONFIRMATION_AUTO_RELEASE_MS);
@@ -1497,6 +1554,9 @@ const getMyBookings = async (req, res) => {
       .populate('walkerId', 'name email avatar mobile address location rating reviewsCount')
       .populate('petIds');
 
+    // v532 — le code de remise n'est exposé qu'au propriétaire (cf. plus bas).
+    const isOwnerView = userRole === 'owner';
+
     // Format bookings for Bookings History screen
     const formattedBookings = await Promise.all(bookings.map(async (booking) => {
       const sanitized = sanitizeBooking(booking);
@@ -1562,6 +1622,14 @@ const getMyBookings = async (req, res) => {
         serviceStartedAt: booking.serviceStartedAt || null,
         serviceEndedAt: booking.serviceEndedAt || null,
         autoReleaseAt: booking.autoReleaseAt || null,
+        // v532 — code de remise : visible UNIQUEMENT par le propriétaire.
+        // C'est lui qui le montre au prestataire au moment de la remise ; si
+        // le prestataire le voyait dans sa propre app, la preuve ne vaudrait
+        // plus rien (il pourrait valider sans être présent).
+        handoverCode: isOwnerView ? (booking.handoverCode || null) : null,
+        // Photos de preuve : visibles des deux côtés une fois prises.
+        pickupProofUrl: booking.pickupProof?.url || null,
+        returnProofUrl: booking.returnProof?.url || null,
         pets: pets.map(pet => {
           if (pet && typeof pet === 'object' && pet._id) {
             // Pet is populated, return full details
@@ -5378,6 +5446,43 @@ const startService = async (req, res) => {
     if (['confirmed', 'disputed'].includes(booking.confirmationStatus)) {
       return res.status(409).json({ error: 'Service already finalized.', confirmationStatus: booking.confirmationStatus });
     }
+    // v532 — GARDE TEMPORELLE. AVANT, rien ne vérifiait la date : dès le
+    // paiement encaissé, le prestataire pouvait enchaîner « récupéré » puis
+    // « rendu » et être payé 48 h plus tard, pour une garde prévue dans trois
+    // semaines. On autorise le démarrage à partir de 2 h avant l'heure prévue.
+    const startAt = resolveBookingStartDate(booking);
+    if (startAt && Date.now() < startAt.getTime() - EARLY_START_TOLERANCE_MS) {
+      return res.status(409).json({
+        error: 'Service has not started yet.',
+        code: 'SERVICE_NOT_STARTED_YET',
+        startsAt: startAt,
+      });
+    }
+    // v532 — CODE DE REMISE : le propriétaire l'affiche dans son app et le
+    // dicte au prestataire. Sans lui, impossible de valider à distance.
+    const providedCode = String(req.body?.code || '').trim();
+    if (booking.handoverCode) {
+      if (providedCode && providedCode !== booking.handoverCode) {
+        return res.status(422).json({
+          error: 'Wrong handover code.',
+          code: 'HANDOVER_CODE_INVALID',
+        });
+      }
+      if (!providedCode && HANDOVER_PROOF_REQUIRED) {
+        return res.status(422).json({
+          error: 'Handover code required.',
+          code: 'HANDOVER_CODE_REQUIRED',
+        });
+      }
+    }
+    const pickupProof = await _saveHandoverPhoto(req, booking, 'pickup');
+    if (!pickupProof && HANDOVER_PROOF_REQUIRED) {
+      return res.status(422).json({
+        error: 'A photo of the pet is required.',
+        code: 'HANDOVER_PHOTO_REQUIRED',
+      });
+    }
+    if (pickupProof) booking.pickupProof = pickupProof;
     booking.confirmationStatus = 'in_progress';
     booking.serviceStartedAt = booking.serviceStartedAt || new Date();
     await booking.save();
@@ -5421,6 +5526,24 @@ const completeService = async (req, res) => {
     if (['confirmed', 'disputed'].includes(booking.confirmationStatus)) {
       return res.status(409).json({ error: 'Service already finalized.', confirmationStatus: booking.confirmationStatus });
     }
+    // v532 — SÉQUENCE OBLIGATOIRE : on ne peut pas « rendre » un animal qu'on
+    // n'a jamais « récupéré ». L'étape de récupération était sautable, ce qui
+    // permettait de déclencher le compte à rebours de paiement sans prestation.
+    if (booking.confirmationStatus !== 'in_progress') {
+      return res.status(409).json({
+        error: 'Service must be started first.',
+        code: 'SERVICE_NOT_STARTED',
+        confirmationStatus: booking.confirmationStatus,
+      });
+    }
+    const returnProof = await _saveHandoverPhoto(req, booking, 'return');
+    if (!returnProof && HANDOVER_PROOF_REQUIRED) {
+      return res.status(422).json({
+        error: 'A photo of the pet is required.',
+        code: 'HANDOVER_PHOTO_REQUIRED',
+      });
+    }
+    if (returnProof) booking.returnProof = returnProof;
     booking.confirmationStatus = 'awaiting_confirmation';
     booking.serviceEndedAt = new Date();
     booking.autoReleaseAt = new Date(Date.now() + CONFIRMATION_AUTO_RELEASE_MS);
@@ -5790,7 +5913,103 @@ const disputeService = async (req, res) => {
   }
 };
 
+/**
+ * v532 — ARBITRAGE ADMIN D'UN LITIGE.  POST /admin/bookings/:id/resolve-dispute
+ *
+ * AVANT, un litige était un cul-de-sac ABSOLU : disputeService posait
+ * confirmationStatus='disputed' et scheduledPayoutAt=null, puis toutes les
+ * portes se fermaient (le scheduler filtre les litiges, le gate d'escrow
+ * retourne sec). Aucune route, aucun écran admin, aucun SLA ne permettait
+ * d'en sortir : un seul clic du propriétaire — même accidentel — gelait
+ * l'argent définitivement, des DEUX côtés.
+ *
+ * Deux issues possibles :
+ *   action='release' → on donne raison au prestataire : paiement libéré.
+ *   action='refund'  → on donne raison au propriétaire : remboursement carte.
+ */
+const resolveDispute = async (req, res) => {
+  try {
+    const action = String(req.body?.action || '').trim().toLowerCase();
+    const note = String(req.body?.note || '').trim().slice(0, 500);
+    if (!['release', 'refund'].includes(action)) {
+      return res.status(400).json({ error: 'action must be release or refund.' });
+    }
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+    if (booking.confirmationStatus !== 'disputed') {
+      return res.status(409).json({
+        error: 'This booking is not disputed.',
+        confirmationStatus: booking.confirmationStatus,
+      });
+    }
+
+    booking.disputeResolvedAt = new Date();
+    booking.disputeResolutionNote = note || null;
+
+    if (action === 'release') {
+      booking.confirmationStatus = 'confirmed';
+      booking.ownerConfirmedAt = booking.ownerConfirmedAt || new Date();
+      booking.scheduledPayoutAt = new Date();
+      booking.disputeResolution = 'released';
+      if (booking.payoutStatus !== 'completed' && booking.payoutStatus !== 'processing') {
+        booking.payoutStatus = 'scheduled';
+      }
+      await booking.save();
+      await processProviderPayoutForBooking(booking);
+    } else {
+      // Remboursement intégral au propriétaire (Airwallex ou PayPal).
+      await refundBookingPayment(booking);
+      booking.disputeResolution = 'refunded';
+      booking.status = 'refunded';
+      booking.paymentStatus = 'refunded';
+      booking.payoutStatus = 'cancelled';
+      booking.scheduledPayoutAt = null;
+      await booking.save();
+    }
+
+    // On informe les DEUX parties de l'issue.
+    try {
+      const { sendNotification } = require('../services/notificationSender');
+      const providerId = booking.walkerId || booking.sitterId;
+      const providerRole = booking.walkerId ? 'walker' : 'sitter';
+      const type = action === 'release'
+        ? 'service_confirmed'
+        : 'booking_refunded';
+      await sendNotification({
+        userId: String(booking.ownerId),
+        role: 'owner',
+        type,
+        data: { bookingId: String(booking._id) },
+      });
+      if (providerId) {
+        await sendNotification({
+          userId: String(providerId),
+          role: providerRole,
+          type,
+          data: { bookingId: String(booking._id) },
+        });
+      }
+    } catch (e) {
+      logger.warn('[resolveDispute] notif failed', e);
+    }
+
+    logger.info(
+      `[resolveDispute] booking ${booking._id} arbitre par admin ${req.user?.id} -> ${action}`,
+    );
+    return res.json({
+      success: true,
+      action,
+      confirmationStatus: booking.confirmationStatus,
+      payoutStatus: booking.payoutStatus,
+    });
+  } catch (e) {
+    logger.error('[resolveDispute]', e);
+    return res.status(500).json({ error: e?.message || 'Unable to resolve dispute.' });
+  }
+};
+
 module.exports = {
+  resolveDispute,
   createBooking,
   listBookings,
   getMyBookings,
