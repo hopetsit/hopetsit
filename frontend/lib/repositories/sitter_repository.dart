@@ -296,23 +296,47 @@ class SitterRepository {
 
   /// v23.1.259 — Confirmation de service (côté provider). Démarrer = "J'ai
   /// récupéré l'animal" ; terminer = "J'ai rendu l'animal".
-  Future<Map<String, dynamic>> startService({required String bookingId}) async {
-    final r = await _apiClient.post(
-      '/bookings/$bookingId/service/start',
-      body: const <String, dynamic>{},
-      requiresAuth: true,
-    );
+  /// v532 — preuve de remise : [photo] de l'animal et [code] à 4 chiffres
+  /// affiché dans l'app du propriétaire. Les deux sont facultatifs côté
+  /// transport (le serveur accepte une requête sans fichier), ce qui garde la
+  /// compatibilité avec les anciennes versions publiées.
+  Future<Map<String, dynamic>> startService({
+    required String bookingId,
+    File? photo,
+    String? code,
+  }) async {
+    final r = (photo != null || (code != null && code.isNotEmpty))
+        ? await _apiClient.postMultipartWithFields(
+            endpoint: '/bookings/$bookingId/service/start',
+            fileFields: photo != null ? {'photo': photo} : const {},
+            textFields: code != null && code.isNotEmpty ? {'code': code} : null,
+            requiresAuth: true,
+          )
+        : await _apiClient.post(
+            '/bookings/$bookingId/service/start',
+            body: const <String, dynamic>{},
+            requiresAuth: true,
+          );
     if (r is Map<String, dynamic>) return r;
     if (r is Map) return Map<String, dynamic>.from(r);
     throw ApiException('Unexpected start-service response.', details: r);
   }
 
-  Future<Map<String, dynamic>> completeService({required String bookingId}) async {
-    final r = await _apiClient.post(
-      '/bookings/$bookingId/service/complete',
-      body: const <String, dynamic>{},
-      requiresAuth: true,
-    );
+  Future<Map<String, dynamic>> completeService({
+    required String bookingId,
+    File? photo,
+  }) async {
+    final r = photo != null
+        ? await _apiClient.postMultipartWithFields(
+            endpoint: '/bookings/$bookingId/service/complete',
+            fileFields: {'photo': photo},
+            requiresAuth: true,
+          )
+        : await _apiClient.post(
+            '/bookings/$bookingId/service/complete',
+            body: const <String, dynamic>{},
+            requiresAuth: true,
+          );
     if (r is Map<String, dynamic>) return r;
     if (r is Map) return Map<String, dynamic>.from(r);
     throw ApiException('Unexpected complete-service response.', details: r);

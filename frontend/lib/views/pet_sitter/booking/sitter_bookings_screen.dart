@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/views/shared/handover_proof_sheet.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
@@ -32,9 +33,17 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
   Timer? _autoRefresh;
 
   Future<void> _onServiceStart(BookingModel booking) async {
+    // v532 — preuve de remise : photo de l'animal + code a 4 chiffres
+    // dicte par le proprietaire. Annuler la feuille annule l'action.
+    final proof = await HandoverProofSheet.show(isPickup: true);
+    if (proof == null) return;
     setState(() => _busySvcId = booking.id);
     try {
-      await Get.find<SitterRepository>().startService(bookingId: booking.id);
+      await Get.find<SitterRepository>().startService(
+        bookingId: booking.id,
+        photo: proof.photo,
+        code: proof.code,
+      );
       CustomSnackbar.showSuccess(
         title: 'service_started_snack_title'.tr,
         message: 'service_started_snack_msg'.tr,
@@ -51,9 +60,15 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
   }
 
   Future<void> _onServiceComplete(BookingModel booking) async {
+    // v532 — preuve de restitution : photo de l'animal rendu.
+    final proof = await HandoverProofSheet.show(isPickup: false);
+    if (proof == null) return;
     setState(() => _busySvcId = booking.id);
     try {
-      await Get.find<SitterRepository>().completeService(bookingId: booking.id);
+      await Get.find<SitterRepository>().completeService(
+        bookingId: booking.id,
+        photo: proof.photo,
+      );
       CustomSnackbar.showSuccess(
         title: 'service_completed_snack_title'.tr,
         message: 'service_completed_snack_msg'.tr,

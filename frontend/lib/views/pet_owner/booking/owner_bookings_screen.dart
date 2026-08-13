@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+// v532 — copie du code de remise en pression longue.
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
@@ -402,6 +404,17 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
             // v23.1.260 — carte de confirmation de service directement dans
             // la liste (avant elle n'était que sur l'écran détail → "elle
             // n'apparaît pas"). Visible pour les résas payées.
+            // v532 — CODE DE REMISE. Le propriétaire le lit ici et le dicte
+            // au prestataire au moment de lui confier l'animal : c'est ce qui
+            // atteste la rencontre physique. On ne l'affiche que tant que la
+            // garde n'a pas démarré (après, il ne sert plus à rien).
+            if ((booking.handoverCode ?? '').isNotEmpty &&
+                (booking.paymentStatus?.toLowerCase() == 'paid') &&
+                (booking.confirmationStatus == 'none' ||
+                    booking.confirmationStatus == 'awaiting_start') &&
+                booking.status.toLowerCase() != 'cancelled' &&
+                booking.status.toLowerCase() != 'refunded')
+              _HandoverCodeTile(code: booking.handoverCode!),
             if ((booking.paymentStatus?.toLowerCase() == 'paid') &&
                 booking.status.toLowerCase() != 'cancelled' &&
                 booking.status.toLowerCase() != 'refunded')
@@ -838,6 +851,77 @@ class _ReviewPromptTileState extends State<_ReviewPromptTile> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// v532 — CODE DE REMISE affiché au propriétaire.
+///
+/// Daniel : « améliore le système de vérification quand je laisse mon chien et
+/// quand je le récupère ». Le prestataire ne peut plus déclarer « j'ai
+/// récupéré l'animal » depuis chez lui : il doit saisir ce code, que seul le
+/// propriétaire voit, et que celui-ci lui donne de vive voix au moment de la
+/// remise. Une pression longue copie le code.
+class _HandoverCodeTile extends StatelessWidget {
+  final String code;
+  const _HandoverCodeTile({required this.code});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.only(top: 12.h),
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: AppColors.primaryColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(
+          color: AppColors.primaryColor.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.vpn_key_rounded,
+              color: AppColors.primaryColor, size: 22.sp),
+          SizedBox(width: 12.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PoppinsText(
+                  text: 'handover_owner_code_title'.tr,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w700,
+                ),
+                SizedBox(height: 2.h),
+                InterText(
+                  text: 'handover_owner_code_desc'.tr,
+                  fontSize: 11.sp,
+                  color: Colors.grey,
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 10.w),
+          GestureDetector(
+            onLongPress: () {
+              Clipboard.setData(ClipboardData(text: code));
+              CustomSnackbar.showSuccess(
+                title: 'handover_owner_code_copied'.tr,
+                message: '',
+              );
+            },
+            child: Text(
+              code,
+              style: TextStyle(
+                fontSize: 22.sp,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 4,
+                color: AppColors.primaryColor,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

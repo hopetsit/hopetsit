@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
@@ -222,21 +224,42 @@ class WalkerRepository {
 
   /// DELETE /bookings/:id/self-cancel — 72h self-cancellation window.
   /// v23.1.260 — Confirmation de service (côté walker).
-  Future<Map<String, dynamic>> startService({required String bookingId}) async {
-    final r = await _apiClient.post(
-      '${ApiEndpoints.bookings}/$bookingId/service/start',
-      body: const <String, dynamic>{},
-      requiresAuth: true,
-    );
+  /// v532 — preuve de remise (photo + code à 4 chiffres). Cf. SitterRepository.
+  Future<Map<String, dynamic>> startService({
+    required String bookingId,
+    File? photo,
+    String? code,
+  }) async {
+    final r = (photo != null || (code != null && code.isNotEmpty))
+        ? await _apiClient.postMultipartWithFields(
+            endpoint: '${ApiEndpoints.bookings}/$bookingId/service/start',
+            fileFields: photo != null ? {'photo': photo} : const {},
+            textFields: code != null && code.isNotEmpty ? {'code': code} : null,
+            requiresAuth: true,
+          )
+        : await _apiClient.post(
+            '${ApiEndpoints.bookings}/$bookingId/service/start',
+            body: const <String, dynamic>{},
+            requiresAuth: true,
+          );
     return _asMap(r);
   }
 
-  Future<Map<String, dynamic>> completeService({required String bookingId}) async {
-    final r = await _apiClient.post(
-      '${ApiEndpoints.bookings}/$bookingId/service/complete',
-      body: const <String, dynamic>{},
-      requiresAuth: true,
-    );
+  Future<Map<String, dynamic>> completeService({
+    required String bookingId,
+    File? photo,
+  }) async {
+    final r = photo != null
+        ? await _apiClient.postMultipartWithFields(
+            endpoint: '${ApiEndpoints.bookings}/$bookingId/service/complete',
+            fileFields: {'photo': photo},
+            requiresAuth: true,
+          )
+        : await _apiClient.post(
+            '${ApiEndpoints.bookings}/$bookingId/service/complete',
+            body: const <String, dynamic>{},
+            requiresAuth: true,
+          );
     return _asMap(r);
   }
 

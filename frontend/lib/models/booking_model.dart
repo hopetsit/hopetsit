@@ -75,6 +75,13 @@ class BookingModel {
   // none / awaiting_start / in_progress / awaiting_confirmation / confirmed /
   // disputed. Pilote l'affichage des boutons (démarrer/terminer/confirmer).
   final String confirmationStatus;
+  // v532 — preuve de remise. Le serveur n'envoie [handoverCode] QU'AU
+  // PROPRIÉTAIRE (côté prestataire il vaut toujours null) : c'est lui qui le
+  // lit et le dicte au gardien au moment de confier l'animal. Les deux URL
+  // sont les photos prises à la récupération et à la restitution.
+  final String? handoverCode;
+  final String? pickupProofUrl;
+  final String? returnProofUrl;
   final String? serviceStartedAt;
   final String? serviceEndedAt;
   final String? autoReleaseAt;
@@ -118,6 +125,9 @@ class BookingModel {
     List<BookingPet>? pets,
     this.paymentStatus,
     this.confirmationStatus = 'none',
+    this.handoverCode,
+    this.pickupProofUrl,
+    this.returnProofUrl,
     this.serviceStartedAt,
     this.serviceEndedAt,
     this.autoReleaseAt,
@@ -232,6 +242,10 @@ class BookingModel {
       // v23.1.259 — confirmation de service.
       confirmationStatus:
           (json['confirmationStatus'] as String?) ?? 'none',
+      // v532 — preuve de remise (cf. champs ci-dessus).
+      handoverCode: json['handoverCode'] as String?,
+      pickupProofUrl: json['pickupProofUrl'] as String?,
+      returnProofUrl: json['returnProofUrl'] as String?,
       serviceStartedAt: json['serviceStartedAt'] as String?,
       serviceEndedAt: json['serviceEndedAt'] as String?,
       autoReleaseAt: json['autoReleaseAt'] as String?,

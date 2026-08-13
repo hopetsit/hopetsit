@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/views/shared/handover_proof_sheet.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -39,9 +40,17 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
   bool _serviceBusy = false;
 
   Future<void> _onProviderStart() async {
+    // v532 — preuve de remise : photo de l'animal + code a 4 chiffres
+    // dicte par le proprietaire. Annuler la feuille annule l'action.
+    final proof = await HandoverProofSheet.show(isPickup: true);
+    if (proof == null) return;
     setState(() => _serviceBusy = true);
     try {
-      await Get.find<SitterRepository>().startService(bookingId: widget.booking.id);
+      await Get.find<SitterRepository>().startService(
+        bookingId: widget.booking.id,
+        photo: proof.photo,
+        code: proof.code,
+      );
       if (!mounted) return;
       setState(() => _confirmationStatus = 'in_progress');
       CustomSnackbar.showSuccess(
@@ -60,9 +69,15 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
   }
 
   Future<void> _onProviderComplete() async {
+    // v532 — preuve de restitution : photo de l'animal rendu.
+    final proof = await HandoverProofSheet.show(isPickup: false);
+    if (proof == null) return;
     setState(() => _serviceBusy = true);
     try {
-      await Get.find<SitterRepository>().completeService(bookingId: widget.booking.id);
+      await Get.find<SitterRepository>().completeService(
+        bookingId: widget.booking.id,
+        photo: proof.photo,
+      );
       if (!mounted) return;
       setState(() => _confirmationStatus = 'awaiting_confirmation');
       CustomSnackbar.showSuccess(
