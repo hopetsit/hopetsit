@@ -551,10 +551,14 @@ class ApiClient {
         (key, value) => MapEntry(key.toString().toLowerCase(), value),
       );
 
+      // v532 — `details` n'est PLUS prioritaire. Le backend y met la cause
+      // technique brute des 500 (ex. « [ValidationError] Validation failed
+      // on: currency. Sitter validation failed: currency: `GBP` is not a
+      // valid enum value for path `currency`. »), en anglais et incompréhen-
+      // sible : c'était ce texte qui s'affichait dans le toast d'inscription.
+      // On sert d'abord le message destiné à l'utilisateur et on ne retombe
+      // sur `details` que si rien d'autre n'est exploitable.
       for (final key in const [
-        // v23.1 — backend now standardly returns { error: <generic>, details: <actionable cause> }
-        // for 500s. Prefer `details` so the toast shows the useful message.
-        'details',
         'message',
         'error',
         'error_message',
@@ -567,6 +571,9 @@ class ApiClient {
           return message;
         }
       }
+      // Dernier recours : cause technique (mieux que « Request failed 500 »).
+      final fallback = _valueToMessage(normalized['details']);
+      if (fallback != null) return fallback;
     }
 
     if (data is List && data.isNotEmpty) {

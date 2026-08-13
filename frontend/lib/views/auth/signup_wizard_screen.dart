@@ -12,6 +12,7 @@ import 'package:hopetsit/utils/date_slash_formatter.dart';
 import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// v409 refonte — inscription en wizard 5 étapes (maquette « S'INSCRIRE COMME …
 /// »). Réutilise SignUpController (tag: userType) → l'auth/OTP existante n'est
@@ -376,10 +377,15 @@ class SignupWizardScreen extends StatelessWidget {
         Obx(() => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // v532 — la checklist reflète EXACTEMENT validatePassword()
+                // (longueur / majuscule / minuscule / chiffre). Avant, elle
+                // affichait « caractère spécial » — non exigé — et taisait la
+                // minuscule — exigée : les 4 pastilles passaient au vert puis
+                // le bouton Suivant refusait le mot de passe.
                 _pwRule('signup_pw_min'.tr, c.pwMinLength),
                 _pwRule('signup_pw_upper'.tr, c.pwHasUpper),
+                _pwRule('signup_pw_lower'.tr, c.pwHasLower),
                 _pwRule('signup_pw_digit'.tr, c.pwHasDigit),
-                _pwRule('signup_pw_special'.tr, c.pwHasSpecial),
               ],
             )),
       ],
@@ -451,6 +457,41 @@ class SignupWizardScreen extends StatelessWidget {
                 onTap: () => c.toggleInList(c.selectedServices, s[0] as String),
               );
             })),
+        SizedBox(height: 14.h),
+        // v532 — le propriétaire n'avait AUCUNE étape de localisation : il
+        // choisissait un « rayon de recherche » sans point de référence, et
+        // son compte était créé sans coordonnées → la recherche « autour de
+        // moi » et la PawMap démarraient à vide. On réutilise exactement le
+        // bloc localisation des prestataires (détection auto + autocomplete).
+        _label('signup_step_location'.tr),
+        Obx(() => OutlinedButton.icon(
+              onPressed: c.isGettingLocation.value
+                  ? null
+                  : c.getCurrentLocationFromMaps,
+              icon: Icon(Icons.my_location_rounded, size: 18.sp, color: _accent),
+              label: Text(c.isGettingLocation.value
+                  ? 'location_getting'.tr
+                  : 'signup_location_auto'.tr),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _accent,
+                side: BorderSide(color: _accent),
+                minimumSize: Size(double.infinity, 46.h),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14.r)),
+              ),
+            )),
+        SizedBox(height: 10.h),
+        Obx(() => CityLocationPicker(
+              cityController: c.cityController,
+              onGetLocation: () => c.getCurrentLocationFromMaps(),
+              isGettingLocation: c.isGettingLocation.value,
+              detectedCity: c.userCity.value,
+              onLocationSelected: (city, lat, lng) {
+                c.userCity.value = city;
+                c.userLatitude.value = lat;
+                c.userLongitude.value = lng;
+              },
+            )),
         SizedBox(height: 14.h),
         _label('signup_search_radius'.tr),
         _radiusDropdown(c),
@@ -665,19 +706,42 @@ class SignupWizardScreen extends StatelessWidget {
             )),
         SizedBox(height: 8.h),
         if (_isWalker) ...[
-          _field(c.walkerRate30Controller, 'signup_rate_30min'.tr,
-              kb: TextInputType.number, suffix: '€'),
-          _field(c.walkerRate60Controller, 'signup_rate_1h'.tr,
-              kb: TextInputType.number, suffix: '€'),
-          _field(c.walkerRate120Controller, 'signup_rate_2h'.tr,
-              kb: TextInputType.number, suffix: '€'),
+          // v532 — les durées cochées à l'étape 2 pilotent enfin les champs
+          // de tarif. AVANT, `selectedDurations` n'était lu NULLE PART : le
+          // promeneur cochait « 30 min » puis on lui redemandait quand même
+          // les 3 tarifs — étape 2 sans effet et formulaire contradictoire.
+          // Si rien n'est coché, on affiche les 3 (comportement historique).
+          Obx(() {
+            final sel = c.selectedDurations;
+            final showAll = sel.isEmpty;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (showAll || sel.contains('30'))
+                  _field(c.walkerRate30Controller, 'signup_rate_30min'.tr,
+                      kb: TextInputType.number, suffix: c.currencySymbol),
+                if (showAll || sel.contains('60'))
+                  _field(c.walkerRate60Controller, 'signup_rate_1h'.tr,
+                      kb: TextInputType.number, suffix: c.currencySymbol),
+                if (showAll || sel.contains('120'))
+                  _field(c.walkerRate120Controller, 'signup_rate_2h'.tr,
+                      kb: TextInputType.number, suffix: c.currencySymbol),
+              ],
+            );
+          }),
         ] else ...[
-          _field(c.ratePerDayController, 'signup_rate_day'.tr,
-              kb: TextInputType.number, suffix: '€'),
-          _field(c.ratePerWeekController, 'signup_rate_week'.tr,
-              kb: TextInputType.number, suffix: '€'),
-          _field(c.ratePerMonthController, 'signup_rate_month'.tr,
-              kb: TextInputType.number, suffix: '€'),
+          // v532 — suffixe = devise réellement choisie (et non « € » en dur).
+          Obx(() => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _field(c.ratePerDayController, 'signup_rate_day'.tr,
+                      kb: TextInputType.number, suffix: c.currencySymbol),
+                  _field(c.ratePerWeekController, 'signup_rate_week'.tr,
+                      kb: TextInputType.number, suffix: c.currencySymbol),
+                  _field(c.ratePerMonthController, 'signup_rate_month'.tr,
+                      kb: TextInputType.number, suffix: c.currencySymbol),
+                ],
+              )),
         ],
         _field(c.extraAnimalController, 'signup_rate_extra_animal'.tr,
             kb: TextInputType.number, suffix: '€'),
@@ -994,13 +1058,16 @@ class SignupWizardScreen extends StatelessWidget {
   }
 
   void _onNext(SignUpController c, int step, bool isLast) {
-    if (step == 0) {
-      final err = c.validateStep1();
-      if (err != null) {
-        Get.snackbar('error_invalid_details_title'.tr, err,
-            snackPosition: SnackPosition.BOTTOM);
-        return;
-      }
+    // v532 — TOUTES les étapes sont validées (avant : seulement la 1re), et
+    // l'erreur passe par CustomSnackbar comme partout ailleurs dans l'app
+    // (Get.snackbar brut n'avait ni le style ni la position du reste).
+    final err = c.validateStep(step);
+    if (err != null) {
+      CustomSnackbar.showWarning(
+        title: 'error_invalid_details_title'.tr,
+        message: err,
+      );
+      return;
     }
     if (isLast) {
       c.handleWizardSignUp(email: c.emailController.text.trim());

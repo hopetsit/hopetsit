@@ -14,6 +14,10 @@ const firebaseAdmin = require('../config/firebaseAdmin');
 const { normalizeCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
 const logger = require('../utils/logger');
 
+// v532 — meme source que PATCH /users/me/accept-terms (userController)
+// pour que la version acceptee a l inscription soit coherente.
+const TERMS_VERSION = process.env.TERMS_VERSION || 'v1.0';
+
 const OWNER_SERVICES = ['Pet Sitting', 'House Sitting', 'Day Care', 'Long Stay'];
 const SITTER_SERVICES = [...OWNER_SERVICES, 'Dog Walking'];
 // Walker services focused on walking variants.
@@ -247,6 +251,11 @@ const signup = async (req, res) => {
       address: user.address || '',
       currency: ownerCurrency,
       acceptedTerms: !!user.acceptedTerms,
+      // v532 — tracabilite du consentement : les champs existaient dans
+      // les 3 schemas mais n etaient JAMAIS renseignes a l inscription.
+      ...(user.acceptedTerms
+        ? { termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION }
+        : {}),
       service: Array.isArray(user.service) ? user.service : user.service ? [user.service] : [],
       verified: false,
     };
@@ -305,6 +314,11 @@ const signup = async (req, res) => {
         ? user.defaultRateType
         : 'hour',
       acceptedTerms: !!user.acceptedTerms,
+      // v532 — tracabilite du consentement : les champs existaient dans
+      // les 3 schemas mais n etaient JAMAIS renseignes a l inscription.
+      ...(user.acceptedTerms
+        ? { termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION }
+        : {}),
       service: Array.isArray(user.service) ? user.service : user.service ? [user.service] : [],
       verified: false,
       rating: Number(user.rating) || 0,
@@ -382,6 +396,11 @@ const signup = async (req, res) => {
       skills: user.skills || '',
       bio: user.bio || '',
       acceptedTerms: !!user.acceptedTerms,
+      // v532 — tracabilite du consentement : les champs existaient dans
+      // les 3 schemas mais n etaient JAMAIS renseignes a l inscription.
+      ...(user.acceptedTerms
+        ? { termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION }
+        : {}),
       service: Array.isArray(user.service)
         ? user.service
         : user.service
@@ -397,12 +416,16 @@ const signup = async (req, res) => {
           : 1,
       hasInsurance: !!user.hasInsurance,
       coverageCity: (user.coverageCity || user.location?.city || '').toString().trim(),
-      coverageRadiusKm:
-        Number.isFinite(Number(user.coverageRadiusKm)) &&
-        Number(user.coverageRadiusKm) >= 1 &&
-        Number(user.coverageRadiusKm) <= 50
-          ? Number(user.coverageRadiusKm)
-          : 3,
+      // v532 — on BORNE au lieu de réinitialiser. AVANT : toute valeur hors
+      // [1,50] retombait à 3 km — un promeneur qui choisissait 100 km dans le
+      // wizard se retrouvait à 3 km sans aucun message. Désormais 100 est
+      // accepté (max du modèle) et une valeur aberrante est ramenée dans les
+      // bornes plutôt qu'écrasée.
+      coverageRadiusKm: (() => {
+        const km = Number(user.coverageRadiusKm);
+        if (!Number.isFinite(km) || km <= 0) return 3;
+        return Math.min(100, Math.max(1, Math.round(km)));
+      })(),
       // v23.1 part 141 — Daniel : 'ValidationError walkRates.0.basePrice
       // walkRates.0.durationMinutes'. Le frontend envoie historiquement
       // {duration, amount, currency} (cf sign_up_controller.dart) mais
@@ -528,10 +551,34 @@ const signup = async (req, res) => {
           ]),
           'verified', 'isStaff',
         ];
+        // v532 — l'héritage ne doit COMPLÉTER que ce que le wizard n'a pas
+        // rempli. AVANT, il écrasait systématiquement : un propriétaire qui
+        // ouvrait un profil sitter voyait la bio, la ville, la devise et la
+        // langue saisies aux étapes 2-4 remplacées par celles de son compte
+        // propriétaire — tout le travail du wizard devenait invisible.
+        // On considère « déjà renseigné » toute valeur non vide sur le
+        // document fraîchement créé (chaîne, tableau, objet ou nombre).
+        const isFilled = (v) => {
+          if (v === undefined || v === null || v === '') return false;
+          if (Array.isArray(v)) return v.length > 0;
+          if (typeof v === 'object') {
+            // location : { type:'Point', coordinates:[0,0] } = non renseigné
+            if (Array.isArray(v.coordinates)) {
+              return v.coordinates.length === 2 &&
+                !(Number(v.coordinates[0]) === 0 && Number(v.coordinates[1]) === 0);
+            }
+            return Object.values(v).some((x) => x !== undefined && x !== null && x !== '');
+          }
+          return true;
+        };
         const copy = {};
         for (const k of SHARED) {
           const v = _siblingSource[k];
-          if (v !== undefined && v !== null && v !== '') copy[k] = v;
+          if (v === undefined || v === null || v === '') continue;
+          // 'verified' et 'isStaff' restent hérités inconditionnellement :
+          // ce sont des statuts de compte, pas des saisies du wizard.
+          if (k !== 'verified' && k !== 'isStaff' && isFilled(newUser[k])) continue;
+          copy[k] = v;
         }
         if (Object.keys(copy).length) {
           await Model.updateOne({ _id: newUser._id }, { $set: copy });

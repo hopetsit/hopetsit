@@ -1,5 +1,11 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+// v532 — source unique de vérité des devises. AVANT : l'enum était figé à
+// ['EUR','USD'] alors que l'app propose GBP et CHF (currency_helper.dart) et
+// que le backend les accepte (utils/currency.js) → un sitter britannique ou
+// suisse terminait ses 5 étapes d'inscription puis recevait un 500
+// (ValidationError Mongoose). Aucune inscription possible depuis ces pays.
+const { SUPPORTED_CURRENCIES } = require('../utils/currency');
 
 const ownerSchema = new mongoose.Schema(
   {
@@ -35,7 +41,7 @@ const ownerSchema = new mongoose.Schema(
     pawBadgeColor: { type: String, default: '' },
     pawGoldFrame: { type: Boolean, default: false },
     pawBannerUrl: { type: String, default: '' },
-    currency: { type: String, enum: ['EUR', 'USD'], default: 'EUR' },
+    currency: { type: String, enum: SUPPORTED_CURRENCIES, default: 'EUR' },
     address: { type: String, default: '' },
     bio: { type: String, default: '' },
     skills: { type: String, default: '' },

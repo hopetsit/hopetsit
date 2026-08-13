@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const { encrypt, isEncrypted } = require('../utils/encryption');
+// v532 — cf. Owner.js : l'enum figé ['EUR','USD'] (profil ET walkRates)
+// faisait échouer en 500 l'inscription d'un promeneur en GBP ou CHF.
+const { SUPPORTED_CURRENCIES } = require('../utils/currency');
 
 /**
  * Walker model — third user role alongside Owner and Sitter.
@@ -28,7 +31,7 @@ const walkRateEntrySchema = new mongoose.Schema(
       },
     },
     basePrice: { type: Number, required: true, min: 0 },
-    currency: { type: String, enum: ['EUR', 'USD'], default: 'EUR' },
+    currency: { type: String, enum: SUPPORTED_CURRENCIES, default: 'EUR' },
     enabled: { type: Boolean, default: true },
   },
   { _id: false }
@@ -66,7 +69,7 @@ const walkerSchema = new mongoose.Schema(
     pawBadgeColor: { type: String, default: '' },
     pawGoldFrame: { type: Boolean, default: false },
     pawBannerUrl: { type: String, default: '' },
-    currency: { type: String, enum: ['EUR', 'USD'], default: 'EUR' },
+    currency: { type: String, enum: SUPPORTED_CURRENCIES, default: 'EUR' },
     address: { type: String, default: '' },
     // v23.1 part 130 — Phase 6 audit P6-4 : cap les champs texte.
     bio: { type: String, default: '', maxlength: 3000 },
@@ -129,7 +132,11 @@ const walkerSchema = new mongoose.Schema(
 
     // Coverage — city + radius in km around walker's location.
     coverageCity: { type: String, default: '' },
-    coverageRadiusKm: { type: Number, default: 3, min: 1, max: 50 },
+    // v532 — max porté de 50 à 100 km : le sélecteur de l'app propose 100
+    // (signup_wizard_screen) et le Sitter n'a aucun plafond. Un promeneur
+    // rural qui choisissait 100 était silencieusement ramené à 3 km et ne
+    // recevait plus aucune demande, sans le moindre message.
+    coverageRadiusKm: { type: Number, default: 3, min: 1, max: 100 },
 
     // Pricing — per-walk duration.
     walkRates: { type: [walkRateEntrySchema], default: [] },

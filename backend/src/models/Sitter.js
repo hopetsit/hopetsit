@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const { encrypt, isEncrypted } = require('../utils/encryption');
+// v532 — cf. Owner.js : l'enum figé ['EUR','USD'] faisait échouer en 500
+// l'inscription de tout prestataire choisissant GBP ou CHF dans le wizard.
+const { SUPPORTED_CURRENCIES } = require('../utils/currency');
 
 const sitterSchema = new mongoose.Schema(
   {
@@ -34,7 +37,7 @@ const sitterSchema = new mongoose.Schema(
     pawBadgeColor: { type: String, default: '' },
     pawGoldFrame: { type: Boolean, default: false },
     pawBannerUrl: { type: String, default: '' },
-    currency: { type: String, enum: ['EUR', 'USD'], default: 'EUR' },
+    currency: { type: String, enum: SUPPORTED_CURRENCIES, default: 'EUR' },
     address: { type: String, default: '' },
     rate: { type: String, default: '' },
     // v23.1 part 130 — Phase 6 audit P6-4 : cap les champs texte

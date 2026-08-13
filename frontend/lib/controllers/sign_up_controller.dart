@@ -169,12 +169,22 @@ class SignUpController extends GetxController {
     } catch (_) {/* ISO hors liste du package → on garde +1 */}
   }
 
+  /// v532 — symbole de la devise CHOISIE à l'étape 4. Les champs de tarif
+  /// affichaient « € » en dur alors que la devise est sélectionnable juste
+  /// au-dessus : un prestataire en USD saisissait « 25 » à côté d'un €.
+  String get currencySymbol => CurrencyHelper.symbol(selectedCurrency.value);
+
   /// Règles mot de passe (pour la checklist live de l'étape 1).
+  ///
+  /// v532 — la checklist MENTAIT : elle affichait « caractère spécial » (non
+  /// exigé) et taisait « minuscule » (exigée par validatePassword). Un
+  /// « PASSWORD1! » cochait les 4 pastilles en vert puis était refusé au
+  /// clic sur Suivant. Les 4 règles ci-dessous sont désormais exactement
+  /// celles de validatePassword().
   bool get pwMinLength => passwordLive.value.length >= 8;
   bool get pwHasUpper => passwordLive.value.contains(RegExp(r'[A-Z]'));
+  bool get pwHasLower => passwordLive.value.contains(RegExp(r'[a-z]'));
   bool get pwHasDigit => passwordLive.value.contains(RegExp(r'[0-9]'));
-  bool get pwHasSpecial =>
-      passwordLive.value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>_\-]'));
 
   // v417 — Daniel : "ya que 3 langues c'est n'importe quoi". L'app gère 6
   // langues (fr/en/es/de/it/pt) → on les propose toutes (et on retire 'Urdu').
@@ -243,7 +253,11 @@ class SignUpController extends GetxController {
     if (value == null || value.isEmpty) {
       return 'error_email_required'.tr;
     }
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    // v532 — le TLD était limité à 4 caractères ({2,4}) : « .online »,
+    // « .travel », « .agency », « .consulting », « .london »… étaient rejetés
+    // comme « email invalide » et rendaient l'inscription impossible. On
+    // s'aligne sur validatePayPalEmail et sur le backend ({2,}).
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,}$');
     if (!emailRegex.hasMatch(value)) {
       return 'error_email_invalid'.tr;
     }
@@ -778,6 +792,60 @@ class SignUpController extends GetxController {
   /// v409 — soumission depuis le wizard 5 étapes. Validation MANUELLE (le
   /// wizard n'utilise pas un Form unique), puis réutilise exactement le même
   /// flux que handleSignUp (signup → file photo → OTP).
+  /// v532 — validation des étapes 2 à 4 du wizard.
+  ///
+  /// AVANT, seul l'écran 1 était validé (`_onNext` ne testait que `step == 0`) :
+  /// on pouvait enchaîner « Suivant / Suivant / Suivant », cocher les CGU et
+  /// créer un compte prestataire SANS ville, SANS coordonnées, SANS service,
+  /// SANS animal accepté et avec tous les tarifs à 0. Le message « Profil
+  /// créé ! » s'affichait, mais le profil était absent de la recherche géo et
+  /// de la PawMap : le prestataire attendait des demandes qui n'arrivaient
+  /// jamais. On bloque désormais sur le strict minimum exploitable.
+  ///
+  /// Retourne `null` si l'étape est valide, sinon le message à afficher.
+  String? validateStep(int step) {
+    if (step == 0) return validateStep1();
+
+    final hasPlace = (userLatitude.value != null && userLongitude.value != null) ||
+        cityController.text.trim().isNotEmpty;
+
+    if (userType == 'pet_owner') {
+      // Étape 3 (index 2) : ville + au moins un service recherché.
+      if (step == 2) {
+        if (!hasPlace) return 'signup_error_city_required'.tr;
+        if (selectedServices.isEmpty) return 'signup_error_service_required'.tr;
+      }
+      return null;
+    }
+
+    // Prestataires (sitter / walker).
+    if (step == 1) {
+      if (!hasPlace) return 'signup_error_city_required'.tr;
+      if (acceptedAnimals.isEmpty) return 'signup_error_animals_required'.tr;
+      if (selectedServices.isEmpty && userType == 'pet_sitter') {
+        return 'signup_error_service_required'.tr;
+      }
+    }
+    if (step == 3 && !_hasAtLeastOneRate()) {
+      return 'signup_error_rate_required'.tr;
+    }
+    return null;
+  }
+
+  /// Au moins un tarif renseigné et strictement positif.
+  bool _hasAtLeastOneRate() {
+    final fields = userType == 'pet_walker'
+        ? [walkerRate30Controller, walkerRate60Controller, walkerRate120Controller]
+        : [ratePerDayController, ratePerWeekController, ratePerMonthController];
+    for (final f in fields) {
+      final v = double.tryParse(
+        f.text.trim().replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), ''),
+      );
+      if (v != null && v > 0) return true;
+    }
+    return false;
+  }
+
   Future<void> handleWizardSignUp({required String email}) async {
     final err = validateStep1();
     if (err != null) {
@@ -835,7 +903,21 @@ class SignUpController extends GetxController {
     } on ApiException catch (error) {
       CustomSnackbar.showError(
         title: 'signup_failed_title'.tr,
-        message: error.message,
+        message: _signupErrorMessage(error),
+      );
+    } on NetworkUnreachableException {
+      // v532 — AVANT, une coupure réseau (ou un réveil à froid du serveur
+      // Render, 30-45 s) tombait dans le catch générique : l'utilisateur
+      // lisait « Something went wrong » sans savoir si son compte avait été
+      // créé ou non.
+      CustomSnackbar.showError(
+        title: 'signup_failed_title'.tr,
+        message: 'common_error_no_network'.tr,
+      );
+    } on ApiTimeoutException {
+      CustomSnackbar.showError(
+        title: 'signup_failed_title'.tr,
+        message: 'common_error_no_network'.tr,
       );
     } catch (_) {
       CustomSnackbar.showError(
@@ -844,6 +926,28 @@ class SignUpController extends GetxController {
       );
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// v532 — traduit une erreur d'inscription en message compréhensible.
+  ///
+  /// AVANT : on affichait `error.message`, c'est-à-dire le texte brut du
+  /// backend — en anglais et souvent technique (ex. « [ValidationError]
+  /// Validation failed on: currency… »). Règle projet : mapper le code de
+  /// statut vers une clé i18n, jamais afficher le message serveur tel quel.
+  /// Les 400 restent affichés : ce sont des refus de validation courts et
+  /// actionnables, déjà rédigés pour l'utilisateur.
+  String _signupErrorMessage(ApiException error) {
+    switch (error.statusCode) {
+      case 409:
+        return 'signup_error_email_taken'.tr;
+      case 429:
+        return 'signup_error_too_many'.tr;
+      case 400:
+        final m = error.message.trim();
+        return m.isEmpty ? 'common_error_generic'.tr : m;
+      default:
+        return 'common_error_generic'.tr;
     }
   }
 

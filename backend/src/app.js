@@ -52,7 +52,19 @@ const pawSpotRoutes = require('./routes/pawSpotRoutes');
 const bugReportRoutes = require('./routes/bugReportRoutes');
 // v402 — Chantier 2 : codes promo (redemption user). 100% additif.
 const promoRoutes = require('./routes/promoRoutes');
-const { authLimiter, sensitiveLimiter, adminLimiter } = require('./middleware/rateLimiters');
+const {
+  authLimiter,
+  signupFlowLimiter,
+  isSignupFlow,
+  sensitiveLimiter,
+  adminLimiter,
+} = require('./middleware/rateLimiters');
+
+// v532 — aiguillage du rate-limit sous /auth : le tunnel d'inscription
+// (signup / verify / resend-code) a sa propre limite, plus large, pour ne pas
+// éjecter en 429 un utilisateur qui corrige simplement son code OTP.
+const authRateLimit = (req, res, next) =>
+  (isSignupFlow(req) ? signupFlowLimiter : authLimiter)(req, res, next);
 
 const app = express();
 
@@ -251,7 +263,7 @@ const versionedRoutes = [
   // POURQUOI un user est bloque (chaque step du bypass + verdict final).
   // Aussi /diagnostic/version pour confirmer quel commit est deploye.
   { path: '/diagnostic', mw: [], router: require('./routes/diagnosticRoutes') },
-  { path: '/auth', mw: [authLimiter], router: authRoutes },
+  { path: '/auth', mw: [authRateLimit], router: authRoutes },
   { path: '/users', mw: [], router: userRoutes },
   { path: '/pets', mw: [], router: petRoutes },
   { path: '/sitters', mw: [], router: sitterRoutes },

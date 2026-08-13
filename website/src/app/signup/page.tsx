@@ -17,11 +17,28 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy]         = useState(false);
   const [err, setErr]           = useState("");
+  // v532 — consentement CGU réel (cf. commentaire dans le formulaire).
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password.length < 6) {
-      setErr("Password must be at least 6 characters.");
+    if (!acceptTerms) {
+      setErr(t("signup_terms_required"));
+      return;
+    }
+    // v532 — le site validait 6 caractères alors que les 3 modèles Mongoose
+    // exigent minlength: 8 : un mot de passe de 6-7 caractères passait le
+    // contrôle client puis faisait échouer la création en 500, avec le
+    // message brut du serveur (en anglais) affiché à l'utilisateur. On
+    // s'aligne exactement sur les règles de l'app (8 + majuscule + minuscule
+    // + chiffre), avec un message traduit.
+    if (
+      password.length < 8 ||
+      !/[A-Z]/.test(password) ||
+      !/[a-z]/.test(password) ||
+      !/[0-9]/.test(password)
+    ) {
+      setErr(t("auth_error_password_rules"));
       return;
     }
     setBusy(true);
@@ -100,6 +117,29 @@ export default function SignupPage() {
         <Field label={t("signup_name")}     value={name}     onChange={setName}     required autoComplete="name" />
         <Field label={t("signup_email")}    value={email}    onChange={setEmail}    type="email"    required autoComplete="email" />
         <Field label={t("signup_password")} value={password} onChange={setPassword} type="password" required autoComplete="new-password" />
+
+        {/* v532 — les CGU étaient envoyées avec acceptedTerms: true CODÉ EN DUR
+            (lib/api.ts) alors qu'aucune case n'était affichée : l'utilisateur
+            n'acceptait rien, et aucune trace de consentement n'était conservée.
+            L'app mobile, elle, a bien sa case à l'étape 5 du wizard. */}
+        <label className="flex items-start gap-2.5 text-sm text-ink-muted">
+          <input
+            type="checkbox"
+            checked={acceptTerms}
+            onChange={(e) => setAcceptTerms(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-owner"
+          />
+          <span>
+            {t("signup_terms_accept")}{" "}
+            <Link href="/terms" className="font-semibold text-owner underline">
+              {t("terms_title")}
+            </Link>
+            {" · "}
+            <Link href="/privacy" className="font-semibold text-owner underline">
+              {t("privacy_title")}
+            </Link>
+          </span>
+        </label>
 
         <button
           disabled={busy}

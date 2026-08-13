@@ -79,11 +79,24 @@ class OtpVerificationController extends GetxController {
       focusNodes[index + 1].requestFocus();
     }
 
-    // Auto-verify if all digits are filled
-    if (_isCompletePin()) {
+    // Auto-verify if all digits are filled.
+    //
+    // v532 — l'auto-vérification repartait à CHAQUE fois que les 6 cases
+    // étaient pleines : corriger un seul chiffre après un code faux relançait
+    // un appel /auth/verify. Combiné au rate-limit, l'utilisateur se faisait
+    // éjecter en 429 juste avant l'auto-login — compte vérifié mais session
+    // perdue. On ne soumet donc plus deux fois le même code, ni pendant
+    // qu'une vérification est déjà en vol.
+    if (_isCompletePin() && !isLoading.value) {
+      final code = pinController.text.trim();
+      if (code == _lastSubmittedCode) return;
+      _lastSubmittedCode = code;
       handleVerificationWithNavigation();
     }
   }
+
+  /// Dernier code réellement envoyé à /auth/verify (anti-relance, cf. ci-dessus).
+  String _lastSubmittedCode = '';
 
   /// Handles backspace for individual digit fields
   void onDigitBackspace(int index) {
@@ -231,16 +244,28 @@ class OtpVerificationController extends GetxController {
         title: 'common_error'.tr,
         message: error.message,
       );
+      _clearCodeAfterFailure();
       return false;
     } catch (error) {
       CustomSnackbar.showError(
         title: 'common_error'.tr,
         message: 'common_error_generic'.tr,
       );
+      _clearCodeAfterFailure();
       return false;
     } finally {
       isLoading.value = false;
     }
+  }
+
+  /// v532 — après un code refusé, les 6 cases restaient remplies : l'utilisateur
+  /// devait les effacer une par une, et chaque case re-remplie relançait une
+  /// vérification. On vide le code et on redonne le focus à la première case.
+  void _clearCodeAfterFailure() {
+    _lastSubmittedCode = '';
+    pinController.clear();
+    resetDigits();
+    if (focusNodes.isNotEmpty) focusNodes.first.requestFocus();
   }
 
   /// v20.2.1 — Reads the pending profile-photo path persisted by

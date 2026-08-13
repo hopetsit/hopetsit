@@ -485,13 +485,18 @@ class AuthController extends GetxController {
         // role='sitter' and the frontend used to open the Sitter home. We
         // fix this defensively: if the caller explicitly asked for 'walker',
         // we trust that over whatever the backend returns.
+        // v532 — CORRECTION : on ne force plus 'walker'. Le JWT est signé par
+        // le backend avec le rôle du compte RÉELLEMENT trouvé (findAccountByEmail,
+        // ordre owner > sitter > walker). Forcer 'walker' côté app ouvrait
+        // l'interface promeneur avec un token owner : tous les appels
+        // /walkers/me… échouaient et l'écran restait vide, sans qu'aucun
+        // profil walker n'ait été créé. Pour un compte EXISTANT, le rôle du
+        // backend fait foi ; le rôle demandé ne prime que sur une création.
         final backendRole = _extractRole(response);
         final isNewUser = response['existingUser'] != true;
-        final role = (roleToSend == 'walker')
-            ? 'walker'
-            : (isNewUser
-                ? (roleToSend ?? backendRole)
-                : (backendRole ?? roleToSend));
+        final role = isNewUser
+            ? (roleToSend ?? backendRole)
+            : (backendRole ?? roleToSend);
         userRole.value = role;
         if (role != null) {
           await _storage.write(StorageKeys.userRole, role);
