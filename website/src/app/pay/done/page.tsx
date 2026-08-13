@@ -132,7 +132,7 @@ export default function PayDonePage() {
     <div className="min-h-[60vh] flex flex-col items-center justify-center px-6 text-center">
       <div className="mt-8 mb-6">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.svg" alt="HoPetSit" width={64} height={64} className="rounded-2xl" />
+        <img src="/logo.png" alt="HoPetSit" width={64} height={64} className="rounded-2xl" />
       </div>
 
       {isOk ? (

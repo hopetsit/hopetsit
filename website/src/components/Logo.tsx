@@ -1,12 +1,14 @@
-// Official HoPetSit brand logo — copied from frontend/assets/brand/web/logo-orange.svg
-// (the exact same asset shipped with the mobile app). Served from /public/logo.svg
-// so it can be cached by the CDN, used as og:image and as favicon.
+// Official HoPetSit brand logo — v532 : logo HOPE26, identique à l'icône de
+// l'app mobile (frontend/assets/brand/png/logo-mark.png). Servi depuis
+// /public/logo.png pour être mis en cache par le CDN. Le SVG historique
+// portait l'ANCIEN logo ; la vignette de partage vit désormais dans
+// /public/og-image.png (cf. layout.tsx).
 
 export function Logo({ size = 36 }: { size?: number }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src="/logo.svg"
+      src="/logo.png"
       alt="HoPetSit logo"
       width={size}
       height={size}

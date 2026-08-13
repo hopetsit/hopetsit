@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/chat_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
@@ -74,8 +73,9 @@ class PaymentResultScreen extends StatelessWidget {
                               0.2126, 0.7152, 0.0722, 0, 0,
                               0, 0, 0, 1, 0,
                             ]),
-                      child: SvgPicture.asset(
-                        'assets/brand/web/logo-orange.svg',
+                      // v532 — logo HOPE26 (raster détouré, cf. splash).
+                      child: Image.asset(
+                        'assets/brand/png/logo-mark.png',
                         fit: BoxFit.contain,
                       ),
                     ),

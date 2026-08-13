@@ -29,12 +29,16 @@ export const metadata: Metadata = {
     title: "HoPetSit — Pet sitters and dog walkers worldwide",
     description:
       "Trusted marketplace connecting pet owners with sitters and dog walkers in 177 countries worldwide.",
+    // v532 — vignette de partage RASTER. Avant : "/logo.svg" — or WhatsApp,
+    // Instagram, Facebook et X ne rendent PAS les SVG en og:image : tous les
+    // liens partagés depuis l'app sortaient sans aperçu. 1200x630 = format
+    // attendu par summary_large_image.
     images: [
       {
-        url: "/logo.svg",
-        width: 1024,
-        height: 1024,
-        alt: "HoPetSit",
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "HoPetSit — pet sitting & dog walking",
       },
     ],
   },
@@ -43,18 +47,21 @@ export const metadata: Metadata = {
     title: "HoPetSit",
     description:
       "Pet sitters and dog walkers worldwide. One app, three roles, full transparency.",
-    images: ["/logo.svg"],
+    images: ["/og-image.png"],
   },
   robots: { index: true, follow: true },
   // v402 — Daniel : "sur Google le favicon sort Wix". Google ignore souvent
   // les favicons SVG et préfère un favicon.ico raster. On sert donc d'abord le
   // .ico + des PNG (logo HoPetSit) ; le SVG reste pour les navigateurs modernes.
+  // v532 — logo HOPE26. L'entrée favicon.svg est retirée : le nouveau logo est
+  // un rendu raster (dégradés + halo), il n'existe pas en SVG fidèle, et les
+  // navigateurs qui préfèrent le SVG afficheraient encore l'ANCIEN logo.
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
       { url: "/icon-32.png", type: "image/png", sizes: "32x32" },
       { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
     ],
     apple: "/apple-touch-icon.png",
     shortcut: "/favicon.ico",
@@ -84,7 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   name: "HoPetSit",
                   legalName: "CARDELLI HERMANOS LIMITED",
                   url: "https://hopetsit.com",
-                  logo: "https://hopetsit.com/logo.svg",
+                  logo: "https://hopetsit.com/logo.png",
                   email: "hopetsit@gmail.com",
                   description:
                     "Trusted marketplace connecting pet owners with sitters and dog walkers worldwide.",

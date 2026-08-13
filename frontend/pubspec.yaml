@@ -148,7 +148,12 @@ flutter_launcher_icons:
   image_path_ios_tinted_grayscale: "assets/brand/png/apple-icon-white.png"
   # Android 8+ adaptive icons: separate foreground + solid orange background.
   adaptive_icon_foreground: "assets/brand/png/ic_launcher_foreground.png"
-  adaptive_icon_background: "#EF4324"
+  # v532 — logo HOPE26. Fond NOIR et non l'orange historique : le nouveau logo
+  # est un bouclier au halo orange lumineux, composé sur fond noir dans le
+  # master du pack. Sur fond orange le halo se fond dans l'arrière-plan et
+  # l'icône perd sa lisibilité ; le noir reproduit fidèlement le master et
+  # reste cohérent avec l'icône « legacy » (Android < 8) fournie par le pack.
+  adaptive_icon_background: "#000000"
   # Monochrome variant for Android 13+ themed icons. Uses the foreground
   # layer since the notification SVG is already optimised for a single colour.
   adaptive_icon_monochrome: "assets/brand/png/ic_launcher_foreground.png"
