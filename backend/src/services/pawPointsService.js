@@ -79,6 +79,63 @@ const _modelFor = (role) => {
   return r === 'walker' ? Walker : r === 'sitter' ? Sitter : Owner;
 };
 
+/**
+ * v532 — PARTAGE DES POINTS ENTRE LES 3 PROFILS D'UN MÊME COMPTE.
+ *
+ * `pawPoints` et `pawPointsSpendable` vivaient sur le document de rôle. Or un
+ * compte HoPetSit a jusqu'à TROIS documents (propriétaire / gardien /
+ * promeneur) reliés par l'email. Conséquence : les points gagnés en ajoutant
+ * un PawSpot depuis le profil propriétaire n'existaient pas côté gardien —
+ * l'utilisateur voyait son solde « disparaître » en changeant de profil, son
+ * niveau retomber à zéro, et il ne pouvait pas dépenser ses points depuis le
+ * mauvais rôle. Ces deux compteurs ne figuraient pas non plus dans
+ * SHARED_FIELDS (et de toute façon awardPoints écrit en $inc direct, hors du
+ * mécanisme de synchronisation).
+ *
+ * On aligne donc les documents frères sur la valeur la plus élevée après
+ * chaque gain et chaque dépense. Prendre le MAX (et non recopier) évite de
+ * perdre des points si des profils avaient déjà divergé.
+ */
+async function syncPointsAcrossRoles(userId, role) {
+  try {
+    const Model = _modelFor(role);
+    const me = await Model.findById(userId)
+      .select('email pawPoints pawPointsSpendable')
+      .lean();
+    if (!me?.email) return;
+    const models = [
+      ['owner', Owner],
+      ['sitter', Sitter],
+      ['walker', Walker],
+    ];
+    const docs = [];
+    for (const [r, M] of models) {
+      const d = await M.findOne({ email: me.email })
+        .select('pawPoints pawPointsSpendable')
+        .lean();
+      if (d) docs.push({ role: r, Model: M, doc: d });
+    }
+    if (docs.length < 2) return; // un seul profil : rien à synchroniser
+    const maxLifetime = Math.max(...docs.map((d) => Number(d.doc.pawPoints) || 0));
+    const maxSpendable = Math.max(
+      ...docs.map((d) => Number(d.doc.pawPointsSpendable) || 0),
+    );
+    await Promise.all(
+      docs
+        .filter(
+          (d) => (Number(d.doc.pawPoints) || 0) !== maxLifetime
+            || (Number(d.doc.pawPointsSpendable) || 0) !== maxSpendable,
+        )
+        .map((d) => d.Model.updateOne(
+          { _id: d.doc._id },
+          { $set: { pawPoints: maxLifetime, pawPointsSpendable: maxSpendable } },
+        )),
+    );
+  } catch (e) {
+    logger.warn(`[pawPoints] sync inter-rôles échouée : ${e?.message || e}`);
+  }
+}
+
 /** Niveau courant pour un total À VIE (ou null si < 1 000). */
 function levelFor(points) {
   const p = Number(points) || 0;
@@ -159,6 +216,8 @@ async function awardPoints({ userId, role, points, reason = '' }) {
       { new: true },
     ).select('pawPoints pawPointsSpendable');
     if (!updated) return null;
+    // v532 — propage le nouveau solde aux autres profils du même compte.
+    await syncPointsAcrossRoles(userId, role);
     logger.info(
       `🐾 [pawPoints] +${pts}${doubled ? ' (×2 Premium)' : ''}${bonus ? ' (+' + bonus + '% niveau)' : ''} → ${role}:${userId} (à vie ${updated.pawPoints}) ${reason ? '— ' + reason : ''}`,
     );
@@ -187,6 +246,12 @@ async function getPoints(userId, role) {
  */
 async function getPawState(userId, role) {
   const Model = _modelFor(role);
+  // v532 — AUTO-RÉPARATION. Les comptes créés avant ce correctif ont des
+  // soldes différents sur chacun de leurs trois profils (les points étaient
+  // crédités sur le seul document du rôle actif). On réaligne à la lecture :
+  // l'utilisateur retrouve son solde complet dès qu'il ouvre l'écran
+  // PawPoints, sans migration de base.
+  await syncPointsAcrossRoles(userId, role);
   let doc = await Model.findById(userId)
     .select('pawPoints pawPointsSpendable')
     .lean();
@@ -235,4 +300,5 @@ module.exports = {
   awardPoints,
   getPoints,
   getPawState,
+  syncPointsAcrossRoles,
 };

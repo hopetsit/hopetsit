@@ -32,8 +32,28 @@ async function grantFreePeriod({ userId, role, plan, days }) {
   const extendFrom = (d) =>
     new Date((d && new Date(d) > now ? new Date(d) : now).getTime() + days * 86400000);
 
+  // v532 — LA RÉCOMPENSE « 1 MOIS OFFERT » AVEC CHOIX PAWSPOT ÉTAIT CASSÉE.
+  // L'app peut envoyer plan='pawspot' (le palier à 200 000 points laisse
+  // choisir entre PawFollow et PawSpot). Or 'pawspot' n'est ni dans l'enum
+  // `plan` du schéma, ni dans celui de `payments.plan` → `sub.save()` levait
+  // une ValidationError, l'octroi échouait et la route remboursait les points :
+  // impossible d'obtenir cette récompense. Et même sans l'erreur, le code
+  // serait tombé dans la branche « PawFollow » et aurait prolongé le mauvais
+  // abonnement. On traite donc PawSpot explicitement : c'est un timer dédié
+  // (`pawspotExpiry`), indépendant de `plan`.
+  const isPawSpotPlan = ['pawspot', 'pawspot_monthly', 'pawspot_yearly']
+    .includes(String(planCanonical || '').toLowerCase());
+  // Valeur écrite dans l'historique `payments` (enum distinct de `plan`).
+  const paymentPlan = isPawSpotPlan
+    ? (Number(days) >= 365 ? 'pawspot_yearly' : 'pawspot_monthly')
+    : planCanonical;
+
   let periodEnd;
-  if (isFamilyPlan(planCanonical)) {
+  if (isPawSpotPlan) {
+    sub.pawspotExpiry = extendFrom(sub.pawspotExpiry);
+    sub.status = 'active';
+    periodEnd = sub.pawspotExpiry;
+  } else if (isFamilyPlan(planCanonical)) {
     periodEnd = extendFrom(sub.familyExpiry);
     sub.familyExpiry = periodEnd;
     sub.status = 'active';
@@ -57,7 +77,9 @@ async function grantFreePeriod({ userId, role, plan, days }) {
   sub.cancelAtPeriodEnd = false;
   sub.payments = sub.payments || [];
   sub.payments.push({
-    plan,
+    // v532 — `plan` brut pouvait valoir 'pawspot', absent de l'enum de
+    // `payments.plan` → ValidationError et octroi perdu. Cf. note plus haut.
+    plan: paymentPlan,
     amount: 0,
     currency: 'EUR',
     paidAt: now,

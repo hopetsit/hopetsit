@@ -26,6 +26,35 @@ const logger = require('../utils/logger');
 const router = express.Router();
 
 const ROLE_TO_MODEL_NAME = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' };
+
+/**
+ * v532 — identité complète d'un compte : son email et les identifiants de ses
+ * TROIS documents de rôle. Un compte HoPetSit possède un document par rôle
+ * (propriétaire / gardien / promeneur) reliés par l'email ; tout ce qui était
+ * calculé sur le seul document du rôle actif (points, contributions,
+ * récompenses déjà réclamées) « disparaissait » au changement de profil.
+ */
+async function _identity(userId, role) {
+  const out = { email: '', ids: [] };
+  try {
+    const r = String(role || '').toLowerCase();
+    const Model = r === 'walker' ? Walker : r === 'sitter' ? Sitter : Owner;
+    const me = await Model.findById(userId).select('email name').lean();
+    if (!me) return out;
+    out.email = me.email || '';
+    out.name = me.name || '';
+    if (!out.email) {
+      out.ids = [userId];
+      return out;
+    }
+    const docs = await Promise.all(
+      [Owner, Sitter, Walker].map((M) => M.findOne({ email: out.email }).select('_id').lean()),
+    );
+    out.ids = docs.filter(Boolean).map((d) => d._id);
+    if (!out.ids.length) out.ids = [userId];
+  } catch (_) { /* best-effort */ }
+  return out;
+}
 const modelFor = (role) => {
   const r = String(role || '').toLowerCase();
   return r === 'walker' ? Walker : r === 'sitter' ? Sitter : Owner;
@@ -74,19 +103,32 @@ router.get('/me', requireAuth, async (req, res) => {
   try {
     const role = req.user?.role || 'owner';
     const st = await pawPoints.getPawState(req.user.id, role);
+    // v532 — identité complète du compte (email + les 3 documents de rôle).
+    const me = await _identity(req.user.id, role);
     // v416 — stats contributions (design : "Tes contributions" + "Spots aimés").
     let contributions = 0;
     let spotsLiked = 0;
     try {
       const MapReport = require('../models/MapReport');
       const PawSpot = require('../models/PawSpot');
-      contributions = await MapReport.countDocuments({ reporterId: req.user.id });
-      const spots = await PawSpot.find({ creatorId: req.user.id }).select('likesCount').lean();
+      // v532 — les contributions étaient comptées sur le seul document du rôle
+      // actif : un PawSpot ajouté depuis le profil propriétaire n'apparaissait
+      // plus après un changement de profil. On compte sur les 3 profils.
+      const ids = me.ids.length ? me.ids : [req.user.id];
+      contributions = await MapReport.countDocuments({ reporterId: { $in: ids } });
+      const spots = await PawSpot.find({ creatorId: { $in: ids } }).select('likesCount').lean();
       spotsLiked = spots.reduce((s, x) => s + (Number(x.likesCount) || 0), 0);
     } catch (_) { /* best-effort */ }
     // Récompenses abonnement déjà réclamées (1×/user).
+    // v532 — la limite « 1 fois par utilisateur » se basait sur l'id du
+    // DOCUMENT DE RÔLE. Un même compte ayant trois profils (propriétaire /
+    // gardien / promeneur), il suffisait de changer de profil pour réclamer
+    // une troisième fois la même récompense. On déduplique sur l'email.
     const claimed = await PawRewardRedemption.find({
-      userId: req.user.id, rewardKey: { $regex: '^sub_' },
+      ...(me?.email
+        ? { userEmail: me.email }
+        : { userId: req.user.id }),
+      rewardKey: { $regex: '^sub_' },
       status: { $ne: 'cancelled' },
     }).select('rewardKey status').lean();
     res.json({
@@ -111,7 +153,7 @@ router.get('/me', requireAuth, async (req, res) => {
 });
 
 // Débit atomique du solde dépensable (anti double-dépense).
-async function spendPoints(Model, userId, cost) {
+async function spendPoints(Model, userId, cost, role) {
   // Backfill paresseux : si pawPointsSpendable absent, = pawPoints (à vie).
   await Model.updateOne(
     { _id: userId, pawPointsSpendable: { $exists: false } },
@@ -122,7 +164,56 @@ async function spendPoints(Model, userId, cost) {
     { $inc: { pawPointsSpendable: -cost } },
     { new: true },
   ).select('pawPointsSpendable');
-  return debited ? Number(debited.pawPointsSpendable) : null;
+  if (!debited) return null;
+  // v532 — SANS CECI, LES MÊMES POINTS ÉTAIENT DÉPENSABLES TROIS FOIS. Le
+  // débit ne touchait que le document du rôle actif ; les profils frères du
+  // même compte gardaient leur solde intact, il suffisait de changer de profil
+  // pour réclamer à nouveau la récompense. On aligne les trois documents
+  // (le nouveau solde étant le plus bas, la synchro par MAX ne peut pas le
+  // relever : on écrit donc explicitement la valeur débitée).
+  try {
+    const { syncPointsAcrossRoles } = require('../services/pawPointsService');
+    const newBalance = Number(debited.pawPointsSpendable);
+    const me = await Model.findById(userId).select('email pawPoints').lean();
+    if (me?.email) {
+      await Promise.all(
+        [Owner, Sitter, Walker].map((M) => M.updateOne(
+          { email: me.email },
+          { $set: { pawPointsSpendable: newBalance } },
+        ).catch(() => {})),
+      );
+      // Réaligne aussi le total À VIE (qui, lui, ne baisse jamais).
+      await syncPointsAcrossRoles(userId, role);
+    }
+  } catch (_) { /* best-effort : le débit principal a déjà eu lieu */ }
+  return Number(debited.pawPointsSpendable);
+}
+
+/**
+ * v532 — remboursement des points quand l'octroi de la récompense échoue.
+ * Doit toucher les TROIS profils, comme le débit : sinon le solde du rôle
+ * actif remontait mais restait plus bas sur les autres, et la synchro par MAX
+ * les réalignait ensuite… en rendant les points là où ils n'avaient pas été
+ * repris. On recrédite partout la même valeur.
+ */
+async function _refundPoints(userId, role, cost) {
+  try {
+    const Model = modelFor(role);
+    const back = await Model.findByIdAndUpdate(
+      userId,
+      { $inc: { pawPointsSpendable: Number(cost) || 0 } },
+      { new: true },
+    ).select('email pawPointsSpendable');
+    if (!back?.email) return;
+    await Promise.all(
+      [Owner, Sitter, Walker].map((M) => M.updateOne(
+        { email: back.email },
+        { $set: { pawPointsSpendable: Number(back.pawPointsSpendable) || 0 } },
+      ).catch(() => {})),
+    );
+  } catch (e) {
+    logger.error('[pawpoints] remboursement des points échoué', e);
+  }
 }
 
 // ─── POST /redeem/:id ─────────────────────────────────────────────────────────
@@ -136,14 +227,18 @@ router.post('/redeem/:id', requireAuth, async (req, res) => {
     // ── Récompense ABONNEMENT (code-définie) ───────────────────────────────
     const subReward = pawPoints.subscriptionRewardById(id);
     if (subReward) {
-      // 1×/user.
+      // 1×/user — v532 : dédup sur l'EMAIL, pas sur le document de rôle
+      // (sinon la même récompense était réclamable une fois par profil).
+      const ident = await _identity(req.user.id, role);
       const already = await PawRewardRedemption.findOne({
-        userId: req.user.id, rewardKey: subReward.id, status: { $ne: 'cancelled' },
+        ...(ident.email ? { userEmail: ident.email } : { userId: req.user.id }),
+        rewardKey: subReward.id,
+        status: { $ne: 'cancelled' },
       }).lean();
       if (already) {
         return res.status(409).json({ error: 'Récompense déjà utilisée.', code: 'ALREADY_CLAIMED' });
       }
-      const newBalance = await spendPoints(Model, req.user.id, subReward.cost);
+      const newBalance = await spendPoints(Model, req.user.id, subReward.cost, role);
       if (newBalance === null) {
         return res.status(400).json({ error: 'Pas assez de PawPoints.', code: 'INSUFFICIENT' });
       }
@@ -161,7 +256,7 @@ router.post('/redeem/:id', requireAuth, async (req, res) => {
       } catch (e) {
         // Si l'octroi échoue, on rembourse les points dépensés.
         logger.error('[pawpoints/redeem] grant failed, refunding', e);
-        await Model.updateOne({ _id: req.user.id }, { $inc: { pawPointsSpendable: subReward.cost } }).catch(() => {});
+        await _refundPoints(req.user.id, role, subReward.cost);
         return res.status(500).json({ error: 'Échec de l\'application, points remboursés.' });
       }
 
@@ -193,7 +288,7 @@ router.post('/redeem/:id', requireAuth, async (req, res) => {
     if (!reward || !reward.isRedeemable()) {
       return res.status(404).json({ error: 'Récompense indisponible.' });
     }
-    const newBalance = await spendPoints(Model, req.user.id, reward.cost);
+    const newBalance = await spendPoints(Model, req.user.id, reward.cost, role);
     if (newBalance === null) {
       return res.status(400).json({ error: 'Pas assez de PawPoints.', code: 'INSUFFICIENT' });
     }
@@ -232,7 +327,7 @@ router.post('/redeem/:id', requireAuth, async (req, res) => {
     } catch (e) {
       // Octroi échoué → on rembourse les points dépensés.
       logger.error('[pawpoints/redeem] admin reward grant failed, refunding', e);
-      await Model.updateOne({ _id: req.user.id }, { $inc: { pawPointsSpendable: reward.cost } }).catch(() => {});
+      await _refundPoints(req.user.id, role, reward.cost);
       return res.status(500).json({ error: 'Échec de l\'application, points remboursés.' });
     }
 
