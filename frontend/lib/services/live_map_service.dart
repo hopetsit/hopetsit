@@ -363,13 +363,27 @@ class LiveMapService extends GetxService {
     _stationaryTimer = null;
     _stationaryAnchor = null;
     myLivePosition.value = null;
-    if (!broadcasting.value) return;
+    // v532 — CE `return` RENDAIT L'ARRÊT IMPOSSIBLE APRÈS UN SWIPE-KILL.
+    // `broadcasting` ne vit qu'en mémoire, alors que le service de fond, lui,
+    // survit à la fermeture de l'app (START_STICKY) et continue de poster la
+    // position toutes les 15 s. Au redémarrage de l'app, `broadcasting` valait
+    // false : le bandeau affichait « partage OFF » alors que la diffusion
+    // tournait toujours, et tout appel à stopBroadcasting sortait ICI sans
+    // rien couper. Le plafond de session (2 h) et l'arrêt auto après 30 min
+    // d'immobilité vivaient eux aussi uniquement dans l'app → une fois
+    // celle-ci tuée, la diffusion n'avait plus AUCUNE limite de durée.
+    // On coupe donc TOUJOURS l'état persisté et le service de fond, même si
+    // l'app se croit déjà à l'arrêt.
+    final wasBroadcasting = broadcasting.value;
     broadcasting.value = false;
-    final svc = Get.find<SocketService>();
-    svc.socket?.emit('map:go-offline');
+    if (wasBroadcasting) {
+      final svc = Get.find<SocketService>();
+      svc.socket?.emit('map:go-offline');
+    }
     // v416 — coupe aussi le service de fond (il enverra un ping offline final).
     try {
       _storage.write(kBgLiveActive, false);
+      _storage.write(kBgToken, '');
       stopLiveTrackingService();
     } catch (e) {
       debugPrint('[LiveMap] background service stop failed: $e');

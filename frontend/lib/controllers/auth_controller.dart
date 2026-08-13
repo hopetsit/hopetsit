@@ -16,6 +16,9 @@ import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:hopetsit/views/auth/sign_up_as.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/services/firebase_analytics_service.dart';
+// v532 — nécessaire pour couper le suivi GPS en direct au logout.
+import 'package:hopetsit/services/live_map_service.dart';
+import 'package:hopetsit/services/live_tracking_bg.dart';
 import 'package:hopetsit/services/meta_events_service.dart';
 import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/services/socket_service.dart';
@@ -1568,6 +1571,26 @@ class AuthController extends GetxController {
       }
     } catch (_) {
       // best-effort, le logout doit toujours réussir.
+    }
+
+    // v532 — LE SUIVI EN DIRECT SURVIVAIT À LA DÉCONNEXION. Le service de fond
+    // garde une copie du jeton dans GetStorage (kBgToken) et continue de
+    // poster la position toutes les 15 s ; or le jeton est valable 1 AN. On
+    // pouvait donc se déconnecter, prêter son téléphone, et rester visible
+    // « en direct » par ses amis pendant des mois. On coupe la diffusion et on
+    // efface le jeton de fond AVANT de purger le reste.
+    try {
+      if (Get.isRegistered<LiveMapService>()) {
+        Get.find<LiveMapService>().stopBroadcasting();
+      } else {
+        // Service non instancié (ex. redémarrage) : on coupe quand même le
+        // service de fond et on efface son jeton persisté.
+        await _storage.write(kBgLiveActive, false);
+        await _storage.write(kBgToken, '');
+        await stopLiveTrackingService();
+      }
+    } catch (e) {
+      debugPrint('[logout] arrêt du suivi en direct échoué: $e');
     }
 
     // Clear all stored authentication data

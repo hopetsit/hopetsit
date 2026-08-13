@@ -163,6 +163,17 @@ const ownerSchema = new mongoose.Schema(
         },
       },
       city: { type: String, default: '', trim: true },
+      // v532 — horodatage de la DERNIERE position en direct. Le filtre de
+      // fraicheur (24 h) de /friends/live-positions lisait deja ce champ, mais
+      // il n'etait declare nulle part : Mongoose le jetait en silence, `at`
+      // valait toujours null et aucune position perimee n'etait ecartee.
+      updatedAt: { type: Date, default: null },
+      // v532 — le partage en direct est-il actif ? Avant, « passer hors ligne »
+      // faisait un $unset de location.coordinates. Mais la recherche de
+      // prestataires exige ces coordonnees : le gardien disparaissait des
+      // resultats jusqu'a ce qu'il ressaisisse son adresse. On garde donc les
+      // coordonnees et on eteint le direct avec ce drapeau.
+      liveShareActive: { type: Boolean, default: false },
     },
 
     // v21.1.1 — Stripe fields removed.

@@ -50,8 +50,17 @@ const friendshipSchema = new mongoose.Schema(
       index: true,
     },
 
-    requesterSharesPosition: { type: Boolean, default: true },
-    addresseeSharesPosition: { type: Boolean, default: true },
+    // v532 — CONSENTEMENT. Ces deux drapeaux valaient `true` par défaut :
+    // accepter une demande d'ami suffisait à diffuser sa position en direct à
+    // cette personne, sans qu'on la lui ait jamais demandée. Le site promet
+    // pourtant explicitement que « chaque ami accepte le partage ». On passe
+    // donc à `false` : le partage doit être activé volontairement (bouton
+    // POST /friends/:id/share, déjà présent dans l'app).
+    // ATTENTION : un `default` Mongoose ne s'applique qu'à la CRÉATION — les
+    // amitiés existantes gardent leur valeur actuelle et continuent de
+    // fonctionner. Seules les nouvelles démarrent en partage désactivé.
+    requesterSharesPosition: { type: Boolean, default: false },
+    addresseeSharesPosition: { type: Boolean, default: false },
 
     acceptedAt: { type: Date, default: null },
     declinedAt: { type: Date, default: null },

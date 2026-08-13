@@ -523,6 +523,72 @@ router.delete('/:id', requireAuth, async (req, res) => {
 //   200 { lat: null, lng: null, peerId, peerRole } si trackable mais pas de pos
 //   403 si pas autorise (non-participant)
 //   404 si pas de peer trouve
+/**
+ * v532 — autorisation d'accès à la position de l'interlocuteur.
+ *
+ * Deux cas légitimes, et deux seulement :
+ *  1. conversation entre amis → l'amitié doit autoriser le partage dans le sens
+ *     demandé (l'autre ne doit pas avoir coupé le partage vers moi) ;
+ *  2. conversation liée à une garde → il faut une réservation PAYÉE dont le
+ *     service est en cours entre ces deux personnes.
+ *
+ * En dehors de ça, on refuse : une conversation ancienne ne doit jamais donner
+ * accès à la position (ni au domicile) de quelqu'un.
+ */
+const _peerPositionAllowed = async ({ conv, myId, peerId, peerRole, isFriendChat }) => {
+  if (isFriendChat) {
+    try {
+      const Friendship = require('../models/Friendship');
+      const f = await Friendship.findOne({
+        status: 'accepted',
+        $or: [
+          { requesterId: myId, addresseeId: peerId },
+          { requesterId: peerId, addresseeId: myId },
+        ],
+      }).lean();
+      if (!f) return { ok: false, code: 'NOT_FRIENDS' };
+      // Le drapeau qui compte est celui de L'AUTRE : c'est lui qui décide
+      // s'il me laisse voir sa position.
+      const iAmRequester = String(f.requesterId) === String(myId);
+      const peerShares = iAmRequester ? f.addresseeSharesPosition : f.requesterSharesPosition;
+      if (peerShares === false) return { ok: false, code: 'SHARING_DISABLED' };
+      return { ok: true };
+    } catch (e) {
+      logger.warn('[peer-position] vérification amitié impossible', e?.message || e);
+      return { ok: false, code: 'SHARING_CHECK_FAILED' };
+    }
+  }
+
+  try {
+    const Booking = require('../models/Booking');
+    const providerField = peerRole === 'walker'
+      ? 'walkerId'
+      : peerRole === 'sitter' ? 'sitterId' : null;
+    // Selon que je suis le propriétaire ou le prestataire, la réservation
+    // pointe l'autre dans un champ différent.
+    const query = providerField
+      ? { ownerId: myId, [providerField]: peerId }
+      : {
+        ownerId: peerId,
+        $or: [{ sitterId: myId }, { walkerId: myId }],
+      };
+    const booking = await Booking.findOne({
+      ...query,
+      paymentStatus: 'paid',
+      confirmationStatus: { $nin: ['confirmed', 'disputed', 'awaiting_confirmation'] },
+      status: { $nin: ['completed', 'cancelled', 'refunded'] },
+    })
+      .sort({ createdAt: -1 })
+      .select('_id')
+      .lean();
+    if (!booking) return { ok: false, code: 'NO_ACTIVE_SERVICE' };
+    return { ok: true };
+  } catch (e) {
+    logger.warn('[peer-position] vérification réservation impossible', e?.message || e);
+    return { ok: false, code: 'SHARING_CHECK_FAILED' };
+  }
+};
+
 router.get('/:id/peer-position', requireAuth, async (req, res) => {
   try {
     const conv = await Conversation.findById(req.params.id).lean();
@@ -564,6 +630,32 @@ router.get('/:id/peer-position', requireAuth, async (req, res) => {
 
     if (!peerId || !peerRole) {
       return res.status(404).json({ error: 'No peer found in conversation.' });
+    }
+
+    // v532 — TROU DE CONFIDENTIALITÉ MAJEUR. Jusqu'ici, être participant de la
+    // conversation SUFFISAIT pour obtenir les coordonnées exactes de l'autre.
+    // Aucun contrôle : ni service en cours, ni abonnement, ni accord de
+    // partage. Un gardien contacté une seule fois six mois plus tôt pouvait
+    // continuer à interroger cette route et suivre la personne. Pire :
+    // `location` est aussi l'adresse renseignée au profil, donc même quelqu'un
+    // n'ayant JAMAIS activé le suivi exposait son DOMICILE. Cette route
+    // court-circuitait entièrement les gardes de `getProviderLocation`
+    // (service terminé, demande refusée, désabonnement).
+    // On applique désormais les mêmes règles :
+    //   - conversation d'amis  → l'amitié doit autoriser le partage ;
+    //   - conversation de garde → une réservation payée doit être EN COURS.
+    const allowed = await _peerPositionAllowed({
+      conv,
+      myId,
+      peerId,
+      peerRole,
+      isFriendChat: conv.friendChat === true,
+    });
+    if (!allowed.ok) {
+      return res.status(403).json({
+        error: 'Position sharing is not enabled for this conversation.',
+        code: allowed.code,
+      });
     }
 
     // Load peer User doc + return last known position.

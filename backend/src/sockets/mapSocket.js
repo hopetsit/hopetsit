@@ -70,6 +70,13 @@ async function listPositionListeners(userId, role) {
   } catch (_) {/* defensive */}
 
   const listeners = [];
+  // v532 — mémorise les personnes vers qui j'ai EXPLICITEMENT coupé le
+  // partage. Sans cette liste, la fusion famille plus bas les réintégrait :
+  // le `seen` ne contenait que les destinataires déjà ajoutés, jamais les
+  // exclus. Résultat : couper le partage vers un membre de sa famille
+  // n'avait aucun effet sur le direct (alors que /friends/live-positions,
+  // lui, le respectait) — deux comportements contradictoires.
+  const optedOut = new Set();
   for (const f of friendships) {
     // v526 — « moi » = n'importe lequel de mes docs de rôle.
     const isRequester = g.set.has(String(f.requesterId));
@@ -101,7 +108,10 @@ async function listPositionListeners(userId, role) {
     const myShare = isRequester
       ? f.requesterSharesPosition
       : f.addresseeSharesPosition;
-    if (myShare === false) continue;
+    if (myShare === false) {
+      optedOut.add(String(otherId));
+      continue;
+    }
 
     if (!familyBypass) {
       // Default true mais l'user a coupe la switch — securite belt+suspenders.
@@ -139,6 +149,8 @@ async function listPositionListeners(userId, role) {
     if (fam.length) {
       const seen = new Set(listeners.map((l) => String(l.userId)));
       for (const m of fam) {
+        // v532 — un opt-out explicite prime sur l'appartenance à la famille.
+        if (optedOut.has(String(m.userId))) continue;
         if (!seen.has(String(m.userId))) {
           seen.add(String(m.userId));
           listeners.push({ userId: m.userId, role: m.role });
@@ -166,12 +178,18 @@ async function relayLivePosition({ userId, role, lat, lng, city, offline }) {
 
   if (offline) {
     try {
+      // v532 — on EFFAÇAIT `location.coordinates`. Or la recherche de
+      // prestataires filtre sur l'existence de ce champ : couper le partage
+      // faisait littéralement DISPARAÎTRE le gardien ou le promeneur des
+      // résultats « près de chez moi », jusqu'à ce qu'il ressaisisse son
+      // adresse. On garde les coordonnées et on éteint le direct avec le
+      // drapeau dédié (les lecteurs du live le respectent).
       await Model.updateOne(
         { _id: userId },
-        { $unset: { 'location.coordinates': '' } },
+        { $set: { 'location.liveShareActive': false } },
       );
     } catch (e) {
-      logger.warn(`[relayLivePosition] offline unset failed : ${e.message}`);
+      logger.warn(`[relayLivePosition] offline flag failed : ${e.message}`);
     }
     const listeners = await listPositionListeners(userId, r);
     for (const l of listeners) {
@@ -184,15 +202,19 @@ async function relayLivePosition({ userId, role, lat, lng, city, offline }) {
   }
 
   try {
+    // v532 — on remplaçait TOUT le sous-document `location`. Deux dégâts à
+    // chaque position reçue : `locationType` ('large_city') repassait à
+    // 'standard' — il pilote la tarification — et `city` était vidée quand le
+    // client ne l'envoyait pas. On écrit désormais champ par champ.
     await Model.updateOne(
       { _id: userId },
       {
         $set: {
-          location: {
-            type: 'Point',
-            coordinates: [lng, lat],
-            ...(city ? { city: String(city) } : {}),
-          },
+          'location.type': 'Point',
+          'location.coordinates': [lng, lat],
+          'location.updatedAt': new Date(),
+          'location.liveShareActive': true,
+          ...(city ? { 'location.city': String(city) } : {}),
         },
       },
     );
@@ -217,7 +239,24 @@ async function relayLivePosition({ userId, role, lat, lng, city, offline }) {
 
 function registerMapHandlers(io, socket) {
   socket.on('map:identify', (payload = {}, callback) => {
-    const { userId, role } = payload;
+    // v532 — USURPATION D'IDENTITÉ. Ce handler était le DERNIER à faire
+    // confiance au payload du client (chatSocket avait été corrigé en part 130,
+    // pas celui-ci). Avec un jeton parfaitement valide, il suffisait d'émettre
+    // `map:identify {userId: <id de quelqu'un d'autre>, role: 'owner'}` pour :
+    //   - rejoindre son salon privé et recevoir SES messages et notifications ;
+    //   - recevoir les positions en direct de TOUS ses amis ;
+    //   - écrire de fausses positions dans SON profil et les diffuser en son
+    //     nom, ou effacer sa position avec `map:go-offline`.
+    // L'identité vient désormais du JWT vérifié par le middleware socket.
+    const trusted = socket.data?.user;
+    const userId = trusted?.id || payload.userId;
+    const role = trusted?.role || payload.role;
+    if (trusted?.id && payload?.userId && String(payload.userId) !== String(trusted.id)) {
+      logger.warn(
+        `[mapSocket] map:identify refusé : le client prétend être ${payload.role}:${payload.userId} ` +
+        `alors que son jeton dit ${trusted.role}:${trusted.id}.`,
+      );
+    }
     if (userId && role) {
       socket.join(userRoom(role, userId));
       socket.data = socket.data || {};
@@ -264,12 +303,15 @@ function registerMapHandlers(io, socket) {
             await Model.updateOne(
               { _id: identity.userId },
               {
+                // v532 — écriture champ par champ : remplacer tout le
+                // sous-document effaçait `locationType` (qui pilote les
+                // tarifs) et `city`. Cf. même correctif dans relayLivePosition.
                 $set: {
-                  location: {
-                    type: 'Point',
-                    coordinates: [lng, lat], // GeoJSON = [lng, lat]
-                    ...(payload.city ? { city: String(payload.city) } : {}),
-                  },
+                  'location.type': 'Point',
+                  'location.coordinates': [lng, lat], // GeoJSON = [lng, lat]
+                  'location.updatedAt': new Date(),
+                  'location.liveShareActive': true,
+                  ...(payload.city ? { 'location.city': String(payload.city) } : {}),
                 },
               },
             );
@@ -323,7 +365,10 @@ function registerMapHandlers(io, socket) {
         if (Model) {
           await Model.updateOne(
             { _id: identity.userId },
-            { $unset: { 'location.coordinates': '' } },
+            // v532 — cf. relayLivePosition : on n'efface plus les coordonnées
+            // (le prestataire disparaissait des résultats de recherche), on
+            // éteint seulement le partage en direct.
+            { $set: { 'location.liveShareActive': false } },
           );
         }
       } catch (e) {

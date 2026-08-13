@@ -1807,8 +1807,20 @@ router.get('/live-positions', requireAuth, async (req, res) => {
         try { doc = await Model.findById(d.id).select('location').lean(); } catch (_) {/* */}
         const coords = doc?.location?.coordinates;
         if (!Array.isArray(coords) || coords.length < 2) continue;
+        // v532 — le partage éteint n'efface plus les coordonnées (sinon le
+        // prestataire disparaissait des résultats de recherche) : c'est ce
+        // drapeau qui fait foi pour le direct.
+        if (doc.location?.liveShareActive === false) continue;
         const at = doc.location?.updatedAt ? new Date(doc.location.updatedAt) : null;
+        // v532 — `location.updatedAt` n'était déclaré dans AUCUN schéma, donc
+        // jeté en silence par Mongoose : `at` valait toujours null et ce
+        // filtre n'écartait JAMAIS rien. Une position vieille de plusieurs
+        // semaines était renvoyée comme « en direct » et l'app affichait
+        // « Vu à l'instant ». Le champ est déclaré depuis la v532 ; on écarte
+        // en plus les positions SANS horodatage qui ne sont pas de vraies
+        // positions live (anciennes adresses de profil).
         if (at && now - at.getTime() > MAX_AGE_MS) continue; // trop vieille
+        if (!at && doc.location?.liveShareActive !== true) continue;
         const t = at ? at.getTime() : 0;
         if (!best || t > best.t) {
           best = { coords, at, t, city: doc.location?.city || '' };
