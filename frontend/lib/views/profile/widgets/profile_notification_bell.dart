@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
-import 'package:hopetsit/views/notifications/sitter_notifications_screen.dart';
 
 /// v441 — cloche de notifications affichée dans l'en-tête (hero) des 3 écrans
 /// de profil (owner/sitter/walker). C'est là qu'arrivent les notifications de
@@ -25,7 +24,10 @@ class ProfileNotificationBell extends StatelessWidget {
   void _open() {
     final ctrl = _controller;
     final Widget target = role == 'sitter'
-        ? const SitterNotificationsScreen()
+        // v532 — plus de divergence : le promeneur voyait deux fils
+        // différents selon qu'il ouvrait la cloche de l'accueil (2 types)
+        // ou celle du profil (tout). Un seul écran pour les 3 rôles.
+        ? const NotificationsScreen()
         : const NotificationsScreen();
     Get.to(() => target)?.then((_) => ctrl.refreshUnreadCount());
   }

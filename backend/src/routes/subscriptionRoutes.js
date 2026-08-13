@@ -27,6 +27,8 @@ const {
 const airwallex = require('../services/airwallexService');
 const { normalizeCurrency } = require('../utils/currency');
 const logger = require('../utils/logger');
+// v532 — verification du paiement avant toute activation boutique.
+const { assertPaidIntent, PaymentNotVerifiedError } = require('../utils/assertPaidIntent');
 
 const router = express.Router();
 
@@ -493,6 +495,24 @@ router.post('/subscribe', requireAuth, async (req, res) => {
 // ── POST /confirm — after Stripe success, extend premium window ─────────────
 router.post('/confirm', requireAuth, async (req, res) => {
   try {
+    // v532 — FAILLE : cet endpoint activait le produit sans jamais verifier
+    // le paiement aupres d Airwallex. On exige desormais un PaymentIntent
+    // reellement SUCCEEDED, appartenant a l appelant, et non deja consomme.
+    try {
+      await assertPaidIntent({
+        paymentIntentId: req.body?.paymentIntentId,
+        userId: req.user.id,
+        purpose: 'subscription',
+      });
+    } catch (guardErr) {
+      if (guardErr instanceof PaymentNotVerifiedError) {
+        return res.status(guardErr.status).json({
+          error: guardErr.message,
+          code: guardErr.code,
+        });
+      }
+      throw guardErr;
+    }
     const { plan, paymentIntentId } = req.body;
     const currency = normalizeCurrency(req.body.currency);
     const pricing = getPlanPricing(plan, currency);

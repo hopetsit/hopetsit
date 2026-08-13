@@ -23,6 +23,8 @@ const { normalizeCurrency } = require('../utils/currency');
 const pricingService = require('../services/pricingService');
 const pawPoints = require('../services/pawPointsService');
 const logger = require('../utils/logger');
+// v532 — verification du paiement avant toute activation boutique.
+const { assertPaidIntent, PaymentNotVerifiedError } = require('../utils/assertPaidIntent');
 
 const router = express.Router();
 const PROVIDER = (process.env.PAYMENT_PROVIDER || 'airwallex').toLowerCase();
@@ -873,6 +875,24 @@ router.post('/subscribe', requireAuth, async (req, res) => {
 // webhook), même rôle que /chat-addon/confirm.
 router.post('/confirm', requireAuth, async (req, res) => {
   try {
+    // v532 — FAILLE : cet endpoint activait le produit sans jamais verifier
+    // le paiement aupres d Airwallex. On exige desormais un PaymentIntent
+    // reellement SUCCEEDED, appartenant a l appelant, et non deja consomme.
+    try {
+      await assertPaidIntent({
+        paymentIntentId: req.body?.paymentIntentId,
+        userId: req.user.id,
+        purpose: 'pawspot',
+      });
+    } catch (guardErr) {
+      if (guardErr instanceof PaymentNotVerifiedError) {
+        return res.status(guardErr.status).json({
+          error: guardErr.message,
+          code: guardErr.code,
+        });
+      }
+      throw guardErr;
+    }
     const plan = String(req.body?.plan || 'monthly');
     const pricing = getPawSpotPricing(plan, req.body?.currency);
     if (!pricing) return res.status(400).json({ error: 'Invalid plan.' });

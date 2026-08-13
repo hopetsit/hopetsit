@@ -3260,9 +3260,41 @@ const confirmBookingPayment = async (req, res) => {
 
     // Verify payment intent belongs to this booking
     if (booking.airwallexPaymentIntentId && booking.airwallexPaymentIntentId !== paymentIntentId) {
-      return res.status(400).json({ 
-        error: 'Payment intent ID does not match the booking\'s payment intent.' 
+      return res.status(400).json({
+        error: 'Payment intent ID does not match the booking\'s payment intent.'
       });
+    }
+    // v532 — FAILLE CRITIQUE : le contrôle ci-dessus n'existait QUE si la
+    // réservation portait déjà un airwallexPaymentIntentId. Sur une résa
+    // `agreed` (aucun PI créé) ou après cancelBookingPaymentIntent (qui remet
+    // le champ à null), il n'y avait AUCUNE vérification : l'owner pouvait
+    // appeler cet endpoint avec l'id d'un PaymentIntent SUCCEEDED lui
+    // appartenant mais sans rapport (sa vérification carte à 0,50 €, son KYC
+    // à 3 €, une vieille réservation à 10 €) et faire passer en « payée » une
+    // réservation de 500 € jamais encaissée — le prestataire étant ensuite
+    // réellement payé. On exige désormais que le PaymentIntent désigne CETTE
+    // réservation dans ses métadonnées.
+    if (!booking.airwallexPaymentIntentId) {
+      let piCheck = null;
+      try {
+        piCheck = await airwallex.retrievePaymentIntent(paymentIntentId);
+      } catch (e) {
+        logger.error(`[confirmBookingPayment] retrieve (garde) failed ${paymentIntentId}: ${e.message}`);
+        return res.status(502).json({ error: 'Unable to verify payment with Airwallex. Please try again.' });
+      }
+      const piBookingId = String(
+        piCheck?.metadata?.bookingId || piCheck?.metadata?.booking_id || '',
+      ).trim();
+      if (piBookingId !== String(booking._id)) {
+        logger.warn(
+          `[confirmBookingPayment] REFUS : PI ${paymentIntentId} (bookingId=${piBookingId || 'absent'}) ` +
+          `ne correspond pas au booking ${booking._id} (owner ${ownerId}).`,
+        );
+        return res.status(400).json({
+          error: 'This payment does not belong to this booking.',
+          code: 'PAYMENT_INTENT_MISMATCH',
+        });
+      }
     }
 
     // v22.5 — HOTFIX : on remplace l'ancien stub 502 ("Stripe payment

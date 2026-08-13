@@ -20,7 +20,6 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 // rôle, comme le fait déjà /friends.
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
-import 'package:hopetsit/views/notifications/sitter_notifications_screen.dart';
 import 'package:hopetsit/views/pet_owner/booking/owner_bookings_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/booking/sitter_bookings_screen.dart';
@@ -352,7 +351,8 @@ class DeepLinkService {
     if (_currentRole() == 'owner') {
       Get.to(() => const NotificationsScreen());
     } else {
-      Get.to(() => const SitterNotificationsScreen()); // sitter + walker
+      // v532 — écran complet pour tous les rôles (cf. sitter_homescreen).
+      Get.to(() => const NotificationsScreen()); // sitter + walker
     }
   }
 

@@ -23,6 +23,8 @@ const UserSubscription = require('../models/UserSubscription');
 const { normalizeCurrency } = require('../utils/currency');
 const logger = require('../utils/logger');
 const pricingService = require('../services/pricingService');
+// v532 — verification du paiement avant toute activation boutique.
+const { assertPaidIntent, PaymentNotVerifiedError } = require('../utils/assertPaidIntent');
 
 const router = express.Router();
 
@@ -311,6 +313,24 @@ router.post('/purchase', requireAuth, async (req, res) => {
 // ── POST /confirm — after Stripe succeeds, extend the user's mapBoostExpiry ─
 router.post('/confirm', requireAuth, async (req, res) => {
   try {
+    // v532 — FAILLE : cet endpoint activait le produit sans jamais verifier
+    // le paiement aupres d Airwallex. On exige desormais un PaymentIntent
+    // reellement SUCCEEDED, appartenant a l appelant, et non deja consomme.
+    try {
+      await assertPaidIntent({
+        paymentIntentId: req.body?.paymentIntentId,
+        userId: req.user.id,
+        purpose: 'map_boost',
+      });
+    } catch (guardErr) {
+      if (guardErr instanceof PaymentNotVerifiedError) {
+        return res.status(guardErr.status).json({
+          error: guardErr.message,
+          code: guardErr.code,
+        });
+      }
+      throw guardErr;
+    }
     const { tier, paymentIntentId } = req.body;
     const currency = normalizeCurrency(req.body.currency);
     const pricing = getMapBoostPricing(tier, currency);

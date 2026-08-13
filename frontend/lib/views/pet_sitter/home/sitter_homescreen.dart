@@ -21,7 +21,7 @@ import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_detail_screen.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/reservation_request_filter_dialog.dart';
-import 'package:hopetsit/views/notifications/sitter_notifications_screen.dart';
+import 'package:hopetsit/views/notifications/notifications_screen.dart';
 import 'package:hopetsit/views/service_provider/owner_profile_view_screen.dart';
 import 'package:hopetsit/views/shared/widgets/around_me_search_bar.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -759,7 +759,13 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               icon: Icon(Icons.notifications_rounded,
                   color: AppColors.primaryColor, size: 22.sp),
               onPressed: () {
-                Get.to(() => const SitterNotificationsScreen())?.then((_) {
+                // v532 — on ouvre l'écran COMPLET, pas l'écran filtré.
+                // SitterNotificationsScreen ne gardait que 2 types sur 56
+                // (application_accepted et booking_new) : paiements, service,
+                // portefeuille, amis, avis… étaient invisibles pour les
+                // sitters et les promeneurs. NotificationsScreen est déjà
+                // multi-rôles et route correctement les 3 profils.
+                Get.to(() => const NotificationsScreen())?.then((_) {
                   notificationsController.refreshUnreadCount();
                 });
               },
