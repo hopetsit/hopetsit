@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v531'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v532'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -226,7 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v531</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v532</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -263,6 +263,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('invoices')"><span class="nav-icon">🧾</span> <span data-i18n="nav_invoices">Factures</span></div>
       <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> <span data-i18n="nav_iban">Virements IBAN</span></div>
       <div class="nav-item" onclick="showPage('wallets')"><span class="nav-icon">💼</span> <span data-i18n="nav_wallets">Portefeuilles</span></div>
+      <div class="nav-item" onclick="showPage('disputes')"><span class="nav-icon">⚖️</span> <span data-i18n="nav_disputes">Litiges</span></div>
 
       <!-- Utilisateurs -->
       <div class="nav-section" style="margin-top:18px">👥 <span data-i18n="navsec_users">Utilisateurs</span></div>
@@ -741,6 +742,22 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       </div>
 
       <!-- WALLETS (v19.1.3) -->
+      <!-- v532 — LITIGES. Le propriétaire peut contester une garde depuis
+           l'app (bouton « Signaler un problème ») : l'argent est alors bloqué
+           et n'est JAMAIS versé automatiquement. Avant, plus rien ne pouvait
+           le débloquer : ni l'auto-libération 48 h (désactivée en litige), ni
+           un écran d'admin — qui n'existait pas. Le paiement restait suspendu
+           indéfiniment, et le prestataire n'était jamais payé. Cet écran
+           permet de trancher : verser au prestataire, ou rembourser le
+           client. Les photos de remise et de restitution servent de preuve. -->
+      <div id="page-disputes" class="page">
+        <div class="section-title">⚖️ <span data-i18n="disputes_title">Litiges à trancher</span></div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:820px" data-i18n="disputes_desc">
+          Gardes contestées par le propriétaire. L'argent est bloqué : ni versé au prestataire, ni remboursé, tant que tu n'as pas tranché. Compare les photos prises à la remise et à la restitution de l'animal, puis choisis.
+        </p>
+        <div class="table-wrap" id="disputes-table-wrap"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
       <div id="page-wallets" class="page">
         <div class="section-title">💰 <span data-i18n="wallets_title">Portefeuilles providers</span></div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:780px" data-i18n="wallets_desc">
@@ -2182,6 +2199,7 @@ function showPage(name) {
   if (name === 'reports') initReportsPage();
   if (name === 'chat') loadChatConversations();
   if (name === 'wallets') loadAdminWallets();
+  if (name === 'disputes') loadDisputes();
   if (name === 'accounting') loadAccounting();
   if (name === 'loyalty') loadAdminLoyalty();
   if (name === 'payouts') loadAdminPayouts();
@@ -5373,6 +5391,65 @@ async function loadAdminLoyalty() {
 }
 
 // v19.1.3 - Admin Wallet panel
+// v532 — LITIGES : liste + arbitrage.
+//
+// Un litige bloque l'argent des DEUX côtés. Sans cet écran, il n'y avait
+// aucun moyen de le débloquer : la garde restait suspendue pour toujours.
+// Les deux photos (remise / restitution) sont affichées côte à côte pour que
+// la décision se prenne sur pièces.
+async function loadDisputes() {
+  const wrap = document.getElementById('disputes-table-wrap');
+  if (wrap) wrap.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const data = await api('/admin/disputes');
+    const list = data.disputes || [];
+    if (!list.length) {
+      wrap.innerHTML = '<div style="padding:24px;color:var(--text-muted)">✅ Aucun litige en attente.</div>';
+      return;
+    }
+    const photo = (url, label) => url
+      ? '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" title="' + label + '">'
+        + '<img src="' + escapeHtml(url) + '" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,.15)" alt="' + label + '"></a>'
+      : '<span style="color:var(--text-muted)">—</span>';
+    const rows = list.map(d => {
+      const when = d.disputedAt ? new Date(d.disputedAt).toLocaleString('fr-FR') : '—';
+      const amount = (Number(d.amount) || 0).toFixed(2) + ' ' + escapeHtml(d.currency || 'EUR');
+      return '<tr>'
+        + '<td>' + when + '</td>'
+        + '<td><strong>' + escapeHtml(d.owner?.name || '—') + '</strong></td>'
+        + '<td>' + escapeHtml(d.provider?.name || '—')
+          + (d.provider?.role ? ' <span class="badge">' + escapeHtml(d.provider.role) + '</span>' : '') + '</td>'
+        + '<td>' + amount + '</td>'
+        + '<td style="max-width:260px;white-space:normal">' + escapeHtml(d.disputeReason || '—') + '</td>'
+        + '<td style="display:flex;gap:6px">' + photo(d.pickupProofUrl, 'Remise') + photo(d.returnProofUrl, 'Restitution') + '</td>'
+        + '<td style="white-space:nowrap">'
+          + '<button class="btn btn-sm" style="background:#16A34A" onclick="resolveDispute(\'' + d.id + '\',\'release\')">Verser au prestataire</button> '
+          + '<button class="btn btn-sm" style="background:#DC2626" onclick="resolveDispute(\'' + d.id + '\',\'refund\')">Rembourser le client</button>'
+        + '</td>'
+      + '</tr>';
+    }).join('');
+    wrap.innerHTML = '<table class="table"><thead><tr>'
+      + '<th>Contesté le</th><th>Propriétaire</th><th>Prestataire</th><th>Montant</th>'
+      + '<th>Motif</th><th>Preuves</th><th>Décision</th>'
+      + '</tr></thead><tbody>' + rows + '</tbody></table>';
+  } catch (e) {
+    wrap.innerHTML = '<div style="padding:24px;color:#DC2626">Erreur : ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function resolveDispute(bookingId, decision) {
+  const label = decision === 'release' ? 'VERSER l\'argent au prestataire' : 'REMBOURSER le client';
+  if (!confirm('Confirmer : ' + label + ' ?\n\nCette action est définitive et déplace de l\'argent réel.')) return;
+  const note = prompt('Note interne (facultatif) — pourquoi cette décision ?') || '';
+  try {
+    await api('/admin/bookings/' + bookingId + '/resolve-dispute', 'POST', { decision, note });
+    alert('✅ Litige tranché.');
+    loadDisputes();
+  } catch (e) {
+    alert('❌ Échec : ' + e.message);
+  }
+}
+
 async function loadAdminWallets() {
   const sum = document.getElementById('wallets-summary');
   const tbl = document.getElementById('wallets-table-wrap');
