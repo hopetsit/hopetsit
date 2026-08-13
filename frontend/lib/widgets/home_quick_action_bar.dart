@@ -197,20 +197,37 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
 
   void _refreshBookings() {
     try {
+      // v532 — LA BANDE ÉTAIT MUETTE CHEZ LE GARDIEN ET LE PROMENEUR.
+      // Daniel : « regarde bien que tous les bandeaux marchent sur tous les
+      // profils ». Ici, on ne rafraîchissait que si le contrôleur de
+      // réservations du rôle était DÉJÀ enregistré — et personne ne
+      // l'enregistrait depuis l'accueil. Côté propriétaire, le
+      // `Get.put(ApplicationsController())` de l'initState sauvait la mise ;
+      // côté gardien et promeneur, tant que l'utilisateur n'avait pas ouvert
+      // son écran « Réservations » au moins une fois, `_bookingsRxForRole()`
+      // renvoyait null et AUCUN bandeau de réservation ne pouvait s'afficher
+      // (paiement reçu, service à démarrer, argent versé…). On enregistre donc
+      // le contrôleur manquant, comme pour le propriétaire.
       switch (widget.role) {
         case 'walker':
-          if (Get.isRegistered<WalkerBookingsController>()) {
+          if (!Get.isRegistered<WalkerBookingsController>()) {
+            Get.put(WalkerBookingsController());
+          } else {
             Get.find<WalkerBookingsController>().loadBookings();
           }
           break;
         case 'sitter':
-          if (Get.isRegistered<SitterBookingsController>()) {
+          if (!Get.isRegistered<SitterBookingsController>()) {
+            Get.put(SitterBookingsController());
+          } else {
             Get.find<SitterBookingsController>().loadBookings();
           }
           break;
         case 'owner':
         default:
-          if (Get.isRegistered<BookingsController>()) {
+          if (!Get.isRegistered<BookingsController>()) {
+            Get.put(BookingsController());
+          } else {
             Get.find<BookingsController>().loadBookings();
           }
           // v23.1 part 20 — owner banner reads candidates too. When a walker
@@ -649,11 +666,17 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   String _serviceLabel(String? raw) {
     if (raw == null || raw.isEmpty) return '';
     final s = raw.toLowerCase();
-    if (s.contains('walking')) return 'Promenade';
-    if (s.contains('day_care')) return 'Garderie';
-    if (s.contains('boarding') || s.contains('overnight')) return 'Garde nuit';
+    // v532 — ces libellés étaient écrits EN DUR EN FRANÇAIS dans une app
+    // traduite en 8 langues : un utilisateur anglais, coréen ou japonais
+    // lisait « Promenade » et « Garde nuit » dans le bandeau d'accueil. On
+    // réutilise les clés de traduction déjà présentes.
+    if (s.contains('walking')) return 'service_dog_walking'.tr;
+    if (s.contains('day_care')) return 'service_day_care'.tr;
+    if (s.contains('boarding') || s.contains('overnight')) {
+      return 'service_overnight_stay'.tr;
+    }
     // v527 — retour Jose (R3-1) : S majuscule, uniforme avec PawMap etc.
-    if (s.contains('sitting')) return 'Pet-Sitting';
+    if (s.contains('sitting')) return 'service_pet_sitting'.tr;
     return raw.replaceAll('_', ' ');
   }
 

@@ -29,6 +29,13 @@ import 'package:hopetsit/views/pet_owner/booking-application/owner_booking_detai
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 // v23.1.340 — Daniel : routage de la notif "C'est l'heure ! confirme le début
 // du service" vers l'écran Réservations du prestataire (bouton 🐾).
+// v532 — écrans cibles des types de notification qui n'étaient routés nulle part.
+import 'package:hopetsit/views/pet_owner/booking/owner_bookings_screen.dart';
+import 'package:hopetsit/views/profile/profile_screen.dart';
+import 'package:hopetsit/views/pet_sitter/profile/sitter_profile_screen.dart';
+import 'package:hopetsit/views/pet_walker/profile/walker_profile_screen.dart';
+import 'package:hopetsit/views/map/paw_map_screen.dart';
+import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
 import 'package:hopetsit/views/pet_sitter/booking/sitter_bookings_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
 import 'package:hopetsit/views/pet_walker/booking/walker_bookings_screen.dart';
@@ -500,7 +507,65 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return;
     }
 
-    if (type == 'message_new' || type.contains('message')) {
+    // v532 — 18 types de notification n'étaient routés NULLE PART : taper
+    // dessus ne faisait rien du tout (l'utilisateur croyait l'app figée).
+    // On les rattache aux écrans correspondants. Regroupés par destination,
+    // du plus spécifique au plus général.
+    //
+    // 1) Tout ce qui concerne le déroulé d'une garde → écran Réservations du
+    //    rôle concerné (c'est là que se trouvent les boutons d'action).
+    if (type == 'service_started' ||
+        type == 'service_confirmed' ||
+        type == 'service_disputed' ||
+        type == 'service_end_soon' ||
+        type == 'service_start_t72h' ||
+        type == 'service_completion_request' ||
+        type == 'booking_completed' ||
+        type == 'booking_cancelled_by_owner' ||
+        type == 'booking_cancelled_by_provider' ||
+        type == 'booking_refunded' ||
+        type == 'visit_report') {
+      if (role == 'walker') {
+        Get.to(() => const WalkerBookingsScreen());
+      } else if (role == 'sitter') {
+        Get.to(() => const SitterBookingsScreen());
+      } else {
+        Get.to(() => const OwnerBookingsScreen());
+      }
+      return;
+    }
+
+    // 2) Avis reçu, badge Top obtenu, vérification d'identité validée → mon
+    //    profil : c'est là que s'affichent la note, le badge Top et le ✓.
+    if (type == 'new_review' ||
+        type == 'top_sitter_achieved' ||
+        type == 'kyc_verified') {
+      if (role == 'walker') {
+        Get.to(() => const WalkerProfileScreen());
+      } else if (role == 'sitter') {
+        Get.to(() => const SitterProfileScreen());
+      } else {
+        Get.to(() => const ProfileScreen());
+      }
+      return;
+    }
+
+    // 3) Crédit de parrainage → le classement/récompenses PawPoints.
+    if (type == 'referral_credited') {
+      Get.to(() => const PawspotLeaderboardScreen());
+      return;
+    }
+
+    // 5) Animal perdu signalé à proximité + nouvelle demande près de chez moi
+    //    → la carte, où le signalement est affiché.
+    if (type == 'lost_pet_sighting' || type == 'new_request_nearby') {
+      Get.to(() => const PawMapScreen());
+      return;
+    }
+
+    if (type == 'message_new' ||
+        type == 'chat_auto_welcome' ||
+        type.contains('message')) {
       final conversationId = _dataString(data, 'conversationId');
       if (conversationId == null) return;
       // v23.1.286 — walker partage l'écran chat des prestataires (comme sitter).
