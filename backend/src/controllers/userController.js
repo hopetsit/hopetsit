@@ -1303,7 +1303,7 @@ const acceptTerms = async (req, res) => {
 // L'app synchronise sa langue UI (choisie ou héritée du téléphone) → le champ
 // appLocale pilote la locale des notifications/emails (prioritaire sur le
 // champ libre 'language' = langues parlées affichées sur les profils).
-const APP_LOCALES = ['fr', 'en', 'es', 'de', 'it', 'pt'];
+const APP_LOCALES = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ko', 'ja'];
 const updateAppLocale = async (req, res) => {
   try {
     const Model = resolveUserModel(req.user?.role);

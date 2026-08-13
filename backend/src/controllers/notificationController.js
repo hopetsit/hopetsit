@@ -53,7 +53,7 @@ const getMyNotifications = async (req, res) => {
     // RÉELLE au moment de la lecture, insensible aux docs pas synchronisés),
     // 2) appLocale cherchée sur les 3 docs de rôle de la personne (l'app ne la
     // synchronisait que sur le rôle courant), 3) champ libre `language`.
-    const VALID_LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt'];
+    const VALID_LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ko', 'ja'];
     const reqLang = String(req.query?.lang || '').toLowerCase().slice(0, 2);
     let userLang = VALID_LANGS.includes(reqLang) ? reqLang : null;
     if (!userLang) {

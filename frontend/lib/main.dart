@@ -123,7 +123,12 @@ void main() async {
   // puis on aligne Intl.defaultLocale sur la langue de l'app (aussi mis à
   // jour à chaque changement de langue dans LocalizationService.updateLocale).
   try {
-    for (final code in ['en_US', 'fr_FR', 'es_ES', 'de_DE', 'it_IT', 'pt_PT']) {
+    // v532 — ko_KR et ja_JP ajoutés : sans eux, DateFormat('dd MMM yyyy','ko')
+    // lève LocaleDataException et fait CRASHER les écrans portefeuille et
+    // historique des gains (ce n'est pas un simple affichage dégradé).
+    for (final code in [
+      'en_US', 'fr_FR', 'es_ES', 'de_DE', 'it_IT', 'pt_PT', 'ko_KR', 'ja_JP',
+    ]) {
       await initializeDateFormatting(code);
     }
     Intl.defaultLocale = LocalizationService.getInitialLocale().toString();

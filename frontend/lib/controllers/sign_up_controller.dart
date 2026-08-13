@@ -135,7 +135,7 @@ class SignUpController extends GetxController {
     final iso = Get.deviceLocale?.countryCode?.toUpperCase();
     if (iso != null && RegExp(r'^[A-Z]{2}$').hasMatch(iso)) return iso;
     const langToCountry = {
-      'fr': 'FR', 'es': 'ES', 'de': 'DE', 'it': 'IT', 'pt': 'PT', 'en': 'US',
+      'fr': 'FR', 'es': 'ES', 'de': 'DE', 'it': 'IT', 'pt': 'PT', 'en': 'US', 'ko': 'KR', 'ja': 'JP',
     };
     final lang = Get.deviceLocale?.languageCode.toLowerCase();
     return langToCountry[lang] ?? 'US';
@@ -190,6 +190,8 @@ class SignUpController extends GetxController {
   // langues (fr/en/es/de/it/pt) → on les propose toutes (et on retire 'Urdu').
   final List<String> languageOptions = const [
     'Français', 'English', 'Español', 'Deutsch', 'Italiano', 'Português',
+    // v532 — coréen et japonais.
+    '한국어', '日本語',
   ];
   final List<String> currencyOptions = CurrencyHelper.supportedCurrencies
       .map((c) => CurrencyHelper.label(c))
@@ -213,6 +215,8 @@ class SignUpController extends GetxController {
     'Deutsch': 'de',
     'Italiano': 'it',
     'Português': 'pt',
+    '한국어': 'ko',
+    '日本語': 'ja',
   };
 
   void updateLanguage(String? value) {

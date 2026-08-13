@@ -12,6 +12,9 @@ import 'translations/es.dart';
 import 'translations/de.dart';
 import 'translations/it.dart';
 import 'translations/pt.dart';
+// v532 — coréen et japonais.
+import 'translations/ko.dart';
+import 'translations/ja.dart';
 
 /// Centralizes supported locales and translation keys for the app.
 class LocalizationService {
@@ -31,6 +34,8 @@ class LocalizationService {
     'de': const Locale('de', 'DE'),
     'it': const Locale('it', 'IT'),
     'pt': const Locale('pt', 'PT'),
+    'ko': const Locale('ko', 'KR'),
+    'ja': const Locale('ja', 'JP'),
   };
 
   /// Human‑readable language names used in selection UIs.
@@ -41,6 +46,8 @@ class LocalizationService {
     'de': 'Deutsch',
     'it': 'Italiano',
     'pt': 'Português',
+    'ko': '한국어',
+    'ja': '日本語',
   };
 
   /// v500 — Daniel : drapeaux dans le sélecteur de langue, avec le drapeau
@@ -52,6 +59,8 @@ class LocalizationService {
     'de': '🇩🇪',
     'it': '🇮🇹',
     'pt': '🇵🇹',
+    'ko': '🇰🇷',
+    'ja': '🇯🇵',
   };
 
   /// All supported locales for Flutter / GetX.
@@ -163,6 +172,8 @@ class AppTranslations extends Translations {
       'de_DE': deDETranslations,
       'it_IT': itITTranslations,
       'pt_PT': ptPTTranslations,
+      'ko_KR': koKRTranslations,
+      'ja_JP': jaJPTranslations,
     };
   }
 
@@ -177,6 +188,8 @@ class AppTranslations extends Translations {
       'de_DE': deDETranslations,
       'it_IT': itITTranslations,
       'pt_PT': ptPTTranslations,
+      'ko_KR': koKRTranslations,
+      'ja_JP': jaJPTranslations,
     };
     others.forEach((locale, map) {
       final missing = canonical.difference(map.keys.toSet());
