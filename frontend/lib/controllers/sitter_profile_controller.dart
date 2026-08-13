@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
@@ -75,6 +77,31 @@ class SitterProfileController extends GetxController {
   /// this controller can still be mounted — we just leave its observables
   /// empty instead of triggering a spurious "Échec du chargement du profil"
   /// snackbar.
+  /// v532 — récupère l'avatar du walker depuis le serveur quand le cache
+  /// local n'en a pas (nouvel appareil, connexion Apple sans photo…), puis
+  /// met à jour l'affichage ET le cache pour les autres écrans (PawMap,
+  /// chat, cartes). Best-effort : toute erreur est ignorée silencieusement.
+  Future<void> _refreshWalkerAvatarFromServer() async {
+    try {
+      final repo = Get.isRegistered<UserRepository>()
+          ? Get.find<UserRepository>()
+          : UserRepository(Get.find<ApiClient>());
+      final data = await repo.getMyProfile();
+      final avatar = data['avatar'];
+      final url = avatar is Map
+          ? (avatar['url'] ?? '').toString()
+          : (avatar ?? '').toString();
+      if (url.trim().isEmpty) return;
+      profileImageUrl.value = url;
+      final raw = _storage.read(StorageKeys.userProfile);
+      if (raw is Map) {
+        final map = Map<String, dynamic>.from(raw);
+        map['avatar'] = avatar;
+        await _storage.write(StorageKeys.userProfile, map);
+      }
+    } catch (_) {/* défensif — l'écran reste utilisable sans photo */}
+  }
+
   Future<void> loadMyProfile() async {
     isLoading.value = true;
 
@@ -115,6 +142,15 @@ class SitterProfileController extends GetxController {
           profileImageUrl.value = userProfile!['profileImage'].toString();
         } else {
           profileImageUrl.value = '';
+        }
+        // v532 — le walker se contentait du CACHE local et ne contactait
+        // jamais le serveur : sur un appareil neuf (cache vide), ou après une
+        // réponse de login sans avatar (systématique via Apple), il restait
+        // sans photo jusqu'à un passage par un écran d'édition. On complète
+        // depuis le serveur uniquement quand le cache est vide — best-effort,
+        // aucun blocage de l'écran si l'appel échoue.
+        if (profileImageUrl.value.trim().isEmpty) {
+          unawaited(_refreshWalkerAvatarFromServer());
         }
         return;
       }

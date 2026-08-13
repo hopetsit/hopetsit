@@ -176,7 +176,20 @@ class ProfileController extends GetxController {
       if (p.email.trim().isNotEmpty) map['email'] = p.email;
       if (p.mobile.trim().isNotEmpty) map['mobile'] = p.mobile;
       // avatar stocké en Map {url, publicId} (compat lecteurs existants).
-      map['avatar'] = p.avatar.toJson();
+      //
+      // v532 — TROU du correctif v523 : cette écriture était INCONDITIONNELLE,
+      // contrairement aux champs ci-dessus. Or _persistFreshProfile est appelé
+      // à chaque loadMyProfile(), donc juste APRÈS le login que v523 protège.
+      // Si la réponse serveur arrive sans avatar (parsing en échec →
+      // ProfileAvatar.fromJson({}), réponse partielle…), la photo valide était
+      // écrasée par du vide dans le cache → photo grise sur la PawMap, dans le
+      // chat et sur les cartes. On ne rétrograde plus vers du vide.
+      final freshAvatarUrl = p.avatar.url.trim();
+      if (freshAvatarUrl.isNotEmpty) {
+        map['avatar'] = p.avatar.toJson();
+      } else if (map['avatar'] == null) {
+        map['avatar'] = p.avatar.toJson();
+      }
       _storage.write(StorageKeys.userProfile, map);
     } catch (_) {/* defensive — non bloquant */}
   }

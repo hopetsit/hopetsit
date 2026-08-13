@@ -785,6 +785,28 @@ const updateProfilePicture = async (req, res) => {
 
     await user.save();
 
+    // v532 — CAUSE RACINE du bug « ma photo change ou disparaît selon le
+    // profil / l'appareil ». `avatar` fait partie de SHARED_FIELDS
+    // (utils/userSyncService), et TOUTES les autres écritures de profil
+    // appellent syncSharedFields… sauf celle-ci. Résultat : changer sa photo
+    // en propriétaire ne la propageait pas aux documents sitter/walker du
+    // même email → en changeant de rôle, ou en se connectant depuis un autre
+    // appareil sur l'autre rôle, l'ancienne photo (ou aucune) revenait.
+    // Le correctif v523 côté app ne faisait que MASQUER ce désalignement.
+    try {
+      const { syncSharedFields } = require('../utils/userSyncService');
+      await syncSharedFields({
+        email: user.email,
+        update: { avatar: user.avatar },
+        excludeRole: userRole,
+      });
+    } catch (syncErr) {
+      logger.warn(
+        '[updateProfilePicture] cross-role sync failed (non-blocking)',
+        syncErr?.message || syncErr,
+      );
+    }
+
     res.json({
       message: 'Profile picture updated successfully.',
       user: sanitizeUser(user, { includeEmail: true }),

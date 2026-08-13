@@ -1326,6 +1326,25 @@ const updateSitterAvatar = async (req, res) => {
 
     await sitter.save();
 
+    // v532 — même correctif que updateProfilePicture (userController) :
+    // l'avatar est un champ PARTAGÉ entre les 3 documents de rôle du même
+    // email. Sans cette propagation, changer sa photo en tant que sitter la
+    // laissait périmée sur les profils owner/walker — d'où la photo qui
+    // « change toute seule » d'un appareil ou d'un profil à l'autre.
+    try {
+      const { syncSharedFields } = require('../utils/userSyncService');
+      await syncSharedFields({
+        email: sitter.email,
+        update: { avatar: sitter.avatar },
+        excludeRole: 'sitter',
+      });
+    } catch (syncErr) {
+      logger.warn(
+        '[updateSitterAvatar] cross-role sync failed (non-blocking)',
+        syncErr?.message || syncErr,
+      );
+    }
+
     res.json({
       message: 'Avatar updated successfully.',
       sitter: sanitizeUser(sitter, { includeEmail: true }),

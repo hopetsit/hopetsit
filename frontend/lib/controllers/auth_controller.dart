@@ -659,9 +659,22 @@ class AuthController extends GetxController {
           a is Map ? (a['url'] ?? '').toString() : (a ?? '').toString();
       final newHasAvatar = urlOf(profile['avatar']).isNotEmpty;
       final oldHasAvatar = old != null && urlOf(old['avatar']).isNotEmpty;
-      final sameUser = old != null &&
-          (old['email'] ?? '').toString().toLowerCase() ==
-              (profile['email'] ?? '').toString().toLowerCase();
+      // v532 — le garde « même utilisateur » était satisfait quand les DEUX
+      // emails étaient absents ('' == '' → vrai) : sur un appareil partagé,
+      // l'avatar de l'utilisateur A pouvait être réinjecté dans le profil de
+      // l'utilisateur B. On exige désormais une identité réellement comparable
+      // (email non vide des deux côtés), avec repli sur l'id — plus fiable,
+      // car sanitizeUser retire l'email quand includeEmail vaut false.
+      String idOf(Map m) =>
+          (m['id'] ?? m['_id'] ?? '').toString().trim().toLowerCase();
+      String emailOf(Map m) =>
+          (m['email'] ?? '').toString().trim().toLowerCase();
+      final oldEmail = old == null ? '' : emailOf(old);
+      final newEmail = emailOf(profile);
+      final oldId = old == null ? '' : idOf(old);
+      final newId = idOf(profile);
+      final sameUser = (oldEmail.isNotEmpty && oldEmail == newEmail) ||
+          (oldId.isNotEmpty && oldId == newId);
       if (!newHasAvatar && oldHasAvatar && sameUser) {
         profile['avatar'] = old['avatar'];
       }
