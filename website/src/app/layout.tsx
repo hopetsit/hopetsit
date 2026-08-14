@@ -89,6 +89,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   "@type": "Organization",
                   "@id": "https://hopetsit.com/#organization",
                   name: "HoPetSit",
+                  // v534 — Google corrige « hopetsit » vers un concurrent :
+                  // variantes du nom pour renforcer l'entité de marque.
+                  alternateName: ["Ho Pet Sit", "HoPetSit App", "hopetsit.com"],
                   legalName: "CARDELLI HERMANOS LIMITED",
                   url: "https://hopetsit.com",
                   logo: "https://hopetsit.com/logo.png",
