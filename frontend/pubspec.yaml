@@ -1,7 +1,7 @@
 name: hopetsit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 23.1.532+532
+version: 23.1.533+533
 
 environment:
   sdk: ^3.9.2
@@ -148,12 +148,19 @@ flutter_launcher_icons:
   image_path_ios_tinted_grayscale: "assets/brand/png/apple-icon-white.png"
   # Android 8+ adaptive icons: separate foreground + solid orange background.
   adaptive_icon_foreground: "assets/brand/png/ic_launcher_foreground.png"
-  # v532 — logo HOPE26. Fond NOIR et non l'orange historique : le nouveau logo
-  # est un bouclier au halo orange lumineux, composé sur fond noir dans le
-  # master du pack. Sur fond orange le halo se fond dans l'arrière-plan et
-  # l'icône perd sa lisibilité ; le noir reproduit fidèlement le master et
-  # reste cohérent avec l'icône « legacy » (Android < 8) fournie par le pack.
-  adaptive_icon_background: "#000000"
+  # v532b — Daniel : « le logo ne fait pas HD, il manque les beaux contours
+  # colorés ». CAUSE : Android ne garantit que les 66 % CENTRAUX d'une icône
+  # adaptative ; tout ce qui dépasse est rogné par le masque du lanceur
+  # (cercle, squircle, goutte…). Notre calque avant occupait 94,9 % du cadre,
+  # donc le halo néon orange — qui vit précisément sur le bord — était mangé.
+  # Le fichier source place désormais le logo à exactement 66 % ; on met donc
+  # l'inset du plugin à 0 pour qu'il ne le réduise pas une seconde fois.
+  adaptive_icon_foreground_inset: 0
+  # v533 — Daniel : « je veux pas de noir du tout, je veux le contour seul
+  # brillant ». Fond BLANC : plus de carré noir autour de l'icône, seul le
+  # bouclier au halo orange ressort. (La v532 utilisait le noir du master du
+  # pack ; l'orange historique, lui, noyait le halo dans l'arrière-plan.)
+  adaptive_icon_background: "#FFFFFF"
   # Monochrome variant for Android 13+ themed icons. Uses the foreground
   # layer since the notification SVG is already optimised for a single colour.
   adaptive_icon_monochrome: "assets/brand/png/ic_launcher_foreground.png"
