@@ -5,13 +5,15 @@ import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
 import { PawMemberBadge } from "@/components/PawMemberBadge";
 import StoreBadges from "@/components/StoreBadges";
 import { useT } from "@/lib/i18n/LanguageProvider";
+// v534 — captures d'ecran par langue (EN / FR).
+import { screensFor } from "@/lib/screens";
 
 // v493 — Refonte design (design-only) : page d'accueil ramenée de ~9 sections
 // à 6 (Hero · Bande confiance · 3 rôles · 3 services · PawPremium · CTA final).
 // Aucune donnée/route/logique modifiée : on réutilise EXACTEMENT les mêmes
 // clés i18n et les mêmes liens (/download, /login, /signup, /pawmap, /boutique).
 export default function HomePage() {
-  const { t } = useT();
+  const { t, lang } = useT();
 
   const roles = [
     { color: "owner",  title: t("role_owner_title"),  body: t("role_owner_body"),  emoji: "🐾" },
@@ -305,16 +307,10 @@ export default function HomePage() {
         {/* w-40 + gap-4 → les 6 captures tiennent SANS coupure dans max-w-6xl ;
             first:ml-auto/last:mr-auto = centré quand ça tient, scroll sinon. */}
         <div className="mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {/* v525 — Daniel : nouvelles captures US (Dallas/$, suffixe _us
-              pour casser le cache CDN) sur les 4 visuels renouvelés. */}
-          {[
-            { src: "/screens/02_pawmap_us.jpg", alt: "PawMap" },
-            { src: "/screens/03_sitter_us.jpg", alt: "Pet-sitters" },
-            { src: "/screens/05_live_tracking_us.jpg", alt: "PawFollow" },
-            { src: "/screens/04_chat_us.jpg", alt: "Chat" },
-            { src: "/screens/01_profile.jpg", alt: "Profil" },
-            { src: "/screens/06_payment.jpg", alt: "Paiement" },
-          ].map((s) => (
+          {/* v534 — captures choisies selon la langue : jeu FRANÇAIS quand le site est
+              en français, ANGLAIS sinon. Avant, les visuels anglais (suffixe
+              _us) étaient affichés en dur, y compris aux visiteurs français. */}
+          {screensFor(lang).map((s) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               key={s.src}

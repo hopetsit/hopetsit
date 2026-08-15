@@ -2,13 +2,15 @@
 
 import StoreBadges from "@/components/StoreBadges";
 import { useT } from "@/lib/i18n/LanguageProvider";
+// v534 — captures d'ecran par langue (EN / FR).
+import { screensPreviewFor } from "@/lib/screens";
 
 // v508 — Daniel : l'app est EN LIGNE sur le Play Store 🎉 → vrais badges
 // stores (Google Play actif + hl=<langue>, App Store « bientôt »). Remplace
 // les deux cartes grises « soon » de la v317.
 
 export default function DownloadPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-16 md:py-24">
@@ -25,17 +27,14 @@ export default function DownloadPage() {
           v525 — Daniel : nouvelles captures US (Dallas/$, suffixe _us pour
           casser le cache CDN). */}
       <div className="mt-14 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {[
-          "/screens/02_pawmap_us.jpg",
-          "/screens/03_sitter_us.jpg",
-          "/screens/05_live_tracking_us.jpg",
-          "/screens/04_chat_us.jpg",
-        ].map((src) => (
+        {/* v534 — jeu FRANCAIS quand le site est en francais, ANGLAIS sinon.
+            Avant, les visuels anglais etaient affiches en dur a tout le monde. */}
+        {screensPreviewFor(lang).map((s) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            key={src}
-            src={src}
-            alt="HoPetSit"
+            key={s.src}
+            src={s.src}
+            alt={`HoPetSit — ${s.alt}`}
             loading="lazy"
             width={640}
             height={1385}
