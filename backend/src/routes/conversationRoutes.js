@@ -577,6 +577,9 @@ const _peerPositionAllowed = async ({ conv, myId, peerId, peerRole, isFriendChat
       paymentStatus: 'paid',
       confirmationStatus: { $nin: ['confirmed', 'disputed', 'awaiting_confirmation'] },
       status: { $nin: ['completed', 'cancelled', 'refunded'] },
+      // v534 — le prestataire a refusé le suivi depuis le chat : sa décision
+      // doit valoir ici aussi, sinon le bouton « Refuser » reste décoratif.
+      trackingRefusedAt: null,
     })
       .sort({ createdAt: -1 })
       .select('_id')

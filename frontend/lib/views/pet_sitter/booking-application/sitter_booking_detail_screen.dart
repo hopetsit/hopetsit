@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/services/service_tracking_helper.dart';
 import 'package:hopetsit/views/shared/handover_proof_sheet.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
@@ -51,6 +52,10 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
         photo: proof.photo,
         code: proof.code,
       );
+      // v534 — le suivi en direct demarre AVEC la prestation. Sans ca, le
+      // proprietaire ne voyait qu un point fige : il fallait que le
+      // prestataire pense a activer l interrupteur de la PawMap.
+      await ServiceTrackingHelper.startForService();
       if (!mounted) return;
       setState(() => _confirmationStatus = 'in_progress');
       CustomSnackbar.showSuccess(
@@ -78,6 +83,8 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
         bookingId: widget.booking.id,
         photo: proof.photo,
       );
+      // v534 — fin de prestation : on coupe la diffusion de position.
+      await ServiceTrackingHelper.stopForService();
       if (!mounted) return;
       setState(() => _confirmationStatus = 'awaiting_confirmation');
       CustomSnackbar.showSuccess(

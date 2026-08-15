@@ -4867,6 +4867,16 @@ const getProviderLocation = async (req, res) => {
       return res.status(409).json({ error: 'Tracking only available for paid bookings.' });
     }
 
+    // v534 — le prestataire a REFUSÉ le suivi depuis le chat : on respecte sa
+    // décision. Avant, ce refus ne changeait qu'un statut de message et
+    // n'empêchait rien (cf. respondToPawfollowRequest).
+    if (booking.trackingRefusedAt) {
+      return res.status(403).json({
+        error: 'The provider declined live tracking for this booking.',
+        code: 'TRACKING_REFUSED',
+      });
+    }
+
     // v23.1.343 — le suivi s'arrête à la fin du service (cf helper ci-dessus).
     // v23.1.349 — SAUF abonnement PawFollow/PawFamily actif (suivi continu).
     if (isServiceTrackingClosed(booking)) {
@@ -5286,6 +5296,24 @@ const respondToPawfollowRequest = async (req, res) => {
     };
     message.markModified('metadata');
     await message.save();
+
+    // v534 — LE REFUS DEVIENT OPPOSABLE. Jusqu'ici, accepter ou refuser ne
+    // modifiait que le statut de CE MESSAGE : ni getProviderLocation ni
+    // /conversations/:id/peer-position ne le consultaient. Un prestataire qui
+    // refusait explicitement restait donc traçable pendant toute la garde —
+    // le bouton « Refuser » n'avait aucun effet réel. On persiste la décision
+    // sur la réservation, que les deux endpoints de position lisent désormais.
+    try {
+      const bId = message.metadata?.bookingId;
+      if (bId) {
+        await Booking.updateOne(
+          { _id: bId },
+          { $set: { trackingRefusedAt: action === 'refuse' ? new Date() : null } },
+        );
+      }
+    } catch (e) {
+      logger.warn('[respondToPawfollowRequest] persistance du refus impossible', e?.message || e);
+    }
 
     // Broadcast via socket aux 2 parties.
     // v23.1.256 — même bug que requestLiveTracking : require('../sockets/io')

@@ -183,6 +183,13 @@ const bookingSchema = new mongoose.Schema(
     autoReleaseAt: { type: Date, default: null },
     disputeReason: { type: String, default: null },
     disputedAt: { type: Date, default: null },
+    // v534 — REFUS DU SUIVI EN DIRECT. Quand le propriétaire demande « suivre
+    // mon animal », le prestataire peut accepter ou refuser depuis le chat.
+    // Or ce refus ne faisait que changer le statut du MESSAGE : aucun endpoint
+    // de position ne le consultait, si bien qu'un prestataire ayant
+    // explicitement refusé restait quand même traçable pendant toute la garde.
+    // Cette date rend le refus opposable ; accepter la remet à null.
+    trackingRefusedAt: { type: Date, default: null },
     // v532 — PREUVE DE REMISE / RÉCUPÉRATION.
     //
     // Jusqu'ici le cycle ne reposait que sur deux boutons : aucune photo,
