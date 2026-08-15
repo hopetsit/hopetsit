@@ -327,11 +327,11 @@ const Map<String, String> deDETranslations = <String, String>{
       'You have already reviewed this sitter. You can only submit one review per sitter.':
           'You have already reviewed this sitter. You can only submit one review per sitter.',
       'Your city (@city) has been detected':
-          'Your city (@city) has been detected',
+          'Deine Stadt (@city) wurde erkannt',
       'Profile updated but image upload failed. Please try again.':
           'Profile updated but image upload failed. Please try again.',
       'Profile updated but image upload failed: @error':
-          'Profile updated but image upload failed: @error',
+          'Profil aktualisiert, aber der Bild-Upload ist fehlgeschlagen: @error',
 
       // Posts / Comments
       'post_action_like': 'Gefällt mir',
@@ -1081,46 +1081,6 @@ const Map<String, String> deDETranslations = <String, String>{
           'Deine Auszahlungen sind derzeit eingeschraenkt. Bitte kontaktiere den Support.',
       'payout_message_not_connected':
           'Richte dein Auszahlungskonto ein, um Überweisungen zu erhalten.',
-      'stripe_account_connected_message':
-          'Dein Auszahlungskonto ist vollständig eingerichtet und bereit, Überweisungen zu empfangen.',
-      'stripe_account_created_message':
-          'Dein Konto wurde erstellt. Bitte schließe die Einrichtung ab, um Überweisungen zu empfangen.',
-      'stripe_account_created_partial_message':
-          'Dein Zahlungskonto wurde erstellt. Einige Verifizierungsschritte stehen noch aus. Du kannst sie in den Kontoeinstellungen abschließen.',
-      'stripe_account_id_label': 'Konto-ID',
-      'stripe_loading_onboarding': 'Einrichtung wird geladen...',
-      'stripe_account_connected_success': 'Auszahlungskonto erfolgreich eingerichtet!',
-      'stripe_onboarding_completed': 'Einrichtung abgeschlossen!',
-      'stripe_onboarding_cancelled': 'Die Einrichtung wurde abgebrochen.',
-      'stripe_onboarding_load_error':
-          'Fehler beim Laden der Einrichtungsseite: @error',
-      'stripe_cancel_onboarding_title': 'Onboarding abbrechen?',
-      'stripe_cancel_onboarding_message':
-          'Möchtest du die Einrichtung wirklich abbrechen? Du kannst sie später in den Einstellungen abschließen.',
-      'stripe_connect_payment_title': 'Zahlungskonto verbinden',
-      'stripe_connect_payment_description':
-          'Um als Pet Sitter Zahlungen zu erhalten, musst du dein Zahlungskonto verbinden. Dies ist ein erforderlicher Schritt, um die Einrichtung deines Profils abzuschließen.',
-      'stripe_connect_payment_partial_description':
-          'Dein Zahlungskonto wurde erstellt. Einige Verifizierungsschritte stehen noch aus. Du kannst sie später in den Kontoeinstellungen abschließen.',
-      'stripe_connect_payment_partial_info':
-          'Dein Konto ist verbunden, aber einige Verifizierungsschritte stehen noch aus. Du kannst sie in den Kontoeinstellungen abschließen.',
-      'stripe_payment_connected_success': 'Zahlung erfolgreich verbunden!',
-      'stripe_connect_now': 'Jetzt verbinden',
-      'stripe_already_connected': 'Bereits verbunden',
-      'stripe_already_connected_message':
-          'Dein Auszahlungskonto ist bereits eingerichtet und aktiv.',
-      'stripe_connect_platform_not_enabled':
-          'Das Zahlungssystem ist auf der Plattform noch nicht aktiviert. Bitte später erneut versuchen oder den Support kontaktieren.',
-      'stripe_connect_error':
-          'Fehler beim Einrichten des Kontos. Bitte versuche es erneut.',
-      'stripe_no_onboarding_url':
-          'Keine Einrichtungs-URL verfügbar. Bitte erstelle zuerst ein Konto.',
-      'stripe_onboarding_expired_title': 'Abgelaufen',
-      'stripe_onboarding_expired_message':
-          'Der Onboarding-Link ist abgelaufen. Bitte erstelle einen neuen.',
-      'stripe_disconnect_success': 'Auszahlungskonto erfolgreich gelöscht!',
-      'stripe_disconnect_error':
-          'Fehler beim Löschen des Auszahlungskontos. Bitte versuche es erneut.',
       'payment_title': 'Zahlung',
       'payment_info_message':
           'Klicke unten auf "Bezahlen", um deine Zahlungsdaten sicher einzugeben.',
@@ -1424,8 +1384,8 @@ const Map<String, String> deDETranslations = <String, String>{
       'pawmap_time_hours_short': '@n Std.',
       'pawmap_time_days_short': '@n T.',
       'pawmap_remaining_hours_label': '@hours Std. übrig',
-      'pawmap_default_walker': 'Walker',
-      'pawmap_default_sitter': 'Sitter',
+      'pawmap_default_walker': 'Gassigeher',
+      'pawmap_default_sitter': 'Betreuer',
       'pawmap_default_request': 'Anfrage',
       'pawmap_filter_pois': 'POIs',
       'pawmap_filter_reports_48h': '48-Std.-Meldungen',
@@ -1674,7 +1634,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'publish_request_add_images': 'Bilder hinzufügen',
       'publish_request_add_more_images': 'Mehr Bilder hinzufügen',
       'publish_request_publish_button': 'Anfrage veröffentlichen',
-      'publish_request_fill_required': 'Bitte alle Pflichtfelder ausfüllen.',
+      'publish_request_fill_required': 'Bitte fülle alle Pflichtfelder aus.',
       'publish_request_ui_only_success':
           'UI erstellt (noch nicht veröffentlicht).',
       'publish_request_success':
@@ -1890,45 +1850,45 @@ const Map<String, String> deDETranslations = <String, String>{
       'auth_role_switched': 'Rolle gewechselt',
       'auth_role_switched_message': 'Erfolgreich zu @role gewechselt',
       'auth_welcome_back': 'Willkommen zurück!',
-      'change_password_failed': 'Failed to change password. Please try again.',
-      'change_password_fields_required': 'Please fill in all fields correctly.',
-      'change_password_new_required': 'Please enter a new password.',
-      'change_password_success': 'Password changed successfully!',
-      'change_password_validation_error': 'Validation Error',
+      'change_password_failed': 'Passwort konnte nicht geändert werden. Bitte erneut versuchen.',
+      'change_password_fields_required': 'Bitte fülle alle Felder korrekt aus.',
+      'change_password_new_required': 'Bitte gib ein neues Passwort ein.',
+      'change_password_success': 'Passwort geändert!',
+      'change_password_validation_error': 'Validierungsfehler',
       'email_verification_code_required':
-          'Please enter the complete verification code',
-      'email_verification_success': 'Email verified successfully!',
-      'map_load_error': 'Failed to load map data. Please try again.',
-      'my_pets_load_error': 'Failed to load pets. Please try again.',
+          'Bitte gib den vollständigen Bestätigungscode ein',
+      'email_verification_success': 'E-Mail bestätigt!',
+      'map_load_error': 'Karte konnte nicht geladen werden. Bitte erneut versuchen.',
+      'my_pets_load_error': 'Deine Tiere konnten nicht geladen werden. Bitte erneut versuchen.',
       'pet_create_validation_error': 'Validation Error',
-      'pet_update_failed': 'Update Failed',
-      'pet_validation_error': 'Validation Error',
-      'profile_blocked_users_load_error': 'Failed to load blocked users',
+      'pet_update_failed': 'Aktualisierung fehlgeschlagen',
+      'pet_validation_error': 'Validierungsfehler',
+      'profile_blocked_users_load_error': 'Blockierte Nutzer konnten nicht geladen werden',
       'profile_edit_coming_soon':
-          'Edit profile functionality will be available soon',
-      'profile_image_pick_failed': 'Failed to pick image. Please try again.',
-      'profile_invalid_file_type': 'Invalid File Type',
+          'Die Profilbearbeitung kommt bald',
+      'profile_image_pick_failed': 'Bild konnte nicht ausgewählt werden. Bitte erneut versuchen.',
+      'profile_invalid_file_type': 'Ungültiger Dateityp',
       'profile_invalid_file_type_message':
-          'Please select a JPEG, PNG, or WebP image.',
+          'Bitte wähle ein JPEG-, PNG- oder WebP-Bild.',
       'profile_picture_update_success': 'Profilbild erfolgreich aktualisiert',
-      'profile_unblock_failed': 'Unblock Failed',
+      'profile_unblock_failed': 'Entsperren fehlgeschlagen',
       'profile_unblock_failed_generic':
-          'Something went wrong. Please try again.',
-      'profile_unblock_success': 'User unblocked successfully',
-      'profile_upload_failed': 'Upload Failed',
+          'Etwas ist schiefgelaufen. Bitte erneut versuchen.',
+      'profile_unblock_success': 'Nutzer entsperrt',
+      'profile_upload_failed': 'Upload fehlgeschlagen',
       'profile_update_failed': 'Profilaktualisierung fehlgeschlagen',
       'profile_upload_failed_generic':
-          'Something went wrong. Please try again.',
-      'profile_user_not_found': 'User not found',
+          'Etwas ist schiefgelaufen. Bitte erneut versuchen.',
+      'profile_user_not_found': 'Nutzer nicht gefunden',
       'request_duration_required':
-          'Please select a duration for dog walking service.',
-      'request_pet_required': 'Please select at least one pet.',
+          'Bitte wähle eine Dauer für den Spaziergang.',
+      'request_pet_required': 'Bitte wähle mindestens ein Tier.',
       'request_send_failed':
           'Anfrage konnte nicht gesendet werden. Bitte versuchen Sie es erneut.',
       'request_send_success': 'Anfrage erfolgreich gesendet!',
       'request_sitter_pricing_error':
           'Bitte legen Sie zuerst Ihren Stundensatz im Profil fest.',
-      'request_validation_error': 'Validation Error',
+      'request_validation_error': 'Validierungsfehler',
       'review_submit_failed': 'Bewertung konnte nicht gesendet werden. Bitte versuche es erneut.',
       'reviews_title': 'Bewertungen',
       'reviews_rate_label': 'Bewertung',
@@ -1950,7 +1910,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'application_card_price_label': 'Vergütung für diese Leistung',
       'application_card_you_receive': 'Du erhältst @amount netto',
       'application_card_owner_pays': 'Der Besitzer zahlt @amount (HoPetSit-Gebühr inklusive)',
-      'share_failed': 'Failed to share. Please try again.',
+      'share_failed': 'Teilen fehlgeschlagen. Bitte erneut versuchen.',
       'snackbar_choose_service_controller_001':
           'Please select valid services for your account type.',
       'snackbar_choose_service_controller_002':
@@ -1958,7 +1918,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'snackbar_choose_service_controller_003':
           'Your services have been selected successfully!',
       'snackbar_choose_service_controller_004':
-          'Failed to update services. Please try again.',
+          'Dienste konnten nicht aktualisiert werden. Bitte erneut versuchen.',
       'snackbar_choose_service_controller_005':
           'Please select at least one service to continue.',
       'snackbar_choose_service_controller_006':
@@ -1971,10 +1931,10 @@ const Map<String, String> deDETranslations = <String, String>{
           'Auszahlungs-E-Mail erfolgreich aktualisiert!',
       'snackbar_sitter_paypal_payout_controller_003':
           'Auszahlungs-E-Mail konnte nicht aktualisiert werden. Bitte versuche es erneut.',
-      'task_add_failed': 'Failed to add task. Please try again.',
-      'task_add_success': 'Task added successfully!',
-      'task_fetch_failed': 'Failed to fetch tasks.',
-      'task_fields_required': 'Please fill in at least one field.',
+      'task_add_failed': 'Aufgabe konnte nicht hinzugefügt werden. Bitte erneut versuchen.',
+      'task_add_success': 'Aufgabe hinzugefügt!',
+      'task_fetch_failed': 'Aufgaben konnten nicht geladen werden.',
+      'task_fields_required': 'Bitte fülle mindestens ein Feld aus.',
 
       'snackbar_text_application_accepted_successfully':
           'Bewerbung erfolgreich angenommen',
@@ -2487,7 +2447,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'pawfollow_subtitle_monthly': 'Monatlich abgerechnet',
       'pawfollow_subtitle_yearly': '1x pro Jahr abgerechnet',
       'pawfollow_subtitle_family': 'Du + 5 Mitglieder • geteilt',
-      'pawfollow_yearly_savings': ' (35% off)',
+      'pawfollow_yearly_savings': '(-35 %)',
       'pawfollow_per_day_suffix': '/Tag',
       'auth_session_expired_title': 'Sitzung abgelaufen',
       'auth_session_expired_msg': 'Um fortzufahren, gehe zu Profil > Abmelden und melde dich erneut an.',

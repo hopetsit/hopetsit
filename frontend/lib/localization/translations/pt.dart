@@ -576,11 +576,11 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'You have already reviewed this sitter. You can only submit one review per sitter.':
           'You have already reviewed this sitter. You can only submit one review per sitter.',
       'Your city (@city) has been detected':
-          'Your city (@city) has been detected',
+          'A tua cidade (@city) foi detetada',
       'Profile updated but image upload failed. Please try again.':
           'Profile updated but image upload failed. Please try again.',
       'Profile updated but image upload failed: @error':
-          'Profile updated but image upload failed: @error',
+          'Perfil atualizado, mas o envio da imagem falhou: @error',
       'post_action_comment': 'Comentário',
       'post_action_share': 'Compartilhar',
       'post_comments_title': 'Comentários',
@@ -618,7 +618,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'filter_distance': 'Distância',
       'filter_all_distances': 'Todas as distâncias',
       'filter_near_me': 'Perto de mim',
-      'filter_distance_km': '@kmkm',
+      'filter_distance_km': '@km km',
       'profile_connection_connected': 'Conectado',
       'sign_up_as_pet_sitter': 'Inscreva-se como babá de animais de estimação',
       'label_name': 'Nome',
@@ -949,31 +949,6 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'payout_message_restricted': 'Seus pagamentos estão atualmente restritos. Entre em contato com o suporte para obter assistência.',
       'payout_message_not_connected':
           'Connect your payout account to start receiving payouts.',
-      'stripe_account_connected': 'Account Connected',
-      'stripe_account_created_pending': 'Account Created - Onboarding Pending',
-      'stripe_account_created': 'Account Created',
-      'stripe_account_connected_message':
-          'A sua conta de pagamento está totalmente configurada e pronta para receber pagamentos.',
-      'stripe_account_created_message':
-          'A sua conta de pagamento foi criada. Por favor, complete o processo de onboarding para começar a receber pagamentos.',
-      'stripe_account_created_partial_message':
-          'Your payment account has been created. Some verification steps are remaining. You can complete them in your account settings.',
-      'stripe_account_id_label': 'Account ID',
-      'stripe_loading_onboarding': 'Carregando onboarding...',
-      'stripe_account_connected_success':
-          'Conta de pagamento ligada com sucesso!',
-      'stripe_onboarding_completed': 'Onboarding concluído!',
-      'stripe_onboarding_cancelled': 'O onboarding foi cancelado.',
-      'stripe_onboarding_load_error':
-          'Falha ao carregar página de onboarding: @error',
-      'stripe_cancel_onboarding_title': 'Cancel Onboarding?',
-      'stripe_cancel_onboarding_message':
-          'Tem a certeza de que deseja cancelar o onboarding? Pode concluir mais tarde nas definições.',
-      'stripe_connect_platform_not_enabled':
-          'Os pagamentos Stripe ainda não estão ativados na plataforma. Tente novamente mais tarde ou contacte o suporte.',
-      'stripe_connect_payment_title': 'Connect Your Payment Account',
-      'stripe_connect_payment_description':
-          'To start receiving payments as a Pet Sitter, you need to connect your payment account. This is a required step to complete your profile setup.',
       'payment_paypal_info':
           'Será redirecionado para aprovar o pagamento, então confirmaremos aqui.',
       'payment_pay_with_card': 'Pagar @amount',
@@ -1241,8 +1216,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'pawmap_time_hours_short': '@n h',
       'pawmap_time_days_short': '@n d',
       'pawmap_remaining_hours_label': '@hours h restantes',
-      'pawmap_default_walker': 'Walker',
-      'pawmap_default_sitter': 'Sitter',
+      'pawmap_default_walker': 'Passeador',
+      'pawmap_default_sitter': 'Cuidador',
       'pawmap_default_request': 'Pedido',
       'pawmap_filter_pois': 'POIs',
       'pawmap_filter_reports_48h': 'Sinalizações 48h',
@@ -2322,7 +2297,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'pawfollow_subtitle_monthly': 'Faturado mensalmente',
       'pawfollow_subtitle_yearly': 'Faturado 1x por ano',
       'pawfollow_subtitle_family': 'Tu + 5 convidados • partilhado',
-      'pawfollow_yearly_savings': ' (35% off)',
+      'pawfollow_yearly_savings': '(-35 %)',
       'pawfollow_per_day_suffix': '/dia',
       'auth_session_expired_title': 'Sessão expirada',
       'auth_session_expired_msg': 'Para continuar, vai a Perfil > Sair e inicia sessão novamente.',
@@ -2688,17 +2663,6 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'sitter_bookings_title': 'As minhas reservas',
     'sitter_detail_loading_name': 'A carregar nome…',
     'sitter_view_profile': 'Ver perfil',
-    'stripe_already_connected': 'Já ligado',
-    'stripe_already_connected_message': 'A tua conta de pagamento já está ligada.',
-    'stripe_connect_error': 'Erro ao ligar a conta de pagamento.',
-    'stripe_connect_payment_partial_description': 'Precisas de terminar a configuração de pagamento para receber pagamentos.',
-    'stripe_connect_payment_partial_info': 'Algumas informações de pagamento estão em falta.',
-    'stripe_disconnect_error': 'Erro ao desligar a conta de pagamento.',
-    'stripe_disconnect_success': 'Conta de pagamento desligada.',
-    'stripe_no_onboarding_url': 'URL de configuração indisponível.',
-    'stripe_onboarding_expired_message': 'O link de configuração expirou, recomeça.',
-    'stripe_onboarding_expired_title': 'Configuração expirada',
-    'stripe_payment_connected_success': 'Conta de pagamento ligada com sucesso.',
     'task_fetch_failed': 'Falha ao carregar tarefas.',
     'view_task_title': 'Ver tarefa',
     'pawpass_required_title': 'Funcionalidade PawFollow',

@@ -31,7 +31,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawmap_expand_map': 'Agrandir la carte',
       'pawmap_expand_short': 'Agrandir',
       'pawmap_reduce_map': 'Réduire',
-      'pawmap_tag_spot': 'Tag spot',
+      'pawmap_tag_spot': 'Marquer un lieu',
       'pawmap_fullscreen_title': 'Carte plein écran',
       'pawmap_premium_spots_nearby': '@n PawSpot à proximité',
       'common_view_profile': 'Voir le profil',
@@ -677,11 +677,11 @@ const Map<String, String> frFRTranslations = <String, String>{
       'You have already reviewed this sitter. You can only submit one review per sitter.':
           'Vous avez deja evalue ce pet sitter. Vous ne pouvez soumettre qu\'un seul avis par pet sitter.',
       'Your city (@city) has been detected':
-          'Votre ville (@city) a ete detectee',
+          'Ta ville (@city) a été détectée',
       'Profile updated but image upload failed. Please try again.':
           'Profil mis a jour mais l\'envoi de l\'image a echoue. Veuillez reessayer.',
       'Profile updated but image upload failed: @error':
-          'Profil mis a jour mais l\'envoi de l\'image a echoue : @error',
+          'Profil mis à jour, mais l\'envoi de l\'image a échoué : @error',
 
       // Posts / Comments
       'post_action_like': 'J’aime',
@@ -950,7 +950,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'family_err_full': 'Famille pleine. Retire un membre avant d\'en ajouter un nouveau.',
       'family_err_already_member': 'Cette personne fait déjà partie de ta famille.',
       'family_err_plan_required': 'Abonnement PawFollow Famille requis.',
-      'map_boost_tier_visible': 'Visible',
+      'map_boost_tier_visible': 'Mise en avant',
       'map_boost_tier_map_premium': 'Map Premium',
       'auth_multiple_roles_msg': 'Tu es ouvert en @role. Tu peux switcher depuis Profil → Switch rôle.',
       'friends_screen_title': 'Mes amis',
@@ -1682,7 +1682,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'mapboost_desc_platinum': 'Pin doré + halo animé permanent',
       'mapboost_days_count': '@count jour(s)',
       'mapboost_confirm_title': 'Acheter PawSpot @tier ?',
-      'mapboost_confirm_tier_label': 'Tier',
+      'mapboost_confirm_tier_label': 'Niveau',
       'mapboost_confirm_duration_label': 'Durée',
       'mapboost_confirm_price_label': 'Prix',
       'mapboost_confirm_description': 'Ton PawSpot sera mis en avant pendant la durée choisie.',
@@ -1704,8 +1704,8 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawmap_time_hours_short': '@n h',
       'pawmap_time_days_short': '@n j',
       'pawmap_remaining_hours_label': '@hours h restantes',
-      'pawmap_default_walker': 'Walker',
-      'pawmap_default_sitter': 'Sitter',
+      'pawmap_default_walker': 'Promeneur',
+      'pawmap_default_sitter': 'Gardien',
       'pawmap_default_request': 'Demande',
       'pawmap_filter_pois': 'POIs',
       'pawmap_filter_reports_48h': 'Signalements 48h',
@@ -2032,7 +2032,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'publish_request_add_more_images': 'Ajouter plus d\'images',
       'publish_request_publish_button': 'Publier la demande',
       'publish_request_fill_required':
-          'Veuillez remplir tous les champs requis.',
+          'Merci de remplir tous les champs obligatoires.',
       'publish_request_ui_only_success': 'UI créée (pas encore publiée).',
       'publish_request_success': 'Demande de réservation publiée avec succès !',
       'publish_request_service_walking': 'Promenade',
@@ -2293,46 +2293,46 @@ const Map<String, String> frFRTranslations = <String, String>{
       'auth_role_switched': 'Rôle changé',
       'auth_role_switched_message': 'Passage réussi à @role',
       'auth_welcome_back': 'Bon retour !',
-      'change_password_failed': 'Failed to change password. Please try again.',
-      'change_password_fields_required': 'Please fill in all fields correctly.',
-      'change_password_new_required': 'Please enter a new password.',
-      'change_password_success': 'Password changed successfully!',
-      'change_password_validation_error': 'Validation Error',
+      'change_password_failed': 'Impossible de modifier le mot de passe. Réessaie.',
+      'change_password_fields_required': 'Merci de remplir correctement tous les champs.',
+      'change_password_new_required': 'Saisis un nouveau mot de passe.',
+      'change_password_success': 'Mot de passe modifié !',
+      'change_password_validation_error': 'Erreur de validation',
       'email_verification_code_required':
-          'Please enter the complete verification code',
-      'email_verification_success': 'Email verified successfully!',
-      'map_load_error': 'Failed to load map data. Please try again.',
-      'my_pets_load_error': 'Failed to load pets. Please try again.',
+          'Saisis le code de vérification complet',
+      'email_verification_success': 'Adresse e-mail vérifiée !',
+      'map_load_error': 'Impossible de charger la carte. Réessaie.',
+      'my_pets_load_error': 'Impossible de charger tes animaux. Réessaie.',
       'pet_create_validation_error': 'Validation Error',
-      'pet_update_failed': 'Update Failed',
-      'pet_validation_error': 'Validation Error',
-      'profile_blocked_users_load_error': 'Failed to load blocked users',
+      'pet_update_failed': 'Mise à jour impossible',
+      'pet_validation_error': 'Erreur de validation',
+      'profile_blocked_users_load_error': 'Impossible de charger les utilisateurs bloqués',
       'profile_edit_coming_soon':
-          'Edit profile functionality will be available soon',
-      'profile_image_pick_failed': 'Failed to pick image. Please try again.',
-      'profile_invalid_file_type': 'Invalid File Type',
+          'La modification du profil arrive bientôt',
+      'profile_image_pick_failed': 'Impossible de choisir l\'image. Réessaie.',
+      'profile_invalid_file_type': 'Type de fichier non valide',
       'profile_invalid_file_type_message':
-          'Please select a JPEG, PNG, or WebP image.',
+          'Choisis une image JPEG, PNG ou WebP.',
       'profile_picture_update_success':
           'Photo de profil mise à jour avec succès',
-      'profile_unblock_failed': 'Unblock Failed',
+      'profile_unblock_failed': 'Déblocage impossible',
       'profile_unblock_failed_generic':
-          'Something went wrong. Please try again.',
-      'profile_unblock_success': 'User unblocked successfully',
-      'profile_upload_failed': 'Upload Failed',
+          'Une erreur est survenue. Réessaie.',
+      'profile_unblock_success': 'Utilisateur débloqué',
+      'profile_upload_failed': 'Envoi impossible',
       'profile_update_failed': 'Échec de la mise à jour du profil',
       'profile_upload_failed_generic':
-          'Something went wrong. Please try again.',
-      'profile_user_not_found': 'User not found',
+          'Une erreur est survenue. Réessaie.',
+      'profile_user_not_found': 'Utilisateur introuvable',
       'request_duration_required':
-          'Please select a duration for dog walking service.',
-      'request_pet_required': 'Please select at least one pet.',
+          'Choisis une durée pour la promenade.',
+      'request_pet_required': 'Choisis au moins un animal.',
       'request_send_failed':
           'Impossible d\'envoyer la demande. Veuillez réessayer.',
       'request_send_success': 'Demande envoyée avec succès !',
       'request_sitter_pricing_error':
           'Veuillez d’abord définir votre tarif horaire dans le profil.',
-      'request_validation_error': 'Validation Error',
+      'request_validation_error': 'Erreur de validation',
       'review_submit_failed': 'Impossible d\'envoyer l\'avis. Veuillez réessayer.',
       'reviews_title': 'Avis',
       'reviews_rate_label': 'Note',
@@ -2354,7 +2354,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'application_card_price_label': 'Rémunération de cette prestation',
       'application_card_you_receive': 'Tu touches @amount net',
       'application_card_owner_pays': 'Le propriétaire paie @amount (commission HoPetSit incluse)',
-      'share_failed': 'Failed to share. Please try again.',
+      'share_failed': 'Le partage a échoué. Réessaie.',
       'snackbar_choose_service_controller_001':
           'Please select valid services for your account type.',
       'snackbar_choose_service_controller_002':
@@ -2362,7 +2362,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'snackbar_choose_service_controller_003':
           'Your services have been selected successfully!',
       'snackbar_choose_service_controller_004':
-          'Failed to update services. Please try again.',
+          'Impossible de mettre à jour les services. Réessaie.',
       'snackbar_choose_service_controller_005':
           'Please select at least one service to continue.',
       'snackbar_choose_service_controller_006':
@@ -2375,10 +2375,10 @@ const Map<String, String> frFRTranslations = <String, String>{
           'E-mail de paiement mis à jour avec succès !',
       'snackbar_sitter_paypal_payout_controller_003':
           'Echec de la mise a jour de l\'e-mail PayPal de paiement. Veuillez reessayer.',
-      'task_add_failed': 'Failed to add task. Please try again.',
-      'task_add_success': 'Task added successfully!',
-      'task_fetch_failed': 'Failed to fetch tasks.',
-      'task_fields_required': 'Please fill in at least one field.',
+      'task_add_failed': 'Impossible d\'ajouter la tâche. Réessaie.',
+      'task_add_success': 'Tâche ajoutée !',
+      'task_fetch_failed': 'Impossible de charger les tâches.',
+      'task_fields_required': 'Remplis au moins un champ.',
 
       'snackbar_text_application_accepted_successfully':
           'Candidature acceptee avec succes',
@@ -2888,7 +2888,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawfollow_subtitle_monthly': 'Facturé tous les mois',
       'pawfollow_subtitle_yearly': 'Facturé 1x par an',
       'pawfollow_subtitle_family': 'Toi + 5 proches • partagé',
-      'pawfollow_yearly_savings': ' (35% off)',
+      'pawfollow_yearly_savings': '(-35 %)',
       'pawfollow_per_day_suffix': '/jour',
       'auth_session_expired_title': 'Session expirée',
       'auth_session_expired_msg': 'Pour continuer, va dans Profil > Déconnecter et reconnecte-toi.',

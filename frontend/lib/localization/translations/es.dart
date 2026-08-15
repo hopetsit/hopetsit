@@ -327,11 +327,11 @@ const Map<String, String> esESTranslations = <String, String>{
       'You have already reviewed this sitter. You can only submit one review per sitter.':
           'You have already reviewed this sitter. You can only submit one review per sitter.',
       'Your city (@city) has been detected':
-          'Your city (@city) has been detected',
+          'Hemos detectado tu ciudad (@city)',
       'Profile updated but image upload failed. Please try again.':
           'Profile updated but image upload failed. Please try again.',
       'Profile updated but image upload failed: @error':
-          'Profile updated but image upload failed: @error',
+          'Perfil actualizado, pero no se pudo subir la imagen: @error',
 
       // Posts / Comments
       'post_action_like': 'Me gusta',
@@ -584,7 +584,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'family_err_full': 'Familia llena. Elimina un miembro antes de añadir uno nuevo.',
       'family_err_already_member': 'Esta persona ya forma parte de tu familia.',
       'family_err_plan_required': 'Se requiere suscripción PawFollow Familia.',
-      'map_boost_tier_visible': 'Visible',
+      'map_boost_tier_visible': 'Destacado',
       'map_boost_tier_map_premium': 'Map Premium',
       'auth_multiple_roles_msg': 'Estás conectado como @role. Cambia de rol desde Perfil → Cambiar rol.',
       'friends_screen_title': 'Mis amigos',
@@ -1640,7 +1640,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'publish_request_add_more_images': 'Agregar más imágenes',
       'publish_request_publish_button': 'Publicar solicitud',
       'publish_request_fill_required':
-          'Completa todos los campos obligatorios.',
+          'Rellena todos los campos obligatorios.',
       'publish_request_ui_only_success': 'UI creada (aún no publicada).',
       'publish_request_success': '¡Solicitud de reserva publicada con éxito!',
       'publish_request_service_walking': 'Paseo',
@@ -1882,46 +1882,46 @@ const Map<String, String> esESTranslations = <String, String>{
       'auth_role_switched': 'Rol cambiado',
       'auth_role_switched_message': 'Se cambió correctamente a @role',
       'auth_welcome_back': '¡Bienvenido de nuevo!',
-      'change_password_failed': 'Failed to change password. Please try again.',
-      'change_password_fields_required': 'Please fill in all fields correctly.',
-      'change_password_new_required': 'Please enter a new password.',
-      'change_password_success': 'Password changed successfully!',
-      'change_password_validation_error': 'Validation Error',
+      'change_password_failed': 'No se pudo cambiar la contraseña. Inténtalo de nuevo.',
+      'change_password_fields_required': 'Rellena todos los campos correctamente.',
+      'change_password_new_required': 'Introduce una nueva contraseña.',
+      'change_password_success': '¡Contraseña cambiada!',
+      'change_password_validation_error': 'Error de validación',
       'email_verification_code_required':
-          'Please enter the complete verification code',
-      'email_verification_success': 'Email verified successfully!',
-      'map_load_error': 'Failed to load map data. Please try again.',
-      'my_pets_load_error': 'Failed to load pets. Please try again.',
+          'Introduce el código de verificación completo',
+      'email_verification_success': '¡Correo verificado!',
+      'map_load_error': 'No se pudo cargar el mapa. Inténtalo de nuevo.',
+      'my_pets_load_error': 'No se pudieron cargar tus mascotas. Inténtalo de nuevo.',
       'pet_create_validation_error': 'Validation Error',
-      'pet_update_failed': 'Update Failed',
-      'pet_validation_error': 'Validation Error',
-      'profile_blocked_users_load_error': 'Failed to load blocked users',
+      'pet_update_failed': 'No se pudo actualizar',
+      'pet_validation_error': 'Error de validación',
+      'profile_blocked_users_load_error': 'No se pudieron cargar los usuarios bloqueados',
       'profile_edit_coming_soon':
-          'Edit profile functionality will be available soon',
-      'profile_image_pick_failed': 'Failed to pick image. Please try again.',
-      'profile_invalid_file_type': 'Invalid File Type',
+          'La edición del perfil estará disponible pronto',
+      'profile_image_pick_failed': 'No se pudo elegir la imagen. Inténtalo de nuevo.',
+      'profile_invalid_file_type': 'Tipo de archivo no válido',
       'profile_invalid_file_type_message':
-          'Please select a JPEG, PNG, or WebP image.',
+          'Elige una imagen JPEG, PNG o WebP.',
       'profile_picture_update_success':
           'Foto de perfil actualizada correctamente',
-      'profile_unblock_failed': 'Unblock Failed',
+      'profile_unblock_failed': 'No se pudo desbloquear',
       'profile_unblock_failed_generic':
-          'Something went wrong. Please try again.',
-      'profile_unblock_success': 'User unblocked successfully',
-      'profile_upload_failed': 'Upload Failed',
+          'Algo salió mal. Inténtalo de nuevo.',
+      'profile_unblock_success': 'Usuario desbloqueado',
+      'profile_upload_failed': 'No se pudo subir',
       'profile_update_failed': 'Error al actualizar el perfil',
       'profile_upload_failed_generic':
-          'Something went wrong. Please try again.',
-      'profile_user_not_found': 'User not found',
+          'Algo salió mal. Inténtalo de nuevo.',
+      'profile_user_not_found': 'Usuario no encontrado',
       'request_duration_required':
-          'Please select a duration for dog walking service.',
-      'request_pet_required': 'Please select at least one pet.',
+          'Elige una duración para el paseo.',
+      'request_pet_required': 'Elige al menos una mascota.',
       'request_send_failed':
           'No se pudo enviar la solicitud. Inténtalo de nuevo.',
       'request_send_success': '¡Solicitud enviada con éxito!',
       'request_sitter_pricing_error':
           'Primero configura tu tarifa por hora en el perfil.',
-      'request_validation_error': 'Validation Error',
+      'request_validation_error': 'Error de validación',
       'review_submit_failed': 'No se pudo enviar la reseña. Inténtalo de nuevo.',
       'reviews_title': 'Reseñas',
       'reviews_rate_label': 'Puntuación',
@@ -1943,7 +1943,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'application_card_price_label': 'Remuneración por este servicio',
       'application_card_you_receive': 'Recibes @amount neto',
       'application_card_owner_pays': 'El propietario paga @amount (comisión HoPetSit incluida)',
-      'share_failed': 'Failed to share. Please try again.',
+      'share_failed': 'No se pudo compartir. Inténtalo de nuevo.',
       'snackbar_choose_service_controller_001':
           'Please select valid services for your account type.',
       'snackbar_choose_service_controller_002':
@@ -1951,7 +1951,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'snackbar_choose_service_controller_003':
           'Your services have been selected successfully!',
       'snackbar_choose_service_controller_004':
-          'Failed to update services. Please try again.',
+          'No se pudieron actualizar los servicios. Inténtalo de nuevo.',
       'snackbar_choose_service_controller_005':
           'Please select at least one service to continue.',
       'snackbar_choose_service_controller_006':
@@ -1964,10 +1964,10 @@ const Map<String, String> esESTranslations = <String, String>{
           'Correo de pagos actualizado correctamente!',
       'snackbar_sitter_paypal_payout_controller_003':
           'No se pudo actualizar el correo de pagos. Intenta de nuevo.',
-      'task_add_failed': 'Failed to add task. Please try again.',
-      'task_add_success': 'Task added successfully!',
-      'task_fetch_failed': 'Failed to fetch tasks.',
-      'task_fields_required': 'Please fill in at least one field.',
+      'task_add_failed': 'No se pudo añadir la tarea. Inténtalo de nuevo.',
+      'task_add_success': '¡Tarea añadida!',
+      'task_fetch_failed': 'No se pudieron cargar las tareas.',
+      'task_fields_required': 'Rellena al menos un campo.',
 
       'snackbar_text_application_accepted_successfully':
           'Solicitud aceptada exitosamente',
@@ -2460,7 +2460,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'pawfollow_subtitle_monthly': 'Facturado mensualmente',
       'pawfollow_subtitle_yearly': 'Facturado 1 vez al año',
       'pawfollow_subtitle_family': 'Tú + 5 invitados • compartido',
-      'pawfollow_yearly_savings': ' (35% off)',
+      'pawfollow_yearly_savings': '(-35 %)',
       'pawfollow_per_day_suffix': '/día',
       'auth_session_expired_title': 'Sesión caducada',
       'auth_session_expired_msg': 'Para continuar, ve a Perfil > Cerrar sesión y vuelve a iniciar sesión.',

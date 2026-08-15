@@ -1,0 +1,310 @@
+fr	pawmap_tag_spot	Tag spot
+fr	pawspot_add_desc_label	Description
+fr	pawspot_validations	Validations
+fr	pawpoints_stat_contributions	Contributions
+fr	pawpoints_stat_points	Points
+fr	pawspot_badge_expert	🥈 Expert · 500 pts
+fr	pawspot_lb_europe	Europe
+fr	pawspot_profile_tile	PawPoints & badges
+fr	alerts_severity_urgent	Urgent
+fr	alerts_severity_info	Info
+fr	role_sitter	Petsitter
+fr	filter_dates	Dates
+fr	filter_distance	Distance
+fr	filter_distance_km	@km km
+fr	map_boost_tier_visible	Visible
+fr	map_boost_tier_map_premium	Map Premium
+fr	loyalty_premium_badge	👑 PawFollow
+fr	top_sitter_badge	🏆 Top Petsitter
+fr	onboarding_services_subtitle	Pet-Sitting · PawMap · PawSpot · PawFollow
+fr	invoice_pdf_desc	Description
+fr	invoice_pdf_service_generic	Service
+fr	location_auto	Auto
+fr	payment_date_label	Date
+fr	common_info	Info
+fr	sitter_detail_date	Date
+fr	sitter_month_jan	Jan
+fr	sitter_month_mar	Mar
+fr	sitter_month_sep	Sep
+fr	sitter_month_oct	Oct
+fr	sitter_month_nov	Nov
+fr	sitter_info_service	Service
+fr	sitter_info_date	Date
+fr	sitter_note_section	Note
+fr	owner_info_service	Service
+fr	owner_info_date	Date
+fr	owner_note_section	Note
+fr	owner_month_jan	Jan
+fr	owner_month_mar	Mar
+fr	owner_month_sep	Sep
+fr	owner_month_oct	Oct
+fr	owner_month_nov	Nov
+fr	pawmap_confirmations	@count confirmation(s)
+fr	mapboost_confirm_tier_label	Tier
+fr	pawmap_time_min_short	@n min
+fr	pawmap_time_hours_short	@n h
+fr	pawmap_confirmations_inline	@count confirmation(s)
+fr	home_sort_distance	Distance
+fr	notifications_title	Notifications
+fr	notifications_fallback_title	Notification
+fr	add_task_description_label	Description
+fr	add_card_cvc_label	CVC
+fr	my_pets_allergies_label	Allergies
+fr	send_request_description_label	Description
+fr	send_request_dates_label	Dates
+fr	send_request_duration_minutes_label	@minutes min
+fr	send_request_missing_description	Description
+fr	publish_request_images_label	Images
+fr	map_sitter_services_distance	@services • @distance km
+fr	sitter_bookings_date_label	Date
+fr	sitter_bookings_description_label	Description
+fr	bookings_detail_date_label	Date
+fr	bookings_detail_description_label	Description
+fr	change_password_validation_error	Validation Error
+fr	pet_validation_error	Validation Error
+fr	request_validation_error	Validation Error
+fr	reviews_description_label	Description
+fr	post_field_dates	Dates
+fr	post_field_service	Service
+fr	card_role_sitter	Pet-sitter
+fr	post_photos_count	photos
+fr	post_photos_count_one	photo
+fr	pet_walk_minutes	min
+fr	payout_label_bic	BIC/SWIFT
+fr	earnings_commission	Commission
+fr	earnings_total_label	Total
+fr	pawfollow_yearly_savings	(35% off)
+fr	pet_vaccinations	Vaccinations
+fr	edit_pet_bio_label	Bio
+fr	edit_post_body_label	Description
+fr	profile_section_support	Support
+fr	bug_report_desc_label	Description
+fr	post_urgent_gold	URGENT
+fr	pet_documents	Documents
+fr	pet_compat_yes	Compatible
+fr	pet_notes	Notes
+fr	pet_transport	Transport
+es	role_sitter	Petsitter
+es	common_error	Error
+es	filter_distance_km	@km km
+es	map_boost_tier_visible	Visible
+es	map_boost_tier_map_premium	Map Premium
+es	loyalty_premium_badge	👑 PawFollow
+es	onboarding_services_subtitle	Pet-Sitting · PawMap · PawSpot · PawFollow
+es	location_auto	Auto
+es	sitter_pet_color	Color
+es	sitter_month_feb	Feb
+es	sitter_month_mar	Mar
+es	sitter_month_may	May
+es	sitter_month_jun	Jun
+es	sitter_month_jul	Jul
+es	sitter_month_sep	Sep
+es	sitter_month_oct	Oct
+es	sitter_month_nov	Nov
+es	owner_month_feb	Feb
+es	owner_month_mar	Mar
+es	owner_month_may	May
+es	owner_month_jun	Jun
+es	owner_month_jul	Jul
+es	owner_month_sep	Sep
+es	owner_month_oct	Oct
+es	owner_month_nov	Nov
+es	pawmap_time_min_short	@n min
+es	pawmap_time_hours_short	@n h
+es	pawmap_time_days_short	@n d
+es	add_card_cvc_label	CVC
+es	send_request_duration_minutes_label	@minutes min
+es	map_sitter_services_distance	@services • @distance km
+es	change_password_validation_error	Validation Error
+es	pet_validation_error	Validation Error
+es	request_validation_error	Validation Error
+es	pet_walk_minutes	min
+es	payout_label_bic	BIC/SWIFT
+es	earnings_total_label	Total
+es	profile_section_legal	Legal
+es	pawfollow_yearly_savings	(35% off)
+es	edit_pet_bio_label	Bio
+es	edit_pet_color_label	Color
+es	boost_popular	Popular
+es	alerts_severity_info	Info
+es	pet_color	Color
+es	pet_microchipped	Microchip
+es	pet_compat_yes	Compatible
+de	filter_distance_km	@km km
+de	home_radius	Radius
+de	label_name	Name
+de	appearance_system	System
+de	map_boost_tier_map_premium	Map Premium
+de	loyalty_premium_badge	👑 PawFollow
+de	onboarding_services_subtitle	Pet-Sitting · PawMap · PawSpot · PawFollow
+de	invoice_pdf_status	Status
+de	invoice_pdf_service_generic	Service
+de	location_auto	Auto
+de	booking_agreement_status_label	Status: @status
+de	common_info	Info
+de	sitter_status_label	Status: @status
+de	sitter_month_jan	Jan
+de	sitter_month_feb	Feb
+de	sitter_month_apr	Apr
+de	sitter_month_jun	Jun
+de	sitter_month_jul	Jul
+de	sitter_month_aug	Aug
+de	sitter_month_sep	Sep
+de	sitter_month_nov	Nov
+de	sitter_info_service	Service
+de	owner_info_service	Service
+de	owner_month_jan	Jan
+de	owner_month_feb	Feb
+de	owner_month_apr	Apr
+de	owner_month_jun	Jun
+de	owner_month_jul	Jul
+de	owner_month_aug	Aug
+de	owner_month_sep	Sep
+de	owner_month_nov	Nov
+de	add_task_description_hint	Text...
+de	add_card_cvc_label	CVC
+de	map_sitter_services_distance	@services • @distance km
+de	pet_detail_owner_name	Name
+de	change_password_validation_error	Validation Error
+de	pet_validation_error	Validation Error
+de	request_validation_error	Validation Error
+de	post_field_service	Service
+de	post_field_details	Details
+de	payout_label_bic	BIC/SWIFT
+de	payout_chip_iban	Bank (IBAN)
+de	payout_bic_label	BIC / SWIFT (optional)
+de	profile_shop	Shop
+de	pawfollow_yearly_savings	(35% off)
+de	pet_vet_name	Name
+de	edit_pet_bio_label	Bio
+de	profile_section_support	Support
+de	alerts_severity_info	Info
+de	pawpoints_stat_level	Level
+de	pawmap_quick_live	Live
+de	pawmap_quick_people_live	Live
+de	pet_videos_title	Videos
+de	pet_transport	Transport
+it	role_sitter	Petsitter
+it	filter_distance_km	@km km
+it	notifications_post_view_title	Post
+it	label_password	Password
+it	map_boost_tier_map_premium	Map Premium
+it	loyalty_premium_badge	👑 PawFollow
+it	onboarding_services_subtitle	Pet-Sitting · PawMap · PawSpot · PawFollow
+it	location_auto	Auto
+it	common_info	Info
+it	sitter_month_feb	Feb
+it	sitter_month_mar	Mar
+it	sitter_month_apr	Apr
+it	sitter_month_nov	Nov
+it	owner_month_feb	Feb
+it	owner_month_mar	Mar
+it	owner_month_apr	Apr
+it	owner_month_nov	Nov
+it	pawmap_time_min_short	@n min
+it	pawmap_time_hours_short	@n h
+it	post_input_label	Post
+it	add_card_cvc_label	CVC
+it	send_request_duration_minutes_label	@minutes min
+it	map_sitter_services_distance	@services • @distance km
+it	change_password_validation_error	Validation Error
+it	pet_validation_error	Validation Error
+it	request_validation_error	Validation Error
+it	card_role_sitter	Pet-sitter
+it	post_card_service_pet_sitting	Pet sitting
+it	pet_walk_minutes	min
+it	payout_label_bic	BIC/SWIFT
+it	profile_section_account	Account
+it	profile_privacy	Privacy
+it	pawfollow_yearly_savings	(35% off)
+it	service_pet_sitting	Pet sitting
+it	edit_pet_bio_label	Bio
+it	nav_home	Home
+it	role_pet_walker	Dog walker
+it	auth_role_pet_walker	Dog walker
+it	alerts_severity_info	Info
+it	pawmap_quick_people_live	Live
+it	pet_microchipped	Microchip
+it	signup_field_password	Password
+pt	map_boost_tier_map_premium	Map Premium
+pt	loyalty_premium_badge	👑 PawFollow
+pt	label_not_available	N/A
+pt	filter_distance_km	@km km
+pt	onboarding_services_subtitle	Pet-Sitting · PawMap · PawSpot · PawFollow
+pt	location_auto	Auto
+pt	location_latitude	Latitude: @value
+pt	location_longitude	Longitude: @value
+pt	sitter_weekday_mon	Mon
+pt	sitter_weekday_tue	Tue
+pt	sitter_weekday_wed	Wed
+pt	sitter_weekday_thu	Thu
+pt	sitter_weekday_fri	Fri
+pt	sitter_weekday_sat	Sat
+pt	sitter_weekday_sun	Sun
+pt	sitter_month_jan	Jan
+pt	sitter_month_feb	Feb
+pt	sitter_month_mar	Mar
+pt	sitter_month_apr	Apr
+pt	sitter_month_may	May
+pt	sitter_month_jun	Jun
+pt	sitter_month_jul	Jul
+pt	sitter_month_aug	Aug
+pt	sitter_month_sep	Sep
+pt	sitter_month_oct	Oct
+pt	sitter_month_nov	Nov
+pt	sitter_month_dec	Dec
+pt	owner_weekday_mon	Mon
+pt	owner_weekday_tue	Tue
+pt	owner_weekday_wed	Wed
+pt	owner_weekday_thu	Thu
+pt	owner_weekday_fri	Fri
+pt	owner_weekday_sat	Sat
+pt	owner_weekday_sun	Sun
+pt	owner_month_jan	Jan
+pt	owner_month_feb	Feb
+pt	owner_month_mar	Mar
+pt	owner_month_apr	Apr
+pt	owner_month_may	May
+pt	owner_month_jun	Jun
+pt	owner_month_jul	Jul
+pt	owner_month_aug	Aug
+pt	owner_month_sep	Sep
+pt	owner_month_oct	Oct
+pt	owner_month_nov	Nov
+pt	owner_month_dec	Dec
+pt	pawmap_time_min_short	@n min
+pt	pawmap_time_hours_short	@n h
+pt	pawmap_time_days_short	@n d
+pt	add_card_cvc_label	CVC
+pt	map_sitter_services_distance	@services • @distance km
+pt	sitter_bookings_pet_label	Pet
+pt	bookings_detail_pet_label	Pet
+pt	card_role_sitter	Pet-sitter
+pt	pet_walk_minutes	min
+pt	payout_label_bic	BIC/SWIFT
+pt	earnings_total_label	Total
+pt	pawfollow_yearly_savings	(35% off)
+pt	edit_pet_bio_label	Bio
+pt	boost_popular	Popular
+pt	alerts_severity_info	Info
+pt	pet_microchipped	Microchip
+ko	pawspot_badge_pawmaster	👑 PawMaster · 5,000 pts
+ko	filter_distance_km	@km km
+ko	family_no_plan_title	PawFollow Family
+ko	loyalty_premium_badge	👑 PawFollow
+ko	onboarding_services_subtitle	Pet-Sitting · PawMap · PawSpot · PawFollow
+ko	add_card_cvc_label	CVC
+ko	map_sitter_services_distance	@services • @distance km
+ko	payout_label_bic	BIC/SWIFT
+ko	pet_vaccine_date	YYYY-MM-DD
+ko	date_hint_dmy	DD/MM/YYYY
+ja	pawspot_badge_pawmaster	👑 PawMaster · 5,000 pts
+ja	filter_distance_km	@km km
+ja	family_no_plan_title	PawFollow Family
+ja	loyalty_premium_badge	👑 PawFollow
+ja	onboarding_services_subtitle	Pet-Sitting · PawMap · PawSpot · PawFollow
+ja	add_card_cvc_label	CVC
+ja	map_sitter_services_distance	@services • @distance km
+ja	payout_label_bic	BIC/SWIFT
+ja	pet_vaccine_date	YYYY-MM-DD
+ja	date_hint_dmy	DD/MM/YYYY

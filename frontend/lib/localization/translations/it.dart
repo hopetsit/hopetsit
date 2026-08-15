@@ -343,11 +343,11 @@ const Map<String, String> itITTranslations = <String, String>{
       'You have already reviewed this sitter. You can only submit one review per sitter.':
           'You have already reviewed this sitter. You can only submit one review per sitter.',
       'Your city (@city) has been detected':
-          'Your city (@city) has been detected',
+          'La tua città (@city) è stata rilevata',
       'Profile updated but image upload failed. Please try again.':
           'Profile updated but image upload failed. Please try again.',
       'Profile updated but image upload failed: @error':
-          'Profile updated but image upload failed: @error',
+          'Profilo aggiornato, ma il caricamento dell\'immagine non è riuscito: @error',
 
       // Posts / Comments
       'post_action_like': 'Mi piace',
@@ -1086,56 +1086,6 @@ const Map<String, String> itITTranslations = <String, String>{
           'I tuoi pagamenti sono attualmente limitati. Contatta il supporto.',
       'payout_message_not_connected':
           'Collega il tuo account di pagamento per iniziare a ricevere pagamenti.',
-      'stripe_benefit_fast_payouts': 'Pagamenti rapidi sul tuo conto bancario',
-      'stripe_benefit_no_fees': 'Nessuna commissione di configurazione',
-      'stripe_benefit_support': 'Supporto clienti 24/7',
-      'stripe_benefit_required':
-          'Richiesto per ricevere pagamenti dai proprietari di animali',
-      'stripe_account_connected': 'Account collegato',
-      'stripe_account_created_pending':
-          'Account creato - Onboarding in sospeso',
-      'stripe_account_created': 'Account creato',
-      'stripe_account_connected_message':
-          'Il tuo conto di pagamento è completamente configurato e pronto per ricevere pagamenti.',
-      'stripe_account_created_message':
-          'Il tuo conto di pagamento è stato creato. Completa il processo di onboarding per iniziare a ricevere pagamenti.',
-      'stripe_account_created_partial_message':
-          'Il tuo account di pagamento è stato creato. Alcuni passaggi di verifica sono ancora in sospeso. Puoi completarli nelle impostazioni dell\'account.',
-      'stripe_account_id_label': 'ID account',
-      'stripe_loading_onboarding': 'Caricamento onboarding...',
-      'stripe_account_connected_success':
-          'Conto di pagamento collegato con successo!',
-      'stripe_onboarding_completed': 'Onboarding completato!',
-      'stripe_onboarding_cancelled': 'L\'onboarding è stato annullato.',
-      'stripe_onboarding_load_error':
-          'Impossibile caricare la pagina di onboarding: @error',
-      'stripe_cancel_onboarding_title': 'Annullare onboarding?',
-      'stripe_cancel_onboarding_message':
-          'Sei sicuro di voler annullare l\'onboarding? Puoi completarlo più tardi dalle impostazioni.',
-      'stripe_connect_payment_title': 'Collega il tuo account di pagamento',
-      'stripe_connect_payment_description':
-          'Per iniziare a ricevere pagamenti come Pet Sitter, devi collegare il tuo account di pagamento. Questo è un passaggio richiesto per completare la configurazione del tuo profilo.',
-      'stripe_connect_payment_partial_description':
-          'Il tuo account di pagamento è stato creato. Alcuni passaggi di verifica sono ancora in sospeso. Puoi completarli più tardi nelle impostazioni dell\'account.',
-      'stripe_connect_payment_partial_info':
-          'Il tuo account è collegato, ma alcuni passaggi di verifica sono ancora in sospeso. Puoi completarli nelle impostazioni dell\'account.',
-      'stripe_payment_connected_success': 'Pagamento collegato con successo!',
-      'stripe_connect_now': 'Collega ora',
-      'stripe_already_connected': 'Già collegato',
-      'stripe_already_connected_message':
-          'Il tuo account Stripe è già collegato e attivo.',
-      'stripe_connect_platform_not_enabled':
-          'I pagamenti non sono ancora attivati sulla piattaforma. Riprova più tardi o contatta l\'assistenza.',
-      'stripe_connect_error':
-          'Impossibile collegare il conto di pagamento. Riprova.',
-      'stripe_no_onboarding_url':
-          'Nessuna URL di onboarding disponibile. Crea prima un conto di pagamento.',
-      'stripe_onboarding_expired_title': 'Scaduto',
-      'stripe_onboarding_expired_message':
-          'Il link di onboarding è scaduto. Crea un nuovo link.',
-      'stripe_disconnect_success': 'Conto di pagamento disconnesso con successo!',
-      'stripe_disconnect_error':
-          'Impossibile disconnettere il conto di pagamento. Riprova.',
       'payment_title': 'Pagamento',
       'payment_info_message':
           'Clicca su "Paga" qui sotto per inserire in modo sicuro i tuoi dati di pagamento.',
@@ -1443,8 +1393,8 @@ const Map<String, String> itITTranslations = <String, String>{
       'pawmap_time_hours_short': '@n h',
       'pawmap_time_days_short': '@n g',
       'pawmap_remaining_hours_label': '@hours h rimaste',
-      'pawmap_default_walker': 'Walker',
-      'pawmap_default_sitter': 'Sitter',
+      'pawmap_default_walker': 'Dog sitter',
+      'pawmap_default_sitter': 'Pet sitter',
       'pawmap_default_request': 'Richiesta',
       'pawmap_filter_pois': 'POIs',
       'pawmap_filter_reports_48h': 'Segnalazioni 48h',
@@ -1866,48 +1816,48 @@ const Map<String, String> itITTranslations = <String, String>{
       'auth_role_switched': 'Ruolo cambiato',
       'auth_role_switched_message': 'Passaggio riuscito a @role',
       'auth_welcome_back': 'Bentornato!',
-      'change_password_failed': 'Failed to change password. Please try again.',
-      'change_password_fields_required': 'Please fill in all fields correctly.',
-      'change_password_new_required': 'Please enter a new password.',
-      'change_password_success': 'Password changed successfully!',
-      'change_password_validation_error': 'Validation Error',
+      'change_password_failed': 'Impossibile cambiare la password. Riprova.',
+      'change_password_fields_required': 'Compila correttamente tutti i campi.',
+      'change_password_new_required': 'Inserisci una nuova password.',
+      'change_password_success': 'Password cambiata!',
+      'change_password_validation_error': 'Errore di convalida',
       'email_verification_code_required':
-          'Please enter the complete verification code',
-      'email_verification_success': 'Email verified successfully!',
-      'map_load_error': 'Failed to load map data. Please try again.',
-      'my_pets_load_error': 'Failed to load pets. Please try again.',
+          'Inserisci il codice di verifica completo',
+      'email_verification_success': 'Email verificata!',
+      'map_load_error': 'Impossibile caricare la mappa. Riprova.',
+      'my_pets_load_error': 'Impossibile caricare i tuoi animali. Riprova.',
       'pet_create_validation_error': 'Validation Error',
-      'pet_update_failed': 'Update Failed',
-      'pet_validation_error': 'Validation Error',
-      'profile_blocked_users_load_error': 'Failed to load blocked users',
+      'pet_update_failed': 'Aggiornamento non riuscito',
+      'pet_validation_error': 'Errore di convalida',
+      'profile_blocked_users_load_error': 'Impossibile caricare gli utenti bloccati',
       'profile_edit_coming_soon':
-          'Edit profile functionality will be available soon',
-      'profile_image_pick_failed': 'Failed to pick image. Please try again.',
-      'profile_invalid_file_type': 'Invalid File Type',
+          'La modifica del profilo arriva presto',
+      'profile_image_pick_failed': 'Impossibile scegliere l\'immagine. Riprova.',
+      'profile_invalid_file_type': 'Tipo di file non valido',
       'profile_invalid_file_type_message':
-          'Please select a JPEG, PNG, or WebP image.',
+          'Scegli un\'immagine JPEG, PNG o WebP.',
       'profile_picture_update_success':
           'Foto del profilo aggiornata con successo',
-      'profile_unblock_failed': 'Unblock Failed',
+      'profile_unblock_failed': 'Sblocco non riuscito',
       'profile_unblock_failed_generic':
-          'Something went wrong. Please try again.',
-      'profile_unblock_success': 'User unblocked successfully',
-      'profile_upload_failed': 'Upload Failed',
+          'Qualcosa è andato storto. Riprova.',
+      'profile_unblock_success': 'Utente sbloccato',
+      'profile_upload_failed': 'Caricamento non riuscito',
       'profile_update_failed': 'Aggiornamento del profilo non riuscito',
       'profile_upload_failed_generic':
-          'Something went wrong. Please try again.',
-      'profile_user_not_found': 'User not found',
-      'publish_request_fill_required': 'Please fill in all required fields.',
+          'Qualcosa è andato storto. Riprova.',
+      'profile_user_not_found': 'Utente non trovato',
+      'publish_request_fill_required': 'Compila tutti i campi obbligatori.',
       'publish_request_success':
           'Richiesta di prenotazione pubblicata con successo!',
       'request_duration_required':
-          'Please select a duration for dog walking service.',
-      'request_pet_required': 'Please select at least one pet.',
+          'Scegli una durata per la passeggiata.',
+      'request_pet_required': 'Scegli almeno un animale.',
       'request_send_failed': 'Impossibile inviare la richiesta. Riprova.',
       'request_send_success': 'Richiesta inviata con successo!',
       'request_sitter_pricing_error':
           'Imposta prima la tua tariffa oraria nel profilo.',
-      'request_validation_error': 'Validation Error',
+      'request_validation_error': 'Errore di convalida',
       'review_submit_failed': 'Impossibile inviare la recensione. Riprova.',
       'reviews_title': 'Recensioni',
       'reviews_rate_label': 'Valutazione',
@@ -1929,7 +1879,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'application_card_price_label': 'Compenso per questo servizio',
       'application_card_you_receive': 'Ricevi @amount netti',
       'application_card_owner_pays': 'Il proprietario paga @amount (commissione HoPetSit inclusa)',
-      'share_failed': 'Failed to share. Please try again.',
+      'share_failed': 'Condivisione non riuscita. Riprova.',
       'snackbar_choose_service_controller_001':
           'Please select valid services for your account type.',
       'snackbar_choose_service_controller_002':
@@ -1937,7 +1887,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'snackbar_choose_service_controller_003':
           'Your services have been selected successfully!',
       'snackbar_choose_service_controller_004':
-          'Failed to update services. Please try again.',
+          'Impossibile aggiornare i servizi. Riprova.',
       'snackbar_choose_service_controller_005':
           'Please select at least one service to continue.',
       'snackbar_choose_service_controller_006':
@@ -1950,10 +1900,10 @@ const Map<String, String> itITTranslations = <String, String>{
           'Email per i pagamenti aggiornata con successo!',
       'snackbar_sitter_paypal_payout_controller_003':
           'Impossibile aggiornare l\'email per i pagamenti. Riprova.',
-      'task_add_failed': 'Failed to add task. Please try again.',
-      'task_add_success': 'Task added successfully!',
-      'task_fetch_failed': 'Failed to fetch tasks.',
-      'task_fields_required': 'Please fill in at least one field.',
+      'task_add_failed': 'Impossibile aggiungere l\'attività. Riprova.',
+      'task_add_success': 'Attività aggiunta!',
+      'task_fetch_failed': 'Impossibile caricare le attività.',
+      'task_fields_required': 'Compila almeno un campo.',
 
       'snackbar_text_application_accepted_successfully':
           'Richiesta accettata con successo',
@@ -2464,7 +2414,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'pawfollow_subtitle_monthly': 'Fatturato mensilmente',
       'pawfollow_subtitle_yearly': 'Fatturato 1 volta all\'anno',
       'pawfollow_subtitle_family': 'Tu + 5 invitati • condiviso',
-      'pawfollow_yearly_savings': ' (35% off)',
+      'pawfollow_yearly_savings': '(-35 %)',
       'pawfollow_per_day_suffix': '/giorno',
       'auth_session_expired_title': 'Sessione scaduta',
       'auth_session_expired_msg': 'Per continuare, vai a Profilo > Disconnetti e accedi di nuovo.',
@@ -2689,9 +2639,9 @@ const Map<String, String> itITTranslations = <String, String>{
     // v23.1 part 247 — badge KYC verificato sul profilo sitter/walker.
     'kyc_badge_verified': 'Verificato',
     'kyc_badge_verified_tooltip': 'Identità verificata da Didit (scansione ID + selfie).',
-    'role_pet_walker': 'Dog walker',
+    'role_pet_walker': 'Dog sitter',
     'role_pet_walker_desc': 'Porto a spasso i cani dei proprietari.',
-    'auth_role_pet_walker': 'Dog walker',
+    'auth_role_pet_walker': 'Dog sitter',
     'sign_up_as_pet_walker': 'Iscriviti come dog walker',
     'walker_home_title': 'Home dog walker',
     'walker_home_welcome_title': 'Benvenuto!',
