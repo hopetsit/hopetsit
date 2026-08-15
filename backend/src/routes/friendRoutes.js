@@ -1476,6 +1476,21 @@ router.delete('/:id', requireAuth, async (req, res) => {
       gDel.set.has(String(f.requesterId)) || gDel.set.has(String(f.addresseeId));
     if (!isParty) return res.status(403).json({ error: 'Not your friendship.' });
     await f.deleteOne();
+    // v534 — MARQUEUR FANTÔME. Supprimer un ami n'informait pas son app : ma
+    // dernière position restait affichée sur SA carte jusqu'au redémarrage.
+    // On lui envoie l'événement offline avec l'id référencé dans l'amitié
+    // (celui que son app utilise pour ses marqueurs, cf. v526).
+    try {
+      const { emitToUser } = require('../sockets/emitter');
+      const iAmRequester = gDel.set.has(String(f.requesterId));
+      const otherId = iAmRequester ? f.addresseeId : f.requesterId;
+      const otherRole = (iAmRequester ? f.addresseeModel : f.requesterModel).toLowerCase();
+      const myRefId = iAmRequester ? f.requesterId : f.addresseeId;
+      emitToUser(otherRole, String(otherId), 'map:friend-offline', {
+        userId: String(myRefId),
+        at: new Date().toISOString(),
+      });
+    } catch (_) { /* best-effort */ }
     res.json({ ok: true });
   } catch (e) {
     logger.error('[friends/delete]', e);
@@ -1503,6 +1518,21 @@ router.post('/:id/share', requireAuth, async (req, res) => {
     if (isRequester) f.requesterSharesPosition = !!share;
     if (isAddressee) f.addresseeSharesPosition = !!share;
     await f.save();
+    // v534 — couper le partage retire IMMÉDIATEMENT mon marqueur de la carte
+    // de cet ami (avant : le halo restait affiché jusqu'au redémarrage de
+    // son app — cf. audit GPS, marqueur fantôme).
+    if (!share) {
+      try {
+        const { emitToUser } = require('../sockets/emitter');
+        const otherId = isRequester ? f.addresseeId : f.requesterId;
+        const otherRole = (isRequester ? f.addresseeModel : f.requesterModel).toLowerCase();
+        const myRefId = isRequester ? f.requesterId : f.addresseeId;
+        emitToUser(otherRole, String(otherId), 'map:friend-offline', {
+          userId: String(myRefId),
+          at: new Date().toISOString(),
+        });
+      } catch (_) { /* best-effort */ }
+    }
     res.json({ friendship: await enrichFriendship(f, user.id, undefined, gShare.set) });
   } catch (e) {
     logger.error('[friends/share]', e);
