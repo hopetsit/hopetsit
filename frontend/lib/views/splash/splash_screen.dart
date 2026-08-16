@@ -5,10 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/views/guest/guest_discovery_screen.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/services/deep_link_service.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
-import 'package:hopetsit/views/onboarding/onboarding_screen.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_walker/bottom_wrapper/walker_nav_wrapper.dart';
@@ -159,8 +159,13 @@ class _SplashScreenState extends State<SplashScreen>
     debugPrint('[HOPETSIT] Storage role: $storedRole');
 
     if (token == null || token.isEmpty) {
-      debugPrint('[HOPETSIT] No token found, navigating to Onboarding');
-      Get.offAll(() => const OnboardingScreen());
+      // v535 — SPEC ONBOARDING P1.1 : un utilisateur SANS compte atterrit sur
+      // la DÉCOUVERTE (liste des gardiens/promeneurs en lecture seule), plus
+      // sur le mur login/signup. Le mur ne réapparaît qu'au moment d'AGIR
+      // (contacter, réserver) — cf. SignupWallSheet. C'est LE correctif de
+      // l'entonnoir à ~2 % d'inscriptions.
+      debugPrint('[HOPETSIT] No token found, navigating to GuestDiscovery');
+      Get.offAll(() => const GuestDiscoveryScreen());
       return;
     }
 
@@ -172,7 +177,7 @@ class _SplashScreenState extends State<SplashScreen>
       );
       storage.remove(StorageKeys.authToken);
       storage.remove(StorageKeys.userRole);
-      Get.offAll(() => const OnboardingScreen());
+      Get.offAll(() => const GuestDiscoveryScreen());
       return;
     }
 
@@ -202,7 +207,7 @@ class _SplashScreenState extends State<SplashScreen>
         debugPrint(
           '[HOPETSIT] Unknown JWT role "$jwtRole" → Onboarding',
         );
-        Get.offAll(() => const OnboardingScreen());
+        Get.offAll(() => const GuestDiscoveryScreen());
     }
 
     // v23.1 part 146 — fix écran noir au boot via deep link.

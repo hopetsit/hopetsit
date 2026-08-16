@@ -53,4 +53,17 @@ class FirebaseAnalyticsService {
       debugPrint('FirebaseAnalyticsService.logLogin error: $e');
     }
   }
+
+  /// v535 — SPEC ONBOARDING P3 : événements de l'entonnoir d'inscription.
+  /// L'entonnoir mesuré (GA4) : first_open → guest_browse →
+  /// signup_wall_shown {trigger} → signup_start → sign_up. Objectif
+  /// sign_up / first_open ≥ 25 % (~2 % avant le guest mode). `signup_abandon`
+  /// {step} localise l'étape qui fait fuir.
+  Future<void> logFunnel(String name, {Map<String, Object>? params}) async {
+    try {
+      await _analytics.logEvent(name: name, parameters: params);
+    } catch (e) {
+      debugPrint('FirebaseAnalyticsService.logFunnel($name) error: $e');
+    }
+  }
 }
