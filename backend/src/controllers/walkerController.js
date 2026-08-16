@@ -28,6 +28,8 @@ const listWalkers = async (req, res) => {
     // them from every owner feed. Treat "missing or active" as active so
     // legacy accounts stay visible until they get their first admin action.
     const filter = {
+      // v538 — vitrine : comptes masqués exclus (modération admin).
+      hiddenFromPublic: { $ne: true },
       $or: [
         { status: 'active' },
         { status: { $exists: false } },
@@ -56,6 +58,11 @@ const listWalkers = async (req, res) => {
     const _now = new Date();
     const enriched = walkers.map((w) => {
       const safe = sanitizeUser(w);
+      // v538 — endpoint public : champs sensibles retirés.
+      delete safe.firebaseUid;
+      delete safe.twoFactorEnabled;
+      delete safe.referralCode;
+      delete safe.referredBy;
       const isBoosted = w.boostExpiry && new Date(w.boostExpiry) > _now;
       const isMapBoosted = w.mapBoostExpiry && new Date(w.mapBoostExpiry) > _now;
       return {

@@ -726,6 +726,25 @@ router.get('/walkers', requireAdmin, async (req, res) => {
   }
 });
 
+// v538 — modération vitrine : masquer/afficher un profil des listes
+// publiques (mode invité + app). Utilisé pour les comptes de test/amis.
+const _publicVisibility = (Model) => async (req, res) => {
+  try {
+    const hidden = req.body?.hidden === true;
+    const doc = await Model.findByIdAndUpdate(
+      req.params.id,
+      { $set: { hiddenFromPublic: hidden } },
+      { new: true },
+    ).select('name email hiddenFromPublic');
+    if (!doc) return res.status(404).json({ error: 'Not found.' });
+    res.json({ ok: true, id: doc._id, name: doc.name, hiddenFromPublic: doc.hiddenFromPublic });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+router.patch('/sitters/:id/public-visibility', requireAdmin, _publicVisibility(require('../models/Sitter')));
+router.patch('/walkers/:id/public-visibility', requireAdmin, _publicVisibility(require('../models/Walker')));
+
 router.patch('/walkers/:id/verify', requireAdmin, async (req, res) => {
   try {
     const { verified } = req.body;

@@ -2,7 +2,7 @@
 <resources>
     <!-- v533 — logo HOPE26 : fond BLANC du launcher (cf. pubspec, section
          flutter_launcher_icons). Régénéré par flutter_launcher_icons. -->
-    <color name="ic_launcher_background">#B90E00</color>
+    <color name="ic_launcher_background">#C92A12</color>
     <!-- v23.1 part 25 — couleur du windowBackground en dark mode (Material You / dark style). -->
     <color name="dark_window_bg">#FF121212</color>
 </resources>

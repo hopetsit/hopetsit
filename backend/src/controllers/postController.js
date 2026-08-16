@@ -635,6 +635,43 @@ const getMediaPosts = async (req, res) => {
   }
 };
 
+// v538 — MODE INVITÉ : demandes des propriétaires en lecture publique.
+// Champs volontairement réduits (pas de notes privées, pas d'ids animaux,
+// ville seule côté localisation) — vitrine pour recruter des prestataires.
+const getPublicRequestPosts = async (req, res) => {
+  try {
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 30));
+    const posts = await Post.find({ postType: 'request', status: { $ne: 'closed' } })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate('ownerId', 'name avatar')
+      .lean();
+    res.json({
+      requests: posts.map((p) => ({
+        id: p._id,
+        body: (p.body || '').slice(0, 280),
+        startDate: p.startDate,
+        endDate: p.endDate,
+        serviceTypes: p.serviceTypes || [],
+        animalCount: p.animalCount || 0,
+        animalTypes: p.animalTypes || [],
+        city: (p.location && (p.location.city || p.location.label)) || '',
+        createdAt: p.createdAt,
+        owner: p.ownerId
+          ? {
+              name: p.ownerId.name || '',
+              avatar:
+                (p.ownerId.avatar && p.ownerId.avatar.url) || p.ownerId.avatar || '',
+            }
+          : null,
+      })),
+    });
+  } catch (error) {
+    logger.error('Fetch public request posts error', error);
+    res.status(500).json({ error: 'Unable to fetch requests.' });
+  }
+};
+
 const getRequestPosts = async (req, res) => {
   try {
     const { ownerId } = req.query;
@@ -1886,6 +1923,7 @@ const getPostById = async (req, res) => {
 };
 
 module.exports = {
+  getPublicRequestPosts,
   createPost,
   createPostWithMedia,
   listPosts,

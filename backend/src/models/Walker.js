@@ -96,6 +96,9 @@ const walkerSchema = new mongoose.Schema(
     },
     kycPaymentIntentId: { type: String, default: null },
     kycPaidAt: { type: Date, default: null },
+    // v538 — modération vitrine : true = jamais visible dans les listes
+    // publiques/app (comptes de test, amis). Basculable depuis l'admin.
+    hiddenFromPublic: { type: Boolean, default: false },
     kycApplicantId: { type: String, default: null },
     kycCheckId: { type: String, default: null },
     kycWorkflowRunId: { type: String, default: null },

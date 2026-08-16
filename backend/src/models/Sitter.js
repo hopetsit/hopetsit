@@ -59,6 +59,9 @@ const sitterSchema = new mongoose.Schema(
     },
     kycPaymentIntentId: { type: String, default: null },
     kycPaidAt: { type: Date, default: null },
+    // v538 — modération vitrine : true = jamais visible dans les listes
+    // publiques/app (comptes de test, amis). Basculable depuis l'admin.
+    hiddenFromPublic: { type: Boolean, default: false },
     kycApplicantId: { type: String, default: null }, // Onfido applicant id
     kycCheckId: { type: String, default: null }, // Onfido check id
     kycWorkflowRunId: { type: String, default: null }, // Onfido workflow run id

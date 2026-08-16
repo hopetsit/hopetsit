@@ -15,6 +15,7 @@ const {
   deletePost,
   updatePost,
   addPostMedia,
+  getPublicRequestPosts,
 } = require('../controllers/postController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { attachOwnerFromToken } = require('../middleware/ownerContext');
@@ -252,6 +253,8 @@ router.get('/by-id/:id', requireAuth, getPostById);
 // dog_walking + respects service preferences). Without auth the endpoint
 // returned every post unfiltered, which is why sitters/walkers were either
 // seeing the wrong posts or seeing nothing after the Flutter-side filter.
+// v538 — lecture publique (mode invité) : demandes récentes, champs réduits.
+router.get('/requests/public', getPublicRequestPosts);
 router.get('/requests', requireAuth, getRequestPosts);
 
 // PawMap layer — geo-filtered request posts for sitter/walker discovery.

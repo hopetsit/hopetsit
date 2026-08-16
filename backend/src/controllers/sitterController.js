@@ -392,10 +392,18 @@ const findNearbySitters = async (req, res) => {
 const listSitters = async (req, res) => {
   try {
     // Boosted profiles first, then by rating
-    const sitters = await Sitter.find().sort({ boostExpiry: -1, rating: -1, createdAt: -1 });
+    // v538 — vitrine : comptes masqués exclus partout (modération admin).
+    const sitters = await Sitter.find({ hiddenFromPublic: { $ne: true } })
+      .sort({ boostExpiry: -1, rating: -1, createdAt: -1 });
     const now = new Date();
     res.json({ sitters: sitters.map(s => {
       const sanitized = sanitizeUser(s);
+      // v538 — endpoint PUBLIC (aussi consommé par le mode invité) : on
+      // retire les champs qui n'ont rien à faire dehors.
+      delete sanitized.firebaseUid;
+      delete sanitized.twoFactorEnabled;
+      delete sanitized.referralCode;
+      delete sanitized.referredBy;
       const isBoosted = s.boostExpiry && new Date(s.boostExpiry) > now;
       sanitized.isBoosted = isBoosted || false;
       sanitized.boostTier = isBoosted ? (s.boostTier || null) : null;
