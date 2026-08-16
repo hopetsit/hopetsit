@@ -249,6 +249,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'guest_tagline': 'Cuidadores e passeadores de confiança perto de ti',
       'guest_empty': 'Sem cuidadores para mostrar agora. Puxa para atualizar.',
       'guest_create_account': 'Criar a minha conta',
+      'guest_continue_without': 'Continuar sem conta',
       'guest_contact': 'Contactar',
       'guest_wall_title': 'Cria a tua conta para continuar',
       'guest_wall_title_named': 'Cria a tua conta para contactar @name',

@@ -62,6 +62,9 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
         }
       } catch (_) {/* best-effort */}
     }
+    // v537 — vitrine PRO : on masque les profils fantômes (ni photo ni
+    // ville) qui décrédibilisaient la première impression (Daniel).
+    out.removeWhere((x) => _avatarOf(x).isEmpty && _cityOf(x).isEmpty);
     // Profils avec photo et ville d'abord (vitrine plus crédible).
     out.sort((a, b) {
       int score(Map<String, dynamic> x) {
@@ -169,11 +172,17 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
         ),
       ),
       // ── CTA permanent : créer un compte ────────────────────────────────
+      // v537 — Daniel (Samsung, nav 3 boutons) : le CTA passait SOUS la barre
+      // système. Avec targetSdk 35 l'app est edge-to-edge et le SafeArea du
+      // bottomSheet recevait un padding déjà consommé par le Scaffold →
+      // on utilise viewPadding (valeur brute, jamais consommée).
       bottomSheet: Container(
         color: AppColors.scaffold(context),
-        padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 14.h),
+        padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w,
+            14.h + MediaQuery.viewPaddingOf(context).bottom),
         child: SafeArea(
           top: false,
+          bottom: false,
           child: SizedBox(
             width: double.infinity,
             height: 50.h,

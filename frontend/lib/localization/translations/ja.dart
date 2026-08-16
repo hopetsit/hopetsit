@@ -12,6 +12,7 @@ const Map<String, String> jaJPTranslations = <String, String>{
   'guest_tagline': '近くの信頼できるペットシッターとドッグウォーカー',
   'guest_empty': '表示できるシッターがいません。引っ張って更新してください。',
   'guest_create_account': 'アカウントを作成',
+  'guest_continue_without': 'アカウントなしで続ける',
   'guest_contact': '連絡する',
   'guest_wall_title': '続けるにはアカウントを作成してください',
   'guest_wall_title_named': '@nameさんに連絡するにはアカウントを作成してください',

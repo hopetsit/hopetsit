@@ -7,6 +7,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'guest_tagline': 'Cuidadores y paseadores de confianza cerca de ti',
       'guest_empty': 'No hay cuidadores que mostrar ahora. Desliza para actualizar.',
       'guest_create_account': 'Crear mi cuenta',
+      'guest_continue_without': 'Continuar sin cuenta',
       'guest_contact': 'Contactar',
       'guest_wall_title': 'Crea tu cuenta para continuar',
       'guest_wall_title_named': 'Crea tu cuenta para contactar a @name',

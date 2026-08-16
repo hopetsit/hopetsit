@@ -7,6 +7,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'guest_tagline': 'Vertrauenswürdige Betreuer und Gassigeher in deiner Nähe',
       'guest_empty': 'Gerade keine Betreuer anzuzeigen. Zum Aktualisieren ziehen.',
       'guest_create_account': 'Konto erstellen',
+      'guest_continue_without': 'Ohne Konto fortfahren',
       'guest_contact': 'Kontaktieren',
       'guest_wall_title': 'Erstelle dein Konto, um fortzufahren',
       'guest_wall_title_named': 'Erstelle dein Konto, um @name zu kontaktieren',

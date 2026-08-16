@@ -12,6 +12,7 @@ const Map<String, String> koKRTranslations = <String, String>{
   'guest_tagline': '내 주변의 믿을 수 있는 펫시터와 산책 도우미',
   'guest_empty': '지금은 보여줄 펫시터가 없어요. 당겨서 새로고침하세요.',
   'guest_create_account': '계정 만들기',
+  'guest_continue_without': '계정 없이 계속하기',
   'guest_contact': '연락하기',
   'guest_wall_title': '계속하려면 계정을 만들어 주세요',
   'guest_wall_title_named': '@name님에게 연락하려면 계정을 만들어 주세요',

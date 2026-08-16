@@ -7,6 +7,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'guest_tagline': 'Des gardiens et promeneurs de confiance près de chez toi',
       'guest_empty': 'Aucun gardien à afficher pour l\'instant. Tire pour actualiser.',
       'guest_create_account': 'Créer mon compte',
+      'guest_continue_without': 'Continuer sans compte',
       'guest_contact': 'Contacter',
       'guest_wall_title': 'Crée ton compte pour continuer',
       'guest_wall_title_named': 'Crée ton compte pour contacter @name',

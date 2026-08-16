@@ -8,6 +8,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'guest_tagline': 'Trusted pet sitters and dog walkers near you',
       'guest_empty': 'No sitters to show right now. Pull to refresh.',
       'guest_create_account': 'Create my account',
+      'guest_continue_without': 'Continue without an account',
       'guest_contact': 'Contact',
       'guest_wall_title': 'Create your account to continue',
       'guest_wall_title_named': 'Create your account to contact @name',

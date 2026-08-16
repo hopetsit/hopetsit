@@ -7,6 +7,7 @@ import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/guest/guest_discovery_screen.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
@@ -424,6 +425,21 @@ class LoginScreen extends StatelessWidget {
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.primaryColor,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 12.h),
+                          // v537 — sortie claire vers la découverte invité (Daniel :
+                          // « bloqué », « je ne vois plus le mode invité »).
+                          Center(
+                            child: GestureDetector(
+                              onTap: () => Get.offAll(() => const GuestDiscoveryScreen()),
+                              behavior: HitTestBehavior.opaque,
+                              child: InterText(
+                                text: 'guest_continue_without'.tr,
+                                fontSize: 13.sp,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary(context),
                               ),
                             ),
                           ),

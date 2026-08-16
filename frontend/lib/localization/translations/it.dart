@@ -7,6 +7,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'guest_tagline': 'Pet sitter e dog sitter di fiducia vicino a te',
       'guest_empty': 'Nessun pet sitter da mostrare al momento. Trascina per aggiornare.',
       'guest_create_account': 'Crea il mio account',
+      'guest_continue_without': 'Continua senza account',
       'guest_contact': 'Contatta',
       'guest_wall_title': 'Crea il tuo account per continuare',
       'guest_wall_title_named': 'Crea il tuo account per contattare @name',
