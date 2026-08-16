@@ -12,6 +12,48 @@ export const metadata: Metadata = {
 
 const POSTS = [
   {
+    slug: "promener-son-chien-a-paris",
+    lang: "🇫🇷",
+    title: "Promener son chien à Paris : parcs, bois et bons plans",
+    excerpt:
+      "Bois de Vincennes, berges, parcs autorisés : où promener son chien à Paris — et la carte communautaire qui change tout.",
+  },
+  {
+    slug: "tarif-promeneur-de-chien-paris",
+    lang: "🇫🇷",
+    title: "Combien coûte un promeneur de chien à Paris en 2026 ?",
+    excerpt:
+      "12 à 20 € la balade, forfaits dégressifs : les prix réels à Paris et comment vérifier que la balade a vraiment eu lieu.",
+  },
+  {
+    slug: "faire-garder-son-chat-a-paris",
+    lang: "🇫🇷",
+    title: "Faire garder son chat à Paris : visites à domicile ou pension ?",
+    excerpt:
+      "Votre chat déteste bouger — et il a raison. Visites à domicile, prix et check-list pour partir l'esprit tranquille.",
+  },
+  {
+    slug: "how-to-become-a-dog-walker",
+    lang: "🇺🇸",
+    title: "How to become a dog walker in 2026 (and what you can earn)",
+    excerpt:
+      "No degree, no boss: set your rates, choose your hours, get paid securely. The honest guide to starting in the US.",
+  },
+  {
+    slug: "dog-boarding-vs-pet-sitting",
+    lang: "🇺🇸",
+    title: "Dog boarding vs pet sitting: which is best for your dog?",
+    excerpt:
+      "Prices, stress levels and safety compared — kennel or in-home sitter, decide in five minutes.",
+  },
+  {
+    slug: "leaving-cat-alone-vacation",
+    lang: "🇺🇸",
+    title: "How long can you leave a cat alone? Vacation guide",
+    excerpt:
+      "24-36 hours max — and that's pushing it. What vets recommend and how drop-in visits solve everything.",
+  },
+  {
     slug: "combien-coute-un-pet-sitter",
     lang: "🇫🇷",
     title: "Combien coûte un pet sitter en 2026 ? Tarifs garde chien & chat",

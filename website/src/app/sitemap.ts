@@ -29,6 +29,13 @@ const PUBLIC_PATHS = [
   "/blog/combien-coute-un-pet-sitter",
   "/blog/faire-garder-son-chien-pendant-les-vacances",
   "/blog/how-much-does-a-dog-walker-cost",
+  // v535 — 6 articles SEO Paris + USA.
+  "/blog/promener-son-chien-a-paris",
+  "/blog/tarif-promeneur-de-chien-paris",
+  "/blog/faire-garder-son-chat-a-paris",
+  "/blog/how-to-become-a-dog-walker",
+  "/blog/dog-boarding-vs-pet-sitting",
+  "/blog/leaving-cat-alone-vacation",
   "/petsitter/paris",
   "/devenir-petsitter/paris",
   "/petsitter/madrid",
