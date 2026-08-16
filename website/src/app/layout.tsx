@@ -56,20 +56,20 @@ export const metadata: Metadata = {
   // v532 — logo HOPE26. L'entrée favicon.svg est retirée : le nouveau logo est
   // un rendu raster (dégradés + halo), il n'existe pas en SVG fidèle, et les
   // navigateurs qui préfèrent le SVG afficheraient encore l'ANCIEN logo.
-  // v534 — nouveau logo (pack HD Daniel) + « ?v=536 » sur chaque entrée :
+  // v534 — nouveau logo (pack HD Daniel) + « ?v=537 » sur chaque entrée :
   // les navigateurs mettent le favicon en cache très agressivement, sans ce
   // paramètre beaucoup d'utilisateurs auraient continué à voir l'ANCIEN logo
   // pendant des semaines. Les fichiers favicon.svg / logo.svg (ancien logo)
   // ont aussi été remplacés par le nouveau visuel dans /public.
   icons: {
     icon: [
-      { url: "/favicon.ico?v=536", sizes: "any" },
-      { url: "/icon-32.png?v=536", type: "image/png", sizes: "32x32" },
-      { url: "/icon-192.png?v=536", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png?v=536", type: "image/png", sizes: "512x512" },
+      { url: "/favicon.ico?v=537", sizes: "any" },
+      { url: "/icon-32.png?v=537", type: "image/png", sizes: "32x32" },
+      { url: "/icon-192.png?v=537", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png?v=537", type: "image/png", sizes: "512x512" },
     ],
-    apple: "/apple-touch-icon.png?v=536",
-    shortcut: "/favicon.ico?v=536",
+    apple: "/apple-touch-icon.png?v=537",
+    shortcut: "/favicon.ico?v=537",
   },
 };
 
