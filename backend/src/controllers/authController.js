@@ -636,6 +636,13 @@ const signup = async (req, res) => {
     res.status(201).json({
       role,
       user: sanitizeUser(newUser, { includeEmail: true }),
+      // v535 — SPEC ONBOARDING P2 : le compte est utilisable IMMÉDIATEMENT.
+      // On délivre le jeton dès l'inscription ; la vérification email n'est
+      // plus exigée qu'aux actions d'argent (requireVerifiedEmail). Les
+      // anciennes versions de l'app ignorent ce champ et gardent leur
+      // parcours OTP — aucune rupture de compatibilité.
+      token: signAuthToken({ id: newUser._id.toString(), role }),
+      emailVerified: false,
       message: 'Account created. Please verify your email.',
     });
   } catch (error) {
@@ -724,9 +731,24 @@ const login = async (req, res) => {
       } catch (emailError) {
         logger.error('Failed to send verification email on login', emailError);
       }
-      return res.status(403).json({
-        error: 'Email not verified. Please verify your account.',
+      // v535 — SPEC ONBOARDING P2 : l'OTP email n'est PLUS bloquant au login.
+      // Avant : 403 sec → l'utilisateur restait dehors tant qu'il n'avait pas
+      // retrouvé le code dans ses mails (entonnoir à ~2 %). Désormais on le
+      // laisse entrer (jeton normal) avec `emailVerified: false` ; l'app
+      // affiche une bannière douce, et la vérification n'est exigée qu'aux
+      // actions qui engagent de l'argent (payer une garde, retirer ses
+      // gains — cf. requireVerifiedEmail). Le code vient de lui être renvoyé
+      // par les lignes ci-dessus : il peut valider quand il veut.
+      const unverifiedToken = signAuthToken({
+        id: result.account._id.toString(),
+        role: result.role,
+      });
+      return res.json({
+        token: unverifiedToken,
+        role: result.role,
+        emailVerified: false,
         message: 'A new verification code has been sent to your email.',
+        user: sanitizeUser(result.account, { includeEmail: true }),
       });
     }
 

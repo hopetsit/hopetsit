@@ -6,7 +6,7 @@
  * bookings, il ne les reçoit pas).
  */
 const express = require('express');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requireRole, requireVerifiedEmail } = require('../middleware/auth');
 const {
   getWallet,
   getTransactions,
@@ -20,7 +20,7 @@ router.use(requireAuth, requireRole('sitter', 'walker'));
 
 router.get('/', getWallet);
 router.get('/transactions', getTransactions);
-router.post('/withdraw', requestWithdrawal);
+router.post('/withdraw', requireVerifiedEmail, requestWithdrawal);
 router.post('/pay-shop', payShop);
 
 module.exports = router;

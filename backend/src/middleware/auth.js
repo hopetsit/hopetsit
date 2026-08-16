@@ -95,8 +95,36 @@ const requireRole =
     return next();
   };
 
+// v535 — SPEC ONBOARDING P2 : l'OTP email n'est plus bloquant au login ; en
+// contrepartie, les actions qui ENGAGENT DE L'ARGENT exigent un email
+// vérifié. Posé sur : payer une garde (create-payment-intent) et retirer ses
+// gains (/wallet/withdraw). L'app mappe le code EMAIL_NOT_VERIFIED vers
+// l'écran de saisie du code (le code est renvoyé par /auth/resend-code).
+const requireVerifiedEmail = async (req, res, next) => {
+  try {
+    const role = String(req.user?.role || '').toLowerCase();
+    const Model = role === 'walker'
+      ? require('../models/Walker')
+      : role === 'sitter'
+        ? require('../models/Sitter')
+        : require('../models/Owner');
+    const doc = await Model.findById(req.user.id).select('verified').lean();
+    if (!doc) return res.status(404).json({ error: 'User not found.' });
+    if (doc.verified !== true) {
+      return res.status(403).json({
+        error: 'Please verify your email to continue.',
+        code: 'EMAIL_NOT_VERIFIED',
+      });
+    }
+    return next();
+  } catch (e) {
+    return res.status(500).json({ error: 'Verification check failed.' });
+  }
+};
+
 module.exports = {
   requireAuth,
   requireRole,
+  requireVerifiedEmail,
 };
 

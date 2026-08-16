@@ -21,7 +21,7 @@ const {
   getPaymentStatus,
   completeBooking,
 } = require('../controllers/bookingController');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requireRole, requireVerifiedEmail } = require('../middleware/auth');
 const { attachOwnerFromToken, attachUserFromToken } = require('../middleware/ownerContext');
 
 const router = express.Router();
@@ -629,7 +629,7 @@ router.put('/:id/agree', requireAuth, attachUserFromToken, agreeToBooking);
  *       404:
  *         description: Booking not found
  */
-router.post('/:id/create-payment-intent', requireAuth, requireRole('owner'), createBookingPaymentIntent);
+router.post('/:id/create-payment-intent', requireAuth, requireRole('owner'), requireVerifiedEmail, createBookingPaymentIntent);
 router.post('/:id/cancel-payment-intent', requireAuth, requireRole('owner'), cancelBookingPaymentIntent);
 
 /**
