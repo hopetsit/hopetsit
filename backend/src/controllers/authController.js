@@ -1746,6 +1746,17 @@ const adminLogin = async (req, res) => {
 
     debug.steps.push('find-admin');
     const lowered = String(email).toLowerCase().trim();
+    // v535 — demande de Daniel : le tableau de bord admin n'est accessible
+    // QU'AVEC hopetsit@gmail.com. Liste blanche appliquée AVANT toute
+    // recherche en base : même si un autre document Admin existait (seed
+    // historique, insertion manuelle), il ne peut plus se connecter.
+    // Surchargeable par ADMIN_ALLOWED_EMAIL sur Render si l'adresse change.
+    const allowedAdmin = String(process.env.ADMIN_ALLOWED_EMAIL || 'hopetsit@gmail.com')
+      .toLowerCase().trim();
+    if (lowered !== allowedAdmin) {
+      logger.warn('[adminLogin] email hors liste blanche', { email: lowered });
+      return res.status(401).json({ error: 'Invalid admin credentials.' });
+    }
     const admin = await Admin.findOne({ email: lowered });
     if (!admin) {
       logger.warn('[adminLogin] admin_not_found', { email: lowered });

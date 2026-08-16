@@ -464,12 +464,18 @@ const getSitterProfile = async (req, res) => {
     const sitterProfile = {
       id: sitter._id.toString(),
       name: sitter.name || '',
-      email: sitter.email || '',
-      mobile: sitter.mobile || '',
-      countryCode: sitter.countryCode || '',
+      // v535 — FUITE : cette fiche est PUBLIQUE (route sans requireAuth) et
+      // renvoyait l'email, le téléphone (avec indicatif) et l'adresse postale
+      // du gardien à n'importe qui. Outre le RGPD, c'est aussi ce qui permet
+      // de contourner la plateforme (contact direct sans commission). On ne
+      // sort plus que des champs publics ; la ville reste disponible via
+      // `location.city` plus bas.
+      email: '',
+      mobile: '',
+      countryCode: '',
       language: sitter.language || '',
       currency: sitter.currency || DEFAULT_CURRENCY,
-      address: sitter.address || '',
+      address: '',
       rate: sitter.rate || '',
       hourlyRate: sitter.hourlyRate || 0,
       dailyRate: sitter.dailyRate || 0,

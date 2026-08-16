@@ -85,6 +85,38 @@ const sanitizeUser = (userDoc, { includeCard = false, includeEmail = false, incl
     delete sanitized.email;
   }
 
+  // v535 — FUITE DE DONNÉES (découverte en préparant le guest mode) : la
+  // liste PUBLIQUE des sitters renvoyait ~87 champs par profil, dont le
+  // NUMÉRO DE TÉLÉPHONE, les champs IBAN, l'email PayPal, les jetons de
+  // notification FCM, le solde du portefeuille et les identifiants KYC —
+  // accessibles à n'importe qui, sans compte. `sanitizeUser` ne retirait que
+  // mot de passe / email / carte.
+  // Règle : ces champs ne sortent QUE dans les contextes « mon propre profil
+  // ou admin », qui sont exactement ceux qui passent déjà `includeEmail:
+  // true`. Partout ailleurs (listes, profils publics, cartes), on les retire.
+  // NB : `kycStatus` est volontairement ABSENT de cette liste — le badge
+  // public `identityVerified` en est dérivé quelques lignes plus bas ; il est
+  // retiré juste après cette dérivation.
+  if (!includeEmail) {
+    for (const k of [
+      'mobile', 'phone', 'phoneNumber', 'countryCode',
+      'address', 'postalCode', 'dateOfBirth', 'dob',
+      'ibanNumber', 'ibanBic', 'ibanHolder', 'ibanVerified', 'payoutMethod',
+      'paypalEmail', 'paypalConnectedAt',
+      'airwallexBeneficiaryId', 'airwallexCustomerId',
+      'fcmTokens', 'fcmToken',
+      'walletBalance', 'walletCurrency',
+      'kycApplicantId', 'kycCheckId', 'kycPaymentIntentId',
+      'kycWorkflowRunId', 'kycRejectionReason', 'kycPaidAt', 'kycVerifiedAt',
+      'boostPurchases',
+      'acceptedTerms', 'termsAcceptedAt', 'termsVersion',
+      'banReason', 'bannedAt', 'oldId', 'authProvider', 'appLocale',
+      'blockedUsers', 'notificationPreferences',
+    ]) {
+      delete sanitized[k];
+    }
+  }
+
   // Sprint 5 step 7 — redact identity-verification document URL everywhere
   // except for the sitter themselves or the admin; expose a boolean flag only.
   //
@@ -107,6 +139,12 @@ const sanitizeUser = (userDoc, { includeCard = false, includeEmail = false, incl
     if (!includeIdentityDoc) {
       delete sanitized.identityVerification.documentUrl;
     }
+  }
+  // v535 — le badge dérivé suffit au public ; le statut KYC brut (et l'objet
+  // identityVerification complet) restent réservés au profil propre / admin.
+  if (!includeEmail) {
+    delete sanitized.kycStatus;
+    delete sanitized.identityVerification;
   }
   
   // Only include card if explicitly requested (for card endpoints)
