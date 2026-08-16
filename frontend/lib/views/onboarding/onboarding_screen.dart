@@ -42,7 +42,7 @@ class OnboardingScreen extends StatelessWidget {
                     Color(0xFF161210),
                   ]
                 : const [
-                    Color(0xFFF0562B),
+                    Color(0xFFC92A12),
                     Color(0xFFED4F25),
                     Color(0xFFF87A52),
                   ],
@@ -219,7 +219,7 @@ class OnboardingScreen extends StatelessWidget {
                                       end: Alignment.bottomRight,
                                       colors: [
                                         Color(0xFFFA8A3F),
-                                        Color(0xFFF0562B),
+                                        Color(0xFFC92A12),
                                       ],
                                     )
                                   : null,

@@ -41,7 +41,7 @@ Propriétaire : **Daniel** (français, non-technique, itération rapide).
    `Expanded` sous `IntrinsicHeight`.
 
 ## Marque / couleurs
-Orange `#EF4324` (ou `#F0562B`), ink `#17141f`, vert promeneur `#16A34A`/`#15a35a`,
+Orange foncé `#C92A12` (rebrand 16/08 — ex EF4324/F0562B), ink `#17141f`, vert promeneur `#16A34A`/`#15a35a`,
 bleu gardien `#2563EB`, violet PawFollow `#7C3AED`, ambre PawSpot `#E8920A`,
 PawPremium noir/or `#1c1726`→`#15120D` + or `#F4C04A`, badge membre rose
 `#F06AA0`→`#E0568B`. Web : font-display = Nunito.

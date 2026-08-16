@@ -24,7 +24,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        owner:  { DEFAULT: "#EF4324", light: "#FEE7E1", dark: "#C03318" },
+        owner:  { DEFAULT: "#C92A12", light: "#FBE9E5", dark: "#9E1F0B" },
         sitter: { DEFAULT: "#1A73E8", light: "#E3EFFE", dark: "#0E5BC0" },
         walker: { DEFAULT: "#16A34A", light: "#DEF7E5", dark: "#0F7C37" },
         ink:    { DEFAULT: "#111827", muted: "#6B7280", soft: "#9CA3AF" },

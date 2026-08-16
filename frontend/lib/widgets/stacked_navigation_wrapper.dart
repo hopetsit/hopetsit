@@ -259,7 +259,7 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     return Obx(() {
       final n = Get.find<NotificationsController>().unreadChat.value;
       if (n <= 0) return const SizedBox.shrink();
-      return _pill(n > 9 ? '9+' : n.toString(), const Color(0xFFEF4324));
+      return _pill(n > 9 ? '9+' : n.toString(), const Color(0xFFC92A12));
     });
   }
 

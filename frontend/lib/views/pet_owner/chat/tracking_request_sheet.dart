@@ -45,7 +45,7 @@ class TrackingRequestSheet extends StatelessWidget {
   /// Callback declenche au tap "Suivre mon animal".
   final Future<void> Function() onConfirm;
 
-  static const _orange = Color(0xFFEF4324);
+  static const _orange = Color(0xFFC92A12);
   static const _orangeBg = Color(0xFFFFF1ED);
 
   @override

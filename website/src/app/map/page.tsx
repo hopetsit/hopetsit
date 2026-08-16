@@ -65,7 +65,7 @@ import { getSocket } from "@/lib/socket";
 import type { FriendLivePosition } from "@/components/FriendsLiveMap";
 
 const ROLE_CHIP_COLOR: Record<string, string> = {
-  owner: "#EF4324",
+  owner: "#C92A12",
   sitter: "#2563EB",
   walker: "#16A34A",
 };
@@ -316,7 +316,7 @@ export default function MapPage() {
     }
     setMyRoleColor(
       me.role === "owner"
-        ? "#EF4324"
+        ? "#C92A12"
         : me.role === "walker"
           ? "#16A34A"
           : "#2563EB",
@@ -1195,7 +1195,7 @@ export default function MapPage() {
               { enableHighAccuracy: true, timeout: 10000 },
             );
           }}
-          className="absolute right-3 top-3 z-[1000] grid h-11 w-11 place-items-center rounded-full bg-white text-[#EF4324] shadow-lg ring-1 ring-ink/10 transition hover:scale-105"
+          className="absolute right-3 top-3 z-[1000] grid h-11 w-11 place-items-center rounded-full bg-white text-[#C92A12] shadow-lg ring-1 ring-ink/10 transition hover:scale-105"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
@@ -1214,13 +1214,13 @@ export default function MapPage() {
             <div
               className="h-5 w-5 rounded-full border-[2.5px] border-white shadow-lg"
               style={{
-                backgroundColor: createKind === "spot" ? "#EC4899" : "#EF4324",
+                backgroundColor: createKind === "spot" ? "#EC4899" : "#C92A12",
               }}
             />
             <div
               className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full"
               style={{
-                border: `2px solid ${createKind === "spot" ? "#EC4899" : "#EF4324"}`,
+                border: `2px solid ${createKind === "spot" ? "#EC4899" : "#C92A12"}`,
                 opacity: 0.5,
               }}
             />

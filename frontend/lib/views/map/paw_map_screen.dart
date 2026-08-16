@@ -760,7 +760,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   Future<BitmapDescriptor> _buildEmojiBitmap(
     String emoji, {
     Color? bgColor,
-    Color ringColor = const Color(0xFFEF4324),
+    Color ringColor = const Color(0xFFC92A12),
     double ringWidth = 2.0,
   }) async {
     // v23.1.193 — Daniel : "emoji du chat en enorme sur la carte". On
@@ -3629,7 +3629,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                       open
                           ? Icons.keyboard_arrow_up_rounded
                           : Icons.keyboard_arrow_down_rounded,
-                      color: const Color(0xFFEF4324),
+                      color: const Color(0xFFC92A12),
                       size: 15.sp,
                     ),
                   ),
@@ -3655,7 +3655,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     leading: Icon(Icons.block_rounded,
                         size: 12.sp,
                         color: !poisOn
-                            ? const Color(0xFFEF4324)
+                            ? const Color(0xFFC92A12)
                             : AppColors.greyText),
                     label: 'pawmap_filter_none'.tr,
                   ),
@@ -3678,7 +3678,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                               padding: EdgeInsets.symmetric(
                                   horizontal: 4.w, vertical: 1.h),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFEF4324),
+                                color: const Color(0xFFC92A12),
                                 borderRadius: BorderRadius.circular(8.r),
                               ),
                               child: InterText(
@@ -3723,7 +3723,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     Widget? leading,
     Widget? trailing,
   }) {
-    const accent = Color(0xFFEF4324);
+    const accent = Color(0xFFC92A12);
     return InkWell(
       borderRadius: BorderRadius.circular(11.r),
       onTap: onTap,
@@ -3831,12 +3831,12 @@ class _PawMapScreenState extends State<PawMapScreen>
                         height: 20.w,
                         decoration: BoxDecoration(
                           color: checked
-                              ? const Color(0xFFEF4324)
+                              ? const Color(0xFFC92A12)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(6.r),
                           border: Border.all(
                             color: checked
-                                ? const Color(0xFFEF4324)
+                                ? const Color(0xFFC92A12)
                                 : AppColors.greyText.withValues(alpha: 0.5),
                             width: 1.6,
                           ),
@@ -3882,7 +3882,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 child: ElevatedButton(
                   onPressed: () => _showCatFilter.value = false,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFEF4324),
+                    backgroundColor: const Color(0xFFC92A12),
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: EdgeInsets.symmetric(vertical: 8.h),
@@ -4971,7 +4971,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           Polyline(
             polylineId: const PolylineId('pawspot_route'),
             points: route.points,
-            color: const Color(0xFFEF4324),
+            color: const Color(0xFFC92A12),
             width: 5,
           ),
         };
@@ -5042,7 +5042,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         color: Colors.white,
         borderRadius: BorderRadius.circular(24.r),
         border: Border.all(
-          color: const Color(0xFFEF4324).withValues(alpha: 0.35),
+          color: const Color(0xFFC92A12).withValues(alpha: 0.35),
           width: 1.2,
         ),
         boxShadow: [
@@ -5057,7 +5057,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.directions_walk_rounded,
-              size: 16.sp, color: const Color(0xFFEF4324)),
+              size: 16.sp, color: const Color(0xFFC92A12)),
           SizedBox(width: 6.w),
           InterText(
             text: distanceLabel,
@@ -5071,14 +5071,14 @@ class _PawMapScreenState extends State<PawMapScreen>
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
               decoration: BoxDecoration(
-                color: const Color(0xFFEF4324).withValues(alpha: 0.12),
+                color: const Color(0xFFC92A12).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14.r),
               ),
               child: InterText(
                 text: 'directions_clear'.tr,
                 fontSize: 11.sp,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFFEF4324),
+                color: const Color(0xFFC92A12),
               ),
             ),
           ),

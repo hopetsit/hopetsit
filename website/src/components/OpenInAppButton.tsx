@@ -72,7 +72,7 @@ export function OpenInAppButton({
         type="button"
         onClick={handleClick}
         disabled={loading}
-        className="inline-flex items-center gap-2 rounded-xl bg-[#EF4324] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#d93a1f] disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-xl bg-[#C92A12] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#d93a1f] disabled:cursor-not-allowed disabled:opacity-60"
         aria-label={label}
       >
         {loading ? (

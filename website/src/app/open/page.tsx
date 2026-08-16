@@ -57,14 +57,14 @@ export default function OpenAppPage() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center px-4 py-24 text-center">
-      <div className="h-12 w-12 animate-spin rounded-full border-4 border-ink/10 border-t-[#EF4324]" />
+      <div className="h-12 w-12 animate-spin rounded-full border-4 border-ink/10 border-t-[#C92A12]" />
       <h1 className="mt-8 font-display text-2xl font-extrabold tracking-tight">
         {t("open_app_title")}
       </h1>
       <p className="mt-3 text-ink-muted">{t("open_app_sub")}</p>
       <a
         href="/download"
-        className="mt-8 inline-block rounded-full bg-[#EF4324] px-8 py-3 font-bold text-white shadow-lg shadow-[#EF4324]/30 transition hover:brightness-105"
+        className="mt-8 inline-block rounded-full bg-[#C92A12] px-8 py-3 font-bold text-white shadow-lg shadow-[#C92A12]/30 transition hover:brightness-105"
       >
         {t("open_app_download")}
       </a>

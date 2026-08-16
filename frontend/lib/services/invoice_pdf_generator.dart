@@ -32,7 +32,7 @@ class InvoicePdfGenerator {
       fontFallback: [fontEmoji, fontReg],
     );
 
-    final orange = PdfColor.fromInt(0xFFEF4324);
+    final orange = PdfColor.fromInt(0xFFC92A12);
     final dark = PdfColor.fromInt(0xFF1F1F1F);
     final muted = PdfColor.fromInt(0xFF777777);
     final isRefunded = inv.status.toLowerCase() == 'refunded';
@@ -217,7 +217,7 @@ class InvoicePdfGenerator {
       width: 56,
       height: 56,
       decoration: pw.BoxDecoration(
-        color: PdfColor.fromInt(0xFFEF4324),
+        color: PdfColor.fromInt(0xFFC92A12),
         borderRadius: pw.BorderRadius.circular(12),
       ),
       child: pw.Center(

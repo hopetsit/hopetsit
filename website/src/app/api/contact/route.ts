@@ -66,7 +66,7 @@ export async function POST(req: Request) {
   const subject = `New contact form message from ${name}`;
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width:560px; margin:0 auto; padding:24px;">
-      <h2 style="color:#EF4324; margin:0 0 16px 0;">New message from hopetsit.com</h2>
+      <h2 style="color:#C92A12; margin:0 0 16px 0;">New message from hopetsit.com</h2>
       <table style="border-collapse:collapse; width:100%; font-size:14px; color:#1F2937;">
         <tr><td style="padding:8px 0; font-weight:600; width:90px;">From:</td><td>${escapeHtml(name)}</td></tr>
         <tr><td style="padding:8px 0; font-weight:600;">Email:</td><td><a href="mailto:${escapeHtml(email)}" style="color:#1A73E8;">${escapeHtml(email)}</a></td></tr>

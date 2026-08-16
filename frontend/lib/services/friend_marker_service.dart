@@ -267,7 +267,7 @@ class FriendMarkerService extends GetxService {
       case 'sitter':
         return const Color(0xFF2563EB); // bleu
       case 'owner':
-        return const Color(0xFFEF4324); // orange brand
+        return const Color(0xFFC92A12); // orange brand
       default:
         return _silver;
     }

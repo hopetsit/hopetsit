@@ -1574,11 +1574,11 @@ class _FamilyInviteOptionCard extends StatelessWidget {
                 width: 40.w,
                 height: 40.w,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4324).withValues(alpha: 0.12),
+                  color: const Color(0xFFC92A12).withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon,
-                    color: const Color(0xFFEF4324), size: 22.sp),
+                    color: const Color(0xFFC92A12), size: 22.sp),
               ),
               SizedBox(width: 10.w),
               Expanded(
@@ -1589,7 +1589,7 @@ class _FamilyInviteOptionCard extends StatelessWidget {
                       text: title,
                       fontSize: 13.sp,
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFFEF4324),
+                      color: const Color(0xFFC92A12),
                       maxLines: 1,
                     ),
                     SizedBox(height: 2.h),
@@ -2729,7 +2729,7 @@ class _MessagesTabState extends State<_MessagesTab> {
                         ),
                       ),
                       child: Icon(Icons.chat_bubble_outline_rounded,
-                          color: const Color(0xFFEF4324), size: 56.sp),
+                          color: const Color(0xFFC92A12), size: 56.sp),
                     ),
                     SizedBox(height: 16.h),
                     InterText(
@@ -2756,7 +2756,7 @@ class _MessagesTabState extends State<_MessagesTab> {
                         color: AppColors.card(context),
                         borderRadius: BorderRadius.circular(14.r),
                         border: Border.all(
-                          color: const Color(0xFFEF4324)
+                          color: const Color(0xFFC92A12)
                               .withValues(alpha: 0.30),
                           width: 1.2,
                         ),
@@ -2764,7 +2764,7 @@ class _MessagesTabState extends State<_MessagesTab> {
                       child: Row(
                         children: [
                           Icon(Icons.touch_app_rounded,
-                              color: const Color(0xFFEF4324), size: 20.sp),
+                              color: const Color(0xFFC92A12), size: 20.sp),
                           SizedBox(width: 10.w),
                           Expanded(
                             child: InterText(
@@ -3008,7 +3008,7 @@ class _PendingRequestsBanner extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(14.r),
           border: Border.all(
-            color: const Color(0xFFEF4324).withValues(alpha: 0.30),
+            color: const Color(0xFFC92A12).withValues(alpha: 0.30),
             width: 1.2,
           ),
         ),
@@ -3018,13 +3018,13 @@ class _PendingRequestsBanner extends StatelessWidget {
             Row(
               children: [
                 Icon(Icons.mark_email_unread_rounded,
-                    color: const Color(0xFFEF4324), size: 18.sp),
+                    color: const Color(0xFFC92A12), size: 18.sp),
                 SizedBox(width: 6.w),
                 InterText(
                   text: 'friends_pending_banner_title'.tr,
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFFEF4324),
+                  color: const Color(0xFFC92A12),
                 ),
               ],
             ),
@@ -3147,7 +3147,7 @@ class _PendingRequestsBanner extends StatelessWidget {
           SizedBox(width: 6.w),
           _smallBtn(
             icon: Icons.check_rounded,
-            color: const Color(0xFFEF4324),
+            color: const Color(0xFFC92A12),
             onTap: () async {
               final ok = await controller.accept(f.id);
               if (ok) {
@@ -3207,7 +3207,7 @@ class _PendingRequestsBanner extends StatelessWidget {
           SizedBox(width: 6.w),
           _smallBtn(
             icon: Icons.check_rounded,
-            color: const Color(0xFFEF4324),
+            color: const Color(0xFFC92A12),
             onTap: () async {
               final ok = await controller.acceptFamilyInvitation(id);
               if (ok) {

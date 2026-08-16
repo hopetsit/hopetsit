@@ -22,7 +22,7 @@ class AppSwitch extends StatelessWidget {
     super.key,
     required this.value,
     required this.onChanged,
-    this.accent = const Color(0xFFEF4324),
+    this.accent = const Color(0xFFC92A12),
   });
 
   @override

@@ -129,7 +129,7 @@ class ProfileScreen extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFF8753F), Color(0xFFF0562B), Color(0xFFDD431C)],
+          colors: [Color(0xFFF8753F), Color(0xFFC92A12), Color(0xFFDD431C)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

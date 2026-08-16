@@ -868,7 +868,7 @@ class _EmptyState extends StatelessWidget {
                   _ActionPill(
                     icon: Icons.search_rounded,
                     label: 'alerts_action_see_nearby'.tr,
-                    color: const Color(0xFFEF4324),
+                    color: const Color(0xFFC92A12),
                     onTap: onSeeNearby,
                   ),
                   _ActionPill(
@@ -899,7 +899,7 @@ class _EmptyState extends StatelessWidget {
               padding: EdgeInsets.all(14.w),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFDC2626), Color(0xFFEF4324)],
+                  colors: [Color(0xFFDC2626), Color(0xFFC92A12)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -965,7 +965,7 @@ class _EmptyState extends StatelessWidget {
               Expanded(
                 child: _InfoCard(
                   icon: Icons.location_on_rounded,
-                  iconColor: const Color(0xFFEF4324),
+                  iconColor: const Color(0xFFC92A12),
                   title: 'alerts_info_nearby_title'.tr,
                   subtitle: 'alerts_info_nearby_msg'.tr,
                 ),
@@ -1005,7 +1005,7 @@ class _SignalLostBanner extends StatelessWidget {
           padding: EdgeInsets.all(12.w),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFFDC2626), Color(0xFFEF4324)],
+              colors: [Color(0xFFDC2626), Color(0xFFC92A12)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -1191,7 +1191,7 @@ class _GpsRequiredState extends StatelessWidget {
           width: double.infinity,
           child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4324),
+              backgroundColor: const Color(0xFFC92A12),
               foregroundColor: Colors.white,
               padding: EdgeInsets.symmetric(vertical: 14.h),
               shape: RoundedRectangleBorder(

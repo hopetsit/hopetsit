@@ -723,7 +723,7 @@ export default function ChatPage() {
                       ? "#16A34A"
                       : role === "sitter"
                         ? "#2563EB"
-                        : "#EF4324";
+                        : "#C92A12";
                   return (
                     <button
                       key={f.id}

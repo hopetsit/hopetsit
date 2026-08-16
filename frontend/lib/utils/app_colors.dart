@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 
 class AppColors {
-  static const Color primaryColor = Color(0xFFEF4324);
+  static const Color primaryColor = Color(0xFFC92A12);
   static const Color blackColor = Color(0xFF000000);
   static const Color whiteColor = Color(0xFFFFFFFF);
   static const Color white38Color = Color(0x3EFFFFFF);
@@ -121,7 +121,7 @@ class AppColors {
 
   // Gradient
   static const LinearGradient linearGradient = LinearGradient(
-    colors: [Color(0xFFEF4324), Color(0xFFFF6B4A)],
+    colors: [Color(0xFFC92A12), Color(0xFFFF6B4A)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

@@ -32,7 +32,7 @@ function makeProviderIcon(role: "walker" | "sitter" | "owner"): L.DivIcon {
   const colors: Record<string, [string, string, string]> = {
     walker: ["#16A34A", "#22C55E", "🚶"], // vert
     sitter: ["#2563EB", "#3B82F6", "🏠"], // bleu
-    owner: ["#EF4324", "#FF6B4A", "🐾"], // orange brand
+    owner: ["#C92A12", "#FF6B4A", "🐾"], // orange brand
   };
   const [c1, c2, emoji] = colors[role] || colors.walker;
   return new L.DivIcon({
@@ -52,7 +52,7 @@ function makeProviderIcon(role: "walker" | "sitter" | "owner"): L.DivIcon {
 function haloColor(role: "walker" | "sitter" | "owner"): string {
   if (role === "walker") return "#16A34A";
   if (role === "sitter") return "#2563EB";
-  return "#EF4324";
+  return "#C92A12";
 }
 
 type Position = { lat: number; lng: number; at?: string };

@@ -70,7 +70,7 @@ class PawfollowRequestCard extends StatelessWidget {
   // v23.1 part 206 — callback "Voir sur la carte" (cf. note plus haut)
   final VoidCallback? onOpenMap;
 
-  static const _orangeBrand = Color(0xFFEF4324);
+  static const _orangeBrand = Color(0xFFC92A12);
 
   @override
   Widget build(BuildContext context) {

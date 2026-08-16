@@ -12,7 +12,7 @@
 //      mêmes icônes que FriendsLiveMap — helpers importés de là) ;
 //   2. les PawSpots communautaires (patte 🐾 colorée par type, dorée si
 //      isGolden) avec popup likes/qualité/photo + bouton Itinéraire ;
-//   3. une polyline d'itinéraire orange (#EF4324) renvoyée par le backend.
+//   3. une polyline d'itinéraire orange (#C92A12) renvoyée par le backend.
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -311,7 +311,7 @@ function makeReportIcon(type: MapReportType): L.DivIcon {
   const emoji = REPORT_EMOJI[type] || "🔔";
   return L.divIcon({
     className: "",
-    html: `<div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:50%;border:2px solid #EF4324;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:15px;">${emoji}</div>`,
+    html: `<div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:50%;border:2px solid #C92A12;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:15px;">${emoji}</div>`,
     iconSize: [30, 30],
     iconAnchor: [15, 15],
   });
@@ -402,7 +402,7 @@ export default function PoiMap({
   /** v23.1.364 — cible de zoom (clic marqueur ami / chip nom·rôle). */
   focusTarget?: { lat: number; lng: number; ts: number } | null;
   onFriendFocus?: (p: FriendLivePosition) => void;
-  /** v23.1 carte unique — polyline itinéraire (orange #EF4324). */
+  /** v23.1 carte unique — polyline itinéraire (orange #C92A12). */
   routePoints?: { lat: number; lng: number }[] | null;
   /** Bouton "Itinéraire" des popups (spots + POI). */
   onDirections?: (target: { lat: number; lng: number }) => void;
@@ -550,7 +550,7 @@ export default function PoiMap({
                       type="button"
                       onClick={() => onDirections({ lat, lng })}
                       className="mt-2 rounded-full px-3 py-1 text-xs font-bold text-white"
-                      style={{ backgroundColor: "#EF4324" }}
+                      style={{ backgroundColor: "#C92A12" }}
                     >
                       🧭 {directionsLabel}
                     </button>
@@ -609,7 +609,7 @@ export default function PoiMap({
                       onDirections({ lat: spot.lat, lng: spot.lng })
                     }
                     className="mt-2 rounded-full px-3 py-1 text-xs font-bold text-white"
-                    style={{ backgroundColor: "#EF4324" }}
+                    style={{ backgroundColor: "#C92A12" }}
                   >
                     🧭 {directionsLabel}
                   </button>
@@ -700,7 +700,7 @@ export default function PoiMap({
             positions={routePoints.map(
               (p) => [p.lat, p.lng] as [number, number],
             )}
-            pathOptions={{ color: "#EF4324", weight: 5, opacity: 0.9 }}
+            pathOptions={{ color: "#C92A12", weight: 5, opacity: 0.9 }}
           />
         )}
       </MapContainer>

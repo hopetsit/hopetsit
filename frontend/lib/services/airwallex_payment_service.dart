@@ -227,7 +227,7 @@ class _AirwallexCheckoutScreenState extends State<_AirwallexCheckoutScreen> {
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
-          backgroundColor: const Color(0xFFEF4324),
+          backgroundColor: const Color(0xFFC92A12),
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: true,
@@ -296,14 +296,14 @@ class _BrandedLoader extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: const Color(0xFFEF4324).withValues(alpha: 0.1),
+                color: const Color(0xFFC92A12).withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
               child: const Icon(
                 Icons.lock_rounded,
                 size: 36,
-                color: Color(0xFFEF4324),
+                color: Color(0xFFC92A12),
               ),
             ),
             const SizedBox(height: 24),
@@ -311,7 +311,7 @@ class _BrandedLoader extends StatelessWidget {
               width: 32,
               height: 32,
               child: CircularProgressIndicator(
-                color: Color(0xFFEF4324),
+                color: Color(0xFFC92A12),
                 strokeWidth: 3,
               ),
             ),
@@ -330,7 +330,7 @@ class _BrandedLoader extends StatelessWidget {
               style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 22,
-                color: Color(0xFFEF4324),
+                color: Color(0xFFC92A12),
               ),
             ),
             const SizedBox(height: 16),

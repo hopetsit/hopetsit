@@ -33,7 +33,7 @@ class OwnerBookingsScreen extends StatefulWidget {
 }
 
 class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
-  static const Color _ownerAccent = Color(0xFFEF4324);
+  static const Color _ownerAccent = Color(0xFFC92A12);
 
   late BookingsController _bookingsController;
   String _selectedStatus = 'all';

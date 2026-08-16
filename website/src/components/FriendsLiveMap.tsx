@@ -57,7 +57,7 @@ export function haloColor(role: Role): string {
   // family = owner orange par defaut (l'anneau violet signale la famille
   // de toute facon). En pratique role="family" arrive seulement comme
   // fallback historique — la vraie info famille passe par familyIds.
-  return "#EF4324";
+  return "#C92A12";
 }
 
 export const FAMILY_VIOLET = "#8B5CF6";

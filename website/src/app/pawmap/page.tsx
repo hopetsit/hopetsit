@@ -73,11 +73,11 @@ export default function PawMapPage() {
             >
               <path d="M-20 120 L420 90" stroke="#16A34A" strokeOpacity="0.10" strokeWidth="14" />
               <path d="M-20 250 L420 290" stroke="#2563EB" strokeOpacity="0.08" strokeWidth="18" />
-              <path d="M120 -20 L90 420" stroke="#EF4324" strokeOpacity="0.07" strokeWidth="12" />
+              <path d="M120 -20 L90 420" stroke="#C92A12" strokeOpacity="0.07" strokeWidth="12" />
               <path d="M300 -20 L330 420" stroke="#16A34A" strokeOpacity="0.08" strokeWidth="10" />
               <path
                 d="M90 280 C 150 230, 190 250, 248 208 S 330 150, 312 148"
-                stroke="#EF4324"
+                stroke="#C92A12"
                 strokeOpacity="0.55"
                 strokeWidth="3.5"
                 strokeDasharray="2 9"

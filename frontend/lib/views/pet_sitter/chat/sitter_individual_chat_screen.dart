@@ -404,15 +404,15 @@ class _SitterIndividualChatScreenState
                 width: 36.w,
                 height: 36.w,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4324).withValues(alpha: 0.12),
+                  color: const Color(0xFFC92A12).withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: const Color(0xFFEF4324).withValues(alpha: 0.40),
+                    color: const Color(0xFFC92A12).withValues(alpha: 0.40),
                     width: 1.2,
                   ),
                 ),
                 child: Icon(Icons.home_rounded,
-                    size: 18.sp, color: const Color(0xFFEF4324)),
+                    size: 18.sp, color: const Color(0xFFC92A12)),
               ),
             ),
           ),

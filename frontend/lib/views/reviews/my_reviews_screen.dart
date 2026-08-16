@@ -22,7 +22,7 @@ class MyReviewsScreen extends StatelessWidget {
     required this.reviews,
     this.rating = 0.0,
     this.reviewsCount = 0,
-    this.accent = const Color(0xFFEF4324),
+    this.accent = const Color(0xFFC92A12),
   });
 
   String _asStr(dynamic v) => v == null ? '' : v.toString();

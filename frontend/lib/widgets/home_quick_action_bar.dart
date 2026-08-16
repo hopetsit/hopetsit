@@ -388,7 +388,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
             : 'role_sitter'.tr;
         return _QuickAction(
           kind: _Kind.serviceAction,
-          color: const Color(0xFFEF4324), // orange owner
+          color: const Color(0xFFC92A12), // orange owner
           icon: Icons.task_alt_rounded,
           title: 'band_owner_confirm_title'.tr,
           subtitle:
@@ -856,7 +856,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         return const Color(0xFF2563EB);
       case 'owner':
       default:
-        return const Color(0xFFEF4324);
+        return const Color(0xFFC92A12);
     }
   }
 
@@ -2830,7 +2830,7 @@ class _NeutralBar extends StatelessWidget {
         return const Color(0xFF2563EB);
       case 'owner':
       default:
-        return const Color(0xFFEF4324);
+        return const Color(0xFFC92A12);
     }
   }
 

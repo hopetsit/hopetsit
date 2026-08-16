@@ -28,7 +28,7 @@ class PhoneShareCard extends StatelessWidget {
   final String phone;
   final bool isFromCurrentUser;
 
-  static const _orangeBrand = Color(0xFFEF4324);
+  static const _orangeBrand = Color(0xFFC92A12);
   static const _callGreen = Color(0xFF16A34A);
 
   Future<void> _call() async {

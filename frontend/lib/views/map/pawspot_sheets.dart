@@ -23,7 +23,7 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 const Color _kGold = Color(0xFFE8A00A);
 const Color _kGoldPaw = Color(0xFFFFD700);
-const Color _kOrange = Color(0xFFEF4324);
+const Color _kOrange = Color(0xFFC92A12);
 const Color _kViolet = Color(0xFF7C3AED);
 
 /// Ouvre la sheet de création d'un PawSpot. La position du spot est figée au

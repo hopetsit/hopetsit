@@ -34,7 +34,7 @@ class AddressShareCard extends StatelessWidget {
   final double? lng;
   final bool isFromCurrentUser;
 
-  static const _orangeBrand = Color(0xFFEF4324);
+  static const _orangeBrand = Color(0xFFC92A12);
 
   Future<void> _openInMaps() async {
     // Prefer GPS coords (most accurate) ; fallback on address+city string.

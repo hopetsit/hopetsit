@@ -289,7 +289,7 @@ class _NotificationCardState extends State<NotificationCard> {
                 color: Colors.white,
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEF4324),
+                backgroundColor: const Color(0xFFC92A12),
                 padding: EdgeInsets.symmetric(vertical: 8.h),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10.r),
