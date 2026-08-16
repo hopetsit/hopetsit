@@ -1,6 +1,10 @@
 import 'dart:developer';
 
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/views/auth/otp_verification_screen.dart';
+import 'package:hopetsit/controllers/otp_verification_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
@@ -225,6 +229,29 @@ class AirwallexPaymentController extends GetxController {
       // localized message. Otherwise (UNKNOWN or missing code) prefer the
       // backend's `details` field — much more diagnostic than the generic
       // "Une erreur inattendue est survenue".
+      // v535 — SPEC ONBOARDING P2 : l'OTP est différé à l'inscription, la
+      // vérification n'est exigée qu'ICI (payer engage de l'argent). Le
+      // backend répond EMAIL_NOT_VERIFIED → on ouvre directement l'écran de
+      // saisie du code (déjà re-envoyé par email) au lieu d'un message d'erreur.
+      if (code == 'EMAIL_NOT_VERIFIED') {
+        isProcessing.value = false;
+        // L'email vit dans le profil persisté (userProfile) — pas de clé dédiée.
+        String storedEmail = '';
+        try {
+          final p = GetStorage().read(StorageKeys.userProfile);
+          if (p is Map) storedEmail = (p['email'] ?? '').toString();
+        } catch (_) {/* champ facultatif pour l'écran OTP */}
+        Get.to(() => OtpVerificationScreen(
+              email: storedEmail,
+              verificationType: VerificationType.signup,
+              userType: 'pet_owner',
+            ));
+        CustomSnackbar.showWarning(
+          title: 'common_info'.tr,
+          message: 'Please verify your email to continue.'.tr,
+        );
+        return;
+      }
       if (code != null && code != 'UNKNOWN') {
         errorMessage = AirwallexErrorTranslator.translate(code);
         if (AirwallexErrorTranslator.isUserActionable(code)) {

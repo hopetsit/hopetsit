@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/services/firebase_analytics_service.dart';
+import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
+import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart';
+import 'package:hopetsit/views/pet_walker/bottom_wrapper/walker_nav_wrapper.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/localization/app_translations.dart';
@@ -897,13 +901,44 @@ class SignUpController extends GetxController {
           auth.passwordController.text = passwordController.text;
         }
       } catch (_) {/* non-fatal : l'OTP retombera sur le login manuel */}
-      Get.off(
-        () => OtpVerificationScreen(
-          email: email,
-          verificationType: VerificationType.signup,
-          userType: userType,
-        ),
-      );
+      // v535 — SPEC ONBOARDING P2 : le compte est utilisable IMMÉDIATEMENT.
+      // Le backend délivre le jeton dès l'inscription et le login accepte les
+      // comptes non vérifiés : on entre donc DIRECTEMENT dans l'app (le code
+      // OTP reste envoyé par email ; il ne sera exigé qu'au moment de payer
+      // une garde ou de retirer ses gains — EMAIL_NOT_VERIFIED). Si
+      // l'auto-login échoue (réseau…), on retombe sur l'écran OTP historique.
+      var entered = false;
+      try {
+        if (Get.isRegistered<AuthController>()) {
+          final auth = Get.find<AuthController>();
+          final ok = await auth.login(
+            preferredRole: _apiRole,
+            skipFormValidation: true,
+          );
+          if (ok) {
+            FirebaseAnalyticsService.instance
+                .logFunnel('signup_direct_entry', params: {'role': _apiRole});
+            final role = auth.userRole.value;
+            if (role == 'sitter') {
+              Get.offAll(() => const SitterNavWrapper());
+            } else if (role == 'walker') {
+              Get.offAll(() => const WalkerNavWrapper());
+            } else {
+              Get.offAll(() => const BottomNavWrapper());
+            }
+            entered = true;
+          }
+        }
+      } catch (_) {/* repli OTP ci-dessous */}
+      if (!entered) {
+        Get.off(
+          () => OtpVerificationScreen(
+            email: email,
+            verificationType: VerificationType.signup,
+            userType: userType,
+          ),
+        );
+      }
     } on ApiException catch (error) {
       CustomSnackbar.showError(
         title: 'signup_failed_title'.tr,
