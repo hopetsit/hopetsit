@@ -95,7 +95,9 @@ class SignupWallSheet extends StatelessWidget {
                   // invité. Un visiteur qui veut contacter un gardien est un
                   // propriétaire : rôle owner par défaut, modifiable ensuite
                   // dans le profil (« Tu veux proposer tes services ? »).
-                  Get.to(() => SignupWizardScreen(userType: 'owner'));
+                  // v539 — FIX Daniel : 'owner' n'existait pas ('pet_owner' attendu)
+                  // → le wizard tombait dans la branche PROMENEUR.
+                  Get.to(() => SignupWizardScreen(userType: 'pet_owner'));
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryColor,

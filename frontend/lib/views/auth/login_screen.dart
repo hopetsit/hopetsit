@@ -7,7 +7,7 @@ import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/views/guest/guest_discovery_screen.dart';
+import 'package:hopetsit/views/guest/guest_landing_screen.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
@@ -433,7 +433,7 @@ class LoginScreen extends StatelessWidget {
                           // « bloqué », « je ne vois plus le mode invité »).
                           Center(
                             child: GestureDetector(
-                              onTap: () => Get.offAll(() => const GuestDiscoveryScreen()),
+                              onTap: () => Get.offAll(() => const GuestLandingScreen()),
                               behavior: HitTestBehavior.opaque,
                               child: InterText(
                                 text: 'guest_continue_without'.tr,

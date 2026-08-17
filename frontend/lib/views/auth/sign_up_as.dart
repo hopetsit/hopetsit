@@ -5,7 +5,7 @@ import 'package:hopetsit/views/auth/login_screen.dart';
 import 'package:hopetsit/views/auth/signup_wizard_screen.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
-import 'package:hopetsit/views/guest/guest_discovery_screen.dart';
+import 'package:hopetsit/views/guest/guest_landing_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 /// Sign-up role selector.
@@ -45,7 +45,7 @@ class SignUpAsScreen extends StatelessWidget {
                       // v537 — Daniel : « je suis bloqué sur cette page ».
                       // Pile vide → on revient à la DÉCOUVERTE invité (avant :
                       // LoginScreen, qui repartait ici = ping-pong sans sortie).
-                      Get.offAll(() => const GuestDiscoveryScreen());
+                      Get.offAll(() => const GuestLandingScreen());
                     }
                   },
                 ),
@@ -153,7 +153,7 @@ class SignUpAsScreen extends StatelessWidget {
                 // sortie claire vers la découverte sans compte.
                 Center(
                   child: GestureDetector(
-                    onTap: () => Get.offAll(() => const GuestDiscoveryScreen()),
+                    onTap: () => Get.offAll(() => const GuestLandingScreen()),
                     behavior: HitTestBehavior.opaque,
                     child: InterText(
                       text: 'guest_continue_without'.tr,

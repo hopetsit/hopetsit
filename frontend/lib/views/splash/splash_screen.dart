@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:hopetsit/views/guest/guest_discovery_screen.dart';
+import 'package:hopetsit/views/guest/guest_landing_screen.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/services/deep_link_service.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -164,8 +164,8 @@ class _SplashScreenState extends State<SplashScreen>
       // sur le mur login/signup. Le mur ne réapparaît qu'au moment d'AGIR
       // (contacter, réserver) — cf. SignupWallSheet. C'est LE correctif de
       // l'entonnoir à ~2 % d'inscriptions.
-      debugPrint('[HOPETSIT] No token found, navigating to GuestDiscovery');
-      Get.offAll(() => const GuestDiscoveryScreen());
+      debugPrint('[HOPETSIT] No token found, navigating to GuestLanding');
+      Get.offAll(() => const GuestLandingScreen());
       return;
     }
 
@@ -177,7 +177,7 @@ class _SplashScreenState extends State<SplashScreen>
       );
       storage.remove(StorageKeys.authToken);
       storage.remove(StorageKeys.userRole);
-      Get.offAll(() => const GuestDiscoveryScreen());
+      Get.offAll(() => const GuestLandingScreen());
       return;
     }
 
@@ -207,7 +207,7 @@ class _SplashScreenState extends State<SplashScreen>
         debugPrint(
           '[HOPETSIT] Unknown JWT role "$jwtRole" → Onboarding',
         );
-        Get.offAll(() => const GuestDiscoveryScreen());
+        Get.offAll(() => const GuestLandingScreen());
     }
 
     // v23.1 part 146 — fix écran noir au boot via deep link.

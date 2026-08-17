@@ -2,7 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/services/firebase_analytics_service.dart';
@@ -26,11 +25,6 @@ class GuestDiscoveryScreen extends StatefulWidget {
 class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
   bool _loading = true;
   List<Map<String, dynamic>> _providers = const [];
-  // Onglets : 0 = carte, 1 = liste, 2 = demandes.
-  int _tab = 0;
-  bool _loadingRequests = false;
-  bool _requestsLoaded = false;
-  List<Map<String, dynamic>> _requests = const [];
 
   @override
   void initState() {
@@ -87,33 +81,17 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
     }
   }
 
-  Future<void> _loadRequests() async {
-    if (_requestsLoaded || _loadingRequests) return;
-    setState(() => _loadingRequests = true);
-    final api = Get.isRegistered<ApiClient>()
-        ? Get.find<ApiClient>()
-        : Get.put(ApiClient(), permanent: true);
-    var out = const <Map<String, dynamic>>[];
-    try {
-      final r = await api.get('/posts/requests/public');
-      final list = (r is Map ? r['requests'] : null) as List<dynamic>?;
-      if (list != null) {
-        out = [
-          for (final raw in list)
-            if (raw is Map) Map<String, dynamic>.from(raw),
-        ];
-      }
-    } catch (_) {/* best-effort */}
-    if (mounted) {
-      setState(() {
-        _requests = out;
-        _requestsLoaded = true;
-        _loadingRequests = false;
-      });
-    }
-  }
+
 
   // ── Helpers données ──────────────────────────────────────────────────────
+  /// v539 — FIX « écran gris » : certains champs (tarifs, notes) arrivent en
+  /// String depuis d'anciennes fiches → un cast `as num?` levait une
+  /// exception de build en release (= zone grise). Conversion tolérante.
+  static num? _num(dynamic v) {
+    if (v is num) return v;
+    if (v is String) return num.tryParse(v);
+    return null;
+  }
   static String _avatarOf(Map<String, dynamic> m) {
     final a = m['avatar'];
     if (a is Map) return (a['url'] ?? '').toString();
@@ -130,16 +108,9 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
       m['identityVerified'] == true || m['kycStatus'] == 'verified';
 
   static double _ratingOf(Map<String, dynamic> m) =>
-      (m['averageRating'] as num?)?.toDouble() ?? 0;
+      _num(m['averageRating'])?.toDouble() ?? 0;
 
-  static LatLng? _latLngOf(Map<String, dynamic> m) {
-    final loc = m['location'];
-    if (loc is! Map) return null;
-    final lat = (loc['lat'] as num?)?.toDouble();
-    final lng = (loc['lng'] as num?)?.toDouble();
-    if (lat == null || lng == null || (lat == 0 && lng == 0)) return null;
-    return LatLng(lat, lng);
-  }
+
 
   /// Plus petit tarif renseigné (> 0), pour « À partir de X € ».
   static num? _priceOf(Map<String, dynamic> m) {
@@ -147,13 +118,13 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
     final sp = m['servicePricing'];
     if (sp is Map) {
       for (final v in sp.values) {
-        if (v is Map) candidates.add(v['basePrice'] as num?);
+        if (v is Map) candidates.add(_num(v['basePrice']));
       }
     }
     candidates
-      ..add(m['hourlyRate'] as num?)
-      ..add(m['dailyRate'] as num?)
-      ..add(m['rate'] as num?);
+      ..add(_num(m['hourlyRate']))
+      ..add(_num(m['dailyRate']))
+      ..add(_num(m['rate']));
     final valid = candidates.whereType<num>().where((p) => p > 0).toList();
     if (valid.isEmpty) return null;
     valid.sort();
@@ -207,34 +178,14 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
               ),
             ),
             SizedBox(height: 10.h),
-            // ── v538 : onglets Carte / Liste / Demandes ────────────────
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.w),
-              child: Container(
-                padding: EdgeInsets.all(4.w),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14.r),
-                ),
-                child: Row(
-                  children: [
-                    _segBtn(0, Icons.map_outlined, 'guest_tab_map'.tr),
-                    _segBtn(1, Icons.view_list_outlined, 'guest_tab_list'.tr),
-                    _segBtn(2, Icons.campaign_outlined, 'guest_tab_requests'.tr),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: 8.h),
-            // ── Contenu de l'onglet ────────────────────────────────────
+            SizedBox(height: 4.h),
+            // ── Liste des prestataires (v539 : liste seule — la carte
+            // révélait la position exacte des sitters, retirée à la demande
+            // de Daniel ; l'onglet Demandes attendra d'avoir des annonces).
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
-                  : _tab == 0
-                      ? _mapView()
-                      : _tab == 1
-                          ? _listView()
-                          : _requestsView(),
+                  : _listView(),
             ),
           ],
         ),
@@ -275,135 +226,11 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
     );
   }
 
-  Widget _segBtn(int index, IconData icon, String label) {
-    final selected = _tab == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() => _tab = index);
-          if (index == 2) _loadRequests();
-        },
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: 8.h),
-          decoration: BoxDecoration(
-            color: selected
-                ? Theme.of(context).cardColor
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(11.r),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon,
-                  size: 16.sp,
-                  color: selected
-                      ? AppColors.primaryColor
-                      : Colors.grey),
-              SizedBox(width: 5.w),
-              InterText(
-                text: label,
-                fontSize: 12.sp,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected
-                    ? AppColors.textPrimary(context)
-                    : Colors.grey,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
-  // ── Onglet CARTE ─────────────────────────────────────────────────────────
-  Widget _mapView() {
-    final markers = <Marker>{};
-    LatLng? first;
-    for (var i = 0; i < _providers.length; i++) {
-      final m = _providers[i];
-      final pos = _latLngOf(m);
-      if (pos == null) continue;
-      first ??= pos;
-      markers.add(Marker(
-        markerId: MarkerId('p$i'),
-        position: pos,
-        onTap: () => _showProviderSheet(m),
-      ));
-    }
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 90.h),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18.r),
-        child: GoogleMap(
-          initialCameraPosition: CameraPosition(
-            // Centre : 1er prestataire localisé, sinon vue Europe.
-            target: first ?? const LatLng(46.6, 2.3),
-            zoom: first != null ? 5.2 : 3.6,
-          ),
-          markers: markers,
-          myLocationButtonEnabled: false,
-          zoomControlsEnabled: false,
-          mapToolbarEnabled: false,
-          compassEnabled: false,
-        ),
-      ),
-    );
-  }
 
-  void _showProviderSheet(Map<String, dynamic> m) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        margin: EdgeInsets.all(12.w),
-        padding: EdgeInsets.all(16.w),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(20.r),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _card(m, inSheet: true),
-            SizedBox(height: 8.h),
-            SizedBox(
-              width: double.infinity,
-              height: 46.h,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  SignupWallSheet.show(trigger: 'map_contact');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14.r),
-                  ),
-                ),
-                child: PoppinsText(
-                  text: 'guest_contact'.tr,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            SizedBox(height: MediaQuery.viewPaddingOf(context).bottom),
-          ],
-        ),
-      ),
-    );
-  }
+
+
+
 
   // ── Onglet LISTE ─────────────────────────────────────────────────────────
   Widget _listView() {
@@ -436,7 +263,7 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
     final avatar = _avatarOf(m);
     final isWalker = m['_role'] == 'walker';
     final rating = _ratingOf(m);
-    final reviews = (m['reviewsCount'] as num?)?.toInt() ?? 0;
+    final reviews = _num(m['reviewsCount'])?.toInt() ?? 0;
     final verified = _isVerified(m);
     final price = _priceOf(m);
     final currency = (m['currency'] ?? 'EUR').toString() == 'EUR' ? '€' : (m['currency'] ?? '€').toString();
@@ -604,167 +431,7 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
         child: Icon(Icons.pets, color: color, size: 26.sp),
       );
 
-  // ── Onglet DEMANDES ──────────────────────────────────────────────────────
-  Widget _requestsView() {
-    if (_loadingRequests) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_requests.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.w),
-          child: InterText(
-            text: 'guest_no_requests'.tr,
-            fontSize: 14.sp,
-            color: Colors.grey,
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
-    }
-    return ListView.builder(
-      padding: EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 90.h),
-      itemCount: _requests.length,
-      itemBuilder: (_, i) => _requestCard(_requests[i]),
-    );
-  }
 
-  Widget _requestCard(Map<String, dynamic> r) {
-    final owner = r['owner'] is Map ? r['owner'] as Map : const {};
-    final ownerName = (owner['name'] ?? '').toString();
-    final ownerAvatar = (owner['avatar'] ?? '').toString();
-    final body = (r['body'] ?? '').toString();
-    final city = (r['city'] ?? '').toString();
-    final types = (r['animalTypes'] as List?)?.cast<dynamic>() ?? const [];
-    String dates = '';
-    final sd = DateTime.tryParse((r['startDate'] ?? '').toString());
-    final ed = DateTime.tryParse((r['endDate'] ?? '').toString());
-    String fmt(DateTime d) =>
-        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
-    if (sd != null && ed != null) {
-      dates = '${fmt(sd)} → ${fmt(ed)}';
-    } else if (sd != null) {
-      dates = fmt(sd);
-    }
-    return Container(
-      margin: EdgeInsets.only(bottom: 10.h),
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10.r),
-                child: ownerAvatar.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: ownerAvatar,
-                        width: 36.w,
-                        height: 36.w,
-                        fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) =>
-                            _fallbackAvatar(AppColors.primaryColor),
-                      )
-                    : Container(
-                        width: 36.w,
-                        height: 36.w,
-                        color:
-                            AppColors.primaryColor.withValues(alpha: 0.12),
-                        child: Icon(Icons.person,
-                            color: AppColors.primaryColor, size: 20.sp),
-                      ),
-              ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    PoppinsText(
-                      text: ownerName.isEmpty ? 'HoPetSit' : ownerName,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w700,
-                      maxLines: 1,
-                    ),
-                    Row(
-                      children: [
-                        if (city.isNotEmpty) ...[
-                          Icon(Icons.place_outlined,
-                              size: 11.sp, color: Colors.grey),
-                          InterText(
-                            text: '$city  ',
-                            fontSize: 10.5.sp,
-                            color: Colors.grey,
-                          ),
-                        ],
-                        if (dates.isNotEmpty)
-                          InterText(
-                            text: '📅 $dates',
-                            fontSize: 10.5.sp,
-                            color: Colors.grey,
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () =>
-                    SignupWallSheet.show(trigger: 'request'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 12.w, vertical: 8.h),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                ),
-                child: InterText(
-                  text: 'guest_respond'.tr,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          if (body.isNotEmpty) ...[
-            SizedBox(height: 8.h),
-            InterText(
-              text: body,
-              fontSize: 12.sp,
-              color: AppColors.textSecondary(context),
-              maxLines: 3,
-            ),
-          ],
-          if (types.isNotEmpty) ...[
-            SizedBox(height: 8.h),
-            Wrap(
-              spacing: 6.w,
-              children: [
-                for (final t in types.take(4))
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 8.w, vertical: 3.h),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    child: InterText(
-                      text: t.toString(),
-                      fontSize: 10.sp,
-                      color: AppColors.textSecondary(context),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+
+
 }
