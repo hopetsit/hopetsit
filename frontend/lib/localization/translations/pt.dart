@@ -2438,7 +2438,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'currency_label': 'Moeda',
     'signup_photo_add': 'Adicionar foto',
     'signup_photo_change': 'Mudar foto',
-    'walker_currency_info': 'As tarifas estão em EUR por defeito. Contacta o suporte para mudar de moeda.',
+    'walker_currency_info': 'Escolha sua moeda abaixo: ela se aplica a todas as suas tarifas de passeio.',
     'pet_vaccinations': 'Vacinas',
     'pet_regular_vet': 'Veterinário habitual',
     'pet_emergency_vet': 'Veterinário de urgência',

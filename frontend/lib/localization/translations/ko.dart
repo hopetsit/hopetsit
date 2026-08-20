@@ -2684,7 +2684,7 @@ const Map<String, String> koKRTranslations = <String, String>{
   'currency_label': '통화',
   'signup_photo_add': '사진 추가',
   'signup_photo_change': '사진 변경',
-  'walker_currency_info': '요금은 기본적으로 EUR로 표시돼요. 통화를 바꾸려면 고객지원에 문의해 주세요.',
+  'walker_currency_info': '아래에서 통화를 선택하세요. 모든 산책 요금에 적용됩니다.',
   'pet_vaccinations': '예방접종',
   'pet_regular_vet': '주치 동물병원',
   'pet_emergency_vet': '응급 동물병원',

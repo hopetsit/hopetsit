@@ -3065,7 +3065,7 @@ const Map<String, String> enUSTranslations = <String, String>{
     'currency_label': 'Currency',
     'signup_photo_add': 'Add a photo',
     'signup_photo_change': 'Change photo',
-    'walker_currency_info': 'Rates are in EUR by default. Contact support to change currency.',
+    'walker_currency_info': 'Choose your currency below: it applies to all your walk rates.',
     'pet_vaccinations': 'Vaccinations',
     'pet_regular_vet': 'Regular vet',
     'pet_emergency_vet': 'Emergency vet',

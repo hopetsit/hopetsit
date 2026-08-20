@@ -3033,7 +3033,7 @@ const Map<String, String> frFRTranslations = <String, String>{
     'currency_label': 'Devise',
     'signup_photo_add': 'Ajouter une photo',
     'signup_photo_change': 'Changer la photo',
-    'walker_currency_info': 'Les tarifs sont en EUR par défaut. Pour changer de devise, contacte le support.',
+    'walker_currency_info': 'Choisis ta devise ci-dessous : elle s\'applique à tous tes tarifs de promenade.',
     'pet_vaccinations': 'Vaccinations',
     'pet_regular_vet': 'Vétérinaire habituel',
     'pet_emergency_vet': 'Vétérinaire d\'urgence',

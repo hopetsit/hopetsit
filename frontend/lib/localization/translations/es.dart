@@ -2601,7 +2601,7 @@ const Map<String, String> esESTranslations = <String, String>{
     'currency_label': 'Moneda',
     'signup_photo_add': 'Añadir foto',
     'signup_photo_change': 'Cambiar foto',
-    'walker_currency_info': 'Las tarifas están en EUR por defecto. Contacta al soporte para cambiar de moneda.',
+    'walker_currency_info': 'Elige tu moneda abajo: se aplica a todas tus tarifas de paseo.',
     'pet_vaccinations': 'Vacunas',
     'pet_regular_vet': 'Veterinario habitual',
     'pet_emergency_vet': 'Veterinario de urgencia',

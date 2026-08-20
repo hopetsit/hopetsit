@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:hopetsit/controllers/edit_sitter_profile_controller.dart'
@@ -220,6 +221,11 @@ class EditWalkerProfileController extends GetxController {
         if (r.durationMinutes == 60 && r.enabled) sixtyMin = r;
         if (r.durationMinutes == 90 && r.enabled) ninetyMin = r;
         if (r.durationMinutes == 120 && r.enabled) oneTwentyMin = r;
+      }
+      final loadedCur = (thirtyMin ?? sixtyMin ?? ninetyMin ?? oneTwentyMin)
+          ?.currency;
+      if (loadedCur != null && loadedCur.isNotEmpty) {
+        selectedCurrency.value = loadedCur.toUpperCase();
       }
       halfHourRateController.text =
           thirtyMin != null ? thirtyMin.basePrice.toStringAsFixed(2) : '';
@@ -551,6 +557,19 @@ class EditWalkerProfileController extends GetxController {
   /// which renders ONLY the 2 rate fields (no Form ancestor), so calling
   /// the full validateAndUpdateProfile would crash on formKey.currentState
   /// being null.
+  // v540 — Daniel : « le won et le yen ne sont pas dans Mes tarifs » : le
+  // walker n'avait AUCUN sélecteur de devise (EUR forcé). Ajouté ici et
+  // branché sur le dropdown de MyRatesScreen.
+  final RxString selectedCurrency = 'EUR'.obs;
+
+  void updateCurrency(String? value) {
+    if (value == null || value.isEmpty) return;
+    final upper = value.toUpperCase();
+    if (CurrencyHelper.supportedCurrencies.contains(upper)) {
+      selectedCurrency.value = upper;
+    }
+  }
+
   Future<void> updateRatesOnly() async {
     isLoading.value = true;
     try {
@@ -584,8 +603,11 @@ class EditWalkerProfileController extends GetxController {
       // v20.0.10 — reuse whatever currency exists on the existing rates
       // (or EUR). The walker edit profile screen is where currency picker
       // lives; My Rates screen is for the 2 amounts only.
-      final existingCurrency =
-          existing.isNotEmpty ? existing.first.currency : 'EUR';
+      // v540 — la devise CHOISIE dans Mes tarifs prime ; repli sur celle des
+      // rates existants, sinon EUR.
+      final existingCurrency = selectedCurrency.value.isNotEmpty
+          ? selectedCurrency.value
+          : (existing.isNotEmpty ? existing.first.currency : 'EUR');
 
       // v23.1.153 — helper pour eviter la duplication. Si l'utilisateur vide
       // un champ existant (parsed == null/0), on retire le rate de la map.
@@ -594,7 +616,7 @@ class EditWalkerProfileController extends GetxController {
           byDuration[duration] = WalkRate(
             durationMinutes: duration,
             basePrice: parsed,
-            currency: byDuration[duration]?.currency ?? existingCurrency,
+            currency: existingCurrency,
             enabled: true,
           );
         } else {

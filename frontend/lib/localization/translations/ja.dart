@@ -2684,7 +2684,7 @@ const Map<String, String> jaJPTranslations = <String, String>{
   'currency_label': '通貨',
   'signup_photo_add': '写真を追加',
   'signup_photo_change': '写真を変更',
-  'walker_currency_info': '料金は既定で EUR 表示です。通貨の変更はサポートまでご連絡ください。',
+  'walker_currency_info': '下で通貨を選択してください。すべての散歩料金に適用されます。',
   'pet_vaccinations': 'ワクチン接種',
   'pet_regular_vet': 'かかりつけ動物病院',
   'pet_emergency_vet': '救急動物病院',

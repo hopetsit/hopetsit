@@ -2555,7 +2555,7 @@ const Map<String, String> itITTranslations = <String, String>{
     'currency_label': 'Valuta',
     'signup_photo_add': 'Aggiungi foto',
     'signup_photo_change': 'Cambia foto',
-    'walker_currency_info': 'Le tariffe sono in EUR per default. Contatta il supporto per cambiare valuta.',
+    'walker_currency_info': 'Scegli la tua valuta qui sotto: si applica a tutte le tue tariffe di passeggiata.',
     'pet_vaccinations': 'Vaccinazioni',
     'pet_regular_vet': 'Veterinario abituale',
     'pet_emergency_vet': 'Veterinario d\'urgenza',

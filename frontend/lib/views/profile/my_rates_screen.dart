@@ -10,6 +10,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/edit_sitter_profile_controller.dart';
 import 'package:hopetsit/controllers/edit_walker_profile_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart' show CustomButton;
@@ -102,6 +103,45 @@ class _WalkerRates extends StatelessWidget {
                     ],
                   ),
                 ),
+                // v540 — sélecteur de devise pour le PROMENEUR aussi (won,
+                // yen, etc.) — avant : EUR forcé, aucun choix possible.
+                InterText(
+                  text: 'currency_label'.tr,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary(context),
+                ),
+                SizedBox(height: 6.h),
+                Obx(() {
+                  final current = controller.selectedCurrency.value;
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.inputFill(context),
+                      borderRadius: BorderRadius.circular(12.r),
+                      border: Border.all(color: accent.withValues(alpha: 0.25)),
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 14.w),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: CurrencyHelper.supportedCurrencies
+                                .contains(current)
+                            ? current
+                            : 'EUR',
+                        items: CurrencyHelper.supportedCurrencies
+                            .map((c) => DropdownMenuItem(
+                                value: c,
+                                child: Text(CurrencyHelper.label(c))))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) controller.updateCurrency(v);
+                        },
+                      ),
+                    ),
+                  );
+                }),
+                SizedBox(height: 12.h),
+
                 SizedBox(height: 16.h),
                 // v23.1.153 — Daniel : "Faltarían las tarifas para 90 y 120
                 // minutos". Walker rate form etend de 2 a 4 durees (30/60/90/120).
@@ -234,15 +274,17 @@ class _SitterRates extends StatelessWidget {
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         isExpanded: true,
-                        value: ['EUR', 'USD', 'GBP', 'CHF'].contains(current)
+                        // v540 — liste CENTRALE (won ₩ et yen ¥ inclus) au
+                        // lieu des 4 devises codées en dur.
+                        value: CurrencyHelper.supportedCurrencies
+                                .contains(current)
                             ? current
                             : 'EUR',
-                        items: const [
-                          DropdownMenuItem(value: 'EUR', child: Text('EUR (€)')),
-                          DropdownMenuItem(value: 'USD', child: Text('USD (\$)')),
-                          DropdownMenuItem(value: 'GBP', child: Text('GBP (£)')),
-                          DropdownMenuItem(value: 'CHF', child: Text('CHF')),
-                        ],
+                        items: CurrencyHelper.supportedCurrencies
+                            .map((c) => DropdownMenuItem(
+                                value: c,
+                                child: Text(CurrencyHelper.label(c))))
+                            .toList(),
                         onChanged: (v) {
                           if (v != null) controller.updateCurrency(v);
                         },

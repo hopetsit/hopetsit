@@ -88,10 +88,18 @@ class EditSitterProfileController extends GetxController {
       .map((c) => CurrencyHelper.label(c))
       .toList();
 
-  void updateCurrency(String? label) {
-    if (label == null || label.isEmpty) return;
+  void updateCurrency(String? value) {
+    if (value == null || value.isEmpty) return;
+    // v540 — accepte le CODE ('EUR') ou le LIBELLÉ ('EUR (Euro)') : le
+    // dropdown de MyRatesScreen envoyait le code et la sélection était
+    // silencieusement ignorée.
+    final upper = value.toUpperCase();
+    if (CurrencyHelper.supportedCurrencies.contains(upper)) {
+      selectedCurrency.value = upper;
+      return;
+    }
     for (final code in CurrencyHelper.supportedCurrencies) {
-      if (CurrencyHelper.label(code) == label) {
+      if (CurrencyHelper.label(code) == value) {
         selectedCurrency.value = code;
         return;
       }

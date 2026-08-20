@@ -488,6 +488,8 @@ function guessCountryFromCurrency(currency: string): string {
   if (c === "GBP") return "GB";
   if (c === "CHF") return "CH";
   if (c === "CAD") return "CA";
+  if (c === "KRW") return "KR";
+  if (c === "JPY") return "JP";
   return "FR";
 }
 

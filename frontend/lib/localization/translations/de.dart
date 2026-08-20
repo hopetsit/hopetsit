@@ -2588,7 +2588,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'currency_label': 'Währung',
     'signup_photo_add': 'Foto hinzufügen',
     'signup_photo_change': 'Foto ändern',
-    'walker_currency_info': 'Tarife sind standardmäßig in EUR. Kontaktiere den Support, um die Währung zu ändern.',
+    'walker_currency_info': 'Wähle unten deine Währung: Sie gilt für alle deine Spaziergangs-Tarife.',
     'pet_vaccinations': 'Impfungen',
     'pet_regular_vet': 'Stammtierarzt',
     'pet_emergency_vet': 'Not-Tierarzt',
