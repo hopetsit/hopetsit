@@ -125,7 +125,7 @@ class SignUpAsScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       InterText(
-                        text: 'Déjà un compte ?',
+                        text: 'guest_already'.tr,
                         fontSize: 13.sp,
                         color: AppColors.textSecondary(context),
                       ),

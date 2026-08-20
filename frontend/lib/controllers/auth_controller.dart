@@ -683,6 +683,17 @@ class AuthController extends GetxController {
       }
     } catch (_) {/* défensif — au pire on écrit tel quel */}
     await _storage.write(StorageKeys.userProfile, profile);
+    // v540 — indice « Reprendre » pour l'écran de connexion (nom/avatar/rôle/
+    // e-mail de la dernière session ; volontairement conservé après logout).
+    try {
+      final a = profile['avatar'];
+      await _storage.write('last_login_hint', {
+        'name': (profile['name'] ?? '').toString(),
+        'avatar': a is Map ? (a['url'] ?? '').toString() : (a ?? '').toString(),
+        'role': (profile['role'] ?? '').toString(),
+        'email': (profile['email'] ?? '').toString(),
+      });
+    } catch (_) {/* non bloquant */}
   }
 
   Future<void> loginWithApple({String? role}) async {

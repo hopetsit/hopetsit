@@ -74,6 +74,7 @@ class SignupWizardScreen extends StatelessWidget {
           onPressed: () {
             if (c.currentStep.value > 0) {
               c.currentStep.value -= 1;
+              c.onStepEntered(c.currentStep.value);
             } else {
               Get.back();
             }
@@ -100,6 +101,7 @@ class SignupWizardScreen extends StatelessWidget {
               SizedBox(height: keyboardOpen ? 12.h : 18.h),
               Expanded(
                 child: SingleChildScrollView(
+                  controller: c.wizardScroll,
                   padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 24.h),
                   child: _stepBody(context, c, step),
                 ),
@@ -464,34 +466,7 @@ class SignupWizardScreen extends StatelessWidget {
         // moi » et la PawMap démarraient à vide. On réutilise exactement le
         // bloc localisation des prestataires (détection auto + autocomplete).
         _label('signup_step_location'.tr),
-        Obx(() => OutlinedButton.icon(
-              onPressed: c.isGettingLocation.value
-                  ? null
-                  : c.getCurrentLocationFromMaps,
-              icon: Icon(Icons.my_location_rounded, size: 18.sp, color: _accent),
-              label: Text(c.isGettingLocation.value
-                  ? 'location_getting'.tr
-                  : 'signup_location_auto'.tr),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _accent,
-                side: BorderSide(color: _accent),
-                minimumSize: Size(double.infinity, 46.h),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14.r)),
-              ),
-            )),
-        SizedBox(height: 10.h),
-        Obx(() => CityLocationPicker(
-              cityController: c.cityController,
-              onGetLocation: () => c.getCurrentLocationFromMaps(),
-              isGettingLocation: c.isGettingLocation.value,
-              detectedCity: c.userCity.value,
-              onLocationSelected: (city, lat, lng) {
-                c.userCity.value = city;
-                c.userLatitude.value = lat;
-                c.userLongitude.value = lng;
-              },
-            )),
+        _locationBlock(context, c),
         SizedBox(height: 14.h),
         _label('signup_search_radius'.tr),
         _radiusDropdown(c),
@@ -538,6 +513,158 @@ class SignupWizardScreen extends StatelessWidget {
   }
 
   // ── ÉTAPE 2 sitter/walker — Localisation ───────────────────────────────────
+
+  /// v540 — bloc localisation UNIFIÉ des 3 profils, « simple et joli » :
+  /// la position est détectée automatiquement à l'entrée de l'étape
+  /// (onStepEntered) ; pendant la détection → carte avec spinner ; ville
+  /// trouvée → carte ✓ avec la ville + « Modifier » ; sinon → bouton de
+  /// détection + autocomplete manuel (comportement historique).
+  Widget _locationBlock(BuildContext context, SignUpController c) {
+    return Obx(() {
+      final getting = c.isGettingLocation.value;
+      final detected = c.userCity.value;
+      final typed = c.cityController.text.trim();
+      final city = detected.isNotEmpty ? detected : typed;
+      final has = (c.userLatitude.value != null &&
+              c.userLongitude.value != null) ||
+          typed.isNotEmpty;
+      final editing = c.editingLocation.value;
+
+      if (getting) {
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 16.h),
+          decoration: BoxDecoration(
+            color: _accent.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(color: _accent.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 18.sp,
+                height: 18.sp,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2.2, color: _accent),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: InterText(
+                  text: 'location_getting'.tr,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                  color: _accent,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      if (has && !editing) {
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(12.w),
+          decoration: BoxDecoration(
+            color: _accent.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(color: _accent.withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38.w,
+                height: 38.w,
+                decoration: BoxDecoration(
+                  color: _accent,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.place_rounded,
+                    size: 20.sp, color: Colors.white),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InterText(
+                      text: 'signup_city_detected'.tr,
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary(context),
+                    ),
+                    SizedBox(height: 2.h),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: PoppinsText(
+                            text: city.isEmpty ? '📍' : city,
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary(context),
+                            maxLines: 1,
+                          ),
+                        ),
+                        SizedBox(width: 6.w),
+                        Icon(Icons.check_circle_rounded,
+                            size: 16.sp, color: const Color(0xFF27AE60)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () => c.editingLocation.value = true,
+                style: TextButton.styleFrom(
+                  foregroundColor: _accent,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: InterText(
+                  text: 'signup_change_city'.tr,
+                  fontSize: 12.5.sp,
+                  fontWeight: FontWeight.w700,
+                  color: _accent,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          OutlinedButton.icon(
+            onPressed: c.getCurrentLocationFromMaps,
+            icon: Icon(Icons.my_location_rounded,
+                size: 18.sp, color: _accent),
+            label: Text('signup_location_auto'.tr),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _accent,
+              side: BorderSide(color: _accent),
+              minimumSize: Size(double.infinity, 46.h),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14.r)),
+            ),
+          ),
+          SizedBox(height: 10.h),
+          CityLocationPicker(
+            cityController: c.cityController,
+            onGetLocation: () => c.getCurrentLocationFromMaps(),
+            isGettingLocation: c.isGettingLocation.value,
+            detectedCity: c.userCity.value,
+            onLocationSelected: (city, lat, lng) {
+              c.userCity.value = city;
+              c.userLatitude.value = lat;
+              c.userLongitude.value = lng;
+              c.editingLocation.value = false;
+            },
+          ),
+        ],
+      );
+    });
+  }
+
   Widget _stepProviderLocation(BuildContext context, SignUpController c) {
     final animals = _isWalker
         ? const [
@@ -561,37 +688,7 @@ class SignupWizardScreen extends StatelessWidget {
         // v494 — Daniel : « remets le bouton auto-détection ». Bouton PROÉMINENT
         // « Détecter ma position » au-dessus du champ ville (en plus du mini
         // bouton interne de CityLocationPicker), même handler getCurrentLocation.
-        Obx(() => OutlinedButton.icon(
-              onPressed: c.isGettingLocation.value
-                  ? null
-                  : c.getCurrentLocationFromMaps,
-              icon: Icon(Icons.my_location_rounded, size: 18.sp, color: _accent),
-              label: Text(c.isGettingLocation.value
-                  ? 'location_getting'.tr
-                  : 'signup_location_auto'.tr),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _accent,
-                side: BorderSide(color: _accent),
-                minimumSize: Size(double.infinity, 46.h),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14.r)),
-              ),
-            )),
-        SizedBox(height: 10.h),
-        // v491 — Daniel : « quand on tape la ville ça ne reconnaît pas via map ».
-        // CityLocationPicker : autocomplete (on tape « Paris » → liste de villes
-        // → on sélectionne → lat/lng remplis pour bien mapper).
-        Obx(() => CityLocationPicker(
-              cityController: c.cityController,
-              onGetLocation: () => c.getCurrentLocationFromMaps(),
-              isGettingLocation: c.isGettingLocation.value,
-              detectedCity: c.userCity.value,
-              onLocationSelected: (city, lat, lng) {
-                c.userCity.value = city;
-                c.userLatitude.value = lat;
-                c.userLongitude.value = lng;
-              },
-            )),
+        _locationBlock(context, c),
         SizedBox(height: 12.h),
         _label('signup_field_radius'.tr),
         _radiusDropdown(c),
@@ -901,16 +998,19 @@ class SignupWizardScreen extends StatelessWidget {
       return t.isEmpty ? '—' : t;
     }
 
+    // v540 — devise du profil (plus de « € » en dur) + unités TRADUITES
+    // (elles restaient en français dans les 7 autres langues).
+    final sym = c.currencySymbol;
     final List<List<String>> tarifs = _isWalker
         ? [
-            ['${v(c.walkerRate30Controller)} €', '/ 30 min'],
-            ['${v(c.walkerRate60Controller)} €', '/ 1 heure'],
-            ['${v(c.walkerRate120Controller)} €', '/ 2 heures'],
+            ['${v(c.walkerRate30Controller)} $sym', '/ 30 min'],
+            ['${v(c.walkerRate60Controller)} $sym', '/ 1 h'],
+            ['${v(c.walkerRate120Controller)} $sym', '/ 2 h'],
           ]
         : [
-            ['${v(c.ratePerDayController)} €', '/ jour (+10h)'],
-            ['${v(c.ratePerWeekController)} €', '/ semaine'],
-            ['${v(c.ratePerMonthController)} €', '/ mois'],
+            ['${v(c.ratePerDayController)} $sym', '/ ${'unit_day'.tr}'],
+            ['${v(c.ratePerWeekController)} $sym', '/ ${'unit_week'.tr}'],
+            ['${v(c.ratePerMonthController)} $sym', '/ ${'unit_month'.tr}'],
           ];
 
     return Container(
@@ -1073,6 +1173,7 @@ class SignupWizardScreen extends StatelessWidget {
       c.handleWizardSignUp(email: c.emailController.text.trim());
     } else {
       c.currentStep.value = step + 1;
+      c.onStepEntered(step + 1);
     }
   }
 

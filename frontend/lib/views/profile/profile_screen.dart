@@ -6,6 +6,8 @@ import 'package:hopetsit/controllers/profile_controller.dart';
 import 'package:hopetsit/controllers/my_pets_controller.dart';
 import 'package:hopetsit/models/profile_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/pet_species_color.dart';
+import 'package:hopetsit/views/pet_owner/pet_profile/pet_profile_screen.dart';
 import 'package:hopetsit/views/profile/widgets/profile_settings_tabs.dart';
 import 'package:hopetsit/views/profile/widgets/profile_notification_bell.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -274,8 +276,16 @@ class ProfileScreen extends StatelessWidget {
             separatorBuilder: (_, __) => SizedBox(width: 10.w),
             itemBuilder: (_, i) {
               final p = pets[i];
-              return Container(
-                padding: EdgeInsets.fromLTRB(6.w, 6.h, 12.w, 6.h),
+              // v540 — Jose : rien n'indiquait qu'on peut modifier la fiche
+              // d'un animal → la puce est cliquable (ouvre la fiche, qui
+              // contient l'édition) et porte un ✏️ visible.
+              return GestureDetector(
+                onTap: () => Get.to(() => PetProfileScreen(
+                      pet: p,
+                      accent: petSpeciesColor(p.category),
+                    )),
+                child: Container(
+                padding: EdgeInsets.fromLTRB(6.w, 6.h, 10.w, 6.h),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(14.r),
@@ -316,7 +326,19 @@ class ProfileScreen extends StatelessWidget {
                           ),
                       ],
                     ),
+                    SizedBox(width: 8.w),
+                    // ✏️ — affordance d'édition demandée par Jose.
+                    Container(
+                      padding: EdgeInsets.all(4.w),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.edit_rounded,
+                          size: 11.sp, color: Colors.white),
+                    ),
                   ],
+                ),
                 ),
               );
             },

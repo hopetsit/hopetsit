@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
@@ -11,326 +12,360 @@ import 'package:hopetsit/views/guest/guest_landing_screen.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
-import 'package:hopetsit/widgets/rounded_text_button.dart';
+import 'package:hopetsit/widgets/micro_anims.dart';
 import 'package:hopetsit/views/auth/forgot_flow/forgot_password_email_screen.dart';
 import 'package:hopetsit/views/auth/sign_up_as.dart';
 
-class LoginScreen extends StatelessWidget {
+/// v540 — écran de connexion « Bon retour ❤ » (maquette LAP écran 2a).
+/// Reskin visuel UNIQUEMENT : toute la logique (formKey, contrôleurs email/
+/// mot de passe, validateurs, handleLoginWithNavigation, spinners Google/
+/// Apple indépendants, mot de passe oublié, langue, thème) est inchangée.
+/// Nouveautés : carte « Reprendre » (dernier compte connecté, stocké par
+/// AuthController dans 'last_login_hint' — jamais de mot de passe),
+/// « Se souvenir de moi » (préremplit l'e-mail), sortie invité en bas.
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _storage = GetStorage();
+  late final AuthController controller;
+
+  Map<String, dynamic>? _hint; // {name, avatar, role, email}
+  bool _remember = false;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<AuthController>();
+
+    final raw = _storage.read('last_login_hint');
+    if (raw is Map && (raw['email'] ?? '').toString().isNotEmpty) {
+      _hint = Map<String, dynamic>.from(raw);
+    }
+    final remembered = _storage.read('remembered_email');
+    if (remembered is String && remembered.isNotEmpty) {
+      _remember = true;
+      if (controller.emailController.text.isEmpty) {
+        controller.emailController.text = remembered;
+      }
+    }
+  }
+
+  void _login() {
+    // « Se souvenir de moi » : on ne stocke QUE l'e-mail, jamais le mot
+    // de passe.
+    if (_remember) {
+      _storage.write(
+        'remembered_email',
+        controller.emailController.text.trim(),
+      );
+    } else {
+      _storage.remove('remembered_email');
+    }
+    controller.handleLoginWithNavigation();
+  }
+
+  String _roleLabel(String role) {
+    switch (role) {
+      case 'pet_sitter':
+        return 'role_pet_sitter'.tr;
+      case 'pet_walker':
+        return 'role_pet_walker'.tr;
+      case 'pet_owner':
+        return 'role_pet_owner'.tr;
+      default:
+        return '';
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final controller = Get.find<AuthController>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    const ink = Color(0xFF1B222E);
+    final titleColor = isDark ? Colors.white : ink;
+    final mutedColor =
+        isDark ? AppColors.textSecondaryDark : const Color(0xFF6B6259);
 
     return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      body: Stack(
-        children: [
-          // ── Subtle gradient overlay at top ──
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 200.h,
-            child: Container(
-              decoration: BoxDecoration(
+      backgroundColor: isDark ? AppColors.backgroundDark : const Color(0xFFFFF9F4),
+      body: Container(
+        decoration: isDark
+            ? null
+            : const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    AppColors.primaryColor.withValues(alpha: 0.06),
-                    AppColors.scaffold(context).withValues(alpha: 0),
-                  ],
+                  colors: [Color(0xFFFFF9F4), Color(0xFFFFF3EA)],
                 ),
               ),
-            ),
-          ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(horizontal: 24.w),
+            child: Form(
+              key: controller.formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(height: 8.h),
 
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: 24.w),
-              child: Form(
-                key: controller.formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    SizedBox(height: 12.h),
-
-                    // ── Top bar: dark mode toggle + language ──
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Dark mode toggle
-                        GestureDetector(
-                          onTap: () {
-                            final currentMode = Get.isDarkMode;
-                            Get.changeThemeMode(
-                              currentMode ? ThemeMode.light : ThemeMode.dark,
-                            );
-                          },
-                          child: Container(
-                            padding: EdgeInsets.all(10.w),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? AppColors.surfaceDark
-                                  : AppColors.grey300Color.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(12.r),
-                            ),
-                            child: Icon(
-                              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                              size: 22.sp,
-                              color: isDark ? Colors.amber : AppColors.grey700Color,
-                            ),
-                          ),
+                  // ── Barre du haut : thème + langue (fonctions conservées) ──
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _topIconButton(
+                        context,
+                        icon: isDark
+                            ? Icons.light_mode_rounded
+                            : Icons.dark_mode_rounded,
+                        color: isDark ? Colors.amber : const Color(0xFF6B6259),
+                        onTap: () => Get.changeThemeMode(
+                          Get.isDarkMode ? ThemeMode.light : ThemeMode.dark,
                         ),
+                      ),
+                      _topIconButton(
+                        context,
+                        icon: Icons.language_rounded,
+                        color: titleColor,
+                        onTap: () => _showLanguageDialog(context),
+                      ),
+                    ],
+                  ),
 
-                        // Language selector
-                        GestureDetector(
-                          onTap: () => _showLanguageDialog(context),
-                          child: Container(
-                            padding: EdgeInsets.all(10.w),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? AppColors.surfaceDark
-                                  : AppColors.grey300Color.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(12.r),
-                            ),
-                            child: Icon(
-                              Icons.language_rounded,
-                              size: 22.sp,
-                              color: AppColors.textPrimary(context),
-                            ),
-                          ),
+                  SizedBox(height: 10.h),
+
+                  // ── Logo centré + titre Fredoka « Bon retour ❤ » ──
+                  Container(
+                    width: 76.w,
+                    height: 76.w,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(22.r),
+                      border: Border.all(color: const Color(0xFFECE5DE)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFC92A12).withValues(alpha: 0.10),
+                          blurRadius: 22,
+                          offset: const Offset(0, 10),
                         ),
                       ],
                     ),
-
-                    SizedBox(height: 40.h),
-
-                    // v478 — maquette « App Opening » : bandeau de marque
-                    // arrondi (dégradé orange) avec logo + « Bon retour 👋 ».
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.all(20.w),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AppColors.primaryColor,
-                            isDark
-                                ? const Color(0xFFC93D18)
-                                : const Color(0xFFED4F25),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(28.r),
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                AppColors.primaryColor.withValues(alpha: 0.35),
-                            blurRadius: 24,
-                            offset: const Offset(0, 12),
-                          ),
-                        ],
+                    padding: EdgeInsets.all(7.w),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(15.r),
+                      child: Image.asset(
+                        'assets/brand/png/apple-icon-original.png',
+                        fit: BoxFit.cover,
                       ),
-                      child: Stack(
-                        children: [
-                          Positioned(
-                            right: -12.w,
-                            top: -18.h,
-                            child: Transform.rotate(
-                              angle: 0.28,
-                              child: Text(
-                                '🐾',
-                                style: TextStyle(
-                                  fontSize: 86.sp,
-                                  color: Colors.white.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  SizedBox(height: 14.h),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: FredokaText(
+                          text: 'welcome_back'.tr,
+                          fontSize: 28.sp,
+                          fontWeight: FontWeight.w600,
+                          color: titleColor,
+                          maxLines: 1,
+                        ),
+                      ),
+                      SizedBox(width: 8.w),
+                      HeartBeat(
+                        child: Text('❤',
+                            style: TextStyle(
+                                fontSize: 24.sp,
+                                color: const Color(0xFFC92A12))),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 6.h),
+                  InterText(
+                    text: 'login_subtitle'.tr,
+                    fontSize: 13.5.sp,
+                    fontWeight: FontWeight.w500,
+                    color: mutedColor,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                  ),
+
+                  SizedBox(height: 20.h),
+
+                  // ── Carte « Reprendre » : dernier compte connecté ──
+                  if (_hint != null) ...[
+                    FadeSlideIn(
+                      delay: const Duration(milliseconds: 120),
+                      child: _ResumeCard(
+                      hint: _hint!,
+                      roleLabel:
+                          _roleLabel((_hint!['role'] ?? '').toString()),
+                      isDark: isDark,
+                      onResume: () {
+                        controller.emailController.text =
+                            (_hint!['email'] ?? '').toString();
+                        FocusScope.of(context).unfocus();
+                      },
+                    ),
+                    ),
+                    SizedBox(height: 18.h),
+                    _labelDivider(
+                        context, 'login_or_email'.tr, isDark, mutedColor),
+                    SizedBox(height: 18.h),
+                  ],
+
+                  // ── E-mail ──
+                  CustomTextField(
+                    labelText: 'label_email'.tr,
+                    hintText: 'hint_email'.tr,
+                    controller: controller.emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    validator: controller.validateEmail,
+                    prefixIcon: Icon(
+                      Icons.mail_outline_rounded,
+                      size: 20.sp,
+                      color: mutedColor,
+                    ),
+                    radius: 16.r,
+                  ),
+                  SizedBox(height: 14.h),
+
+                  // ── Mot de passe ──
+                  CustomTextField(
+                    labelText: 'label_password'.tr,
+                    hintText: 'hint_password_login'.tr,
+                    controller: controller.passwordController,
+                    obscureText: true,
+                    showPasswordToggle: true,
+                    textInputAction: TextInputAction.done,
+                    validator: controller.validatePassword,
+                    prefixIcon: Icon(
+                      Icons.lock_outline_rounded,
+                      size: 20.sp,
+                      color: mutedColor,
+                    ),
+                    radius: 16.r,
+                  ),
+                  SizedBox(height: 8.h),
+
+                  // ── « Se souvenir de moi » + « Mot de passe oublié ? » ──
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => setState(() => _remember = !_remember),
+                        behavior: HitTestBehavior.opaque,
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 22.w,
+                              height: 22.w,
+                              child: Checkbox(
+                                value: _remember,
+                                onChanged: (v) =>
+                                    setState(() => _remember = v ?? false),
+                                activeColor: const Color(0xFFC92A12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6.r),
                                 ),
+                                side: BorderSide(
+                                  color: isDark
+                                      ? AppColors.dividerDark
+                                      : const Color(0xFFD8CFC6),
+                                  width: 1.6,
+                                ),
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
                               ),
                             ),
-                          ),
-                          Row(
-                            children: [
-                              // Logo squircle blanc.
-                              Container(
-                                width: 60.w,
-                                height: 60.w,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(18.r),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color:
-                                          Colors.black.withValues(alpha: 0.16),
-                                      blurRadius: 18,
-                                      offset: const Offset(0, 8),
-                                    ),
-                                  ],
-                                ),
-                                padding: EdgeInsets.all(6.w),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(12.r),
-                                  child: Image.asset(
-                                    'assets/brand/png/apple-icon-original.png',
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 14.w),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    PoppinsText(
-                                      text: '${'welcome_back'.tr} 👋',
-                                      fontSize: 24.sp,
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.white,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    SizedBox(height: 6.h),
-                                    InterText(
-                                      text: 'login_subtitle'.tr,
-                                      fontSize: 13.sp,
-                                      fontWeight: FontWeight.w600,
-                                      color:
-                                          Colors.white.withValues(alpha: 0.92),
-                                      maxLines: 2,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                            SizedBox(width: 8.w),
+                            InterText(
+                              text: 'login_remember'.tr,
+                              fontSize: 12.5.sp,
+                              fontWeight: FontWeight.w600,
+                              color: mutedColor,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-
-                    SizedBox(height: 40.h),
-
-                    // ── Email field with icon ──
-                    CustomTextField(
-                      labelText: 'label_email'.tr,
-                      hintText: 'hint_email'.tr,
-                      controller: controller.emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      validator: controller.validateEmail,
-                      prefixIcon: Icon(
-                        Icons.mail_outline_rounded,
-                        size: 20.sp,
-                        color: AppColors.textSecondary(context),
-                      ),
-                      radius: 16.r,
-                    ),
-                    SizedBox(height: 16.h),
-
-                    // ── Password field with icon and show/hide toggle ──
-                    CustomTextField(
-                      labelText: 'label_password'.tr,
-                      hintText: 'hint_password_login'.tr,
-                      controller: controller.passwordController,
-                      obscureText: true,
-                      showPasswordToggle: true,
-                      textInputAction: TextInputAction.done,
-                      validator: controller.validatePassword,
-                      prefixIcon: Icon(
-                        Icons.lock_outline_rounded,
-                        size: 20.sp,
-                        color: AppColors.textSecondary(context),
-                      ),
-                      radius: 16.r,
-                    ),
-                    SizedBox(height: 12.h),
-
-                    // ── Forgot password link (right-aligned, small) ──
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => Get.to(
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => Get.to(
                           () => const ForgotPasswordEmailScreen(),
                           transition: Transition.rightToLeft,
                         ),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.primaryColor,
-                          padding: EdgeInsets.symmetric(horizontal: 0.w, vertical: 4.h),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
+                        behavior: HitTestBehavior.opaque,
                         child: InterText(
                           text: 'forgot_password'.tr,
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primaryColor,
-                          textDecoration: TextDecoration.underline,
+                          fontSize: 12.5.sp,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFFC92A12),
                         ),
                       ),
-                    ),
-                    SizedBox(height: 28.h),
+                    ],
+                  ),
+                  SizedBox(height: 20.h),
 
-                    // ── Sign in button (full-width, modern) ──
-                    Obx(
-                      () => SizedBox(
+                  // ── Se connecter (dégradé marque) ──
+                  Obx(
+                    () => GestureDetector(
+                      onTap: controller.isLoading.value ? null : _login,
+                      child: Container(
                         width: double.infinity,
-                        height: 48.h,
-                        child: CustomButton(
-                          title: controller.isLoading.value
-                              ? 'logging_in'.tr
-                              : 'title_login'.tr,
-                          onTap: controller.isLoading.value
-                              ? null
-                              : () => controller.handleLoginWithNavigation(),
+                        height: 52.h,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFE25822), Color(0xFFC92A12)],
+                          ),
+                          borderRadius: BorderRadius.circular(18.r),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFC92A12)
+                                  .withValues(alpha: 0.30),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: controller.isLoading.value
+                              ? SizedBox(
+                                  width: 22.sp,
+                                  height: 22.sp,
+                                  child: const CircularProgressIndicator(
+                                    strokeWidth: 2.4,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white),
+                                  ),
+                                )
+                              : PoppinsText(
+                                  text: 'title_login'.tr,
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
                         ),
                       ),
                     ),
-                    SizedBox(height: 24.h),
+                  ),
+                  SizedBox(height: 20.h),
 
-                    // ── Divider with "OR" text ──
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Divider(
-                            color: isDark
-                                ? AppColors.dividerDark
-                                : AppColors.grey300Color,
-                            thickness: 1,
-                          ),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12.w),
-                          child: InterText(
-                            text: 'or_continue_with'.tr,
-                            fontSize: 12.sp,
-                            color: AppColors.textSecondary(context),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Expanded(
-                          child: Divider(
-                            color: isDark
-                                ? AppColors.dividerDark
-                                : AppColors.grey300Color,
-                            thickness: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 24.h),
+                  _labelDivider(
+                      context, 'or_continue_with'.tr, isDark, mutedColor),
+                  SizedBox(height: 18.h),
 
-                    // ── Social buttons (Google + Apple on iOS) ──
-                    Row(
+                  // ── Google + Apple côte à côte ──
+                  // v540 — Row enveloppée dans Obx : avant, les .value
+                  // étaient lus HORS Obx → les spinners ne s'affichaient
+                  // jamais et les boutons ne se désactivaient pas.
+                  Obx(
+                    () => Row(
                       children: [
-                        // v23.1 part 200 — Daniel : "le bouton Google et
-                        // Apple chargent en même temps quand on clique sur
-                        // un seul". Chaque bouton lit MAINTENANT son propre
-                        // flag (isGoogleLoginLoading / isAppleLoginLoading),
-                        // donc le spinner ne s'affiche que sur le bouton
-                        // pressé. Les deux désactivent quand même l'autre
-                        // pendant la requête (sécurité : évite un double
-                        // sign-in concurrent).
                         Expanded(
                           child: _SocialLoginButton(
                             onTap: controller.isLoading.value ||
@@ -341,7 +376,8 @@ class LoginScreen extends StatelessWidget {
                             imagePath: AppImages.googleIcon,
                             label: 'button_google'.tr,
                             isDark: isDark,
-                            isLoading: controller.isGoogleLoginLoading.value,
+                            isLoading:
+                                controller.isGoogleLoginLoading.value,
                           ),
                         ),
                         if (Platform.isIOS) ...[
@@ -356,109 +392,124 @@ class LoginScreen extends StatelessWidget {
                               icon: Icons.apple,
                               label: 'button_apple'.tr,
                               isDark: isDark,
-                              isLoading: controller.isAppleLoginLoading.value,
+                              isLoading:
+                                  controller.isAppleLoginLoading.value,
                             ),
                           ),
                         ],
                       ],
                     ),
-                    SizedBox(height: 18.h),
+                  ),
+                  SizedBox(height: 18.h),
 
-                    // v23.1 part 138 — Daniel : "interface de connexion
-                    // c mélanger pas clair distinguer ou s'inscrire ou
-                    // se connecter avec compte". On remplace le mini-link
-                    // en bas par UN VRAI BLOC bien visible "Pas encore
-                    // de compte ?" + un BOUTON OUTLINED large
-                    // "Créer un compte" (vs le bouton bleu plein
-                    // "Se connecter" en haut). Les 2 actions sont
-                    // maintenant nettement différenciées.
-                    SizedBox(height: 8.h),
-                    // Séparateur visuel "compte"
-                    Container(
+                  // ── Mode invité (carte pointillée rose de la maquette) ──
+                  GestureDetector(
+                    onTap: () =>
+                        Get.offAll(() => const GuestLandingScreen()),
+                    child: Container(
                       width: double.infinity,
-                      padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 16.w),
+                      padding: EdgeInsets.symmetric(vertical: 13.h),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withValues(alpha: 0.05),
+                        color: isDark
+                            ? AppColors.surfaceDark
+                            : const Color(0xFFFDF2F8),
                         borderRadius: BorderRadius.circular(16.r),
                         border: Border.all(
-                          color: AppColors.primaryColor.withValues(alpha: 0.18),
-                          width: 1,
+                          color: const Color(0xFFF472B6)
+                              .withValues(alpha: 0.55),
+                          width: 1.4,
                         ),
                       ),
-                      child: Column(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.person_add_alt_1_rounded,
-                                size: 18.sp,
-                                color: AppColors.primaryColor,
-                              ),
-                              SizedBox(width: 8.w),
-                              PoppinsText(
-                                text: 'dont_have_account'.tr,
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary(context),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 10.h),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 44.h,
-                            child: OutlinedButton(
-                              onPressed: () => Get.to(() => const SignUpAsScreen()),
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(
-                                  color: AppColors.primaryColor,
-                                  width: 1.5,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14.r),
-                                ),
-                                foregroundColor: AppColors.primaryColor,
-                              ),
-                              child: PoppinsText(
-                                text: 'sign_up'.tr,
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primaryColor,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 12.h),
-                          // v537 — sortie claire vers la découverte invité (Daniel :
-                          // « bloqué », « je ne vois plus le mode invité »).
-                          Center(
-                            child: GestureDetector(
-                              onTap: () => Get.offAll(() => const GuestLandingScreen()),
-                              behavior: HitTestBehavior.opaque,
-                              child: InterText(
-                                text: 'guest_continue_without'.tr,
-                                fontSize: 13.sp,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textSecondary(context),
-                              ),
-                            ),
+                          Text('🐭', style: TextStyle(fontSize: 15.sp)),
+                          SizedBox(width: 8.w),
+                          PoppinsText(
+                            text: 'guest_continue_without'.tr,
+                            fontSize: 13.5.sp,
+                            fontWeight: FontWeight.w700,
+                            color: isDark
+                                ? const Color(0xFFF472B6)
+                                : const Color(0xFF9D6B85),
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(height: 16.h),
-                  ],
-                ),
+                  ),
+                  SizedBox(height: 16.h),
+
+                  // ── « Nouveau ? Créer un compte » ──
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      InterText(
+                        text: 'login_new'.tr,
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w500,
+                        color: mutedColor,
+                      ),
+                      SizedBox(width: 6.w),
+                      GestureDetector(
+                        onTap: () => Get.to(() => const SignUpAsScreen()),
+                        behavior: HitTestBehavior.opaque,
+                        child: PoppinsText(
+                          text: 'login_create'.tr,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFFC92A12),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20.h),
+                ],
               ),
             ),
           ),
-
-          // v23.1 part 200 — overlay full-screen supprimé. Le spinner est
-          // maintenant inline dans le bouton pressé (Google OU Apple,
-          // indépendant). Plus de masque noir qui bloque toute l'UI.
-          const SizedBox.shrink(),
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _topIconButton(BuildContext context,
+      {required IconData icon,
+      required Color color,
+      required VoidCallback onTap}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(10.w),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : Colors.white,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(
+            color: isDark ? AppColors.dividerDark : const Color(0xFFECE5DE),
+          ),
+        ),
+        child: Icon(icon, size: 21.sp, color: color),
+      ),
+    );
+  }
+
+  Widget _labelDivider(
+      BuildContext context, String label, bool isDark, Color mutedColor) {
+    final line = isDark ? AppColors.dividerDark : const Color(0xFFE8DFD6);
+    return Row(
+      children: [
+        Expanded(child: Divider(color: line, thickness: 1)),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          child: InterText(
+            text: label,
+            fontSize: 12.sp,
+            color: mutedColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Expanded(child: Divider(color: line, thickness: 1)),
+      ],
     );
   }
 
@@ -520,6 +571,132 @@ class LoginScreen extends StatelessWidget {
   }
 }
 
+/// Carte « Reprendre » de la maquette : avatar + nom + rôle de la dernière
+/// session, bouton qui préremplit l'e-mail. Aucune donnée sensible stockée.
+class _ResumeCard extends StatelessWidget {
+  const _ResumeCard({
+    required this.hint,
+    required this.roleLabel,
+    required this.isDark,
+    required this.onResume,
+  });
+
+  final Map<String, dynamic> hint;
+  final String roleLabel;
+  final bool isDark;
+  final VoidCallback onResume;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = (hint['name'] ?? '').toString();
+    final avatar = (hint['avatar'] ?? '').toString();
+    final sub = roleLabel.isEmpty
+        ? 'login_last_session'.tr
+        : '$roleLabel · ${'login_last_session'.tr}';
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : Colors.white,
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(
+          color: isDark ? AppColors.dividerDark : const Color(0xFFECE5DE),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46.w,
+            height: 46.w,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: const Color(0xFFE25822).withValues(alpha: 0.5),
+                width: 2,
+              ),
+            ),
+            child: ClipOval(
+              child: avatar.isNotEmpty
+                  ? Image.network(
+                      avatar,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _fallbackAvatar(),
+                    )
+                  : _fallbackAvatar(),
+            ),
+          ),
+          SizedBox(width: 12.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PoppinsText(
+                  text: name.isEmpty
+                      ? (hint['email'] ?? '').toString()
+                      : name,
+                  fontSize: 14.5.sp,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : const Color(0xFF1B222E),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                SizedBox(height: 2.h),
+                InterText(
+                  text: sub,
+                  fontSize: 11.5.sp,
+                  fontWeight: FontWeight.w500,
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : const Color(0xFF6B6259),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 10.w),
+          SoftPulse(
+            child: GestureDetector(
+            onTap: onResume,
+            child: Container(
+              padding:
+                  EdgeInsets.symmetric(horizontal: 16.w, vertical: 9.h),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFE25822), Color(0xFFC92A12)],
+                ),
+                borderRadius: BorderRadius.circular(99.r),
+              ),
+              child: PoppinsText(
+                text: 'login_resume'.tr,
+                fontSize: 12.5.sp,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _fallbackAvatar() => Container(
+        color: const Color(0xFFFFF3EA),
+        child: Center(
+          child: Text('🐾', style: TextStyle(fontSize: 18.sp)),
+        ),
+      );
+}
+
 /// Modern social login button with icon + label (Google/Apple).
 /// Google: white background with subtle grey border.
 /// Apple: black background with white text.
@@ -549,19 +726,21 @@ class _SocialLoginButton extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(24.r),
+      borderRadius: BorderRadius.circular(16.r),
       child: Container(
-        height: 48.h,
+        height: 50.h,
         decoration: BoxDecoration(
           color: isAppleButton
-              ? AppColors.blackColor
+              ? const Color(0xFF101319)
               : (isDark ? AppColors.surfaceDark : Colors.white),
-          borderRadius: BorderRadius.circular(24.r),
+          borderRadius: BorderRadius.circular(16.r),
           border: isAppleButton
               ? null
               : Border.all(
-                  color: isDark ? AppColors.dividerDark : Colors.grey.shade300,
-                  width: 1.5,
+                  color: isDark
+                      ? AppColors.dividerDark
+                      : const Color(0xFFECE5DE),
+                  width: 1.4,
                 ),
           boxShadow: isAppleButton
               ? null
@@ -601,14 +780,18 @@ class _SocialLoginButton extends StatelessWidget {
                       Icon(
                         icon,
                         size: 20.sp,
-                        color: isAppleButton ? Colors.white : AppColors.textPrimary(context),
+                        color: isAppleButton
+                            ? Colors.white
+                            : AppColors.textPrimary(context),
                       ),
                     SizedBox(width: 8.w),
                     InterText(
                       text: label,
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
-                      color: isAppleButton ? Colors.white : AppColors.textPrimary(context),
+                      color: isAppleButton
+                          ? Colors.white
+                          : AppColors.textPrimary(context),
                     ),
                   ],
                 ),

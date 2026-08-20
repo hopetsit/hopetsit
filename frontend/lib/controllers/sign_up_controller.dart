@@ -74,6 +74,28 @@ class SignUpController extends GetxController {
   // Observable state - Sign Up
   final RxBool isLoading = false.obs;
   final RxBool isGettingLocation = false.obs;
+
+  // v540 — Daniel : « l'erreur "ajoute ta ville" énerve sur les 3 profils ».
+  // 1) le wizard remet le scroll en HAUT à chaque étape (avant, on arrivait
+  //    sur l'étape localisation déjà défilé en bas → le bloc ville était
+  //    invisible) ; 2) la position est détectée AUTOMATIQUEMENT à l'entrée
+  //    de l'étape localisation si rien n'est encore renseigné.
+  final ScrollController wizardScroll = ScrollController();
+  /// v540 — l'utilisateur veut changer la ville détectée (réaffiche le
+  /// sélecteur manuel dans le bloc localisation du wizard).
+  final RxBool editingLocation = false.obs;
+
+  bool get hasPlace =>
+      (userLatitude.value != null && userLongitude.value != null) ||
+      cityController.text.trim().isNotEmpty;
+
+  void onStepEntered(int step) {
+    if (wizardScroll.hasClients) wizardScroll.jumpTo(0);
+    final locStep = userType == 'pet_owner' ? 2 : 1;
+    if (step == locStep && !hasPlace && !isGettingLocation.value) {
+      getCurrentLocationFromMaps();
+    }
+  }
   final RxBool agreeToTerms = false.obs;
   final RxString selectedLanguage = 'Français'.obs;
   final RxString selectedCountryCode = '+1'.obs;
@@ -170,7 +192,31 @@ class SignUpController extends GetxController {
     try {
       final dial = CountryCode.fromCountryCode(initialCountryIso).dialCode;
       if (dial != null && dial.isNotEmpty) selectedCountryCode.value = dial;
-    } catch (_) {/* ISO hors liste du package → on garde +1 */}
+  
+    // v540 — Daniel : « la monnaie doit s'aligner au pays du téléphone ».
+    // Mappe la région du device vers une devise supportée (sinon EUR).
+    const isoToCurrency = {
+      'US': CurrencyHelper.usd,
+      'GB': CurrencyHelper.gbp,
+      'CH': CurrencyHelper.chf,
+      'KR': CurrencyHelper.krw,
+      'JP': CurrencyHelper.jpy,
+    };
+    selectedCurrency.value =
+        isoToCurrency[initialCountryIso] ?? CurrencyHelper.eur;
+  } catch (_) {/* ISO hors liste du package → on garde +1 */}
+
+    // v540 — Daniel : « la monnaie doit s'aligner au pays du téléphone ».
+    // Mappe la région du device vers une devise supportée (sinon EUR).
+    const isoToCurrency = {
+      'US': CurrencyHelper.usd,
+      'GB': CurrencyHelper.gbp,
+      'CH': CurrencyHelper.chf,
+      'KR': CurrencyHelper.krw,
+      'JP': CurrencyHelper.jpy,
+    };
+    selectedCurrency.value =
+        isoToCurrency[initialCountryIso] ?? CurrencyHelper.eur;
   }
 
   /// v532 — symbole de la devise CHOISIE à l'étape 4. Les champs de tarif
@@ -265,7 +311,7 @@ class SignUpController extends GetxController {
     // « .travel », « .agency », « .consulting », « .london »… étaient rejetés
     // comme « email invalide » et rendaient l'inscription impossible. On
     // s'aligne sur validatePayPalEmail et sur le backend ({2,}).
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,}$');
+    final emailRegex = RegExp(r'^[\w+.-]+@([\w-]+\.)+[\w-]{2,}$');
     if (!emailRegex.hasMatch(value)) {
       return 'error_email_invalid'.tr;
     }
@@ -277,7 +323,7 @@ class SignUpController extends GetxController {
     if (userType == 'pet_sitter') {
       // Optional for sitter signup: validate only when user enters a value.
       if (v.isEmpty) return null;
-      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,}$');
+      final emailRegex = RegExp(r'^[\w+.-]+@([\w-]+\.)+[\w-]{2,}$');
       if (!emailRegex.hasMatch(v)) {
         return 'error_email_invalid'.tr;
       }

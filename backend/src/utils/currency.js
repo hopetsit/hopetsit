@@ -11,7 +11,7 @@
  * - Use assertSupportedCurrency before creating payments or bookings.
  */
 
-const SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF'];
+const SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF', 'KRW', 'JPY'];
 
 const DEFAULT_CURRENCY = 'EUR';
 

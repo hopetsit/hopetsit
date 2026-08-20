@@ -1,7 +1,7 @@
 const COUNTRY_CURRENCY = {
   FR: 'EUR', ES: 'EUR', PT: 'EUR', IT: 'EUR', DE: 'EUR',
   BE: 'EUR', LU: 'EUR', NL: 'EUR', IE: 'EUR', AT: 'EUR', FI: 'EUR',
-  CH: 'CHF', GB: 'GBP', US: 'USD',
+  CH: 'CHF', GB: 'GBP', US: 'USD', KR: 'KRW', JP: 'JPY',
 };
 
 const countryToCurrency = (iso2) =>

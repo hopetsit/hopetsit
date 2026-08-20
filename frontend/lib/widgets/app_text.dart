@@ -112,3 +112,44 @@ const List<String> cjkFontFallback = <String>[
   'Noto Sans CJK KR',
   'Noto Sans CJK JP',
 ];
+
+
+/// v540 — titres du design "handoff LAP" (Fredoka 500-700).
+class FredokaText extends StatelessWidget {
+  final String text;
+  final double? fontSize;
+  final FontWeight? fontWeight;
+  final Color? color;
+  final TextAlign? textAlign;
+  final int? maxLines;
+  final double? letterSpacing;
+  final double? height;
+  const FredokaText({
+    super.key,
+    required this.text,
+    this.fontSize,
+    this.fontWeight,
+    this.color,
+    this.textAlign,
+    this.maxLines,
+    this.letterSpacing,
+    this.height,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      textAlign: textAlign,
+      maxLines: maxLines,
+      overflow: maxLines != null ? TextOverflow.ellipsis : null,
+      style: GoogleFonts.fredoka(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+        letterSpacing: letterSpacing,
+        height: height,
+      ),
+    );
+  }
+}

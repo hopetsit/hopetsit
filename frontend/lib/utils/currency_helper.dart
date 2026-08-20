@@ -9,8 +9,10 @@ class CurrencyHelper {
   static const String eur = 'EUR';
   static const String gbp = 'GBP';
   static const String chf = 'CHF';
+  static const String krw = 'KRW';
+  static const String jpy = 'JPY';
 
-  static const List<String> supportedCurrencies = [eur, usd, gbp, chf];
+  static const List<String> supportedCurrencies = [eur, usd, gbp, chf, krw, jpy];
 
   static const String defaultCurrency = eur;
 
@@ -25,6 +27,10 @@ class CurrencyHelper {
         return 'GBP (Livre sterling)';
       case chf:
         return 'CHF (Franc suisse)';
+      case krw:
+        return 'KRW (Won)';
+      case jpy:
+        return 'JPY (Yen)';
       default:
         return code;
     }
@@ -41,6 +47,10 @@ class CurrencyHelper {
         return '£';
       case chf:
         return 'CHF ';
+      case krw:
+        return '₩';
+      case jpy:
+        return '¥';
       default:
         return code;
     }
@@ -52,6 +62,8 @@ class CurrencyHelper {
   /// conventionally appears with a space separator ("CHF 3.90").
   static String format(String code, double amount, {int decimals = 2}) {
     final normalized = code.toUpperCase();
+    // v540 — won et yen : devises SANS décimales (₩12000, ¥1500).
+    if (normalized == krw || normalized == jpy) decimals = 0;
     final sym = symbol(normalized);
     final str = amount.toStringAsFixed(decimals);
     if (normalized == chf) return '$sym$str'; // symbol already has a trailing space
@@ -70,6 +82,10 @@ class CurrencyHelper {
         return gbp;
       case 'US':
         return usd;
+      case 'KR':
+        return krw;
+      case 'JP':
+        return jpy;
       case 'FR':
       case 'ES':
       case 'PT':
