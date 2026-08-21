@@ -137,6 +137,7 @@ class AuthController extends GetxController {
   }
 
   Future<bool> login({String? preferredRole, bool skipFormValidation = false}) async {
+    _authProvider = 'email';
     if (!skipFormValidation &&
         !(formKey.currentState?.validate() ?? false)) {
       return false;
@@ -345,6 +346,7 @@ class AuthController extends GetxController {
   /// [role] When provided (e.g. from sign up screen), sends this role to the backend
   /// for new user creation. Use 'owner' or 'sitter'. If null, uses stored userRole.
   Future<void> loginWithGoogle({String? role}) async {
+    _authProvider = 'google';
     try {
       // v23.1 part 200 — flag indépendant Google (cf. déclaration plus haut)
       isGoogleLoginLoading.value = true;
@@ -655,6 +657,11 @@ class AuthController extends GetxController {
   /// un sur le serveur → on écrasait le cache local et toute l'UI perdait
   /// la photo jusqu'au prochain refetch. RÈGLE : on ne rétrograde JAMAIS un
   /// avatar existant vers du vide pour le même compte (même email).
+  /// v544 — moyen de connexion de la session en cours ('email' | 'google' |
+  /// 'apple'), mémorisé dans 'last_login_hint' pour que « Reprendre »
+  /// relance le BON flux (un compte Google/Apple n'a pas de mot de passe).
+  String _authProvider = '';
+
   Future<void> _saveUserProfile(Map<String, dynamic> profile) async {
     try {
       final old = _storage.read<Map<String, dynamic>>(StorageKeys.userProfile);
@@ -687,16 +694,25 @@ class AuthController extends GetxController {
     // e-mail de la dernière session ; volontairement conservé après logout).
     try {
       final a = profile['avatar'];
+      // Provider : celui du flux en cours ; sinon (changement de rôle,
+      // session échangée…) on conserve celui déjà mémorisé.
+      final prev = _storage.read('last_login_hint');
+      final prevProvider =
+          prev is Map ? (prev['provider'] ?? '').toString() : '';
       await _storage.write('last_login_hint', {
         'name': (profile['name'] ?? '').toString(),
         'avatar': a is Map ? (a['url'] ?? '').toString() : (a ?? '').toString(),
         'role': (profile['role'] ?? '').toString(),
         'email': (profile['email'] ?? '').toString(),
+        'provider': _authProvider.isNotEmpty
+            ? _authProvider
+            : (prevProvider.isNotEmpty ? prevProvider : 'email'),
       });
     } catch (_) {/* non bloquant */}
   }
 
   Future<void> loginWithApple({String? role}) async {
+    _authProvider = 'apple';
     try {
       // v23.1 part 200 — flag indépendant Apple
       isAppleLoginLoading.value = true;

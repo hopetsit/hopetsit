@@ -217,6 +217,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           _roleLabel((_hint!['role'] ?? '').toString()),
                       isDark: isDark,
                       onResume: () {
+                        // v544 — Daniel : « compte Google/Apple → Reprendre
+                        // demande un mot de passe ». On relance le flux du
+                        // provider mémorisé ; e-mail → préremplir + focus mdp.
+                        final provider =
+                            (_hint!['provider'] ?? 'email').toString();
+                        if (provider == 'google') {
+                          controller.loginWithGoogle();
+                          return;
+                        }
+                        if (provider == 'apple') {
+                          controller.loginWithApple();
+                          return;
+                        }
                         controller.emailController.text =
                             (_hint!['email'] ?? '').toString();
                         _passwordFocus.requestFocus();
@@ -601,9 +614,16 @@ class _ResumeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = (hint['name'] ?? '').toString();
     final avatar = (hint['avatar'] ?? '').toString();
-    final sub = roleLabel.isEmpty
-        ? 'login_last_session'.tr
-        : '$roleLabel · ${'login_last_session'.tr}';
+    final provider = (hint['provider'] ?? '').toString();
+    final via = provider == 'google'
+        ? ' · Google'
+        : provider == 'apple'
+            ? ' · Apple'
+            : '';
+    final sub = (roleLabel.isEmpty
+            ? 'login_last_session'.tr
+            : '$roleLabel · ${'login_last_session'.tr}') +
+        via;
 
     return Container(
       width: double.infinity,
