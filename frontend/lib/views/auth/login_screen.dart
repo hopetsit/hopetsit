@@ -36,6 +36,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Map<String, dynamic>? _hint; // {name, avatar, role, email}
   bool _remember = false;
+  // v543 — Daniel : « Reprendre ne fait rien ». Le bouton préremplissait
+  // l'e-mail (souvent déjà rempli → invisible). Maintenant il donne AUSSI le
+  // focus au mot de passe : le clavier s'ouvre, l'action est visible.
+  final FocusNode _passwordFocus = FocusNode();
 
   @override
   void initState() {
@@ -53,6 +57,12 @@ class _LoginScreenState extends State<LoginScreen> {
         controller.emailController.text = remembered;
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _passwordFocus.dispose();
+    super.dispose();
   }
 
   void _login() {
@@ -209,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onResume: () {
                         controller.emailController.text =
                             (_hint!['email'] ?? '').toString();
-                        FocusScope.of(context).unfocus();
+                        _passwordFocus.requestFocus();
                       },
                     ),
                     ),
@@ -240,6 +250,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   CustomTextField(
                     labelText: 'label_password'.tr,
                     hintText: 'hint_password_login'.tr,
+                    focusNode: _passwordFocus,
                     controller: controller.passwordController,
                     obscureText: true,
                     showPasswordToggle: true,
@@ -666,6 +677,7 @@ class _ResumeCard extends StatelessWidget {
           SoftPulse(
             child: GestureDetector(
             onTap: onResume,
+            behavior: HitTestBehavior.opaque,
             child: Container(
               padding:
                   EdgeInsets.symmetric(horizontal: 16.w, vertical: 9.h),
