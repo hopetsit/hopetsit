@@ -27,8 +27,17 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <!-- v542 — règle Play « sélecteur de photos Android » : l'app ne pioche
+         des médias que ponctuellement (photo de profil, animaux, chat) via le
+         Photo Picker système (image_picker), qui n'exige AUCUNE permission.
+         READ_MEDIA_IMAGES/VIDEO retirées (blocage de la release 541) et
+         tools:node="remove" pour qu'aucun plugin ne les réinjecte au merge. -->
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_IMAGES"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_VIDEO"
+        tools:node="remove" />
     <application
         android:label="@string/app_name"
         android:name="${applicationName}"
