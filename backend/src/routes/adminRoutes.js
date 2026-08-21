@@ -83,12 +83,34 @@ router.post('/promo/generate', requireAdmin, async (req, res) => {
     const campaign = String(b.campaign || '').trim();
     const expiresAt = b.expiresAt ? new Date(b.expiresAt) : null;
     const createdBy = req.user?.email || req.user?.id || 'admin';
+    // v541 — Daniel : « créer le MÊME code que sur Apple » (ex. HOPDALIOS).
+    // Code exact fourni → un seul code, texte imposé (MAJUSCULES A-Z 0-9 -).
+    const customCode = String(b.customCode || '').trim().toUpperCase();
+    if (customCode && !/^[A-Z0-9-]{4,24}$/.test(customCode)) {
+      return res.status(400).json({ error: 'Code personnalisé invalide (4-24 caractères, lettres/chiffres/tirets).' });
+    }
 
     if (rewardType === 'free_subscription' && !plan) {
       return res.status(400).json({ error: 'Choisis un forfait (plan).' });
     }
     if (rewardType === 'percent_discount' && !(discountPercent > 0)) {
       return res.status(400).json({ error: 'Indique un pourcentage de réduction (>0).' });
+    }
+
+    if (customCode) {
+      try {
+        const saved = await PromoCode.create({
+          code: customCode,
+          campaign, rewardType, plan, intervalDays, boostTier, discountPercent,
+          maxUses, expiresAt, createdBy,
+        });
+        return res.json({ ok: true, count: 1, codes: [saved.code] });
+      } catch (e) {
+        if (e && e.code === 11000) {
+          return res.status(409).json({ error: 'Ce code existe déjà.' });
+        }
+        throw e;
+      }
     }
 
     const created = [];

@@ -32,6 +32,9 @@ const DEFAULTS = Object.freeze({
     GBP: { bronze: 3.39,  silver: 6.79,  gold: 10.19, platinum: 16.99 },
     CHF: { bronze: 3.99,  silver: 7.99,  gold: 11.99, platinum: 19.99 },
     USD: { bronze: 4.39,  silver: 8.79,  gold: 13.19, platinum: 21.99 },
+    // v541 — won/yen (Daniel) : ≈ EUR ×1600 (KRW) et ×170 (JPY), arrondis.
+    KRW: { bronze: 6400,  silver: 12800, gold: 19200, platinum: 32000 },
+    JPY: { bronze: 680,   silver: 1360,  gold: 2040,  platinum: 3400 },
   },
   mapBoost: {
     // v23.1 — aligned with website PawMap pricing:
@@ -41,6 +44,8 @@ const DEFAULTS = Object.freeze({
     GBP: { bronze: 1.69,  silver: 7.99,  gold: 13.29, platinum: 21.99 },
     CHF: { bronze: 1.99,  silver: 8.99,  gold: 14.99, platinum: 24.99 },
     USD: { bronze: 2.19,  silver: 9.89,  gold: 16.49, platinum: 27.49 },
+    KRW: { bronze: 3200,  silver: 14400, gold: 24000, platinum: 40000 },
+    JPY: { bronze: 340,   silver: 1530,  gold: 2550,  platinum: 4250 },
   },
   // v23.1.353 — abonnement PawSpot communautaire (doc Daniel) :
   // 4,99 €/mois · 39,99 €/an (essai gratuit 7 jours géré côté route).
@@ -49,6 +54,8 @@ const DEFAULTS = Object.freeze({
     GBP: { monthly: 4.39, yearly: 34.99 },
     CHF: { monthly: 4.99, yearly: 39.99 },
     USD: { monthly: 5.49, yearly: 43.99 },
+    KRW: { monthly: 8000, yearly: 64000 },
+    JPY: { monthly: 850,  yearly: 6800 },
   },
   premium: {
     // v23.1 — family added to admin/api so it can be edited from the dashboard.
@@ -58,23 +65,29 @@ const DEFAULTS = Object.freeze({
     GBP: { monthly: 5.89, yearly: 42.19, family: 8.49, family_yearly: 59.49, premium_monthly: 6.79, premium_yearly: 50.99 },
     CHF: { monthly: 6.99, yearly: 49.99, family: 9.99, family_yearly: 69.99, premium_monthly: 7.99, premium_yearly: 59.99 },
     USD: { monthly: 7.69, yearly: 54.99, family: 10.99, family_yearly: 76.99, premium_monthly: 8.79, premium_yearly: 65.99 },
+    KRW: { monthly: 11200, yearly: 80000, family: 16000, family_yearly: 112000, premium_monthly: 12800, premium_yearly: 96000 },
+    JPY: { monthly: 1190,  yearly: 8500,  family: 1700,  family_yearly: 11900,  premium_monthly: 1360,  premium_yearly: 10200 },
   },
   chat: {
     EUR: { monthly: 2.99 },
     GBP: { monthly: 2.59 },
     CHF: { monthly: 2.99 },
     USD: { monthly: 3.29 },
+    KRW: { monthly: 4800 },
+    JPY: { monthly: 510 },
   },
   pawfollow: {
     EUR: { solo: 6.99, famille: 9.99 },
     GBP: { solo: 5.89, famille: 8.49 },
     CHF: { solo: 6.99, famille: 9.99 },
     USD: { solo: 7.69, famille: 10.99 },
+    KRW: { solo: 11200, famille: 16000 },
+    JPY: { solo: 1190,  famille: 1700 },
   },
 });
 
 const CATEGORIES = ['boost', 'mapBoost', 'premium', 'chat', 'pawfollow', 'pawspot'];
-const CURRENCIES = ['EUR', 'GBP', 'CHF', 'USD'];
+const CURRENCIES = ['EUR', 'GBP', 'CHF', 'USD', 'KRW', 'JPY'];
 
 // Deep clone of DEFAULTS used as the live in-memory state. Mutated in place
 // on admin updates so existing references keep pointing at fresh values.
