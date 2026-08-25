@@ -14,7 +14,7 @@ abonnements **PawPremium / PawBoost / PawFollow / PawSpot**, code promo.
 Propriétaire : **Daniel** (français, non-technique, itération rapide).
 
 ## Les 3 surfaces (monorepo)
-- **`frontend/`** — app Flutter (GetX, i18n 6 langues FR/EN/ES/DE/IT/PT via
+- **`frontend/`** — app Flutter (GetX, i18n 8 langues FR/EN/ES/DE/IT/PT/KO/JA via
   `lib/localization/translations/*.dart`). Suit la langue du téléphone.
 - **`backend/`** — Node/Express + MongoDB (`backend/src`). Déployé sur **Render**.
 - **`website/`** — Next.js + Tailwind (`website/src`), i18n via
@@ -47,72 +47,60 @@ PawPremium noir/or `#1c1726`→`#15120D` + or `#F4C04A`, badge membre rose
 `#F06AA0`→`#E0568B`. Web : font-display = Nunito.
 
 ## État actuel
-**10/08/2026 — Android 23.1.530 LIVE depuis le 09/08** (= v529 + Firebase
-Analytics `sign_up` + correctifs PC du 20/07 : Crashlytics réseau non-fatal,
-dates localisées + langue notifs cross-rôle, partage profil prestataire,
-plafonds géo recherche/annonces). **iOS : 1.6 = build 530 en review Apple**
-(1.5/529 live) avec ASO corrigée (mots-clés EN qui étaient en français !).
-**Fiche Play en examen** : nouveau nom « HoPetSit: Pet Sitting & Walks »,
-descriptions réécrites, 5 nouvelles captures. **NE PAS TOUCHER (le Mac
-gère)** : campagne Google Ads (compte 179-822-1590 — Paris ACTIVE 10 €/j,
-1,18 €/install ; Dallas en veille ; import conversion `sign_up` GA4
-p549064108 → optimisation inscriptions vers le 15/08), fiches stores en
-examen, captures App Store (le Mac fera la 1.7 après approbation 1.6).
-**Stratégie de croissance ACTÉE : Paris « supply-first »** — recruter 10 pet
-sitters parisiens AVANT de pousser les propriétaires (vrais utilisateurs
-actuels : 3 Paris + 3 USA ; Espagne/Pologne = Daniel et ses amis). Annonce
-Leboncoin publiée le 09/08 ; playbook + pack réseaux sociaux dans
-~/Downloads du Mac. **Web LIVE v531-533** : /blog (3 articles SEO),
-/petsitter/paris|madrid|dallas, /devenir-petsitter/paris, colonne Guides au
-footer. ⚠️ RÈGLE SEO : toute future page SEO = composant serveur STATIQUE
-(le reste du site est client-side i18n → invisible pour Google).
-**Parrainage** : spec dans `docs/SPEC_PARRAINAGE.md` (version 100 %
-PawPoints actée) — NE PAS coder sans le go de Daniel. **Prochain build APK
-= 532** (530 consommé par le Mac, v531 déjà utilisé par un déploiement
-admin PC — Utilisateurs/désinscriptions + tri Promotions).
+**25/08/2026 — v545 (travaux Mac 540→545).** Le MacBook est désormais la
+machine de travail principale ; le PC sert de miroir à jour.
 
-**Version app Android : 23.1.529 SOUMISE sur Google Play le 18/07/2026**
-(déploiement complet, en examen ; la **v528 est LIVE** dans 177 pays,
-validée en une nuit). **v529 = v528 + SDK Meta (App Events)** pour les
-campagnes d'installation Facebook/Instagram : `meta_events_service.dart`
-(App ID 27796356886626061), code poussé depuis le Mac (commit cbfba30e),
-build iOS 529 déjà soumis à Apple. Avec l'envoi de la v529, deux
-déclarations Play Console ont été complétées (OBLIGATOIRES à cause du SDK) :
-1) **Sécurité des données** → « Appareil ou autres ID » collectées +
-partagées, non éphémères, collecte requise, finalité « Publicité ou
-marketing » (collecte ET partage) ; 2) **Identifiant publicitaire** (Ad ID,
-Android 13) → « Oui », finalité « Publicité ou marketing » — sans cette 2e
-déclaration, la console BLOQUE l'envoi (bannière rouge « 1 problème »).
-Étape Meta restante : paramètres Android sur developers.facebook.com
-(package com.cardellihermanos.hopetsit, classe .MainActivity, hash
-ZB4ZkSwfKo216B+znawIIzAU7YU=) puis campagnes via Ads Manager
-943056412092153. v528 = v527 + dernier libellé
-Pet-Sitting (fallback barre d'accueil), rebuild de vérification après le
-faux-positif « corrections absentes » (cause : téléphone resté sur la version
-Store — signature Google ≠ clé locale, l'APK sideloadé ne s'installe pas
-par-dessus sans désinstaller). v527 = 15 retours du testeur espagnol Jose + Daniel :
-Pet-Sitting, dates localisées + auto-slash + validation 18 ans, âge animal
-auto, avatar composeur, PawPoints/Carte traduits, carte propriétaire sur
-demandes directes, fin d'inscription réactive, drapeau+indicatif du pays à
-l'inscription, amis/suivi cross-rôle (backend v526). Console : compte Google
-**allomoteurs@gmail.com** → compte développeur « Daniel Armando ». APK/AAB
-dans `~/Downloads` côté PC (HoPetSit_v23.1.527.apk/.aab). Contenu v523 : fix points PawMap invisibles (clé du cache marqueurs),
-recherche de ville sur la carte AGRANDIE (n'animait que la carte cachée),
-photo de profil stable multi-appareils (login n'écrase plus un avatar existant
-par du vide — `_saveUserProfile` dans auth_controller), icône tarifs
-€ → billets neutres (Icons.payments, 6 écrans), anglais AMÉRICANISÉ
-(Canceled/favorites/Color), libellés « Didit » (les 6 langues). Sur le Play
-Store : v500 soumise le 06/07 (statut à vérifier), v499 LIVE dans 177 pays —
-fiche : https://play.google.com/store/apps/details?id=com.cardellihermanos.hopetsit.
-**iOS : ✅ ACCEPTÉE par Apple (08/07/2026)** — build 506 (Apple IAP + Apple
-Sign-In réécrit), fiche https://apps.apple.com/app/hopetsit/id6763645719 ;
-code iOS synchronisé sur origin. Un prochain build iOS depuis le Mac (git pull
-puis build 523) embarquera les mêmes correctifs. Backend/site/admin déployés
-(**ADMIN_BUILD v524** : vérifications d'identité 3 € visibles dans l'onglet
-Paiements + cartes à jour, sans double comptage avec la boutique ; v522 =
-ajustements comptables ; v510 = Didit remplace Persona côté serveur).
-KYC : la 1re vérification Didit réelle (Daniel, sitter) est passée le 12/07 —
-session approuvée, badge ✓.
+| Surface | Version | État |
+|---|---|---|
+| Android (Play) | 23.1.544 | Publiée / en examen |
+| iOS (App Store) | 1.10 = build 544 | **PUBLIÉE** |
+| iOS (App Store) | 1.11 = build 545 | En review (nouvelle ASO) |
+| Backend + admin (Render) | ADMIN_BUILD v545 | Déployé |
+| Site (Vercel) | à jour | Déployé |
+
+**Prochain build APK/AAB = 546** (540→545 consommés par le Mac).
+
+**Contenu 540→545** : onboarding haute-fidélité (police Fredoka, tuiles de
+rôle, micro-animations) ; **mode invité complet** (navigation sans compte,
+fiche profil consultable, mur d'inscription seulement à l'action) ; fin du
+blocage « ajoute ta ville » (retour en haut du formulaire + détection auto) —
+c'était LE mur qui faisait abandonner les inscriptions ; **devise par pays**
+(won KRW et yen JPY ajoutés app/backend/admin/boutique) ; sélecteur de devise
+réparé côté gardien et ajouté côté promeneur ; retours Jose (« Demander un
+service », « Mes annonces », crayon d'édition animaux) ; e-mails Gmail avec
+« + » acceptés ; spinners Google/Apple ; bouton « Reprendre » ; **icône
+officielle** déployée partout depuis le vectoriel de Daniel.
+
+**Marketing (réel, 25/08)** : ≈723 € de Google Ads → 768 installs
+(0,94 €/install ; Paris 1,01 € / Dallas 3,96 €). **2 inscriptions en 7 jours,
+toutes deux aux USA en organique, 0 à Paris malgré la campagne.** Base : 16
+propriétaires / 11 gardiens / 16 promeneurs. **La pub n'est pas le problème :
+Paris n'a qu'UN SEUL prestataire (Asnières).** Priorité = recruter 10 pet
+sitters parisiens (DM Instagram #petsitterparis, groupes Facebook) et
+réorienter les annonces vers le recrutement.
+
+**Code promo unique : `HOPDALIOS`** — offer code App Store (1 mois PawPremium,
+tous pays, expire 31/12/2026) + code maison Android. Envoi depuis l'admin :
+Promotions → « Envoyer une promo par email ».
+
+**Comptes de test** (base réelle, masqués de la vitrine) :
+`dadaciao84+testowner@gmail.com`, `+testsitter`, `+testwalker` — mot de passe
+`Hopetsit2026`.
+
+**Reste côté Daniel** : réimporter l'icône de la fiche Play À LA MAIN (Google
+refuse l'injection par script) puis envoyer en examen ; avis 5 étoiles
+(levier n°1 du classement App Store) ; recrutement sitters Paris.
+
+### ⚠️ Règles ajoutées par le Mac (540→545)
+- **NE JAMAIS réintroduire `READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO`** dans
+  l'AndroidManifest : Google a **BLOQUÉ la release 541** pour ça (règle
+  « sélecteur de photos »). Retirées avec `tools:node="remove"`.
+- **Icône** : uniquement le vectoriel de Daniel, rendu direct, **sans
+  reconstruction de fond** — toute retouche modifie les couleurs ou rogne les
+  pastilles.
+- **`flutter clean` avant un IPA release** si un build simulateur a eu lieu
+  (sinon Apple rejette : slice x86_64).
+- **Play Console : import des images de la fiche = MANUEL.**
 
 ### ⚠️ v498 — RENOMMAGE PACKAGE ANDROID `com.hopetsit.app` → `com.cardellihermanos.hopetsit`
 Exigence Google Play (= société CARDELLI HERMANOS LIMITED). Changé dans le CODE :
