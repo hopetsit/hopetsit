@@ -268,6 +268,12 @@ export default function MapPage() {
     ts: number;
   } | null>(null);
 
+  // v546 — Daniel : « le bouton me géolocaliser ne marche pas ». Il échouait
+  // EN SILENCE (callback d'erreur vide) : refus d'autorisation ou délai
+  // dépassé = rien à l'écran. On montre désormais l'état et l'erreur.
+  const [locating, setLocating] = useState(false);
+  const [locateMsg, setLocateMsg] = useState<string | null>(null);
+
   // v505 — Daniel : recherche de ville à droite du titre. Géocodage Nominatim
   // (même service que l'app) → setCenter → RecenterMap recentre la carte.
   const [cityQuery, setCityQuery] = useState("");
@@ -1180,32 +1186,72 @@ export default function MapPage() {
           type="button"
           title={t("map_locate_btn")}
           aria-label={t("map_locate_btn")}
+          disabled={locating}
           onClick={() => {
-            if (!("geolocation" in navigator)) return;
+            if (locating) return;
+            if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+              setLocateMsg(t("map_locate_unsupported"));
+              return;
+            }
+            setLocateMsg(null);
+            setLocating(true);
+
+            const onFound = (pos: GeolocationPosition) => {
+              const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+              setUserLocation(loc);
+              setFocusTarget({ ...loc, ts: Date.now() });
+              setLocating(false);
+            };
+            const onFail = (err: GeolocationPositionError) => {
+              setLocating(false);
+              setLocateMsg(
+                err && err.code === 1
+                  ? t("map_locate_denied")
+                  : t("map_locate_failed"),
+              );
+            };
+
+            // 1er essai : rapide, accepte une position récente déjà connue.
+            // 2e essai seulement si besoin : GPS précis, plus lent.
             navigator.geolocation.getCurrentPosition(
-              (pos) => {
-                const loc = {
-                  lat: pos.coords.latitude,
-                  lng: pos.coords.longitude,
-                };
-                setUserLocation(loc);
-                setFocusTarget({ ...loc, ts: Date.now() });
-              },
-              () => {},
-              { enableHighAccuracy: true, timeout: 10000 },
+              onFound,
+              () =>
+                navigator.geolocation.getCurrentPosition(onFound, onFail, {
+                  enableHighAccuracy: true,
+                  timeout: 15000,
+                  maximumAge: 0,
+                }),
+              { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 },
             );
           }}
           className="absolute right-3 top-3 z-[1000] grid h-11 w-11 place-items-center rounded-full bg-white text-[#C92A12] shadow-lg ring-1 ring-ink/10 transition hover:scale-105"
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
-            <circle cx="12" cy="12" r="8" />
-            <line x1="12" y1="1.5" x2="12" y2="5" />
-            <line x1="12" y1="19" x2="12" y2="22.5" />
-            <line x1="1.5" y1="12" x2="5" y2="12" />
-            <line x1="19" y1="12" x2="22.5" y2="12" />
-          </svg>
+          {locating ? (
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#C92A12] border-t-transparent" />
+          ) : (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
+              <circle cx="12" cy="12" r="8" />
+              <line x1="12" y1="1.5" x2="12" y2="5" />
+              <line x1="12" y1="19" x2="12" y2="22.5" />
+              <line x1="1.5" y1="12" x2="5" y2="12" />
+              <line x1="19" y1="12" x2="22.5" y2="12" />
+            </svg>
+          )}
         </button>
+        {locateMsg && (
+          <div className="absolute right-3 top-16 z-[1100] max-w-[240px] rounded-xl bg-white/95 px-3 py-2 text-[12px] font-medium text-ink shadow-lg ring-1 ring-ink/10">
+            {locateMsg}
+            <button
+              type="button"
+              onClick={() => setLocateMsg(null)}
+              className="ml-2 font-bold text-[#C92A12]"
+              aria-label="OK"
+            >
+              OK
+            </button>
+          </div>
+        )}
         {/* v497 — Daniel : viseur de placement PRÉCIS pendant la création.
             Point ROSE = Tag spot, point ROUGE = Signaler. Fixe au centre : on
             déplace la carte dessous pour positionner au pixel près. */}
