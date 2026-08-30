@@ -12,6 +12,13 @@ export const metadata: Metadata = {
 
 const POSTS = [
   {
+    slug: "devenir-pet-sitter-combien-ca-rapporte",
+    lang: "🇫🇷",
+    title: "Devenir pet sitter : combien ça rapporte vraiment ?",
+    excerpt:
+      "12 à 20 € la balade, 25 à 45 € la garde avec nuit : les revenus réels, le statut à choisir et par où commencer.",
+  },
+  {
     slug: "promener-son-chien-a-paris",
     lang: "🇫🇷",
     title: "Promener son chien à Paris : parcs, bois et bons plans",
