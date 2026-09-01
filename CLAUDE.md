@@ -71,13 +71,38 @@ service », « Mes annonces », crayon d'édition animaux) ; e-mails Gmail avec
 « + » acceptés ; spinners Google/Apple ; bouton « Reprendre » ; **icône
 officielle** déployée partout depuis le vectoriel de Daniel.
 
-**Marketing (réel, 25/08)** : ≈723 € de Google Ads → 768 installs
-(0,94 €/install ; Paris 1,01 € / Dallas 3,96 €). **2 inscriptions en 7 jours,
-toutes deux aux USA en organique, 0 à Paris malgré la campagne.** Base : 16
-propriétaires / 11 gardiens / 16 promeneurs. **La pub n'est pas le problème :
-Paris n'a qu'UN SEUL prestataire (Asnières).** Priorité = recruter 10 pet
-sitters parisiens (DM Instagram #petsitterparis, groupes Facebook) et
-réorienter les annonces vers le recrutement.
+**Marketing (réel, 30/08)** : ≈810 € de Google Ads cumulés → 985 installs
+(0,82 €/install). **Paris : 662 installs, 0,94 €/install… et ZÉRO inscription
+parisienne.** Dallas : 2,88 €/install, toujours PAS mise en pause. Base
+inchangée : 16 propriétaires / 11 gardiens / 16 promeneurs. Sur 21 jours,
+**4 inscriptions réelles seulement** (Alexis/Asnières, Alicia/Férolles,
+Linda/Texas, Serena/Géorgie) — les 2 américaines venues en **organique, sans
+pub**. **La pub n'est pas le problème : Paris n'a qu'UN SEUL prestataire
+(Asnières).** Une ville sans offre ne convertit aucun propriétaire.
+
+**Test en cours (lancé le 30/08)** : budget Paris monté à **15 €/jour** avec
+un message réorienté vers le **recrutement de sitters** (un sitter rejoint une
+app jeune, un propriétaire non). Durée 10 jours, **un seul indicateur : le
+nombre de nouveaux prestataires parisiens** — ≥8 : on investit ; 3-7 : on
+affine ; <3 : on arrête la pub. ⚠️ Les DM Instagram à froid n'ont RIEN donné
+(ils tombent dans « Invitations », jamais lus) → canal abandonné au profit des
+**groupes Facebook locaux**, où Daniel a publié lui-même le 30/08.
+
+**🎯 OBJECTIF PRIORITAIRE DE DANIEL : SA PREMIÈRE VENTE** (une réservation
+réellement payée), pas seulement des inscriptions. Chemin retenu : (1) valider
+de bout en bout la chaîne réservation → paiement → versement AVANT de pousser
+du monde, (2) faire venir la demande par l'offre existante — demander aux
+prestataires déjà inscrits d'amener leur premier client réel (transaction +
+avis + preuve que ça marche), (3) concentrer sur UNE micro-zone (Asnières,
+où il y a déjà un sitter) plutôt que « Paris » en général.
+
+**Rendez-vous marketing : le DIMANCHE** (Daniel écrit « bilan » / « marketing »)
+→ chiffres pub + inscriptions par ville + UNE décision. **Blog : un article
+toutes les 2 semaines.** 10 articles en ligne (vérifiés), dont le dernier :
+« Devenir pet sitter : combien ça rapporte vraiment ? ». ⚠️ Déséquilibre à
+corriger : 8 articles sur 10 s'adressent aux PROPRIÉTAIRES alors que le besoin
+n°1 est le recrutement de prestataires. Prochain sujet prévu : « Pet sitter :
+faut-il se déclarer, et comment ? » (l'administratif est le frein réel).
 
 **Code promo unique : `HOPDALIOS`** — offer code App Store (1 mois PawPremium,
 tous pays, expire 31/12/2026) + code maison Android. Envoi depuis l'admin :
@@ -87,9 +112,30 @@ Promotions → « Envoyer une promo par email ».
 `dadaciao84+testowner@gmail.com`, `+testsitter`, `+testwalker` — mot de passe
 `Hopetsit2026`.
 
-**Reste côté Daniel** : réimporter l'icône de la fiche Play À LA MAIN (Google
-refuse l'injection par script) puis envoyer en examen ; avis 5 étoiles
-(levier n°1 du classement App Store) ; recrutement sitters Paris.
+**Reste côté Daniel** : mettre **Dallas en pause** et vérifier que les titres
+d'annonce Paris sont bien passés au message « recrutement » (⚠️ **Google Ads
+refuse TOUS les clics automatisés** — 4 méthodes essayées : cellule d'état,
+cases à cocher, page de paramètres, menu groupé → toute manipulation Ads est
+MANUELLE) ; avis 5 étoiles (levier n°1 du classement App Store) ; réimporter
+l'icône de la fiche Play à la main puis envoyer en examen.
+
+**Site web — travaux après le 25/08** : bouton « me géolocaliser » de la
+PawMap réparé (son callback d'erreur était vide → échec silencieux ; désormais
+spinner, double tentative avec position récente acceptée, et message explicite
+en 8 langues) ; icônes refaites depuis le **vectoriel de Daniel** en rendu
+direct (mes versions « reconstruites » modifiaient les couleurs et rognaient
+les pastilles — ne jamais recommencer) ; visuel de recrutement publié sur
+`/social/recrutement-paris.jpg` ; nouvel article de blog.
+
+**Publication automatique Facebook/Instagram — préparée, EN ATTENTE** :
+programme prêt dans `~/hopetsit-social/` (publier.py + contenu.json +
+MODE_EMPLOI.md), utilisant l'API Graph officielle. Bloqué à une seule étape :
+la génération du jeton d'accès, que Meta réserve à un clic humain.
+⚠️ **Cause du blocage identifiée** : Chrome est connecté à un compte Facebook
+qui n'est PAS développeur (« Aucune app disponible » dans l'Explorateur) —
+l'app HoPetSit appartient au compte **Daniel Cardelli** (user 61590618398480).
+Alternative sans code recommandée : le planificateur natif de **Meta Business
+Suite**, qui programme des publications Facebook + Instagram à l'avance.
 
 ### ⚠️ Règles ajoutées par le Mac (540→545)
 - **NE JAMAIS réintroduire `READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO`** dans
