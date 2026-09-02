@@ -30,8 +30,10 @@ export function LangSwitcher() {
     if (timer.current) clearTimeout(timer.current);
     if (open) {
       setMounted(true);
-      const raf = requestAnimationFrame(() => setVisible(true));
-      return () => cancelAnimationFrame(raf);
+      // setTimeout plutôt que requestAnimationFrame : rAF est gelé dans un
+      // onglet en arrière-plan, la liste resterait invisible.
+      const t = setTimeout(() => setVisible(true), 15);
+      return () => clearTimeout(t);
     }
     setVisible(false);
     timer.current = setTimeout(() => setMounted(false), ANIM_MS);
