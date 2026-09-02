@@ -58,7 +58,25 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 547.**
+**Prochain build APK/AAB = 548** (547 = icônes officielles + polonais, construit le 02/09).
+
+**02/09 — v547 + marketing automatisé (demande Daniel : « fais tout seul »)**
+- **Icône** régénérée depuis `Hopetsit Icon-01.svg` : Android premier plan à
+  **74 %** du canevas 108 (pastilles + pointeur entiers sous masque rond,
+  vérifié visuellement), fond = illustration agrandie + floutée (dégradé réel)
+  dans `drawable-*` — le XML lit `@drawable/ic_launcher_foreground`, PAS
+  `mipmap` ; iOS 1024 plein cadre, coins remplis par le même flou (local).
+  Play 512 : `~/Downloads/HOPETSIT_ICONE_512.png` (import manuel).
+- **Routine cloud hebdo** `trig_01BpzyjaJz7SPDgPFCdjinQM` (dimanche 7 h
+  Paris) : 1 article FR Paris/semaine (impaire = recrutement sitters, paire =
+  propriétaires) + 1er dimanche du mois EN/PL/KO ; posts sociaux prêts à
+  coller dans `website/marketing/social/`, rapport dans
+  `website/marketing/reports/` ; tsc + push → Vercel. Mode d'emploi :
+  `website/marketing/README.md`. Gestion : https://claude.ai/code/routines.
+- **SEO programmatique** : 47 pages « devenir pet sitter à <ville> »
+  (`website/src/lib/recruit-cities.ts` + `components/RecruitCityPage.tsx`) —
+  FR paris-1…20 + communes + grandes villes, EN 7 villes US, PL 5, KO 3 ;
+  sitemap automatique. Une ligne de données = une page.
 
 **Contenu 546** (chantier de vérification demandé par Daniel — tout testé en
 prod avec les comptes test + simulateur iOS) :
