@@ -47,3 +47,16 @@ a[class*="rounded-xl"]:hover {
   outline-offset: 2px;
   box-shadow: 0 0 14px rgba(255, 106, 0, 0.6);
 }
+
+/* v548 — changement de langue fluide : léger fondu du contenu pendant le
+   remplacement des textes (classe posée par LanguageProvider.setLang). */
+body {
+  transition: opacity 140ms ease-out;
+}
+html.lang-switching body {
+  opacity: 0.45;
+}
+@media (prefers-reduced-motion: reduce) {
+  body { transition: none; }
+  html.lang-switching body { opacity: 1; }
+}

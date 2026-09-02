@@ -65,11 +65,23 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [lang]);
 
   const setLang = useCallback((l: Lang) => {
-    setLangState(l);
     try {
       window.localStorage.setItem(STORAGE_KEY, l);
     } catch {
       /* ignore */
+    }
+    // v548 — changement « fluide » : la page fait un léger fondu (classe
+    // lang-switching, voir globals.css) pendant que les textes sont remplacés,
+    // au lieu d'un remplacement sec de tous les mots.
+    const root = typeof document !== "undefined" ? document.documentElement : null;
+    if (root) {
+      root.classList.add("lang-switching");
+      window.setTimeout(() => {
+        setLangState(l);
+        window.setTimeout(() => root.classList.remove("lang-switching"), 40);
+      }, 120);
+    } else {
+      setLangState(l);
     }
     // v497 — synchronise la langue choisie au backend (notifs + emails).
     pushLocaleToBackend(l);
