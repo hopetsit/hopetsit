@@ -183,9 +183,14 @@ Chaîne : routine cloud dimanche 14 h écrit `website/marketing/social/AAAA-Wss.
 (sections « ## 1. Facebook » / « ## 2. Instagram » obligatoires) → launchd
 `com.hopetsit.social` dimanche 14 h 30 lance `publier_semaine.py` : visuel généré
 dans `website/public/social/AAAA-Wss.jpg` + push, puis post Facebook (texte +
-lien) et Instagram (visuel + légende). 1re publication faite le 02/09
-(recrutement Paris). Mac éteint le dimanche après-midi = relancer à la main.
-Mode d'emploi : `~/hopetsit-social/MODE_EMPLOI.md`.
+lien), Instagram (visuel + légende) et story Instagram. **Mercredi 12 h 30** :
+launchd `com.hopetsit.social.mercredi` publie un post « evergreen » en rotation
+(`banque_posts.json`, 8 posts Paris). 1re publication faite le 02/09
+(recrutement Paris). Mac éteint à l'heure prévue = relancer à la main.
+Mode d'emploi : `~/hopetsit-social/MODE_EMPLOI.md`. **IndexNow** : 84 URL
+soumises à Bing/Yandex/Naver le 02/09 (`~/hopetsit-social/indexnow.py`).
+**Groupes Facebook Paris** (canal humain n° 1) : liste + textes prêts dans
+`website/marketing/groupes_facebook_paris.md`.
 
 ### ⚠️ Règles ajoutées par le Mac (540→545)
 - **NE JAMAIS réintroduire `READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO`** dans
