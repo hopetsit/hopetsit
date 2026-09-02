@@ -1207,16 +1207,43 @@ class _LeaderboardListState extends State<_LeaderboardList>
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            SizedBox(height: 80.h),
-            Icon(Icons.emoji_events_outlined,
-                size: 44.sp, color: AppColors.greyText),
-            SizedBox(height: 10.h),
+            SizedBox(height: 64.h),
+            // v546 — design : l'état vide affichait un simple « — » sous un
+            // trophée gris. On explique ce qu'est le classement et comment
+            // y entrer, pour transformer un écran mort en invitation à agir.
             Center(
+              child: Container(
+                width: 88.w,
+                height: 88.w,
+                decoration: BoxDecoration(
+                  color: _gold.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.emoji_events_rounded,
+                    size: 42.sp, color: _gold),
+              ),
+            ),
+            SizedBox(height: 16.h),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 32.w),
               child: PoppinsText(
-                text: '—',
-                fontSize: 18.sp,
+                text: 'leaderboard_empty_title'.tr,
+                fontSize: 17.sp,
                 fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            SizedBox(height: 8.h),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 36.w),
+              child: PoppinsText(
+                text: 'leaderboard_empty_subtitle'.tr,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w500,
                 color: AppColors.greyText,
+                textAlign: TextAlign.center,
+                maxLines: 4,
               ),
             ),
           ],

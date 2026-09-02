@@ -495,6 +495,48 @@ export const TERMS: LegalDocByLang = {
     { type: "p", html: `ご質問: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
   ],
   },
+  // v546 — polonais : version ANGLAISE reprise telle quelle (un texte
+  // juridique ne se traduit pas automatiquement ; à faire relire par un
+  // traducteur juridique avant une version polonaise).
+  pl: {
+    lastUpdated: "April 25, 2026",
+    sections: [
+    { type: "p", html: `These Terms of Service (the "Terms") govern your use of the HoPetSit marketplace (the "Service"), operated by CARDELLI HERMANOS LIMITED (trading as HoPetSit), a company incorporated in Hong Kong (the "Company", "we", "us").` },
+    { type: "h2", html: `1. The Service` },
+    { type: "p", html: `HoPetSit is a marketplace connecting pet owners with independent pet sitters and dog walkers worldwide (177 countries, including the European Union, United Kingdom, Switzerland, Norway and the United States). We are <strong>not</strong> a provider of pet-care services ourselves. We facilitate matching, secure chat, payment processing and dispute resolution between users.` },
+    { type: "h2", html: `2. Eligibility` },
+    { type: "ul", html: [
+      `You must be at least 18 years old to register as a sitter or walker.`,
+      `Pet owners must be at least 18 years old or use the platform under the supervision of a legal guardian.`,
+      `You must provide accurate, current and complete information at registration.`
+    ]},
+    { type: "h2", html: `3. Account &amp; security` },
+    { type: "p", html: `You are responsible for the activity on your account and for keeping your credentials confidential. Notify us at <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a> as soon as you suspect unauthorised access.` },
+    { type: "h2", html: `4. Bookings &amp; payments` },
+    { type: "p", html: `Owners pay the gross booking amount via our regulated payment processor (Airwallex). HoPetSit retains a <strong>20% platform commission</strong>; the remaining <strong>80%</strong> is paid out to the provider's registered IBAN <strong>24 hours after the service ends</strong>, allowing a dispute window for the owner. Funds are held in escrow during this entire period and HoPetSit does not access them.` },
+    { type: "h2", html: `5. Cancellations &amp; refunds` },
+    { type: "p", html: `Owners can self-cancel for free up to <strong>72 hours before the service starts</strong> — the booking is cancelled immediately and a 100% automatic refund is issued. Within the 72-hour window, cancellations require a mutual agreement with the provider or a formal dispute. Provider-initiated cancellations always result in a full owner refund. See the full <a href="/refund">Refund Policy</a> for the complete process, deadlines and dispute procedure.` },
+    { type: "h2", html: `6. Conduct` },
+    { type: "ul", html: [
+      `No harassment, hate speech, or harmful behaviour toward other users or animals.`,
+      `No solicitation of contact details to bypass the platform's payment system.`,
+      `No fraudulent reviews, fake bookings, or chargeback abuse.`,
+      `Sitters and walkers must respect local animal welfare laws.`
+    ]},
+    { type: "h2", html: `7. Reviews &amp; reputation` },
+    { type: "p", html: `Both parties may leave a review after a completed booking. Reviews must reflect a real experience. We may remove reviews that violate these Terms or applicable law.` },
+    { type: "h2", html: `8. Intellectual property` },
+    { type: "p", html: `The HoPetSit name, logo, application, website, and content are owned by CARDELLI HERMANOS LIMITED (trading as HoPetSit). You may not copy, reproduce, or distribute them without our prior written consent.` },
+    { type: "h2", html: `9. Liability` },
+    { type: "p", html: `To the fullest extent permitted by law, CARDELLI HERMANOS LIMITED (trading as HoPetSit) is not liable for indirect or consequential damages arising from a booking. Our aggregate liability for any claim is limited to the platform fees we have collected from the affected booking.` },
+    { type: "h2", html: `10. Termination` },
+    { type: "p", html: `We may suspend or terminate accounts that breach these Terms. You may delete your account at any time from the mobile app or by contacting us.` },
+    { type: "h2", html: `11. Governing law` },
+    { type: "p", html: `These Terms are governed by the laws of Hong Kong SAR. Disputes shall be resolved by the competent courts of Hong Kong, without prejudice to mandatory consumer-protection rights in your country of residence.` },
+    { type: "h2", html: `12. Contact` },
+    { type: "p", html: `Questions: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+  ],
+  },
 };
 
 export const PRIVACY: LegalDocByLang = {
@@ -906,6 +948,60 @@ export const PRIVACY: LegalDocByLang = {
     { type: "p", html: `データ保護に関するお問い合わせ: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
   ],
   },
+  // v546 — polonais : version ANGLAISE reprise telle quelle (un texte
+  // juridique ne se traduit pas automatiquement ; à faire relire par un
+  // traducteur juridique avant une version polonaise).
+  pl: {
+    lastUpdated: "April 25, 2026",
+    sections: [
+    { type: "p", html: `CARDELLI HERMANOS LIMITED (trading as HoPetSit) ("we", "us") is the data controller of personal data collected through the HoPetSit mobile application and website (the "Service"). This page explains what we collect, why, how long we keep it, and your rights — in accordance with the EU General Data Protection Regulation (GDPR), the UK GDPR and Hong Kong PDPO.` },
+    { type: "h2", html: `1. Data we collect` },
+    { type: "ul", html: [
+      `<strong>Account data:</strong> name, email, phone (optional), city, role, password hash.`,
+      `<strong>Profile data:</strong> avatar, bio, languages, services offered, rates, availability.`,
+      `<strong>Booking data:</strong> dates, pets, prices, status, reviews.`,
+      `<strong>Payment data:</strong> a token from our regulated payment provider — we never see your card number. Last 4 digits and brand are stored to display saved cards.`,
+      `<strong>Communications:</strong> chat messages, support tickets, contact-form submissions.`,
+      `<strong>Technical data:</strong> IP address, device type, app version, language, crash reports.`,
+      `<strong>Location:</strong> only when you explicitly grant location permission to find providers near you or to publish a request.`
+    ]},
+    { type: "h2", html: `2. Why we process it (legal basis)` },
+    { type: "ul", html: [
+      `<strong>Contract:</strong> creating and operating your account, processing bookings and payments.`,
+      `<strong>Legitimate interest:</strong> fraud prevention, content moderation, product analytics.`,
+      `<strong>Consent:</strong> marketing emails, push notifications, location access.`,
+      `<strong>Legal obligation:</strong> tax records, anti-money-laundering compliance.`
+    ]},
+    { type: "h2", html: `3. Sharing` },
+    { type: "p", html: `We share data with:` },
+    { type: "ul", html: [
+      `The payment processor (PCI-DSS compliant) for card transactions and IBAN payouts.`,
+      `Cloud infrastructure (Render, MongoDB, Cloudinary) under strict data-processing agreements.`,
+      `Other users only as needed for a booking (e.g. your name and avatar are shown to the sitter you booked).`,
+      `Authorities when required by law.`
+    ]},
+    { type: "p", html: `We do <strong>not</strong> sell your data and do not use it for cross-platform advertising.` },
+    { type: "h2", html: `4. Retention` },
+    { type: "p", html: `Account data is kept while your account is active and 24 months after deletion (for fraud prevention). Booking and payment records are kept 10 years for tax compliance. Chat messages are kept for the lifetime of the conversation; soft-deleted messages remain visible to admin moderators only.` },
+    { type: "h2", html: `5. Your rights` },
+    { type: "ul", html: [
+      `Right of access, rectification, erasure, restriction, portability and objection.`,
+      `Right to withdraw consent at any time (push notifications, marketing).`,
+      `Right to lodge a complaint with your local data-protection authority (e.g. CNIL in France).`
+    ]},
+    { type: "p", html: `Exercise your rights at <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>. We answer within 30 days.` },
+    { type: "h2", html: `6. International transfers` },
+    { type: "p", html: `Some of our processors are based outside the European Economic Area. Transfers are protected by the European Commission's Standard Contractual Clauses (SCCs) and equivalent safeguards under UK and Hong Kong law.` },
+    { type: "h2", html: `7. Cookies` },
+    { type: "p", html: `The website uses strictly necessary cookies for authentication and preferences. We do not use advertising or tracking cookies. The mobile app uses local storage and a notification token for push delivery.` },
+    { type: "h2", html: `8. Children` },
+    { type: "p", html: `The Service is not directed to children under 16. We do not knowingly collect data from minors.` },
+    { type: "h2", html: `9. Changes` },
+    { type: "p", html: `Material changes to this policy are notified in-app and by email (when you have opted in to product updates) at least 30 days before they take effect.` },
+    { type: "h2", html: `10. Contact` },
+    { type: "p", html: `Data Protection contact: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+  ],
+  },
 };
 
 export const REFUND: LegalDocByLang = {
@@ -1125,6 +1221,36 @@ export const REFUND: LegalDocByLang = {
     { type: "p", html: `返金のご依頼、異議申立ておよびご質問: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a> · 48時間以内の返信を目指しています。` },
   ],
   },
+  // v546 — polonais : version ANGLAISE reprise telle quelle (un texte
+  // juridique ne se traduit pas automatiquement ; à faire relire par un
+  // traducteur juridique avant une version polonaise).
+  pl: {
+    lastUpdated: "April 25, 2026",
+    sections: [
+    { type: "p", html: `This Refund Policy applies to all bookings made through the HoPetSit marketplace. It complements the <a href="/terms">Terms of Service</a> and reflects how cancellations and refunds are actually executed by our payment processor (Airwallex).` },
+    { type: "h2", html: `1. How payments are held` },
+    { type: "p", html: `When an owner pays for a confirmed booking, the funds are captured by our regulated payment processor (Airwallex) and held in escrow. They are released to the provider's registered bank account <strong>24 hours after the service ends</strong> — this dispute window protects the owner if anything goes wrong during the service.` },
+    { type: "h2", html: `2. Cancellation by the owner — 72-hour free window` },
+    { type: "ul", html: [
+      `<strong>More than 72 hours before the service starts:</strong> You can self-cancel from the app. The booking is cancelled immediately and you receive a <strong>100% automatic refund</strong> (no questions asked). Funds typically reach your bank within 5–10 business days.`,
+      `<strong>72 hours or less before the service starts:</strong> Self-cancellation is no longer available. You must request a <strong>mutual cancellation</strong> from your provider in the chat, or open a formal dispute via <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>. Refunds within this window are reviewed case-by-case based on the reason and any evidence.`
+    ]},
+    { type: "h2", html: `3. Cancellation by the provider` },
+    { type: "p", html: `If your sitter or walker cancels a confirmed booking — at any time before the service starts — you receive a <strong>100% automatic refund</strong>. The provider may incur a cancellation fee, visibility downgrade or platform suspension if cancellations become repeated, to protect the trust of owners on the platform.` },
+    { type: "h2", html: `4. Service not delivered (no-show, sitter unreachable)` },
+    { type: "p", html: `If the service was paid for but never delivered, you can open a dispute within <strong>24 hours of the scheduled service end</strong> via the chat or by emailing <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>. After verification (chat history, photos, GPS check-ins, ratings), we issue a full refund within 5 business days.` },
+    { type: "h2", html: `5. Service materially different from what was agreed` },
+    { type: "p", html: `Partial refunds may be granted at our discretion when the service was materially different from what was agreed (significantly shorter duration, conditions clearly violated, etc.). Both parties have the opportunity to share evidence in the dispute.` },
+    { type: "h2", html: `6. Force majeure` },
+    { type: "p", html: `Documented force majeure events affecting either party (severe illness with medical proof, natural disaster, government-imposed travel ban, death of the pet, etc.) are reviewed case-by-case regardless of the standard timeline. Refunds may be granted on presentation of appropriate evidence.` },
+    { type: "h2", html: `7. How refunds are issued` },
+    { type: "p", html: `Refunds are issued back to the original payment method (the card used at checkout, via Airwallex). Funds typically arrive within <strong>5 to 10 business days</strong> depending on your bank.` },
+    { type: "h2", html: `8. Chargebacks` },
+    { type: "p", html: `We strongly encourage owners to use HoPetSit's internal dispute mechanism before initiating a chargeback with their card issuer. Owners initiating chargebacks without first contacting us, or while a dispute is already active, may forfeit our internal resolution process and may be permanently removed from the platform. We cooperate fully with Airwallex on legitimate chargeback investigations.` },
+    { type: "h2", html: `9. Contact` },
+    { type: "p", html: `Refund requests, disputes and questions: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a> · we aim to reply within 48 hours.` },
+  ],
+  },
 };
 
 export const IMPRINT: LegalDocByLang = {
@@ -1278,6 +1404,28 @@ export const IMPRINT: LegalDocByLang = {
     { type: "p", html: `Daniel Cardelli、CARDELLI HERMANOS LIMITED 取締役。` },
     { type: "h2", html: `紛争解決` },
     { type: "p", html: `EU域内の消費者向けに、欧州委員会は<a href="https://ec.europa.eu/consumers/odr" rel="noopener" target="_blank">ec.europa.eu/consumers/odr</a>においてオンライン紛争解決プラットフォームを提供しています。ただし当社は、<a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>を通じて48時間以内に紛争を直接解決することも可能です。` },
+  ],
+  },
+  // v546 — polonais : version ANGLAISE reprise telle quelle (un texte
+  // juridique ne se traduit pas automatiquement ; à faire relire par un
+  // traducteur juridique avant une version polonaise).
+  pl: {
+    lastUpdated: "April 25, 2026",
+    sections: [
+    { type: "h2", html: `Operating company` },
+    { type: "p", html: `<strong>CARDELLI HERMANOS LIMITED</strong><br/>Trading as <strong>HoPetSit</strong><br/>Hong Kong Companies Registry — CR Number: <strong>2671528</strong><br/>Registered office: Flat/Rm A, 12/F, ZJ 300, 300 Lockhart Road, Wan Chai, Hong Kong<br/>Director: Daniel Cardelli` },
+    { type: "h2", html: `Contact` },
+    { type: "p", html: `General contact: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a><br/>Press &amp; partnerships: same address with subject "Press" or "Partnership".` },
+    { type: "h2", html: `Hosting` },
+    { type: "p", html: `<strong>Application backend:</strong> Render Inc., 525 Brannan St, San Francisco, CA 94107, United States.<br/><strong>Website:</strong> Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, United States.<br/><strong>Database:</strong> MongoDB Inc., 1633 Broadway, 38th Floor, New York, NY 10019, United States.` },
+    { type: "h2", html: `Payment processing` },
+    { type: "p", html: `Card payments and payouts are processed by a regulated payment institution (currently in transition). Funds are held in segregated accounts pursuant to applicable e-money rules.` },
+    { type: "h2", html: `Intellectual property` },
+    { type: "p", html: `The HoPetSit name, logo, mobile application, source code and website content are protected by copyright. © CARDELLI HERMANOS LIMITED. All rights reserved.` },
+    { type: "h2", html: `Editor of publication` },
+    { type: "p", html: `Daniel Cardelli, Director of CARDELLI HERMANOS LIMITED.` },
+    { type: "h2", html: `Dispute resolution` },
+    { type: "p", html: `For consumers in the EU, the European Commission provides an online dispute resolution platform at <a href="https://ec.europa.eu/consumers/odr" rel="noopener" target="_blank">ec.europa.eu/consumers/odr</a>. We are however available to resolve disputes directly via <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a> within 48 hours.` },
   ],
   },
 };

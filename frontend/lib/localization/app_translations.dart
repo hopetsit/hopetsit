@@ -15,6 +15,7 @@ import 'translations/pt.dart';
 // v532 — coréen et japonais.
 import 'translations/ko.dart';
 import 'translations/ja.dart';
+import 'translations/pl.dart'; // v546 — polonais (ouverture Varsovie)
 
 /// Centralizes supported locales and translation keys for the app.
 class LocalizationService {
@@ -36,6 +37,7 @@ class LocalizationService {
     'pt': const Locale('pt', 'PT'),
     'ko': const Locale('ko', 'KR'),
     'ja': const Locale('ja', 'JP'),
+    'pl': const Locale('pl', 'PL'),
   };
 
   /// Human‑readable language names used in selection UIs.
@@ -48,6 +50,7 @@ class LocalizationService {
     'pt': 'Português',
     'ko': '한국어',
     'ja': '日本語',
+    'pl': 'Polski',
   };
 
   /// v500 — Daniel : drapeaux dans le sélecteur de langue, avec le drapeau
@@ -61,6 +64,7 @@ class LocalizationService {
     'pt': '🇵🇹',
     'ko': '🇰🇷',
     'ja': '🇯🇵',
+    'pl': '🇵🇱',
   };
 
   /// All supported locales for Flutter / GetX.
@@ -174,6 +178,7 @@ class AppTranslations extends Translations {
       'pt_PT': ptPTTranslations,
       'ko_KR': koKRTranslations,
       'ja_JP': jaJPTranslations,
+      'pl_PL': plPLTranslations, // v546 — polonais
     };
   }
 
@@ -190,6 +195,7 @@ class AppTranslations extends Translations {
       'pt_PT': ptPTTranslations,
       'ko_KR': koKRTranslations,
       'ja_JP': jaJPTranslations,
+      'pl_PL': plPLTranslations, // v546 — polonais
     };
     others.forEach((locale, map) {
       final missing = canonical.difference(map.keys.toSet());

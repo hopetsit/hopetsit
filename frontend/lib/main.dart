@@ -128,6 +128,7 @@ void main() async {
     // historique des gains (ce n'est pas un simple affichage dégradé).
     for (final code in [
       'en_US', 'fr_FR', 'es_ES', 'de_DE', 'it_IT', 'pt_PT', 'ko_KR', 'ja_JP',
+      'pl_PL', // v546 — polonais
     ]) {
       await initializeDateFormatting(code);
     }

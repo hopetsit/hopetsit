@@ -651,6 +651,8 @@ const Map<String, String> esESTranslations = <String, String>{
       'friends_screen_title': 'Mis amigos',
       'friends_invite_link_tooltip': 'Invitar un amigo',
       'friends_invite_subject': '¡Únete a mí en HoPetSit!',
+      'leaderboard_empty_title': 'La clasificación aún está vacía',
+      'leaderboard_empty_subtitle': 'Gana PawPoints añadiendo lugares, avisos y reseñas en la PawMap: los primeros contribuidores aparecerán aquí.',
       'friends_invite_message': '@name te invita a HoPetSit! Descarga la app y encuéntrale en la PawMap: @link',
       'friends_tap_not_shared_title': 'Ubicación no compartida',
       'friends_tap_not_shared_msg': '@name aún no comparte su ubicación contigo. Pídele que active el compartir.',
@@ -1479,6 +1481,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'home_change_city_title': 'Cambiar de ciudad',
       'home_change_city_hint': 'Busca proveedores alrededor de otra ciudad.',
       'my_posts_no_posts': 'No se encontraron publicaciones',
+      'home_posts_empty_hint': 'Escribe tu solicitud justo arriba: los cuidadores y paseadores cercanos la verán y podrán responder.',
       'my_posts_empty_subtitle': 'Publica una solicitud para encontrar un cuidador o paseador cerca de ti.', // v23.1 part 253
       'my_posts_delete_title': 'Eliminar publicacion?',
       'my_posts_delete_message':

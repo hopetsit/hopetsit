@@ -482,6 +482,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'home_change_city_title': 'Cambia città',
       'home_change_city_hint': 'Cerca prestatori intorno a un’altra città.',
       'my_posts_no_posts': 'Nessun post trovato',
+      'home_posts_empty_hint': 'Scrivi la tua richiesta qui sopra: i pet sitter e i dog walker vicino a te la vedranno e potranno rispondere.',
       'my_posts_empty_subtitle': 'Pubblica una richiesta per trovare un sitter o un dog walker vicino a te.', // v23.1 part 253
       'my_posts_delete_title': 'Eliminare il post?',
       'my_posts_delete_message':
@@ -736,6 +737,8 @@ const Map<String, String> itITTranslations = <String, String>{
       'friends_screen_title': 'I miei amici',
       'friends_invite_link_tooltip': 'Invita un amico',
       'friends_invite_subject': 'Unisciti a me su HoPetSit!',
+      'leaderboard_empty_title': 'La classifica è ancora vuota',
+      'leaderboard_empty_subtitle': 'Guadagna PawPoints aggiungendo luoghi, segnalazioni e recensioni sulla PawMap: i primi contributori appariranno qui.',
       'friends_invite_message': '@name ti invita su HoPetSit! Scarica l\'app e incontralo sulla PawMap: @link',
       'friends_tap_not_shared_title': 'Posizione non condivisa',
       'friends_tap_not_shared_msg': '@name non condivide ancora la sua posizione con te. Chiedigli di attivare la condivisione.',

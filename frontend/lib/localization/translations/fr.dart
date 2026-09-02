@@ -1017,6 +1017,8 @@ const Map<String, String> frFRTranslations = <String, String>{
       'friends_screen_title': 'Mes amis',
       'friends_invite_link_tooltip': 'Inviter un ami',
       'friends_invite_subject': 'Rejoins-moi sur HoPetSit !',
+      'leaderboard_empty_title': 'Le classement est encore vide',
+      'leaderboard_empty_subtitle': 'Gagne des PawPoints en ajoutant des lieux, des signalements et des avis sur la PawMap : les premiers contributeurs apparaîtront ici.',
       'friends_invite_message': '@name t\'invite sur HoPetSit ! Télécharge l\'app et retrouve-le sur la PawMap : @link',
       'friends_tap_not_shared_title': 'Position non partagée',
       'friends_tap_not_shared_msg': '@name ne partage pas encore sa position avec toi. Demande-lui d\'activer son partage.',
@@ -1870,6 +1872,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'home_change_city_title': 'Changer de ville',
       'home_change_city_hint': 'Cherche des prestataires autour d’une autre ville.',
       'my_posts_no_posts': 'Aucune publication trouvée',
+      'home_posts_empty_hint': 'Écris ta demande juste au-dessus : les gardiens et promeneurs près de chez toi la verront et pourront te répondre.',
       'my_posts_empty_subtitle': 'Publie une demande pour trouver un sitter ou un promeneur près de chez toi.', // v23.1 part 253
       'my_posts_delete_title': 'Supprimer la publication ?',
       'my_posts_delete_message':

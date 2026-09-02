@@ -157,9 +157,34 @@ class _MyReferralsScreenState extends State<MyReferralsScreen> {
                   ),
                 const SizedBox(height: 12),
                 if (_referrals.isEmpty)
+                  // v546 — design : état vide illustré et centré, cohérent
+                  // avec les autres écrans (icône teintée + texte explicatif).
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Text('referrals_list_empty'.tr),
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.10),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.group_add_rounded,
+                              color: Colors.green, size: 30),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'referrals_list_empty'.tr,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            color: Colors.grey.shade600,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
                   )
                 else
                   for (final r in _referrals.cast<Map<String, dynamic>>())

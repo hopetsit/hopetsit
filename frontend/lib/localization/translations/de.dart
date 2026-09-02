@@ -470,6 +470,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'home_change_city_title': 'Stadt ändern',
       'home_change_city_hint': 'Suche Anbieter rund um eine andere Stadt.',
       'my_posts_no_posts': 'Keine Beiträge gefunden',
+      'home_posts_empty_hint': 'Schreib deine Anfrage direkt oben: Betreuer und Gassigeher in deiner Nähe sehen sie und können antworten.',
       'my_posts_empty_subtitle': 'Veröffentliche eine Anfrage, um einen Sitter oder Gassigeher in deiner Nähe zu finden.', // v23.1 part 253
       'my_posts_delete_title': 'Beitrag loeschen?',
       'my_posts_delete_message':
@@ -726,6 +727,8 @@ const Map<String, String> deDETranslations = <String, String>{
       'friends_screen_title': 'Meine Freunde',
       'friends_invite_link_tooltip': 'Freund einladen',
       'friends_invite_subject': 'Komm zu mir auf HoPetSit!',
+      'leaderboard_empty_title': 'Die Rangliste ist noch leer',
+      'leaderboard_empty_subtitle': 'Sammle PawPoints, indem du Orte, Meldungen und Bewertungen auf der PawMap hinzufügst: die ersten Mitwirkenden erscheinen hier.',
       'friends_invite_message': '@name lädt dich zu HoPetSit ein! Lade die App und triff ihn auf der PawMap: @link',
       'friends_tap_not_shared_title': 'Position nicht geteilt',
       'friends_tap_not_shared_msg': '@name teilt seinen Standort noch nicht mit dir. Bitte ihn, das Teilen zu aktivieren.',

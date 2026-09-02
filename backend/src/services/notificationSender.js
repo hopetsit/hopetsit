@@ -19,7 +19,7 @@ const { emitToUser, isUserOnline } = require('../sockets/emitter');
 const PRESENCE_GATED_EMAIL_TYPES = new Set(['new_message']);
 const logger = require('../utils/logger');
 
-const SUPPORTED_LOCALES = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ko', 'ja'];
+const SUPPORTED_LOCALES = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl']; // v546 — polonais
 // v18.5 — fallback changé de 'en' vers 'fr'. HoPetSit est lancé sur le
 // marché francophone (Daniel) ; la majorité des users n'ont pas encore
 // `language` renseigné côté DB et tombaient sur l'anglais par défaut
@@ -60,6 +60,7 @@ const LANGUAGE_NAME_TO_LOCALE = {
   // proposé tel quel dans la liste des langues parlées du profil).
   korean: 'ko', coreen: 'ko', 'coréen': 'ko', '한국어': 'ko', ko: 'ko',
   japanese: 'ja', japonais: 'ja', '日本語': 'ja', ja: 'ja',
+  polish: 'pl', polonais: 'pl', polski: 'pl', pl: 'pl', // v546
 };
 const resolveLocale = (userLanguage) => {
   const raw = String(userLanguage || '').toLowerCase().trim();

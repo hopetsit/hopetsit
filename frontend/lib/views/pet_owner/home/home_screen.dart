@@ -1112,16 +1112,49 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (sortedMine.isEmpty) {
+        // v546 — design : un simple texte gris « Aucune publication trouvée »
+        // laissait l'accueil vide et froid. On explique quoi faire (le
+        // composeur est juste au-dessus) avec une icône dans la teinte de
+        // marque, cohérent avec les autres états vides de l'app.
         return SliverFillRemaining(
           hasScrollBody: false,
           child: Center(
             child: Padding(
-              padding: EdgeInsets.all(20.w),
-              child: InterText(
-                text: 'my_posts_no_posts'.tr,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w400,
-                color: AppColors.greyColor,
+              padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 24.h),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 72.w,
+                    height: 72.w,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryColor.withValues(alpha: 0.10),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.campaign_rounded,
+                      size: 34.sp,
+                      color: AppColors.primaryColor,
+                    ),
+                  ),
+                  SizedBox(height: 14.h),
+                  InterText(
+                    text: 'my_posts_no_posts'.tr,
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary(context),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 6.h),
+                  InterText(
+                    text: 'home_posts_empty_hint'.tr,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.greyColor,
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                  ),
+                ],
               ),
             ),
           ),
