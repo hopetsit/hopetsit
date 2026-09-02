@@ -76,3 +76,23 @@ bienvenues 👇 https://www.hopetsit.com/download
   groupes chats · Jeudi : D dans « Garde d'animaux entre particuliers » + « pet-sitter garde… »
 - Chaque jour : chercher « cherche » / « quelqu'un pour garder » dans les groupes et répondre.
 - Nouveaux inscrits → leur demander un avis 5 étoiles sur le store (levier n° 1 du classement).
+
+## Journal des publications (par Claude, profil Page « Hopetsit »)
+⚠️ Facebook est utilisé sous le profil de la **Page Hopetsit** (pas le profil personnel).
+Certains groupes n'affichent alors aucune zone de publication (ex. « Garde d'animaux entre
+particuliers », 43 K) : il faudrait y adhérer avec le profil personnel Daniel Cardelli pour
+pouvoir y poster. Les groupes ci-dessous acceptent la Page.
+
+| Date | Groupe | Membres | Texte | Statut |
+|---|---|---|---|---|
+| 02/09/2026 | Annonces De PETSITTERS Près De Chez Vous CHIEN CHAT NAC | 63 K | présentation (les deux côtés) + /download | publié (visible dans le fil) |
+| 02/09/2026 | Annonces de Pet sitting | 22,8 K | variante « plus de demandes / trouver un sitter » + /download | en attente d'approbation admin |
+| 02/09/2026 | Pour l'amour des animaux à Paris 16ème | 2,2 K | propriétaires Paris + recrutement + /petsitter/paris | en attente d'approbation admin |
+
+Règle : maximum 3 groupes par jour, textes différents, répondre aux commentaires
+(Daniel : notifications Facebook de la Page). Groupes de Daniel encore à utiliser :
+Garde D'animaux Pour Les Vacances, Garde maison et animaux contre logement, Amoureux des
+chats et des chiens en France, J'aime les chats, Nous aimons les chats, l'amour des animaux ❤️
+(à espacer sur les jours suivants). Hors sujet, ne pas poster : animaux perdus/volés,
+maltraitance. Groupes USA (DFW Dog Owners, Dallas Dog Lovers, Texas…) : à faire en anglais
+quand Dallas redevient une priorité.
