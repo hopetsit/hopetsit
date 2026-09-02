@@ -3,11 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_config.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
 
 /// Sprint 6 step 3 — sitter submits a visit report with photos.
 class SubmitVisitReportScreen extends StatefulWidget {
@@ -45,7 +44,7 @@ class _SubmitVisitReportScreenState extends State<SubmitVisitReportScreen> {
   Future<void> _submit() async {
     setState(() => _busy = true);
     try {
-      final token = GetStorage().read<String>(StorageKeys.authToken) ?? '';
+      final token = SecureTokenStore.currentToken() ?? '';
       final req = http.MultipartRequest(
         'POST',
         Uri.parse('${ApiConfig.baseUrl}/bookings/${widget.bookingId}/visit-report'),

@@ -3,6 +3,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:hopetsit/data/network/api_config.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
 
 /// Service for managing Socket.IO connections for real-time messaging.
 ///
@@ -59,7 +60,7 @@ class SocketService {
     }
 
     try {
-      final token = _storage.read<String>(StorageKeys.authToken);
+      final token = SecureTokenStore.currentToken();
       if (token == null || token.isEmpty) {
         // Import AuthController to handle login required error
         // Note: We can't import controllers in services, so we'll handle this at the call site

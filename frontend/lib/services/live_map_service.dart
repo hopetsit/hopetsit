@@ -237,7 +237,7 @@ class LiveMapService extends GetxService {
     // si ça échoue, le flux socket en avant-plan continue de fonctionner.
     try {
       final token = SecureTokenStore.instance.tokenSync ??
-          _storage.read<String>(StorageKeys.authToken);
+          SecureTokenStore.currentToken();
       _storage.write(kBgLiveActive, true);
       _storage.write(kBgToken, token ?? '');
       _storage.write(kBgBaseUrl, ApiConfig.baseUrl);

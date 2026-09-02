@@ -79,6 +79,20 @@ class SecureTokenStore {
   /// pas (encore) hydraté.
   String? get tokenSync => _hydrated ? _cachedToken : null;
 
+  /// v546 — ACCÈS UNIQUE au jeton pour tout le code hors ApiClient.
+  ///
+  /// Bug Daniel « la photo de profil disparaît sur l'autre téléphone » :
+  /// après la migration vers le stockage sécurisé, [_purgeLegacy] VIDE
+  /// GetStorage — mais neuf endroits (ProfileController, SocketService,
+  /// splash, live map, factures, rapport de visite…) lisaient encore le
+  /// jeton dans GetStorage. Résultat au démarrage à froid : « pas de
+  /// jeton » → profil jamais rechargé (silhouette à la place de la photo),
+  /// sockets temps réel jamais connectés. Tout le monde passe désormais
+  /// par ici : magasin sécurisé d'abord, ancien GetStorage en repli le
+  /// temps d'une migration.
+  static String? currentToken() =>
+      instance.tokenSync ?? GetStorage().read<String>(StorageKeys.authToken);
+
   /// Lecture asynchrone, force une lecture disque si pas hydraté.
   Future<String?> readToken() async {
     if (_hydrated) return _cachedToken;

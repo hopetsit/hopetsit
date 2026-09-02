@@ -81,7 +81,7 @@ class ProfileController extends GetxController {
   void onInit() {
     super.onInit();
     // Skip authenticated API calls when no token (e.g. signup flow before login).
-    final token = _storage.read<String>(StorageKeys.authToken);
+    final token = SecureTokenStore.currentToken();
     if (token != null && token.isNotEmpty) {
       applyStoredUserProfileDisplay();
       loadMyProfile();
@@ -112,7 +112,7 @@ class ProfileController extends GetxController {
   /// Loads `/users/me/profile` when we have a token but no display name yet
   /// (e.g. controller registered before auth).
   void ensureProfileLoadedForSession() {
-    final token = _storage.read<String>(StorageKeys.authToken);
+    final token = SecureTokenStore.currentToken();
     if (token == null || token.isEmpty) return;
     if (isLoading.value) return;
     if (userName.value.isNotEmpty) return;

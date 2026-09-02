@@ -1,9 +1,8 @@
-import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_config.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/models/invoice_model.dart';
-import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
 
 /// v23.1 — repository for the auto-generated Invoice resource.
 class InvoiceRepository {
@@ -38,8 +37,7 @@ class InvoiceRepository {
   String htmlUrlFor(String invoiceId) {
     final base = '${ApiConfig.baseUrl}${ApiEndpoints.invoiceById}/$invoiceId/html';
     try {
-      final storage = GetStorage();
-      final token = storage.read<String>(StorageKeys.authToken) ?? '';
+      final token = SecureTokenStore.currentToken() ?? '';
       if (token.isNotEmpty) {
         return '$base?token=${Uri.encodeQueryComponent(token)}';
       }

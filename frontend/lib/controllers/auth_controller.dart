@@ -1065,7 +1065,7 @@ class AuthController extends GetxController {
   /// v23.1 part 43 — sync userRole + storage with the JWT's authoritative
   /// role claim. Call after login and on app startup.
   void _syncRoleFromJwt() {
-    final token = _storage.read<String>(StorageKeys.authToken);
+    final token = SecureTokenStore.currentToken();
     final jwtRole = _decodeRoleFromJwt(token);
     if (jwtRole == null) return;
     if (userRole.value != jwtRole) {
@@ -1745,7 +1745,7 @@ class AuthController extends GetxController {
       // volontaire (ou une requête résiduelle post-logout) → on n'affiche
       // PAS le snackbar.
       try {
-        final tok = GetStorage().read<String>(StorageKeys.authToken);
+        final tok = SecureTokenStore.currentToken();
         if (tok == null || tok.isEmpty) return;
       } catch (_) {/* en cas de doute, comportement inchangé */}
       if (_sessionExpiredSnackShown) return;
@@ -1784,7 +1784,7 @@ class AuthController extends GetxController {
     if (_refreshInFlight) return false;
     // Pas de refresh si aucune session stockée.
     final current = SecureTokenStore.instance.tokenSync ??
-        _storage.read<String>(StorageKeys.authToken);
+        SecureTokenStore.currentToken();
     if (current == null || current.isEmpty) return false;
 
     _refreshInFlight = true;

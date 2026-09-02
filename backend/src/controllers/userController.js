@@ -21,6 +21,7 @@ const { uploadMedia } = require('../services/cloudinary');
 const { normalizeCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
 const { processLocationData } = require('../utils/location');
 const logger = require('../utils/logger');
+const { ensureAvatarFromSiblingRoles } = require('../utils/avatarFallback');
 
 const OWNER_SERVICES = ['Pet Sitting', 'House Sitting', 'Day Care', 'Long Stay'];
 const SITTER_SERVICES = [...OWNER_SERVICES, 'Dog Walking'];
@@ -844,6 +845,8 @@ const getOwnerProfile = async (req, res) => {
       if (!account) {
         return res.status(404).json({ error: 'User not found.' });
       }
+      // v546 — photo complétée depuis un rôle frère si vide (autre appareil).
+      await ensureAvatarFromSiblingRoles(account, userRole);
       return res.json({ profile: sanitizeUser(account, { includeEmail: true }) });
     }
 
@@ -851,6 +854,8 @@ const getOwnerProfile = async (req, res) => {
     if (!owner) {
       return res.status(404).json({ error: 'Owner not found.' });
     }
+    // v546 — photo complétée depuis un rôle frère si vide (autre appareil).
+    await ensureAvatarFromSiblingRoles(owner, 'owner');
 
     // Fetch related data
     const pets = await Pet.find({ ownerId: ownerId }).sort({ createdAt: -1 });

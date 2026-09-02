@@ -146,7 +146,7 @@ class _SplashScreenState extends State<SplashScreen>
       } catch (_) {/* defensive */}
     }
     if (token == null || token.isEmpty) {
-      token = storage.read<String>(StorageKeys.authToken);
+      token = SecureTokenStore.currentToken();
     }
     final storedRole = storage.read<String>(StorageKeys.userRole);
     final jwtRole = _decodeRoleFromJwt(token);

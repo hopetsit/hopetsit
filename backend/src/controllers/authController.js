@@ -106,6 +106,10 @@ const findAvailableRolesForAccount = async (email, oldId) => {
   }
 };
 
+// v546 — photo de profil complétée depuis un rôle frère quand elle est vide
+// (bug « la photo disparaît sur l'autre téléphone »). Cf. utils/avatarFallback.
+const { ensureAvatarFromSiblingRoles } = require('../utils/avatarFallback');
+
 const generateRandomPassword = () => {
   return `firebase_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
 };
@@ -743,6 +747,7 @@ const login = async (req, res) => {
         id: result.account._id.toString(),
         role: result.role,
       });
+      await ensureAvatarFromSiblingRoles(result.account, result.role);
       return res.json({
         token: unverifiedToken,
         role: result.role,
@@ -759,6 +764,8 @@ const login = async (req, res) => {
       result.account.email,
       result.account.oldId,
     );
+    // v546 — photo de profil complétée depuis un rôle frère si vide.
+    await ensureAvatarFromSiblingRoles(result.account, result.role);
 
     res.json({
       role: result.role,
@@ -901,6 +908,8 @@ const googleAuth = async (req, res) => {
         account.email,
         account.oldId,
       );
+      // v546 — photo de profil complétée depuis un rôle frère si vide.
+      await ensureAvatarFromSiblingRoles(account, result.role);
 
       return res.json({
         existingUser: true,
@@ -1222,6 +1231,9 @@ const appleAuth = async (req, res) => {
       }
 
       const token = signAuthToken({ id: account._id.toString(), role: result.role });
+      // v546 — photo de profil complétée depuis un rôle frère si vide
+      // (Apple ne fournit jamais de photo : c'est LE cas signalé par Daniel).
+      await ensureAvatarFromSiblingRoles(account, result.role);
       return res.json({
         existingUser: true,
         role: result.role,
