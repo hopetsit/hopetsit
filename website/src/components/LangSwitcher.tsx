@@ -38,7 +38,9 @@ export function LangSwitcher() {
     return () => { if (timer.current) clearTimeout(timer.current); };
   }, [open]);
 
-  // Fermeture au clic extérieur, au défilement et au redimensionnement.
+  // Fermeture au clic extérieur et au redimensionnement. (Pas au défilement :
+  // le focus des options ou un micro-scroll trackpad refermait la liste
+  // aussitôt ouverte.)
   useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
@@ -46,11 +48,9 @@ export function LangSwitcher() {
     };
     const close = () => setOpen(false);
     document.addEventListener("pointerdown", onDown);
-    window.addEventListener("scroll", close, { passive: true });
     window.addEventListener("resize", close);
     return () => {
       document.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("scroll", close);
       window.removeEventListener("resize", close);
     };
   }, [open]);
