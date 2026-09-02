@@ -57,10 +57,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     pushLocaleToBackend(initial);
   }, []);
 
-  // Reflect choice in <html lang> for SEO + screen-readers.
+  // Reflect choice in <html lang> for SEO + screen-readers, et fin du fondu
+  // de changement de langue (v548) une fois la nouvelle langue rendue.
   useEffect(() => {
     if (typeof document !== "undefined") {
       document.documentElement.lang = lang;
+      document.documentElement.classList.remove("lang-switching");
     }
   }, [lang]);
 
@@ -76,10 +78,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const root = typeof document !== "undefined" ? document.documentElement : null;
     if (root) {
       root.classList.add("lang-switching");
-      window.setTimeout(() => {
-        setLangState(l);
-        window.setTimeout(() => root.classList.remove("lang-switching"), 40);
-      }, 120);
+      // La classe est retirée par l'effet [lang] ci-dessous, juste après le
+      // rendu dans la nouvelle langue (pas par une minuterie : un onglet
+      // caché ralentit les timers et la page resterait estompée).
+      window.setTimeout(() => setLangState(l), 120);
     } else {
       setLangState(l);
     }
