@@ -255,7 +255,7 @@ class SitterCard extends StatelessWidget {
                   SizedBox(width: 3.w),
                   Flexible(
                     child: InterText(
-                      text: '(${sitter.reviewsCount} avis)',
+                      text: 'reviews_count_short'.trParams({'count': '${sitter.reviewsCount}'}),
                       fontSize: 11.5,
                       color: AppColors.textSecondary(context),
                       maxLines: 1,

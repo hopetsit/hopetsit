@@ -1375,6 +1375,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'home_change_city_title': 'Mudar de cidade',
       'home_change_city_hint': 'Procure prestadores em torno de outra cidade.',
       'my_posts_no_posts': 'Nenhuma postagem encontrada',
+      'reviews_count_short': '(@count avaliações)',
       'home_posts_empty_hint': 'Escreve o teu pedido mesmo acima: os cuidadores e passeadores perto de ti vão vê-lo e poderão responder.',
       'my_posts_empty_subtitle': 'Publica um pedido para encontrar um sitter ou passeador perto de ti.', // v23.1 part 253
       'my_posts_delete_title': 'Excluir postagem?',

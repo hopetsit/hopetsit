@@ -250,7 +250,7 @@ class WalkerCard extends StatelessWidget {
                   SizedBox(width: 3.w),
                   Flexible(
                     child: InterText(
-                      text: '(${walker.reviewsCount} avis)',
+                      text: 'reviews_count_short'.trParams({'count': '${walker.reviewsCount}'}),
                       fontSize: 11.5,
                       color: AppColors.textSecondary(context),
                       maxLines: 1,

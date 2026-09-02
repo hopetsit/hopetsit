@@ -1607,6 +1607,7 @@ const Map<String, String> jaJPTranslations = <String, String>{
   'home_change_city_title': '都市を変更',
   'home_change_city_hint': '別の都市の周辺で探せます。',
   'my_posts_no_posts': '投稿はありません',
+  'reviews_count_short': '(レビュー@count件)',
   'home_posts_empty_hint': 'すぐ上にリクエストを書きましょう。近くのペットシッターや散歩代行者がそれを見て返信できます。',
   'my_posts_empty_subtitle': 'リクエストを投稿すると、近くのシッターやウォーカーが見つかります。',
   'my_posts_delete_title': '投稿を削除しますか？',

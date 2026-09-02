@@ -1607,6 +1607,7 @@ const Map<String, String> koKRTranslations = <String, String>{
   'home_change_city_title': '도시 변경',
   'home_change_city_hint': '다른 도시 주변에서 찾아보세요.',
   'my_posts_no_posts': '게시글이 없어요',
+  'reviews_count_short': '(리뷰 @count개)',
   'home_posts_empty_hint': '바로 위에 요청을 작성해 보세요. 근처의 펫시터와 산책 도우미가 보고 답할 수 있습니다.',
   'my_posts_empty_subtitle': '요청을 올리면 근처 시터나 산책 도우미를 찾을 수 있어요.',
   'my_posts_delete_title': '게시글을 삭제할까요?',

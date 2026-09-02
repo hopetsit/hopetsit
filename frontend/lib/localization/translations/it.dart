@@ -482,6 +482,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'home_change_city_title': 'Cambia città',
       'home_change_city_hint': 'Cerca prestatori intorno a un’altra città.',
       'my_posts_no_posts': 'Nessun post trovato',
+      'reviews_count_short': '(@count recensioni)',
       'home_posts_empty_hint': 'Scrivi la tua richiesta qui sopra: i pet sitter e i dog walker vicino a te la vedranno e potranno rispondere.',
       'my_posts_empty_subtitle': 'Pubblica una richiesta per trovare un sitter o un dog walker vicino a te.', // v23.1 part 253
       'my_posts_delete_title': 'Eliminare il post?',

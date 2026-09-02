@@ -1872,6 +1872,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'home_change_city_title': 'Changer de ville',
       'home_change_city_hint': 'Cherche des prestataires autour d’une autre ville.',
       'my_posts_no_posts': 'Aucune publication trouvée',
+      'reviews_count_short': '(@count avis)',
       'home_posts_empty_hint': 'Écris ta demande juste au-dessus : les gardiens et promeneurs près de chez toi la verront et pourront te répondre.',
       'my_posts_empty_subtitle': 'Publie une demande pour trouver un sitter ou un promeneur près de chez toi.', // v23.1 part 253
       'my_posts_delete_title': 'Supprimer la publication ?',

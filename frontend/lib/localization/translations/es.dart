@@ -1481,6 +1481,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'home_change_city_title': 'Cambiar de ciudad',
       'home_change_city_hint': 'Busca proveedores alrededor de otra ciudad.',
       'my_posts_no_posts': 'No se encontraron publicaciones',
+      'reviews_count_short': '(@count reseñas)',
       'home_posts_empty_hint': 'Escribe tu solicitud justo arriba: los cuidadores y paseadores cercanos la verán y podrán responder.',
       'my_posts_empty_subtitle': 'Publica una solicitud para encontrar un cuidador o paseador cerca de ti.', // v23.1 part 253
       'my_posts_delete_title': 'Eliminar publicacion?',

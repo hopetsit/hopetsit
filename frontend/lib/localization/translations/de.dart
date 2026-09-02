@@ -470,6 +470,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'home_change_city_title': 'Stadt ändern',
       'home_change_city_hint': 'Suche Anbieter rund um eine andere Stadt.',
       'my_posts_no_posts': 'Keine Beiträge gefunden',
+      'reviews_count_short': '(@count Bewertungen)',
       'home_posts_empty_hint': 'Schreib deine Anfrage direkt oben: Betreuer und Gassigeher in deiner Nähe sehen sie und können antworten.',
       'my_posts_empty_subtitle': 'Veröffentliche eine Anfrage, um einen Sitter oder Gassigeher in deiner Nähe zu finden.', // v23.1 part 253
       'my_posts_delete_title': 'Beitrag loeschen?',

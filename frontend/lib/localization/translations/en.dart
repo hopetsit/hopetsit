@@ -1798,6 +1798,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'home_change_city_title': 'Change city',
       'home_change_city_hint': 'Search providers around another city.',
       'my_posts_no_posts': 'No posts found',
+      'reviews_count_short': '(@count reviews)',
       'home_posts_empty_hint': 'Write your request just above: sitters and walkers near you will see it and can reply.',
       'my_posts_empty_subtitle': 'Publish a request to find a sitter or walker near you.', // v23.1 part 253
       'my_posts_delete_title': 'Delete post?',
