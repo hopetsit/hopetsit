@@ -12,6 +12,13 @@ export const metadata: Metadata = {
 
 const POSTS = [
   {
+    slug: "chien-seul-toute-la-journee-paris",
+    lang: "🇫🇷",
+    title: "Chien seul toute la journée à Paris : la solution de la promenade de midi",
+    excerpt:
+      "8 h de bureau, un chien seul à la maison : la promenade de midi à 12-20 € et comment bien choisir son promeneur à Paris.",
+  },
+  {
     slug: "devenir-pet-sitter-combien-ca-rapporte",
     lang: "🇫🇷",
     title: "Devenir pet sitter : combien ça rapporte vraiment ?",

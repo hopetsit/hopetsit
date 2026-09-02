@@ -27,6 +27,7 @@ const PUBLIC_PATHS = [
   "/signup",
   // v531 — SEO : blog + pages villes (contenu statique indexable).
   "/blog",
+  "/blog/chien-seul-toute-la-journee-paris",
   "/blog/combien-coute-un-pet-sitter",
   "/blog/faire-garder-son-chien-pendant-les-vacances",
   "/blog/how-much-does-a-dog-walker-cost",
