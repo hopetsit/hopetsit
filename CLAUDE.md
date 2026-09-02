@@ -176,15 +176,16 @@ direct (mes versions « reconstruites » modifiaient les couleurs et rognaient
 les pastilles — ne jamais recommencer) ; visuel de recrutement publié sur
 `/social/recrutement-paris.jpg` ; nouvel article de blog.
 
-**Publication automatique Facebook/Instagram — préparée, EN ATTENTE** :
-programme prêt dans `~/hopetsit-social/` (publier.py + contenu.json +
-MODE_EMPLOI.md), utilisant l'API Graph officielle. Bloqué à une seule étape :
-la génération du jeton d'accès, que Meta réserve à un clic humain.
-⚠️ **Cause du blocage identifiée** : Chrome est connecté à un compte Facebook
-qui n'est PAS développeur (« Aucune app disponible » dans l'Explorateur) —
-l'app HoPetSit appartient au compte **Daniel Cardelli** (user 61590618398480).
-Alternative sans code recommandée : le planificateur natif de **Meta Business
-Suite**, qui programme des publications Facebook + Instagram à l'avance.
+**Publication automatique Facebook/Instagram — EN SERVICE depuis le 02/09** :
+`~/hopetsit-social/` (Mac, hors dépôt) — jeton de page permanent (utilisateur
+système aepsinfos, app HoPetSit) dans `token.txt`, jamais sur GitHub.
+Chaîne : routine cloud dimanche 7 h écrit `website/marketing/social/AAAA-Wss.md`
+(sections « ## 1. Facebook » / « ## 2. Instagram » obligatoires) → launchd
+`com.hopetsit.social` dimanche 9 h lance `publier_semaine.py` : visuel généré
+dans `website/public/social/AAAA-Wss.jpg` + push, puis post Facebook (texte +
+lien) et Instagram (visuel + légende). 1re publication faite le 02/09
+(recrutement Paris). Mac éteint le dimanche matin = relancer à la main.
+Mode d'emploi : `~/hopetsit-social/MODE_EMPLOI.md`.
 
 ### ⚠️ Règles ajoutées par le Mac (540→545)
 - **NE JAMAIS réintroduire `READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO`** dans

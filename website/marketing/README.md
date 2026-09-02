@@ -37,3 +37,12 @@ Générées depuis `website/src/lib/recruit-cities.ts` : une ligne = une page.
   (ou brancher le jeton Meta : voir `~/hopetsit-social/MODE_EMPLOI.md`).
 - Google Ads (l'interface refuse toute automatisation).
 - Demander des avis 5 étoiles aux prestataires.
+
+## Publication automatique Facebook + Instagram (depuis le 02/09/2026)
+Le fichier `social/AAAA-Wss.md` est publié automatiquement le dimanche à 9 h
+(Paris) par le Mac de Daniel (`~/hopetsit-social/publier_semaine.py`, launchd
+`com.hopetsit.social`) : section « ## 1. Facebook » → page Facebook (texte +
+lien), section « ## 2. Instagram » → Instagram avec un visuel généré
+(`public/social/AAAA-Wss.jpg`, accroche = 1re ligne de la légende). Les
+sections Story / Polski / English restent à copier-coller à la main.
+Ne pas renommer ces sections.
