@@ -47,18 +47,49 @@ PawPremium noir/or `#1c1726`→`#15120D` + or `#F4C04A`, badge membre rose
 `#F06AA0`→`#E0568B`. Web : font-display = Nunito.
 
 ## État actuel
-**25/08/2026 — v545 (travaux Mac 540→545).** Le MacBook est désormais la
-machine de travail principale ; le PC sert de miroir à jour.
+**02/09/2026 — v546 « deep work vérification complète » (Mac).** Le MacBook
+est la machine de travail principale ; le PC sert de miroir à jour.
 
 | Surface | Version | État |
 |---|---|---|
-| Android (Play) | 23.1.544 | Publiée / en examen |
-| iOS (App Store) | 1.10 = build 544 | **PUBLIÉE** |
-| iOS (App Store) | 1.11 = build 545 | En review (nouvelle ASO) |
-| Backend + admin (Render) | ADMIN_BUILD v545 | Déployé |
-| Site (Vercel) | à jour | Déployé |
+| Android (Play) | 23.1.546 | AAB/APK dans ~/Downloads — **import Play = Daniel** (session Google requise) |
+| iOS (App Store) | 1.11 = build 545 | **PUBLIÉE** (READY_FOR_DISTRIBUTION) |
+| iOS (App Store) | 1.12 = build 546 | créée par API (id b7e6640f-…), whatsNew posés, descriptions FR/EN remises dans le bon sens |
+| Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
+| Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 546** (540→545 consommés par le Mac).
+**Prochain build APK/AAB = 547.**
+
+**Contenu 546** (chantier de vérification demandé par Daniel — tout testé en
+prod avec les comptes test + simulateur iOS) :
+- **BUG RACINE « la photo de profil disparaît sur l'autre téléphone »** :
+  depuis la migration du jeton vers le stockage sécurisé (part 125),
+  `_purgeLegacy()` vide GetStorage mais 9 lectures directes du jeton restaient
+  (ProfileController, SocketService, splash, live map, factures, rapport de
+  visite, auth_controller) → au démarrage à froid : profil jamais rechargé
+  (silhouette), sockets temps réel jamais connectés. Fix :
+  `SecureTokenStore.currentToken()` partout. + côté serveur
+  `utils/avatarFallback.js` (photo complétée depuis un rôle frère si vide) sur
+  login e-mail/Google/Apple et `/users/me/profile`.
+- **Langue POLONAISE** (ouverture Varsovie) : app (`pl.dart`, 3 200 textes
+  générés par `translate_pl.py` + glossaire relu), site (bloc `pl`, sélecteur,
+  légal = anglais repris — à faire relire), serveur (`APP_LOCALES`,
+  `locales/pl/notifications.json`). Info.plist local : CFBundleLocalizations.
+- **Invitation d'amis par lien** enfin fonctionnelle : lien avec rôle,
+  `/invite` traité (demande envoyée automatiquement ; mémorisée si pas de
+  session et rejouée après connexion), AASA `/invite`, Android pathPrefix.
+- Design : états vides illustrés (classement PawPoints, accueil « Mes
+  annonces », parrainages) ; « (N avis) » en dur → clé `reviews_count_short`.
+- Vérifié OK (API prod + UI) : chaîne réservation → acceptation → intention de
+  paiement Airwallex → HPP (formulaire carte rendu, dans l'app aussi pour
+  « Ajouter une carte » 0,50 €) ; wallet, PawPoints, boutique (StoreKit),
+  publications → candidature → acceptation, blocage/déblocage, amis, PawMap.
+  **Le vrai débit carte reste à faire par Daniel** (quelques euros).
+- ⚠️ Produit : le chat hors réservation payée exige Premium/add-on
+  (« Chat requires an active Premium plan ») → frein possible à la 1re vente.
+- Simulateur : intégration native KO tant que `sudo xcode-select -s
+  /Applications/Xcode.app/Contents/Developer` n'est pas lancé par Daniel →
+  contrôle d'écran (computer-use) + osascript pour taper.
 
 **Contenu 540→545** : onboarding haute-fidélité (police Fredoka, tuiles de
 rôle, micro-animations) ; **mode invité complet** (navigation sans compte,
