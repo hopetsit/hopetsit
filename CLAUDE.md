@@ -184,7 +184,7 @@ Chaîne : routine cloud dimanche 14 h écrit `website/marketing/social/AAAA-Wss.
 `com.hopetsit.social` dimanche 14 h 30 lance `publier_semaine.py` : visuel généré
 dans `website/public/social/AAAA-Wss.jpg` + push, puis post Facebook (texte +
 lien) et Instagram (visuel + légende). 1re publication faite le 02/09
-(recrutement Paris). Mac éteint le dimanche matin = relancer à la main.
+(recrutement Paris). Mac éteint le dimanche après-midi = relancer à la main.
 Mode d'emploi : `~/hopetsit-social/MODE_EMPLOI.md`.
 
 ### ⚠️ Règles ajoutées par le Mac (540→545)
