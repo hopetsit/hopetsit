@@ -55,6 +55,7 @@ import 'package:hopetsit/controllers/otp_verification_controller.dart';
 import 'package:hopetsit/widgets/paypal_email_dialog.dart';
 import 'package:crypto/crypto.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:hopetsit/services/deep_link_service.dart';
 
 /// Controller handling user authentication flows.
 class AuthController extends GetxController {
@@ -690,6 +691,9 @@ class AuthController extends GetxController {
       }
     } catch (_) {/* défensif — au pire on écrit tel quel */}
     await _storage.write(StorageKeys.userProfile, profile);
+    // v546 — invitation d'ami reçue AVANT la connexion : on la rejoue
+    // maintenant que la session existe (voir DeepLinkService).
+    unawaited(DeepLinkService.replayPendingInvite());
     // v540 — indice « Reprendre » pour l'écran de connexion (nom/avatar/rôle/
     // e-mail de la dernière session ; volontairement conservé après logout).
     try {

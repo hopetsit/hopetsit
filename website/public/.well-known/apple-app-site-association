@@ -2,31 +2,93 @@
   "applinks": {
     "details": [
       {
-        "appIDs": ["49C67YDPJ5.com.cardellihermanos.hopetsit"],
+        "appIDs": [
+          "49C67YDPJ5.com.cardellihermanos.hopetsit"
+        ],
         "components": [
-          { "/": "/pay/*", "comment": "Payment screen deep link" },
-          { "/": "/pay", "comment": "Payment screen base" },
-          { "/": "/chat/*", "comment": "Chat conversation deep link" },
-          { "/": "/chat", "comment": "Chat list deep link" },
-          { "/": "/bookings/*", "comment": "Booking detail deep link" },
-          { "/": "/bookings", "comment": "Bookings list deep link" },
-          { "/": "/book/*", "comment": "Post / book provider deep link" },
-          { "/": "/walk/*", "comment": "Live walk tracking deep link" },
-          { "/": "/wallet", "comment": "Wallet / payout deep link" },
-          { "/": "/subscription", "comment": "PawFollow subscription deep link" },
-          { "/": "/paw-spot", "comment": "PawSpot / map boost deep link" },
-          { "/": "/profile", "comment": "User profile deep link" },
-          { "/": "/notifications", "comment": "Notifications screen deep link" },
-          { "/": "/invite/*", "comment": "Friend invitation deep link" },
-          { "/": "/post/*", "comment": "Post share deep link" },
-          { "/": "/auth/*", "comment": "Session bridge from web to app" },
-          { "/": "/open", "comment": "Canonical email link: open app or /download" },
-          { "/": "/app", "comment": "Canonical email link alias" }
+          {
+            "/": "/pay/*",
+            "comment": "Payment screen deep link"
+          },
+          {
+            "/": "/pay",
+            "comment": "Payment screen base"
+          },
+          {
+            "/": "/chat/*",
+            "comment": "Chat conversation deep link"
+          },
+          {
+            "/": "/chat",
+            "comment": "Chat list deep link"
+          },
+          {
+            "/": "/bookings/*",
+            "comment": "Booking detail deep link"
+          },
+          {
+            "/": "/bookings",
+            "comment": "Bookings list deep link"
+          },
+          {
+            "/": "/book/*",
+            "comment": "Post / book provider deep link"
+          },
+          {
+            "/": "/walk/*",
+            "comment": "Live walk tracking deep link"
+          },
+          {
+            "/": "/wallet",
+            "comment": "Wallet / payout deep link"
+          },
+          {
+            "/": "/subscription",
+            "comment": "PawFollow subscription deep link"
+          },
+          {
+            "/": "/paw-spot",
+            "comment": "PawSpot / map boost deep link"
+          },
+          {
+            "/": "/profile",
+            "comment": "User profile deep link"
+          },
+          {
+            "/": "/notifications",
+            "comment": "Notifications screen deep link"
+          },
+          {
+            "/": "/invite/*",
+            "comment": "Friend invitation deep link"
+          },
+          {
+            "/": "/invite",
+            "comment": "Friend invite link (query form ?from=&role=)"
+          },
+          {
+            "/": "/post/*",
+            "comment": "Post share deep link"
+          },
+          {
+            "/": "/auth/*",
+            "comment": "Session bridge from web to app"
+          },
+          {
+            "/": "/open",
+            "comment": "Canonical email link: open app or /download"
+          },
+          {
+            "/": "/app",
+            "comment": "Canonical email link alias"
+          }
         ]
       }
     ]
   },
   "webcredentials": {
-    "apps": ["49C67YDPJ5.com.cardellihermanos.hopetsit"]
+    "apps": [
+      "49C67YDPJ5.com.cardellihermanos.hopetsit"
+    ]
   }
 }

@@ -120,15 +120,25 @@ class FriendsScreen extends StatelessWidget {
                   // id + name. Fallback générique si pas trouvé.
                   String myId = '';
                   String myName = '';
+                  String myRole = '';
                   try {
                     final raw = GetStorage().read(StorageKeys.userProfile);
                     if (raw is Map) {
                       myId = (raw['id'] ?? raw['_id'] ?? '').toString();
                       myName = (raw['name'] ?? '').toString();
+                      myRole = (raw['role'] ?? '').toString();
+                    }
+                    if (myRole.isEmpty) {
+                      myRole = (GetStorage().read(StorageKeys.userRole) ?? '')
+                          .toString();
                     }
                   } catch (_) {/* noop */}
+                  // v546 — le rôle est indispensable : une demande d'ami
+                  // cible un document owner / sitter / walker. Sans lui, le
+                  // lien ne pouvait rien déclencher à l'arrivée.
                   final link = myId.isNotEmpty
                       ? 'https://hopetsit.com/invite?from=$myId'
+                          '${myRole.isNotEmpty ? '&role=$myRole' : ''}'
                       : 'https://hopetsit.com';
                   final text = 'friends_invite_message'.trParams({
                     'name': myName.isEmpty ? 'HoPetSit' : myName,

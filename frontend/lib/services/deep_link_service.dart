@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
+import 'package:hopetsit/controllers/friend_controller.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/booking_model.dart';
@@ -219,6 +221,17 @@ class DeepLinkService {
     // (S'inscrire / Se connecter), exactement comme /open. Le pending link est
     // mémorisé pour reprise après login. Seuls open/app/auth passent sans
     // session (auth gère sa propre connexion via OTT).
+    // v546 — Daniel : « améliore l'ajout d'amis ». Le bouton Partager de
+    // l'écran Amis envoyait déjà https://hopetsit.com/invite?from=<id>, mais
+    // RIEN ne traitait ce lien à l'arrivée : l'app s'ouvrait et c'est tout.
+    // Désormais : avec session → demande d'ami envoyée automatiquement ;
+    // sans session → l'invitation est mémorisée et rejouée juste après la
+    // connexion ou l'inscription (cf. replayPendingInvite).
+    if (first == 'invite') {
+      await _handleInvite(uri);
+      return;
+    }
+
     final isPublicLink = first == 'open' || first == 'app' || first == 'auth';
     if (!isPublicLink && !_hasSession()) {
       AppLogger.logInfo(
@@ -317,6 +330,92 @@ class DeepLinkService {
       return (Get.find<AuthController>().userRole.value ?? '').toLowerCase();
     } catch (_) {
       return 'owner';
+    }
+  }
+
+  static const _pendingInviteKey = 'pending_friend_invite';
+
+  /// v546 — `/invite?from=ID&role=owner|sitter|walker`
+  /// (ou `/invite/ROLE/ID`). Envoie la demande d'ami si une session existe,
+  /// sinon mémorise l'invitation pour la rejouer après connexion.
+  Future<void> _handleInvite(Uri uri) async {
+    final segs = uri.pathSegments;
+    var fromId = (uri.queryParameters['from'] ?? '').trim();
+    var role = (uri.queryParameters['role'] ?? '').trim().toLowerCase();
+    if (fromId.isEmpty && segs.length >= 3 && segs.first == 'invite') {
+      role = segs[1].toLowerCase();
+      fromId = segs[2];
+    }
+    if (!_objectIdRegex.hasMatch(fromId)) {
+      AppLogger.logWarning('DeepLink invite rejeté (id invalide): "$fromId"');
+      return;
+    }
+    if (!const {'owner', 'sitter', 'walker'}.contains(role)) role = 'owner';
+
+    if (!_hasSession()) {
+      try {
+        GetStorage().write(_pendingInviteKey, {'from': fromId, 'role': role});
+      } catch (_) {/* best-effort */}
+      AppLogger.logInfo(
+        'DeepLink invite mémorisé (pas de session) → rejoué après connexion.',
+      );
+      return;
+    }
+    await _sendInvite(fromId, role);
+  }
+
+  /// Appelé après une connexion / inscription réussie (AuthController) :
+  /// rejoue l'invitation reçue quand l'utilisateur n'était pas connecté.
+  static Future<void> replayPendingInvite() async {
+    Map? raw;
+    try {
+      raw = GetStorage().read(_pendingInviteKey) as Map?;
+    } catch (_) {
+      raw = null;
+    }
+    if (raw == null) return;
+    final fromId = (raw['from'] ?? '').toString();
+    final role = (raw['role'] ?? 'owner').toString();
+    try {
+      GetStorage().remove(_pendingInviteKey);
+    } catch (_) {/* noop */}
+    if (fromId.isEmpty) return;
+    // Laisse l'écran d'accueil se monter avant d'afficher le retour.
+    await Future.delayed(const Duration(milliseconds: 1500));
+    await _sendInvite(fromId, role);
+  }
+
+  static Future<void> _sendInvite(String fromId, String role) async {
+    try {
+      final controller = Get.isRegistered<FriendController>()
+          ? Get.find<FriendController>()
+          : Get.put(FriendController(), permanent: true);
+      final err = await controller.sendRequest(fromId, role);
+      if (err.isEmpty) {
+        CustomSnackbar.showSuccess(
+          title: 'friends_invite_sent_title'.tr,
+          message: 'friends_invite_sent_message'.tr,
+        );
+      } else if (err == 'ALREADY_ACCEPTED') {
+        CustomSnackbar.showInfo(
+          title: 'friends_invite_sent_title'.tr,
+          message: 'friends_invite_already_friends'.tr,
+        );
+      } else if (err == 'ALREADY_PENDING') {
+        CustomSnackbar.showInfo(
+          title: 'friends_invite_sent_title'.tr,
+          message: 'friends_invite_already_pending'.tr,
+        );
+      } else if (err == 'SELF') {
+        CustomSnackbar.showInfo(
+          title: 'friends_invite_sent_title'.tr,
+          message: 'friends_invite_self'.tr,
+        );
+      } else {
+        CustomSnackbar.showError(title: 'common_error'.tr, message: err);
+      }
+    } catch (e) {
+      AppLogger.logError('DeepLink invite : envoi échoué', error: e);
     }
   }
 
