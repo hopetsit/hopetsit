@@ -39,7 +39,7 @@ Générées depuis `website/src/lib/recruit-cities.ts` : une ligne = une page.
 - Demander des avis 5 étoiles aux prestataires.
 
 ## Publication automatique Facebook + Instagram (depuis le 02/09/2026)
-Le fichier `social/AAAA-Wss.md` est publié automatiquement le dimanche à 9 h
+Le fichier `social/AAAA-Wss.md` est publié automatiquement le dimanche à 14 h 30
 (Paris) par le Mac de Daniel (`~/hopetsit-social/publier_semaine.py`, launchd
 `com.hopetsit.social`) : section « ## 1. Facebook » → page Facebook (texte +
 lien), section « ## 2. Instagram » → Instagram avec un visuel généré

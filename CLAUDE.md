@@ -179,9 +179,9 @@ les pastilles — ne jamais recommencer) ; visuel de recrutement publié sur
 **Publication automatique Facebook/Instagram — EN SERVICE depuis le 02/09** :
 `~/hopetsit-social/` (Mac, hors dépôt) — jeton de page permanent (utilisateur
 système aepsinfos, app HoPetSit) dans `token.txt`, jamais sur GitHub.
-Chaîne : routine cloud dimanche 7 h écrit `website/marketing/social/AAAA-Wss.md`
+Chaîne : routine cloud dimanche 14 h écrit `website/marketing/social/AAAA-Wss.md`
 (sections « ## 1. Facebook » / « ## 2. Instagram » obligatoires) → launchd
-`com.hopetsit.social` dimanche 9 h lance `publier_semaine.py` : visuel généré
+`com.hopetsit.social` dimanche 14 h 30 lance `publier_semaine.py` : visuel généré
 dans `website/public/social/AAAA-Wss.jpg` + push, puis post Facebook (texte +
 lien) et Instagram (visuel + légende). 1re publication faite le 02/09
 (recrutement Paris). Mac éteint le dimanche matin = relancer à la main.
