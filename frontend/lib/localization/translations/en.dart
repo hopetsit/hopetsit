@@ -3695,4 +3695,11 @@ const Map<String, String> enUSTranslations = <String, String>{
   'iap_privacy_link': 'Privacy Policy',
   'promo_ios_info': 'On iOS, codes are redeemed through the App Store. Tap the button below and enter your code — your benefit activates automatically in the app.',
   'promo_ios_button': 'Redeem an App Store code',
+  'pawmap_member_add_friend': 'Add as friend',
+  'pawmap_member_request_sent': 'Friend request sent ✓',
+  'pawmap_member_already': 'Already friends or request pending',
+  'pawmap_member_approx': 'Approximate location (~1 km)',
+  'pawmap_member_online': 'Online',
+  'pawmap_member_offline': 'Offline',
+  'pawmap_member_request_failed': 'Could not send the request. Try again.',
 };

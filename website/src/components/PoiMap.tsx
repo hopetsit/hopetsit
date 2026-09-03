@@ -346,6 +346,8 @@ export default function PoiMap({
   reportTypeLabels,
   members = [],
   memberRoleLabels,
+  memberLabels,
+  onAddFriend,
   onSpotVisit,
   friendPositions = [],
   familyIds = [],
@@ -380,6 +382,17 @@ export default function PoiMap({
   members?: NearbyMember[];
   /** Labels i18n des rôles (owner/sitter/walker) pour le popup membre. */
   memberRoleLabels?: Record<string, string>;
+  /** v548 — libellés du popup membre (ajouter en ami, réserver, approx.). */
+  memberLabels?: {
+    addFriend: string;
+    sent: string;
+    already: string;
+    failed: string;
+    book: string;
+    approx: string;
+  };
+  /** v548 — « cliquer sur un membre et demander en ami ». */
+  onAddFriend?: (m: NearbyMember) => Promise<"sent" | "already" | "error">;
   /** v497 — appelé à l'ouverture du popup d'un spot → compte la visite. */
   onSpotVisit?: (id: string) => void;
   /** v23.1 carte unique — amis/famille en direct (couche optionnelle). */
@@ -664,16 +677,12 @@ export default function PoiMap({
               zIndexOffset={200}
             >
               <Popup>
-                <div className="text-sm" style={{ minWidth: 140 }}>
-                  <div className="mb-1 font-bold">
-                    {m.isPremium ? "👑 " : "🐾 "}
-                    {m.name || "Membre"}
-                  </div>
-                  <div className="text-xs text-gray-600">
-                    {(memberRoleLabels && memberRoleLabels[m.role]) || m.role}
-                    {m.isOnline ? " · 🟢" : " · ⚪"}
-                  </div>
-                </div>
+                <MemberPopup
+                  m={m}
+                  roleLabel={(memberRoleLabels && memberRoleLabels[m.role]) || m.role}
+                  labels={memberLabels}
+                  onAddFriend={onAddFriend}
+                />
               </Popup>
             </Marker>
           );
@@ -704,6 +713,86 @@ export default function PoiMap({
           />
         )}
       </MapContainer>
+    </div>
+  );
+}
+
+// v548 — Daniel : « on peut cliquer sur les membres roses et demander en ami ».
+// Popup membre : nom, rôle, statut (ou « position approximative » pour la
+// couche monde), bouton Ajouter en ami (état envoyé / déjà / erreur) et, pour
+// un sitter/walker, lien Réserver vers sa fiche.
+function MemberPopup({
+  m,
+  roleLabel,
+  labels,
+  onAddFriend,
+}: {
+  m: NearbyMember;
+  roleLabel: string;
+  labels?: {
+    addFriend: string; sent: string; already: string; failed: string; book: string; approx: string;
+  };
+  onAddFriend?: (m: NearbyMember) => Promise<"sent" | "already" | "error">;
+}) {
+  const [state, setState] = useState<"idle" | "busy" | "sent" | "already" | "error">("idle");
+  const canBook = m.role === "sitter" || m.role === "walker";
+  return (
+    <div className="text-sm" style={{ minWidth: 190 }}>
+      <div className="mb-1 flex items-center gap-2">
+        {m.avatar ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={m.avatar} alt="" width={34} height={34} className="rounded-full object-cover" style={{ width: 34, height: 34 }} />
+        ) : (
+          <span
+            className="inline-flex items-center justify-center rounded-full text-white"
+            style={{ width: 34, height: 34, background: "linear-gradient(135deg,#F06AA0,#E0568B)" }}
+          >
+            🐾
+          </span>
+        )}
+        <div>
+          <div className="font-bold leading-tight">
+            {m.isPremium ? "👑 " : ""}
+            {m.name || "Membre"}
+          </div>
+          <div className="text-xs text-gray-600">
+            {roleLabel}
+            {m.approx ? "" : m.isOnline ? " · 🟢" : " · ⚪"}
+          </div>
+        </div>
+      </div>
+      {m.approx && labels?.approx ? (
+        <div className="mb-2 text-[11px] text-gray-500">📍 {labels.approx}</div>
+      ) : null}
+      <div className="flex flex-wrap gap-1.5">
+        {onAddFriend && labels ? (
+          <button
+            type="button"
+            disabled={state === "busy" || state === "sent" || state === "already"}
+            onClick={async () => {
+              setState("busy");
+              const r = await onAddFriend(m);
+              setState(r);
+            }}
+            className="rounded-full px-3 py-1 text-xs font-semibold text-white disabled:opacity-80"
+            style={{ background: state === "error" ? "#6B7280" : "linear-gradient(135deg,#F06AA0,#E0568B)" }}
+          >
+            {state === "sent" ? labels.sent
+              : state === "already" ? labels.already
+              : state === "error" ? labels.failed
+              : state === "busy" ? "…"
+              : `➕ ${labels.addFriend}`}
+          </button>
+        ) : null}
+        {canBook && labels ? (
+          <a
+            href={`/book/${m.role}/${m.id}`}
+            className="rounded-full border border-ink/15 px-3 py-1 text-xs font-semibold text-ink"
+          >
+            {labels.book}
+          </a>
+        ) : null}
+      </div>
     </div>
   );
 }

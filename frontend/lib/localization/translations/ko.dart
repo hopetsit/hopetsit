@@ -3288,4 +3288,11 @@ const Map<String, String> koKRTranslations = <String, String>{
   'iap_privacy_link': '개인정보 처리방침',
   'promo_ios_info': 'iOS에서는 App Store를 통해 코드를 등록해요. 아래 버튼을 눌러 코드를 입력하면 앱에서 혜택이 자동으로 적용돼요.',
   'promo_ios_button': 'App Store 코드 등록',
+  'pawmap_member_add_friend': '친구 추가',
+  'pawmap_member_request_sent': '친구 요청을 보냈습니다 ✓',
+  'pawmap_member_already': '이미 친구이거나 요청이 대기 중입니다',
+  'pawmap_member_approx': '대략적인 위치 (~1 km)',
+  'pawmap_member_online': '온라인',
+  'pawmap_member_offline': '오프라인',
+  'pawmap_member_request_failed': '요청을 보내지 못했습니다. 다시 시도해 주세요.',
 };

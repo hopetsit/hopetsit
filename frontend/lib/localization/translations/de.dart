@@ -3657,4 +3657,11 @@ const Map<String, String> deDETranslations = <String, String>{
   'iap_privacy_link': 'Datenschutzrichtlinie',
   'promo_ios_info': 'Auf iOS werden Codes über den App Store eingelöst. Tippe auf den Button unten und gib deinen Code ein — dein Vorteil wird automatisch in der App aktiviert.',
   'promo_ios_button': 'App Store-Code einlösen',
+  'pawmap_member_add_friend': 'Als Freund hinzufügen',
+  'pawmap_member_request_sent': 'Freundschaftsanfrage gesendet ✓',
+  'pawmap_member_already': 'Bereits befreundet oder Anfrage ausstehend',
+  'pawmap_member_approx': 'Ungefährer Standort (~1 km)',
+  'pawmap_member_online': 'Online',
+  'pawmap_member_offline': 'Offline',
+  'pawmap_member_request_failed': 'Anfrage konnte nicht gesendet werden. Bitte erneut versuchen.',
 };

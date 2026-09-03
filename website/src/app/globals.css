@@ -48,6 +48,22 @@ a[class*="rounded-xl"]:hover {
   box-shadow: 0 0 14px rgba(255, 106, 0, 0.6);
 }
 
+/* v548 — Daniel : « le contour orange pour sélectionner les langues n'est pas
+   bien ». Le sélecteur de langue est exclu du contour fluo global : liseré
+   fin aux couleurs de la marque sur le bouton, simple fond doux sur les
+   options de la liste. */
+button.lang-switch:hover,
+button.lang-switch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(201, 42, 18, 0.28), 0 4px 14px rgba(23, 20, 31, 0.08);
+}
+.lang-menu button:hover,
+.lang-menu button:focus-visible,
+.lang-menu button:focus {
+  outline: none;
+  box-shadow: none;
+}
+
 /* v548 — changement de langue fluide : léger fondu du contenu pendant le
    remplacement des textes (classe posée par LanguageProvider.setLang). */
 body {

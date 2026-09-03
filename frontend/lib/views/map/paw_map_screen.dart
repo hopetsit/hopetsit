@@ -193,6 +193,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Owners see them as map markers — boosted ones get a bigger gold pin
   /// (PawSpot) so paying actually translates to map visibility.
   final RxList<Map<String, dynamic>> _nearbyProviders = <Map<String, dynamic>>[].obs;
+  // v548 — Daniel : « quand on dézoome, voir TOUS les utilisateurs sur la
+  // carte mondiale ». Couche MONDE : tous les membres géolocalisés (position
+  // approximative ~1 km, pas de statut en ligne), visible par tout membre
+  // connecté, abonné ou non. Chargée une fois (cache serveur 5 min).
+  final RxList<Map<String, dynamic>> _worldMembers = <Map<String, dynamic>>[].obs;
+  bool _worldMembersLoaded = false;
   final RxBool _showProviders = true.obs;
 
   /// v23.1.353 — refonte PawSpot : couche des spots communautaires 🐾.
@@ -719,32 +725,204 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   /// Tap sur un membre rose (badge OU halo) : marque l'état sélectionné +
   /// ouvre l'info du membre (nom + rôle). Même comportement cliquable qu'avant.
+  // v548 — Daniel : « cliquer directement sur eux et demander en ami ».
+  // Avant : simple snackbar. Maintenant : fiche membre (photo/patte rose,
+  // nom, rôle, statut ou « position approximative ») + bouton Ajouter en
+  // ami (FriendController.sendRequest) avec retour envoyé / déjà / erreur.
   void _onNearbyTap({
     required String id,
     required String role,
     required String name,
     required bool online,
     required bool premium,
+    String avatar = '',
+    bool approx = false,
   }) {
     _selectedNearbyId = id;
     if (mounted) setState(() {});
-    final emoji = role == 'walker' ? '🐕' : '🐾';
     final title = name.isNotEmpty
         ? name
         : (role == 'walker'
             ? 'pawmap_default_walker'.tr
             : 'pawmap_default_sitter'.tr);
-    Get.snackbar(
-      '$emoji $title',
-      premium
-          ? 'mapboost_marker_active'.tr
-          : (role == 'walker'
-              ? 'role_pet_walker'.tr
-              : 'role_pet_sitter'.tr),
-      snackPosition: SnackPosition.BOTTOM,
-      margin: EdgeInsets.all(12.w),
-      duration: const Duration(seconds: 3),
-    );
+    final roleLabel = role == 'walker'
+        ? 'role_pet_walker'.tr
+        : (role == 'owner' ? 'role_pet_owner'.tr : 'role_pet_sitter'.tr);
+    const pink = Color(0xFFF06AA0);
+    const pinkDark = Color(0xFFE0568B);
+    String reqState = 'idle'; // idle | busy | sent | already | error
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          String btnLabel;
+          switch (reqState) {
+            case 'sent':
+              btnLabel = 'pawmap_member_request_sent'.tr;
+              break;
+            case 'already':
+              btnLabel = 'pawmap_member_already'.tr;
+              break;
+            case 'error':
+              btnLabel = 'pawmap_member_request_failed'.tr;
+              break;
+            case 'busy':
+              btnLabel = '…';
+              break;
+            default:
+              btnLabel = 'pawmap_member_add_friend'.tr;
+          }
+          final bool btnEnabled = reqState == 'idle' || reqState == 'error';
+          return SafeArea(
+            child: Container(
+              margin: EdgeInsets.fromLTRB(12.w, 0, 12.w, 12.h),
+              padding: EdgeInsets.fromLTRB(18.w, 14.h, 18.w, 18.h),
+              decoration: BoxDecoration(
+                color: AppColors.card(context),
+                borderRadius: BorderRadius.circular(22.r),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 38.w,
+                      height: 4.h,
+                      margin: EdgeInsets.only(bottom: 12.h),
+                      decoration: BoxDecoration(
+                        color: AppColors.textSecondary(context)
+                            .withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(2.r),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 54.w,
+                        height: 54.w,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            colors: [pink, pinkDark],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          border: Border.all(color: Colors.white, width: 2),
+                          image: avatar.isNotEmpty
+                              ? DecorationImage(
+                                  image: NetworkImage(avatar),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: avatar.isEmpty
+                            ? const Icon(Icons.pets, color: Colors.white)
+                            : null,
+                      ),
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${premium ? '👑 ' : ''}$title',
+                              style: TextStyle(
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary(context),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            SizedBox(height: 2.h),
+                            Text(
+                              approx
+                                  ? '$roleLabel · 📍 ${'pawmap_member_approx'.tr}'
+                                  : '$roleLabel · ${online ? '🟢 ${'pawmap_member_online'.tr}' : '⚪ ${'pawmap_member_offline'.tr}'}',
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: AppColors.textSecondary(context),
+                              ),
+                              maxLines: 2,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 14.h),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            reqState == 'sent' || reqState == 'already'
+                                ? AppColors.textSecondary(context)
+                                    .withValues(alpha: 0.25)
+                                : pinkDark,
+                        foregroundColor: reqState == 'sent' ||
+                                reqState == 'already'
+                            ? AppColors.textPrimary(context)
+                            : Colors.white,
+                        elevation: 0,
+                        padding: EdgeInsets.symmetric(vertical: 13.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14.r),
+                        ),
+                      ),
+                      onPressed: !btnEnabled
+                          ? null
+                          : () async {
+                              setSheet(() => reqState = 'busy');
+                              final err = await _friendController
+                                  .sendRequest(id, role);
+                              if (!ctx.mounted) return;
+                              setSheet(() {
+                                if (err.isEmpty) {
+                                  reqState = 'sent';
+                                } else if (err.startsWith('ALREADY')) {
+                                  reqState = 'already';
+                                } else {
+                                  reqState = 'error';
+                                }
+                              });
+                            },
+                      icon: Icon(
+                        reqState == 'sent'
+                            ? Icons.check_rounded
+                            : Icons.person_add_alt_1_rounded,
+                        size: 18.sp,
+                      ),
+                      label: Text(
+                        btnLabel,
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    ).whenComplete(() {
+      _selectedNearbyId = null;
+      if (mounted) setState(() {});
+    });
   }
 
   /// Renders a circular white-bg marker with the emoji centered inside.
@@ -1352,6 +1530,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     // par TOUS les rôles (avant : owner uniquement). On charge la liste pour
     // tout le monde (endpoint /friends/members/nearby = membres abonnés proches).
     futures.add(_loadNearbyProviders());
+    // v548 — couche monde (une fois).
+    futures.add(_loadWorldMembers());
     await Future.wait(futures);
     // v521 — ceinture + bretelles pour le bug « points invisibles au 1er
     // chargement » : après CHAQUE rechargement de données on force une
@@ -1401,6 +1581,40 @@ class _PawMapScreenState extends State<PawMapScreen>
       _nearbyProviders.assignAll(merged);
     } catch (_) {
       /* keep last list */
+    }
+  }
+
+  /// v548 — couche MONDE (voir `_worldMembers`). Une seule requête par
+  /// ouverture de la carte ; le serveur renvoie des positions arrondies.
+  Future<void> _loadWorldMembers() async {
+    if (_worldMembersLoaded) return;
+    try {
+      final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
+      if (api == null) return;
+      final res = await api
+          .get('/friends/members/world', requiresAuth: true)
+          .catchError((_) => <String, dynamic>{});
+      final list = ((res as Map?)?['members'] as List?) ?? const [];
+      final out = <Map<String, dynamic>>[];
+      for (final m in list) {
+        if (m is Map) {
+          out.add({
+            'id': (m['id'] ?? '').toString(),
+            '_role': (m['role'] ?? '').toString(),
+            'name': (m['name'] ?? '').toString(),
+            'avatar': m['avatar'] ?? '',
+            'location': m['location'],
+            'isPremium': m['isPremium'] == true,
+            'isMapBoosted': false,
+            'isOnline': true,
+            'approx': true,
+          });
+        }
+      }
+      _worldMembers.assignAll(out);
+      _worldMembersLoaded = true;
+    } catch (_) {
+      /* silencieux : la couche proche reste */
     }
   }
 
@@ -1961,11 +2175,27 @@ class _PawMapScreenState extends State<PawMapScreen>
     final bool nearbyVisible = _showProviders.value &&
         (_pawSpotController.pawspotActive.value ||
             _pawSpotController.premiumActive.value);
-    if (nearbyVisible) {
+    // v548 — la couche MONDE (approx.) est visible pour TOUT le monde dès que
+    // le toggle membres est actif ; la couche proche (exacte, abonnés) prend
+    // le dessus sur les mêmes ids.
+    if (_showProviders.value) {
       final friendLiveIds = _liveMap.friendPositions.keys
           .map((k) => k.trim().toLowerCase())
           .toSet();
-      for (final p in _nearbyProviders) {
+      final nearbyIds = <String>{};
+      final combined = <Map<String, dynamic>>[];
+      if (nearbyVisible) {
+        for (final p in _nearbyProviders) {
+          nearbyIds.add((p['id'] ?? p['_id'] ?? '').toString());
+          combined.add(p);
+        }
+      }
+      for (final p in _worldMembers) {
+        final id = (p['id'] ?? '').toString();
+        if (id.isEmpty || nearbyIds.contains(id)) continue;
+        combined.add(p);
+      }
+      for (final p in combined) {
         final loc = p['location'] is Map ? p['location'] as Map : null;
         final coords = loc != null && loc['coordinates'] is List
             ? loc['coordinates'] as List
@@ -1984,6 +2214,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             p['isMapBoosted'] == true || p['isPremium'] == true;
         final bool online = p['isOnline'] != false && p['online'] != false;
         final bool selected = _selectedNearbyId == id;
+        final bool approx = p['approx'] == true;
         final icon = _pawBadgeMarkers[
             'pb_${online ? 1 : 0}_${premium ? 1 : 0}_${selected ? 1 : 0}'];
         if (icon == null) _ensurePawBadgeMarker(online, premium, selected);
@@ -2002,6 +2233,8 @@ class _PawMapScreenState extends State<PawMapScreen>
               name: name,
               online: online,
               premium: premium,
+              avatar: (p['avatar'] ?? '').toString(),
+              approx: approx,
             ),
           ),
         );

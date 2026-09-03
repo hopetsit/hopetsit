@@ -3717,4 +3717,11 @@ const Map<String, String> frFRTranslations = <String, String>{
   'iap_privacy_link': 'Politique de confidentialité',
   'promo_ios_info': 'Sur iOS, les codes s\'utilisent via l\'App Store. Touche le bouton ci-dessous puis saisis ton code : l\'avantage s\'active automatiquement dans l\'app.',
   'promo_ios_button': 'Saisir un code App Store',
+  'pawmap_member_add_friend': 'Ajouter en ami',
+  'pawmap_member_request_sent': 'Demande d\'ami envoyée ✓',
+  'pawmap_member_already': 'Déjà amis ou demande en attente',
+  'pawmap_member_approx': 'Position approximative (~1 km)',
+  'pawmap_member_online': 'En ligne',
+  'pawmap_member_offline': 'Hors ligne',
+  'pawmap_member_request_failed': 'Impossible d\'envoyer la demande. Réessayez.',
 };

@@ -3654,4 +3654,11 @@ const Map<String, String> esESTranslations = <String, String>{
   'iap_privacy_link': 'Política de privacidad',
   'promo_ios_info': 'En iOS, los códigos se canjean a través del App Store. Toca el botón de abajo e introduce tu código: la ventaja se activa automáticamente en la app.',
   'promo_ios_button': 'Canjear un código del App Store',
+  'pawmap_member_add_friend': 'Añadir como amigo',
+  'pawmap_member_request_sent': 'Solicitud de amistad enviada ✓',
+  'pawmap_member_already': 'Ya sois amigos o hay una solicitud pendiente',
+  'pawmap_member_approx': 'Ubicación aproximada (~1 km)',
+  'pawmap_member_online': 'En línea',
+  'pawmap_member_offline': 'Desconectado',
+  'pawmap_member_request_failed': 'No se pudo enviar la solicitud. Inténtalo de nuevo.',
 };

@@ -3496,4 +3496,11 @@ const Map<String, String> ptPTTranslations = <String, String>{
   'iap_privacy_link': 'Política de privacidade',
   'promo_ios_info': 'No iOS, os códigos são resgatados através da App Store. Toca no botão abaixo e introduz o teu código — a vantagem ativa-se automaticamente na app.',
   'promo_ios_button': 'Resgatar um código da App Store',
+  'pawmap_member_add_friend': 'Adicionar como amigo',
+  'pawmap_member_request_sent': 'Pedido de amizade enviado ✓',
+  'pawmap_member_already': 'Já são amigos ou pedido pendente',
+  'pawmap_member_approx': 'Localização aproximada (~1 km)',
+  'pawmap_member_online': 'Online',
+  'pawmap_member_offline': 'Offline',
+  'pawmap_member_request_failed': 'Não foi possível enviar o pedido. Tente novamente.',
 };

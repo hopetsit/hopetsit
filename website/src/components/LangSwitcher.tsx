@@ -102,7 +102,7 @@ export function LangSwitcher() {
         ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`inline-flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-sm font-medium text-ink transition-colors duration-150 ${
+        className={`lang-switch inline-flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-sm font-medium text-ink transition-[color,border-color,box-shadow] duration-150 ${
           open ? "border-ink/30 bg-bg-soft" : "border-ink/10 hover:border-ink/30"
         }`}
         aria-haspopup="listbox"
@@ -123,7 +123,7 @@ export function LangSwitcher() {
           ref={listRef}
           role="listbox"
           aria-activedescendant={focusIdx >= 0 ? `lang-opt-${LANGUAGES[focusIdx].code}` : undefined}
-          className={`absolute right-0 z-50 mt-2 w-48 origin-top-right overflow-hidden rounded-xl border border-ink/10 bg-white py-1 shadow-card transition-[opacity,transform] duration-150 ease-out ${
+          className={`lang-menu absolute right-0 z-50 mt-2 w-48 origin-top-right overflow-hidden rounded-xl border border-ink/10 bg-white py-1 shadow-card transition-[opacity,transform] duration-150 ease-out ${
             visible ? "translate-y-0 scale-100 opacity-100" : "-translate-y-1 scale-95 opacity-0"
           }`}
         >

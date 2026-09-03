@@ -3642,4 +3642,11 @@ const Map<String, String> itITTranslations = <String, String>{
   'iap_privacy_link': 'Informativa sulla privacy',
   'promo_ios_info': 'Su iOS i codici si riscattano tramite l\'App Store. Tocca il pulsante qui sotto e inserisci il tuo codice: il vantaggio si attiva automaticamente nell\'app.',
   'promo_ios_button': 'Riscatta un codice App Store',
+  'pawmap_member_add_friend': 'Aggiungi come amico',
+  'pawmap_member_request_sent': 'Richiesta di amicizia inviata ✓',
+  'pawmap_member_already': 'Già amici o richiesta in attesa',
+  'pawmap_member_approx': 'Posizione approssimativa (~1 km)',
+  'pawmap_member_online': 'Online',
+  'pawmap_member_offline': 'Offline',
+  'pawmap_member_request_failed': 'Impossibile inviare la richiesta. Riprova.',
 };

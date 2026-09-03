@@ -50,6 +50,8 @@ import {
   getMyFamily,
   getMyFriends,
   getNearbyMembers,
+  getWorldMembers,
+  sendFriendRequest,
   getNearbyPawSpots,
   getNearbyReports,
   getNearbyPois,
@@ -177,6 +179,11 @@ export default function MapPage() {
   const [reports, setReports] = useState<MapReport[]>([]);
   // v497 — membres PawMap proches (badge rose), visibles si VIEWER abonné.
   const [members, setMembers] = useState<NearbyMember[]>([]);
+  // v548 — Daniel : « quand on dézoome, voir TOUS les utilisateurs sur la
+  // carte mondiale ». Couche MONDE (position approximative, tous les membres
+  // connectés la voient), chargée une fois ; la couche « proches » (exacte,
+  // abonnés) prend le dessus sur les mêmes ids.
+  const [worldMembers, setWorldMembers] = useState<NearbyMember[]>([]);
   const [createKind, setCreateKind] = useState<null | "spot" | "report">(null);
   const [createType, setCreateType] = useState<string>("");
   const [createName, setCreateName] = useState("");
@@ -494,6 +501,37 @@ export default function MapPage() {
     }, 400);
     return () => clearTimeout(tid);
   }, [loading, membersSubscribed, center, router]);
+
+  // v548 — couche MONDE : tous les membres géolocalisés (approx.), une fois.
+  useEffect(() => {
+    if (loading) return;
+    let cancelled = false;
+    getWorldMembers()
+      .then((list) => { if (!cancelled) setWorldMembers(list); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [loading]);
+
+  // Fusion : proches (exacts) prioritaires, puis le monde (approx.).
+  const allMembers = useMemo(() => {
+    const seen = new Set(members.map((m) => m.id));
+    return [...members, ...worldMembers.filter((m) => !seen.has(m.id))];
+  }, [members, worldMembers]);
+
+  // v548 — « cliquer sur eux et demander en ami » depuis le popup du membre.
+  const handleAddFriend = useCallback(
+    async (m: NearbyMember): Promise<"sent" | "already" | "error"> => {
+      try {
+        const r = (await sendFriendRequest(m.id, m.role)) as { alreadyPending?: boolean } | null;
+        return r && r.alreadyPending ? "already" : "sent";
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 409) return "already";
+        if (e instanceof ApiError && e.status === 401) router.replace("/login");
+        return "error";
+      }
+    },
+    [router],
+  );
 
   // v23.1 carte unique — chargement lazy des amis/famille + dernières
   // positions (logique portée telle quelle depuis /friends/live).
@@ -1284,12 +1322,21 @@ export default function MapPage() {
           onSpotVisit={handleSpotVisit}
           reports={showReports ? reports : []}
           reportTypeLabels={reportTypeLabels}
-          members={members}
+          members={allMembers}
           memberRoleLabels={{
             owner: t("role_owner"),
             sitter: t("role_sitter"),
             walker: t("role_walker"),
           }}
+          memberLabels={{
+            addFriend: t("map_member_add_friend"),
+            sent: t("map_member_request_sent"),
+            already: t("map_member_already"),
+            failed: t("map_member_request_failed"),
+            book: t("map_member_book"),
+            approx: t("map_member_approx"),
+          }}
+          onAddFriend={handleAddFriend}
           friendPositions={showFriends ? livePositionsList : []}
           familyIds={familyIds}
           premiumIds={premiumIds}

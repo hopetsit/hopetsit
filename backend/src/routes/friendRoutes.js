@@ -212,6 +212,105 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
   }
 });
 
+// v548 — Daniel : « quand on dézoome, faire en sorte qu'on voie TOUS les
+// utilisateurs sur la carte mondiale » + « cliquer sur eux et demander en ami ».
+// Couche MONDE : tous les membres géolocalisés, tous rôles, abonnés ou non,
+// visible par tout membre connecté (pas de gating abo : une carte vide ne
+// donne envie à personne). Confidentialité : position ARRONDIE (~1 km, avec
+// un petit décalage stable par membre pour ne pas empiler les points) — la
+// position exacte + statut en ligne restent réservés à la couche « proches »
+// (/members/nearby, abonnés). Cache mémoire 5 min (même liste pour tous).
+//   GET /friends/members/world
+let _worldCache = { at: 0, payload: null };
+const WORLD_TTL_MS = 5 * 60 * 1000;
+const WORLD_LIMIT = 3000;
+function _jitter(idStr) {
+  // hash stable → décalage déterministe dans ±0.004° (~400 m)
+  let h = 0;
+  for (let i = 0; i < idStr.length; i += 1) h = (h * 31 + idStr.charCodeAt(i)) | 0;
+  const a = ((h & 0xffff) / 0xffff - 0.5) * 0.008;
+  const b = (((h >> 16) & 0xffff) / 0xffff - 0.5) * 0.008;
+  return [a, b];
+}
+router.get('/members/world', requireAuth, async (req, res) => {
+  try {
+    const now = Date.now();
+    if (_worldCache.payload && now - _worldCache.at < WORLD_TTL_MS) {
+      return res.json(_worldCache.payload);
+    }
+    const nowDate = new Date();
+    const UserSubscription = require('../models/UserSubscription');
+    const filter = {
+      'location.coordinates.1': { $exists: true },
+      hiddenFromPublic: { $ne: true },
+    };
+    const sel = 'name avatar profilePicture location mapBoostExpiry isStaff email oldId';
+    const per = Math.floor(WORLD_LIMIT / 3);
+    const [owners, sitters, walkers] = await Promise.all([
+      Owner.find(filter).select(sel).sort({ createdAt: -1 }).limit(per).lean(),
+      Sitter.find(filter).select(sel).sort({ createdAt: -1 }).limit(per).lean(),
+      Walker.find(filter).select(sel).sort({ createdAt: -1 }).limit(per).lean(),
+    ]);
+    const tagged = [
+      ...owners.map((d) => ({ d, role: 'owner' })),
+      ...sitters.map((d) => ({ d, role: 'sitter' })),
+      ...walkers.map((d) => ({ d, role: 'walker' })),
+    ];
+    let subSet = new Set();
+    try {
+      const subs = await UserSubscription.find({
+        userId: { $in: tagged.map((t) => t.d._id) },
+        $or: [
+          { premiumExpiry: { $gt: nowDate } },
+          { currentPeriodEnd: { $gt: nowDate } },
+          { familyExpiry: { $gt: nowDate } },
+        ],
+      }).select('userId').lean();
+      subSet = new Set(subs.map((s) => String(s.userId)));
+    } catch (subErr) {
+      logger.warn(`[friends/members/world] sub lookup failed : ${subErr?.message || subErr}`);
+    }
+    const avatarUrl = (a) => (a && (typeof a === 'object' ? a.url : a)) || '';
+    const members = [];
+    const seenPerson = new Set(); // une PERSONNE (email) = un point, rôle principal
+    for (const { d, role } of tagged) {
+      const coords = d.location?.coordinates;
+      if (!Array.isArray(coords) || coords.length < 2) continue;
+      const [lng, lat] = coords.map(Number);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) continue;
+      if (/\+test/i.test(d.email || '')) continue;
+      const personKey = (d.email || '').toLowerCase() || String(d._id);
+      if (seenPerson.has(personKey)) continue;
+      seenPerson.add(personKey);
+      const idStr = String(d._id);
+      const [ja, jb] = _jitter(idStr);
+      const pawspot = d.mapBoostExpiry && new Date(d.mapBoostExpiry) > nowDate;
+      members.push({
+        id: idStr,
+        role,
+        name: d.name || '',
+        avatar: avatarUrl(d.avatar) || avatarUrl(d.profilePicture),
+        // arrondi ~1 km + décalage stable : jamais la position exacte
+        location: {
+          coordinates: [
+            Math.round((lng + ja) * 100) / 100,
+            Math.round((lat + jb) * 100) / 100,
+          ],
+        },
+        isPremium: subSet.has(idStr) || d.isStaff === true,
+        isPawSpot: !!pawspot,
+        approx: true,
+      });
+    }
+    const payload = { members, count: members.length, approx: true };
+    _worldCache = { at: now, payload };
+    return res.json(payload);
+  } catch (e) {
+    logger.error('[friends/members/world]', e);
+    return res.status(500).json({ error: 'Unable to fetch world members.' });
+  }
+});
+
 /**
  * v23.1.266 — Résout l'abonnement PawFollow Famille DONT L'UTILISATEUR EST
  * TITULAIRE, avec SELF-HEAL.

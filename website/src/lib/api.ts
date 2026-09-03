@@ -1980,7 +1980,21 @@ export type NearbyMember = {
   isPremium: boolean;
   isPawSpot: boolean;
   isOnline: boolean;
+  /** v548 — couche MONDE : position arrondie (~1 km), pas de statut en ligne. */
+  approx?: boolean;
 };
+
+// v548 — Daniel : « quand on dézoome, voir TOUS les utilisateurs sur la carte
+// mondiale ». Tous les membres géolocalisés (position approximative), pour
+// tout membre connecté ; cache serveur 5 min.
+export async function getWorldMembers(): Promise<NearbyMember[]> {
+  const raw = await request<{ members?: NearbyMember[] }>(`/friends/members/world`);
+  return (raw.members || []).filter(
+    (m) =>
+      Array.isArray(m.location?.coordinates) &&
+      m.location.coordinates.length >= 2,
+  );
+}
 export async function getNearbyMembers(opts: {
   lat: number;
   lng: number;

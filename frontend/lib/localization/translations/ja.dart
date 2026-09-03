@@ -3288,4 +3288,11 @@ const Map<String, String> jaJPTranslations = <String, String>{
   'iap_privacy_link': 'プライバシーポリシー',
   'promo_ios_info': 'iOS では App Store でコードを登録します。下のボタンを押してコードを入力すると、アプリで特典が自動的に有効になります。',
   'promo_ios_button': 'App Store コードを登録',
+  'pawmap_member_add_friend': '友達に追加',
+  'pawmap_member_request_sent': '友達リクエストを送信しました ✓',
+  'pawmap_member_already': 'すでに友達か、リクエスト保留中です',
+  'pawmap_member_approx': 'おおよその位置（約1 km）',
+  'pawmap_member_online': 'オンライン',
+  'pawmap_member_offline': 'オフライン',
+  'pawmap_member_request_failed': 'リクエストを送信できませんでした。もう一度お試しください。',
 };
