@@ -176,6 +176,16 @@ direct (mes versions « reconstruites » modifiaient les couleurs et rognaient
 les pastilles — ne jamais recommencer) ; visuel de recrutement publié sur
 `/social/recrutement-paris.jpg` ; nouvel article de blog.
 
+**Site 02/09 soir (sans rebuild app)** : icône officielle HD sur tout le site
+(favicon.ico/svg, logo.png 512, icon-32/192/512, apple-touch, maskables, og-image
+rouge avec le nom — `?v=548` dans layout.tsx ; script `make_web_icons.py`, source =
+rendu 2048 du SVG de Daniel) ; sélecteur de langue fluide ; **polonais relu à la
+main** (281 textes : marques PawMap/PawFollow/PawSpot/PawPoints ne se traduisent
+JAMAIS — « Mapa łapy », « ŁapaŚledź » sont des erreurs ; opiekun/wyprowadzacz psów
+au lieu de « spacerowicz » ; pozycja au lieu de « stanowisko » ; zgłoszenia pour
+reports). Le `pl.dart` de l'app vient du même traducteur automatique → à relire
+de la même façon avant la prochaine build.
+
 **Publication automatique Facebook/Instagram — EN SERVICE depuis le 02/09** :
 `~/hopetsit-social/` (Mac, hors dépôt) — jeton de page permanent (utilisateur
 système aepsinfos, app HoPetSit) dans `token.txt`, jamais sur GitHub.
