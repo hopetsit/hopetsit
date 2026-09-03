@@ -176,6 +176,26 @@ direct (mes versions « reconstruites » modifiaient les couleurs et rognaient
 les pastilles — ne jamais recommencer) ; visuel de recrutement publié sur
 `/social/recrutement-paris.jpg` ; nouvel article de blog.
 
+**03/09 — v548 « traductions + PawMap monde » (commit 0686fd9)** :
+- **Traductions relues par des agents natifs** (site : es 76, de 121, it 115,
+  pt 105, ko 46, ja 28 corrections ; app : pl.dart 1 037 corrections en 4 lots).
+  Erreurs récurrentes trouvées : « Bis zu 4 Nutzer / Hasta 4 usuarios » (=5 !) dans
+  4 langues, FAQ PawFollow périmée (faq_a6/a7) dans es/de/it/pt, marques traduites,
+  pt-BR mélangé au pt-PT, « prestatore » (calque FR) en it, « Hundesitter » pour
+  walker en de. Outils : `scratchpad/apply_fixes.py site <lang> <json>` /
+  `dart <fichier> <json>` (JSON {clé: texte}). Les autres langues de l'APP
+  (es/de/it/pt/ko/ja .dart) n'ont PAS été relues → prochain chantier.
+- **PawMap** : nouvel endpoint `GET /friends/members/world` (tous les membres
+  géolocalisés, position ARRONDIE ~1 km + décalage stable, cache 5 min, pas de
+  gating abo, exclut +test et hiddenFromPublic) → couche « monde » visible en
+  dézoomant sur app (`_worldMembers`) et web (`worldMembers`, fusion avec les
+  proches exacts). **Tap/clic sur un membre rose = fiche + « Ajouter en ami »**
+  (app : bottom sheet `_onNearbyTap` → FriendController.sendRequest ; web :
+  `MemberPopup` dans PoiMap → sendFriendRequest, + lien Réserver pour
+  sitter/walker). 7 clés i18n ×9 langues (`map_member_*` / `pawmap_member_*`).
+- Sélecteur de langue du site : exclu du contour orange fluo global (classes
+  `lang-switch` / `lang-menu` dans globals.css).
+
 **Site 02/09 soir (sans rebuild app)** : icône officielle HD sur tout le site
 (favicon.ico/svg, logo.png 512, icon-32/192/512, apple-touch, maskables, og-image
 rouge avec le nom — `?v=548` dans layout.tsx ; script `make_web_icons.py`, source =
