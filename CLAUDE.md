@@ -58,7 +58,7 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 548** (547 = icônes officielles + polonais, construit le 02/09).
+**Prochain build APK/AAB = 549.** 548 (03/09) = traductions relues + PawMap monde : Play → envoyé en examen (clics JS acceptés cette fois), iOS → IPA distribuée via Transporter ; la 1.12 ASC reste sur 547 tant que Daniel ne s'est pas reconnecté à ASC (session Chrome expirée).
 
 **02/09 — v547 + marketing automatisé (demande Daniel : « fais tout seul »)**
 - **Icône** régénérée depuis `Hopetsit Icon-01.svg` : Android premier plan à
