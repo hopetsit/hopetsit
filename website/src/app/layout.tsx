@@ -108,7 +108,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   sameAs: [
                     "https://www.instagram.com/hopetsit/",
                     "https://www.tiktok.com/@hopetsit",
-                    "https://www.youtube.com/@HoPetSit",
+                    "https://www.youtube.com/@HoPetSit/shorts",
                     "https://www.facebook.com/people/Hopetsit/61590596619482/",
                   ],
                 },

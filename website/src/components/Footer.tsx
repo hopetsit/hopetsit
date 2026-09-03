@@ -29,7 +29,7 @@ const SOCIALS: { label: string; href: string; icon: React.ReactNode }[] = [
   },
   {
     label: "YouTube",
-    href: "https://www.youtube.com/@HoPetSit",
+    href: "https://www.youtube.com/@HoPetSit/shorts",
     icon: (
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
         <path d="M21.6 7.2a2.5 2.5 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.5 2.5 0 0 0 2.4 7.2 26 26 0 0 0 2 12a26 26 0 0 0 .4 4.8 2.5 2.5 0 0 0 1.8 1.8C5.8 19 12 19 12 19s6.2 0 7.8-.4a2.5 2.5 0 0 0 1.8-1.8A26 26 0 0 0 22 12a26 26 0 0 0-.4-4.8zM10 15V9l5 3-5 3z" />
