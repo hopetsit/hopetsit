@@ -18,6 +18,31 @@ const Walker = require('../models/Walker');
 const ROLE_TO_MODEL = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' };
 const MODEL_CTOR = { Owner, Sitter, Walker };
 
+// v550 — Daniel (04/09/2026) : « le chat exige Premium hors réservation :
+// pour une app à 40 utilisateurs c'est un mur → gratuit jusqu'à 1 000
+// utilisateurs ». PHASE DE LANCEMENT : tant que la base compte moins de
+// CHAT_FREE_UNTIL_USERS comptes (défaut 1000, surchargeable sur Render),
+// tout le monde peut chatter librement. Le compte est mis en cache 10 min.
+// Passé le seuil, le gating Premium/add-on historique se réapplique tout seul.
+const CHAT_FREE_UNTIL_USERS = Number(process.env.CHAT_FREE_UNTIL_USERS || 1000);
+let _launchCache = { at: 0, free: true };
+async function isLaunchPhase() {
+  if (!(CHAT_FREE_UNTIL_USERS > 0)) return false;
+  const now = Date.now();
+  if (now - _launchCache.at < 10 * 60 * 1000) return _launchCache.free;
+  try {
+    const [o, s, w] = await Promise.all([
+      Owner.estimatedDocumentCount(),
+      Sitter.estimatedDocumentCount(),
+      Walker.estimatedDocumentCount(),
+    ]);
+    _launchCache = { at: now, free: (o + s + w) < CHAT_FREE_UNTIL_USERS };
+  } catch (_) {
+    _launchCache = { at: now, free: _launchCache.free };
+  }
+  return _launchCache.free;
+}
+
 async function isStaffUser(userId, userModel) {
   const Model = MODEL_CTOR[userModel];
   if (!Model) return false;
@@ -104,13 +129,16 @@ async function getChatAccess(userId, userModelOrRole) {
   //   - hasActivePawFollow (no userModel filter)
   //   - ANY active UserSubscription
   //   - legacy hasPremium (userModel-filtered) | hasChatAddon
-  const anyBypass = staff || isStaffByEmail || iHavePawFollow || anyActiveSub;
+  //   - v550 : phase de lancement (< CHAT_FREE_UNTIL_USERS comptes) → libre
+  const launch = await isLaunchPhase();
+  const anyBypass = staff || isStaffByEmail || iHavePawFollow || anyActiveSub || launch;
 
   return {
     hasPremium: hasPremium || anyBypass,
     hasChatAddon: hasChatAddon || anyBypass,
     hasAny: hasPremium || hasChatAddon || anyBypass,
     isStaff: staff || isStaffByEmail,
+    launchPhase: launch,
   };
 }
 
@@ -126,5 +154,6 @@ async function canChatFreely(userId, userModelOrRole) {
 module.exports = {
   getChatAccess,
   canChatFreely,
+  isLaunchPhase,
   ROLE_TO_MODEL,
 };

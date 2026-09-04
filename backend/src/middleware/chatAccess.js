@@ -100,6 +100,20 @@ const requirePaidBooking = async (req, res, next) => {
       };
 
       if (role && userId) {
+        // v550 — Daniel : chat GRATUIT pour tous tant que la base compte
+        // moins de CHAT_FREE_UNTIL_USERS comptes (1 000 par défaut) — voir
+        // chatAccessService.isLaunchPhase(). Le gating Premium se réapplique
+        // seul passé le seuil.
+        try {
+          const { isLaunchPhase } = require('../services/chatAccessService');
+          if (await isLaunchPhase()) {
+            log403Decision('BYPASS_LAUNCH_PHASE');
+            return next();
+          }
+        } catch (e) {
+          log403Decision('LAUNCH_PHASE_CHECK_FAILED', { error: e?.message });
+        }
+
         const Model = role === 'walker' ? Walker : role === 'sitter' ? Sitter : Owner;
         const me = await Model.findById(userId).select('isStaff email').lean();
         if (me && me.isStaff === true) {
