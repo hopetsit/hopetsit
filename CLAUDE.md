@@ -103,8 +103,12 @@ prod avec les comptes test + simulateur iOS) :
   « Ajouter une carte » 0,50 €) ; wallet, PawPoints, boutique (StoreKit),
   publications → candidature → acceptation, blocage/déblocage, amis, PawMap.
   **Le vrai débit carte reste à faire par Daniel** (quelques euros).
-- ⚠️ Produit : le chat hors réservation payée exige Premium/add-on
-  (« Chat requires an active Premium plan ») → frein possible à la 1re vente.
+- ✅ 04/09 (v550, serveur seul) : **chat GRATUIT en phase de lancement** tant que
+  la base compte < `CHAT_FREE_UNTIL_USERS` (1000) comptes — `chatAccessService.isLaunchPhase()`
+  + middleware `requirePaidBooking`. Le gating Premium revient seul au-delà.
+  **Search Console** = compte hopetsit@gmail.com (`/u/1/` ou `/u/4/` dans le Chrome de Daniel) ;
+  sitemap lu pour la dernière fois le 08/07 (15/84 pages) → resoumission = clic humain.
+  Affiche A4 vétos/animaleries : `~/Downloads/HoPetSit_Affiche_Paris_A4.pdf` (`scratchpad/make_poster.py`).
 - Simulateur : intégration native KO tant que `sudo xcode-select -s
   /Applications/Xcode.app/Contents/Developer` n'est pas lancé par Daniel →
   contrôle d'écran (computer-use) + osascript pour taper.
