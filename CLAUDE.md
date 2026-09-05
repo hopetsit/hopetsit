@@ -60,7 +60,17 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 
 **Prochain build APK/AAB = 551.** 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
-**06/09 — v550 « PawMap : membres visibles, floutage juste, carte fluide »**
+**06/09 — v550 « PawMap : membres visibles, floutage juste, carte fluide » — PUBLIÉE**
+- **Play** : release 550 (23.1.550) créée par injection (serveur CORS 8768 + DataTransfer),
+  notes 6 langues, Suivant → Enregistrer → « Accéder à l'aperçu » → « Envoyer 1 modification »
+  → dialogue confirmé → **« Modifications en cours d'examen »**. ⚠️ Le bouton du dialogue ne se
+  trouve QUE dans `[role=dialog] button` (chercher dans `document.querySelectorAll('button')`
+  global renvoie « not found » alors que le dialogue est ouvert).
+- **iOS** : la 1.13/549 avait été APPROUVÉE et est READY_FOR_SALE → j'ai créé la **1.14**
+  (id `4dec0ddf-bd56-4451-b278-f3cde9f54b24`), whatsNew fr-FR/en-GB, IPA distribué par
+  Transporter (bouton DISTRIBUER via app_click), build 550 (`dca56b2a-3b76-44ac-a797-50dd6bc0e90a`)
+  VALID ~20 min après, attaché (204) → reviewSubmission `c100d1b1-…` + item + submitted
+  → **1.14 = WAITING_FOR_REVIEW avec 550**. Fichiers : ~/Downloads/HoPetSit_v23.1.550.{apk,aab,ipa}.
 - **Floutage de la couche monde en KILOMÈTRES** (`/friends/members/world`) : la
   grille était en degrés (0,01° = 1,11 km en latitude mais 0,73 km à Paris et
   0,28 km au Svalbard en longitude) + un décalage stable par-dessus → le
