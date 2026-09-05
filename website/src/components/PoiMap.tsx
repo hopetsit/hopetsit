@@ -762,7 +762,12 @@ function MemberPopup({
         </div>
       </div>
       {m.approx && labels?.approx ? (
-        <div className="mb-2 text-[11px] text-gray-500">📍 {labels.approx}</div>
+        <div className="mb-2 text-[11px] text-gray-500">
+          {/* v550 — le rayon affiché est celui que le backend garantit
+              (approxKm), plus un « ~1 km » écrit en dur qui ne correspondait
+              pas au floutage réel. */}
+          📍 {labels.approx.replace("{km}", String(m.approxKm ?? 1))}
+        </div>
       ) : null}
       <div className="flex flex-wrap gap-1.5">
         {onAddFriend && labels ? (

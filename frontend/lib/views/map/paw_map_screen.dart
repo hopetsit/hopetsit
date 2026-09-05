@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -29,6 +30,8 @@ import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/friends/people_live_screen.dart';
 import 'package:hopetsit/views/map/alerts_screen.dart';
 import 'package:hopetsit/views/map/pawspot_sheets.dart';
+import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
+import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -199,6 +202,18 @@ class _PawMapScreenState extends State<PawMapScreen>
   // connecté, abonné ou non. Chargée une fois (cache serveur 5 min).
   final RxList<Map<String, dynamic>> _worldMembers = <Map<String, dynamic>>[].obs;
   bool _worldMembersLoaded = false;
+  /// v550 — révision de la couche monde. La clé du cache markers ne
+  /// contenait AUCUNE trace de `_worldMembers` : quand la liste arrivait
+  /// (après le 1er build), le cache n'était pas invalidé → les membres roses
+  /// n'apparaissaient jamais sur mobile alors qu'ils s'affichaient sur le web.
+  int _worldRev = 0;
+  /// v550 — vrai pendant un geste caméra (pan/zoom). On gèle le tick halo :
+  /// plus aucun rebuild de la GoogleMap pendant que le doigt bouge la carte.
+  bool _cameraMoving = false;
+  /// v550 — zoom courant, utilisé pour plafonner le nombre de membres de la
+  /// couche monde affichés (au dézoom mondial, on garde les plus proches du
+  /// centre : des milliers de markers figent Google Maps sur mobile).
+  double _zoomLevel = 13;
   final RxBool _showProviders = true.obs;
 
   /// v23.1.353 — refonte PawSpot : couche des spots communautaires 🐾.
@@ -442,7 +457,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     // par les rebuilds Google Maps Circle. Aussi : 12 → 8 steps pour
     // un cycle complet plus court (visuellement equivalent).
     _haloTimer = Timer.periodic(const Duration(milliseconds: 600), (_) {
-      if (!mounted) return;
+      if (!mounted || _cameraMoving) return;
       _haloPhase.value = (_haloPhase.value + 1.0 / 8.0) % 1.0;
     });
 
@@ -737,6 +752,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     required bool premium,
     String avatar = '',
     bool approx = false,
+    double approxKm = 1,
   }) {
     _selectedNearbyId = id;
     if (mounted) setState(() {});
@@ -848,7 +864,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                             SizedBox(height: 2.h),
                             Text(
                               approx
-                                  ? '$roleLabel · 📍 ${'pawmap_member_approx'.tr}'
+                                  ? '$roleLabel · 📍 ${'pawmap_member_approx'.tr.replaceAll('{km}', _fmtKm(approxKm))}'
                                   : '$roleLabel · ${online ? '🟢 ${'pawmap_member_online'.tr}' : '⚪ ${'pawmap_member_offline'.tr}'}',
                               style: TextStyle(
                                 fontSize: 12.sp,
@@ -913,6 +929,46 @@ class _PawMapScreenState extends State<PawMapScreen>
                       ),
                     ),
                   ),
+                  // v550 — Daniel : « vérifie que l'ajout d'amis ET la
+                  // réservation directe via les utilisateurs marchent ». Le
+                  // web avait le bouton Réserver, pas l'app : on l'ajoute
+                  // pour les gardiens / promeneurs (owner = pas de fiche
+                  // réservable). Ferme la sheet puis ouvre la fiche.
+                  if (role == 'sitter' || role == 'walker') ...[
+                    SizedBox(height: 8.h),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: pinkDark,
+                          side: const BorderSide(color: pink, width: 1.4),
+                          padding: EdgeInsets.symmetric(vertical: 13.h),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14.r),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(ctx).pop();
+                          if (role == 'walker') {
+                            Get.to(() => WalkerDetailScreen(walkerId: id));
+                          } else {
+                            Get.to(() => ServiceProviderDetailScreen(
+                                  sitterId: id,
+                                  status: 'available',
+                                ));
+                          }
+                        },
+                        icon: Icon(Icons.event_available_rounded, size: 18.sp),
+                        label: Text(
+                          'pawmap_member_book'.tr,
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1159,7 +1215,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (state == AppLifecycleState.resumed) {
       if (_haloTimer == null || !(_haloTimer!.isActive)) {
         _haloTimer = Timer.periodic(const Duration(milliseconds: 600), (_) {
-          if (!mounted) return;
+          if (!mounted || _cameraMoving) return;
           _haloPhase.value = (_haloPhase.value + 1.0 / 8.0) % 1.0;
         });
       }
@@ -1608,10 +1664,14 @@ class _PawMapScreenState extends State<PawMapScreen>
             'isMapBoosted': false,
             'isOnline': true,
             'approx': true,
+            'approxKm': (m['approxKm'] as num?)?.toDouble() ??
+                (res?['approxKm'] as num?)?.toDouble() ??
+                1.0,
           });
         }
       }
       _worldMembers.assignAll(out);
+      _worldRev += 1;
       _worldMembersLoaded = true;
     } catch (_) {
       /* silencieux : la couche proche reste */
@@ -1646,6 +1706,10 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   void _onCameraMove(CameraPosition pos) {
     _currentCenter = pos.target;
+    // v550 — perf : tant que la caméra bouge, le halo ne pulse pas (sinon la
+    // GoogleMap se reconstruit 1,7×/s pendant le pan → saccades sur mobile).
+    _cameraMoving = true;
+    _zoomLevel = pos.zoom;
     // v456 — viseur « point rouge au centre » : l'emplacement choisi SUIT le
     // centre de la carte que l'utilisateur déplace sous le repère rouge fixe
     // (placement précis, façon Uber). Plus de pin à faire glisser.
@@ -1658,6 +1722,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// and schedules a fresh one 500 ms later. Wired to `onCameraIdle` so the
   /// POI / report / request layers refresh after the user stops panning.
   void _scheduleReload() {
+    _cameraMoving = false; // v550 — geste terminé : le halo repulse.
     _reloadDebounce?.cancel();
     _reloadDebounce = Timer(const Duration(milliseconds: 500), () {
       if (!mounted) return;
@@ -2118,6 +2183,17 @@ class _PawMapScreenState extends State<PawMapScreen>
           .map((p) =>
               '${p['id'] ?? p['_id']}:${p['isMapBoosted'] == true || p['isPremium'] == true ? 1 : 0}:${p['isOnline'] != false && p['online'] != false ? 1 : 0}')
           .join('|'),
+      // v550 — Daniel : « sur la map iOS/Android on ne voit pas les
+      // utilisateurs en rose comme sur le web ». LA cause : la couche MONDE
+      // n'entrait pas dans la clé → arrivée après le 1er build, elle ne
+      // réinvalidait jamais le cache. On ajoute la révision de la liste (int,
+      // pas une signature : la liste peut compter des milliers d'entrées) +
+      // le centre/zoom, qui pilotent le plafond d'affichage.
+      _worldRev,
+      _worldMembers.length,
+      _zoomLevel.round(),
+      '${_currentCenter.latitude.toStringAsFixed(1)},'
+          '${_currentCenter.longitude.toStringAsFixed(1)}',
     ].join('-');
     if (_cachedMarkers == null || _cachedMarkersKey != key) {
       _cachedMarkers = _buildMarkers();
@@ -2190,10 +2266,39 @@ class _PawMapScreenState extends State<PawMapScreen>
           combined.add(p);
         }
       }
+      // v550 — perf mobile : le backend peut renvoyer jusqu'à 3 000 membres,
+      // et Google Maps sature bien avant (des milliers de markers = carte
+      // figée sur Android d'entrée de gamme). On garde les N plus proches du
+      // centre courant ; N dépend du zoom (au dézoom mondial, quelques
+      // centaines de points donnent déjà la densité, au zoom quartier on veut
+      // tout ce qui est autour de l'utilisateur).
+      final worldPool = <Map<String, dynamic>>[];
       for (final p in _worldMembers) {
         final id = (p['id'] ?? '').toString();
         if (id.isEmpty || nearbyIds.contains(id)) continue;
-        combined.add(p);
+        worldPool.add(p);
+      }
+      final int worldCap =
+          _zoomLevel >= 11 ? 400 : (_zoomLevel >= 6 ? 300 : 200);
+      if (worldPool.length > worldCap) {
+        final cosC =
+            math.cos(_currentCenter.latitude * math.pi / 180).abs().clamp(0.05, 1.0);
+        double dist2(Map<String, dynamic> p) {
+          final loc = p['location'] is Map ? p['location'] as Map : null;
+          final c = loc != null && loc['coordinates'] is List
+              ? loc['coordinates'] as List
+              : null;
+          if (c == null || c.length < 2) return double.maxFinite;
+          final dLat = (c[1] as num).toDouble() - _currentCenter.latitude;
+          final dLng =
+              ((c[0] as num).toDouble() - _currentCenter.longitude) * cosC;
+          return dLat * dLat + dLng * dLng;
+        }
+
+        worldPool.sort((a, b) => dist2(a).compareTo(dist2(b)));
+        combined.addAll(worldPool.take(worldCap));
+      } else {
+        combined.addAll(worldPool);
       }
       for (final p in combined) {
         final loc = p['location'] is Map ? p['location'] as Map : null;
@@ -2215,6 +2320,11 @@ class _PawMapScreenState extends State<PawMapScreen>
         final bool online = p['isOnline'] != false && p['online'] != false;
         final bool selected = _selectedNearbyId == id;
         final bool approx = p['approx'] == true;
+        // v550 — rayon d'imprécision annonce par le backend (grille de
+        // floutage). Avant, le libelle disait « ~1 km » en dur alors que
+        // l'arrondi ne valait 1 km qu'a l'equateur.
+        final double approxKm =
+            (p['approxKm'] as num?)?.toDouble() ?? 1.0;
         final icon = _pawBadgeMarkers[
             'pb_${online ? 1 : 0}_${premium ? 1 : 0}_${selected ? 1 : 0}'];
         if (icon == null) _ensurePawBadgeMarker(online, premium, selected);
@@ -2235,6 +2345,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               premium: premium,
               avatar: (p['avatar'] ?? '').toString(),
               approx: approx,
+              approxKm: approxKm,
             ),
           ),
         );
@@ -2756,6 +2867,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // forcer le rebuild a chaque assignAll().
                     _nearbyProviders.length;
                     _showProviders.value;
+                    // v550 — couche MONDE : sans cette dépendance, la carte
+                    // ne rebuildait pas quand /friends/members/world répondait
+                    // → aucun membre rose visible sur mobile.
+                    _worldMembers.length;
                     // v23.1.353 — refonte PawSpot : rebuild quand la couche
                     // spots 🐾 se toggle ou que les spots chargent.
                     _showPawSpots.value;
@@ -3300,9 +3415,19 @@ class _PawMapScreenState extends State<PawMapScreen>
   // zoomIn()/zoomOut() sautaient d'UN niveau entier (×2 d'un coup) -> effet
   // brusque/saccadé. On passe à un pas plus doux de ±0.8 niveau (zoomBy) pour
   // un zoom progressif et fluide, toujours animé.
+  /// v550 — Daniel : « quand la carte est en grand, rajoute le bouton ma
+  /// position ». Le calque plein écran a SA propre GoogleMap : zoom et
+  /// recentrage doivent viser _expandedCtl, sinon ils pilotaient la carte
+  /// cachée dessous (aucun effet visible).
+  Future<GoogleMapController?> _activeMapCtl() async {
+    if (_mapExpanded.value && _expandedCtl != null) return _expandedCtl;
+    if (!_mapCtl.isCompleted) return null;
+    return _mapCtl.future;
+  }
+
   Future<void> _zoomIn() async {
-    if (!_mapCtl.isCompleted) return;
-    final ctl = await _mapCtl.future;
+    final ctl = await _activeMapCtl();
+    if (ctl == null) return;
     // Zoomer ne doit pas couper le suivi en cours.
     if (_followUserId != null) _suppressFollowAutoStop = true;
     await ctl.animateCamera(CameraUpdate.zoomBy(0.8));
@@ -3313,8 +3438,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   Future<void> _zoomOut() async {
-    if (!_mapCtl.isCompleted) return;
-    final ctl = await _mapCtl.future;
+    final ctl = await _activeMapCtl();
+    if (ctl == null) return;
     if (_followUserId != null) _suppressFollowAutoStop = true;
     await ctl.animateCamera(CameraUpdate.zoomBy(-0.8));
     if (_followUserId != null) {
@@ -3343,9 +3468,15 @@ class _PawMapScreenState extends State<PawMapScreen>
         _currentCenter = center;
         _userPosition = center;
       });
-      if (_mapCtl.isCompleted) {
-        final ctl = await _mapCtl.future;
-        await ctl.animateCamera(CameraUpdate.newLatLng(center));
+      final ctl = await _activeMapCtl();
+      if (ctl != null) {
+        // v550 — recentrage avec un zoom « quartier » si on est très dézoomé :
+        // sinon le bouton ne semblait « rien faire » depuis la vue monde.
+        await ctl.animateCamera(
+          _zoomLevel < 12
+              ? CameraUpdate.newLatLngZoom(center, 14)
+              : CameraUpdate.newLatLng(center),
+        );
       }
       await _reloadAtCenter();
     } catch (e) {
@@ -3565,6 +3696,13 @@ class _PawMapScreenState extends State<PawMapScreen>
         ),
       );
     });
+  }
+
+  /// v550 — formate le rayon d'imprécision de la couche monde : « 1 »,
+  /// « 0,5 »... sans décimale inutile.
+  String _fmtKm(double km) {
+    if (km >= 1 && km == km.roundToDouble()) return km.toStringAsFixed(0);
+    return km.toStringAsFixed(1);
   }
 
   double _approxKm(double lat, double lng) {
@@ -4330,6 +4468,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               _haloPhase.value;
               _nearbyProviders.length;
               _showProviders.value;
+              _worldMembers.length; // v550 — couche monde (membres roses).
               _showPawSpots.value;
               _pawSpotController.spots.length;
               // ignore: unused_local_variable
@@ -4404,6 +4543,15 @@ class _PawMapScreenState extends State<PawMapScreen>
             top: 0,
             bottom: 0,
             child: Center(child: _buildMapActionsColumn()),
+          ),
+
+          // v550 — Daniel : « quand la carte est en grand, rajoute le bouton
+          // ma position ». Même pilule blanche qu'en petite carte (ma
+          // position / + / -), à droite, au-dessus de la barre système.
+          Positioned(
+            right: 12.w,
+            bottom: 24.h,
+            child: SafeArea(child: _buildMapControlsStack()),
           ),
         ],
       ),
