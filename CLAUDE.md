@@ -58,7 +58,41 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 550.** 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 551.** 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+
+**06/09 — v550 « PawMap : membres visibles, floutage juste, carte fluide »**
+- **Floutage de la couche monde en KILOMÈTRES** (`/friends/members/world`) : la
+  grille était en degrés (0,01° = 1,11 km en latitude mais 0,73 km à Paris et
+  0,28 km au Svalbard en longitude) + un décalage stable par-dessus → le
+  « ~1 km » affiché était faux. Grille convertie en degrés à la latitude du
+  membre ; erreur max mesurée **0,89 km** partout (Paris/Dallas/équateur/
+  Reykjavik/Sydney). Le rayon est renvoyé dans `approxKm` et **affiché depuis
+  la réponse** ({km} dans `map_member_approx` / `pawmap_member_approx`, 9 langues).
+- **⚠️ RÈGLE : toute nouvelle couche de la PawMap doit entrer DANS LA CLÉ de
+  `_getMarkersFromCache()` ET dans les dépendances lues par les 2 Obx** (carte
+  normale + calque agrandi). La couche monde (v548) n'y était pas → les
+  membres roses n'apparaissaient jamais sur Android/iOS alors qu'ils
+  s'affichaient sur le web. Même piège qu'en v521/v163/v248/v249.
+- **Membres en ROSE BRILLANT** (demande Daniel) : badge agrandi (app 42→48 px,
+  web 30→34), rose vif #FF4FA3→#F01E86, double halo lumineux + reflet ; halo
+  atténué hors ligne.
+- **Fiche membre (app)** : bouton **Réserver** ajouté pour gardien/promeneur
+  (→ ServiceProviderDetailScreen / WalkerDetailScreen), comme sur le web.
+- **Carte agrandie** : pilule **ma position / + / −** ajoutée ; `_activeMapCtl()`
+  fait viser la carte réellement visible (`_expandedCtl`), et « ma position »
+  rezoome à 14 quand on était très dézoomé.
+- **Fluidité** : halo gelé pendant les gestes caméra ; `onCameraIdle` ne relance
+  les 5 requêtes que si le centre a bougé d'≈1/4 de la largeur visible ; plafond
+  d'affichage de la couche monde (200-400 points selon le zoom) ; cache local
+  24 h (`pawmap_world_cache`) → carte peuplée dès la 1re frame.
+- Vérifié : API `/friends/members/world` en prod renvoie `approxKm:1` ;
+  `POST /friends/request` OK (test owner → test sitter, puis reset) ; web en
+  prod « Position approximative (à moins de 1 km) » + Réserver → page /book
+  chargée ; app v550 lancée sur simulateur (badges roses bien visibles).
+  ⚠️ **Le tap sur un marqueur ne peut pas être testé sur simulateur** :
+  l'intégration native refuse (« Xcode is installed but not selected ») alors
+  que `xcode-select -p` est bon, et le contrôle par accessibilité active les
+  boutons du calque du dessous au lieu du marqueur.
 
 **02/09 — v547 + marketing automatisé (demande Daniel : « fais tout seul »)**
 - **Icône** régénérée depuis `Hopetsit Icon-01.svg` : Android premier plan à
