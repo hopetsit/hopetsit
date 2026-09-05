@@ -214,6 +214,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// couche monde affichés (au dézoom mondial, on garde les plus proches du
   /// centre : des milliers de markers figent Google Maps sur mobile).
   double _zoomLevel = 13;
+  /// v550 — dernier centre réellement rechargé (voir `_scheduleReload`).
+  LatLng? _lastReloadCenter;
   final RxBool _showProviders = true.obs;
 
   /// v23.1.353 — refonte PawSpot : couche des spots communautaires 🐾.
@@ -1644,6 +1646,26 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// ouverture de la carte ; le serveur renvoie des positions arrondies.
   Future<void> _loadWorldMembers() async {
     if (_worldMembersLoaded) return;
+    // v550 — carte « peuplée » dès la première frame : on réaffiche le dernier
+    // instantané connu (24 h max) pendant que la requête part. Sans ça la
+    // PawMap restait vide quelques secondes au lancement — l'impression de
+    // lenteur venait de là, pas du rendu.
+    if (_worldMembers.isEmpty) {
+      try {
+        final cached = GetStorage().read('pawmap_world_cache');
+        final at = GetStorage().read('pawmap_world_cache_at');
+        if (cached is List &&
+            at is int &&
+            DateTime.now().millisecondsSinceEpoch - at <
+                const Duration(hours: 24).inMilliseconds) {
+          _worldMembers.assignAll(
+            cached.whereType<Map>().map((e) => Map<String, dynamic>.from(e)),
+          );
+          _worldRev += 1;
+          if (mounted) setState(() {});
+        }
+      } catch (_) {/* cache illisible : on attend le réseau */}
+    }
     try {
       final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
       if (api == null) return;
@@ -1670,9 +1692,15 @@ class _PawMapScreenState extends State<PawMapScreen>
           });
         }
       }
+      if (out.isEmpty && _worldMembers.isNotEmpty) return; // garde le cache
       _worldMembers.assignAll(out);
       _worldRev += 1;
       _worldMembersLoaded = true;
+      try {
+        GetStorage().write('pawmap_world_cache', out);
+        GetStorage().write(
+            'pawmap_world_cache_at', DateTime.now().millisecondsSinceEpoch);
+      } catch (_) {/* stockage plein : sans importance */}
     } catch (_) {
       /* silencieux : la couche proche reste */
     }
@@ -1726,6 +1754,27 @@ class _PawMapScreenState extends State<PawMapScreen>
     _reloadDebounce?.cancel();
     _reloadDebounce = Timer(const Duration(milliseconds: 500), () {
       if (!mounted) return;
+      // v550 — fluidité : chaque `onCameraIdle` déclenchait 5 requêtes (POI,
+      // signalements, spots, demandes, membres). Un simple zoom ou un
+      // micro-déplacement relançait tout le paquet et faisait saccader la
+      // carte sur mobile. On ne recharge que si le centre a réellement bougé
+      // (~1/4 de la largeur visible) — ou si on n'a encore jamais chargé.
+      final last = _lastReloadCenter;
+      if (last != null) {
+        final cosC = math
+            .cos(_currentCenter.latitude * math.pi / 180)
+            .abs()
+            .clamp(0.05, 1.0);
+        final dKm = math.sqrt(
+              math.pow(_currentCenter.latitude - last.latitude, 2) +
+                  math.pow((_currentCenter.longitude - last.longitude) * cosC, 2),
+            ) *
+            111.32;
+        // Rayon visible approximatif : ~40 000 km / 2^zoom.
+        final visibleKm = 40000 / math.pow(2, _zoomLevel.clamp(1, 20));
+        if (dKm < math.max(0.3, visibleKm * 0.25)) return;
+      }
+      _lastReloadCenter = _currentCenter;
       _reloadAtCenter();
     });
   }
