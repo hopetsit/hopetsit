@@ -323,13 +323,23 @@ function makeMemberIcon(premium: boolean, online: boolean): L.DivIcon {
   const crown = premium
     ? '<div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);font-size:12px;">👑</div>'
     : "";
-  const dot = `<div style="position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;border:1.5px solid #fff;background:${online ? "#22C55E" : "#9CA3AF"};"></div>`;
+  const dot = `<div style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;border:1.5px solid #fff;background:${online ? "#22C55E" : "#9CA3AF"};"></div>`;
+  // v550 — Daniel : « les utilisateurs, rose brillant qu'on les voie mieux ».
+  // Badge agrandi (30 → 34 px), rose plus vif et double halo lumineux : au
+  // milieu des POI bleus, les membres doivent sauter aux yeux. Le halo est
+  // atténué hors ligne pour garder l'info en ligne / hors ligne lisible.
+  const glow = online
+    ? "0 0 0 4px rgba(255,79,163,.28), 0 0 14px 4px rgba(255,79,163,.55), 0 1px 5px rgba(0,0,0,.35)"
+    : "0 0 0 3px rgba(255,79,163,.14), 0 1px 5px rgba(0,0,0,.3)";
+  const bg = online
+    ? "linear-gradient(135deg,#FF4FA3,#F01E86)"
+    : "linear-gradient(135deg,#D8A8C0,#C194AC)";
   return L.divIcon({
     className: "",
     // v505 — patte BLANCHE (logo officiel, comme l'app) au lieu de l'emoji 🐾.
-    html: `<div style="position:relative;width:30px;height:30px;">${crown}<div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:linear-gradient(135deg,#F06AA0,#E0568B);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);"><svg viewBox="0 0 24 24" width="15" height="15" fill="#fff"><ellipse cx="12" cy="15.6" rx="4.6" ry="3.7"/><ellipse cx="5.3" cy="10.9" rx="2" ry="2.6"/><ellipse cx="9.4" cy="7.4" rx="2" ry="2.7"/><ellipse cx="14.6" cy="7.4" rx="2" ry="2.7"/><ellipse cx="18.7" cy="10.9" rx="2" ry="2.6"/></svg></div>${dot}</div>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
+    html: `<div style="position:relative;width:34px;height:34px;">${crown}<div style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${bg};border:2.5px solid #fff;box-shadow:${glow};"><svg viewBox="0 0 24 24" width="17" height="17" fill="#fff"><ellipse cx="12" cy="15.6" rx="4.6" ry="3.7"/><ellipse cx="5.3" cy="10.9" rx="2" ry="2.6"/><ellipse cx="9.4" cy="7.4" rx="2" ry="2.7"/><ellipse cx="14.6" cy="7.4" rx="2" ry="2.7"/><ellipse cx="18.7" cy="10.9" rx="2" ry="2.6"/></svg></div>${dot}</div>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
   });
 }
 

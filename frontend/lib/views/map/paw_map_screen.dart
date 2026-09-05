@@ -614,25 +614,46 @@ class _PawMapScreenState extends State<PawMapScreen>
     required bool premium,
     required bool selected,
   }) async {
-    const double size = 72.0;
+    // v550 — Daniel : « les utilisateurs, fais-les rose brillant qu'on les
+    // voie mieux ». Badge agrandi (42 → 48 px), rose plus vif et HALO
+    // lumineux rose autour du cercle : sur une carte saturée de POI bleus,
+    // les membres ressortent au premier coup d'œil.
+    const double size = 96.0;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    const center = Offset(36, 38);
-    final double r = selected ? 25 : 24;
-    const pink = Color(0xFFF06AA0);
-    const pinkDark = Color(0xFFE0568B);
+    const center = Offset(48, 50);
+    final double r = selected ? 27 : 26;
+    const pink = Color(0xFFFF4FA3);
+    const pinkDark = Color(0xFFF01E86);
     final Color fillTop = !online
-        ? const Color(0xFFC9A6B6)
+        ? const Color(0xFFD8A8C0)
         : (selected ? pinkDark : pink);
     final Color fillBottom =
-        online ? pinkDark : const Color(0xFFB89AAA);
+        online ? pinkDark : const Color(0xFFC194AC);
 
-    // Ombre douce.
+    // Halo lumineux rose (2 couches floues) — c'est lui qui rend le badge
+    // « brillant ». Désaturé et discret quand le membre est hors ligne.
+    final double glowA = online ? 0.55 : 0.22;
+    canvas.drawCircle(
+      center,
+      r + 11,
+      Paint()
+        ..color = pink.withValues(alpha: glowA * 0.45)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
+    );
+    canvas.drawCircle(
+      center,
+      r + 5,
+      Paint()
+        ..color = pink.withValues(alpha: glowA)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    );
+    // Ombre douce (lisibilité sur fond clair).
     canvas.drawCircle(
       center.translate(0, 2.5),
       r,
       Paint()
-        ..color = Colors.black.withValues(alpha: 0.22)
+        ..color = Colors.black.withValues(alpha: 0.20)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
     );
     // Cercle rose dégradé.
@@ -647,24 +668,33 @@ class _PawMapScreenState extends State<PawMapScreen>
           colors: [fillTop, fillBottom],
         ).createShader(rect),
     );
+    // Reflet supérieur : donne l'effet « brillant » (pastille vernie).
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: center.translate(0, -r * 0.42),
+        width: r * 1.25,
+        height: r * 0.62,
+      ),
+      Paint()..color = Colors.white.withValues(alpha: online ? 0.30 : 0.16),
+    );
     // Anneau blanc.
     canvas.drawCircle(
       center,
       r,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
+        ..strokeWidth = 3.4
         ..color = Colors.white,
     );
     // Liseré externe (état sélectionné).
     if (selected) {
       canvas.drawCircle(
         center,
-        r + 3,
+        r + 3.5,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..color = pinkDark.withValues(alpha: 0.6),
+          ..strokeWidth = 2.4
+          ..color = pinkDark.withValues(alpha: 0.75),
       );
     }
     // Patte blanche centrée (membre anonyme — pas de photo).
@@ -703,7 +733,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     final img =
         await recorder.endRecording().toImage(size.toInt(), size.toInt());
     final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
-    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List(), width: 42);
+    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List(), width: 48);
   }
 
   /// Patte blanche (4 coussinets + paume) dessinée dans une boîte [paw] px
