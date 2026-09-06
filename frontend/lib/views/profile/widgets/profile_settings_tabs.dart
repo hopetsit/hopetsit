@@ -65,6 +65,19 @@ class ProfilePreferencesTab extends StatelessWidget {
           onChanged: (v) => onSave(prefs.copyWith(flexibleCancellation: v)),
         ),
         SizedBox(height: 18.h),
+        // v551 — Daniel : « rajouter une ligne dans le profil : masquer mon
+        // profil sur la carte (on/off), pour quelqu'un qui ne veut pas être
+        // vu par les autres sauf ses amis ».
+        _header('profile_pref_privacy'.tr),
+        _toggle(
+          context,
+          icon: Icons.visibility_off_rounded,
+          label: 'profile_pref_hide_map'.tr,
+          sub: 'profile_pref_hide_map_sub'.tr,
+          value: prefs.hideFromMap,
+          onChanged: (v) => onSave(prefs.copyWith(hideFromMap: v)),
+        ),
+        SizedBox(height: 18.h),
         _header('profile_pref_language'.tr),
         _navTile(
           context,

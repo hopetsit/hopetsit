@@ -76,6 +76,31 @@ router.post('/live-position', requireAuth, async (req, res) => {
 // n'expose QUE les membres ayant eux-mêmes un abo actif (pas tout le monde).
 //   GET /friends/members/nearby?lat=&lng=&radiusInMeters=
 // Placé AVANT les routes /:id pour ne pas être éclipsé par un param.
+// v551 — Daniel : « masquer mon profil sur la carte … sauf ses amis ».
+// Renvoie l'ensemble des ids (string) des amis ACCEPTÉS du viewer, pour que
+// quelqu'un qui s'est masqué reste visible de ses amis.
+async function _friendIdsOf(userId) {
+  try {
+    const Friendship = require('../models/Friendship');
+    const rows = await Friendship.find({
+      status: 'accepted',
+      $or: [{ requesterId: userId }, { addresseeId: userId }],
+    })
+      .select('requesterId addresseeId')
+      .lean();
+    const set = new Set();
+    for (const r of rows) {
+      const a = String(r.requesterId);
+      const b = String(r.addresseeId);
+      set.add(a === String(userId) ? b : a);
+    }
+    return set;
+  } catch (e) {
+    logger.warn(`[friends] friendIds lookup failed : ${e?.message || e}`);
+    return new Set();
+  }
+}
+
 router.get('/members/nearby', requireAuth, async (req, res) => {
   try {
     const lat = parseFloat(req.query.lat);
@@ -109,7 +134,9 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
     };
     const sel =
       'name avatar profilePicture location mapBoostExpiry mapBoostTier ' +
-      'isStaff isOnline oldId email';
+      'isStaff isOnline oldId email preferences.hideFromMap';
+    // v551 — un membre masqué reste visible de ses amis.
+    const friendIds = await _friendIdsOf(u.id);
     const [owners, sitters, walkers] = await Promise.all([
       Owner.find(geo).select(sel).limit(80).lean(),
       Sitter.find(geo).select(sel).limit(80).lean(),
@@ -180,6 +207,9 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
       if (idStr === String(u.id)) continue;
       if (selfEmail && d.email && d.email === selfEmail) continue;
       if (selfOldId && d.oldId != null && String(d.oldId) === selfOldId) continue;
+
+      // v551 — « masquer mon profil sur la carte » (Profil → Préférences).
+      if (d.preferences?.hideFromMap === true && !friendIds.has(idStr)) continue;
 
       const pawspot = d.mapBoostExpiry && new Date(d.mapBoostExpiry) > now;
       const premiumSub = subSet.has(idStr);
@@ -255,19 +285,80 @@ function _blur(lat, lng, idStr) {
     + kLng / (KM_PER_DEG_LAT * cosLat);
   return [Math.round(outLng * 1e5) / 1e5, Math.round(outLat * 1e5) / 1e5];
 }
+/**
+ * v551 — « masquer mon profil sur la carte … sauf mes amis ». Le cache de la
+ * couche monde est PARTAGÉ par tous les appelants : on ne peut donc pas y
+ * mettre les membres masqués. On les rajoute ici, pour ce viewer seulement,
+ * en ne prenant que ses amis acceptés.
+ */
+async function _withHiddenFriends(req, payload) {
+  try {
+    const u = me(req);
+    const friendIds = await _friendIdsOf(u.id);
+    if (!friendIds.size) return payload;
+    const already = new Set((payload.members || []).map((m) => m.id));
+    const missing = [...friendIds].filter((id) => !already.has(id));
+    if (!missing.length) return payload;
+    const sel = 'name avatar profilePicture location preferences.hideFromMap';
+    const docs = (await Promise.all([
+      Owner.find({ _id: { $in: missing } }).select(sel).lean()
+        .then((r) => r.map((d) => ({ d, role: 'owner' }))),
+      Sitter.find({ _id: { $in: missing } }).select(sel).lean()
+        .then((r) => r.map((d) => ({ d, role: 'sitter' }))),
+      Walker.find({ _id: { $in: missing } }).select(sel).lean()
+        .then((r) => r.map((d) => ({ d, role: 'walker' }))),
+    ])).flat();
+    const extra = [];
+    const avatarUrl = (a) => (a && (typeof a === 'object' ? a.url : a)) || '';
+    for (const { d, role } of docs) {
+      if (d.preferences?.hideFromMap !== true) continue; // déjà dans le cache
+      const c = d.location?.coordinates;
+      if (!Array.isArray(c) || c.length < 2) continue;
+      const [lng, lat] = c.map(Number);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      extra.push({
+        id: String(d._id),
+        role,
+        name: d.name || '',
+        avatar: avatarUrl(d.avatar) || avatarUrl(d.profilePicture),
+        location: { coordinates: _blur(lat, lng, String(d._id)) },
+        isPremium: false,
+        isPawSpot: false,
+        approx: true,
+        approxKm: WORLD_APPROX_KM,
+        hiddenFromMap: true,
+      });
+    }
+    if (!extra.length) return payload;
+    return {
+      ...payload,
+      members: [...payload.members, ...extra],
+      count: payload.members.length + extra.length,
+    };
+  } catch (e) {
+    logger.warn(`[friends/members/world] hidden-friends merge failed : ${e?.message || e}`);
+    return payload;
+  }
+}
+
 router.get('/members/world', requireAuth, async (req, res) => {
   try {
     const now = Date.now();
     if (_worldCache.payload && now - _worldCache.at < WORLD_TTL_MS) {
-      return res.json(_worldCache.payload);
+      return res.json(await _withHiddenFriends(req, _worldCache.payload));
     }
     const nowDate = new Date();
     const UserSubscription = require('../models/UserSubscription');
     const filter = {
       'location.coordinates.1': { $exists: true },
       hiddenFromPublic: { $ne: true },
+      // v551 — « masquer mon profil sur la carte » : le membre sort de la
+      // couche publique. Ses AMIS le récupèrent plus bas (hors cache, car le
+      // cache est partagé par tous les appelants).
+      'preferences.hideFromMap': { $ne: true },
     };
-    const sel = 'name avatar profilePicture location mapBoostExpiry isStaff email oldId';
+    const sel = 'name avatar profilePicture location mapBoostExpiry isStaff '
+      + 'email oldId rating reviewsCount hourlyRate dailyRate walkRates currency';
     const per = Math.floor(WORLD_LIMIT / 3);
     const [owners, sitters, walkers] = await Promise.all([
       Owner.find(filter).select(sel).sort({ createdAt: -1 }).limit(per).lean(),
@@ -294,6 +385,23 @@ router.get('/members/world', requireAuth, async (req, res) => {
       logger.warn(`[friends/members/world] sub lookup failed : ${subErr?.message || subErr}`);
     }
     const avatarUrl = (a) => (a && (typeof a === 'object' ? a.url : a)) || '';
+    // v551 — Daniel : « fiche membre plus vendeuse ». On renvoie la note, le
+    // nombre d'avis et le tarif le plus bas pour les gardiens / promeneurs :
+    // la fiche ouverte depuis la carte peut afficher « 4,8 (12 avis) · dès 12 € »
+    // au lieu du seul nom, ce qui donne une raison de cliquer sur Réserver.
+    const priceFrom = (d, role) => {
+      const nums = [];
+      if (role === 'walker' && Array.isArray(d.walkRates)) {
+        for (const w of d.walkRates) {
+          if (w && w.enabled !== false && Number(w.basePrice) > 0) {
+            nums.push(Number(w.basePrice));
+          }
+        }
+      }
+      if (Number(d.hourlyRate) > 0) nums.push(Number(d.hourlyRate));
+      if (Number(d.dailyRate) > 0) nums.push(Number(d.dailyRate));
+      return nums.length ? Math.min.apply(null, nums) : 0;
+    };
     const members = [];
     const seenPerson = new Set(); // une PERSONNE (email) = un point, rôle principal
     for (const { d, role } of tagged) {
@@ -318,6 +426,10 @@ router.get('/members/world', requireAuth, async (req, res) => {
         isPawSpot: !!pawspot,
         approx: true,
         approxKm: WORLD_APPROX_KM,
+        rating: Number(d.rating) > 0 ? Number(d.rating) : 0,
+        reviewsCount: Number(d.reviewsCount) > 0 ? Number(d.reviewsCount) : 0,
+        priceFrom: role === 'owner' ? 0 : priceFrom(d, role),
+        currency: d.currency || 'EUR',
       });
     }
     const payload = {
@@ -327,7 +439,7 @@ router.get('/members/world', requireAuth, async (req, res) => {
       approxKm: WORLD_APPROX_KM,
     };
     _worldCache = { at: now, payload };
-    return res.json(payload);
+    return res.json(await _withHiddenFriends(req, payload));
   } catch (e) {
     logger.error('[friends/members/world]', e);
     return res.status(500).json({ error: 'Unable to fetch world members.' });

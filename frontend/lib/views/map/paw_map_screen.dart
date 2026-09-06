@@ -21,6 +21,7 @@ import 'package:hopetsit/services/friend_marker_service.dart';
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/widgets/golden_paw_coin.dart';
@@ -216,6 +217,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   double _zoomLevel = 13;
   /// v550 — dernier centre réellement rechargé (voir `_scheduleReload`).
   LatLng? _lastReloadCenter;
+  /// v551 — Daniel : « filtres par type, joli et minimaliste, pas de slide ».
+  /// Rôles de membres affichés sur la carte (tous par défaut).
+  final RxSet<String> _memberRoles = <String>{'sitter', 'walker', 'owner'}.obs;
+  /// Nombre de membres réellement posés sur la carte au dernier rendu
+  /// (alimente la ligne « N membres autour de toi »).
+  final RxInt _membersShown = 0.obs;
   final RxBool _showProviders = true.obs;
 
   /// v23.1.353 — refonte PawSpot : couche des spots communautaires 🐾.
@@ -606,6 +613,126 @@ class _PawMapScreenState extends State<PawMapScreen>
     });
   }
 
+
+  // ─── v551 — REGROUPEMENT DES POINTS (clusters) ───────────────────────────
+  // Daniel : « la carte est illisible quand tout se chevauche ». Les points
+  // trop proches à l'écran fusionnent en UNE pastille avec le nombre ; un tap
+  // zoome dessus et le groupe s'ouvre. Calcul en pixels Web Mercator au zoom
+  // courant → le regroupement suit exactement ce que l'œil voit.
+  final Map<String, BitmapDescriptor> _clusterMarkers = {};
+  static const double _clusterCellPx = 76;
+
+  double _mercX(double lng) => (lng + 180.0) / 360.0 * 256.0;
+  double _mercY(double lat) {
+    final s = math.sin(lat * math.pi / 180.0).clamp(-0.9999, 0.9999);
+    return (0.5 - math.log((1 + s) / (1 - s)) / (4 * math.pi)) * 256.0;
+  }
+
+  /// Regroupe [items] par cellule d'écran. Renvoie des groupes non vides.
+  List<List<T>> _clusterize<T>(
+    List<T> items,
+    LatLng Function(T) posOf,
+  ) {
+    final scale = math.pow(2.0, _zoomLevel).toDouble();
+    final cells = <String, List<T>>{};
+    for (final it in items) {
+      final p = posOf(it);
+      final x = _mercX(p.longitude) * scale / _clusterCellPx;
+      final y = _mercY(p.latitude) * scale / _clusterCellPx;
+      final key = '${x.floor()}_${y.floor()}';
+      (cells[key] ??= <T>[]).add(it);
+    }
+    return cells.values.toList();
+  }
+
+  LatLng _centroid<T>(List<T> group, LatLng Function(T) posOf) {
+    double la = 0, ln = 0;
+    for (final g in group) {
+      final p = posOf(g);
+      la += p.latitude;
+      ln += p.longitude;
+    }
+    return LatLng(la / group.length, ln / group.length);
+  }
+
+  /// Pastille ronde avec le nombre. [rose] = couche membres, sinon bleu POI.
+  Future<BitmapDescriptor> _buildClusterBitmap(int count, bool rose) async {
+    final label = count > 99 ? '99+' : '$count';
+    const double size = 128;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    const center = Offset(64, 64);
+    final double r = count >= 50 ? 44 : (count >= 10 ? 40 : 36);
+    final Color a = rose ? const Color(0xFFFF4FA3) : const Color(0xFF3E9BE9);
+    final Color b = rose ? const Color(0xFFF01E86) : const Color(0xFF2563EB);
+    canvas.drawCircle(
+      center,
+      r + 9,
+      Paint()
+        ..color = a.withValues(alpha: 0.30)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+    );
+    canvas.drawCircle(
+      center,
+      r,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [a, b],
+        ).createShader(Rect.fromCircle(center: center, radius: r)),
+    );
+    canvas.drawCircle(
+      center,
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..color = Colors.white,
+    );
+    final tp = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: label.length > 2 ? 30 : 34,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, center.translate(-tp.width / 2, -tp.height / 2));
+    final img =
+        await recorder.endRecording().toImage(size.toInt(), size.toInt());
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List(), width: 52);
+  }
+
+  void _ensureClusterMarker(int count, bool rose) {
+    final key = 'cl_${rose ? 1 : 0}_${count > 99 ? 100 : count}';
+    if (_clusterMarkers.containsKey(key) ||
+        _emojiGenInProgress.contains(key)) {
+      return;
+    }
+    _emojiGenInProgress.add(key);
+    _buildClusterBitmap(count, rose).then((bd) {
+      _clusterMarkers[key] = bd;
+      _emojiGenInProgress.remove(key);
+      _pawBadgeRev++;
+      if (mounted) setState(() {});
+    }).catchError((Object _) {
+      _emojiGenInProgress.remove(key);
+    });
+  }
+
+  /// Tap sur une pastille de groupe : on zoome dessus, le groupe s'ouvre.
+  Future<void> _zoomToCluster(LatLng target) async {
+    final ctl = await _activeMapCtl();
+    if (ctl == null) return;
+    final z = math.min(_zoomLevel + 2.2, 19.0);
+    await ctl.animateCamera(CameraUpdate.newLatLngZoom(target, z));
+  }
+
   /// Cercle rose (dégradé) + patte blanche centrée + anneau blanc + point
   /// en/hors ligne (vert/gris) + petit badge doré 👑 si premium. Hors ligne =
   /// teinte désaturée. Sélectionné = cercle surélevé/foncé + liseré externe.
@@ -785,6 +912,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     String avatar = '',
     bool approx = false,
     double approxKm = 1,
+    double rating = 0,
+    int reviewsCount = 0,
+    double priceFrom = 0,
+    String currency = 'EUR',
   }) {
     _selectedNearbyId = id;
     if (mounted) setState(() {});
@@ -904,6 +1035,31 @@ class _PawMapScreenState extends State<PawMapScreen>
                               ),
                               maxLines: 2,
                             ),
+                            // v551 — Daniel : « fiche membre plus vendeuse ».
+                            // Note, nombre d'avis et tarif d'entrée pour les
+                            // gardiens / promeneurs : de quoi donner envie de
+                            // taper « Réserver » depuis la carte.
+                            if (role != 'owner' &&
+                                (rating > 0 || priceFrom > 0)) ...[
+                              SizedBox(height: 4.h),
+                              Text(
+                                [
+                                  if (rating > 0)
+                                    '⭐ ${rating.toStringAsFixed(1)}'
+                                        '${reviewsCount > 0 ? ' ${'reviews_count_short'.trParams({'count': '\$reviewsCount'})}' : ''}',
+                                  if (priceFrom > 0)
+                                    '${'pawmap_member_price_from'.tr} '
+                                        '${priceFrom.toStringAsFixed(0)} ${CurrencyHelper.symbol(currency)}',
+                                ].join('  ·  '),
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w700,
+                                  color: pinkDark,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -2270,6 +2426,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       // le centre/zoom, qui pilotent le plafond d'affichage.
       _worldRev,
       _worldMembers.length,
+      // v551 — filtre par type de membre + clustering (dépend du zoom).
+      _memberRoles.join(','),
       _zoomLevel.round(),
       '${_currentCenter.latitude.toStringAsFixed(1)},'
           '${_currentCenter.longitude.toStringAsFixed(1)}',
@@ -2379,14 +2537,63 @@ class _PawMapScreenState extends State<PawMapScreen>
       } else {
         combined.addAll(worldPool);
       }
-      for (final p in combined) {
+      // v551 — regroupement : les membres qui se chevauchent à l'écran
+      // deviennent UNE pastille rose avec leur nombre (tap = zoom dessus).
+      LatLng? posOfMember(Map<String, dynamic> p) {
         final loc = p['location'] is Map ? p['location'] as Map : null;
-        final coords = loc != null && loc['coordinates'] is List
+        final c = loc != null && loc['coordinates'] is List
             ? loc['coordinates'] as List
             : null;
-        if (coords == null || coords.length < 2) continue;
-        final lng = (coords[0] as num).toDouble();
-        final lat = (coords[1] as num).toDouble();
+        if (c == null || c.length < 2) return null;
+        final lng = (c[0] as num).toDouble();
+        final lat = (c[1] as num).toDouble();
+        return LatLng(lat, lng);
+      }
+
+      // v551 — filtre « qui voir » (Gardiens / Promeneurs / Propriétaires).
+      final placeable = combined.where((p) {
+        if (posOfMember(p) == null) return false;
+        final r = (p['_role'] ?? p['role'] ?? '').toString().toLowerCase();
+        if (r.isEmpty) return true;
+        return _memberRoles.contains(r);
+      }).toList();
+      // Compteur « N membres autour de toi » (mis à jour hors frame de build).
+      if (_membersShown.value != placeable.length) {
+        final n = placeable.length;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _membersShown.value = n;
+        });
+      }
+      final groups = _clusterize<Map<String, dynamic>>(
+        placeable,
+        (p) => posOfMember(p)!,
+      );
+      for (final group in groups) {
+        if (group.length > 1) {
+          final target = _centroid<Map<String, dynamic>>(
+              group, (p) => posOfMember(p)!);
+          final key = 'cl_1_${group.length > 99 ? 100 : group.length}';
+          final icon = _clusterMarkers[key];
+          if (icon == null) _ensureClusterMarker(group.length, true);
+          markers.add(
+            Marker(
+              markerId: MarkerId('mcluster_${target.latitude.toStringAsFixed(4)}'
+                  '_${target.longitude.toStringAsFixed(4)}_${group.length}'),
+              position: target,
+              icon: icon ??
+                  BitmapDescriptor.defaultMarkerWithHue(
+                      BitmapDescriptor.hueRose),
+              anchor: const Offset(0.5, 0.5),
+              zIndexInt: 7,
+              onTap: () => _zoomToCluster(target),
+            ),
+          );
+          continue;
+        }
+        final p = group.first;
+        final pos = posOfMember(p)!;
+        final lat = pos.latitude;
+        final lng = pos.longitude;
         final id = (p['id'] ?? p['_id'] ?? '').toString();
         if (id.isEmpty) continue;
         // Dédup : un membre qui est aussi un ami live garde son marqueur ami
@@ -2399,11 +2606,8 @@ class _PawMapScreenState extends State<PawMapScreen>
         final bool online = p['isOnline'] != false && p['online'] != false;
         final bool selected = _selectedNearbyId == id;
         final bool approx = p['approx'] == true;
-        // v550 — rayon d'imprécision annonce par le backend (grille de
-        // floutage). Avant, le libelle disait « ~1 km » en dur alors que
-        // l'arrondi ne valait 1 km qu'a l'equateur.
-        final double approxKm =
-            (p['approxKm'] as num?)?.toDouble() ?? 1.0;
+        // v550 — rayon d'imprécision annoncé par le backend.
+        final double approxKm = (p['approxKm'] as num?)?.toDouble() ?? 1.0;
         final icon = _pawBadgeMarkers[
             'pb_${online ? 1 : 0}_${premium ? 1 : 0}_${selected ? 1 : 0}'];
         if (icon == null) _ensurePawBadgeMarker(online, premium, selected);
@@ -2425,13 +2629,47 @@ class _PawMapScreenState extends State<PawMapScreen>
               avatar: (p['avatar'] ?? '').toString(),
               approx: approx,
               approxKm: approxKm,
+              rating: (p['rating'] as num?)?.toDouble() ?? 0,
+              reviewsCount: (p['reviewsCount'] as num?)?.toInt() ?? 0,
+              priceFrom: (p['priceFrom'] as num?)?.toDouble() ?? 0,
+              currency: (p['currency'] ?? 'EUR').toString(),
             ),
           ),
         );
       }
     }
     if (_showPois.value) {
-      for (final poi in _poiController.visiblePois) {
+      // v551 — regroupement : à Paris, 200 lieux se chevauchent et la carte
+      // devient illisible (les membres roses disparaissent dans la masse).
+      // Les lieux trop proches à l'écran deviennent une pastille bleue avec
+      // leur nombre ; un tap zoome et le groupe s'ouvre.
+      final poiGroups = _clusterize<MapPOI>(
+        _poiController.visiblePois.toList(),
+        (poi) => LatLng(poi.latitude, poi.longitude),
+      );
+      for (final group in poiGroups) {
+        if (group.length > 1) {
+          final target = _centroid<MapPOI>(
+              group, (poi) => LatLng(poi.latitude, poi.longitude));
+          final key = 'cl_0_${group.length > 99 ? 100 : group.length}';
+          final icon = _clusterMarkers[key];
+          if (icon == null) _ensureClusterMarker(group.length, false);
+          markers.add(
+            Marker(
+              markerId: MarkerId('pcluster_${target.latitude.toStringAsFixed(4)}'
+                  '_${target.longitude.toStringAsFixed(4)}_${group.length}'),
+              position: target,
+              icon: icon ??
+                  BitmapDescriptor.defaultMarkerWithHue(
+                      BitmapDescriptor.hueAzure),
+              anchor: const Offset(0.5, 0.5),
+              zIndexInt: 4,
+              onTap: () => _zoomToCluster(target),
+            ),
+          );
+          continue;
+        }
+        final poi = group.first;
         // v23.1.353 — refonte PawSpot : marqueur EMOJI (même générateur que
         // les reports) avec fond teinté couleur catégorie, au lieu du pin
         // teardrop. Fallback pin coloré le temps que le bitmap se génère.
@@ -2950,6 +3188,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // ne rebuildait pas quand /friends/members/world répondait
                     // → aucun membre rose visible sur mobile.
                     _worldMembers.length;
+                    _memberRoles.length; // v551 — filtre par type.
                     // v23.1.353 — refonte PawSpot : rebuild quand la couche
                     // spots 🐾 se toggle ou que les spots chargent.
                     _showPawSpots.value;
@@ -3045,45 +3284,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                     );
                   }),
 
-                // Loading pill
-                Obx(() {
-                  final loading = _poiController.isLoading.value ||
-                      _reportController.isLoading.value;
-                  if (!loading) return const SizedBox.shrink();
-                  return Positioned(
-                    top: 12.h,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(20.r),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 14.w,
-                              height: 14.w,
-                              child: const CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            ),
-                            SizedBox(width: 8.w),
-                            InterText(
-                              text: 'pawmap_loading'.tr,
-                              fontSize: 12.sp,
-                              color: Colors.white,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }),
+                // v551 — Daniel : « quand on zoome ou bouge vite, un micro
+                // texte "chargement" apparaît, j'aimerais qu'il soit
+                // invisible ». La pastille s'affichait dès qu'une couche se
+                // rechargeait (même 200 ms) → clignotement permanent pendant
+                // les gestes. Supprimée : les points arrivent tout seuls.
 
                 // v23.1.263 — bannière "Suivi en direct" : visible tant qu'on
                 // suit un ami à la trace. Bouton Stop pour reprendre la main.
@@ -4145,6 +4350,10 @@ class _PawMapScreenState extends State<PawMapScreen>
               ],
             ),
           ),
+          // v551 — Daniel : « filtres par type » — 3 puces sobres (mêmes
+          // boutons compacts que la rangée du dessus, donc aucun nouveau
+          // style, aucun défilement horizontal) + le compteur de membres.
+          _buildMemberFilterRow(),
           // v23.1.356 — maquette Daniel : rangée « boutons rapides » sur UNE
           // seule ligne (PawFollow ⭐ / PawSpot 🐾 avec switch ON-OFF +
           // couronne 👑 si abonnement actif, Taguer un lieu, Voir les spots).
@@ -4158,6 +4367,64 @@ class _PawMapScreenState extends State<PawMapScreen>
                 ? _buildCategoryChecklist(selected)
                 : const SizedBox.shrink(),
           ),
+        ],
+      );
+    });
+  }
+
+  /// v551 — rangée « qui voir sur la carte » : Gardiens / Promeneurs /
+  /// Propriétaires, puis une ligne discrète « N membres autour de toi ».
+  Widget _buildMemberFilterRow() {
+    return Obx(() {
+      final roles = _memberRoles;
+      Widget chip(String role, String label, String emoji) => Expanded(
+            child: _compactFilterButton(
+              onTap: () {
+                if (roles.contains(role)) {
+                  // Ne jamais tout éteindre par accident : le dernier rôle
+                  // actif rallume les deux autres au lieu de vider la carte.
+                  if (roles.length == 1) {
+                    _memberRoles.addAll({'sitter', 'walker', 'owner'});
+                  } else {
+                    _memberRoles.remove(role);
+                  }
+                } else {
+                  _memberRoles.add(role);
+                }
+                _memberRoles.refresh();
+                if (mounted) setState(() {});
+              },
+              active: roles.contains(role),
+              leading: Text(emoji, style: TextStyle(fontSize: 11.sp)),
+              label: label,
+            ),
+          );
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12.w),
+            child: Row(
+              children: [
+                chip('sitter', 'role_pet_sitter'.tr, '🏠'),
+                SizedBox(width: 6.w),
+                chip('walker', 'role_pet_walker'.tr, '🐕'),
+                SizedBox(width: 6.w),
+                chip('owner', 'role_pet_owner'.tr, '🐾'),
+              ],
+            ),
+          ),
+          if (_membersShown.value > 0)
+            Padding(
+              padding: EdgeInsets.only(top: 6.h),
+              child: InterText(
+                text: 'pawmap_members_around'
+                    .trParams({'count': '${_membersShown.value}'}),
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary(context),
+              ),
+            ),
         ],
       );
     });
@@ -4548,6 +4815,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               _nearbyProviders.length;
               _showProviders.value;
               _worldMembers.length; // v550 — couche monde (membres roses).
+              _memberRoles.length; // v551 — filtre par type.
               _showPawSpots.value;
               _pawSpotController.spots.length;
               // ignore: unused_local_variable
@@ -4629,7 +4897,8 @@ class _PawMapScreenState extends State<PawMapScreen>
           // position / + / -), à droite, au-dessus de la barre système.
           Positioned(
             right: 12.w,
-            bottom: 24.h,
+            // v551 — Daniel : « la barre ma position, monte-la légèrement ».
+            bottom: 96.h,
             child: SafeArea(child: _buildMapControlsStack()),
           ),
         ],

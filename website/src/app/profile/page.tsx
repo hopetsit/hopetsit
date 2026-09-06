@@ -46,6 +46,8 @@ export default function ProfilePage() {
     sendPhotosVideos: true,
     pawMapInsurance: true,
     flexibleCancellation: true,
+    // v551 — Daniel : « masquer mon profil sur la carte (on/off) ».
+    hideFromMap: false,
   });
   const [twoFactor, setTwoFactor] = useState(false);
 
@@ -104,6 +106,7 @@ export default function ProfilePage() {
           sendPhotosVideos: pr.sendPhotosVideos !== false,
           pawMapInsurance: pr.pawMapInsurance !== false,
           flexibleCancellation: pr.flexibleCancellation !== false,
+          hideFromMap: pr.hideFromMap === true,
         });
         setTwoFactor(p.twoFactorEnabled === true);
       } catch (e) {
@@ -405,6 +408,13 @@ export default function ProfilePage() {
             { key: "quickReplies" as const, label: "Réponses rapides", hint: "Suggestions dans la messagerie" },
             { key: "flexibleCancellation" as const, label: "Annulation flexible", hint: "Conditions d'annulation souples" },
             { key: "pawMapInsurance" as const, label: "Assurance PawMap", hint: "Couverture sur les trajets" },
+            // v551 — confidentialité : le membre disparaît de la PawMap
+            // publique ; ses amis continuent de le voir.
+            {
+              key: "hideFromMap" as const,
+              label: t("profile_hide_map"),
+              hint: t("profile_hide_map_hint"),
+            },
           ].map((row) => (
             <label
               key={row.key}

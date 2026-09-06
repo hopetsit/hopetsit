@@ -209,6 +209,10 @@ class ProfilePreferences {
   final bool flexibleCancellation;
   final bool pawMapInsurance;
   final bool notifications;
+  /// v551 — Daniel : « masquer mon profil sur la carte (on/off) ». Quand c'est
+  /// activé, le membre n'apparaît plus sur la PawMap publique ; ses amis
+  /// continuent de le voir.
+  final bool hideFromMap;
 
   const ProfilePreferences({
     this.sendPhotosVideos = true,
@@ -216,6 +220,7 @@ class ProfilePreferences {
     this.flexibleCancellation = true,
     this.pawMapInsurance = true,
     this.notifications = true,
+    this.hideFromMap = false,
   });
 
   factory ProfilePreferences.fromJson(Map<String, dynamic> json) {
@@ -225,6 +230,7 @@ class ProfilePreferences {
       flexibleCancellation: json['flexibleCancellation'] as bool? ?? true,
       pawMapInsurance: json['pawMapInsurance'] as bool? ?? true,
       notifications: json['notifications'] as bool? ?? true,
+      hideFromMap: json['hideFromMap'] as bool? ?? false,
     );
   }
 
@@ -234,6 +240,7 @@ class ProfilePreferences {
         'flexibleCancellation': flexibleCancellation,
         'pawMapInsurance': pawMapInsurance,
         'notifications': notifications,
+        'hideFromMap': hideFromMap,
       };
 
   ProfilePreferences copyWith({
@@ -242,6 +249,7 @@ class ProfilePreferences {
     bool? flexibleCancellation,
     bool? pawMapInsurance,
     bool? notifications,
+    bool? hideFromMap,
   }) =>
       ProfilePreferences(
         sendPhotosVideos: sendPhotosVideos ?? this.sendPhotosVideos,
@@ -249,6 +257,7 @@ class ProfilePreferences {
         flexibleCancellation: flexibleCancellation ?? this.flexibleCancellation,
         pawMapInsurance: pawMapInsurance ?? this.pawMapInsurance,
         notifications: notifications ?? this.notifications,
+        hideFromMap: hideFromMap ?? this.hideFromMap,
       );
 }
 

@@ -394,6 +394,8 @@ export default function PoiMap({
   memberRoleLabels?: Record<string, string>;
   /** v548 — libellés du popup membre (ajouter en ami, réserver, approx.). */
   memberLabels?: {
+    /** v551 — libellé « dès » devant le tarif d'entrée. */
+    priceFrom?: string;
     addFriend: string;
     sent: string;
     already: string;
@@ -444,6 +446,32 @@ export default function PoiMap({
   // → la carte se re-zoomait toute seule (impossible de rester dézoomé). FIX :
   // plus de remount ; un composant RecenterMap recentre via setView en
   // PRÉSERVANT le zoom, et seulement pour un vrai saut (recherche ville/géoloc).
+
+  // v551 — zoom courant, pour regrouper les points qui se chevauchent.
+  const [zoomLevel, setZoomLevel] = useState(13);
+  // Regroupement par couche : les lieux entre eux, les membres entre eux —
+  // un membre ne doit jamais être « avalé » par une pastille de lieux.
+  const poiClusters = useMemo(
+    () =>
+      clusterize(pois, zoomLevel, (poi) =>
+        Array.isArray(poi.location?.coordinates) &&
+        poi.location.coordinates.length >= 2
+          ? [poi.location.coordinates[1], poi.location.coordinates[0]]
+          : null,
+      ),
+    [pois, zoomLevel],
+  );
+  const memberClusters = useMemo(
+    () =>
+      clusterize(members, zoomLevel, (m) =>
+        Array.isArray(m.location?.coordinates) &&
+        m.location.coordinates.length >= 2
+          ? [m.location.coordinates[1], m.location.coordinates[0]]
+          : null,
+      ),
+    [members, zoomLevel],
+  );
+
 
   const categoryIcons = useMemo(() => {
     const map: Partial<Record<PoiCategory, L.DivIcon>> = {};
@@ -524,7 +552,23 @@ export default function PoiMap({
           </Marker>
         )}
 
-        {pois.map((poi) => {
+        <ZoomWatcher onZoom={setZoomLevel} />
+
+        {poiClusters.map((g, i) =>
+          g.items.length > 1 ? (
+            <ClusterMarker
+              key={`pc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`}
+              center={g.center}
+              count={g.items.length}
+              rose={false}
+            />
+          ) : null,
+        )}
+
+        {poiClusters
+          .filter((g) => g.items.length === 1)
+          .map((g) => g.items[0])
+          .map((poi) => {
           const lng = poi.location.coordinates[0];
           const lat = poi.location.coordinates[1];
           const isSelected = selectedPoi?._id === poi._id;
@@ -676,7 +720,21 @@ export default function PoiMap({
 
         {/* v497 — membres PawMap proches (badge ROSE) : abonnés actifs, tous
             rôles, hors amis/famille. location.coordinates = [lng, lat]. */}
-        {members.map((m) => {
+        {memberClusters.map((g, i) =>
+          g.items.length > 1 ? (
+            <ClusterMarker
+              key={`mc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`}
+              center={g.center}
+              count={g.items.length}
+              rose
+            />
+          ) : null,
+        )}
+
+        {memberClusters
+          .filter((g) => g.items.length === 1)
+          .map((g) => g.items[0])
+          .map((m) => {
           const c = m.location?.coordinates;
           if (!Array.isArray(c) || c.length < 2) return null;
           return (
@@ -727,6 +785,112 @@ export default function PoiMap({
   );
 }
 
+// v551 — Daniel : « regrouper les points, la carte est illisible quand tout
+// se chevauche ». Regroupement maison (aucune dépendance ajoutée) : on projette
+// en pixels Web Mercator au zoom courant et on regroupe par cellule de 76 px —
+// exactement ce que l'œil perçoit comme « collé ».
+const CURRENCY_SYMBOL: Record<string, string> = {
+  EUR: "€",
+  USD: "$",
+  GBP: "£",
+  CHF: "CHF",
+  KRW: "₩",
+  JPY: "¥",
+};
+const CLUSTER_CELL_PX = 76;
+function mercX(lng: number) {
+  return ((lng + 180) / 360) * 256;
+}
+function mercY(lat: number) {
+  const s = Math.min(0.9999, Math.max(-0.9999, Math.sin((lat * Math.PI) / 180)));
+  return (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * 256;
+}
+export function clusterize<T>(
+  items: T[],
+  zoom: number,
+  posOf: (t: T) => [number, number] | null,
+): { items: T[]; center: [number, number] }[] {
+  const scale = Math.pow(2, zoom);
+  const cells = new Map<string, T[]>();
+  for (const it of items) {
+    const p = posOf(it);
+    if (!p) continue;
+    const x = Math.floor((mercX(p[1]) * scale) / CLUSTER_CELL_PX);
+    const y = Math.floor((mercY(p[0]) * scale) / CLUSTER_CELL_PX);
+    const key = `${x}_${y}`;
+    const arr = cells.get(key);
+    if (arr) arr.push(it);
+    else cells.set(key, [it]);
+  }
+  return [...cells.values()].map((group) => {
+    let la = 0;
+    let ln = 0;
+    let n = 0;
+    for (const g of group) {
+      const p = posOf(g);
+      if (!p) continue;
+      la += p[0];
+      ln += p[1];
+      n += 1;
+    }
+    return { items: group, center: [la / n, ln / n] as [number, number] };
+  });
+}
+
+function makeClusterIcon(count: number, rose: boolean): L.DivIcon {
+  const label = count > 99 ? "99+" : String(count);
+  const size = count >= 50 ? 46 : count >= 10 ? 42 : 38;
+  const bg = rose
+    ? "linear-gradient(135deg,#FF4FA3,#F01E86)"
+    : "linear-gradient(135deg,#3E9BE9,#2563EB)";
+  const glow = rose
+    ? "0 0 12px 3px rgba(255,79,163,.45)"
+    : "0 0 12px 3px rgba(62,155,233,.40)";
+  return L.divIcon({
+    className: "",
+    html: `<div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${bg};border:3px solid #fff;box-shadow:${glow},0 1px 5px rgba(0,0,0,.3);color:#fff;font-weight:800;font-size:${label.length > 2 ? 12 : 14}px;">${label}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
+/** Remonte le zoom courant au parent pour piloter le regroupement. */
+function ZoomWatcher({ onZoom }: { onZoom: (z: number) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    onZoom(map.getZoom());
+  }, [map, onZoom]);
+  useMapEvents({
+    zoomend(e) {
+      onZoom(e.target.getZoom());
+    },
+  });
+  return null;
+}
+
+/** Pastille de groupe : un clic zoome dessus et le groupe s'ouvre. */
+function ClusterMarker({
+  center,
+  count,
+  rose,
+}: {
+  center: [number, number];
+  count: number;
+  rose: boolean;
+}) {
+  const map = useMap();
+  return (
+    <Marker
+      position={center}
+      icon={makeClusterIcon(count, rose)}
+      zIndexOffset={rose ? 250 : 100}
+      eventHandlers={{
+        click: () => map.flyTo(center, Math.min(map.getZoom() + 2.2, 19)),
+      }}
+    />
+  );
+}
+
 // v548 — Daniel : « on peut cliquer sur les membres roses et demander en ami ».
 // Popup membre : nom, rôle, statut (ou « position approximative » pour la
 // couche monde), bouton Ajouter en ami (état envoyé / déjà / erreur) et, pour
@@ -741,6 +905,7 @@ function MemberPopup({
   roleLabel: string;
   labels?: {
     addFriend: string; sent: string; already: string; failed: string; book: string; approx: string;
+    priceFrom?: string;
   };
   onAddFriend?: (m: NearbyMember) => Promise<"sent" | "already" | "error">;
 }) {
@@ -771,6 +936,26 @@ function MemberPopup({
           </div>
         </div>
       </div>
+      {/* v551 — note, avis et tarif d'entrée : de quoi donner envie de
+          cliquer sur Réserver depuis la carte. */}
+      {m.role !== "owner" && ((m.rating ?? 0) > 0 || (m.priceFrom ?? 0) > 0) ? (
+        <div className="mb-1 text-xs font-bold" style={{ color: "#E0568B" }}>
+          {[
+            (m.rating ?? 0) > 0
+              ? `⭐ ${(m.rating ?? 0).toFixed(1)}${
+                  (m.reviewsCount ?? 0) > 0 ? ` (${m.reviewsCount})` : ""
+                }`
+              : null,
+            (m.priceFrom ?? 0) > 0
+              ? `${labels?.priceFrom ?? ""} ${Math.round(m.priceFrom ?? 0)} ${
+                  CURRENCY_SYMBOL[m.currency ?? "EUR"] ?? "€"
+                }`.trim()
+              : null,
+          ]
+            .filter(Boolean)
+            .join("  ·  ")}
+        </div>
+      ) : null}
       {m.approx && labels?.approx ? (
         <div className="mb-2 text-[11px] text-gray-500">
           {/* v550 — le rayon affiché est celui que le backend garantit

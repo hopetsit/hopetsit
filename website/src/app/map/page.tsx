@@ -176,6 +176,13 @@ export default function MapPage() {
   // v497 — Daniel : « les 4 boutons PawMap sur le web » → couche signalements
   // (« Voir signaux ») + modal de création (Tag spot / Signaler), gated abo.
   const [showReports, setShowReports] = useState(false);
+  // v551 — Daniel : « filtres par type, joli et minimaliste ». Rôles affichés
+  // sur la carte (tous cochés par défaut) + compteur de membres visibles.
+  const [memberRoles, setMemberRoles] = useState<string[]>([
+    "sitter",
+    "walker",
+    "owner",
+  ]);
   const [reports, setReports] = useState<MapReport[]>([]);
   // v497 — membres PawMap proches (badge rose), visibles si VIEWER abonné.
   const [members, setMembers] = useState<NearbyMember[]>([]);
@@ -515,8 +522,12 @@ export default function MapPage() {
   // Fusion : proches (exacts) prioritaires, puis le monde (approx.).
   const allMembers = useMemo(() => {
     const seen = new Set(members.map((m) => m.id));
-    return [...members, ...worldMembers.filter((m) => !seen.has(m.id))];
-  }, [members, worldMembers]);
+    const merged = [...members, ...worldMembers.filter((m) => !seen.has(m.id))];
+    // v551 — filtre « qui voir » (gardiens / promeneurs / propriétaires).
+    return merged.filter((m) =>
+      m.role ? memberRoles.includes(String(m.role).toLowerCase()) : true,
+    );
+  }, [members, worldMembers, memberRoles]);
 
   // v548 — « cliquer sur eux et demander en ami » depuis le popup du membre.
   const handleAddFriend = useCallback(
@@ -1023,6 +1034,52 @@ export default function MapPage() {
         </span>
       </div>
 
+      {/* v551 — qui voir sur la carte : 3 puces sobres + compteur de membres.
+          Une seule rangée, pas de panneau qui glisse. */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {(
+          [
+            ["sitter", "🏠", t("role_sitter")],
+            ["walker", "🐕", t("role_walker")],
+            ["owner", "🐾", t("role_owner")],
+          ] as const
+        ).map(([role, emoji, label]) => {
+          const on = memberRoles.includes(role);
+          return (
+            <button
+              key={`role-${role}`}
+              type="button"
+              onClick={() =>
+                setMemberRoles((prev) =>
+                  prev.includes(role)
+                    ? prev.length === 1
+                      ? ["sitter", "walker", "owner"]
+                      : prev.filter((r) => r !== role)
+                    : [...prev, role],
+                )
+              }
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
+                on
+                  ? "border-transparent text-white shadow-sm"
+                  : "border-ink/15 bg-white text-ink-muted hover:border-ink/30"
+              }`}
+              style={on ? { background: "linear-gradient(135deg,#FF4FA3,#F01E86)" } : undefined}
+            >
+              <span aria-hidden>{emoji}</span>
+              {label}
+            </button>
+          );
+        })}
+        {allMembers.length > 0 && (
+          <span className="ml-1 text-xs font-semibold text-ink-muted">
+            {t("map_members_around").replace(
+              "{count}",
+              String(allMembers.length),
+            )}
+          </span>
+        )}
+      </div>
+
       {/* 2) Bandeau « Amis en direct » : clic sur l'en-tête = charge/affiche la
           couche amis ; chips cliquables = zoom sur l'ami. */}
       <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-ink/10 bg-white px-4 py-2.5 shadow-sm">
@@ -1335,6 +1392,7 @@ export default function MapPage() {
             failed: t("map_member_request_failed"),
             book: t("map_member_book"),
             approx: t("map_member_approx"),
+            priceFrom: t("map_member_price_from"),
           }}
           onAddFriend={handleAddFriend}
           friendPositions={showFriends ? livePositionsList : []}

@@ -349,6 +349,8 @@ export type UserProfile = {
     quickReplies?: boolean;
     flexibleCancellation?: boolean;
     pawMapInsurance?: boolean;
+    /** v551 — masquer son profil sur la PawMap publique (amis exceptés). */
+    hideFromMap?: boolean;
     notifications?: boolean;
   };
   twoFactorEnabled?: boolean;
@@ -1984,6 +1986,11 @@ export type NearbyMember = {
   approx?: boolean;
   /** v550 — rayon d'imprécision réel (km) renvoyé par le backend. */
   approxKm?: number;
+  /** v551 — fiche membre « vendeuse » : note, avis et tarif d'entrée. */
+  rating?: number;
+  reviewsCount?: number;
+  priceFrom?: number;
+  currency?: string;
 };
 
 // v548 — Daniel : « quand on dézoome, voir TOUS les utilisateurs sur la carte

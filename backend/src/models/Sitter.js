@@ -269,6 +269,14 @@ const sitterSchema = new mongoose.Schema(
       flexibleCancellation: { type: Boolean, default: true },
       pawMapInsurance: { type: Boolean, default: true },
       notifications: { type: Boolean, default: true },
+      // v551 — Daniel : « une ligne dans le profil : masquer mon profil sur la
+      // carte, pour quelqu'un qui ne veut pas être vu comme utilisateur sauf
+      // par ses amis ». Retire le membre des DEUX couches de la PawMap
+      // (/friends/members/world et /members/nearby) ; la couche live entre
+      // amis (PawFollow) n'est pas concernée, elle dépend d'un partage que
+      // l'utilisateur active lui-même. Défaut false = rien ne change pour les
+      // comptes existants.
+      hideFromMap: { type: Boolean, default: false },
     },
   },
   { timestamps: true }
