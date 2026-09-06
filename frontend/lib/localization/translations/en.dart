@@ -836,6 +836,8 @@ const Map<String, String> enUSTranslations = <String, String>{
       'appearance_system': 'System',
       'pref_app_language': 'App language',
       'common_close': 'Close',
+      'friends_live_invite_title': 'Invite someone to share their location',
+      'friends_live_invite_sub': 'Your circle sees your walk, you see theirs.',
       // v23.1 part 214 — friend bug diagnostic tool
       'friend_diagnose_tooltip': 'Friend diagnostic',
       'friend_diagnose_title': 'Friend diagnostic',

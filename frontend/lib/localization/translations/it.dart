@@ -604,6 +604,8 @@ const Map<String, String> itITTranslations = <String, String>{
       'appearance_system': 'Sistema',
       'pref_app_language': 'Lingua dell’app',
       'common_close': 'Chiudi',
+      'friends_live_invite_title': 'Invita qualcuno a condividere la sua posizione',
+      'friends_live_invite_sub': 'La tua cerchia vede la tua passeggiata, tu vedi la sua.',
       'friend_diagnose_tooltip': 'Diagnostica amici',
       'friend_diagnose_title': 'Diagnostica amici',
       'friend_diagnose_failed': 'Impossibile recuperare la diagnosi.',

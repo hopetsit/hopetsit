@@ -748,6 +748,8 @@ const Map<String, String> koKRTranslations = <String, String>{
   'appearance_system': '시스템',
   'pref_app_language': '앱 언어',
   'common_close': '닫기',
+  'friends_live_invite_title': '위치 공유를 요청해 보세요',
+  'friends_live_invite_sub': '서로의 산책을 실시간으로 볼 수 있습니다.',
   'friend_diagnose_tooltip': '친구 진단',
   'friend_diagnose_title': '친구 진단',
   'friend_diagnose_failed': '진단 정보를 불러올 수 없어요.',

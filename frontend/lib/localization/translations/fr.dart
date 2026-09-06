@@ -867,6 +867,8 @@ const Map<String, String> frFRTranslations = <String, String>{
       'appearance_system': 'Système',
       'pref_app_language': 'Langue de l’app',
       'common_close': 'Fermer',
+      'friends_live_invite_title': 'Inviter quelqu\'un à partager sa position',
+      'friends_live_invite_sub': 'Ton cercle voit ta balade, tu vois la sienne.',
       // v23.1 part 214 — outil diagnostic bug demandes d'amis
       'friend_diagnose_tooltip': 'Diagnostic amis',
       'friend_diagnose_title': 'Diagnostic amis',

@@ -748,6 +748,8 @@ const Map<String, String> jaJPTranslations = <String, String>{
   'appearance_system': 'システム',
   'pref_app_language': 'アプリの言語',
   'common_close': '閉じる',
+  'friends_live_invite_title': '位置の共有を誘ってみましょう',
+  'friends_live_invite_sub': 'お互いのお散歩をリアルタイムで見られます。',
   'friend_diagnose_tooltip': '友達の診断',
   'friend_diagnose_title': '友達の診断',
   'friend_diagnose_failed': '診断情報を取得できませんでした。',

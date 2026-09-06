@@ -79,9 +79,11 @@ class FriendsScreen extends StatelessWidget {
       length: 4,
       initialIndex: initialIndex.clamp(0, 3),
       child: Scaffold(
-        backgroundColor: AppColors.scaffold(context),
+        // v552 — spec redesign v3 : fond crème, onglets roses (le violet
+        // restait la couleur du CERCLE, pas celle de la navigation).
+        backgroundColor: PawMapTheme.bg,
         appBar: AppBar(
-          backgroundColor: AppColors.appBar(context),
+          backgroundColor: PawMapTheme.bg,
           elevation: 0,
           title: Row(
             children: [
@@ -113,8 +115,16 @@ class FriendsScreen extends StatelessWidget {
               onPressed: () => Get.to(() => const BlockedUsersScreen()),
             ),
             IconButton(
-              icon: Icon(Icons.ios_share_rounded,
-                  color: _circleViolet, size: 22.sp),
+              icon: Container(
+                width: 32.w,
+                height: 32.w,
+                decoration: const BoxDecoration(
+                  color: PawMapTheme.rose,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.ios_share_rounded,
+                    color: Colors.white, size: 17.sp),
+              ),
               tooltip: 'friends_invite_link_tooltip'.tr,
               onPressed: () async {
                 try {
@@ -170,9 +180,14 @@ class FriendsScreen extends StatelessWidget {
             tabAlignment: TabAlignment.center,
             // v414 — Daniel : "la page cercle code couleur pas bleu mais
             // violet". Mon cercle (famille & amis PawFollow) = VIOLET partout.
-            labelColor: _circleViolet,
-            unselectedLabelColor: AppColors.greyText,
-            indicatorColor: _circleViolet,
+            labelColor: PawMapTheme.rose,
+            unselectedLabelColor: PawMapTheme.sub,
+            indicatorColor: PawMapTheme.rose,
+            indicatorWeight: 2.5,
+            labelStyle: PawMapTheme.font(
+                size: 12.5.sp, weight: FontWeight.w700),
+            unselectedLabelStyle: PawMapTheme.font(
+                size: 12.5.sp, weight: FontWeight.w600),
             tabs: [
               // 1. Mes amis — accepted friendships + status + distance.
               Tab(icon: const Icon(Icons.people_rounded),

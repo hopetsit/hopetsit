@@ -49,6 +49,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'appearance_system': 'Sistema',
       'pref_app_language': 'Idioma da app',
       'common_close': 'Fechar',
+      'friends_live_invite_title': 'Convida alguém a partilhar a localização',
+      'friends_live_invite_sub': 'O teu círculo vê o teu passeio e tu vês o dele.',
       'friend_diagnose_tooltip': 'Diagnóstico de amigos',
       'friend_diagnose_title': 'Diagnóstico de amigos',
       'friend_diagnose_failed': 'Não foi possível obter o diagnóstico.',

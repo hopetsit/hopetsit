@@ -672,6 +672,8 @@ const Map<String, String> plPLTranslations = <String, String>{
   'appearance_system': 'Systemowy',
   'pref_app_language': 'Język aplikacji',
   'common_close': 'Zamknij',
+  'friends_live_invite_title': 'Zaproś kogoś do udostępniania lokalizacji',
+  'friends_live_invite_sub': 'Twoi bliscy widzą Twój spacer, a Ty ich.',
   'friend_diagnose_tooltip': 'Diagnostyka znajomych',
   'friend_diagnose_title': 'Diagnostyka znajomych',
   'friend_diagnose_failed': 'Nie udało się pobrać diagnostyki.',

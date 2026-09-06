@@ -5082,7 +5082,7 @@ class _PawMapScreenState extends State<PawMapScreen>
 
 
 
-  /// v552 — ouvre l'élément partagé par un lien (/spot/<id>, /alert/<id>).
+  /// v552 — ouvre l'élément partagé par un lien (`/spot/:id`, `/alert/:id`).
   /// Daniel : « selon ce qu'on partage, que ça tombe sur la chose précise ».
   Future<void> _openSharedTarget() async {
     final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;

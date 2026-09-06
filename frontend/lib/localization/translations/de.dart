@@ -594,6 +594,8 @@ const Map<String, String> deDETranslations = <String, String>{
       'appearance_system': 'System',
       'pref_app_language': 'App-Sprache',
       'common_close': 'Schließen',
+      'friends_live_invite_title': 'Jemanden einladen, den Standort zu teilen',
+      'friends_live_invite_sub': 'Dein Kreis sieht deinen Spaziergang, du seinen.',
       'friend_diagnose_tooltip': 'Freunde-Diagnose',
       'friend_diagnose_title': 'Freunde-Diagnose',
       'friend_diagnose_failed': 'Diagnose konnte nicht abgerufen werden.',

@@ -517,6 +517,8 @@ const Map<String, String> esESTranslations = <String, String>{
       'appearance_system': 'Sistema',
       'pref_app_language': 'Idioma de la app',
       'common_close': 'Cerrar',
+      'friends_live_invite_title': 'Invita a alguien a compartir su ubicación',
+      'friends_live_invite_sub': 'Tu círculo ve tu paseo y tú ves el suyo.',
       'friend_diagnose_tooltip': 'Diagnóstico de amigos',
       'friend_diagnose_title': 'Diagnóstico de amigos',
       'friend_diagnose_failed': 'No se pudo obtener el diagnóstico.',

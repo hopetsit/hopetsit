@@ -21,6 +21,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/map_report_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/pawmap_theme.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
@@ -365,9 +366,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
     return DefaultTabController(
       length: AlertsScreen._tabs.length,
       child: Scaffold(
-        backgroundColor: AppColors.scaffold(context),
+        backgroundColor: PawMapTheme.bg,
         appBar: AppBar(
-          backgroundColor: AppColors.appBar(context),
+          backgroundColor: PawMapTheme.bg,
           elevation: 0,
           title: Row(
             children: [
@@ -450,9 +451,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
           ],
           bottom: TabBar(
             isScrollable: true,
-            labelColor: AppColors.primaryColor,
+            labelColor: PawMapTheme.rose,
             unselectedLabelColor: AppColors.greyText,
-            indicatorColor: AppColors.primaryColor,
+            indicatorColor: PawMapTheme.rose,
             tabs: AlertsScreen._tabs
                 .map((t) => Tab(text: t.labelKey.tr))
                 .toList(),

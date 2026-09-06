@@ -15,6 +15,9 @@ import 'package:hopetsit/controllers/friend_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/pawmap_theme.dart';
+import 'package:hopetsit/widgets/dotted_invite_card.dart';
+import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
@@ -27,9 +30,9 @@ class PeopleLiveScreen extends StatelessWidget {
         ? Get.find<FriendController>()
         : Get.put(FriendController());
     return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
+      backgroundColor: PawMapTheme.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
+        backgroundColor: PawMapTheme.bg,
         elevation: 0,
         title: Row(
           children: [
@@ -84,6 +87,18 @@ class PeopleLiveScreen extends StatelessWidget {
                         textAlign: TextAlign.center,
                       ),
                     ],
+                  ),
+                ),
+                SizedBox(height: 18.h),
+                // v552 — spec redesign v3 : carte pointillée verte
+                // « Inviter quelqu'un à partager sa position ». L'écran ne
+                // laissait aucune porte de sortie quand personne ne partage.
+                GestureDetector(
+                  onTap: () => Get.to(() => const FriendsScreen()),
+                  behavior: HitTestBehavior.opaque,
+                  child: DottedInviteCard(
+                    title: 'friends_live_invite_title'.tr,
+                    subtitle: 'friends_live_invite_sub'.tr,
                   ),
                 ),
               ],
