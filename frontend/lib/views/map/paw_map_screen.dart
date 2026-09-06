@@ -3453,9 +3453,15 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // le menu. La colonne centrée était trop haute pour la petite
                 // carte. On l'ANCRE EN HAUT (top fixe) → les 4 boutons (compactés)
                 // stackent depuis le haut et tiennent au-dessus du menu.
+                // v552 — la carte est désormais PLEIN ÉCRAN avec le panneau
+                // flottant par-dessus : ancré en haut, le rail passait sous le
+                // panneau. On l'ancre en bas, au-dessus de la barre de menu.
                 Positioned(
                   left: 12.w,
-                  top: 8.h,
+                  // Au-dessus de la barre de menu de l'app (~86) ET de la
+                  // marge système, sinon les 2 dernières pilules passaient
+                  // dessous.
+                  bottom: 96.h + MediaQuery.of(context).viewPadding.bottom,
                   child: _buildMapActionsColumn(),
                 ),
 
