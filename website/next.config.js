@@ -23,6 +23,12 @@ const nextConfig = {
   // client) → 404. On les redirige vers leur équivalent EN (308 permanent).
   async redirects() {
     return [
+      // v551 — l'APK (93 Mo) qui vivait dans public/ est retiré : il était
+      // recopié dans CHAQUE déploiement Vercel et a rempli à lui seul les
+      // 10 Go de stockage inclus (aucune page du site ne le référençait, et
+      // il datait de la v401). Le lien direct est redirigé vers la page de
+      // téléchargement officielle pour ne casser aucun partage passé.
+      { source: '/HoPetSit.apk', destination: '/download', permanent: true },
       { source: '/tarifs', destination: '/pricing', permanent: true },
       { source: '/comment-ca-marche', destination: '/how-it-works', permanent: true },
       { source: '/telecharger', destination: '/download', permanent: true },

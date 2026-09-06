@@ -8,3 +8,6 @@ out/
 next-env.d.ts
 
 .vercel
+
+# v551 — jamais d APK dans le site : 93 Mo recopiés à chaque déploiement Vercel.
+public/*.apk
