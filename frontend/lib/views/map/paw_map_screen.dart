@@ -3429,44 +3429,24 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // a déjà rechercher en haut à droite" (icône 🔍 de l'AppBar).
                 // La pill de recherche ville flottante est retirée. Les
                 // contrôles +/-/géoloc remontent en haut à droite.
-                Positioned(
-                  // v552 (corrigé) — Daniel : « la barre ma position est en
-                  // haut à droite, inutilisable ». La maquette la place en
-                  // BAS À DROITE, au pouce. v553 : remontée comme le rail
-                  // gauche, même ligne de base.
-                  bottom: 132.h + MediaQuery.of(context).viewPadding.bottom,
-                  right: 12.w,
-                  child: _buildMapControlsStack(),
-                ),
-
-                // v23.1 part 67 — Daniel : "2 boutons qui se chevauchent".
-                // Le Signaler FAB et le bouton géoloc étaient tous les deux
-                // en haut à droite avec un gap insuffisant sur petits écrans.
-                // On remet Signaler en BOTTOM-RIGHT (au-dessus de la nav bar)
-                // pour séparer clairement les deux affordances : géoloc en
-                // haut, signaler en bas. La zone centrale de la map reste
-                // dégagée.
-                // v418 — Daniel : "le bouton signaler en bas à gauche petit".
-                // On le déplace en BAS À GAUCHE (était bottom-right) et on le
-                // rend compact (rond, icône seule). La carte « Autour de vous »
-                // est remontée pour ne plus le chevaucher (cf _buildAroundYouCard).
-                // v488 — Daniel : 4 boutons RONDS (Voir spots / Tag spot / Voir
-                // signaux / Signaler) centrés verticalement à GAUCHE, petite
-                // carte (remplace l'unique FAB Signaler + les pilules).
-                // v490/v494 — Daniel : le 4e bouton (Signaler) restait masqué par
-                // le menu. La colonne centrée était trop haute pour la petite
-                // carte. On l'ANCRE EN HAUT (top fixe) → les 4 boutons (compactés)
-                // stackent depuis le haut et tiennent au-dessus du menu.
-                // v552 — la carte est désormais PLEIN ÉCRAN avec le panneau
-                // flottant par-dessus : ancré en haut, le rail passait sous le
-                // panneau. On l'ancre en bas, au-dessus de la barre de menu.
+                // v553 (retour Daniel : « tu aurais pu centrer la barre de
+                // gauche avec celle de droite, celle de droite est parfaite »).
+                // Les deux rails vivent maintenant dans UNE SEULE rangée
+                // ancrée en bas : le Row les centre l'un sur l'autre quelles
+                // que soient leurs hauteurs — plus de réglage au pixel qui
+                // se décale dès qu'on ajoute un bouton.
                 Positioned(
                   left: 12.w,
-                  // v553 — Daniel : « les deux barres légèrement plus hautes ».
-                  // Au-dessus de la barre de menu de l'app et de la marge
-                  // système, avec de l'air en plus.
-                  bottom: 132.h + MediaQuery.of(context).viewPadding.bottom,
-                  child: _buildMapActionsColumn(),
+                  right: 12.w,
+                  bottom: 108.h + MediaQuery.of(context).viewPadding.bottom,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _buildMapActionsColumn(),
+                      const Spacer(),
+                      _buildMapControlsStack(),
+                    ],
+                  ),
                 ),
 
                 // v456 — POINT ROUGE FIXE au centre (placement précis), pour
