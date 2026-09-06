@@ -22,9 +22,8 @@ import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/pawmap_theme.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
-import 'package:hopetsit/widgets/app_switch.dart';
-import 'package:hopetsit/widgets/golden_paw_coin.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
@@ -3238,16 +3237,11 @@ class _PawMapScreenState extends State<PawMapScreen>
           // / Famille & Amis / Alertes / Signaler). Remplace les anciens
           // _buildQuickSignalRow + _buildEmergencyRow qui faisaient
           // doublon avec le FAB et chargeaient l'ecran.
-          _buildQuickActionsRow(),
-
-          // v23.1.363 — Daniel : Signalements/Mon cercle fusionnés sur LA
-          // MÊME ligne que Lieux/Tous/Rien (voir _buildCategoryFilterBar).
-
-          // v23.1.285 — Daniel : "améliore le menu de la pawmap comme la photo".
-          // Filtre catégories POI : bouton « Lieux (N) » + bouton « Tous », qui
-          // ouvre une checklist 2 colonnes repliable (au lieu des puces qui
-          // défilaient horizontalement et qu'on ne voyait pas en entier).
-          _buildCategoryFilterBar(),
+          // v552 — redesign v3 : la grille 2×2, la rangée de filtres et la
+          // rangée de toggles sont fusionnées dans UN panneau « verre dépoli »
+          // (4 actions compactes + filtres cumulables centrés + compteur +
+          // les 3 abonnements). Aucune option perdue, beaucoup moins de place.
+          _buildGlassPanel(),
 
           // Map
           Expanded(
@@ -4160,300 +4154,266 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
-  /// v23.1.184 — Daniel : "je veux que tu reorganise la paw map dans ce
-  /// style" (mockup avec 4 grosses cartes colorees Suivre / Famille &
-  /// Amis / Alertes / Signaler en haut).
-  ///
-  /// Header strip avec 4 quick-actions colorees, posees au-dessus de la
-  /// map. Remplace les anciens _buildQuickSignalRow + _buildEmergencyRow
-  /// qui faisaient doublon avec le FAB et chargeaient l'ecran.
-  Widget _buildQuickActionsRow() {
-    // v418 — refonte maquette Daniel : grille 2×2 de cartes larges (icône
-    // ronde colorée + titre + sous-titre + chevron). Mon cercle (violet) /
-    // Alertes (orange) / En direct (vert) / Mes signalements (rouge).
-    // Le toggle « Suivre » est désormais la bannière verte « Tu es en direct ».
-    return Padding(
-      padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 4.h),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Obx(() {
-                  final pending = _friendController.incomingRequests.length;
-                  return _gridActionCard(
-                    icon: Icons.group_rounded,
-                    title: 'pawmap_quick_family'.tr,
-                    subtitle: 'pawmap_quick_circle_sub'.tr,
-                    color: const Color(0xFF8B5CF6),
-                    badgeCount: pending,
-                    onTap: () => _openScreen(() => const FriendsScreen()),
-                  );
-                }),
-              ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: _gridActionCard(
-                  icon: Icons.notifications_rounded,
-                  title: 'pawmap_quick_alerts'.tr,
-                  subtitle: 'pawmap_quick_alerts_sub'.tr,
-                  color: const Color(0xFFF59E0B),
-                  onTap: () => _openScreen(() => const AlertsScreen()),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 10.h),
-          Row(
-            children: [
-              Expanded(
-                child: _gridActionCard(
-                  icon: Icons.my_location_rounded,
-                  title: 'pawmap_quick_live'.tr,
-                  subtitle: 'pawmap_quick_live_sub'.tr,
-                  color: const Color(0xFF16A34A),
-                  onTap: () => _openScreen(() => const PeopleLiveScreen()),
-                ),
-              ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: _gridActionCard(
-                  icon: Icons.verified_user_rounded,
-                  title: 'pawmap_quick_my_reports'.tr,
-                  subtitle: 'pawmap_quick_my_reports_sub'.tr,
-                  color: const Color(0xFFDC2626),
-                  onTap: () => _openScreen(() => const AlertsScreen()),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
-  /// v418 — carte large 2×2 (maquette PawMap) : pastille ronde colorée +
-  /// titre + sous-titre + chevron, sur fond blanc arrondi.
-  Widget _gridActionCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-    int badgeCount = 0,
-  }) {
-    return Material(
-      color: AppColors.card(context),
-      borderRadius: BorderRadius.circular(16.r),
-      elevation: 0,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16.r),
-        onTap: onTap,
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16.r),
-            border: Border.all(color: AppColors.greyText.withValues(alpha: 0.12)),
-          ),
-          child: Row(
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: 38.w,
-                    height: 38.w,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(icon, color: Colors.white, size: 20.sp),
-                  ),
-                  if (badgeCount > 0)
-                    Positioned(
-                      top: -4,
-                      right: -4,
-                      child: Container(
-                        padding: EdgeInsets.all(4.w),
-                        constraints: BoxConstraints(minWidth: 16.w, minHeight: 16.w),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFDC2626),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: InterText(
-                            text: '$badgeCount',
-                            fontSize: 9.sp,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // v448 — Daniel : « réduis la police pour voir mes membres »
-                    // (cartes Mon cercle / Mes signalements). Police plus petite
-                    // + 2 lignes → le libellé entier reste visible, pas coupé.
-                    InterText(
-                      text: title,
-                      fontSize: 11.5.sp,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary(context),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 1.h),
-                    InterText(
-                      text: subtitle,
-                      fontSize: 8.5.sp,
-                      color: AppColors.greyText,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded,
-                  color: AppColors.greyText, size: 18.sp),
-            ],
-          ),
+  // ─── v552 — PANNEAU DE LA PETITE CARTE (redesign v3) ─────────────────────
+  // Maquette Claude Design : UN SEUL panneau « verre dépoli » (radius 26,
+  // padding 12) qui remplace la grille 2×2 de grosses cartes + la rangée de
+  // filtres + la rangée de toggles. Rien n'est supprimé : les 4 actions, les
+  // filtres, le compteur et les 3 abonnements sont tous là, en plus compact.
+  Widget _buildGlassPanel() {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(14.w, 8.h, 14.w, 0),
+      child: Container(
+        decoration: PawMapTheme.glass(),
+        padding: EdgeInsets.all(12.w),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildPanelActions(),
+            SizedBox(height: 11.h),
+            Container(height: 1, color: PawMapTheme.border),
+            SizedBox(height: 11.h),
+            _buildPanelFilters(),
+            SizedBox(height: 11.h),
+            _buildPanelCounterRow(),
+            SizedBox(height: 9.h),
+            _buildPanelModules(),
+          ],
         ),
       ),
     );
   }
 
-  // v23.1.285 — barre de filtre catégories POI + checklist 2 colonnes
-  // repliable (remplace les puces horizontales). Le panneau pousse la carte
-  // vers le bas (il est dans la Column, pas en overlay → pas de souci de z-index
-  // au-dessus de GoogleMap).
-  Widget _buildCategoryFilterBar() {
-    return Obx(() {
-      final selected = _poiController.enabledCategories
-          .where((c) => c != '__none__')
-          .toSet();
-      final total = PoiCategories.all.length;
-      // v23.1.288 — Daniel : retirer le bouton « Rien » (inutile). Pour tout
-      // masquer, on utilise le toggle 📍 de la rangée de couches. « Tous »
-      // rallume la couche POI + enlève le filtre. _showPois reste piloté par ce
-      // toggle maître ; on garde la logique de comptage ci-dessous.
-      final poisOn = _showPois.value;
-      final allShown = poisOn && selected.isEmpty;
-      // 0 si la couche est éteinte (Rien), sinon nb affiché.
-      final shownCount = !poisOn ? 0 : (selected.isEmpty ? total : selected.length);
-      final open = _showCatFilter.value;
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // v447 — Daniel : "AUCUN slide horizontal". La rangée de filtres
-          // (Lieux (N/N) ▾ | Tous | Rien | Signalements) tient TOUJOURS sur
-          // une ligne grâce à 4 Expanded compacts — fini le
-          // SingleChildScrollView horizontal. Le toggle « Mon cercle » est
-          // gouverné par le switch PawFollow (couche live) et les demandes
-          // sitter/walker restent visibles par défaut.
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-            child: Row(
+  /// Les 4 raccourcis (puce 40×40 pastel + libellé 10px), badge compteur rose.
+  Widget _buildPanelActions() {
+    Widget action({
+      required IconData icon,
+      required Color pastel,
+      required Color iconColor,
+      required String label,
+      required VoidCallback onTap,
+      int badge = 0,
+      Color badgeColor = PawMapTheme.rose,
+    }) {
+      return Expanded(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16.r),
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 4.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Lieux (N/N) ▾ — ouvre/ferme la checklist catégories.
-                Expanded(
-                  child: _compactFilterButton(
-                    onTap: () => _showCatFilter.value = !open,
-                    active: true,
-                    leading:
-                        Text('📍', style: TextStyle(fontSize: 11.sp)),
-                    label: '${'pawmap_filter_places'.tr} ($shownCount/$total)',
-                    trailing: Icon(
-                      open
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      color: const Color(0xFFC92A12),
-                      size: 15.sp,
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 40.w,
+                      height: 40.w,
+                      decoration: BoxDecoration(
+                        color: pastel,
+                        borderRadius: BorderRadius.circular(14.r),
+                      ),
+                      child: Icon(icon, size: 19.sp, color: iconColor),
                     ),
-                  ),
+                    if (badge > 0)
+                      Positioned(
+                        top: -2.h,
+                        right: -2.w,
+                        child: Container(
+                          width: 15.w,
+                          height: 15.w,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: badgeColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: Text(
+                            badge > 9 ? '9+' : '$badge',
+                            style: PawMapTheme.font(
+                              size: 7.5.sp,
+                              weight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                SizedBox(width: 6.w),
-                // Tous — rallume la couche POI + enlève le filtre.
-                Expanded(
-                  child: _compactFilterButton(
-                    onTap: () {
-                      _showPois.value = true;
-                      _poiController.selectAllCategories();
-                    },
-                    active: allShown,
-                    label: 'paw_map_filter_all'.tr,
+                SizedBox(height: 6.h),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: PawMapTheme.font(
+                    size: 10.sp,
+                    weight: FontWeight.w700,
                   ),
-                ),
-                SizedBox(width: 6.w),
-                // Rien — éteint la couche POI.
-                Expanded(
-                  child: _compactFilterButton(
-                    onTap: () => _showPois.value = false,
-                    active: !poisOn,
-                    leading: Icon(Icons.block_rounded,
-                        size: 12.sp,
-                        color: !poisOn
-                            ? const Color(0xFFC92A12)
-                            : AppColors.greyText),
-                    label: 'pawmap_filter_none'.tr,
-                  ),
-                ),
-                SizedBox(width: 6.w),
-                // Signalements — toggle de la couche reports 48h.
-                Expanded(
-                  child: Obx(() {
-                    final active = _showReports.value;
-                    final count = _reportController.reports
-                        .where((r) => !r.isExpired)
-                        .length;
-                    return _compactFilterButton(
-                      onTap: () => _showReports.value = !active,
-                      active: active,
-                      leading: Text('⚠️', style: TextStyle(fontSize: 11.sp)),
-                      label: 'pawmap_filter_reports'.tr,
-                      trailing: count > 0
-                          ? Container(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 4.w, vertical: 1.h),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFC92A12),
-                                borderRadius: BorderRadius.circular(8.r),
-                              ),
-                              child: InterText(
-                                text: '$count',
-                                fontSize: 9.sp,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            )
-                          : null,
-                    );
-                  }),
                 ),
               ],
             ),
           ),
-          // v551 — Daniel : « filtres par type » — 3 puces sobres (mêmes
-          // boutons compacts que la rangée du dessus, donc aucun nouveau
-          // style, aucun défilement horizontal) + le compteur de membres.
-          _buildMemberFilterRow(),
-          // v23.1.356 — maquette Daniel : rangée « boutons rapides » sur UNE
-          // seule ligne (PawFollow ⭐ / PawSpot 🐾 avec switch ON-OFF +
-          // couronne 👑 si abonnement actif, Taguer un lieu, Voir les spots).
-          // Remplace l'ancien chip PawSpot de la barre et le mini-FAB 🐾+.
-          _buildQuickTogglesRow(),
-          // Checklist 2 colonnes (repliable).
+        ),
+      );
+    }
+
+    return Obx(() {
+      final pending = _friendController.incomingRequests.length;
+      final alerts =
+          _reportController.reports.where((r) => !r.isExpired).length;
+      final live = _liveMap.friendPositions.length;
+      return Row(
+        children: [
+          action(
+            icon: Icons.group_rounded,
+            pastel: PawMapTheme.pastelBlue,
+            iconColor: const Color(0xFF4A5BC7),
+            label: 'pawmap_quick_family'.tr,
+            badge: pending,
+            onTap: () => _openScreen(() => const FriendsScreen()),
+          ),
+          action(
+            icon: Icons.notifications_rounded,
+            pastel: PawMapTheme.pastelPeach,
+            iconColor: PawMapTheme.accent,
+            label: 'pawmap_quick_alerts'.tr,
+            badge: alerts,
+            onTap: () => _openScreen(() => const AlertsScreen()),
+          ),
+          action(
+            icon: Icons.my_location_rounded,
+            pastel: PawMapTheme.pastelGreen,
+            iconColor: PawMapTheme.ok,
+            label: 'pawmap_quick_live'.tr,
+            badge: live,
+            badgeColor: PawMapTheme.ok,
+            onTap: () => _openScreen(() => const PeopleLiveScreen()),
+          ),
+          action(
+            icon: Icons.verified_user_rounded,
+            pastel: PawMapTheme.pastelRed,
+            iconColor: PawMapTheme.danger,
+            label: 'pawmap_quick_my_reports'.tr,
+            onTap: () => _openScreen(() => const AlertsScreen()),
+          ),
+        ],
+      );
+    });
+  }
+
+  /// Chips de filtre : centrés, passent à la ligne, JAMAIS de défilement
+  /// horizontal (règle posée par Daniel en v447 et reprise par la maquette).
+  /// Signalements / Gardiens / Promeneurs / Propriétaires sont cumulables ;
+  /// « Tous » et « Rien » ne sont que des raccourcis.
+  Widget _buildPanelFilters() {
+    Widget chip(String label, bool active, VoidCallback onTap,
+        {bool rose = false, Widget? trailing}) {
+      return GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 13.w, vertical: 7.h),
+          decoration: BoxDecoration(
+            color: rose
+                ? PawMapTheme.rose
+                : (active ? PawMapTheme.ink : PawMapTheme.ink.withValues(alpha: 0.05)),
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: rose
+                ? [
+                    BoxShadow(
+                      color: PawMapTheme.rose.withValues(alpha: 0.30),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: PawMapTheme.font(
+                  size: 11.5.sp,
+                  weight: FontWeight.w600,
+                  color: (rose || active) ? Colors.white : PawMapTheme.ink,
+                ),
+              ),
+              if (trailing != null) ...[SizedBox(width: 5.w), trailing],
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Obx(() {
+      final open = _showCatFilter.value;
+      final roles = _memberRoles;
+      void toggleRole(String r) {
+        if (roles.contains(r)) {
+          _memberRoles.remove(r);
+        } else {
+          _memberRoles.add(r);
+        }
+        _memberRoles.refresh();
+        if (mounted) setState(() {});
+      }
+
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Wrap(
+            spacing: 6.w,
+            runSpacing: 6.h,
+            alignment: WrapAlignment.center,
+            children: [
+              chip(
+                'pawmap_filter_places'.tr,
+                _showPois.value,
+                () => _showCatFilter.value = !open,
+                rose: true,
+                trailing: Icon(
+                  open
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  size: 13.sp,
+                  color: Colors.white,
+                ),
+              ),
+              chip('pawmap_filter_reports'.tr, _showReports.value,
+                  () => _showReports.value = !_showReports.value),
+              chip('role_pet_sitter'.tr, roles.contains('sitter'),
+                  () => toggleRole('sitter')),
+              chip('role_pet_walker'.tr, roles.contains('walker'),
+                  () => toggleRole('walker')),
+              chip('role_pet_owner'.tr, roles.contains('owner'),
+                  () => toggleRole('owner')),
+              chip('paw_map_filter_all'.tr, false, () {
+                _showPois.value = true;
+                _showReports.value = true;
+                _poiController.selectAllCategories();
+                _memberRoles.addAll({'sitter', 'walker', 'owner'});
+                _memberRoles.refresh();
+                if (mounted) setState(() {});
+              }),
+              chip('pawmap_filter_none'.tr, false, () {
+                _showPois.value = false;
+                _showReports.value = false;
+                _memberRoles.clear();
+                _memberRoles.refresh();
+                if (mounted) setState(() {});
+              }),
+            ],
+          ),
           AnimatedSize(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
             child: open
-                ? _buildCategoryChecklist(selected)
+                ? _buildCategoryChecklist(_poiController.enabledCategories
+                    .where((c) => c != '__none__')
+                    .toSet())
                 : const SizedBox.shrink(),
           ),
         ],
@@ -4461,123 +4421,121 @@ class _PawMapScreenState extends State<PawMapScreen>
     });
   }
 
-  /// v551 — rangée « qui voir sur la carte » : Gardiens / Promeneurs /
-  /// Propriétaires, puis une ligne discrète « N membres autour de toi ».
-  Widget _buildMemberFilterRow() {
-    return Obx(() {
-      final roles = _memberRoles;
-      Widget chip(String role, String label, String emoji) => Expanded(
-            child: _compactFilterButton(
-              onTap: () {
-                if (roles.contains(role)) {
-                  // Ne jamais tout éteindre par accident : le dernier rôle
-                  // actif rallume les deux autres au lieu de vider la carte.
-                  if (roles.length == 1) {
-                    _memberRoles.addAll({'sitter', 'walker', 'owner'});
-                  } else {
-                    _memberRoles.remove(role);
-                  }
-                } else {
-                  _memberRoles.add(role);
-                }
-                _memberRoles.refresh();
-                if (mounted) setState(() {});
-              },
-              active: roles.contains(role),
-              leading: Text(emoji, style: TextStyle(fontSize: 11.sp)),
-              label: label,
+  /// « N membres autour de toi » + accès à l'explication des ON/OFF.
+  Widget _buildPanelCounterRow() {
+    return Obx(() => Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+              child: Text(
+                _membersShown.value > 0
+                    ? 'pawmap_members_around'
+                        .trParams({'count': '${_membersShown.value}'})
+                    : 'pawmap_quick_live_sub'.tr,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: PawMapTheme.font(size: 11.5.sp, weight: FontWeight.w700),
+              ),
             ),
-          );
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12.w),
+            GestureDetector(
+              onTap: _showPawMapToggleInfo,
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.info_outline_rounded,
+                      size: 12.sp, color: PawMapTheme.sub),
+                  SizedBox(width: 4.w),
+                  Text(
+                    'pawmap_toggle_info_chip'.tr,
+                    style: PawMapTheme.font(
+                        size: 10.sp,
+                        weight: FontWeight.w600,
+                        color: PawMapTheme.sub),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ));
+  }
+
+  /// Les 3 abonnements en pilules égales. Le ON/OFF reflète l'ABONNEMENT RÉEL
+  /// (PawSpotController lit /users/me/benefits) : sans abo, le toggle n'allume
+  /// rien et route vers la boutique — logique inchangée depuis la v449.
+  Widget _buildPanelModules() {
+    Widget module(String label, bool on, VoidCallback onTap, Color accent) {
+      return Expanded(
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 6.h),
+            decoration: BoxDecoration(
+              color: PawMapTheme.ink.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(999),
+            ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                chip('sitter', 'role_pet_sitter'.tr, '🏠'),
+                Flexible(
+                  // v552 — « PawFollow » et « PawPremium » sont des marques :
+                  // on les réduit plutôt que de les tronquer en « PawFollo… ».
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      style: PawMapTheme.font(
+                          size: 9.5.sp, weight: FontWeight.w700),
+                    ),
+                  ),
+                ),
                 SizedBox(width: 6.w),
-                chip('walker', 'role_pet_walker'.tr, '🐕'),
-                SizedBox(width: 6.w),
-                chip('owner', 'role_pet_owner'.tr, '🐾'),
+                Container(
+                  width: 32.w,
+                  height: 19.h,
+                  padding: EdgeInsets.all(2.w),
+                  alignment:
+                      on ? Alignment.centerRight : Alignment.centerLeft,
+                  decoration: BoxDecoration(
+                    color: on ? accent : const Color(0xFFDCD4C8),
+                    borderRadius: BorderRadius.circular(10.r),
+                  ),
+                  child: Container(
+                    width: 15.w,
+                    height: 15.w,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-          if (_membersShown.value > 0)
-            Padding(
-              padding: EdgeInsets.only(top: 6.h),
-              child: InterText(
-                text: 'pawmap_members_around'
-                    .trParams({'count': '${_membersShown.value}'}),
-                fontSize: 11.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary(context),
-              ),
-            ),
+        ),
+      );
+    }
+
+    return Obx(() {
+      final followSub = _pawSpotController.followActive.value;
+      final spotSub = _pawSpotController.pawspotActive.value;
+      final premiumOn = _pawSpotController.premiumActive.value;
+      return Row(
+        children: [
+          module('PawFollow', followSub && _showLiveLayer.value,
+              _togglePawFollow, PawMapTheme.pawFollow),
+          SizedBox(width: 6.w),
+          module('PawSpot', spotSub && _showPawSpots.value, _togglePawSpot,
+              PawMapTheme.pawSpot),
+          SizedBox(width: 6.w),
+          module('PawPremium', premiumOn && _showPremiumLayer.value,
+              _togglePawPremium, PawMapTheme.ok),
         ],
       );
     });
-  }
-
-  /// v447 — bouton compact de la rangée de filtres (Lieux / Tous / Rien /
-  /// Signalements). Conçu pour vivre dans un Expanded : largeur fluide, label
-  /// ellipsé, cadre fin — la rangée tient TOUJOURS sur une ligne, sans slide.
-  Widget _compactFilterButton({
-    required VoidCallback onTap,
-    required bool active,
-    required String label,
-    Widget? leading,
-    Widget? trailing,
-  }) {
-    const accent = Color(0xFFC92A12);
-    return InkWell(
-      borderRadius: BorderRadius.circular(11.r),
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 8.h),
-        decoration: BoxDecoration(
-          color: active ? accent.withValues(alpha: 0.10) : Colors.white,
-          borderRadius: BorderRadius.circular(11.r),
-          border: Border.all(
-            color: active ? accent : const Color(0xFFE0E0E0),
-            width: 1.3,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (leading != null) ...[
-              leading,
-              SizedBox(width: 3.w),
-            ],
-            Flexible(
-              child: InterText(
-                text: label,
-                fontSize: 10.5.sp,
-                fontWeight: FontWeight.w800,
-                color: active ? accent : const Color(0xFF1F2937),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-            ),
-            if (trailing != null) ...[
-              SizedBox(width: 3.w),
-              trailing,
-            ],
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildCategoryChecklist(Set<String> selected) {
@@ -5099,117 +5057,6 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   // ─── PawSpot — couche spots communautaires 🐾 (v23.1.353) ────────────────
 
-  /// Mini FAB doré « 🐾 + » (au-dessus du FAB Signaler) → sheet de création.
-  /// v23.1.356 — maquette Daniel : rangée « boutons rapides » une-ligne sous
-  /// la barre de filtres. PawFollow (switch couche live, VIOLET + 👑 si abo
-  /// PawFollow/PawFamily actif) · PawSpot (switch couche spots, DORÉ + 👑 si
-  /// abo actif) · Taguer un lieu · Voir les spots.
-  /// v23.1.360 — maquette Daniel : grille 2×2 PLEINE LARGEUR (fini le
-  /// scroll horizontal) — ligne 1 : PawFollow ⭐ | PawSpot 🐾 (switch +
-  /// couronne 👑 si abonné) ; ligne 2 : Taguer un lieu | Voir les spots.
-  /// + LÉGENDE des 6 types de spots quand la couche PawSpot est ON.
-  Widget _buildQuickTogglesRow() {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 8.h),
-      child: Obx(() {
-        // v449 — Daniel : les 3 switches doivent refléter l'ABONNEMENT RÉEL,
-        // pas un simple toggle de couche. ON uniquement si l'abo est actif
-        // (payé / essai / staff) ; OFF → ne s'allume PAS tout seul, on route
-        // vers la boutique. Les flags viennent de PawSpotController qui les
-        // lit depuis GET /users/me/benefits :
-        //   followActive  = pawFollowActive OU familyActive OU premium
-        //   pawspotActive = pawspotActive OU premium
-        //   premiumActive = premiumActive
-        final followSub = _pawSpotController.followActive.value;
-        final spotSub = _pawSpotController.pawspotActive.value;
-        final premiumOn = _pawSpotController.premiumActive.value;
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // v449 — Daniel : petit ℹ️ qui rappelle que ON/OFF n'agit que sur
-            // l'AFFICHAGE de la carte (l'abonnement reste actif).
-            Align(
-              alignment: Alignment.centerRight,
-              child: GestureDetector(
-                onTap: _showPawMapToggleInfo,
-                behavior: HitTestBehavior.opaque,
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: 4.h, right: 2.w),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.info_outline_rounded,
-                          size: 14.sp, color: AppColors.textSecondary(context)),
-                      SizedBox(width: 4.w),
-                      InterText(
-                        text: 'pawmap_toggle_info_chip'.tr,
-                        fontSize: 10.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary(context),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: _quickSwitchChip(
-                    label: 'PawFollow',
-                    // v23.1.387 — nouveau logo officiel (pin violet + patte).
-                    assetIcon: 'assets/images/pawfollow_logo.png',
-                    accent: const Color(0xFF7C3AED),
-                    subscribed: followSub,
-                    // v448 — ON = abo actif ET couche live affichée. Abonné, on
-                    // peut couper/rallumer l'affichage manuellement.
-                    value: followSub && _showLiveLayer.value,
-                    onChanged: (_) => unawaited(_togglePawFollow()),
-                  ),
-                ),
-                SizedBox(width: 6.w),
-                Expanded(
-                  child: _quickSwitchChip(
-                    label: 'PawSpot',
-                    // v447 — LOGO OFFICIEL PawSpot = la pièce dorée
-                    // GoldenPawCoin (même mark que la boutique / les onglets),
-                    // pas un emoji générique.
-                    coinIcon: true,
-                    accent: const Color(0xFFE8A00A),
-                    subscribed: spotSub,
-                    // v448 — ON = abo actif ET couche spots affichée. Abonné,
-                    // on/off manuel de la couche ; OFF→ON sans abo route en
-                    // boutique.
-                    value: spotSub && _showPawSpots.value,
-                    onChanged: (_) => unawaited(_togglePawSpot()),
-                  ),
-                ),
-                SizedBox(width: 6.w),
-                Expanded(
-                  child: _quickSwitchChip(
-                    label: 'PawPremium',
-                    // v447 — logo officiel Paw Premium (pièce or + couronne).
-                    assetIcon: 'assets/images/pawpremium_logo.png',
-                    accent: const Color(0xFFE8A00A),
-                    subscribed: premiumOn,
-                    // v448 — ON = abo Premium actif ET couche premium affichée.
-                    // Abonné, on/off manuel des halos OR Premium.
-                    value: premiumOn && _showPremiumLayer.value,
-                    onChanged: (_) => unawaited(_togglePawPremium()),
-                  ),
-                ),
-              ],
-            ),
-            // v488 — Daniel : les pilules « Taguer un lieu / Voir les spots »
-            // ET la légende sont RETIRÉES de la carte. Tag spot / Voir spots
-            // sont désormais 2 des 4 boutons ronds à gauche ; la légende des
-            // types vit en bas de l'onglet PawSpot de la boutique.
-          ],
-        );
-      }),
-    );
-  }
-
   // v488 — _buildSpotLegend retiré de la carte : la légende des types de spots
   // est désormais affichée en bas de l'onglet PawSpot de la boutique.
 
@@ -5373,116 +5220,6 @@ class _PawMapScreenState extends State<PawMapScreen>
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  /// Chip avec Switch compact (PawFollow / PawSpot), pleine largeur
-  /// (maquette : fond blanc, bordure couleur, couronne 👑 si abonné).
-  Widget _quickSwitchChip({
-    required String label,
-    IconData? icon,
-    String? emoji,
-    String? assetIcon, // v23.1.387 — logo PNG (nouveau logo PawFollow)
-    bool coinIcon = false, // v447 — pièce dorée officielle PawSpot
-    required Color accent,
-    required bool subscribed,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    final Color tone = subscribed ? accent : AppColors.greyText;
-    // v449 — Daniel : « tout doit être lisible, rien de coupé ». 3 chips sur
-    // une ligne (PawFollow / PawSpot / PawPremium). On resserre logo + switch
-    // et on rend le LIBELLÉ via FittedBox(scaleDown) → la marque s'affiche
-    // TOUJOURS en entier (jamais d'« … »), elle se réduit légèrement si la
-    // largeur du chip est trop juste. Le Switch Material garde une emprise de
-    // ~52 px même mis à l'échelle 0.52 ; on la borne dans un SizedBox pour
-    // libérer la place du libellé.
-    const double switchBox = 30.0;
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-      decoration: BoxDecoration(
-        color: subscribed
-            ? accent.withValues(alpha: 0.08)
-            : Colors.white,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: tone.withValues(alpha: 0.55), width: 1.3),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // v447 — LOGO OFFICIEL : pièce dorée GoldenPawCoin (PawSpot),
-          // sinon PNG officiel (PawFollow / PawPremium), grisé hors abo.
-          if (coinIcon)
-            Opacity(
-              opacity: subscribed ? 1.0 : 0.55,
-              child: GoldenPawCoin(size: 16.w),
-            )
-          else if (assetIcon != null)
-            ColorFiltered(
-              colorFilter: subscribed
-                  ? const ColorFilter.mode(
-                      Colors.transparent, BlendMode.multiply)
-                  : const ColorFilter.matrix(<double>[
-                      0.2126, 0.7152, 0.0722, 0, 0,
-                      0.2126, 0.7152, 0.0722, 0, 0,
-                      0.2126, 0.7152, 0.0722, 0, 0,
-                      0, 0, 0, 1, 0,
-                    ]),
-              child: Image.asset(assetIcon, width: 16.w, height: 16.w),
-            )
-          else
-            Container(
-              width: 16.w,
-              height: 16.w,
-              decoration: BoxDecoration(
-                color: subscribed
-                    ? accent
-                    : AppColors.greyText.withValues(alpha: 0.5),
-                shape: BoxShape.circle,
-              ),
-              child: emoji != null
-                  ? Center(
-                      child: Text(emoji, style: TextStyle(fontSize: 9.sp)))
-                  : Icon(icon, size: 11.sp, color: Colors.white),
-            ),
-          SizedBox(width: 3.w),
-          // Libellé pleine lisibilité : FittedBox.scaleDown → jamais tronqué.
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: InterText(
-                text: label,
-                fontSize: 10.5.sp,
-                fontWeight: FontWeight.w800,
-                color: subscribed ? accent : const Color(0xFF1F2937),
-                maxLines: 1,
-              ),
-            ),
-          ),
-          // Switch borné : emprise réduite pour ne pas voler la place du label.
-          SizedBox(
-            width: switchBox,
-            child: Center(
-              child: Transform.scale(
-                scale: 0.52,
-                child: AppSwitch(
-                  value: value,
-                  onChanged: onChanged,
-                  accent: accent,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
