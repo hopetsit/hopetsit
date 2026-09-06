@@ -277,6 +277,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Drives Circle radius (50..160m) and opacity (0.45→0) so the marker
   /// looks like a beacon pulsing outward.
   Timer? _haloTimer;
+  /// v552 — workers qui forcent le recalcul de `canPop` (retour Android).
+  List<Worker> _backGuardWorkers = const [];
   final RxDouble _haloPhase = 0.0.obs;
 
   // v23.1.444 — Daniel : "les amis/abonnés en HALO ANIMÉ coloré". Palette
@@ -469,6 +471,21 @@ class _PawMapScreenState extends State<PawMapScreen>
       if (!mounted || _cameraMoving) return;
       _haloPhase.value = (_haloPhase.value + 1.0 / 8.0) % 1.0;
     });
+
+    // v552 — `canPop` du PopScope est calculé DANS build() : sans ce worker,
+    // agrandir la carte ne le recalculait pas et le retour Android quittait
+    // quand même l'app (bug n°1 de la spec v3).
+    _backGuardWorkers = [
+      ever<bool>(_mapExpanded, (_) {
+        if (mounted) setState(() {});
+      }),
+      ever<bool>(_pickingSpotPos, (_) {
+        if (mounted) setState(() {});
+      }),
+      ever<bool>(_pickingReportPos, (_) {
+        if (mounted) setState(() {});
+      }),
+    ];
 
     // Paris fallback is the initial value — the map renders immediately
     // and _bootstrap() upgrades to real location in the background.
@@ -754,6 +771,15 @@ class _PawMapScreenState extends State<PawMapScreen>
     }).catchError((Object _) {
       _emojiGenInProgress.remove(key);
     });
+  }
+
+  /// v552 — spec redesign v3, bug critique n°2 : « boutons masqués par la
+  /// barre système ». Sur les Samsung à 3 boutons, la barre de navigation
+  /// mange ~48 px : tout ce qui est ancré en bas doit partir de cette marge.
+  /// Rails (gauche/droit) : marge + 126 · dock bas : marge + 66.
+  double _navInset(BuildContext context) {
+    final v = MediaQuery.of(context).viewPadding.bottom;
+    return v > 0 ? v : 48.0;
   }
 
   String _clusterKey(int count, bool rose, String? category) =>
@@ -1411,6 +1437,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _reloadDebounce?.cancel();
+    for (final w in _backGuardWorkers) {
+      w.dispose();
+    }
     _haloTimer?.cancel();
     _followWorker?.dispose();
     _myFollowWorker?.dispose();
@@ -3123,11 +3152,32 @@ class _PawMapScreenState extends State<PawMapScreen>
     // (PawMap empilée par-dessus people-live), le 1er retour SORT du suivi et
     // RESTE sur la carte (avec le menu) au lieu de dépiler vers l'écran
     // précédent. Un 2e retour dépile normalement.
+    // v552 — Daniel (spec redesign v3, bug critique n°1) : « le bouton retour
+    // d'Android ferme l'app quand la carte est en grand ». La carte agrandie
+    // est un CALQUE dans le même écran, pas une route : le retour tombait donc
+    // sur la racine de l'onglet et quittait l'app. Ordre attendu :
+    //   retour → sort d'un mode en cours (viseur, suivi)
+    //          → sinon réduit la carte agrandie
+    //          → sinon comportement système (quitter / dépiler).
     return PopScope(
-      canPop: _followUserId == null,
+      canPop: _followUserId == null &&
+          !_mapExpanded.value &&
+          !_pickingSpotPos.value &&
+          !_pickingReportPos.value,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        if (_followUserId != null) _stopFollow();
+        if (_pickingSpotPos.value || _pickingReportPos.value) {
+          _pickingSpotPos.value = false;
+          _pickingReportPos.value = false;
+          _pickedSpotPos = null;
+          if (mounted) setState(() {});
+          return;
+        }
+        if (_followUserId != null) {
+          _stopFollow();
+          return;
+        }
+        if (_mapExpanded.value) _mapExpanded.value = false;
       },
       child: Scaffold(
       backgroundColor: AppColors.scaffold(context),
@@ -4926,9 +4976,11 @@ class _PawMapScreenState extends State<PawMapScreen>
           // à GAUCHE, en mode agrandi aussi.
           Positioned(
             left: 12.w,
-            top: 0,
-            bottom: 0,
-            child: Center(child: _buildMapActionsColumn()),
+            // v552 — spec v3 : rail gauche = marge système + 126 (avant :
+            // centré verticalement, ce qui le collait au dock sur petits
+            // écrans et le passait sous la barre système en paysage).
+            bottom: _navInset(context) + 126.h,
+            child: _buildMapActionsColumn(),
           ),
 
           // v550 — Daniel : « quand la carte est en grand, rajoute le bouton
@@ -4936,9 +4988,9 @@ class _PawMapScreenState extends State<PawMapScreen>
           // position / + / -), à droite, au-dessus de la barre système.
           Positioned(
             right: 12.w,
-            // v551 — Daniel : « la barre ma position, monte-la légèrement ».
-            bottom: 96.h,
-            child: SafeArea(child: _buildMapControlsStack()),
+            // v552 — spec v3 : rail droit = marge système + 126.
+            bottom: _navInset(context) + 126.h,
+            child: _buildMapControlsStack(),
           ),
         ],
       ),
