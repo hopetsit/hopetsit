@@ -56,19 +56,32 @@ class PawMapScreen extends StatefulWidget {
   // params pour injecter une FriendPosition synthetique dans le service
   // LiveMapService → le halo vert/bleu se dessine automatiquement (cf
   // _buildHaloCircles plus bas qui lit _liveMap.friendPositions).
+  //
+  // v552 — Daniel : « quand on partage un lien, que ça tombe sur la chose
+  // précise ». Un lien /spot/<id> ou /alert/<id> ouvre désormais la carte
+  // CENTRÉE sur l'élément, avec sa fiche ouverte — au lieu d'atterrir sur
+  // une carte générique.
   const PawMapScreen({
     super.key,
     this.initialLat,
     this.initialLng,
+    this.initialZoom,
     this.focusUserId,
     this.focusUserRole,
     this.focusUserName,
+    this.focusSpotId,
+    this.focusReportId,
   });
   final double? initialLat;
   final double? initialLng;
+  final double? initialZoom;
   final String? focusUserId;
   final String? focusUserRole; // 'walker' | 'sitter' | 'owner'
   final String? focusUserName;
+  /// Id d'un PawSpot partagé : la carte s'y centre et ouvre sa fiche.
+  final String? focusSpotId;
+  /// Id d'un signalement (ou SOS) partagé : même principe.
+  final String? focusReportId;
 
   @override
   State<PawMapScreen> createState() => _PawMapScreenState();
@@ -442,6 +455,13 @@ class _PawMapScreenState extends State<PawMapScreen>
     // tourne. Et dans _bootstrap on detecte ce cas pour ne plus override.
     if (widget.initialLat != null && widget.initialLng != null) {
       _currentCenter = LatLng(widget.initialLat!, widget.initialLng!);
+    }
+    if (widget.initialZoom != null) _zoomLevel = widget.initialZoom!;
+    // v552 — lien partagé vers un spot / un signalement précis : on va le
+    // chercher, on centre la carte dessus et on ouvre sa fiche.
+    if ((widget.focusSpotId ?? '').isNotEmpty ||
+        (widget.focusReportId ?? '').isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openSharedTarget());
     }
     // v23.1.353 — refonte PawSpot : les anciens halos "map boost" (tier
     // bronze/silver/gold/platinum + self-halo) sont SUPPRIMÉS de la carte.
@@ -5030,6 +5050,49 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
 
+
+
+  /// v552 — ouvre l'élément partagé par un lien (/spot/<id>, /alert/<id>).
+  /// Daniel : « selon ce qu'on partage, que ça tombe sur la chose précise ».
+  Future<void> _openSharedTarget() async {
+    final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
+    if (api == null) return;
+    final spotId = widget.focusSpotId ?? '';
+    final reportId = widget.focusReportId ?? '';
+    try {
+      if (spotId.isNotEmpty) {
+        final res = await api.get('/pawspots/$spotId', requiresAuth: true);
+        final m = (res is Map ? (res['spot'] ?? res) : null) as Map?;
+        final lat = (m?['lat'] as num?)?.toDouble();
+        final lng = (m?['lng'] as num?)?.toDouble();
+        if (lat != null && lng != null) {
+          await _animateFollowCamera(LatLng(lat, lng), zoom: 16);
+          _currentCenter = LatLng(lat, lng);
+          await _pawSpotController.loadNearby(_currentCenter);
+        }
+        final spot = _pawSpotController.spots
+            .firstWhereOrNull((s) => s.id == spotId);
+        if (spot != null && mounted) _showPawSpotDetail(spot);
+        return;
+      }
+      if (reportId.isNotEmpty) {
+        final res = await api.get('/map-reports/$reportId', requiresAuth: true);
+        final m = (res is Map ? (res['report'] ?? res) : null) as Map?;
+        final coords = ((m?['location'] as Map?)?['coordinates'] as List?);
+        if (coords != null && coords.length >= 2) {
+          final lat = (coords[1] as num).toDouble();
+          final lng = (coords[0] as num).toDouble();
+          await _animateFollowCamera(LatLng(lat, lng), zoom: 16);
+          _currentCenter = LatLng(lat, lng);
+          _showReports.value = true;
+          await _reportController.loadNearby(_currentCenter);
+        }
+        if (mounted) _openScreen(() => const AlertsScreen());
+      }
+    } catch (e) {
+      debugPrint('[PawMap] lien partagé introuvable : $e');
+    }
+  }
 
   // ─── v552 — NOUVELLES ACTIONS DU DOCK ────────────────────────────────────
 

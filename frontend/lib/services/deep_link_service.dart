@@ -288,10 +288,33 @@ class DeepLinkService {
       Get.to(() => const CoinShopScreen());
     } else if (first == 'spot') {
       // v532 — lien de PARTAGE d'un PawSpot : https://hopetsit.com/spot/<id>.
-      // Quand l'app est installée, le lien doit l'ouvrir DIRECTEMENT sur la
-      // carte plutôt que sur le site — sinon un ami qui reçoit le lien sur
-      // WhatsApp reste dans son navigateur alors qu'il a déjà HoPetSit.
-      Get.to(() => const PawMapScreen());
+      // v552 — Daniel : « que ça tombe sur la chose précise ». On passe l'id
+      // à la carte, qui se centre sur le spot et ouvre sa fiche au lieu de
+      // s'ouvrir n'importe où.
+      final spotId = segs.length > 1 ? segs[1] : (uri.queryParameters['id'] ?? '');
+      Get.to(() => PawMapScreen(
+            focusSpotId: _objectIdRegex.hasMatch(spotId) ? spotId : null,
+          ));
+    } else if (first == 'alert' || first == 'alerte' || first == 'report') {
+      // v552 — lien de partage d'un signalement / d'un SOS animal :
+      // https://hopetsit.com/alert/<id> → carte centrée + fiche ouverte.
+      final reportId =
+          segs.length > 1 ? segs[1] : (uri.queryParameters['id'] ?? '');
+      Get.to(() => PawMapScreen(
+            focusReportId:
+                _objectIdRegex.hasMatch(reportId) ? reportId : null,
+          ));
+    } else if (first == 'map' || first == 'pawmap') {
+      // v552 — « Partager la carte » : https://hopetsit.com/map?lat&lng&z
+      // rouvre la PawMap exactement au même endroit et au même zoom.
+      final lat = double.tryParse(uri.queryParameters['lat'] ?? '');
+      final lng = double.tryParse(uri.queryParameters['lng'] ?? '');
+      final z = double.tryParse(uri.queryParameters['z'] ?? '');
+      Get.to(() => PawMapScreen(
+            initialLat: lat,
+            initialLng: lng,
+            initialZoom: z,
+          ));
     } else if (first == 'profile') {
       _openProfileScreen();
     } else if (first == 'friends' || first == 'amis' ||
