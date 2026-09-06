@@ -58,7 +58,31 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 551.** 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 552.** 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+
+**06/09 (matin) — v551 « PawMap pro » (demandes Daniel)**
+- **Pastille « Chargement… » supprimée** : elle s'affichait dès qu'une couche
+  se rechargeait (même 200 ms) → clignotement à chaque zoom/déplacement.
+- **Pilule ma position / + / − remontée** sur la carte agrandie (24 → 96 h).
+- **« Masquer mon profil sur la carte »** (Profil → Préférences, app + site,
+  9 langues) : `preferences.hideFromMap` sur Owner/Sitter/Walker ; filtré dans
+  `/friends/members/nearby` ET dans le cache de `/friends/members/world` ; les
+  AMIS du viewer sont réinjectés hors cache (`_withHiddenFriends`) → « sauf mes
+  amis » est tenu. Défaut false.
+- **Regroupement des points** (app + web, sans dépendance) : projection Web
+  Mercator, cellules de 76 px au zoom courant, pastille avec le nombre, tap =
+  zoom +2,2. Lieux et membres regroupés SÉPARÉMENT. **Couleur par thème** quand
+  le groupe est homogène (couleur + emoji de la catégorie) ; groupe mixte =
+  bleu neutre ; membres = rose.
+- **Fiche membre vendeuse** : `rating`, `reviewsCount`, `priceFrom`, `currency`
+  ajoutés au payload world (priceFrom = min des walkRates/hourlyRate/dailyRate).
+- **Filtres par type** (Gardiens / Promeneurs / Propriétaires) : rangée de
+  puces compactes, jamais de défilement horizontal (règle v447 de Daniel), le
+  dernier rôle actif rallume les autres au lieu de vider la carte.
+- **Compteur « N membres autour de toi »** (app + web).
+- Vérifié au simulateur : filtres OK (27 → 16 membres en décochant
+  Propriétaire), pastilles numérotées et colorées, barre remontée, plus de
+  « Chargement ». Site vérifié en prod (19 clusters, compteur, filtres).
 
 **06/09 — v550 « PawMap : membres visibles, floutage juste, carte fluide » — PUBLIÉE**
 - **Play** : release 550 (23.1.550) créée par injection (serveur CORS 8768 + DataTransfer),
