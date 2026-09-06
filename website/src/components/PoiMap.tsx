@@ -561,6 +561,11 @@ export default function PoiMap({
               center={g.center}
               count={g.items.length}
               rose={false}
+              category={
+                new Set(g.items.map((p) => p.category)).size === 1
+                  ? g.items[0].category
+                  : null
+              }
             />
           ) : null,
         )}
@@ -837,18 +842,35 @@ export function clusterize<T>(
   });
 }
 
-function makeClusterIcon(count: number, rose: boolean): L.DivIcon {
+function makeClusterIcon(
+  count: number,
+  rose: boolean,
+  category?: PoiCategory | null,
+): L.DivIcon {
   const label = count > 99 ? "99+" : String(count);
   const size = count >= 50 ? 46 : count >= 10 ? 42 : 38;
+  // v551 — Daniel : « les points avec numéro sont différenciés par couleur
+  // selon le thème ? ». Un groupe d'une SEULE catégorie prend la couleur de
+  // cette catégorie et affiche son emoji ; un groupe mixte reste bleu neutre.
+  const cat = category ? CATEGORY_COLOR[category] : null;
   const bg = rose
     ? "linear-gradient(135deg,#FF4FA3,#F01E86)"
-    : "linear-gradient(135deg,#3E9BE9,#2563EB)";
-  const glow = rose
-    ? "0 0 12px 3px rgba(255,79,163,.45)"
-    : "0 0 12px 3px rgba(62,155,233,.40)";
+    : cat
+      ? `linear-gradient(135deg,${cat},${cat})`
+      : "linear-gradient(135deg,#3E9BE9,#2563EB)";
+  const glowColor = rose
+    ? "rgba(255,79,163,.45)"
+    : cat
+      ? `${cat}66`
+      : "rgba(62,155,233,.40)";
+  const emoji =
+    !rose && category ? POI_CATEGORY_LABELS[category]?.emoji ?? "" : "";
+  const inner = emoji
+    ? `<span style="font-size:13px;line-height:1">${emoji}</span><span style="font-size:${label.length > 2 ? 11 : 12}px;line-height:1">${label}</span>`
+    : `<span style="font-size:${label.length > 2 ? 12 : 14}px">${label}</span>`;
   return L.divIcon({
     className: "",
-    html: `<div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${bg};border:3px solid #fff;box-shadow:${glow},0 1px 5px rgba(0,0,0,.3);color:#fff;font-weight:800;font-size:${label.length > 2 ? 12 : 14}px;">${label}</div>`,
+    html: `<div style="width:${size}px;height:${size}px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:50%;background:${bg};border:3px solid #fff;box-shadow:0 0 12px 3px ${glowColor},0 1px 5px rgba(0,0,0,.3);color:#fff;font-weight:800;">${inner}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
@@ -873,16 +895,18 @@ function ClusterMarker({
   center,
   count,
   rose,
+  category,
 }: {
   center: [number, number];
   count: number;
   rose: boolean;
+  category?: PoiCategory | null;
 }) {
   const map = useMap();
   return (
     <Marker
       position={center}
-      icon={makeClusterIcon(count, rose)}
+      icon={makeClusterIcon(count, rose, category)}
       zIndexOffset={rose ? 250 : 100}
       eventHandlers={{
         click: () => map.flyTo(center, Math.min(map.getZoom() + 2.2, 19)),

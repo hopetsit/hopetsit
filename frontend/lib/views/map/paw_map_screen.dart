@@ -655,16 +655,31 @@ class _PawMapScreenState extends State<PawMapScreen>
     return LatLng(la / group.length, ln / group.length);
   }
 
-  /// Pastille ronde avec le nombre. [rose] = couche membres, sinon bleu POI.
-  Future<BitmapDescriptor> _buildClusterBitmap(int count, bool rose) async {
+  /// Pastille ronde avec le nombre. [rose] = couche membres, sinon lieux :
+  /// v551 (Daniel : « les points avec numéro sont différenciés par couleur
+  /// selon le thème ? ») — un groupe qui ne contient QU'UNE catégorie prend
+  /// la couleur de cette catégorie et affiche son emoji ; un groupe mixte
+  /// reste bleu neutre.
+  Future<BitmapDescriptor> _buildClusterBitmap(
+    int count,
+    bool rose, {
+    Color? themeColor,
+    String? emoji,
+  }) async {
     final label = count > 99 ? '99+' : '$count';
     const double size = 128;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     const center = Offset(64, 64);
     final double r = count >= 50 ? 44 : (count >= 10 ? 40 : 36);
-    final Color a = rose ? const Color(0xFFFF4FA3) : const Color(0xFF3E9BE9);
-    final Color b = rose ? const Color(0xFFF01E86) : const Color(0xFF2563EB);
+    Color a = rose ? const Color(0xFFFF4FA3) : const Color(0xFF3E9BE9);
+    Color b = rose ? const Color(0xFFF01E86) : const Color(0xFF2563EB);
+    if (themeColor != null) {
+      // Dégradé clair → foncé construit autour de la couleur du thème.
+      final hsl = HSLColor.fromColor(themeColor);
+      a = hsl.withLightness((hsl.lightness + 0.10).clamp(0.0, 1.0)).toColor();
+      b = hsl.withLightness((hsl.lightness - 0.10).clamp(0.0, 1.0)).toColor();
+    }
     canvas.drawCircle(
       center,
       r + 9,
@@ -701,21 +716,37 @@ class _PawMapScreenState extends State<PawMapScreen>
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    tp.paint(canvas, center.translate(-tp.width / 2, -tp.height / 2));
+    if (emoji != null && emoji.isNotEmpty) {
+      // Chiffre légèrement descendu + emoji du thème au-dessus : on sait d'un
+      // coup d'œil de QUOI il y a 12, sans ouvrir le groupe.
+      tp.paint(canvas, center.translate(-tp.width / 2, -tp.height / 2 + 8));
+      final ep = TextPainter(
+        text: TextSpan(text: emoji, style: const TextStyle(fontSize: 26)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      ep.paint(canvas, center.translate(-ep.width / 2, -ep.height / 2 - 16));
+    } else {
+      tp.paint(canvas, center.translate(-tp.width / 2, -tp.height / 2));
+    }
     final img =
         await recorder.endRecording().toImage(size.toInt(), size.toInt());
     final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
     return BitmapDescriptor.bytes(bytes!.buffer.asUint8List(), width: 52);
   }
 
-  void _ensureClusterMarker(int count, bool rose) {
-    final key = 'cl_${rose ? 1 : 0}_${count > 99 ? 100 : count}';
+  void _ensureClusterMarker(int count, bool rose, {String? category}) {
+    final key = _clusterKey(count, rose, category);
     if (_clusterMarkers.containsKey(key) ||
         _emojiGenInProgress.contains(key)) {
       return;
     }
     _emojiGenInProgress.add(key);
-    _buildClusterBitmap(count, rose).then((bd) {
+    _buildClusterBitmap(
+      count,
+      rose,
+      themeColor: category != null ? _colorForPoi(category) : null,
+      emoji: category != null ? PoiCategories.emoji(category) : null,
+    ).then((bd) {
       _clusterMarkers[key] = bd;
       _emojiGenInProgress.remove(key);
       _pawBadgeRev++;
@@ -724,6 +755,9 @@ class _PawMapScreenState extends State<PawMapScreen>
       _emojiGenInProgress.remove(key);
     });
   }
+
+  String _clusterKey(int count, bool rose, String? category) =>
+      'cl_${rose ? 1 : 0}_${category ?? ''}_${count > 99 ? 100 : count}';
 
   /// Tap sur une pastille de groupe : on zoome dessus, le groupe s'ouvre.
   Future<void> _zoomToCluster(LatLng target) async {
@@ -2572,7 +2606,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (group.length > 1) {
           final target = _centroid<Map<String, dynamic>>(
               group, (p) => posOfMember(p)!);
-          final key = 'cl_1_${group.length > 99 ? 100 : group.length}';
+          final key = _clusterKey(group.length, true, null);
           final icon = _clusterMarkers[key];
           if (icon == null) _ensureClusterMarker(group.length, true);
           markers.add(
@@ -2651,9 +2685,14 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (group.length > 1) {
           final target = _centroid<MapPOI>(
               group, (poi) => LatLng(poi.latitude, poi.longitude));
-          final key = 'cl_0_${group.length > 99 ? 100 : group.length}';
+          // Une seule catégorie dans le groupe → couleur + emoji du thème.
+          final cats = group.map((p) => p.category).toSet();
+          final String? cat = cats.length == 1 ? cats.first : null;
+          final key = _clusterKey(group.length, false, cat);
           final icon = _clusterMarkers[key];
-          if (icon == null) _ensureClusterMarker(group.length, false);
+          if (icon == null) {
+            _ensureClusterMarker(group.length, false, category: cat);
+          }
           markers.add(
             Marker(
               markerId: MarkerId('pcluster_${target.latitude.toStringAsFixed(4)}'
