@@ -58,7 +58,44 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 556** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 557** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+
+**07/09 (nuit) — v554 « 5 défauts de placement + recherche de ville »**
+- Petite carte : les deux rails touchaient la barre d'onglets → remontés
+  (108 → 156) ; quand « Autour de vous » est affichée ils passent au-dessus
+  d'elle (206) au lieu de la chevaucher.
+- **Poignée de repli du panneau blanc** : un appui masque tout le cadre des
+  options, un appui le rouvre (demande Daniel).
+- **Feuille « Calques » coupée par la barre système** : elle n'avait NI
+  `useSafeArea` NI marge → `useSafeArea` + `viewPadding.bottom` + défilement.
+- **Les 3 viseurs unifiés** (`_buildPickerOverlay`) : PawSpot, Signalement et
+  Itinéraire avaient chacun leur bandeau et leur hauteur, d'où les
+  chevauchements. Pendant un placement : dock, rail gauche, panneau blanc et
+  « Autour de vous » s'effacent, le rail droit remonte de 18.
+- **Itinéraire de la grande carte** : il ÉTAIT branché, mais (1) la caméra
+  était animée sur `_mapCtl` — la petite carte cachée SOUS le calque — et
+  (2) la destination était le centre exact de l'écran, donc départ = arrivée
+  → « recherche échouée ». Corrigé : viseur de destination + `_activeMapCtl()`
+  + bandeau « Effacer l'itinéraire » ajouté au calque agrandi (il n'existait
+  que sur la petite carte).
+- **Compteur « N membres autour de toi »** : il comptait les points DESSINÉS,
+  couche monde comprise → 28 membres annoncés alors qu'il y en a une poignée.
+  Il compte désormais ceux à moins de **50 km de l'utilisateur**, lus sur les
+  listes brutes (indépendant du zoom et du plafond d'affichage). App + site.
+- **Recherche de ville moderne** : l'AlertDialog exigeait le nom EXACT.
+  Feuille avec suggestions au fil de la frappe (debounce 320 ms), villes
+  récentes (GetStorage), repli sur le géocodage classique à la touche Entrée.
+  Nouvelle route publique **`GET /geo/cities`** (backend) : **Photon**
+  (komoot) avec biais de proximité + cache 1 h ; Nominatim en secours.
+  ⚠️ **Vérifié : le `/search` de Nominatim ne fait PAS d'autocomplétion** —
+  « asnie » ne renvoie RIEN et « par » renvoie un hameau anglais. Ne pas y
+  revenir. Photon : « asnie » près de Paris → Asnières-sur-Seine en 1er.
+- **Bouton ↻ « mettre à jour »** : il rechargeait en silence → spinner à sa
+  place pendant le chargement + confirmation, et il force la couche monde à
+  repartir du réseau (le cache 5 min serveur + 24 h local donnait
+  l'impression qu'il ne faisait rien).
+- 3 clés i18n × 9 langues. Fichiers : `~/Downloads/HoPetSit_v23.1.554.{apk,aab,ipa}`,
+  notes Play : `~/Downloads/HoPetSit_554_notes_de_version.txt`.
 
 **06/09 (nuit) — v553 « placement des boutons » (retours Daniel sur captures) — PUBLIÉE**
 - Petite carte : « ma position » passe en BAS À DROITE ; les deux rails sont
