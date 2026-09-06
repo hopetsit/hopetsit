@@ -274,6 +274,19 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// actif à la fois).
   final RxBool _pickingReportPos = false.obs;
 
+  /// v554 — Daniel : « le bouton Itinéraire sur la grande map n'est pas
+  /// branché ». Il appelait bien le calcul d'itinéraire, mais vers le CENTRE
+  /// de la carte : sans avoir déplacé la carte, départ = arrivée → « recherche
+  /// échouée ». On reprend donc le viseur déjà utilisé pour PawSpot et les
+  /// signalements : on vise la destination, puis on valide.
+  final RxBool _pickingRoutePos = false.obs;
+
+  /// v554 — Daniel : « le bouton à côté (mettre à jour), vérifie qu'il
+  /// marche ». Il marchait, mais SANS le moindre signe visible : les couches
+  /// se rechargeaient en silence. On montre maintenant un spinner à sa place
+  /// pendant le rechargement, puis une confirmation courte.
+  final RxBool _refreshing = false.obs;
+
   /// v23.1.363 — position choisie en TAPANT la carte pendant le mode viseur
   /// (marqueur réel ancré au sol — bien plus précis que le centre écran).
   LatLng? _pickedSpotPos;
@@ -511,6 +524,9 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (mounted) setState(() {});
       }),
       ever<bool>(_pickingReportPos, (_) {
+        if (mounted) setState(() {});
+      }),
+      ever<bool>(_pickingRoutePos, (_) {
         if (mounted) setState(() {});
       }),
     ];
@@ -1632,26 +1648,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         );
         return;
       }
-      final target = LatLng(pos.latitude, pos.longitude);
-      if (!mounted) return;
-      setState(() => _currentCenter = target);
-      // v523 — Daniel : « carte agrandie + rechercher une ville ne marche
-      // pas ». La recherche n'animait QUE _mapCtl (la carte normale, cachée
-      // SOUS le calque agrandi) → aucun mouvement visible. Même logique que
-      // _animateFollowCamera (v469) : en mode agrandi on anime AUSSI
-      // _expandedCtl (la carte visible). On garde l'animation de la carte
-      // normale pour qu'elle soit déjà sur la ville au moment de réduire.
-      if (pawMapExpanded.value && _expandedCtl != null) {
-        try {
-          await _expandedCtl!
-              .animateCamera(CameraUpdate.newLatLngZoom(target, 13));
-        } catch (_) {/* calque pas prêt */}
-      }
-      if (_mapCtl.isCompleted) {
-        final ctl = await _mapCtl.future;
-        await ctl.animateCamera(CameraUpdate.newLatLngZoom(target, 13));
-      }
-      await _reloadAtCenter();
+      await _goToCity(LatLng(pos.latitude, pos.longitude));
     } catch (e) {
       debugPrint('[PawMap] city search failed: $e');
       CustomSnackbar.showError(
@@ -1659,6 +1656,30 @@ class _PawMapScreenState extends State<PawMapScreen>
         message: 'pawmap_snack_search_failed_msg'.tr,
       );
     }
+  }
+
+  /// v554 — recentrage sur une ville, quelle que soit la carte affichée.
+  /// v523 — Daniel : « carte agrandie + rechercher une ville ne marche pas ».
+  /// La recherche n'animait QUE _mapCtl (la carte normale, cachée SOUS le
+  /// calque agrandi) → aucun mouvement visible. On anime les DEUX : la carte
+  /// visible tout de suite, l'autre pour qu'elle soit déjà sur la ville au
+  /// moment de réduire / agrandir.
+  Future<void> _goToCity(LatLng target) async {
+    if (!mounted) return;
+    setState(() => _currentCenter = target);
+    if (pawMapExpanded.value && _expandedCtl != null) {
+      try {
+        await _expandedCtl!
+            .animateCamera(CameraUpdate.newLatLngZoom(target, 13));
+      } catch (_) {/* calque pas prêt */}
+    }
+    if (_mapCtl.isCompleted) {
+      try {
+        final ctl = await _mapCtl.future;
+        await ctl.animateCamera(CameraUpdate.newLatLngZoom(target, 13));
+      } catch (_) {/* carte pas prête */}
+    }
+    await _reloadAtCenter();
   }
 
   /// v500 — Daniel : « quand je tape plusieurs fois voir amis puis la map,
@@ -1789,63 +1810,348 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// reload les POI / reports.
   Future<void> _onSearchCity() async {
     final ctrl = TextEditingController();
-    final query = await showDialog<String>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18.r),
-          ),
-          title: Row(
+    final suggestions = <Map<String, dynamic>>[].obs;
+    final loading = false.obs;
+    final typed = ''.obs;
+    Timer? debounce;
+
+    List<Map<String, dynamic>> recents() {
+      try {
+        final raw = GetStorage().read('pawmap_recent_cities');
+        if (raw is List) {
+          return raw
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
+      } catch (_) {/* stockage illisible */}
+      return const [];
+    }
+
+    void remember(Map<String, dynamic> city) {
+      try {
+        final list = recents().toList()
+          ..removeWhere((e) =>
+              e['name'] == city['name'] && e['label'] == city['label']);
+        list.insert(0, city);
+        GetStorage().write('pawmap_recent_cities', list.take(5).toList());
+      } catch (_) {/* sans importance */}
+    }
+
+    Future<void> lookup(String q) async {
+      final query = q.trim();
+      typed.value = query;
+      if (query.length < 2) {
+        suggestions.clear();
+        loading.value = false;
+        return;
+      }
+      loading.value = true;
+      try {
+        final api =
+            Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
+        if (api == null) return;
+        final res = await api.get(
+          '/geo/cities',
+          queryParameters: {
+            'q': query,
+            'lang': Get.locale?.languageCode ?? 'fr',
+            // Biais de proximité : « asnie » près de Paris doit sortir
+            // Asnières-sur-Seine en premier, pas Asnières-en-Montagne.
+            'lat': '${(_userPosition ?? _currentCenter).latitude}',
+            'lng': '${(_userPosition ?? _currentCenter).longitude}',
+          },
+        );
+        // Réponse périmée (l'utilisateur a continué à taper) : on l'ignore.
+        if (typed.value != query) return;
+        final list = res is List ? res : const [];
+        suggestions.assignAll(
+          list.whereType<Map>().map((e) => Map<String, dynamic>.from(e)),
+        );
+      } catch (_) {
+        // Suggestions indisponibles : la touche Entrée reste opérationnelle.
+        suggestions.clear();
+      } finally {
+        if (typed.value == query) loading.value = false;
+      }
+    }
+
+    Future<void> pick(Map<String, dynamic> city) async {
+      final lat = (city['lat'] as num?)?.toDouble();
+      final lng = (city['lng'] as num?)?.toDouble();
+      if (lat == null || lng == null) return;
+      remember(city);
+      if (mounted) Navigator.of(context).pop();
+      await _goToCity(LatLng(lat, lng));
+    }
+
+    Widget cityTile(Map<String, dynamic> city, {required bool recent}) {
+      return InkWell(
+        onTap: () => pick(city),
+        borderRadius: BorderRadius.circular(14.r),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 4.w),
+          child: Row(
             children: [
-              Icon(Icons.search_rounded,
-                  color: AppColors.primaryColor, size: 22.sp),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: InterText(
-                  text: 'pawmap_search_city'.tr,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w800,
+              Container(
+                width: 36.w,
+                height: 36.w,
+                decoration: BoxDecoration(
+                  color: recent
+                      ? PawMapTheme.ink.withValues(alpha: 0.05)
+                      : PawMapTheme.pastelPeach,
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Icon(
+                  recent
+                      ? Icons.history_rounded
+                      : Icons.location_city_rounded,
+                  size: 18.sp,
+                  color: recent ? PawMapTheme.sub : PawMapTheme.accent,
                 ),
               ),
+              SizedBox(width: 11.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      (city['name'] ?? '').toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: PawMapTheme.font(
+                          size: 14.sp, weight: FontWeight.w700),
+                    ),
+                    if ((city['label'] ?? '').toString().isNotEmpty)
+                      Text(
+                        (city['label'] ?? '').toString(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: PawMapTheme.font(
+                          size: 11.sp,
+                          weight: FontWeight.w500,
+                          color: PawMapTheme.sub,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Icon(Icons.north_east_rounded,
+                  size: 16.sp, color: PawMapTheme.sub),
             ],
           ),
-          content: TextField(
-            controller: ctrl,
-            autofocus: true,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              hintText: 'pawmap_search_city_hint'.tr,
-              prefixIcon: const Icon(Icons.location_city_rounded),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-            ),
-            onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
+        ),
+      );
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => Padding(
+        // Le clavier pousse la feuille : la liste reste visible au-dessus.
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: Container(
+          decoration: BoxDecoration(
+            color: PawMapTheme.bg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26.r)),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text('common_cancel'.tr),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10.r),
+          padding: EdgeInsets.fromLTRB(
+            18.w,
+            12.h,
+            18.w,
+            16.h + MediaQuery.of(ctx).viewPadding.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 42.w,
+                height: 4.h,
+                decoration: BoxDecoration(
+                  color: PawMapTheme.ink.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
                 ),
               ),
-              onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()),
-              child: Text('pawmap_search_city_btn'.tr),
-            ),
-          ],
-        );
-      },
+              SizedBox(height: 14.h),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'pawmap_search_city'.tr,
+                  style:
+                      PawMapTheme.font(size: 18.sp, weight: FontWeight.w800),
+                ),
+              ),
+              SizedBox(height: 12.h),
+              // Champ de saisie : pilule blanche, loupe à gauche, croix à
+              // droite, spinner pendant que les suggestions arrivent.
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16.r),
+                  border: Border.all(color: PawMapTheme.border),
+                  boxShadow: PawMapTheme.pillShadow,
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 12.w),
+                child: Row(
+                  children: [
+                    Icon(Icons.search_rounded,
+                        size: 19.sp, color: PawMapTheme.accent),
+                    SizedBox(width: 9.w),
+                    Expanded(
+                      child: TextField(
+                        controller: ctrl,
+                        autofocus: true,
+                        textInputAction: TextInputAction.search,
+                        style: PawMapTheme.font(
+                            size: 14.sp, weight: FontWeight.w600),
+                        decoration: InputDecoration(
+                          hintText: 'pawmap_search_city_hint'.tr,
+                          hintStyle: PawMapTheme.font(
+                            size: 13.sp,
+                            weight: FontWeight.w500,
+                            color: PawMapTheme.sub,
+                          ),
+                          filled: false,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(vertical: 14.h),
+                        ),
+                        onChanged: (v) {
+                          debounce?.cancel();
+                          debounce = Timer(
+                              const Duration(milliseconds: 320), () => lookup(v));
+                        },
+                        onSubmitted: (v) async {
+                          debounce?.cancel();
+                          final q = v.trim();
+                          if (q.isEmpty) return;
+                          // Une suggestion déjà affichée ? on la prend, c'est
+                          // plus fiable que le géocodage sur texte libre.
+                          if (suggestions.isNotEmpty) {
+                            await pick(suggestions.first);
+                            return;
+                          }
+                          if (mounted) Navigator.of(ctx).pop();
+                          await _searchCity(q);
+                        },
+                      ),
+                    ),
+                    Obx(() {
+                      if (loading.value) {
+                        return SizedBox(
+                          width: 16.w,
+                          height: 16.w,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: PawMapTheme.accent,
+                          ),
+                        );
+                      }
+                      if (typed.value.isEmpty) return SizedBox(width: 4.w);
+                      return GestureDetector(
+                        onTap: () {
+                          ctrl.clear();
+                          typed.value = '';
+                          suggestions.clear();
+                        },
+                        child: Icon(Icons.close_rounded,
+                            size: 18.sp, color: PawMapTheme.sub),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+              SizedBox(height: 10.h),
+              Obx(() {
+                final query = typed.value;
+                final items = suggestions.toList();
+                final rec = recents();
+                // Champ vide → villes récentes (rien du tout au 1er usage).
+                if (query.length < 2) {
+                  if (rec.isEmpty) return SizedBox(height: 8.h);
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: 260.h),
+                    child: ListView(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.zero,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: EdgeInsets.only(bottom: 4.h, left: 4.w),
+                            child: Text(
+                              'pawmap_search_recent'.tr,
+                              style: PawMapTheme.font(
+                                size: 11.sp,
+                                weight: FontWeight.w700,
+                                color: PawMapTheme.sub,
+                              ),
+                            ),
+                          ),
+                        ),
+                        ...rec.map((c) => cityTile(c, recent: true)),
+                      ],
+                    ),
+                  );
+                }
+                if (items.isEmpty) {
+                  return Padding(
+                    padding: EdgeInsets.symmetric(vertical: 18.h),
+                    child: Text(
+                      loading.value
+                          ? 'directions_loading'.tr
+                          : 'pawmap_snack_city_not_found'.tr,
+                      style: PawMapTheme.font(
+                        size: 12.5.sp,
+                        weight: FontWeight.w600,
+                        color: PawMapTheme.sub,
+                      ),
+                    ),
+                  );
+                }
+                return ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: 300.h),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    itemCount: items.length,
+                    itemBuilder: (_, i) => cityTile(items[i], recent: false),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
     );
-    if (query == null || query.isEmpty) return;
-    // Delegue au handler existant qui utilise LocationService + reload.
-    await _searchCity(query);
+    debounce?.cancel();
+    ctrl.dispose();
+  }
+
+  /// v554 — rechargement DEMANDÉ par l'utilisateur (loupe ↻ de l'AppBar).
+  /// Force aussi la couche monde à repartir du réseau : sans ça, le cache de
+  /// 5 min du serveur + le cache local 24 h donnaient l'impression que le
+  /// bouton ne faisait rien.
+  Future<void> _manualRefresh() async {
+    if (_refreshing.value) return;
+    _refreshing.value = true;
+    try {
+      _worldMembersLoaded = false;
+      await _reloadAtCenter();
+      if (!mounted) return;
+      CustomSnackbar.showSuccess(
+        title: 'pawmap_refresh_done'.tr,
+        message: 'pawmap_members_around'
+            .trParams({'count': '${_membersShown.value}'}),
+      );
+    } finally {
+      _refreshing.value = false;
+    }
   }
 
   Future<void> _reloadAtCenter() async {
@@ -2018,7 +2324,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v456 — viseur « point rouge au centre » : l'emplacement choisi SUIT le
     // centre de la carte que l'utilisateur déplace sous le repère rouge fixe
     // (placement précis, façon Uber). Plus de pin à faire glisser.
-    if (_pickingSpotPos.value || _pickingReportPos.value) {
+    if (_pickingSpotPos.value ||
+        _pickingReportPos.value ||
+        _pickingRoutePos.value) {
       _pickedSpotPos = pos.target;
     }
   }
@@ -2471,6 +2779,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       _pickingSpotPos.value ? 1 : 0,
       // v449 — viseur signalement (même pin, couleur rouge).
       _pickingReportPos.value ? 1 : 0,
+      // v554 — viseur destination d'itinéraire.
+      _pickingRoutePos.value ? 1 : 0,
       _pickedSpotPos == null
           ? ''
           : '${_pickedSpotPos!.latitude.toStringAsFixed(5)},${_pickedSpotPos!.longitude.toStringAsFixed(5)}',
@@ -2649,8 +2959,40 @@ class _PawMapScreenState extends State<PawMapScreen>
         return _memberRoles.contains(r);
       }).toList();
       // Compteur « N membres autour de toi » (mis à jour hors frame de build).
-      if (_membersShown.value != placeable.length) {
-        final n = placeable.length;
+      // v554 — Daniel : « 28 membres autour de moi, ce n'est pas vrai ; autour
+      // de moi ça devrait être environ 50 km ». Le compteur reprenait le
+      // nombre de points DESSINÉS : en dézoomant il comptait des membres à
+      // l'autre bout du monde, et il changeait à chaque déplacement de la
+      // carte. Il compte désormais les membres réellement à moins de 50 km de
+      // L'UTILISATEUR (position GPS ; à défaut le centre de la carte), lus sur
+      // les listes brutes — donc indépendant du zoom et du plafond d'affichage.
+      const double aroundKm = 50.0;
+      final ref = _userPosition ?? _currentCenter;
+      final cosRef =
+          math.cos(ref.latitude * math.pi / 180).abs().clamp(0.05, 1.0);
+      bool roleOk(Map<String, dynamic> p) {
+        final r = (p['_role'] ?? p['role'] ?? '').toString().toLowerCase();
+        return r.isEmpty || _memberRoles.contains(r);
+      }
+
+      bool within(Map<String, dynamic> p) {
+        final pos = posOfMember(p);
+        if (pos == null) return false;
+        final dLat = (pos.latitude - ref.latitude) * 111.32;
+        final dLng = (pos.longitude - ref.longitude) * 111.32 * cosRef;
+        return dLat * dLat + dLng * dLng <= aroundKm * aroundKm;
+      }
+
+      final countedIds = <String>{};
+      var around = 0;
+      for (final p in [..._nearbyProviders, ..._worldMembers]) {
+        if (!roleOk(p) || !within(p)) continue;
+        final id = (p['id'] ?? p['_id'] ?? '').toString();
+        if (id.isNotEmpty && !countedIds.add(id)) continue; // déjà compté
+        around += 1;
+      }
+      if (_membersShown.value != around) {
+        final n = around;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _membersShown.value = n;
         });
@@ -3191,11 +3533,15 @@ class _PawMapScreenState extends State<PawMapScreen>
       canPop: _followUserId == null &&
           !_mapExpanded.value &&
           !_pickingSpotPos.value &&
+          !_pickingRoutePos.value &&
           !_pickingReportPos.value,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        if (_pickingSpotPos.value || _pickingReportPos.value) {
+        if (_pickingSpotPos.value ||
+            _pickingReportPos.value ||
+            _pickingRoutePos.value) {
           _pickingSpotPos.value = false;
+          _pickingRoutePos.value = false;
           _pickingReportPos.value = false;
           _pickedSpotPos = null;
           if (mounted) setState(() {});
@@ -3242,11 +3588,27 @@ class _PawMapScreenState extends State<PawMapScreen>
             icon: const Icon(Icons.search_rounded),
             onPressed: _onSearchCity,
           ),
-          IconButton(
-            tooltip: 'pawmap_appbar_refresh'.tr,
-            icon: const Icon(Icons.refresh),
-            onPressed: _reloadAtCenter,
-          ),
+          // v554 — bouton « mettre à jour » avec retour visuel (spinner +
+          // confirmation), et double appui impossible pendant le chargement.
+          Obx(() => _refreshing.value
+              ? Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+                  child: Center(
+                    child: SizedBox(
+                      width: 18.w,
+                      height: 18.w,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primaryColor,
+                      ),
+                    ),
+                  ),
+                )
+              : IconButton(
+                  tooltip: 'pawmap_appbar_refresh'.tr,
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _manualRefresh,
+                )),
         ],
       ),
       body: Stack(
@@ -3346,7 +3708,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                       onTap: (latLng) {
                         // v449 — viseur spot OU signalement : taper la carte
                         // déplace le pin du futur spot/signalement.
-                        if (_pickingSpotPos.value || _pickingReportPos.value) {
+                        if (_pickingSpotPos.value ||
+                            _pickingReportPos.value ||
+                            _pickingRoutePos.value) {
                           setState(() => _pickedSpotPos = latLng);
                         }
                       },
@@ -3435,25 +3799,54 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // ancrée en bas : le Row les centre l'un sur l'autre quelles
                 // que soient leurs hauteurs — plus de réglage au pixel qui
                 // se décale dès qu'on ajoute un bouton.
-                Positioned(
-                  left: 12.w,
-                  right: 12.w,
-                  bottom: 108.h + MediaQuery.of(context).viewPadding.bottom,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      _buildMapActionsColumn(),
-                      const Spacer(),
-                      _buildMapControlsStack(),
-                    ],
-                  ),
-                ),
+                // v554 (retour Daniel : « remonte les deux petites barres,
+                // elles ne doivent pas toucher le menu ») : 108 → 156, la
+                // rangée se pose franchement au-dessus de la barre d'onglets.
+                // Et pendant un placement (spot / signalement) elle monte
+                // encore pour laisser le bandeau Valider/Annuler respirer ;
+                // le rail GAUCHE disparaît alors — ses boutons « Marquer un
+                // lieu » et « Signaler » sont justement l'action en cours.
+                Obx(() {
+                  final picking = _pickingSpotPos.value ||
+                      _pickingReportPos.value ||
+                      _pickingRoutePos.value;
+                  // La carte « Autour de vous » occupe le bas de l'écran
+                  // jusqu'à ~200 : quand elle est là, les rails passent
+                  // au-dessus d'elle au lieu de la chevaucher.
+                  final aroundShown = _routePolylines.isEmpty &&
+                      !picking &&
+                      _aroundYouVisible.value &&
+                      _reportController.reports.isNotEmpty;
+                  return Positioned(
+                    left: 12.w,
+                    right: 12.w,
+                    bottom: (picking
+                            ? 210.h
+                            : (aroundShown ? 206.h : 156.h)) +
+                        MediaQuery.of(context).viewPadding.bottom,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        if (!picking) _buildMapActionsColumn(),
+                        const Spacer(),
+                        _buildMapControlsStack(),
+                      ],
+                    ),
+                  );
+                }),
 
                 // v456 — POINT ROUGE FIXE au centre (placement précis), pour
                 // les DEUX viseurs (Paw Spot ET Signalement). La carte bouge
                 // SOUS le repère ; à Valider il disparaît et seul l'emoji reste.
-                Obx(() => (_pickingSpotPos.value || _pickingReportPos.value)
+                Obx(() => (_pickingSpotPos.value ||
+                        _pickingReportPos.value ||
+                        _pickingRoutePos.value)
                     ? _buildCenterReticle()
+                    : const SizedBox.shrink()),
+
+                // v554 — viseur « destination de l'itinéraire ».
+                Obx(() => _pickingRoutePos.value
+                    ? _buildRoutePickerOverlay()
                     : const SizedBox.shrink()),
 
                 // v23.1.360 — mode VISEUR « Taguer un lieu » : bandeau
@@ -3472,7 +3865,12 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // plus proches avec badge severite + tap → AlertsScreen.
                 // v23.1.353 — masquée pendant qu'un itinéraire est affiché
                 // (le bandeau distance + "Effacer" prend sa place).
-                if (_routePolylines.isEmpty)
+                // v554 — « Autour de vous » se retire aussi pendant un
+                // placement : c'est elle qui gênait les boutons du viseur.
+                if (_routePolylines.isEmpty &&
+                    !_pickingSpotPos.value &&
+                    !_pickingReportPos.value &&
+                    !_pickingRoutePos.value)
                   Positioned(
                     // v418 — le FAB Signaler est passé en bas à GAUCHE : on
                     // décale la carte « Autour de vous » pour ne pas le couvrir.
@@ -3508,7 +3906,13 @@ class _PawMapScreenState extends State<PawMapScreen>
           // v552 — panneaux flottants de la petite carte (au-dessus de la
           // carte plein écran, comme la maquette). Masqués quand la carte est
           // agrandie : le calque a ses propres commandes.
-          Obx(() => _mapExpanded.value
+          // v554 — pendant un placement, le panneau blanc et la ligne
+          // « Partager ma position » s'effacent : on voit la carte qu'on vise
+          // et la bulle d'aide n'est plus cachée derrière eux.
+          Obx(() => (_mapExpanded.value ||
+                  _pickingSpotPos.value ||
+                  _pickingReportPos.value ||
+                  _pickingRoutePos.value)
               ? const SizedBox.shrink()
               : Positioned(
                   top: 0,
@@ -3887,120 +4291,144 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v23.1.360 — overlay du mode viseur : pin rose centré (pointe sur le
   /// centre exact de la carte), bulle d'aide en haut, bandeau bas
   /// Valider (ouvre la sheet de création à _currentCenter) / Annuler.
-  Widget _buildSpotPickerOverlay() {
+  /// v554 — Daniel : « sur la petite map les boutons pour le spot sont
+  /// gênés ; vérifie tout ou améliore le design des boutons quand ils
+  /// s'ouvrent ». Les trois viseurs (PawSpot, Signalement, Itinéraire)
+  /// avaient chacun leur bandeau, leur hauteur et leur style — d'où des
+  /// chevauchements avec la barre d'onglets, le dock et les rails. Ils
+  /// partagent désormais UN seul gabarit :
+  ///   - bulle d'aide en haut (le panneau blanc est replié pendant le visée),
+  ///   - barre Annuler / Valider en bas, calée au-dessus du menu (petite
+  ///     carte) ou de la barre système (carte agrandie, dock masqué),
+  ///   - rails et « Autour de vous » écartés le temps du placement.
+  Widget _buildPickerOverlay({
+    required String hint,
+    required String confirmLabel,
+    required Color confirmColor,
+    required IconData icon,
+    required VoidCallback onCancel,
+    required VoidCallback onConfirm,
+  }) {
     return Positioned.fill(
       child: Stack(
         children: [
-          // v23.1.363 — le faux pin central est remplacé par un VRAI
-          // marqueur rose ancré au sol (tap sur la carte / drag du pin).
-          // Bulle d'aide.
           Positioned(
-            top: 10.h,
-            left: 24.w,
-            right: 24.w,
+            top: 12.h,
+            left: 20.w,
+            right: 20.w,
             child: IgnorePointer(
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(12.r),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-                child: InterText(
-                  text: 'pawspot_pick_hint'.tr,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1F2937),
-                  textAlign: TextAlign.center,
+              child: Center(
+                child: Container(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 14.w, vertical: 9.h),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: PawMapTheme.pillShadow,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, size: 16.sp, color: confirmColor),
+                      SizedBox(width: 7.w),
+                      Flexible(
+                        child: Text(
+                          hint,
+                          textAlign: TextAlign.center,
+                          style: PawMapTheme.font(
+                              size: 12.sp, weight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-          // Bandeau Valider / Annuler.
-          // v465 — Daniel : le bandeau était caché derrière la barre Samsung.
-          // On ajoute l'inset système physique pour qu'il reste au-dessus.
           Positioned(
             left: 16.w,
             right: 16.w,
-            // v470 — Daniel : « en carte agrandie les boutons Valider du tag
-            // sont derrière la barre Samsung ». En agrandi le menu est masqué
-            // mais l'inset seul ne suffisait pas → on garde un socle FIXE (48)
-            // au-dessus de la barre système. En normal, on dégage le menu (~96).
             bottom: 16.h +
                 MediaQuery.of(context).viewPadding.bottom +
-                (pawMapExpanded.value ? 64.h : 116.h),
-            child: Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14.r),
-                    onTap: () => _pickingSpotPos.value = false,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(vertical: 12.h),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14.r),
-                        border: Border.all(
-                            color: AppColors.greyText.withValues(alpha: 0.5)),
-                      ),
-                      child: Center(
-                        child: InterText(
-                          text: 'pawspot_pick_cancel'.tr,
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF1F2937),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 10.w),
-                Expanded(
-                  flex: 2,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14.r),
-                    onTap: () {
-                      final at = _pickedSpotPos ?? _currentCenter;
-                      _pickingSpotPos.value = false;
-                      unawaited(_openPawSpotCreate(at: at));
-                    },
-                    child: Container(
-                      padding: EdgeInsets.symmetric(vertical: 12.h),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFEC4899), Color(0xFFF472B6)],
-                        ),
-                        borderRadius: BorderRadius.circular(14.r),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFEC4899)
-                                .withValues(alpha: 0.4),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: InterText(
-                          text: 'pawspot_pick_confirm'.tr,
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w800,
+                (pawMapExpanded.value ? 0.h : 106.h),
+            child: Material(
+              color: Colors.transparent,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14.r),
+                      onTap: onCancel,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(vertical: 13.h),
+                        decoration: BoxDecoration(
                           color: Colors.white,
+                          borderRadius: BorderRadius.circular(14.r),
+                          border: Border.all(color: PawMapTheme.border),
+                          boxShadow: PawMapTheme.pillShadow,
+                        ),
+                        child: Center(
+                          child: Text(
+                            'pawspot_pick_cancel'.tr,
+                            style: PawMapTheme.font(
+                                size: 13.sp, weight: FontWeight.w800),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    flex: 2,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14.r),
+                      onTap: onConfirm,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(vertical: 13.h),
+                        decoration: BoxDecoration(
+                          color: confirmColor,
+                          borderRadius: BorderRadius.circular(14.r),
+                          boxShadow: PawMapTheme.pillShadow,
+                        ),
+                        child: Center(
+                          child: Text(
+                            confirmLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: PawMapTheme.font(
+                              size: 13.sp,
+                              weight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSpotPickerOverlay() {
+    return _buildPickerOverlay(
+      hint: 'pawspot_pick_hint'.tr,
+      confirmLabel: 'pawspot_pick_confirm'.tr,
+      confirmColor: const Color(0xFFEC1E79),
+      icon: Icons.pets_rounded,
+      onCancel: () {
+        _pickingSpotPos.value = false;
+        if (mounted) setState(() {});
+      },
+      onConfirm: () {
+        final at = _pickedSpotPos ?? _currentCenter;
+        _pickingSpotPos.value = false;
+        unawaited(_openPawSpotCreate(at: at));
+      },
     );
   }
 
@@ -4185,7 +4613,48 @@ class _PawMapScreenState extends State<PawMapScreen>
   // padding 12) qui remplace la grille 2×2 de grosses cartes + la rangée de
   // filtres + la rangée de toggles. Rien n'est supprimé : les 4 actions, les
   // filtres, le compteur et les 3 abonnements sont tous là, en plus compact.
+  /// v554 — Daniel : « le cadre blanc où il y a toutes les options, tu peux
+  /// pas ajouter un mini bouton qui masquerait le cadre entier ? ». Le
+  /// panneau se replie sur une petite poignée : la carte est alors dégagée
+  /// sans avoir à l'agrandir, et rien n'est perdu (un appui le rouvre).
+  final RxBool _panelCollapsed = false.obs;
+
+  Widget _panelHandle({required bool collapsed}) {
+    return Center(
+      child: GestureDetector(
+        onTap: () => _panelCollapsed.value = !collapsed,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: 62.w,
+          height: 26.h,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: collapsed ? Colors.white : PawMapTheme.ink.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: collapsed ? PawMapTheme.pillShadow : null,
+          ),
+          child: Icon(
+            collapsed
+                ? Icons.keyboard_arrow_down_rounded
+                : Icons.keyboard_arrow_up_rounded,
+            size: 20.sp,
+            color: PawMapTheme.sub,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildGlassPanel() {
+    return Obx(() => _panelCollapsed.value
+        ? Padding(
+            padding: EdgeInsets.fromLTRB(14.w, 8.h, 14.w, 0),
+            child: _panelHandle(collapsed: true),
+          )
+        : _buildGlassPanelBody());
+  }
+
+  Widget _buildGlassPanelBody() {
     return Padding(
       padding: EdgeInsets.fromLTRB(14.w, 8.h, 14.w, 0),
       child: Container(
@@ -4206,6 +4675,8 @@ class _PawMapScreenState extends State<PawMapScreen>
             _buildPanelCounterRow(),
             SizedBox(height: 9.h),
             _buildPanelModules(),
+            SizedBox(height: 8.h),
+            _panelHandle(collapsed: false),
           ],
         ),
       ),
@@ -4945,7 +5416,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                   }
                 },
                 onTap: (latLng) {
-                  if (_pickingSpotPos.value || _pickingReportPos.value) {
+                  if (_pickingSpotPos.value ||
+                      _pickingReportPos.value ||
+                      _pickingRoutePos.value) {
                     setState(() => _pickedSpotPos = latLng);
                   }
                 },
@@ -4964,8 +5437,13 @@ class _PawMapScreenState extends State<PawMapScreen>
           ),
 
           // Repère central + bandeaux de validation (mêmes que la carte normale).
-          Obx(() => (_pickingSpotPos.value || _pickingReportPos.value)
+          Obx(() => (_pickingSpotPos.value ||
+                  _pickingReportPos.value ||
+                  _pickingRoutePos.value)
               ? _buildCenterReticle()
+              : const SizedBox.shrink()),
+          Obx(() => _pickingRoutePos.value
+              ? _buildRoutePickerOverlay()
               : const SizedBox.shrink()),
           Obx(() => _pickingSpotPos.value
               ? _buildSpotPickerOverlay()
@@ -4991,36 +5469,71 @@ class _PawMapScreenState extends State<PawMapScreen>
           // v488 — Daniel : MÊMES 4 boutons ronds qu'en petite carte (Voir
           // spots / Tag spot / Voir signaux / Signaler), centrés verticalement
           // à GAUCHE, en mode agrandi aussi.
-          Positioned(
-            left: 12.w,
-            // v553 — au-dessus du dock (14 + hauteur du dock 46 + 22 de
-            // respiration) : plus aucun chevauchement entre les deux rangées.
-            bottom: _navInset(context) + 82.h,
-            child: _buildMapActionsColumn(expanded: true),
-          ),
+          // v554 — pendant un placement (spot / signalement), le rail gauche
+          // s'efface : ses boutons « Marquer un lieu » et « Signaler » sont
+          // l'action en cours, et ils masquaient le bandeau Valider/Annuler.
+          Obx(() => (_pickingSpotPos.value ||
+                  _pickingReportPos.value ||
+                  _pickingRoutePos.value)
+              ? const SizedBox.shrink()
+              : Positioned(
+                  left: 12.w,
+                  // v553 — au-dessus du dock (14 + hauteur du dock 46 + 22 de
+                  // respiration) : plus aucun chevauchement entre les rangées.
+                  bottom: _navInset(context) + 82.h,
+                  child: _buildMapActionsColumn(expanded: true),
+                )),
+
+          // v554 — bandeau « distance + Effacer l'itinéraire » : il n'existait
+          // QUE sur la petite carte. Sur la grande, l'itinéraire se traçait
+          // sans aucun retour visible ni moyen de l'effacer → Daniel a conclu
+          // que le bouton n'était pas branché. Ici en HAUT : le bas est déjà
+          // occupé par le dock et les deux rails.
+          if (_routePolylines.isNotEmpty)
+            Positioned(
+              top: 64.h,
+              left: 12.w,
+              right: 12.w,
+              child: Center(child: _buildDirectionsBanner()),
+            ),
 
           // v552 — dock bas (spec v3) : SOS animal, Partager la carte,
           // Calques, Mode nuit, Historique — ancré au-dessus de la barre
           // système (marge + 66).
-          Positioned(
-            left: 0,
-            right: 0,
-            // v553 (retour Daniel : « les boutons en slide en bas ne sont pas
-            // bien placés ») : le dock se pose juste au-dessus de la barre
-            // système, et les rails passent NETTEMENT au-dessus de lui.
-            bottom: _navInset(context) + 14.h,
-            child: _buildMapDock(),
-          ),
+          // v554 — le dock disparaît pendant un placement : c'est lui qui
+          // recouvrait « Valider le spot » sur la capture de Daniel.
+          Obx(() => (_pickingSpotPos.value ||
+                  _pickingReportPos.value ||
+                  _pickingRoutePos.value)
+              ? const SizedBox.shrink()
+              : Positioned(
+                  left: 0,
+                  right: 0,
+                  // v553 (retour Daniel : « les boutons en slide en bas ne
+                  // sont pas bien placés ») : le dock se pose juste au-dessus
+                  // de la barre système, les rails passent au-dessus de lui.
+                  bottom: _navInset(context) + 14.h,
+                  child: _buildMapDock(),
+                )),
 
           // v550 — Daniel : « quand la carte est en grand, rajoute le bouton
           // ma position ». Même pilule blanche qu'en petite carte (ma
           // position / + / -), à droite, au-dessus de la barre système.
-          Positioned(
-            right: 12.w,
-            // v553 — même ligne de base que le rail gauche.
-            bottom: _navInset(context) + 82.h,
-            child: _buildMapControlsStack(),
-          ),
+          // v554 — le rail droit (ma position / + / − / satellite / membres)
+          // reste utile pour viser précisément : il monte simplement de
+          // quelques pixels pendant le placement pour laisser passer le
+          // bandeau Valider/Annuler.
+          Obx(() => Positioned(
+                right: 12.w,
+                // v553 — même ligne de base que le rail gauche.
+                bottom: _navInset(context) +
+                    ((_pickingSpotPos.value ||
+                            _pickingReportPos.value ||
+                            _pickingRoutePos.value)
+                        ? 100.h
+                        : 82.h),
+                child: _buildMapControlsStack(),
+              )),
         ],
       ),
     );
@@ -5050,7 +5563,10 @@ class _PawMapScreenState extends State<PawMapScreen>
               icon: Icons.directions_rounded,
               color: PawMapTheme.ok,
               label: 'pawmap_btn_directions'.tr,
-              onTap: () => _startDirections(_currentCenter),
+              onTap: () {
+                _pickedSpotPos = _currentCenter;
+                _pickingRoutePos.value = true;
+              },
             ),
             SizedBox(height: 8.h),
             _roundMapBtn(
@@ -5384,12 +5900,24 @@ class _PawMapScreenState extends State<PawMapScreen>
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
+      // v554 — Daniel : « sur la grande map, quand on appuie sur Calques,
+      // c'est coupé par le menu du bas ». La feuille n'avait NI useSafeArea NI
+      // marge système : la dernière ligne (PawFollow) passait sous la barre
+      // Samsung. On ajoute les deux + un défilement de sécurité pour les
+      // petits écrans et les grandes tailles de police.
+      useSafeArea: true,
+      isScrollControlled: true,
       builder: (ctx) => Container(
         decoration: BoxDecoration(
           color: PawMapTheme.bg,
           borderRadius: BorderRadius.vertical(top: Radius.circular(26.r)),
         ),
-        padding: EdgeInsets.fromLTRB(18.w, 14.h, 18.w, 24.h),
+        padding: EdgeInsets.fromLTRB(
+          18.w,
+          14.h,
+          18.w,
+          24.h + MediaQuery.of(ctx).viewPadding.bottom,
+        ),
         child: Obx(() {
           Widget row(String label, bool value, VoidCallback onTap,
               IconData icon, Color color) {
@@ -5415,7 +5943,8 @@ class _PawMapScreenState extends State<PawMapScreen>
             );
           }
 
-          return Column(
+          return SingleChildScrollView(
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
@@ -5449,7 +5978,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               row('PawFollow', _showLiveLayer.value, _togglePawFollow,
                   Icons.share_location_rounded, PawMapTheme.pawFollow),
             ],
-          );
+          ));
         }),
       ),
     );
@@ -5522,83 +6051,45 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   /// Bandeau bas du viseur signalement : hint + bouton « Signaler ici » + ✕.
+  /// v554 — viseur « destination de l'itinéraire » (grande ou petite carte).
+  /// Même geste que Taguer un lieu : la carte glisse sous le repère vert, on
+  /// valide, l'itinéraire se trace et la caméra cadre le trajet.
+  Widget _buildRoutePickerOverlay() {
+    return _buildPickerOverlay(
+      hint: 'pawmap_route_pick_hint'.tr,
+      confirmLabel: 'pawmap_btn_directions'.tr,
+      confirmColor: PawMapTheme.ok,
+      icon: Icons.directions_rounded,
+      onCancel: () {
+        _pickingRoutePos.value = false;
+        if (mounted) setState(() {});
+      },
+      onConfirm: () {
+        final dest = _pickedSpotPos ?? _currentCenter;
+        _pickingRoutePos.value = false;
+        if (mounted) setState(() {});
+        unawaited(_startDirections(dest));
+      },
+    );
+  }
+
   Widget _buildReportPickerOverlay() {
-    return Positioned(
-      left: 12.w,
-      right: 12.w,
-      // v470 — Daniel : en agrandi le bandeau « Signaler ici » passait derrière
-      // la barre Samsung → socle FIXE (48) au-dessus de la barre système ;
-      // en normal on dégage le menu pleine largeur (~96).
-      bottom: 24.h +
-          MediaQuery.of(context).viewPadding.bottom +
-          (pawMapExpanded.value ? 64.h : 116.h),
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(16.r),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.place_rounded,
-                  color: const Color(0xFFDC2626), size: 20.sp),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: InterText(
-                  text: 'pawmap_report_pick_hint'.tr,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary(context),
-                  maxLines: 2,
-                ),
-              ),
-              SizedBox(width: 8.w),
-              GestureDetector(
-                onTap: () {
-                  _pickingReportPos.value = false;
-                  if (mounted) setState(() {});
-                },
-                child: Icon(Icons.close_rounded,
-                    color: AppColors.greyText, size: 22.sp),
-              ),
-              SizedBox(width: 10.w),
-              GestureDetector(
-                onTap: () async {
-                  final at = _pickedSpotPos ?? _userPosition ?? _currentCenter;
-                  _pickingReportPos.value = false;
-                  if (mounted) setState(() {});
-                  final created =
-                      await CreateReportSheet.show(context, initialPoint: at);
-                  if (created) await _reloadAtCenter();
-                },
-                child: Container(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 14.w, vertical: 9.h),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDC2626),
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: InterText(
-                    text: 'pawmap_report_pick_confirm'.tr,
-                    fontSize: 12.5.sp,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return _buildPickerOverlay(
+      hint: 'pawmap_report_pick_hint'.tr,
+      confirmLabel: 'pawmap_report_pick_confirm'.tr,
+      confirmColor: const Color(0xFFDC2626),
+      icon: Icons.place_rounded,
+      onCancel: () {
+        _pickingReportPos.value = false;
+        if (mounted) setState(() {});
+      },
+      onConfirm: () async {
+        final at = _pickedSpotPos ?? _userPosition ?? _currentCenter;
+        _pickingReportPos.value = false;
+        if (mounted) setState(() {});
+        final created = await CreateReportSheet.show(context, initialPoint: at);
+        if (created) await _reloadAtCenter();
+      },
     );
   }
 
@@ -5612,7 +6103,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     // Tag PawSpot → repère ROSE (#EC1E79) ; signalement → repère ROUGE.
     final reticleColor = _pickingSpotPos.value
         ? const Color(0xFFEC1E79)
-        : const Color(0xFFDC2626);
+        : (_pickingRoutePos.value
+            ? PawMapTheme.ok // vert : couleur du bouton Itinéraire
+            : const Color(0xFFDC2626));
     return IgnorePointer(
       child: Center(
         child: Padding(
@@ -5980,7 +6473,13 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (p.longitude > maxLng) maxLng = p.longitude;
       }
       try {
-        final ctl = await _mapCtl.future;
+        // v554 — Daniel : « le bouton Itinéraire sur la grande map n'est pas
+        // branché ». Il l'était, mais la caméra était animée sur _mapCtl (la
+        // PETITE carte, cachée sous le calque agrandi) : le tracé apparaissait
+        // hors champ et rien ne bougeait à l'écran. On vise désormais la carte
+        // RÉELLEMENT visible.
+        final ctl = await _activeMapCtl();
+        if (ctl == null) return;
         await ctl.animateCamera(
           CameraUpdate.newLatLngBounds(
             LatLngBounds(

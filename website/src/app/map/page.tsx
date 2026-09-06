@@ -540,6 +540,25 @@ export default function MapPage() {
     );
   }, [members, worldMembers, memberRoles]);
 
+  // v554 — Daniel : « 28 membres autour de moi, ce n'est pas vrai ; autour de
+  // moi ça devrait être environ 50 km ». Le compteur reprenait la liste
+  // ENTIÈRE (couche monde comprise) : en dézoomant il annonçait des membres
+  // situés à des milliers de kilomètres. On ne compte plus que ceux à moins de
+  // 50 km de l'utilisateur (à défaut de géolocalisation : du centre de la
+  // carte). Même règle que dans l'app.
+  const membersAround = useMemo(() => {
+    const ref = userLocation ?? { lat: center[0], lng: center[1] };
+    const cosRef = Math.max(0.05, Math.abs(Math.cos((ref.lat * Math.PI) / 180)));
+    return allMembers.filter((m) => {
+      const lat = m.location?.coordinates?.[1];
+      const lng = m.location?.coordinates?.[0];
+      if (typeof lat !== "number" || typeof lng !== "number") return false;
+      const dLat = (lat - ref.lat) * 111.32;
+      const dLng = (lng - ref.lng) * 111.32 * cosRef;
+      return dLat * dLat + dLng * dLng <= 50 * 50;
+    }).length;
+  }, [allMembers, userLocation, center]);
+
   // v548 — « cliquer sur eux et demander en ami » depuis le popup du membre.
   const handleAddFriend = useCallback(
     async (m: NearbyMember): Promise<"sent" | "already" | "error"> => {
@@ -1081,12 +1100,9 @@ export default function MapPage() {
             </button>
           );
         })}
-        {allMembers.length > 0 && (
+        {membersAround > 0 && (
           <span className="ml-1 text-xs font-semibold text-ink-muted">
-            {t("map_members_around").replace(
-              "{count}",
-              String(allMembers.length),
-            )}
+            {t("map_members_around").replace("{count}", String(membersAround))}
           </span>
         )}
       </div>
