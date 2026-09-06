@@ -58,7 +58,33 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 552.** 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 554** (553 = versionCode Android de la 552). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+
+**06/09 (soir) — v552 « redesign PawMap v3 » (maquette Claude Design + spec)**
+- **2 bugs critiques** : le retour Android fermait l'app en carte agrandie
+  (PopScope + workers qui recalculent `canPop`) ; boutons sous la barre
+  système (marges `viewPadding` + 126 / + 66).
+- **Carte plein écran** avec header et panneau « verre dépoli » flottants ;
+  la grille 2×2, les filtres et les toggles fusionnés en UN panneau.
+- **Filtres cumulables en pastel** (bleu gardien, vert promeneur, orange
+  propriétaire, rouge signalement — décision Daniel : « pastel doux »),
+  contour rose sur « Tous »/« Rien » quand ils s'appliquent.
+- **Dock bas** : SOS animal, Partager la carte, Calques, Mode nuit, Historique.
+- **SOS animal** (seule nouvelle fonctionnalité produit) : `POST /map-reports/sos`
+  → signalement `lost_pet` avec `isSos`, notification à tous les membres dans
+  10 km, 1 SOS/heure/personne. Textes `sos_pet_nearby` en 9 langues.
+- **Partages contextuels** : `/spot/:id`, `/alert/:id`, `/map?lat&lng&z` déclarés
+  en liens universels (AASA + manifest) ; PawMapScreen centre et ouvre la fiche ;
+  page web `/alert/[id]` (composant serveur) + `GET /map-reports/public/:id`.
+- **Amis** : bouton rose + QR code (qr_flutter) / WhatsApp / e-mail.
+- **Balade** : `startWalk`/`endWalk` n'envoyaient AUCUNE notification → le
+  propriétaire reçoit « balade commencée » et « balade terminée » (9 langues).
+- ⚠️ **Play Console a refusé tous les clics automatisés ce jour-là** (« Suivant »
+  et « Enregistrer comme brouillon » inertes, même en séquence pointer/mouse
+  complète) et le 1er import a **consommé le versionCode 552** → AAB rebuildé en
+  **code 553** (`~/Downloads/HoPetSit_v23.1.552_code553.aab`), import Play à
+  faire à la main avec `~/Downloads/HoPetSit_552_notes_de_version.txt`.
+  **iOS : 1.14 resoumise avec le build 552 (WAITING_FOR_REVIEW).**
 
 **06/09 (matin) — v551 « PawMap pro » (demandes Daniel)**
 - **Pastille « Chargement… » supprimée** : elle s'affichait dès qu'une couche
