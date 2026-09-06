@@ -30,6 +30,24 @@ const startWalk = async (req, res) => {
       status: 'active',
       positions: [],
     });
+    // v552 — Daniel : « faut-il un bouton on/off dans les messages pour être
+    // prévenu quand il promène ? ». Réponse produit : non — le propriétaire ne
+    // veut pas s'abonner à quelque chose, il veut être prévenu pendant SA
+    // réservation, et le promeneur ne doit rien avoir à faire de plus que
+    // « Démarrer la balade ». On notifie donc automatiquement, ici.
+    try {
+      const { sendNotification } = require('../services/notificationSender');
+      await sendNotification({
+        userId: booking.ownerId,
+        role: 'owner',
+        type: 'walk_started',
+        data: { bookingId: String(bookingId), walkId: String(walk._id) },
+        actor: { role: 'sitter', id: req.user.id },
+      });
+    } catch (nerr) {
+      logger.warn(`[startWalk] notify owner failed : ${nerr?.message || nerr}`);
+    }
+
     res.status(201).json({ walk });
   } catch (e) {
     logger.error('startWalk error', e);
@@ -75,6 +93,28 @@ const endWalk = async (req, res) => {
     walk.endedAt = new Date();
     await walk.save();
     emitToWalk(id, 'walk.ended', { walkId: id, endedAt: walk.endedAt });
+
+    // v552 — résumé de fin de balade au propriétaire (durée + points GPS).
+    try {
+      const { sendNotification } = require('../services/notificationSender');
+      const minutes = walk.startedAt
+        ? Math.max(1, Math.round((walk.endedAt - walk.startedAt) / 60000))
+        : 0;
+      await sendNotification({
+        userId: walk.ownerId,
+        role: 'owner',
+        type: 'walk_finished',
+        data: {
+          bookingId: String(walk.bookingId),
+          walkId: String(walk._id),
+          minutes,
+        },
+        actor: { role: 'sitter', id: req.user.id },
+      });
+    } catch (nerr) {
+      logger.warn(`[endWalk] notify owner failed : ${nerr?.message || nerr}`);
+    }
+
     res.json({ walk });
   } catch (e) {
     logger.error('endWalk error', e);

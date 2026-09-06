@@ -87,6 +87,8 @@ dependencies:
   # Le backend cr??e la session via stripeIdentityService.js et renvoie
   # l'url, on la launch telle quelle.
   url_launcher: ^6.3.1
+  # v552 — QR code d'invitation (spec redesign v3, onglet « Ajouter »).
+  qr_flutter: ^4.1.0
   # v22.5 ??? POLISH 2 : toasts modernes en remplacement des Get.snackbar
   # encombrants. Slim ~64px, slide-from-top, swipe-dismiss, ic??ne+couleur,
   # auto-dismiss 3s. Utilis?? via lib/widgets/modern_toast.dart et le shim

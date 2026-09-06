@@ -340,5 +340,17 @@
     "body": "Un animal vient d'être signalé perdu à moins de 10 km. Ouvre la PawMap pour voir où et aider.",
     "emailSubject": "SOS animal perdu près de chez toi — HoPetSit",
     "emailBody": "<p>Un animal vient d'être signalé perdu à moins de 10 km. Ouvre la PawMap pour voir où et aider.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#CE3B2C;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">PawMap</a></p>"
+  },
+  "walk_started": {
+    "title": "La balade a commencé 🐕",
+    "body": "Ton animal est parti en balade. Tu peux suivre le trajet en direct sur la PawMap.",
+    "emailSubject": "La balade a commencé 🐕",
+    "emailBody": "<p>Ton animal est parti en balade. Tu peux suivre le trajet en direct sur la PawMap.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">HoPetSit</a></p>"
+  },
+  "walk_finished": {
+    "title": "Balade terminée ✅",
+    "body": "La balade est finie ({{minutes}} min). Ouvre l'app pour voir le trajet et le compte rendu.",
+    "emailSubject": "Balade terminée ✅",
+    "emailBody": "<p>La balade est finie ({{minutes}} min). Ouvre l'app pour voir le trajet et le compte rendu.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">HoPetSit</a></p>"
   }
 }

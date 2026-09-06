@@ -21,6 +21,9 @@ import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dar
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:hopetsit/utils/pawmap_theme.dart';
 import 'package:share_plus/share_plus.dart';
 
 /// Friends management screen — 2 tabs.
@@ -2163,6 +2166,151 @@ class _AddFriendTabState extends State<_AddFriendTab> {
     });
   }
 
+
+  /// v552 — lien d'invitation personnel (même format que le partage global).
+  String _inviteLink() {
+    String myId = '';
+    String myRole = '';
+    try {
+      final raw = GetStorage().read(StorageKeys.userProfile);
+      if (raw is Map) {
+        myId = (raw['id'] ?? raw['_id'] ?? '').toString();
+        myRole = (raw['role'] ?? '').toString();
+      }
+      if (myRole.isEmpty) {
+        myRole = (GetStorage().read(StorageKeys.userRole) ?? '').toString();
+      }
+    } catch (_) {/* noop */}
+    if (myId.isEmpty) return 'https://hopetsit.com';
+    return 'https://hopetsit.com/invite?from=$myId'
+        '${myRole.isNotEmpty ? '&role=$myRole' : ''}';
+  }
+
+  /// Petit raccourci carré (QR / WhatsApp / e-mail) de l'onglet Ajouter.
+  Widget _shareShortcut({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 12.h),
+        decoration: BoxDecoration(
+          color: PawMapTheme.rose.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(
+            color: PawMapTheme.rose.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: PawMapTheme.rose, size: 20.sp),
+            SizedBox(height: 5.h),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: PawMapTheme.font(
+                size: 10.5.sp,
+                weight: FontWeight.w700,
+                color: PawMapTheme.rose,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// QR code de l'invitation : l'ami scanne, il arrive directement sur la
+  /// demande d'ami (le lien /invite est un lien universel).
+  void _showInviteQr() {
+    final link = _inviteLink();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(26.r),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(22.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'friends_share_qr_title'.tr,
+                textAlign: TextAlign.center,
+                style: PawMapTheme.font(size: 16.sp, weight: FontWeight.w800),
+              ),
+              SizedBox(height: 14.h),
+              QrImageView(
+                data: link,
+                size: 220.w,
+                backgroundColor: Colors.white,
+                eyeStyle: const QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: PawMapTheme.ink,
+                ),
+                dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: PawMapTheme.ink,
+                ),
+              ),
+              SizedBox(height: 12.h),
+              Text(
+                'friends_share_qr_hint'.tr,
+                textAlign: TextAlign.center,
+                style: PawMapTheme.font(
+                  size: 11.5.sp,
+                  weight: FontWeight.w500,
+                  color: PawMapTheme.sub,
+                ),
+              ),
+              SizedBox(height: 12.h),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text('common_close'.tr),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Partage direct par WhatsApp ou e-mail (au lieu de la feuille système).
+  Future<void> _shareVia(String channel) async {
+    String myName = '';
+    try {
+      final raw = GetStorage().read(StorageKeys.userProfile);
+      if (raw is Map) myName = (raw['name'] ?? '').toString();
+    } catch (_) {/* noop */}
+    final text = 'friends_invite_message'.trParams({
+      'name': myName.isEmpty ? 'HoPetSit' : myName,
+      'link': _inviteLink(),
+    });
+    final uri = channel == 'whatsapp'
+        ? Uri.parse('https://wa.me/?text=${Uri.encodeComponent(text)}')
+        : Uri(
+            scheme: 'mailto',
+            query: 'subject=${Uri.encodeComponent('friends_invite_subject'.tr)}'
+                '&body=${Uri.encodeComponent(text)}',
+          );
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok) throw Exception('cannot launch');
+    } catch (_) {
+      // WhatsApp ou le client mail absent → on retombe sur le partage système.
+      await SharePlus.instance.share(
+        ShareParams(text: text, subject: 'friends_invite_subject'.tr),
+      );
+    }
+  }
+
   Future<void> _onShareInvite() async {
     try {
       String myId = '';
@@ -2198,30 +2346,58 @@ class _AddFriendTabState extends State<_AddFriendTab> {
     return ListView(
       padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
       children: [
-        // Bouton partage lien (WhatsApp / SMS / email).
-        OutlinedButton.icon(
+        // v552 — spec redesign v3 : gros bouton « Partager mon lien
+        // d'invitation » plein rose + 3 raccourcis QR / WhatsApp / e-mail.
+        ElevatedButton.icon(
           onPressed: _onShareInvite,
-          icon: Icon(Icons.ios_share_rounded,
-              color: _circleViolet, size: 20.sp),
+          icon: Icon(Icons.ios_share_rounded, color: Colors.white, size: 20.sp),
           label: Padding(
             padding: EdgeInsets.symmetric(vertical: 4.h),
-            child: InterText(
-              text: 'friends_add_share_link'.tr,
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w700,
-              color: _circleViolet,
+            child: Text(
+              'friends_add_share_link'.tr,
+              style: PawMapTheme.font(
+                size: 13.5.sp,
+                weight: FontWeight.w800,
+                color: Colors.white,
+              ),
             ),
           ),
-          style: OutlinedButton.styleFrom(
-            side: BorderSide(
-              color: _circleViolet.withValues(alpha: 0.4),
-              width: 1.2,
-            ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: PawMapTheme.rose,
+            elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14.r),
+              borderRadius: BorderRadius.circular(16.r),
             ),
-            minimumSize: Size(double.infinity, 48.h),
+            minimumSize: Size(double.infinity, 50.h),
           ),
+        ),
+        SizedBox(height: 10.h),
+        Row(
+          children: [
+            Expanded(
+              child: _shareShortcut(
+                icon: Icons.qr_code_2_rounded,
+                label: 'friends_share_qr'.tr,
+                onTap: _showInviteQr,
+              ),
+            ),
+            SizedBox(width: 8.w),
+            Expanded(
+              child: _shareShortcut(
+                icon: Icons.chat_rounded,
+                label: 'WhatsApp',
+                onTap: () => _shareVia('whatsapp'),
+              ),
+            ),
+            SizedBox(width: 8.w),
+            Expanded(
+              child: _shareShortcut(
+                icon: Icons.mail_rounded,
+                label: 'friends_share_email'.tr,
+                onTap: () => _shareVia('email'),
+              ),
+            ),
+          ],
         ),
         SizedBox(height: 14.h),
         // Recherche par nom / email.

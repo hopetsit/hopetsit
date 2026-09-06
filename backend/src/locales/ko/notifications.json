@@ -340,5 +340,17 @@
     "body": "10km 이내에서 반려동물 실종 신고가 접수되었습니다. PawMap을 열어 위치를 확인하고 도와주세요.",
     "emailSubject": "근처에서 반려동물 SOS — HoPetSit",
     "emailBody": "<p>10km 이내에서 반려동물 실종 신고가 접수되었습니다. PawMap을 열어 위치를 확인하고 도와주세요.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#CE3B2C;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">PawMap</a></p>"
+  },
+  "walk_started": {
+    "title": "산책이 시작되었습니다 🐕",
+    "body": "반려동물이 산책을 나갔습니다. PawMap에서 경로를 실시간으로 확인하세요.",
+    "emailSubject": "산책이 시작되었습니다 🐕",
+    "emailBody": "<p>반려동물이 산책을 나갔습니다. PawMap에서 경로를 실시간으로 확인하세요.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">HoPetSit</a></p>"
+  },
+  "walk_finished": {
+    "title": "산책 종료 ✅",
+    "body": "산책이 끝났습니다({{minutes}}분). 앱에서 경로와 리포트를 확인하세요.",
+    "emailSubject": "산책 종료 ✅",
+    "emailBody": "<p>산책이 끝났습니다({{minutes}}분). 앱에서 경로와 리포트를 확인하세요.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">HoPetSit</a></p>"
   }
 }

@@ -340,5 +340,17 @@
     "body": "10km以内で迷子のペットが報告されました。PawMapを開いて場所を確認し、力を貸してください。",
     "emailSubject": "近くで迷子ペットのSOS — HoPetSit",
     "emailBody": "<p>10km以内で迷子のペットが報告されました。PawMapを開いて場所を確認し、力を貸してください。</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#CE3B2C;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">PawMap</a></p>"
+  },
+  "walk_started": {
+    "title": "お散歩が始まりました 🐕",
+    "body": "ペットがお散歩に出かけました。PawMapでルートをリアルタイムに確認できます。",
+    "emailSubject": "お散歩が始まりました 🐕",
+    "emailBody": "<p>ペットがお散歩に出かけました。PawMapでルートをリアルタイムに確認できます。</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">HoPetSit</a></p>"
+  },
+  "walk_finished": {
+    "title": "お散歩終了 ✅",
+    "body": "お散歩が終わりました（{{minutes}}分）。アプリでルートとレポートをご覧ください。",
+    "emailSubject": "お散歩終了 ✅",
+    "emailBody": "<p>お散歩が終わりました（{{minutes}}分）。アプリでルートとレポートをご覧ください。</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">HoPetSit</a></p>"
   }
 }
