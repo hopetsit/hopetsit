@@ -58,7 +58,31 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 554** (553 = versionCode Android de la 552). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 556** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+
+**06/09 (nuit) — v553 « placement des boutons » (retours Daniel sur captures) — PUBLIÉE**
+- Petite carte : « ma position » passe en BAS À DROITE ; les deux rails sont
+  désormais dans UNE rangée ancrée en bas (`Row` + `crossAxisAlignment.center`)
+  → ils restent centrés l'un sur l'autre quelles que soient leurs hauteurs.
+- Rails : retour aux BOUTONS RONDS icône seule 44 px (les pilules à libellé
+  de la v552 mangeaient la carte et cassaient l'alignement) ; libellé en appui
+  long. Grande carte : ajout d'Itinéraire (vert), Chat du cercle (bleu) et
+  Photo du spot (orange) au-dessus des 4 habituels.
+- Panneau des filtres : fond BLANC OPAQUE (le translucide laissait la carte
+  défiler derrière le texte).
+- Dock bas : marge système + 14 ; rails : marge système + 82 → plus de
+  chevauchement entre les deux rangées.
+- **Bug** : « pas de retour en ouvrant le chat depuis la carte ». ChatScreen /
+  SitterChatScreen sont des onglets racines → `CustomAppBar` avec
+  `automaticallyImplyLeading: false` par défaut, donc aucun bouton retour quand
+  l'écran est EMPILÉ. Corrigé avec `Navigator.of(context).canPop()`.
+- Audit : les 20 boutons de la carte sont branchés ; les 4 écrans ouverts
+  depuis la carte ont bien leur retour.
+- **Publié** : Play « Modifications en cours d'examen » (bundle 555) ; iOS 1.14
+  WAITING_FOR_REVIEW avec le build 555. La 552 est ACTIVE sur Play.
+- ⚠️ **Numérotation** : le build iOS reprend le `+N` du pubspec → la version
+  23.1.553 a produit le **build iOS 555** (et non 553). Les versionCodes 552,
+  553 et 554 ont été consommés par les tentatives d'import Play.
 
 **06/09 (soir) — v552 « redesign PawMap v3 » (maquette Claude Design + spec)**
 - **2 bugs critiques** : le retour Android fermait l'app en carte agrandie
