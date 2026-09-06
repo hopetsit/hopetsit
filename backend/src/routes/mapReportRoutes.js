@@ -407,6 +407,123 @@ router.post('/', requireAuth, attachPremium, async (req, res) => {
   }
 });
 
+// ── POST /sos — v552 « SOS animal » (spec redesign v3) ─────────────────────
+// Daniel : « SOS animal = alerte animal perdu géolocalisée : crée un
+// signalement prioritaire ET prévient les membres autour ».
+//   1. crée un signalement `lost_pet` (type gratuit) à la position donnée ;
+//   2. notifie tous les membres géolocalisés dans SOS_RADIUS_M (10 km), tous
+//      rôles confondus, sauf l'auteur et les comptes de test ;
+//   3. anti-abus : un seul SOS par utilisateur par heure.
+// Rien de tout ça n'existait : c'est la seule nouvelle fonctionnalité produit
+// du redesign, le reste n'est que de l'interface.
+const SOS_RADIUS_M = 10000;
+const SOS_COOLDOWN_MS = 60 * 60 * 1000;
+const SOS_MAX_TARGETS = 400;
+router.post('/sos', requireAuth, async (req, res) => {
+  try {
+    const { note, photoUrl, lat, lng, city } = req.body || {};
+    const latNum = parseFloatOr(lat, null);
+    const lngNum = parseFloatOr(lng, null);
+    if (latNum === null || lngNum === null || (latNum === 0 && lngNum === 0)) {
+      return res.status(400).json({
+        error: 'Valid lat and lng are required.',
+        code: 'INVALID_LOCATION',
+      });
+    }
+
+    // Anti-abus : 1 SOS/heure/utilisateur.
+    const recent = await MapReport.findOne({
+      reporterId: req.user.id,
+      type: 'lost_pet',
+      isSos: true,
+      createdAt: { $gt: new Date(Date.now() - SOS_COOLDOWN_MS) },
+    })
+      .select('_id createdAt')
+      .lean();
+    if (recent) {
+      return res.status(429).json({
+        error: 'A SOS was already sent in the last hour.',
+        code: 'SOS_COOLDOWN',
+        reportId: String(recent._id),
+      });
+    }
+
+    const userModel = ROLE_TO_MODEL_NAME[req.user.role] || 'Owner';
+    const report = new MapReport({
+      type: 'lost_pet',
+      isSos: true,
+      note: require('../services/textModerationService')
+        .moderateText(note || '').clean,
+      photoUrl: photoUrl || '',
+      location: {
+        type: 'Point',
+        coordinates: [lngNum, latNum],
+        city: city || '',
+      },
+      reporterId: req.user.id,
+      reporterModel: userModel,
+    });
+    await report.save();
+
+    // Destinataires : membres géolocalisés dans le rayon, hors auteur.
+    let notified = 0;
+    try {
+      const Owner = require('../models/Owner');
+      const Sitter = require('../models/Sitter');
+      const Walker = require('../models/Walker');
+      const { sendNotification } = require('../services/notificationSender');
+      const geo = {
+        location: {
+          $near: {
+            $geometry: { type: 'Point', coordinates: [lngNum, latNum] },
+            $maxDistance: SOS_RADIUS_M,
+          },
+        },
+      };
+      const per = Math.floor(SOS_MAX_TARGETS / 3);
+      const [owners, sitters, walkers] = await Promise.all([
+        Owner.find(geo).select('_id email').limit(per).lean(),
+        Sitter.find(geo).select('_id email').limit(per).lean(),
+        Walker.find(geo).select('_id email').limit(per).lean(),
+      ]);
+      const targets = [
+        ...owners.map((d) => ({ d, role: 'owner' })),
+        ...sitters.map((d) => ({ d, role: 'sitter' })),
+        ...walkers.map((d) => ({ d, role: 'walker' })),
+      ];
+      for (const { d, role } of targets) {
+        if (String(d._id) === String(req.user.id)) continue;
+        if (/\+test/i.test(d.email || '')) continue;
+        try {
+          await sendNotification({
+            userId: d._id,
+            role,
+            type: 'sos_pet_nearby',
+            data: {
+              reportId: String(report._id),
+              city: city || '',
+              lat: latNum,
+              lng: lngNum,
+            },
+            actor: { role: req.user.role, id: req.user.id },
+          });
+          notified += 1;
+        } catch (_) {/* un destinataire injoignable ne bloque pas les autres */}
+      }
+    } catch (notifyErr) {
+      logger.warn(`[mapReport/sos] notify failed : ${notifyErr?.message || notifyErr}`);
+    }
+
+    logger.info(
+      `[mapReport/sos] ${req.user.role} ${req.user.id} → report ${report._id}, ${notified} membres prévenus`,
+    );
+    return res.status(201).json({ report, notified, radiusMeters: SOS_RADIUS_M });
+  } catch (e) {
+    logger.error('[mapReport/sos]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // ── POST /:id/confirm — extend life by 12h (Premium) ───────────────────────
 // v452 — Daniel : « aider pour un animal perdu » doit être CÂBLÉ et GRATUIT
 // pour tout le monde. On passe en `attachPremium` (n'bloque pas) puis on

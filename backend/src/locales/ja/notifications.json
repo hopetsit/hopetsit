@@ -334,5 +334,11 @@
     "body": "問題が解決し、予約は返金されます。5〜10日以内にお支払い方法へ返金されます。",
     "emailSubject": "予約の返金 — HoPetSit",
     "emailBody": "<p>当チームで内容を確認しました。ご予約は<strong>返金</strong>されます。営業日で5〜10日以内に、お支払い方法へ返金されます。</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">予約を見る</a></p>"
+  },
+  "sos_pet_nearby": {
+    "title": "近くで迷子ペットのSOS 🆘",
+    "body": "10km以内で迷子のペットが報告されました。PawMapを開いて場所を確認し、力を貸してください。",
+    "emailSubject": "近くで迷子ペットのSOS — HoPetSit",
+    "emailBody": "<p>10km以内で迷子のペットが報告されました。PawMapを開いて場所を確認し、力を貸してください。</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#CE3B2C;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">PawMap</a></p>"
   }
 }

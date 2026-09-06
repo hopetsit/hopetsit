@@ -71,6 +71,10 @@ const mapReportSchema = new mongoose.Schema(
       index: true,
     },
     note: { type: String, default: '', maxlength: 500 },
+    // v552 — « SOS animal » (dock de la PawMap) : signalement lost_pet créé en
+    // urgence, qui a notifié les membres dans 10 km. Sert à l'affichage
+    // prioritaire sur la carte et au garde-fou anti-abus (1 SOS/heure).
+    isSos: { type: Boolean, default: false },
     photoUrl: { type: String, default: '' },
 
     location: {

@@ -334,5 +334,11 @@
     "body": "분쟁이 해결됐어요. 예약이 환불되며, 결제 수단으로 5~10일 이내에 돌아가요.",
     "emailSubject": "예약 환불 — HoPetSit",
     "emailBody": "<p>저희 팀이 분쟁을 검토했습니다. 해당 예약은 <strong>환불</strong>됩니다. 영업일 기준 5~10일 이내에 결제하신 수단으로 환불됩니다.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">예약 보기</a></p>"
+  },
+  "sos_pet_nearby": {
+    "title": "근처에서 반려동물 SOS 🆘",
+    "body": "10km 이내에서 반려동물 실종 신고가 접수되었습니다. PawMap을 열어 위치를 확인하고 도와주세요.",
+    "emailSubject": "근처에서 반려동물 SOS — HoPetSit",
+    "emailBody": "<p>10km 이내에서 반려동물 실종 신고가 접수되었습니다. PawMap을 열어 위치를 확인하고 도와주세요.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#CE3B2C;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">PawMap</a></p>"
   }
 }

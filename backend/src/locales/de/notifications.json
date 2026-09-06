@@ -334,5 +334,11 @@
     "body": "Der Streitfall wurde entschieden: die Buchung wird erstattet. Der Betrag geht innerhalb von 5 bis 10 Tagen zurück.",
     "emailSubject": "Buchung erstattet — HoPetSit",
     "emailBody": "<p>Unser Team hat den Streitfall geprüft: die Buchung wird <strong>erstattet</strong>. Der Betrag geht innerhalb von 5 bis 10 Werktagen auf dein Zahlungsmittel zurück.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p>"
+  },
+  "sos_pet_nearby": {
+    "title": "SOS vermisstes Tier in deiner Nähe 🆘",
+    "body": "Ein Tier wurde gerade weniger als 10 km entfernt als vermisst gemeldet. Öffne die PawMap, um zu helfen.",
+    "emailSubject": "SOS vermisstes Tier in deiner Nähe — HoPetSit",
+    "emailBody": "<p>Ein Tier wurde gerade weniger als 10 km entfernt als vermisst gemeldet. Öffne die PawMap, um zu helfen.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#CE3B2C;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">PawMap</a></p>"
   }
 }

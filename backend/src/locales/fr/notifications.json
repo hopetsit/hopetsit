@@ -334,5 +334,11 @@
     "body": "Le litige a été tranché : la réservation est remboursée. Le montant revient sur ton moyen de paiement sous 5 à 10 jours.",
     "emailSubject": "Réservation remboursée — HoPetSit",
     "emailBody": "<p>Le litige a été examiné par notre équipe : la réservation est <strong>remboursée</strong>. Le montant revient sur ton moyen de paiement sous 5 à 10 jours ouvrés.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la réservation</a></p>"
+  },
+  "sos_pet_nearby": {
+    "title": "SOS animal perdu près de chez toi 🆘",
+    "body": "Un animal vient d'être signalé perdu à moins de 10 km. Ouvre la PawMap pour voir où et aider.",
+    "emailSubject": "SOS animal perdu près de chez toi — HoPetSit",
+    "emailBody": "<p>Un animal vient d'être signalé perdu à moins de 10 km. Ouvre la PawMap pour voir où et aider.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#CE3B2C;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">PawMap</a></p>"
   }
 }

@@ -22,7 +22,9 @@ import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:hopetsit/utils/pawmap_theme.dart';
+import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
@@ -187,6 +189,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   // v23.1.266 — Daniel : "un bouton discret pour une vue satellite". Type de
   // carte togglable normal ↔ hybride (satellite + rues/labels).
   MapType _mapType = MapType.normal;
+  /// v552 — mode nuit de la CARTE (spec v3, dock bas). N'affecte que le style
+  /// Google Maps, pas le thème de l'app (qui a son propre réglage).
+  final RxBool _nightMode = false.obs;
 
   /// Nearby reservation requests for the sitter/walker layer. Fetched in
   /// `_reloadAtCenter()` via `/posts/requests/nearby`. Empty for owner role.
@@ -453,6 +458,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     // carte ; le choix manuel (ON/OFF) est persisté dans GetStorage.
     unawaited(_pawSpotController.refreshBenefits().then((active) {
       if (!mounted || !active || _showPawSpots.value) return;
+      // v552 — mode nuit de la carte mémorisé d'une session à l'autre.
+      _nightMode.value = GetStorage().read('pawmap_night_mode') == true;
       final stored = GetStorage().read('pawspot_layer_on');
       if (stored != false) {
         _showPawSpots.value = true;
@@ -3226,23 +3233,12 @@ class _PawMapScreenState extends State<PawMapScreen>
           // v463 — tout le contenu d'origine reste DANS cette Column : la
           // GoogleMap normale n'est jamais redimensionnée ni détruite. Le mode
           // agrandi est un calque posé par-dessus (voir plus bas).
+          // v552 — redesign v3 : la CARTE occupe tout l'écran ; la ligne
+          // « Partager ma position + Agrandir » et le panneau en verre dépoli
+          // flottent PAR-DESSUS (voir le Positioned plus bas). Avant, ils
+          // étaient empilés au-dessus et mangeaient la moitié de la hauteur.
           Column(
         children: [
-          // v463 — Daniel : barre du haut = [ Suivi en direct ON/OFF ] +
-          // bouton compact [ Agrandir ] sur la MÊME ligne.
-          _buildTopShareRow(),
-
-          // v23.1.184 — Daniel : "je veux que tu reorganise la paw map
-          // dans ce style" (mockup avec 4 grosses cartes colorees Suivre
-          // / Famille & Amis / Alertes / Signaler). Remplace les anciens
-          // _buildQuickSignalRow + _buildEmergencyRow qui faisaient
-          // doublon avec le FAB et chargeaient l'ecran.
-          // v552 — redesign v3 : la grille 2×2, la rangée de filtres et la
-          // rangée de toggles sont fusionnées dans UN panneau « verre dépoli »
-          // (4 actions compactes + filtres cumulables centrés + compteur +
-          // les 3 abonnements). Aucune option perdue, beaucoup moins de place.
-          _buildGlassPanel(),
-
           // Map
           Expanded(
             child: Stack(
@@ -3359,6 +3355,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                       // _cachedMarkers + _getMarkersFromCache plus haut.
                       // Plus de _buildMarkers() sur chaque tick halo.
                       mapType: _mapType,
+                      style: _nightMode.value ? _nightMapStyle : null,
                       markers: _getMarkersFromCache(),
                       circles: _buildHaloCircles(),
                       // v23.1.353 — polyline orange de l'itinéraire "Y aller"
@@ -3497,6 +3494,24 @@ class _PawMapScreenState extends State<PawMapScreen>
           ),
         ],
       ),
+
+          // v552 — panneaux flottants de la petite carte (au-dessus de la
+          // carte plein écran, comme la maquette). Masqués quand la carte est
+          // agrandie : le calque a ses propres commandes.
+          Obx(() => _mapExpanded.value
+              ? const SizedBox.shrink()
+              : Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildTopShareRow(),
+                      _buildGlassPanel(),
+                    ],
+                  ),
+                )),
 
           // ── CALQUE « carte agrandie » (par-dessus la PawMap normale) ────
           // La PawMap normale ci-dessus reste montée et INTACTE (sa GoogleMap
@@ -4897,6 +4912,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 myLocationButtonEnabled: false,
                 zoomControlsEnabled: false,
                 mapType: _mapType,
+                style: _nightMode.value ? _nightMapStyle : null,
                 markers: _getMarkersFromCache(),
                 circles: _buildHaloCircles(),
                 polylines: _routePolylines,
@@ -4939,6 +4955,16 @@ class _PawMapScreenState extends State<PawMapScreen>
             // écrans et le passait sous la barre système en paysage).
             bottom: _navInset(context) + 126.h,
             child: _buildMapActionsColumn(),
+          ),
+
+          // v552 — dock bas (spec v3) : SOS animal, Partager la carte,
+          // Calques, Mode nuit, Historique — ancré au-dessus de la barre
+          // système (marge + 66).
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: _navInset(context) + 66.h,
+            child: _buildMapDock(),
           ),
 
           // v550 — Daniel : « quand la carte est en grand, rajoute le bouton
@@ -5003,55 +5029,343 @@ class _PawMapScreenState extends State<PawMapScreen>
     });
   }
 
-  /// Bouton rond (Material + InkWell, sans Hero) + mini-label dessous.
+
+
+  // ─── v552 — NOUVELLES ACTIONS DU DOCK ────────────────────────────────────
+
+  /// Partage un lien qui rouvre la carte EXACTEMENT ici (position + zoom).
+  /// Daniel : « quand on partage un lien, que ça tombe sur la chose précise ».
+  /// Le site sait lire ?lat/?lng/?z et l'app capte le lien universel.
+  Future<void> _shareCurrentMap() async {
+    final c = _currentCenter;
+    final url = 'https://www.hopetsit.com/map'
+        '?lat=${c.latitude.toStringAsFixed(5)}'
+        '&lng=${c.longitude.toStringAsFixed(5)}'
+        '&z=${_zoomLevel.round()}';
+    await SharePlus.instance.share(
+      ShareParams(
+        text: '${'pawmap_share_map_text'.tr}\n$url',
+        subject: 'PawMap — HoPetSit',
+      ),
+    );
+  }
+
+  /// SOS animal : signalement prioritaire + alerte aux membres dans 10 km.
+  /// On demande confirmation (c'est une notification envoyée à de vraies
+  /// personnes) puis on appelle POST /map-reports/sos.
+  Future<void> _openSosAnimal() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card(context),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22.r),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.sos_rounded, color: PawMapTheme.danger, size: 22.sp),
+            SizedBox(width: 8.w),
+            Expanded(
+              child: Text(
+                'pawmap_sos_title'.tr,
+                style: PawMapTheme.font(
+                    size: 17.sp,
+                    weight: FontWeight.w800,
+                    color: AppColors.textPrimary(context)),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'pawmap_sos_body'.tr,
+          style: PawMapTheme.font(
+              size: 13.sp,
+              weight: FontWeight.w500,
+              color: AppColors.textSecondary(context)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('common_cancel'.tr),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: PawMapTheme.danger,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14.r),
+              ),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('pawmap_sos_send'.tr),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
+    if (api == null) return;
+    final pos = _userPosition ?? _currentCenter;
+    try {
+      final res = await api.post(
+        '/map-reports/sos',
+        body: {
+          'lat': pos.latitude,
+          'lng': pos.longitude,
+          'note': '',
+        },
+        requiresAuth: true,
+      );
+      final n = ((res as Map?)?['notified'] as num?)?.toInt() ?? 0;
+      await _reloadAtCenter();
+      CustomSnackbar.showSuccess(
+        title: 'pawmap_sos_sent_title'.tr,
+        message: 'pawmap_sos_sent_msg'.trParams({'count': '$n'}),
+      );
+    } catch (e) {
+      final raw = e.toString();
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: raw.contains('SOS_COOLDOWN')
+            ? 'pawmap_sos_cooldown'.tr
+            : 'pawmap_sos_failed'.tr,
+      );
+    }
+  }
+
+  // ─── v552 — DOCK BAS DE LA CARTE AGRANDIE (spec redesign v3) ─────────────
+  // Nouvelles actions demandées par la maquette. Chacune est branchée sur une
+  // brique qui existe déjà dans l'app quand il y en a une (mode nuit = style
+  // sombre de la carte, historique = suivi de balade, calques = les couches
+  // déjà présentes) ; SOS animal est la seule vraie nouveauté produit.
+  Widget _buildMapDock() {
+    Widget pill({
+      required IconData icon,
+      required String label,
+      required VoidCallback onTap,
+      bool filled = false,
+      Color color = PawMapTheme.ink,
+    }) {
+      return Padding(
+        padding: EdgeInsets.only(right: 8.w),
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 13.w, vertical: 9.h),
+            decoration: BoxDecoration(
+              color: filled ? PawMapTheme.danger : Colors.white,
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: PawMapTheme.pillShadow,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon,
+                    size: 15.sp, color: filled ? Colors.white : color),
+                SizedBox(width: 6.w),
+                Text(
+                  label,
+                  style: PawMapTheme.font(
+                    size: 12.sp,
+                    weight: FontWeight.w700,
+                    color: filled ? Colors.white : PawMapTheme.ink,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 46.h,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: 12.w),
+        children: [
+          pill(
+            icon: Icons.sos_rounded,
+            label: 'pawmap_dock_sos'.tr,
+            filled: true,
+            onTap: _openSosAnimal,
+          ),
+          pill(
+            icon: Icons.ios_share_rounded,
+            label: 'pawmap_dock_share_map'.tr,
+            onTap: _shareCurrentMap,
+          ),
+          pill(
+            icon: Icons.layers_rounded,
+            label: 'pawmap_dock_layers'.tr,
+            onTap: _openLayersSheet,
+          ),
+          Obx(() => pill(
+                icon: _nightMode.value
+                    ? Icons.light_mode_rounded
+                    : Icons.dark_mode_rounded,
+                label: 'pawmap_dock_night'.tr,
+                onTap: _toggleNightMode,
+                color: _nightMode.value
+                    ? PawMapTheme.accent
+                    : PawMapTheme.ink,
+              )),
+          pill(
+            icon: Icons.timeline_rounded,
+            label: 'pawmap_dock_history'.tr,
+            onTap: () => _openScreen(() => const BookingsHistoryScreen()),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  /// v552 — style sombre de la carte (mode nuit du dock). Palette calée sur
+  /// les jetons de la maquette pour rester dans l'ambiance PawMap.
+  static const String _nightMapStyle = '''
+[
+  {"elementType":"geometry","stylers":[{"color":"#1d1b18"}]},
+  {"elementType":"labels.text.fill","stylers":[{"color":"#9c948a"}]},
+  {"elementType":"labels.text.stroke","stylers":[{"color":"#1d1b18"}]},
+  {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#26231f"}]},
+  {"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#232a24"}]},
+  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#2b2823"}]},
+  {"featureType":"road.arterial","elementType":"geometry","stylers":[{"color":"#332f29"}]},
+  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#3d3831"}]},
+  {"featureType":"transit","elementType":"geometry","stylers":[{"color":"#262320"}]},
+  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#141d24"}]},
+  {"featureType":"water","elementType":"labels.text.fill","stylers":[{"color":"#4a5b66"}]}
+]
+''';
+
+  /// Mode nuit : style sombre appliqué à la carte (pas au reste de l'app).
+  void _toggleNightMode() {
+    _nightMode.value = !_nightMode.value;
+    GetStorage().write('pawmap_night_mode', _nightMode.value);
+    if (mounted) setState(() {});
+  }
+
+  /// Feuille « Calques » : toutes les couches de la carte au même endroit.
+  void _openLayersSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: PawMapTheme.bg,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26.r)),
+        ),
+        padding: EdgeInsets.fromLTRB(18.w, 14.h, 18.w, 24.h),
+        child: Obx(() {
+          Widget row(String label, bool value, VoidCallback onTap,
+              IconData icon, Color color) {
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                width: 38.w,
+                height: 38.w,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(13.r),
+                ),
+                child: Icon(icon, size: 18.sp, color: color),
+              ),
+              title: Text(label,
+                  style: PawMapTheme.font(
+                      size: 13.sp, weight: FontWeight.w700)),
+              trailing: Switch.adaptive(
+                value: value,
+                activeThumbColor: PawMapTheme.ok,
+                onChanged: (_) => onTap(),
+              ),
+            );
+          }
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 42.w,
+                height: 4.h,
+                decoration: BoxDecoration(
+                  color: PawMapTheme.ink.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              SizedBox(height: 12.h),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('pawmap_dock_layers'.tr,
+                    style: PawMapTheme.font(
+                        size: 18.sp, weight: FontWeight.w800)),
+              ),
+              SizedBox(height: 6.h),
+              row('pawmap_filter_places'.tr, _showPois.value,
+                  () => _showPois.value = !_showPois.value,
+                  Icons.place_rounded, PawMapTheme.accent),
+              row('pawmap_filter_reports'.tr, _showReports.value,
+                  () => _showReports.value = !_showReports.value,
+                  Icons.warning_amber_rounded, PawMapTheme.danger),
+              row('pawmap_layer_members'.tr, _showProviders.value, () {
+                _showProviders.value = !_showProviders.value;
+                if (mounted) setState(() {});
+              }, Icons.people_alt_rounded, PawMapTheme.rose),
+              row('PawSpot', _showPawSpots.value, _togglePawSpot,
+                  Icons.pets_rounded, PawMapTheme.pawSpot),
+              row('PawFollow', _showLiveLayer.value, _togglePawFollow,
+                  Icons.share_location_rounded, PawMapTheme.pawFollow),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  /// v552 — spec redesign v3 : les boutons ronds + label deviennent des
+  /// PILULES (fond blanc translucide, radius 999, puce 28×28 pastel + icône,
+  /// libellé 11.5px/700). Plus lisibles, et elles ne masquent plus la carte.
   Widget _roundMapBtn({
     required IconData icon,
     required Color color,
     required String label,
     required VoidCallback onTap,
   }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Material(
-          color: color,
-          shape: const CircleBorder(),
-          elevation: 4,
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onTap,
-            child: SizedBox(
-              // v494 — Daniel : « Signaler » (4e bouton) masqué par le menu sur
-              // la petite carte. Boutons compactés (44→38) + colonne ancrée en
-              // haut (cf. Positioned) pour que les 4 tiennent au-dessus du menu.
-              width: 38.w,
-              height: 38.w,
-              child: Icon(icon, color: Colors.white, size: 18.sp),
-            ),
-          ),
-        ),
-        SizedBox(height: 3.h),
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.h),
+    return Padding(
+      padding: EdgeInsets.only(bottom: 8.h),
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: EdgeInsets.fromLTRB(5.w, 5.h, 12.w, 5.h),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(7.r),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 3,
-                offset: const Offset(0, 1),
+            color: Colors.white.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: PawMapTheme.pillShadow,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 28.w,
+                height: 28.w,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 15.sp, color: color),
+              ),
+              SizedBox(width: 7.w),
+              Text(
+                label,
+                style: PawMapTheme.font(size: 11.5.sp, weight: FontWeight.w700),
               ),
             ],
           ),
-          child: InterText(
-            text: label,
-            fontSize: 8.5.sp,
-            color: color,
-            fontWeight: FontWeight.w800,
-          ),
         ),
-      ],
+      ),
     );
   }
 

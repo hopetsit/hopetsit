@@ -334,5 +334,11 @@
     "body": "The dispute has been settled: the booking is refunded. The amount goes back to your payment method within 5 to 10 days.",
     "emailSubject": "Booking refunded — HoPetSit",
     "emailBody": "<p>Our team has reviewed the dispute: the booking is <strong>refunded</strong>. The amount goes back to your payment method within 5 to 10 business days.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p>"
+  },
+  "sos_pet_nearby": {
+    "title": "Lost pet SOS near you 🆘",
+    "body": "A pet has just been reported lost within 10 km of you. Open the PawMap to see where and help.",
+    "emailSubject": "Lost pet SOS near you — HoPetSit",
+    "emailBody": "<p>A pet has just been reported lost within 10 km of you. Open the PawMap to see where and help.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#CE3B2C;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">PawMap</a></p>"
   }
 }
