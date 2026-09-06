@@ -35,6 +35,12 @@ class ChatScreen extends StatelessWidget {
         return Obx(
           () => Scaffold(
             appBar: CustomAppBar(
+              // v553 — Daniel : « quand je rentre dans le chat il n'y a pas de
+              // retour ». L'écran est aussi ouvert DEPUIS la PawMap (bouton
+              // « Chat du cercle ») : dans ce cas il est empilé et doit
+              // afficher la flèche. En onglet racine, la pile est vide donc
+              // Flutter n'affiche rien — le comportement reste identique.
+              automaticallyImplyLeading: Navigator.of(context).canPop(),
               userName: profileController.userName.value.isNotEmpty
                   ? profileController.userName.value
                   : 'home_default_user_name'.tr,

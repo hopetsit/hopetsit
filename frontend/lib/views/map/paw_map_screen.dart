@@ -30,6 +30,8 @@ import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/friends/people_live_screen.dart';
+import 'package:hopetsit/views/pet_owner/chat/chat_screen.dart';
+import 'package:hopetsit/views/pet_sitter/chat/sitter_chat_screen.dart';
 import 'package:hopetsit/views/map/alerts_screen.dart';
 import 'package:hopetsit/views/map/pawspot_sheets.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
@@ -3428,9 +3430,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // La pill de recherche ville flottante est retirée. Les
                 // contrôles +/-/géoloc remontent en haut à droite.
                 Positioned(
-                  // v469 — Daniel : relever très légèrement la barre +/-/satellite
-                  // (elle touchait le bord du menu/panneau).
-                  top: 4.h,
+                  // v552 (corrigé) — Daniel : « la barre ma position est en
+                  // haut à droite, inutilisable ». La maquette la place en
+                  // BAS À DROITE, au pouce. v553 : remontée comme le rail
+                  // gauche, même ligne de base.
+                  bottom: 132.h + MediaQuery.of(context).viewPadding.bottom,
                   right: 12.w,
                   child: _buildMapControlsStack(),
                 ),
@@ -3458,10 +3462,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // panneau. On l'ancre en bas, au-dessus de la barre de menu.
                 Positioned(
                   left: 12.w,
-                  // Au-dessus de la barre de menu de l'app (~86) ET de la
-                  // marge système, sinon les 2 dernières pilules passaient
-                  // dessous.
-                  bottom: 96.h + MediaQuery.of(context).viewPadding.bottom,
+                  // v553 — Daniel : « les deux barres légèrement plus hautes ».
+                  // Au-dessus de la barre de menu de l'app et de la marge
+                  // système, avec de l'air en plus.
+                  bottom: 132.h + MediaQuery.of(context).viewPadding.bottom,
                   child: _buildMapActionsColumn(),
                 ),
 
@@ -4205,7 +4209,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     return Padding(
       padding: EdgeInsets.fromLTRB(14.w, 8.h, 14.w, 0),
       child: Container(
-        decoration: PawMapTheme.glass(),
+        // v552 (corrigé) — Daniel : « le cadre du fond doit être blanc, pas
+        // blanc translucide » : on garde la forme et l'ombre de la maquette,
+        // mais le fond devient opaque (la carte défilait derrière le texte).
+        decoration: PawMapTheme.glass(opacity: 1.0),
         padding: EdgeInsets.all(12.w),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -5006,11 +5013,10 @@ class _PawMapScreenState extends State<PawMapScreen>
           // à GAUCHE, en mode agrandi aussi.
           Positioned(
             left: 12.w,
-            // v552 — spec v3 : rail gauche = marge système + 126 (avant :
-            // centré verticalement, ce qui le collait au dock sur petits
-            // écrans et le passait sous la barre système en paysage).
-            bottom: _navInset(context) + 126.h,
-            child: _buildMapActionsColumn(),
+            // v553 — au-dessus du dock (14 + hauteur du dock 46 + 22 de
+            // respiration) : plus aucun chevauchement entre les deux rangées.
+            bottom: _navInset(context) + 82.h,
+            child: _buildMapActionsColumn(expanded: true),
           ),
 
           // v552 — dock bas (spec v3) : SOS animal, Partager la carte,
@@ -5019,7 +5025,10 @@ class _PawMapScreenState extends State<PawMapScreen>
           Positioned(
             left: 0,
             right: 0,
-            bottom: _navInset(context) + 66.h,
+            // v553 (retour Daniel : « les boutons en slide en bas ne sont pas
+            // bien placés ») : le dock se pose juste au-dessus de la barre
+            // système, et les rails passent NETTEMENT au-dessus de lui.
+            bottom: _navInset(context) + 14.h,
             child: _buildMapDock(),
           ),
 
@@ -5028,8 +5037,8 @@ class _PawMapScreenState extends State<PawMapScreen>
           // position / + / -), à droite, au-dessus de la barre système.
           Positioned(
             right: 12.w,
-            // v552 — spec v3 : rail droit = marge système + 126.
-            bottom: _navInset(context) + 126.h,
+            // v553 — même ligne de base que le rail gauche.
+            bottom: _navInset(context) + 82.h,
             child: _buildMapControlsStack(),
           ),
         ],
@@ -5044,12 +5053,42 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// cartes coexistantes). Tag spot / Voir spots respectent l'abonnement
   /// PawSpot (sinon → route boutique via _togglePawSpot). Signaler + Voir
   /// signaux restent gratuits.
-  Widget _buildMapActionsColumn() {
+  /// [expanded] : en carte agrandie, la maquette ajoute 3 boutons AU-DESSUS
+  /// des 4 habituels — Itinéraire (vert), Chat du cercle (bleu), Photo du
+  /// spot (orange). Daniel : « sur la grande map il n'y a pas les nouvelles
+  /// icônes chat, itinéraire, etc. ». Chacun est branché sur une brique qui
+  /// existe déjà : itinéraire vers le point visé, messagerie, création de
+  /// spot avec photo.
+  Widget _buildMapActionsColumn({bool expanded = false}) {
     return Obx(() {
       final spotOk = _pawSpotController.pawspotActive.value;
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (expanded) ...[
+            _roundMapBtn(
+              icon: Icons.directions_rounded,
+              color: PawMapTheme.ok,
+              label: 'pawmap_btn_directions'.tr,
+              onTap: () => _startDirections(_currentCenter),
+            ),
+            SizedBox(height: 8.h),
+            _roundMapBtn(
+              icon: Icons.forum_rounded,
+              color: PawMapTheme.sitter,
+              label: 'pawmap_btn_circle_chat'.tr,
+              onTap: _openCircleChat,
+            ),
+            SizedBox(height: 8.h),
+            _roundMapBtn(
+              icon: Icons.photo_camera_rounded,
+              color: PawMapTheme.pawSpot,
+              label: 'pawmap_btn_spot_photo'.tr,
+              onTap: () =>
+                  spotOk ? _startSpotPicking() : unawaited(_togglePawSpot()),
+            ),
+            SizedBox(height: 8.h),
+          ],
           _roundMapBtn(
             icon: Icons.travel_explore_rounded,
             color: const Color(0xFF2563EB),
@@ -5087,6 +5126,19 @@ class _PawMapScreenState extends State<PawMapScreen>
 
 
 
+
+  /// v552 — « Chat du cercle » : ouvre la messagerie du rôle courant.
+  void _openCircleChat() {
+    final role = (Get.isRegistered<AuthController>()
+            ? (Get.find<AuthController>().userRole.value ?? '')
+            : '')
+        .toLowerCase();
+    if (role == 'sitter' || role == 'walker') {
+      _openScreen(() => const SitterChatScreen());
+    } else {
+      _openScreen(() => const ChatScreen());
+    }
+  }
 
   /// v552 — ouvre l'élément partagé par un lien (`/spot/:id`, `/alert/:id`).
   /// Daniel : « selon ce qu'on partage, que ça tombe sur la chose précise ».
@@ -5423,9 +5475,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
-  /// v552 — spec redesign v3 : les boutons ronds + label deviennent des
-  /// PILULES (fond blanc translucide, radius 999, puce 28×28 pastel + icône,
-  /// libellé 11.5px/700). Plus lisibles, et elles ne masquent plus la carte.
+  /// v552 (corrigé sur retour Daniel) — « les boutons avec titre au lieu de
+  /// juste l'icône, et ce n'est pas aligné ». La maquette montre des BOUTONS
+  /// RONDS blancs, icône seule, alignés verticalement : on revient à ça. Les
+  /// pilules avec libellé mangeaient la carte et cassaient l'alignement ; le
+  /// libellé reste accessible en appui long.
   Widget _roundMapBtn({
     required IconData icon,
     required Color color,
@@ -5433,35 +5487,22 @@ class _PawMapScreenState extends State<PawMapScreen>
     required VoidCallback onTap,
   }) {
     return Padding(
-      padding: EdgeInsets.only(bottom: 8.h),
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: EdgeInsets.fromLTRB(5.w, 5.h, 12.w, 5.h),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(999),
-            boxShadow: PawMapTheme.pillShadow,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 28.w,
-                height: 28.w,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.14),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 15.sp, color: color),
-              ),
-              SizedBox(width: 7.w),
-              Text(
-                label,
-                style: PawMapTheme.font(size: 11.5.sp, weight: FontWeight.w700),
-              ),
-            ],
+      padding: EdgeInsets.only(bottom: 10.h),
+      child: Tooltip(
+        message: label,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: 44.w,
+            height: 44.w,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: PawMapTheme.pillShadow,
+            ),
+            child: Icon(icon, size: 20.sp, color: color),
           ),
         ),
       ),

@@ -34,6 +34,8 @@ class SitterChatScreen extends StatelessWidget {
         return Obx(
           () => Scaffold(
             appBar: CustomAppBar(
+              // v553 — flèche retour quand l'écran est ouvert depuis la PawMap.
+              automaticallyImplyLeading: Navigator.of(context).canPop(),
               userName: profileController.userName.value.isNotEmpty
                   ? profileController.userName.value
                   : 'home_default_user_name'.tr,
