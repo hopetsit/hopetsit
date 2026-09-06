@@ -7,6 +7,22 @@
         ],
         "components": [
           {
+            "/": "/map",
+            "comment": "v552 — Shared map position (?lat&lng&z)"
+          },
+          {
+            "/": "/report/*",
+            "comment": "v552 — Report share (alias)"
+          },
+          {
+            "/": "/alert/*",
+            "comment": "v552 — Report / SOS share: open the map on that alert"
+          },
+          {
+            "/": "/spot/*",
+            "comment": "v552 — PawSpot share: open the map on that spot"
+          },
+          {
             "/": "/pay/*",
             "comment": "Payment screen deep link"
           },

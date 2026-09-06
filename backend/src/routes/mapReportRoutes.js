@@ -407,6 +407,43 @@ router.post('/', requireAuth, attachPremium, async (req, res) => {
   }
 });
 
+// ── GET /public/:id — v552 : fiche PUBLIQUE d'un signalement (partage) ──────
+// Même logique que /pawspots/public/:id : la page /alert/[id] du site est
+// rendue côté serveur pour que le lien partagé (WhatsApp, SMS…) affiche un
+// vrai aperçu, et elle n'a pas de jeton. On n'expose que ce qui est déjà
+// visible sur la carte publique — jamais l'identité de l'auteur.
+router.get('/public/:id', async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ error: 'Report not found.' });
+    }
+    const r = await MapReport.findById(req.params.id)
+      .select('type note photoUrl location isSos createdAt expiresAt hidden')
+      .lean();
+    if (!r || r.hidden) return res.status(404).json({ error: 'Report not found.' });
+    if (!PUBLIC_VISIBLE_TYPES.includes(r.type)) {
+      return res.status(404).json({ error: 'Report not found.' });
+    }
+    const coords = r.location?.coordinates || [];
+    return res.json({
+      id: String(r._id),
+      type: r.type,
+      note: r.note || '',
+      photoUrl: r.photoUrl || '',
+      city: r.location?.city || '',
+      lat: coords.length >= 2 ? coords[1] : null,
+      lng: coords.length >= 2 ? coords[0] : null,
+      isSos: r.isSos === true,
+      createdAt: r.createdAt,
+      expiresAt: r.expiresAt,
+    });
+  } catch (e) {
+    logger.error('[mapReport/public]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // ── POST /sos — v552 « SOS animal » (spec redesign v3) ─────────────────────
 // Daniel : « SOS animal = alerte animal perdu géolocalisée : crée un
 // signalement prioritaire ET prévient les membres autour ».

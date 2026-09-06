@@ -109,6 +109,17 @@ export default function MapPage() {
   // sans attendre le GPS. Paris ne reste que pour un tout 1er usage sans géoloc.
   const [center, setCenter] = useState<[number, number]>(() => {
     if (typeof window !== "undefined") {
+      // v552 — lien partagé depuis l'app : /map?lat=..&lng=..&z=.. doit
+      // rouvrir la carte EXACTEMENT au même endroit (Daniel : « que ça tombe
+      // sur la chose précise »). Prioritaire sur la dernière position connue.
+      try {
+        const qs = new URLSearchParams(window.location.search);
+        const qlat = parseFloat(qs.get("lat") || "");
+        const qlng = parseFloat(qs.get("lng") || "");
+        if (Number.isFinite(qlat) && Number.isFinite(qlng)) {
+          return [qlat, qlng];
+        }
+      } catch {/* ignore */}
       try {
         const saved = window.localStorage.getItem("hopetsit:lastMapCenter");
         if (saved) {

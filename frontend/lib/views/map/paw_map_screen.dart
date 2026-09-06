@@ -4343,8 +4343,19 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Signalements / Gardiens / Promeneurs / Propriétaires sont cumulables ;
   /// « Tous » et « Rien » ne sont que des raccourcis.
   Widget _buildPanelFilters() {
+    // v552 — Daniel : « autour de Tous ou Rien, un contour rose pour savoir
+    // lequel est sélectionné ». `outlined` entoure le raccourci actif.
+    // v552 — Daniel : « le fond noir des boutons, mets une couleur plus
+    // douce ». Un chip actif prend désormais la COULEUR DE SON TYPE en
+    // pastel (bleu gardien, vert promeneur, orange propriétaire, rouge
+    // signalement) : c'est plus doux que le noir de la maquette ET ça reprend
+    // le code couleur des points sur la carte — on lit le filtre d'un coup
+    // d'œil. Inactif = gris très clair.
     Widget chip(String label, bool active, VoidCallback onTap,
-        {bool rose = false, Widget? trailing}) {
+        {bool rose = false,
+        Widget? trailing,
+        bool outlined = false,
+        Color tone = PawMapTheme.ink}) {
       return GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
@@ -4353,8 +4364,15 @@ class _PawMapScreenState extends State<PawMapScreen>
           decoration: BoxDecoration(
             color: rose
                 ? PawMapTheme.rose
-                : (active ? PawMapTheme.ink : PawMapTheme.ink.withValues(alpha: 0.05)),
+                : (active
+                    ? tone.withValues(alpha: 0.14)
+                    : PawMapTheme.ink.withValues(alpha: 0.05)),
             borderRadius: BorderRadius.circular(999),
+            border: outlined
+                ? Border.all(color: PawMapTheme.rose, width: 2)
+                : (active
+                    ? Border.all(color: tone.withValues(alpha: 0.35), width: 1.4)
+                    : null),
             boxShadow: rose
                 ? [
                     BoxShadow(
@@ -4372,8 +4390,12 @@ class _PawMapScreenState extends State<PawMapScreen>
                 label,
                 style: PawMapTheme.font(
                   size: 11.5.sp,
-                  weight: FontWeight.w600,
-                  color: (rose || active) ? Colors.white : PawMapTheme.ink,
+                  weight: active || rose ? FontWeight.w700 : FontWeight.w600,
+                  color: rose
+                      ? Colors.white
+                      : (active
+                          ? tone
+                          : PawMapTheme.ink.withValues(alpha: 0.62)),
                 ),
               ),
               if (trailing != null) ...[SizedBox(width: 5.w), trailing],
@@ -4396,6 +4418,13 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (mounted) setState(() {});
       }
 
+      // Raccourcis : « Tous » est actif quand TOUT est affiché, « Rien »
+      // quand plus rien ne l'est — le contour rose montre lequel s'applique.
+      final everythingOn = _showPois.value &&
+          _showReports.value &&
+          roles.length >= 3;
+      final nothingOn =
+          !_showPois.value && !_showReports.value && roles.isEmpty;
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -4418,14 +4447,15 @@ class _PawMapScreenState extends State<PawMapScreen>
                 ),
               ),
               chip('pawmap_filter_reports'.tr, _showReports.value,
-                  () => _showReports.value = !_showReports.value),
+                  () => _showReports.value = !_showReports.value,
+                  tone: PawMapTheme.danger),
               chip('role_pet_sitter'.tr, roles.contains('sitter'),
-                  () => toggleRole('sitter')),
+                  () => toggleRole('sitter'), tone: PawMapTheme.sitter),
               chip('role_pet_walker'.tr, roles.contains('walker'),
-                  () => toggleRole('walker')),
+                  () => toggleRole('walker'), tone: PawMapTheme.walker),
               chip('role_pet_owner'.tr, roles.contains('owner'),
-                  () => toggleRole('owner')),
-              chip('paw_map_filter_all'.tr, false, () {
+                  () => toggleRole('owner'), tone: PawMapTheme.owner),
+              chip('paw_map_filter_all'.tr, false, outlined: everythingOn, () {
                 _showPois.value = true;
                 _showReports.value = true;
                 _poiController.selectAllCategories();
@@ -4433,7 +4463,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 _memberRoles.refresh();
                 if (mounted) setState(() {});
               }),
-              chip('pawmap_filter_none'.tr, false, () {
+              chip('pawmap_filter_none'.tr, false, outlined: nothingOn, () {
                 _showPois.value = false;
                 _showReports.value = false;
                 _memberRoles.clear();

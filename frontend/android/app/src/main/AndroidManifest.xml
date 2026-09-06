@@ -118,6 +118,14 @@
                 <data android:pathPrefix="/notifications" />
                 <data android:pathPrefix="/auth" />
                 <data android:pathPrefix="/invite" />
+                <!-- v552 — liens de partage contextuels : un spot, une alerte
+                     ou une position de carte partagés doivent ouvrir l'app
+                     directement sur l'élément (Daniel : « que ça tombe sur la
+                     chose précise »). -->
+                <data android:pathPrefix="/spot" />
+                <data android:pathPrefix="/alert" />
+                <data android:pathPrefix="/report" />
+                <data android:pathPrefix="/map" />
                 <!-- v449 — lien canonique des emails : « ouvrir l'app si
                      installée, sinon /download ». App installée → Android
                      ouvre l'app ici (autoVerify). Sinon le navigateur charge
