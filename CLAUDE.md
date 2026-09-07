@@ -91,8 +91,16 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   prix PawPremium (`home_pawpremium_price_line`), en-tête cadré ; bouton
   « me géolocaliser » : GPS précis d'abord + flyTo 17. App : « ma position »
   = fix `LocationAccuracy.best` frais + zoom 17.
-- **Play** : « Modifications en cours d'examen » — 559 (23.1.556). iOS :
-  whatsNew fr/en réécrits ; build 559 envoyé par Transporter 11:05.
+- **Play** : « Modifications en cours d'examen » — 559 (23.1.556).
+- **iOS** : 1.14 → soumission 558 annulée, build **559** rattaché, renvoyée →
+  **WAITING_FOR_REVIEW avec le 559**. ⚠️ Piège iris : juste après
+  `canceled:true`, la version passe en DEVELOPER_REJECTED quelques secondes
+  → attach/item renvoient 409 INVALID_STATE. Attendre ~4 s puis rejouer
+  attach → item → submit sur la MÊME reviewSubmission (déjà créée) : 204/201/200.
+- **Site** : halos par abonnement sur /map (`subscriptionHaloColor`,
+  `makeMemberIcon(m)`, props `pawFollowIds`/`pawSpotIds`, halo perso via
+  `benefits`) ; accueil refait (héro, bande confiance, cadence) — design
+  seul, mêmes clés/routes.
 - Fichiers : `~/Downloads/HoPetSit_v23.1.556.{apk,aab,ipa}` (build **559**),
   notes Play : `~/Downloads/HoPetSit_556_notes_de_version.txt`.
 
