@@ -4617,29 +4617,47 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// pas ajouter un mini bouton qui masquerait le cadre entier ? ». Le
   /// panneau se replie sur une petite poignée : la carte est alors dégagée
   /// sans avoir à l'agrandir, et rien n'est perdu (un appui le rouvre).
-  final RxBool _panelCollapsed = false.obs;
+  /// v554 — le choix est MÉMORISÉ (décision Daniel) : celui qui replie le
+  /// panneau veut voir la carte, il ne doit pas avoir à recommencer à chaque
+  /// retour sur l'onglet. Contrepartie assumée : le cadre contient les trois
+  /// interrupteurs d'abonnement (PawFollow / PawSpot / PawPremium), donc la
+  /// pastille de réouverture est ROSE et porte l'icône des filtres — on ne
+  /// veut pas que ces options disparaissent discrètement de l'écran.
+  final RxBool _panelCollapsed =
+      (GetStorage().read('pawmap_panel_collapsed') == true).obs;
 
   Widget _panelHandle({required bool collapsed}) {
     return Center(
       child: GestureDetector(
-        onTap: () => _panelCollapsed.value = !collapsed,
+        onTap: () {
+          _panelCollapsed.value = !collapsed;
+          try {
+            GetStorage()
+                .write('pawmap_panel_collapsed', _panelCollapsed.value);
+          } catch (_) {/* stockage plein : sans importance */}
+        },
         behavior: HitTestBehavior.opaque,
         child: Container(
-          width: 62.w,
-          height: 26.h,
+          width: collapsed ? 88.w : 62.w,
+          height: collapsed ? 34.h : 26.h,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: collapsed ? Colors.white : PawMapTheme.ink.withValues(alpha: 0.05),
+            color: collapsed ? PawMapTheme.rose : PawMapTheme.ink.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(999),
             boxShadow: collapsed ? PawMapTheme.pillShadow : null,
           ),
-          child: Icon(
-            collapsed
-                ? Icons.keyboard_arrow_down_rounded
-                : Icons.keyboard_arrow_up_rounded,
-            size: 20.sp,
-            color: PawMapTheme.sub,
-          ),
+          child: collapsed
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.tune_rounded, size: 15.sp, color: Colors.white),
+                    SizedBox(width: 5.w),
+                    Icon(Icons.keyboard_arrow_down_rounded,
+                        size: 18.sp, color: Colors.white),
+                  ],
+                )
+              : Icon(Icons.keyboard_arrow_up_rounded,
+                  size: 20.sp, color: PawMapTheme.sub),
         ),
       ),
     );
