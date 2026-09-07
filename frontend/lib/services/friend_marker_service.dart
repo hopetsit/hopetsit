@@ -113,7 +113,9 @@ class FriendMarkerService extends GetxService {
         isFamily: isFamily,
         isPremium: isPremium,
       );
-      final descriptor = BitmapDescriptor.bytes(bytes);
+      // v556 — bitmap 2× → largeur logique fixée (80), sinon il serait
+      // affiché à 160.
+      final descriptor = BitmapDescriptor.bytes(bytes, width: 80);
       if (downloadFailed && (_failCount[key] ?? 0) < 3) {
         _failCount[key] = (_failCount[key] ?? 0) + 1;
         // pas de mise en cache → nouveau download au prochain build.
@@ -145,46 +147,70 @@ class FriendMarkerService extends GetxService {
     // v23.1.350 — Daniel : "réduire un peu la taille des ronds amis et
     // famille" (ils dominaient la carte). 120 → 96 px (-20%), toutes les
     // couches (ring famille, disque rôle, photo) sont dérivées de `size`.
-    const double size = 96.0;
+    // v556 — Daniel : « réduire un peu ma taille et mes amis sur la PawMap,
+    // et plus premium ». 96 → 80 px, et un rendu « médaillon » : ombre
+    // portée douce, anneau fin dégradé (or Premium / violet famille / couleur
+    // du rôle), liseré blanc, photo, reflet discret en haut. Plus de gros
+    // disque plein de couleur : c'est ce qui faisait « pastille de jeu ».
+    const double size = 80.0;
     const double cx = size / 2;
     const double cy = size / 2;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(
       recorder,
-      Rect.fromLTWH(0, 0, size, size),
+      Rect.fromLTWH(0, 0, size * 2, size * 2),
     );
+    // Dessin à 2× (netteté sur écrans 3×), affiché à `size` logique via
+    // BitmapDescriptor.bytes(width: size).
+    canvas.scale(2, 2);
 
     final roleColor = _colorForRole(role);
 
-    // Layer 1 : ring violet (famille) — fait toute la taille du bitmap.
-    // v23.1.395 — Paw Premium : anneau OR prioritaire (badge 👑 ajouté en
-    // dernier layer, par-dessus).
-    if (isPremium) {
-      final goldPaint = Paint()..color = _goldPremium;
-      canvas.drawCircle(const Offset(cx, cy), size / 2 - 1, goldPaint);
-    } else if (isFamily) {
-      final familyPaint = Paint()..color = _violetFamily;
-      canvas.drawCircle(const Offset(cx, cy), size / 2 - 1, familyPaint);
-    }
-
-    // Layer 2 : disque role color, leger inset si famille/premium pour que
-    // le ring soit visible. Sinon disque pleine taille.
-    final roleInset = (isFamily || isPremium) ? 10.0 : 4.0;
-    final rolePaint = Paint()..color = roleColor;
+    // Layer 0 : ombre portée (le marqueur « flotte » sur la carte).
     canvas.drawCircle(
-      const Offset(cx, cy),
-      size / 2 - roleInset,
-      rolePaint,
+      const Offset(cx, cy + 2),
+      size / 2 - 5,
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.22)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.5),
     );
 
-    // Layer 3 : bordure blanche fine pour separer photo / fond role.
-    const double whiteRingThickness = 4.0;
-    final photoRadius = size / 2 - roleInset - whiteRingThickness;
-    final whiteRingPaint = Paint()..color = Colors.white;
+    // Layer 1 : anneau extérieur fin, en dégradé. Or = Premium, violet =
+    // famille, sinon la couleur du rôle (code de lecture du produit).
+    final Color ringA;
+    final Color ringB;
+    if (isPremium) {
+      ringA = const Color(0xFFFFE27A);
+      ringB = _goldPremium;
+    } else if (isFamily) {
+      ringA = const Color(0xFFA78BFA);
+      ringB = _violetFamily;
+    } else {
+      ringA = Color.lerp(roleColor, Colors.white, 0.35)!;
+      ringB = roleColor;
+    }
+    const double ringOuter = size / 2 - 4; // 36
+    const double ringWidth = 4.0;
     canvas.drawCircle(
       const Offset(cx, cy),
-      photoRadius + whiteRingThickness / 2,
-      whiteRingPaint,
+      ringOuter - ringWidth / 2,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = ringWidth
+        ..shader = ui.Gradient.linear(
+          const Offset(8, 6),
+          const Offset(size - 8, size - 6),
+          [ringA, ringB],
+        ),
+    );
+
+    // Layer 2 : liseré blanc entre l'anneau et la photo.
+    const double whiteRingThickness = 2.5;
+    final photoRadius = ringOuter - ringWidth - whiteRingThickness;
+    canvas.drawCircle(
+      const Offset(cx, cy),
+      photoRadius + whiteRingThickness,
+      Paint()..color = Colors.white,
     );
 
     // Layer 4 : photo profil clip dans le cercle interieur.
@@ -222,18 +248,39 @@ class FriendMarkerService extends GetxService {
       _paintFallback(canvas, cx, cy, photoRadius);
     }
 
-    // v23.1.395 — couronne 👑 en haut du marqueur quand Paw Premium actif
-    // (Daniel : « sur mon tel j'ai pas le badge »).
+    // Layer 5 : reflet discret en haut de la photo (effet médaillon).
+    canvas.save();
+    canvas.clipPath(Path()
+      ..addOval(Rect.fromCircle(
+          center: const Offset(cx, cy), radius: photoRadius)));
+    canvas.drawOval(
+      Rect.fromLTWH(cx - photoRadius * 0.9, cy - photoRadius * 1.15,
+          photoRadius * 1.8, photoRadius * 0.9),
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(cx, cy - photoRadius),
+          Offset(cx, cy - photoRadius * 0.2),
+          [
+            Colors.white.withValues(alpha: 0.28),
+            Colors.white.withValues(alpha: 0.0),
+          ],
+        ),
+    );
+    canvas.restore();
+
+    // v23.1.395 — couronne 👑 quand Paw Premium actif (Daniel : « sur mon
+    // tel j'ai pas le badge »). v556 : plus petite, posée sur l'anneau.
     if (isPremium) {
       final crown = TextPainter(
-        text: const TextSpan(text: '👑', style: TextStyle(fontSize: 26)),
+        text: const TextSpan(text: '👑', style: TextStyle(fontSize: 18)),
         textDirection: TextDirection.ltr,
       )..layout();
-      crown.paint(canvas, Offset(cx - crown.width / 2, -2));
+      crown.paint(canvas, Offset(cx - crown.width / 2, 0));
     }
 
     final picture = recorder.endRecording();
-    final img = await picture.toImage(size.toInt(), size.toInt());
+    final img =
+        await picture.toImage((size * 2).toInt(), (size * 2).toInt());
     final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
     img.dispose();
     return byteData!.buffer.asUint8List();
@@ -248,8 +295,8 @@ class FriendMarkerService extends GetxService {
     final tp = TextPainter(
       text: const TextSpan(
         text: '🐕',
-        // v23.1.350 — mis à l'échelle avec le marqueur 120→96 px.
-        style: TextStyle(fontSize: 45),
+        // v556 — mis à l'échelle avec le marqueur 96→80 px.
+        style: TextStyle(fontSize: 34),
       ),
       textDirection: TextDirection.ltr,
     );

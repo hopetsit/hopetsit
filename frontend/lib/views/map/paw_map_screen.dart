@@ -1366,10 +1366,15 @@ class _PawMapScreenState extends State<PawMapScreen>
         : Color.lerp(base, Colors.white, 0.45)!;
     final Color pawEnd = base ?? const Color(0xFFE8A00A);
 
-    const double size = 64.0;
+    // v556 — Daniel : « l'icône des PawSpot plus premium ». La pièce était
+    // dessinée en 64 px puis étirée par l'écran (3× sur son Samsung) → bords
+    // flous. On dessine désormais à 2× (128 px, même géométrie grâce à
+    // canvas.scale) et on l'affiche un peu plus petite : net et fin.
+    const double size = 128.0;
     const Offset c = Offset(32, 32);
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
+    canvas.scale(2, 2);
 
     // Ombre douce.
     canvas.drawCircle(
@@ -1468,15 +1473,34 @@ class _PawMapScreenState extends State<PawMapScreen>
     sparkle(const Offset(50, 13), 4);
     sparkle(const Offset(13, 49), 3);
 
+    // v556 — reflet glacé en haut de la pièce (effet métal poli).
+    canvas.save();
+    canvas.clipPath(Path()..addOval(Rect.fromCircle(center: c, radius: 24.5)));
+    canvas.drawOval(
+      Rect.fromLTWH(12, 6, 40, 20),
+      Paint()
+        ..shader = ui.Gradient.linear(
+          const Offset(32, 6),
+          const Offset(32, 26),
+          [
+            Colors.white.withValues(alpha: 0.30),
+            Colors.white.withValues(alpha: 0.0),
+          ],
+        ),
+    );
+    canvas.restore();
+
     final img =
         await recorder.endRecording().toImage(size.toInt(), size.toInt());
     final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
     // v23.1.369 — Daniel : "l'emoji plus grand, comme la taille des
     // utilisateurs, légèrement moins grand" — avatars amis = 96 px →
     // pièces type 64, pièce OR 70 (le doré ressort toujours un peu).
+    // v556 — un peu plus petite qu'avant (70/64 → 62/56), l'or garde son
+    // léger avantage de taille.
     return BitmapDescriptor.bytes(
       bytes!.buffer.asUint8List(),
-      width: base == null ? 70 : 64,
+      width: base == null ? 62 : 56,
     );
   }
 
