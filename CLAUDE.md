@@ -104,7 +104,9 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   capture réelle, captures, abonnements expliqués, PawPremium, FAQ accordéon,
   CTA) — design seul, mêmes clés/routes ; vérifié en prod. Bandeau mobile
   « Télécharger l'app » n'apparaît qu'après 420 px de défilement (il
-  recouvrait le titre du héro).
+  recouvrait le titre du héro). Puis **5 pages en version premium**
+  (Comment ça marche, Tarifs, PawMap, FAQ, Contact) via le composant commun
+  `PageHero` / `SectionTitle` — vérifiées en prod.
 - Fichiers : `~/Downloads/HoPetSit_v23.1.556.{apk,aab,ipa}` (build **559**),
   notes Play : `~/Downloads/HoPetSit_556_notes_de_version.txt`.
 
