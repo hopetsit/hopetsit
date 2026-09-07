@@ -60,6 +60,26 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 
 **Prochain build APK/AAB = 561** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
+**07/09 (midi) — v557 « URGENT rectangle gris » + boutique 4 onglets + i18n**
+- **Bug** (captures Daniel 12:11, sur la 556) : grand rectangle gris
+  translucide sur la carte + rail gauche disparu. Cause : en rendant PawSpot
+  gratuit j'ai retiré `spotOk`, seule lecture observable de l'Obx de
+  `_buildMapActionsColumn` → GetX lève « improper use of a GetX » → ErrorWidget
+  gris (0xF0C0C0C0) étiré sur la rangée des rails. **Reproduit en debug sur
+  simulateur** (exception dans le log), corrigé (Builder au lieu d'Obx),
+  re-vérifié : 0 exception, petite ET grande carte OK.
+  ⚠️ RÈGLE : un Obx doit lire au moins un `.value` — sinon gris en release.
+  Méthode de repro qui marche : `flutter run --debug` sur simulateur + login
+  test via osascript (`click at` coordonnées écran + `keystroke`) — l'app_type
+  en arrière-plan n'atteint PAS les champs Flutter.
+- `pawMapExpanded.value = false` dans initState → « setState during build »
+  (debug) → différé après la 1re frame.
+- **Boutique** : carte « Gratuit pour tous / Avec … » sur les 4 onglets via
+  `shopValueCard` (Daniel : « seul PawFollow avait été modifié »), 12 clés ×9.
+- **i18n** : 7 chaînes françaises en dur dans Mes amis → clés
+  (`friends_request_wants`, `common_user`). Audit : 9 langues identiques.
+- Trio → v557 / 23.1.557+560. Notes Play : `HoPetSit_557_notes_de_version.txt`.
+
 **07/09 (matin) — v556 « boutique expliquée + fiches sous la barre + traductions »**
 - **Boutique** : carte « Gratuit pour tous / Avec PawFollow » en tête de
   l'onglet PawFollow (`_pawFollowValueCard`), avantages alignés sur l'option C
