@@ -70,7 +70,14 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   les builds App Store (entitlement `aps-environment: production`) répondent
   `messaging/third-party-auth-error` → **aucun push iPhone** (Daniel : 1 de ses
   2 jetons ; Persia Riley : son seul jeton). Le .p8 existe :
-  `~/.private_keys/AuthKey_WJSPRXB7FC.p8` → à importer dans le slot production.
+  `~/.private_keys/AuthKey_WJSPRXB7FC.p8` → **IMPORTÉE dans le slot production
+  (20:15 UTC, feu vert Daniel)** via le Chrome de Daniel : le .p8 servi par un
+  mini serveur CORS local (127.0.0.1:8769) + XHR **synchrone** dans la page
+  (le fetch async ne rend pas la main avec l'outil JS), fichier posé sur
+  `input[type=file][name=Filedata]` (accept .p8 ; le drop sur la zone est
+  refusé « type non accepté »), IDs de clé/équipe via setter natif, clic
+  Importer. **Vérifié** : demande d'ami test → Daniel à 20:17 UTC =
+  `fcmTokens=2`, plus aucune « partial failure » (avant : 1 succès / 1 échec).
   ⚠️ Ne PAS purger les jetons sur `third-party-auth-error` (ils sont valides).
 - Android : le serveur ne peut plus rien faire → économie d'énergie Samsung
   (« applications en veille profonde », Gmail idem).
