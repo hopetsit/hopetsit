@@ -60,6 +60,22 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 
 **Prochain build APK/AAB = 560** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
+**07/09 (matin) — v556 « boutique expliquée + fiches sous la barre + traductions »**
+- **Boutique** : carte « Gratuit pour tous / Avec PawFollow » en tête de
+  l'onglet PawFollow (`_pawFollowValueCard`), avantages alignés sur l'option C
+  (+ historique), PawSpot annonce les itinéraires inclus. 5 clés × 9 langues.
+- **Fiches Ajouter un PawSpot / Publier le signalement** : bouton sous la
+  barre système en carte agrandie (viewPadding = 0) → règle « 48 si 0 ».
+- **Site** : `home_app2_body` réécrit (option C, 9 langues) ; 39 textes
+  polonais ajoutés. ⚠️ **Faux positif d'audit** : « 111 clés manquantes » en
+  es/de/it/pt n'existaient pas — ces clés sont en 2e position sur des lignes
+  partagées (`a: "…", b: "…"`). Regex d'audit correct :
+  `(?<![A-Za-z0-9_])clé:\s*["']`. tsc a attrapé mes doublons → retirés.
+  Seule clé absente hors en : `account` (en-only, fallback anglais).
+- **App** : pl.dart complété (8 clés). Audit : 9 langues à 3 256 clés, 0 manque.
+- Fichiers : `~/Downloads/HoPetSit_v23.1.556.{apk,aab,ipa}` (build **559**),
+  notes Play : `~/Downloads/HoPetSit_556_notes_de_version.txt`.
+
 **07/09 (03 h) — v555 « deep work PawMap » (captures Daniel sur la 554 installée)**
 - **Cause racine des boutons sous le menu** : les viseurs lisaient
   `MediaQuery.viewPadding.bottom`, qui vaut **0 sur le Samsung de Daniel**
