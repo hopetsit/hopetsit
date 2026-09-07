@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/friend_controller.dart';
@@ -4291,7 +4292,21 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Recenters the GoogleMap camera on the user's current GPS location.
   Future<void> _recenterOnUser() async {
     try {
-      final loc = await LocationService()
+      // v556 — Daniel : « à l'endroit parfait ». LocationService rend la
+      // DERNIÈRE position connue si elle existe (cache OS, parfois vieille de
+      // plusieurs minutes) → le point tombait à côté. Pour « ma position »,
+      // on exige d'abord un fix GPS frais et précis ; le cache ne sert que
+      // de secours si le GPS ne répond pas en 6 s.
+      Position? loc;
+      try {
+        loc = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.best,
+            timeLimit: Duration(seconds: 6),
+          ),
+        );
+      } catch (_) {/* GPS lent ou refusé → secours ci-dessous */}
+      loc ??= await LocationService()
           .getCurrentLocation()
           .timeout(const Duration(seconds: 4), onTimeout: () => null);
       if (loc == null) {
@@ -4310,11 +4325,13 @@ class _PawMapScreenState extends State<PawMapScreen>
       });
       final ctl = await _activeMapCtl();
       if (ctl != null) {
-        // v550 — recentrage avec un zoom « quartier » si on est très dézoomé :
-        // sinon le bouton ne semblait « rien faire » depuis la vue monde.
+        // v550 — recentrage avec un zoom « quartier » si on est très dézoomé.
+        // v556 — Daniel : « que ça zoome plus, à l'endroit parfait ». Le
+        // bouton « ma position » zoome désormais au niveau RUE (17) dès qu'on
+        // est en dessous — comme Google Maps — au lieu de s'arrêter à 14.
         await ctl.animateCamera(
-          _zoomLevel < 12
-              ? CameraUpdate.newLatLngZoom(center, 14)
+          _zoomLevel < 17
+              ? CameraUpdate.newLatLngZoom(center, 17)
               : CameraUpdate.newLatLng(center),
         );
       }

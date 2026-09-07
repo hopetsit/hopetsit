@@ -138,7 +138,8 @@ function FlyToFocus({
   const map = useMap();
   useEffect(() => {
     if (!target) return;
-    map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 16), {
+    // v556 — Daniel : « que ça zoome plus » → niveau rue (17) au lieu de 16.
+    map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 17), {
       duration: 0.8,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

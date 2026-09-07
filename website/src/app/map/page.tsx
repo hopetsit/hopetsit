@@ -1333,17 +1333,20 @@ export default function MapPage() {
               );
             };
 
-            // 1er essai : rapide, accepte une position récente déjà connue.
-            // 2e essai seulement si besoin : GPS précis, plus lent.
+            // v556 — Daniel : « quand j'auto-zoome sur ma position, ce n'est
+            // pas l'endroit parfait ». L'ancien 1er essai acceptait une
+            // position vieille de 60 s et peu précise (réseau) → point à côté.
+            // On demande d'abord le GPS précis, frais ; le mode rapide ne sert
+            // plus que de secours si le précis échoue.
             navigator.geolocation.getCurrentPosition(
               onFound,
               () =>
                 navigator.geolocation.getCurrentPosition(onFound, onFail, {
-                  enableHighAccuracy: true,
-                  timeout: 15000,
-                  maximumAge: 0,
+                  enableHighAccuracy: false,
+                  timeout: 8000,
+                  maximumAge: 30000,
                 }),
-              { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 },
+              { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
             );
           }}
           className="absolute right-3 top-3 z-[1000] grid h-11 w-11 place-items-center rounded-full bg-white text-[#C92A12] shadow-lg ring-1 ring-ink/10 transition hover:scale-105"

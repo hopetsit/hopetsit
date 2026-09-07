@@ -1,5 +1,6 @@
 "use client";
 
+import { SubscriptionsExplainer } from "@/components/SubscriptionsExplainer";
 import Link from "next/link";
 import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
 import { PawMemberBadge } from "@/components/PawMemberBadge";
@@ -324,6 +325,10 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* ── 4b. ABONNEMENTS EXPLIQUÉS ── v556 (Daniel : « explique mieux les
+           abonnements ») : gratuit vs ce que chaque formule ajoute. */}
+      <SubscriptionsExplainer />
 
       {/* ── 5. PAW PREMIUM ── une seule bande compacte (noir/or), CTA boutique.
            v493 — plus d'air : carte centrée avec marges, padding & gaps généreux. */}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
 import { PawMapCTA } from "@/components/PawMapCTA";
+import { SubscriptionsExplainer } from "@/components/SubscriptionsExplainer";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
 // v493 — Refonte design (design-only) : page PawMap recentrée sur la CARTE et
@@ -188,6 +189,10 @@ export default function PawMapPage() {
           {t("pawpremium_cta")} →
         </Link>
       </section>
+
+      {/* ── 4b. ABONNEMENTS EXPLIQUÉS ── v556 : gratuit vs ce que chaque
+           formule ajoute (même composant que l'accueil). */}
+      <SubscriptionsExplainer compact />
 
       {/* ── 5. CTA FINAL ── */}
       <div className="mt-14 text-center">
