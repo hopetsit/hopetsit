@@ -92,7 +92,21 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   allumé « Partager » dans Mes amis. Décision de Daniel attendue (défaut
   true = partage à tous les amis acceptés, ou garder l'opt-in par ami comme
   perk PawFollow — cf. v23.1 part 226).
-- 5 clés i18n × 9 langues. Fichiers : `~/Downloads/HoPetSit_v23.1.555.{apk,aab,ipa}`.
+- **Option C validée par Daniel** (partage gratuit entre amis, PawFollow =
+  2 h + fond + itinéraires + historique + Famille) — voir commit 33c7752.
+  Vérifié en prod avec les comptes test : amitié neuve = partage allumé des
+  deux côtés sans abo, broadcast → `listeners: 1`, `/live-positions` renvoie
+  la position ; amitié supprimée après. Le `.env` local pointe sur une base
+  de DEV (host petinsta…, 3 owners) : la migration prod tourne AU DÉMARRAGE
+  du serveur (marqueur `migrations/v555_share_default_true`).
+- 6 clés i18n × 9 langues. Fichiers : `~/Downloads/HoPetSit_v23.1.555.{apk,aab,ipa}`
+  (build **558**), notes Play : `~/Downloads/HoPetSit_555_notes_de_version.txt`.
+- **Play** : « Modifications en cours d'examen » (bundle 558). Ce soir la
+  Play Console a accepté « Suivant » mais NI « Enregistrer » NI « Envoyer 1
+  modification pour examen » (clics Daniel) ; l'import du bundle reste manuel.
+  ⚠️ Un « missing value » du tool JS = souvent un clic qui a FONCTIONNÉ (la
+  page a changé pendant l'exécution) → toujours relire l'URL/le statut avant
+  de conclure à l'échec.
 
 **07/09 (nuit) — v554 « 5 défauts de placement + recherche de ville »**
 - Petite carte : les deux rails touchaient la barre d'onglets → remontés
