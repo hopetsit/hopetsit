@@ -40,7 +40,30 @@ export default function PawMapPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-16 md:py-24">
+    <div className="relative">
+      {/* v556 — même fond que l'accueil (crème + halos doux + trame) derrière
+          le héro de la PawMap. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[640px]"
+        style={{
+          background:
+            "radial-gradient(55% 60% at 10% 20%, rgba(255,106,0,0.14) 0%, rgba(255,106,0,0) 60%)," +
+            "radial-gradient(45% 50% at 90% 25%, rgba(22,163,74,0.10) 0%, rgba(22,163,74,0) 60%)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[640px] opacity-[0.35]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(23,19,15,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(23,19,15,0.045) 1px, transparent 1px)",
+          backgroundSize: "44px 44px",
+          maskImage: "radial-gradient(70% 70% at 50% 30%, #000 30%, transparent 100%)",
+          WebkitMaskImage: "radial-gradient(70% 70% at 50% 30%, #000 30%, transparent 100%)",
+        }}
+      />
+    <div className="relative mx-auto max-w-5xl px-4 py-16 md:py-24">
       {/* ── 1. HERO ── logo + badge 177 pays + titre + sous-titre + aperçu
            carte + CTA. v506 — design : badge héro + logo dans une pastille. */}
       <div className="grid items-center gap-10 md:grid-cols-2">
@@ -135,6 +158,7 @@ export default function PawMapPage() {
         <h2 className="text-center font-display text-2xl font-extrabold tracking-tight text-ink md:text-3xl">
           {t("pawmap_categories")}
         </h2>
+        <span aria-hidden className="mx-auto mt-4 block h-1 w-14 rounded-full bg-gradient-to-r from-owner to-amber-400" />
         <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {cats.map((c) => (
             <div
@@ -153,6 +177,7 @@ export default function PawMapPage() {
         <h2 className="text-center font-display text-2xl font-extrabold tracking-tight text-ink md:text-3xl">
           {t("nav_how")}
         </h2>
+        <span aria-hidden className="mx-auto mt-4 block h-1 w-14 rounded-full bg-gradient-to-r from-owner to-amber-400" />
         <div className="mt-8 grid gap-5 md:grid-cols-3">
           {steps.map((s) => (
             <div
@@ -203,6 +228,7 @@ export default function PawMapPage() {
           {t("nav_download")} →
         </Link>
       </div>
+    </div>
     </div>
   );
 }
