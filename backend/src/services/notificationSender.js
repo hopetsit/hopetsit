@@ -194,6 +194,24 @@ const sendPush = async (tokens, title, body, data, { userId, role } = {}) => {
     data: Object.fromEntries(
       Object.entries(data || {}).map(([k, v]) => [k, String(v ?? '')])
     ),
+    // v558 (serveur seul) — Daniel : « je reçois les notifications en retard ».
+    // Diagnostic Render : le serveur émet en ~1 s (entrée → push → e-mail
+    // accepté par Gmail). Le retard vient (1) d'iOS : Firebase n'avait qu'une
+    // clé APNs de DÉVELOPPEMENT → les builds App Store (aps-environment =
+    // production) répondent `messaging/third-party-auth-error`, donc AUCUN
+    // push iPhone, la notif n'apparaît qu'à l'ouverture de l'app ; (2) côté
+    // Android, de l'économie d'énergie (Doze / « applications en veille »).
+    // Ici on force explicitement la priorité HAUTE des deux côtés (FCM la met
+    // par défaut pour les messages `notification`, mais on ne dépend plus de
+    // ce défaut) + canal Android + son + type APNs « alert ».
+    android: {
+      priority: 'high',
+      notification: { channelId: 'hopetsit_default_channel', sound: 'default' },
+    },
+    apns: {
+      headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
+      payload: { aps: { sound: 'default' } },
+    },
   };
   const result = await firebaseAdmin.messaging().sendEachForMulticast(message);
   if (result && (result.failureCount || 0) > 0) {
