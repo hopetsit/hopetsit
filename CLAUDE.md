@@ -89,6 +89,12 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   flutter run … < cmd.fifo` puis `echo r > cmd.fifo` (a fonctionné une fois
   puis « Lost connection to device » — relancer si besoin).
 - Trio → v558 / 23.1.558+**561**. Notes Play : `HoPetSit_558_notes_de_version.txt`.
+- **Vérifié au simulateur** : replié = 3 cadres égaux, « Partager / en direct »
+  lisible ; ouvert inchangé. Fichiers : `~/Downloads/HoPetSit_v23.1.558.{apk,aab,ipa}`.
+- **iOS** : IPA envoyé par Transporter (distribution automatique à l'ouverture),
+  build 561 VALID en ~10 min, soumission 85a54c5e annulée → 561 rattaché (204)
+  → whatsNew fr/en → soumission `9e1a89be-…` → **1.14 WAITING_FOR_REVIEW avec le 561**.
+- **Play** : import de l'AAB 561 = Daniel (en attente).
 
 **07/09 (soir) — « notifications en retard » : diagnostic (serveur seul, pas de rebuild)**
 - **Serveur hors de cause** : logs Render `[notif.entry]` → `[notif.channel] email ok`
