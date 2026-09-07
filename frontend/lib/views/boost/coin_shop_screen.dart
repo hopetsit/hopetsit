@@ -1195,6 +1195,12 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                 ),
                 SizedBox(height: 14.h),
               ],
+              // v556 — Daniel : « mets en valeur et explique mieux les
+              // abonnements ». Option C : le partage de base est GRATUIT,
+              // PawFollow le prolonge. On le dit noir sur blanc en tête
+              // d'onglet, avant les prix, pour que l'abonnement se comprenne.
+              _pawFollowValueCard(context),
+              SizedBox(height: 18.h),
               // ── Section 1 : Suis ton animal (PawFollow individuel) ──────
               _planSectionHeader(
                 context,
@@ -1418,6 +1424,75 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
 
   // v23.1.278 — en-tête de section de forfaits (Suis ton animal / PawFamily).
   // PawFamily reçoit la couleur violette (code couleur famille de l'app).
+  /// v556 — « ce qui est gratuit / ce que PawFollow ajoute », deux colonnes.
+  Widget _pawFollowValueCard(BuildContext context) {
+    const violet = Color(0xFF7C3AED);
+    Widget col({
+      required IconData icon,
+      required Color tone,
+      required String title,
+      required String body,
+      required bool filled,
+    }) {
+      return Expanded(
+        child: Container(
+          padding: EdgeInsets.all(12.w),
+          decoration: BoxDecoration(
+            color: filled ? violet : violet.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(
+                color: filled ? violet : violet.withValues(alpha: 0.25)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 18.sp, color: filled ? Colors.white : tone),
+              SizedBox(height: 6.h),
+              InterText(
+                text: title,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w800,
+                color: filled ? Colors.white : AppColors.textPrimary(context),
+                maxLines: 1,
+              ),
+              SizedBox(height: 4.h),
+              InterText(
+                text: body,
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w500,
+                color: filled
+                    ? Colors.white.withValues(alpha: 0.92)
+                    : AppColors.textSecondary(context),
+                maxLines: 6,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        col(
+          icon: Icons.lock_open_rounded,
+          tone: const Color(0xFF16A34A),
+          title: 'shop_pf_free_title'.tr,
+          body: 'shop_pf_free_body'.tr,
+          filled: false,
+        ),
+        SizedBox(width: 10.w),
+        col(
+          icon: Icons.workspace_premium_rounded,
+          tone: violet,
+          title: 'shop_pf_plus_title'.tr,
+          body: 'shop_pf_plus_body'.tr,
+          filled: true,
+        ),
+      ],
+    );
+  }
+
   Widget _planSectionHeader(
     BuildContext context, {
     required String emoji,
@@ -1727,6 +1802,11 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
       {
         'icon': Icons.directions_walk_rounded,
         'text': 'pawfollow_feature_directions'.tr,
+      },
+      // v556 — option C : l'historique de balade est un avantage PawFollow.
+      {
+        'icon': Icons.history_rounded,
+        'text': 'pawfollow_feature_history'.tr,
       },
       // v21.1.1 — Forfait Famille mis en évidence (jusqu'à 5 personnes).
       {
@@ -2617,6 +2697,9 @@ class _PawSpotTabState extends State<_PawSpotTab>
       // on l'expose explicitement dans la liste des avantages de l'abo.
       'pawspot_feature_points_badges'.tr,
       'pawspot_feature_rewards'.tr,
+      // v556 — les itinéraires sont inclus dans PawSpot (règle serveur), on
+      // le dit enfin dans la liste.
+      'pawfollow_feature_directions'.tr,
       // #106 — 20 signalements premium utilisables inclus dans l'abo PawSpot.
       'shop_premium_reports_included'.tr,
     ];

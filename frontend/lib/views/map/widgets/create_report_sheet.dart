@@ -130,7 +130,12 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
     // `viewPadding.bottom` is the system navigation bar / gesture area —
     // add it to our bottom padding so the Publier button is never hidden
     // underneath Android's 3-button nav bar.
-    final safeBottom = MediaQuery.of(context).viewPadding.bottom;
+    // v556 — sur le Samsung de Daniel `viewPadding.bottom` vaut 0 (app
+    // edge-to-edge) → le bouton passait sous la barre système. Même règle que
+    // la carte : marge réelle, ou 48 si le système annonce 0.
+    final safeBottom = MediaQuery.of(context).viewPadding.bottom > 0
+        ? MediaQuery.of(context).viewPadding.bottom
+        : 48.h;
     // Session v15-4 — refonte compacte pour tenir sur 1 écran :
     //   • section "Gratuits" en tête avec les 4 types libres
     //   • section "Premium" en grille 3 colonnes pour les 15 Premium

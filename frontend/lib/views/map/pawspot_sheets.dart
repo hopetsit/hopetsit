@@ -230,11 +230,24 @@ class _PawSpotCreateSheetState extends State<_PawSpotCreateSheet> {
     return Padding(
       // Suit le clavier (isScrollControlled) pour que le bouton publier reste
       // visible pendant la saisie.
+      // v556 — Daniel (capture) : « en grande carte, quand on prend la photo,
+      // Publier le PawSpot est masqué par le menu ». `useSafeArea` ne suffit
+      // pas : sur son Samsung `viewPadding.bottom` vaut 0 (edge-to-edge) et le
+      // bouton finissait sous la barre système. Même règle que la carte
+      // (`_navInset`) : marge système réelle, ou 48 si le système annonce 0.
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 20.h),
+        padding: EdgeInsets.fromLTRB(
+          20.w,
+          16.h,
+          20.w,
+          20.h +
+              (MediaQuery.of(context).viewPadding.bottom > 0
+                  ? MediaQuery.of(context).viewPadding.bottom
+                  : 48.h),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
