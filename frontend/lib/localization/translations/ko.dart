@@ -1455,6 +1455,8 @@ const Map<String, String> koKRTranslations = <String, String>{
   'pawmap_appbar_follow': '팔로우',
   'pawmap_appbar_live': '실시간',
   'pawmap_appbar_refresh': '새로고침',
+  'common_user_fallback': '사용자',
+  'friends_request_wants': '친구가 되고 싶어 합니다',
   'shop_pb_plus_body': '선택한 기간 동안 프로필이 피드 맨 위에 「부스트」 배지와 함께 노출되어 먼저 보이고 더 많은 요청을 받습니다.',
   'shop_pb_plus_title': 'PawBoost로는',
   'shop_pb_free_body': '내 프로필이 우리 도시 보호자의 검색에 거리와 후기 순으로 표시됩니다.',

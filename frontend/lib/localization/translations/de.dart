@@ -1393,6 +1393,8 @@ const Map<String, String> deDETranslations = <String, String>{
       'pawmap_appbar_follow': 'Folgen',
       'pawmap_appbar_live': 'Live',
       'pawmap_appbar_refresh': 'Aktualisieren',
+      'common_user_fallback': 'Nutzer',
+      'friends_request_wants': 'möchte mit dir befreundet sein',
       'shop_pb_plus_body': 'Dein Profil steht für die gewählte Dauer ganz oben im Feed, mit dem Abzeichen „Geboostet“: du wirst zuerst gesehen und bekommst mehr Anfragen.',
       'shop_pb_plus_title': 'Mit PawBoost',
       'shop_pb_free_body': 'Dein Profil erscheint in den Suchen der Tierhalter deiner Stadt, sortiert nach Entfernung und Bewertungen.',

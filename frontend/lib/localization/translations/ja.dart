@@ -1455,6 +1455,8 @@ const Map<String, String> jaJPTranslations = <String, String>{
   'pawmap_appbar_follow': 'フォロー',
   'pawmap_appbar_live': 'ライブ',
   'pawmap_appbar_refresh': '更新',
+  'common_user_fallback': 'ユーザー',
+  'friends_request_wants': '友達になりたがっています',
   'shop_pb_plus_body': '選んだ期間、プロフィールが「ブースト」バッジ付きでフィードの最上位に表示され、最初に見られて依頼が増えます。',
   'shop_pb_plus_title': 'PawBoostなら',
   'shop_pb_free_body': 'あなたのプロフィールが街の飼い主の検索に、距離とレビュー順で表示されます。',

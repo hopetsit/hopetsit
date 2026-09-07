@@ -1640,6 +1640,8 @@ const Map<String, String> enUSTranslations = <String, String>{
       'pawmap_appbar_follow': 'Follow',
       'pawmap_appbar_live': 'Live',
       'pawmap_appbar_refresh': 'Refresh',
+      'common_user_fallback': 'User',
+      'friends_request_wants': 'wants to be your friend',
       'shop_pb_plus_body': 'Your profile moves to the top of the feed for the chosen duration, with the “Boosted” badge: you\'re seen first and get more requests.',
       'shop_pb_plus_title': 'With PawBoost',
       'shop_pb_free_body': 'Your profile appears in owners\' searches in your city, ranked by distance and reviews.',

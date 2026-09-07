@@ -1376,6 +1376,8 @@ const Map<String, String> plPLTranslations = <String, String>{
   'pawmap_appbar_follow': 'Śledź',
   'pawmap_appbar_live': 'Na żywo',
   'pawmap_appbar_refresh': 'Odśwież',
+  'common_user_fallback': 'Użytkownik',
+  'friends_request_wants': 'chce zostać Twoim znajomym',
   'shop_pb_plus_body': 'Twój profil trafia na górę listy na wybrany czas, z odznaką „Boost”: jesteś widoczny jako pierwszy i dostajesz więcej zapytań.',
   'shop_pb_plus_title': 'Z PawBoost',
   'shop_pb_free_body': 'Twój profil pojawia się w wyszukiwaniach właścicieli z Twojego miasta, według odległości i opinii.',

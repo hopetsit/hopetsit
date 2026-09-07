@@ -1223,6 +1223,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'pawmap_appbar_follow': 'Seguir',
       'pawmap_appbar_live': 'Ao vivo',
       'pawmap_appbar_refresh': 'Atualizar',
+      'common_user_fallback': 'Utilizador',
+      'friends_request_wants': 'quer ser teu amigo',
       'shop_pb_plus_body': 'O teu perfil passa para o topo do feed durante o período escolhido, com o distintivo «Boosted»: és visto primeiro e recebes mais pedidos.',
       'shop_pb_plus_title': 'Com PawBoost',
       'shop_pb_free_body': 'O teu perfil aparece nas pesquisas dos donos da tua cidade, ordenado por distância e avaliações.',

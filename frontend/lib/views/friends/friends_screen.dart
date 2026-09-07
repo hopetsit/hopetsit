@@ -536,7 +536,7 @@ class _FriendTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 InterText(
-                  text: other.name.isEmpty ? 'Utilisateur' : other.name,
+                  text: other.name.isEmpty ? 'common_user'.tr : other.name,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary(context),
@@ -857,14 +857,14 @@ class _IncomingTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 InterText(
-                  text: other?.name ?? 'Utilisateur',
+                  text: other?.name ?? 'common_user_fallback'.tr,
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary(context),
                 ),
                 SizedBox(height: 2.h),
                 InterText(
-                  text: 'souhaite être ami avec toi',
+                  text: 'friends_request_wants'.tr,
                   fontSize: 11.sp,
                   color: AppColors.greyText,
                 ),
@@ -921,7 +921,7 @@ class _OutgoingTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 InterText(
-                  text: other?.name ?? 'Utilisateur',
+                  text: other?.name ?? 'common_user_fallback'.tr,
                   fontSize: 12.sp,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary(context),
@@ -1506,7 +1506,7 @@ class _FamilyTab extends StatelessWidget {
                             : null,
                       ),
                       title: InterText(
-                        text: other.name.isEmpty ? 'Utilisateur' : other.name,
+                        text: other.name.isEmpty ? 'common_user'.tr : other.name,
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary(context),
@@ -1684,7 +1684,7 @@ class _FamilyAddByName extends StatelessWidget {
                       ? Icon(Icons.person, size: 18.sp)
                       : null,
                 ),
-                title: Text(other.name.isEmpty ? 'Utilisateur' : other.name),
+                title: Text(other.name.isEmpty ? 'common_user'.tr : other.name),
                 subtitle: Text(other.model),
                 trailing: ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -3025,7 +3025,7 @@ class _MessagesTabState extends State<_MessagesTab> {
                   .read<String>(StorageKeys.userRole) ??
               'owner')
               .toLowerCase();
-          final contactName = name.isEmpty ? 'Utilisateur' : name;
+          final contactName = name.isEmpty ? 'common_user'.tr : name;
           if (myRole == 'sitter' || myRole == 'walker') {
             Get.to(() => SitterIndividualChatScreen(
                   conversationId: convId,
@@ -3246,7 +3246,7 @@ class _PendingRequestsBanner extends StatelessWidget {
 
   Widget _buildOutgoingRow(BuildContext context, Friendship f) {
     final other = f.other;
-    final name = other?.name ?? 'Utilisateur';
+    final name = other?.name ?? 'common_user'.tr;
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 4.h),
       child: Row(
@@ -3314,7 +3314,7 @@ class _PendingRequestsBanner extends StatelessWidget {
 
   Widget _buildFriendRow(BuildContext context, Friendship f) {
     final other = f.other;
-    final name = other?.name ?? 'Utilisateur';
+    final name = other?.name ?? 'common_user'.tr;
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 4.h),
       child: Row(
@@ -3487,7 +3487,7 @@ Future<void> _openFriendChatRoleAware({
     final myRole = (Get.find<GetStorage>().read<String>(StorageKeys.userRole) ??
             'owner')
         .toLowerCase();
-    final contactName = other.name.isEmpty ? 'Utilisateur' : other.name;
+    final contactName = other.name.isEmpty ? 'common_user'.tr : other.name;
     final contactImage = other.avatar;
     if (myRole == 'sitter' || myRole == 'walker') {
       Get.to(() => SitterIndividualChatScreen(

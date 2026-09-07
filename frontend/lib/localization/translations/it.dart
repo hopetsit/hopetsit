@@ -1402,6 +1402,8 @@ const Map<String, String> itITTranslations = <String, String>{
       'pawmap_appbar_follow': 'Segui',
       'pawmap_appbar_live': 'Live',
       'pawmap_appbar_refresh': 'Aggiorna',
+      'common_user_fallback': 'Utente',
+      'friends_request_wants': 'vuole diventare tuo amico',
       'shop_pb_plus_body': 'Il tuo profilo passa in cima al feed per la durata scelta, con il badge «Boostato»: sei visto per primo e ricevi più richieste.',
       'shop_pb_plus_title': 'Con PawBoost',
       'shop_pb_free_body': 'Il tuo profilo compare nelle ricerche dei proprietari della tua città, ordinato per distanza e recensioni.',
