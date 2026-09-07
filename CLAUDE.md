@@ -79,6 +79,20 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   (sans `width`, un bitmap 2× s'afficherait à 160). Pièce PawSpot : canvas
   128 + `canvas.scale(2)` (elle était étirée 3× par l'écran → floue), reflet
   métal, 70/64 → 62/56.
+- **Halos par abonnement** (Daniel) : Premium or + contour noir, PawFollow/
+  Famille violet, PawSpot jaune, sinon couleur du rôle — membres proches,
+  amis en direct, halo perso (`_haloColorFor`). Serveur : `/friends/members/
+  nearby` expose `isPremiumOnly` / `hasPawFollow` / `hasPawSpot`.
+- **PawSpot gratuit dans l'app** (conforme au site) : voir spots/liste/couche
+  pour tous, « Marquer un lieu » et « Photo » ouverts, serveur limite à
+  3 tags (`FREE_SPOT_LIMIT`) → 402 → boutique. Note « 3 premiers tags
+  gratuits » (9 langues, app + site).
+- **Site** : `SubscriptionsExplainer` (accueil + /pawmap), 12 clés × 9 langues,
+  prix PawPremium (`home_pawpremium_price_line`), en-tête cadré ; bouton
+  « me géolocaliser » : GPS précis d'abord + flyTo 17. App : « ma position »
+  = fix `LocationAccuracy.best` frais + zoom 17.
+- **Play** : « Modifications en cours d'examen » — 559 (23.1.556). iOS :
+  whatsNew fr/en réécrits ; build 559 envoyé par Transporter 11:05.
 - Fichiers : `~/Downloads/HoPetSit_v23.1.556.{apk,aab,ipa}` (build **559**),
   notes Play : `~/Downloads/HoPetSit_556_notes_de_version.txt`.
 
