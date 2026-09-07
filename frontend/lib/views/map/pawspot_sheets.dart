@@ -33,6 +33,9 @@ Future<bool?> showPawSpotCreateSheet(
   BuildContext context, {
   required PawSpotController controller,
   required LatLng position,
+  // v555 — « Photo du spot » (grande carte) : la photo est prise AVANT
+  // d'ouvrir la fiche, elle arrive ici déjà envoyée.
+  String initialPhotoUrl = '',
 }) {
   return showModalBottomSheet<bool>(
     context: context,
@@ -45,6 +48,7 @@ Future<bool?> showPawSpotCreateSheet(
     builder: (_) => _PawSpotCreateSheet(
       controller: controller,
       position: position,
+      initialPhotoUrl: initialPhotoUrl,
     ),
   );
 }
@@ -85,10 +89,12 @@ class _PawSpotCreateSheet extends StatefulWidget {
   const _PawSpotCreateSheet({
     required this.controller,
     required this.position,
+    this.initialPhotoUrl = '',
   });
 
   final PawSpotController controller;
   final LatLng position;
+  final String initialPhotoUrl;
 
   @override
   State<_PawSpotCreateSheet> createState() => _PawSpotCreateSheetState();
@@ -98,7 +104,7 @@ class _PawSpotCreateSheetState extends State<_PawSpotCreateSheet> {
   String? _type;
   final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _descCtrl = TextEditingController();
-  String _photoUrl = '';
+  late String _photoUrl = widget.initialPhotoUrl;
   bool _uploadingPhoto = false;
   bool _submitting = false;
 

@@ -114,17 +114,17 @@ async function listPositionListeners(userId, role) {
     }
 
     if (!familyBypass) {
-      // Default true mais l'user a coupe la switch — securite belt+suspenders.
+      // Sans abo ni famille : je diffuse à cet ami seulement si J'AI allumé
+      // « Partager » pour lui (Mes amis). Le drapeau vaut false par défaut
+      // dans le schéma → c'est un opt-in par ami.
       if (!myShare) continue;
-
-      // The other side's receive flag — they can mute me — we reuse the same
-      // flag on their side (it means "I accept receiving positions"). We read
-      // it as "if the friend muted their own share, they probably don't want
-      // to see ours either" to keep the UX symmetric.
-      const theirShare = isRequester
-        ? f.addresseeSharesPosition
-        : f.requesterSharesPosition;
-      if (!theirShare) continue;
+      // v555 — Daniel : « vérifie si le suivi direct marche bien pour tout le
+      // monde ». On exigeait AUSSI que l'ami ait allumé SON partage vers moi
+      // (« UX symétrique ») : A partage avec B, B n'a rien touché → B ne
+      // recevait JAMAIS A. Or /friends/live-positions, lui, montrait A à B.
+      // Deux règles contradictoires pour la même amitié ; le schéma dit
+      // « chaque côté choisit sans affecter l'autre ». On s'y tient : mon
+      // partage suffit. B garde son propre drapeau pour couper le sien.
     }
 
     listeners.push({

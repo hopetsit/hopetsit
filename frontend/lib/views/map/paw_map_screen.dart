@@ -23,7 +23,10 @@ import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:share_plus/share_plus.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:hopetsit/utils/pawmap_theme.dart';
+import 'package:hopetsit/widgets/pawmap_panel_handle.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -2336,6 +2339,13 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// POI / report / request layers refresh after the user stops panning.
   void _scheduleReload() {
     _cameraMoving = false; // v550 — geste terminé : le halo repulse.
+    // v555 — pendant un placement, on résout l'adresse du point visé dès que
+    // la carte s'immobilise (affichée dans la carte de placement).
+    if (_pickingSpotPos.value ||
+        _pickingReportPos.value ||
+        _pickingRoutePos.value) {
+      unawaited(_refreshPickAddress());
+    }
     _reloadDebounce?.cancel();
     _reloadDebounce = Timer(const Duration(milliseconds: 500), () {
       if (!mounted) return;
@@ -3820,9 +3830,13 @@ class _PawMapScreenState extends State<PawMapScreen>
                   return Positioned(
                     left: 12.w,
                     right: 12.w,
+                    // v555 — Daniel : « barres à baisser légèrement » (elles
+                    // touchaient le panneau blanc) : 156 → 146, et les
+                    // boutons sont passés de 44 à 38. Pendant un placement :
+                    // au-dessus de la carte de placement (140 + ~110).
                     bottom: (picking
-                            ? 210.h
-                            : (aroundShown ? 206.h : 156.h)) +
+                            ? 262.h
+                            : (aroundShown ? 206.h : 146.h)) +
                         MediaQuery.of(context).viewPadding.bottom,
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -3883,7 +3897,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                     bottom: 116.h + MediaQuery.of(context).viewPadding.bottom,
                     child: _buildAroundYouCard(),
                   )
-                else
+                else if (!_pickingSpotPos.value &&
+                    !_pickingReportPos.value &&
+                    !_pickingRoutePos.value)
+                  // v555 — jamais pendant un placement : il flottait par-dessus
+                  // Valider/Annuler (capture Daniel).
                   Positioned(
                     left: 12.w,
                     right: 12.w,
@@ -3951,10 +3969,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// douce floue.
   Widget _buildMapControlsStack() {
     return Container(
-      width: 44.w,
+      // v555 — même diète que le rail gauche : 5 boutons à 38 au lieu de 44,
+      // soit 30 px de moins sur la hauteur totale de la capsule.
+      width: 38.w,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22.r),
+        borderRadius: BorderRadius.circular(19.r),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.12),
@@ -4082,11 +4102,11 @@ class _PawMapScreenState extends State<PawMapScreen>
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22.r),
+        borderRadius: BorderRadius.circular(19.r),
         child: SizedBox(
-          width: 44.w,
-          height: 44.w,
-          child: Icon(icon, color: tone, size: 22.sp),
+          width: 38.w,
+          height: 38.w,
+          child: Icon(icon, color: tone, size: 19.sp),
         ),
       ),
     );
@@ -4095,7 +4115,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   Widget _stackedDivider() {
     return Container(
       height: 1,
-      margin: EdgeInsets.symmetric(horizontal: 8.w),
+      margin: EdgeInsets.symmetric(horizontal: 7.w),
       color: AppColors.greyText.withValues(alpha: 0.15),
     );
   }
@@ -4301,8 +4321,28 @@ class _PawMapScreenState extends State<PawMapScreen>
   ///   - barre Annuler / Valider en bas, calée au-dessus du menu (petite
   ///     carte) ou de la barre système (carte agrandie, dock masqué),
   ///   - rails et « Autour de vous » écartés le temps du placement.
+  /// v555 — refonte du placement (Daniel : « améliore le système de
+  /// signalement et de spot »).
+  ///
+  /// Ce qui n'allait pas, vu sur ses captures :
+  ///  1. les boutons Valider/Annuler passaient SOUS la barre d'onglets et sous
+  ///     la barre système — parce que les viseurs lisaient
+  ///     `MediaQuery.viewPadding.bottom`, qui vaut **0** sur son Samsung
+  ///     (l'app est en edge-to-edge). Tout le reste de la carte utilise
+  ///     `_navInset()`, qui retombe sur 48 dans ce cas : d'où l'écart. Les
+  ///     viseurs utilisent désormais `_navInset()` eux aussi ;
+  ///  2. « Effacer l'itinéraire » flottait par-dessus les boutons ;
+  ///  3. sur la carte agrandie, la bulle d'aide passait DERRIÈRE la bannière
+  ///     « Partager ma position » et le bouton Réduire → illisible.
+  ///
+  /// Le placement prend maintenant l'écran pour lui : une carte blanche ancrée
+  /// en bas (titre + adresse visée + Annuler/Valider), le repère au centre, et
+  /// plus rien d'autre — seul le rail de zoom reste, posé au-dessus de la
+  /// carte. L'adresse est résolue quand la caméra s'arrête : on sait ce qu'on
+  /// vise au lieu de valider à l'aveugle.
   Widget _buildPickerOverlay({
     required String hint,
+    required String title,
     required String confirmLabel,
     required Color confirmColor,
     required IconData icon,
@@ -4312,6 +4352,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     return Positioned.fill(
       child: Stack(
         children: [
+          // Bulle d'aide, sous l'AppBar. Rien ne passe devant : la bannière du
+          // haut et le panneau sont masqués pendant le placement.
           Positioned(
             top: 12.h,
             left: 20.w,
@@ -4345,67 +4387,141 @@ class _PawMapScreenState extends State<PawMapScreen>
               ),
             ),
           ),
+
+          // Carte de placement ancrée en bas. `_navInset` = la vraie hauteur de
+          // la barre système (48 par défaut) ; on ajoute la barre d'onglets sur
+          // la petite carte, rien sur la carte agrandie (le dock est masqué).
           Positioned(
-            left: 16.w,
-            right: 16.w,
-            bottom: 16.h +
-                MediaQuery.of(context).viewPadding.bottom +
-                (pawMapExpanded.value ? 0.h : 106.h),
+            left: 12.w,
+            right: 12.w,
+            // Petite carte : la barre d'onglets pleine largeur monte jusqu'à
+            // ~125 (mesuré sur les captures de Daniel : 122 = SOUS la barre).
+            // Carte agrandie : juste au-dessus de la barre système.
+            bottom: pawMapExpanded.value
+                ? _navInset(context) + 12.h
+                : 140.h + MediaQuery.of(context).viewPadding.bottom,
             child: Material(
               color: Colors.transparent,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14.r),
-                      onTap: onCancel,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(vertical: 13.h),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14.r),
-                          border: Border.all(color: PawMapTheme.border),
-                          boxShadow: PawMapTheme.pillShadow,
+              child: Container(
+                padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20.r),
+                  border: Border.all(color: PawMapTheme.border),
+                  boxShadow: PawMapTheme.pillShadow,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 30.w,
+                          height: 30.w,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: confirmColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
+                          child:
+                              Icon(icon, size: 16.sp, color: confirmColor),
                         ),
-                        child: Center(
-                          child: Text(
-                            'pawspot_pick_cancel'.tr,
-                            style: PawMapTheme.font(
-                                size: 13.sp, weight: FontWeight.w800),
+                        SizedBox(width: 10.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: PawMapTheme.font(
+                                    size: 13.5.sp, weight: FontWeight.w800),
+                              ),
+                              SizedBox(height: 1.h),
+                              // Adresse visée : mise à jour dès que la caméra
+                              // s'arrête (voir _refreshPickAddress).
+                              Obx(() => Text(
+                                    _pickAddress.value.isEmpty
+                                        ? 'pawmap_pick_locating'.tr
+                                        : _pickAddress.value,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: PawMapTheme.font(
+                                      size: 11.sp,
+                                      weight: FontWeight.w500,
+                                      color: PawMapTheme.sub,
+                                    ),
+                                  )),
+                            ],
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ),
-                  SizedBox(width: 10.w),
-                  Expanded(
-                    flex: 2,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14.r),
-                      onTap: onConfirm,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(vertical: 13.h),
-                        decoration: BoxDecoration(
-                          color: confirmColor,
-                          borderRadius: BorderRadius.circular(14.r),
-                          boxShadow: PawMapTheme.pillShadow,
-                        ),
-                        child: Center(
-                          child: Text(
-                            confirmLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: PawMapTheme.font(
-                              size: 13.sp,
-                              weight: FontWeight.w800,
-                              color: Colors.white,
+                    SizedBox(height: 12.h),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(13.r),
+                            onTap: onCancel,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(vertical: 12.h),
+                              decoration: BoxDecoration(
+                                color: PawMapTheme.ink.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(13.r),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'pawspot_pick_cancel'.tr,
+                                  style: PawMapTheme.font(
+                                      size: 13.sp, weight: FontWeight.w800),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                        SizedBox(width: 10.w),
+                        Expanded(
+                          flex: 2,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(13.r),
+                            onTap: onConfirm,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(vertical: 12.h),
+                              decoration: BoxDecoration(
+                                color: confirmColor,
+                                borderRadius: BorderRadius.circular(13.r),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color:
+                                        confirmColor.withValues(alpha: 0.35),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  confirmLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: PawMapTheme.font(
+                                    size: 13.sp,
+                                    weight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -4414,9 +4530,40 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
+  /// Adresse du point visé pendant un placement (« Los Guardianes, Murcie »).
+  final RxString _pickAddress = ''.obs;
+  int _pickAddressSeq = 0;
+
+  /// Géocodage inverse du centre de la carte, appelé quand la caméra s'arrête.
+  /// Un compteur de séquence évite qu'une réponse lente écrase une plus
+  /// récente (l'utilisateur fait souvent glisser la carte plusieurs fois).
+  Future<void> _refreshPickAddress() async {
+    final at = _pickedSpotPos ?? _currentCenter;
+    final seq = ++_pickAddressSeq;
+    try {
+      final a = await LocationService()
+          .getAddressFromCoordinates(at.latitude, at.longitude)
+          .timeout(const Duration(seconds: 4), onTimeout: () => null);
+      if (seq != _pickAddressSeq || !mounted) return;
+      if (a == null) {
+        _pickAddress.value = '';
+        return;
+      }
+      final parts = <String>[
+        (a['street'] ?? '').toString(),
+        (a['city'] ?? '').toString(),
+        (a['country'] ?? '').toString(),
+      ].where((e) => e.trim().isNotEmpty).toList();
+      _pickAddress.value = parts.take(2).join(', ');
+    } catch (_) {
+      if (seq == _pickAddressSeq) _pickAddress.value = '';
+    }
+  }
+
   Widget _buildSpotPickerOverlay() {
     return _buildPickerOverlay(
       hint: 'pawspot_pick_hint'.tr,
+      title: 'pawmap_pick_title_spot'.tr,
       confirmLabel: 'pawspot_pick_confirm'.tr,
       confirmColor: const Color(0xFFEC1E79),
       icon: Icons.pets_rounded,
@@ -4627,39 +4774,14 @@ class _PawMapScreenState extends State<PawMapScreen>
       (GetStorage().read('pawmap_panel_collapsed') == true).obs;
 
   Widget _panelHandle({required bool collapsed}) {
-    return Center(
-      child: GestureDetector(
-        onTap: () {
-          _panelCollapsed.value = !collapsed;
-          try {
-            GetStorage()
-                .write('pawmap_panel_collapsed', _panelCollapsed.value);
-          } catch (_) {/* stockage plein : sans importance */}
-        },
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          width: collapsed ? 88.w : 62.w,
-          height: collapsed ? 34.h : 26.h,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: collapsed ? PawMapTheme.rose : PawMapTheme.ink.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(999),
-            boxShadow: collapsed ? PawMapTheme.pillShadow : null,
-          ),
-          child: collapsed
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.tune_rounded, size: 15.sp, color: Colors.white),
-                    SizedBox(width: 5.w),
-                    Icon(Icons.keyboard_arrow_down_rounded,
-                        size: 18.sp, color: Colors.white),
-                  ],
-                )
-              : Icon(Icons.keyboard_arrow_up_rounded,
-                  size: 20.sp, color: PawMapTheme.sub),
-        ),
-      ),
+    return PawMapPanelHandle(
+      collapsed: collapsed,
+      onTap: () {
+        _panelCollapsed.value = !collapsed;
+        try {
+          GetStorage().write('pawmap_panel_collapsed', _panelCollapsed.value);
+        } catch (_) {/* stockage plein : sans importance */}
+      },
     );
   }
 
@@ -5233,8 +5355,13 @@ class _PawMapScreenState extends State<PawMapScreen>
     return Obx(() {
       final on = _liveMap.broadcasting.value;
       return Container(
+        // v555 — Daniel : « le bouton Partager ma position, fais-le fin comme
+        // le bouton Agrandir, comme ça tu remontes le cadre blanc ». La
+        // bannière faisait 3 lignes et poussait tout le panneau vers le bas ;
+        // elle tient maintenant sur UNE ligne, à la hauteur du bouton
+        // Agrandir — le panneau et les rails gagnent ~40 px de hauteur utile.
         margin: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 0),
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
         decoration: BoxDecoration(
           gradient: on
               ? const LinearGradient(
@@ -5281,37 +5408,35 @@ class _PawMapScreenState extends State<PawMapScreen>
             ),
             SizedBox(width: 10.w),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InterText(
-                    text: on
-                        ? 'pawmap_live_banner_title'.tr
-                        : 'pawmap_live_share_off'.tr,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w800,
-                    color: on ? Colors.white : AppColors.textPrimary(context),
-                  ),
-                  SizedBox(height: 1.h),
-                  InterText(
-                    text: 'pawmap_live_banner_msg'.tr,
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w500,
-                    color: on
-                        ? Colors.white.withValues(alpha: 0.95)
-                        : AppColors.greyText,
-                  ),
-                ],
+              // v555 — une seule ligne : le sous-titre « Tes amis & ta famille
+              // voient ta position » passe en info-bulle (appui long) ; il
+              // n'apporte rien une fois qu'on a compris l'interrupteur.
+              child: Tooltip(
+                message: 'pawmap_live_banner_msg'.tr,
+                child: InterText(
+                  text: on
+                      ? 'pawmap_live_banner_title'.tr
+                      : 'pawmap_live_share_off'.tr,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w800,
+                  color: on ? Colors.white : AppColors.textPrimary(context),
+                  maxLines: 1,
+                ),
               ),
             ),
-            // Interrupteur ON/OFF (maquette : toggle blanc sur vert).
-            Switch(
-              value: on,
-              onChanged: (_) => _toggleBroadcast(),
-              activeThumbColor: const Color(0xFF16A34A),
-              activeTrackColor: Colors.white,
-              inactiveThumbColor: Colors.white,
-              inactiveTrackColor: AppColors.greyText.withValues(alpha: 0.4),
+            // Interrupteur ON/OFF (maquette : toggle blanc sur vert), compacté
+            // pour tenir sur la ligne fine.
+            Transform.scale(
+              scale: 0.85,
+              child: Switch(
+                value: on,
+                onChanged: (_) => _toggleBroadcast(),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                activeThumbColor: const Color(0xFF16A34A),
+                activeTrackColor: Colors.white,
+                inactiveThumbColor: Colors.white,
+                inactiveTrackColor: AppColors.greyText.withValues(alpha: 0.4),
+              ),
             ),
           ],
         ),
@@ -5355,7 +5480,8 @@ class _PawMapScreenState extends State<PawMapScreen>
             _mapExpanded.value = !expanded;
           },
           child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 9.h),
+            // v555 — aligné sur la bannière fine (une ligne).
+            padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14.r),
               // v488 — Daniel : surbrillance contour ROSE sur Agrandir/Réduire.
@@ -5471,18 +5597,24 @@ class _PawMapScreenState extends State<PawMapScreen>
               : const SizedBox.shrink()),
 
           // EN HAUT : [ Suivi en direct ON/OFF ] [ Réduire la carte ]
-          Positioned(
-            top: 8.h,
-            left: 0,
-            right: 0,
-            child: Row(
-              children: [
-                Expanded(child: _buildLiveBroadcastBanner()),
-                _buildExpandPill(expanded: true),
-                SizedBox(width: 12.w),
-              ],
-            ),
-          ),
+          // v555 — masquée pendant un placement : elle passait DEVANT la bulle
+          // d'aide du viseur (capture Daniel : « …ouge à » coupé).
+          Obx(() => (_pickingSpotPos.value ||
+                  _pickingReportPos.value ||
+                  _pickingRoutePos.value)
+              ? const SizedBox.shrink()
+              : Positioned(
+                  top: 8.h,
+                  left: 0,
+                  right: 0,
+                  child: Row(
+                    children: [
+                      Expanded(child: _buildLiveBroadcastBanner()),
+                      _buildExpandPill(expanded: true),
+                      SizedBox(width: 12.w),
+                    ],
+                  ),
+                )),
 
           // v488 — Daniel : MÊMES 4 boutons ronds qu'en petite carte (Voir
           // spots / Tag spot / Voir signaux / Signaler), centrés verticalement
@@ -5507,7 +5639,10 @@ class _PawMapScreenState extends State<PawMapScreen>
           // sans aucun retour visible ni moyen de l'effacer → Daniel a conclu
           // que le bouton n'était pas branché. Ici en HAUT : le bas est déjà
           // occupé par le dock et les deux rails.
-          if (_routePolylines.isNotEmpty)
+          if (_routePolylines.isNotEmpty &&
+              !_pickingSpotPos.value &&
+              !_pickingReportPos.value &&
+              !_pickingRoutePos.value)
             Positioned(
               top: 64.h,
               left: 12.w,
@@ -5548,7 +5683,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     ((_pickingSpotPos.value ||
                             _pickingReportPos.value ||
                             _pickingRoutePos.value)
-                        ? 100.h
+                        ? 136.h
                         : 82.h),
                 child: _buildMapControlsStack(),
               )),
@@ -5583,7 +5718,9 @@ class _PawMapScreenState extends State<PawMapScreen>
               label: 'pawmap_btn_directions'.tr,
               onTap: () {
                 _pickedSpotPos = _currentCenter;
+                _pickAddress.value = '';
                 _pickingRoutePos.value = true;
+                unawaited(_refreshPickAddress());
               },
             ),
             SizedBox(height: 8.h),
@@ -5599,7 +5736,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               color: PawMapTheme.pawSpot,
               label: 'pawmap_btn_spot_photo'.tr,
               onTap: () =>
-                  spotOk ? _startSpotPicking() : unawaited(_togglePawSpot()),
+                  spotOk ? unawaited(_startSpotPhoto()) : unawaited(_togglePawSpot()),
             ),
             SizedBox(height: 8.h),
           ],
@@ -6013,23 +6150,27 @@ class _PawMapScreenState extends State<PawMapScreen>
     required String label,
     required VoidCallback onTap,
   }) {
+    // v555 — Daniel : « les deux barres touchent le menu ». Les rails
+    // mesuraient ~200 et ~230 px de haut pour une bande libre de ~250 : ils
+    // touchaient forcément le panneau en haut OU la barre d'onglets en bas.
+    // Boutons 44 → 38 et écart 10 → 7 : ~35 px repris sur chaque rail.
     return Padding(
-      padding: EdgeInsets.only(bottom: 10.h),
+      padding: EdgeInsets.only(bottom: 7.h),
       child: Tooltip(
         message: label,
         child: GestureDetector(
           onTap: onTap,
           behavior: HitTestBehavior.opaque,
           child: Container(
-            width: 44.w,
-            height: 44.w,
+            width: 38.w,
+            height: 38.w,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
               boxShadow: PawMapTheme.pillShadow,
             ),
-            child: Icon(icon, size: 20.sp, color: color),
+            child: Icon(icon, size: 18.sp, color: color),
           ),
         ),
       ),
@@ -6054,8 +6195,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v23.1.363 — pin de départ au centre, puis TAP sur la carte pour le
     // déplacer (le marqueur est aussi draggable).
     _pickedSpotPos = _currentCenter;
+    _pickAddress.value = '';
     _pickingSpotPos.value = true;
     if (mounted) setState(() {});
+    unawaited(_refreshPickAddress());
   }
 
   /// v449 — Daniel : viseur SIGNALEMENT express. Pin (rouge) déplaçable au
@@ -6063,9 +6206,14 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// la feuille de signalement au point choisi. Plus rapide que Taguer un lieu
   /// (une seule action de validation).
   void _startReportPicking() {
-    _pickedSpotPos = _userPosition ?? _currentCenter;
+    // v555 — le point de départ est le CENTRE de la carte (là où est le
+    // repère rouge), plus la position GPS : sinon, sans bouger la carte, le
+    // signalement partait à un endroit différent de celui affiché.
+    _pickedSpotPos = _currentCenter;
+    _pickAddress.value = '';
     _pickingReportPos.value = true;
     if (mounted) setState(() {});
+    unawaited(_refreshPickAddress());
   }
 
   /// Bandeau bas du viseur signalement : hint + bouton « Signaler ici » + ✕.
@@ -6075,6 +6223,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   Widget _buildRoutePickerOverlay() {
     return _buildPickerOverlay(
       hint: 'pawmap_route_pick_hint'.tr,
+      title: 'pawmap_pick_title_route'.tr,
       confirmLabel: 'pawmap_btn_directions'.tr,
       confirmColor: PawMapTheme.ok,
       icon: Icons.directions_rounded,
@@ -6094,6 +6243,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   Widget _buildReportPickerOverlay() {
     return _buildPickerOverlay(
       hint: 'pawmap_report_pick_hint'.tr,
+      title: 'pawmap_pick_title_report'.tr,
       confirmLabel: 'pawmap_report_pick_confirm'.tr,
       confirmColor: const Color(0xFFDC2626),
       icon: Icons.place_rounded,
@@ -6421,6 +6571,52 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
     if (created == true) {
       await _pawSpotController.loadNearby(_currentCenter);
+    }
+  }
+
+  /// v555 — Daniel : « dans la grande map la photo ne marche pas, règle ou
+  /// crée le système ». Le bouton « Photo du spot » appelait… le viseur de
+  /// placement, exactement comme « Marquer un lieu » : aucune photo nulle
+  /// part. Désormais : appareil photo → envoi → fiche de création déjà
+  /// remplie avec la photo, à la position GPS (on photographie l'endroit où
+  /// l'on EST — pas le centre de la carte).
+  bool _spotPhotoBusy = false;
+  Future<void> _startSpotPhoto() async {
+    if (_spotPhotoBusy) return;
+    _spotPhotoBusy = true;
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1280,
+        imageQuality: 80,
+      );
+      if (picked == null || !mounted) return;
+      CustomSnackbar.showInfo(
+        title: 'pawmap_btn_spot_photo'.tr,
+        message: 'pawspot_photo_uploading'.tr,
+      );
+      final url = await _pawSpotController.uploadPhoto(File(picked.path));
+      if (!mounted) return;
+      if (url == null || url.isEmpty) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'pawspot_add_photo'.tr,
+        );
+        return;
+      }
+      final created = await showPawSpotCreateSheet(
+        context,
+        controller: _pawSpotController,
+        position: _userPosition ?? _currentCenter,
+        initialPhotoUrl: url,
+      );
+      if (created == true) {
+        await _pawSpotController.loadNearby(_currentCenter);
+      }
+    } catch (e) {
+      debugPrint('[PawMap] spot photo error: $e');
+    } finally {
+      _spotPhotoBusy = false;
     }
   }
 
