@@ -62,7 +62,7 @@ export function SubscriptionsExplainer({ compact = false }: { compact?: boolean 
           {plans.map((p) => (
             <article
               key={p.key}
-              className="flex flex-col overflow-hidden rounded-3xl border border-ink/10 bg-white shadow-sm"
+              className="flex flex-col overflow-hidden rounded-3xl border border-ink/10 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
             >
               {/* En-tête cadré : logo + nom sur une ligne, prix dans une
                   pastille en dessous — même hauteur pour les 3 cartes. */}
