@@ -107,6 +107,9 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   ⚠️ Un « missing value » du tool JS = souvent un clic qui a FONCTIONNÉ (la
   page a changé pendant l'exécution) → toujours relire l'URL/le statut avant
   de conclure à l'échec.
+- **iOS** : 1.14 → soumission 557 annulée, build **558** rattaché (204),
+  whatsNew fr/en réécrits pour la 555, nouvelle soumission
+  `7a04f55f-…` → **WAITING_FOR_REVIEW avec le 558**.
 
 **07/09 (nuit) — v554 « 5 défauts de placement + recherche de ville »**
 - Petite carte : les deux rails touchaient la barre d'onglets → remontés
