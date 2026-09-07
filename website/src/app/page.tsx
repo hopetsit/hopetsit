@@ -69,47 +69,100 @@ export default function HomePage() {
 
   return (
     <>
-      {/* ── 1. HERO ── orange → blanc, carte sitter flottante. */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-owner-light via-white to-sitter-light/40">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-20 md:grid-cols-2 md:py-28">
+      {/* ── 1. HERO ── v556 (Daniel : « accueil pro, premium, propre »).
+           Fond : dégradé crème + deux halos de couleur très doux (owner /
+           sitter) + trame fine ; titre en grande échelle ; 2 CTA ; 3 preuves
+           en puces sous les boutons ; à droite la carte démo « flottante »
+           avec deux étiquettes (en direct, note). Mêmes clés, mêmes routes. */}
+      <section className="relative overflow-hidden bg-[#FAF7F2]">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(60% 55% at 12% 18%, rgba(201,42,18,0.10) 0%, rgba(201,42,18,0) 60%)," +
+              "radial-gradient(45% 45% at 88% 30%, rgba(37,99,235,0.10) 0%, rgba(37,99,235,0) 60%)," +
+              "radial-gradient(40% 40% at 70% 95%, rgba(22,163,74,0.08) 0%, rgba(22,163,74,0) 60%)",
+          }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.35]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(23,19,15,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(23,19,15,0.045) 1px, transparent 1px)",
+            backgroundSize: "44px 44px",
+            maskImage: "radial-gradient(70% 70% at 50% 40%, #000 30%, transparent 100%)",
+            WebkitMaskImage: "radial-gradient(70% 70% at 50% 40%, #000 30%, transparent 100%)",
+          }}
+        />
+
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 md:grid-cols-[1.05fr_0.95fr] md:py-28">
           <div className="flex flex-col justify-center">
-            <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-owner/30 bg-white px-3 py-1 text-xs font-semibold text-owner">
+            <span className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-owner/20 bg-white/80 px-3.5 py-1.5 text-xs font-bold text-owner shadow-sm backdrop-blur">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-owner opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-owner" />
+              </span>
               🌍 {t("hero_badge")}
             </span>
-            <h1 className="font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-ink md:text-6xl">
+            <h1 className="font-display text-[2.6rem] font-extrabold leading-[1.04] tracking-[-0.02em] text-ink md:text-6xl">
               {t("hero_title")}
             </h1>
-            <p className="mt-5 max-w-xl text-lg leading-relaxed text-ink-muted">
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-muted">
               {t("hero_sub")}
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-9 flex flex-wrap gap-3">
               <Link
                 href="/download"
-                className="rounded-full bg-owner px-7 py-3.5 text-sm font-bold text-white shadow-cta transition hover:bg-owner-dark"
+                className="inline-flex items-center gap-2 rounded-full bg-owner px-7 py-3.5 text-sm font-bold text-white shadow-cta transition hover:-translate-y-0.5 hover:bg-owner-dark hover:shadow-xl"
               >
                 {t("hero_cta_app")}
+                <span aria-hidden>→</span>
               </Link>
               <Link
                 href="/login"
-                className="whitespace-nowrap rounded-full bg-[#17141f] px-7 py-3.5 text-sm font-bold text-white shadow-cta transition hover:bg-black"
+                className="inline-flex items-center whitespace-nowrap rounded-full border border-ink/15 bg-white px-7 py-3.5 text-sm font-bold text-ink shadow-sm transition hover:-translate-y-0.5 hover:border-ink/30 hover:shadow-md"
               >
                 {t("hero_cta_web_login")}
               </Link>
             </div>
             {/* v508 — l'app est EN LIGNE sur Google Play 🎉 → badges stores. */}
-            <div className="mt-5">
+            <div className="mt-6">
               <StoreBadges />
             </div>
+            {/* v556 — 3 preuves en puces (mêmes textes que la bande confiance). */}
+            <ul className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-[13px] font-semibold text-ink-soft">
+              <li className="inline-flex items-center gap-1.5"><span className="text-walker">✓</span>{t("trust_id_title")}</li>
+              <li className="inline-flex items-center gap-1.5"><span>🔒</span>{t("trust_pay_title")}</li>
+              <li className="inline-flex items-center gap-1.5"><span>🗺️</span>{t("trust_map_title")}</li>
+            </ul>
           </div>
 
           <div className="relative">
             <div className="relative mx-auto w-full max-w-sm">
-              <div className="absolute -right-4 top-6 h-72 w-full rotate-3 rounded-[26px] bg-sitter shadow-card" />
-              <div className="absolute -left-4 top-12 h-72 w-full -rotate-2 rounded-[26px] bg-walker shadow-card" />
-              <div className="relative w-full rounded-[26px] border border-[#efe7e0] bg-white p-6 shadow-card">
+              {/* Cartes d'arrière-plan (bleu gardien / vert promeneur), plus
+                  douces qu'avant : ombre portée large, rotation légère. */}
+              <div className="absolute -right-5 top-8 h-72 w-full rotate-3 rounded-[28px] bg-gradient-to-br from-sitter to-[#1d4ed8] opacity-90 shadow-2xl" />
+              <div className="absolute -left-5 top-14 h-72 w-full -rotate-2 rounded-[28px] bg-gradient-to-br from-walker to-[#15803d] opacity-90 shadow-2xl" />
+
+              {/* Étiquette flottante « en direct » (PawFollow). */}
+              <div className="absolute -left-6 -top-5 z-10 inline-flex items-center gap-2 rounded-full border border-white bg-white/90 px-3 py-1.5 text-xs font-bold text-ink shadow-lg backdrop-blur">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-walker opacity-70" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-walker" />
+                </span>
+                PawFollow · {t("dash_live")}
+              </div>
+              {/* Étiquette flottante « note ». */}
+              <div className="absolute -right-4 top-24 z-10 inline-flex items-center gap-1.5 rounded-full border border-white bg-white/90 px-3 py-1.5 text-xs font-bold text-ink shadow-lg backdrop-blur">
+                <span className="text-amber-500">★</span> 4.9 <span className="font-medium text-ink-muted">· Top Sitter</span>
+              </div>
+
+              <div className="relative w-full rounded-[28px] border border-white bg-white/95 p-6 shadow-[0_30px_60px_-20px_rgba(23,19,15,0.35)] backdrop-blur">
                 <div className="flex items-center justify-between">
                   <div className="flex items-start gap-3">
-                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-owner-light text-2xl">🐕</div>
+                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-owner-light text-2xl shadow-inner">🐕</div>
                     <div>
                       {/* v519 — Daniel : « prénom américain + USD » (marché
                           mondial, USA inclus — la démo parle au plus grand
@@ -118,7 +171,7 @@ export default function HomePage() {
                       <div className="text-xs text-ink-muted">New York · 4.9 ★ · Top Sitter</div>
                     </div>
                   </div>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-sitter-light px-2.5 py-1 text-[10px] font-bold text-sitter-dark">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-sitter-light text-xs font-bold text-sitter-dark ring-1 ring-sitter/20">
                     ✓
                   </span>
                 </div>
@@ -128,26 +181,26 @@ export default function HomePage() {
                     { t: t("home_card_week"), v: "$180" },
                     { t: t("home_card_month"), v: "$620" },
                   ].map((x) => (
-                    <div key={x.t} className="rounded-xl bg-bg-soft p-2">
+                    <div key={x.t} className="rounded-xl border border-ink/5 bg-bg-soft p-2.5">
                       <div className="text-[10px] uppercase tracking-wider text-ink-soft">{x.t}</div>
-                      <div className="text-sm font-bold text-ink">{x.v}</div>
+                      <div className="text-sm font-extrabold text-ink">{x.v}</div>
                     </div>
                   ))}
                 </div>
-                <div className="mt-5 rounded-xl bg-sitter-light/70 p-3">
-                  <div className="text-[11px] uppercase text-sitter-dark">{t("home_est_earning")}</div>
-                  <div className="mt-1 text-2xl font-extrabold text-sitter-dark">$48.00</div>
+                <div className="mt-5 rounded-2xl bg-gradient-to-br from-sitter-light to-white p-3.5 ring-1 ring-sitter/15">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-sitter-dark">{t("home_est_earning")}</div>
+                  <div className="mt-1 font-display text-2xl font-extrabold text-sitter-dark">$48.00</div>
                   <div className="text-[11px] text-ink-muted">{t("home_est_detail")}</div>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
-                  <button className="rounded-full border border-ink/10 py-2 text-xs font-semibold text-ink">{t("home_card_details")}</button>
-                  <button className="rounded-full bg-owner py-2 text-xs font-semibold text-white">{t("home_card_request")}</button>
+                  <button className="rounded-full border border-ink/10 py-2.5 text-xs font-semibold text-ink transition hover:bg-bg-soft">{t("home_card_details")}</button>
+                  <button className="rounded-full bg-owner py-2.5 text-xs font-semibold text-white shadow-cta transition hover:bg-owner-dark">{t("home_card_request")}</button>
                 </div>
               </div>
               {/* v519 — Daniel : « petite phrase en dessous de l'image » avec
                   TOUTES les devises acceptées par l'app (pricingService :
                   EUR / GBP / CHF / USD). */}
-              <p className="relative mt-5 text-center text-xs font-semibold text-ink-muted">
+              <p className="relative mt-6 text-center text-xs font-semibold text-ink-muted">
                 💱 {t("home_currencies")}
               </p>
             </div>
@@ -155,18 +208,27 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── 2. BANDE CONFIANCE COMPACTE ── fond sombre, 4 preuves en ligne
-           (fusion des anciennes sections « confiance » + « sécurité »). */}
-      <section className="bg-[#17141f] py-10">
-        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-6 px-4 md:grid-cols-4">
+      {/* ── 2. BANDE CONFIANCE ── v556 : fond sombre profond, 4 preuves en
+           cartes « verre » (bord clair, fond translucide), icône dans une
+           pastille orange. */}
+      <section className="relative overflow-hidden bg-[#17141f] py-12">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ background: "radial-gradient(50% 80% at 50% 0%, rgba(201,42,18,0.22) 0%, rgba(201,42,18,0) 70%)" }}
+        />
+        <div className="relative mx-auto grid max-w-6xl grid-cols-1 gap-4 px-4 sm:grid-cols-2 md:grid-cols-4">
           {trust.map((tr) => (
-            <div key={tr.title} className="flex items-start gap-3">
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-owner text-base text-white">
+            <div
+              key={tr.title}
+              className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-4 transition hover:bg-white/[0.1]"
+            >
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-owner text-base text-white shadow-cta">
                 {tr.icon}
               </div>
               <div>
                 <div className="text-sm font-bold text-white">{tr.title}</div>
-                <div className="mt-0.5 text-xs leading-snug text-white/60">{tr.body}</div>
+                <div className="mt-0.5 text-xs leading-snug text-white/65">{tr.body}</div>
               </div>
             </div>
           ))}
@@ -176,14 +238,15 @@ export default function HomePage() {
       {/* ── v505 — Daniel : VIDÉO DE PRÉSENTATION sur l'accueil. Fichier local
            compressé (4K 156 Mo → 1080p 9,7 Mo, faststart) servi par Vercel.
            preload="metadata" + poster → n'alourdit pas le chargement. */}
-      <section className="mx-auto max-w-5xl px-4 py-20">
+      <section className="mx-auto max-w-5xl px-4 py-24">
         <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
           {t("video_title")}
         </h2>
-        <p className="mx-auto mt-3 max-w-2xl text-center text-ink-muted">
+        <span aria-hidden className="mx-auto mt-4 block h-1 w-14 rounded-full bg-gradient-to-r from-owner to-amber-400" />
+        <p className="mx-auto mt-4 max-w-2xl text-center text-ink-muted">
           {t("video_sub")}
         </p>
-        <div className="mt-10 overflow-hidden rounded-3xl border border-ink/10 shadow-2xl ring-4 ring-owner/10">
+        <div className="mt-10 overflow-hidden rounded-[28px] border border-ink/10 shadow-[0_30px_60px_-24px_rgba(23,19,15,0.45)] ring-1 ring-black/5">
           <video
             controls
             playsInline
@@ -197,19 +260,21 @@ export default function HomePage() {
       </section>
 
       {/* ── 3. UNE APP, TROIS RÔLES ── 3 cartes. */}
-      <section className="mx-auto max-w-6xl px-4 py-20">
+      <section className="mx-auto max-w-6xl px-4 py-24">
         <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
           {t("roles_title")}
         </h2>
+        <span aria-hidden className="mx-auto mt-4 block h-1 w-14 rounded-full bg-gradient-to-r from-owner to-amber-400" />
         <div className="mt-12 grid gap-6 md:grid-cols-3">
           {roles.map((r) => {
             const accent = r.color;
             return (
               <div
                 key={r.title}
-                className="group relative overflow-hidden rounded-[22px] border border-[#efe7e0] bg-white p-7 shadow-card transition hover:-translate-y-1 hover:shadow-xl"
+                className="group relative overflow-hidden rounded-[26px] border border-[#efe7e0] bg-white p-8 shadow-card transition hover:-translate-y-1.5 hover:shadow-[0_24px_48px_-20px_rgba(23,19,15,0.35)]"
               >
                 <div className={`absolute inset-x-0 top-0 h-1.5 bg-${accent}`} />
+                <div aria-hidden className={`pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-${accent}-light opacity-70 blur-2xl`} />
                 {/* v507 — design : icône plus présente + zoom doux au survol. */}
                 <div className={`grid h-14 w-14 place-items-center rounded-2xl bg-${accent}-light text-3xl shadow-sm transition group-hover:scale-110`}>
                   {r.emoji}
@@ -225,11 +290,12 @@ export default function HomePage() {
       {/* ── 4. 3 SERVICES, UNE SEULE APP ── fusion PawSpot + PawFollow + « 3 apps
            en 1 » : 3 cartes (PetSitting · PawFollow · PawSpot), prix en ligne +
            1 CTA chacune. Mêmes routes /signup · /boutique · /pawmap. */}
-      <section className="bg-bg-soft py-20">
+      <section className="bg-bg-soft py-24">
         <div className="mx-auto max-w-6xl px-4">
           <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
             {t("home_3in1_title")}
           </h2>
+          <span aria-hidden className="mx-auto mt-4 block h-1 w-14 rounded-full bg-gradient-to-r from-owner to-amber-400" />
           <p className="mx-auto mt-3 max-w-2xl text-center text-base leading-relaxed text-ink-muted">
             {t("home_3in1_sub")}
           </p>
