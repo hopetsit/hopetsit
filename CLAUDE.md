@@ -99,8 +99,12 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   attach → item → submit sur la MÊME reviewSubmission (déjà créée) : 204/201/200.
 - **Site** : halos par abonnement sur /map (`subscriptionHaloColor`,
   `makeMemberIcon(m)`, props `pawFollowIds`/`pawSpotIds`, halo perso via
-  `benefits`) ; accueil refait (héro, bande confiance, cadence) — design
-  seul, mêmes clés/routes.
+  `benefits`) ; **accueil refait en 12 blocs** (héro, confiance, vidéo,
+  « Comment ça marche » 4 étapes, rôles, services, bande PawMap sombre avec
+  capture réelle, captures, abonnements expliqués, PawPremium, FAQ accordéon,
+  CTA) — design seul, mêmes clés/routes ; vérifié en prod. Bandeau mobile
+  « Télécharger l'app » n'apparaît qu'après 420 px de défilement (il
+  recouvrait le titre du héro).
 - Fichiers : `~/Downloads/HoPetSit_v23.1.556.{apk,aab,ipa}` (build **559**),
   notes Play : `~/Downloads/HoPetSit_556_notes_de_version.txt`.
 
