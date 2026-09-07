@@ -79,6 +79,7 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 - **i18n** : 7 chaînes françaises en dur dans Mes amis → clés
   (`friends_request_wants`, `common_user`). Audit : 9 langues identiques.
 - Trio → v557 / 23.1.557+560. Notes Play : `HoPetSit_557_notes_de_version.txt`.
+- **Play** : « Modifications en cours d'examen » — 560 (23.1.557).
 
 **07/09 (matin) — v556 « boutique expliquée + fiches sous la barre + traductions »**
 - **Boutique** : carte « Gratuit pour tous / Avec PawFollow » en tête de
