@@ -58,7 +58,41 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 558** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 559** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+
+**07/09 (03 h) — v555 « deep work PawMap » (captures Daniel sur la 554 installée)**
+- **Cause racine des boutons sous le menu** : les viseurs lisaient
+  `MediaQuery.viewPadding.bottom`, qui vaut **0 sur le Samsung de Daniel**
+  (edge-to-edge) ; tout le reste de la carte passe par `_navInset()` (48 par
+  défaut). ⚠️ RÈGLE : pour la barre système, TOUJOURS `_navInset(context)`.
+  Petite carte : la barre d'onglets pleine largeur monte jusqu'à ~125.h
+  (mesuré : 122.h = SOUS la barre) → carte de placement à 140.h.
+- **Placement refondu** (`_buildPickerOverlay`) : carte blanche ancrée en bas
+  = titre + **adresse visée** (géocodage inverse au repos caméra, séquencé)
+  + Annuler/Valider ; pendant un placement : dock, rail gauche, panneau,
+  bannière du haut, « Autour de vous » ET « Effacer l'itinéraire » masqués ;
+  seul le rail de zoom reste, au-dessus de la carte (petite 262.h, grande
+  navInset + 136). Le signalement part du CENTRE de la carte (repère), plus
+  de la position GPS.
+- Rails : boutons **44 → 38**, écart 10 → 7, rangée 156 → **146** ; bannière
+  « Partager ma position » sur **une ligne** (sous-titre en info-bulle),
+  Agrandir aligné ; le panneau remonte de ~40 px.
+- **Poignée** : widget `PawMapPanelHandle` (orange pâle, 120 de large,
+  chevron qui respire 1,4 s ; repliée = pilule orange pleine + filtres).
+- **« Photo du spot »** appelait `_startSpotPicking()` = « Marquer un lieu »
+  → `_startSpotPhoto()` : ImagePicker caméra → `uploadPhoto` → fiche de
+  création avec `initialPhotoUrl` (nouveau param de `showPawSpotCreateSheet`),
+  position = GPS.
+- **Suivi direct — règle serveur** : `listPositionListeners` exigeait
+  `myShare && theirShare` (double opt-in) alors que `/friends/live-positions`
+  n'exige que le partage de l'émetteur → mon partage suffit désormais.
+  ⚠️ **Constat produit non tranché** : `requesterSharesPosition` /
+  `addresseeSharesPosition` valent **false par défaut** → sans PawFollow ni
+  famille, « Partager ma position » n'atteint QUE les amis pour lesquels on a
+  allumé « Partager » dans Mes amis. Décision de Daniel attendue (défaut
+  true = partage à tous les amis acceptés, ou garder l'opt-in par ami comme
+  perk PawFollow — cf. v23.1 part 226).
+- 5 clés i18n × 9 langues. Fichiers : `~/Downloads/HoPetSit_v23.1.555.{apk,aab,ipa}`.
 
 **07/09 (nuit) — v554 « 5 défauts de placement + recherche de ville »**
 - Petite carte : les deux rails touchaient la barre d'onglets → remontés
