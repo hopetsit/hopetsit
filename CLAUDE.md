@@ -58,7 +58,7 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 561** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 562** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
 **08/09 (nuit) — v558 « rangée PawMap repliée + vérification notifications »**
 - **Rangée repliée** (captures Daniel) : `_buildTopArea()` → replié =
@@ -94,7 +94,13 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 - **iOS** : IPA envoyé par Transporter (distribution automatique à l'ouverture),
   build 561 VALID en ~10 min, soumission 85a54c5e annulée → 561 rattaché (204)
   → whatsNew fr/en → soumission `9e1a89be-…` → **1.14 WAITING_FOR_REVIEW avec le 561**.
-- **Play** : import de l'AAB 561 = Daniel (en attente).
+- **Play** : AAB 561 importé par Daniel ; notes 6 langues posées par setter natif
+  + InputEvent + blur (compteur « 6 langues sur 6 » après un 2e input/blur),
+  puis **Suivant → Enregistrer → Accéder à l'aperçu → Envoyer 1 modification
+  pour examen → dialogue** tous passés en JS cette fois (bouton du dialogue =
+  « Envoi des modifications pour examen », à chercher DANS `[role=dialog]` ;
+  le bouton « Envoyer 1 modification » : comparer `innerText` après
+  `replace(/\s+/g,' ')`).
 
 **07/09 (soir) — « notifications en retard » : diagnostic (serveur seul, pas de rebuild)**
 - **Serveur hors de cause** : logs Render `[notif.entry]` → `[notif.channel] email ok`
