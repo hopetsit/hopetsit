@@ -73,6 +73,12 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   `(?<![A-Za-z0-9_])clé:\s*["']`. tsc a attrapé mes doublons → retirés.
   Seule clé absente hors en : `account` (en-only, fallback anglais).
 - **App** : pl.dart complété (8 clés). Audit : 9 langues à 3 256 clés, 0 manque.
+- **Marqueurs** (demande Daniel en cours de route) : avatars amis/moi 96 →
+  **80**, rendu médaillon (ombre, anneau fin dégradé or/violet/rôle, liseré,
+  reflet), dessinés à **2×** et affichés via `BitmapDescriptor.bytes(width: 80)`
+  (sans `width`, un bitmap 2× s'afficherait à 160). Pièce PawSpot : canvas
+  128 + `canvas.scale(2)` (elle était étirée 3× par l'écran → floue), reflet
+  métal, 70/64 → 62/56.
 - Fichiers : `~/Downloads/HoPetSit_v23.1.556.{apk,aab,ipa}` (build **559**),
   notes Play : `~/Downloads/HoPetSit_556_notes_de_version.txt`.
 
