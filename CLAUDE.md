@@ -94,8 +94,27 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   place pendant le chargement + confirmation, et il force la couche monde à
   repartir du réseau (le cache 5 min serveur + 24 h local donnait
   l'impression qu'il ne faisait rien).
-- 3 clés i18n × 9 langues. Fichiers : `~/Downloads/HoPetSit_v23.1.554.{apk,aab,ipa}`,
-  notes Play : `~/Downloads/HoPetSit_554_notes_de_version.txt`.
+- **Repli du panneau MÉMORISÉ** (`pawmap_panel_collapsed` dans GetStorage) et
+  pastille de réouverture ROSE avec l'icône des filtres : le cadre porte les
+  3 interrupteurs d'abonnement, il ne doit pas disparaître discrètement.
+  Ce changement a été fait APRÈS l'envoi du build 556 → rebuild en **557**.
+- 3 clés i18n × 9 langues. Fichiers : `~/Downloads/HoPetSit_v23.1.554.{apk,aab,ipa}`
+  (build **557**), notes Play : `~/Downloads/HoPetSit_554_notes_de_version.txt`.
+- **PUBLIÉE** : Play « Modifications en cours d'examen » (bundle 557) — la 553
+  était passée ACTIVE avant (« Dernière release : 555 (23.1.553) », 509
+  installations). iOS **1.14 WAITING_FOR_REVIEW avec le build 557**
+  (soumission portant le 555 annulée, 557 rattaché, whatsNew fr/en réécrits).
+- ⚠️ **Play Console 07/09** : « Suivant » a répondu à la séquence
+  pointerdown/mousedown/pointerup/mouseup/click, mais **l'import du bundle
+  (input file + drop) et le bouton « Enregistrer » sont restés inertes** →
+  ces deux-là = clic humain. Le compte Play de HoPetSit est sous
+  **Cardelli Hermanos LTD, `u/1`, dev 4666400761832810651, app
+  4973435507020277199**.
+- ⚠️ **Piège git du jour** : `~/.gitconfig` route github.com vers
+  `gh auth git-credential`, dont le compte actif est `dadaciao84-ai` — SANS
+  droit de push sur hopetsit/hopetsit → 403. Contournement ponctuel :
+  `git -c credential."https://github.com".helper= -c credential.helper=osxkeychain push`
+  (le trousseau, lui, a le bon compte `hopetsit`).
 
 **06/09 (nuit) — v553 « placement des boutons » (retours Daniel sur captures) — PUBLIÉE**
 - Petite carte : « ma position » passe en BAS À DROITE ; les deux rails sont
