@@ -425,7 +425,7 @@ const Map<String, String> koKRTranslations = <String, String>{
   'pawmap_quick_live_sub': '친구 보기',
   'pawmap_quick_my_reports': '내 제보',
   'pawmap_quick_my_reports_sub': '기록',
-  'pawmap_live_share_off': '내 위치 공유',
+  'pawmap_live_share_off': '실시간 공유',
   'pawmap_quick_family_sub': '추가',
   'pawmap_quick_people_live': '실시간',
   'pawmap_quick_people_live_sub': '위치 공유 중',

@@ -3101,7 +3101,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'pawmap_quick_live_sub': 'Ver amigos',
       'pawmap_quick_my_reports': 'Os meus alertas',
       'pawmap_quick_my_reports_sub': 'Histórico',
-      'pawmap_live_share_off': 'Partilhar a minha posição',
+      'pawmap_live_share_off': 'Partilhar ao vivo',
     'pawmap_quick_family_sub': 'Adicionar',
     'pawmap_quick_follow': 'Seguir-me',
     'family_member_pending': 'Pendente',

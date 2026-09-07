@@ -3262,7 +3262,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'pawmap_quick_live_sub': 'Freunde ansehen',
       'pawmap_quick_my_reports': 'Meine Meldungen',
       'pawmap_quick_my_reports_sub': 'Verlauf',
-      'pawmap_live_share_off': 'Meine Position teilen',
+      'pawmap_live_share_off': 'Live teilen',
     'pawmap_quick_family_sub': 'Hinzufügen',
     'pawmap_quick_follow': 'Mir folgen',
     'family_member_pending': 'Ausstehend',

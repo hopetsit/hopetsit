@@ -373,7 +373,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawmap_quick_live_sub': 'Voir les amis',
       'pawmap_quick_my_reports': 'Mes signaux',
       'pawmap_quick_my_reports_sub': 'Historique',
-      'pawmap_live_share_off': 'Partager ma position',
+      'pawmap_live_share_off': 'Partager en direct',
       'pawmap_quick_family_sub': 'Ajouter',
       'pawmap_quick_people_live': 'En direct',
       'pawmap_quick_people_live_sub': 'Position partagee',

@@ -349,7 +349,7 @@ const Map<String, String> plPLTranslations = <String, String>{
   'pawmap_quick_live_sub': 'Zobacz znajomych',
   'pawmap_quick_my_reports': 'Moje zgłoszenia',
   'pawmap_quick_my_reports_sub': 'Historia',
-  'pawmap_live_share_off': 'Udostępnij moją pozycję',
+  'pawmap_live_share_off': 'Udostępnij na żywo',
   'pawmap_quick_family_sub': 'Dodaj',
   'pawmap_quick_people_live': 'Na żywo',
   'pawmap_quick_people_live_sub': 'Pozycja udostępniona',

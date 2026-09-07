@@ -425,7 +425,7 @@ const Map<String, String> jaJPTranslations = <String, String>{
   'pawmap_quick_live_sub': '友達を見る',
   'pawmap_quick_my_reports': '自分の報告',
   'pawmap_quick_my_reports_sub': '履歴',
-  'pawmap_live_share_off': '位置情報を共有',
+  'pawmap_live_share_off': 'ライブ共有',
   'pawmap_quick_family_sub': '追加',
   'pawmap_quick_people_live': 'ライブ',
   'pawmap_quick_people_live_sub': '位置情報を共有中',

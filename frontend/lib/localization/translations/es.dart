@@ -3261,7 +3261,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'pawmap_quick_live_sub': 'Ver amigos',
       'pawmap_quick_my_reports': 'Mis reportes',
       'pawmap_quick_my_reports_sub': 'Historial',
-      'pawmap_live_share_off': 'Compartir mi posición',
+      'pawmap_live_share_off': 'Compartir en vivo',
     'pawmap_quick_family_sub': 'Añadir',
     'pawmap_quick_follow': 'Seguirme',
     'family_member_pending': 'Pendiente',

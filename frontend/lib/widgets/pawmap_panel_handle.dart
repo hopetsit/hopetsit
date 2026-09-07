@@ -21,10 +21,16 @@ class PawMapPanelHandle extends StatefulWidget {
     super.key,
     required this.collapsed,
     required this.onTap,
+    this.fill = false,
   });
 
   final bool collapsed;
   final VoidCallback onTap;
+
+  /// v558 — replié dans la rangée à trois cases : la pilule remplit sa case
+  /// (même largeur et même hauteur que « Partager en direct » et « Agrandir »),
+  /// coins arrondis alignés sur ses voisines au lieu de la forme capsule.
+  final bool fill;
 
   @override
   State<PawMapPanelHandle> createState() => _PawMapPanelHandleState();
@@ -49,6 +55,7 @@ class _PawMapPanelHandleState extends State<PawMapPanelHandle>
   @override
   Widget build(BuildContext context) {
     final collapsed = widget.collapsed;
+    final fill = widget.fill && collapsed;
     return Center(
       child: GestureDetector(
         onTap: widget.onTap,
@@ -56,22 +63,23 @@ class _PawMapPanelHandleState extends State<PawMapPanelHandle>
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOut,
-          width: collapsed ? 96.w : 120.w,
-          height: collapsed ? 34.h : 24.h,
+          width: fill ? double.infinity : (collapsed ? 96.w : 120.w),
+          height: fill ? double.infinity : (collapsed ? 34.h : 24.h),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: collapsed ? PawMapTheme.accent : PawMapTheme.pastelPeach,
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.circular(fill ? 16.r : 999),
             boxShadow: collapsed ? PawMapTheme.pillShadow : null,
           ),
           child: collapsed
               ? Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.tune_rounded, size: 15.sp, color: Colors.white),
+                    Icon(Icons.tune_rounded,
+                        size: fill ? 18.sp : 15.sp, color: Colors.white),
                     SizedBox(width: 5.w),
                     Icon(Icons.keyboard_arrow_down_rounded,
-                        size: 18.sp, color: Colors.white),
+                        size: fill ? 20.sp : 18.sp, color: Colors.white),
                   ],
                 )
               : AnimatedBuilder(

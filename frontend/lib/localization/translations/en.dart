@@ -366,7 +366,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'pawmap_quick_live_sub': 'See friends',
       'pawmap_quick_my_reports': 'My reports',
       'pawmap_quick_my_reports_sub': 'History',
-      'pawmap_live_share_off': 'Share my position',
+      'pawmap_live_share_off': 'Share live',
       'pawmap_quick_family_sub': 'Add',
       'pawmap_quick_people_live': 'Live',
       'pawmap_quick_people_live_sub': 'Position shared',

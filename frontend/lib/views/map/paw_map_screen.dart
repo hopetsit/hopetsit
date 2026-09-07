@@ -4028,13 +4028,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   top: 0,
                   left: 0,
                   right: 0,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildTopShareRow(),
-                      _buildGlassPanel(),
-                    ],
-                  ),
+                  child: _buildTopArea(),
                 )),
 
           // ── CALQUE « carte agrandie » (par-dessus la PawMap normale) ────
@@ -4881,9 +4875,10 @@ class _PawMapScreenState extends State<PawMapScreen>
   final RxBool _panelCollapsed =
       (GetStorage().read('pawmap_panel_collapsed') == true).obs;
 
-  Widget _panelHandle({required bool collapsed}) {
+  Widget _panelHandle({required bool collapsed, bool fill = false}) {
     return PawMapPanelHandle(
       collapsed: collapsed,
+      fill: fill,
       onTap: () {
         _panelCollapsed.value = !collapsed;
         try {
@@ -4893,13 +4888,43 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
-  Widget _buildGlassPanel() {
+  /// v558 — Daniel : « quand le menu est réduit, mets tout sur une ligne, et
+  /// que les 3 cadres du haut fassent la même largeur, assez fins ». Replié :
+  /// UNE rangée de trois cellules de largeur égale (filtres / Partager en
+  /// direct / Agrandir), même hauteur. Ouvert : la rangée bannière + Agrandir
+  /// d'avant, puis le panneau blanc avec sa poignée.
+  Widget _buildTopArea() {
     return Obx(() => _panelCollapsed.value
-        ? Padding(
-            padding: EdgeInsets.fromLTRB(14.w, 8.h, 14.w, 0),
-            child: _panelHandle(collapsed: true),
-          )
-        : _buildGlassPanelBody());
+        ? _buildCollapsedTopRow()
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildTopShareRow(),
+              _buildGlassPanelBody(),
+            ],
+          ));
+  }
+
+  /// Hauteur commune des trois cadres de la rangée repliée.
+  static double get _topRowHeight => 46.h;
+
+  Widget _buildCollapsedTopRow() {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 0),
+      child: SizedBox(
+        height: _topRowHeight,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: _panelHandle(collapsed: true, fill: true)),
+            SizedBox(width: 8.w),
+            Expanded(child: _buildLiveBroadcastBanner(compact: true)),
+            SizedBox(width: 8.w),
+            Expanded(child: _buildExpandPill(expanded: false, fill: true)),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildGlassPanelBody() {
@@ -5454,21 +5479,49 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// vif a gauche (pastille couleur ronde + icone blanche dessus), label
   /// en gras a droite, ombre douce + halo coloré soft.
   /// pour que le user comprenne qu'il est visible par ses amis.
-  Widget _buildLiveBroadcastBanner() {
+  /// v558 — coupe un libellé en deux lignes à l'espace le plus proche du
+  /// milieu (« Partager en direct » → « Partager / en direct »). Sans espace
+  /// (japonais), le libellé reste sur une ligne et le FittedBox le réduit.
+  static String _twoLines(String s) {
+    final t = s.trim();
+    final mid = t.length ~/ 2;
+    int best = -1;
+    for (int i = 0; i < t.length; i++) {
+      if (t[i] == ' ' && (best < 0 || (i - mid).abs() < (best - mid).abs())) {
+        best = i;
+      }
+    }
+    if (best < 0) return t;
+    return '${t.substring(0, best)}\n${t.substring(best + 1)}';
+  }
+
+  /// v558 — `compact` : cellule de la rangée repliée (largeur = 1/3 de
+  /// l'écran, hauteur imposée par la rangée) : marges gérées par la rangée,
+  /// texte sur 2 lignes max, point et interrupteur réduits. Le texte n'est
+  /// jamais tronqué : il se réduit (FittedBox) si une langue est plus longue.
+  Widget _buildLiveBroadcastBanner({bool compact = false}) {
     // v418 — maquette Daniel : bannière verte TOUJOURS visible avec interrupteur
     // ON/OFF (« Tu es en direct / Tes amis & ta famille voient ta position »).
     // C'est LE contrôle du partage en direct (l'ancienne carte « Suivre » est
     // remplacée par cette bannière). OFF → gris, ON → vert.
     return Obx(() {
       final on = _liveMap.broadcasting.value;
+      final label = on
+          ? 'pawmap_live_banner_title'.tr
+          : 'pawmap_live_share_off'.tr;
+      final fg = on ? Colors.white : AppColors.textPrimary(context);
       return Container(
         // v555 — Daniel : « le bouton Partager ma position, fais-le fin comme
         // le bouton Agrandir, comme ça tu remontes le cadre blanc ». La
         // bannière faisait 3 lignes et poussait tout le panneau vers le bas ;
         // elle tient maintenant sur UNE ligne, à la hauteur du bouton
         // Agrandir — le panneau et les rails gagnent ~40 px de hauteur utile.
-        margin: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 0),
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
+        margin: compact
+            ? EdgeInsets.zero
+            : EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 0),
+        padding: compact
+            ? EdgeInsets.fromLTRB(8.w, 3.h, 2.w, 3.h)
+            : EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
         decoration: BoxDecoration(
           gradient: on
               ? const LinearGradient(
@@ -5498,8 +5551,8 @@ class _PawMapScreenState extends State<PawMapScreen>
         child: Row(
           children: [
             Container(
-              width: 10.w,
-              height: 10.w,
+              width: compact ? 8.w : 10.w,
+              height: compact ? 8.w : 10.w,
               decoration: BoxDecoration(
                 color: on ? Colors.white : AppColors.greyText,
                 shape: BoxShape.circle,
@@ -5513,38 +5566,77 @@ class _PawMapScreenState extends State<PawMapScreen>
                     : null,
               ),
             ),
-            SizedBox(width: 10.w),
+            SizedBox(width: compact ? 6.w : 10.w),
             Expanded(
               // v555 — une seule ligne : le sous-titre « Tes amis & ta famille
               // voient ta position » passe en info-bulle (appui long) ; il
               // n'apporte rien une fois qu'on a compris l'interrupteur.
               child: Tooltip(
                 message: 'pawmap_live_banner_msg'.tr,
-                child: InterText(
-                  text: on
-                      ? 'pawmap_live_banner_title'.tr
-                      : 'pawmap_live_share_off'.tr,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w800,
-                  color: on ? Colors.white : AppColors.textPrimary(context),
-                  maxLines: 1,
-                ),
+                child: compact
+                    // v558 — le libellé est coupé en DEUX lignes à l'espace
+                    // le plus central (jamais au milieu d'un mot : un retour
+                    // automatique donnait « Part / age »), puis le bloc est
+                    // RÉDUIT s'il déborde encore (FittedBox) — jamais tronqué.
+                    ? FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: InterText(
+                          text: _twoLines(label),
+                          fontSize: 11.sp,
+                          fontWeight: FontWeight.w800,
+                          color: fg,
+                          maxLines: 2,
+                          height: 1.05,
+                        ),
+                      )
+                    : InterText(
+                        text: label,
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w800,
+                        color: fg,
+                        maxLines: 1,
+                      ),
               ),
             ),
             // Interrupteur ON/OFF (maquette : toggle blanc sur vert), compacté
             // pour tenir sur la ligne fine.
-            Transform.scale(
-              scale: 0.85,
-              child: Switch(
-                value: on,
-                onChanged: (_) => _toggleBroadcast(),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                activeThumbColor: const Color(0xFF16A34A),
-                activeTrackColor: Colors.white,
-                inactiveThumbColor: Colors.white,
-                inactiveTrackColor: AppColors.greyText.withValues(alpha: 0.4),
-              ),
-            ),
+            // v558 — en compact, le Switch est RÉDUIT dans sa mise en page
+            // (SizedBox + FittedBox) et non seulement à l'affichage : un
+            // Transform.scale garde sa boîte d'origine (~60 px) et volait
+            // la place du texte, qui finissait minuscule.
+            compact
+                ? SizedBox(
+                    width: 36.w,
+                    height: 22.h,
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: Switch(
+                        value: on,
+                        onChanged: (_) => _toggleBroadcast(),
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                        activeThumbColor: const Color(0xFF16A34A),
+                        activeTrackColor: Colors.white,
+                        inactiveThumbColor: Colors.white,
+                        inactiveTrackColor:
+                            AppColors.greyText.withValues(alpha: 0.4),
+                      ),
+                    ),
+                  )
+                : Transform.scale(
+                    scale: 0.85,
+                    child: Switch(
+                      value: on,
+                      onChanged: (_) => _toggleBroadcast(),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      activeThumbColor: const Color(0xFF16A34A),
+                      activeTrackColor: Colors.white,
+                      inactiveThumbColor: Colors.white,
+                      inactiveTrackColor:
+                          AppColors.greyText.withValues(alpha: 0.4),
+                    ),
+                  ),
           ],
         ),
       );
@@ -5570,11 +5662,13 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Bouton compact Agrandir / Réduire (≈ 50 % plus petit, discret).
   /// v465 — en mode AGRANDI, fond ROSE intense (Daniel) ; en mode normal,
   /// pilule blanche discrète.
-  Widget _buildExpandPill({required bool expanded}) {
+  /// v558 — `fill` : cellule de la rangée repliée (remplit sa case, sans marge
+  /// haute, même rayon que ses deux voisines).
+  Widget _buildExpandPill({required bool expanded, bool fill = false}) {
     const pink = Color(0xFFEC1E79); // rose intense
     final fg = expanded ? Colors.white : AppColors.textPrimary(context);
     return Padding(
-      padding: EdgeInsets.only(top: 8.h),
+      padding: EdgeInsets.only(top: fill ? 0 : 8.h),
       child: Material(
         color: expanded ? pink : AppColors.card(context),
         borderRadius: BorderRadius.circular(14.r),
@@ -5588,14 +5682,17 @@ class _PawMapScreenState extends State<PawMapScreen>
           },
           child: Container(
             // v555 — aligné sur la bannière fine (une ligne).
+            width: fill ? double.infinity : null,
+            height: fill ? double.infinity : null,
             padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14.r),
+              borderRadius: BorderRadius.circular(fill ? 16.r : 14.r),
               // v488 — Daniel : surbrillance contour ROSE sur Agrandir/Réduire.
               border: Border.all(color: pink, width: 2),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   expanded
