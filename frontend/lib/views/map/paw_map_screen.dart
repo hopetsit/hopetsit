@@ -377,7 +377,14 @@ class _PawMapScreenState extends State<PawMapScreen>
   void initState() {
     super.initState();
     // v465 — on entre toujours en mode NORMAL (jamais bloqué en agrandi).
-    pawMapExpanded.value = false;
+    // v557 — écrire un Rx pendant initState déclenche « setState() called
+    // during build » sur les Obx qui l'écoutent (vu en debug) → différé
+    // après la 1re frame.
+    if (pawMapExpanded.value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        pawMapExpanded.value = false;
+      });
+    }
     // v23.1 part 243 round 3 — perf : pause _haloTimer quand l'app est
     // en background (Daniel : "sur certain portable sa lague"). Le timer
     // tickait toutes les 600ms meme avec l'app ecran eteint et forcait
@@ -5806,7 +5813,13 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// existe déjà : itinéraire vers le point visé, messagerie, création de
   /// spot avec photo.
   Widget _buildMapActionsColumn({bool expanded = false}) {
-    return Obx(() {
+    // v557 — BUG « grand rectangle gris » (Daniel, capture 12:11) : en v556
+    // j'ai retiré la variable `spotOk` (PawSpot devenu gratuit) et cet Obx
+    // ne lisait plus AUCUN observable → GetX lève « improper use of GetX » →
+    // ErrorWidget GRIS en release, qui s'étire sur toute la zone de la rangée
+    // des rails (et fait disparaître le rail gauche). Plus rien de réactif ici
+    // → plus d'Obx. Reproduit et confirmé en debug sur simulateur.
+    return Builder(builder: (context) {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [

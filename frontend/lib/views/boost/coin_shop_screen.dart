@@ -738,6 +738,17 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+            // v556 — gratuit vs boost, comme sur les autres onglets.
+            shopValueCard(
+              context,
+              color: const Color(0xFFC92A12),
+              freeTitle: 'shop_pb_free_title'.tr,
+              freeBody: 'shop_pb_free_body'.tr,
+              plusTitle: 'shop_pb_plus_title'.tr,
+              plusBody: 'shop_pb_plus_body'.tr,
+            ),
+            SizedBox(height: 14.h),
+
                   _buildBoostStatus(),
                   SizedBox(height: 20.h),
                   InterText(
@@ -1425,73 +1436,14 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
   // v23.1.278 — en-tête de section de forfaits (Suis ton animal / PawFamily).
   // PawFamily reçoit la couleur violette (code couleur famille de l'app).
   /// v556 — « ce qui est gratuit / ce que PawFollow ajoute », deux colonnes.
-  Widget _pawFollowValueCard(BuildContext context) {
-    const violet = Color(0xFF7C3AED);
-    Widget col({
-      required IconData icon,
-      required Color tone,
-      required String title,
-      required String body,
-      required bool filled,
-    }) {
-      return Expanded(
-        child: Container(
-          padding: EdgeInsets.all(12.w),
-          decoration: BoxDecoration(
-            color: filled ? violet : violet.withValues(alpha: 0.07),
-            borderRadius: BorderRadius.circular(16.r),
-            border: Border.all(
-                color: filled ? violet : violet.withValues(alpha: 0.25)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, size: 18.sp, color: filled ? Colors.white : tone),
-              SizedBox(height: 6.h),
-              InterText(
-                text: title,
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w800,
-                color: filled ? Colors.white : AppColors.textPrimary(context),
-                maxLines: 1,
-              ),
-              SizedBox(height: 4.h),
-              InterText(
-                text: body,
-                fontSize: 11.sp,
-                fontWeight: FontWeight.w500,
-                color: filled
-                    ? Colors.white.withValues(alpha: 0.92)
-                    : AppColors.textSecondary(context),
-                maxLines: 6,
-              ),
-            ],
-          ),
-        ),
+  Widget _pawFollowValueCard(BuildContext context) => shopValueCard(
+        context,
+        color: const Color(0xFF7C3AED),
+        freeTitle: 'shop_pf_free_title'.tr,
+        freeBody: 'shop_pf_free_body'.tr,
+        plusTitle: 'shop_pf_plus_title'.tr,
+        plusBody: 'shop_pf_plus_body'.tr,
       );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        col(
-          icon: Icons.lock_open_rounded,
-          tone: const Color(0xFF16A34A),
-          title: 'shop_pf_free_title'.tr,
-          body: 'shop_pf_free_body'.tr,
-          filled: false,
-        ),
-        SizedBox(width: 10.w),
-        col(
-          icon: Icons.workspace_premium_rounded,
-          tone: violet,
-          title: 'shop_pf_plus_title'.tr,
-          body: 'shop_pf_plus_body'.tr,
-          filled: true,
-        ),
-      ],
-    );
-  }
 
   Widget _planSectionHeader(
     BuildContext context, {
@@ -2292,6 +2244,16 @@ class _PawSpotTabState extends State<_PawSpotTab>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(context),
+            SizedBox(height: 14.h),
+            // v556 — gratuit vs abonnement, comme sur les autres onglets.
+            shopValueCard(
+              context,
+              color: const Color(0xFFE8920A),
+              freeTitle: 'shop_ps_free_title'.tr,
+              freeBody: 'shop_ps_free_body'.tr,
+              plusTitle: 'shop_ps_plus_title'.tr,
+              plusBody: 'shop_ps_plus_body'.tr,
+            ),
             SizedBox(height: 14.h),
             _buildStatusCard(context),
             SizedBox(height: 14.h),
@@ -3247,6 +3209,16 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
               _buildActiveCard(context),
               SizedBox(height: 14.h),
             ],
+            // v556 — gratuit vs abonnement, comme sur les autres onglets.
+            shopValueCard(
+              context,
+              color: const Color(0xFF15120D),
+              freeTitle: 'shop_pp_free_title'.tr,
+              freeBody: 'shop_pp_free_body'.tr,
+              plusTitle: 'shop_pp_plus_title'.tr,
+              plusBody: 'shop_pp_plus_body'.tr,
+            ),
+            SizedBox(height: 14.h),
             _buildShowcaseCard(context),
             SizedBox(height: 40.h),
           ],
@@ -3572,4 +3544,82 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
       ),
     );
   }
+}
+
+/// v556 — Daniel : « explique mieux les abonnements dans la boutique ».
+/// Carte à deux colonnes « Gratuit pour tous / Avec (abonnement) », posée en
+/// tête des onglets PawBoost, PawFollow, PawSpot et PawPremium. Une seule
+/// implémentation pour que les quatre onglets se lisent pareil.
+Widget shopValueCard(
+  BuildContext context, {
+  required Color color,
+  required String freeTitle,
+  required String freeBody,
+  required String plusTitle,
+  required String plusBody,
+}) {
+  Widget col({
+    required IconData icon,
+    required Color tone,
+    required String title,
+    required String body,
+    required bool filled,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color: filled ? color : color.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(
+              color: filled ? color : color.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 18.sp, color: filled ? Colors.white : tone),
+            SizedBox(height: 6.h),
+            InterText(
+              text: title,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w800,
+              color: filled ? Colors.white : AppColors.textPrimary(context),
+              maxLines: 1,
+            ),
+            SizedBox(height: 4.h),
+            InterText(
+              text: body,
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w500,
+              color: filled
+                  ? Colors.white.withValues(alpha: 0.92)
+                  : AppColors.textSecondary(context),
+              maxLines: 7,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      col(
+        icon: Icons.lock_open_rounded,
+        tone: const Color(0xFF16A34A),
+        title: freeTitle,
+        body: freeBody,
+        filled: false,
+      ),
+      SizedBox(width: 10.w),
+      col(
+        icon: Icons.workspace_premium_rounded,
+        tone: color,
+        title: plusTitle,
+        body: plusBody,
+        filled: true,
+      ),
+    ],
+  );
 }
