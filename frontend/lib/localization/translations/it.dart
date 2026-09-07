@@ -1402,6 +1402,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'pawmap_appbar_follow': 'Segui',
       'pawmap_appbar_live': 'Live',
       'pawmap_appbar_refresh': 'Aggiorna',
+      'pawspot_free_tags_note': 'I primi 3 tag gratis per tutti — illimitati con l\'abbonamento',
       'pawfollow_feature_history': 'Cronologia delle tue passeggiate e dei percorsi',
       'shop_pf_plus_body': '2 h per sessione, anche ad app chiusa · percorsi · cronologia passeggiate · famiglia fino a 5 persone.',
       'shop_pf_plus_title': 'Con PawFollow',

@@ -1640,6 +1640,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'pawmap_appbar_follow': 'Follow',
       'pawmap_appbar_live': 'Live',
       'pawmap_appbar_refresh': 'Refresh',
+      'pawspot_free_tags_note': 'First 3 tags free for everyone — unlimited with the subscription',
       'pawfollow_feature_history': 'History of your walks and routes',
       'shop_pf_plus_body': '2 h per session, even with the app closed · directions · walk history · family up to 5.',
       'shop_pf_plus_title': 'With PawFollow',

@@ -1455,6 +1455,7 @@ const Map<String, String> koKRTranslations = <String, String>{
   'pawmap_appbar_follow': '팔로우',
   'pawmap_appbar_live': '실시간',
   'pawmap_appbar_refresh': '새로고침',
+  'pawspot_free_tags_note': '처음 3개 등록은 모두 무료 — 구독하면 무제한',
   'pawfollow_feature_history': '산책 및 이동 기록',
   'shop_pf_plus_body': '세션당 2시간, 앱을 닫아도 유지 · 길찾기 · 산책 기록 · 가족 최대 5명.',
   'shop_pf_plus_title': 'PawFollow로는',

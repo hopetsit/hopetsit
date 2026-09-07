@@ -1376,6 +1376,7 @@ const Map<String, String> plPLTranslations = <String, String>{
   'pawmap_appbar_follow': 'Śledź',
   'pawmap_appbar_live': 'Na żywo',
   'pawmap_appbar_refresh': 'Odśwież',
+  'pawspot_free_tags_note': 'Pierwsze 3 oznaczenia za darmo dla wszystkich — bez limitu z subskrypcją',
   'pawfollow_feature_history': 'Historia Twoich spacerów i tras',
   'shop_pf_plus_body': '2 h na sesję, nawet przy zamkniętej aplikacji · trasy · historia spacerów · rodzina do 5 osób.',
   'shop_pf_plus_title': 'Z PawFollow',

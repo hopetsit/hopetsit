@@ -1223,6 +1223,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'pawmap_appbar_follow': 'Seguir',
       'pawmap_appbar_live': 'Ao vivo',
       'pawmap_appbar_refresh': 'Atualizar',
+      'pawspot_free_tags_note': 'Os 3 primeiros tags grátis para todos — ilimitados com a subscrição',
       'pawfollow_feature_history': 'Histórico dos teus passeios e trajetos',
       'shop_pf_plus_body': '2 h por sessão, mesmo com a app fechada · itinerários · histórico de passeios · família até 5 pessoas.',
       'shop_pf_plus_title': 'Com PawFollow',

@@ -1319,6 +1319,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'pawmap_appbar_follow': 'Seguir',
       'pawmap_appbar_live': 'En vivo',
       'pawmap_appbar_refresh': 'Actualizar',
+      'pawspot_free_tags_note': 'Los 3 primeros tags gratis para todos — ilimitados con la suscripción',
       'pawfollow_feature_history': 'Historial de tus paseos y rutas',
       'shop_pf_plus_body': '2 h por sesión, incluso con la app cerrada · rutas · historial de paseos · familia hasta 5 personas.',
       'shop_pf_plus_title': 'Con PawFollow',

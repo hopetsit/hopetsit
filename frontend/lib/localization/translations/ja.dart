@@ -1455,6 +1455,7 @@ const Map<String, String> jaJPTranslations = <String, String>{
   'pawmap_appbar_follow': 'フォロー',
   'pawmap_appbar_live': 'ライブ',
   'pawmap_appbar_refresh': '更新',
+  'pawspot_free_tags_note': '最初の3つのタグは誰でも無料 — サブスクで無制限',
   'pawfollow_feature_history': '散歩と経路の履歴',
   'shop_pf_plus_body': '1セッション2時間、アプリを閉じても継続 · 経路 · 散歩の履歴 · 最大5人の家族。',
   'shop_pf_plus_title': 'PawFollowなら',

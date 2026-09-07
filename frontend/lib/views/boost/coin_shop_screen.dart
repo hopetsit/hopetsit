@@ -2690,6 +2690,9 @@ class _PawSpotTabState extends State<_PawSpotTab>
   /// c (suite). Les 4 features incluses, check doré.
   Widget _buildPlanFeatures(BuildContext context) {
     final features = <String>[
+      // v556 — Daniel : « précise combien de tags gratuits ». Limite serveur
+      // FREE_SPOT_LIMIT = 3.
+      'pawspot_free_tags_note'.tr,
       'pawspot_feature_unlimited'.tr,
       'pawspot_feature_all'.tr,
       'pawspot_feature_top'.tr,

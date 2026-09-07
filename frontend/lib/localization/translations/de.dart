@@ -1393,6 +1393,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'pawmap_appbar_follow': 'Folgen',
       'pawmap_appbar_live': 'Live',
       'pawmap_appbar_refresh': 'Aktualisieren',
+      'pawspot_free_tags_note': 'Die ersten 3 Tags kostenlos für alle — unbegrenzt mit dem Abo',
       'pawfollow_feature_history': 'Verlauf deiner Spaziergänge und Routen',
       'shop_pf_plus_body': '2 Std. pro Sitzung, auch bei geschlossener App · Routen · Spaziergang-Verlauf · Familie bis 5 Personen.',
       'shop_pf_plus_title': 'Mit PawFollow',

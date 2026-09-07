@@ -44,7 +44,7 @@ export function SubscriptionsExplainer({ compact = false }: { compact?: boolean 
       soft: "#FBF3DD",
       free: t("sub_pp_free"),
       plus: t("sub_pp_plus"),
-      price: t("pawpremium_subtitle"),
+      price: t("home_pawpremium_price_line"),
     },
   ] as const;
 
@@ -64,20 +64,31 @@ export function SubscriptionsExplainer({ compact = false }: { compact?: boolean 
               key={p.key}
               className="flex flex-col overflow-hidden rounded-3xl border border-ink/10 bg-white shadow-sm"
             >
+              {/* En-tête cadré : logo + nom sur une ligne, prix dans une
+                  pastille en dessous — même hauteur pour les 3 cartes. */}
               <div
-                className="flex items-center gap-3 px-6 py-5"
+                className="flex min-h-[124px] flex-col justify-center gap-3 px-6 py-5"
                 style={{ backgroundColor: p.soft }}
               >
-                {p.key === "ps" ? (
-                  <PawSpotGoldCoin size={40} />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.logo} alt="" width={40} height={40} />
-                )}
-                <div>
-                  <h3 className="font-display text-xl font-extrabold text-ink">{p.name}</h3>
-                  <p className="text-xs font-semibold text-ink-muted">{p.price}</p>
+                <div className="flex items-center gap-3">
+                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white shadow-sm">
+                    {p.key === "ps" ? (
+                      <PawSpotGoldCoin size={34} />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.logo} alt="" width={34} height={34} />
+                    )}
+                  </span>
+                  <h3 className="font-display text-2xl font-extrabold leading-tight text-ink">
+                    {p.name}
+                  </h3>
                 </div>
+                <p
+                  className="inline-flex w-fit items-center rounded-full bg-white px-3 py-1 text-xs font-bold shadow-sm"
+                  style={{ color: p.accent === "#15120D" ? "#B8860B" : p.accent }}
+                >
+                  {p.price}
+                </p>
               </div>
 
               <div className="flex flex-1 flex-col gap-4 px-6 py-5">

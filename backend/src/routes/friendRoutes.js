@@ -151,6 +151,11 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
     // Premium via abonnement (Premium / PawFollow individuel / Famille) — batch.
     const ids = tagged.map((t) => t.d._id);
     let subSet = new Set();
+    // v556 — halos par abonnement (Daniel : « or+noir Premium, violet
+    // PawFollow, jaune PawSpot, sinon couleur du rôle ») : on distingue
+    // désormais Premium et PawFollow au lieu d'un seul drapeau fourre-tout.
+    const premiumOnlySet = new Set();
+    const pawFollowSet = new Set();
     try {
       const subs = await UserSubscription.find({
         userId: { $in: ids },
@@ -160,9 +165,15 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
           { familyExpiry: { $gt: now } },
         ],
       })
-        .select('userId')
+        .select('userId premiumExpiry currentPeriodEnd familyExpiry')
         .lean();
       subSet = new Set(subs.map((s) => String(s.userId)));
+      for (const s of subs) {
+        const id = String(s.userId);
+        if (s.premiumExpiry && new Date(s.premiumExpiry) > now) premiumOnlySet.add(id);
+        if ((s.currentPeriodEnd && new Date(s.currentPeriodEnd) > now)
+          || (s.familyExpiry && new Date(s.familyExpiry) > now)) pawFollowSet.add(id);
+      }
     } catch (subErr) {
       logger.warn(`[friends/members/nearby] sub lookup failed : ${subErr?.message || subErr}`);
     }
@@ -232,6 +243,10 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
         // couronne 👑 si Premium/staff ; anneau/halo rose pour tous les membres.
         isPremium: premiumSub || staff,
         isPawSpot: !!pawspot,
+        // v556 — pour la couleur du halo (voir paw_map_screen._haloColorFor).
+        isPremiumOnly: premiumOnlySet.has(idStr) || staff,
+        hasPawFollow: pawFollowSet.has(idStr),
+        hasPawSpot: !!pawspot,
         isOnline: d.isOnline !== false,
       });
     }

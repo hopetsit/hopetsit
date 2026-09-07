@@ -322,6 +322,22 @@ class _PawMapScreenState extends State<PawMapScreen>
   // FriendMarkerService) : vert PawFollow / or PawSpot / violet PawFamily.
   static const Color _greenPawFollow = Color(0xFF16A34A);
   static const Color _goldPawSpot = Color(0xFFE8A00A);
+  static const Color _yellowPawSpotHalo = Color(0xFFF4D03F);
+
+  /// v556 — grille de couleurs des halos (décision Daniel) : Premium or
+  /// (contour noir + couronne), PawFollow / Famille violet, PawSpot jaune,
+  /// sinon la couleur du rôle (owner orange / walker vert / sitter bleu).
+  Color _haloColorFor({
+    required bool premium,
+    required bool pawFollow,
+    required bool pawSpot,
+    required String role,
+  }) {
+    if (premium) return const Color(0xFFF4C04A);
+    if (pawFollow) return const Color(0xFF7C3AED);
+    if (pawSpot) return _yellowPawSpotHalo;
+    return PawMapTheme.forRole(role);
+  }
   static const Color _violetPawFamily = Color(0xFF8B5CF6);
 
   /// v23.1 part 243 round 3 — perf : cache des markers (Daniel : "sur
@@ -2242,6 +2258,9 @@ class _PawMapScreenState extends State<PawMapScreen>
             // couronne 👑 = membre Premium/staff ; le badge/halo rose s'affiche
             // pour TOUS les membres. isMapBoosted laissé false (crown=isPremium).
             'isPremium': m['isPremium'] == true,
+            'isPremiumOnly': m['isPremiumOnly'] == true,
+            'hasPawFollow': m['hasPawFollow'] == true,
+            'hasPawSpot': m['hasPawSpot'] == true || m['isPawSpot'] == true,
             'isMapBoosted': false,
             'isOnline': m['isOnline'] != false,
           });
@@ -2482,7 +2501,16 @@ class _PawMapScreenState extends State<PawMapScreen>
       // v23.1.352 — Daniel : "tu as mis un petit point bleu au lieu de me
       // laisser mon halo selon rôle". Le halo perso prend la couleur du RÔLE
       // (owner orange / sitter bleu / walker vert) au lieu du bleu générique.
-      final userColor = AppColors.roleAccent(_role);
+      // v556 — mon propre halo suit la même grille (Premium or, PawFollow
+      // violet, PawSpot jaune, sinon mon rôle).
+      final userColor = _haloColorFor(
+        premium: _pawSpotController.premiumActive.value,
+        pawFollow: _pawSpotController.followActive.value &&
+            !_pawSpotController.premiumActive.value,
+        pawSpot: _pawSpotController.pawspotActive.value &&
+            !_pawSpotController.premiumActive.value,
+        role: _role,
+      );
       circles.add(
         Circle(
           circleId: const CircleId('user_halo_outer'),
@@ -2565,9 +2593,19 @@ class _PawMapScreenState extends State<PawMapScreen>
       // la pulsation rose animée. Tap → info du membre (idem badge).
       final bool providerPremium =
           p['isMapBoosted'] == true || p['isPremium'] == true;
+      // v556 — Daniel : « une couleur par utilisateur : owner orange, walker
+      // vert, sitter bleu ; Premium doré et noir avec couronne ; PawFollow
+      // violet ; PawSpot jaune ». Le halo rose uniforme disparaît.
+      final Color providerHalo = _haloColorFor(
+        premium: p['isPremiumOnly'] == true,
+        pawFollow: p['hasPawFollow'] == true,
+        pawSpot: p['hasPawSpot'] == true,
+        role: role,
+      );
+      final Color providerStroke =
+          p['isPremiumOnly'] == true ? const Color(0xFF15120D) : providerHalo;
       final bool providerOnline =
           p['isOnline'] != false && p['online'] != false;
-      const Color roseHalo = Color(0xFFF06AA0);
       final providerHp = _haloPhase.value; // 0..1
       final providerName = (p['name'] ?? '').toString();
       circles.add(
@@ -2575,10 +2613,10 @@ class _PawMapScreenState extends State<PawMapScreen>
           circleId: CircleId('halo_role_$id'),
           center: LatLng(lat, lng),
           radius: 25 + 35 * providerHp, // respiration 25 → 60m
-          fillColor: roseHalo.withValues(
+          fillColor: providerHalo.withValues(
             alpha: (0.22 * (1 - providerHp)).clamp(0.0, 1.0),
           ),
-          strokeColor: roseHalo.withValues(
+          strokeColor: providerStroke.withValues(
             alpha: (0.9 * (1 - providerHp) + 0.1).clamp(0.0, 1.0),
           ),
           strokeWidth: 3,
@@ -2647,6 +2685,18 @@ class _PawMapScreenState extends State<PawMapScreen>
                   .where((f) => f.other?.isPremium == true)
                   .map((f) => (f.other?.id ?? '').trim().toLowerCase())),
             }..removeWhere((id) => id.isEmpty));
+      // v556 — amis abonnés PawFollow / PawSpot (drapeaux renvoyés par
+      // GET /friends pour chaque contact).
+      final pawFollowFriendIds = (friendCtl?.friends ?? const [])
+          .where((f) => f.other?.hasPawFollow == true)
+          .map((f) => (f.other?.id ?? '').trim().toLowerCase())
+          .where((id) => id.isNotEmpty)
+          .toSet();
+      final pawSpotFriendIds = (friendCtl?.friends ?? const [])
+          .where((f) => (f.other?.pawSpotTier ?? '').toString().isNotEmpty)
+          .map((f) => (f.other?.id ?? '').trim().toLowerCase())
+          .where((id) => id.isNotEmpty)
+          .toSet();
       // v23.1 part 225 — Index userId → role (lowercase) tire de la
       // liste d'amis acceptes pour pouvoir override la couleur halo
       // selon le metier de l'ami qui broadcast.
@@ -2696,14 +2746,23 @@ class _PawMapScreenState extends State<PawMapScreen>
         // v23.1.398 — Paw Premium PRIORITAIRE : halo OR (au lieu du violet
         // famille / couleur rôle) pour signaler le bundle premium.
         final isPremiumMember = premiumMemberIds.contains(normUserId);
+        // v556 — même grille de couleurs que les membres proches : Premium
+        // or (contour noir), PawFollow/Famille violet, PawSpot jaune, sinon
+        // couleur du rôle.
+        final bool friendPawFollow =
+            isFamily || pawFollowFriendIds.contains(normUserId);
+        final bool friendPawSpot = pawSpotFriendIds.contains(normUserId);
         Color color;
         String tag;
         if (isPremiumMember) {
-          color = _goldPawSpot; // or PawSpot / Paw Premium
+          color = _goldPawSpot; // or Paw Premium
           tag = 'premium';
-        } else if (isFamily) {
-          color = familyViolet; // violet PawFamily
+        } else if (friendPawFollow) {
+          color = familyViolet; // violet PawFollow / PawFamily
           tag = 'family';
+        } else if (friendPawSpot) {
+          color = _yellowPawSpotHalo;
+          tag = 'pawspot';
         } else if (role == 'walker') {
           color = AppColors.greenColor;
           tag = 'walker';
@@ -2734,7 +2793,8 @@ class _PawMapScreenState extends State<PawMapScreen>
             fillColor: color.withValues(
               alpha: (0.20 * (1 - roleHp)).clamp(0.0, 1.0),
             ),
-            strokeColor: color.withValues(
+            strokeColor: (isPremiumMember ? const Color(0xFF15120D) : color)
+                .withValues(
               alpha: (0.85 * (1 - roleHp) + 0.15).clamp(0.0, 1.0),
             ),
             strokeWidth: 2,
@@ -5231,14 +5291,13 @@ class _PawMapScreenState extends State<PawMapScreen>
 
     return Obx(() {
       final followSub = _pawSpotController.followActive.value;
-      final spotSub = _pawSpotController.pawspotActive.value;
       final premiumOn = _pawSpotController.premiumActive.value;
       return Row(
         children: [
           module('PawFollow', followSub && _showLiveLayer.value,
               _togglePawFollow, PawMapTheme.pawFollow),
           SizedBox(width: 6.w),
-          module('PawSpot', spotSub && _showPawSpots.value, _togglePawSpot,
+          module('PawSpot', _showPawSpots.value, _togglePawSpot,
               PawMapTheme.pawSpot),
           SizedBox(width: 6.w),
           module('PawPremium', premiumOn && _showPremiumLayer.value,
@@ -5748,7 +5807,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// spot avec photo.
   Widget _buildMapActionsColumn({bool expanded = false}) {
     return Obx(() {
-      final spotOk = _pawSpotController.pawspotActive.value;
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -5777,7 +5835,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               color: PawMapTheme.pawSpot,
               label: 'pawmap_btn_spot_photo'.tr,
               onTap: () =>
-                  spotOk ? unawaited(_startSpotPhoto()) : unawaited(_togglePawSpot()),
+                  unawaited(_startSpotPhoto()),
             ),
             SizedBox(height: 8.h),
           ],
@@ -5785,9 +5843,9 @@ class _PawMapScreenState extends State<PawMapScreen>
             icon: Icons.travel_explore_rounded,
             color: const Color(0xFF2563EB),
             label: 'pawmap_view_spots_btn'.tr,
-            onTap: () => spotOk
-                ? unawaited(_openSpotsList())
-                : unawaited(_togglePawSpot()),
+            // v556 — voir les spots est GRATUIT (option C : « voir tous les
+            // PawSpots » ; seule la création au-delà de 3 est payante).
+            onTap: () => unawaited(_openSpotsList()),
           ),
           SizedBox(height: 8.h),
           _roundMapBtn(
@@ -5795,7 +5853,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             color: const Color(0xFFD9A441),
             label: 'pawmap_tag_spot'.tr,
             onTap: () =>
-                spotOk ? _startSpotPicking() : unawaited(_togglePawSpot()),
+                _startSpotPicking(),
           ),
           SizedBox(height: 8.h),
           _roundMapBtn(
@@ -6487,25 +6545,15 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// spots est affichée + on rappelle « Voir les spots » ; pas abonné → on
   /// route vers la boutique PawSpot (jamais d'activation locale sans abo).
   Future<void> _togglePawSpot() async {
-    final active = _pawSpotController.pawspotActive.value;
-    if (active) {
-      // v448 — Daniel : abonné, on/off MANUEL de la couche spots. ON → on
-      // (ré)affiche les spots + légende ; OFF → on masque (mémorisé).
-      if (_showPawSpots.value) {
-        _showPawSpots.value = false;
-        GetStorage().write('pawspot_layer_on', false);
-      } else {
-        _showPawSpots.value = true;
-        GetStorage().write('pawspot_layer_on', true);
-        await _pawSpotController.loadNearby(_currentCenter);
-      }
-      if (mounted) setState(() {});
-      return;
-    }
-    // Pas abonné → popup « Abonnement requis » ; au retour, si l'abo vient
-    // d'être pris, on allume la couche.
-    final went = await _promptSubscriptionRequired(2);
-    if (went && _pawSpotController.pawspotActive.value && mounted) {
+    // v556 — la couche PawSpot se voit gratuitement : l'interrupteur marche
+    // pour tout le monde. L'abonnement n'est demandé qu'au 4e tag (402
+    // PAWSPOT_REQUIRED géré dans pawspot_sheets).
+    // v448 — on/off MANUEL de la couche spots. ON → on (ré)affiche les
+    // spots ; OFF → on masque (mémorisé).
+    if (_showPawSpots.value) {
+      _showPawSpots.value = false;
+      GetStorage().write('pawspot_layer_on', false);
+    } else {
       _showPawSpots.value = true;
       GetStorage().write('pawspot_layer_on', true);
       await _pawSpotController.loadNearby(_currentCenter);
