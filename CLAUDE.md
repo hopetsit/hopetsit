@@ -80,6 +80,10 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   (`friends_request_wants`, `common_user`). Audit : 9 langues identiques.
 - Trio → v557 / 23.1.557+560. Notes Play : `HoPetSit_557_notes_de_version.txt`.
 - **Play** : « Modifications en cours d'examen » — 560 (23.1.557).
+- **iOS** : 1.14 → soumission 559 annulée, build **560** rattaché (204, après
+  5 s d'attente — cf. piège DEVELOPER_REJECTED), soumission `85a54c5e-…` →
+  **WAITING_FOR_REVIEW avec le 560**. whatsNew fr/en réécrits pour la 557.
+  Fichiers : `~/Downloads/HoPetSit_v23.1.557.{apk,aab,ipa}`.
 
 **07/09 (matin) — v556 « boutique expliquée + fiches sous la barre + traductions »**
 - **Boutique** : carte « Gratuit pour tous / Avec PawFollow » en tête de
