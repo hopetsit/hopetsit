@@ -60,6 +60,25 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 
 **Prochain build APK/AAB = 561** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
+**07/09 (soir) — « notifications en retard » : diagnostic (serveur seul, pas de rebuild)**
+- **Serveur hors de cause** : logs Render `[notif.entry]` → `[notif.channel] email ok`
+  en ~1,2 s ; test SMTP prod → boîte Gmail mesuré **2 s** (en-têtes Received).
+  Render = plan Starter (pas de mise en veille).
+- **Cause iOS trouvée** : Firebase (projet `hopetsit`, console u/8 du Chrome
+  de Daniel) n'a qu'une **clé APNs de DÉVELOPPEMENT** (WJSPRXB7FC, team
+  49C67YDPJ5) et « Aucune clé d'authentification APNs de production » →
+  les builds App Store (entitlement `aps-environment: production`) répondent
+  `messaging/third-party-auth-error` → **aucun push iPhone** (Daniel : 1 de ses
+  2 jetons ; Persia Riley : son seul jeton). Le .p8 existe :
+  `~/.private_keys/AuthKey_WJSPRXB7FC.p8` → à importer dans le slot production.
+  ⚠️ Ne PAS purger les jetons sur `third-party-auth-error` (ils sont valides).
+- Android : le serveur ne peut plus rien faire → économie d'énergie Samsung
+  (« applications en veille profonde », Gmail idem).
+- Serveur v558 : priorité haute explicite (android.priority + apns-priority 10),
+  canal `hopetsit_default_channel`, son, `apns-push-type alert`.
+- Bundle iOS réel = `com.cardellihermanos.hopetsit` (pbxproj + GoogleService-Info),
+  la note « iOS reste com.hopetsit.app » plus bas est périmée.
+
 **07/09 (midi) — v557 « URGENT rectangle gris » + boutique 4 onglets + i18n**
 - **Bug** (captures Daniel 12:11, sur la 556) : grand rectangle gris
   translucide sur la carte + rail gauche disparu. Cause : en rendant PawSpot
