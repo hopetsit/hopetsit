@@ -1982,6 +1982,10 @@ export type NearbyMember = {
   isPremium: boolean;
   isPawSpot: boolean;
   isOnline: boolean;
+  /** v556 — halos par abonnement : Premium seul / PawFollow / PawSpot. */
+  isPremiumOnly?: boolean;
+  hasPawFollow?: boolean;
+  hasPawSpot?: boolean;
   /** v548 — couche MONDE : position arrondie, pas de statut en ligne. */
   approx?: boolean;
   /** v550 — rayon d'imprécision réel (km) renvoyé par le backend. */

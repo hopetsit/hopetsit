@@ -51,6 +51,25 @@ function roleFromModel(model: string): "walker" | "sitter" | "owner" {
 // le role determine la couleur principale, famille ajoute un anneau
 // violet par-dessus. La fonction haloColor donne la couleur metier ;
 // FAMILY_VIOLET est utilise pour le ring exterieur.
+/**
+ * v556 — grille de couleurs des halos (décision Daniel, identique à l'app) :
+ * Premium or (contour noir + couronne), PawFollow / Famille violet, PawSpot
+ * jaune, sinon la couleur du rôle.
+ */
+export const HALO_GOLD = "#F4C04A";
+export const HALO_YELLOW = "#F4D03F";
+export function subscriptionHaloColor(opts: {
+  premium?: boolean;
+  pawFollow?: boolean;
+  pawSpot?: boolean;
+  role: Role | string;
+}): string {
+  if (opts.premium) return HALO_GOLD;
+  if (opts.pawFollow) return FAMILY_VIOLET;
+  if (opts.pawSpot) return HALO_YELLOW;
+  return haloColor(opts.role as Role);
+}
+
 export function haloColor(role: Role): string {
   if (role === "walker") return "#16A34A";
   if (role === "sitter") return "#2563EB";

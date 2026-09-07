@@ -43,6 +43,7 @@ import {
   FAMILY_VIOLET,
   haloColor,
   makeAvatarIcon,
+  subscriptionHaloColor,
 } from "@/components/FriendsLiveMap";
 import type { FriendLivePosition, Role } from "@/components/FriendsLiveMap";
 import { GOLDEN_COIN_SVG, makeTypeCoinSvg } from "@/components/PawSpotGoldCoin";
@@ -56,26 +57,38 @@ function LiveFriendMarker({
   p,
   isFamily,
   isPremium,
+  hasPawFollow,
+  hasPawSpot,
   roleLabel,
   onFocus,
 }: {
   p: FriendLivePosition;
   isFamily: boolean;
   isPremium?: boolean;
+  hasPawFollow?: boolean;
+  hasPawSpot?: boolean;
   roleLabel: string;
   onFocus?: () => void;
 }) {
+  // v556 — halo par abonnement (même grille que l'app) : Premium or + contour
+  // noir, PawFollow/Famille violet, PawSpot jaune, sinon couleur du rôle.
+  const halo = subscriptionHaloColor({
+    premium: isPremium,
+    pawFollow: isFamily || hasPawFollow,
+    pawSpot: hasPawSpot,
+    role: p.role,
+  });
   return (
     <span>
       <Circle
         center={[p.lat, p.lng]}
         radius={70}
         pathOptions={{
-          color: haloColor(p.role),
-          fillColor: haloColor(p.role),
-          fillOpacity: 0.18,
+          color: isPremium ? "#15120D" : halo,
+          fillColor: halo,
+          fillOpacity: 0.2,
           weight: 2,
-          opacity: 0.7,
+          opacity: 0.8,
         }}
       />
       {isFamily && (
@@ -320,25 +333,40 @@ function makeReportIcon(type: MapReportType): L.DivIcon {
 
 // v497 — membre PawMap proche : badge ROSE (dégradé) + patte blanche, couronne
 // 👑 si Premium, point vert/gris selon en ligne. Même style que l'app.
-function makeMemberIcon(premium: boolean, online: boolean): L.DivIcon {
+function hexToRgba(hex: string, a: number): string {
+  const h = hex.replace("#", "");
+  const n = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+// v556 — Daniel : « une couleur par utilisateur : owner orange, walker vert,
+// sitter bleu ; Premium doré et noir avec couronne ; PawFollow violet ;
+// PawSpot jaune ». Le badge rose uniforme (v550) laisse place à la grille
+// d'abonnement — identique à l'app.
+function makeMemberIcon(m: NearbyMember): L.DivIcon {
+  const online = m.isOnline !== false;
+  const premium = !!(m.isPremiumOnly ?? m.isPremium);
+  const color = subscriptionHaloColor({
+    premium,
+    pawFollow: !!m.hasPawFollow,
+    pawSpot: !!(m.hasPawSpot ?? m.isPawSpot),
+    role: m.role,
+  });
   const crown = premium
     ? '<div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);font-size:12px;">👑</div>'
     : "";
   const dot = `<div style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;border:1.5px solid #fff;background:${online ? "#22C55E" : "#9CA3AF"};"></div>`;
-  // v550 — Daniel : « les utilisateurs, rose brillant qu'on les voie mieux ».
-  // Badge agrandi (30 → 34 px), rose plus vif et double halo lumineux : au
-  // milieu des POI bleus, les membres doivent sauter aux yeux. Le halo est
-  // atténué hors ligne pour garder l'info en ligne / hors ligne lisible.
   const glow = online
-    ? "0 0 0 4px rgba(255,79,163,.28), 0 0 14px 4px rgba(255,79,163,.55), 0 1px 5px rgba(0,0,0,.35)"
-    : "0 0 0 3px rgba(255,79,163,.14), 0 1px 5px rgba(0,0,0,.3)";
+    ? `0 0 0 4px ${hexToRgba(color, 0.28)}, 0 0 14px 4px ${hexToRgba(color, 0.55)}, 0 1px 5px rgba(0,0,0,.35)`
+    : `0 0 0 3px ${hexToRgba(color, 0.14)}, 0 1px 5px rgba(0,0,0,.3)`;
   const bg = online
-    ? "linear-gradient(135deg,#FF4FA3,#F01E86)"
-    : "linear-gradient(135deg,#D8A8C0,#C194AC)";
+    ? `linear-gradient(135deg,${hexToRgba(color, 0.85)},${color})`
+    : `linear-gradient(135deg,${hexToRgba(color, 0.45)},${hexToRgba(color, 0.6)})`;
+  const border = premium ? "#15120D" : "#fff";
   return L.divIcon({
     className: "",
     // v505 — patte BLANCHE (logo officiel, comme l'app) au lieu de l'emoji 🐾.
-    html: `<div style="position:relative;width:34px;height:34px;">${crown}<div style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${bg};border:2.5px solid #fff;box-shadow:${glow};"><svg viewBox="0 0 24 24" width="17" height="17" fill="#fff"><ellipse cx="12" cy="15.6" rx="4.6" ry="3.7"/><ellipse cx="5.3" cy="10.9" rx="2" ry="2.6"/><ellipse cx="9.4" cy="7.4" rx="2" ry="2.7"/><ellipse cx="14.6" cy="7.4" rx="2" ry="2.7"/><ellipse cx="18.7" cy="10.9" rx="2" ry="2.6"/></svg></div>${dot}</div>`,
+    html: `<div style="position:relative;width:34px;height:34px;">${crown}<div style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${bg};border:2.5px solid ${border};box-shadow:${glow};"><svg viewBox="0 0 24 24" width="17" height="17" fill="#fff"><ellipse cx="12" cy="15.6" rx="4.6" ry="3.7"/><ellipse cx="5.3" cy="10.9" rx="2" ry="2.6"/><ellipse cx="9.4" cy="7.4" rx="2" ry="2.7"/><ellipse cx="14.6" cy="7.4" rx="2" ry="2.7"/><ellipse cx="18.7" cy="10.9" rx="2" ry="2.6"/></svg></div>${dot}</div>`,
     iconSize: [34, 34],
     iconAnchor: [17, 17],
   });
@@ -363,6 +391,8 @@ export default function PoiMap({
   friendPositions = [],
   familyIds = [],
   premiumIds = [],
+  pawFollowIds = [],
+  pawSpotIds = [],
   roleLabels,
   userHaloColor,
   userAvatarUrl,
@@ -413,6 +443,9 @@ export default function PoiMap({
   familyIds?: string[];
   /** v23.1.399 — ids des membres PawPremium → couronne 👑 + anneau OR. */
   premiumIds?: string[];
+  /** v556 — amis abonnés PawFollow / PawSpot (couleur du halo). */
+  pawFollowIds?: string[];
+  pawSpotIds?: string[];
   /** v23.1.358 — libellés i18n des rôles (owner/sitter/walker) pour le
       tooltip permanent « nom · rôle » sous chaque ami en direct. */
   roleLabels?: Partial<Record<Role, string>>;
@@ -747,7 +780,7 @@ export default function PoiMap({
             <Marker
               key={`member-${m.id}`}
               position={[c[1], c[0]]}
-              icon={makeMemberIcon(!!m.isPremium, m.isOnline !== false)}
+              icon={makeMemberIcon(m)}
               zIndexOffset={200}
             >
               <Popup>
@@ -772,6 +805,8 @@ export default function PoiMap({
             p={p}
             isFamily={familySet.has(p.userId)}
             isPremium={premiumSet.has(p.userId)}
+            hasPawFollow={pawFollowIds.includes(p.userId)}
+            hasPawSpot={pawSpotIds.includes(p.userId)}
             roleLabel={roleLabels?.[p.role] ?? p.role}
             onFocus={() => onFriendFocus?.(p)}
           />

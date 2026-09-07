@@ -213,6 +213,9 @@ export default function MapPage() {
   const [familyIds, setFamilyIds] = useState<string[]>([]);
   // v23.1.399 — Daniel : la couronne 👑 doit aussi apparaître sur le site.
   const [premiumIds, setPremiumIds] = useState<string[]>([]);
+  // v556 — halos par abonnement : amis PawFollow / PawSpot.
+  const [pawFollowIds, setPawFollowIds] = useState<string[]>([]);
+  const [pawSpotIds, setPawSpotIds] = useState<string[]>([]);
   const [livePositions, setLivePositions] = useState<
     Map<string, FriendLivePosition>
   >(new Map());
@@ -602,6 +605,12 @@ export default function MapPage() {
         ...allFamily.filter((m) => m.isPremium).map((m) => m.id),
       ].filter(Boolean);
       setPremiumIds([...new Set(_premIds)]);
+      setPawFollowIds(
+        accepted.filter((f) => f.other?.hasPawFollow).map((f) => f.other.id).filter(Boolean),
+      );
+      setPawSpotIds(
+        accepted.filter((f) => !!f.other?.pawSpotTier).map((f) => f.other.id).filter(Boolean),
+      );
 
       // 2) friends élargis (friends + family synthétiques) pour résoudre
       // les events socket des membres famille hors friend-list.
@@ -1428,12 +1437,24 @@ export default function MapPage() {
           friendPositions={showFriends ? livePositionsList : []}
           familyIds={familyIds}
           premiumIds={premiumIds}
+          pawFollowIds={pawFollowIds}
+          pawSpotIds={pawSpotIds}
           roleLabels={{
             owner: t("role_owner"),
             sitter: t("role_sitter"),
             walker: t("role_walker"),
           }}
-          userHaloColor={myRoleColor}
+          // v556 — mon halo suit la même grille que les autres : or si
+          // Premium, violet si PawFollow/Famille, jaune si PawSpot, sinon rôle.
+          userHaloColor={
+            benefits?.premiumActive
+              ? "#F4C04A"
+              : benefits?.pawFollowActive || benefits?.familyActive
+                ? "#8B5CF6"
+                : benefits?.pawspotActive
+                  ? "#F4D03F"
+                  : myRoleColor
+          }
           userAvatarUrl={myAvatarUrl}
           userIsPremium={premiumDays !== null || isStaffSub}
           userAccuracy={userAccuracy}
