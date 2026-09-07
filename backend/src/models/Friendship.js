@@ -59,8 +59,14 @@ const friendshipSchema = new mongoose.Schema(
     // ATTENTION : un `default` Mongoose ne s'applique qu'à la CRÉATION — les
     // amitiés existantes gardent leur valeur actuelle et continuent de
     // fonctionner. Seules les nouvelles démarrent en partage désactivé.
-    requesterSharesPosition: { type: Boolean, default: false },
-    addresseeSharesPosition: { type: Boolean, default: false },
+    // v555 — option C (décision Daniel 07/09) : le partage en direct avec un
+    // ami accepté est ALLUMÉ par défaut ; l'interrupteur par ami (Mes amis)
+    // devient un opt-out. Avant : opt-in par ami + double condition côté
+    // socket → « Partager ma position » n'atteignait personne sans PawFollow.
+    // Les amitiés existantes ont été basculées par
+    // scripts/migrateShareDefaultTrue.js.
+    requesterSharesPosition: { type: Boolean, default: true },
+    addresseeSharesPosition: { type: Boolean, default: true },
 
     acceptedAt: { type: Date, default: null },
     declinedAt: { type: Date, default: null },

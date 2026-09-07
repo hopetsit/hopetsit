@@ -6017,7 +6017,11 @@ class _PawMapScreenState extends State<PawMapScreen>
           pill(
             icon: Icons.timeline_rounded,
             label: 'pawmap_dock_history'.tr,
-            onTap: () => _openScreen(() => const BookingsHistoryScreen()),
+            // v555 — option C : l'historique de balade est un avantage
+            // PawFollow (le partage de base, lui, est gratuit pour tous).
+            onTap: () => _pawSpotController.followActive.value
+                ? _openScreen(() => const BookingsHistoryScreen())
+                : unawaited(_promptSubscriptionRequired(1)),
           ),
         ],
       ),

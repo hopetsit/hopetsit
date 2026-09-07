@@ -28,6 +28,34 @@ async function startServer() {
     // Load the admin-editable service catalog (duration presets, active
     // flags, label overrides) the same way.
     await serviceCatalogService.init();
+    // v555 — migration UNE FOIS (marqueur dans la collection `migrations`) :
+    // partage de position entre amis allumé par défaut (option C, décision
+    // Daniel 07/09). Faite au démarrage parce que l'URI Mongo de production
+    // n'existe que dans l'environnement Render. Idempotente et non bloquante.
+    try {
+      const mig = mongoose.connection.db.collection('migrations');
+      const KEY = 'v555_share_default_true';
+      if (!(await mig.findOne({ _id: KEY }))) {
+        const Friendship = require('./models/Friendship');
+        const r1 = await Friendship.updateMany(
+          { requesterSharesPosition: { $ne: true } },
+          { $set: { requesterSharesPosition: true } },
+        );
+        const r2 = await Friendship.updateMany(
+          { addresseeSharesPosition: { $ne: true } },
+          { $set: { addresseeSharesPosition: true } },
+        );
+        await mig.insertOne({
+          _id: KEY,
+          at: new Date(),
+          requesterFixed: r1.modifiedCount,
+          addresseeFixed: r2.modifiedCount,
+        });
+        logger.info(`[boot] migration ${KEY}: requester=${r1.modifiedCount} addressee=${r2.modifiedCount}`);
+      }
+    } catch (e) {
+      logger.error('[boot] migration v555 failed (non-fatal)', e);
+    }
     // v404 — charge les mots interdits admin (BannedWord) dans le service de
     // modération texte → s'applique app + web. Non bloquant.
     try {

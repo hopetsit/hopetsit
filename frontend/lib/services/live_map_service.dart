@@ -14,7 +14,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_config.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
+import 'package:hopetsit/controllers/pawspot_controller.dart';
 import 'package:hopetsit/services/live_tracking_bg.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 
@@ -86,8 +88,23 @@ class LiveMapService extends GetxService {
   Timer? _sessionCapTimer;
   Timer? _stationaryTimer;
   LatLng? _stationaryAnchor;
+  /// v555 — option C (décision Daniel 07/09) : le partage entre amis est
+  /// gratuit pour tous, mais la session gratuite s'arrête après 30 min et ne
+  /// survit pas à la fermeture de l'app. PawFollow : 2 h et service de fond.
   static const Duration _sessionCap = Duration(hours: 2);
+  static const Duration _freeSessionCap = Duration(minutes: 30);
   static const Duration _stationaryTimeout = Duration(minutes: 30);
+  bool _freeSession = false;
+
+  /// L'utilisateur a-t-il PawFollow (ou Famille, ou Premium) ?
+  bool _hasPawFollow() {
+    try {
+      if (!Get.isRegistered<PawSpotController>()) return false;
+      return Get.find<PawSpotController>().followActive.value;
+    } catch (_) {
+      return false;
+    }
+  }
   static const double _stationaryRadiusM = 60; // bougé de >60m = toujours actif
 
   /// v23.1 part 240 — Daniel (3eme tentative) : "personne en live sa marche
@@ -229,13 +246,18 @@ class LiveMapService extends GetxService {
   void startBroadcasting(LatLng Function() latestPosition, {String? city}) {
     if (broadcasting.value) return;
     broadcasting.value = true;
+    _freeSession = !_hasPawFollow();
 
     // v416 — Daniel : "le direct doit rester allumé même app fermée de force".
     // On arme le SERVICE DE FOND (isolate séparé, survit au swipe-kill sur
     // Android) : on lui dépose le token + l'URL + la ville dans GetStorage
     // (il n'a pas accès au secure storage), puis on le démarre. Best-effort :
     // si ça échoue, le flux socket en avant-plan continue de fonctionner.
-    try {
+    // v555 — réservé à PawFollow : en gratuit, le partage vit avec l'app.
+    if (_freeSession) {
+      _storage.write(kBgLiveActive, false);
+    } else {
+      try {
       final token = SecureTokenStore.instance.tokenSync ??
           SecureTokenStore.currentToken();
       _storage.write(kBgLiveActive, true);
@@ -245,6 +267,7 @@ class LiveMapService extends GetxService {
       startLiveTrackingService();
     } catch (e) {
       debugPrint('[LiveMap] background service start failed: $e');
+    }
     }
 
     // Init last known from the closure (typically _userPosition fresh).
@@ -284,8 +307,24 @@ class LiveMapService extends GetxService {
     // v23.1.294 — règle de session validée par Daniel : arrêt auto après 2h
     // (sécurité batterie/vie privée) et si l'utilisateur reste immobile 30 min.
     _sessionCapTimer?.cancel();
-    _sessionCapTimer = Timer(_sessionCap, stopBroadcasting);
+    _sessionCapTimer = Timer(
+      _freeSession ? _freeSessionCap : _sessionCap,
+      _onSessionCap,
+    );
     _armStationaryTimer();
+  }
+
+  /// v555 — fin de session : en gratuit, on explique pourquoi ça s'arrête
+  /// (c'est LE moment où PawFollow a un sens pour l'utilisateur).
+  void _onSessionCap() {
+    final wasFree = _freeSession;
+    stopBroadcasting();
+    if (wasFree) {
+      CustomSnackbar.showInfo(
+        title: 'pawmap_snack_tracking_off_title'.tr,
+        message: 'pawmap_live_free_cap_msg'.tr,
+      );
+    }
   }
 
   /// v23.1.294 — réglages GPS. Sur Android on attache un foreground service
