@@ -4,15 +4,19 @@ import { SubscriptionsExplainer } from "@/components/SubscriptionsExplainer";
 import Link from "next/link";
 import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
 import { PawMemberBadge } from "@/components/PawMemberBadge";
+import { PawMapCTA } from "@/components/PawMapCTA";
 import StoreBadges from "@/components/StoreBadges";
 import { useT } from "@/lib/i18n/LanguageProvider";
 // v534 — captures d'ecran par langue (EN / FR).
 import { screensFor } from "@/lib/screens";
 
-// v493 — Refonte design (design-only) : page d'accueil ramenée de ~9 sections
-// à 6 (Hero · Bande confiance · 3 rôles · 3 services · PawPremium · CTA final).
-// Aucune donnée/route/logique modifiée : on réutilise EXACTEMENT les mêmes
-// clés i18n et les mêmes liens (/download, /login, /signup, /pawmap, /boutique).
+// v556 — Refonte « premium » de l'accueil (Daniel : « trop simple, refais-la »).
+// Design uniquement : mêmes clés i18n, mêmes routes (/download, /login,
+// /signup, /pawmap, /boutique, /map). Ordre des 12 blocs :
+//   1 Héro · 2 Confiance · 3 Vidéo · 4 Comment ça marche (4 étapes) ·
+//   5 Trois rôles · 6 Trois services · 7 Bande PawMap (suivi gratuit + CTA) ·
+//   8 L'app en images · 9 Abonnements expliqués · 10 PawPremium · 11 FAQ ·
+//   12 CTA final.
 export default function HomePage() {
   const { t, lang } = useT();
 
@@ -29,9 +33,7 @@ export default function HomePage() {
     { title: t("trust_map_title"),  body: t("trust_map_body"),  icon: "🗺️" },
   ];
 
-  // « 3 services, une seule app » — fusion des anciennes sections PawSpot /
-  // PawFollow / « 3 apps en 1 » (doublons) en UNE grille de 3 cartes, avec
-  // prix en ligne + 1 CTA chacun. Mêmes clés + mêmes routes qu'avant.
+  // « 3 services, une seule app » — 3 cartes (PetSitting · PawFollow · PawSpot).
   const services = [
     {
       kind: "petsitting",
@@ -66,6 +68,23 @@ export default function HomePage() {
       accent: "amber",
     },
   ] as const;
+
+  // v556 — « Comment ça marche » en 4 étapes (clés how_step1..4, déjà
+  // traduites dans les 9 langues).
+  const steps = [
+    { n: "01", emoji: "✨", title: t("how_step1_title"), body: t("how_step1_body"), tone: "owner" },
+    { n: "02", emoji: "🔎", title: t("how_step2_title"), body: t("how_step2_body"), tone: "sitter" },
+    { n: "03", emoji: "💳", title: t("how_step3_title"), body: t("how_step3_body"), tone: "walker" },
+    { n: "04", emoji: "⭐", title: t("how_step4_title"), body: t("how_step4_body"), tone: "amber" },
+  ] as const;
+
+  // v556 — FAQ (10 questions, clés faq_q1..10 / faq_a1..10).
+  const faq = Array.from({ length: 10 }, (_, i) => ({
+    q: t(`faq_q${i + 1}`),
+    a: t(`faq_a${i + 1}`),
+  })).filter((x) => x.q && !x.q.startsWith("faq_"));
+
+  const pawmapShot = lang === "fr" ? "/screens/02_pawmap.jpg" : "/screens/02_pawmap_us.jpg";
 
   return (
     <>
@@ -259,6 +278,44 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── 4. COMMENT ÇA MARCHE ── v556 : 4 étapes numérotées reliées par un
+           fil, une couleur par étape. */}
+      <section className="relative overflow-hidden bg-white py-24">
+        <div className="mx-auto max-w-6xl px-4">
+          <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
+            {t("how_title")}
+          </h2>
+          <span aria-hidden className="mx-auto mt-4 block h-1 w-14 rounded-full bg-gradient-to-r from-owner to-amber-400" />
+          <p className="mx-auto mt-4 max-w-2xl text-center text-ink-muted">{t("how_sub")}</p>
+
+          <div className="relative mt-14 grid gap-6 md:grid-cols-4">
+            <div aria-hidden className="absolute left-[12%] right-[12%] top-9 hidden h-px bg-gradient-to-r from-owner/30 via-sitter/30 to-amber-400/40 md:block" />
+            {steps.map((s) => {
+              const tone =
+                s.tone === "owner"
+                  ? "bg-owner text-white"
+                  : s.tone === "sitter"
+                    ? "bg-sitter text-white"
+                    : s.tone === "walker"
+                      ? "bg-walker text-white"
+                      : "bg-amber-400 text-ink";
+              return (
+                <div key={s.n} className="group relative rounded-[26px] border border-[#efe7e0] bg-white p-7 shadow-card transition hover:-translate-y-1.5 hover:shadow-xl">
+                  <div className="flex items-center gap-3">
+                    <span className={`grid h-[4.5rem] w-[4.5rem] shrink-0 place-items-center rounded-2xl text-3xl shadow-lg ${tone}`}>
+                      {s.emoji}
+                    </span>
+                    <span className="font-display text-4xl font-extrabold tracking-tight text-ink/10">{s.n}</span>
+                  </div>
+                  <h3 className="mt-5 text-lg font-extrabold text-ink">{s.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-muted">{s.body}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* ── 3. UNE APP, TROIS RÔLES ── 3 cartes. */}
       <section className="mx-auto max-w-6xl px-4 py-24">
         <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
@@ -363,6 +420,77 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── 7. BANDE PAWMAP ── v556 : LA fonctionnalité phare (Daniel) en
+           pleine largeur : capture réelle de la carte + suivi gratuit pendant
+           le service + CTA orange PawMap. */}
+      <section className="relative overflow-hidden bg-[#17141f] py-24 text-white">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(55% 70% at 15% 30%, rgba(255,106,0,0.28) 0%, rgba(255,106,0,0) 65%)," +
+              "radial-gradient(40% 55% at 90% 80%, rgba(124,58,237,0.25) 0%, rgba(124,58,237,0) 65%)",
+          }}
+        />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 md:grid-cols-2">
+          <div>
+            <div className="mb-5 flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/pawmap_logo_orange.svg" alt="PawMap" width={56} height={56} className="drop-shadow-lg" />
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold text-white/90">
+                🌍 {t("hero_badge")}
+              </span>
+            </div>
+            <h2 className="font-display text-3xl font-extrabold tracking-tight md:text-5xl">
+              {t("pawmap_title")}
+            </h2>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-white/80">{t("pawmap_sub")}</p>
+
+            <div className="mt-8 rounded-2xl border border-walker/40 bg-walker/10 p-5">
+              <div className="flex items-center gap-2 text-sm font-extrabold text-emerald-300">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                </span>
+                {t("hiw_track_title")}
+              </div>
+              <p className="mt-2 text-sm leading-relaxed text-white/80">{t("hiw_track_body")}</p>
+            </div>
+
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <PawMapCTA size="hero" />
+              <Link
+                href="/pawmap"
+                className="rounded-full border border-white/25 px-6 py-3.5 text-sm font-bold text-white transition hover:bg-white/10"
+              >
+                {t("home_discover")} PawSpot →
+              </Link>
+            </div>
+          </div>
+
+          <div className="relative mx-auto w-full max-w-[340px]">
+            <div aria-hidden className="absolute -inset-6 rounded-[44px] bg-gradient-to-br from-[#FF6A00]/40 via-transparent to-violet-500/30 blur-2xl" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={pawmapShot}
+              alt="HoPetSit — PawMap"
+              width={640}
+              height={1385}
+              loading="lazy"
+              className="relative w-full rounded-[32px] border-[6px] border-[#2a2433] shadow-[0_40px_80px_-30px_rgba(0,0,0,0.8)]"
+            />
+            <div className="absolute -left-6 top-12 inline-flex items-center gap-2 rounded-full border border-white/20 bg-[#17141f]/90 px-3 py-1.5 text-xs font-bold shadow-xl backdrop-blur">
+              <PawMemberBadge size={18} />
+              PawSpot
+            </div>
+            <div className="absolute -right-6 bottom-16 inline-flex items-center gap-2 rounded-full border border-white/20 bg-[#17141f]/90 px-3 py-1.5 text-xs font-bold shadow-xl backdrop-blur">
+              <span className="text-lg">🐾</span> PawFollow
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── v507 — L'APP EN IMAGES ── vraies captures store (Daniel, 6 visuels
            /screens/01..06) en bande défilable horizontale. Les visuels ont déjà
            leur fond orange + titre intégré → simples cartes arrondies. */}
@@ -392,7 +520,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── 4b. ABONNEMENTS EXPLIQUÉS ── v556 (Daniel : « explique mieux les
+      {/* ── 9. ABONNEMENTS EXPLIQUÉS ── (Daniel : « explique mieux les
            abonnements ») : gratuit vs ce que chaque formule ajoute. */}
       <SubscriptionsExplainer />
 
@@ -426,6 +554,32 @@ export default function HomePage() {
           >
             {t("home_discover")} PawPremium →
           </Link>
+        </div>
+      </section>
+
+      {/* ── 11. FAQ ── v556 : 10 questions en accordéon natif (<details>),
+           2 colonnes sur desktop. */}
+      <section className="bg-bg-soft py-24">
+        <div className="mx-auto max-w-5xl px-4">
+          <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
+            {t("faq_title")}
+          </h2>
+          <span aria-hidden className="mx-auto mt-4 block h-1 w-14 rounded-full bg-gradient-to-r from-owner to-amber-400" />
+          <div className="mt-12 grid gap-4 md:grid-cols-2">
+            {faq.map((f, i) => (
+              <details
+                key={f.q}
+                className="group rounded-2xl border border-ink/10 bg-white p-5 shadow-sm open:shadow-lg"
+                open={i === 0}
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[15px] font-bold text-ink [&::-webkit-details-marker]:hidden">
+                  {f.q}
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-owner-light text-owner transition group-open:rotate-45">+</span>
+                </summary>
+                <p className="mt-3 text-sm leading-relaxed text-ink-muted">{f.a}</p>
+              </details>
+            ))}
+          </div>
         </div>
       </section>
 
