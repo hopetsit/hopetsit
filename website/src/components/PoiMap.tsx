@@ -73,6 +73,8 @@ function LiveFriendMarker({
   hasPawSpot,
   roleLabel,
   onFocus,
+  onDirections,
+  directionsLabel,
 }: {
   p: FriendLivePosition;
   isFamily: boolean;
@@ -81,6 +83,9 @@ function LiveFriendMarker({
   hasPawSpot?: boolean;
   roleLabel: string;
   onFocus?: () => void;
+  /** v559 — itinéraire vers l'ami (modes + virages, comme lieux et spots). */
+  onDirections?: (target: { lat: number; lng: number }) => void;
+  directionsLabel?: string;
 }) {
   // v556 — halo par abonnement (même grille que l'app) : Premium or + contour
   // noir, PawFollow/Famille violet, PawSpot jaune, sinon couleur du rôle.
@@ -144,6 +149,19 @@ function LiveFriendMarker({
             <span className="text-xs opacity-70">
               {new Date(p.at).toLocaleString()}
             </span>
+            {onDirections && (
+              <>
+                <br />
+                <button
+                  type="button"
+                  onClick={() => onDirections({ lat: p.lat, lng: p.lng })}
+                  className="mt-2 rounded-full px-3 py-1 text-xs font-bold text-white"
+                  style={{ backgroundColor: "#16A34A" }}
+                >
+                  🧭 {directionsLabel || "→"}
+                </button>
+              </>
+            )}
           </div>
         </Popup>
       </Marker>
@@ -846,6 +864,8 @@ export default function PoiMap({
             hasPawSpot={pawSpotIds.includes(p.userId)}
             roleLabel={roleLabels?.[p.role] ?? p.role}
             onFocus={() => onFriendFocus?.(p)}
+            onDirections={onDirections}
+            directionsLabel={directionsLabel}
           />
         ))}
 

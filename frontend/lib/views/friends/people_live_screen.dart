@@ -11,6 +11,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/controllers/friend_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/services/live_map_service.dart';
@@ -20,6 +21,24 @@ import 'package:hopetsit/widgets/dotted_invite_card.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+
+/// v559 — position d'un ami : en direct (LiveMapService) sinon la dernière
+/// connue côté serveur. Null si aucune.
+Future<LatLng?> _resolveFriendPosition(String friendId) async {
+  try {
+    final svc = Get.isRegistered<LiveMapService>() ? Get.find<LiveMapService>() : null;
+    final pos = svc?.friendPositions[friendId];
+    if (pos != null) return LatLng(pos.latitude, pos.longitude);
+  } catch (_) {/* défensif */}
+  try {
+    final api = Get.find<ApiClient>();
+    final r = await api.get('/friends/$friendId/last-position', requiresAuth: true);
+    if (r is Map && r['lat'] is num && r['lng'] is num) {
+      return LatLng((r['lat'] as num).toDouble(), (r['lng'] as num).toDouble());
+    }
+  } catch (_) {/* défensif */}
+  return null;
+}
 
 class PeopleLiveScreen extends StatelessWidget {
   const PeopleLiveScreen({super.key});
@@ -273,6 +292,26 @@ class PeopleLiveScreen extends StatelessWidget {
                             ),
                           ],
                         ),
+                      ),
+                      // v559 — Daniel : itinéraire vers l'ami (à pied / vélo /
+                      // voiture + virages) lancé directement sur la PawMap.
+                      IconButton(
+                        tooltip: 'pawmap_btn_directions'.tr,
+                        icon: const Icon(Icons.directions_rounded,
+                            color: Color(0xFF16A34A)),
+                        onPressed: () async {
+                          final pos = await _resolveFriendPosition(other.id);
+                          if (pos == null) return;
+                          Get.off(() => PawMapScreen(
+                                initialLat: pos.latitude,
+                                initialLng: pos.longitude,
+                                routeToLat: pos.latitude,
+                                routeToLng: pos.longitude,
+                                focusUserId: other.id,
+                                focusUserRole: other.model.toLowerCase(),
+                                focusUserName: other.name,
+                              ));
+                        },
                       ),
                       Icon(Icons.chevron_right_rounded,
                           color: AppColors.greyText, size: 22.sp),

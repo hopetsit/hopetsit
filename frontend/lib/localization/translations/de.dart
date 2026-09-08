@@ -3263,6 +3263,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'pawmap_quick_my_reports': 'Meine Meldungen',
       'pawmap_quick_my_reports_sub': 'Verlauf',
       'pawmap_live_share_off': 'Live teilen',
+      'pawmap_seen_ago': 'Vor {ago} gesehen',
       'route_mode_walk': 'Zu Fuß',
       'route_mode_bike': 'Fahrrad',
       'route_mode_car': 'Auto',

@@ -3262,6 +3262,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'pawmap_quick_my_reports': 'Mis reportes',
       'pawmap_quick_my_reports_sub': 'Historial',
       'pawmap_live_share_off': 'Compartir en vivo',
+      'pawmap_seen_ago': 'Visto hace {ago}',
       'route_mode_walk': 'A pie',
       'route_mode_bike': 'Bici',
       'route_mode_car': 'Coche',

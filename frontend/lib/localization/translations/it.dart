@@ -3249,6 +3249,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'pawmap_quick_my_reports': 'Le mie segnalazioni',
       'pawmap_quick_my_reports_sub': 'Cronologia',
       'pawmap_live_share_off': 'Condividi live',
+      'pawmap_seen_ago': 'Visto {ago} fa',
       'route_mode_walk': 'A piedi',
       'route_mode_bike': 'Bici',
       'route_mode_car': 'Auto',

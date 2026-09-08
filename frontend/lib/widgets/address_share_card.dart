@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -179,9 +180,13 @@ class AddressShareCard extends StatelessWidget {
                 ),
 
                 // ── Bouton Itineraire ─────────────────────────────────
-                if (fullAddress.isNotEmpty || (lat != null && lng != null))
+                // v559 — Daniel : l'adresse partagée (domicile pour une garde
+                // ou une promenade) utilise l'itinéraire de la PawMap (à pied /
+                // vélo / voiture + virages) quand on a les coordonnées ; Google
+                // Maps reste en second choix (et seul choix sans coordonnées).
+                if (lat != null && lng != null)
                   Padding(
-                    padding: EdgeInsets.fromLTRB(14.w, 0, 14.w, 14.h),
+                    padding: EdgeInsets.fromLTRB(14.w, 0, 14.w, 6.h),
                     child: SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -190,24 +195,71 @@ class AddressShareCard extends StatelessWidget {
                         label: Padding(
                           padding: EdgeInsets.symmetric(vertical: 2.h),
                           child: InterText(
-                            text: 'address_share_open_directions'.tr,
+                            text: 'pawmap_btn_directions'.tr,
                             fontSize: 13.sp,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _orangeBrand,
+                          backgroundColor: const Color(0xFF16A34A),
                           foregroundColor: Colors.white,
                           padding: EdgeInsets.symmetric(vertical: 11.h),
                           elevation: 3,
-                          shadowColor: _orangeBrand.withValues(alpha: 0.5),
+                          shadowColor: const Color(0xFF16A34A).withValues(alpha: 0.5),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14.r),
                           ),
                         ),
-                        onPressed: _openInMaps,
+                        onPressed: () => Get.to(() => PawMapScreen(
+                              initialLat: lat,
+                              initialLng: lng,
+                              routeToLat: lat,
+                              routeToLng: lng,
+                            )),
                       ),
+                    ),
+                  ),
+                if (fullAddress.isNotEmpty || (lat != null && lng != null))
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(14.w, 0, 14.w, 14.h),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: (lat != null && lng != null)
+                          ? TextButton.icon(
+                              icon: Icon(Icons.map_outlined, size: 18.sp, color: _orangeBrand),
+                              label: InterText(
+                                text: 'address_share_open_directions'.tr,
+                                fontSize: 12.5.sp,
+                                fontWeight: FontWeight.w700,
+                                color: _orangeBrand,
+                              ),
+                              onPressed: _openInMaps,
+                            )
+                          : ElevatedButton.icon(
+                              icon: const Icon(Icons.directions_rounded,
+                                  color: Colors.white),
+                              label: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 2.h),
+                                child: InterText(
+                                  text: 'address_share_open_directions'.tr,
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _orangeBrand,
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 11.h),
+                                elevation: 3,
+                                shadowColor: _orangeBrand.withValues(alpha: 0.5),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14.r),
+                                ),
+                              ),
+                              onPressed: _openInMaps,
+                            ),
                     ),
                   ),
               ],

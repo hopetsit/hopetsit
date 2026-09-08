@@ -374,6 +374,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawmap_quick_my_reports': 'Mes signaux',
       'pawmap_quick_my_reports_sub': 'Historique',
       'pawmap_live_share_off': 'Partager en direct',
+      'pawmap_seen_ago': 'Vu il y a {ago}',
       'route_mode_walk': 'À pied',
       'route_mode_bike': 'Vélo',
       'route_mode_car': 'Voiture',

@@ -8,6 +8,7 @@ import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 /// Sprint 6 step 2 — owner watches a live walk on a map.
@@ -189,6 +190,22 @@ class _LiveWalkMapScreenState extends State<LiveWalkMapScreen> {
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
         ),
+        // v559 — Daniel : rejoindre le promeneur avec l'itinéraire de la
+        // PawMap (à pied / vélo / voiture, indications de virage).
+        actions: [
+          if (_current != null)
+            IconButton(
+              tooltip: 'pawmap_btn_directions'.tr,
+              icon: const Icon(Icons.directions_rounded, color: Color(0xFF16A34A)),
+              onPressed: () => Get.to(() => PawMapScreen(
+                    initialLat: _current!.latitude,
+                    initialLng: _current!.longitude,
+                    routeToLat: _current!.latitude,
+                    routeToLng: _current!.longitude,
+                    focusUserName: widget.contactName,
+                  )),
+            ),
+        ],
       ),
       body: _current == null
           ? Center(

@@ -367,6 +367,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'pawmap_quick_my_reports': 'My reports',
       'pawmap_quick_my_reports_sub': 'History',
       'pawmap_live_share_off': 'Share live',
+      'pawmap_seen_ago': 'Seen {ago} ago',
       'route_mode_walk': 'On foot',
       'route_mode_bike': 'Bike',
       'route_mode_car': 'Car',

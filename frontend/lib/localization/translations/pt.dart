@@ -3102,6 +3102,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'pawmap_quick_my_reports': 'Os meus alertas',
       'pawmap_quick_my_reports_sub': 'Histórico',
       'pawmap_live_share_off': 'Partilhar ao vivo',
+      'pawmap_seen_ago': 'Visto há {ago}',
       'route_mode_walk': 'A pé',
       'route_mode_bike': 'Bicicleta',
       'route_mode_car': 'Carro',

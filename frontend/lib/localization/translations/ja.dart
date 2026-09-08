@@ -426,6 +426,7 @@ const Map<String, String> jaJPTranslations = <String, String>{
   'pawmap_quick_my_reports': '自分の報告',
   'pawmap_quick_my_reports_sub': '履歴',
   'pawmap_live_share_off': 'ライブ共有',
+  'pawmap_seen_ago': '{ago}前',
   'route_mode_walk': '徒歩',
   'route_mode_bike': '自転車',
   'route_mode_car': '車',

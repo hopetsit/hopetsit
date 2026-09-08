@@ -350,6 +350,7 @@ const Map<String, String> plPLTranslations = <String, String>{
   'pawmap_quick_my_reports': 'Moje zgłoszenia',
   'pawmap_quick_my_reports_sub': 'Historia',
   'pawmap_live_share_off': 'Udostępnij na żywo',
+  'pawmap_seen_ago': 'Widziano {ago} temu',
   'route_mode_walk': 'Pieszo',
   'route_mode_bike': 'Rower',
   'route_mode_car': 'Samochód',

@@ -80,6 +80,8 @@ class PawMapScreen extends StatefulWidget {
     this.focusUserName,
     this.focusSpotId,
     this.focusReportId,
+    this.routeToLat,
+    this.routeToLng,
   });
   final double? initialLat;
   final double? initialLng;
@@ -91,6 +93,12 @@ class PawMapScreen extends StatefulWidget {
   final String? focusSpotId;
   /// Id d'un signalement (ou SOS) partagé : même principe.
   final String? focusReportId;
+  /// v559 — Daniel : « que les nouvelles fonctionnalités marchent aussi pour
+  /// le suivi, les adresses… ». Un autre écran (ami en direct, balade suivie,
+  /// adresse partagée dans le chat) ouvre la carte AVEC un itinéraire déjà
+  /// lancé vers ce point (modes à pied / vélo / voiture + virages).
+  final double? routeToLat;
+  final double? routeToLng;
 
   @override
   State<PawMapScreen> createState() => _PawMapScreenState();
@@ -529,6 +537,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     if ((widget.focusSpotId ?? '').isNotEmpty ||
         (widget.focusReportId ?? '').isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _openSharedTarget());
+    }
+    // v559 — itinéraire demandé par un autre écran : on attend que la carte
+    // et MA position soient prêtes (jusqu'à ~10 s), puis on trace.
+    if (widget.routeToLat != null && widget.routeToLng != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_startPendingRoute()));
     }
     // v23.1.353 — refonte PawSpot : les anciens halos "map boost" (tier
     // bronze/silver/gold/platinum + self-halo) sont SUPPRIMÉS de la carte.
@@ -1065,6 +1078,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     required String name,
     required bool online,
     required bool premium,
+    double? lat,
+    double? lng,
     String avatar = '',
     bool approx = false,
     double approxKm = 1,
@@ -1305,6 +1320,37 @@ class _PawMapScreenState extends State<PawMapScreen>
                         icon: Icon(Icons.event_available_rounded, size: 18.sp),
                         label: Text(
                           'pawmap_member_book'.tr,
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                  // v559 — Daniel : itinéraire (à pied / vélo / voiture +
+                  // virages) aussi vers un membre ou un ami en direct.
+                  if (lat != null && lng != null) ...[
+                    SizedBox(height: 10.h),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF16A34A),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: EdgeInsets.symmetric(vertical: 13.h),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14.r),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(ctx).pop();
+                          _startDirections(LatLng(lat, lng));
+                        },
+                        icon: Icon(Icons.directions_rounded, size: 18.sp),
+                        label: Text(
+                          'pawmap_btn_directions'.tr,
                           style: TextStyle(
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w700,
@@ -2659,6 +2705,8 @@ class _PawMapScreenState extends State<PawMapScreen>
             name: providerName,
             online: providerOnline,
             premium: providerPremium,
+            lat: lat,
+            lng: lng,
           ),
         ),
       );
@@ -3186,6 +3234,8 @@ class _PawMapScreenState extends State<PawMapScreen>
               name: name,
               online: online,
               premium: premium,
+              lat: lat,
+              lng: lng,
               avatar: (p['avatar'] ?? '').toString(),
               approx: approx,
               approxKm: approxKm,
@@ -3413,7 +3463,19 @@ class _PawMapScreenState extends State<PawMapScreen>
               title: '👤 $displayName',
               snippet: isFamily
                   ? '${'pawmap_quick_family'.tr} · ${_timeAgo(pos.at)}'
-                  : 'Vu il y a ${_timeAgo(pos.at)}',
+                  : 'pawmap_seen_ago'.tr.replaceAll('{ago}', _timeAgo(pos.at)),
+              // v559 — Daniel : un appui sur la bulle ouvre la fiche de l'ami
+              // avec « Itinéraire » (à pied / vélo / voiture + virages).
+              onTap: () => _onNearbyTap(
+                id: pos.userId,
+                role: role,
+                name: displayName,
+                online: true,
+                premium: isPremiumMember,
+                lat: pos.latitude,
+                lng: pos.longitude,
+                avatar: avatarUrl,
+              ),
             ),
             // v23.1.263 — taper un ami = zoom au plus près + suivi "à la
             // trace" : la caméra reste collée à lui à chaque nouvelle position.
@@ -6975,6 +7037,21 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   /// Efface l'itinéraire en cours (bouton du bandeau).
+  /// v559 — itinéraire demandé à l'ouverture (routeToLat/Lng) : on réessaie
+  /// chaque seconde tant que MA position n'est pas connue (max ~10 s).
+  Future<void> _startPendingRoute() async {
+    final dest = LatLng(widget.routeToLat!, widget.routeToLng!);
+    for (int i = 0; i < 10; i++) {
+      if (!mounted) return;
+      if (_userPosition != null) {
+        await _startDirections(dest);
+        return;
+      }
+      await Future<void>.delayed(const Duration(seconds: 1));
+    }
+    if (mounted) await _startDirections(dest); // affichera « position inconnue »
+  }
+
   void _clearRoute() {
     setState(() {
       _routePolylines = {};
