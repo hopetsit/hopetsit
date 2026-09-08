@@ -156,8 +156,9 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   fr/en, soumission `6683e96c-…` → **WAITING_FOR_REVIEW avec le 562**.
   ⚠️ Quand une version est READY_FOR_DISTRIBUTION, attach/whatsNew renvoient
   409 : créer la version suivante (`POST /appStoreVersions`).
-- **Play** : Play Console ouverte (piste Production) — import de l'AAB 562 =
-  Daniel (en attente).
+- **Play** : AAB 562 importé par Daniel → notes 6 langues, Suivant, Enregistrer,
+  aperçu, Envoyer + confirmation (tout en JS) → **« Modifications en cours
+  d'examen » — 562 (23.1.559)**.
 
 **08/09 (nuit) — v558 « rangée PawMap repliée + vérification notifications »**
 - **Rangée repliée** (captures Daniel) : `_buildTopArea()` → replié =
