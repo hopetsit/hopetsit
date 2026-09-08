@@ -147,6 +147,9 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   `pawmap_logo_orange.svg` + `pawmap_nav.svg` (app) et `pawmap_logo*.svg`
   (site), bouton « OUVRIR LA PAW MAP » (`PawMapCTA`), page /alert.
 - Trio → v559 / 23.1.559+**562**. Notes Play : `HoPetSit_559_notes_de_version.txt`.
+- **Menu vérifié** (Daniel) : les 5 onglets ouverts l'un après l'autre au
+  simulateur après l'ajout du worker `requestedTab` — tous OK.
+- Fichiers : `~/Downloads/HoPetSit_v23.1.559.{apk,aab,ipa}` (build 562).
 
 **08/09 (nuit) — v558 « rangée PawMap repliée + vérification notifications »**
 - **Rangée repliée** (captures Daniel) : `_buildTopArea()` → replié =
