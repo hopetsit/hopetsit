@@ -173,7 +173,7 @@ PostPriceEstimate? estimatePostPrice({
         currency: currency,
         breakdown: days == 1
             ? '${'price_days_one'.tr} × ${_money(effectiveDailyForCare, currency)}'
-            : '${'price_days_n'.trParams({'n': '$days'})} × ${_money(effectiveDailyForCare, currency)}',
+            : '${'price_days_n'.tr.replaceAll('{n}', '$days')} × ${_money(effectiveDailyForCare, currency)}',
         unit: 'day',
       );
     }
@@ -242,7 +242,7 @@ PostPriceEstimate? estimatePostPrice({
     final commission = brut * commissionRate;
     final label = fullMonths + (remDays > 0 ? 1 : 0) == 1
         ? 'price_month_one'.tr
-        : 'price_days_n'.trParams({'n': '$days'});
+        : 'price_days_n'.tr.replaceAll('{n}', '$days');
     // v20.0.11 — commission ADDED on top for owner. Provider receives full rate.
     return PostPriceEstimate(
       brut: brut + commission,
@@ -261,7 +261,7 @@ PostPriceEstimate? estimatePostPrice({
     final commission = brut * commissionRate;
     final label = fullWeeks + (remDays > 0 ? 1 : 0) == 1
         ? 'price_week_one'.tr
-        : 'price_days_n'.trParams({'n': '$days'});
+        : 'price_days_n'.tr.replaceAll('{n}', '$days');
     // v20.0.11 — same fix : provider = brut, owner = brut + commission.
     return PostPriceEstimate(
       brut: brut + commission,

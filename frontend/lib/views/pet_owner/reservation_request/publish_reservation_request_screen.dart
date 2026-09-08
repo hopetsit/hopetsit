@@ -706,7 +706,7 @@ class _PublishReservationRequestScreenState
                     child: InterText(
                       text: controller.selectedDuration.value == null
                           ? 'send_request_end_auto_hint'.tr
-                          : 'send_request_end_auto_value'.trParams({'time': controller.formattedEndTime.isEmpty ? '…' : controller.formattedEndTime, 'min': '${controller.selectedDuration.value}'}),
+                          : 'send_request_end_auto_value'.tr.replaceAll('{time}', controller.formattedEndTime.isEmpty ? '…' : controller.formattedEndTime).replaceAll('{min}', '${controller.selectedDuration.value}'),
                       fontSize: 12.sp,
                       color: AppColors.greenColor,
                     ),

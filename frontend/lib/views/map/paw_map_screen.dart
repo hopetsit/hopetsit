@@ -3946,6 +3946,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                       !picking &&
                       _aroundYouVisible.value &&
                       _reportController.reports.isNotEmpty;
+                  // v559 — Daniel : « le bandeau d'itinéraire gêne, qu'il ne
+                  // touche pas les barres ». Tracé affiché → les rails montent
+                  // (206) comme pour « Autour de vous » : le bandeau (136 →
+                  // ~182) garde 24 px de marge sous les rails, centré.
+                  final routeShown = _routePolylines.isNotEmpty && !picking;
                   return Positioned(
                     left: 12.w,
                     right: 12.w,
@@ -3955,7 +3960,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // au-dessus de la carte de placement (140 + ~110).
                     bottom: (picking
                             ? 262.h
-                            : (aroundShown ? 206.h : 146.h)) +
+                            : ((aroundShown || routeShown) ? 206.h : 146.h)) +
                         MediaQuery.of(context).viewPadding.bottom,
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -5877,7 +5882,9 @@ class _PawMapScreenState extends State<PawMapScreen>
               !_pickingReportPos.value &&
               !_pickingRoutePos.value)
             Positioned(
-              top: 64.h,
+              // v559 — Daniel : sous la rangée « Partager en direct / Réduire »
+              // (≈ 8 → 56) avec une vraie marge, centré, sans la toucher.
+              top: 100.h,
               left: 12.w,
               right: 12.w,
               child: Center(child: _buildDirectionsBanner()),
@@ -5949,19 +5956,23 @@ class _PawMapScreenState extends State<PawMapScreen>
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // v559 — Daniel : « ajoute sur la petite map le bouton Itinéraire
+          // comme sur la grande, pour utiliser les nouvelles fonctionnalités »
+          // (à pied / vélo / voiture, indications de virage). Sorti du bloc
+          // `expanded` : présent sur les deux cartes, en tête du rail.
+          _roundMapBtn(
+            icon: Icons.directions_rounded,
+            color: PawMapTheme.ok,
+            label: 'pawmap_btn_directions'.tr,
+            onTap: () {
+              _pickedSpotPos = _currentCenter;
+              _pickAddress.value = '';
+              _pickingRoutePos.value = true;
+              unawaited(_refreshPickAddress());
+            },
+          ),
+          SizedBox(height: 8.h),
           if (expanded) ...[
-            _roundMapBtn(
-              icon: Icons.directions_rounded,
-              color: PawMapTheme.ok,
-              label: 'pawmap_btn_directions'.tr,
-              onTap: () {
-                _pickedSpotPos = _currentCenter;
-                _pickAddress.value = '';
-                _pickingRoutePos.value = true;
-                unawaited(_refreshPickAddress());
-              },
-            ),
-            SizedBox(height: 8.h),
             _roundMapBtn(
               icon: Icons.forum_rounded,
               color: PawMapTheme.sitter,
@@ -6990,9 +7001,10 @@ class _PawMapScreenState extends State<PawMapScreen>
   String _formatDuration(int? seconds) {
     if (seconds == null || seconds <= 0) return '';
     final min = (seconds / 60).round();
-    if (min < 60) return 'route_duration_min'.trParams({'min': '${min < 1 ? 1 : min}'});
-    return 'route_duration_h'
-        .trParams({'h': '${min ~/ 60}', 'min': (min % 60).toString().padLeft(2, '0')});
+    if (min < 60) return 'route_duration_min'.tr.replaceAll('{min}', '${min < 1 ? 1 : min}');
+    return 'route_duration_h'.tr
+        .replaceAll('{h}', '${min ~/ 60}')
+        .replaceAll('{min}', (min % 60).toString().padLeft(2, '0'));
   }
 
   /// v559 — mini-repères de virage : petit disque blanc cerclé de la couleur
@@ -7195,8 +7207,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         : mode == 'bike'
             ? 'route_mode_bike'.tr
             : 'route_mode_walk'.tr;
-    return Tooltip(
-      message: label,
+    return Semantics(
+      label: label,
+      button: true,
+      selected: selected,
       child: GestureDetector(
         onTap: () => _setRouteMode(mode),
         child: AnimatedContainer(
@@ -7295,8 +7309,9 @@ class _PawMapScreenState extends State<PawMapScreen>
             ),
           ],
           SizedBox(width: 6.w),
-          Tooltip(
-            message: 'directions_clear'.tr,
+          Semantics(
+            label: 'directions_clear'.tr,
+            button: true,
             child: GestureDetector(
               onTap: _clearRoute,
               child: Container(
@@ -7647,7 +7662,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         label = 'poi_open_247'.tr;
         color = const Color(0xFF16A34A);
       } else if (status.isOpen && status.closesAt != null) {
-        label = 'poi_open_until'.trParams({'time': hm(status.closesAt!)});
+        label = 'poi_open_until'.tr.replaceAll('{time}', hm(status.closesAt!));
         color = const Color(0xFF16A34A);
       } else if (!status.isOpen) {
         color = const Color(0xFFDC2626);
@@ -7660,14 +7675,13 @@ class _PawMapScreenState extends State<PawMapScreen>
           final day = DateTime(o.year, o.month, o.day);
           final diff = day.difference(today).inDays;
           if (diff <= 0) {
-            label = 'poi_closed_opens_today'.trParams({'time': hm(o)});
+            label = 'poi_closed_opens_today'.tr.replaceAll('{time}', hm(o));
           } else if (diff == 1) {
-            label = 'poi_closed_opens_tomorrow'.trParams({'time': hm(o)});
+            label = 'poi_closed_opens_tomorrow'.tr.replaceAll('{time}', hm(o));
           } else {
-            label = 'poi_closed_opens_day'.trParams({
-              'day': DateFormat.EEEE(locale).format(o),
-              'time': hm(o),
-            });
+            label = 'poi_closed_opens_day'.tr
+                .replaceAll('{day}', DateFormat.EEEE(locale).format(o))
+                .replaceAll('{time}', hm(o));
           }
         }
       }

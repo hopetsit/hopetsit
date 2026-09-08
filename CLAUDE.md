@@ -60,6 +60,66 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 
 **Prochain build APK/AAB = 562** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
+**08/09 — v559 « itinéraire 3 modes + virages, horaires des lieux, FR en dur »**
+(retours du testeur espagnol de Daniel + option A validée)
+- ⚠️ **Le serveur OSRM public ignore le profil** (vérifié : `foot`, `bike`,
+  `driving` → même trajet 13 234 m / 1 188 s) : « l'itinéraire piéton » de la
+  v509 était un trajet VOITURE avec une durée recalculée à 4,8 km/h. Passage
+  sur **Valhalla public (FOSSGIS, `valhalla1.openstreetmap.de`)** : modes
+  réels (même paire : 12,8 km / 2 h 34 à pied, 13,3 km / 45 min vélo,
+  14,7 km / 30 min voiture), durée réelle, manœuvres traduites (`language`),
+  tracé en polyline précision 1e-6 (`decodePolyline6`). Params
+  `GET /pawspots/directions?mode=walk|bike|car&lang=xx` → `steps[]`
+  (type Valhalla, instruction, distance, lat/lng). OSRM puis ligne droite en
+  secours. Pas de clé, usage raisonnable (User-Agent HoPetSit).
+- App : `_routeMode` mémorisé (`pawmap_route_mode`), 3 pastilles sur le
+  bandeau (à pied orange #C92A12 / vélo vert #16A34A / voiture bleu #2563EB),
+  couleur du tracé = mode, distance + durée, mini-repères de virage
+  (`_drawStepIcon`, 22 px, glyphe Material peint sur canvas, InfoWindow =
+  instruction), feuille « Étapes ». Bouton **Itinéraire aussi sur la petite
+  carte** (demande Daniel en cours de route). Site : mêmes pastilles,
+  `routeColor`/`routeSteps` sur PoiMap (CircleMarker + Tooltip), liste repliée.
+- **Horaires des lieux** : `openingHours` était stocké par le seed OSM mais
+  ABSENT de la projection `/map-pois/nearby` → jamais affiché (Varsovie :
+  111 lieux sur 195 en ont). Analyseur `opening_hours` maison (Dart
+  `utils/opening_hours.dart` + TS `lib/openingHours.ts`, même logique) :
+  jours/plages/`off`/`24/7`/passe-minuit ; non compris (texte libre, PH) →
+  null → horaires bruts seuls. ⚠️ Piège corrigé : « Su,Mo off » = UNE règle,
+  ne pas la couper à la virgule. Fiche app : statut vert/rouge + brut +
+  téléphone « Appeler » (`tel:`), **aucun lien vers le site du commerce**
+  (décision Daniel, le lien « Site web » du popup web a été retiré).
+- **FR en dur** : audit (accents + mots français dans des chaînes sans `.tr`)
+  → 25 textes passés en clés (« Date et heure de la promenade » = le
+  « Fechas » en français du testeur, paiement/Airwallex, amis, IBAN,
+  consentement vétérinaire → getter `.tr`, estimateur de prix, deep link,
+  « Demande de garde »). `send_request_controller` : jours/mois ko/ja/pl
+  manquaient → retombaient sur le FRANÇAIS ; repli passé sur l'anglais.
+  Service de fond (`live_tracking_bg`) : isolate sans GetX → table locale
+  par `Platform.localeName` (`bgLiveText`). Restent volontairement : textes
+  légaux (`data/static`), diagnostics, noms de langues.
+- 39 clés × 9 langues app, 12 × 9 site (+ `map_route_distance` sans « à pied »).
+  ⚠️ Placeholders : l'app utilise `'clé'.tr.replaceAll('{x}', …)` (PAS
+  `trParams`, qui attend `@x`) — un premier essai affichait « (min) min ».
+- **Vérifié au simulateur** (compte test passé staff le temps du test, remis
+  ensuite) : petite carte → Itinéraire → tracé orange 334 m / 4 min, repères
+  « Tournez à droite dans l'allée. », Vélo → tracé vert 850 m / 3 min,
+  Voiture → bleu 1,4 km / 6 min, feuille « Étapes » ; grande carte → 8,5 km /
+  26 min en voiture. Daniel : « le bandeau gêne, qu'il ne touche pas les
+  barres » → grande carte `top: 100.h` (sous la rangée du haut) ; petite carte :
+  rails remontés à 206 quand un tracé est affiché (comme « Autour de vous »),
+  bandeau centré à 136 → 24 px de marge. Site vérifié en prod (/map, jeton
+  posé dans localStorage `hopetsit_token`) : popup lieu = horaires + « Appeler »,
+  3 pastilles, Vélo → 2,1 km · 7 min, cadre vert, Étapes.
+- Les exceptions `RawTooltipState … multiple tickers` du journal viennent des
+  Tooltips des rails (v555, `_roundMapBtn`) quand ils disparaissent pendant un
+  placement — silencieuses en release ; mes nouveaux boutons utilisent
+  `Semantics`, pas `Tooltip`.
+- Simulateur : `xcrun simctl location <udid> set 48.8566,2.3522` puis « ma
+  position » dans l'app, sinon `_userPosition` est null et l'itinéraire ne
+  part pas (snackbar furtive). Le tap « ma position » recentre → penser à
+  déplacer la carte avant de choisir la destination (sinon départ = arrivée).
+- Trio → v559 / 23.1.559+**562**. Notes Play : `HoPetSit_559_notes_de_version.txt`.
+
 **08/09 (nuit) — v558 « rangée PawMap repliée + vérification notifications »**
 - **Rangée repliée** (captures Daniel) : `_buildTopArea()` → replié =
   `_buildCollapsedTopRow()` : 3 cellules `Expanded` de largeur égale, hauteur
