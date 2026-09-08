@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/views/map/paw_map_screen.dart';
+import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -211,12 +211,7 @@ class AddressShareCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(14.r),
                           ),
                         ),
-                        onPressed: () => Get.to(() => PawMapScreen(
-                              initialLat: lat,
-                              initialLng: lng,
-                              routeToLat: lat,
-                              routeToLng: lng,
-                            )),
+                        onPressed: () => openPawMapWithRoute(lat!, lng!),
                       ),
                     ),
                   ),

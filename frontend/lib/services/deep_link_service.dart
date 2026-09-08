@@ -14,6 +14,7 @@ import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
 // v532 — lien de partage d'un PawSpot (/spot/<id>) → ouvre la carte.
+import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -310,11 +311,18 @@ class DeepLinkService {
       final lat = double.tryParse(uri.queryParameters['lat'] ?? '');
       final lng = double.tryParse(uri.queryParameters['lng'] ?? '');
       final z = double.tryParse(uri.queryParameters['z'] ?? '');
-      Get.to(() => PawMapScreen(
-            initialLat: lat,
-            initialLng: lng,
-            initialZoom: z,
-          ));
+      // v559 — `&route=1` : ouvrir la carte avec l'itinéraire déjà lancé vers
+      // ce point (modes à pied / vélo / voiture + virages).
+      final route = uri.queryParameters['route'] == '1';
+      if (route && lat != null && lng != null) {
+        openPawMapWithRoute(lat, lng); // onglet PawMap (menu conservé) si possible
+      } else {
+        Get.to(() => PawMapScreen(
+              initialLat: lat,
+              initialLng: lng,
+              initialZoom: z,
+            ));
+      }
     } else if (first == 'profile') {
       _openProfileScreen();
     } else if (first == 'friends' || first == 'amis' ||

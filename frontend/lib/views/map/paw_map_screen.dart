@@ -541,8 +541,20 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v559 — itinéraire demandé par un autre écran : on attend que la carte
     // et MA position soient prêtes (jusqu'à ~10 s), puis on trace.
     if (widget.routeToLat != null && widget.routeToLng != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_startPendingRoute()));
+      final dest = LatLng(widget.routeToLat!, widget.routeToLng!);
+      WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_startPendingRoute(dest)));
     }
+    // v559 — itinéraire confié par un autre écran via l'ONGLET (menu conservé).
+    final pending = pawMapPendingRoute.value;
+    if (pending != null) {
+      pawMapPendingRoute.value = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_startPendingRoute(pending)));
+    }
+    _pendingRouteWorker = ever<LatLng?>(pawMapPendingRoute, (v) {
+      if (v == null || !mounted) return;
+      pawMapPendingRoute.value = null;
+      unawaited(_startPendingRoute(v));
+    });
     // v23.1.353 — refonte PawSpot : les anciens halos "map boost" (tier
     // bronze/silver/gold/platinum + self-halo) sont SUPPRIMÉS de la carte.
     // PawSpot = désormais les spots communautaires 🐾 (couche dédiée,
@@ -1602,6 +1614,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _pendingRouteWorker?.dispose();
     _reloadDebounce?.cancel();
     for (final w in _backGuardWorkers) {
       w.dispose();
@@ -4022,7 +4035,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // au-dessus de la carte de placement (140 + ~110).
                     bottom: (picking
                             ? 262.h
-                            : ((aroundShown || routeShown) ? 206.h : 146.h)) +
+                            : ((aroundShown || routeShown) ? 206.h : 146.h)) -
+                        _tabBarLift(context) +
                         MediaQuery.of(context).viewPadding.bottom,
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -4080,7 +4094,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // grand ». On relève la carte au-dessus du menu pleine
                     // largeur (116) + inset ; la taille est réduite dans
                     // _buildAroundYouCard (police + paddings + max 2 lignes).
-                    bottom: 116.h + MediaQuery.of(context).viewPadding.bottom,
+                    bottom: 116.h - _tabBarLift(context) + MediaQuery.of(context).viewPadding.bottom,
                     child: _buildAroundYouCard(),
                   )
                 else if (!_pickingSpotPos.value &&
@@ -4098,7 +4112,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // Signaler (bottom-right, à 24.h + inset).
                     // v470 — relevé franchement au-dessus de la barre de menu
                     // pleine largeur.
-                    bottom: 136.h + MediaQuery.of(context).viewPadding.bottom,
+                    bottom: 136.h - _tabBarLift(context) + MediaQuery.of(context).viewPadding.bottom,
                     child: Center(child: _buildDirectionsBanner()),
                   ),
               ],
@@ -4595,7 +4609,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             // Carte agrandie : juste au-dessus de la barre système.
             bottom: pawMapExpanded.value
                 ? _navInset(context) + 12.h
-                : 140.h + MediaQuery.of(context).viewPadding.bottom,
+                : 140.h - _tabBarLift(context) + MediaQuery.of(context).viewPadding.bottom,
             child: Material(
               color: Colors.transparent,
               child: Container(
@@ -7039,8 +7053,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Efface l'itinéraire en cours (bouton du bandeau).
   /// v559 — itinéraire demandé à l'ouverture (routeToLat/Lng) : on réessaie
   /// chaque seconde tant que MA position n'est pas connue (max ~10 s).
-  Future<void> _startPendingRoute() async {
-    final dest = LatLng(widget.routeToLat!, widget.routeToLng!);
+  Worker? _pendingRouteWorker;
+
+  Future<void> _startPendingRoute(LatLng dest) async {
     for (int i = 0; i < 10; i++) {
       if (!mounted) return;
       if (_userPosition != null) {
@@ -7050,6 +7065,17 @@ class _PawMapScreenState extends State<PawMapScreen>
       await Future<void>.delayed(const Duration(seconds: 1));
     }
     if (mounted) await _startDirections(dest); // affichera « position inconnue »
+  }
+
+  /// v559 — PawMap poussée HORS des onglets (lien, app sans menu) : pas de
+  /// barre d'onglets sous la carte → on retire la marge prévue pour elle
+  /// (~100), sinon le bandeau d'itinéraire flotte « au milieu ».
+  double _tabBarLift(BuildContext context) {
+    bool standalone = false;
+    try {
+      standalone = Navigator.of(context).canPop();
+    } catch (_) {/* pas de Navigator */}
+    return standalone ? 100.h : 0;
   }
 
   void _clearRoute() {

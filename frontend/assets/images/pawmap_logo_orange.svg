@@ -4,8 +4,8 @@
        est affiché à côté). Carré orange arrondi + carte pliée + pin + patte. -->
   <defs>
     <linearGradient id="pmBg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#F2741B"></stop>
-      <stop offset="1" stop-color="#E0660F"></stop>
+      <stop offset="0" stop-color="#D83C28"></stop>
+      <stop offset="1" stop-color="#B92425"></stop>
     </linearGradient>
   </defs>
 
@@ -15,11 +15,11 @@
     <path d="M3 11 7.5 9.2v11.6L3 22.6V11Z" fill="#fff" opacity=".9"></path>
     <path d="M20.5 9.2 25 11v11.6l-4.5-1.8V9.2Z" fill="#fff" opacity=".9"></path>
     <path d="M7.5 9.2 20.5 11v9.8L7.5 20.8V9.2Z" fill="#fff" opacity=".9"></path>
-    <path d="M7.5 9.2v11.6M20.5 9.2v11.6" stroke="#F2741B" stroke-width="1" opacity=".3" stroke-linecap="round"></path>
-    <path d="M14 2c-3.4 0-6.1 2.6-6.1 6 0 4.2 6.1 10.2 6.1 10.2S20.1 12.2 20.1 8c0-3.4-2.7-6-6.1-6Z" fill="#fff" stroke="#F2741B" stroke-width="1.1"></path>
-    <ellipse cx="11.4" cy="6.4" rx=".95" ry="1.2" fill="#F2741B"></ellipse>
-    <ellipse cx="14" cy="5.5" rx=".95" ry="1.2" fill="#F2741B"></ellipse>
-    <ellipse cx="16.6" cy="6.4" rx=".95" ry="1.2" fill="#F2741B"></ellipse>
-    <path d="M14 7.7c-1.5 0-2.7 1-3.1 2.2-.3.9.2 1.8 1.1 2 .5.1 1-.1 1.4-.2.4-.1.7-.1 1.1 0 .5.1.9.3 1.4.2.9-.2 1.4-1.1 1.1-2-.4-1.2-1.6-2.2-3-2.2Z" fill="#F2741B"></path>
+    <path d="M7.5 9.2v11.6M20.5 9.2v11.6" stroke="#D83C28" stroke-width="1" opacity=".3" stroke-linecap="round"></path>
+    <path d="M14 2c-3.4 0-6.1 2.6-6.1 6 0 4.2 6.1 10.2 6.1 10.2S20.1 12.2 20.1 8c0-3.4-2.7-6-6.1-6Z" fill="#fff" stroke="#D83C28" stroke-width="1.1"></path>
+    <ellipse cx="11.4" cy="6.4" rx=".95" ry="1.2" fill="#D83C28"></ellipse>
+    <ellipse cx="14" cy="5.5" rx=".95" ry="1.2" fill="#D83C28"></ellipse>
+    <ellipse cx="16.6" cy="6.4" rx=".95" ry="1.2" fill="#D83C28"></ellipse>
+    <path d="M14 7.7c-1.5 0-2.7 1-3.1 2.2-.3.9.2 1.8 1.1 2 .5.1 1-.1 1.4-.2.4-.1.7-.1 1.1 0 .5.1.9.3 1.4.2.9-.2 1.4-1.1 1.1-2-.4-1.2-1.6-2.2-3-2.2Z" fill="#D83C28"></path>
   </g>
 </svg>

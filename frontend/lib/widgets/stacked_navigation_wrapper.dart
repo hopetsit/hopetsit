@@ -25,8 +25,8 @@ import 'package:hopetsit/utils/map_ui_state.dart';
 /// refresh notif onglet Accueil + reload conversations onglet Chat + resync
 /// badge chat serveur), badge non-lus Chat (rouge, unreadChat) + badge
 /// « action requise » Réservations (vert, pendingActionCount role-aware).
-const Color _kAccent = Color(0xFFF2741B);
-const Color _kAccentDark = Color(0xFFE0660F);
+const Color _kAccent = Color(0xFFD83C28); // v559 — orange de l'icône (Daniel)
+const Color _kAccentDark = Color(0xFFB92425);
 const Color _kInactive = Color(0xFF7D7D82);
 
 class StackedNavigationWrapper extends StatefulWidget {
@@ -41,6 +41,7 @@ class StackedNavigationWrapper extends StatefulWidget {
 
 class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   int _currentIndex = 0;
+  Worker? _tabRequestWorker;
 
   @override
   void initState() {
@@ -48,6 +49,20 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshNotificationBadge();
     });
+    // v559 — un autre écran demande un onglet (ex. PawMap avec itinéraire).
+    navWrapperMounted.value = true;
+    _tabRequestWorker = ever<int>(requestedTab, (i) {
+      if (i < 0 || !mounted) return;
+      requestedTab.value = -1;
+      if (i < widget.screens.length) _onTap(i);
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabRequestWorker?.dispose();
+    navWrapperMounted.value = false;
+    super.dispose();
   }
 
   void _refreshNotificationBadge() {

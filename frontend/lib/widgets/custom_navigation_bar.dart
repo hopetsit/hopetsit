@@ -14,8 +14,8 @@ import 'package:hopetsit/widgets/notification_badge.dart';
 /// Logique PRÉSERVÉE depuis l'ancien menu : badges non-lus (Chat onglet 1,
 /// Réservations onglet 3), clear-badge au tap (home/chat/bookings), haptique,
 /// callback onTap(index) identique. Seul le VISUEL change.
-const Color _kAccent = Color(0xFFF2741B); // orange maquette (actif + centre)
-const Color _kAccentDark = Color(0xFFE0660F);
+const Color _kAccent = Color(0xFFD83C28); // v559 — orange de l'icône (Daniel) // orange maquette (actif + centre)
+const Color _kAccentDark = Color(0xFFB92425);
 const Color _kInactive = Color(0xFF7D7D82);
 
 class CustomNavigationBar extends StatelessWidget {

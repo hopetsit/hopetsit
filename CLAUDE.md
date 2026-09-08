@@ -118,6 +118,34 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   position » dans l'app, sinon `_userPosition` est null et l'itinéraire ne
   part pas (snackbar furtive). Le tap « ma position » recentre → penser à
   déplacer la carte avant de choisir la destination (sinon départ = arrivée).
+- **Intégration partout** (question Daniel : « suivi, adresse du domicile,
+  PawSpot, PawFollow ? ») — audit : seule la PawMap traçait ; ailleurs Google
+  Maps externe ou rien. Ajouts : `PawMapScreen(routeToLat/Lng)` (itinéraire
+  lancé à l'ouverture, `_startPendingRoute` attend ma position ≤ 10 s) ;
+  fiche membre/ami `_onNearbyTap(lat,lng)` → bouton Itinéraire vert ; bulle
+  d'un ami en direct → tap = fiche ; « Personnes en direct » → 🧭 par ami
+  (`_resolveFriendPosition`) ; balade en direct (propriétaire) → action
+  Itinéraire ; `AddressShareCard` (domicile partagé dans le chat) →
+  Itinéraire dans l'app + Google Maps en second ; site : popup ami en direct →
+  bouton Itinéraire. Les pages publiques /spot/[id] et /alert/[id] gardent le
+  lien Google Maps (visiteur non connecté).
+- **Ouverture via l'ONGLET, pas un écran poussé** (Daniel : « la barre
+  itinéraire est au milieu et le menu de l'app a disparu ») : `map_ui_state`
+  gagne `requestedTab` (observé par `StackedNavigationWrapper`, `_onTap`),
+  `pawMapPendingRoute` (observé par la PawMap, `ever` + valeur initiale) et
+  `openPawMapWithRoute(lat,lng)` (retour à la racine `Get.until(isFirst)` →
+  onglet PawMap → itinéraire). Repli : écran poussé si le menu n'est pas
+  monté. PawMap poussée hors onglets → `_tabBarLift()` (canPop) retire les
+  ~100 px prévus pour la barre d'onglets (rails, bandeau, « Autour de vous »,
+  carte de placement). Lien `/map?lat&lng&route=1` = même chemin.
+  Vérifié : `xcrun simctl openurl … "hopetsit://map?lat&lng&route=1"` →
+  onglet PawMap + menu + tracé (le lien https ouvre Safari sur simulateur ;
+  l'universal link n'y est pas associé).
+- **Orange PawMap = orange de l'icône** (Daniel) : `#D83C28` (moyenne des
+  pixels rouge-orange de l'icône 1024, script PIL) — `PawMapTheme.accent`,
+  `_kAccent`/`_kAccentDark` (nav bar + wrapper : D83C28 / B92425), SVG
+  `pawmap_logo_orange.svg` + `pawmap_nav.svg` (app) et `pawmap_logo*.svg`
+  (site), bouton « OUVRIR LA PAW MAP » (`PawMapCTA`), page /alert.
 - Trio → v559 / 23.1.559+**562**. Notes Play : `HoPetSit_559_notes_de_version.txt`.
 
 **08/09 (nuit) — v558 « rangée PawMap repliée + vérification notifications »**

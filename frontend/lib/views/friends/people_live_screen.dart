@@ -19,6 +19,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/pawmap_theme.dart';
 import 'package:hopetsit/widgets/dotted_invite_card.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
+import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
@@ -302,15 +303,7 @@ class PeopleLiveScreen extends StatelessWidget {
                         onPressed: () async {
                           final pos = await _resolveFriendPosition(other.id);
                           if (pos == null) return;
-                          Get.off(() => PawMapScreen(
-                                initialLat: pos.latitude,
-                                initialLng: pos.longitude,
-                                routeToLat: pos.latitude,
-                                routeToLng: pos.longitude,
-                                focusUserId: other.id,
-                                focusUserRole: other.model.toLowerCase(),
-                                focusUserName: other.name,
-                              ));
+                          openPawMapWithRoute(pos.latitude, pos.longitude);
                         },
                       ),
                       Icon(Icons.chevron_right_rounded,
