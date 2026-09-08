@@ -58,7 +58,7 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 562** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 563** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
 **08/09 — v559 « itinéraire 3 modes + virages, horaires des lieux, FR en dur »**
 (retours du testeur espagnol de Daniel + option A validée)
@@ -150,6 +150,14 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 - **Menu vérifié** (Daniel) : les 5 onglets ouverts l'un après l'autre au
   simulateur après l'ajout du worker `requestedTab` — tous OK.
 - Fichiers : `~/Downloads/HoPetSit_v23.1.559.{apk,aab,ipa}` (build 562).
+- **iOS** : la 1.14 (build 561) a été **APPROUVÉE** par Apple dans la journée
+  (READY_FOR_DISTRIBUTION) → plus de soumission à annuler ; **1.15 créée**
+  (`4b3059e6-ee3a-4fe1-8683-4d9bbbac2470`), build 562 rattaché, whatsNew
+  fr/en, soumission `6683e96c-…` → **WAITING_FOR_REVIEW avec le 562**.
+  ⚠️ Quand une version est READY_FOR_DISTRIBUTION, attach/whatsNew renvoient
+  409 : créer la version suivante (`POST /appStoreVersions`).
+- **Play** : Play Console ouverte (piste Production) — import de l'AAB 562 =
+  Daniel (en attente).
 
 **08/09 (nuit) — v558 « rangée PawMap repliée + vérification notifications »**
 - **Rangée repliée** (captures Daniel) : `_buildTopArea()` → replié =
