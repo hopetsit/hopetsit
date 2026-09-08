@@ -439,7 +439,7 @@ class AuthController extends GetxController {
         if (isRoleRequired) {
           CustomSnackbar.showInfo(
             title: 'auth_google_signin_title'.tr,
-            message: 'Choisis ton type de compte (owner / sitter / walker).',
+            message: 'auth_choose_account_type_msg'.tr,
           );
           // ignore: use_build_context_synchronously
           Get.offAll(() => const SignUpAsScreen());
@@ -795,7 +795,7 @@ class AuthController extends GetxController {
         if (isRoleRequired) {
           CustomSnackbar.showInfo(
             title: 'auth_apple_signin_title'.tr,
-            message: 'Choisis ton type de compte (owner / sitter / walker).',
+            message: 'auth_choose_account_type_msg'.tr,
           );
           Get.offAll(() => const SignUpAsScreen());
           return;

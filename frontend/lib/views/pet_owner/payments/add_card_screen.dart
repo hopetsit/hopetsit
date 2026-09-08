@@ -53,7 +53,7 @@ class AddCardScreen extends StatelessWidget {
               SizedBox(height: 8.h),
               InterText(
                 text:
-                    'Avec Airwallex ta carte est enregistrée automatiquement lors de ton premier paiement. Plus besoin de l\'ajouter à l\'avance.',
+                    'add_card_airwallex_hint'.tr,
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w400,
                 color: AppColors.textSecondary(context),

@@ -28,6 +28,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { evaluateOpeningHours } from "@/lib/openingHours";
+import type { RouteMode } from "@/lib/api";
 import BackLink from "@/components/BackLink";
 import {
   ApiError,
@@ -97,7 +99,7 @@ function roleFromModel(model: string): "walker" | "sitter" | "owner" {
 }
 
 export default function MapPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const router = useRouter();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   // v23.1.397 — précision (mètres) du dernier relevé navigateur.
@@ -222,6 +224,54 @@ export default function MapPage() {
   const friendsLoadedRef = useRef(false);
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
+  // v559 — mode d'itinéraire (à pied / vélo / voiture), mémorisé ; la
+  // destination est gardée pour recalculer quand le mode change.
+  const [routeMode, setRouteModeState] = useState<RouteMode>("walk");
+  const [routeTarget, setRouteTarget] = useState<{ lat: number; lng: number } | null>(null);
+  const [showSteps, setShowSteps] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("pawmap_route_mode");
+      if (saved === "walk" || saved === "bike" || saved === "car") setRouteModeState(saved);
+    } catch {
+      /* stockage indisponible */
+    }
+  }, []);
+  const ROUTE_COLORS: Record<RouteMode, string> = {
+    walk: "#C92A12",
+    bike: "#16A34A",
+    car: "#2563EB",
+  };
+  const routeColor = ROUTE_COLORS[routeMode];
+
+  // v559 — option A : statut « ouvert / fermé » d'un lieu, dans la langue du site.
+  const formatOpenStatus = useCallback(
+    (raw: string): { label: string; open: boolean } | null => {
+      const st = evaluateOpeningHours(raw, new Date());
+      if (!st) return null;
+      const hm = (d: Date) =>
+        d.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+      if (st.always) return { label: t("poi_open_247"), open: true };
+      if (st.isOpen && st.closesAt)
+        return { label: t("poi_open_until").replace("{time}", hm(st.closesAt)), open: true };
+      if (!st.opensAt) return { label: t("poi_closed_now"), open: false };
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const day = new Date(st.opensAt.getFullYear(), st.opensAt.getMonth(), st.opensAt.getDate());
+      const diff = Math.round((day.getTime() - today.getTime()) / 86_400_000);
+      if (diff <= 0)
+        return { label: t("poi_closed_opens_today").replace("{time}", hm(st.opensAt)), open: false };
+      if (diff === 1)
+        return { label: t("poi_closed_opens_tomorrow").replace("{time}", hm(st.opensAt)), open: false };
+      return {
+        label: t("poi_closed_opens_day")
+          .replace("{day}", st.opensAt.toLocaleDateString(lang, { weekday: "long" }))
+          .replace("{time}", hm(st.opensAt)),
+        open: false,
+      };
+    },
+    [lang, t],
+  );
   const [directionsLocked, setDirectionsLocked] = useState(false);
   const [directionsError, setDirectionsError] = useState(false);
 
@@ -838,10 +888,13 @@ export default function MapPage() {
   // dernière position connue puis centre carte. 402 PAWFOLLOW_REQUIRED →
   // bandeau "inclus dans PawFollow / PawFamily" + lien /boutique.
   const handleDirections = useCallback(
-    (target: { lat: number; lng: number }) => {
+    (target: { lat: number; lng: number }, modeOverride?: RouteMode) => {
+      const mode = modeOverride ?? routeMode;
       setDirectionsLocked(false);
       setDirectionsError(false);
       setRouteLoading(true);
+      setRouteTarget(target);
+      setShowSteps(false);
       const go = async (from: { lat: number; lng: number }) => {
         try {
           const r = await getPawSpotDirections({
@@ -849,6 +902,8 @@ export default function MapPage() {
             fromLng: from.lng,
             toLat: target.lat,
             toLng: target.lng,
+            mode,
+            lang,
           });
           setRoute(r);
         } catch (e) {
@@ -876,11 +931,31 @@ export default function MapPage() {
         void go(fallback);
       }
     },
-    [userLocation, center, router],
+    [userLocation, center, router, routeMode, lang],
   );
+
+  // v559 — changer de mode = mémoriser + recalculer vers la même destination.
+  function setRouteMode(mode: RouteMode) {
+    if (mode === routeMode) return;
+    setRouteModeState(mode);
+    try {
+      localStorage.setItem("pawmap_route_mode", mode);
+    } catch {
+      /* stockage indisponible */
+    }
+    if (routeTarget) handleDirections(routeTarget, mode);
+  }
+
+  function formatRouteDuration(seconds: number): string {
+    const min = Math.max(1, Math.round(seconds / 60));
+    if (min < 60) return String(min);
+    return `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}`;
+  }
 
   function clearRoute() {
     setRoute(null);
+    setRouteTarget(null);
+    setShowSteps(false);
     setDirectionsLocked(false);
     setDirectionsError(false);
   }
@@ -1204,30 +1279,100 @@ export default function MapPage() {
       {/* v23.1 carte unique — bandeau itinéraire : distance/durée + effacer. */}
       {route && (
         <div
-          className="mt-3 flex flex-wrap items-center gap-3 rounded-xl px-4 py-2 text-sm"
+          className="mt-3 rounded-xl px-4 py-2 text-sm"
           style={{
-            backgroundColor: "rgba(239,67,36,0.08)",
-            border: "1px solid rgba(239,67,36,0.3)",
+            backgroundColor: `${routeColor}14`,
+            border: `1px solid ${routeColor}55`,
           }}
         >
-          <span className="font-semibold" style={{ color: "#C2410C" }}>
-            🧭{" "}
-            {route.distanceMeters != null && route.durationSeconds != null
-              ? t("map_route_distance")
-                  .replace("{km}", (route.distanceMeters / 1000).toFixed(1))
-                  .replace(
-                    "{min}",
-                    String(Math.max(1, Math.round(route.durationSeconds / 60))),
-                  )
-              : t("map_route_ready")}
-          </span>
-          <button
-            type="button"
-            onClick={clearRoute}
-            className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink shadow-sm hover:bg-ink/5"
-          >
-            ✕ {t("map_route_clear")}
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* v559 — mode : à pied / vélo / voiture, une couleur chacun */}
+            <div className="flex items-center gap-1">
+              {(
+                [
+                  ["walk", "🚶", t("map_route_mode_walk")],
+                  ["bike", "🚲", t("map_route_mode_bike")],
+                  ["car", "🚗", t("map_route_mode_car")],
+                ] as [RouteMode, string, string][]
+              ).map(([m, emoji, label]) => (
+                <button
+                  key={m}
+                  type="button"
+                  title={label}
+                  aria-label={label}
+                  aria-pressed={routeMode === m}
+                  onClick={() => setRouteMode(m)}
+                  className="rounded-full px-2.5 py-1 text-sm transition"
+                  style={{
+                    backgroundColor: routeMode === m ? ROUTE_COLORS[m] : `${ROUTE_COLORS[m]}1a`,
+                    color: routeMode === m ? "#fff" : ROUTE_COLORS[m],
+                    fontWeight: 700,
+                  }}
+                >
+                  {emoji}
+                  <span className="ml-1 hidden sm:inline">{label}</span>
+                </button>
+              ))}
+            </div>
+            <span className="font-semibold" style={{ color: routeColor }}>
+              {routeLoading
+                ? "…"
+                : route.distanceMeters != null && route.durationSeconds != null
+                  ? t("map_route_distance")
+                      .replace("{km}", (route.distanceMeters / 1000).toFixed(1))
+                      .replace("{min}", formatRouteDuration(route.durationSeconds))
+                  : t("map_route_ready")}
+            </span>
+            {route.steps.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setShowSteps((v) => !v)}
+                className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink shadow-sm hover:bg-ink/5"
+              >
+                ☰ {showSteps ? t("map_route_steps_hide") : t("map_route_steps")}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={clearRoute}
+              className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink shadow-sm hover:bg-ink/5"
+            >
+              ✕ {t("map_route_clear")}
+            </button>
+          </div>
+          {/* v559 — « mini indications » : liste repliée par défaut */}
+          {showSteps && route.steps.length > 1 && (
+            <ol className="mt-2 max-h-48 space-y-1 overflow-y-auto text-xs text-ink">
+              {route.steps.map((s, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span
+                    className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold"
+                    style={{ backgroundColor: `${routeColor}1f`, color: routeColor }}
+                  >
+                    {s.type >= 4 && s.type <= 6
+                      ? "🏁"
+                      : s.type >= 9 && s.type <= 11
+                        ? "↱"
+                        : s.type >= 14 && s.type <= 16
+                          ? "↰"
+                          : s.type === 12 || s.type === 13
+                            ? "↩"
+                            : s.type === 26 || s.type === 27
+                              ? "⟳"
+                              : "↑"}
+                  </span>
+                  <span className="flex-1">{s.instruction}</span>
+                  {s.distanceMeters > 0 && (
+                    <span className="shrink-0 text-ink-muted">
+                      {s.distanceMeters >= 1000
+                        ? `${(s.distanceMeters / 1000).toFixed(1)} km`
+                        : `${s.distanceMeters} m`}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
       )}
 
@@ -1463,8 +1608,12 @@ export default function MapPage() {
             setFocusTarget({ lat: p.lat, lng: p.lng, ts: Date.now() })
           }
           routePoints={route?.points ?? null}
+          routeColor={routeColor}
+          routeSteps={route?.steps ?? null}
           onDirections={handleDirections}
           directionsLabel={t("map_directions_btn")}
+          formatOpenStatus={formatOpenStatus}
+          callLabel={t("poi_call")}
         />
       </div>
 

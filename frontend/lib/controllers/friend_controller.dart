@@ -187,7 +187,7 @@ class FriendController extends GetxController {
               'id': otherId,
               'model': otherModel,
               'name': otherName.isEmpty
-                  ? (otherExists ? 'Utilisateur' : 'Utilisateur supprimé')
+                  ? (otherExists ? 'common_user'.tr : 'friends_deleted_user'.tr)
                   : otherName,
               // v23.1.267 — avatar propagé depuis /diagnose (otherAvatar).
               'avatar': (f['otherAvatar'] ?? '').toString(),
@@ -201,7 +201,7 @@ class FriendController extends GetxController {
           : {
               'id': '',
               'model': otherModel.isEmpty ? 'Owner' : otherModel,
-              'name': 'Utilisateur supprimé',
+              'name': 'friends_deleted_user'.tr,
               'avatar': '',
               'city': '',
               'hasPawFollow': false,

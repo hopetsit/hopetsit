@@ -402,6 +402,10 @@ class SendRequestController extends GetxController {
       'de': ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'],
       'it': ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'],
       'pt': ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+      // v559 — ko/ja/pl manquaient → ces langues retombaient sur le FRANÇAIS.
+      'ko': ['월', '화', '수', '목', '금', '토', '일'],
+      'ja': ['月', '火', '水', '木', '金', '土', '日'],
+      'pl': ['pon.', 'wt.', 'śr.', 'czw.', 'pt.', 'sob.', 'niedz.'],
     };
     const months = <String, List<String>>{
       'fr': ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'],
@@ -410,9 +414,12 @@ class SendRequestController extends GetxController {
       'de': ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
       'it': ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'],
       'pt': ['jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'],
+      'ko': ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
+      'ja': ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+      'pl': ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'],
     };
-    final wd = weekdays[lang] ?? weekdays['fr']!;
-    final mo = months[lang] ?? months['fr']!;
+    final wd = weekdays[lang] ?? weekdays['en']!;
+    final mo = months[lang] ?? months['en']!;
     // Format mirrors the previous "Tue, May 19, 2026" shape so callers
     // and tests don't need to change.
     return '${wd[d.weekday - 1]}, ${mo[d.month - 1]} ${d.day}, ${d.year}';

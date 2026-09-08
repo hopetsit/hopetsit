@@ -64,7 +64,9 @@ router.get('/nearby', requireAuth, async (req, res) => {
 
     const pois = await MapPOI.find(filter)
       .limit(200)
-      .select('title description category location address phone website rating reviewsCount photosCount source createdAt')
+      // v559 — openingHours était stocké par le seed OSM mais JAMAIS renvoyé
+      // (absent de la projection) → fiches sans horaires sur l'app et le site.
+      .select('title description category location address phone website openingHours rating reviewsCount photosCount source createdAt')
       .lean();
 
     res.json({ pois, count: pois.length });

@@ -1,3 +1,4 @@
+import 'package:get/get.dart';
 import 'dart:math' as math;
 import 'package:hopetsit/models/post_model.dart';
 
@@ -171,8 +172,8 @@ PostPriceEstimate? estimatePostPrice({
         commission: commission,
         currency: currency,
         breakdown: days == 1
-            ? '1 jour × ${_money(effectiveDailyForCare, currency)}'
-            : '$days jours × ${_money(effectiveDailyForCare, currency)}',
+            ? '${'price_days_one'.tr} × ${_money(effectiveDailyForCare, currency)}'
+            : '${'price_days_n'.trParams({'n': '$days'})} × ${_money(effectiveDailyForCare, currency)}',
         unit: 'day',
       );
     }
@@ -240,8 +241,8 @@ PostPriceEstimate? estimatePostPrice({
     final brut = fullMonths * effectiveMonthly + remDays * dailyFromMonth;
     final commission = brut * commissionRate;
     final label = fullMonths + (remDays > 0 ? 1 : 0) == 1
-        ? '1 mois'
-        : '$days jours';
+        ? 'price_month_one'.tr
+        : 'price_days_n'.trParams({'n': '$days'});
     // v20.0.11 — commission ADDED on top for owner. Provider receives full rate.
     return PostPriceEstimate(
       brut: brut + commission,
@@ -259,8 +260,8 @@ PostPriceEstimate? estimatePostPrice({
     final brut = fullWeeks * effectiveWeekly + remDays * dailyFromWeek;
     final commission = brut * commissionRate;
     final label = fullWeeks + (remDays > 0 ? 1 : 0) == 1
-        ? '1 semaine'
-        : '$days jours';
+        ? 'price_week_one'.tr
+        : 'price_days_n'.trParams({'n': '$days'});
     // v20.0.11 — same fix : provider = brut, owner = brut + commission.
     return PostPriceEstimate(
       brut: brut + commission,

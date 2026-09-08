@@ -247,7 +247,7 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
                     _summaryCard(
                       context,
                       icon: Icons.event_note_rounded,
-                      label: 'Réservations',
+                      label: 'sitter_app_summary_bookings'.tr,
                       count: _confirmedCount,
                       color: AppColors.primaryColor,
                     ),
@@ -420,8 +420,8 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
                 SizedBox(height: 12.h),
                 InterText(
                   text: _selectedFilter == 'all'
-                      ? 'Aucune candidature ni réservation'
-                      : 'Aucun résultat pour ce filtre',
+                      ? 'sitter_app_empty_all'.tr
+                      : 'sitter_app_empty_filter'.tr,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textSecondary(context),

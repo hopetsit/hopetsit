@@ -588,7 +588,7 @@ class DeepLinkService {
       CustomSnackbar.showError(
         title: 'common_error'.tr,
         message: e.statusCode == 401
-            ? 'Lien expiré. Réessaye depuis le site.'
+            ? 'deeplink_expired_msg'.tr
             : 'common_error_message'.tr,
       );
     } catch (e, st) {

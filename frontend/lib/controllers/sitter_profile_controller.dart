@@ -429,8 +429,8 @@ class SitterProfileController extends GetxController {
   // configure désormais ses payouts via l'écran IBAN (Airwallex Beneficiary).
   void navigateToStripeConnect() {
     CustomSnackbar.showWarning(
-      title: 'Configuration de paiement',
-      message: 'Renseigne ton IBAN dans Profil → Compte bancaire pour recevoir tes paiements.',
+      title: 'payout_setup_title'.tr,
+      message: 'payout_setup_msg'.tr,
     );
   }
 

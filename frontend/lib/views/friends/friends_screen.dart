@@ -364,10 +364,10 @@ class _FriendTile extends StatelessWidget {
     // placeholder "Utilisateur supprimé" (id vide → désactive le tap
     // suivi + le chat 💬 plus bas).
     final other = friendship.other ??
-        const FriendProfile(
+        FriendProfile(
           id: '',
           model: 'Owner',
-          name: 'Utilisateur supprimé',
+          name: 'friends_deleted_user'.tr,
           avatar: '',
           city: '',
         );
@@ -877,8 +877,8 @@ class _IncomingTile extends StatelessWidget {
               final ok = await controller.accept(friendship.id);
               if (ok) {
                 CustomSnackbar.showSuccess(
-                  title: 'Accepté',
-                  message: 'Vous êtes maintenant amis.',
+                  title: 'friends_accepted_title'.tr,
+                  message: 'friends_accepted_msg'.tr,
                 );
               }
             },

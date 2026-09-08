@@ -17,6 +17,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Circle,
+  CircleMarker,
   LayersControl,
   MapContainer,
   Marker,
@@ -29,6 +30,17 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import type { RouteStep } from "@/lib/api";
+
+// v559 — pictogramme d'une manœuvre Valhalla (info-bulle des repères de virage).
+function stepGlyph(type: number): string {
+  if (type >= 4 && type <= 6) return "🏁";
+  if (type >= 9 && type <= 11) return "↱";
+  if (type >= 14 && type <= 16) return "↰";
+  if (type === 12 || type === 13) return "↩";
+  if (type === 26 || type === 27) return "⟳";
+  return "↑";
+}
 import {
   MapReport,
   MapReportType,
@@ -401,8 +413,12 @@ export default function PoiMap({
   focusTarget = null,
   onFriendFocus,
   routePoints = null,
+  routeColor = "#C92A12",
+  routeSteps = null,
   onDirections,
   directionsLabel = "→",
+  formatOpenStatus,
+  callLabel = "",
 }: {
   center: [number, number];
   pois: Poi[];
@@ -461,11 +477,17 @@ export default function PoiMap({
   /** v23.1.364 — cible de zoom (clic marqueur ami / chip nom·rôle). */
   focusTarget?: { lat: number; lng: number; ts: number } | null;
   onFriendFocus?: (p: FriendLivePosition) => void;
-  /** v23.1 carte unique — polyline itinéraire (orange #C92A12). */
+  /** v23.1 carte unique — polyline itinéraire. v559 : couleur par mode. */
   routePoints?: { lat: number; lng: number }[] | null;
+  routeColor?: string;
+  /** v559 — mini-repères de virage (instruction en info-bulle). */
+  routeSteps?: RouteStep[] | null;
   /** Bouton "Itinéraire" des popups (spots + POI). */
   onDirections?: (target: { lat: number; lng: number }) => void;
   directionsLabel?: string;
+  /** v559 — option A : statut « ouvert / fermé » calculé par la page (i18n). */
+  formatOpenStatus?: (raw: string) => { label: string; open: boolean } | null;
+  callLabel?: string;
 }) {
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
   const premiumSet = useMemo(() => new Set(premiumIds), [premiumIds]);
@@ -631,22 +653,37 @@ export default function PoiMap({
                   {poi.address && (
                     <div className="text-xs text-gray-600">📍 {poi.address}</div>
                   )}
+                  {/* v559 — option A (Daniel) : statut ouvert/fermé + appel ;
+                      plus de lien vers le site du commerce (pas de pub
+                      gratuite, l'utilisateur reste sur HoPetSit). */}
+                  {poi.openingHours && (() => {
+                    const st = formatOpenStatus?.(poi.openingHours) ?? null;
+                    return (
+                      <div className="mt-1 text-xs">
+                        {st && (
+                          <div
+                            className="font-bold"
+                            style={{ color: st.open ? "#16A34A" : "#DC2626" }}
+                          >
+                            🕐 {st.label}
+                          </div>
+                        )}
+                        <div className="text-gray-600">
+                          {st ? "" : "🕐 "}
+                          {poi.openingHours}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {poi.phone && (
-                    <div className="text-xs text-gray-600">📞 {poi.phone}</div>
-                  )}
-                  {poi.website && (
-                    <a
-                      href={poi.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-blue-600 underline"
-                    >
-                      Site web
-                    </a>
-                  )}
-                  {poi.openingHours && (
-                    <div className="mt-1 text-xs text-gray-600">
-                      🕐 {poi.openingHours}
+                    <div className="mt-1 text-xs">
+                      <a
+                        href={`tel:${poi.phone.replace(/[^0-9+]/g, "")}`}
+                        className="font-semibold text-gray-800 underline"
+                      >
+                        📞 {poi.phone}
+                        {callLabel ? ` · ${callLabel}` : ""}
+                      </a>
                     </div>
                   )}
                   {/* v23.1 carte unique — bouton Itinéraire aussi sur les
@@ -812,15 +849,40 @@ export default function PoiMap({
           />
         ))}
 
-        {/* v23.1 carte unique — itinéraire piéton (polyline orange). */}
+        {/* v23.1 carte unique — itinéraire (polyline). v559 : couleur par
+            mode (à pied orange, vélo vert, voiture bleu). */}
         {routePoints && routePoints.length > 1 && (
           <Polyline
             positions={routePoints.map(
               (p) => [p.lat, p.lng] as [number, number],
             )}
-            pathOptions={{ color: "#C92A12", weight: 5, opacity: 0.9 }}
+            pathOptions={{ color: routeColor, weight: 5, opacity: 0.9 }}
           />
         )}
+        {/* v559 — mini-repères de virage : petit disque cerclé de la couleur
+            du mode, l'instruction (déjà traduite) en info-bulle au survol. */}
+        {routeSteps &&
+          routeSteps
+            .filter((s) => s.type !== 1 && s.type !== 2 && s.type !== 3)
+            .map((s, i) => (
+              <CircleMarker
+                key={`step-${i}`}
+                center={[s.lat, s.lng]}
+                radius={s.type >= 4 && s.type <= 6 ? 7 : 5}
+                pathOptions={{
+                  color: routeColor,
+                  weight: 2,
+                  fillColor: "#ffffff",
+                  fillOpacity: 1,
+                }}
+              >
+                <Tooltip direction="top" offset={[0, -6]}>
+                  <span className="text-xs">
+                    {stepGlyph(s.type)} {s.instruction}
+                  </span>
+                </Tooltip>
+              </CircleMarker>
+            ))}
       </MapContainer>
     </div>
   );

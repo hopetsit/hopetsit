@@ -372,6 +372,41 @@ router.get('/me/points', requireAuth, async (req, res) => {
 // GET /pawspots/directions — itinéraire "Y aller" (inclus PawFollow/PawFamily).
 // Proxy OSRM (profil piéton) → liste de points [lat,lng] à dessiner sur la
 // PawMap. Fallback : ligne droite si le service externe échoue.
+// v559 — langues d'instructions supportées par Valhalla (sinon anglais).
+const VALHALLA_LANG = {
+  fr: 'fr-FR', en: 'en-US', es: 'es-ES', de: 'de-DE', it: 'it-IT', pt: 'pt-PT',
+  ja: 'ja-JP', pl: 'pl-PL', nl: 'nl-NL', ru: 'ru-RU', tr: 'tr-TR', sv: 'sv-SE',
+};
+
+// v559 — décodage du tracé Valhalla (polyline Google, précision 1e-6).
+function decodePolyline6(str) {
+  const points = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+  while (index < str.length) {
+    let shift = 0;
+    let result = 0;
+    let byte;
+    do {
+      byte = str.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    lat += result & 1 ? ~(result >> 1) : result >> 1;
+    shift = 0;
+    result = 0;
+    do {
+      byte = str.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    lng += result & 1 ? ~(result >> 1) : result >> 1;
+    points.push({ lat: lat / 1e6, lng: lng / 1e6 });
+  }
+  return points;
+}
+
 router.get('/directions', requireAuth, async (req, res) => {
   try {
     const fromLat = Number(req.query.fromLat);
@@ -393,27 +428,103 @@ router.get('/directions', requireAuth, async (req, res) => {
         code: 'PAWFOLLOW_REQUIRED',
       });
     }
-    try {
-      const url =
-        `https://router.project-osrm.org/route/v1/foot/${fromLng},${fromLat};${toLng},${toLat}` +
-        `?overview=full&geometries=geojson`;
+    // v559 — Daniel (retour testeur) : itinéraire à pied / vélo / voiture.
+    // ⚠️ Vérifié le 08/09 : le serveur OSRM public (router.project-osrm.org)
+    // IGNORE le profil — foot, bike et driving renvoient le MÊME trajet
+    // (13 234 m / 1 188 s) : l'ancien « itinéraire piéton » (v509) était en
+    // fait un trajet VOITURE avec une durée recalculée à 4,8 km/h. On passe
+    // sur le serveur Valhalla public (FOSSGIS), qui distingue vraiment les
+    // modes (même paire : 12,8 km à pied, 13,3 km à vélo, 14,7 km en voiture)
+    // et renvoie une durée réelle. OSRM reste en secours, puis ligne droite.
+    const MODES = { walk: 'pedestrian', bike: 'bicycle', car: 'auto' };
+    const mode = MODES[String(req.query.mode || '')] ? String(req.query.mode) : 'walk';
+    const withTimeout = async (url, init, ms) => {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 6000);
-      const resp = await fetch(url, { signal: controller.signal });
-      clearTimeout(timer);
+      const timer = setTimeout(() => controller.abort(), ms);
+      try {
+        return await fetch(url, { ...init, signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+    try {
+      const resp = await withTimeout(
+        'https://valhalla1.openstreetmap.de/route',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'HoPetSit/1.0 (contact@hopetsit.com)',
+          },
+          body: JSON.stringify({
+            locations: [{ lat: fromLat, lon: fromLng }, { lat: toLat, lon: toLng }],
+            costing: MODES[mode],
+            units: 'kilometers',
+            // v559 — Daniel : « mini indications de virage ». Valhalla rend
+            // les manœuvres traduites (`instruction`) dans la langue demandée.
+            language: VALHALLA_LANG[String(req.query.lang || '').slice(0, 2).toLowerCase()] || 'en-US',
+          }),
+        },
+        7000,
+      );
+      const data = await resp.json();
+      const legs = data?.trip?.legs;
+      const summary = data?.trip?.summary;
+      if (Array.isArray(legs) && legs.length && summary) {
+        const points = [];
+        const steps = [];
+        for (const leg of legs) {
+          const shape = decodePolyline6(leg.shape || '');
+          const offset = points.length;
+          points.push(...shape);
+          for (const m of leg.maneuvers || []) {
+            const p = shape[Math.min(m.begin_shape_index || 0, shape.length - 1)];
+            if (!p) continue;
+            steps.push({
+              type: Number(m.type) || 0,
+              instruction: String(m.instruction || '').slice(0, 160),
+              distanceMeters: Math.round((m.length || 0) * 1000),
+              durationSeconds: Math.round(m.time || 0),
+              lat: p.lat,
+              lng: p.lng,
+              index: offset + (m.begin_shape_index || 0),
+            });
+          }
+        }
+        if (points.length > 1) {
+          return res.json({
+            points,
+            steps,
+            distanceMeters: Math.round((summary.length || 0) * 1000),
+            durationSeconds: Math.round(summary.time || 0),
+            mode,
+            source: 'valhalla',
+          });
+        }
+      }
+      logger.warn(`[pawspots/directions] Valhalla empty (${mode}): ${String(data?.error || '').slice(0, 120)}`);
+    } catch (valErr) {
+      logger.warn(`[pawspots/directions] Valhalla failed: ${valErr?.message || valErr}`);
+    }
+    try {
+      const profile = mode === 'car' ? 'driving' : mode === 'bike' ? 'bike' : 'foot';
+      const url =
+        `https://router.project-osrm.org/route/v1/${profile}/${fromLng},${fromLat};${toLng},${toLat}` +
+        `?overview=full&geometries=geojson`;
+      const resp = await withTimeout(url, {}, 6000);
       const data = await resp.json();
       const coords = data?.routes?.[0]?.geometry?.coordinates;
       if (Array.isArray(coords) && coords.length > 1) {
         const distanceMeters = Math.round(data.routes[0].distance || 0);
-        // v509 — Daniel : « les kilomètres sont bons mais pas le temps à
-        // pied ». Le serveur OSRM public IGNORE le profil "foot" et renvoie
-        // une durée VOITURE. La distance reste bonne → on recalcule la durée
-        // piétonne nous-mêmes à 4,8 km/h (~12 min/km, comme Google Maps).
-        const WALK_SPEED_MPS = 4.8 / 3.6;
+        // OSRM public = données voiture : durée recalculée pour pied/vélo.
+        const SPEED_MPS = { walk: 4.8 / 3.6, bike: 15 / 3.6, car: null }[mode];
         return res.json({
           points: coords.map((c) => ({ lat: c[1], lng: c[0] })),
           distanceMeters,
-          durationSeconds: Math.round(distanceMeters / WALK_SPEED_MPS),
+          durationSeconds: SPEED_MPS
+            ? Math.round(distanceMeters / SPEED_MPS)
+            : Math.round(data.routes[0].duration || 0),
+          mode,
           source: 'osrm',
         });
       }
@@ -428,6 +539,7 @@ router.get('/directions', requireAuth, async (req, res) => {
       ],
       distanceMeters: null,
       durationSeconds: null,
+      mode,
       source: 'straight',
     });
   } catch (e) {

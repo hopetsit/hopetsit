@@ -16,6 +16,7 @@
 // déjà couvert par AppleSettings.allowBackgroundLocationUpdates (live_map_service).
 
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:convert';
 import 'dart:ui' show DartPluginRegistrant;
 
@@ -25,6 +26,25 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:http/http.dart' as http;
+
+/// v559 — textes de la notification du service de fond dans la langue du
+/// téléphone. Ce code tourne dans un ISOLATE séparé (pas de GetX, pas de
+/// `.tr`) : on lit `Platform.localeName` et on garde une petite table locale.
+String bgLiveText(String key) {
+  final lang = Platform.localeName.toLowerCase().split(RegExp('[_-]')).first;
+  const t = <String, Map<String, String>>{
+    'fr': {'channel': 'Suivi en direct', 'channel_desc': 'Partage de position avec ton cercle PawFollow', 'active': 'Suivi en direct actif', 'title': 'HoPetSit — suivi en direct', 'body': 'Ta position est partagée avec ton cercle.'},
+    'en': {'channel': 'Live tracking', 'channel_desc': 'Location sharing with your PawFollow circle', 'active': 'Live tracking active', 'title': 'HoPetSit — live tracking', 'body': 'Your location is shared with your circle.'},
+    'es': {'channel': 'Seguimiento en vivo', 'channel_desc': 'Ubicación compartida con tu círculo PawFollow', 'active': 'Seguimiento en vivo activo', 'title': 'HoPetSit — seguimiento en vivo', 'body': 'Tu ubicación se comparte con tu círculo.'},
+    'de': {'channel': 'Live-Tracking', 'channel_desc': 'Standortfreigabe für deinen PawFollow-Kreis', 'active': 'Live-Tracking aktiv', 'title': 'HoPetSit — Live-Tracking', 'body': 'Dein Standort wird mit deinem Kreis geteilt.'},
+    'it': {'channel': 'Monitoraggio live', 'channel_desc': 'Posizione condivisa con la tua cerchia PawFollow', 'active': 'Monitoraggio live attivo', 'title': 'HoPetSit — monitoraggio live', 'body': 'La tua posizione è condivisa con la tua cerchia.'},
+    'pt': {'channel': 'Seguimento ao vivo', 'channel_desc': 'Partilha de localização com o teu círculo PawFollow', 'active': 'Seguimento ao vivo ativo', 'title': 'HoPetSit — seguimento ao vivo', 'body': 'A tua localização é partilhada com o teu círculo.'},
+    'ko': {'channel': '실시간 추적', 'channel_desc': 'PawFollow 서클과 위치 공유', 'active': '실시간 추적 켜짐', 'title': 'HoPetSit — 실시간 추적', 'body': '내 위치가 내 서클과 공유되고 있어요.'},
+    'ja': {'channel': 'ライブ追跡', 'channel_desc': 'PawFollowサークルと位置情報を共有', 'active': 'ライブ追跡が有効です', 'title': 'HoPetSit — ライブ追跡', 'body': 'あなたの位置情報がサークルと共有されています。'},
+    'pl': {'channel': 'Śledzenie na żywo', 'channel_desc': 'Udostępnianie lokalizacji Twojemu kręgowi PawFollow', 'active': 'Śledzenie na żywo aktywne', 'title': 'HoPetSit — śledzenie na żywo', 'body': 'Twoja lokalizacja jest udostępniana Twojemu kręgowi.'},
+  };
+  return (t[lang] ?? t['en']!)[key] ?? t['en']![key] ?? '';
+}
 
 /// Canal de notif du foreground service.
 const String kBgChannelId = 'hopetsit_live_tracking';
@@ -46,10 +66,10 @@ Future<void> configureLiveTrackingService() async {
     await fln
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(const AndroidNotificationChannel(
+        ?.createNotificationChannel(AndroidNotificationChannel(
           kBgChannelId,
-          'Suivi en direct',
-          description: 'Partage de position avec ton cercle PawFollow',
+          bgLiveText('channel'),
+          description: bgLiveText('channel_desc'),
           importance: Importance.low,
         ));
   } catch (e) {
@@ -66,7 +86,7 @@ Future<void> configureLiveTrackingService() async {
         autoStartOnBoot: false,
         notificationChannelId: kBgChannelId,
         initialNotificationTitle: 'HoPetSit',
-        initialNotificationContent: 'Suivi en direct actif',
+        initialNotificationContent: bgLiveText('active'),
         foregroundServiceNotificationId: kBgNotifId,
         foregroundServiceTypes: const [AndroidForegroundType.location],
       ),
@@ -128,8 +148,8 @@ void onLiveBgStart(ServiceInstance service) async {
     } catch (_) {}
     try {
       await service.setForegroundNotificationInfo(
-        title: 'HoPetSit — suivi en direct',
-        content: 'Ta position est partagée avec ton cercle.',
+        title: bgLiveText('title'),
+        content: bgLiveText('body'),
       );
     } catch (_) {}
   }

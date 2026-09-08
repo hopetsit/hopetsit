@@ -234,8 +234,8 @@ class _AirwallexCheckoutScreenState extends State<_AirwallexCheckoutScreen> {
           title: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Paiement sécurisé',
+              Text(
+                'payment_secure_title'.tr,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
@@ -334,10 +334,10 @@ class _BrandedLoader extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 32),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Text(
-                'Le paiement est traité par Airwallex (PCI-DSS Level 1). Vos données carte ne transitent jamais par HoPetSit.',
+                'payment_airwallex_pci'.tr,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,

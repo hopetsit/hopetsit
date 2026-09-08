@@ -2067,14 +2067,28 @@ export async function createPawSpot(opts: {
   });
 }
 
+export type RouteMode = "walk" | "bike" | "car";
+
+/** v559 — manœuvre (virage, rond-point, arrivée…) traduite par le serveur. */
+export type RouteStep = {
+  type: number; // Valhalla : 1 départ, 4-6 arrivée, 9-11 droite, 14-16 gauche, 12-13 demi-tour, 26-27 rond-point
+  instruction: string;
+  distanceMeters: number;
+  lat: number;
+  lng: number;
+};
+
 export type RouteResult = {
   points: { lat: number; lng: number }[];
   distanceMeters: number | null;
   durationSeconds: number | null;
+  steps: RouteStep[];
+  mode: RouteMode;
 };
 
-// GET /pawspots/directions — itinéraire piéton (OSRM côté backend, fallback
-// ligne droite avec distanceMeters/durationSeconds null). 402 + code
+// GET /pawspots/directions — itinéraire à pied / vélo / voiture (v559 :
+// Valhalla côté backend, OSRM puis ligne droite en secours ; `steps` =
+// indications de virage traduites dans `lang`). 402 + code
 // PAWFOLLOW_REQUIRED si pas d'abonnement PawFollow / PawFamily : on laisse
 // l'ApiError remonter pour que la page affiche le message + lien /boutique.
 export async function getPawSpotDirections(opts: {
@@ -2082,20 +2096,26 @@ export async function getPawSpotDirections(opts: {
   fromLng: number;
   toLat: number;
   toLng: number;
+  mode?: RouteMode;
+  lang?: string;
 }): Promise<RouteResult> {
   const qs = new URLSearchParams({
     fromLat: String(opts.fromLat),
     fromLng: String(opts.fromLng),
     toLat: String(opts.toLat),
     toLng: String(opts.toLng),
+    mode: opts.mode ?? "walk",
+    lang: opts.lang ?? "en",
   });
-  const raw = await request<RouteResult>(
+  const raw = await request<Partial<RouteResult>>(
     `/pawspots/directions?${qs.toString()}`,
   );
   return {
     points: Array.isArray(raw?.points) ? raw.points : [],
     distanceMeters: raw?.distanceMeters ?? null,
     durationSeconds: raw?.durationSeconds ?? null,
+    steps: Array.isArray(raw?.steps) ? raw.steps : [],
+    mode: (raw?.mode as RouteMode) ?? opts.mode ?? "walk",
   };
 }
 

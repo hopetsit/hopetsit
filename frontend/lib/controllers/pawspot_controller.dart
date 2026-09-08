@@ -137,16 +137,45 @@ class PawSpotTypes {
 }
 
 /// Résultat de GET /pawspots/directions (itinéraire "Y aller").
+/// v559 — une manœuvre (virage, rond-point, arrivée…) renvoyée par le serveur
+/// (Valhalla), instruction déjà traduite dans la langue de l'app.
+class PawSpotRouteStep {
+  const PawSpotRouteStep({
+    required this.type,
+    required this.instruction,
+    required this.distanceMeters,
+    required this.position,
+  });
+
+  /// Type Valhalla : 1 départ, 4-6 arrivée, 8 continuer, 9-11 droite,
+  /// 12-13 demi-tour, 14-16 gauche, 26 rond-point (entrée), 27 sortie.
+  final int type;
+  final String instruction;
+  final int distanceMeters;
+  final LatLng position;
+
+  bool get isArrival => type >= 4 && type <= 6;
+  bool get isStart => type == 1 || type == 2 || type == 3;
+  bool get isRight => type >= 9 && type <= 11;
+  bool get isLeft => type >= 14 && type <= 16;
+  bool get isUTurn => type == 12 || type == 13;
+  bool get isRoundabout => type == 26 || type == 27;
+}
+
 class PawSpotDirections {
   const PawSpotDirections({
     required this.points,
     this.distanceMeters,
     this.durationSeconds,
+    this.steps = const [],
+    this.mode = 'walk',
   });
 
   final List<LatLng> points;
   final int? distanceMeters;
   final int? durationSeconds;
+  final List<PawSpotRouteStep> steps;
+  final String mode;
 }
 
 class PawSpotController extends GetxController {
@@ -337,9 +366,12 @@ class PawSpotController extends GetxController {
   /// GET /pawspots/directions — itinéraire piéton "Y aller" (OSRM côté
   /// backend, fallback ligne droite). LAISSE REMONTER l'ApiException 402
   /// PAWFOLLOW_REQUIRED (inclus dans PawFollow / PawFamily).
+  /// v559 — `mode` : walk | bike | car (à pied / vélo / voiture) ; `lang`
+  /// pour les instructions de virage traduites.
   Future<PawSpotDirections> fetchDirections({
     required LatLng from,
     required LatLng to,
+    String mode = 'walk',
   }) async {
     final api = Get.find<ApiClient>();
     final r = await api.get(
@@ -349,6 +381,8 @@ class PawSpotController extends GetxController {
         'fromLng': from.longitude.toString(),
         'toLat': to.latitude.toString(),
         'toLng': to.longitude.toString(),
+        'mode': mode,
+        'lang': (Get.locale?.languageCode ?? 'en'),
       },
       requiresAuth: true,
     );
@@ -361,12 +395,28 @@ class PawSpotController extends GetxController {
         if (lat != null && lng != null) points.add(LatLng(lat, lng));
       }
     }
+    final steps = <PawSpotRouteStep>[];
+    final rawSteps = (r is Map ? r['steps'] as List? : null) ?? const [];
+    for (final s in rawSteps) {
+      if (s is! Map) continue;
+      final lat = (s['lat'] as num?)?.toDouble();
+      final lng = (s['lng'] as num?)?.toDouble();
+      if (lat == null || lng == null) continue;
+      steps.add(PawSpotRouteStep(
+        type: (s['type'] as num?)?.toInt() ?? 0,
+        instruction: (s['instruction'] as String?) ?? '',
+        distanceMeters: (s['distanceMeters'] as num?)?.toInt() ?? 0,
+        position: LatLng(lat, lng),
+      ));
+    }
     return PawSpotDirections(
       points: points,
       distanceMeters:
           (r is Map ? (r['distanceMeters'] as num?) : null)?.toInt(),
       durationSeconds:
           (r is Map ? (r['durationSeconds'] as num?) : null)?.toInt(),
+      steps: steps,
+      mode: (r is Map ? r['mode'] as String? : null) ?? mode,
     );
   }
 

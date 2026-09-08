@@ -4,8 +4,8 @@ import 'package:get/get.dart';
 /// Sprint 6.5 step 1 — shared enriched-pet-profile form sections.
 /// Used by edit_pet_screen (unified create + edit screen, v428+).
 class PetEnrichedFields extends StatelessWidget {
-  static const String emergencyLegalText =
-      "J'autorise le petsitter à contacter le vétérinaire d'urgence et à engager les soins nécessaires en cas de danger vital pour mon animal, avec prise en charge financière à ma charge. Je reste joignable à tout moment.";
+  // v559 — texte traduit (était en dur en français dans les 9 langues).
+  static String get emergencyLegalText => 'pet_emergency_consent_text'.tr;
 
   final TextEditingController ageController;
   final TextEditingController behaviorController;

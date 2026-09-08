@@ -37,7 +37,7 @@ class ModernCardPaymentScreen extends StatelessWidget {
         backgroundColor: AppColors.appBar(context),
         elevation: 0,
         title: PoppinsText(
-          text: 'Paiement',
+          text: 'payment_title'.tr,
           fontSize: 18.sp,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
@@ -53,7 +53,7 @@ class ModernCardPaymentScreen extends StatelessWidget {
                   size: 48.sp, color: AppColors.textSecondary(context)),
               SizedBox(height: 16.h),
               PoppinsText(
-                text: 'Le paiement passe désormais par Airwallex',
+                text: 'payment_airwallex_title'.tr,
                 fontSize: 16.sp,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary(context),
@@ -62,7 +62,7 @@ class ModernCardPaymentScreen extends StatelessWidget {
               SizedBox(height: 8.h),
               InterText(
                 text:
-                    'Reviens à l\'écran précédent et relance ton achat — un nouveau formulaire de paiement va s\'ouvrir.',
+                    'payment_airwallex_hint'.tr,
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w400,
                 color: AppColors.textSecondary(context),

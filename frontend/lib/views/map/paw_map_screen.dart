@@ -18,6 +18,9 @@ import 'package:hopetsit/models/map_poi_model.dart';
 import 'package:hopetsit/models/map_report_model.dart';
 import 'package:hopetsit/models/nearby_request_model.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/utils/opening_hours.dart';
+import 'package:intl/intl.dart' show DateFormat;
+import 'package:url_launcher/url_launcher.dart';
 import 'package:hopetsit/services/friend_marker_service.dart';
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/services/location_service.dart';
@@ -301,6 +304,28 @@ class _PawMapScreenState extends State<PawMapScreen>
   Set<Polyline> _routePolylines = {};
   int? _routeDistanceMeters;
   bool _directionsLoading = false;
+
+  // v559 — Daniel (retour testeur) : itinéraire à pied / vélo / voiture, une
+  // couleur par mode, durée réelle, et « mini indications de virage ».
+  String _routeMode =
+      (GetStorage().read('pawmap_route_mode') as String?) ?? 'walk';
+  LatLng? _routeDest;
+  int? _routeDurationSeconds;
+  List<PawSpotRouteStep> _routeSteps = const [];
+  Set<Marker> _routeStepMarkers = {};
+  final Map<String, BitmapDescriptor> _routeStepIcons = {};
+
+  static const Map<String, Color> _routeColors = {
+    'walk': Color(0xFFC92A12), // orange marque (à pied)
+    'bike': Color(0xFF16A34A), // vert (vélo)
+    'car': Color(0xFF2563EB), // bleu (voiture)
+  };
+  Color get _routeColor => _routeColors[_routeMode] ?? _routeColors['walk']!;
+  IconData get _routeIcon => _routeMode == 'car'
+      ? Icons.directions_car_rounded
+      : _routeMode == 'bike'
+          ? Icons.directions_bike_rounded
+          : Icons.directions_walk_rounded;
 
   /// Debounce the `onCameraIdle` callback so panning/zooming quickly doesn't
   /// fire 5+ POI/report requests in a row. 500 ms is short enough to feel
@@ -3464,7 +3489,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   child: PoppinsText(
                     text: r.ownerName.isNotEmpty
                         ? r.ownerName
-                        : 'Demande de garde',
+                        : 'pawmap_request_default_title'.tr,
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary(context),
@@ -3844,7 +3869,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                       // Plus de _buildMarkers() sur chaque tick halo.
                       mapType: _mapType,
                       style: _nightMode.value ? _nightMapStyle : null,
-                      markers: _getMarkersFromCache(),
+                      markers: _routeStepMarkers.isEmpty
+                          ? _getMarkersFromCache()
+                          : {..._getMarkersFromCache(), ..._routeStepMarkers},
                       circles: _buildHaloCircles(),
                       // v23.1.353 — polyline orange de l'itinéraire "Y aller"
                       // (GET /pawspots/directions).
@@ -5777,7 +5804,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                 zoomControlsEnabled: false,
                 mapType: _mapType,
                 style: _nightMode.value ? _nightMapStyle : null,
-                markers: _getMarkersFromCache(),
+                markers: _routeStepMarkers.isEmpty
+                          ? _getMarkersFromCache()
+                          : {..._getMarkersFromCache(), ..._routeStepMarkers},
                 circles: _buildHaloCircles(),
                 polylines: _routePolylines,
               );
@@ -6854,10 +6883,12 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
     if (_directionsLoading) return;
     _directionsLoading = true;
+    _routeDest = dest;
     try {
       final route = await _pawSpotController.fetchDirections(
         from: from,
         to: dest,
+        mode: _routeMode,
       );
       if (!mounted) return;
       if (route.points.length < 2) {
@@ -6867,16 +6898,21 @@ class _PawMapScreenState extends State<PawMapScreen>
         );
         return;
       }
+      final stepMarkers = await _buildRouteStepMarkers(route.steps);
+      if (!mounted) return;
       setState(() {
         _routePolylines = {
           Polyline(
             polylineId: const PolylineId('pawspot_route'),
             points: route.points,
-            color: const Color(0xFFC92A12),
+            color: _routeColor,
             width: 5,
           ),
         };
         _routeDistanceMeters = route.distanceMeters;
+        _routeDurationSeconds = route.durationSeconds;
+        _routeSteps = route.steps;
+        _routeStepMarkers = stepMarkers;
       });
       // Caméra : englobe tout le trajet.
       double minLat = route.points.first.latitude;
@@ -6932,10 +6968,253 @@ class _PawMapScreenState extends State<PawMapScreen>
     setState(() {
       _routePolylines = {};
       _routeDistanceMeters = null;
+      _routeDurationSeconds = null;
+      _routeSteps = const [];
+      _routeStepMarkers = {};
+      _routeDest = null;
     });
   }
 
-  /// Bandeau flottant bas : distance du trajet + bouton "Effacer".
+  /// v559 — changement de mode : mémorisé, puis le trajet est recalculé
+  /// vers la même destination (distance ET durée changent avec le mode).
+  void _setRouteMode(String mode) {
+    if (mode == _routeMode) return;
+    setState(() => _routeMode = mode);
+    try {
+      GetStorage().write('pawmap_route_mode', mode);
+    } catch (_) {/* sans importance */}
+    final dest = _routeDest;
+    if (dest != null) _startDirections(dest);
+  }
+
+  String _formatDuration(int? seconds) {
+    if (seconds == null || seconds <= 0) return '';
+    final min = (seconds / 60).round();
+    if (min < 60) return 'route_duration_min'.trParams({'min': '${min < 1 ? 1 : min}'});
+    return 'route_duration_h'
+        .trParams({'h': '${min ~/ 60}', 'min': (min % 60).toString().padLeft(2, '0')});
+  }
+
+  /// v559 — mini-repères de virage : petit disque blanc cerclé de la couleur
+  /// du mode avec une flèche (gauche / droite / tout droit / rond-point /
+  /// drapeau d'arrivée). 22 px : visibles sans gêner le tracé. Le départ
+  /// n'est pas marqué (c'est l'utilisateur).
+  Future<Set<Marker>> _buildRouteStepMarkers(List<PawSpotRouteStep> steps) async {
+    final out = <Marker>{};
+    for (int i = 0; i < steps.length; i++) {
+      final s = steps[i];
+      if (s.isStart) continue;
+      final glyph = s.isArrival
+          ? 'flag'
+          : s.isLeft
+              ? 'left'
+              : s.isRight
+                  ? 'right'
+                  : s.isUTurn
+                      ? 'uturn'
+                      : s.isRoundabout
+                          ? 'round'
+                          : 'straight';
+      final key = '${_routeMode}_$glyph';
+      final icon = _routeStepIcons[key] ??= await _drawStepIcon(glyph, _routeColor);
+      out.add(Marker(
+        markerId: MarkerId('route_step_$i'),
+        position: s.position,
+        icon: icon,
+        anchor: const Offset(0.5, 0.5),
+        zIndexInt: 40,
+        infoWindow: InfoWindow(
+          title: s.instruction,
+          snippet: s.distanceMeters > 0
+              ? (s.distanceMeters >= 1000
+                  ? '${(s.distanceMeters / 1000).toStringAsFixed(1)} km'
+                  : '${s.distanceMeters} m')
+              : null,
+        ),
+      ));
+    }
+    return out;
+  }
+
+  Future<BitmapDescriptor> _drawStepIcon(String glyph, Color color) async {
+    const double size = 22;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.scale(2, 2);
+    const c = Offset(size / 2, size / 2);
+    canvas.drawCircle(c, size / 2 - 0.5,
+        Paint()..color = Colors.white..style = PaintingStyle.fill);
+    canvas.drawCircle(c, size / 2 - 1.2,
+        Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 2);
+    final iconData = glyph == 'flag'
+        ? Icons.flag_rounded
+        : glyph == 'left'
+            ? Icons.turn_left_rounded
+            : glyph == 'right'
+                ? Icons.turn_right_rounded
+                : glyph == 'uturn'
+                    ? Icons.u_turn_left_rounded
+                    : glyph == 'round'
+                        ? Icons.roundabout_left_rounded
+                        : Icons.arrow_upward_rounded;
+    final tp = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(iconData.codePoint),
+        style: TextStyle(
+          fontSize: 13,
+          fontFamily: iconData.fontFamily,
+          package: iconData.fontPackage,
+          color: color,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(c.dx - tp.width / 2, c.dy - tp.height / 2));
+    final img = await recorder.endRecording().toImage((size * 2).toInt(), (size * 2).toInt());
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List(), width: size);
+  }
+
+  /// v559 — liste « pas à pas » (feuille), ouverte depuis le bandeau.
+  void _showRouteStepsSheet() {
+    final color = _routeColor;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.card(context),
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetCtx) {
+        final inset = MediaQuery.of(sheetCtx).viewPadding.bottom;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 16.h + (inset > 0 ? inset : 48.h)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(_routeIcon, color: color, size: 20.sp),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: PoppinsText(
+                      text: 'route_steps_title'.tr,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary(context),
+                    ),
+                  ),
+                  InterText(
+                    text: [
+                      if (_routeDistanceMeters != null)
+                        _routeDistanceMeters! >= 1000
+                            ? '${(_routeDistanceMeters! / 1000).toStringAsFixed(1)} km'
+                            : '${_routeDistanceMeters!} m',
+                      if (_formatDuration(_routeDurationSeconds).isNotEmpty)
+                        _formatDuration(_routeDurationSeconds),
+                    ].join(' · '),
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ],
+              ),
+              SizedBox(height: 10.h),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _routeSteps.length,
+                  separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.greyText.withValues(alpha: 0.15)),
+                  itemBuilder: (_, i) {
+                    final s = _routeSteps[i];
+                    final ic = s.isArrival
+                        ? Icons.flag_rounded
+                        : s.isStart
+                            ? Icons.my_location_rounded
+                            : s.isLeft
+                                ? Icons.turn_left_rounded
+                                : s.isRight
+                                    ? Icons.turn_right_rounded
+                                    : s.isUTurn
+                                        ? Icons.u_turn_left_rounded
+                                        : s.isRoundabout
+                                            ? Icons.roundabout_left_rounded
+                                            : Icons.arrow_upward_rounded;
+                    return Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.h),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 28.w,
+                            height: 28.w,
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(ic, size: 16.sp, color: color),
+                          ),
+                          SizedBox(width: 10.w),
+                          Expanded(
+                            child: InterText(
+                              text: s.instruction,
+                              fontSize: 13.sp,
+                              color: AppColors.textPrimary(context),
+                            ),
+                          ),
+                          if (s.distanceMeters > 0) ...[
+                            SizedBox(width: 8.w),
+                            InterText(
+                              text: s.distanceMeters >= 1000
+                                  ? '${(s.distanceMeters / 1000).toStringAsFixed(1)} km'
+                                  : '${s.distanceMeters} m',
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textSecondary(context),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _routeModeChip(String mode, IconData icon) {
+    final selected = _routeMode == mode;
+    final color = _routeColors[mode]!;
+    final label = mode == 'car'
+        ? 'route_mode_car'.tr
+        : mode == 'bike'
+            ? 'route_mode_bike'.tr
+            : 'route_mode_walk'.tr;
+    return Tooltip(
+      message: label,
+      child: GestureDetector(
+        onTap: () => _setRouteMode(mode),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          width: 30.w,
+          height: 30.w,
+          decoration: BoxDecoration(
+            color: selected ? color : color.withValues(alpha: 0.10),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 17.sp, color: selected ? Colors.white : color),
+        ),
+      ),
+    );
+  }
+
+  /// Bandeau flottant : mode (3 pastilles colorées), distance + durée,
+  /// « Étapes », « Effacer ».
   Widget _buildDirectionsBanner() {
     final meters = _routeDistanceMeters;
     final distanceLabel = meters == null
@@ -6943,15 +7222,14 @@ class _PawMapScreenState extends State<PawMapScreen>
         : meters >= 1000
             ? '${(meters / 1000).toStringAsFixed(1)} km'
             : '$meters m';
+    final duration = _formatDuration(_routeDurationSeconds);
+    final color = _routeColor;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 9.h),
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 7.h),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24.r),
-        border: Border.all(
-          color: const Color(0xFFC92A12).withValues(alpha: 0.35),
-          width: 1.2,
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.45), width: 1.4),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.15),
@@ -6963,29 +7241,72 @@ class _PawMapScreenState extends State<PawMapScreen>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.directions_walk_rounded,
-              size: 16.sp, color: const Color(0xFFC92A12)),
-          SizedBox(width: 6.w),
-          InterText(
-            text: distanceLabel,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF1F2937),
-          ),
-          SizedBox(width: 12.w),
-          GestureDetector(
-            onTap: _clearRoute,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-              decoration: BoxDecoration(
-                color: const Color(0xFFC92A12).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14.r),
-              ),
-              child: InterText(
-                text: 'directions_clear'.tr,
-                fontSize: 11.sp,
+          _routeModeChip('walk', Icons.directions_walk_rounded),
+          SizedBox(width: 4.w),
+          _routeModeChip('bike', Icons.directions_bike_rounded),
+          SizedBox(width: 4.w),
+          _routeModeChip('car', Icons.directions_car_rounded),
+          SizedBox(width: 10.w),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InterText(
+                text: distanceLabel,
+                fontSize: 13.sp,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFFC92A12),
+                color: const Color(0xFF1F2937),
+                height: 1.05,
+              ),
+              if (duration.isNotEmpty)
+                InterText(
+                  text: duration,
+                  fontSize: 10.5.sp,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                  height: 1.05,
+                ),
+            ],
+          ),
+          if (_routeSteps.length > 1) ...[
+            SizedBox(width: 10.w),
+            GestureDetector(
+              onTap: _showRouteStepsSheet,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 5.h),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14.r),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.format_list_bulleted_rounded, size: 13.sp, color: color),
+                    SizedBox(width: 3.w),
+                    InterText(
+                      text: 'route_steps_btn'.tr,
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          SizedBox(width: 6.w),
+          Tooltip(
+            message: 'directions_clear'.tr,
+            child: GestureDetector(
+              onTap: _clearRoute,
+              child: Container(
+                width: 28.w,
+                height: 28.w,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFC92A12).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.close_rounded, size: 16.sp, color: const Color(0xFFC92A12)),
               ),
             ),
           ),
@@ -7053,10 +7374,11 @@ class _PawMapScreenState extends State<PawMapScreen>
             ],
             if (poi.address.isNotEmpty)
               _iconLine(Icons.place_outlined, poi.address),
-            if (poi.phone.isNotEmpty)
-              _iconLine(Icons.phone_outlined, poi.phone),
-            if (poi.openingHours.isNotEmpty)
-              _iconLine(Icons.schedule_outlined, poi.openingHours),
+            // v559 — option A (Daniel) : « ouvert / fermé » calculé depuis les
+            // horaires OpenStreetMap + téléphone en bouton d'appel. Aucun lien
+            // vers le site du commerce (décision Daniel : pas de pub gratuite).
+            if (poi.openingHours.isNotEmpty) _poiHoursLine(poi.openingHours),
+            if (poi.phone.isNotEmpty) _poiPhoneLine(poi.phone),
             SizedBox(height: 16.h),
             // v23.1.353 — refonte PawSpot : bouton « Y aller » plein-largeur
             // (itinéraire piéton inclus dans PawFollow / PawFamily).
@@ -7308,6 +7630,121 @@ class _PawMapScreenState extends State<PawMapScreen>
           SizedBox(width: 6.w),
           Expanded(child: InterText(text: text, fontSize: 12.sp)),
         ],
+      ),
+    );
+  }
+
+  /// v559 — statut « ouvert / fermé » (vert / rouge) + horaires bruts en
+  /// dessous. Syntaxe non comprise → seulement les horaires bruts.
+  Widget _poiHoursLine(String raw) {
+    final status = evaluateOpeningHours(raw, DateTime.now());
+    String? label;
+    Color color = AppColors.greyText;
+    if (status != null) {
+      final locale = Get.locale?.toString();
+      String hm(DateTime d) => DateFormat.Hm(locale).format(d);
+      if (status.always) {
+        label = 'poi_open_247'.tr;
+        color = const Color(0xFF16A34A);
+      } else if (status.isOpen && status.closesAt != null) {
+        label = 'poi_open_until'.trParams({'time': hm(status.closesAt!)});
+        color = const Color(0xFF16A34A);
+      } else if (!status.isOpen) {
+        color = const Color(0xFFDC2626);
+        final o = status.opensAt;
+        if (o == null) {
+          label = 'poi_closed_now'.tr;
+        } else {
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          final day = DateTime(o.year, o.month, o.day);
+          final diff = day.difference(today).inDays;
+          if (diff <= 0) {
+            label = 'poi_closed_opens_today'.trParams({'time': hm(o)});
+          } else if (diff == 1) {
+            label = 'poi_closed_opens_tomorrow'.trParams({'time': hm(o)});
+          } else {
+            label = 'poi_closed_opens_day'.trParams({
+              'day': DateFormat.EEEE(locale).format(o),
+              'time': hm(o),
+            });
+          }
+        }
+      }
+    }
+    return Padding(
+      padding: EdgeInsets.only(top: 6.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.schedule_outlined, size: 16.sp, color: color),
+          SizedBox(width: 6.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (label != null)
+                  InterText(
+                    text: label,
+                    fontSize: 12.5.sp,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
+                InterText(
+                  text: raw,
+                  fontSize: 11.5.sp,
+                  color: AppColors.textSecondary(context),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// v559 — téléphone : un appui ouvre le composeur.
+  Widget _poiPhoneLine(String phone) {
+    final tel = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    return Padding(
+      padding: EdgeInsets.only(top: 8.h),
+      child: GestureDetector(
+        onTap: tel.isEmpty
+            ? null
+            : () async {
+                final uri = Uri(scheme: 'tel', path: tel);
+                try {
+                  await launchUrl(uri);
+                } catch (_) {/* pas d'app téléphone (tablette) */}
+              },
+        child: Row(
+          children: [
+            Icon(Icons.phone_outlined, size: 16.sp, color: AppColors.primaryColor),
+            SizedBox(width: 6.w),
+            Expanded(
+              child: InterText(
+                text: phone,
+                fontSize: 12.5.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
+              ),
+            ),
+            if (tel.isNotEmpty)
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14.r),
+                ),
+                child: InterText(
+                  text: 'poi_call'.tr,
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryColor,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

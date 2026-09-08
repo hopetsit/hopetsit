@@ -664,7 +664,7 @@ class _PublishReservationRequestScreenState
           // Start
           InterText(
             text: isWalking
-                ? 'Date et heure de la promenade'
+                ? 'send_request_walk_datetime_label'.tr
                 : 'send_request_start_label'.tr,
             fontSize: 13.sp,
             fontWeight: FontWeight.w600,
@@ -705,8 +705,8 @@ class _PublishReservationRequestScreenState
                   Expanded(
                     child: InterText(
                       text: controller.selectedDuration.value == null
-                          ? 'L\'heure de fin sera calculée depuis la durée que tu choisis plus bas.'
-                          : 'Fin automatique : ${controller.formattedEndTime.isEmpty ? "…" : controller.formattedEndTime} (durée ${controller.selectedDuration.value} min)',
+                          ? 'send_request_end_auto_hint'.tr
+                          : 'send_request_end_auto_value'.trParams({'time': controller.formattedEndTime.isEmpty ? '…' : controller.formattedEndTime, 'min': '${controller.selectedDuration.value}'}),
                       fontSize: 12.sp,
                       color: AppColors.greenColor,
                     ),
