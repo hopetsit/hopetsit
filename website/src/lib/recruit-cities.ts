@@ -179,3 +179,21 @@ export function recruitCity(lang: RecruitLang, slug: string): RecruitCity | unde
 export function recruitPaths(): string[] {
   return RECRUIT_CITIES.map((c) => `${RECRUIT_PATH_PREFIX[c.lang]}/${c.slug}`);
 }
+
+// v560 — pages côté PROPRIÉTAIRE « trouver un pet sitter à <ville> » (même
+// donnée, deuxième intention de recherche). Composant OwnerCityPage.
+export const OWNER_PATH_PREFIX: Record<RecruitLang, string> = {
+  fr: "/garde-animaux",
+  en: "/pet-sitting",
+  pl: "/opieka-nad-zwierzetami",
+  ko: "/pet-sitting-korea",
+  es: "/cuidado-de-mascotas",
+  de: "/tierbetreuung",
+  it: "/custodia-animali",
+  pt: "/cuidado-de-animais",
+  ja: "/pet-sitting-japan",
+};
+
+export function ownerPaths(): string[] {
+  return RECRUIT_CITIES.map((c) => `${OWNER_PATH_PREFIX[c.lang]}/${c.slug}`);
+}

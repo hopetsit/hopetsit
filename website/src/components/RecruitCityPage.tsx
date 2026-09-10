@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
+import { OWNER_PATH_PREFIX } from "@/lib/recruit-cities";
 
 // v547 — page « devenir pet sitter à <ville> » (composant serveur statique,
 // indexable). Copie par langue, détail local injecté pour que chaque page
@@ -343,6 +344,25 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
         <p className="mx-auto mt-2 max-w-md text-sm text-ink-muted">{copy.ctaText(city)}</p>
         <Link href="/download" className="mt-5 inline-block rounded-full bg-sitter px-7 py-3 text-sm font-bold text-white">{copy.ctaBtn}</Link>
       </div>
+
+      {/* v560 — lien croisé vers la page « trouver un pet sitter à <ville> ». */}
+      <p className="mt-8 text-center text-sm">
+        <Link href={`${OWNER_PATH_PREFIX[city.lang]}/${city.slug}`} className="font-semibold text-owner underline-offset-4 hover:underline">
+          {OWNER_LINK[city.lang](city)}
+        </Link>
+      </p>
     </div>
   );
 }
+
+const OWNER_LINK: Record<RecruitLang, (c: RecruitCity) => string> = {
+  fr: (c) => `Vous êtes propriétaire ? Trouver un pet sitter à ${c.name} →`,
+  en: (c) => `Pet owner? Find a pet sitter in ${c.name} →`,
+  es: (c) => `¿Tienes mascota? Encuentra un cuidador en ${c.name} →`,
+  de: (c) => `Tierhalter? Finde einen Tiersitter in ${c.name} →`,
+  it: (c) => `Hai un animale? Trova un pet sitter a ${c.name} →`,
+  pt: (c) => `Tens um animal? Encontra um pet sitter em ${c.name} →`,
+  pl: (c) => `Masz zwierzaka? Znajdź opiekuna — ${c.name} →`,
+  ko: (c) => `보호자이신가요? ${c.name} 펫시터 찾기 →`,
+  ja: (c) => `飼い主の方へ：${c.name}でペットシッターを探す →`,
+};

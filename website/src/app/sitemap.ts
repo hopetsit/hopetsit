@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { recruitPaths } from "../lib/recruit-cities";
+import { recruitPaths, ownerPaths } from "../lib/recruit-cities";
 
 // v23.1.267 — SEO : sitemap des pages publiques (était absent). metadataBase
 // est défini dans layout.tsx (https://hopetsit.com).
@@ -48,7 +48,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date();
   // v547 — pages « devenir pet sitter à <ville> » (FR/EN/PL/KO) générées
   // depuis lib/recruit-cities.ts : une ligne de données = une URL indexable.
-  const all = [...PUBLIC_PATHS, ...recruitPaths()];
+  // v560 — + pages « trouver un pet sitter à <ville> » (côté propriétaire).
+  const all = [...PUBLIC_PATHS, ...recruitPaths(), ...ownerPaths()];
   return all.map((path) => ({
     url: `${BASE}${path}`,
     lastModified,
