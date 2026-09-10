@@ -68,6 +68,8 @@ const sitterSchema = new mongoose.Schema(
     kycVerifiedAt: { type: Date, default: null },
     kycRejectionReason: { type: String, default: null },
     isStaff: { type: Boolean, default: false, index: true },
+    // v560 — opt-out des e-mails de cycle de vie (lien de désabonnement).
+    marketingOptOut: { type: Boolean, default: false },
     rating: { type: Number, default: 0 },
     reviewsCount: { type: Number, default: 0 },
     // External authentication information

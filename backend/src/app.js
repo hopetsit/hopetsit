@@ -318,6 +318,8 @@ const versionedRoutes = [
   { path: '/chat-addon', mw: [sensitiveLimiter], router: chatAddonRoutes },
   { path: '/friends', mw: [], router: friendRoutes },
   { path: '/pawspots', mw: [], router: pawSpotRoutes },
+  // v560 — e-mails de cycle de vie : désabonnement + déclenchement admin.
+  { path: '/lifecycle', mw: [], router: require('./routes/lifecycleRoutes') },
   // v414 — PawPoints : catalogue de récompenses (public), mes points, échange.
   { path: '/pawpoints', mw: [], router: require('./routes/pawPointsRoutes') },
   { path: '/bug-reports', mw: [sensitiveLimiter], router: bugReportRoutes },

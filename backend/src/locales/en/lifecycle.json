@@ -1,0 +1,78 @@
+{
+  "friend": "there",
+  "footer": "You receive this email because you have a HoPetSit account.",
+  "unsubscribe": "Unsubscribe from tips",
+  "welcome_provider_d1": {
+    "subject": "{{name}}, 3 things that bring your first requests",
+    "title": "Welcome to HoPetSit, {{name}}!",
+    "paragraphs": [
+      "Your profile is live. Three things make the difference for owners: <b>a photo of you</b> (not your pet), <b>a 3-line introduction</b> and <b>your rates</b>.",
+      "Complete, verified profiles (✓ badge) get the vast majority of requests. It takes 5 minutes in the app.",
+      "Then open the PawMap: owners around you see you right on the map."
+    ],
+    "cta": "Complete my profile",
+    "ctaUrl": "https://www.hopetsit.com/profile"
+  },
+  "welcome_owner_d1": {
+    "subject": "{{name}}, your first care request is free",
+    "title": "Welcome to HoPetSit, {{name}}!",
+    "paragraphs": [
+      "You can post a request right now (sitting, visit or walk): sitters and walkers near you see it and reply by chat.",
+      "Payment is held in the app until the service is done, and you can follow the walk live with PawFollow.",
+      "Have a look at the PawMap too: pet-friendly places, members around you, directions."
+    ],
+    "cta": "Post my request",
+    "ctaUrl": "https://www.hopetsit.com/posts"
+  },
+  "profile_incomplete_d3": {
+    "subject": "{{name}}, owners can't see your profile yet",
+    "title": "One detail is missing on your profile",
+    "paragraphs": [
+      "An owner never books a profile without a photo, an introduction or a rate. Yours is missing at least one.",
+      "Add them now: a photo of you, 3 lines about your experience with animals, and a starting rate. You can adjust it anytime."
+    ],
+    "cta": "Finish my profile",
+    "ctaUrl": "https://www.hopetsit.com/profile"
+  },
+  "first_client_d7": {
+    "subject": "{{name}}, your first client is already in your phone",
+    "title": "Your first client, this week",
+    "paragraphs": [
+      "A pet sitter's first clients almost always come from people they know: neighbours, colleagues, friends with a dog or a cat.",
+      "Send them your HoPetSit profile link on WhatsApp or Instagram. For them: secure payment and live tracking. For you: a first review, and your profile moves up for everyone.",
+      "Offer a first booking at a gentle rate: the review is what matters."
+    ],
+    "cta": "Share my profile",
+    "ctaUrl": "https://www.hopetsit.com/profile"
+  },
+  "owner_first_request_d5": {
+    "subject": "{{name}}, who looks after your pet next time?",
+    "title": "Plan the next absence",
+    "paragraphs": [
+      "Weekend, holidays, a long workday: post your request a few days ahead, sitters reply faster when they have time to organise.",
+      "Posting is free. Compare verified profiles, chat, and book only if it suits you."
+    ],
+    "cta": "Post a request",
+    "ctaUrl": "https://www.hopetsit.com/posts"
+  },
+  "inactive_d21": {
+    "subject": "{{name}}, what's new on HoPetSit",
+    "title": "What changed since your last visit",
+    "paragraphs": [
+      "The PawMap now offers directions on foot, by bike or by car, opening hours of pet-friendly places, and free live location sharing between friends.",
+      "Verified sitters and walkers appear on the map around you. Come back for a look, the app has moved on a lot."
+    ],
+    "cta": "Open HoPetSit",
+    "ctaUrl": "https://www.hopetsit.com/pawmap"
+  },
+  "review_after_booking": {
+    "subject": "{{name}}, how did the booking go?",
+    "title": "Thank you for using HoPetSit",
+    "paragraphs": [
+      "If everything went well, two small things help us enormously: a <b>review on the person's profile</b>, and a <b>rating on the App Store or Google Play</b>. A young app lives on its reviews.",
+      "Know someone who would like HoPetSit? Your referral code is in your profile: you both earn PawPoints."
+    ],
+    "cta": "Leave a review",
+    "ctaUrl": "https://www.hopetsit.com/bookings"
+  }
+}

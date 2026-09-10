@@ -1,0 +1,78 @@
+{
+  "friend": "cześć",
+  "footer": "Otrzymujesz tę wiadomość, bo masz konto HoPetSit.",
+  "unsubscribe": "Wypisz się z porad",
+  "welcome_provider_d1": {
+    "subject": "{{name}}, 3 kroki do pierwszych zgłoszeń",
+    "title": "Witaj w HoPetSit, {{name}}!",
+    "paragraphs": [
+      "Twój profil jest gotowy. Dla właścicieli liczą się trzy rzeczy: <b>Twoje zdjęcie</b> (nie zwierzaka), <b>3 linijki o Tobie</b> i <b>Twoje stawki</b>.",
+      "Kompletne, zweryfikowane profile (odznaka ✓) dostają zdecydowaną większość zgłoszeń. To 5 minut w aplikacji.",
+      "Potem otwórz PawMap: właściciele w okolicy widzą Cię bezpośrednio na mapie."
+    ],
+    "cta": "Uzupełnij profil",
+    "ctaUrl": "https://www.hopetsit.com/profile"
+  },
+  "welcome_owner_d1": {
+    "subject": "{{name}}, Twoje pierwsze ogłoszenie o opiekę jest bezpłatne",
+    "title": "Witaj w HoPetSit, {{name}}!",
+    "paragraphs": [
+      "Już teraz możesz opublikować ogłoszenie (opieka, wizyta lub spacer): opiekunowie i wyprowadzacze w okolicy zobaczą je i odpowiedzą na czacie.",
+      "Płatność jest zablokowana w aplikacji do końca usługi, a spacer możesz śledzić na żywo dzięki PawFollow.",
+      "Zajrzyj też na PawMap: miejsca przyjazne zwierzętom, członkowie w okolicy, trasy."
+    ],
+    "cta": "Opublikuj ogłoszenie",
+    "ctaUrl": "https://www.hopetsit.com/posts"
+  },
+  "profile_incomplete_d3": {
+    "subject": "{{name}}, właściciele jeszcze nie widzą Twojego profilu",
+    "title": "W Twoim profilu brakuje szczegółu",
+    "paragraphs": [
+      "Właściciel nigdy nie rezerwuje profilu bez zdjęcia, opisu lub stawki. W Twoim brakuje co najmniej jednego.",
+      "Dodaj je teraz: Twoje zdjęcie, 3 linijki o doświadczeniu ze zwierzętami i stawkę wyjściową. Zmienisz ją w każdej chwili."
+    ],
+    "cta": "Dokończ profil",
+    "ctaUrl": "https://www.hopetsit.com/profile"
+  },
+  "first_client_d7": {
+    "subject": "{{name}}, Twój pierwszy klient jest już w Twoim telefonie",
+    "title": "Pierwszy klient — w tym tygodniu",
+    "paragraphs": [
+      "Pierwsi klienci opiekuna prawie zawsze pochodzą z otoczenia: sąsiedzi, współpracownicy, znajomi z psem lub kotem.",
+      "Wyślij im link do swojego profilu HoPetSit przez WhatsApp lub Instagram. Dla nich: bezpieczna płatność i śledzenie na żywo. Dla Ciebie: pierwsza opinia i profil wyżej dla wszystkich.",
+      "Zaproponuj pierwszą opiekę w łagodnej cenie: liczy się opinia."
+    ],
+    "cta": "Udostępnij profil",
+    "ctaUrl": "https://www.hopetsit.com/profile"
+  },
+  "owner_first_request_d5": {
+    "subject": "{{name}}, kto zajmie się Twoim zwierzakiem następnym razem?",
+    "title": "Zaplanuj następną nieobecność",
+    "paragraphs": [
+      "Weekend, urlop, długi dzień pracy: opublikuj ogłoszenie kilka dni wcześniej, opiekunowie odpowiadają szybciej, gdy mają czas się zorganizować.",
+      "Publikacja jest bezpłatna. Porównaj zweryfikowane profile, porozmawiaj na czacie i rezerwuj tylko, gdy Ci to odpowiada."
+    ],
+    "cta": "Opublikuj ogłoszenie",
+    "ctaUrl": "https://www.hopetsit.com/posts"
+  },
+  "inactive_d21": {
+    "subject": "{{name}}, nowości w HoPetSit",
+    "title": "Co się zmieniło od Twojej ostatniej wizyty",
+    "paragraphs": [
+      "PawMap ma teraz trasy pieszo, rowerem lub samochodem, godziny otwarcia miejsc przyjaznych zwierzętom i bezpłatne udostępnianie lokalizacji na żywo między znajomymi.",
+      "Zweryfikowani opiekunowie i wyprowadzacze pojawiają się na mapie w Twojej okolicy. Wróć i zobacz, aplikacja mocno się rozwinęła."
+    ],
+    "cta": "Otwórz HoPetSit",
+    "ctaUrl": "https://www.hopetsit.com/pawmap"
+  },
+  "review_after_booking": {
+    "subject": "{{name}}, jak poszła opieka?",
+    "title": "Dziękujemy za korzystanie z HoPetSit",
+    "paragraphs": [
+      "Jeśli wszystko poszło dobrze, dwie drobne rzeczy bardzo nam pomagają: <b>opinia w profilu</b> tej osoby i <b>ocena w App Store lub Google Play</b>. Młoda aplikacja żyje z opinii.",
+      "Znasz kogoś, komu spodoba się HoPetSit? Twój kod polecający jest w profilu: oboje zdobywacie PawPoints."
+    ],
+    "cta": "Wystaw opinię",
+    "ctaUrl": "https://www.hopetsit.com/bookings"
+  }
+}

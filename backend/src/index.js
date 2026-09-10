@@ -122,6 +122,8 @@ async function startServer() {
     startMapTtlScheduler();
     // v23.1.288 — supprime les annonces 48h après la fin du service.
     startPostCleanupScheduler();
+    // v560 — moteur de croissance : e-mails de cycle de vie (1 passage/heure, 9h-19h Paris).
+    require('./services/lifecycleEmailScheduler').startLifecycleEmailScheduler();
   } catch (error) {
     logger.error('Failed to start server', error);
     process.exit(1);

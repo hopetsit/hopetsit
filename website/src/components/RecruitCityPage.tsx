@@ -126,6 +126,137 @@ const COPY: Record<RecruitLang, Copy> = {
     localTitle: (c) => `${c.name}에서 반려동물 돌보기`,
     inLanguage: "ko",
   },
+  // v560 — moteur de croissance : 5 langues de plus (es/de/it/pt/ja).
+  es: {
+    kicker: (c) => c.region,
+    h1: (c) => `Ser cuidador de mascotas en ${c.name} — cobra por amar a los animales`,
+    intro: (c) =>
+      `¿Estudiante, teletrabajador, jubilado o simplemente amante de los animales? En ${c.name}, dueños de perros y gatos buscan a alguien de confianza para cuidarlos mientras trabajan o viajan. HoPetSit te pone en contacto con ellos: tú fijas tus tarifas, eliges tus servicios y cobras de forma segura.`,
+    badges: ["💶 Tus tarifas, tus reglas", "📅 Tú eliges tus horarios", "✓ Insignia verificada", "🔒 Cero impagos"],
+    howTitle: "Cómo funciona",
+    steps: [
+      { t: "Crea tu perfil gratis", p: "Foto, presentación, servicios (cuidado a domicilio, visitas, paseos) y TUS tarifas: tú decides." },
+      { t: "Verifica tu identidad", p: "5 minutos en la app. La insignia ✓ tranquiliza a los dueños: los perfiles verificados reciben muchas más solicitudes." },
+      { t: "Recibe solicitudes y chatea", p: "Los dueños de tu barrio te contactan por chat. Solo aceptas lo que te conviene." },
+      { t: "Cobra con total seguridad", p: "El pago queda bloqueado en la app desde la reserva y se transfiere a tu cuenta al terminar el servicio." },
+    ],
+    faqTitle: "Preguntas frecuentes",
+    faq: (c) => [
+      { q: `¿Cuánto se puede ganar como cuidador de mascotas en ${c.name}?`, a: `En ${c.name}, los cuidados se cobran normalmente ${c.dayRate} al día y los paseos ${c.walkRate}. Con algunos clientes habituales, un extra de 300 a 600 € al mes es realista.` },
+      { q: "¿Hace falta un título o un estatus especial?", a: "No se requiere ningún título para empezar en HoPetSit: hay que querer a los animales, ser de fiar y tener 18 años o más. Para una actividad regular, infórmate sobre el alta como autónomo." },
+      { q: "¿Cuesta algo registrarse?", a: "No, el registro y el perfil son gratuitos. Solo la verificación de identidad (insignia ✓, muy recomendable) cuesta 3 €." },
+      { q: "¿Cómo protege también al cuidador el seguimiento GPS?", a: "Durante un paseo, el seguimiento PawFollow demuestra que el servicio se ha realizado, de la salida a la vuelta. Transparencia para el dueño, protección para ti." },
+    ],
+    ctaTitle: (c) => `Los primeros inscritos en ${c.name} se quedan con los mejores clientes`,
+    ctaText: (c) => `HoPetSit acaba de llegar a ${c.name}: poca competencia entre cuidadores y dueños nuevos cada semana. Es el mejor momento para crear tu perfil.`,
+    ctaBtn: "Crear mi perfil gratis",
+    localTitle: (c) => `Cuidar mascotas en ${c.name}`,
+    inLanguage: "es",
+  },
+  de: {
+    kicker: (c) => c.region,
+    h1: (c) => `Tiersitter werden in ${c.name} — bezahlt werden, weil du Tiere liebst`,
+    intro: (c) =>
+      `Student, im Homeoffice, im Ruhestand oder einfach tierlieb? In ${c.name} suchen Hunde- und Katzenhalter jemanden, dem sie ihr Tier während der Arbeit oder im Urlaub anvertrauen können. HoPetSit bringt euch zusammen: du legst deine Preise fest, wählst deine Leistungen und wirst sicher bezahlt.`,
+    badges: ["💶 Deine Preise, deine Regeln", "📅 Du wählst deine Zeiten", "✓ Verifiziert-Abzeichen", "🔒 Kein Zahlungsausfall"],
+    howTitle: "So funktioniert es",
+    steps: [
+      { t: "Kostenloses Profil anlegen", p: "Foto, Vorstellung, Leistungen (Betreuung zu Hause, Besuche, Spaziergänge) und DEINE Preise — du entscheidest." },
+      { t: "Identität verifizieren lassen", p: "5 Minuten in der App. Das ✓-Abzeichen beruhigt Halter: verifizierte Profile bekommen deutlich mehr Anfragen." },
+      { t: "Anfragen erhalten und chatten", p: "Halter aus deinem Viertel schreiben dir per Chat. Du nimmst nur an, was dir passt." },
+      { t: "Sicher bezahlt werden", p: "Die Zahlung wird bei der Buchung in der App gesperrt und nach dem Service auf dein Konto überwiesen." },
+    ],
+    faqTitle: "Häufige Fragen",
+    faq: (c) => [
+      { q: `Wie viel kann man als Tiersitter in ${c.name} verdienen?`, a: `In ${c.name} kostet eine Betreuung meist ${c.dayRate} pro Tag, ein Spaziergang ${c.walkRate}. Mit ein paar Stammkunden sind 300 bis 600 € Nebenverdienst im Monat realistisch.` },
+      { q: "Brauche ich eine Ausbildung oder einen besonderen Status?", a: "Für den Start auf HoPetSit ist keine Ausbildung nötig — du musst Tiere mögen, zuverlässig und mindestens 18 sein. Für eine regelmäßige Tätigkeit informiere dich über die Anmeldung als Kleingewerbe." },
+      { q: "Kostet die Anmeldung etwas?", a: "Nein, Anmeldung und Profil sind kostenlos. Nur die Identitätsprüfung (✓-Abzeichen, sehr empfohlen) kostet 3 €." },
+      { q: "Wie schützt das GPS-Tracking auch den Sitter?", a: "Beim Spaziergang belegt das PawFollow-Tracking, dass der Service erbracht wurde — vom Start bis zur Rückkehr. Transparenz für den Halter, Schutz für dich." },
+    ],
+    ctaTitle: (c) => `Die ersten Sitter in ${c.name} bekommen die besten Kunden`,
+    ctaText: (c) => `HoPetSit startet gerade in ${c.name}: wenig Konkurrenz unter Sittern, jede Woche neue Halter. Der beste Moment für dein Profil.`,
+    ctaBtn: "Mein kostenloses Profil anlegen",
+    localTitle: (c) => `Tiere betreuen in ${c.name}`,
+    inLanguage: "de",
+  },
+  it: {
+    kicker: (c) => c.region,
+    h1: (c) => `Diventare pet sitter a ${c.name} — farsi pagare per amare gli animali`,
+    intro: (c) =>
+      `Studente, in smart working, in pensione o semplicemente appassionato? A ${c.name}, i proprietari di cani e gatti cercano una persona di fiducia a cui affidarli durante il lavoro o le vacanze. HoPetSit vi mette in contatto: fissi le tue tariffe, scegli i tuoi servizi e vieni pagato in sicurezza.`,
+    badges: ["💶 Le tue tariffe, le tue regole", "📅 Scegli tu gli orari", "✓ Badge verificato", "🔒 Zero insoluti"],
+    howTitle: "Come funziona",
+    steps: [
+      { t: "Crea il tuo profilo gratuito", p: "Foto, presentazione, servizi (custodia a domicilio, visite, passeggiate) e LE TUE tariffe: decidi tu." },
+      { t: "Verifica la tua identità", p: "5 minuti nell'app. Il badge ✓ rassicura i proprietari: i profili verificati ricevono molte più richieste." },
+      { t: "Ricevi richieste e chatta", p: "I proprietari del tuo quartiere ti contattano in chat. Accetti solo ciò che ti va." },
+      { t: "Vieni pagato in sicurezza", p: "Il pagamento è bloccato nell'app dalla prenotazione e versato sul tuo conto a servizio concluso." },
+    ],
+    faqTitle: "Domande frequenti",
+    faq: (c) => [
+      { q: `Quanto si guadagna come pet sitter a ${c.name}?`, a: `A ${c.name}, le custodie si fatturano in genere ${c.dayRate} al giorno e le passeggiate ${c.walkRate}. Con qualche cliente abituale, un'integrazione di 300-600 € al mese è realistica.` },
+      { q: "Serve un diploma o una posizione particolare?", a: "Nessun diploma è richiesto per iniziare su HoPetSit: basta amare gli animali, essere affidabili e avere almeno 18 anni. Per un'attività regolare, informati sull'apertura di una partita IVA." },
+      { q: "L'iscrizione costa qualcosa?", a: "No, iscrizione e profilo sono gratuiti. Solo la verifica dell'identità (badge ✓, fortemente consigliata) costa 3 €." },
+      { q: "In che modo il monitoraggio GPS protegge anche il sitter?", a: "Durante una passeggiata, il monitoraggio PawFollow prova che il servizio è stato reso, dalla partenza al rientro. Trasparenza per il proprietario, protezione per te." },
+    ],
+    ctaTitle: (c) => `I primi iscritti a ${c.name} si prendono i clienti migliori`,
+    ctaText: (c) => `HoPetSit arriva ora a ${c.name}: poca concorrenza tra sitter, nuovi proprietari ogni settimana. È il momento migliore per creare il tuo profilo.`,
+    ctaBtn: "Crea il mio profilo gratuito",
+    localTitle: (c) => `Custodire animali a ${c.name}`,
+    inLanguage: "it",
+  },
+  pt: {
+    kicker: (c) => c.region,
+    h1: (c) => `Ser pet sitter em ${c.name} — ser pago por adorar animais`,
+    intro: (c) =>
+      `Estudante, em teletrabalho, reformado ou simplesmente apaixonado por animais? Em ${c.name}, donos de cães e gatos procuram alguém de confiança para cuidar deles durante o trabalho ou as férias. A HoPetSit põe-te em contacto com eles: tu defines os teus preços, escolhes os teus serviços e recebes em segurança.`,
+    badges: ["💶 Os teus preços, as tuas regras", "📅 Escolhes os teus horários", "✓ Selo verificado", "🔒 Zero calotes"],
+    howTitle: "Como funciona",
+    steps: [
+      { t: "Cria o teu perfil gratuito", p: "Foto, apresentação, serviços (cuidado ao domicílio, visitas, passeios) e OS TEUS preços: és tu que decides." },
+      { t: "Verifica a tua identidade", p: "5 minutos na app. O selo ✓ tranquiliza os donos: os perfis verificados recebem muito mais pedidos." },
+      { t: "Recebe pedidos e conversa", p: "Os donos do teu bairro contactam-te por chat. Aceitas apenas o que te convém." },
+      { t: "Recebe em total segurança", p: "O pagamento fica bloqueado na app desde a reserva e é transferido para a tua conta no fim do serviço." },
+    ],
+    faqTitle: "Perguntas frequentes",
+    faq: (c) => [
+      { q: `Quanto se pode ganhar como pet sitter em ${c.name}?`, a: `Em ${c.name}, os cuidados cobram-se normalmente ${c.dayRate} por dia e os passeios ${c.walkRate}. Com alguns clientes regulares, um extra de 300 a 600 € por mês é realista.` },
+      { q: "É preciso um diploma ou um estatuto especial?", a: "Não é preciso nenhum diploma para começar na HoPetSit: basta gostar de animais, ser de confiança e ter 18 anos ou mais. Para uma atividade regular, informa-te sobre a abertura de atividade." },
+      { q: "A inscrição custa alguma coisa?", a: "Não, a inscrição e o perfil são gratuitos. Só a verificação de identidade (selo ✓, muito recomendada) custa 3 €." },
+      { q: "Como é que o rastreio GPS também protege o cuidador?", a: "Durante um passeio, o seguimento PawFollow prova que o serviço foi prestado, da partida ao regresso. Transparência para o dono, proteção para ti." },
+    ],
+    ctaTitle: (c) => `Os primeiros inscritos em ${c.name} ficam com os melhores clientes`,
+    ctaText: (c) => `A HoPetSit está a chegar a ${c.name}: pouca concorrência entre cuidadores, novos donos todas as semanas. É a melhor altura para criares o teu perfil.`,
+    ctaBtn: "Criar o meu perfil gratuito",
+    localTitle: (c) => `Cuidar de animais em ${c.name}`,
+    inLanguage: "pt",
+  },
+  ja: {
+    kicker: (c) => c.region,
+    h1: (c) => `${c.name}でペットシッターになる — 動物が好きなことでお金を得る`,
+    intro: (c) =>
+      `学生、在宅ワーカー、リタイア後の方、あるいは単に動物好きの方へ。${c.name}では、仕事や旅行の間に犬や猫を安心して任せられる人を、飼い主さんが探しています。HoPetSitがあなたと飼い主さんをつなぎます。料金は自分で決め、サービスを選び、安全に報酬を受け取れます。`,
+    badges: ["💴 料金はあなたが決める", "📅 時間もあなたが決める", "✓ 認証バッジ", "🔒 未払いゼロ"],
+    howTitle: "仕組み",
+    steps: [
+      { t: "無料でプロフィールを作成", p: "写真、自己紹介、提供サービス（在宅でのお世話、訪問、散歩）と、あなたの料金。すべてあなたが決めます。" },
+      { t: "本人確認を受ける", p: "アプリで5分。✓バッジは飼い主さんを安心させ、認証済みプロフィールははるかに多くの依頼を受けます。" },
+      { t: "依頼を受けてチャット", p: "近所の飼い主さんがチャットで連絡してきます。引き受けるのは、あなたに合う依頼だけ。" },
+      { t: "安全に報酬を受け取る", p: "予約時にお支払いがアプリ内で保管され、サービス完了後にあなたの口座へ振り込まれます。" },
+    ],
+    faqTitle: "よくある質問",
+    faq: (c) => [
+      { q: `${c.name}でペットシッターはどのくらい稼げますか？`, a: `${c.name}では、お世話は1日あたり${c.dayRate}、散歩は${c.walkRate}が一般的です。常連が数人いれば、月3〜6万円ほどの副収入が現実的です。` },
+      { q: "資格や特別な手続きは必要ですか？", a: "HoPetSitを始めるのに資格は不要です。動物が好きで、責任感があり、18歳以上であれば大丈夫。継続的に行う場合は、開業届などについて調べてみてください。" },
+      { q: "登録に費用はかかりますか？", a: "いいえ、登録もプロフィール作成も無料です。本人確認（✓バッジ、強くおすすめ）のみ3ユーロです。" },
+      { q: "GPS追跡はシッターも守ってくれますか？", a: "散歩中のPawFollow追跡は、出発から帰宅までサービスが確かに行われたことを証明します。飼い主さんには透明性を、あなたには安心を。" },
+    ],
+    ctaTitle: (c) => `${c.name}の最初のシッターが、いちばん良いお客様と出会えます`,
+    ctaText: (c) => `HoPetSitは${c.name}で始まったばかり。シッター同士の競争は少なく、毎週新しい飼い主さんが登録しています。プロフィールを作るなら今です。`,
+    ctaBtn: "無料でプロフィールを作る",
+    localTitle: (c) => `${c.name}でペットのお世話をする`,
+    inLanguage: "ja",
+  },
 };
 
 export function recruitMetadata(c: RecruitCity, canonical: string) {
@@ -134,6 +265,11 @@ export function recruitMetadata(c: RecruitCity, canonical: string) {
     c.lang === "fr" ? `Devenir pet sitter à ${c.name} — HoPetSit`
     : c.lang === "en" ? `Become a pet sitter in ${c.name} — HoPetSit`
     : c.lang === "pl" ? `Zostań opiekunem zwierząt — ${c.name} — HoPetSit`
+    : c.lang === "es" ? `Ser cuidador de mascotas en ${c.name} — HoPetSit`
+    : c.lang === "de" ? `Tiersitter werden in ${c.name} — HoPetSit`
+    : c.lang === "it" ? `Diventare pet sitter a ${c.name} — HoPetSit`
+    : c.lang === "pt" ? `Ser pet sitter em ${c.name} — HoPetSit`
+    : c.lang === "ja" ? `${c.name}でペットシッターになる — HoPetSit`
     : `${c.name} 펫시터 되기 — HoPetSit`;
   return {
     title,

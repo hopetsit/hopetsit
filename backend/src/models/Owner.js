@@ -52,6 +52,8 @@ const ownerSchema = new mongoose.Schema(
     service: { type: [String], default: [] },
     verified: { type: Boolean, default: false },
     isStaff: { type: Boolean, default: false, index: true },
+    // v560 — opt-out des e-mails de cycle de vie (lien de désabonnement).
+    marketingOptOut: { type: Boolean, default: false },
     // External authentication information
     firebaseUid: { type: String, default: null, index: true },
     authProvider: { type: String, enum: ['password', 'google', 'apple'], default: 'password' },

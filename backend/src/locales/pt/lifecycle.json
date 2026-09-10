@@ -1,0 +1,78 @@
+{
+  "friend": "olá",
+  "footer": "Recebes este e-mail porque tens uma conta HoPetSit.",
+  "unsubscribe": "Cancelar as dicas",
+  "welcome_provider_d1": {
+    "subject": "{{name}}, 3 gestos para receberes os primeiros pedidos",
+    "title": "Bem-vindo à HoPetSit, {{name}}!",
+    "paragraphs": [
+      "O teu perfil está criado. Três coisas fazem a diferença para os donos: <b>uma foto tua</b> (não do teu animal), <b>uma apresentação de 3 linhas</b> e <b>os teus preços</b>.",
+      "Os perfis completos e verificados (selo ✓) recebem a grande maioria dos pedidos. Demora 5 minutos na app.",
+      "Depois abre o PawMap: os donos perto de ti veem-te diretamente no mapa."
+    ],
+    "cta": "Completar o meu perfil",
+    "ctaUrl": "https://www.hopetsit.com/profile"
+  },
+  "welcome_owner_d1": {
+    "subject": "{{name}}, o teu primeiro pedido de cuidado é grátis",
+    "title": "Bem-vindo à HoPetSit, {{name}}!",
+    "paragraphs": [
+      "Podes publicar já um pedido (cuidado, visita ou passeio): os cuidadores e passeadores perto de ti veem-no e respondem por chat.",
+      "O pagamento fica bloqueado na app até ao fim do serviço, e podes seguir o passeio ao vivo com o PawFollow.",
+      "Espreita também o PawMap: locais pet-friendly, membros perto de ti, itinerários."
+    ],
+    "cta": "Publicar o meu pedido",
+    "ctaUrl": "https://www.hopetsit.com/posts"
+  },
+  "profile_incomplete_d3": {
+    "subject": "{{name}}, os donos ainda não veem o teu perfil",
+    "title": "Falta um detalhe no teu perfil",
+    "paragraphs": [
+      "Um dono nunca reserva um perfil sem foto, sem apresentação ou sem preço. Ao teu falta pelo menos um.",
+      "Acrescenta-os agora: uma foto tua, 3 linhas sobre a tua experiência com animais e um preço inicial. Podes ajustá-lo a qualquer momento."
+    ],
+    "cta": "Terminar o meu perfil",
+    "ctaUrl": "https://www.hopetsit.com/profile"
+  },
+  "first_client_d7": {
+    "subject": "{{name}}, o teu primeiro cliente já está no teu telemóvel",
+    "title": "O teu primeiro cliente, esta semana",
+    "paragraphs": [
+      "Os primeiros clientes de um pet sitter vêm quase sempre de quem já conhece: vizinhos, colegas, amigos com cão ou gato.",
+      "Envia-lhes o link do teu perfil HoPetSit por WhatsApp ou Instagram. Para eles: pagamento seguro e seguimento ao vivo. Para ti: uma primeira avaliação, e o teu perfil sobe para todos.",
+      "Propõe um primeiro cuidado a um preço suave: o que conta é a avaliação."
+    ],
+    "cta": "Partilhar o meu perfil",
+    "ctaUrl": "https://www.hopetsit.com/profile"
+  },
+  "owner_first_request_d5": {
+    "subject": "{{name}}, quem cuida do teu animal da próxima vez?",
+    "title": "Antecipa a próxima ausência",
+    "paragraphs": [
+      "Fim de semana, férias, dia de trabalho longo: publica o pedido uns dias antes, os cuidadores respondem mais depressa quando têm tempo para se organizar.",
+      "Publicar é grátis. Comparas os perfis verificados, conversas por chat e só reservas se te convencer."
+    ],
+    "cta": "Publicar um pedido",
+    "ctaUrl": "https://www.hopetsit.com/posts"
+  },
+  "inactive_d21": {
+    "subject": "{{name}}, novidades na HoPetSit",
+    "title": "O que mudou desde a tua última visita",
+    "paragraphs": [
+      "O PawMap oferece agora itinerários a pé, de bicicleta ou de carro, os horários dos locais pet-friendly e a partilha de localização ao vivo entre amigos, grátis.",
+      "Os cuidadores e passeadores verificados aparecem no mapa perto de ti. Volta a dar uma vista de olhos, a app avançou bastante."
+    ],
+    "cta": "Abrir a HoPetSit",
+    "ctaUrl": "https://www.hopetsit.com/pawmap"
+  },
+  "review_after_booking": {
+    "subject": "{{name}}, como correu o cuidado?",
+    "title": "Obrigado por usares a HoPetSit",
+    "paragraphs": [
+      "Se correu tudo bem, duas pequenas coisas ajudam-nos imenso: uma <b>avaliação no perfil</b> da pessoa e uma <b>classificação na App Store ou no Google Play</b>. Uma app jovem vive das suas avaliações.",
+      "Conheces alguém que gostaria da HoPetSit? O teu código de referência está no teu perfil: ganham os dois PawPoints."
+    ],
+    "cta": "Deixar uma avaliação",
+    "ctaUrl": "https://www.hopetsit.com/bookings"
+  }
+}
