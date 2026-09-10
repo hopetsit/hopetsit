@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 const LANG_ORDER: RecruitLang[] = ["fr", "en", "es", "de", "it", "pt", "pl", "ko", "ja"];
 const LANG_LABEL: Record<RecruitLang, { flag: string; name: string; owner: string; recruit: string }> = {
   fr: { flag: "🇫🇷", name: "France", owner: "Trouver un pet sitter", recruit: "Devenir pet sitter" },
-  en: { flag: "🇺🇸", name: "United States", owner: "Find a pet sitter", recruit: "Become a pet sitter" },
+  en: { flag: "🌍", name: "USA · United Kingdom · Europe (English)", owner: "Find a pet sitter", recruit: "Become a pet sitter" },
   es: { flag: "🇪🇸", name: "España", owner: "Encontrar un cuidador", recruit: "Ser cuidador" },
   de: { flag: "🇩🇪", name: "Deutschland", owner: "Tiersitter finden", recruit: "Tiersitter werden" },
   it: { flag: "🇮🇹", name: "Italia", owner: "Trovare un pet sitter", recruit: "Diventare pet sitter" },

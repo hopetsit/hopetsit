@@ -64,9 +64,9 @@ const COPY: Record<RecruitLang, Copy> = {
     ],
     faqTitle: "Frequently asked questions",
     faq: (c) => [
-      { q: `How much can a pet sitter earn in ${c.name}?`, a: `In ${c.name}, sitting typically pays ${c.dayRate} per day and walks ${c.walkRate}. With a few regular clients, $400–800 a month on the side is realistic.` },
+      { q: `How much can a pet sitter earn in ${c.name}?`, a: `In ${c.name}, sitting typically pays ${c.dayRate} per day and walks ${c.walkRate}. With a few regular clients, ${c.dayRate.startsWith("$") ? "$400–800" : c.dayRate.startsWith("£") ? "£300–600" : "€300–600"} a month on the side is realistic.` },
       { q: "Do I need a license or certification?", a: "No certification is required to start on HoPetSit — you need to love animals, be reliable and be 18 or older." },
-      { q: "Does it cost anything to sign up?", a: "No. Signing up and creating your profile is free. Only identity verification (the ✓ badge, strongly recommended) costs $3." },
+      { q: "Does it cost anything to sign up?", a: `No. Signing up and creating your profile is free. Only identity verification (the ✓ badge, strongly recommended) costs ${c.dayRate.startsWith("$") ? "$3" : c.dayRate.startsWith("£") ? "£3" : "€3"}.` },
       { q: "How does GPS tracking protect the sitter too?", a: "During a walk, PawFollow tracking proves the service was delivered from start to finish. Transparency for the owner, protection for you." },
     ],
     ctaTitle: (c) => `Early sitters in ${c.name} get the best clients`,

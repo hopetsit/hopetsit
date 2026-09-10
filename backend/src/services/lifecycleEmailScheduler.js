@@ -26,10 +26,10 @@ const LifecycleEmail = require('../models/LifecycleEmail');
  *   profile_incomplete_d3 — prestataire à J+3 sans photo, présentation ou tarif.
  *   first_client_d7       — prestataire à J+7 sans réservation : amener son 1er client.
  *   owner_first_request_d5 — propriétaire à J+5 sans annonce ni réservation.
- *   inactive_d21          — compte de 3 semaines sans activité depuis 14 jours.
  *   review_after_booking  — 2 à 6 jours après une réservation terminée : avis + parrainage.
  *
- * Garde-fous : comptes test (+test / hopetsit@ / dadaciao84@) et staff exclus ;
+ * Garde-fous : seulement les comptes créés après LIFECYCLE_SINCE (10/09/2026),
+ * 6 jours minimum entre deux relances ; comptes test (+test / hopetsit@ / dadaciao84@) et staff exclus ;
  * opt-out via GET /lifecycle/unsubscribe (jeton HMAC) ; envoi uniquement
  * entre 9 h et 19 h (Paris) ; 1 e-mail max par compte et par passage ;
  * plafond global par passage (LIFECYCLE_MAX_PER_RUN, 15) ; désactivable par
@@ -37,6 +37,13 @@ const LifecycleEmail = require('../models/LifecycleEmail');
  */
 
 const HOUR_MS = 60 * 60 * 1000;
+// v560 — Daniel : « surtout pas harceler les clients par mail, DE NOUVEAUX
+// utilisateurs ». Les relances ne concernent que les comptes créés après la
+// mise en service ; les anciens comptes ne reçoivent rien (sauf l'avis après
+// une réservation terminée, qui suit un vrai service).
+const LIFECYCLE_SINCE = new Date(process.env.LIFECYCLE_SINCE || '2026-09-10T00:00:00Z');
+// Fréquence : jamais deux relances à moins de 6 jours d'intervalle par compte.
+const MIN_GAP_MS = 6 * 24 * HOUR_MS;
 const DAY_MS = 24 * HOUR_MS;
 const SITE = 'https://www.hopetsit.com';
 const API_BASE = process.env.PUBLIC_API_URL || 'https://hopetsit-backend.onrender.com/api/v1';
@@ -160,6 +167,7 @@ async function runLifecycleOnce({ max = Number(process.env.LIFECYCLE_MAX_PER_RUN
     const key = `${role}:${user._id}`;
     if (!budgetLeft() || touched.has(key)) return;
     if (await LifecycleEmail.exists({ userId: user._id, role, step, refId })) return;
+    if (await LifecycleEmail.exists({ userId: user._id, role, skipped: false, sentAt: { $gte: new Date(now - MIN_GAP_MS) } })) return;
     if (!(await cond())) return;
     touched.add(key);
     if (await deliver({ user, role, step, refId, vars })) sent += 1;
@@ -167,7 +175,7 @@ async function runLifecycleOnce({ max = Number(process.env.LIFECYCLE_MAX_PER_RUN
 
   for (const role of ['sitter', 'walker', 'owner']) {
     const Model = modelFor(role);
-    const users = await Model.find({ ...baseFilter, createdAt: { $lte: new Date(now - 20 * HOUR_MS) } })
+    const users = await Model.find({ ...baseFilter, createdAt: { $lte: new Date(now - 20 * HOUR_MS), $gte: LIFECYCLE_SINCE } })
       .select('name email appLocale language isStaff marketingOptOut avatar bio hourlyRate dailyRate walkRates createdAt updatedAt referralCode')
       .sort({ createdAt: -1 }).limit(2000).lean();
     for (const u of users) {
@@ -187,9 +195,6 @@ async function runLifecycleOnce({ max = Number(process.env.LIFECYCLE_MAX_PER_RUN
       if (!isProvider && age >= 5 * DAY_MS && age < 60 * DAY_MS) {
         await consider(u, role, 'owner_first_request_d5', async () =>
           (await Post.countDocuments({ ownerId: u._id })) === 0 && (await bookingCountFor(role, u._id)) === 0);
-      }
-      if (age >= 21 * DAY_MS && now - new Date(u.updatedAt || u.createdAt).getTime() >= 14 * DAY_MS) {
-        await consider(u, role, 'inactive_d21', async () => true);
       }
     }
   }
