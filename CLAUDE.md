@@ -88,6 +88,17 @@ l'acquisition/activation.
   articles/semaine (FR Paris + langue en rotation ISO mod 8), préfixes des 9
   langues, section « 4. Langue du jour » du fichier social, **IndexNow** des 2
   URLs (clé lue dans `website/public/<hex>.txt`).
+- **Retour Daniel (soir)** : « toute l'Europe et les USA, surtout Paris, surtout
+  pas harceler par mail, de NOUVEAUX utilisateurs » → relances réservées aux
+  comptes créés après `LIFECYCLE_SINCE` (10/09/2026), étape « inactif »
+  supprimée, 6 jours minimum entre deux relances. Villes : **258** (≈ 520 pages
+  villes) — 60 en Île-de-France (Paris d'abord), 37 en France, Belgique/Suisse/
+  Luxembourg/Monaco en français, DE/AT/CH, IT, ES, PT, PL, et 35 villes d'Europe
+  en anglais (Londres, Dublin, Amsterdam, Copenhague, Prague…), 45 aux USA (dont
+  celles où des sitters existent déjà : St. Louis, Honolulu, Naples FL, Decatur
+  GA). Copie EN sensible à la devise. Hub `/villes` : section EN = « USA ·
+  United Kingdom · Europe (English) ». ⚠️ `sitemap.xml` est mis en cache par
+  Vercel : lire avec `?nocache=<ts>` avant IndexNow.
 - À surveiller : logs Render `[lifecycle]`, Search Console (nouveaux préfixes),
   `website/marketing/reports/`. Prochaines idées : fiche pro commerces (option
   B), hubs par pays, relances SMS (pas de canal).
