@@ -60,6 +60,38 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 
 **Prochain build APK/AAB = 563** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
+**10/09 — v560 « MOTEUR DE CROISSANCE AUTONOME » (mission Daniel : « crée du
+trafic et des clients, des choses que tu feras seul »)** — mémoire détaillée :
+`hopetsit_growth_engine.md`. Décision : plus de fonctionnalités app, tout à
+l'acquisition/activation.
+- **E-mails de cycle de vie** (`backend/src/services/lifecycleEmailScheduler.js`,
+  démarré dans index.js, 1 passage/heure 9 h-19 h Paris, 15 max/passage) :
+  `welcome_provider_d1` / `welcome_owner_d1` (20 h → 7 j), `profile_incomplete_d3`
+  (prestataire sans photo/bio ≥ 20 car./tarif), `first_client_d7` (0 réservation),
+  `owner_first_request_d5` (0 annonce, 0 réservation), `inactive_d21` (updatedAt
+  ≥ 14 j), `review_after_booking` (réservation `completed` il y a 2-6 j, les deux
+  côtés). Textes : `locales/<lang>/lifecycle.json` ×9 (`{{name}}` = prénom
+  capitalisé). Traçage : modèle `LifecycleEmail` (index unique user/role/step/ref).
+  Exclusions : `+test`, hopetsit@, dadaciao84@, jandoe, staff, `marketingOptOut`
+  (nouveau champ Owner/Sitter/Walker). Désabonnement : `GET /api/v1/lifecycle/
+  unsubscribe?r&u&t` (HMAC JWT_SECRET) → page HTML. `LIFECYCLE_EMAILS=off` coupe
+  tout ; `LIFECYCLE_DRY_RUN=1` journalise sans rien écrire (testé sur la base dev :
+  6 relances « inactif »). `POST /lifecycle/run` protégé par `LIFECYCLE_ADMIN_KEY`.
+- **Pages villes** : 47 → **152** (76 villes × recrutement + propriétaires, 9
+  langues). Données : `recruit-cities.ts` (+ `OWNER_PATH_PREFIX`, `ownerPaths()`),
+  composants `RecruitCityPage` (5 langues ajoutées) et `OwnerCityPage` (nouveau,
+  JSON-LD Service + FAQPage), 18 dossiers `src/app/<préfixe>/[city]`, liens
+  croisés, hub `/villes` (pied de page `footer_cities`), sitemap auto.
+  ⚠️ Slugs allemands sans umlaut (`muenchen`, `koeln`) ; Alicante mentionne
+  Dénia/Jávea (zone du testeur espagnol).
+- **Routine cloud dimanche** (`trig_01BpzyjaJz7SPDgPFCdjinQM`) réécrite : 2
+  articles/semaine (FR Paris + langue en rotation ISO mod 8), préfixes des 9
+  langues, section « 4. Langue du jour » du fichier social, **IndexNow** des 2
+  URLs (clé lue dans `website/public/<hex>.txt`).
+- À surveiller : logs Render `[lifecycle]`, Search Console (nouveaux préfixes),
+  `website/marketing/reports/`. Prochaines idées : fiche pro commerces (option
+  B), hubs par pays, relances SMS (pas de canal).
+
 **08/09 — v559 « itinéraire 3 modes + virages, horaires des lieux, FR en dur »**
 (retours du testeur espagnol de Daniel + option A validée)
 - ⚠️ **Le serveur OSRM public ignore le profil** (vérifié : `foot`, `bike`,

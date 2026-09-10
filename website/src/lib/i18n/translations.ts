@@ -111,6 +111,7 @@ export const t: Bundle = {
     footer_about:       "About",
     footer_legal:       "Legal",
     footer_help:        "Help",
+    footer_cities: "Cities",
     footer_contact:     "Contact",
     footer_terms:       "Terms of Service",
     footer_privacy:     "Privacy policy",
@@ -930,6 +931,7 @@ export const t: Bundle = {
     footer_about:       "À propos",
     footer_legal:       "Mentions",
     footer_help:        "Aide",
+    footer_cities: "Villes",
     footer_contact:     "Contact",
     footer_terms:       "Conditions générales",
     footer_privacy:     "Confidentialité",
@@ -1651,6 +1653,7 @@ export const t: Bundle = {
   },
 
   es: {
+    footer_cities: "Ciudades",
     nav_how: "Cómo funciona", nav_pricing: "Precios", nav_pawmap: "PawMap",
     nav_faq: "FAQ", nav_contact: "Contacto", nav_login: "Iniciar sesión",
     nav_signup: "Registrarse", nav_download: "Descargar app",
@@ -2337,6 +2340,7 @@ export const t: Bundle = {
   },
 
   de: {
+    footer_cities: "Städte",
     nav_how: "So funktioniert's", nav_pricing: "Preise", nav_pawmap: "PawMap",
     nav_faq: "FAQ", nav_contact: "Kontakt", nav_login: "Anmelden",
     nav_signup: "Registrieren", nav_download: "App herunterladen",
@@ -3022,6 +3026,7 @@ export const t: Bundle = {
   },
 
   it: {
+    footer_cities: "Città",
     nav_how: "Come funziona", nav_pricing: "Prezzi", nav_pawmap: "PawMap",
     nav_faq: "FAQ", nav_contact: "Contatti", nav_login: "Accedi",
     nav_signup: "Registrati", nav_download: "Scarica l'app",
@@ -3707,6 +3712,7 @@ export const t: Bundle = {
   },
 
   pt: {
+    footer_cities: "Cidades",
     nav_how: "Como funciona", nav_pricing: "Preços", nav_pawmap: "PawMap",
     nav_faq: "FAQ", nav_contact: "Contacto", nav_login: "Entrar",
     nav_signup: "Registar", nav_download: "Descarregar app",
@@ -4470,6 +4476,7 @@ export const t: Bundle = {
     footer_about: "소개",
     footer_legal: "법률 정보",
     footer_help: "도움말",
+    footer_cities: "도시",
     footer_contact: "문의",
     footer_terms: "이용약관",
     footer_privacy: "개인정보 처리방침",
@@ -5258,6 +5265,7 @@ export const t: Bundle = {
     footer_about: "HoPetSit について",
     footer_legal: "法的事項",
     footer_help: "ヘルプ",
+    footer_cities: "都市",
     footer_contact: "お問い合わせ",
     footer_terms: "利用規約",
     footer_privacy: "プライバシーポリシー",
@@ -6038,6 +6046,7 @@ export const t: Bundle = {
     footer_about: "O nas",
     footer_legal: "Informacje prawne",
     footer_help: "Pomoc",
+    footer_cities: "Miasta",
     footer_contact: "Kontakt",
     footer_terms: "Regulamin",
     footer_privacy: "Polityka prywatności",

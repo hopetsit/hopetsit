@@ -42,6 +42,7 @@ const PUBLIC_PATHS = [
   "/devenir-petsitter/paris",
   "/petsitter/madrid",
   "/petsitter/dallas",
+  "/villes",
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

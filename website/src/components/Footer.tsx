@@ -58,6 +58,8 @@ export function Footer() {
         { href: "/how-it-works", label: t("nav_how") },
         { href: "/pricing",      label: t("nav_pricing") },
         { href: "/pawmap",       label: t("nav_pawmap") },
+        // v560 — hub des 152 pages villes (SEO).
+        { href: "/villes",       label: t("footer_cities") },
       ],
     },
     {
