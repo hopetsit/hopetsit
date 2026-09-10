@@ -99,6 +99,12 @@ l'acquisition/activation.
   GA). Copie EN sensible à la devise. Hub `/villes` : section EN = « USA ·
   United Kingdom · Europe (English) ». ⚠️ `sitemap.xml` est mis en cache par
   Vercel : lire avec `?nocache=<ts>` avant IndexNow.
+- **Commerces partenaires** (validé par Daniel « il faut tout essayer ») :
+  27 vétérinaires/animaleries/toiletteurs de Paris contactés le 10/09 avec une
+  affiche A4 à leur nom (`website/public/affiches/<slug>.pdf`, QR
+  `?ref=<slug>`). Outils dans `~/hopetsit-social/` (`affiche_commerce.py`,
+  `envoi_partenaires.py`, `partenaires_paris.json` = statuts). Réponses sur
+  hopetsit@gmail.com. Vague 2 = petite couronne. Pas de relance automatique.
 - À surveiller : logs Render `[lifecycle]`, Search Console (nouveaux préfixes),
   `website/marketing/reports/`. Prochaines idées : fiche pro commerces (option
   B), hubs par pays, relances SMS (pas de canal).
