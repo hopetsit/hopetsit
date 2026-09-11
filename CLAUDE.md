@@ -58,13 +58,14 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 563** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 564** (563 = IPA seule, v560, fiches stores ; 555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
 **11/09 — FICHES STORES 8 LANGUES (pack `HoPetSit-Apple-GooglePlay-Complet.zip`, visuels
 promotionnels FR/EN/ES/IT/DE/PT/NL/PL : 5 captures + 1 bannière Play par langue).**
 - **App Store** : la 1.15/562 était déjà APPROUVÉE (READY_FOR_DISTRIBUTION) → **version 1.16
-  créée en brouillon (id `5b51e075-ff9d-4f1d-b716-987dc4c087a8`)**, elle partira avec le
-  **build 563**. 6 nouvelles localisations créées (es-ES, it, de-DE, pt-PT, nl-NL, pl) : nom +
+  créée (id `5b51e075-ff9d-4f1d-b716-987dc4c087a8`), build 563 (v560, aucun changement de
+  code, IPA seule) distribué par Transporter, attaché, soumise → WAITING_FOR_REVIEW le 11/09
+  ~14:45**. 6 nouvelles localisations créées (es-ES, it, de-DE, pt-PT, nl-NL, pl) : nom +
   sous-titre (appInfoLocalizations de l'appInfo éditable `be4aeeaa-…`), description, mots-clés,
   whatsNew, URLs. ⚠️ Créer une appInfoLocalization crée AUSSI la appStoreVersionLocalization
   (POST = 409 DUPLICATE → PATCH). 40 captures 1320×2868 uploadées par API depuis l'onglet ASC
