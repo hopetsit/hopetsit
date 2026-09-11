@@ -60,6 +60,27 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 
 **Prochain build APK/AAB = 563** (555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
+**11/09 — FICHES STORES 8 LANGUES (pack `HoPetSit-Apple-GooglePlay-Complet.zip`, visuels
+promotionnels FR/EN/ES/IT/DE/PT/NL/PL : 5 captures + 1 bannière Play par langue).**
+- **App Store** : la 1.15/562 était déjà APPROUVÉE (READY_FOR_DISTRIBUTION) → **version 1.16
+  créée en brouillon (id `5b51e075-ff9d-4f1d-b716-987dc4c087a8`)**, elle partira avec le
+  **build 563**. 6 nouvelles localisations créées (es-ES, it, de-DE, pt-PT, nl-NL, pl) : nom +
+  sous-titre (appInfoLocalizations de l'appInfo éditable `be4aeeaa-…`), description, mots-clés,
+  whatsNew, URLs. ⚠️ Créer une appInfoLocalization crée AUSSI la appStoreVersionLocalization
+  (POST = 409 DUPLICATE → PATCH). 40 captures 1320×2868 uploadées par API depuis l'onglet ASC
+  (set `APP_IPHONE_67` par locale, anciens sets 6,5" supprimés), toutes `COMPLETE`, md5 vérifiés.
+  Textes : `scratchpad/store_texts.json` (copie ci-dessous dans la mémoire si besoin).
+- **Google Play** : titres posés dans la console (fr « HoPetSit : Garde d'animaux », es « Cuidado
+  de mascotas », it/pt « Pet Sitting », de « Tierbetreuung ») — le sélecteur de langue et
+  « Save » ACCEPTENT les événements synthétiques (pointer+Enter sur `language-control
+  div[role=button]`, item `material-select-dropdown-item`, champ via setter natif + InputEvent
+  + keyup). ⚠️ L'import d'images et « Manage translations → Select languages » REFUSENT le
+  script : il faut l'extension Claude in Chrome, qui doit être autorisée sur `play.google.com`.
+  Fiches NL/PL Play (textes prêts dans store_texts.json) + 40 captures + 8 bannières = à faire
+  via l'extension.
+- **Transfert de propriété Play → contact@hopetsit.com** : session u/4 = contact@hopetsit.com ;
+  formulaire « Complete account details » = codes SMS/e-mail → Daniel, avant le 08/10.
+
 **10/09 — v560 « MOTEUR DE CROISSANCE AUTONOME » (mission Daniel : « crée du
 trafic et des clients, des choses que tu feras seul »)** — mémoire détaillée :
 `hopetsit_growth_engine.md`. Décision : plus de fonctionnalités app, tout à
