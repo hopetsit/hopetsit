@@ -70,16 +70,24 @@ promotionnels FR/EN/ES/IT/DE/PT/NL/PL : 5 captures + 1 bannière Play par langue
   (POST = 409 DUPLICATE → PATCH). 40 captures 1320×2868 uploadées par API depuis l'onglet ASC
   (set `APP_IPHONE_67` par locale, anciens sets 6,5" supprimés), toutes `COMPLETE`, md5 vérifiés.
   Textes : `scratchpad/store_texts.json` (copie ci-dessous dans la mémoire si besoin).
-- **Google Play** : titres posés dans la console (fr « HoPetSit : Garde d'animaux », es « Cuidado
-  de mascotas », it/pt « Pet Sitting », de « Tierbetreuung ») — le sélecteur de langue et
-  « Save » ACCEPTENT les événements synthétiques (pointer+Enter sur `language-control
-  div[role=button]`, item `material-select-dropdown-item`, champ via setter natif + InputEvent
-  + keyup). ⚠️ L'import d'images et « Manage translations → Select languages » REFUSENT le
-  script : il faut l'extension Claude in Chrome, qui doit être autorisée sur `play.google.com`.
-  Fiches NL/PL Play (textes prêts dans store_texts.json) + 40 captures + 8 bannières = à faire
-  via l'extension.
-- **Transfert de propriété Play → contact@hopetsit.com** : session u/4 = contact@hopetsit.com ;
-  formulaire « Complete account details » = codes SMS/e-mail → Daniel, avant le 08/10.
+- **Google Play — FAIT PAR L'API Android Publisher (fin des clics dans la console).** 8 fiches
+  (en-GB, fr-FR, es-ES, it-IT, de-DE, pt-PT + **nl-NL et pl-PL créées**), titres localisés
+  (fr « HoPetSit : Garde d'animaux », es « Cuidado de mascotas », it/pt « Pet Sitting »,
+  de « Tierbetreuung », nl « Dierenoppas », pl « Opieka i spacery »), 5 captures + 1 bannière
+  par langue, commit 200 → changements envoyés en examen automatiquement.
+  **Méthode** : compte de service `play-publisher@lawstravels-6cce1.iam.gserviceaccount.com`
+  (déjà utilisateur du compte développeur ; Daniel lui a donné le droit de publier sur HoPetSit
+  le 11/09), clé JSON dans **`~/.hopetsit_play_sa.json` (chmod 600, jamais dans le code)**,
+  script **`~/hopetsit-social/play/play_listing_api.py`** (venv google-auth + requests ;
+  `--dry-run`, `--only-langs`), textes `store_texts.json`, pack `storezip/`. Pièges : 503
+  passagers (réessais), `validate`/`commit` = 403 tant que le SA n'a pas « Publier des versions
+  en production » ; un edit vit ~2 h. Les uploads d'AAB peuvent passer par la même voie
+  (`edits/bundles` + `tracks/production`). ⚠️ Dans la console, le sélecteur de langue + « Save »
+  acceptent les événements synthétiques, mais l'import d'images, « Select languages » et
+  « Submit N changes » les refusent ; l'extension Claude in Chrome refuse `play.google.com`
+  (et google.com) dans les DEUX Chrome → ne plus essayer.
+- **Transfert de propriété Play → contact@hopetsit.com : FAIT par Daniel le 11/09** (mail Google
+  « The owner of this developer account has been successfully changed »).
 
 **10/09 — v560 « MOTEUR DE CROISSANCE AUTONOME » (mission Daniel : « crée du
 trafic et des clients, des choses que tu feras seul »)** — mémoire détaillée :
