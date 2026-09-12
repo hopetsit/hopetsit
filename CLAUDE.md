@@ -78,6 +78,11 @@ pleine) → toutes les pages qui les référencent sont à jour. **Captures** : 
 Méthode EN : `simctl spawn booted defaults write .GlobalPreferences AppleLanguages -array en-US
 en` + `AppleLocale en_US` + reboot, l'app suit la langue du téléphone ; remis en fr_FR ensuite.
 ⚠️ `/boutique` et `/dashboard` exigent une session : vérifiés par `tsc` seulement.
+2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
+bannière de rôle unie, cartes PawMap / Réservations gris clair, NavCard sans bordure, promo
+noir) et `/map` (bandeaux, chips catégorie noir/gris, fiche lieu, chip PawPremium) au même
+style ; galerie « L'app en images » = carte, alertes, accueil, profil, boutique, itinéraire
+(le doublon Boutique/Premium est retiré).
 
 **12/09 — v561 / build 564 « NOTIFICATIONS DIRECT DANS L'APP + MISE À JOUR AUTO + PAWMAP »
 (14 points de Daniel, liste validée avant de commencer).**
