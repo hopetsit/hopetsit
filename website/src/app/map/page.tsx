@@ -1066,7 +1066,7 @@ export default function MapPage() {
         </div>
         <form
           onSubmit={handleCitySearch}
-          className="flex items-center gap-2 rounded-full border border-ink/10 bg-white p-1.5 pl-4 shadow-sm"
+          className="flex items-center gap-2 rounded-full bg-[#F5F5F7] p-1.5 pl-4"
         >
           <span aria-hidden>📍</span>
           <input
@@ -1078,7 +1078,7 @@ export default function MapPage() {
           <button
             type="submit"
             disabled={citySearching || !cityQuery.trim()}
-            className="rounded-full bg-owner px-4 py-2 text-sm font-bold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-full bg-[#1D1D1F] px-4 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
           >
             {citySearching ? "…" : `🔍 ${t("map_search_city_btn")}`}
           </button>
@@ -1099,33 +1099,28 @@ export default function MapPage() {
         <button
           type="button"
           onClick={() => openCreate("report")}
-          className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:brightness-110"
-          style={{ backgroundColor: "#e5342a" }}
+          className="inline-flex items-center gap-1.5 rounded-full bg-owner px-4 py-2 text-sm font-semibold text-white transition hover:bg-owner-dark"
         >
           ⚠️ {t("map_report_cta")}
         </button>
         <button
           type="button"
           onClick={() => setShowReports((v) => !v)}
-          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition hover:brightness-105 ${showReports ? "ring-2 ring-offset-1" : ""}`}
-          style={{ backgroundColor: "#fbe4e1", color: "#c0352b" }}
+          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${showReports ? "bg-[#1D1D1F] text-white" : "bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"}`}
         >
           👁 {t("map_reports_chip")}
         </button>
-        <span className="h-6 w-px bg-ink/15" aria-hidden />
         <button
           type="button"
           onClick={() => openCreate("spot")}
-          className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:brightness-110"
-          style={{ backgroundColor: "#e83e8c" }}
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#1D1D1F] px-4 py-2 text-sm font-semibold text-white transition hover:bg-black"
         >
           🐾 {t("map_tag_spot_cta")}
         </button>
         <button
           type="button"
           onClick={() => setShowSpots((v) => !v)}
-          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition hover:brightness-105 ${showSpots ? "ring-2 ring-offset-1" : ""}`}
-          style={{ backgroundColor: "#fce0ef", color: "#c2367f" }}
+          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${showSpots ? "bg-[#1D1D1F] text-white" : "bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"}`}
         >
           🐾 {t("map_spots_chip")}
         </button>
@@ -1172,12 +1167,11 @@ export default function MapPage() {
                     : [...prev, role],
                 )
               }
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
+              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
                 on
-                  ? "border-transparent text-white"
-                  : "border-transparent bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"
+                  ? "bg-[#1D1D1F] text-white"
+                  : "bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"
               }`}
-              style={on ? { background: "linear-gradient(135deg,#FF4FA3,#F01E86)" } : undefined}
             >
               <span aria-hidden>{emoji}</span>
               {label}
@@ -1206,7 +1200,7 @@ export default function MapPage() {
           <span className="text-sm font-semibold text-[#1D1D1F]">
             {t("map_live_friends")}
           </span>
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
+          <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-[#1D1D1F]">
             {livePositionsList.length}
           </span>
         </button>
@@ -1240,26 +1234,26 @@ export default function MapPage() {
       {(() => {
         const subs: { label: string; bg: string; fg: string }[] = [];
         if (benefits?.premiumActive)
-          subs.push({ label: "PawPremium", bg: "#1c1b18", fg: "#e3bf5a" });
+          subs.push({ label: "PawPremium", bg: "#1D1D1F", fg: "#FFD34D" });
         if (benefits?.pawspotActive)
-          subs.push({ label: "PawSpots", bg: "#fbf2d4", fg: "#8a6510" });
+          subs.push({ label: "PawSpots", bg: "#FFFFFF", fg: "#1D1D1F" });
         if (benefits?.familyActive)
-          subs.push({ label: "PawFamily", bg: "#f1ecfb", fg: "#5a31b0" });
+          subs.push({ label: "PawFamily", bg: "#FFFFFF", fg: "#1D1D1F" });
         if (benefits?.pawFollowActive)
-          subs.push({ label: "PawFollow", bg: "#ede7f9", fg: "#4f2ba6" });
+          subs.push({ label: "PawFollow", bg: "#FFFFFF", fg: "#1D1D1F" });
         if (!subs.length) return null;
         return (
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[18px] bg-[#F5F5F7] px-4 py-2.5">
             <span className="text-sm font-semibold text-[#1D1D1F]">
               {t("map_active_subs")}
             </span>
-            <span className="rounded-full bg-ink/10 px-2 py-0.5 text-xs font-bold text-ink">
+            <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-[#1D1D1F]">
               {subs.length}
             </span>
             {subs.map((sb) => (
               <span
                 key={sb.label}
-                className="rounded-full px-3 py-1 text-xs font-bold"
+                className="rounded-full px-3 py-1 text-xs font-semibold"
                 style={{ backgroundColor: sb.bg, color: sb.fg }}
               >
                 {sb.label}
@@ -1327,7 +1321,7 @@ export default function MapPage() {
               <button
                 type="button"
                 onClick={() => setShowSteps((v) => !v)}
-                className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink shadow-sm hover:bg-ink/5"
+                className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#1D1D1F] hover:bg-[#E8E8ED]"
               >
                 ☰ {showSteps ? t("map_route_steps_hide") : t("map_route_steps")}
               </button>
@@ -1335,7 +1329,7 @@ export default function MapPage() {
             <button
               type="button"
               onClick={clearRoute}
-              className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink shadow-sm hover:bg-ink/5"
+              className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#1D1D1F] hover:bg-[#E8E8ED]"
             >
               ✕ {t("map_route_clear")}
             </button>
@@ -1453,7 +1447,7 @@ export default function MapPage() {
       )}
 
       {/* Carte */}
-      <div className="relative mt-6">
+      <div className="relative mt-6 overflow-hidden rounded-[28px]">
         {/* v23.1.372 — Daniel : "en haut à droite, la petite icône pour
             géolocaliser ma position" — recadre + zoome sur moi (FlyToFocus),
             comme le bouton géoloc de l'app. z-[1000] pour passer au-dessus
