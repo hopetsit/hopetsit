@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:hopetsit/widgets/paw_card_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -236,15 +237,6 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
   /// reflet haut, ombre colorée, disque blanc 56 px avec icône 26 px pleine
   /// dans la teinte de la carte, titre 13/800, description 9,5/700 sur 2
   /// lignes. Design uniquement : les onglets gardent leurs actions.
-  static const String _svgBoost =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#E0361F"><path d="M12 2c3 2.2 4.5 5.6 4.5 9.6 0 1.5-.2 2.9-.6 4.2H8.1c-.4-1.3-.6-2.7-.6-4.2C7.5 7.6 9 4.2 12 2z"/><circle cx="12" cy="9.5" r="1.9" fill="rgba(255,255,255,.92)"/><path d="M7.9 11.5 4.5 15v3.2l3.6-1.6zM16.1 11.5l3.4 3.5v3.2l-3.6-1.6z"/><path d="M10.2 17.2h3.6L12 22z" opacity=".55"/></svg>';
-  static const String _svgFollow =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#6A34E0" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5" opacity=".35"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/><g fill="#6A34E0" stroke="none"><circle cx="10.3" cy="9.4" r="1.05"/><circle cx="13.7" cy="9.4" r="1.05"/><circle cx="8.8" cy="11.4" r=".95"/><circle cx="15.2" cy="11.4" r=".95"/><path d="M12 11.2c-1.6 0-3.1 1.5-3.1 2.9 0 .9.7 1.6 1.6 1.6.5 0 1-.3 1.5-.3s1 .3 1.5.3c.9 0 1.6-.7 1.6-1.6 0-1.4-1.5-2.9-3.1-2.9z"/></g></svg>';
-  static const String _svgSpot =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#E8890A"><path d="M12 22s-7.5-6.5-7.5-12A7.5 7.5 0 0 1 19.5 10c0 5.5-7.5 12-7.5 12z"/><path d="M12 5.4l1.4 2.9 3.1.4-2.3 2.2.6 3.1L12 12.5 9.2 14l.6-3.1-2.3-2.2 3.1-.4z" fill="rgba(255,255,255,.95)"/></svg>';
-  static const String _svgPremium =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#E0A81C"><path d="M2.5 8 7 11.5 12 5l5 6.5L21.5 8l-2 10.5h-15z"/><rect x="4.5" y="20" width="15" height="1.8" rx=".9"/><circle cx="12" cy="4" r="1.3"/><circle cx="2.8" cy="7.2" r="1.1"/><circle cx="21.2" cy="7.2" r="1.1"/></svg>';
-
   Widget _shopCardTab({
     required int index,
     required List<Color> colors,
@@ -433,7 +425,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                     index: 0,
                     colors: const [Color(0xFFFF6B4A), Color(0xFFE0361F)],
                     shadow: const Color(0xFFE0361F),
-                    svg: _svgBoost,
+                    svg: PawCardIcons.boost,
                     title: 'shop_tab_boost'.tr,
                     subtitle: 'shop_card_boost_sub'.tr,
                   ),
@@ -441,7 +433,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                     index: 1,
                     colors: const [Color(0xFF9B6BFF), Color(0xFF6A34E0)],
                     shadow: const Color(0xFF6A34E0),
-                    svg: _svgFollow,
+                    svg: PawCardIcons.follow,
                     title: 'shop_tab_pawpass'.tr,
                     subtitle: 'shop_card_follow_sub'.tr,
                   ),
@@ -449,7 +441,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                     index: 2,
                     colors: const [Color(0xFFFFC23D), Color(0xFFF0900A)],
                     shadow: const Color(0xFFF0900A),
-                    svg: _svgSpot,
+                    svg: PawCardIcons.spot,
                     title: 'shop_tab_pawspot'.tr,
                     subtitle: 'shop_card_spot_sub'.tr,
                   ),
@@ -457,7 +449,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                     index: 3,
                     colors: const [Color(0xFF3A3028), Color(0xFF0F0B08)],
                     shadow: Colors.black,
-                    svg: _svgPremium,
+                    svg: PawCardIcons.premium,
                     title: 'shop_tab_premium'.tr,
                     subtitle: 'shop_card_premium_sub'.tr,
                     titleColor: const Color(0xFFFFD34D),

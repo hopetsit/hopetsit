@@ -1,16 +1,17 @@
 // v19.1.1 — Boost profil : boutons côte à côte sans CrossAxisAlignment.stretch
 // (qui cassait le rendu des sections en-dessous sur le profil owner).
-// v23.1.390 — Daniel : 4 carrés ALIGNÉS sur une ligne (les 3 profils) :
-//   PawBoost (orange) · PawFollow (nouveau logo pin violet) · PawSpot (pièce
-//   dorée) · Paw Premium (NOIR/or, sous-titre "PawFollow+PawSpot", ouvre
-//   l'onglet Premium de la boutique). Tailles réduites pour tenir à 4.
+// v23.1.390 — Daniel : 4 carrés ALIGNÉS sur une ligne (les 3 profils).
+// v561 — handoff « Paw Buttons » (Daniel, 12/09) : les 4 carrés reprennent
+// EXACTEMENT le design des cartes de la boutique (verre dépoli, dégradé 165°,
+// disque blanc + icône pleine, titre + description). Design uniquement : mêmes
+// destinations (onglets 0-3 de la boutique).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
-import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/golden_paw_coin.dart';
+import 'package:hopetsit/widgets/paw_card_icons.dart';
 
 class BoostProfileCard extends StatelessWidget {
   final String role; // 'owner' | 'sitter' | 'walker'
@@ -19,60 +20,56 @@ class BoostProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 108.h,
+    return Container(
+      padding: EdgeInsets.all(6.w),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1E9E2),
+        borderRadius: BorderRadius.circular(24.r),
+      ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: _BoostChip(
-              accent: const Color(0xFFE8472A),
-              icon: Icons.rocket_launch_rounded,
-              label: 'shop_tile_boost'.tr,
+            child: PawShopCard(
+              colors: const [Color(0xFFFF6B4A), Color(0xFFE0361F)],
+              shadow: const Color(0xFFE0361F),
+              svg: PawCardIcons.boost,
+              title: 'shop_tile_boost'.tr,
+              subtitle: 'shop_card_boost_sub'.tr,
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 0)),
             ),
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 6.w),
           Expanded(
-            child: _BoostChip(
-              accent: const Color(0xFF7C3AED), // v354 — PawFollow = violet (Daniel)
-              icon: Icons.star_rounded,
-              // v23.1.390 — nouveau logo officiel (pin violet + patte).
-              iconWidget: Image.asset(
-                'assets/images/pawfollow_logo.png',
-                width: 40.w,
-                height: 40.w,
-              ),
-              label: 'shop_tile_premium'.tr,
+            child: PawShopCard(
+              colors: const [Color(0xFF9B6BFF), Color(0xFF6A34E0)],
+              shadow: const Color(0xFF6A34E0),
+              svg: PawCardIcons.follow,
+              title: 'shop_tile_premium'.tr,
+              subtitle: 'shop_card_follow_sub'.tr,
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 1)),
             ),
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 6.w),
           Expanded(
-            child: _BoostChip(
-              // v23.1.363 — Daniel : le logo PawSpot = la pièce DORÉE
-              // officielle (emoji fourni), aussi sur le chip du profil.
-              accent: const Color(0xFFE8A00A),
-              icon: Icons.pets_rounded,
-              iconWidget: const GoldenPawCoin(size: 36),
-              label: 'shop_tile_map_boost'.tr,
+            child: PawShopCard(
+              colors: const [Color(0xFFFFC23D), Color(0xFFF0900A)],
+              shadow: const Color(0xFFF0900A),
+              svg: PawCardIcons.spot,
+              title: 'shop_tile_map_boost'.tr,
+              subtitle: 'shop_card_spot_sub'.tr,
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 2)),
             ),
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 6.w),
           Expanded(
-            child: _BoostChip(
-              // v23.1.390 — Paw Premium : carré NOIR, liseré or, pièce or.
-              accent: const Color(0xFF15120D),
-              borderColor: const Color(0xFFE8A00A),
-              labelColor: const Color(0xFFFFD700),
-              icon: Icons.workspace_premium_rounded,
-              iconWidget: Image.asset(
-                'assets/images/pawpremium_logo.png',
-                width: 40.w,
-                height: 40.w,
-              ),
-              label: 'shop_tile_pawpremium'.tr,
-              subLabel: 'PawFollow+PawSpot',
+            child: PawShopCard(
+              colors: const [Color(0xFF3A3028), Color(0xFF0F0B08)],
+              shadow: Colors.black,
+              svg: PawCardIcons.premium,
+              title: 'shop_tile_pawpremium'.tr,
+              subtitle: 'shop_card_premium_sub'.tr,
+              titleColor: const Color(0xFFFFD34D),
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 3)),
             ),
           ),
@@ -82,101 +79,140 @@ class BoostProfileCard extends StatelessWidget {
   }
 }
 
-class _BoostChip extends StatelessWidget {
-  const _BoostChip({
-    required this.accent,
-    required this.icon,
-    required this.label,
+/// Carte « offre » du design Paw Buttons (ratio 1/1,75, rayon 22, bord blanc
+/// translucide, reflet haut, ombre colorée, disque blanc 56 px + icône 26 px).
+class PawShopCard extends StatelessWidget {
+  const PawShopCard({
+    super.key,
+    required this.colors,
+    required this.shadow,
+    required this.svg,
+    required this.title,
+    required this.subtitle,
     required this.onTap,
-    this.iconWidget,
-    this.subLabel,
-    this.borderColor,
-    this.labelColor,
+    this.titleColor = Colors.white,
+    this.active = true,
   });
 
-  final Color accent;
-  final IconData icon;
-  final String label;
+  final List<Color> colors;
+  final Color shadow;
+  final String svg;
+  final String title;
+  final String subtitle;
   final VoidCallback onTap;
-
-  /// v23.1.363 — icône custom (ex. pièce dorée PawSpot) à la place de
-  /// l'IconData.
-  final Widget? iconWidget;
-
-  /// v23.1.390 — petite 2e ligne (ex. "PawFollow+PawSpot" sur Premium).
-  final String? subLabel;
-  final Color? borderColor;
-  final Color? labelColor;
+  final Color titleColor;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 10.h),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [accent, accent.withValues(alpha: 0.82)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16.r),
-          boxShadow: [
-            BoxShadow(
-              color: (borderColor ?? accent).withValues(alpha: 0.38),
-              blurRadius: 14,
-              offset: const Offset(0, 5),
+      behavior: HitTestBehavior.opaque,
+      child: AspectRatio(
+        aspectRatio: 1 / 1.75,
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: colors,
+              begin: const Alignment(-0.6, -1),
+              end: const Alignment(0.6, 1),
             ),
-          ],
-          border: Border.all(
-            color: borderColor ?? Colors.white.withValues(alpha: 0.18),
-            width: borderColor != null ? 1.8 : 1.5,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 40.w,
-              height: 40.w,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.24),
-                shape: BoxShape.circle,
-              ),
-              child: iconWidget != null
-                  ? Center(child: iconWidget)
-                  : Icon(icon, color: Colors.white, size: 22.sp),
-            ),
-            SizedBox(height: 6.h),
-            // v23.1.391 — Daniel : « qu'on arrive à lire sans coupure ».
-            // FittedBox(scaleDown) : le texte rétrécit pour TOUJOURS tenir
-            // en entier dans le carré (jamais de « Paw Premi… »).
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: PoppinsText(
-                text: label,
-                fontSize: 10.5.sp,
-                fontWeight: FontWeight.w800,
-                color: labelColor ?? Colors.white,
-                maxLines: 1,
-                textAlign: TextAlign.center,
-              ),
-            ),
-            if (subLabel != null) ...[
-              SizedBox(height: 1.h),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: InterText(
-                  text: subLabel!,
-                  fontSize: 7.sp,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white.withValues(alpha: 0.85),
-                  maxLines: 1,
-                  textAlign: TextAlign.center,
-                ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.45), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: shadow.withValues(alpha: active ? 0.6 : 0.35),
+                blurRadius: active ? 26 : 18,
+                spreadRadius: -12,
+                offset: Offset(0, active ? 12 : 10),
               ),
             ],
-          ],
+          ),
+          child: LayoutBuilder(builder: (context, c) {
+            return Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: c.maxHeight * 0.45,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.22),
+                          Colors.white.withValues(alpha: 0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: 1,
+                  child: ColoredBox(color: Colors.white.withValues(alpha: 0.55)),
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(4.w, 14.h, 4.w, 10.h),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.35),
+                              blurRadius: 14,
+                              spreadRadius: -6,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: SvgPicture.string(svg, width: 26, height: 26),
+                      ),
+                      SizedBox(height: 10.h),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.26,
+                            color: titleColor,
+                            height: 1.1,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        subtitle,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          height: 1.25,
+                          color: Colors.white.withValues(alpha: 0.88),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }),
         ),
       ),
     );

@@ -342,32 +342,32 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
         behavior: HitTestBehavior.opaque,
         onTap: () => _onTap(2),
         child: OverflowBox(
-          maxHeight: 80,
-          alignment: Alignment.bottomCenter,
-          // Daniel (12/09) : « trop haut, gêne Réservations » → surélevée de
-          // 4 px seulement, plus étroite (66) pour ne pas mordre les voisins.
+          maxHeight: 92,
+          alignment: Alignment.center,
+          // Daniel (12/09, 4e retour) : « doit dépasser un peu en haut du menu
+          // et un peu en bas » → 72×66 centré sur la barre (46) : ~10 px de
+          // dépassement de chaque côté.
           child: Transform.translate(
-            offset: const Offset(0, -4),
+            offset: const Offset(0, 0),
             child: AnimatedScale(
               scale: active ? 1.06 : 1.0,
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
-              // Daniel (12/09) : « rectangle arrondi, pas rond ».
-              // Daniel (12/09) : « un peu plus large » → 84×52.
               child: Container(
                 width: 72,
-                height: 60,
+                height: 66,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
                   // Daniel (12/09) : « dégradé horizontal ».
                   // Dégradé HORIZONTAL franc (gauche clair → droite foncé).
-                  // Daniel (12/09) : « DÉGRADÉ HORIZONTAL, plus clair → moins
-                  // clair » : gauche orange clair, droite orange foncé.
+                  // Daniel (12/09) : « dégradé de BAS en HAUT, plus clair →
+                  // moins clair » (bandes horizontales) : bas orange clair,
+                  // haut orange foncé.
                   gradient: const LinearGradient(
                     colors: [Color(0xFFFFA36B), Color(0xFFE4442B), _kAccentDark],
                     stops: [0.0, 0.6, 1.0],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
                   ),
                   border: Border.all(color: Colors.white, width: 3),
                   boxShadow: [
