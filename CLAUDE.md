@@ -58,7 +58,7 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 564** (563 = IPA seule, v560, fiches stores ; 555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 565** (564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
 **12/09 — v561 / build 564 « NOTIFICATIONS DIRECT DANS L'APP + MISE À JOUR AUTO + PAWMAP »
 (14 points de Daniel, liste validée avant de commencer).**
@@ -122,9 +122,18 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   deux essais (pièce ChatGPT claire puis assombrie : « ne rend pas bien »).
 - **Accueil / menu.** Onglet « Mes annonces (N) » en `FittedBox` (plus de « Mes annon… »).
   Menu = pilule flottante (marges 10, coins 28, ombre douce), onglet actif dans une bulle
-  teintée, bouton PawMap rectangle arrondi 66×52 surélevé de 4 px, dégradé HORIZONTAL
-  (retours Daniel en direct : « pas rond », « trop haut », « dégradé horizontal »), libellé
-  `nav_pawmap`. Icônes SVG passées de `#F2741B` à `#D83C28`. Hauteur utile inchangée.
+  teintée, libellés en `FittedBox` (« Réservations » entier). **Bouton PawMap = rectangle
+  arrondi 72×66, orange UNI `#D83C28` (Daniel : « j'aime pas le dégradé », après 5 essais),
+  centré sur la barre pour dépasser ~10 px en haut et en bas.** Libellé `nav_pawmap`. Icônes
+  SVG passées de `#F2741B` à `#D83C28`. Hauteur utile inchangée. Alertes : puce « Autour de
+  moi · N km » bornée (débordement RIGHT OVERFLOWED corrigé).
+- **Publication 12/09** : Play = `~/hopetsit-social/play/play_release_api.py <aab> notes_564.json`
+  (bundles.upload → tracks/production completed → commit 200, notes 8 langues) ; iOS = IPA
+  Transporter (bouton DISTRIBUER à cliquer cette fois), **1.17 créée (id
+  `3b35da3b-1f93-4e73-b436-3fd602351826`)**, whatsNew 8 locales, build 564 attaché + soumis.
+  ⚠️ Admin « Versions de l'app » : remis à 563/563 après le test (999) ; **passer à 564/564
+  quand Play et Apple ont approuvé** (sinon la feuille « Nouvelle version » s'affiche avant que
+  le store ne l'ait).
 
 **11/09 — FICHES STORES 8 LANGUES (pack `HoPetSit-Apple-GooglePlay-Complet.zip`, visuels
 promotionnels FR/EN/ES/IT/DE/PT/NL/PL : 5 captures + 1 bannière Play par langue).**
