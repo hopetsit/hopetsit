@@ -11,6 +11,7 @@ import 'package:hopetsit/controllers/chat_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
+import 'package:hopetsit/services/app_update_service.dart';
 
 /// v462 — NOUVEAU MENU (maquette Claude Design) appliqué AU VRAI wrapper de
 /// navigation (celui réellement monté). Barre flottante blanche arrondie +
@@ -48,6 +49,9 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshNotificationBadge();
+      // v561 — mise à jour de l'app (Play In-App Updates / feuille App Store),
+      // vérifiée une fois par lancement, après que le menu est affiché.
+      Future.delayed(const Duration(seconds: 3), AppUpdateService.checkOnce);
     });
     // v559 — un autre écran demande un onglet (ex. PawMap avec itinéraire).
     navWrapperMounted.value = true;
@@ -108,8 +112,8 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   }
 
   // ── Icônes duotone (SVG injecté selon actif/inactif) ──
-  String _hex(bool a) => a ? '#F2741B' : '#7D7D82';
-  String _lite(bool a) => a ? '#F2741B26' : '#7D7D8222';
+  String _hex(bool a) => a ? '#D83C28' : '#7D7D82';
+  String _lite(bool a) => a ? '#D83C2826' : '#7D7D8222';
 
   String _pawSvg(bool a) {
     final f = _hex(a);
@@ -152,10 +156,10 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
 <path d="M3 11 7.5 9.2v11.6L3 22.6V11Z" fill="#fff" opacity="0.9"/>
 <path d="M20.5 9.2 25 11v11.6l-4.5-1.8V9.2Z" fill="#fff" opacity="0.9"/>
 <path d="M7.5 9.2 20.5 11v9.8L7.5 20.8V9.2Z" fill="#fff" opacity="0.9"/>
-<path d="M7.5 9.2v11.6M20.5 9.2v11.6" stroke="#F2741B" stroke-width="1" opacity="0.3" stroke-linecap="round"/>
-<path d="M14 2c-3.4 0-6.1 2.6-6.1 6 0 4.2 6.1 10.2 6.1 10.2S20.1 12.2 20.1 8c0-3.4-2.7-6-6.1-6Z" fill="#fff" stroke="#F2741B" stroke-width="1.1"/>
-<ellipse cx="11.4" cy="6.4" rx="0.95" ry="1.2" fill="#F2741B"/><ellipse cx="14" cy="5.5" rx="0.95" ry="1.2" fill="#F2741B"/><ellipse cx="16.6" cy="6.4" rx="0.95" ry="1.2" fill="#F2741B"/>
-<path d="M14 7.7c-1.5 0-2.7 1-3.1 2.2-.3.9.2 1.8 1.1 2 .5.1 1-.1 1.4-.2.4-.1.7-.1 1.1 0 .5.1.9.3 1.4.2.9-.2 1.4-1.1 1.1-2-.4-1.2-1.6-2.2-3-2.2Z" fill="#F2741B"/></svg>''';
+<path d="M7.5 9.2v11.6M20.5 9.2v11.6" stroke="#D83C28" stroke-width="1" opacity="0.3" stroke-linecap="round"/>
+<path d="M14 2c-3.4 0-6.1 2.6-6.1 6 0 4.2 6.1 10.2 6.1 10.2S20.1 12.2 20.1 8c0-3.4-2.7-6-6.1-6Z" fill="#fff" stroke="#D83C28" stroke-width="1.1"/>
+<ellipse cx="11.4" cy="6.4" rx="0.95" ry="1.2" fill="#D83C28"/><ellipse cx="14" cy="5.5" rx="0.95" ry="1.2" fill="#D83C28"/><ellipse cx="16.6" cy="6.4" rx="0.95" ry="1.2" fill="#D83C28"/>
+<path d="M14 7.7c-1.5 0-2.7 1-3.1 2.2-.3.9.2 1.8 1.1 2 .5.1 1-.1 1.4-.2.4-.1.7-.1 1.1 0 .5.1.9.3 1.4.2.9-.2 1.4-1.1 1.1-2-.4-1.2-1.6-2.2-3-2.2Z" fill="#D83C28"/></svg>''';
 
   @override
   Widget build(BuildContext context) {
@@ -192,26 +196,32 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
           // collée au bas, coins arrondis EN HAUT seulement, l'inset Samsung est
           // ajouté EN PADDING BAS (les icônes restent au-dessus de la barre
           // système).
+          // v561 — Daniel : « le menu un peu plus HD, bulle moderne ». Pilule
+          // flottante (marges 10, coins 28), fond blanc, liseré très léger,
+          // ombre douce ; onglet actif = icône dans une bulle teintée ; bulle
+          // PawMap centrale ronde, surélevée, avec lueur orange. Hauteur utile
+          // identique (58 + inset) → les marges de la PawMap sont conservées.
           : Container(
-        padding: EdgeInsets.only(
+        margin: EdgeInsets.only(
           left: 10,
           right: 10,
-          top: 8,
-          bottom: 8 + bottomInset,
+          bottom: 6 + bottomInset,
         ),
+        padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: const Color(0x0F14141E), width: 1),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF14141E).withValues(alpha: 0.10),
-              blurRadius: 24,
-              offset: const Offset(0, -4),
+              color: const Color(0xFF14141E).withValues(alpha: 0.14),
+              blurRadius: 26,
+              offset: const Offset(0, 8),
             ),
             BoxShadow(
-              color: const Color(0xFF14141E).withValues(alpha: 0.04),
-              blurRadius: 4,
-              offset: const Offset(0, -1),
+              color: const Color(0xFF14141E).withValues(alpha: 0.05),
+              blurRadius: 3,
+              offset: const Offset(0, 1),
             ),
           ],
         ),
@@ -240,22 +250,34 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                SvgPicture.string(svg(active), width: 26, height: 26),
-                if (badge != null)
-                  Positioned(top: -5, right: -7, child: badge()),
-              ],
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              width: 46,
+              height: 30,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: active ? _kAccent.withValues(alpha: 0.12) : Colors.transparent,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  SvgPicture.string(svg(active), width: 24, height: 24),
+                  if (badge != null)
+                    Positioned(top: -6, right: -8, child: badge()),
+                ],
+              ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10.5,
+                height: 1.2,
                 fontWeight: active ? FontWeight.w800 : FontWeight.w600,
                 color: active ? _kAccent : _kInactive,
               ),
@@ -309,48 +331,68 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     );
   }
 
-  /// Bouton central « Paw Map » : pilule ORANGE surélevée + icône carte+pin+patte.
+  /// Bouton central « PawMap » : bulle RONDE orange surélevée (dégradé +
+  /// lueur + anneau blanc), icône carte+pin+patte et libellé dedans.
   Widget _centerTab() {
     final active = _currentIndex == 2;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _onTap(2),
-      child: AnimatedScale(
-        scale: active ? 1.04 : 1.0,
-        duration: const Duration(milliseconds: 160),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [_kAccent, _kAccentDark],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                color: _kAccent.withValues(alpha: 0.40),
-                blurRadius: 16,
-                offset: const Offset(0, 7),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SvgPicture.string(_centreSvg, width: 30, height: 30),
-              const SizedBox(height: 3),
-              const Text(
-                'PawMap',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  height: 1.0,
+    return SizedBox(
+      width: 78,
+      height: 46,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _onTap(2),
+        child: OverflowBox(
+          maxHeight: 80,
+          alignment: Alignment.bottomCenter,
+          child: Transform.translate(
+            offset: const Offset(0, -10),
+            child: AnimatedScale(
+              scale: active ? 1.06 : 1.0,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              child: Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFF6A45), _kAccent, _kAccentDark],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _kAccent.withValues(alpha: active ? 0.55 : 0.40),
+                      blurRadius: active ? 22 : 16,
+                      offset: const Offset(0, 8),
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFF14141E).withValues(alpha: 0.10),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SvgPicture.string(_centreSvg, width: 27, height: 27),
+                    const SizedBox(height: 1),
+                    Text(
+                      'nav_pawmap'.tr,
+                      style: const TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        height: 1.0,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),

@@ -25,6 +25,19 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 // rôle, comme le fait déjà /friends.
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
+// v561 — routeur unifié mail / push / cloche → écran précis.
+import 'package:hopetsit/controllers/chat_controller.dart';
+import 'package:hopetsit/controllers/posts_controller.dart';
+import 'package:hopetsit/controllers/sitter_chat_controller.dart';
+import 'package:hopetsit/models/post_model.dart';
+import 'package:hopetsit/repositories/chat_repository.dart';
+import 'package:hopetsit/repositories/post_repository.dart';
+import 'package:hopetsit/views/friends/people_live_screen.dart';
+import 'package:hopetsit/views/notifications/notification_post_view_screen.dart';
+import 'package:hopetsit/views/pet_owner/booking-application/owner_booking_detail_screen.dart';
+import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
+import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
+import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/views/pet_owner/booking/owner_bookings_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/booking/sitter_bookings_screen.dart';
@@ -235,10 +248,12 @@ class DeepLinkService {
 
     final isPublicLink = first == 'open' || first == 'app' || first == 'auth';
     if (!isPublicLink && !_hasSession()) {
+      // v561 — on mémorise la destination : elle est rejouée juste après la
+      // connexion (replayPendingRoute), au lieu d'être perdue.
+      _rememberPendingRoute(uri);
       AppLogger.logInfo(
-        'DeepLink "$first" reçu SANS session → no-op gracieux '
-        '(onboarding/login s\'affiche au lieu d\'un écran noir). '
-        'La demande reste visible dans l\'app après connexion.',
+        'DeepLink "$first" reçu SANS session → mémorisé, rejoué après login '
+        '(onboarding/login s\'affiche au lieu d\'un écran noir).',
       );
       return;
     }
@@ -246,6 +261,12 @@ class DeepLinkService {
       AppLogger.logInfo('DeepLink /open — app ouverte (aucune navigation).');
       return;
     }
+    // v561 — Daniel : « du mail : écran noir » / « ça me renvoie d'abord sur
+    // le site ». Toute destination authentifiée attend que le menu principal
+    // (StackedNavigationWrapper) soit monté : au démarrage à froid par un
+    // lien ou un push, Get.to() partait AVANT l'accueil → pile vide = noir.
+    await _waitForShell();
+    final second = segs.length > 1 ? segs[1] : '';
     if (first == 'pay') {
       // v23.1 part 125 — bookingId DOIT être un ObjectId 24 hex. Sinon
       // on log et on ignore (anti Intent Redirection).
@@ -260,32 +281,48 @@ class DeepLinkService {
         AppLogger.logWarning(
           'DeepLink rejected (invalid bookingId): "$rawBookingId"',
         );
+        _openBookingsScreen();
         return;
       }
       await _openPayment(rawBookingId);
     } else if (first == 'chat') {
-      // v23.1.286 — ouvre la liste de chat (écran selon le rôle). Avant :
-      // Get.toNamed('/chat') = route non enregistrée → no-op → l'app restait
-      // sur la PawMap (bouton Signaler) → Daniel croyait ouvrir « Signaler ».
-      _openChatList();
-    } else if (first == 'bookings') {
-      _openBookingsScreen();
+      // v561 — /chat/:conversationId ouvre LA conversation (rôle courant) ;
+      // /chat seul ouvre la liste.
+      if (_objectIdRegex.hasMatch(second)) {
+        await _openConversation(second, uri.queryParameters);
+      } else {
+        _openChatList();
+      }
+    } else if (first == 'bookings' || first == 'walk') {
+      // v561 — /bookings/:id → fiche de la réservation (propriétaire) ; liste
+      // pour les prestataires (leurs boutons d'action y sont). /walk/:id idem
+      // (le suivi de balade est intégré à la réservation).
+      if (_objectIdRegex.hasMatch(second) && _currentRole() == 'owner') {
+        await _openOwnerBookingDetail(second);
+      } else {
+        _openBookingsScreen();
+      }
     } else if (first == 'notifications') {
       _openNotificationsScreen();
-    } else if (first == 'walk') {
-      // v23.1.155 — emails walk_started / walk_finished → fiche réservation
-      // (le live walk est intégré dedans pour owner et walker).
-      _openBookingsScreen();
     } else if (first == 'book' || first == 'post') {
-      // post (annonce) : pas d'écran détail dédié → on ouvre les réservations
-      // (owner y voit ses demandes ; sitter/walker y voient leurs missions).
-      _openBookingsScreen();
+      // v561 — /post/:id → la fiche de l'annonce ; sans id → réservations.
+      if (_objectIdRegex.hasMatch(second)) {
+        await _openPost(second);
+      } else {
+        _openBookingsScreen();
+      }
+    } else if (first == 'posts') {
+      // v561 — mails du cycle de vie « publie une annonce » → accueil, onglet
+      // « Mes annonces » (premier onglet de l'accueil propriétaire).
+      _goToTab(0);
     } else if (first == 'wallet') {
-      // emails payout / wallet → profil (le solde y est affiché).
-      _openProfileScreen();
-    } else if (first == 'subscription' || first == 'paw-spot' ||
-               first == 'pawspot' || first == 'shop') {
-      // emails subscription / map_boost → boutique (Paw Shop).
+      // v561 — écran Portefeuille (solde, versements, retraits).
+      Get.to(() => const WalletScreen());
+    } else if (first == 'subscription') {
+      Get.to(() => const CoinShopScreen(initialTab: 3));
+    } else if (first == 'paw-spot' || first == 'pawspot') {
+      Get.to(() => const CoinShopScreen(initialTab: 2));
+    } else if (first == 'shop') {
       Get.to(() => const CoinShopScreen());
     } else if (first == 'spot') {
       // v532 — lien de PARTAGE d'un PawSpot : https://hopetsit.com/spot/<id>.
@@ -316,6 +353,10 @@ class DeepLinkService {
       final route = uri.queryParameters['route'] == '1';
       if (route && lat != null && lng != null) {
         openPawMapWithRoute(lat, lng); // onglet PawMap (menu conservé) si possible
+      } else if (lat == null && lng == null && navWrapperMounted.value) {
+        // v561 — /pawmap ou /map sans position : l'onglet PawMap (menu
+        // conservé) au lieu d'une carte poussée sans menu.
+        _goToTab(kPawMapTabIndex);
       } else {
         Get.to(() => PawMapScreen(
               initialLat: lat,
@@ -327,13 +368,21 @@ class DeepLinkService {
       _openProfileScreen();
     } else if (first == 'friends' || first == 'amis' ||
                first == 'family' || first == 'live') {
-      // v23.1.254 — Daniel : "verifie tt les bouton quon recois sur mail
-      // message etc qui soit connecter". Les notifs amis / famille / suivi
-      // en direct (friend_request_received, friend_request_accepted,
-      // family_*, live_tracking_*) pointent vers https://hopetsit.com/friends.
-      // On ouvre FriendsScreen sur l'onglet "Mes amis" (index 0) — l'user y
-      // voit les demandes, la famille et le suivi live.
-      Get.to(() => const FriendsScreen());
+      // v561 — Daniel : « Voir la demande / Voir mes amis depuis le mail ».
+      //   /friends            → onglet « Mes amis »
+      //   /friends/requests   → onglet « Demandes » (accepter / refuser)
+      //   /friends/family ou /family → onglet « Famille »
+      //   /friends/live ou /live     → personnes en direct
+      final sub = first == 'friends' || first == 'amis' ? second : first;
+      if (sub == 'live') {
+        Get.to(() => const PeopleLiveScreen());
+      } else if (sub == 'requests' || sub == 'demandes') {
+        Get.to(() => const FriendsScreen(initialIndex: 1));
+      } else if (sub == 'family' || sub == 'famille') {
+        Get.to(() => const FriendsScreen(initialIndex: 3));
+      } else {
+        Get.to(() => const FriendsScreen());
+      }
     } else if (first == 'auth') {
       // v23.1 part 146 — auto-login via one-time token issued by the website.
       // Format attendu : hopetsit://auth?ott=<64 hex>
@@ -351,6 +400,252 @@ class DeepLinkService {
         'DeepLink path not handled (no-op): "${uri.path}"',
       );
     }
+  }
+
+  // ───────────────────────── v561 — routeur unifié ─────────────────────────
+
+  /// Ouvre une route « thème » (`/friends/requests`, `/chat/<id>`,
+  /// `/bookings/<id>`, `/alert/<id>`…) exactement comme un lien universel.
+  /// Utilisé par le tap sur un push (champ `route` du payload) et par la
+  /// cloche. Une route sans `/` initial est acceptée.
+  Future<void> openRoute(String route) async {
+    final r = route.trim();
+    if (r.isEmpty) return;
+    final path = r.startsWith('/') ? r : '/$r';
+    await _safeHandle(Uri.parse('https://hopetsit.com$path'));
+  }
+
+  /// Route « thème » pour un type de notification (miroir de
+  /// backend/src/utils/emailLinkBuilder.js → buildAppRoute). Sert aux pushs
+  /// anciens sans champ `route` et à la cloche.
+  static String routeForNotification(String type, Map<String, dynamic>? data) {
+    final t = type.toLowerCase();
+    final d = data ?? const <String, dynamic>{};
+    String id(String key) {
+      final v = (d[key] ?? '').toString();
+      return _objectIdRegex.hasMatch(v) ? v : '';
+    }
+    final bookingId = id('bookingId').isNotEmpty ? id('bookingId') : id('id');
+    final bookingPath = bookingId.isNotEmpty ? '/bookings/$bookingId' : '/bookings';
+    final conv = id('conversationId');
+    final chatPath = conv.isNotEmpty ? '/chat/$conv' : '/chat';
+    final postId = id('postId');
+    final postPath = postId.isNotEmpty ? '/post/$postId' : '/bookings';
+    final reportId = id('reportId');
+    if (t == 'booking_accepted' || t == 'payment_failed' || t == 'payment_required') {
+      return bookingId.isNotEmpty ? '/pay?bookingId=$bookingId' : bookingPath;
+    }
+    if (t == 'new_message' || t == 'message' || t == 'message_new' ||
+        t == 'chat_auto_welcome' || t == 'booking_paid_chat_unlocked') {
+      return conv.isNotEmpty
+          ? chatPath
+          : (t == 'booking_paid_chat_unlocked' ? bookingPath : '/chat');
+    }
+    if (t == 'chat_addon_activated') return '/chat';
+    if (t == 'walk_started' || t == 'walk_finished') {
+      return bookingId.isNotEmpty ? '/walk/$bookingId' : bookingPath;
+    }
+    if (t == 'new_request_nearby' || t == 'post_new' ||
+        t == 'post_application_eligible' ||
+        t == 'application_rejected_other_accepted' ||
+        t.startsWith('post_')) {
+      return postPath;
+    }
+    if (t.startsWith('booking_') || t.startsWith('application_') ||
+        t.startsWith('service_') || t == 'visit_report' ||
+        t == 'payment_success') {
+      return bookingPath;
+    }
+    if (t.startsWith('payout_') || t.startsWith('withdrawal_') ||
+        t == 'wallet_credited' || t.contains('wallet')) {
+      return '/wallet';
+    }
+    if (t == 'new_review' || t == 'premium_achieved' ||
+        t == 'top_sitter_achieved' || t.startsWith('kyc_')) {
+      return '/profile';
+    }
+    if (t == 'referral_credited' || t.startsWith('map_boost') ||
+        t == 'profile_boost_activated') {
+      return '/paw-spot';
+    }
+    if (t.startsWith('subscription_')) return '/subscription';
+    if (t == 'friend_request_received' || t == 'family_invitation_received') {
+      return '/friends/requests';
+    }
+    if (t == 'live_tracking_request_received') {
+      return conv.isNotEmpty ? chatPath : '/friends/requests';
+    }
+    if (t == 'live_tracking_accepted') return '/friends/live';
+    if (t.startsWith('friend_') || t.startsWith('family_') ||
+        t.startsWith('live_tracking')) {
+      return '/friends';
+    }
+    if (t == 'sos_pet_nearby' || t == 'lost_pet_sighting') {
+      return reportId.isNotEmpty ? '/alert/$reportId' : '/map';
+    }
+    return '/notifications';
+  }
+
+  static const _pendingRouteKey = 'pending_deep_route';
+
+  void _rememberPendingRoute(Uri uri) {
+    try {
+      final path = uri.scheme == 'hopetsit'
+          ? '/${uri.host}${uri.path}'
+          : uri.path;
+      final q = uri.hasQuery ? '?${uri.query}' : '';
+      GetStorage().write(_pendingRouteKey, '$path$q');
+    } catch (_) {/* best-effort */}
+  }
+
+  /// Appelé après une connexion réussie : rejoue la destination d'un lien /
+  /// push reçu alors que l'utilisateur n'était pas connecté.
+  static Future<void> replayPendingRoute() async {
+    String? route;
+    try {
+      route = GetStorage().read(_pendingRouteKey) as String?;
+      GetStorage().remove(_pendingRouteKey);
+    } catch (_) {
+      route = null;
+    }
+    if (route == null || route.isEmpty) return;
+    await Future.delayed(const Duration(milliseconds: 1200));
+    await instance.openRoute(route);
+  }
+
+  /// Attend (max ~6 s) que le menu principal soit monté avant de pousser un
+  /// écran authentifié. Sans ça, au démarrage à froid via lien/push, la pile
+  /// de navigation est vide → écran noir.
+  Future<void> _waitForShell() async {
+    for (var i = 0; i < 30 && !navWrapperMounted.value; i++) {
+      await Future.delayed(const Duration(milliseconds: 200));
+    }
+    if (!navWrapperMounted.value) {
+      AppLogger.logWarning('DeepLink: menu principal non monté après 6 s, on navigue quand même.');
+    }
+  }
+
+  void _goToTab(int index) {
+    if (navWrapperMounted.value) {
+      try {
+        Get.until((route) => route.isFirst);
+      } catch (_) {/* déjà à la racine */}
+      requestedTab.value = index;
+    }
+  }
+
+  Future<void> _openConversation(String conversationId, Map<String, String> q) async {
+    final isSitter = _currentRole() != 'owner';
+    String name = (q['name'] ?? '').trim();
+    String image = '';
+    try {
+      if (isSitter) {
+        if (!Get.isRegistered<SitterChatController>()) {
+          Get.put(SitterChatController(Get.find<ChatRepository>(), storage: Get.find<GetStorage>()));
+        }
+        final c = Get.find<SitterChatController>();
+        await c.reloadConversations();
+        for (final conv in c.conversations) {
+          if (conv.id == conversationId) {
+            if (name.isEmpty) name = conv.contactName;
+            image = conv.contactImage;
+            break;
+          }
+        }
+      } else {
+        if (!Get.isRegistered<ChatController>()) {
+          Get.put(ChatController(Get.find<ChatRepository>(), storage: Get.find<GetStorage>()));
+        }
+        final c = Get.find<ChatController>();
+        await c.reloadConversations();
+        for (final conv in c.conversations) {
+          if (conv.id == conversationId) {
+            if (name.isEmpty) name = conv.contactName;
+            image = conv.contactImage;
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      AppLogger.logError('DeepLink _openConversation: contact lookup failed', error: e);
+    }
+    if (name.isEmpty || name == 'Unknown') name = 'common_user'.tr;
+    if (isSitter) {
+      Get.to(() => SitterIndividualChatScreen(
+            conversationId: conversationId,
+            contactName: name,
+            contactImage: image,
+          ));
+    } else {
+      Get.to(() => IndividualChatScreen(
+            conversationId: conversationId,
+            contactName: name,
+            contactImage: image,
+          ));
+    }
+  }
+
+  Future<void> _openOwnerBookingDetail(String bookingId) async {
+    BookingModel? booking;
+    try {
+      if (Get.isRegistered<BookingsController>()) {
+        booking = Get.find<BookingsController>()
+            .bookings
+            .firstWhereOrNull((b) => b.id == bookingId);
+      }
+      if (booking == null && Get.isRegistered<OwnerRepository>()) {
+        final all = await Get.find<OwnerRepository>().getMyBookings();
+        booking = all.firstWhereOrNull((b) => b.id == bookingId);
+      }
+    } catch (e) {
+      AppLogger.logError('DeepLink _openOwnerBookingDetail failed', error: e);
+    }
+    if (booking == null) {
+      _openBookingsScreen();
+      return;
+    }
+    final b = booking;
+    Get.to(() => OwnerBookingDetailScreen(
+          booking: b,
+          onPay: () => _openPayment(b.id),
+        ));
+  }
+
+  Future<void> _openPost(String postId) async {
+    PostModel? post;
+    try {
+      final pc = Get.isRegistered<PostsController>()
+          ? Get.find<PostsController>()
+          : Get.put(PostsController());
+      PostModel? find() {
+        for (final p in pc.posts) {
+          if (p.id == postId) return p;
+        }
+        for (final p in pc.postsWithoutMedia) {
+          if (p.id == postId) return p;
+        }
+        return null;
+      }
+      post = find();
+      if (post == null) {
+        try {
+          final repo = Get.isRegistered<PostRepository>()
+              ? Get.find<PostRepository>()
+              : PostRepository(Get.find<ApiClient>());
+          post = await repo.getPostById(postId);
+        } catch (_) {
+          post = null;
+        }
+      }
+    } catch (e) {
+      AppLogger.logError('DeepLink _openPost failed', error: e);
+    }
+    if (post == null) {
+      _openBookingsScreen();
+      return;
+    }
+    final p = post;
+    Get.to(() => NotificationPostViewScreen(post: p));
   }
 
   // v23.1.286 — navigation par rôle vers les VRAIS écrans (les routes nommées
@@ -676,7 +971,10 @@ class DeepLinkService {
       final alreadyPaid =
           (booking.paymentStatus ?? '').toLowerCase() == 'paid';
       if (alreadyPaid) {
-        // Nothing to do — booking already paid.
+        // v561 — déjà payée : on montre la réservation au lieu de ne rien
+        // faire (le mail « paiement » arrive parfois après le paiement).
+        final b = booking;
+        Get.to(() => OwnerBookingDetailScreen(booking: b));
         return;
       }
       final pricing = booking.pricing;

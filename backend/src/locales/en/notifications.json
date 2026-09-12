@@ -3,13 +3,13 @@
     "title": "Booking accepted",
     "body": "Hi {{name}}, both parties accepted the booking. Complete the payment to start chatting.",
     "emailSubject": "Your HoPetSit booking is confirmed",
-    "emailBody": "<p>Hi {{name}},</p><p>The booking has been accepted by both parties. Complete the payment to unlock the chat and finalize the reservation.</p><p>— The HoPetSit team</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Pay now</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link into your browser: {{emailLink}}</p>"
+    "emailBody": "<p>Hi {{name}},</p><p>The booking has been accepted by both parties. Complete the payment to unlock the chat and finalize the reservation.</p><p>— The HoPetSit team</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Pay now</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link into your browser: {{emailLink}}</p>"
   },
   "new_request_nearby": {
     "title": "New listing near you",
     "body": "{{ownerName}} is looking for a pet provider in {{city}}. Open the app to apply.",
     "emailSubject": "New listing — HoPetSit",
-    "emailBody": "<p>A new listing has just been posted in your area. Open the HoPetSit app to apply.</p>"
+    "emailBody": "<p>A new listing has just been posted in your area. Open the HoPetSit app to apply.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "booking_new": {
     "title": "New booking request",
@@ -21,31 +21,31 @@
     "title": "Booking accepted",
     "body": "Your booking request was accepted. Proceed to payment.",
     "emailSubject": "Your booking was accepted — HoPetSit",
-    "emailBody": "<p>Good news — your booking request was accepted.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Pay now</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link into your browser: {{emailLink}}</p>"
+    "emailBody": "<p>Good news — your booking request was accepted.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Pay now</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link into your browser: {{emailLink}}</p>"
   },
   "booking_rejected": {
     "title": "Booking rejected",
     "body": "Your booking request was rejected.",
     "emailSubject": "Your booking was rejected — HoPetSit",
-    "emailBody": "<p>Your booking request was rejected. You can send a new request to another provider.</p>"
+    "emailBody": "<p>Your booking request was rejected. You can send a new request to another provider.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "application_new": {
     "title": "New application",
     "body": "A provider sent you a request.",
     "emailSubject": "New application — HoPetSit",
-    "emailBody": "<p>A provider applied to your listing. Open the app to review it.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Review application</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link into your browser: {{emailLink}}</p>"
+    "emailBody": "<p>A provider applied to your listing. Open the app to review it.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Review application</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link into your browser: {{emailLink}}</p>"
   },
   "application_accepted": {
     "title": "Application accepted",
     "body": "Your application was accepted.",
     "emailSubject": "Your application was accepted — HoPetSit",
-    "emailBody": "<p>Your application was accepted. Open the app to see the details.</p>"
+    "emailBody": "<p>Your application was accepted. Open the app to see the details.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "application_rejected": {
     "title": "Application rejected",
     "body": "Your application was rejected.",
     "emailSubject": "Your application was rejected — HoPetSit",
-    "emailBody": "<p>Your application was rejected by the owner. Keep applying to other listings.</p>"
+    "emailBody": "<p>Your application was rejected by the owner. Keep applying to other listings.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "NEW_MESSAGE": {
     "title": "New message from {{senderName}}",
@@ -57,49 +57,49 @@
     "title": "You received a new review",
     "body": "New rating: {{rating}}/5 — {{comment}}",
     "emailSubject": "New review on your HoPetSit profile",
-    "emailBody": "<p>You just received a <strong>{{rating}}/5</strong> review:</p><blockquote>{{comment}}</blockquote>"
+    "emailBody": "<p>You just received a <strong>{{rating}}/5</strong> review:</p><blockquote>{{comment}}</blockquote><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "PAYMENT_SUCCESS": {
     "title": "Payment received",
     "body": "Payment of {{amount}} {{currency}} was successful.",
     "emailSubject": "Payment confirmed — HoPetSit",
-    "emailBody": "<p>Your payment of <strong>{{amount}} {{currency}}</strong> was successful. Booking #{{bookingId}}.</p>"
+    "emailBody": "<p>Your payment of <strong>{{amount}} {{currency}}</strong> was successful. Booking #{{bookingId}}.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "PAYMENT_FAILED": {
     "title": "Payment failed",
     "body": "Your payment of {{amount}} {{currency}} could not be processed. Please try again.",
     "emailSubject": "Payment failed — HoPetSit",
-    "emailBody": "<p>Your payment of <strong>{{amount}} {{currency}}</strong> could not be processed. Please open the app and try again.</p>"
+    "emailBody": "<p>Your payment of <strong>{{amount}} {{currency}}</strong> could not be processed. Please open the app and try again.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "VISIT_REPORT": {
     "title": "New visit report",
     "body": "Your sitter shared {{photoCount}} photos. Mood: {{mood}}.",
     "emailSubject": "New visit report — HoPetSit",
-    "emailBody": "<p>Your sitter submitted a new visit report with <strong>{{photoCount}}</strong> photos. Mood: <em>{{mood}}</em>. Open the app to view details.</p>"
+    "emailBody": "<p>Your sitter submitted a new visit report with <strong>{{photoCount}}</strong> photos. Mood: <em>{{mood}}</em>. Open the app to view details.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "PREMIUM_ACHIEVED": {
     "title": "Welcome to Premium!",
     "body": "You have completed {{count}} bookings. Enjoy exclusive benefits.",
     "emailSubject": "Premium membership unlocked — HoPetSit",
-    "emailBody": "<p>Congratulations! You are now a <strong>Premium member</strong>. Enjoy priority access to top pet sitters.</p>"
+    "emailBody": "<p>Congratulations! You are now a <strong>Premium member</strong>. Enjoy priority access to top pet sitters.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "TOP_SITTER_ACHIEVED": {
     "title": "You are a Top Petsitter! 🏆",
     "body": "{{count}} completed services · average rating {{avgRating}}/5. Commission reduced to 15%.",
     "emailSubject": "Top Petsitter status unlocked — HoPetSit",
-    "emailBody": "<p>Congratulations! You are now a <strong>Top Petsitter</strong>. Our platform commission is reduced from 20% to <strong>15%</strong> on your future bookings.</p>"
+    "emailBody": "<p>Congratulations! You are now a <strong>Top Petsitter</strong>. Our platform commission is reduced from 20% to <strong>15%</strong> on your future bookings.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "REFERRAL_CREDITED": {
     "title": "Referral reward!",
     "body": "Your friend just completed their first booking. You get -10% off your next PawFollow or PawFamily plan 🎉",
     "emailSubject": "You earned -10% on PawFollow/PawFamily — HoPetSit",
-    "emailBody": "<p>Great news! Your friend just completed their first booking on HoPetSit.</p><p>You get <strong>-10%</strong> off your next PawFollow or PawFamily plan.</p>"
+    "emailBody": "<p>Great news! Your friend just completed their first booking on HoPetSit.</p><p>You get <strong>-10%</strong> off your next PawFollow or PawFamily plan.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "BOOKING_PAID_CHAT_UNLOCKED": {
     "title": "Payment received — chat unlocked",
     "body": "The chat is now open. Agree on the exact location and details with your contact.",
     "emailSubject": "Payment confirmed — chat is open on HoPetSit",
-    "emailBody": "<p>Good news! Your booking payment has been confirmed.</p><p>The chat is now unlocked: open the HoPetSit app to agree on the exact location and details of the service.</p><p>— The HoPetSit team</p>"
+    "emailBody": "<p>Good news! Your booking payment has been confirmed.</p><p>The chat is now unlocked: open the HoPetSit app to agree on the exact location and details of the service.</p><p>— The HoPetSit team</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "CHAT_AUTO_WELCOME": {
     "title": "Chat unlocked",
@@ -111,7 +111,7 @@
     "title": "Booking completed",
     "body": "Your booking has been marked as completed. Leave a review!",
     "emailSubject": "Booking completed — HoPetSit",
-    "emailBody": "<p>Your booking is now marked as <strong>completed</strong>. Please leave a review to help the community.</p>"
+    "emailBody": "<p>Your booking is now marked as <strong>completed</strong>. Please leave a review to help the community.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "booking_paid": {
     "title": "Payment received!",
@@ -129,43 +129,43 @@
     "title": "Money available 🎉",
     "body": "You just received {{amount}} {{currency}} in your wallet. Use it in the shop or withdraw to your IBAN anytime.",
     "emailSubject": "Service started — {{amount}} {{currency}} credited",
-    "emailBody": "<p>Your HoPetSit service just started. <strong>{{amount}} {{currency}}</strong> have been credited to your wallet. Use them in the HoPetSit shop or withdraw to your IBAN any time from the app.</p>"
+    "emailBody": "<p>Your HoPetSit service just started. <strong>{{amount}} {{currency}}</strong> have been credited to your wallet. Use them in the HoPetSit shop or withdraw to your IBAN any time from the app.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "payout_initiated": {
     "title": "Payout on the way",
     "body": "{{amount}} {{currency}} have been sent to your IBAN. Expected within 1–3 business days.",
     "emailSubject": "HoPetSit payout on the way — {{amount}} {{currency}}",
-    "emailBody": "<p>Your HoPetSit payout of <strong>{{amount}} {{currency}}</strong> has been initiated. Expected within 1–3 business days.</p>"
+    "emailBody": "<p>Your HoPetSit payout of <strong>{{amount}} {{currency}}</strong> has been initiated. Expected within 1–3 business days.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "payout_completed": {
     "title": "Payout received ✅",
     "body": "{{amount}} {{currency}} are now on your bank account.",
     "emailSubject": "Payout received — {{amount}} {{currency}}",
-    "emailBody": "<p>Your HoPetSit payout of <strong>{{amount}} {{currency}}</strong> has landed on your bank account.</p>"
+    "emailBody": "<p>Your HoPetSit payout of <strong>{{amount}} {{currency}}</strong> has landed on your bank account.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "payout_failed": {
     "title": "Payout failed",
     "body": "The transfer could not be completed. Check your IBAN in the app and try again.",
     "emailSubject": "HoPetSit payout failed",
-    "emailBody": "<p>Your HoPetSit payout to your IBAN has failed. Reason: {{reason}}. Verify your IBAN and contact support if needed.</p>"
+    "emailBody": "<p>Your HoPetSit payout to your IBAN has failed. Reason: {{reason}}. Verify your IBAN and contact support if needed.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "withdrawal_initiated": {
     "title": "Withdrawal in progress",
     "body": "Your withdrawal of {{amount}} {{currency}} is on its way to your IBAN.",
     "emailSubject": "HoPetSit withdrawal in progress",
-    "emailBody": "<p>Your HoPetSit withdrawal of <strong>{{amount}} {{currency}}</strong> is on its way to your IBAN. 1–3 business days.</p>"
+    "emailBody": "<p>Your HoPetSit withdrawal of <strong>{{amount}} {{currency}}</strong> is on its way to your IBAN. 1–3 business days.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "withdrawal_completed": {
     "title": "Withdrawal received ✅",
     "body": "{{amount}} {{currency}} are now on your bank account.",
     "emailSubject": "Withdrawal received — {{amount}} {{currency}}",
-    "emailBody": "<p>Your HoPetSit withdrawal of <strong>{{amount}} {{currency}}</strong> has been credited to your bank account.</p>"
+    "emailBody": "<p>Your HoPetSit withdrawal of <strong>{{amount}} {{currency}}</strong> has been credited to your bank account.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "withdrawal_failed": {
     "title": "Withdrawal failed",
     "body": "Your withdrawal could not be processed. Your wallet balance has been restored.",
     "emailSubject": "HoPetSit withdrawal failed",
-    "emailBody": "<p>Your HoPetSit withdrawal failed. Reason: {{reason}}. Your wallet balance was restored, you can retry.</p>"
+    "emailBody": "<p>Your HoPetSit withdrawal failed. Reason: {{reason}}. Your wallet balance was restored, you can retry.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "booking_cancelled_by_owner": {
     "title": "Booking cancelled",
@@ -177,133 +177,133 @@
     "title": "Service cancelled by provider",
     "body": "The provider just cancelled the booking. You will be fully refunded within 5-10 days.",
     "emailSubject": "Your booking has been cancelled — HoPetSit",
-    "emailBody": "<p>Hi,</p><p>The provider just cancelled your booking more than 72h before service. <strong>A full refund is in progress</strong> (5-10 days depending on your bank). You can book another provider on the app.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Find another provider</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link into your browser: {{emailLink}}</p>"
+    "emailBody": "<p>Hi,</p><p>The provider just cancelled your booking more than 72h before service. <strong>A full refund is in progress</strong> (5-10 days depending on your bank). You can book another provider on the app.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Find another provider</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link into your browser: {{emailLink}}</p>"
   },
   "friend_request_received": {
     "title": "Friend request received",
     "body": "Someone wants to add you as a friend on HoPetSit. Open the app to accept or decline.",
     "emailSubject": "Friend request — HoPetSit",
-    "emailBody": "<p>You received a new friend request on HoPetSit. Open the app to respond.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View request</a></p>"
+    "emailBody": "<p>You received a new friend request on HoPetSit. Open the app to respond.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View request</a></p>"
   },
   "friend_request_accepted": {
     "title": "Friend request accepted",
     "body": "Your friend request has been accepted. You can now chat and share your position.",
     "emailSubject": "Friend request accepted — HoPetSit",
-    "emailBody": "<p>Good news — your friend request was accepted.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View my friends</a></p>"
+    "emailBody": "<p>Good news — your friend request was accepted.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View my friends</a></p>"
   },
   "live_tracking_request_received": {
     "title": "Live tracking request",
     "body": "A live position tracking request just landed in your chat.",
     "emailSubject": "Live tracking request — HoPetSit",
-    "emailBody": "<p>A live tracking request was sent to your chat. Open the app to accept or decline.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View request</a></p>"
+    "emailBody": "<p>A live tracking request was sent to your chat. Open the app to accept or decline.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View request</a></p>"
   },
   "live_tracking_accepted": {
     "title": "Live tracking accepted",
     "body": "Your live tracking request was accepted. You can now see the position on PawMap.",
     "emailSubject": "Live tracking accepted — HoPetSit",
-    "emailBody": "<p>Your live tracking request was accepted. Open PawMap to see the live position.</p>"
+    "emailBody": "<p>Your live tracking request was accepted. Open PawMap to see the live position.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "live_tracking_refused": {
     "title": "Live tracking declined",
     "body": "Your live tracking request was declined.",
     "emailSubject": "Live tracking declined — HoPetSit",
-    "emailBody": "<p>Your live tracking request was declined.</p>"
+    "emailBody": "<p>Your live tracking request was declined.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "family_member_added": {
     "title": "Added to a PawFollow family",
     "body": "You are now part of a PawFollow family. Members can track each other live on PawMap.",
     "emailSubject": "Welcome to the PawFollow family — HoPetSit",
-    "emailBody": "<p>You have been added to a PawFollow family. All members can now track each other live on PawMap.</p>"
+    "emailBody": "<p>You have been added to a PawFollow family. All members can now track each other live on PawMap.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "family_invitation_received": {
     "title": "PawFollow Family invitation",
     "body": "You have received an invitation to join a PawFollow family. Open the app to accept or refuse.",
     "emailSubject": "Family invitation - HoPetSit",
-    "emailBody": "<p>You have received an invitation to join a PawFollow family. Open the HoPetSit app to respond.</p>"
+    "emailBody": "<p>You have received an invitation to join a PawFollow family. Open the HoPetSit app to respond.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "family_invitation_accepted": {
     "title": "Invitation accepted",
     "body": "A member just accepted your PawFollow Family invitation.",
     "emailSubject": "Invitation accepted - HoPetSit",
-    "emailBody": "<p>A member just accepted your PawFollow Family invitation. You can now track them live on the PawMap.</p>"
+    "emailBody": "<p>A member just accepted your PawFollow Family invitation. You can now track them live on the PawMap.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "family_invitation_refused": {
     "title": "Invitation refused",
     "body": "A member refused your PawFollow Family invitation. A slot is available again.",
     "emailSubject": "Invitation refused - HoPetSit",
-    "emailBody": "<p>A member refused your PawFollow Family invitation. A slot is available again in your Family plan.</p>"
+    "emailBody": "<p>A member refused your PawFollow Family invitation. A slot is available again in your Family plan.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },
   "kyc_verified": {
     "title": "Identity verified ✅",
     "body": "Your identity verification is confirmed. You now have the verified badge on your profile.",
     "emailSubject": "Identity verified — HoPetSit",
-    "emailBody": "<p>Congratulations, your identity has been successfully verified. The verified badge now appears on your HoPetSit profile.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View my profile</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+    "emailBody": "<p>Congratulations, your identity has been successfully verified. The verified badge now appears on your HoPetSit profile.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View my profile</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
   },
   "kyc_rejected": {
     "title": "Verification declined",
     "body": "Your identity verification could not be validated. Open the app to try again.",
     "emailSubject": "Identity verification — HoPetSit",
-    "emailBody": "<p>Your identity verification could not be validated. You can try again from the app.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Try again</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+    "emailBody": "<p>Your identity verification could not be validated. You can try again from the app.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Try again</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
   },
   "kyc_payment_succeeded": {
     "title": "Payment confirmed",
     "body": "Your payment is confirmed. Now complete your identity verification.",
     "emailSubject": "Payment confirmed — HoPetSit",
-    "emailBody": "<p>We received your payment. Now complete your identity verification from the app.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Continue verification</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+    "emailBody": "<p>We received your payment. Now complete your identity verification from the app.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Continue verification</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
   },
   "map_boost_activated": {
     "title": "Map boost activated 🔥",
     "body": "Your map boost is active. Your profile is highlighted to nearby owners.",
     "emailSubject": "Map boost activated — HoPetSit",
-    "emailBody": "<p>Your map boost is now active. Your profile stands out on the PawMap to nearby owners.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View my profile</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+    "emailBody": "<p>Your map boost is now active. Your profile stands out on the PawMap to nearby owners.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View my profile</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
   },
   "subscription_activated": {
     "title": "Subscription activated ✨",
     "body": "Your subscription is active. Enjoy all your premium benefits.",
     "emailSubject": "Subscription activated — HoPetSit",
-    "emailBody": "<p>Your HoPetSit subscription is now active. Enjoy all your premium benefits.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">See my benefits</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+    "emailBody": "<p>Your HoPetSit subscription is now active. Enjoy all your premium benefits.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">See my benefits</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
   },
   "profile_boost_activated": {
     "title": "Profile boost activated 🔥",
     "body": "Your profile is boosted. You appear first in searches.",
     "emailSubject": "Profile boost activated — HoPetSit",
-    "emailBody": "<p>Your profile is now boosted. You appear first in owners' search results.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View my profile</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+    "emailBody": "<p>Your profile is now boosted. You appear first in owners' search results.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View my profile</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
   },
   "chat_addon_activated": {
     "title": "Chat add-on activated 💬",
     "body": "Your chat add-on is active. You can now message without limits.",
     "emailSubject": "Chat activated — HoPetSit",
-    "emailBody": "<p>Your chat add-on is now active. You can chat freely with owners and providers.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open my messages</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+    "emailBody": "<p>Your chat add-on is now active. You can chat freely with owners and providers.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open my messages</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
   },
   "application_rejected_other_accepted": {
     "title": "Listing filled",
     "body": "The listing was assigned to another provider. Find other opportunities!",
     "emailSubject": "Listing filled — HoPetSit",
-    "emailBody": "<p>The listing you applied to was assigned to another provider. More opportunities are available.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Browse listings</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+    "emailBody": "<p>The listing you applied to was assigned to another provider. More opportunities are available.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Browse listings</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
   },
   "service_started": {
     "title": "Service started 🐾",
     "body": "Your provider has picked up your pet and started the service.",
     "emailSubject": "Service started — HoPetSit",
-    "emailBody": "<p>Good news: your provider just picked up your pet and started the service.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+    "emailBody": "<p>Good news: your provider just picked up your pet and started the service.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
   },
   "service_completion_request": {
     "title": "Confirm service completion",
     "body": "Your provider says they returned your pet. Confirm everything went well to release the payment.",
     "emailSubject": "Confirm service completion — HoPetSit",
-    "emailBody": "<p>Your provider says they returned your pet. Confirm everything went well — this releases the payment. If you don't respond within 48h, it will be released automatically.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Confirm</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+    "emailBody": "<p>Your provider says they returned your pet. Confirm everything went well — this releases the payment. If you don't respond within 48h, it will be released automatically.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Confirm</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
   },
   "service_confirmed": {
     "title": "Service confirmed ✅",
     "body": "The owner confirmed the service. Your payment has been released.",
     "emailSubject": "Service confirmed — payment released",
-    "emailBody": "<p>The owner confirmed everything went well. Your payment has been released to your wallet.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View my wallet</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+    "emailBody": "<p>The owner confirmed everything went well. Your payment has been released to your wallet.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View my wallet</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
   },
   "service_disputed": {
     "title": "Issue reported",
     "body": "The owner reported an issue with this service. Payment is on hold pending resolution.",
     "emailSubject": "Issue reported — HoPetSit",
-    "emailBody": "<p>The owner reported an issue with this service. Payment is on hold pending resolution. Contact them via chat to resolve it.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+    "emailBody": "<p>The owner reported an issue with this service. Payment is on hold pending resolution. Contact them via chat to resolve it.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
   },
   "service_start_due": {
     "title": "It's time! 🐾",
@@ -333,7 +333,7 @@
     "title": "Booking refunded",
     "body": "The dispute has been settled: the booking is refunded. The amount goes back to your payment method within 5 to 10 days.",
     "emailSubject": "Booking refunded — HoPetSit",
-    "emailBody": "<p>Our team has reviewed the dispute: the booking is <strong>refunded</strong>. The amount goes back to your payment method within 5 to 10 business days.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p>"
+    "emailBody": "<p>Our team has reviewed the dispute: the booking is <strong>refunded</strong>. The amount goes back to your payment method within 5 to 10 business days.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p>"
   },
   "sos_pet_nearby": {
     "title": "Lost pet SOS near you 🆘",

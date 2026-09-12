@@ -132,6 +132,23 @@
                      la page web /open qui redirige vers /download. -->
                 <data android:pathPrefix="/open" />
                 <data android:pathPrefix="/app" />
+                <!-- v561 — Daniel : « du mail ou du push, direct sur l'app au thème
+                     correspondant ». Tous les chemins que DeepLinkService sait
+                     ouvrir (amis, annonces, boutique, profil, promenade, wallet…). -->
+                <data android:pathPrefix="/book" />
+                <data android:pathPrefix="/walk" />
+                <data android:pathPrefix="/wallet" />
+                <data android:pathPrefix="/subscription" />
+                <data android:pathPrefix="/paw-spot" />
+                <data android:pathPrefix="/pawspot" />
+                <data android:pathPrefix="/shop" />
+                <data android:pathPrefix="/profile" />
+                <data android:pathPrefix="/post" />
+                <data android:pathPrefix="/friends" />
+                <data android:pathPrefix="/amis" />
+                <data android:pathPrefix="/family" />
+                <data android:pathPrefix="/live" />
+                <data android:pathPrefix="/pawmap" />
             </intent-filter>
         </activity>
         <!-- Google Maps API Key -->

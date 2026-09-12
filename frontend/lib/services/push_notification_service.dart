@@ -9,6 +9,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
+import 'package:hopetsit/services/deep_link_service.dart';
 // v23.1.319 — Daniel (audit) : routage du tap PUSH vers l'écran Notifications.
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
@@ -353,10 +354,22 @@ class PushNotificationService extends GetxService {
     // cul-de-sac pour TOUS les types. On ouvre désormais l'écran Notifications
     // (la cloche), d'où le tap sur l'item route vers le bon écran via
     // _navigateForNotification (wallet / booking / chat / amis / boutique...).
+    // v561 — Daniel : « le push doit envoyer direct sur l'app au thème
+    // correspondant ». Le serveur met désormais le chemin (`route`) dans le
+    // payload ; à défaut (ancien push), on le déduit du type. La navigation
+    // passe par le routeur des liens universels (attend que le menu soit
+    // monté au démarrage à froid → plus d'écran noir).
     try {
-      Get.to(() => const NotificationsScreen());
+      var route = (data['route'] ?? '').toString().trim();
+      if (route.isEmpty || !route.startsWith('/')) {
+        route = DeepLinkService.routeForNotification(type, data);
+      }
+      unawaited(DeepLinkService.instance.openRoute(route));
     } catch (e) {
       if (kDebugMode) debugPrint('FCM tap nav failed (type=$type): $e');
+      try {
+        Get.to(() => const NotificationsScreen());
+      } catch (_) {/* noop */}
     }
   }
 

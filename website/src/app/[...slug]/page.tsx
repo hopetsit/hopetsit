@@ -31,9 +31,9 @@ import { useEffect, useMemo, useState } from "react";
 // → lien cassé 404. L'app iOS n'est pas encore publiée : on pointe vers la page
 // /download ("bientôt sur les stores") au lieu d'un lien mort. À remplacer par
 // la vraie URL App Store le jour de la publication iOS.
-const APP_STORE_URL = "/download";
+const APP_STORE_URL = "https://apps.apple.com/app/id6763645719";
 const PLAY_STORE_URL =
-  "https://play.google.com/store/apps/details?id=com.hopetsit.app";
+  "https://play.google.com/store/apps/details?id=com.cardellihermanos.hopetsit";
 
 // Map du chemin web → page liste équivalente quand disponible. Permet à
 // l'utilisateur desktop de "continuer sur le web" sans atterrir sur une

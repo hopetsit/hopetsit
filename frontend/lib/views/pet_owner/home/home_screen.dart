@@ -473,17 +473,21 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 15.sp, color: fg),
-                SizedBox(width: 4.w),
+                Icon(icon, size: 14.sp, color: fg),
+                SizedBox(width: 3.w),
+                // v561 — Daniel : « Mes annon… » coupé. Le libellé se réduit
+                // pour tenir dans la pilule au lieu d'être tronqué.
                 Flexible(
-                  child: InterText(
-                    text: label,
-                    textAlign: TextAlign.center,
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w700,
-                    color: fg,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: InterText(
+                      text: label,
+                      textAlign: TextAlign.center,
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w700,
+                      color: fg,
+                      maxLines: 1,
+                    ),
                   ),
                 ),
               ],

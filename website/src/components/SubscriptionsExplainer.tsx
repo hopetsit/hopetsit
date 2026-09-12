@@ -29,7 +29,7 @@ export function SubscriptionsExplainer({ compact = false }: { compact?: boolean 
     {
       key: "ps",
       name: "PawSpot",
-      logo: "/pawspot_logo.svg",
+      logo: "/pawspot_logo.png",
       accent: "#E8920A",
       soft: "#FFF4DD",
       free: t("sub_ps_free"),

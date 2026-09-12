@@ -81,15 +81,17 @@ export default function PawSpotGoldCoin({
   size?: number;
   className?: string;
 }) {
+  // v561 — Daniel : « change l'icône de PawSpot » → nouvelle pièce dorée
+  // (pin + patte sur fond carte), servie en PNG transparent. Le SVG teinté
+  // (makeCoinSvg) reste utilisé pour les marqueurs par type de spot.
   return (
-    <span
+    <img
+      src="/pawspot_logo.png"
+      alt="PawSpot"
+      width={size}
+      height={size}
       className={`inline-block align-middle ${className}`}
-      style={{
-        width: size,
-        height: size,
-        filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.25))",
-      }}
-      dangerouslySetInnerHTML={{ __html: GOLDEN_COIN_SVG }}
+      style={{ width: size, height: size, filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.25))" }}
     />
   );
 }

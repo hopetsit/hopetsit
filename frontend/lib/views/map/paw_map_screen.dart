@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'package:flutter/services.dart' show rootBundle;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -33,6 +34,7 @@ import 'package:hopetsit/utils/pawmap_theme.dart';
 import 'package:hopetsit/widgets/pawmap_panel_handle.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
+import 'package:hopetsit/widgets/golden_paw_coin.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
@@ -733,15 +735,31 @@ class _PawMapScreenState extends State<PawMapScreen>
   // Avatar) ───────────────────────────────────────────────────────────────
   /// Pré-génère (async, en cache) le badge rose pour un état donné. Fallback
   /// pin rose le temps que le bitmap se calcule, puis setState pour le poser.
-  void _ensurePawBadgeMarker(bool online, bool premium, bool selected) {
-    final key = 'pb_${online ? 1 : 0}_${premium ? 1 : 0}_${selected ? 1 : 0}';
+  /// v561 — clé du badge membre : état + couleur (rose fluo dézoomé, rôle
+  /// au zoom ≥ 12).
+  static String _pawBadgeKey(
+      bool online, bool premium, bool selected, String role, bool roleColored) {
+    final tint = roleColored && (role == 'owner' || role == 'walker' || role == 'sitter')
+        ? role
+        : 'pink';
+    return 'pb_${online ? 1 : 0}_${premium ? 1 : 0}_${selected ? 1 : 0}_$tint';
+  }
+
+  void _ensurePawBadgeMarker(bool online, bool premium, bool selected,
+      [String role = '', bool roleColored = false]) {
+    final key = _pawBadgeKey(online, premium, selected, role, roleColored);
     if (_pawBadgeMarkers.containsKey(key) ||
         _emojiGenInProgress.contains(key)) {
       return;
     }
     _emojiGenInProgress.add(key);
-    _buildPawBadgeBitmap(online: online, premium: premium, selected: selected)
-        .then((bd) {
+    _buildPawBadgeBitmap(
+      online: online,
+      premium: premium,
+      selected: selected,
+      role: role,
+      roleColored: roleColored,
+    ).then((bd) {
       _pawBadgeMarkers[key] = bd;
       _emojiGenInProgress.remove(key);
       _pawBadgeRev++;
@@ -921,40 +939,63 @@ class _PawMapScreenState extends State<PawMapScreen>
     required bool online,
     required bool premium,
     required bool selected,
+    String role = '',
+    bool roleColored = false,
   }) async {
     // v550 — Daniel : « les utilisateurs, fais-les rose brillant qu'on les
     // voie mieux ». Badge agrandi (42 → 48 px), rose plus vif et HALO
     // lumineux rose autour du cercle : sur une carte saturée de POI bleus,
     // les membres ressortent au premier coup d'œil.
-    const double size = 96.0;
+    // v561 — Daniel : « les utilisateurs : légèrement plus grands et beaucoup
+    // plus brillants ; dézoomé = rose fluo, zoomé = orange propriétaire /
+    // vert promeneur / bleu gardien, comme sur le web ». Badge 48 → 56 px,
+    // halo plus fort, couleur par rôle dès le zoom 12 (roleColored).
+    const double size = 112.0;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    const center = Offset(48, 50);
-    final double r = selected ? 27 : 26;
-    const pink = Color(0xFFFF4FA3);
-    const pinkDark = Color(0xFFF01E86);
-    final Color fillTop = !online
-        ? const Color(0xFFD8A8C0)
-        : (selected ? pinkDark : pink);
-    final Color fillBottom =
-        online ? pinkDark : const Color(0xFFC194AC);
+    const center = Offset(56, 58);
+    final double r = selected ? 31 : 30;
+    Color pink = const Color(0xFFFF2D9B); // rose fluo
+    Color pinkDark = const Color(0xFFF0117F);
+    if (roleColored) {
+      switch (role) {
+        case 'owner':
+          pink = const Color(0xFFFF5A2E);
+          pinkDark = const Color(0xFFD83C28);
+          break;
+        case 'walker':
+          pink = const Color(0xFF2FD16B);
+          pinkDark = const Color(0xFF16A34A);
+          break;
+        case 'sitter':
+          pink = const Color(0xFF4F8DFF);
+          pinkDark = const Color(0xFF2563EB);
+          break;
+        default:
+          break;
+      }
+    }
+    final Color offTop = Color.lerp(pink, const Color(0xFFBFBFC6), 0.55)!;
+    final Color offBottom = Color.lerp(pinkDark, const Color(0xFFA9A9B2), 0.55)!;
+    final Color fillTop = !online ? offTop : (selected ? pinkDark : pink);
+    final Color fillBottom = online ? pinkDark : offBottom;
 
-    // Halo lumineux rose (2 couches floues) — c'est lui qui rend le badge
+    // Halo lumineux (2 couches floues) — c'est lui qui rend le badge
     // « brillant ». Désaturé et discret quand le membre est hors ligne.
-    final double glowA = online ? 0.55 : 0.22;
+    final double glowA = online ? 0.85 : 0.28;
     canvas.drawCircle(
       center,
-      r + 11,
+      r + 15,
       Paint()
-        ..color = pink.withValues(alpha: glowA * 0.45)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
+        ..color = pink.withValues(alpha: glowA * 0.5)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
     );
     canvas.drawCircle(
       center,
-      r + 5,
+      r + 6,
       Paint()
         ..color = pink.withValues(alpha: glowA)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
     );
     // Ombre douce (lisibilité sur fond clair).
     canvas.drawCircle(
@@ -1009,10 +1050,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     _drawWhitePaw(canvas, center, r * 1.5);
     // Point en/hors ligne (bas-droite).
     final dotC = Offset(center.dx + r * 0.72, center.dy + r * 0.72);
-    canvas.drawCircle(dotC, 7.5, Paint()..color = Colors.white);
+    canvas.drawCircle(dotC, 8.5, Paint()..color = Colors.white);
     canvas.drawCircle(
       dotC,
-      5.5,
+      6.5,
       Paint()
         ..color =
             online ? const Color(0xFF2ECC71) : const Color(0xFFC3C3C9),
@@ -1020,10 +1061,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     // Badge doré 👑 (haut-droite) si membre premium.
     if (premium) {
       final crownC = Offset(center.dx + r * 0.74, center.dy - r * 0.74);
-      canvas.drawCircle(crownC, 9.5, Paint()..color = Colors.white);
+      canvas.drawCircle(crownC, 11, Paint()..color = Colors.white);
       canvas.drawCircle(
         crownC,
-        8,
+        9.5,
         Paint()
           ..shader = const LinearGradient(
             begin: Alignment.topLeft,
@@ -1032,7 +1073,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           ).createShader(Rect.fromCircle(center: crownC, radius: 8)),
       );
       final tp = TextPainter(
-        text: const TextSpan(text: '👑', style: TextStyle(fontSize: 10)),
+        text: const TextSpan(text: '👑', style: TextStyle(fontSize: 11)),
         textDirection: TextDirection.ltr,
       )..layout();
       tp.paint(canvas, crownC.translate(-tp.width / 2, -tp.height / 2));
@@ -1041,7 +1082,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     final img =
         await recorder.endRecording().toImage(size.toInt(), size.toInt());
     final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
-    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List(), width: 48);
+    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List(), width: 56);
   }
 
   /// Patte blanche (4 coussinets + paume) dessinée dans une boîte [paw] px
@@ -1454,10 +1495,61 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// LA pièce-médaille officielle (emoji fourni : anneau brillant, patte en
   /// relief, pointe-pin dans le coussinet, étincelles) déclinée dans la
   /// COULEUR DU TYPE — sans `base` : la version OR (spots golden).
+  ui.Image? _pawspotCoinImage;
+
+  /// v561 — pièce PawSpot officielle (PNG) pour les spots DORÉS, avec
+  /// l'anneau à la couleur du type conservé autour.
+  Future<BitmapDescriptor?> _buildGoldenCoinFromAsset(Color? typeRing) async {
+    try {
+      if (_pawspotCoinImage == null) {
+        final data = await rootBundle.load(GoldenPawCoin.asset);
+        final codec = await ui.instantiateImageCodec(
+          data.buffer.asUint8List(),
+          targetWidth: 160,
+          targetHeight: 160,
+        );
+        _pawspotCoinImage = (await codec.getNextFrame()).image;
+      }
+      const double size = 136.0;
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      const center = Offset(68, 68);
+      if (typeRing != null) {
+        canvas.drawCircle(
+          center,
+          64,
+          Paint()..color = typeRing.withValues(alpha: 0.35)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+        );
+        canvas.drawCircle(center, 61, Paint()..color = typeRing);
+      }
+      canvas.drawCircle(
+        center.translate(0, 3),
+        56,
+        Paint()..color = Colors.black.withValues(alpha: 0.22)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+      );
+      final img = _pawspotCoinImage!;
+      canvas.drawImageRect(
+        img,
+        Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
+        Rect.fromCircle(center: center, radius: 56),
+        Paint()..filterQuality = FilterQuality.high,
+      );
+      final out = await recorder.endRecording().toImage(size.toInt(), size.toInt());
+      final bytes = await out.toByteData(format: ui.ImageByteFormat.png);
+      return BitmapDescriptor.bytes(bytes!.buffer.asUint8List(), width: 62);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<BitmapDescriptor> _buildCoinBitmap({
     Color? base,
     Color? typeRing,
   }) async {
+    if (base == null) {
+      final fromAsset = await _buildGoldenCoinFromAsset(typeRing);
+      if (fromAsset != null) return fromAsset;
+    }
     // Palette : or officiel par défaut, sinon nuances dérivées du type.
     final Color ringStart = base == null
         ? const Color(0xFFFFE989)
@@ -1643,6 +1735,21 @@ class _PawMapScreenState extends State<PawMapScreen>
     super.didChangeAppLifecycleState(state);
     if (!mounted) return;
     if (state == AppLifecycleState.resumed) {
+      // v561 — Daniel : « quand on ferme l'app et qu'on la rouvre, ça revient
+      // à ma position actuelle ». Après ≥ 2 min en arrière-plan, on se
+      // recentre sur le GPS (sauf itinéraire en cours, suivi d'un ami ou
+      // placement en cours).
+      final pausedAt = _pausedAt;
+      _pausedAt = null;
+      if (pausedAt != null &&
+          DateTime.now().difference(pausedAt) >= const Duration(minutes: 2) &&
+          _routePolylines.isEmpty &&
+          _followUserId == null &&
+          !_pickingSpotPos.value &&
+          !_pickingReportPos.value &&
+          !_pickingRoutePos.value) {
+        unawaited(_recenterOnUser());
+      }
       if (_haloTimer == null || !(_haloTimer!.isActive)) {
         _haloTimer = Timer.periodic(const Duration(milliseconds: 600), (_) {
           if (!mounted || _cameraMoving) return;
@@ -1650,11 +1757,18 @@ class _PawMapScreenState extends State<PawMapScreen>
         });
       }
     } else {
+      if (state == AppLifecycleState.paused ||
+          state == AppLifecycleState.hidden) {
+        _pausedAt ??= DateTime.now();
+      }
       // paused / inactive / detached / hidden → coupe le timer.
       _haloTimer?.cancel();
       _haloTimer = null;
     }
   }
+
+  /// v561 — instant du passage en arrière-plan (recentrage au retour).
+  DateTime? _pausedAt;
 
   /// v19.1.3 — Modernized search bar: pill-shaped glassmorphic surface with
   /// subtle green accent border, matching the Signaler FAB so the top and
@@ -3229,9 +3343,13 @@ class _PawMapScreenState extends State<PawMapScreen>
         final bool approx = p['approx'] == true;
         // v550 — rayon d'imprécision annoncé par le backend.
         final double approxKm = (p['approxKm'] as num?)?.toDouble() ?? 1.0;
+        // v561 — rose fluo dézoomé, couleur du rôle dès le zoom 12.
+        final bool roleColored = _zoomLevel >= 12;
         final icon = _pawBadgeMarkers[
-            'pb_${online ? 1 : 0}_${premium ? 1 : 0}_${selected ? 1 : 0}'];
-        if (icon == null) _ensurePawBadgeMarker(online, premium, selected);
+            _pawBadgeKey(online, premium, selected, role, roleColored)];
+        if (icon == null) {
+          _ensurePawBadgeMarker(online, premium, selected, role, roleColored);
+        }
         markers.add(
           Marker(
             markerId: MarkerId('nearby_$id'),
@@ -4039,7 +4157,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                         _tabBarLift(context) +
                         MediaQuery.of(context).viewPadding.bottom,
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      // v561 — Daniel : « plus la peine de centrer la colonne
+                      // de gauche » → alignée sur le BAS de la capsule de droite.
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         if (!picking) _buildMapActionsColumn(),
                         const Spacer(),
@@ -6032,6 +6152,15 @@ class _PawMapScreenState extends State<PawMapScreen>
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // v561 — Daniel : « un bouton violet : les endroits autour de moi
+          // par catégorie, je clique le lieu et ça me donne l'itinéraire ».
+          _roundMapBtn(
+            icon: Icons.near_me_rounded,
+            color: PawMapTheme.pawFollow,
+            label: 'pawmap_btn_around'.tr,
+            onTap: () => unawaited(_openAroundMeSheet()),
+          ),
+          SizedBox(height: 8.h),
           // v559 — Daniel : « ajoute sur la petite map le bouton Itinéraire
           // comme sur la grande, pour utiliser les nouvelles fonctionnalités »
           // (à pied / vélo / voiture, indications de virage). Sorti du bloc
@@ -6068,6 +6197,8 @@ class _PawMapScreenState extends State<PawMapScreen>
           _roundMapBtn(
             icon: Icons.travel_explore_rounded,
             color: const Color(0xFF2563EB),
+            // v561 — nouvelle icône PawSpot (pièce dorée) sur le rail.
+            child: Image.asset(GoldenPawCoin.asset, width: 26.w, height: 26.w),
             label: 'pawmap_view_spots_btn'.tr,
             // v556 — voir les spots est GRATUIT (option C : « voir tous les
             // PawSpots » ; seule la création au-delà de 3 est payante).
@@ -6471,6 +6602,313 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v552 (corrigé sur retour Daniel) — « les boutons avec titre au lieu de
   /// juste l'icône, et ce n'est pas aligné ». La maquette montre des BOUTONS
   /// RONDS blancs, icône seule, alignés verticalement : on revient à ça. Les
+
+  // ─── v561 — « Autour de moi » : lieux par catégorie → itinéraire ─────────
+
+  double _aroundRadiusKm =
+      ((GetStorage().read('pawmap_around_radius') as num?)?.toDouble() ?? 5.0);
+
+  static double _distanceKm(LatLng a, LatLng b) {
+    const R = 6371.0;
+    final dLat = (b.latitude - a.latitude) * math.pi / 180;
+    final dLng = (b.longitude - a.longitude) * math.pi / 180;
+    final la1 = a.latitude * math.pi / 180;
+    final la2 = b.latitude * math.pi / 180;
+    final h = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(la1) * math.cos(la2) * math.sin(dLng / 2) * math.sin(dLng / 2);
+    return 2 * R * math.asin(math.sqrt(h.clamp(0.0, 1.0)));
+  }
+
+  Future<List<MapPOI>> _fetchAroundPois(String category, double radiusKm,
+      LatLng origin) async {
+    final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
+    if (api == null) return const [];
+    final res = await api.get(
+      '/map-pois/nearby',
+      queryParameters: {
+        'lat': origin.latitude.toString(),
+        'lng': origin.longitude.toString(),
+        'maxDistance': (radiusKm * 1000).round().toString(),
+        'category': category,
+      },
+      requiresAuth: true,
+    ).catchError((_) => <String, dynamic>{});
+    final list = ((res as Map?)?['pois'] as List?) ?? const [];
+    final out = <MapPOI>[];
+    for (final j in list) {
+      if (j is Map) {
+        final poi = MapPOI.fromJson(Map<String, dynamic>.from(j));
+        if (poi.latitude != 0 || poi.longitude != 0) out.add(poi);
+      }
+    }
+    out.sort((a, b) => _distanceKm(origin, LatLng(a.latitude, a.longitude))
+        .compareTo(_distanceKm(origin, LatLng(b.latitude, b.longitude))));
+    return out;
+  }
+
+  Future<void> _openAroundMeSheet() async {
+    final origin = _userPosition ?? _currentCenter;
+    String? category;
+    List<MapPOI> results = const [];
+    bool loading = false;
+    String mode = _routeMode;
+    double radius = _aroundRadiusKm;
+    const radii = <double>[1, 2, 5, 10];
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => StatefulBuilder(builder: (ctx, setSheet) {
+        Future<void> load(String cat) async {
+          setSheet(() {
+            category = cat;
+            loading = true;
+            results = const [];
+          });
+          final r = await _fetchAroundPois(cat, radius, origin);
+          if (!ctx.mounted) return;
+          setSheet(() {
+            results = r;
+            loading = false;
+          });
+        }
+
+        Widget chip(String label, bool on, VoidCallback onTap,
+            {Color color = PawMapTheme.pawFollow, IconData? icon}) {
+          return GestureDetector(
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
+              decoration: BoxDecoration(
+                color: on ? color : color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(20.r),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 15.sp, color: on ? Colors.white : color),
+                  SizedBox(width: 4.w),
+                ],
+                Text(label,
+                    style: TextStyle(
+                      fontSize: 12.5.sp,
+                      fontWeight: FontWeight.w700,
+                      color: on ? Colors.white : color,
+                    )),
+              ]),
+            ),
+          );
+        }
+
+        final maxH = MediaQuery.of(ctx).size.height * 0.80;
+        return Container(
+          constraints: BoxConstraints(maxHeight: maxH),
+          margin: EdgeInsets.fromLTRB(10.w, 0, 10.w, 10.h + MediaQuery.of(ctx).viewPadding.bottom),
+          decoration: BoxDecoration(
+            color: AppColors.card(ctx),
+            borderRadius: BorderRadius.circular(26.r),
+            boxShadow: PawMapTheme.pillShadow,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(18.w, 14.h, 10.w, 4.h),
+                child: Row(children: [
+                  Container(
+                    width: 40.w,
+                    height: 40.w,
+                    decoration: BoxDecoration(
+                      color: PawMapTheme.pawFollow.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14.r),
+                    ),
+                    child: Icon(Icons.near_me_rounded,
+                        color: PawMapTheme.pawFollow, size: 22.sp),
+                  ),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('pawmap_around_title'.tr,
+                            style: TextStyle(
+                                fontSize: 17.sp, fontWeight: FontWeight.w800)),
+                        Text(
+                          category == null
+                              ? 'pawmap_around_subtitle'.tr
+                              : '${PoiCategories.emoji(category!)} ${PoiCategories.label(category!)} · ${'pawmap_around_km'.tr.replaceAll('{km}', radius.toStringAsFixed(radius == radius.roundToDouble() ? 0 : 1))}',
+                          style: TextStyle(
+                              fontSize: 12.sp, color: AppColors.greyText),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (category != null)
+                    IconButton(
+                      tooltip: 'pawmap_around_back'.tr,
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      onPressed: () => setSheet(() {
+                        category = null;
+                        results = const [];
+                      }),
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(sheetCtx).pop(),
+                  ),
+                ]),
+              ),
+              // Rayon + mode
+              Padding(
+                padding: EdgeInsets.fromLTRB(16.w, 6.h, 16.w, 8.h),
+                child: Wrap(spacing: 6.w, runSpacing: 6.h, children: [
+                  for (final r in radii)
+                    chip('${r.toStringAsFixed(0)} km', radius == r, () {
+                      setSheet(() => radius = r);
+                      _aroundRadiusKm = r;
+                      try {
+                        GetStorage().write('pawmap_around_radius', r);
+                      } catch (_) {/* noop */}
+                      if (category != null) unawaited(load(category!));
+                    }),
+                  SizedBox(width: 6.w),
+                  chip('route_mode_walk'.tr, mode == 'walk',
+                      () => setSheet(() => mode = 'walk'),
+                      color: _routeColors['walk']!,
+                      icon: Icons.directions_walk_rounded),
+                  chip('route_mode_bike'.tr, mode == 'bike',
+                      () => setSheet(() => mode = 'bike'),
+                      color: _routeColors['bike']!,
+                      icon: Icons.directions_bike_rounded),
+                  chip('route_mode_car'.tr, mode == 'car',
+                      () => setSheet(() => mode = 'car'),
+                      color: _routeColors['car']!,
+                      icon: Icons.directions_car_rounded),
+                ]),
+              ),
+              Divider(height: 1, color: AppColors.divider(ctx)),
+              Flexible(
+                child: category == null
+                    ? GridView.count(
+                        shrinkWrap: true,
+                        padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 14.h),
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 8.h,
+                        crossAxisSpacing: 8.w,
+                        childAspectRatio: 3.1,
+                        children: [
+                          for (final c in PoiCategories.all)
+                            GestureDetector(
+                              onTap: () => unawaited(load(c)),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(horizontal: 12.w),
+                                decoration: BoxDecoration(
+                                  color: PawMapTheme.pawFollow.withValues(alpha: 0.07),
+                                  borderRadius: BorderRadius.circular(16.r),
+                                  border: Border.all(
+                                      color: PawMapTheme.pawFollow.withValues(alpha: 0.18)),
+                                ),
+                                child: Row(children: [
+                                  Text(PoiCategories.emoji(c),
+                                      style: TextStyle(fontSize: 18.sp)),
+                                  SizedBox(width: 8.w),
+                                  Expanded(
+                                    child: Text(
+                                      PoiCategories.label(c),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                          fontSize: 12.5.sp,
+                                          fontWeight: FontWeight.w700),
+                                    ),
+                                  ),
+                                ]),
+                              ),
+                            ),
+                        ],
+                      )
+                    : loading
+                        ? Padding(
+                            padding: EdgeInsets.all(28.h),
+                            child: const Center(
+                                child: CircularProgressIndicator(strokeWidth: 3)),
+                          )
+                        : results.isEmpty
+                            ? Padding(
+                                padding: EdgeInsets.all(24.h),
+                                child: Text('pawmap_around_none'.tr,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: AppColors.greyText)),
+                              )
+                            : ListView.separated(
+                                shrinkWrap: true,
+                                padding: EdgeInsets.fromLTRB(8.w, 6.h, 8.w, 10.h),
+                                itemCount: results.length,
+                                separatorBuilder: (_, __) =>
+                                    Divider(height: 1, color: AppColors.divider(ctx)),
+                                itemBuilder: (_, i) {
+                                  final poi = results[i];
+                                  final d = _distanceKm(origin,
+                                      LatLng(poi.latitude, poi.longitude));
+                                  final dist = d < 1
+                                      ? '${(d * 1000).round()} m'
+                                      : '${d.toStringAsFixed(1)} km';
+                                  return ListTile(
+                                    dense: true,
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 10.w),
+                                    leading: Text(PoiCategories.emoji(poi.category),
+                                        style: TextStyle(fontSize: 20.sp)),
+                                    title: Text(poi.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                            fontSize: 13.5.sp,
+                                            fontWeight: FontWeight.w700)),
+                                    subtitle: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        if (poi.address.isNotEmpty)
+                                          Text(poi.address,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(fontSize: 11.5.sp)),
+                                        if (poi.openingHours.isNotEmpty)
+                                          _poiHoursLine(poi.openingHours),
+                                      ],
+                                    ),
+                                    trailing: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(dist,
+                                            style: TextStyle(
+                                                fontSize: 12.sp,
+                                                fontWeight: FontWeight.w800,
+                                                color: PawMapTheme.pawFollow)),
+                                        Icon(Icons.directions_rounded,
+                                            size: 18.sp, color: _routeColors[mode]),
+                                      ],
+                                    ),
+                                    onTap: () {
+                                      Navigator.of(sheetCtx).pop();
+                                      _setRouteMode(mode);
+                                      unawaited(_startDirections(
+                                          LatLng(poi.latitude, poi.longitude)));
+                                    },
+                                  );
+                                },
+                              ),
+              ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
   /// pilules avec libellé mangeaient la carte et cassaient l'alignement ; le
   /// libellé reste accessible en appui long.
   Widget _roundMapBtn({
@@ -6478,13 +6916,18 @@ class _PawMapScreenState extends State<PawMapScreen>
     required Color color,
     required String label,
     required VoidCallback onTap,
+    Widget? child, // v561 — visuel custom (ex. pièce PawSpot) à la place de l'icône
   }) {
     // v555 — Daniel : « les deux barres touchent le menu ». Les rails
     // mesuraient ~200 et ~230 px de haut pour une bande libre de ~250 : ils
     // touchaient forcément le panneau en haut OU la barre d'onglets en bas.
     // Boutons 44 → 38 et écart 10 → 7 : ~35 px repris sur chaque rail.
+    // v561 — Daniel : « la colonne de gauche alignée sur le bas de la barre
+    // de droite ». Espacement porté en HAUT de chaque bouton : le dernier
+    // bouton affleure ainsi le bas de la colonne, à la même ligne de base que
+    // la capsule de droite.
     return Padding(
-      padding: EdgeInsets.only(bottom: 7.h),
+      padding: EdgeInsets.only(top: 7.h),
       child: Tooltip(
         message: label,
         child: GestureDetector(
@@ -6499,7 +6942,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               shape: BoxShape.circle,
               boxShadow: PawMapTheme.pillShadow,
             ),
-            child: Icon(icon, size: 18.sp, color: color),
+            child: child ?? Icon(icon, size: 18.sp, color: color),
           ),
         ),
       ),

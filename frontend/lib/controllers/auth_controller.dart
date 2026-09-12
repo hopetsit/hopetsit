@@ -694,6 +694,8 @@ class AuthController extends GetxController {
     // v546 — invitation d'ami reçue AVANT la connexion : on la rejoue
     // maintenant que la session existe (voir DeepLinkService).
     unawaited(DeepLinkService.replayPendingInvite());
+    // v561 — lien / push reçu avant la connexion → on ouvre l'écran visé.
+    unawaited(DeepLinkService.replayPendingRoute());
     // v540 — indice « Reprendre » pour l'écran de connexion (nom/avatar/rôle/
     // e-mail de la dernière session ; volontairement conservé après logout).
     try {

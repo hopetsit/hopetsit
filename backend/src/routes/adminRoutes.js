@@ -2544,6 +2544,44 @@ router.post('/map-reports/:id/restore', requireAdmin, async (req, res) => {
  *     currencies: ['EUR','GBP','CHF','USD']
  *   }
  */
+// v561 — Versions de l'app (mise à jour dans l'app). GET/PATCH du singleton.
+router.get('/app-version', requireAdmin, async (req, res) => {
+  try {
+    const AppVersionConfig = require('../models/AppVersionConfig');
+    const doc = await AppVersionConfig.getSingleton();
+    res.json({ android: doc.android, ios: doc.ios, updatedAt: doc.updatedAt });
+  } catch (e) {
+    logger.error('[admin/app-version:get]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.patch('/app-version', requireAdmin, async (req, res) => {
+  try {
+    const AppVersionConfig = require('../models/AppVersionConfig');
+    const doc = await AppVersionConfig.getSingleton();
+    const clean = (p) => {
+      if (!p || typeof p !== 'object') return null;
+      const out = {};
+      if (p.latest !== undefined) out.latest = Math.max(0, parseInt(p.latest, 10) || 0);
+      if (p.minimum !== undefined) out.minimum = Math.max(0, parseInt(p.minimum, 10) || 0);
+      if (typeof p.url === 'string') out.url = p.url.trim().slice(0, 300);
+      if (typeof p.message === 'string') out.message = p.message.trim().slice(0, 300);
+      return out;
+    };
+    for (const plat of ['android', 'ios']) {
+      const c = clean(req.body?.[plat]);
+      if (c) doc[plat] = { ...(doc[plat]?.toObject ? doc[plat].toObject() : doc[plat]), ...c };
+    }
+    await doc.save();
+    try { require('./appVersionRoutes').invalidateCache(); } catch (_) { /* noop */ }
+    res.json({ android: doc.android, ios: doc.ios, updatedAt: doc.updatedAt });
+  } catch (e) {
+    logger.error('[admin/app-version:patch]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get('/pricing', requireAdmin, (req, res) => {
   try {
     res.json({

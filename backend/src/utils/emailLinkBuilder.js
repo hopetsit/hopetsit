@@ -1,257 +1,190 @@
 /**
- * v23.1.155 — Email CTA link builder.
+ * Liens des notifications (e-mail + push) → écran précis de l'app.
  *
- * Daniel : "connecte les boutons quon recois par mail a lapp ou le web".
+ * v23.1.155 : liens universels `https://hopetsit.com/...` (App Links Android +
+ * Universal Links iOS : app ouverte si installée, site sinon).
+ * v449 : tout avait été rabattu sur UN lien `/open` (« 1 lien, 2 issues »).
+ * v561 — Daniel : « quand je reçois le mail ou le push, ça doit envoyer
+ * DIRECT sur l'app au thème correspondant, pas d'abord sur le site ; et
+ * "Voir mes amis" donnait un écran noir ». On revient à un vrai lien par
+ * type, calculé UNE fois ici et utilisé :
+ *   - par l'e-mail  : `{{emailLink}}` = BASE_URL + route ;
+ *   - par le push   : champ `route` du payload FCM (même chemin) ;
+ *   - par l'app     : DeepLinkService.openRoute(route) (mêmes chemins que les
+ *     liens universels, déclarés dans apple-app-site-association + manifest).
  *
- * Avant cette session, tous les templates de mail pointaient vers des liens
- * custom-scheme `hopetsit://...`. Resultat : sur desktop, click = navigateur
- * affiche une erreur "app non trouvee" et l'utilisateur perd le lien. Sur
- * mobile sans l'app installee : meme erreur.
- *
- * Solution : universal links / app links. Le format `https://hopetsit.com/...`
- * est intercepte par iOS Universal Links (via apple-app-site-association)
- * ET par Android App Links (via assetlinks.json + autoVerify=true) =>
- * ouverture automatique dans l'app. Si l'app n'est pas installee, le
- * navigateur charge naturellement le site web. UN seul lien, deux comportements.
- *
- * Configuration requise cote app (deja en place) :
- *   - iOS : Runner.entitlements declare `webcredentials:hopetsit.com`,
- *     `applinks:hopetsit.com`, `applinks:www.hopetsit.com`,
- *     `applinks:app.hopetsit.com`. Voir v23.1 part 146.
- *   - Android : AndroidManifest.xml a un intent-filter avec
- *     `android:autoVerify="true"` pour `https://hopetsit.com/*`.
- *   - Le site web a un fichier `.well-known/apple-app-site-association`
- *     et `.well-known/assetlinks.json` servis en HTTPS.
- *
- * Le frontend (deep_link_service.dart lines 155-224) handle deja les
- * routes /bookings/:id, /pay, /chat[/:id], /notifications, /auth?ott=
- * Pour les nouvelles routes (/application/:id, /post/:id), voir v23.1.155
- * patch deep_link_service.
- *
- * Le site web (Next.js) a deja les pages :
- *   - /bookings (liste)
- *   - /pay et /pay/done
- *   - /chat
- *   - /walk/[bookingId]
- *   - /book/[id]
- * Pour les routes manquantes (/bookings/:id detail, /application/:id),
- * le routing Next.js peut faire un fallback vers /bookings avec une
- * query `?focus=:id`.
- *
- * @param {string} type - 'booking' | 'application' | 'pay' | 'chat' |
- *                        'walk' | 'post' | 'notifications' | 'profile' |
- *                        'subscription' | 'paw_spot' | 'paw_pass' | null
- * @param {Object} [params] - resource ids (bookingId, conversationId, ...)
- * @returns {string} - https://hopetsit.com/... URL
+ * Chemins compris par l'app (deep_link_service.dart) :
+ *   /bookings[/:id]  /pay?bookingId=  /chat[/:conversationId]  /walk/:id
+ *   /post/:id  /wallet  /subscription  /paw-spot  /profile  /notifications
+ *   /friends  /friends/requests  /friends/live  /alert/:reportId  /map
  */
 const BASE_URL = (process.env.WEBSITE_URL || 'https://hopetsit.com').replace(
   /\/+$/,
   '',
 );
 
-// v449 — Daniel : « tous les boutons des emails : ouvrir l'app si installée,
-// sinon rediriger vers /download. Jamais une page vide ou ancienne. Logique
-// simple et fiable. Ne route PAS vers une conversation précise. »
-//
-// On centralise sur UN lien canonique `${BASE_URL}/open` :
-//   - App installée → l'OS intercepte l'App Link / Universal Link et ouvre
-//     l'app (qui affiche l'accueil, ou le login puis l'accueil si déconnecté).
-//   - App NON installée → le navigateur charge la page web `/open` qui
-//     redirige immédiatement vers `/download`.
-// Ce comportement « 1 lien, 2 issues » est plus fiable que d'envoyer des
-// routes web profondes (qui pouvaient tomber sur une page vide/ancienne).
-const APP_OPEN_LINK = `${BASE_URL}/open`;
+const isId = (v) => typeof v === 'string' && /^[a-fA-F0-9]{24}$/.test(v);
+const pick = (data, ...keys) => {
+  for (const k of keys) {
+    const v = data && data[k] != null ? String(data[k]) : '';
+    if (isId(v)) return v;
+  }
+  return '';
+};
 
-const buildEmailLink = (/* type, params */) => APP_OPEN_LINK;
+/**
+ * Route « thème » pour un type de notification (insensible à la casse).
+ * Retourne toujours un chemin (fallback `/notifications`).
+ */
+const buildAppRoute = (notifType, data = {}) => {
+  const t = String(notifType || '').toLowerCase();
+  const d = data || {};
+  const bookingId = pick(d, 'bookingId', 'id');
+  const bookingPath = bookingId ? `/bookings/${bookingId}` : '/bookings';
+  const conversationId = pick(d, 'conversationId');
+  const chatPath = conversationId ? `/chat/${conversationId}` : '/chat';
+  const postId = pick(d, 'postId');
+  const postPath = postId ? `/post/${postId}` : '/bookings';
+  const reportId = pick(d, 'reportId');
 
-// Ancienne logique de routage profond, conservée pour référence / réusage
-// éventuel hors-email. NON utilisée par les emails depuis v449.
-// eslint-disable-next-line no-unused-vars
+  // Réservation à payer (le prestataire vient d'accepter, paiement échoué…)
+  if (t === 'booking_accepted' || t === 'payment_failed' ||
+      t === 'payment_required') {
+    return bookingId ? `/pay?bookingId=${bookingId}` : bookingPath;
+  }
+  // Chat déverrouillé / message / option chat
+  if (t === 'new_message' || t === 'message' || t === 'chat_auto_welcome' ||
+      t === 'booking_paid_chat_unlocked') {
+    return conversationId ? chatPath : (t === 'booking_paid_chat_unlocked' ? bookingPath : '/chat');
+  }
+  if (t === 'chat_addon_activated') return '/chat';
+  // Balade suivie
+  if (t === 'walk_started' || t === 'walk_finished') {
+    return bookingId ? `/walk/${bookingId}` : bookingPath;
+  }
+  // Annonces
+  if (t === 'new_request_nearby' || t === 'post_new' ||
+      t === 'post_application_eligible' ||
+      t === 'application_rejected_other_accepted') {
+    return postPath;
+  }
+  // Tout le déroulé d'une réservation / candidature / service / rapport
+  if (t.startsWith('booking_') || t.startsWith('application_') ||
+      t.startsWith('service_') || t === 'visit_report' ||
+      t === 'payment_success') {
+    return bookingPath;
+  }
+  // Argent
+  if (t.startsWith('payout_') || t.startsWith('withdrawal_') ||
+      t === 'wallet_credited') {
+    return '/wallet';
+  }
+  // Profil / badges / identité
+  if (t === 'new_review' || t === 'premium_achieved' ||
+      t === 'top_sitter_achieved' || t.startsWith('kyc_')) {
+    return '/profile';
+  }
+  // Boutique
+  if (t === 'referral_credited' || t.startsWith('map_boost') ||
+      t === 'profile_boost_activated') {
+    return '/paw-spot';
+  }
+  if (t.startsWith('subscription_')) return '/subscription';
+  // Amis / famille / suivi en direct
+  if (t === 'friend_request_received' || t === 'family_invitation_received') {
+    return '/friends/requests';
+  }
+  if (t === 'live_tracking_request_received') {
+    return conversationId ? chatPath : '/friends/requests';
+  }
+  if (t === 'live_tracking_accepted') return '/friends/live';
+  if (t.startsWith('friend_') || t.startsWith('family_') ||
+      t.startsWith('live_tracking')) {
+    return '/friends';
+  }
+  // Carte : SOS / animal aperçu
+  if (t === 'sos_pet_nearby' || t === 'lost_pet_sighting') {
+    return reportId ? `/alert/${reportId}` : '/map';
+  }
+  return '/notifications';
+};
+
+/**
+ * Lien e-mail par « famille » (compatibilité avec les appels existants :
+ * buildEmailLink('walk', {bookingId}), ('chat', {conversationId}),
+ * ('friends'), ('notifications'), ('booking'|'wallet'|'pay'|'post'…)).
+ */
 const buildDeepLink = (type, params = {}) => {
   const p = params || {};
-  switch ((type || '').toLowerCase()) {
+  const bookingId = pick(p, 'bookingId');
+  switch (String(type || '').toLowerCase()) {
     case 'booking':
     case 'booking_paid':
     case 'booking_accepted':
     case 'booking_canceled':
     case 'visit_report':
-      // /bookings/:id ouvre la fiche detail dans l'app (deep link existant)
-      // ou affiche la liste filtree sur le site web (fallback).
-      return p.bookingId
-        ? `${BASE_URL}/bookings/${p.bookingId}`
-        : `${BASE_URL}/bookings`;
-
     case 'application':
     case 'application_new':
-      // /bookings/:id (l'app montre les applications dans le detail booking).
-      // Note : pas de page web dediee `/applications/:id` — fallback liste.
-      return p.bookingId
-        ? `${BASE_URL}/bookings/${p.bookingId}`
-        : `${BASE_URL}/bookings`;
-
+      return bookingId ? `/bookings/${bookingId}` : '/bookings';
     case 'pay':
     case 'payment':
     case 'payment_success':
     case 'payment_failed':
-      // /pay ouvre l'ecran de paiement. Si on a bookingId, on l'utilise
-      // comme intent pour reprendre le booking et relancer le PI cote
-      // owner.
-      if (p.bookingId) {
-        return `${BASE_URL}/pay?bookingId=${p.bookingId}`;
-      }
-      return `${BASE_URL}/pay`;
-
+      return bookingId ? `/pay?bookingId=${bookingId}` : '/bookings';
     case 'chat':
     case 'message':
-    case 'new_message':
-      // /chat[/:conversationId] - le service web a une page /chat liste
-      // + l'app deep-link supporte ?conversation=:id.
-      if (p.conversationId) {
-        return `${BASE_URL}/chat/${p.conversationId}`;
-      }
-      return `${BASE_URL}/chat`;
-
+    case 'new_message': {
+      const c = pick(p, 'conversationId');
+      return c ? `/chat/${c}` : '/chat';
+    }
     case 'walk':
     case 'walk_live':
-      // /walk/:bookingId - page Next.js existante pour le suivi live.
-      return p.bookingId
-        ? `${BASE_URL}/walk/${p.bookingId}`
-        : `${BASE_URL}/bookings`;
-
+      return bookingId ? `/walk/${bookingId}` : '/bookings';
     case 'post':
-    case 'post_new':
-      // /book/:id - page Next.js existante pour les annonces owner.
-      return p.postId
-        ? `${BASE_URL}/book/${p.postId}`
-        : `${BASE_URL}/`;
-
+    case 'post_new': {
+      const id = pick(p, 'postId');
+      return id ? `/post/${id}` : '/bookings';
+    }
     case 'notifications':
-      return `${BASE_URL}/notifications`;
-
+      return '/notifications';
     case 'friends':
     case 'friend_request':
+      return '/friends';
     case 'live_tracking':
-      // v496 — Daniel : « depuis l'email, le bouton "Voir la demande" donne un
-      // GRAND ÉCRAN NOIR au lieu de rediriger vers /download ». L'ancien lien
-      // `/friends/live` ouvrait l'app sur un écran authentifié (écran noir si
-      // pas connecté) côté mobile, et redirigeait vers `/map` côté web (pas de
-      // fallback /download). On bascule sur le lien CANONIQUE `/open` (v449) :
-      //   - app installée + connecté → l'app s'ouvre (la demande est déjà dans
-      //     le bandeau d'accueil + la cloche) ;
-      //   - app installée + PAS connecté → onboarding (login), plus d'écran noir
-      //     (deep_link_service no-op gracieux v496) ;
-      //   - app absente / navigateur → /open redirige vers /download.
-      return APP_OPEN_LINK;
-
+      return '/friends/requests';
     case 'profile':
     case 'kyc':
-      // /profile - lien generique vers le profil (app ouvre l'onglet
-      // profil du role courant). KYC verifie/refuse → l'user va sur son
-      // profil voir le badge / relancer la verification.
-      return `${BASE_URL}/profile`;
-
+      return '/profile';
     case 'subscription':
     case 'paw_pass':
     case 'paw_follow':
-      return `${BASE_URL}/subscription`;
-
+      return '/subscription';
     case 'paw_spot':
     case 'map_boost':
-      return `${BASE_URL}/paw-spot`;
-
+      return '/paw-spot';
     case 'payout':
     case 'payout_succeeded':
     case 'payout_failed':
     case 'wallet':
     case 'wallet_credited':
-      // /wallet (page provider) - permet de voir le solde et l'historique.
-      return `${BASE_URL}/wallet`;
-
+      return '/wallet';
+    case 'home':
+    case 'open':
+      return '/open';
     default:
-      // Fallback : la page d'accueil. Mieux que rien si le type est
-      // inconnu (template typo, nouveau type pas encore mappe).
-      return `${BASE_URL}/`;
+      return '/notifications';
   }
 };
 
-/**
- * Helper de plus haut niveau : derive type + params depuis le payload
- * notification (sendNotification's `data` arg). Centralise la logique
- * de mapping pour ne pas la dupliquer dans chaque caller.
- */
-const buildEmailLinkFromNotification = (notifType, data = {}) => {
-  const t = (notifType || '').toLowerCase();
-  // Map les types de notification specifiques vers le type de lien
-  // approprie. Cette table de routage encapsule les bonnes URL.
-  if (t.startsWith('booking_paid') || t === 'booking_accepted' ||
-      t === 'booking_canceled' || t === 'booking_new' ||
-      t === 'booking_cancelled_by_owner' || t === 'booking_cancelled_by_provider') {
-    return buildEmailLink('booking', { bookingId: data.bookingId || data.id });
-  }
-  if (t === 'application_new' || t === 'application_accepted' ||
-      t === 'application_rejected') {
-    return buildEmailLink('application', {
-      bookingId: data.bookingId || data.applicationId,
-    });
-  }
-  if (t === 'payment_success' || t === 'payment_failed' ||
-      t === 'payment_required') {
-    return buildEmailLink('pay', { bookingId: data.bookingId });
-  }
-  if (t === 'new_message' || t === 'message') {
-    return buildEmailLink('chat', { conversationId: data.conversationId });
-  }
-  if (t === 'visit_report') {
-    return buildEmailLink('booking', { bookingId: data.bookingId });
-  }
-  if (t === 'walk_started' || t === 'walk_finished') {
-    return buildEmailLink('walk', { bookingId: data.bookingId });
-  }
-  if (t === 'post_new' || t === 'post_application_eligible') {
-    return buildEmailLink('post', { postId: data.postId });
-  }
-  if (t === 'payout_succeeded' || t === 'payout_failed' ||
-      t === 'withdrawal_completed' || t === 'withdrawal_failed' ||
-      t === 'wallet_credited') {
-    return buildEmailLink('wallet');
-  }
-  if (t === 'subscription_renewed' || t === 'subscription_canceled') {
-    return buildEmailLink('subscription');
-  }
-  if (t === 'map_boost_active' || t === 'map_boost_expired' ||
-      t === 'map_boost_activated' || t === 'profile_boost_activated') {
-    // Boost carte / profil active → page PawSpot (mise en avant).
-    return buildEmailLink('paw_spot');
-  }
-  if (t === 'subscription_activated') {
-    return buildEmailLink('subscription');
-  }
-  if (t === 'chat_addon_activated') {
-    return buildEmailLink('chat');
-  }
-  if (t === 'kyc_verified' || t === 'kyc_rejected' ||
-      t === 'kyc_payment_succeeded') {
-    // Verification d'identite → profil (voir le badge ou relancer).
-    return buildEmailLink('profile');
-  }
-  if (t === 'application_rejected_other_accepted') {
-    // L'annonce a ete pourvue par un autre prestataire → renvoie vers
-    // l'annonce (l'app/web peut afficher d'autres annonces similaires).
-    return buildEmailLink('post', { postId: data.postId });
-  }
-  if (t === 'friend_request_received' || t === 'friend_request_accepted' ||
-      t === 'family_member_added' || t === 'family_invitation_received' ||
-      t === 'family_invitation_accepted' || t === 'family_invitation_refused' ||
-      t === 'live_tracking_request_received' || t === 'live_tracking_accepted' ||
-      t === 'live_tracking_refused') {
-    // Amis / famille / suivi live → page /friends (liste + live).
-    return buildEmailLink('friends');
-  }
-  // Default : home
-  return buildEmailLink('home');
-};
+const buildEmailLink = (type, params = {}) => `${BASE_URL}${buildDeepLink(type, params)}`;
+
+/** Lien e-mail complet pour un type de notification + son payload. */
+const buildEmailLinkFromNotification = (notifType, data = {}) =>
+  `${BASE_URL}${buildAppRoute(notifType, data)}`;
 
 module.exports = {
+  buildAppRoute,
+  buildDeepLink,
   buildEmailLink,
   buildEmailLinkFromNotification,
   BASE_URL,

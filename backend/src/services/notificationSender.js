@@ -319,10 +319,19 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
   // data. Universal Links iOS / App Links Android → ouvrent l'app si
   // installee, sinon le site web. Les templates JSON utilisent
   // {{emailLink}} a la place des anciens `hopetsit://...` hardcoded.
-  const { buildEmailLinkFromNotification } = require('../utils/emailLinkBuilder');
+  // v561 — Daniel : « du mail ou du push, direct sur l'app au thème
+  // correspondant ». La route « thème » est calculée UNE fois par type
+  // (buildAppRoute) et sert au bouton du mail (lien universel) ET au push
+  // (champ `route`). Un `data.emailLink` fourni par l'appelant n'est gardé
+  // que si le type n'a pas de route dédiée.
+  const { buildAppRoute, BASE_URL: SITE_BASE } = require('../utils/emailLinkBuilder');
+  const appRoute = buildAppRoute(type, data);
   const renderData = {
     ...data,
-    emailLink: data.emailLink || buildEmailLinkFromNotification(type, data),
+    emailLink:
+      appRoute !== '/notifications' || !data.emailLink
+        ? `${SITE_BASE}${appRoute}`
+        : data.emailLink,
   };
   const title = render(tmpl.title, renderData);
   const body = render(tmpl.body, renderData);
@@ -418,6 +427,8 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
       {
         type,
         ...data,
+        // v561 — même chemin que le bouton du mail : l'app l'ouvre au tap.
+        route: appRoute,
         ...(inAppCreated && inAppCreated._id
           ? { notificationId: String(inAppCreated._id) }
           : {}),

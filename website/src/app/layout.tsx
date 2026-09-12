@@ -5,11 +5,16 @@ import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { DownloadAppBanner } from "@/components/DownloadAppBanner";
+import { AppLinkOpener } from "@/components/AppLinkOpener";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://hopetsit.com"),
+  // v561 — bandeau Safari « Ouvrir dans l'app » (Smart App Banner) : quand un
+  // lien de mail atterrit malgré tout sur le site depuis un iPhone, l'app est
+  // proposée en un tap.
+  other: { "apple-itunes-app": "app-id=6763645719" },
   title: {
     default: "HoPetSit — Pet sitters and dog walkers worldwide",
     template: "%s · HoPetSit",
@@ -151,6 +156,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* v23.1.452 — bannière de téléchargement site-wide (desktop : barre
               fine en flux sous le Header ; mobile : bouton flottant). */}
           <DownloadAppBanner />
+          {/* v561 — arrivée depuis un mail/push sur mobile : on tente d'ouvrir
+              l'app sur le même chemin (hopetsit://…) avant de laisser la page
+              web s'afficher. */}
+          <AppLinkOpener />
           <main>{children}</main>
           <Footer />
         </LanguageProvider>

@@ -55,6 +55,8 @@ dependencies:
   webview_flutter_android: ^4.10.11
   webview_flutter_wkwebview: ^3.23.5
   package_info_plus: ^9.0.0
+  # v561 — mise à jour dans l'app (Google Play In-App Updates, Android).
+  in_app_update: ^4.2.3
   photo_view: ^0.14.0
   # v21.1.1 ??? flutter_stripe SUPPRIM??. Pure Airwallex via webview HPP.
   # v20.1 ??? Airwallex Payment SDK officiel (drop-in UI + Apple Pay + Google Pay).

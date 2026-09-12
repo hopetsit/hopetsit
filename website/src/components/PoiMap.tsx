@@ -386,9 +386,11 @@ function makeMemberIcon(m: NearbyMember): L.DivIcon {
     ? '<div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);font-size:12px;">👑</div>'
     : "";
   const dot = `<div style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;border:1.5px solid #fff;background:${online ? "#22C55E" : "#9CA3AF"};"></div>`;
+  // v561 — Daniel : « légèrement plus grand et plus brillant » (34 → 40 px,
+  // halo plus lumineux), identique à l'app.
   const glow = online
-    ? `0 0 0 4px ${hexToRgba(color, 0.28)}, 0 0 14px 4px ${hexToRgba(color, 0.55)}, 0 1px 5px rgba(0,0,0,.35)`
-    : `0 0 0 3px ${hexToRgba(color, 0.14)}, 0 1px 5px rgba(0,0,0,.3)`;
+    ? `0 0 0 5px ${hexToRgba(color, 0.32)}, 0 0 22px 7px ${hexToRgba(color, 0.7)}, 0 1px 6px rgba(0,0,0,.35)`
+    : `0 0 0 3px ${hexToRgba(color, 0.16)}, 0 1px 5px rgba(0,0,0,.3)`;
   const bg = online
     ? `linear-gradient(135deg,${hexToRgba(color, 0.85)},${color})`
     : `linear-gradient(135deg,${hexToRgba(color, 0.45)},${hexToRgba(color, 0.6)})`;
@@ -396,9 +398,9 @@ function makeMemberIcon(m: NearbyMember): L.DivIcon {
   return L.divIcon({
     className: "",
     // v505 — patte BLANCHE (logo officiel, comme l'app) au lieu de l'emoji 🐾.
-    html: `<div style="position:relative;width:34px;height:34px;">${crown}<div style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${bg};border:2.5px solid ${border};box-shadow:${glow};"><svg viewBox="0 0 24 24" width="17" height="17" fill="#fff"><ellipse cx="12" cy="15.6" rx="4.6" ry="3.7"/><ellipse cx="5.3" cy="10.9" rx="2" ry="2.6"/><ellipse cx="9.4" cy="7.4" rx="2" ry="2.7"/><ellipse cx="14.6" cy="7.4" rx="2" ry="2.7"/><ellipse cx="18.7" cy="10.9" rx="2" ry="2.6"/></svg></div>${dot}</div>`,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
+    html: `<div style="position:relative;width:40px;height:40px;">${crown}<div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${bg};border:2.5px solid ${border};box-shadow:${glow};"><svg viewBox="0 0 24 24" width="20" height="20" fill="#fff"><ellipse cx="12" cy="15.6" rx="4.6" ry="3.7"/><ellipse cx="5.3" cy="10.9" rx="2" ry="2.6"/><ellipse cx="9.4" cy="7.4" rx="2" ry="2.7"/><ellipse cx="14.6" cy="7.4" rx="2" ry="2.7"/><ellipse cx="18.7" cy="10.9" rx="2" ry="2.6"/></svg></div>${dot}</div>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
   });
 }
 

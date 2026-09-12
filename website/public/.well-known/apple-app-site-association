@@ -8,19 +8,19 @@
         "components": [
           {
             "/": "/map",
-            "comment": "v552 — Shared map position (?lat&lng&z)"
+            "comment": "v552 \u2014 Shared map position (?lat&lng&z)"
           },
           {
             "/": "/report/*",
-            "comment": "v552 — Report share (alias)"
+            "comment": "v552 \u2014 Report share (alias)"
           },
           {
             "/": "/alert/*",
-            "comment": "v552 — Report / SOS share: open the map on that alert"
+            "comment": "v552 \u2014 Report / SOS share: open the map on that alert"
           },
           {
             "/": "/spot/*",
-            "comment": "v552 — PawSpot share: open the map on that spot"
+            "comment": "v552 \u2014 PawSpot share: open the map on that spot"
           },
           {
             "/": "/pay/*",
@@ -97,6 +97,62 @@
           {
             "/": "/app",
             "comment": "Canonical email link alias"
+          },
+          {
+            "/": "/friends",
+            "comment": "v561 \u2014 Friends screen (email/push: friend accepted)"
+          },
+          {
+            "/": "/friends/*",
+            "comment": "v561 \u2014 Friends requests / live"
+          },
+          {
+            "/": "/walk",
+            "comment": "v561 \u2014 Bookings (walk list)"
+          },
+          {
+            "/": "/book",
+            "comment": "v561 \u2014 Bookings"
+          },
+          {
+            "/": "/post",
+            "comment": "v561 \u2014 Posts"
+          },
+          {
+            "/": "/posts",
+            "comment": "v561 \u2014 My posts (lifecycle emails)"
+          },
+          {
+            "/": "/pawmap",
+            "comment": "v561 \u2014 PawMap tab"
+          },
+          {
+            "/": "/pawspot",
+            "comment": "v561 \u2014 Shop (PawSpot)"
+          },
+          {
+            "/": "/shop",
+            "comment": "v561 \u2014 Shop"
+          },
+          {
+            "/": "/alert",
+            "comment": "v561 \u2014 Map alerts"
+          },
+          {
+            "/": "/spot",
+            "comment": "v561 \u2014 Map spots"
+          },
+          {
+            "/": "/family",
+            "comment": "v561 \u2014 Friends: family tab"
+          },
+          {
+            "/": "/live",
+            "comment": "v561 \u2014 Friends live"
+          },
+          {
+            "/": "/amis",
+            "comment": "v561 \u2014 Friends (fr alias)"
           }
         ]
       }

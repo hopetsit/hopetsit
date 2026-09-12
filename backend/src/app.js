@@ -48,6 +48,8 @@ const chatAddonRoutes = require('./routes/chatAddonRoutes');
 const friendRoutes = require('./routes/friendRoutes');
 // v23.1.353 — refonte PawSpot : spots communautaires + PawPoints + abo.
 const pawSpotRoutes = require('./routes/pawSpotRoutes');
+// v561 — version minimale / actuelle de l'app (mise à jour dans l'app).
+const appVersionRoutes = require('./routes/appVersionRoutes');
 // v20.0.8 — in-app "Signaler un bug" from 3 profiles, emails hopetsit@gmail.com.
 const bugReportRoutes = require('./routes/bugReportRoutes');
 // v402 — Chantier 2 : codes promo (redemption user). 100% additif.
@@ -279,6 +281,7 @@ const versionedRoutes = [
   { path: '/reviews', mw: [], router: reviewRoutes },
   { path: '/uploads', mw: [], router: uploadRoutes },
   { path: '/pricing', mw: [], router: pricingRoutes },
+  { path: '/app-version', mw: [], router: appVersionRoutes },
   // v23.1 part 128 — Phase 4 audit P4-20 : rate-limit anti-abus si le
   // token admin est compromis (XSS, phishing).
   // v23.1 part 133 — Phase 7 audit P7-24 : audit log toutes les actions
