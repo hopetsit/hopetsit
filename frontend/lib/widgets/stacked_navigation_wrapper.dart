@@ -27,6 +27,7 @@ import 'package:hopetsit/services/app_update_service.dart';
 /// badge chat serveur), badge non-lus Chat (rouge, unreadChat) + badge
 /// « action requise » Réservations (vert, pendingActionCount role-aware).
 const Color _kAccent = Color(0xFFD83C28); // v559 — orange de l'icône (Daniel)
+// ignore: unused_element
 const Color _kAccentDark = Color(0xFFB92425);
 const Color _kInactive = Color(0xFF7D7D82);
 
@@ -270,16 +271,23 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
               ),
             ),
             const SizedBox(height: 3),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 10.5,
-                height: 1.2,
-                fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                color: active ? _kAccent : _kInactive,
+            // Daniel (12/09) : « Réservations » ne doit jamais être coupé →
+            // le libellé se réduit pour tenir plutôt que d'être tronqué.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    height: 1.2,
+                    fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                    color: active ? _kAccent : _kInactive,
+                  ),
+                ),
               ),
             ),
           ],
@@ -362,15 +370,10 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
                   borderRadius: BorderRadius.circular(20),
                   // Daniel (12/09) : « dégradé horizontal ».
                   // Dégradé HORIZONTAL franc (gauche clair → droite foncé).
-                  // Daniel (12/09) : « dégradé de BAS en HAUT, plus clair →
-                  // moins clair » (bandes horizontales) : bas orange clair,
-                  // haut orange foncé.
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFFA36B), Color(0xFFE4442B), _kAccentDark],
-                    stops: [0.0, 0.6, 1.0],
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                  ),
+                  // Daniel (12/09, 5e retour) : « j'aime pas le dégradé » →
+                  // orange de l'app UNI (#D83C28, celui de l'icône), sans
+                  // dégradé.
+                  color: _kAccent,
                   border: Border.all(color: Colors.white, width: 3),
                   boxShadow: [
                     BoxShadow(
