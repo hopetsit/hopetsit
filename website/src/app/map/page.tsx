@@ -81,7 +81,7 @@ const roleChipColor = (role: string) => ROLE_CHIP_COLOR[role] || "#6B7280";
 const PoiMap = dynamic(() => import("@/components/PoiMap"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[70vh] min-h-[450px] items-center justify-center rounded-2xl border border-ink/5 bg-bg-soft text-ink-muted">
+    <div className="flex h-[70vh] min-h-[450px] items-center justify-center rounded-2xl border border-ink/5 bg-[#F5F5F7] text-[#6E6E73]">
       ⌛
     </div>
   ),
@@ -978,7 +978,7 @@ export default function MapPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-24 text-center text-ink-muted">
+      <div className="mx-auto max-w-5xl px-4 py-24 text-center text-[#6E6E73]">
         {t("map_loading_locating")}
       </div>
     );
@@ -1046,7 +1046,7 @@ export default function MapPage() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <BackLink href="/dashboard" label={t("nav_dashboard")} />
         {fetching && (
-          <span className="text-xs text-ink-muted">{t("map_searching")}</span>
+          <span className="text-xs text-[#6E6E73]">{t("map_searching")}</span>
         )}
       </div>
 
@@ -1055,10 +1055,10 @@ export default function MapPage() {
           recentre la carte, même géocodeur que l'app). */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="font-display text-3xl font-extrabold md:text-4xl">
+          <h1 className="font-display text-3xl font-bold tracking-[-0.02em] text-[#1D1D1F] md:text-5xl">
             {t("map_title")}
           </h1>
-          <p className="mt-2 text-ink-muted">
+          <p className="mt-2 text-[#6E6E73]">
             {t("map_count_results").replace("{count}", String(visiblePois.length))}
             {" "}
             {t("map_pan_hint")}
@@ -1131,7 +1131,7 @@ export default function MapPage() {
         </button>
         {/* Légende : avatar membre ROSE + PATTE BLANCHE (v505 — logo officiel,
             comme l'app : patte blanche sur fond rose, plus d'emoji). */}
-        <span className="ml-1 inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
+        <span className="ml-1 inline-flex items-center gap-1.5 text-xs font-semibold text-[#6E6E73]">
           <span
             className="grid h-6 w-6 place-items-center rounded-full border-2 border-white shadow"
             style={{ background: "linear-gradient(135deg,#F06AA0,#E0568B)" }}
@@ -1174,8 +1174,8 @@ export default function MapPage() {
               }
               className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
                 on
-                  ? "border-transparent text-white shadow-sm"
-                  : "border-ink/15 bg-white text-ink-muted hover:border-ink/30"
+                  ? "border-transparent text-white"
+                  : "border-transparent bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"
               }`}
               style={on ? { background: "linear-gradient(135deg,#FF4FA3,#F01E86)" } : undefined}
             >
@@ -1185,7 +1185,7 @@ export default function MapPage() {
           );
         })}
         {membersAround > 0 && (
-          <span className="ml-1 text-xs font-semibold text-ink-muted">
+          <span className="ml-1 text-xs font-semibold text-[#6E6E73]">
             {t("map_members_around").replace("{count}", String(membersAround))}
           </span>
         )}
@@ -1193,7 +1193,7 @@ export default function MapPage() {
 
       {/* 2) Bandeau « Amis en direct » : clic sur l'en-tête = charge/affiche la
           couche amis ; chips cliquables = zoom sur l'ami. */}
-      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-ink/10 bg-white px-4 py-2.5 shadow-sm">
+      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[18px] bg-[#F5F5F7] px-4 py-2.5">
         <button
           type="button"
           onClick={toggleFriendsLayer}
@@ -1203,7 +1203,7 @@ export default function MapPage() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
           </span>
-          <span className="text-sm font-extrabold text-ink">
+          <span className="text-sm font-semibold text-[#1D1D1F]">
             {t("map_live_friends")}
           </span>
           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
@@ -1211,7 +1211,7 @@ export default function MapPage() {
           </span>
         </button>
         {friendsLoading && (
-          <span className="text-xs text-ink-muted">{t("common_loading")}</span>
+          <span className="text-xs text-[#6E6E73]">{t("common_loading")}</span>
         )}
         {showFriends &&
           livePositionsList.map((p) => (
@@ -1249,8 +1249,8 @@ export default function MapPage() {
           subs.push({ label: "PawFollow", bg: "#ede7f9", fg: "#4f2ba6" });
         if (!subs.length) return null;
         return (
-          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-ink/10 bg-white px-4 py-2.5 shadow-sm">
-            <span className="text-sm font-extrabold text-ink">
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[18px] bg-[#F5F5F7] px-4 py-2.5">
+            <span className="text-sm font-semibold text-[#1D1D1F]">
               {t("map_active_subs")}
             </span>
             <span className="rounded-full bg-ink/10 px-2 py-0.5 text-xs font-bold text-ink">
@@ -1268,7 +1268,7 @@ export default function MapPage() {
             <button
               type="button"
               onClick={() => router.push("/boutique")}
-              className="ml-auto rounded-full border border-ink/15 px-3 py-1 text-xs font-semibold text-ink transition hover:bg-ink/5"
+              className="ml-auto rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#1D1D1F] transition hover:bg-[#E8E8ED]"
             >
               {t("map_manage")}
             </button>
@@ -1363,7 +1363,7 @@ export default function MapPage() {
                   </span>
                   <span className="flex-1">{s.instruction}</span>
                   {s.distanceMeters > 0 && (
-                    <span className="shrink-0 text-ink-muted">
+                    <span className="shrink-0 text-[#6E6E73]">
                       {s.distanceMeters >= 1000
                         ? `${(s.distanceMeters / 1000).toFixed(1)} km`
                         : `${s.distanceMeters} m`}
@@ -1380,13 +1380,13 @@ export default function MapPage() {
           chip d'état (amis + pawspots déjà visibles sur la carte). */}
       <div className="mt-3">
         {premiumDays !== null || isStaffSub ? (
-          <span className="inline-flex items-center gap-2 rounded-full border-2 border-amber-400 bg-gradient-to-r from-[#221C12] to-[#15120D] px-4 py-2 text-xs font-bold text-yellow-400">
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#1D1D1F] px-4 py-2 text-xs font-semibold text-[#FFD34D]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/pawpremium_logo.svg" alt="" width={18} height={18} />
             {isStaffSub ? t("map_premium_active_staff") : t("map_premium_active_days").replace("{days}", String(premiumDays))}
           </span>
         ) : (
-          <Link href="/boutique" className="inline-flex items-center gap-2 rounded-full border-2 border-amber-400 bg-gradient-to-r from-[#221C12] to-[#15120D] px-4 py-2 text-xs font-bold text-yellow-400 hover:brightness-125">
+          <Link href="/boutique" className="inline-flex items-center gap-2 rounded-full bg-[#1D1D1F] px-4 py-2 text-xs font-semibold text-[#FFD34D] hover:bg-black">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/pawpremium_logo.svg" alt="" width={18} height={18} />
             {t("map_premium_buy_cta")} →
@@ -1619,35 +1619,35 @@ export default function MapPage() {
 
       {/* Détails du POI sélectionné */}
       {selectedPoi && (
-        <div className="mt-6 rounded-2xl border border-ink/5 bg-white p-5 shadow-card">
+        <div className="mt-6 rounded-[24px] bg-[#F5F5F7] p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-xs uppercase tracking-wider text-ink-muted">
+              <div className="text-xs uppercase tracking-wider text-[#6E6E73]">
                 {POI_CATEGORY_LABELS[selectedPoi.category]?.emoji}{" "}
                 {t(CAT_KEY_FOR_LANG[selectedPoi.category])}
               </div>
               <h2 className="mt-1 text-lg font-bold text-ink">{selectedPoi.title}</h2>
               {selectedPoi.address && (
-                <p className="mt-1 text-sm text-ink-muted">📍 {selectedPoi.address}</p>
+                <p className="mt-1 text-sm text-[#6E6E73]">📍 {selectedPoi.address}</p>
               )}
             </div>
             <button
               type="button"
               onClick={() => setSelectedPoi(null)}
-              className="text-2xl leading-none text-ink-muted hover:text-ink"
+              className="text-2xl leading-none text-[#6E6E73] hover:text-ink"
               aria-label={t("map_close")}
             >
               ×
             </button>
           </div>
           {selectedPoi.description && (
-            <p className="mt-3 text-sm text-ink-muted">{selectedPoi.description}</p>
+            <p className="mt-3 text-sm text-[#6E6E73]">{selectedPoi.description}</p>
           )}
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             {selectedPoi.phone && (
               <a
                 href={`tel:${selectedPoi.phone}`}
-                className="rounded-full bg-bg-soft px-3 py-1 font-medium text-ink hover:bg-ink/10"
+                className="rounded-full bg-[#F5F5F7] px-3 py-1 font-medium text-ink hover:bg-ink/10"
               >
                 📞 {selectedPoi.phone}
               </a>
@@ -1657,13 +1657,13 @@ export default function MapPage() {
                 href={selectedPoi.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-full bg-bg-soft px-3 py-1 font-medium text-ink hover:bg-ink/10"
+                className="rounded-full bg-[#F5F5F7] px-3 py-1 font-medium text-ink hover:bg-ink/10"
               >
                 {t("map_website_action")}
               </a>
             )}
             {selectedPoi.openingHours && (
-              <span className="rounded-full bg-bg-soft px-3 py-1 text-ink-muted">
+              <span className="rounded-full bg-[#F5F5F7] px-3 py-1 text-[#6E6E73]">
                 🕐 {selectedPoi.openingHours}
               </span>
             )}
@@ -1672,7 +1672,7 @@ export default function MapPage() {
             <div className="mt-3 text-sm">
               <span className="font-bold text-amber-600">★ {selectedPoi.rating.toFixed(1)}</span>
               {selectedPoi.reviewsCount ? (
-                <span className="ml-1 text-ink-muted">
+                <span className="ml-1 text-[#6E6E73]">
                   {t("map_reviews_count").replace("{count}", String(selectedPoi.reviewsCount))}
                 </span>
               ) : null}
@@ -1682,7 +1682,7 @@ export default function MapPage() {
       )}
 
       {/* Légende */}
-      <div className="mt-8 rounded-2xl border border-ink/5 bg-bg-soft px-4 py-3 text-xs text-ink-muted">
+      <div className="mt-8 rounded-[18px] bg-[#F5F5F7] px-4 py-3 text-xs text-[#6E6E73]">
         💡 {t("map_legend")}
       </div>
 
@@ -1693,16 +1693,16 @@ export default function MapPage() {
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl ring-1 ring-ink/10">
             {/* v497 — feuille EN BAS (pas de fond noir plein écran) → la carte +
                 le viseur restent visibles pendant qu'on positionne. */}
-            <h3 className="font-display text-lg font-extrabold text-ink">
+            <h3 className="font-display text-lg font-semibold text-[#1D1D1F]">
               {createKind === "spot"
                 ? t("map_tag_spot_cta")
                 : t("map_report_cta")}
             </h3>
-            <p className="mt-1 text-xs text-ink-muted">
+            <p className="mt-1 text-xs text-[#6E6E73]">
               {t("map_create_center_hint")}
             </p>
 
-            <label className="mt-3 block text-xs font-semibold text-ink-muted">
+            <label className="mt-3 block text-xs font-semibold text-[#6E6E73]">
               {t("map_type_label")}
             </label>
             <select
@@ -1752,7 +1752,7 @@ export default function MapPage() {
                 type="button"
                 onClick={() => setCreateKind(null)}
                 disabled={creating}
-                className="rounded-full px-4 py-2 text-sm font-semibold text-ink-muted hover:bg-ink/5"
+                className="rounded-full px-4 py-2 text-sm font-semibold text-[#6E6E73] hover:bg-ink/5"
               >
                 {t("map_create_cancel")}
               </button>
@@ -1787,12 +1787,11 @@ function CategoryChip({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
         active
-          ? "border-transparent text-white"
-          : "border-ink/15 bg-white text-ink hover:border-ink/30"
+          ? "bg-[#1D1D1F] text-white"
+          : "bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"
       }`}
-      style={active ? { backgroundColor: "#1f8a4c", borderColor: "#1f8a4c" } : undefined}
     >
       <span aria-hidden="true">{emoji}</span>
       <span>{label}</span>

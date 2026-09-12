@@ -261,13 +261,13 @@ export default function DashboardPage() {
       <div className="md:grid md:grid-cols-[250px_1fr] md:gap-8">
         {/* ── BARRE LATÉRALE ── identité + nav complète + rôle + déconnexion. */}
         <aside className="md:sticky md:top-6 md:self-start">
-          <div className="rounded-[26px] border border-[#efe7e0] bg-white p-5 shadow-card">
+          <div className="rounded-[24px] bg-[#F5F5F7] p-5">
             <div className="flex items-center gap-3">
-              <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-${roleColor} text-xl text-white`}>
+              <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-full bg-${roleColor} text-xl text-white`}>
                 🐾
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-extrabold text-ink">
+                <div className="truncate text-sm font-semibold text-[#1D1D1F]">
                   {user?.name?.split(" ")[0] || "you"}
                 </div>
                 <div className="text-xs text-ink-muted">
@@ -280,7 +280,7 @@ export default function DashboardPage() {
             {premiumLabel && (
               <a
                 href="/boutique"
-                className="mt-3 flex items-center gap-2 rounded-full border border-amber-400 bg-gradient-to-r from-[#221C12] to-[#15120D] px-3 py-1.5 text-xs font-extrabold text-yellow-400"
+                className="mt-3 flex items-center gap-2 rounded-full bg-[#1D1D1F] px-3 py-1.5 text-xs font-semibold text-[#FFD34D]"
               >
                 <span>👑</span>
                 <span className="truncate">{premiumLabel}</span>
@@ -311,7 +311,7 @@ export default function DashboardPage() {
             </nav>
 
             {/* Changement de rôle (discret). */}
-            <div className="mt-4 border-t border-[#efe7e0] pt-4">
+            <div className="mt-4 border-t border-black/10 pt-4">
               <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">
                 {t("dash_switch_role_title")}
               </p>
@@ -324,7 +324,7 @@ export default function DashboardPage() {
                       type="button"
                       onClick={() => handleSwitchRole(r)}
                       disabled={switchingRole !== null}
-                      className="rounded-full border border-ink/10 px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-ink/30 disabled:opacity-60"
+                      className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-[#1D1D1F] transition hover:bg-[#E8E8ED] disabled:opacity-60"
                     >
                       {switchingRole === r ? "…" : roleLabel(r)}
                     </button>
@@ -334,11 +334,11 @@ export default function DashboardPage() {
             </div>
 
             {/* Email + déconnexion. */}
-            <div className="mt-4 border-t border-[#efe7e0] pt-4">
+            <div className="mt-4 border-t border-black/10 pt-4">
               <div className="truncate text-xs text-ink-muted">{user?.email}</div>
               <button
                 onClick={logout}
-                className="mt-2 w-full rounded-full border border-ink/10 px-4 py-2 text-sm font-semibold text-ink transition hover:border-ink/30"
+                className="mt-2 w-full rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#1D1D1F] transition hover:bg-[#E8E8ED]"
               >
                 {t("dash_logout")}
               </button>
@@ -351,22 +351,10 @@ export default function DashboardPage() {
           {/* En-tête de bienvenue (couleur du rôle).
               v506 — design : patte en filigrane + halos doux (décoratif). */}
           <div
-            className={`relative overflow-hidden rounded-[26px] bg-${roleColor} p-6 text-white shadow-card md:p-8 ${
-              premiumLabel ? "ring-2 ring-amber-400" : ""
-            }`}
+            className={`relative overflow-hidden rounded-[28px] bg-${roleColor} p-7 text-white md:p-10`}
           >
-            <span
-              aria-hidden
-              className="pointer-events-none absolute -right-4 -top-10 rotate-12 select-none text-[130px] leading-none opacity-10"
-            >
-              🐾
-            </span>
-            <span
-              aria-hidden
-              className="pointer-events-none absolute -bottom-20 -left-12 h-52 w-52 rounded-full bg-white/10"
-            />
             <div className="flex items-center justify-between">
-              <h1 className="font-display text-2xl font-extrabold md:text-3xl">
+              <h1 className="font-display text-2xl font-bold tracking-[-0.02em] md:text-4xl">
                 {t("dash_welcome")}, {user?.name?.split(" ")[0] || "you"} 👋
               </h1>
               <div
@@ -382,13 +370,13 @@ export default function DashboardPage() {
                 <span>{socketConnected ? t("dash_live") : t("dash_offline")}</span>
               </div>
             </div>
-            <p className="mt-2 max-w-md text-sm text-white/85">{t("dash_sub")}</p>
+            <p className="mt-3 max-w-md text-[15px] text-white/80">{t("dash_sub")}</p>
             <div className="mt-5 flex flex-wrap gap-3">
               <button
                 type="button"
                 onClick={handleOpenApp}
                 disabled={openingApp}
-                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-ink shadow-sm transition hover:bg-bg-soft disabled:cursor-not-allowed disabled:opacity-70"
+                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#1D1D1F] transition hover:bg-[#E8E8ED] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {openingApp && (
                   <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -400,7 +388,7 @@ export default function DashboardPage() {
               </button>
               <Link
                 href="/download"
-                className="rounded-full border border-white/40 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
+                className="rounded-full bg-white/15 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/25"
               >
                 {t("dash_download_app")}
               </Link>
@@ -419,7 +407,7 @@ export default function DashboardPage() {
               colorés » → cartes pleines couleur (dégradé + texte blanc). */}
           <Link
             href="/map"
-            className="group relative mt-6 flex items-center gap-4 overflow-hidden rounded-[22px] bg-gradient-to-r from-walker to-emerald-500 p-5 text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-2xl"
+            className="group relative mt-4 flex items-center gap-4 overflow-hidden rounded-[24px] bg-[#F5F5F7] p-5 text-[#1D1D1F] transition hover:bg-[#EBEBF0]"
           >
             <span
               aria-hidden
@@ -427,20 +415,20 @@ export default function DashboardPage() {
             >
               🗺️
             </span>
-            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/20 text-2xl shadow-sm ring-1 ring-white/30">
-              🛰️
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-white text-2xl">
+              🗺️
             </span>
             <span className="flex-1">
-              <span className="block text-base font-extrabold">{t("dash_card_map_title")}</span>
-              <span className="block text-sm text-white/85">{t("dash_card_map_sub")}</span>
+              <span className="block text-base font-semibold">{t("dash_card_map_title")}</span>
+              <span className="block text-sm text-[#6E6E73]">{t("dash_card_map_sub")}</span>
             </span>
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-white/20 text-lg transition group-hover:translate-x-1">→</span>
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-white text-lg transition group-hover:translate-x-1">→</span>
           </Link>
 
           {/* Réservations en cours → /bookings. */}
           <Link
             href="/bookings"
-            className="group relative mt-4 flex items-center gap-4 overflow-hidden rounded-[22px] bg-gradient-to-r from-owner to-[#ff7a45] p-5 text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-2xl"
+            className="group relative mt-3 flex items-center gap-4 overflow-hidden rounded-[24px] bg-[#F5F5F7] p-5 text-[#1D1D1F] transition hover:bg-[#EBEBF0]"
           >
             <span
               aria-hidden
@@ -448,21 +436,21 @@ export default function DashboardPage() {
             >
               📅
             </span>
-            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/20 text-2xl shadow-sm ring-1 ring-white/30">
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-white text-2xl">
               📅
             </span>
             <span className="flex-1">
-              <span className="block text-base font-extrabold">{t("dash_card_bookings_title")}</span>
-              <span className="block text-sm text-white/85">
+              <span className="block text-base font-semibold">{t("dash_card_bookings_title")}</span>
+              <span className="block text-sm text-[#6E6E73]">
                 {isOwner ? t("dash_card_bookings_sub_owner") : t("dash_card_bookings_sub_provider")}
               </span>
             </span>
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-white/20 text-lg transition group-hover:translate-x-1">→</span>
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-white text-lg transition group-hover:translate-x-1">→</span>
           </Link>
 
           {/* Actions rapides. */}
-          <h2 className="mt-8 font-display text-xl font-extrabold text-ink">{t("dash_account_section")}</h2>
-          <p className="mt-1 text-sm text-ink-muted">{t("dash_account_section_sub")}</p>
+          <h2 className="mt-10 font-display text-2xl font-bold tracking-[-0.02em] text-[#1D1D1F]">{t("dash_account_section")}</h2>
+          <p className="mt-1 text-[15px] text-[#6E6E73]">{t("dash_account_section_sub")}</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <NavCard
               href="/posts"
@@ -521,24 +509,24 @@ export default function DashboardPage() {
           {/* PawPremium — bande sombre/or (discrète, sous les actions). */}
           <a
             href="/boutique"
-            className="group mt-4 flex items-center gap-4 rounded-[22px] border-2 border-amber-400 bg-gradient-to-br from-[#221C12] to-[#15120D] p-5 shadow-card transition hover:brightness-110"
+            className="group mt-4 flex items-center gap-4 rounded-[24px] bg-[#1D1D1F] p-5 transition hover:bg-black"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/pawpremium_logo.svg" alt="" width={44} height={44} />
             <div>
-              <div className="font-display text-base font-extrabold text-yellow-400">PawPremium 👑</div>
+              <div className="font-display text-base font-semibold text-[#FFD34D]">PawPremium</div>
               <div className="text-xs text-white/75">{t("dash_premium_sub")}</div>
             </div>
-            <span className="ml-auto text-yellow-400 transition group-hover:translate-x-1">→</span>
+            <span className="ml-auto text-[#FFD34D] transition group-hover:translate-x-1">→</span>
           </a>
 
           {/* v497 — Daniel : « onglet code promo dans le dashboard ». Carte
               directement utilisable (même endpoint /promo/redeem que la boutique). */}
           <div
             id="promo"
-            className="mt-4 scroll-mt-24 rounded-[22px] border border-ink/10 bg-white p-5 shadow-card"
+            className="mt-4 scroll-mt-24 rounded-[24px] bg-[#F5F5F7] p-5"
           >
-            <p className="flex items-center gap-2 text-sm font-extrabold text-ink">
+            <p className="flex items-center gap-2 text-sm font-semibold text-[#1D1D1F]">
               <span>🎟️</span> {t("promo_title")}
             </p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -550,13 +538,13 @@ export default function DashboardPage() {
                   if (e.key === "Enter") handleApplyPromo();
                 }}
                 placeholder={t("promo_placeholder")}
-                className="min-w-0 flex-1 rounded-full border border-ink/15 px-4 py-2.5 text-sm uppercase tracking-wide outline-none focus:border-amber-400"
+                className="min-w-0 flex-1 rounded-full border border-black/10 bg-white px-4 py-2.5 text-sm uppercase tracking-wide outline-none focus:border-black/30"
               />
               <button
                 type="button"
                 onClick={handleApplyPromo}
                 disabled={promoBusy || !promoCode.trim()}
-                className="shrink-0 rounded-full bg-amber-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+                className="shrink-0 rounded-full bg-[#1D1D1F] px-6 py-2.5 text-sm font-semibold text-white hover:bg-black disabled:opacity-60"
               >
                 {promoBusy ? "…" : t("promo_apply")}
               </button>
@@ -590,7 +578,7 @@ function SideLink({
   return (
     <Link
       href={href}
-      className="group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-ink transition hover:bg-bg-soft"
+      className="group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-[#1D1D1F] transition hover:bg-white"
     >
       <span className="relative text-lg">
         {emoji}
@@ -626,9 +614,9 @@ function NavCard({
   return (
     <Link
       href={href}
-      className="group flex items-center gap-4 rounded-2xl border-2 border-ink/5 bg-white p-4 shadow-card transition hover:-translate-y-0.5 hover:border-owner/40 hover:shadow-xl"
+      className="group flex items-center gap-4 rounded-[20px] bg-[#F5F5F7] p-4 transition hover:bg-[#EBEBF0]"
     >
-      <span className={`relative flex h-12 w-12 items-center justify-center rounded-xl text-2xl shadow-sm transition group-hover:scale-110 ${tint || "bg-gradient-to-br from-owner-light to-amber-50"}`}>
+      <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-white text-2xl">
         {emoji}
         {badge && badge > 0 ? (
           <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white shadow">
