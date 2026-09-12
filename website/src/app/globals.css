@@ -9,7 +9,8 @@
 
 html, body {
   background: #ffffff;
-  color: #111827;
+  color: #1d1d1f;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Gentle global focus ring (accessibility) */
@@ -35,17 +36,13 @@ details > summary::-webkit-details-marker { display: none; }
   100% { transform: scale(2.1); opacity: 0; }
 }
 
-/* v520 - Daniel : "quand on passe la souris sur un des boutons je veux
-   un contour orange fluo" - sur TOUS les boutons du site. Regle globale :
-   tous les <button> + les liens styles en bouton (pilules rounded-full,
-   badges stores rounded-xl). Orange fluo #FF6A00 + halo lumineux. */
+/* v562 — refonte minimaliste façon Apple (Daniel, 13/09) : plus de contour
+   orange fluo au survol ; un simple léger assombrissement suffit. */
 button:not(:disabled):hover,
 input[type="submit"]:not(:disabled):hover,
 a[class*="rounded-full"]:hover,
 a[class*="rounded-xl"]:hover {
-  outline: 3px solid #FF6A00;
-  outline-offset: 2px;
-  box-shadow: 0 0 14px rgba(255, 106, 0, 0.6);
+  filter: brightness(0.97);
 }
 
 /* v548 — Daniel : « le contour orange pour sélectionner les langues n'est pas

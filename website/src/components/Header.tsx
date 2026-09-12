@@ -39,8 +39,8 @@ export function Header() {
     : "bg-owner";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-ink/5 bg-white/85 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+    <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-white/80 backdrop-blur-xl">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <Link href="/" className="flex items-center" aria-label="HoPetSit">
           <LogoWithText />
         </Link>
@@ -50,7 +50,7 @@ export function Header() {
             <Link
               key={l.href}
               href={l.href}
-              className="text-sm font-medium text-ink-muted hover:text-ink"
+              className="text-[13px] font-medium text-[#1D1D1F]/70 transition hover:text-[#1D1D1F]"
             >
               {l.label}
             </Link>
@@ -95,13 +95,13 @@ export function Header() {
             <>
               <Link
                 href="/login"
-                className="hidden rounded-full px-3 py-1.5 text-sm font-medium text-ink hover:bg-bg-soft md:inline-block"
+                className="hidden rounded-full px-3 py-1.5 text-[13px] font-medium text-[#1D1D1F]/80 hover:text-[#1D1D1F] md:inline-block"
               >
                 {t("nav_login")}
               </Link>
               <Link
                 href="/signup"
-                className="rounded-full bg-owner px-4 py-1.5 text-sm font-semibold text-white shadow-cta hover:bg-owner-dark"
+                className="rounded-full bg-owner px-4 py-1.5 text-[13px] font-semibold text-white transition hover:bg-owner-dark"
               >
                 {t("nav_signup")}
               </Link>

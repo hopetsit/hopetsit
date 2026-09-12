@@ -1,16 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
 /**
- * v556 — Daniel : « mets en valeur et explique mieux les abonnements sur la
- * page principale et la page PawMap ». Trois cartes, une par abonnement,
- * chacune en deux temps : ce qui est GRATUIT (option C : le partage de
- * position entre amis et le suivi pendant la garde le sont), puis ce que
- * l'abonnement AJOUTE. Le lecteur comprend en 10 secondes pourquoi payer —
- * ou pourquoi il n'a pas besoin de payer.
+ * v556 — Daniel : « explique mieux les abonnements ». Trois cartes, une par
+ * abonnement : ce qui est GRATUIT, puis ce que l'abonnement AJOUTE.
+ * v562 — refonte minimaliste (Daniel, 13/09) : cartes blanches sur gris
+ * clair, nouvelles icônes produits (design « Paw Buttons »), typographie
+ * sobre, un seul bouton texte. Mêmes clés, même route (/boutique).
  */
 export function SubscriptionsExplainer({ compact = false }: { compact?: boolean }) {
   const { t } = useT();
@@ -20,8 +18,7 @@ export function SubscriptionsExplainer({ compact = false }: { compact?: boolean 
       key: "pf",
       name: "PawFollow",
       logo: "/pawfollow_logo.svg",
-      accent: "#7C3AED",
-      soft: "#F0EDFB",
+      accent: "#6A34E0",
       free: t("sub_pf_free"),
       plus: t("sub_pf_plus"),
       price: t("home_pawfollow_price_line"),
@@ -29,9 +26,8 @@ export function SubscriptionsExplainer({ compact = false }: { compact?: boolean 
     {
       key: "ps",
       name: "PawSpot",
-      logo: "/pawspot_logo.png",
-      accent: "#E8920A",
-      soft: "#FFF4DD",
+      logo: "/pawspot_logo.svg",
+      accent: "#E8890A",
       free: t("sub_ps_free"),
       plus: t("sub_ps_plus"),
       price: t("home_pawspot_price_line"),
@@ -40,8 +36,7 @@ export function SubscriptionsExplainer({ compact = false }: { compact?: boolean 
       key: "pp",
       name: "PawPremium",
       logo: "/pawpremium_logo.svg",
-      accent: "#15120D",
-      soft: "#FBF3DD",
+      accent: "#B8860B",
       free: t("sub_pp_free"),
       plus: t("sub_pp_plus"),
       price: t("home_pawpremium_price_line"),
@@ -49,75 +44,43 @@ export function SubscriptionsExplainer({ compact = false }: { compact?: boolean 
   ] as const;
 
   return (
-    <section className={compact ? "py-12" : "bg-white py-20"}>
+    <section className={compact ? "py-12" : "bg-white py-24"}>
       <div className="mx-auto max-w-6xl px-4">
-        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
+        <h2 className="text-center font-display text-3xl font-bold tracking-[-0.02em] text-[#1D1D1F] md:text-5xl">
           {t("sub_title")}
         </h2>
-        <p className="mx-auto mt-3 max-w-2xl text-center text-base leading-relaxed text-ink-muted">
+        <p className="mx-auto mt-4 max-w-2xl text-center text-lg leading-relaxed text-[#6E6E73]">
           {t("sub_sub")}
         </p>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
+        <div className="mt-12 grid gap-4 md:grid-cols-3">
           {plans.map((p) => (
-            <article
-              key={p.key}
-              className="flex flex-col overflow-hidden rounded-3xl border border-ink/10 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
-            >
-              {/* En-tête cadré : logo + nom sur une ligne, prix dans une
-                  pastille en dessous — même hauteur pour les 3 cartes. */}
-              <div
-                className="flex min-h-[124px] flex-col justify-center gap-3 px-6 py-5"
-                style={{ backgroundColor: p.soft }}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white shadow-sm">
-                    {p.key === "ps" ? (
-                      <PawSpotGoldCoin size={34} />
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.logo} alt="" width={34} height={34} />
-                    )}
-                  </span>
-                  <h3 className="font-display text-2xl font-extrabold leading-tight text-ink">
-                    {p.name}
-                  </h3>
-                </div>
-                <p
-                  className="inline-flex w-fit items-center rounded-full bg-white px-3 py-1 text-xs font-bold shadow-sm"
-                  style={{ color: p.accent === "#15120D" ? "#B8860B" : p.accent }}
-                >
-                  {p.price}
-                </p>
-              </div>
-
-              <div className="flex flex-1 flex-col gap-4 px-6 py-5">
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                  <p className="mb-1 text-xs font-extrabold uppercase tracking-wide text-emerald-700">
-                    ✓ {t("sub_free_label")}
-                  </p>
-                  <p className="text-sm leading-relaxed text-ink">{p.free}</p>
-                </div>
-                <div
-                  className="rounded-2xl p-4 text-white"
-                  style={{ backgroundColor: p.accent }}
-                >
-                  <p className="mb-1 text-xs font-extrabold uppercase tracking-wide text-white/80">
-                    👑 {t("sub_plus_label")} {p.name}
-                  </p>
-                  <p className="text-sm leading-relaxed">{p.plus}</p>
+            <article key={p.key} className="flex flex-col rounded-[24px] bg-[#F5F5F7] p-7">
+              <div className="flex items-center gap-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.logo} alt="" width={56} height={56} className="h-14 w-14 shrink-0" />
+                <div>
+                  <h3 className="font-display text-xl font-semibold leading-tight text-[#1D1D1F]">{p.name}</h3>
+                  <p className="mt-0.5 text-sm font-medium" style={{ color: p.accent }}>{p.price}</p>
                 </div>
               </div>
 
-              <div className="px-6 pb-6">
-                <Link
-                  href="/boutique"
-                  className="inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:shadow-lg"
-                  style={{ backgroundColor: p.accent }}
-                >
-                  {t("sub_cta")} {p.name} →
-                </Link>
+              <div className="mt-6 space-y-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#6E6E73]">{t("sub_free_label")}</p>
+                  <p className="mt-1 text-[15px] leading-relaxed text-[#1D1D1F]">{p.free}</p>
+                </div>
+                <div className="rounded-[16px] bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: p.accent }}>
+                    {t("sub_plus_label")} {p.name}
+                  </p>
+                  <p className="mt-1 text-[15px] leading-relaxed text-[#1D1D1F]">{p.plus}</p>
+                </div>
               </div>
+
+              <Link href="/boutique" className="mt-auto pt-6 text-sm font-semibold text-[#1D1D1F] hover:underline">
+                {t("sub_cta")} {p.name} →
+              </Link>
             </article>
           ))}
         </div>

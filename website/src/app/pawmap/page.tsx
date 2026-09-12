@@ -1,234 +1,121 @@
 "use client";
 
 import Link from "next/link";
-import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
 import { PawMapCTA } from "@/components/PawMapCTA";
 import { SubscriptionsExplainer } from "@/components/SubscriptionsExplainer";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { PhoneFrame, pawmapShotFor } from "@/lib/screens";
 
-// v493 — Refonte design (design-only) : page PawMap recentrée sur la CARTE et
-// la communauté. Les pavés de prix (PawPremium / PawFollow / PawSpot /
-// PawPoints détaillés) sont RETIRÉS (ils vivent sur la page Tarifs = /boutique)
-// et remplacés par une seule bande « Débloquez les spots premium » → /boutique.
-// Aucune donnée/route/logique touchée : mêmes clés i18n, mêmes liens.
+// v493 — page PawMap recentrée sur la carte et la communauté.
+// v562 — refonte minimaliste façon Apple (Daniel, 13/09) : la carte
+// décorative est remplacée par de VRAIES captures de la v561 (Paris + Dallas,
+// itinéraire, « Autour de moi »), cartes gris clair, une seule couleur
+// d'accent. Mêmes clés i18n, mêmes routes.
 export default function PawMapPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
 
-  // Clés map_cat_* déjà traduites dans les 6 langues.
-  // v506 — design : une teinte pastel PAR catégorie (au lieu du vert uniforme).
   const cats = [
-    { emoji: "🩺", label: t("map_cat_vet"), tint: "bg-red-50" },
-    { emoji: "🛒", label: t("map_cat_shop"), tint: "bg-blue-50" },
-    { emoji: "✂️", label: t("map_cat_groomer"), tint: "bg-pink-50" },
-    { emoji: "🌳", label: t("map_cat_park"), tint: "bg-green-50" },
-    { emoji: "🏖️", label: t("map_cat_beach"), tint: "bg-amber-50" },
-    { emoji: "💧", label: t("map_cat_water"), tint: "bg-cyan-50" },
-    { emoji: "🎓", label: t("map_cat_trainer"), tint: "bg-violet-50" },
-    { emoji: "🏨", label: t("map_cat_hotel"), tint: "bg-indigo-50" },
-    { emoji: "🍽️", label: t("map_cat_restaurant"), tint: "bg-orange-50" },
+    { emoji: "🩺", label: t("map_cat_vet") },
+    { emoji: "🛒", label: t("map_cat_shop") },
+    { emoji: "✂️", label: t("map_cat_groomer") },
+    { emoji: "🌳", label: t("map_cat_park") },
+    { emoji: "🏖️", label: t("map_cat_beach") },
+    { emoji: "💧", label: t("map_cat_water") },
+    { emoji: "🎓", label: t("map_cat_trainer") },
+    { emoji: "🏨", label: t("map_cat_hotel") },
+    { emoji: "🍽️", label: t("map_cat_restaurant") },
   ];
 
-  // « Comment ça marche » communautaire en 3 étapes (Explorer → Taguer/noter →
-  // PawPoints) — réutilise des clés existantes (aucune nouvelle traduction).
-  // v506 — design : chaque étape a sa couleur (orange / rose / ambre).
-  // v507 — étape 1 : vraie phrase (pawmap_step1 ×6) au lieu du fragment
-  // « 🐾 Parcs, plages… » qui faisait bizarre en tête de carte.
   const steps = [
-    { n: "1", emoji: "🔍", body: t("pawmap_step1"), badge: "bg-owner", tint: "bg-owner-light" },
-    { n: "2", emoji: "📍", body: t("pawspot_desc"), badge: "bg-[#e83e8c]", tint: "bg-pink-50" },
-    { n: "3", emoji: "🐾", body: t("pawmap_pawpoints_desc"), badge: "bg-amber-500", tint: "bg-amber-50" },
+    { n: "01", body: t("pawmap_step1") },
+    { n: "02", body: t("pawspot_desc") },
+    { n: "03", body: t("pawmap_pawpoints_desc") },
+  ];
+
+  const dir = lang === "fr" ? "fr" : "en";
+  const gallery = [
+    { src: pawmapShotFor(lang), alt: "PawMap" },
+    { src: `/screens/v561/${dir}/${dir === "fr" ? "09-autour-liste" : "09-around-list"}.jpg`, alt: t("pawmap_categories") },
+    { src: `/screens/v561/${dir}/${dir === "fr" ? "10-itineraire" : "10-route"}.jpg`, alt: "Itinéraire" },
+    { src: `/screens/v561/${dir}/${dir === "fr" ? "11-carte-dallas" : "11-map-dallas"}.jpg`, alt: "PawMap Dallas" },
   ];
 
   return (
-    <div className="relative">
-      {/* v556 — même fond que l'accueil (crème + halos doux + trame) derrière
-          le héro de la PawMap. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[640px]"
-        style={{
-          background:
-            "radial-gradient(55% 60% at 10% 20%, rgba(255,106,0,0.14) 0%, rgba(255,106,0,0) 60%)," +
-            "radial-gradient(45% 50% at 90% 25%, rgba(22,163,74,0.10) 0%, rgba(22,163,74,0) 60%)",
-        }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[640px] opacity-[0.35]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(23,19,15,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(23,19,15,0.045) 1px, transparent 1px)",
-          backgroundSize: "44px 44px",
-          maskImage: "radial-gradient(70% 70% at 50% 30%, #000 30%, transparent 100%)",
-          WebkitMaskImage: "radial-gradient(70% 70% at 50% 30%, #000 30%, transparent 100%)",
-        }}
-      />
-    <div className="relative mx-auto max-w-5xl px-4 py-16 md:py-24">
-      {/* ── 1. HERO ── logo + badge 177 pays + titre + sous-titre + aperçu
-           carte + CTA. v506 — design : badge héro + logo dans une pastille. */}
-      <div className="grid items-center gap-10 md:grid-cols-2">
-        <div className="text-center md:text-left">
-          <div className="mb-5 flex items-center justify-center gap-4 md:justify-start">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/pawmap_logo_orange.svg" alt="PawMap" width={84} height={84} className="drop-shadow-md" />
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-owner/25 bg-white px-3 py-1 text-xs font-bold text-owner shadow-sm">
-              🌍 {t("hero_badge")}
-            </span>
-          </div>
-          <h1 className="font-display text-4xl font-extrabold tracking-tight text-ink md:text-5xl">
-            {t("pawmap_title")}
-          </h1>
-          <p className="mt-4 max-w-xl text-lg text-ink-muted">{t("pawmap_sub")}</p>
-          <div className="mt-7 flex flex-wrap justify-center gap-3 md:justify-start">
-            <PawMapCTA size="hero" />
-          </div>
-        </div>
-
-        {/* Aperçu visuel de la carte (décoratif). v507 — design : rues stylisées
-            en fond, itinéraire pointillé, plus de pins, point « toi » qui pulse. */}
-        <div className="relative">
-          <div className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-[26px] border border-[#efe7e0] bg-gradient-to-br from-walker-light via-white to-sitter-light/50 shadow-xl">
-            {/* rues stylisées + itinéraire pointillé */}
-            <svg
-              aria-hidden
-              className="absolute inset-0 h-full w-full"
-              viewBox="0 0 400 400"
-              fill="none"
-            >
-              <path d="M-20 120 L420 90" stroke="#16A34A" strokeOpacity="0.10" strokeWidth="14" />
-              <path d="M-20 250 L420 290" stroke="#2563EB" strokeOpacity="0.08" strokeWidth="18" />
-              <path d="M120 -20 L90 420" stroke="#C92A12" strokeOpacity="0.07" strokeWidth="12" />
-              <path d="M300 -20 L330 420" stroke="#16A34A" strokeOpacity="0.08" strokeWidth="10" />
-              <path
-                d="M90 280 C 150 230, 190 250, 248 208 S 330 150, 312 148"
-                stroke="#C92A12"
-                strokeOpacity="0.55"
-                strokeWidth="3.5"
-                strokeDasharray="2 9"
-                strokeLinecap="round"
-              />
-            </svg>
-            {/* chips de filtre */}
-            <div className="absolute left-3 right-3 top-3 flex flex-wrap gap-1.5">
-              {cats.slice(0, 4).map((c) => (
-                <span key={c.label} className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold text-ink shadow-sm">
-                  {c.emoji} {c.label}
-                </span>
-              ))}
-            </div>
-            {/* point « toi » qui pulse (départ de l'itinéraire) */}
-            <span className="absolute" style={{ top: "70%", left: "22.5%" }}>
-              <span className="absolute -translate-x-1/2 -translate-y-1/2">
-                <span className="absolute inline-flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full bg-sitter/40" />
-                <span className="relative block h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-sitter shadow" />
-              </span>
-            </span>
-            {/* pins dispersés */}
-            {[
-              { e: "🩺", top: "30%", left: "20%", bg: "bg-owner" },
-              { e: "🌳", top: "52%", left: "62%", bg: "bg-walker" },
-              { e: "💧", top: "78%", left: "44%", bg: "bg-sitter" },
-              { e: "🍽️", top: "37%", left: "78%", bg: "bg-amber-500" },
-              { e: "🏖️", top: "16%", left: "55%", bg: "bg-pink-500" },
-              { e: "✂️", top: "60%", left: "86%", bg: "bg-violet-500" },
-            ].map((p) => (
-              <span
-                key={p.e}
-                className={`absolute grid h-9 w-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full ${p.bg} text-base shadow-card ring-2 ring-white transition hover:scale-110`}
-                style={{ top: p.top, left: p.left }}
-              >
-                {p.e}
-              </span>
-            ))}
-            {/* spot mis en avant */}
-            <div className="absolute bottom-3 left-3 right-3 flex items-center gap-3 rounded-2xl bg-white/95 p-3 shadow-card backdrop-blur">
-              <PawSpotGoldCoin size={34} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-xs font-extrabold text-amber-700">{t("map_cat_park")}</div>
-                <div className="truncate text-[11px] text-ink-muted">4.9 ★ · PawSpot</div>
-              </div>
-              <span className="rounded-full bg-walker-light px-2 py-0.5 text-[10px] font-bold text-walker-dark">800 m</span>
-            </div>
-          </div>
+    <div className="bg-white">
+      {/* ── 1. HÉRO ── */}
+      <div className="mx-auto max-w-4xl px-4 pb-12 pt-20 text-center md:pt-28">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/pawmap_logo_orange.svg" alt="PawMap" width={72} height={72} className="mx-auto" />
+        <span className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#F5F5F7] px-3.5 py-1.5 text-xs font-semibold text-[#6E6E73]">
+          🌍 {t("hero_badge")}
+        </span>
+        <h1 className="mt-5 font-display text-[2.75rem] font-bold leading-[1.05] tracking-[-0.03em] text-[#1D1D1F] md:text-6xl">
+          {t("pawmap_title")}
+        </h1>
+        <p className="mx-auto mt-5 max-w-2xl text-lg text-[#6E6E73] md:text-xl">{t("pawmap_sub")}</p>
+        <div className="mt-8 flex justify-center">
+          <PawMapCTA size="hero" />
         </div>
       </div>
 
-      {/* ── 2. GRILLE DES 9 CATÉGORIES ── */}
-      <div className="mt-16">
-        <h2 className="text-center font-display text-2xl font-extrabold tracking-tight text-ink md:text-3xl">
+      {/* ── 2. LA CARTE EN VRAI ── 4 captures (Paris, autour de moi, itinéraire, Dallas). */}
+      <div className="bg-[#F5F5F7] py-16">
+        <div className="mx-auto flex max-w-5xl snap-x snap-mandatory gap-6 overflow-x-auto px-4 pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {gallery.map((g) => (
+            <PhoneFrame key={g.src} src={g.src} alt={`HoPetSit — ${g.alt}`} className="w-48 shrink-0 snap-center first:ml-auto last:mr-auto" />
+          ))}
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-5xl px-4 py-24">
+        {/* ── 3. CATÉGORIES ── */}
+        <h2 className="text-center font-display text-3xl font-bold tracking-[-0.02em] text-[#1D1D1F] md:text-5xl">
           {t("pawmap_categories")}
         </h2>
-        <span aria-hidden className="mx-auto mt-4 block h-1 w-14 rounded-full bg-gradient-to-r from-owner to-amber-400" />
-        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {cats.map((c) => (
-            <div
-              key={c.label}
-              className="flex items-center gap-3 rounded-2xl border border-[#efe7e0] bg-white p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-lg"
-            >
-              <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl text-xl ${c.tint}`}>{c.emoji}</span>
-              <span className="text-sm font-semibold text-ink">{c.label}</span>
+            <div key={c.label} className="flex items-center gap-3 rounded-[18px] bg-[#F5F5F7] p-4">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-xl">{c.emoji}</span>
+              <span className="text-sm font-semibold text-[#1D1D1F]">{c.label}</span>
             </div>
           ))}
         </div>
-      </div>
 
-      {/* ── 3. COMMENT ÇA MARCHE (communauté, 3 étapes) ── */}
-      <div className="mt-20">
-        <h2 className="text-center font-display text-2xl font-extrabold tracking-tight text-ink md:text-3xl">
+        {/* ── 4. COMMENT ÇA MARCHE ── */}
+        <h2 className="mt-24 text-center font-display text-3xl font-bold tracking-[-0.02em] text-[#1D1D1F] md:text-5xl">
           {t("nav_how")}
         </h2>
-        <span aria-hidden className="mx-auto mt-4 block h-1 w-14 rounded-full bg-gradient-to-r from-owner to-amber-400" />
-        <div className="mt-8 grid gap-5 md:grid-cols-3">
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
           {steps.map((s) => (
-            <div
-              key={s.n}
-              className="relative rounded-[22px] border border-[#efe7e0] bg-white p-6 shadow-card transition hover:-translate-y-0.5 hover:shadow-lg"
-            >
-              <div className="flex items-center gap-3">
-                <span className={`grid h-9 w-9 place-items-center rounded-full text-sm font-extrabold text-white shadow-sm ${s.badge}`}>{s.n}</span>
-                <span className={`grid h-11 w-11 place-items-center rounded-xl text-2xl ${s.tint}`}>{s.emoji}</span>
-              </div>
-              <p className="mt-4 text-sm leading-relaxed text-ink-muted">{s.body}</p>
+            <div key={s.n} className="rounded-[24px] bg-[#F5F5F7] p-7">
+              <span className="font-display text-sm font-semibold tracking-widest text-owner">{s.n}</span>
+              <p className="mt-3 text-[15px] leading-relaxed text-[#1D1D1F]">{s.body}</p>
             </div>
           ))}
         </div>
-      </div>
 
-      {/* ── 4. DÉBLOQUEZ LES SPOTS PREMIUM ── une seule bande → Tarifs (/boutique).
-           Remplace TOUS les anciens pavés de prix (Premium/PawFollow/PawSpot).
-           v493 — plus d'air : marge haute + padding & espacements internes généreux. */}
-      <section className="mt-24 overflow-hidden rounded-[26px] bg-gradient-to-b from-[#221C12] to-[#15120D] p-9 text-center md:p-12">
-        <div className="flex justify-center">
+        {/* ── 5. PAWPREMIUM ── */}
+        <section className="mt-24 flex flex-col items-center gap-8 rounded-[28px] bg-[#1D1D1F] p-10 text-center md:flex-row md:p-14 md:text-left">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/pawpremium_logo.svg" alt="PawPremium" width={72} height={72} />
+          <img src="/pawpremium_logo.svg" alt="PawPremium" width={88} height={88} className="shrink-0" />
+          <div className="flex-1">
+            <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-[#FFD34D] md:text-3xl">PawPremium</h2>
+            <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-white/75 md:mx-0">{t("pawpremium_subtitle")}</p>
+            <p className="mx-auto mt-2 max-w-xl text-xs leading-relaxed text-white/50 md:mx-0">{t("premium_signals_note")}</p>
+          </div>
+          <Link href="/boutique" className="shrink-0 rounded-full bg-white px-7 py-3.5 text-sm font-semibold text-[#1D1D1F] transition hover:bg-[#E8E8ED]">
+            {t("pawpremium_cta")} →
+          </Link>
+        </section>
+
+        <SubscriptionsExplainer compact />
+
+        <div className="mt-10 text-center">
+          <Link href="/download" className="inline-block rounded-full bg-owner px-7 py-3.5 text-[15px] font-semibold text-white transition hover:bg-owner-dark">
+            {t("nav_download")} →
+          </Link>
         </div>
-        <h2 className="mt-4 font-display text-2xl font-extrabold tracking-tight text-yellow-400 md:text-3xl">
-          PawPremium 👑
-        </h2>
-        <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/85">{t("pawpremium_subtitle")}</p>
-        <p className="mx-auto mt-3 max-w-xl text-xs leading-relaxed text-white/60">{t("premium_signals_note")}</p>
-        <Link
-          href="/boutique"
-          className="mt-7 inline-block rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-7 py-3.5 text-sm font-bold text-black shadow-cta transition hover:brightness-110"
-        >
-          {t("pawpremium_cta")} →
-        </Link>
-      </section>
-
-      {/* ── 4b. ABONNEMENTS EXPLIQUÉS ── v556 : gratuit vs ce que chaque
-           formule ajoute (même composant que l'accueil). */}
-      <SubscriptionsExplainer compact />
-
-      {/* ── 5. CTA FINAL ── */}
-      <div className="mt-14 text-center">
-        <Link
-          href="/download"
-          className="inline-block rounded-full bg-walker px-7 py-3.5 text-sm font-bold text-white shadow-cta transition hover:bg-walker-dark"
-        >
-          {t("nav_download")} →
-        </Link>
       </div>
-    </div>
     </div>
   );
 }
