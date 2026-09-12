@@ -1101,28 +1101,28 @@ export default function MapPage() {
           onClick={() => openCreate("report")}
           className="inline-flex items-center gap-1.5 rounded-full bg-owner px-4 py-2 text-sm font-semibold text-white transition hover:bg-owner-dark"
         >
-          ⚠️ {t("map_report_cta")}
+          <ActionIcon kind="report" /> {t("map_report_cta")}
         </button>
         <button
           type="button"
           onClick={() => setShowReports((v) => !v)}
-          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${showReports ? "bg-[#1D1D1F] text-white" : "bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"}`}
+          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${showReports ? "bg-owner-light text-owner-dark" : "bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"}`}
         >
-          👁 {t("map_reports_chip")}
+          <ActionIcon kind="flag" /> {t("map_reports_chip")}
         </button>
         <button
           type="button"
           onClick={() => openCreate("spot")}
-          className="inline-flex items-center gap-1.5 rounded-full bg-[#1D1D1F] px-4 py-2 text-sm font-semibold text-white transition hover:bg-black"
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#F5F5F7] px-4 py-2 text-sm font-semibold text-[#1D1D1F] transition hover:bg-[#E8E8ED]"
         >
-          🐾 {t("map_tag_spot_cta")}
+          <ActionIcon kind="paw" /> {t("map_tag_spot_cta")}
         </button>
         <button
           type="button"
           onClick={() => setShowSpots((v) => !v)}
-          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${showSpots ? "bg-[#1D1D1F] text-white" : "bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"}`}
+          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${showSpots ? "bg-owner-light text-owner-dark" : "bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"}`}
         >
-          🐾 {t("map_spots_chip")}
+          <ActionIcon kind="pin" /> {t("map_spots_chip")}
         </button>
         {/* Légende : avatar membre ROSE + PATTE BLANCHE (v505 — logo officiel,
             comme l'app : patte blanche sur fond rose, plus d'emoji). */}
@@ -1169,7 +1169,7 @@ export default function MapPage() {
               }
               className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
                 on
-                  ? "bg-[#1D1D1F] text-white"
+                  ? "bg-owner-light text-owner-dark"
                   : "bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"
               }`}
             >
@@ -1611,6 +1611,85 @@ export default function MapPage() {
         />
       </div>
 
+      {/* v562 — Daniel : « met à jour mieux la pawmap du site web (les icônes,
+          les fonctionnalités) ». Liste « Autour de toi » = même idée que le
+          bouton violet de l'app : les 6 lieux visibles les plus proches, avec
+          distance + ouvert/fermé, clic = sélection sur la carte, bouton
+          itinéraire = handleDirections existant (à pied / vélo / voiture). */}
+      {!noneSelected && (() => {
+        const from = userLocation ?? { lat: center[0], lng: center[1] };
+        const near = visiblePois
+          .map((p) => {
+            const [lng, lat] = p.location.coordinates;
+            return { p, km: haversineKm(from.lat, from.lng, lat, lng) };
+          })
+          .sort((a, b) => a.km - b.km)
+          .slice(0, 6);
+        return (
+          <div className="mt-6 rounded-[24px] bg-[#F5F5F7] p-5">
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-[#8B5CF6] text-white">
+                <ActionIcon kind="around" />
+              </span>
+              <h2 className="font-display text-lg font-bold text-[#1D1D1F]">{t("map_around_title")}</h2>
+            </div>
+            <p className="mt-1 text-xs text-[#6E6E73]">{t("map_around_sub")}</p>
+            {near.length === 0 ? (
+              <p className="mt-4 text-sm text-[#6E6E73]">{t("map_around_empty")}</p>
+            ) : (
+              <ul className="mt-4 grid gap-2 md:grid-cols-2">
+                {near.map(({ p, km }) => {
+                  const st = p.openingHours ? formatOpenStatus(p.openingHours) : null;
+                  const [lng, lat] = p.location.coordinates;
+                  const active = selectedPoi?._id === p._id;
+                  return (
+                    <li
+                      key={`near-${p._id}`}
+                      className={`flex items-center gap-3 rounded-[18px] p-3 transition ${active ? "bg-owner-light" : "bg-white hover:bg-[#FAFAFA]"}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPoi(p);
+                          setFocusTarget({ lat, lng, ts: Date.now() });
+                        }}
+                        title={t("map_around_show")}
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                      >
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#F5F5F7] text-lg">
+                          {POI_CATEGORY_LABELS[p.category]?.emoji}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold text-[#1D1D1F]">{p.title}</span>
+                          <span className="block truncate text-xs text-[#6E6E73]">
+                            {km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`}
+                            {st && (
+                              <>
+                                {" · "}
+                                <span className={st.open ? "text-emerald-600" : "text-red-600"}>{st.label}</span>
+                              </>
+                            )}
+                          </span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDirections({ lat, lng })}
+                        title={t("map_directions_btn")}
+                        aria-label={t("map_directions_btn")}
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-owner text-white transition hover:bg-owner-dark"
+                      >
+                        <ActionIcon kind="route" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Détails du POI sélectionné */}
       {selectedPoi && (
         <div className="mt-6 rounded-[24px] bg-[#F5F5F7] p-5">
@@ -1783,7 +1862,7 @@ function CategoryChip({
       onClick={onClick}
       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
         active
-          ? "bg-[#1D1D1F] text-white"
+          ? "bg-owner-light text-owner-dark"
           : "bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"
       }`}
     >
@@ -1791,4 +1870,62 @@ function CategoryChip({
       <span>{label}</span>
     </button>
   );
+}
+
+/** Distance à vol d'oiseau (km), même formule que le backend. */
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+/** v562 — icônes pleines (design « Paw Buttons ») à la place des emojis. */
+function ActionIcon({ kind }: { kind: "report" | "flag" | "paw" | "pin" | "around" | "route" }) {
+  const common = { width: 15, height: 15, viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": true as const };
+  switch (kind) {
+    case "report":
+      return (
+        <svg {...common}>
+          <path d="M12 2.5 22.5 20.5H1.5L12 2.5Zm0 6a1.1 1.1 0 0 0-1.1 1.2l.4 4.6h1.4l.4-4.6A1.1 1.1 0 0 0 12 8.5Zm0 7.6a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6Z" />
+        </svg>
+      );
+    case "flag":
+      return (
+        <svg {...common}>
+          <path d="M5 2.5a1.25 1.25 0 0 1 2.5 0V4h11.2c.9 0 1.4 1 .9 1.7L17 9.5l2.6 3.8c.5.7 0 1.7-.9 1.7H7.5v6.5a1.25 1.25 0 0 1-2.5 0v-19Z" />
+        </svg>
+      );
+    case "paw":
+      return (
+        <svg {...common}>
+          <ellipse cx="12" cy="15.6" rx="4.8" ry="3.9" />
+          <ellipse cx="5.2" cy="10.8" rx="2.1" ry="2.7" />
+          <ellipse cx="9.3" cy="7.2" rx="2.1" ry="2.8" />
+          <ellipse cx="14.7" cy="7.2" rx="2.1" ry="2.8" />
+          <ellipse cx="18.8" cy="10.8" rx="2.1" ry="2.7" />
+        </svg>
+      );
+    case "pin":
+      return (
+        <svg {...common}>
+          <path d="M12 1.8a7.2 7.2 0 0 0-7.2 7.2c0 5.4 7.2 13.2 7.2 13.2s7.2-7.8 7.2-13.2A7.2 7.2 0 0 0 12 1.8Zm0 10a2.8 2.8 0 1 1 0-5.6 2.8 2.8 0 0 1 0 5.6Z" />
+        </svg>
+      );
+    case "around":
+      return (
+        <svg {...common}>
+          <path d="M12 2a1 1 0 0 1 1 1v1.06A8 8 0 0 1 19.94 11H21a1 1 0 1 1 0 2h-1.06A8 8 0 0 1 13 19.94V21a1 1 0 1 1-2 0v-1.06A8 8 0 0 1 4.06 13H3a1 1 0 1 1 0-2h1.06A8 8 0 0 1 11 4.06V3a1 1 0 0 1 1-1Zm0 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm0 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z" />
+        </svg>
+      );
+    case "route":
+      return (
+        <svg {...common}>
+          <path d="M13.5 2.6a1.6 1.6 0 0 0-3 0L2.3 20.2c-.5 1.1.6 2.2 1.7 1.7l7.6-3.3c.3-.1.5-.1.8 0l7.6 3.3c1.1.5 2.2-.6 1.7-1.7L13.5 2.6Z" />
+        </svg>
+      );
+  }
 }

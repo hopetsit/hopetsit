@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { LogoWithText } from "./Logo";
 import { LangSwitcher } from "./LangSwitcher";
@@ -12,6 +12,7 @@ import { clearAuth } from "@/lib/api";
 export function Header() {
   const { t } = useT();
   const router = useRouter();
+  const pathname = usePathname();
   const { user, ready } = useAuth();
   const [open, setOpen] = useState(false);
 
@@ -45,16 +46,23 @@ export function Header() {
           <LogoWithText />
         </Link>
 
-        <nav className="hidden items-center gap-6 md:flex">
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="text-[13px] font-medium text-[#1D1D1F]/70 transition hover:text-[#1D1D1F]"
-            >
-              {l.label}
-            </Link>
-          ))}
+        <nav className="hidden items-center gap-1 md:flex">
+          {/* v562 — Daniel : page courante en orange pâle (pas de gris foncé). */}
+          {links.map((l) => {
+            const current = pathname === l.href || pathname?.startsWith(l.href + "/");
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                aria-current={current ? "page" : undefined}
+                className={`rounded-full px-3 py-1.5 text-[13px] font-medium transition ${
+                  current ? "bg-owner-light text-owner-dark" : "text-[#1D1D1F]/70 hover:bg-[#F5F5F7] hover:text-[#1D1D1F]"
+                }`}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -127,16 +135,19 @@ export function Header() {
         <nav className="border-t border-ink/5 bg-white px-4 py-2 md:hidden">
           {/* v458 — bouton « Ouvrir la PawMap » retiré du menu (barre du haut)
               pour l'instant. */}
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              onClick={() => setOpen(false)}
-              className="block px-2 py-2.5 text-sm font-medium text-ink"
-            >
-              {l.label}
-            </Link>
-          ))}
+          {links.map((l) => {
+            const current = pathname === l.href || pathname?.startsWith(l.href + "/");
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setOpen(false)}
+                className={`block rounded-xl px-3 py-2.5 text-sm font-medium ${current ? "bg-owner-light text-owner-dark" : "text-ink"}`}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
           {ready && user ? (
             <>
               <Link
