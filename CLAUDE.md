@@ -60,6 +60,25 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 
 **Prochain build APK/AAB = 565** (564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
+**13/09 — v562 SITE « minimaliste, pro, façon Apple » (Daniel).** Design uniquement, mêmes
+clés i18n / routes. Fond blanc + sections `#F5F5F7`, texte `#1D1D1F` / `#6E6E73`, titres
+XXL centrés (`tracking-[-0.03em]`), cartes `rounded-[24px]` sans bordure ni ombre, bandes
+noires `#1D1D1F` pour PawPremium, contour orange fluo global au survol SUPPRIMÉ
+(`globals.css`). Pages refaites : accueil (`page.tsx`), `/pawmap`, `/pricing`, `/download`,
+`components/SubscriptionsExplainer.tsx`, `components/PageHero.tsx` (partagé par how-it-works /
+faq / contact), `Header.tsx` (barre 56 px, liens gris). **Icônes produits** régénérées au
+design « Paw Buttons » : `public/pawboost_logo.svg`, `pawfollow_logo.svg`, `pawspot_logo.svg`
+(+ `.png` via rsvg-convert), `pawpremium_logo.svg` (carré arrondi dégradé + disque blanc + icône
+pleine) → toutes les pages qui les référencent sont à jour. **Captures** : `public/screens/v561/
+{fr,en}/` = captures RÉELLES du simulateur (v561, statut 9:41, Paris = 48.8566,2.3522 et Dallas
+= 32.7767,-96.7970) : 00-accueil/home, 01-carte/map, 02-signaler/report, 03-amis/friends,
+04-reservations/bookings, 05-profil/profile, 06-premium, 07-boutique/shop, 08-autour/around,
+09-autour-liste/around-list, 10-itineraire/route, 11-carte-dallas/map-dallas ; `lib/screens.tsx`
+(`screensFor`, `pawmapShotFor`, `PhoneFrame`) les encadre ; anciens jeux v534 supprimés.
+Méthode EN : `simctl spawn booted defaults write .GlobalPreferences AppleLanguages -array en-US
+en` + `AppleLocale en_US` + reboot, l'app suit la langue du téléphone ; remis en fr_FR ensuite.
+⚠️ `/boutique` et `/dashboard` exigent une session : vérifiés par `tsc` seulement.
+
 **12/09 — v561 / build 564 « NOTIFICATIONS DIRECT DANS L'APP + MISE À JOUR AUTO + PAWMAP »
 (14 points de Daniel, liste validée avant de commencer).**
 - **Notifications → écran précis.** `backend/src/utils/emailLinkBuilder.js` : `buildAppRoute(type,
