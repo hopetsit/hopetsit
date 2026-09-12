@@ -558,7 +558,7 @@ export default function PoiMap({
   }, []);
 
   return (
-    <div className="relative h-[70vh] min-h-[450px] w-full overflow-hidden rounded-2xl border border-ink/5 shadow-card">
+    <div className="relative h-[70vh] min-h-[450px] w-full overflow-hidden rounded-[28px]">
       <MapContainer
         center={center}
         zoom={13}

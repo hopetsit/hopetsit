@@ -12,7 +12,7 @@ const EN: ScreenShot[] = [
   { src: "/screens/v561/en/00-home.jpg", alt: "Home" },
   { src: "/screens/v561/en/05-profile.jpg", alt: "Profile" },
   { src: "/screens/v561/en/07-shop.jpg", alt: "Shop" },
-  { src: "/screens/v561/en/10-route.jpg", alt: "Directions" },
+  { src: "/screens/v561/en/09-around-list.jpg", alt: "Around me" },
 ];
 
 const FR: ScreenShot[] = [
@@ -21,7 +21,7 @@ const FR: ScreenShot[] = [
   { src: "/screens/v561/fr/00-accueil.jpg", alt: "Accueil" },
   { src: "/screens/v561/fr/05-profil.jpg", alt: "Profil" },
   { src: "/screens/v561/fr/07-boutique.jpg", alt: "Boutique" },
-  { src: "/screens/v561/fr/10-itineraire.jpg", alt: "Itinéraire" },
+  { src: "/screens/v561/fr/09-autour-liste.jpg", alt: "Autour de moi" },
 ];
 
 /** Jeu complet (6 visuels) pour la langue courante. */
