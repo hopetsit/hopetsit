@@ -335,8 +335,10 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   /// lueur + anneau blanc), icône carte+pin+patte et libellé dedans.
   Widget _centerTab() {
     final active = _currentIndex == 2;
+    // Largeur = bouton (72) + 3 px de chaque côté : les onglets voisins
+    // gardent leur libellé entier (« Réservations » n'est plus tronqué).
     return SizedBox(
-      width: 88,
+      width: 78,
       height: 46,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
