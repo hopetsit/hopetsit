@@ -60,6 +60,52 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 
 **Prochain build APK/AAB = 564** (563 = IPA seule, v560, fiches stores ; 555 = versionCode de la 23.1.553). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
+**12/09 — v561 / build 564 « NOTIFICATIONS DIRECT DANS L'APP + MISE À JOUR AUTO + PAWMAP »
+(14 points de Daniel, liste validée avant de commencer).**
+- **Notifications → écran précis.** `backend/src/utils/emailLinkBuilder.js` : `buildAppRoute(type,
+  data)` = UNE route « thème » par type (`/friends/requests`, `/chat/:id`, `/bookings/:id`,
+  `/pay?bookingId=`, `/walk/:id`, `/post/:id`, `/wallet`, `/paw-spot`, `/subscription`,
+  `/profile`, `/alert/:reportId`, sinon `/notifications`) ; le mail l'utilise en lien universel
+  (`{{emailLink}}`) ET le push la porte dans `data.route`. Le raccourci v449 (« tout sur
+  `/open` ») est SUPPRIMÉ. 26 mails sans bouton en ont un (« Ouvrir dans l'app », 9 langues),
+  `booking_refunded` réparé (`{emailLink}` → `{{emailLink}}`), boutons passés à `#D83C28`.
+  App : `DeepLinkService.openRoute(route)` = routeur unique (liens universels, `hopetsit://`,
+  push via `route` ou `routeForNotification(type,data)`) ; il ATTEND que le menu soit monté
+  (`navWrapperMounted`, max 6 s) avant tout `Get.to` → fin de l'écran noir au démarrage à
+  froid ; sans session la route est mémorisée (`pending_deep_route`) et rejouée après login.
+  `/chat/:id` ouvre LA conversation, `/bookings/:id` la fiche (owner), `/post/:id` l'annonce,
+  `/friends/requests` l'onglet Demandes, `/friends/live` les personnes en direct, `/pawmap` et
+  `/posts` basculent d'onglet. ⚠️ `hopetsit://friends/requests` : le host porte l'action et
+  `pathSegments` = [requests] → toujours utiliser `rest` (segments après l'action), pas
+  `segs[1]`. AASA (+14 chemins) et AndroidManifest (+14 pathPrefix) complétés ; site :
+  `apple-itunes-app` (Smart App Banner), `components/AppLinkOpener.tsx` (mobile arrivant de
+  l'extérieur → tente `hopetsit://<même chemin>` une fois), catch-all avec les vraies URLs
+  stores. Vérifié au simulateur : `xcrun simctl openurl booted "hopetsit://friends/requests"`
+  → onglet Demandes ; `hopetsit://pawmap` → onglet PawMap.
+- **Mise à jour auto.** `GET /app-version` (public, cache 60 s) + `GET/PATCH /admin/app-version`
+  (admin, page Tarifs → « Versions de l'app » : build actuel / minimum par plateforme).
+  App : `services/app_update_service.dart` (3 s après le montage du menu) — Android : Play
+  In-App Updates (`in_app_update`, immédiat sous le minimum, souple sinon) ; iOS / repli :
+  feuille « Nouvelle version disponible » (une fois par version, refusable) ou bloquante sous
+  le minimum, bouton App Store. Vérifié au simulateur (latest=999 → feuille). ⚠️ Après chaque
+  publication, mettre `latest` = nouveau build dans l'admin (scratch `appver_admin.py`).
+- **PawMap.** Bouton violet « Autour de moi » (rail gauche, petite + grande carte) → feuille :
+  rayon 1/2/5/10 km (5 par défaut, mémorisé `pawmap_around_radius`), mode à pied/vélo/voiture,
+  10 catégories → liste triée par distance (ouvert/fermé, adresse) → tap = `_startDirections`.
+  Badges membres : 48 → 56 px, halo plus fort, ROSE FLUO dézoomé et couleur du rôle dès le
+  zoom 12 (owner `#FF5A2E→#D83C28`, walker vert, sitter bleu) — clé `_pawBadgeKey(...)`.
+  Rails : alignés sur le BAS de la capsule droite (padding en haut des boutons,
+  `CrossAxisAlignment.end`), remontés de 22 px (168 / 228 / 284) pour ne pas toucher le menu
+  flottant. Retour de l'app après ≥ 2 min en arrière-plan → `_recenterOnUser()` (sauf
+  itinéraire / suivi / placement). Icône PawSpot = nouvelle pièce dorée
+  `assets/images/pawspot_coin.png` (widget `GoldenPawCoin`, rail, marqueurs dorés avec anneau
+  du type) ; web `public/pawspot_logo.png|svg`, `PawSpotGoldCoin` = `<img>`.
+- **Accueil / menu.** Onglet « Mes annonces (N) » en `FittedBox` (plus de « Mes annon… »).
+  Menu = pilule flottante (marges 10, coins 28, ombre douce), onglet actif dans une bulle
+  teintée, bouton PawMap rectangle arrondi 66×52 surélevé de 4 px, dégradé HORIZONTAL
+  (retours Daniel en direct : « pas rond », « trop haut », « dégradé horizontal »), libellé
+  `nav_pawmap`. Icônes SVG passées de `#F2741B` à `#D83C28`. Hauteur utile inchangée.
+
 **11/09 — FICHES STORES 8 LANGUES (pack `HoPetSit-Apple-GooglePlay-Complet.zip`, visuels
 promotionnels FR/EN/ES/IT/DE/PT/NL/PL : 5 captures + 1 bannière Play par langue).**
 - **App Store** : la 1.15/562 était déjà APPROUVÉE (READY_FOR_DISTRIBUTION) → **version 1.16

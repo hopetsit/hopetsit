@@ -331,12 +331,12 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     );
   }
 
-  /// Bouton central « PawMap » : bulle RONDE orange surélevée (dégradé +
+  /// Bouton central « PawMap » : bulle orange surélevée, rectangle arrondi (dégradé +
   /// lueur + anneau blanc), icône carte+pin+patte et libellé dedans.
   Widget _centerTab() {
     final active = _currentIndex == 2;
     return SizedBox(
-      width: 78,
+      width: 80,
       height: 46,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -344,21 +344,25 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
         child: OverflowBox(
           maxHeight: 80,
           alignment: Alignment.bottomCenter,
+          // Daniel (12/09) : « trop haut, gêne Réservations » → surélevée de
+          // 4 px seulement, plus étroite (66) pour ne pas mordre les voisins.
           child: Transform.translate(
-            offset: const Offset(0, -10),
+            offset: const Offset(0, -4),
             child: AnimatedScale(
               scale: active ? 1.06 : 1.0,
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
+              // Daniel (12/09) : « rectangle arrondi, pas rond ».
               child: Container(
-                width: 58,
-                height: 58,
+                width: 66,
+                height: 52,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(20),
+                  // Daniel (12/09) : « dégradé horizontal ».
                   gradient: const LinearGradient(
                     colors: [Color(0xFFFF6A45), _kAccent, _kAccentDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
                   ),
                   border: Border.all(color: Colors.white, width: 3),
                   boxShadow: [

@@ -211,6 +211,12 @@ class DeepLinkService {
         uri.host.isNotEmpty && uri.scheme == 'hopetsit'
             ? uri.host
             : (segs.isNotEmpty ? segs.first : '');
+    // v561 — segments APRÈS l'action, quel que soit le schéma :
+    //   hopetsit://friends/requests → host=friends, path=[requests]
+    //   https://hopetsit.com/friends/requests → path=[friends, requests]
+    final rest = (uri.scheme == 'hopetsit' && uri.host.isNotEmpty)
+        ? segs
+        : (segs.length > 1 ? segs.sublist(1) : const <String>[]);
 
     // v19.2.0 — 4 chemins supportés :
     //   hopetsit://pay/:bookingId          → écran paiement
@@ -266,14 +272,14 @@ class DeepLinkService {
     // (StackedNavigationWrapper) soit monté : au démarrage à froid par un
     // lien ou un push, Get.to() partait AVANT l'accueil → pile vide = noir.
     await _waitForShell();
-    final second = segs.length > 1 ? segs[1] : '';
+    final second = rest.isNotEmpty ? rest.first : '';
     if (first == 'pay') {
       // v23.1 part 125 — bookingId DOIT être un ObjectId 24 hex. Sinon
       // on log et on ignore (anti Intent Redirection).
       // v23.1.155 — accepte aussi `?bookingId=<id>` (format query param
       // utilise par emailLinkBuilder.js cote backend pour les liens
       // /pay sans path arg).
-      var rawBookingId = segs.isNotEmpty ? segs.last : '';
+      var rawBookingId = rest.isNotEmpty ? rest.last : '';
       if (rawBookingId.isEmpty || rawBookingId == 'pay') {
         rawBookingId = uri.queryParameters['bookingId'] ?? '';
       }
@@ -329,7 +335,7 @@ class DeepLinkService {
       // v552 — Daniel : « que ça tombe sur la chose précise ». On passe l'id
       // à la carte, qui se centre sur le spot et ouvre sa fiche au lieu de
       // s'ouvrir n'importe où.
-      final spotId = segs.length > 1 ? segs[1] : (uri.queryParameters['id'] ?? '');
+      final spotId = rest.isNotEmpty ? rest.first : (uri.queryParameters['id'] ?? '');
       Get.to(() => PawMapScreen(
             focusSpotId: _objectIdRegex.hasMatch(spotId) ? spotId : null,
           ));
@@ -337,7 +343,7 @@ class DeepLinkService {
       // v552 — lien de partage d'un signalement / d'un SOS animal :
       // https://hopetsit.com/alert/<id> → carte centrée + fiche ouverte.
       final reportId =
-          segs.length > 1 ? segs[1] : (uri.queryParameters['id'] ?? '');
+          rest.isNotEmpty ? rest.first : (uri.queryParameters['id'] ?? '');
       Get.to(() => PawMapScreen(
             focusReportId:
                 _objectIdRegex.hasMatch(reportId) ? reportId : null,

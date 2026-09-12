@@ -4151,9 +4151,13 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // touchaient le panneau blanc) : 156 → 146, et les
                     // boutons sont passés de 44 à 38. Pendant un placement :
                     // au-dessus de la carte de placement (140 + ~110).
+                    // v561 — Daniel : « les deux barres sont trop basses, ça
+                    // ne doit ni toucher le menu ni passer derrière » : le
+                    // menu est désormais une pilule flottante (6 + 58) →
+                    // rails remontés de 22 px dans chaque état.
                     bottom: (picking
-                            ? 262.h
-                            : ((aroundShown || routeShown) ? 206.h : 146.h)) -
+                            ? 284.h
+                            : ((aroundShown || routeShown) ? 228.h : 168.h)) -
                         _tabBarLift(context) +
                         MediaQuery.of(context).viewPadding.bottom,
                     child: Row(
