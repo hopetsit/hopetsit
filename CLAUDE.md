@@ -82,7 +82,10 @@ en` + `AppleLocale en_US` + reboot, l'app suit la langue du téléphone ; remis 
 bannière de rôle unie, cartes PawMap / Réservations gris clair, NavCard sans bordure, promo
 noir) et `/map` (bandeaux, chips catégorie noir/gris, fiche lieu, chip PawPremium) au même
 style ; galerie « L'app en images » = carte, alertes, accueil, profil, boutique, itinéraire
-(le doublon Boutique/Premium est retiré).
+(le doublon Boutique/Premium est retiré). 3e passe : `/map` contrôles épurés (Signaler orange,
+autres pilules noir actif / gris inactif, plus de rose fluo ni de dégradés, chips abonnements
+blanc/noir, carte `rounded-[28px]` sans bordure) ; galerie = carte, alertes, accueil, profil,
+boutique, « Autour de moi » (plus de 2e capture de carte).
 
 **12/09 — v561 / build 564 « NOTIFICATIONS DIRECT DANS L'APP + MISE À JOUR AUTO + PAWMAP »
 (14 points de Daniel, liste validée avant de commencer).**
