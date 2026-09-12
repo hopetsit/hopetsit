@@ -100,6 +100,26 @@ est la machine de travail principale ; le PC sert de miroir à jour.
   itinéraire / suivi / placement). Icône PawSpot = nouvelle pièce dorée
   `assets/images/pawspot_coin.png` (widget `GoldenPawCoin`, rail, marqueurs dorés avec anneau
   du type) ; web `public/pawspot_logo.png|svg`, `PawSpotGoldCoin` = `<img>`.
+- **Design « Paw Buttons » (handoff Claude Design de Daniel, zip `Refonte boutons et
+  cartes services.zip`, README = périmètre DESIGN UNIQUEMENT).** Boutique app
+  (`coin_shop_screen.dart` `_shopCardTab`, `PreferredSize` 150.h + 18.h) et web
+  (`boutique/page.tsx` `SectionTab` + `CARD_ICONS`) : 4 cartes verre dépoli ratio 1/1,75,
+  dégradé 165° (Boost `#FF6B4A→#E0361F`, Follow `#9B6BFF→#6A34E0`, Spot `#FFC23D→#F0900A`,
+  Premium `#3A3028→#0F0B08` titre `#FFD34D`), bord blanc .45, reflet 45 %, ombre colorée,
+  disque blanc 56 px + icône SVG 26 px pleine, titre 13/800, description 9,5/700 (clés
+  `shop_card_*_sub`, 9 langues app + 9 langues web). Boutons ronds PawMap
+  (`_roundMapBtn` : `svg`, `g1`, `g2`) 44 px (54 dans la maquette, réduits pour tenir dans
+  la bande de la petite carte), dégradé 165°, bord blanc .7, reflet, ombre colorée, icônes
+  SVG blanches pleines du prototype, aucun libellé visible (Tooltip + Semantics gardés) ;
+  ordre : Autour de moi (violet), Itinéraire (vert), [grande carte : Chat du cercle bleu,
+  Photo du spot orange], PawSpots (or), Marquer un lieu (turquoise), Signaler (rouge
+  triangle « ! »), Voir signaux (brun, drapeau + pastille rouge). Rail conservé à GAUCHE
+  (la capsule zoom/position reste à droite) — la maquette le dessinait à droite, mais
+  déplacer la colonne aurait changé l'ergonomie : design seulement.
+  L'icône PawSpot « pièce » n'est plus utilisée sur le rail ; `GoldenPawCoin`
+  (boutique en-tête, carte boost, marqueurs dorés, web) = bouton noir + pin doré dessiné
+  (`~/hopetsit-social/play/pawspot_button_black_gold_1024.png`), demandé par Daniel après
+  deux essais (pièce ChatGPT claire puis assombrie : « ne rend pas bien »).
 - **Accueil / menu.** Onglet « Mes annonces (N) » en `FittedBox` (plus de « Mes annon… »).
   Menu = pilule flottante (marges 10, coins 28, ombre douce), onglet actif dans une bulle
   teintée, bouton PawMap rectangle arrondi 66×52 surélevé de 4 px, dégradé HORIZONTAL

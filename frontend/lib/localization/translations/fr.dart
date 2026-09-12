@@ -3831,4 +3831,8 @@ const Map<String, String> frFRTranslations = <String, String>{
   'pawmap_around_none': 'Aucun lieu de cette catégorie dans ce rayon. Essaie un rayon plus grand.',
   'pawmap_around_back': 'Catégories',
   'nav_pawmap': 'PawMap',
+  'shop_card_boost_sub': 'Mets ton annonce en avant',
+  'shop_card_follow_sub': 'Suis ton animal en balade',
+  'shop_card_spot_sub': 'Les spots de la communauté',
+  'shop_card_premium_sub': 'Follow + Spot en illimité',
 };

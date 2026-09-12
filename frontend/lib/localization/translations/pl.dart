@@ -3330,4 +3330,8 @@ const Map<String, String> plPLTranslations = <String, String>{
   'pawmap_around_none': 'Brak miejsc tej kategorii w tym promieniu. Spróbuj większego promienia.',
   'pawmap_around_back': 'Kategorie',
   'nav_pawmap': 'PawMap',
+  'shop_card_boost_sub': 'Wyróżnij swoje ogłoszenie',
+  'shop_card_follow_sub': 'Śledź pupila na spacerze',
+  'shop_card_spot_sub': 'Spoty społeczności',
+  'shop_card_premium_sub': 'Follow + Spot bez limitu',
 };

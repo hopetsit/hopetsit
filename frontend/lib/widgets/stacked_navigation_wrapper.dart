@@ -336,7 +336,7 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   Widget _centerTab() {
     final active = _currentIndex == 2;
     return SizedBox(
-      width: 80,
+      width: 88,
       height: 46,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -353,14 +353,19 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
               // Daniel (12/09) : « rectangle arrondi, pas rond ».
+              // Daniel (12/09) : « un peu plus large » → 84×52.
               child: Container(
-                width: 66,
-                height: 52,
+                width: 72,
+                height: 60,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
                   // Daniel (12/09) : « dégradé horizontal ».
+                  // Dégradé HORIZONTAL franc (gauche clair → droite foncé).
+                  // Daniel (12/09) : « DÉGRADÉ HORIZONTAL, plus clair → moins
+                  // clair » : gauche orange clair, droite orange foncé.
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFFF6A45), _kAccent, _kAccentDark],
+                    colors: [Color(0xFFFFA36B), Color(0xFFE4442B), _kAccentDark],
+                    stops: [0.0, 0.6, 1.0],
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                   ),

@@ -3772,4 +3772,8 @@ const Map<String, String> esESTranslations = <String, String>{
   'pawmap_around_none': 'Ningún lugar de esta categoría en este radio. Prueba un radio mayor.',
   'pawmap_around_back': 'Categorías',
   'nav_pawmap': 'PawMap',
+  'shop_card_boost_sub': 'Destaca tu anuncio',
+  'shop_card_follow_sub': 'Sigue a tu mascota en el paseo',
+  'shop_card_spot_sub': 'Los spots de la comunidad',
+  'shop_card_premium_sub': 'Follow + Spot ilimitados',
 };

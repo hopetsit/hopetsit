@@ -346,38 +346,61 @@ export default function BoutiquePage() {
         )}
       </div>
 
-      {/* Tabs sections — ordre Daniel : PawBoost · PawFollow · PawSpot · Premium */}
-      <div className="mt-6 inline-flex flex-wrap gap-2 rounded-full bg-ink/5 p-1">
-        {isProvider && (
+      {/* Tabs sections — ordre Daniel : PawBoost · PawFollow · PawSpot · Premium.
+          v561 — handoff « Paw Buttons » : 4 cartes verre dépoli (design
+          uniquement, mêmes sections / mêmes actions). */}
+      <div className="relative mt-6 overflow-hidden rounded-[30px] bg-[#F1E9E2] p-3">
+        <div className="pointer-events-none absolute -left-16 -top-20 h-56 w-56 rounded-full bg-[#F7B9A6] opacity-80 blur-[50px]" />
+        <div className="pointer-events-none absolute -right-16 -top-10 h-56 w-56 rounded-full bg-[#F2D68A] opacity-80 blur-[50px]" />
+        <div className="pointer-events-none absolute -bottom-28 left-[35%] h-52 w-56 rounded-full bg-[#C9B5F5] opacity-90 blur-[50px]" />
+        <div className={`relative grid gap-2 ${isProvider ? "grid-cols-4" : "grid-cols-3"} max-w-[440px]`}>
+          {isProvider && (
+            <SectionTab
+              label={t("shop_tab_boost").replace(/^[^A-Za-z]+/, "")}
+              desc={t("shop_card_boost_sub")}
+              active={section === "boost"}
+              onClick={() => setSection("boost")}
+              g1="#FF6B4A"
+              g2="#E0361F"
+              shadow="rgba(224,54,31,.6)"
+              icon={CARD_ICONS.boost}
+            />
+          )}
           <SectionTab
-            label={t("shop_tab_boost")}
-            active={section === "boost"}
-            onClick={() => setSection("boost")}
+            label={t("shop_tab_premium").replace(/^[^A-Za-z]+/, "")}
+            desc={t("shop_card_follow_sub")}
+            active={section === "premium"}
+            onClick={() => setSection("premium")}
+            g1="#9B6BFF"
+            g2="#6A34E0"
+            shadow="rgba(106,52,224,.6)"
+            icon={CARD_ICONS.follow}
           />
-        )}
-        <SectionTab
-          label={t("shop_tab_premium")}
-          active={section === "premium"}
-          onClick={() => setSection("premium")}
-        />
-        {/* v23.1.353 — PawSpot communautaire : pour TOUS les rôles (plus
-            seulement les prestataires comme l'ancien map boost). */}
-        <SectionTab
-          label={t("shop_tab_mapboost")}
-          active={section === "mapboost"}
-          onClick={() => setSection("mapboost")}
-          icon={<PawSpotGoldCoin size={18} />}
-        />
-        {/* v23.1.387 — PawPremium : bundle PawFollow + PawSpot + exclusifs. */}
-        <SectionTab
-          label={t("shop_tab_pawpremium")}
-          active={section === "pawpremium"}
-          onClick={() => setSection("pawpremium")}
-          icon={
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src="/pawpremium_logo.svg" alt="" width={18} height={18} />
-          }
-        />
+          {/* v23.1.353 — PawSpot communautaire : pour TOUS les rôles (plus
+              seulement les prestataires comme l'ancien map boost). */}
+          <SectionTab
+            label={t("shop_tab_mapboost").replace(/^[^A-Za-z]+/, "")}
+            desc={t("shop_card_spot_sub")}
+            active={section === "mapboost"}
+            onClick={() => setSection("mapboost")}
+            g1="#FFC23D"
+            g2="#F0900A"
+            shadow="rgba(240,144,10,.6)"
+            icon={CARD_ICONS.spot}
+          />
+          {/* v23.1.387 — PawPremium : bundle PawFollow + PawSpot + exclusifs. */}
+          <SectionTab
+            label={t("shop_tab_pawpremium").replace(/^[^A-Za-z]+/, "")}
+            desc={t("shop_card_premium_sub")}
+            active={section === "pawpremium"}
+            onClick={() => setSection("pawpremium")}
+            g1="#3A3028"
+            g2="#0F0B08"
+            shadow="rgba(0,0,0,.55)"
+            titleColor="#FFD34D"
+            icon={CARD_ICONS.premium}
+          />
+        </div>
       </div>
 
       {section === "pawpremium" && (
@@ -493,28 +516,72 @@ function guessCountryFromCurrency(currency: string): string {
   return "FR";
 }
 
+// v561 — handoff « Paw Buttons » : icônes pleines des 4 cartes (paths du prototype).
+const CARD_ICONS = {
+  boost: (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="#E0361F" aria-hidden="true"><path d="M12 2c3 2.2 4.5 5.6 4.5 9.6 0 1.5-.2 2.9-.6 4.2H8.1c-.4-1.3-.6-2.7-.6-4.2C7.5 7.6 9 4.2 12 2z"/><circle cx="12" cy="9.5" r="1.9" fill="rgba(255,255,255,.92)"/><path d="M7.9 11.5 4.5 15v3.2l3.6-1.6zM16.1 11.5l3.4 3.5v3.2l-3.6-1.6z"/><path d="M10.2 17.2h3.6L12 22z" opacity=".55"/></svg>
+  ),
+  follow: (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6A34E0" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5" opacity=".35"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/><g fill="#6A34E0" stroke="none"><circle cx="10.3" cy="9.4" r="1.05"/><circle cx="13.7" cy="9.4" r="1.05"/><circle cx="8.8" cy="11.4" r=".95"/><circle cx="15.2" cy="11.4" r=".95"/><path d="M12 11.2c-1.6 0-3.1 1.5-3.1 2.9 0 .9.7 1.6 1.6 1.6.5 0 1-.3 1.5-.3s1 .3 1.5.3c.9 0 1.6-.7 1.6-1.6 0-1.4-1.5-2.9-3.1-2.9z"/></g></svg>
+  ),
+  spot: (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="#E8890A" aria-hidden="true"><path d="M12 22s-7.5-6.5-7.5-12A7.5 7.5 0 0 1 19.5 10c0 5.5-7.5 12-7.5 12z"/><path d="M12 5.4l1.4 2.9 3.1.4-2.3 2.2.6 3.1L12 12.5 9.2 14l.6-3.1-2.3-2.2 3.1-.4z" fill="rgba(255,255,255,.95)"/></svg>
+  ),
+  premium: (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="#E0A81C" aria-hidden="true"><path d="M2.5 8 7 11.5 12 5l5 6.5L21.5 8l-2 10.5h-15z"/><rect x="4.5" y="20" width="15" height="1.8" rx=".9"/><circle cx="12" cy="4" r="1.3"/><circle cx="2.8" cy="7.2" r="1.1"/><circle cx="21.2" cy="7.2" r="1.1"/></svg>
+  ),
+};
+
 function SectionTab({
   label,
+  desc,
   active,
   onClick,
   icon,
+  g1,
+  g2,
+  shadow,
+  titleColor = "#FFFFFF",
 }: {
   label: string;
+  desc: string;
   active: boolean;
   onClick: () => void;
-  /** v23.1.363 — icône custom (ex. pièce dorée PawSpot) avant le label. */
-  icon?: React.ReactNode;
+  icon: React.ReactNode;
+  g1: string;
+  g2: string;
+  shadow: string;
+  titleColor?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${
-        active ? "bg-white text-ink shadow-sm" : "text-ink-muted hover:text-ink"
-      }`}
+      aria-pressed={active}
+      className="relative flex min-w-0 flex-col items-center gap-3 overflow-hidden rounded-[22px] px-1.5 pb-3.5 pt-4 text-center transition-[transform,box-shadow] duration-200 hover:-translate-y-[3px] active:scale-[.97]"
+      style={{
+        aspectRatio: "1 / 1.75",
+        background: `linear-gradient(165deg, ${g1} 0%, ${g2} 100%)`,
+        border: "1px solid rgba(255,255,255,.45)",
+        boxShadow: active
+          ? `inset 0 1px 0 rgba(255,255,255,.6), 0 18px 32px -14px ${shadow}`
+          : `inset 0 1px 0 rgba(255,255,255,.55), 0 10px 26px -12px ${shadow}`,
+        opacity: active ? 1 : 0.92,
+      }}
     >
-      {icon}
-      {label}
+      <span className="pointer-events-none absolute inset-x-0 top-0 h-[45%] bg-gradient-to-b from-white/20 to-transparent" />
+      <span
+        className="relative grid h-14 w-14 flex-none place-items-center rounded-full bg-white"
+        style={{ boxShadow: "0 6px 14px -6px rgba(0,0,0,.35)" }}
+      >
+        {icon}
+      </span>
+      <span className="relative flex w-full flex-col gap-1">
+        <span className="whitespace-nowrap text-[13px] font-extrabold tracking-[-0.02em]" style={{ color: titleColor }}>
+          {label}
+        </span>
+        <span className="px-0.5 text-[9.5px] font-bold leading-[1.3] text-white/[.88]">{desc}</span>
+      </span>
     </button>
   );
 }

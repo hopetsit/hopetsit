@@ -6159,12 +6159,15 @@ class _PawMapScreenState extends State<PawMapScreen>
           // v561 — Daniel : « un bouton violet : les endroits autour de moi
           // par catégorie, je clique le lieu et ça me donne l'itinéraire ».
           _roundMapBtn(
-            icon: Icons.near_me_rounded,
+            icon: Icons.navigation_rounded,
             color: PawMapTheme.pawFollow,
+            svg: _fabSvgPlaces,
+            g1: const Color(0xFFA076FF),
+            g2: const Color(0xFF7040D6),
             label: 'pawmap_btn_around'.tr,
             onTap: () => unawaited(_openAroundMeSheet()),
           ),
-          SizedBox(height: 8.h),
+          SizedBox(height: 4.h),
           // v559 — Daniel : « ajoute sur la petite map le bouton Itinéraire
           // comme sur la grande, pour utiliser les nouvelles fonctionnalités »
           // (à pied / vélo / voiture, indications de virage). Sorti du bloc
@@ -6172,6 +6175,9 @@ class _PawMapScreenState extends State<PawMapScreen>
           _roundMapBtn(
             icon: Icons.directions_rounded,
             color: PawMapTheme.ok,
+            svg: _fabSvgRoute,
+            g1: const Color(0xFF3DBF6C),
+            g2: const Color(0xFF188A42),
             label: 'pawmap_btn_directions'.tr,
             onTap: () {
               _pickedSpotPos = _currentCenter;
@@ -6180,55 +6186,71 @@ class _PawMapScreenState extends State<PawMapScreen>
               unawaited(_refreshPickAddress());
             },
           ),
-          SizedBox(height: 8.h),
+          SizedBox(height: 4.h),
           if (expanded) ...[
             _roundMapBtn(
               icon: Icons.forum_rounded,
               color: PawMapTheme.sitter,
+              svg: _fabSvgChat,
+              g1: const Color(0xFF5B9DFF),
+              g2: const Color(0xFF2358D6),
               label: 'pawmap_btn_circle_chat'.tr,
               onTap: _openCircleChat,
             ),
-            SizedBox(height: 8.h),
+            SizedBox(height: 4.h),
             _roundMapBtn(
               icon: Icons.photo_camera_rounded,
               color: PawMapTheme.pawSpot,
+              svg: _fabSvgPhoto,
+              g1: const Color(0xFFFFB067),
+              g2: const Color(0xFFE07A12),
               label: 'pawmap_btn_spot_photo'.tr,
               onTap: () =>
                   unawaited(_startSpotPhoto()),
             ),
-            SizedBox(height: 8.h),
+            SizedBox(height: 4.h),
           ],
           _roundMapBtn(
             icon: Icons.travel_explore_rounded,
-            color: const Color(0xFF2563EB),
-            // v561 — nouvelle icône PawSpot (pièce dorée) sur le rail.
-            child: Image.asset(GoldenPawCoin.asset, width: 26.w, height: 26.w),
+            color: const Color(0xFFE2981A),
+            svg: _fabSvgSpot,
+            g1: const Color(0xFFFAC346),
+            g2: const Color(0xFFE2981A),
             label: 'pawmap_view_spots_btn'.tr,
             // v556 — voir les spots est GRATUIT (option C : « voir tous les
             // PawSpots » ; seule la création au-delà de 3 est payante).
             onTap: () => unawaited(_openSpotsList()),
           ),
-          SizedBox(height: 8.h),
+          SizedBox(height: 4.h),
           _roundMapBtn(
             icon: Icons.add_location_alt_rounded,
-            color: const Color(0xFFD9A441),
+            color: const Color(0xFF18968A),
+            svg: _fabSvgAdd,
+            g1: const Color(0xFF48C8BA),
+            g2: const Color(0xFF18968A),
             label: 'pawmap_tag_spot'.tr,
             onTap: () =>
                 _startSpotPicking(),
           ),
-          SizedBox(height: 8.h),
-          _roundMapBtn(
-            icon: Icons.notifications_active_rounded,
-            color: const Color(0xFFEA580C),
-            label: 'pawmap_view_reports_btn'.tr,
-            onTap: () => _openScreen(() => const AlertsScreen()),
-          ),
-          SizedBox(height: 8.h),
+          SizedBox(height: 4.h),
           _roundMapBtn(
             icon: Icons.add_moderator_rounded,
-            color: const Color(0xFFDC2626),
+            color: const Color(0xFFD63A28),
+            svg: _fabSvgReport,
+            g1: const Color(0xFFFF6E5C),
+            g2: const Color(0xFFD63A28),
             label: 'pawmap_btn_send'.tr,
             onTap: _startReportPicking,
+          ),
+          SizedBox(height: 4.h),
+          _roundMapBtn(
+            icon: Icons.notifications_active_rounded,
+            color: const Color(0xFF28201B),
+            svg: _fabSvgFeed,
+            g1: const Color(0xFF5A4E46),
+            g2: const Color(0xFF28201B),
+            label: 'pawmap_view_reports_btn'.tr,
+            onTap: () => _openScreen(() => const AlertsScreen()),
           ),
         ],
       );
@@ -6915,38 +6937,102 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   /// pilules avec libellé mangeaient la carte et cassaient l'alignement ; le
   /// libellé reste accessible en appui long.
+  // v561 — handoff « Paw Buttons » (Daniel, 12/09) : boutons ronds verre
+  // dépoli — dégradé 165°, bord blanc translucide, reflet haut, ombre
+  // colorée, icône blanche PLEINE, aucun libellé visible (le libellé reste
+  // en Tooltip / sémantique). Design uniquement : mêmes actions, même ordre.
+  static const String _fabSvgPlaces =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 22s-7.5-6.5-7.5-12A7.5 7.5 0 0 1 19.5 10c0 5.5-7.5 12-7.5 12z"/><g fill="rgba(0,0,0,.34)"><circle cx="10.2" cy="7.2" r="1.1"/><circle cx="13.8" cy="7.2" r="1.1"/><circle cx="8.4" cy="9.4" r="1"/><circle cx="15.6" cy="9.4" r="1"/><path d="M12 9.3c-1.7 0-3.3 1.6-3.3 3.1 0 .9.8 1.7 1.7 1.7.6 0 1.1-.3 1.6-.3s1 .3 1.6.3c.9 0 1.7-.8 1.7-1.7 0-1.5-1.6-3.1-3.3-3.1z"/></g></svg>';
+  static const String _fabSvgRoute =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18c0-5 3-6 6-6s6-1 6-6" stroke-dasharray="3 2.6"/><circle cx="6" cy="18" r="2.6" fill="#FFFFFF" stroke="none"/><path d="M18 2.5c-1.8 0-3.2 1.4-3.2 3.2 0 2.2 3.2 5.3 3.2 5.3s3.2-3.1 3.2-5.3c0-1.8-1.4-3.2-3.2-3.2z" fill="#FFFFFF" stroke="none"/></svg>';
+  static const String _fabSvgSpot =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 22s-7.5-6.5-7.5-12A7.5 7.5 0 0 1 19.5 10c0 5.5-7.5 12-7.5 12z"/><path d="M12 5.4l1.4 2.9 3.1.4-2.3 2.2.6 3.1L12 12.5 9.2 14l.6-3.1-2.3-2.2 3.1-.4z" fill="rgba(0,0,0,.34)"/></svg>';
+  static const String _fabSvgAdd =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 22s-7.5-6.5-7.5-12A7.5 7.5 0 0 1 19.5 10c0 5.5-7.5 12-7.5 12z"/><path d="M10.9 6h2.2v2.9H16v2.2h-2.9V14h-2.2v-2.9H8V8.9h2.9z" fill="rgba(0,0,0,.34)"/></svg>';
+  static const String _fabSvgReport =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 2.8 22.6 21H1.4z"/><path d="M10.9 9h2.2v6h-2.2zM10.9 16.5h2.2v2.2h-2.2z" fill="rgba(0,0,0,.4)"/></svg>';
+  static const String _fabSvgFeed =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M5 2.5h2.2V21.5H5z"/><path d="M7.2 3.5h11.3l-2.4 4.5 2.4 4.5H7.2z"/><circle cx="18.5" cy="5" r="3.6" fill="#E24834" stroke="#fff" stroke-width="1.4"/></svg>';
+  static const String _fabSvgChat =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 3C6.9 3 3 6.3 3 10.4c0 2 1 3.9 2.6 5.2L4.8 20l4.6-1.9c.8.2 1.7.3 2.6.3 5.1 0 9-3.3 9-7.4S17.1 3 12 3z"/><g fill="rgba(0,0,0,.34)"><circle cx="8.6" cy="10.6" r="1.1"/><circle cx="12" cy="10.6" r="1.1"/><circle cx="15.4" cy="10.6" r="1.1"/></g></svg>';
+  static const String _fabSvgPhoto =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M9 4h6l1.4 2.2H20a1.6 1.6 0 0 1 1.6 1.6V18A1.6 1.6 0 0 1 20 19.6H4A1.6 1.6 0 0 1 2.4 18V7.8A1.6 1.6 0 0 1 4 6.2h3.6z"/><circle cx="12" cy="12.8" r="3.6" fill="rgba(0,0,0,.34)"/></svg>';
+
   Widget _roundMapBtn({
-    required IconData icon,
+    required IconData icon, // conservé pour compatibilité (non affiché quand svg fourni)
     required Color color,
     required String label,
     required VoidCallback onTap,
-    Widget? child, // v561 — visuel custom (ex. pièce PawSpot) à la place de l'icône
+    Widget? child,
+    String? svg,
+    Color? g1,
+    Color? g2,
   }) {
-    // v555 — Daniel : « les deux barres touchent le menu ». Les rails
-    // mesuraient ~200 et ~230 px de haut pour une bande libre de ~250 : ils
-    // touchaient forcément le panneau en haut OU la barre d'onglets en bas.
-    // Boutons 44 → 38 et écart 10 → 7 : ~35 px repris sur chaque rail.
-    // v561 — Daniel : « la colonne de gauche alignée sur le bas de la barre
-    // de droite ». Espacement porté en HAUT de chaque bouton : le dernier
-    // bouton affleure ainsi le bas de la colonne, à la même ligne de base que
-    // la capsule de droite.
+    final Color top = g1 ?? Color.lerp(color, Colors.white, 0.18)!;
+    final Color bottom = g2 ?? Color.lerp(color, Colors.black, 0.12)!;
+    // Espacement porté en HAUT (v561) : le dernier bouton affleure le bas de la
+    // colonne, à la même ligne de base que la capsule de droite.
     return Padding(
-      padding: EdgeInsets.only(top: 7.h),
+      padding: EdgeInsets.only(top: 8.h),
       child: Tooltip(
         message: label,
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            width: 38.w,
-            height: 38.w,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: PawMapTheme.pillShadow,
+        child: Semantics(
+          button: true,
+          label: label,
+          child: GestureDetector(
+            onTap: onTap,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: 44.w,
+              height: 44.w,
+              alignment: Alignment.center,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [top, bottom],
+                  begin: const Alignment(-0.6, -1),
+                  end: const Alignment(0.6, 1),
+                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.7), width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: bottom.withValues(alpha: 0.6),
+                    blurRadius: 24,
+                    spreadRadius: -10,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Reflet haut.
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    height: 20.w,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.28),
+                            Colors.white.withValues(alpha: 0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  child ??
+                      (svg != null
+                          ? SvgPicture.string(svg, width: 21.w, height: 21.w)
+                          : Icon(icon, size: 20.sp, color: Colors.white)),
+                ],
+              ),
             ),
-            child: child ?? Icon(icon, size: 18.sp, color: color),
           ),
         ),
       ),

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -230,6 +231,155 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
     );
   }
 
+  /// v561 — cartes d'onglet de la boutique (handoff « Paw Buttons » de
+  /// Daniel, 12/09) : verre dépoli, dégradé 165°, bord blanc translucide,
+  /// reflet haut, ombre colorée, disque blanc 56 px avec icône 26 px pleine
+  /// dans la teinte de la carte, titre 13/800, description 9,5/700 sur 2
+  /// lignes. Design uniquement : les onglets gardent leurs actions.
+  static const String _svgBoost =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#E0361F"><path d="M12 2c3 2.2 4.5 5.6 4.5 9.6 0 1.5-.2 2.9-.6 4.2H8.1c-.4-1.3-.6-2.7-.6-4.2C7.5 7.6 9 4.2 12 2z"/><circle cx="12" cy="9.5" r="1.9" fill="rgba(255,255,255,.92)"/><path d="M7.9 11.5 4.5 15v3.2l3.6-1.6zM16.1 11.5l3.4 3.5v3.2l-3.6-1.6z"/><path d="M10.2 17.2h3.6L12 22z" opacity=".55"/></svg>';
+  static const String _svgFollow =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#6A34E0" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5" opacity=".35"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/><g fill="#6A34E0" stroke="none"><circle cx="10.3" cy="9.4" r="1.05"/><circle cx="13.7" cy="9.4" r="1.05"/><circle cx="8.8" cy="11.4" r=".95"/><circle cx="15.2" cy="11.4" r=".95"/><path d="M12 11.2c-1.6 0-3.1 1.5-3.1 2.9 0 .9.7 1.6 1.6 1.6.5 0 1-.3 1.5-.3s1 .3 1.5.3c.9 0 1.6-.7 1.6-1.6 0-1.4-1.5-2.9-3.1-2.9z"/></g></svg>';
+  static const String _svgSpot =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#E8890A"><path d="M12 22s-7.5-6.5-7.5-12A7.5 7.5 0 0 1 19.5 10c0 5.5-7.5 12-7.5 12z"/><path d="M12 5.4l1.4 2.9 3.1.4-2.3 2.2.6 3.1L12 12.5 9.2 14l.6-3.1-2.3-2.2 3.1-.4z" fill="rgba(255,255,255,.95)"/></svg>';
+  static const String _svgPremium =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#E0A81C"><path d="M2.5 8 7 11.5 12 5l5 6.5L21.5 8l-2 10.5h-15z"/><rect x="4.5" y="20" width="15" height="1.8" rx=".9"/><circle cx="12" cy="4" r="1.3"/><circle cx="2.8" cy="7.2" r="1.1"/><circle cx="21.2" cy="7.2" r="1.1"/></svg>';
+
+  Widget _shopCardTab({
+    required int index,
+    required List<Color> colors,
+    required Color shadow,
+    required String svg,
+    required String title,
+    required String subtitle,
+    Color titleColor = Colors.white,
+  }) {
+    return Tab(
+      height: 150.h,
+      child: Builder(builder: (context) {
+        final ctl = DefaultTabController.of(context);
+        return AnimatedBuilder(
+          animation: ctl.animation ?? ctl,
+          builder: (context, _) {
+            final active = ctl.index == index;
+            return AnimatedScale(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              scale: active ? 1.0 : 0.96,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 180),
+                opacity: active ? 1.0 : 0.9,
+                child: Container(
+                  width: double.infinity,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: colors,
+                      begin: const Alignment(-0.6, -1),
+                      end: const Alignment(0.6, 1),
+                    ),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.45), width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: shadow.withValues(alpha: active ? 0.6 : 0.35),
+                        blurRadius: active ? 26 : 18,
+                        spreadRadius: -12,
+                        offset: Offset(0, active ? 14 : 10),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      // Reflet haut (45 %) + liseré intérieur blanc.
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        height: 150.h * 0.45,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.white.withValues(alpha: 0.22),
+                                Colors.white.withValues(alpha: 0),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        height: 1,
+                        child: ColoredBox(color: Colors.white.withValues(alpha: 0.55)),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(4.w, 14.h, 4.w, 12.h),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 56,
+                              height: 56,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.35),
+                                    blurRadius: 14,
+                                    spreadRadius: -6,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: SvgPicture.string(svg, width: 26, height: 26),
+                            ),
+                            SizedBox(height: 10.h),
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.26,
+                                color: titleColor,
+                                height: 1.1,
+                              ),
+                            ),
+                            SizedBox(height: 4.h),
+                            Text(
+                              subtitle,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                height: 1.25,
+                                color: Colors.white.withValues(alpha: 0.88),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      }),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Ensure SubscriptionController is available.
@@ -259,48 +409,62 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
               ),
             ],
           ),
-          bottom: TabBar(
-            labelColor: AppColors.primaryColor,
-            unselectedLabelColor: AppColors.greyText,
-            indicatorColor: AppColors.primaryColor,
-            labelStyle: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w700),
-            unselectedLabelStyle: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w500),
-            // v21.1.1 — rebrand : Premium → PawPass, Map Boost → PawSpot.
-            // Refonte PawSpot — l'identité passe du pin bleu à l'empreinte
-            // dorée (abonnement communautaire, plus un map boost).
-            // v23.1.387 — Daniel : Boost devient PawBoost, PawFollow reçoit
-            // son NOUVEAU logo officiel (pin violet + patte), et l'onglet
-            // Paw Premium (pièce or + couronne) rejoint la boutique.
-            tabs: [
-              // v443 — Daniel : logo PawBoost dans l'onglet (fusée = identité
-              // « boost » ; pas d'asset logo PawBoost dédié pour l'instant).
-              Tab(
-                icon: const Icon(Icons.rocket_launch_rounded, size: 20),
-                text: 'shop_tab_boost'.tr,
+          // v561 — Daniel (maquette 12/09) : onglets = 4 CARTES colorées
+          // (PawBoost orange, PawFollow violet, PawSpot or, PawPremium noir)
+          // avec logo, nom et sous-titre ; la carte active est plus vive.
+          bottom: PreferredSize(
+            preferredSize: Size.fromHeight(150.h + 18.h),
+            child: Container(
+              margin: EdgeInsets.fromLTRB(10.w, 4.h, 10.w, 10.h),
+              padding: EdgeInsets.all(6.w),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1E9E2),
+                borderRadius: BorderRadius.circular(30),
               ),
-              Tab(
-                icon: Image.asset(
-                  'assets/images/pawfollow_logo.png',
-                  width: 22,
-                  height: 22,
-                ),
-                text: 'shop_tab_pawpass'.tr,
+              child: TabBar(
+                indicator: const BoxDecoration(),
+                indicatorColor: Colors.transparent,
+                dividerColor: Colors.transparent,
+                labelPadding: EdgeInsets.symmetric(horizontal: 4.w),
+                padding: EdgeInsets.zero,
+                overlayColor: WidgetStateProperty.all(Colors.transparent),
+                tabs: [
+                  _shopCardTab(
+                    index: 0,
+                    colors: const [Color(0xFFFF6B4A), Color(0xFFE0361F)],
+                    shadow: const Color(0xFFE0361F),
+                    svg: _svgBoost,
+                    title: 'shop_tab_boost'.tr,
+                    subtitle: 'shop_card_boost_sub'.tr,
+                  ),
+                  _shopCardTab(
+                    index: 1,
+                    colors: const [Color(0xFF9B6BFF), Color(0xFF6A34E0)],
+                    shadow: const Color(0xFF6A34E0),
+                    svg: _svgFollow,
+                    title: 'shop_tab_pawpass'.tr,
+                    subtitle: 'shop_card_follow_sub'.tr,
+                  ),
+                  _shopCardTab(
+                    index: 2,
+                    colors: const [Color(0xFFFFC23D), Color(0xFFF0900A)],
+                    shadow: const Color(0xFFF0900A),
+                    svg: _svgSpot,
+                    title: 'shop_tab_pawspot'.tr,
+                    subtitle: 'shop_card_spot_sub'.tr,
+                  ),
+                  _shopCardTab(
+                    index: 3,
+                    colors: const [Color(0xFF3A3028), Color(0xFF0F0B08)],
+                    shadow: Colors.black,
+                    svg: _svgPremium,
+                    title: 'shop_tab_premium'.tr,
+                    subtitle: 'shop_card_premium_sub'.tr,
+                    titleColor: const Color(0xFFFFD34D),
+                  ),
+                ],
               ),
-              // v23.1.363 — Daniel : le logo PawSpot = la pièce DORÉE
-              // officielle (emoji fourni) partout dans la boutique.
-              Tab(
-                icon: const GoldenPawCoin(size: 22),
-                text: 'shop_tab_pawspot'.tr,
-              ),
-              Tab(
-                icon: Image.asset(
-                  'assets/images/pawpremium_logo.png',
-                  width: 22,
-                  height: 22,
-                ),
-                text: 'shop_tab_premium'.tr,
-              ),
-            ],
+            ),
           ),
         ),
         body: const TabBarView(

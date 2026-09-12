@@ -3406,4 +3406,8 @@ const Map<String, String> jaJPTranslations = <String, String>{
   'pawmap_around_none': 'この範囲内に該当するスポットはありません。範囲を広げてみてください。',
   'pawmap_around_back': 'カテゴリ',
   'nav_pawmap': 'PawMap',
+  'shop_card_boost_sub': 'あなたの掲載を目立たせる',
+  'shop_card_follow_sub': '散歩中のペットを追跡',
+  'shop_card_spot_sub': 'コミュニティのスポット',
+  'shop_card_premium_sub': 'Follow + Spot 使い放題',
 };

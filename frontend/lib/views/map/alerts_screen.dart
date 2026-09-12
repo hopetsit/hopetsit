@@ -485,14 +485,21 @@ class _AlertsScreenState extends State<AlertsScreen> {
                             Icon(Icons.location_on_rounded,
                                 color: AppColors.primaryColor, size: 14.sp),
                             SizedBox(width: 6.w),
-                            Obx(() => InterText(
-                                  text: 'alerts_chip_radius'.trParams({
-                                    'km': _radiusKm.value.toInt().toString(),
-                                  }),
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary(context),
-                                )),
+                            // v561 — Daniel : « une phrase en vertical dans
+                            // Alertes » = débordement du libellé (RIGHT
+                            // OVERFLOWED) → borné à la largeur de la puce.
+                            Expanded(
+                              child: Obx(() => InterText(
+                                    text: 'alerts_chip_radius'.trParams({
+                                      'km': _radiusKm.value.toInt().toString(),
+                                    }),
+                                    fontSize: 12.sp,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary(context),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  )),
+                            ),
                           ],
                         ),
                       ),

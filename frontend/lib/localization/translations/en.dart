@@ -3813,4 +3813,8 @@ const Map<String, String> enUSTranslations = <String, String>{
   'pawmap_around_none': 'No place of this category within this radius. Try a larger radius.',
   'pawmap_around_back': 'Categories',
   'nav_pawmap': 'PawMap',
+  'shop_card_boost_sub': 'Put your listing first',
+  'shop_card_follow_sub': 'Follow your pet on walks',
+  'shop_card_spot_sub': 'Community spots',
+  'shop_card_premium_sub': 'Unlimited Follow + Spot',
 };

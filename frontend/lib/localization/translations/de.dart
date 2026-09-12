@@ -3775,4 +3775,8 @@ const Map<String, String> deDETranslations = <String, String>{
   'pawmap_around_none': 'Kein Ort dieser Kategorie in diesem Umkreis. Versuche einen größeren Umkreis.',
   'pawmap_around_back': 'Kategorien',
   'nav_pawmap': 'PawMap',
+  'shop_card_boost_sub': 'Rücke deine Anzeige nach vorn',
+  'shop_card_follow_sub': 'Verfolge dein Tier beim Spaziergang',
+  'shop_card_spot_sub': 'Die Spots der Community',
+  'shop_card_premium_sub': 'Follow + Spot unbegrenzt',
 };

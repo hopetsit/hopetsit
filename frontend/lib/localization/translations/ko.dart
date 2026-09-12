@@ -3406,4 +3406,8 @@ const Map<String, String> koKRTranslations = <String, String>{
   'pawmap_around_none': '이 반경 안에 해당 카테고리의 장소가 없어요. 반경을 넓혀 보세요.',
   'pawmap_around_back': '카테고리',
   'nav_pawmap': 'PawMap',
+  'shop_card_boost_sub': '내 공고를 상단에',
+  'shop_card_follow_sub': '산책 중인 반려동물 추적',
+  'shop_card_spot_sub': '커뮤니티 스팟',
+  'shop_card_premium_sub': 'Follow + Spot 무제한',
 };

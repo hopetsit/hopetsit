@@ -3760,4 +3760,8 @@ const Map<String, String> itITTranslations = <String, String>{
   'pawmap_around_none': 'Nessun luogo di questa categoria in questo raggio. Prova un raggio più grande.',
   'pawmap_around_back': 'Categorie',
   'nav_pawmap': 'PawMap',
+  'shop_card_boost_sub': 'Metti in evidenza il tuo annuncio',
+  'shop_card_follow_sub': 'Segui il tuo animale in passeggiata',
+  'shop_card_spot_sub': 'Gli spot della community',
+  'shop_card_premium_sub': 'Follow + Spot illimitati',
 };

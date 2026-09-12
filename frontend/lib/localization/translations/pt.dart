@@ -3614,4 +3614,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
   'pawmap_around_none': 'Nenhum local desta categoria neste raio. Tenta um raio maior.',
   'pawmap_around_back': 'Categorias',
   'nav_pawmap': 'PawMap',
+  'shop_card_boost_sub': 'Destaca o teu anúncio',
+  'shop_card_follow_sub': 'Segue o teu animal no passeio',
+  'shop_card_spot_sub': 'Os spots da comunidade',
+  'shop_card_premium_sub': 'Follow + Spot ilimitados',
 };
