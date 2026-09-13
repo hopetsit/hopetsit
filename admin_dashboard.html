@@ -1536,6 +1536,11 @@ function payBadge(s) {
 function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
   if (!t) return;
+  // v562 — Daniel : « à chaque connexion ce message sort alors que tout marche ».
+  // Cause : au chargement, l'ancien jeton (expiré) est rejoué → 401 → retour
+  // à l'écran de connexion + toast « Failed to load stats: Session expirée ».
+  // Une session expirée n'est pas une erreur : on affiche juste la connexion.
+  if (window.__sessionExpired && /Session expir/i.test(String(msg))) return;
   t.className = `toast ${type} show`;
   t.innerHTML = (type === 'success' ? '✓ ' : '✕ ') + msg;
   setTimeout(() => t.classList.remove('show'), 3500);
@@ -1556,6 +1561,7 @@ const LS_URL_KEY = 'admin_api_url';
 function _enterApp(url, token) {
   API_URL = url;
   ADMIN_TOKEN = token;
+  window.__sessionExpired = false;
   localStorage.setItem(LS_TOKEN_KEY, token);
   localStorage.setItem(LS_URL_KEY, url);
   document.getElementById('login-screen').style.display = 'none';
@@ -1611,7 +1617,8 @@ async function api(path, method = 'GET', body = null) {
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(`${API_URL}${path}`, opts);
   if (r.status === 401) {
-    // Token expired or invalid — back to login.
+    // Token expired or invalid — back to login (silencieusement, voir showToast).
+    window.__sessionExpired = true;
     logout();
     throw new Error('Session expirée, reconnecte-toi.');
   }
