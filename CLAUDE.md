@@ -121,6 +121,9 @@ refuse l'origine localhost) + page `.claude/admin_boot.html?page=xxx` (pose `adm
 headless (`scratchpad/shot.py <page>`, `--virtual-time-budget`, subprocess timeout 100 s — le pane
 navigateur intégré rend minuscule au-delà de 560 px). Jeton admin obtenu par POST
 `/auth/admin/login` avec `~/.hopetsit_admin_credentials`, jamais tapé dans un formulaire.
+**13/09 — Play 564 VALIDÉ** (Daniel) → admin « Versions de l'app » : android latest 564 / min 0
+(`appver_admin.py set 564 0 563 0`). iOS 1.17 (564) encore en vérification : passer `i_l` à 564
+dès l'approbation Apple (`appver_admin.py set 564 0 564 0`).
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
 bannière de rôle unie, cartes PawMap / Réservations gris clair, NavCard sans bordure, promo
 noir) et `/map` (bandeaux, chips catégorie noir/gris, fiche lieu, chip PawPremium) au même
