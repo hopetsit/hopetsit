@@ -408,6 +408,9 @@ router.get('/stats', requireAdmin, async (req, res) => {
             _id: '$payments.plan',
             count: { $sum: 1 },
             total: { $sum: { $ifNull: ['$payments.amount', 0] } },
+            // v562 — Daniel : « combien de PERSONNES et quel plan » : count =
+            // nombre de paiements (renouvellements inclus), people = titulaires distincts.
+            people: { $addToSet: '$userId' },
           } },
         ]),
         sumWallet(Sitter), sumWallet(Walker),
@@ -455,6 +458,7 @@ router.get('/stats', requireAdmin, async (req, res) => {
       const byPlan = (subPlanAgg || []).map((r) => ({
         plan: r._id || 'inconnu',
         count: r.count || 0,
+        people: Array.isArray(r.people) ? r.people.length : (r.count || 0),
         total: parseFloat((r.total || 0).toFixed(2)),
       }));
       const subsCount = byPlan.reduce((s, p) => s + p.count, 0);

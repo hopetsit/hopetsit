@@ -4146,15 +4146,38 @@ async function loadDashboard() {
       { label: '👤 Propriétaires', value: d.totalOwners, sub: 'inscrits', accent: colors[4] },
       { label: '🐾 Animaux', value: d.totalPets, sub: 'dans le système', accent: colors[6] },
     ];
-    // Répartition des abonnements par plan (quel plan les gens prennent).
-    const planLabel = (p) => ({
-      monthly: 'Mensuel', yearly: 'Annuel', famille: 'Famille', family: 'Famille',
-      solo: 'Solo', none: 'Aucun',
-    }[String(p||'').toLowerCase()] || (p || 'Inconnu'));
+    // v562 — Daniel : « PawFollow / Premium — combien de personnes et quel plan,
+    // éclaircis et traduis bien ». Chaque clé de plan → PRODUIT + PÉRIODE, puis
+    // regroupé par produit, une puce par plan : « 👑 PawPremium · Annuel — 2 pers. · 0,00 € ».
+    const PLAN_META = {
+      monthly:         { product: 'PawFollow',  period: 'monthly', emoji: '📍', color: '#8B5CF6' },
+      yearly:          { product: 'PawFollow',  period: 'yearly',  emoji: '📍', color: '#8B5CF6' },
+      solo:            { product: 'PawFollow',  period: 'monthly', emoji: '📍', color: '#8B5CF6' },
+      family:          { product: 'PawFamily',  period: 'monthly', emoji: '👨‍👩‍👧', color: '#6A34E0' },
+      famille:         { product: 'PawFamily',  period: 'monthly', emoji: '👨‍👩‍👧', color: '#6A34E0' },
+      family_yearly:   { product: 'PawFamily',  period: 'yearly',  emoji: '👨‍👩‍👧', color: '#6A34E0' },
+      premium_monthly: { product: 'PawPremium', period: 'monthly', emoji: '👑', color: '#1D1D1F' },
+      premium_yearly:  { product: 'PawPremium', period: 'yearly',  emoji: '👑', color: '#1D1D1F' },
+      pawspot_monthly: { product: 'PawSpot',    period: 'monthly', emoji: '🐾', color: '#E8A00A' },
+      pawspot_yearly:  { product: 'PawSpot',    period: 'yearly',  emoji: '🐾', color: '#E8A00A' },
+    };
     const byPlan = (d.subscriptions && d.subscriptions.byPlan) || [];
+    const subsTotalCount = byPlan.reduce((a, p) => a + (p.people != null ? p.people : (p.count || 0)), 0);
+    const subsTotalRev = byPlan.reduce((a, p) => a + (p.total || 0), 0);
+    const people = (n) => n + ' ' + (n > 1 ? t('dash_subs_people_pl', 'personnes') : t('dash_subs_people', 'personne'));
     const subsHtml = byPlan.length
-      ? byPlan.map(p => `<b>${planLabel(p.plan)}</b> : ${p.count} &nbsp;(€${(p.total||0).toFixed(2)})`).join(' &nbsp;·&nbsp; ')
-      : 'Aucun abonnement souscrit pour le moment.';
+      ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' + byPlan
+          .map(p => ({ p, m: PLAN_META[String(p.plan || '').toLowerCase()] || { product: p.plan || '?', period: '', emoji: '📦', color: '#6E6E73' } }))
+          .sort((a, b) => a.m.product.localeCompare(b.m.product) || a.m.period.localeCompare(b.m.period))
+          .map(({ p, m }) => `<span style="display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:12px;background:${m.color}14;border-left:4px solid ${m.color}">
+              <span style="font-size:16px">${m.emoji}</span>
+              <span style="line-height:1.25"><b style="color:${m.color === '#1D1D1F' ? '#1D1D1F' : m.color}">${m.product}</b>
+                <span style="color:var(--text-muted)"> · ${m.period === 'yearly' ? t('dash_subs_yearly', 'Annuel') : m.period === 'monthly' ? t('dash_subs_monthly', 'Mensuel') : ''}</span><br>
+                <span style="font-size:13px">${people(p.people != null ? p.people : (p.count || 0))} · ${(p.count || 0)} ${t('dash_subs_payments', 'paiement(s)')} · <b>€${(p.total || 0).toFixed(2)}</b></span></span></span>`)
+          .join('') + '</div>'
+      : t('dash_subs_none', 'Aucun abonnement souscrit pour le moment.');
+    const subsSub = t('dash_subs_total', '{n} abonnements actifs · €{eur} encaissés · 0,00 € = offert (staff, code promo, essai)')
+      .replace('{n}', subsTotalCount).replace('{eur}', subsTotalRev.toFixed(2));
     document.getElementById('stats-grid').innerHTML = stats.map(s => `
       <div class="stat-card" style="--accent:${s.accent}">
         <div class="stat-label">${s.label}</div>
@@ -4163,9 +4186,9 @@ async function loadDashboard() {
       </div>
     `).join('') + `
       <div class="stat-card" style="--accent:var(--green);grid-column:1 / -1">
-        <div class="stat-label">📦 Abonnements — répartition par plan</div>
-        <div class="stat-value" style="font-size:15px;line-height:1.8;font-weight:500">${subsHtml}</div>
-        <div class="stat-sub">PawFollow / Premium — combien de personnes et quel plan</div>
+        <div class="stat-label">📦 ${t('dash_subs_title', 'Abonnements — qui a pris quoi')}</div>
+        <div class="stat-value" style="font-size:15px;line-height:1.5;font-weight:500;margin-top:4px">${subsHtml}</div>
+        <div class="stat-sub" style="margin-top:10px">${subsSub}</div>
       </div>
     `;
   } catch(e) {
@@ -6601,6 +6624,7 @@ async function toggleStaff(role, userId, isStaff) {
         acc_title: "Comptabilité — Mon bilan", acc_export: "Exporter CSV",
         acc_desc: "Mes bénéfices HoPetSit uniquement : commissions plateforme sur les réservations + revenus boutique (PawBoost, PawSpot, PawFollow, 👑 PawPremium). Hors paiements reversés aux prestataires. Pour mon comptable.",
         dash_overview: "Vue d'ensemble",
+        dash_subs_title: "Abonnements — qui a pris quoi", dash_subs_payments: "paiement(s)", dash_subs_monthly: "Mensuel", dash_subs_yearly: "Annuel", dash_subs_people: "personne", dash_subs_people_pl: "personnes", dash_subs_none: "Aucun abonnement souscrit pour le moment.", dash_subs_total: "{n} abonnés (personnes) · €{eur} encaissés · 0,00 € = offert (staff, code promo, essai)",
         dash_recent_payments: "Paiements récents",
         loyalty_title: "Avantages fidélité",
         loyalty_desc: "Owners Premium (10+ réservations) · Top Sitters (20+ prestations + note 4.5★) · Top Walkers (20+ balades + note 4.5★). Commission réduite à 15% pour Top Sitter/Walker.",
@@ -6737,6 +6761,7 @@ async function toggleStaff(role, userId, isStaff) {
         acc_title: "Accounting — My balance", acc_export: "Export CSV",
         acc_desc: "My HoPetSit profits only: platform commissions on bookings + shop revenue (Boost, PawSpot, Premium, Chat). Excludes payouts to providers. For my accountant.",
         dash_overview: "Overview",
+        dash_subs_title: "Subscriptions — who took what", dash_subs_payments: "payment(s)", dash_subs_monthly: "Monthly", dash_subs_yearly: "Yearly", dash_subs_people: "person", dash_subs_people_pl: "people", dash_subs_none: "No subscription yet.", dash_subs_total: "{n} subscribers (people) · €{eur} collected · €0.00 = free (staff, promo code, trial)",
         dash_recent_payments: "Recent payments",
         loyalty_title: "Loyalty benefits",
         loyalty_desc: "Premium owners (10+ bookings) · Top Sitters (20+ services + 4.5★ rating) · Top Walkers (20+ walks + 4.5★ rating). Reduced 15% commission for Top Sitter/Walker.",
@@ -6872,6 +6897,7 @@ async function toggleStaff(role, userId, isStaff) {
         acc_title: "Contabilidad — Mi balance", acc_export: "Exportar CSV",
         acc_desc: "Solo mis beneficios HoPetSit: comisiones de la plataforma sobre las reservas + ingresos de tienda (Boost, PawSpot, Premium, Chat). Sin los pagos a los proveedores. Para mi contable.",
         dash_overview: "Resumen",
+        dash_subs_title: "Suscripciones — quién tiene qué", dash_subs_payments: "pago(s)", dash_subs_monthly: "Mensual", dash_subs_yearly: "Anual", dash_subs_people: "persona", dash_subs_people_pl: "personas", dash_subs_none: "Todavía no hay suscripciones.", dash_subs_total: "{n} suscriptores (personas) · €{eur} cobrados · 0,00 € = gratis (staff, código promo, prueba)",
         dash_recent_payments: "Pagos recientes",
         loyalty_title: "Ventajas de fidelidad",
         loyalty_desc: "Propietarios Premium (10+ reservas) · Top Sitters (20+ servicios + nota 4.5★) · Top Walkers (20+ paseos + nota 4.5★). Comisión reducida al 15% para Top Sitter/Walker.",
