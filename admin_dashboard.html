@@ -4558,6 +4558,7 @@ function renderOwners() {
         <td>${u.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="action-btn" style="background:${u.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('${u._role}','${u._id}',${!u.isStaff})">${u.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button>
+          <button class="action-btn" onclick="changeUserEmail('${u._role}','${u._id}','${escapeHtml(u.email||'')}')" title="${t('users_email_edit_title','Corriger l\'adresse e-mail (renvoie un code de vérification)')}">✉️ ${t('users_email_edit','E-mail')}</button>
           <button class="action-btn btn-delete" onclick="deleteUnifiedUser('${u._role}','${u._id}')">Supprimer</button>
         </td>
       </tr>`;
@@ -6561,6 +6562,21 @@ async function deleteBugReport(id) {
 // v20.0.10 - Toggle Staff flag on owner/sitter/walker. Grants free Premium
 // + free Boosts. This function was accidentally dropped during an earlier
 // admin HTML reconstruction — re-added here.
+// v562 — Daniel : « le client s'est trompé de mail » → corrige l'adresse d'un
+// compte depuis l'admin (les 3 profils de la personne) + nouveau code envoyé.
+async function changeUserEmail(role, userId, current) {
+  const email = prompt(t('users_email_prompt', 'Nouvelle adresse e-mail pour ce compte :'), current || '');
+  if (!email || email.trim().toLowerCase() === String(current || '').toLowerCase()) return;
+  try {
+    const r = await api('/admin/users/' + role + '/' + userId + '/email', 'PATCH', { email: email.trim() });
+    let codeSent = false;
+    try { await api('/auth/resend-code?email=' + encodeURIComponent(r.email), 'POST'); codeSent = true; } catch (_) {}
+    showToast(t('users_email_done', 'Adresse corrigée : ') + r.email + (codeSent ? t('users_email_code', ' · code de vérification envoyé') : ''), 'success');
+    loadOwners();
+  } catch (e) {
+    showToast(t('error_prefix') + e.message, 'error');
+  }
+}
 async function toggleStaff(role, userId, isStaff) {
   const label = isStaff
     ? 'Accorder Premium GRATUIT + tous les Boost a cet utilisateur ?'
@@ -6624,6 +6640,7 @@ async function toggleStaff(role, userId, isStaff) {
         acc_title: "Comptabilité — Mon bilan", acc_export: "Exporter CSV",
         acc_desc: "Mes bénéfices HoPetSit uniquement : commissions plateforme sur les réservations + revenus boutique (PawBoost, PawSpot, PawFollow, 👑 PawPremium). Hors paiements reversés aux prestataires. Pour mon comptable.",
         dash_overview: "Vue d'ensemble",
+        users_email_edit: "E-mail", users_email_edit_title: "Corriger l'adresse e-mail (renvoie un code de vérification)", users_email_prompt: "Nouvelle adresse e-mail pour ce compte :", users_email_done: "Adresse corrigée : ", users_email_code: " · code de vérification envoyé",
         dash_subs_title: "Abonnements — qui a pris quoi", dash_subs_payments: "paiement(s)", dash_subs_monthly: "Mensuel", dash_subs_yearly: "Annuel", dash_subs_people: "personne", dash_subs_people_pl: "personnes", dash_subs_none: "Aucun abonnement souscrit pour le moment.", dash_subs_total: "{n} abonnés (personnes) · €{eur} encaissés · 0,00 € = offert (staff, code promo, essai)",
         dash_recent_payments: "Paiements récents",
         loyalty_title: "Avantages fidélité",
@@ -6761,6 +6778,7 @@ async function toggleStaff(role, userId, isStaff) {
         acc_title: "Accounting — My balance", acc_export: "Export CSV",
         acc_desc: "My HoPetSit profits only: platform commissions on bookings + shop revenue (Boost, PawSpot, Premium, Chat). Excludes payouts to providers. For my accountant.",
         dash_overview: "Overview",
+        users_email_edit: "E-mail", users_email_edit_title: "Fix the e-mail address (sends a new verification code)", users_email_prompt: "New e-mail address for this account:", users_email_done: "Address fixed: ", users_email_code: " · verification code sent",
         dash_subs_title: "Subscriptions — who took what", dash_subs_payments: "payment(s)", dash_subs_monthly: "Monthly", dash_subs_yearly: "Yearly", dash_subs_people: "person", dash_subs_people_pl: "people", dash_subs_none: "No subscription yet.", dash_subs_total: "{n} subscribers (people) · €{eur} collected · €0.00 = free (staff, promo code, trial)",
         dash_recent_payments: "Recent payments",
         loyalty_title: "Loyalty benefits",
@@ -6897,6 +6915,7 @@ async function toggleStaff(role, userId, isStaff) {
         acc_title: "Contabilidad — Mi balance", acc_export: "Exportar CSV",
         acc_desc: "Solo mis beneficios HoPetSit: comisiones de la plataforma sobre las reservas + ingresos de tienda (Boost, PawSpot, Premium, Chat). Sin los pagos a los proveedores. Para mi contable.",
         dash_overview: "Resumen",
+        users_email_edit: "E-mail", users_email_edit_title: "Corregir el e-mail (envía un nuevo código de verificación)", users_email_prompt: "Nuevo e-mail para esta cuenta:", users_email_done: "Dirección corregida: ", users_email_code: " · código de verificación enviado",
         dash_subs_title: "Suscripciones — quién tiene qué", dash_subs_payments: "pago(s)", dash_subs_monthly: "Mensual", dash_subs_yearly: "Anual", dash_subs_people: "persona", dash_subs_people_pl: "personas", dash_subs_none: "Todavía no hay suscripciones.", dash_subs_total: "{n} suscriptores (personas) · €{eur} cobrados · 0,00 € = gratis (staff, código promo, prueba)",
         dash_recent_payments: "Pagos recientes",
         loyalty_title: "Ventajas de fidelidad",

@@ -3405,6 +3405,46 @@ router.post('/users/:role/:id/staff', requireAdmin, async (req, res) => {
   }
 });
 
+// v562 — Daniel : « le client s'est trompé de mail, je peux pas le modifier
+// dans l'admin ? » → PATCH /admin/users/:role/:id/email { email }. Vérifie le
+// format et l'unicité sur les 3 collections, propage sur les 3 docs de la même
+// personne (_id / ancien e-mail / oldId, comme le flag staff) et renvoie un
+// nouveau code de vérification à la bonne adresse (l'ancien est parti dans le vide).
+router.patch('/users/:role/:id/email', requireAdmin, async (req, res) => {
+  try {
+    const { role, id } = req.params;
+    const email = String((req.body || {}).email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) {
+      return res.status(400).json({ error: 'Adresse e-mail invalide.' });
+    }
+    const OwnerM = require('../models/Owner');
+    const SitterM = require('../models/Sitter');
+    const WalkerM = require('../models/Walker');
+    const Model = role === 'sitter' ? SitterM : role === 'walker' ? WalkerM : role === 'owner' ? OwnerM : null;
+    if (!Model) return res.status(400).json({ error: 'Invalid role.' });
+    const current = await Model.findById(id).select('name email oldId').lean();
+    if (!current) return res.status(404).json({ error: 'User not found.' });
+    const oldEmail = String(current.email || '').toLowerCase();
+    if (oldEmail === email) return res.json({ id, email, changed: 0 });
+    const taken = await Promise.all([OwnerM, SitterM, WalkerM].map((M) => M.findOne({ email }).select('_id oldId').lean()));
+    const sameOwner = (d) => d && ((current.oldId && String(d.oldId) === String(current.oldId)) || String(d._id) === String(id));
+    if (taken.some((d) => d && !sameOwner(d))) {
+      return res.status(409).json({ error: 'Cette adresse est déjà utilisée par un autre compte.' });
+    }
+    const or = [{ _id: id }];
+    if (oldEmail) or.push({ email: oldEmail });
+    if (current.oldId) or.push({ oldId: current.oldId });
+    const results = await Promise.all([OwnerM, SitterM, WalkerM].map((M) => M.updateMany({ $or: or }, { $set: { email } })));
+    const changed = results.reduce((n, r) => n + (r.modifiedCount || 0), 0);
+    // Le nouveau code de vérification est demandé par l'admin via POST /auth/resend-code?email=… (même flux que l'app).
+    logger.info(`[admin] ${role} ${id} email ${oldEmail} -> ${email} (${changed} doc(s))`);
+    res.json({ id, email, oldEmail, changed });
+  } catch (e) {
+    logger.error('[admin/users/email]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // v20 — Loyalty stats for the admin "Avantages" tab.
 // Returns counts + top lists for: owners with isPremium (10+ bookings),
 // sitters with isTopSitter (20+ completed + 4.5 rating), walkers with isTopWalker.
