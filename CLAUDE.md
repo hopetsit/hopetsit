@@ -78,6 +78,21 @@ pleine) → toutes les pages qui les référencent sont à jour. **Captures** : 
 Méthode EN : `simctl spawn booted defaults write .GlobalPreferences AppleLanguages -array en-US
 en` + `AppleLocale en_US` + reboot, l'app suit la langue du téléphone ; remis en fr_FR ensuite.
 ⚠️ `/boutique` et `/dashboard` exigent une session : vérifiés par `tsc` seulement.
+**13/09 (suite) — 3e passe site.** États « sélectionné » = **orange pâle** `bg-owner-light` +
+`text-owner-dark` (plus jamais gris foncé) : page courante dans `Header.tsx` (usePathname, desktop +
+mobile), puces Voir signaux / Voir spots / rôles / catégories de `/map`. PawMap web : icônes SVG
+pleines (`ActionIcon` : triangle, drapeau, patte, pin, viseur, flèche) à la place des emojis, +
+bloc **« Autour de toi »** (6 lieux visibles les plus proches, distance haversine depuis
+`userLocation ?? center`, statut ouvert/fermé via `formatOpenStatus`, clic = `setSelectedPoi` +
+`setFocusTarget`, bouton = `handleDirections` existant) ; clés `map_around_title/sub/empty/show`
+×9. Galerie accueil : 5 captures, UNE seule PawMap (09-autour-liste retirée de `screens.tsx`).
+**Compte de test owner = « Camille Durand »** (photo Unsplash, animal « Rex » golden retriever,
+bio propre) — Daniel : « test owner c'est un peu nul », ne plus remettre « Test ». Captures
+00-accueil/home et 05-profil/profile refaites avec UNE annonce visible : annonce créée par l'API
+dans une ville fictive `Le Marais, Paris` (lat -35, lng -30 → **0 sitter/walker notifié**, hors de
+tout feed réel) puis **supprimée** juste après la capture. ⚠️ `createPost` sans `location.city`
+notifierait jusqu'à 50 prestataires réels ; un post avec photo sort de « Mes annonces » (il passe
+par `/posts/media` qui ne renvoie que `postType: media`).
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
 bannière de rôle unie, cartes PawMap / Réservations gris clair, NavCard sans bordure, promo
 noir) et `/map` (bandeaux, chips catégorie noir/gris, fiche lieu, chip PawPremium) au même
