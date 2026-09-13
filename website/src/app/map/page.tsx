@@ -46,6 +46,7 @@ import {
   RouteResult,
   createMapReport,
   createPawSpot,
+  uploadImage,
   getFriendLastPosition,
   getFriendsLivePositions,
   getMyBenefits,
@@ -210,6 +211,13 @@ export default function MapPage() {
   const [createNote, setCreateNote] = useState("");
   const [creating, setCreating] = useState(false);
   const [createErr, setCreateErr] = useState<string | null>(null);
+  // v562 — photo du spot depuis l'ordinateur + panneaux latéraux (signalements /
+  // spots), branchés sur les mêmes données que l'app (aucun rebuild requis).
+  const [createPhoto, setCreatePhoto] = useState<File | null>(null);
+  const [createPhotoPreview, setCreatePhotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const [sidePanel, setSidePanel] = useState<null | "reports" | "spots">(null);
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [friendsForMap, setFriendsForMap] = useState<FriendItem[]>([]);
   const [familyIds, setFamilyIds] = useState<string[]>([]);
@@ -822,7 +830,7 @@ export default function MapPage() {
   // v497 — Tag spot / Signaler : gated sur l'abonnement (PawSpot/Premium).
   // Sans abo → boutique. Avec abo → modal (type + note) ; position = CENTRE de
   // la carte (l'user déplace la carte pour positionner, comme un viseur).
-  function openCreate(kind: "spot" | "report") {
+  function openCreate(kind: "spot" | "report", wantPhoto = false) {
     const subbed = !!(
       benefits?.pawspotActive || benefits?.premiumActive || benefits?.isPremium
     );
@@ -835,6 +843,13 @@ export default function MapPage() {
     setCreateName("");
     setCreateNote("");
     setCreateErr(null);
+    setCreatePhoto(null);
+    setCreatePhotoPreview(null);
+    if (wantPhoto) {
+      // Bouton « Photo du spot » du rail : on ouvre tout de suite le sélecteur
+      // de fichier de l'ordinateur (dans la foulée du clic utilisateur).
+      setTimeout(() => photoInputRef.current?.click(), 50);
+    }
   }
   async function submitCreate() {
     if (creating || !createKind) return;
@@ -849,12 +864,22 @@ export default function MapPage() {
           setCreating(false);
           return;
         }
+        let photoUrl = "";
+        if (createPhoto) {
+          setUploadingPhoto(true);
+          try {
+            photoUrl = await uploadImage(createPhoto);
+          } finally {
+            setUploadingPhoto(false);
+          }
+        }
         await createPawSpot({
           type: createType as PawSpotType,
           name: createName.trim(),
           description: createNote.trim(),
           lat,
           lng,
+          photoUrl,
         });
         if (!showSpots) setShowSpots(true);
         const list = await getNearbyPawSpots({ lat, lng, radius: 25000 });
@@ -1016,6 +1041,15 @@ export default function MapPage() {
     dead_animal: t("map_rtype_dead_animal"),
     stray_pet: t("map_rtype_stray_pet"),
     water_active: t("map_rtype_water_active"),
+    trap: t("map_rtype_trap"),
+    poison: t("map_rtype_poison"),
+    construction: t("map_rtype_construction"),
+    food: t("map_rtype_food"),
+    trash: t("map_rtype_trash"),
+    vet_open: t("map_rtype_vet_open"),
+    leash_required: t("map_rtype_leash_required"),
+    heat_hot_ground: t("map_rtype_heat_hot_ground"),
+    tick_zone: t("map_rtype_tick_zone"),
   };
   const reportOptions: { type: MapReportType; emoji: string }[] = [
     { type: "lost_pet", emoji: "🐾" },
@@ -1539,11 +1573,21 @@ export default function MapPage() {
                 }
               } },
               { k: "chat", g1: "#5B9DFF", g2: "#2358D6", label: t("dash_card_messages_title"), on: () => router.push("/chat") },
-              { k: "photo", g1: "#FFB067", g2: "#E07A12", label: t("map_tag_spot_cta"), on: () => openCreate("spot") },
-              { k: "spot", g1: "#FAC346", g2: "#E2981A", label: t("map_spots_chip"), on: () => setShowSpots((v) => !v), active: showSpots },
+              { k: "photo", g1: "#FFB067", g2: "#E07A12", label: t("map_spot_photo_label"), on: () => openCreate("spot", true) },
+              { k: "spot", g1: "#FAC346", g2: "#E2981A", label: t("map_panel_spots_title"), on: () => {
+                if (sidePanel === "spots") { setSidePanel(null); return; }
+                setShowSpots(true);
+                setSidePanel("spots");
+                setTimeout(() => document.getElementById("side-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+              }, active: sidePanel === "spots" },
               { k: "add", g1: "#48C8BA", g2: "#18968A", label: t("map_tag_spot_cta"), on: () => openCreate("spot") },
               { k: "report", g1: "#FF6E5C", g2: "#D63A28", label: t("map_report_cta"), on: () => openCreate("report") },
-              { k: "feed", g1: "#5A4E46", g2: "#28201B", label: t("map_reports_chip"), on: () => setShowReports((v) => !v), active: showReports },
+              { k: "feed", g1: "#5A4E46", g2: "#28201B", label: t("map_panel_reports_title"), on: () => {
+                if (sidePanel === "reports") { setSidePanel(null); return; }
+                setShowReports(true);
+                setSidePanel("reports");
+                setTimeout(() => document.getElementById("side-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+              }, active: sidePanel === "reports" },
             ] as { k: keyof typeof RAIL_SVG; g1: string; g2: string; label: string; on: () => void; active?: boolean }[]
           ).map((b) => (
             <button
@@ -1631,6 +1675,66 @@ export default function MapPage() {
         />
       </div>
 
+      {/* v562 — PANNEAU « Signalements autour de toi » / « Spots de la
+          communauté » : mêmes endpoints que l'app (/map-reports/nearby,
+          /pawspots/nearby) → synchronisé avec l'app sans rebuild. Tri par
+          distance, clic = recentrer, bouton = itinéraire (mode choisi). */}
+      {sidePanel && (() => {
+        const from = userLocation ?? { lat: center[0], lng: center[1] };
+        const isReports = sidePanel === "reports";
+        const rows = isReports
+          ? reports.map((r) => {
+              const [lng, lat] = r.location.coordinates;
+              return { id: r._id, lat, lng, km: haversineKm(from.lat, from.lng, lat, lng), emoji: REPORT_EMOJI[r.type] || "📍", title: reportTypeLabels[r.type] || r.type, sub: r.note || "", photo: r.photoUrl || "", meta: `${new Date(r.createdAt).toLocaleDateString(lang)}${r.confirmationsCount ? ` · ✓ ${r.confirmationsCount}` : ""}`, golden: false };
+            })
+          : spots.map((sp) => ({ id: sp.id, lat: sp.lat, lng: sp.lng, km: haversineKm(from.lat, from.lng, sp.lat, sp.lng), emoji: SPOT_EMOJI[sp.type] || "📍", title: sp.name, sub: `${spotTypeLabels[sp.type] || sp.type}${sp.description ? ` · ${sp.description}` : ""}`, photo: sp.photoUrl || "", meta: `❤️ ${sp.likesCount} · ${t("map_spot_visits").replace("{count}", String(sp.visitsCount))}`, golden: sp.isGolden }));
+        rows.sort((a, b) => a.km - b.km);
+        return (
+          <div id="side-panel" className="mt-6 scroll-mt-24 rounded-[24px] bg-[#F5F5F7] p-5">
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-full text-white" style={{ background: isReports ? "linear-gradient(165deg,#5A4E46,#28201B)" : "linear-gradient(165deg,#FAC346,#E2981A)" }}>
+                <span className="block h-4 w-4" dangerouslySetInnerHTML={{ __html: RAIL_SVG[isReports ? "feed" : "spot"] }} />
+              </span>
+              <h2 className="font-display text-lg font-bold text-[#1D1D1F]">{isReports ? t("map_panel_reports_title") : t("map_panel_spots_title")}</h2>
+              <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-[#1D1D1F]">{rows.length}</span>
+              <button type="button" onClick={() => setSidePanel(null)} className="ml-auto text-2xl leading-none text-[#6E6E73] hover:text-ink" aria-label={t("map_close")}>×</button>
+            </div>
+            <ModePicker mode={routeMode} onChange={setRouteMode} label={t("map_route_mode_label")} labels={{ walk: t("map_route_mode_walk"), bike: t("map_route_mode_bike"), car: t("map_route_mode_car") }} />
+            {rows.length === 0 ? (
+              <p className="mt-4 text-sm text-[#6E6E73]">{t("map_panel_empty")}</p>
+            ) : (
+              <ul className="mt-4 grid gap-2 md:grid-cols-2">
+                {rows.slice(0, 30).map((r) => (
+                  <li key={`${sidePanel}-${r.id}`} className="flex items-center gap-3 rounded-[18px] bg-white p-3 transition hover:bg-[#FAFAFA]">
+                    <button type="button" onClick={() => setFocusTarget({ lat: r.lat, lng: r.lng, ts: Date.now() })} title={t("map_around_show")} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                      {r.photo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={r.photo} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+                      ) : (
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#F5F5F7] text-lg">{r.emoji}</span>
+                      )}
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold text-[#1D1D1F]">
+                          {r.golden && <span className="mr-1" title={t("map_golden_spot")}>🏅</span>}
+                          {r.title}
+                        </span>
+                        {r.sub && <span className="block truncate text-xs text-[#6E6E73]">{r.sub}</span>}
+                        <span className="block truncate text-xs text-[#6E6E73]">
+                          {r.km < 1 ? `${Math.round(r.km * 1000)} m` : `${r.km.toFixed(1)} km`} · {r.meta}
+                        </span>
+                      </span>
+                    </button>
+                    <button type="button" onClick={() => handleDirections({ lat: r.lat, lng: r.lng })} title={t("map_directions_btn")} aria-label={t("map_directions_btn")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-owner text-white transition hover:bg-owner-dark">
+                      <ActionIcon kind="route" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })()}
+
       {/* v562 — Daniel : « met à jour mieux la pawmap du site web (les icônes,
           les fonctionnalités) ». Liste « Autour de toi » = même idée que le
           bouton violet de l'app : les 6 lieux visibles les plus proches, avec
@@ -1654,6 +1758,10 @@ export default function MapPage() {
               <h2 className="font-display text-lg font-bold text-[#1D1D1F]">{t("map_around_title")}</h2>
             </div>
             <p className="mt-1 text-xs text-[#6E6E73]">{t("map_around_sub")}</p>
+          {/* v562 — Daniel : « dans itinéraire / autour de moi il n'y a pas
+              à pied / voiture / vélo à choisir ». Le mode choisi ici est celui
+              utilisé par tous les boutons Itinéraire de la page. */}
+          <ModePicker mode={routeMode} onChange={setRouteMode} label={t("map_route_mode_label")} labels={{ walk: t("map_route_mode_walk"), bike: t("map_route_mode_bike"), car: t("map_route_mode_car") }} />
             {near.length === 0 ? (
               <p className="mt-4 text-sm text-[#6E6E73]">{t("map_around_empty")}</p>
             ) : (
@@ -1817,13 +1925,41 @@ export default function MapPage() {
             </select>
 
             {createKind === "spot" && (
-              <input
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
-                placeholder={t("map_spot_name_ph")}
-                maxLength={80}
-                className="mt-3 w-full rounded-xl border border-ink/15 px-3 py-2 text-sm"
-              />
+              <>
+                <input
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                  placeholder={t("map_spot_name_ph")}
+                  maxLength={80}
+                  className="mt-3 w-full rounded-xl border border-ink/15 px-3 py-2 text-sm"
+                />
+                {/* v562 — photo depuis l'ordinateur (site web). */}
+                <label className="mt-3 block text-xs font-semibold text-[#6E6E73]">{t("map_spot_photo_label")}</label>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    setCreatePhoto(f);
+                    setCreatePhotoPreview(f ? URL.createObjectURL(f) : null);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="mt-1 flex w-full items-center gap-3 rounded-xl border border-dashed border-ink/25 bg-[#F5F5F7] px-3 py-2 text-left text-xs text-[#6E6E73] transition hover:bg-owner-light"
+                >
+                  {createPhotoPreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={createPhotoPreview} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
+                  ) : (
+                    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-white text-xl">📷</span>
+                  )}
+                  <span>{createPhoto ? createPhoto.name : t("map_spot_photo_hint")}</span>
+                </button>
+              </>
             )}
             <textarea
               value={createNote}
@@ -1855,7 +1991,7 @@ export default function MapPage() {
                 disabled={creating}
                 className="rounded-full bg-owner px-5 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-owner-dark disabled:opacity-60"
               >
-                {creating ? "⌛" : t("map_create_submit")}
+                {uploadingPhoto ? t("map_uploading") : creating ? "⌛" : t("map_create_submit")}
               </button>
             </div>
           </div>
@@ -1961,3 +2097,49 @@ const RAIL_SVG = {
   report: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 2.8 22.6 21H1.4z"/><path d="M10.9 9h2.2v6h-2.2zM10.9 16.5h2.2v2.2h-2.2z" fill="rgba(0,0,0,.4)"/></svg>',
   feed: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M5 2.5h2.2V21.5H5z"/><path d="M7.2 3.5h11.3l-2.4 4.5 2.4 4.5H7.2z"/><circle cx="18.5" cy="5" r="3.6" fill="#E24834" stroke="#fff" stroke-width="1.4"/></svg>',
 } as const;
+
+/** v562 — emojis des signalements (mêmes types que l'app). */
+const REPORT_EMOJI: Partial<Record<MapReportType, string>> = {
+  lost_pet: "🐾", found_pet: "🔍", aggressive_dog: "⚠️", dead_animal: "💀", stray_pet: "🐈", water_active: "💧",
+  trap: "🪤", poison: "☠️", construction: "🚧", food: "🍖", trash: "🗑️", vet_open: "🏥",
+  leash_required: "🦮", heat_hot_ground: "🔥", tick_zone: "🕷️",
+};
+const SPOT_EMOJI: Record<PawSpotType, string> = {
+  path_walk: "🚶", chill: "🧘", playground: "🎾", swimming: "🏊", food_cafe: "☕", other: "📍",
+};
+
+/** v562 — choix à pied / vélo / voiture, partagé par toutes les listes. */
+function ModePicker({
+  mode,
+  onChange,
+  label,
+  labels,
+}: {
+  mode: RouteMode;
+  onChange: (m: RouteMode) => void;
+  label: string;
+  labels: Record<RouteMode, string>;
+}) {
+  const colors: Record<RouteMode, string> = { walk: "#C92A12", bike: "#16A34A", car: "#2563EB" };
+  const emoji: Record<RouteMode, string> = { walk: "🚶", bike: "🚲", car: "🚗" };
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      <span className="mr-1 text-xs font-semibold text-[#6E6E73]">{label}</span>
+      {(["walk", "bike", "car"] as RouteMode[]).map((m) => (
+        <button
+          key={m}
+          type="button"
+          aria-pressed={mode === m}
+          onClick={() => onChange(m)}
+          className="rounded-full px-3 py-1 text-xs font-bold transition"
+          style={{
+            backgroundColor: mode === m ? colors[m] : `${colors[m]}1a`,
+            color: mode === m ? "#fff" : colors[m],
+          }}
+        >
+          {emoji[m]} {labels[m]}
+        </button>
+      ))}
+    </div>
+  );
+}

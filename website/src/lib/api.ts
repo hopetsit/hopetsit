@@ -2053,6 +2053,8 @@ export async function createPawSpot(opts: {
   lng: number;
   description?: string;
   city?: string;
+  /** v562 — photo du spot (URL Cloudinary renvoyée par uploadImage). */
+  photoUrl?: string;
 }): Promise<void> {
   await request("/pawspots", {
     method: "POST",
@@ -2063,8 +2065,31 @@ export async function createPawSpot(opts: {
       lat: opts.lat,
       lng: opts.lng,
       city: opts.city || "",
+      photoUrl: opts.photoUrl || "",
     }),
   });
+}
+
+// v562 — Daniel : « sur le site web, on peut charger une photo de notre
+// ordinateur ». POST /uploads/form-data (multer `file`) → Cloudinary → { url }.
+export async function uploadImage(file: File, folder = "petsinsta/pawspots"): Promise<string> {
+  if (!file.type.startsWith("image/")) {
+    throw new ApiError("Le fichier doit être une image.", 400);
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    throw new ApiError("Image trop grande (10 Mo max).", 400);
+  }
+  const form = new FormData();
+  form.append("file", file);
+  form.append("folder", folder);
+  form.append("resourceType", "image");
+  const raw = await request<{ url?: string; secure_url?: string }>("/uploads/form-data", {
+    method: "POST",
+    body: form,
+  });
+  const url = raw.url || raw.secure_url || "";
+  if (!url) throw new ApiError("Upload failed", 500);
+  return url;
 }
 
 export type RouteMode = "walk" | "bike" | "car";
