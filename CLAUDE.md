@@ -124,6 +124,26 @@ navigateur intégré rend minuscule au-delà de 560 px). Jeton admin obtenu par 
 **13/09 — Play 564 VALIDÉ** (Daniel) → admin « Versions de l'app » : android latest 564 / min 0
 (`appver_admin.py set 564 0 563 0`). iOS 1.17 (564) encore en vérification : passer `i_l` à 564
 dès l'approbation Apple (`appver_admin.py set 564 0 564 0`).
+**13/09 (nuit) — BILAN 10 JOURS + décisions « focus USA + Paris » (Daniel : « tu prends les
+décisions »).** Chiffres : 31 comptes réels (hors test/staff), 8 inscriptions en 10 jours (5 US,
+2 FR, 1 inconnu — Honolulu, Naples FL, St. Louis, San Francisco, University ; Boulogne, Blénod),
+15 en 30 jours (8 US / 5 FR), 9 réservations dont 2 payées (48 € bruts, 8 € de commission),
+boutique 26,95 €, 0 réservation terminée. Décisions prises : (1) routine cloud du dimanche
+`trig_01BpzyjaJz7SPDgPFCdjinQM` réécrite = 1 article FR Paris + 1 article EN-US par semaine,
+ville US en rotation (Dallas, New York, LA, Houston, Miami, Chicago, Austin, SF), section
+« Langue du jour » = post Nextdoor/groupes FB de la ville, section « English » = post Reddit ;
+les 7 autres langues sont en pause. (2) Affiches partenaires vague 2 = petite couronne (12
+commerces, `~/hopetsit-social/partenaires_couronne.json`) + **Dallas en anglais** (10,
+`partenaires_dallas.json`, affiche `affiche_commerce.py … en`, mailer `envoi_partenaires_us.py`) ;
+envois automatiques **chaque lundi** par launchd (`com.hopetsit.partenaires.couronne` 10 h 05,
+`.dallas` 16 h 05 Paris = 9 h Dallas) — le script n'envoie que les entrées `a_contacter`, donc
+rien ne part deux fois ; nouvelle vague = ajouter au JSON. Listes construites par
+`partenaires_build.py '<area Overpass>|…' sortie.json` (OSM + e-mail trouvé sur le site).
+(3) BUG réparé : le post « banque » du mercredi 09/09 avait échoué (`git push` refusé, compte
+GitHub `dadaciao84-ai` pris par le trousseau) → `publier_semaine.py` force
+`credential.helper=osxkeychain` sur pull et push. (4) IndexNow : 571 URL du sitemap resoumises.
+Non fait / à proposer à Daniel (argent) : relancer Google Ads Dallas (3,96 €/install) ou Paris
+(1,08 €/install).
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
 bannière de rôle unie, cartes PawMap / Réservations gris clair, NavCard sans bordure, promo
 noir) et `/map` (bandeaux, chips catégorie noir/gris, fiche lieu, chip PawPremium) au même
