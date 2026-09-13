@@ -12,6 +12,20 @@ export const metadata: Metadata = {
 
 const POSTS = [
   {
+    slug: "become-a-pet-sitter-in-chicago",
+    lang: "🇺🇸",
+    title: "How to become a pet sitter in Chicago (and what you can earn)",
+    excerpt:
+      "Lincoln Park, Wicker Park, the lakefront trail: realistic rates, how to land your first regular clients, and where to start.",
+  },
+  {
+    slug: "devenir-pet-sitter-paris-11e",
+    lang: "🇫🇷",
+    title: "Devenir pet sitter dans le 11e arrondissement de Paris : le guide",
+    excerpt:
+      "Oberkampf, Bastille, République : pourquoi c'est l'un des meilleurs quartiers pour se lancer, et comment trouver ses premiers clients.",
+  },
+  {
     slug: "chien-seul-toute-la-journee-paris",
     lang: "🇫🇷",
     title: "Chien seul toute la journée à Paris : la solution de la promenade de midi",

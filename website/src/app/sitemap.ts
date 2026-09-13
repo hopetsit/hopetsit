@@ -31,6 +31,9 @@ const PUBLIC_PATHS = [
   "/blog/combien-coute-un-pet-sitter",
   "/blog/faire-garder-son-chien-pendant-les-vacances",
   "/blog/how-much-does-a-dog-walker-cost",
+  // 2026-W37 — recrutement Paris 11e + Chicago.
+  "/blog/devenir-pet-sitter-paris-11e",
+  "/blog/become-a-pet-sitter-in-chicago",
   // v535 — 6 articles SEO Paris + USA.
   "/blog/promener-son-chien-a-paris",
   "/blog/tarif-promeneur-de-chien-paris",
