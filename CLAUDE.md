@@ -93,6 +93,19 @@ dans une ville fictive `Le Marais, Paris` (lat -35, lng -30 → **0 sitter/walke
 tout feed réel) puis **supprimée** juste après la capture. ⚠️ `createPost` sans `location.city`
 notifierait jusqu'à 50 prestataires réels ; un post avec photo sort de « Mes annonces » (il passe
 par `/posts/media` qui ne renvoie que `postType: media`).
+**13/09 (suite 2) — PawMap web « comme l'app ».** Rail GAUCHE de 8 boutons ronds sur la carte
+(`/map`, `RAIL_SVG` = copies des `_fabSvg*` de l'app, dégradés identiques) : Autour de moi
+(scroll vers la liste), Itinéraire (POI sélectionné sinon liste), Chat (`/chat`), Photo du spot
+et Tag spot (`openCreate("spot")`), Voir spots / Voir signaux (toggles), Signaler
+(`openCreate("report")`). Les 4 puces doublonnées de la barre du haut ont été retirées (les
+handlers restent). Zoom Leaflet déplacé en bas à droite (`ZoomControl`). Marqueurs PawSpot =
+`public/pawspot_marker.png` (copie de `assets/images/pawspot_coin.png`, pin noir/or) + anneau
+couleur du type, or et plus grand si golden — `PawSpotGoldCoin.tsx` n'est plus utilisé par la
+carte. Tableau de bord : survol et page courante en orange pâle (`SideLink` avec usePathname,
+`NavCard`, cartes PawMap / Réservations). Vérif locale : `~/.claude/launch.json` → config
+`hopetsit-web` (next dev sur 3111) ; le backend refuse l'origine localhost (CORS) donc 0 lieu,
+mais la carte, le rail et les styles se voient ; session injectée via localStorage
+(`hopetsit_token` / `hopetsit_role` / `hopetsit_user`).
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
 bannière de rôle unie, cartes PawMap / Réservations gris clair, NavCard sans bordure, promo
 noir) et `/map` (bandeaux, chips catégorie noir/gris, fiche lieu, chip PawPremium) au même

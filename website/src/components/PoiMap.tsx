@@ -26,8 +26,7 @@ import {
   TileLayer,
   Tooltip,
   useMap,
-  useMapEvents,
-} from "react-leaflet";
+  useMapEvents, ZoomControl } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import type { RouteStep } from "@/lib/api";
@@ -556,8 +555,10 @@ export default function PoiMap({
         maxZoom={19}
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom={true}
-        zoomControl={true}
+        // v562 — le rail gauche de boutons occupe le coin bas-gauche : zoom en bas à droite.
+        zoomControl={false}
       >
+        <ZoomControl position="bottomright" />
         {/* v23.1.278 — Daniel : "rajoute la barre +/- , vue satellite, zoom
             dans la rue" sur la PawMap du site. Le zoom +/- est le contrôle
             Leaflet natif (haut-gauche) ; on ajoute un switcher de couches

@@ -1526,7 +1526,7 @@ export default function MapPage() {
             l'app : Autour de moi, Itinéraire, Chat, Photo du spot, Voir spots,
             Tag spot, Signaler, Voir signaux. Chaque bouton est branché sur une
             fonction qui existe déjà sur cette page. */}
-        <div className="absolute bottom-4 left-3 z-[1000] flex flex-col gap-2">
+        <div className="absolute bottom-3 left-2.5 z-[1000] flex flex-col gap-1.5 md:bottom-4 md:left-3 md:gap-2">
           {(
             [
               { k: "around", g1: "#A076FF", g2: "#7040D6", label: t("map_around_title"), on: () => document.getElementById("around-list")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
@@ -1553,7 +1553,7 @@ export default function MapPage() {
               aria-label={b.label}
               aria-pressed={b.active}
               onClick={b.on}
-              className="grid h-11 w-11 place-items-center rounded-full transition hover:scale-105 active:scale-95"
+              className="grid h-10 w-10 place-items-center rounded-full transition hover:scale-105 active:scale-95 md:h-11 md:w-11"
               style={{
                 background: `linear-gradient(165deg, ${b.g1}, ${b.g2})`,
                 border: `2px solid ${b.active === false ? "rgba(255,255,255,0.45)" : "#fff"}`,
