@@ -106,6 +106,21 @@ carte. Tableau de bord : survol et page courante en orange pâle (`SideLink` ave
 `hopetsit-web` (next dev sur 3111) ; le backend refuse l'origine localhost (CORS) donc 0 lieu,
 mais la carte, le rail et les styles se voient ; session injectée via localStorage
 (`hopetsit_token` / `hopetsit_role` / `hopetsit_user`).
+**13/09 (suite 3) — ADMIN modernisé (design uniquement, Daniel : « touche pas les
+fonctionnalités »).** `admin_dashboard.html` : nouveau bloc `<style>` = thème CLAIR façon Apple
+(fond `#F5F5F7`, cartes blanches ombre douce, Inter, orange `#D83C28`, sélection/survol menu en
+orange pâle `--primary-light`), toutes les variables utilisées par le JS définies (`--error` et
+`--card` manquaient), `<select>` stylés, en-têtes de tableau collants, boutons pilule. Ajouts sans
+toucher au JS métier : champ « 🔍 Menu… » qui filtre les 31 entrées (`filterNav`), classe
+`.panel` (Promotions = 3 étapes en 3 cartes), pastilles inline `white-space:nowrap`, tableaux
+larges qui défilent dans leur carte. Mêmes ids/classes, EMBEDDED reste v561 (pas de rebuild app).
+**Aperçu local de l'admin** : `~/.claude/launch.json` config `hopetsit-admin` (http.server 8777 sur
+la racine du repo) + `scratchpad/cors_proxy.py 8778` (proxy → backend avec CORS, le backend
+refuse l'origine localhost) + page `.claude/admin_boot.html?page=xxx` (pose `admin_token` /
+`admin_api_url` en localStorage, iframe, clique l'entrée du menu) ; captures 1440 px via Chrome
+headless (`scratchpad/shot.py <page>`, `--virtual-time-budget`, subprocess timeout 100 s — le pane
+navigateur intégré rend minuscule au-delà de 560 px). Jeton admin obtenu par POST
+`/auth/admin/login` avec `~/.hopetsit_admin_credentials`, jamais tapé dans un formulaire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
 bannière de rôle unie, cartes PawMap / Réservations gris clair, NavCard sans bordure, promo
 noir) et `/map` (bandeaux, chips catégorie noir/gris, fiche lieu, chip PawPremium) au même
