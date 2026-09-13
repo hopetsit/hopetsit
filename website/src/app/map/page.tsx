@@ -1094,36 +1094,11 @@ export default function MapPage() {
           PawMap-Boutons). La CARTE est inchangée ; on réutilise état + handlers.
           1) Barre d'actions  2) Amis en direct  3) Abonnements actifs
           (4) Filtrer par catégorie plus bas). */}
-      {/* 1) Barre d'actions */}
+      {/* 1) Légende + rôles. v562 — les 4 actions (Signaler, Voir signaux,
+          Tag spot, Voir spots) sont désormais dans le RAIL GAUCHE de la carte,
+          comme dans l'app (Daniel : « la barre de fonctionnalités sur le côté
+          gauche n'y est pas »). Mêmes handlers, rien de retiré. */}
       <div className="mt-6 flex flex-wrap items-center gap-2.5">
-        <button
-          type="button"
-          onClick={() => openCreate("report")}
-          className="inline-flex items-center gap-1.5 rounded-full bg-owner px-4 py-2 text-sm font-semibold text-white transition hover:bg-owner-dark"
-        >
-          <ActionIcon kind="report" /> {t("map_report_cta")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowReports((v) => !v)}
-          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${showReports ? "bg-owner-light text-owner-dark" : "bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"}`}
-        >
-          <ActionIcon kind="flag" /> {t("map_reports_chip")}
-        </button>
-        <button
-          type="button"
-          onClick={() => openCreate("spot")}
-          className="inline-flex items-center gap-1.5 rounded-full bg-[#F5F5F7] px-4 py-2 text-sm font-semibold text-[#1D1D1F] transition hover:bg-[#E8E8ED]"
-        >
-          <ActionIcon kind="paw" /> {t("map_tag_spot_cta")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowSpots((v) => !v)}
-          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${showSpots ? "bg-owner-light text-owner-dark" : "bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"}`}
-        >
-          <ActionIcon kind="pin" /> {t("map_spots_chip")}
-        </button>
         {/* Légende : avatar membre ROSE + PATTE BLANCHE (v505 — logo officiel,
             comme l'app : patte blanche sur fond rose, plus d'emoji). */}
         <span className="ml-1 inline-flex items-center gap-1.5 text-xs font-semibold text-[#6E6E73]">
@@ -1545,6 +1520,51 @@ export default function MapPage() {
             />
           </div>
         )}
+        {/* v562 — RAIL GAUCHE (design « Paw Buttons » de l'app) : boutons ronds
+            44 px, dégradé 165°, bord blanc, icône blanche, AUCUN libellé
+            visible (title = info-bulle). Ordre identique à la grande carte de
+            l'app : Autour de moi, Itinéraire, Chat, Photo du spot, Voir spots,
+            Tag spot, Signaler, Voir signaux. Chaque bouton est branché sur une
+            fonction qui existe déjà sur cette page. */}
+        <div className="absolute bottom-4 left-3 z-[1000] flex flex-col gap-2">
+          {(
+            [
+              { k: "around", g1: "#A076FF", g2: "#7040D6", label: t("map_around_title"), on: () => document.getElementById("around-list")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+              { k: "route", g1: "#3DBF6C", g2: "#188A42", label: t("map_directions_btn"), on: () => {
+                if (selectedPoi) {
+                  const [lng, lat] = selectedPoi.location.coordinates;
+                  handleDirections({ lat, lng });
+                } else {
+                  document.getElementById("around-list")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+              } },
+              { k: "chat", g1: "#5B9DFF", g2: "#2358D6", label: t("dash_card_messages_title"), on: () => router.push("/chat") },
+              { k: "photo", g1: "#FFB067", g2: "#E07A12", label: t("map_tag_spot_cta"), on: () => openCreate("spot") },
+              { k: "spot", g1: "#FAC346", g2: "#E2981A", label: t("map_spots_chip"), on: () => setShowSpots((v) => !v), active: showSpots },
+              { k: "add", g1: "#48C8BA", g2: "#18968A", label: t("map_tag_spot_cta"), on: () => openCreate("spot") },
+              { k: "report", g1: "#FF6E5C", g2: "#D63A28", label: t("map_report_cta"), on: () => openCreate("report") },
+              { k: "feed", g1: "#5A4E46", g2: "#28201B", label: t("map_reports_chip"), on: () => setShowReports((v) => !v), active: showReports },
+            ] as { k: keyof typeof RAIL_SVG; g1: string; g2: string; label: string; on: () => void; active?: boolean }[]
+          ).map((b) => (
+            <button
+              key={`rail-${b.k}`}
+              type="button"
+              title={b.label}
+              aria-label={b.label}
+              aria-pressed={b.active}
+              onClick={b.on}
+              className="grid h-11 w-11 place-items-center rounded-full transition hover:scale-105 active:scale-95"
+              style={{
+                background: `linear-gradient(165deg, ${b.g1}, ${b.g2})`,
+                border: `2px solid ${b.active === false ? "rgba(255,255,255,0.45)" : "#fff"}`,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.28)",
+                opacity: b.active === false ? 0.72 : 1,
+              }}
+            >
+              <span className="block h-[22px] w-[22px]" dangerouslySetInnerHTML={{ __html: RAIL_SVG[b.k] }} />
+            </button>
+          ))}
+        </div>
         <PoiMap
           center={center}
           pois={visiblePois}
@@ -1626,7 +1646,7 @@ export default function MapPage() {
           .sort((a, b) => a.km - b.km)
           .slice(0, 6);
         return (
-          <div className="mt-6 rounded-[24px] bg-[#F5F5F7] p-5">
+          <div id="around-list" className="mt-6 scroll-mt-24 rounded-[24px] bg-[#F5F5F7] p-5">
             <div className="flex items-center gap-2">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-[#8B5CF6] text-white">
                 <ActionIcon kind="around" />
@@ -1929,3 +1949,15 @@ function ActionIcon({ kind }: { kind: "report" | "flag" | "paw" | "pin" | "aroun
       );
   }
 }
+
+/** v562 — icônes du rail, identiques à celles de l'app (`_fabSvg*` de paw_map_screen.dart). */
+const RAIL_SVG = {
+  around: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 22s-7.5-6.5-7.5-12A7.5 7.5 0 0 1 19.5 10c0 5.5-7.5 12-7.5 12z"/><g fill="rgba(0,0,0,.34)"><circle cx="10.2" cy="7.2" r="1.1"/><circle cx="13.8" cy="7.2" r="1.1"/><circle cx="8.4" cy="9.4" r="1"/><circle cx="15.6" cy="9.4" r="1"/><path d="M12 9.3c-1.7 0-3.3 1.6-3.3 3.1 0 .9.8 1.7 1.7 1.7.6 0 1.1-.3 1.6-.3s1 .3 1.6.3c.9 0 1.7-.8 1.7-1.7 0-1.5-1.6-3.1-3.3-3.1z"/></g></svg>',
+  route: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18c0-5 3-6 6-6s6-1 6-6" stroke-dasharray="3 2.6"/><circle cx="6" cy="18" r="2.6" fill="#FFFFFF" stroke="none"/><path d="M18 2.5c-1.8 0-3.2 1.4-3.2 3.2 0 2.2 3.2 5.3 3.2 5.3s3.2-3.1 3.2-5.3c0-1.8-1.4-3.2-3.2-3.2z" fill="#FFFFFF" stroke="none"/></svg>',
+  chat: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 3C6.9 3 3 6.3 3 10.4c0 2 1 3.9 2.6 5.2L4.8 20l4.6-1.9c.8.2 1.7.3 2.6.3 5.1 0 9-3.3 9-7.4S17.1 3 12 3z"/><g fill="rgba(0,0,0,.34)"><circle cx="8.6" cy="10.6" r="1.1"/><circle cx="12" cy="10.6" r="1.1"/><circle cx="15.4" cy="10.6" r="1.1"/></g></svg>',
+  photo: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M9 4h6l1.4 2.2H20a1.6 1.6 0 0 1 1.6 1.6V18A1.6 1.6 0 0 1 20 19.6H4A1.6 1.6 0 0 1 2.4 18V7.8A1.6 1.6 0 0 1 4 6.2h3.6z"/><circle cx="12" cy="12.8" r="3.6" fill="rgba(0,0,0,.34)"/></svg>',
+  spot: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 22s-7.5-6.5-7.5-12A7.5 7.5 0 0 1 19.5 10c0 5.5-7.5 12-7.5 12z"/><path d="M12 5.4l1.4 2.9 3.1.4-2.3 2.2.6 3.1L12 12.5 9.2 14l.6-3.1-2.3-2.2 3.1-.4z" fill="rgba(0,0,0,.34)"/></svg>',
+  add: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 22s-7.5-6.5-7.5-12A7.5 7.5 0 0 1 19.5 10c0 5.5-7.5 12-7.5 12z"/><path d="M10.9 6h2.2v2.9H16v2.2h-2.9V14h-2.2v-2.9H8V8.9h2.9z" fill="rgba(0,0,0,.34)"/></svg>',
+  report: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 2.8 22.6 21H1.4z"/><path d="M10.9 9h2.2v6h-2.2zM10.9 16.5h2.2v2.2h-2.2z" fill="rgba(0,0,0,.4)"/></svg>',
+  feed: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M5 2.5h2.2V21.5H5z"/><path d="M7.2 3.5h11.3l-2.4 4.5 2.4 4.5H7.2z"/><circle cx="18.5" cy="5" r="3.6" fill="#E24834" stroke="#fff" stroke-width="1.4"/></svg>',
+} as const;

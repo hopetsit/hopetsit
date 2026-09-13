@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { ApiError, AuthUser, AuthRole, clearAuth, getConversations, getStoredUser, openInApp, redeemPromo, switchRole } from "@/lib/api";
@@ -407,7 +407,7 @@ export default function DashboardPage() {
               colorés » → cartes pleines couleur (dégradé + texte blanc). */}
           <Link
             href="/map"
-            className="group relative mt-4 flex items-center gap-4 overflow-hidden rounded-[24px] bg-[#F5F5F7] p-5 text-[#1D1D1F] transition hover:bg-[#EBEBF0]"
+            className="group relative mt-4 flex items-center gap-4 overflow-hidden rounded-[24px] bg-[#F5F5F7] p-5 text-[#1D1D1F] transition hover:bg-owner-light"
           >
             <span
               aria-hidden
@@ -428,7 +428,7 @@ export default function DashboardPage() {
           {/* Réservations en cours → /bookings. */}
           <Link
             href="/bookings"
-            className="group relative mt-3 flex items-center gap-4 overflow-hidden rounded-[24px] bg-[#F5F5F7] p-5 text-[#1D1D1F] transition hover:bg-[#EBEBF0]"
+            className="group relative mt-3 flex items-center gap-4 overflow-hidden rounded-[24px] bg-[#F5F5F7] p-5 text-[#1D1D1F] transition hover:bg-owner-light"
           >
             <span
               aria-hidden
@@ -575,10 +575,14 @@ function SideLink({
   label: string;
   badge?: number;
 }) {
+  // v562 — Daniel : « quand on sélectionne ou survole : orange pâle ».
+  const pathname = usePathname();
+  const current = pathname === href || (href !== "/dashboard" && pathname?.startsWith(href + "/"));
   return (
     <Link
       href={href}
-      className="group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-[#1D1D1F] transition hover:bg-white"
+      aria-current={current ? "page" : undefined}
+      className={`group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${current ? "bg-owner-light text-owner-dark" : "text-[#1D1D1F] hover:bg-owner-light hover:text-owner-dark"}`}
     >
       <span className="relative text-lg">
         {emoji}
@@ -614,7 +618,7 @@ function NavCard({
   return (
     <Link
       href={href}
-      className="group flex items-center gap-4 rounded-[20px] bg-[#F5F5F7] p-4 transition hover:bg-[#EBEBF0]"
+      className="group flex items-center gap-4 rounded-[20px] bg-[#F5F5F7] p-4 transition hover:bg-owner-light"
     >
       <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-white text-2xl">
         {emoji}

@@ -58,7 +58,6 @@ import {
   subscriptionHaloColor,
 } from "@/components/FriendsLiveMap";
 import type { FriendLivePosition, Role } from "@/components/FriendsLiveMap";
-import { GOLDEN_COIN_SVG, makeTypeCoinSvg } from "@/components/PawSpotGoldCoin";
 
 /**
  * v23.1.358 — Daniel : "mets le nom et le rôle des amis en direct sur la
@@ -264,28 +263,19 @@ const SPOT_COLOR: Record<PawSpotType, string> = {
 // spots affichent désormais LA pièce-médaille officielle, déclinée dans la
 // couleur du type ; la version OR reste celle des spots golden.
 function makeSpotIcon(type: PawSpotType, isGolden: boolean): L.DivIcon {
-  if (isGolden) {
-    // v23.1.373 — Daniel : "la pièce dorée avec le cercle de couleur du
-    // thème" — anneau couleur du TYPE autour de la pièce OR, comme la
-    // légende (vert chemin, turquoise baignade…).
-    const ring = SPOT_COLOR[type] || SPOT_COLOR.other;
-    return new L.DivIcon({
-      className: "",
-      // v23.1.394 — Daniel : pièces légèrement agrandies (46→52).
-      html: `<div style="width:52px;height:52px;border-radius:50%;border:3px solid ${ring};box-sizing:border-box;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));">${GOLDEN_COIN_SVG}</div>`,
-      iconSize: [52, 52],
-      iconAnchor: [26, 26],
-      popupAnchor: [0, -26],
-    });
-  }
-  const bg = SPOT_COLOR[type] || SPOT_COLOR.other;
+  // v562 — Daniel : « la PawMap du site n'est pas à jour, les icônes de
+  // PawSpot ». Même marqueur que l'app (`assets/images/pawspot_coin.png` =
+  // bouton noir + pin doré) copié en `/pawspot_marker.png`, avec l'anneau
+  // couleur du TYPE ; les spots golden gardent l'anneau OR et sont un peu
+  // plus grands, comme dans l'app.
+  const ring = isGolden ? "#FFD34D" : SPOT_COLOR[type] || SPOT_COLOR.other;
+  const size = isGolden ? 54 : 48;
   return new L.DivIcon({
     className: "",
-    // v23.1.394 — Daniel : pièces type agrandies 42→48 px.
-    html: `<div style="width:48px;height:48px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">${makeTypeCoinSvg(bg)}</div>`,
-    iconSize: [48, 48],
-    iconAnchor: [24, 24],
-    popupAnchor: [0, -24],
+    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;border:3px solid ${ring};box-sizing:border-box;background:#111;overflow:hidden;filter:drop-shadow(0 2px 5px rgba(0,0,0,0.4));"><img src="/pawspot_marker.png" alt="" width="${size - 6}" height="${size - 6}" style="display:block;width:100%;height:100%;object-fit:cover;border-radius:50%"/></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2],
   });
 }
 
