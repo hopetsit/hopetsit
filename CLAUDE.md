@@ -167,6 +167,13 @@ campagne orpheline « HPS · … » à supprimer avant de relancer. IDs dans `me
 (Dallas owners 120247571949720284, Paris propriétaires 120247571950790284, Dallas sitters
 120247571956790284). Budgets 7+5+4 €/j, pubs en examen Meta. ⚠️ Les 3 jetons ont transité par
 le chat : les révoquer plus tard (« Révoquer les tokens ») et en régénérer un proprement.
+**13/09 — Corriger l'e-mail d'un compte depuis l'admin** (Daniel : « le client s'est trompé de
+mail »). `PATCH /admin/users/:role/:id/email {email}` (format + unicité sur Owner/Sitter/Walker,
+propagé aux 3 docs de la même personne), puis l'admin appelle `POST /auth/resend-code?email=`
+(code haché + e-mail, même flux que l'app). Bouton « ✉️ E-mail » sur chaque ligne de la page
+Utilisateurs (FR/EN/ES). Premier cas traité : Lena gris (sitter, 13/09 11 h 52)
+`lenagris62@iclous.com` → `lenagris62@icloud.com`, code renvoyé. Script d'attente de déploiement :
+`scratchpad/fix_email.py <role> <id> <email>` (boucle tant que la route répond 404).
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
 bannière de rôle unie, cartes PawMap / Réservations gris clair, NavCard sans bordure, promo
 noir) et `/map` (bandeaux, chips catégorie noir/gris, fiche lieu, chip PawPremium) au même
