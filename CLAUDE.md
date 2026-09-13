@@ -153,6 +153,20 @@ n'a PAS `ads_management`, Google Ads = manuel. Livré : `~/hopetsit-social/ads/`
 sitters, jeton lu dans `~/.hopetsit_meta_ads_token`), `README_PUB.md` (le geste unique de Daniel :
 donner « Gérer les campagnes » à l'utilisateur système aepsinfos + jeton ads_management). Dès que
 Daniel dit « jeton meta posé » → `create` puis `start`, bilan `status` le dimanche.
+**13/09 ~5 h — CAMPAGNES META LANCÉES par l'API** (Daniel : « autorise tout, j'autorise tout »).
+Déblocage : cas d'utilisation « Créer et gérer des publicités avec l'API Marketing » ajouté à l'app
+(ads_management/ads_read « prête pour le test » suffit pour NOS comptes), compte pub attribué à
+aepsinfos, jeton régénéré (Business Suite → utilisateurs système → Générer un token, expiration
+Jamais, cocher ads_management + ads_read ; Meta a exigé un code e-mail sur hopetsit@gmail.com).
+Le navigateur INTÉGRÉ de Claude (mcp__Claude_Browser) accepte facebook.com quand Daniel s'y
+connecte lui-même — l'extension Chrome, non. Pièges API corrigés dans `meta_ads.py` :
+`is_adset_budget_sharing_enabled='false'` sur la campagne, `targeting_automation.advantage_audience=0`
+dans le ciblage, `instagram_user_id` (pas `instagram_actor_id`) dans object_story_spec,
+`special_ad_category_country=['US']` pour la catégorie Emploi ; un `create` raté laisse une
+campagne orpheline « HPS · … » à supprimer avant de relancer. IDs dans `meta_ads_state.json`
+(Dallas owners 120247571949720284, Paris propriétaires 120247571950790284, Dallas sitters
+120247571956790284). Budgets 7+5+4 €/j, pubs en examen Meta. ⚠️ Les 3 jetons ont transité par
+le chat : les révoquer plus tard (« Révoquer les tokens ») et en régénérer un proprement.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
 bannière de rôle unie, cartes PawMap / Réservations gris clair, NavCard sans bordure, promo
 noir) et `/map` (bandeaux, chips catégorie noir/gris, fiche lieu, chip PawPremium) au même
