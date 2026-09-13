@@ -144,6 +144,15 @@ GitHub `dadaciao84-ai` pris par le trousseau) → `publier_semaine.py` force
 `credential.helper=osxkeychain` sur pull et push. (4) IndexNow : 571 URL du sitemap resoumises.
 Non fait / à proposer à Daniel (argent) : relancer Google Ads Dallas (3,96 €/install) ou Paris
 (1,08 €/install).
+**13/09 (nuit) — PUB : « fais ce qui est le mieux ».** Bloqué côté exécution : l'extension Chrome
+refuse facebook.com/adsmanager (comme play.google.com), le jeton page (`~/hopetsit-social/token.txt`)
+n'a PAS `ads_management`, Google Ads = manuel. Livré : `~/hopetsit-social/ads/` = 6 visuels
+(Dallas owners EN, Dallas sitters EN, Paris propriétaires FR, feed 1080×1350 + carré, rendus HTML
+→ Chrome headless avec les vraies captures v561), `meta_ads.py plan|create|start|pause|status`
+(API Marketing : 3 campagnes Trafic, 7+5+4 €/j, ciblage géo/intérêts, catégorie Emploi pour les
+sitters, jeton lu dans `~/.hopetsit_meta_ads_token`), `README_PUB.md` (le geste unique de Daniel :
+donner « Gérer les campagnes » à l'utilisateur système aepsinfos + jeton ads_management). Dès que
+Daniel dit « jeton meta posé » → `create` puis `start`, bilan `status` le dimanche.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
 bannière de rôle unie, cartes PawMap / Réservations gris clair, NavCard sans bordure, promo
 noir) et `/map` (bandeaux, chips catégorie noir/gris, fiche lieu, chip PawPremium) au même
