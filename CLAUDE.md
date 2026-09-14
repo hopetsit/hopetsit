@@ -225,6 +225,17 @@ faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
    annonces, réservations, paiement). Constaté : les demandes d'amis PawMap ne remontent ni
    dans la cloche ni dans la PawMap. Après une demande depuis la PawMap, le profil doit
    afficher « Demande déjà envoyée · en attente de réponse ».
+10. **Point vert « en ligne »** : ne marche pas → vérifier sur toute l'app ET le web (présence socket).
+11. **Suivi en direct on/off** : vérifier que l'interrupteur marche vraiment (démarrage/arrêt, visible par les amis).
+12. **Partage d'adresse et de téléphone** : le téléphone ne prend pas le bon **préfixe pays** → corriger
+    (préfixe déduit du pays du compte, modifiable) ; vérifier l'affichage/partage de l'adresse.
+13. **Message vocal dans le chat** (enregistrer, envoyer, écouter ; upload Cloudinary audio).
+14. **Verrou contacts à 700 utilisateurs** : vérifier que l'échange adresse/téléphone se verrouille
+    automatiquement (côté serveur, sans rebuild) à partir de 700 comptes et ne se débloque qu'après
+    un pet-sitting payé ou un abonnement ; message clair dans l'app quand c'est verrouillé.
+    Recommandation donnée à Daniel : garder ce modèle (gratuit jusqu'à 700, verrou ensuite).
+15. **Paiements, notifications, wallet** : passe complète de vérification (paiement réservation,
+    commission 20 %, séquestre → wallet prestataire, retrait IBAN, notifications à chaque étape).
 Puis : build simulateur + tests, IPA (flutter clean avant) + Transporter, AAB + `play_release_api.py`,
 admin « Versions de l'app » 565/565 après validations, journal + mémoire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
