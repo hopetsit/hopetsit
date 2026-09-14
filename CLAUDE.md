@@ -252,6 +252,8 @@ faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
     menu du bas disparaît (grande carte), ajouter un **bouton retour en bas à gauche**.
 21. **Admin › Tableau de bord** : un clic sur les compteurs (animaux, pet-sitters, promeneurs,
     propriétaires) ouvre la liste des profils correspondants.
+22. **Accueil — bandeau « Tout est à jour · découvre la PawMap »** : le tap ouvre l'historique au
+    lieu de la PawMap (retour testeur espagnol, capture 14/09) → doit ouvrir l'onglet PawMap.
 Puis : build simulateur + tests, IPA (flutter clean avant) + Transporter, AAB + `play_release_api.py`,
 admin « Versions de l'app » 565/565 après validations, journal + mémoire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
