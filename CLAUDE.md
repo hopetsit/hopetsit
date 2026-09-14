@@ -187,6 +187,16 @@ leur e-mail** (0 des 5 inscrits de la semaine) → la vérification par code est
 13 codes renvoyés le 14/09. Piste (rebuild app) : laisser entrer sans code et vérifier plus tard,
 ou lien magique dans l'e-mail. Routines cloud « équipe d'agents » NON créées (consomment son
 forfait) : tout est en scripts locaux gratuits.
+**14/09 — TUNNEL DE VÉRIFICATION corrigé côté serveur (Daniel : « vérifie et corrige, dis-moi
+avant si rebuild » → AUCUN rebuild).** Causes trouvées : e-mail de vérification en anglais
+seulement, code valable **10 minutes**, rien à cliquer, expéditeur Gmail. Corrigé dans
+`emailService.sendVerificationEmail(email, code, lang, name)` : 9 langues (`VERIFY_I18N`), bouton
+« Activer mon compte » → `GET /auth/verify-link?email&code` (page HTML, valide le compte,
+renvoie vers l'app), code affiché en secours, **valable 24 h** (4 blocs `email_verification` dans
+authController ; le reset mot de passe reste à 10 min). Langue = `verifyLang(appLocale, language)`.
+L'app ne change pas : après le lien, l'utilisateur se reconnecte et entre (login renvoie
+verified). Vigie relance UNE fois le nouveau format à tous les non-vérifiés (état
+`vigie_state.json` remis à zéro le 14/09).
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
 bannière de rôle unie, cartes PawMap / Réservations gris clair, NavCard sans bordure, promo
 noir) et `/map` (bandeaux, chips catégorie noir/gris, fiche lieu, chip PawPremium) au même
