@@ -9,6 +9,17 @@ const VerificationCode = require('../models/VerificationCode');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
 // v23.1 part 133 — Phase 7 audit P7-7 : OTP stocké en SHA-256.
 const { generateVerificationCode, hashCode, compareCode } = require('../utils/code');
+// v562 — langue de l'e-mail de vérification (appLocale de l'app, sinon « language »
+// choisi à l'inscription, sinon anglais). Mêmes règles que le cycle de vie.
+const VERIFY_LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt', 'pl', 'ko', 'ja'];
+const verifyLang = (a, b) => {
+  const raw = String(a || b || '').toLowerCase().trim();
+  const names = { 'français': 'fr', 'francais': 'fr', 'french': 'fr', 'english': 'en', 'anglais': 'en', 'español': 'es', 'espanol': 'es', 'spanish': 'es', 'deutsch': 'de', 'german': 'de', 'italiano': 'it', 'italian': 'it', 'português': 'pt', 'portugues': 'pt', 'portuguese': 'pt', 'polski': 'pl', 'polish': 'pl', '한국어': 'ko', 'korean': 'ko', '日本語': 'ja', 'japanese': 'ja' };
+  if (names[raw]) return names[raw];
+  const short = raw.slice(0, 2);
+  return VERIFY_LANGS.includes(short) ? short : 'en';
+};
+
 const { sanitizeUser } = require('../utils/sanitize');
 const firebaseAdmin = require('../config/firebaseAdmin');
 const { normalizeCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
@@ -198,13 +209,13 @@ const signup = async (req, res) => {
             {
               email,
               code: hashCode(verificationCode),
-              expiresAt: dayjs().add(10, 'minute').toDate(),
+              expiresAt: dayjs().add(24, 'hour').toDate(),
               purpose: 'email_verification',
               verified: false,
             },
             { upsert: true, new: true, setDefaultsOnInsert: true },
           );
-          await sendVerificationEmail(email, verificationCode);
+          await sendVerificationEmail(email, verificationCode, verifyLang(req.body.appLocale, req.body.language), req.body.name);
         } catch (e) {
           logger.error('[signup] resend code for unverified existing account failed', e);
         }
@@ -620,7 +631,7 @@ const signup = async (req, res) => {
       {
         email,
         code: hashCode(verificationCode),
-        expiresAt: dayjs().add(10, 'minute').toDate(),
+        expiresAt: dayjs().add(24, 'hour').toDate(),
         purpose: 'email_verification',
         verified: false,
       },
@@ -628,7 +639,7 @@ const signup = async (req, res) => {
     );
 
     try {
-      await sendVerificationEmail(email, verificationCode);
+      await sendVerificationEmail(email, verificationCode, verifyLang(req.body.appLocale, req.body.language), req.body.name);
     } catch (emailError) {
       logger.error('Failed to send verification email', emailError);
     }
@@ -724,14 +735,14 @@ const login = async (req, res) => {
         {
           email: userEmail,
           code: hashCode(verificationCode),
-          expiresAt: dayjs().add(10, 'minute').toDate(),
+          expiresAt: dayjs().add(24, 'hour').toDate(),
           purpose: 'email_verification',
           verified: false,
         },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
       try {
-        await sendVerificationEmail(userEmail, verificationCode);
+        await sendVerificationEmail(userEmail, verificationCode, verifyLang(result.account.appLocale, result.account.language), result.account.name);
       } catch (emailError) {
         logger.error('Failed to send verification email on login', emailError);
       }
@@ -1480,6 +1491,38 @@ const verifyEmail = async (req, res) => {
   }
 };
 
+
+// v562 — GET /auth/verify-link?email=&code= : bouton « Activer mon compte » de
+// l'e-mail. Même vérification que POST /auth/verify, mais répond une page HTML
+// (l'utilisateur clique depuis sa boîte mail) et l'invite à revenir dans l'app.
+const verifyEmailLink = async (req, res) => {
+  const email = String(req.query.email || '').toLowerCase().trim();
+  const code = String(req.query.code || '').trim();
+  const page = (ok, title, body) => res.status(ok ? 200 : 400).type('html').send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HoPetSit</title></head>
+<body style="margin:0;background:#F5F5F7;font-family:-apple-system,Arial,sans-serif;color:#1D1D1F"><div style="max-width:480px;margin:40px auto;padding:32px;background:#fff;border-radius:20px;text-align:center">
+<p style="font-size:44px;margin:0">${ok ? '✅' : '⚠️'}</p><h1 style="font-size:22px;margin:12px 0">${title}</h1><p style="color:#6E6E73;line-height:1.5">${body}</p>
+<p style="margin-top:24px"><a href="hopetsit://" style="display:inline-block;background:#D83C28;color:#fff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:999px">HoPetSit</a></p>
+<p style="font-size:12px;color:#6E6E73"><a href="https://www.hopetsit.com/download" style="color:#6E6E73">App Store · Google Play</a></p></div></body></html>`);
+  try {
+    if (!email || !code) return page(false, 'Lien incomplet / Incomplete link', 'Ouvre l\'app et demande un nouveau code. / Open the app and request a new code.');
+    const result = await findAccountByEmail(email);
+    if (!result) return page(false, 'Compte introuvable / Account not found', 'Vérifie l\'adresse e-mail. / Check the e-mail address.');
+    if (result.account.verified) return page(true, 'Compte déjà activé / Already activated', 'Ouvre l\'app et connecte-toi. / Open the app and sign in.');
+    const record = await VerificationCode.findOne({ email, purpose: 'email_verification' });
+    if (!record || dayjs(record.expiresAt).isBefore(dayjs()) || !compareCode(code, record.code)) {
+      return page(false, 'Lien expiré / Link expired', 'Ouvre l\'app, connecte-toi : un nouveau code t\'est envoyé automatiquement. / Open the app and sign in: a new code is sent automatically.');
+    }
+    result.account.verified = true;
+    await result.account.save();
+    await VerificationCode.deleteOne({ email, purpose: 'email_verification' });
+    logger.info(`[auth] verify-link OK ${email} (${result.role})`);
+    return page(true, 'Compte activé ! / Account activated!', 'Reviens dans l\'app HoPetSit et connecte-toi, tout est prêt. / Go back to the HoPetSit app and sign in, you\'re all set.');
+  } catch (error) {
+    logger.error('verify-link error', error);
+    return page(false, 'Erreur / Error', 'Réessaie dans un instant. / Please try again in a moment.');
+  }
+};
+
 const resendVerificationCode = async (req, res) => {
   try {
     const { email } = req.query;
@@ -1499,7 +1542,7 @@ const resendVerificationCode = async (req, res) => {
       {
         email: email.toLowerCase(),
         code: hashCode(verificationCode),
-        expiresAt: dayjs().add(10, 'minute').toDate(),
+        expiresAt: dayjs().add(24, 'hour').toDate(),
         purpose: 'email_verification',
         verified: false,
       },
@@ -1507,7 +1550,7 @@ const resendVerificationCode = async (req, res) => {
     );
 
     try {
-      await sendVerificationEmail(email.toLowerCase(), verificationCode);
+      await sendVerificationEmail(email.toLowerCase(), verificationCode, verifyLang(result.account.appLocale, result.account.language), result.account.name);
     } catch (emailError) {
       logger.error('Failed to resend verification email', emailError);
     }
@@ -1871,6 +1914,7 @@ const refreshToken = async (req, res) => {
 };
 
 module.exports = {
+  verifyEmailLink,
   signup,
   login,
   refreshToken,

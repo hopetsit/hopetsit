@@ -156,27 +156,48 @@ If you received this, your SMTP configuration is working correctly.
   return sendEmail(email, subject, text, html);
 };
 
-const sendVerificationEmail = async (email, code) => {
-  const subject = `Verify your ${BRAND_NAME} account`;
-  const text = `Hi there,
+// v562 — Daniel (14/09) : « 17 comptes sur 34 n'ont jamais validé leur e-mail ».
+// Causes : e-mail en anglais seulement, code valable 10 minutes, rien à cliquer.
+// → texte dans la langue du compte, code valable 24 h, bouton « Activer mon compte »
+// (GET /auth/verify-link) qui valide sans rien taper. Aucun changement dans l'app.
+const API_BASE = process.env.PUBLIC_API_URL || 'https://hopetsit-backend.onrender.com/api/v1';
+const VERIFY_I18N = {
+  fr: { subject: 'Ton code HoPetSit : {code}', hi: 'Bonjour{name},', thanks: 'Bienvenue sur HoPetSit ! Voici ton code de vérification :', button: 'Activer mon compte', or: 'ou saisis ce code dans l\'app :', valid: 'Valable 24 heures.', ignore: 'Si tu n\'es pas à l\'origine de cette demande, ignore simplement cet e-mail.', team: 'L\'équipe HoPetSit' },
+  en: { subject: 'Your HoPetSit code: {code}', hi: 'Hi{name},', thanks: 'Welcome to HoPetSit! Here is your verification code:', button: 'Activate my account', or: 'or enter this code in the app:', valid: 'Valid for 24 hours.', ignore: 'If you didn\'t request this, you can safely ignore this email.', team: 'The HoPetSit team' },
+  es: { subject: 'Tu código HoPetSit: {code}', hi: 'Hola{name},', thanks: '¡Bienvenido a HoPetSit! Este es tu código de verificación:', button: 'Activar mi cuenta', or: 'o introduce este código en la app:', valid: 'Válido durante 24 horas.', ignore: 'Si no has solicitado esto, ignora este correo.', team: 'El equipo de HoPetSit' },
+  de: { subject: 'Dein HoPetSit-Code: {code}', hi: 'Hallo{name},', thanks: 'Willkommen bei HoPetSit! Hier ist dein Bestätigungscode:', button: 'Konto aktivieren', or: 'oder gib diesen Code in der App ein:', valid: '24 Stunden gültig.', ignore: 'Falls du das nicht angefordert hast, ignoriere diese E-Mail einfach.', team: 'Das HoPetSit-Team' },
+  it: { subject: 'Il tuo codice HoPetSit: {code}', hi: 'Ciao{name},', thanks: 'Benvenuto su HoPetSit! Ecco il tuo codice di verifica:', button: 'Attiva il mio account', or: 'oppure inserisci questo codice nell\'app:', valid: 'Valido per 24 ore.', ignore: 'Se non hai richiesto questa e-mail, ignorala.', team: 'Il team HoPetSit' },
+  pt: { subject: 'O teu código HoPetSit: {code}', hi: 'Olá{name},', thanks: 'Bem-vindo à HoPetSit! Aqui está o teu código de verificação:', button: 'Ativar a minha conta', or: 'ou introduz este código na app:', valid: 'Válido durante 24 horas.', ignore: 'Se não pediste isto, ignora este e-mail.', team: 'A equipa HoPetSit' },
+  pl: { subject: 'Twój kod HoPetSit: {code}', hi: 'Cześć{name},', thanks: 'Witaj w HoPetSit! Oto Twój kod weryfikacyjny:', button: 'Aktywuj moje konto', or: 'lub wpisz ten kod w aplikacji:', valid: 'Ważny przez 24 godziny.', ignore: 'Jeśli to nie Ty, zignoruj tę wiadomość.', team: 'Zespół HoPetSit' },
+  ko: { subject: 'HoPetSit 인증 코드: {code}', hi: '안녕하세요{name},', thanks: 'HoPetSit에 오신 것을 환영합니다! 인증 코드입니다:', button: '계정 활성화', or: '또는 앱에 이 코드를 입력하세요:', valid: '24시간 동안 유효합니다.', ignore: '요청하지 않으셨다면 이 메일을 무시하세요.', team: 'HoPetSit 팀' },
+  ja: { subject: 'HoPetSit 認証コード: {code}', hi: 'こんにちは{name}', thanks: 'HoPetSitへようこそ！認証コードはこちらです：', button: 'アカウントを有効にする', or: 'またはアプリでこのコードを入力：', valid: '24時間有効です。', ignore: '心当たりがない場合はこのメールを無視してください。', team: 'HoPetSitチーム' },
+};
+const sendVerificationEmail = async (email, code, lang = 'en', name = '') => {
+  const t = VERIFY_I18N[lang] || VERIFY_I18N.en;
+  const first = String(name || '').trim().split(/\s+/)[0];
+  const who = first ? ' ' + first : '';
+  const link = `${API_BASE}/auth/verify-link?email=${encodeURIComponent(String(email).toLowerCase())}&code=${encodeURIComponent(code)}`;
+  const subject = t.subject.replace('{code}', code);
+  const text = `${t.hi.replace('{name}', who)}
 
-Thank you for joining ${BRAND_NAME}!
+${t.thanks} ${code}
+${t.valid}
 
-Your verification code is: ${code}
+${t.button} : ${link}
 
-Enter this code within the next 10 minutes to activate your account.
+${t.ignore}
 
-If you didn't request this email, you can safely ignore it or contact our support at ${SUPPORT_EMAIL}.
-
-Warm regards,
-The ${BRAND_NAME} Team`;
-  const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:auto;padding:24px;background:#fff;border:1px solid #eee;border-radius:8px">
-  <h2 style="color:#E8590C;margin:0 0 12px">Welcome to ${BRAND_NAME}!</h2>
-  <p>Thank you for joining us. Your verification code is:</p>
-  <div style="font-size:28px;font-weight:700;letter-spacing:6px;background:#f7f7f7;padding:16px;text-align:center;border-radius:6px;margin:16px 0">${code}</div>
-  <p>Enter this code within the next <strong>10 minutes</strong> to activate your account.</p>
-  <p style="color:#888;font-size:12px">If you didn't request this email, you can safely ignore it or contact our support at ${SUPPORT_EMAIL}.</p>
-  <p style="margin-top:24px">— The ${BRAND_NAME} Team</p>
+— ${t.team}`;
+  const html = `<div style="font-family:-apple-system,Arial,Helvetica,sans-serif;max-width:560px;margin:auto;padding:28px;background:#fff;border:1px solid #eee;border-radius:14px;color:#1D1D1F">
+  <p style="font-size:20px;font-weight:700;margin:0 0 8px">🐾 HoPetSit</p>
+  <p>${t.hi.replace('{name}', who)}</p>
+  <p>${t.thanks}</p>
+  <p style="text-align:center;margin:22px 0"><a href="${link}" style="display:inline-block;background:#D83C28;color:#fff;text-decoration:none;font-weight:700;font-size:17px;padding:14px 28px;border-radius:999px">${t.button}</a></p>
+  <p style="color:#6E6E73;text-align:center;margin:0 0 6px">${t.or}</p>
+  <div style="font-size:30px;font-weight:800;letter-spacing:8px;background:#F5F5F7;padding:16px;text-align:center;border-radius:12px;margin:0 0 16px">${code}</div>
+  <p style="color:#6E6E73;font-size:13px">${t.valid}</p>
+  <p style="color:#6E6E73;font-size:12px">${t.ignore}</p>
+  <p style="margin-top:24px">— ${t.team}</p>
 </div>`;
   await sendEmail(email, subject, text, html);
 };

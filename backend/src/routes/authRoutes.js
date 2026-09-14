@@ -821,6 +821,8 @@ router.post('/apple', appleAuth);
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/verify', verifyEmail);
+// v562 — bouton « Activer mon compte » de l'e-mail de vérification (page HTML).
+router.get('/verify-link', require('../controllers/authController').verifyEmailLink);
 
 /**
  * @swagger
