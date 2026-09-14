@@ -174,6 +174,19 @@ propagé aux 3 docs de la même personne), puis l'admin appelle `POST /auth/rese
 Utilisateurs (FR/EN/ES). Premier cas traité : Lena gris (sitter, 13/09 11 h 52)
 `lenagris62@iclous.com` → `lenagris62@icloud.com`, code renvoyé. Script d'attente de déploiement :
 `scratchpad/fix_email.py <role> <id> <email>` (boucle tant que la route répond 404).
+**14/09 ~2 h 30 — « pas d'argent, solutions gratuites, gère tout » (Daniel).** Pub Meta : il a
+d'abord dit couper puis « remets » → les 3 campagnes restent à 7+5+4 €/j (Paris CPC 0,06 €,
+Dallas 0,20 €, premiers clics). Gratuit, mis en place et **local** (launchd, 0 jeton Claude) :
+`vigie.py` tous les jours 9 h 15 (corrige les domaines d'e-mail mal tapés des comptes non
+vérifiés + renvoie le code, UN rappel de code par compte entre J+1 et J+30, état
+`vigie_state.json`, journal.log) ; `bon_hebdo.py` lundi 8 h = rapport « Bon » envoyé à
+dadaciao84@gmail.com via /admin/promo/send-campaign (inscriptions 7/30 j par pays, non vérifiés,
+réservations, Meta 7 j par campagne, vigie) ; +40 pages villes US (`recruit-cities.ts`, banlieue
+de Dallas d'abord) ; IndexNow relancé. **Constat clé : 17 comptes sur 34 n'ont JAMAIS validé
+leur e-mail** (0 des 5 inscrits de la semaine) → la vérification par code est LA fuite du tunnel ;
+13 codes renvoyés le 14/09. Piste (rebuild app) : laisser entrer sans code et vérifier plus tard,
+ou lien magique dans l'e-mail. Routines cloud « équipe d'agents » NON créées (consomment son
+forfait) : tout est en scripts locaux gratuits.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
 bannière de rôle unie, cartes PawMap / Réservations gris clair, NavCard sans bordure, promo
 noir) et `/map` (bandeaux, chips catégorie noir/gris, fiche lieu, chip PawPremium) au même
