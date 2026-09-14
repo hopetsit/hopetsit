@@ -236,6 +236,9 @@ faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
     Recommandation donnée à Daniel : garder ce modèle (gratuit jusqu'à 700, verrou ensuite).
 15. **Paiements, notifications, wallet** : passe complète de vérification (paiement réservation,
     commission 20 %, séquestre → wallet prestataire, retrait IBAN, notifications à chaque étape).
+16. **Design du chat** : moderniser (bulles, en-tête, zone de saisie, pièces jointes/vocal) dans le
+    style Apple/Paw Buttons validé, sans toucher aux fonctions.
+17. **Page Réservations** : moderniser (filtres, cartes de réservation, statuts, vide/chargement).
 Puis : build simulateur + tests, IPA (flutter clean avant) + Transporter, AAB + `play_release_api.py`,
 admin « Versions de l'app » 565/565 après validations, journal + mémoire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
