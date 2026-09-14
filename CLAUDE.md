@@ -275,6 +275,14 @@ faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
     → confirmation propriétaire → le paiement séquestré est libéré vers le wallet). Un rappel de
     plus si aucune des deux parties n'a validé 1 h après l'heure. Tout visible dans la réservation
     (chronologie : prévu / récupéré / rendu / confirmé) et dans l'admin.
+25. **Adresse et téléphone à l'inscription** (Daniel, 14/09 : « on les oblige ou pas ? »).
+    Recommandation retenue : NE PAS obliger à l'inscription (chaque champ obligatoire fait perdre des
+    inscrits, et la moitié se perdait déjà à la vérification). Inscription minimale = prénom/nom,
+    e-mail, mot de passe, rôle, **ville** (obligatoire : sans ville pas de carte ni de pages villes).
+    Puis demande **au moment où c'est utile** : prestataire → téléphone + adresse obligatoires pour
+    publier son profil / accepter une réservation ; propriétaire → adresse (lieu de garde) +
+    téléphone obligatoires pour envoyer une demande de réservation. Barre « profil complété à X % »
+    sur la home + rappel J+3 (déjà dans le cycle de vie). Préfixe téléphone déduit du pays (point 12).
 Puis : build simulateur + tests, IPA (flutter clean avant) + Transporter, AAB + `play_release_api.py`,
 admin « Versions de l'app » 565/565 après validations, journal + mémoire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
