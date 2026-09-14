@@ -197,6 +197,36 @@ authController ; le reset mot de passe reste à 10 min). Langue = `verifyLang(ap
 L'app ne change pas : après le lien, l'utilisateur se reconnecte et entre (login renvoie
 verified). Vigie relance UNE fois le nouveau format à tous les non-vérifiés (état
 `vigie_state.json` remis à zéro le 14/09).
+
+### 📋 PROCHAIN BUILD (v562 app, build 565) — liste dictée par Daniel le 14/09, à faire EN UNE FOIS
+Décision : Daniel était à 91 % de son forfait → **attendre la remise à zéro du 18/09**, puis tout
+faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
+1. **Profils** : vérifier que les 3 profils (owner/sitter/walker) fonctionnent et restent
+   synchronisés (nom, photo, e-mail, téléphone) ; vérifier e-mail + numéro à l'inscription ;
+   vérifier que la **ville s'enregistre** bien (beaucoup de comptes avec pays/ville « ? »).
+2. **Changer son e-mail dans l'app** après inscription (profil → e-mail) → nouveau code de
+   vérification envoyé à la nouvelle adresse (backend : réutiliser la logique de
+   `PATCH /admin/users/:role/:id/email` en version « moi-même » + `resend-code`).
+3. **PawMap, rail gauche, mini ET grande carte** : nouveau bouton **rose « Amis en direct »** →
+   liste de qui est en direct → clic sur un profil → **le suivre**, SANS que le menu déroulant
+   s'ouvre. Sur la **mini carte** aussi : petit bouton **chat direct avec les amis** dans le rail.
+4. **PawMap** : un vieux pop-up « Suivre en direct sur la PawMap » réapparaît parfois (reste
+   d'anciens builds) → le supprimer.
+5. **Notifications** : vérifier Android et SURTOUT **Apple (ne marche pas)** — APNs, permission,
+   jeton, ouverture sur le bon écran.
+6. **E-mails** : vérifier que TOUS les e-mails (vérification, cycle de vie, notifications, promo)
+   sont bien traduits dans la langue du compte.
+7. **Autour de moi** : n'afficher QUE les lieux/services dédiés aux animaux ou pet-friendly
+   (vétos, animaleries, toiletteurs, parcs, plages, restaurants pet-friendly…), rien d'autre.
+8. **Membres sur la carte** : la couleur du rôle n'apparaît qu'en zoomant beaucoup (seuil
+   zoom ≥ 12) → montrer la couleur plus tôt.
+9. **Synchronisation PawMap ↔ reste de l'app** : demande d'ami et demande de service faites
+   depuis la PawMap doivent se retrouver partout (bandeau notifications, cloche, onglet amis,
+   annonces, réservations, paiement). Constaté : les demandes d'amis PawMap ne remontent ni
+   dans la cloche ni dans la PawMap. Après une demande depuis la PawMap, le profil doit
+   afficher « Demande déjà envoyée · en attente de réponse ».
+Puis : build simulateur + tests, IPA (flutter clean avant) + Transporter, AAB + `play_release_api.py`,
+admin « Versions de l'app » 565/565 après validations, journal + mémoire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
 bannière de rôle unie, cartes PawMap / Réservations gris clair, NavCard sans bordure, promo
 noir) et `/map` (bandeaux, chips catégorie noir/gris, fiche lieu, chip PawPremium) au même
