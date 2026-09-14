@@ -179,7 +179,7 @@ d'abord dit couper puis « remets » → les 3 campagnes restent à 7+5+4 €/j 
 Dallas 0,20 €, premiers clics). Gratuit, mis en place et **local** (launchd, 0 jeton Claude) :
 `vigie.py` tous les jours 9 h 15 (corrige les domaines d'e-mail mal tapés des comptes non
 vérifiés + renvoie le code, UN rappel de code par compte entre J+1 et J+30, état
-`vigie_state.json`, journal.log) ; `bon_hebdo.py` lundi 8 h = rapport « Bon » envoyé à
+`vigie_state.json`, journal.log) ; `bob_hebdo.py` lundi 8 h = rapport « Bob » (chef de projet, nom choisi par Daniel) envoyé à
 dadaciao84@gmail.com via /admin/promo/send-campaign (inscriptions 7/30 j par pays, non vérifiés,
 réservations, Meta 7 j par campagne, vigie) ; +40 pages villes US (`recruit-cities.ts`, banlieue
 de Dallas d'abord) ; IndexNow relancé. **Constat clé : 17 comptes sur 34 n'ont JAMAIS validé
