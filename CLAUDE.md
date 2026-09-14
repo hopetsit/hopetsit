@@ -254,6 +254,18 @@ faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
     propriétaires) ouvre la liste des profils correspondants.
 22. **Accueil — bandeau « Tout est à jour · découvre la PawMap »** : le tap ouvre l'historique au
     lieu de la PawMap (retour testeur espagnol, capture 14/09) → doit ouvrir l'onglet PawMap.
+23. **Partage en direct (PawFollow) qui s'arrête tout seul en < 2 h** (Daniel, 14/09 : « j'ai rien
+    touché »). Plan : (a) trouver la cause — TTL côté serveur sur les positions live / le flag
+    « en direct », vs suspension de l'app par l'OS en arrière-plan, vs socket coupé sans
+    reconnexion ; (b) rendre le suivi robuste : Android = service de premier plan avec notification
+    permanente « Partage en direct actif », iOS = mode arrière-plan localisation
+    (`allowsBackgroundLocationUpdates`, indicateur bleu) + repli « changements significatifs »,
+    reconnexion automatique du socket + battement de cœur, envoi aussi par HTTP si le socket
+    tombe ; (c) côté serveur : garder la dernière position avec « vu il y a X min » au lieu de
+    couper, et n'arrêter le partage QUE sur action de l'utilisateur ou après une durée choisie
+    (1 h / 4 h / jusqu'à l'arrêt, défaut = jusqu'à l'arrêt) avec notification « ton partage est
+    toujours actif » toutes les 4 h ; (d) affichage dans l'app de l'état réel (actif / signal
+    perdu) pour l'utilisateur et ses amis.
 Puis : build simulateur + tests, IPA (flutter clean avant) + Transporter, AAB + `play_release_api.py`,
 admin « Versions de l'app » 565/565 après validations, journal + mémoire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
