@@ -266,6 +266,15 @@ faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
     (1 h / 4 h / jusqu'à l'arrêt, défaut = jusqu'à l'arrêt) avec notification « ton partage est
     toujours actif » toutes les 4 h ; (d) affichage dans l'app de l'état réel (actif / signal
     perdu) pour l'utilisateur et ses amis.
+24. **Validation de récupération et de rendu de l'animal** (Daniel, 14/09 : « 30 min avant, ça
+    demande la validation, tu vois ce qui est le mieux »). Plan : rappel push aux DEUX parties
+    30 min avant l'heure prévue (« Rex est récupéré dans 30 min — prêt ? ») ; à l'heure H, le
+    prestataire appuie « Animal récupéré » (photo optionnelle, position GPS horodatée) → le
+    propriétaire reçoit la notification et confirme d'un tap ; s'il ne répond pas, confirmation
+    automatique après 2 h avec la photo/GPS comme preuve ; même chose au rendu (« Animal rendu »
+    → confirmation propriétaire → le paiement séquestré est libéré vers le wallet). Un rappel de
+    plus si aucune des deux parties n'a validé 1 h après l'heure. Tout visible dans la réservation
+    (chronologie : prévu / récupéré / rendu / confirmé) et dans l'admin.
 Puis : build simulateur + tests, IPA (flutter clean avant) + Transporter, AAB + `play_release_api.py`,
 admin « Versions de l'app » 565/565 après validations, journal + mémoire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
