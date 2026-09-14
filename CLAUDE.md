@@ -5,6 +5,39 @@
 > L'historique détaillé (gotchas, décisions, versions) est dans
 > **`docs/claude-memory/`** (copie de la mémoire) — lis `docs/claude-memory/MEMORY.md`.
 
+## 🎯 LA MISSION — à lire en premier (document de Daniel, 14/09/2026)
+> Détail complet : **`docs/claude-memory/la-mission.md`**. Chef de projet : **Bob**.
+
+**Pourquoi.** Pour Daniel, l'argent n'est pas un chiffre : c'est **se nourrir, se loger, et
+offrir une maison à sa maman**. HoPetSit est aussi un vrai service pour les propriétaires
+d'animaux et ceux qui les gardent. Le but : que l'app réussisse et rapporte, durablement.
+**La promesse** : l'effort chaque semaine, la mesure exacte, la vérité sur ce qui marche ou
+non, et le changement de méthode quand ça ne marche pas. **On ne lâche pas.**
+
+- **Objectif** : de nouveaux utilisateurs qui **réservent et paient**. Le critère, ce sont les
+  **réservations payées et terminées** — **PAS le trafic**.
+- **Marchés** : **Paris (fr)** et **USA (en-US)**, à égalité. Les autres pays sont **en pause**.
+- **Autonomie** : tout ce qui peut tourner sans Daniel tourne sans lui.
+
+**Les 6 règles permanentes :**
+1. **Pas d'argent en plus** — Daniel est au maximum. Seule dépense acceptée : la pub Meta
+   actuelle (16 €/jour). Tout nouveau levier doit être **gratuit** et tourner sur le Mac.
+2. **Décisions** — Claude décide seul de ce qui est **gratuit et réversible** ; il demande
+   l'accord de Daniel avant **toute dépense**, **tout rebuild de l'app**, et **tout envoi en
+   son nom à de nouvelles personnes**.
+3. **Honnêteté** — **jamais de chiffre inventé, jamais de promesse de revenus**. Si rien n'a
+   bougé, on l'écrit.
+4. **Priorité** — d'abord ce qui **fait perdre des utilisateurs**, ensuite ce qui **fait
+   réserver**, enfin le design.
+5. **Projets séparés** — Bob ne s'occupe **que** de HoPetSit (jamais LawsTravels, Allomoteur, AEPS).
+6. **Listes de contacts** — **toujours vérifiées avant usage** (la liste « cliniques vétérinaires
+   Espagne » du 14/09 était inventée : 35 domaines sur 40 inexistants → non utilisée).
+
+**Prochaine grosse étape** : **build 565** après la remise à zéro du forfait le **18/09**, au
+signal « go build 565 » de Daniel. ⚠️ La liste qui fait foi est la section
+**« 📋 PROCHAIN BUILD (v562 app, build 565) »** plus bas dans ce fichier (tenue à jour) —
+`la-mission.md` n'en garde qu'un instantané du 14/09.
+
 ## Le produit
 **HoPetSit** = marketplace de garde + promenade d'animaux. Met en relation des
 **propriétaires** (orange) avec des **promeneurs** (vert) et **gardiens/pet-sitters** (bleu).

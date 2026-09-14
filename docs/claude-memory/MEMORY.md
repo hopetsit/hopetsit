@@ -1,5 +1,7 @@
 # HopeTSIT — Memory index
 
+- 🎯 **[LA MISSION (document de Daniel, 14/09/2026)](la-mission.md)** — **à lire en premier** : le pourquoi (se nourrir, se loger, offrir une maison à sa maman), les 6 règles (pas d'argent en plus, honnêteté, priorité aux pertes d'utilisateurs, listes vérifiées), les chiffres au 14/09, ce qui tourne seul (vigie, cycle de vie, Meta, Bob le lundi, articles le dimanche), les 24 points du build 565 et les recommandations (commission 20 %, verrou 700, pub 16 €/j).
+
 - [Norton MITM casse Gradle](norton-mitm-gradle-truststore.md) — Norton scanne le HTTPS → PKIX fail sur toute nouvelle dépendance Gradle ; fix persistant : `trustStoreType=Windows-ROOT` dans `~/.gradle/gradle.properties`.
 - [Allomoteur : header Wix + langues](allomoteur-wix-header-langues.md) — 2e site de Daniel (Wix) ; iframe header 113px coupe les dropdowns → menu langues DANS la barre ; élément #html10, CodeMirror setValue + « Mettre à jour » + Publier ; TOUJOURS demander avant de modifier/publier.
 - [KYC : Didit remplace Persona (v510)](kyc-didit-provider-switch.md) — bascule par env vars DIDIT_* sur Render (Persona = fallback), app inchangée ; callback DOIT contenir « complete » (WebView) ; vendor_data = role_userId ; textes app disent « Didit » dans les 6 langues (inclus au build v523).
