@@ -239,6 +239,19 @@ faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
 16. **Design du chat** : moderniser (bulles, en-tête, zone de saisie, pièces jointes/vocal) dans le
     style Apple/Paw Buttons validé, sans toucher aux fonctions.
 17. **Page Réservations** : moderniser (filtres, cartes de réservation, statuts, vide/chargement).
+18. **Chat — médias & réponses** : l'envoi de photos/vidéos ne marche pas (corriger), vocal audio
+    (= point 13), **répondre à un message précis** (citation, comme WhatsApp), et **contrôle admin**
+    de ces fonctions (activer/désactiver médias, vocal, réponses) dans la page admin.
+19. **Profil › Préférences › onglet Notifications** : choisir quelles notifications recevoir
+    (messages, paiements, demandes d'amis, réservations…) et le son : **aboiement de chien,
+    miaulement de chat, cui-cui d'oiseau**, vibreur ou silencieux. Sons = fichiers courts (≤ 2 s)
+    libres de droits (CC0) que je fournis moi-même sauf si Daniel en envoie ; canaux Android
+    par son + `sound` APNs iOS.
+20. **PawMap petite ET grande carte** : quand on bouge la carte, les barres (rail gauche, capsule
+    droite) se masquent/passent sous le menu du bas → elles doivent rester visibles ; quand le
+    menu du bas disparaît (grande carte), ajouter un **bouton retour en bas à gauche**.
+21. **Admin › Tableau de bord** : un clic sur les compteurs (animaux, pet-sitters, promeneurs,
+    propriétaires) ouvre la liste des profils correspondants.
 Puis : build simulateur + tests, IPA (flutter clean avant) + Transporter, AAB + `play_release_api.py`,
 admin « Versions de l'app » 565/565 après validations, journal + mémoire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
