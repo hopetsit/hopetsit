@@ -220,6 +220,20 @@ leur e-mail** (0 des 5 inscrits de la semaine) → la vérification par code est
 13 codes renvoyés le 14/09. Piste (rebuild app) : laisser entrer sans code et vérifier plus tard,
 ou lien magique dans l'e-mail. Routines cloud « équipe d'agents » NON créées (consomment son
 forfait) : tout est en scripts locaux gratuits.
+**16/09 — Bob : prospection des pros de l'animal** (3 fichiers xlsx fournis par Daniel : pros
+Paris/IDF 180, vétérinaires IDF 120, santé animale 10 villes 156). Vérifiés : 456 lignes → **329
+retenues** (écartés : 106 2e adresse d'une même entreprise, 14 déjà contactés, 4 domaines sans
+serveur mail, 2 RH/presse, 1 funéraire). ⚠️ La liste « Clinicas_Veterinarias_Espana.numbers » du
+14/09 était INVENTÉE (35 domaines/40 inexistants) → jamais utilisée ; toujours contrôler les MX.
+`~/hopetsit-social/partenaires_bob.json` (segments : commerce_sante 113, association 15, pro_garde
+43 [invités comme prestataires, sans affiche], hotel 45, sante_hors_paris 113 en dernier) ;
+`bob_prospection.py [N] [--dry]` = affiches neutres (`affiche_commerce.py nom slug fr neutre` : ne
+prétend PAS que le commerce est sur la PawMap) publiées dans website/public/affiches, attente
+content-type PDF, e-mail par segment via /admin/promo/send-campaign ; launchd
+`com.hopetsit.bob.prospection` **mardi + jeudi 10 h 05, 25 contacts** (≈ 7 semaines). Rapport du
+lundi de Bob : ligne « prospection ». **Jeton page Facebook invalidé** (publications auto cassées,
+constaté 16/09) → régénéré depuis le jeton système (`jeton.py` avec `jeton_brut.txt` temporaire),
+post du mercredi republié ; la vigie contrôle et régénère désormais ce jeton chaque matin.
 **14/09 — TUNNEL DE VÉRIFICATION corrigé côté serveur (Daniel : « vérifie et corrige, dis-moi
 avant si rebuild » → AUCUN rebuild).** Causes trouvées : e-mail de vérification en anglais
 seulement, code valable **10 minutes**, rien à cliquer, expéditeur Gmail. Corrigé dans
