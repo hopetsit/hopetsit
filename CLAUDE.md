@@ -316,6 +316,27 @@ faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
     publier son profil / accepter une réservation ; propriétaire → adresse (lieu de garde) +
     téléphone obligatoires pour envoyer une demande de réservation. Barre « profil complété à X % »
     sur la home + rappel J+3 (déjà dans le cycle de vie). Préfixe téléphone déduit du pays (point 12).
+26. **Page Profil — refonte complète** (Daniel, 16/09) : plus claire, onglets rangés par catégorie
+    (Compte · Mes animaux · Paiements & wallet · Abonnements & boutique · Préférences &
+    notifications · Sécurité · Aide), et CHAQUE sous-page modernisée ; en même temps vérifier que
+    chaque écran est bien connecté au serveur et synchronisé entre les 3 profils.
+27. **Promotions / code promo** : très peu utilisé → le rendre visible sans gêner : petit pop-up
+    discret (une fois, fermable, pas à la première ouverture), entrée claire dans Profil et au
+    paiement (« J'ai un code »), message de succès lisible.
+28. **Paiements, wallet, enregistrement de carte** : vérification ET modernisation, travail de fond
+    minutieux (ajout/suppression de carte, carte par défaut, reçus, historique, erreurs lisibles).
+29. **E-mails — liens vers l'app** : malgré l'audit, le bouton d'un e-mail ouvre encore le SITE au
+    lieu de l'écran de l'app (constaté par Daniel). Vérifier universal links iOS (AASA, domaine
+    associé dans le build) + App Links Android (assetlinks.json, autoVerify) + chaque route de
+    `buildAppRoute` ; et re-vérifier les traductions de tous les e-mails.
+30. **Annonce postée par un propriétaire** : vérifier que les notifications (push + e-mail
+    « nouvelle demande près de chez vous ») partent bien aux prestataires proches.
+31. **Admin › Tableau de bord** (complète le point 21) : chiffres qui se mettent à jour, TOUT
+    cliquable ; clic sur propriétaires / sitters / promeneurs / animaux → liste avec l'**e-mail du
+    compte** propriétaire de chaque profil ou animal.
+32. **Chaîne de paiement complète, re-vérifiée de bout en bout** : propriétaire → sitter/promeneur
+    (paiement, commission 20 %, séquestre, libération au rendu, wallet, retrait) ET boutique /
+    abonnements (PawBoost, PawSpot, PawFollow/Family, Premium, Apple IAP, Google Play).
 Puis : build simulateur + tests, IPA (flutter clean avant) + Transporter, AAB + `play_release_api.py`,
 admin « Versions de l'app » 565/565 après validations, journal + mémoire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
