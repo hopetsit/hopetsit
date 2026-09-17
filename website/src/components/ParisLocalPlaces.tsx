@@ -17,6 +17,34 @@ const CAT: Record<string, string> = {
 const ord = (n: number) => (n === 1 ? "1er" : `${n}e`);
 const plural = (k: number, one: string, many: string) => `${k} ${k > 1 ? many : one}`;
 
+
+// Questions-réponses construites à partir des lieux réels : un texte différent par arrondissement.
+function localFaq(e: Entry, mode: "owner" | "recruit"): { q: string; a: string }[] {
+  const a = ord(e.n);
+  const by = (cat: string) => e.places.filter((p) => p.cat === cat);
+  const fmt = (p: Place) => `${p.title}${p.address ? ` (${p.address})` : ""}${p.hours ? `, ouvert ${p.hours}` : ""}`;
+  const vets = by("vet"), shops = by("shop"), groomers = by("groomer"), parks = by("park");
+  const voisins = e.neighbours.map((v) => ord(v)).join(", ");
+  const out: { q: string; a: string }[] = [];
+  out.push({
+    q: `Où trouver un vétérinaire près de Paris ${a} ?`,
+    a: vets.length
+      ? `Autour du ${a}, la PawMap indique notamment ${vets.slice(0, 3).map(fmt).join(" ; ")}. ${e.counts.vet && e.counts.vet > vets.length ? `Au total, ${e.counts.vet} cabinets et cliniques sont répertoriés dans le secteur.` : ""} Votre pet sitter HoPetSit peut vous y conduire en cas de besoin.`
+      : `La PawMap recense ${e.counts.vet || 0} cabinet(s) vétérinaire(s) autour du ${a} ; les arrondissements voisins (${voisins}) en comptent d'autres, consultables sur la carte.`,
+  });
+  const shopping = [...shops, ...groomers];
+  if (shopping.length)
+    out.push({
+      q: `Animaleries et toiletteurs dans le ${a} : lesquels sont proches ?`,
+      a: `Près du ${a} : ${shopping.slice(0, 3).map(fmt).join(" ; ")}. ${mode === "owner" ? "Pratique pour confier à votre pet sitter la liste des croquettes ou un rendez-vous de toilettage pendant votre absence." : "Des adresses utiles à connaître quand on garde les animaux des voisins."}`,
+    });
+  out.push({
+    q: `Où promener un chien autour de Paris ${a} ?`,
+    a: `${parks.length ? `Espaces verts proches repérés sur la PawMap : ${parks.map((p) => p.title).join(", ")}. ` : ""}${e.counts.water ? `On compte aussi ${e.counts.water} points d'eau dans le secteur, utiles en été. ` : ""}Pour varier les balades, les arrondissements voisins (${voisins}) sont accessibles à pied${mode === "owner" ? ", et la promenade est suivie en direct dans l'app." : "."}`,
+  });
+  return out;
+}
+
 export default function ParisLocalPlaces({ slug, mode }: { slug: string; mode: "owner" | "recruit" }) {
   const e = (PLACES as Record<string, Entry>)[slug];
   if (!e) return null;
@@ -54,6 +82,14 @@ export default function ParisLocalPlaces({ slug, mode }: { slug: string; mode: "
       <p className="mt-4 text-sm">
         <Link href="/pawmap" className="font-semibold text-owner hover:underline">Voir tous les lieux sur la PawMap →</Link>
       </p>
+      <div className="mt-8 space-y-4">
+        {localFaq(e, mode).map((f) => (
+          <div key={f.q} className="rounded-2xl border border-ink/5 bg-white p-5 shadow-card">
+            <h3 className="font-bold text-ink">{f.q}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-ink-muted">{f.a}</p>
+          </div>
+        ))}
+      </div>
       <div className="mt-8">
         <p className="text-sm font-semibold text-ink">Arrondissements voisins</p>
         <ul className="mt-2 flex flex-wrap gap-2 text-sm">
