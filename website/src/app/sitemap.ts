@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { recruitPaths, ownerPaths } from "../lib/recruit-cities";
+import { RECRUIT_CITIES, recruitPaths, ownerPaths } from "../lib/recruit-cities";
 
 // v23.1.267 — SEO : sitemap des pages publiques (était absent). metadataBase
 // est défini dans layout.tsx (https://hopetsit.com).
@@ -23,8 +23,6 @@ const PUBLIC_PATHS = [
   "/imprint",
   "/cgu",
   "/remboursement",
-  "/login",
-  "/signup",
   // v531 — SEO : blog + pages villes (contenu statique indexable).
   "/blog",
   "/blog/chien-seul-toute-la-journee-paris",
@@ -54,10 +52,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // depuis lib/recruit-cities.ts : une ligne de données = une URL indexable.
   // v560 — + pages « trouver un pet sitter à <ville> » (côté propriétaire).
   const all = [...PUBLIC_PATHS, ...recruitPaths(), ...ownerPaths()];
+  // v562 — focus Paris + USA (Daniel, 13/09) : priorité haute aux pages FR et
+  // aux villes américaines, basse aux autres langues (qui restent indexables).
+  const US = new Set(RECRUIT_CITIES.filter((c) => c.lang === "en" && /USA/.test(c.region)).map((c) => c.slug));
+  const prio = (path: string): number => {
+    if (path === "") return 1;
+    if (path.startsWith("/blog") || path === "/villes" || path === "/download" || path === "/pawmap") return 0.8;
+    if (path.startsWith("/devenir-petsitter/") || path.startsWith("/garde-animaux/")) return 0.8;
+    const m = path.match(/^\/(become-a-pet-sitter|pet-sitting)\/([^/]+)$/);
+    if (m) return US.has(m[2]) ? 0.8 : 0.4;
+    return path.split("/").length > 2 ? 0.3 : 0.6;
+  };
   return all.map((path) => ({
     url: `${BASE}${path}`,
     lastModified,
-    changeFrequency: path === "" ? "weekly" : "monthly",
-    priority: path === "" ? 1 : 0.7,
+    changeFrequency: path === "" || path.startsWith("/blog") ? "weekly" : "monthly",
+    priority: prio(path),
   }));
 }

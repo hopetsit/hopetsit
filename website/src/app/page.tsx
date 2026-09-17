@@ -284,6 +284,36 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── 10 bis. VILLES ── v562 (Search Console 17/09 : 320 pages « détectées,
+          non indexées ») : liens directs depuis l'accueil vers les pages Paris /
+          Île-de-France et USA, pour que Google les explore en priorité. Rendu
+          dans les deux langues quel que soit le choix de l'utilisateur. */}
+      <section className="mx-auto max-w-5xl px-4 pb-8 pt-20">
+        <div className="grid gap-10 md:grid-cols-2">
+          <div>
+            <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-[#1D1D1F]">Pet sitters à Paris et en Île-de-France</h2>
+            <ul className="mt-4 flex flex-wrap gap-2 text-sm">
+              {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
+                <li key={`p${n}`}><Link href={`/garde-animaux/paris-${n}`} className="inline-block rounded-full bg-[#F5F5F7] px-3 py-1.5 text-[#1D1D1F] transition hover:bg-owner-light hover:text-owner-dark">Paris {n}{n === 1 ? "er" : "e"}</Link></li>
+              ))}
+              {[["boulogne-billancourt","Boulogne"],["neuilly-sur-seine","Neuilly"],["levallois-perret","Levallois"],["issy-les-moulineaux","Issy"],["vincennes","Vincennes"],["montreuil","Montreuil"],["versailles","Versailles"]].map(([slug, name]) => (
+                <li key={slug}><Link href={`/garde-animaux/${slug}`} className="inline-block rounded-full bg-[#F5F5F7] px-3 py-1.5 text-[#1D1D1F] transition hover:bg-owner-light hover:text-owner-dark">{name}</Link></li>
+              ))}
+            </ul>
+            <p className="mt-3 text-sm"><Link href="/devenir-petsitter/paris" className="font-semibold text-owner hover:underline">Devenir pet sitter à Paris →</Link></p>
+          </div>
+          <div>
+            <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-[#1D1D1F]">Pet sitters in the United States</h2>
+            <ul className="mt-4 flex flex-wrap gap-2 text-sm">
+              {[["dallas","Dallas"],["fort-worth","Fort Worth"],["plano","Plano"],["frisco","Frisco"],["houston","Houston"],["austin","Austin"],["new-york","New York"],["los-angeles","Los Angeles"],["chicago","Chicago"],["miami","Miami"],["san-francisco","San Francisco"],["seattle","Seattle"],["boston","Boston"],["atlanta","Atlanta"],["denver","Denver"],["phoenix","Phoenix"]].map(([slug, name]) => (
+                <li key={slug}><Link href={`/pet-sitting/${slug}`} className="inline-block rounded-full bg-[#F5F5F7] px-3 py-1.5 text-[#1D1D1F] transition hover:bg-owner-light hover:text-owner-dark">{name}</Link></li>
+              ))}
+            </ul>
+            <p className="mt-3 text-sm"><Link href="/become-a-pet-sitter/dallas" className="font-semibold text-owner hover:underline">Become a pet sitter in Dallas →</Link> · <Link href="/villes" className="text-[#6E6E73] hover:underline">All cities</Link></p>
+          </div>
+        </div>
+      </section>
+
       {/* ── 11. FAQ ── accordéon natif, une colonne, lignes fines. */}
       <section className="mx-auto max-w-3xl px-4 py-24">
         <h2 className="text-center font-display text-3xl font-bold tracking-[-0.02em] text-[#1D1D1F] md:text-5xl">
