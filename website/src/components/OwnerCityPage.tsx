@@ -1,5 +1,5 @@
 import Link from "next/link";
-import ParisLocalPlaces from "@/components/ParisLocalPlaces";
+import ParisLocalPlaces, { parisEntry } from "@/components/ParisLocalPlaces";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 import { RECRUIT_PATH_PREFIX } from "@/lib/recruit-cities";
 
@@ -351,7 +351,9 @@ export function ownerMetadata(c: RecruitCity, canonical: string) {
 
 export default function OwnerCityPage({ city }: { city: RecruitCity }) {
   const copy = COPY[city.lang];
-  const faq = copy.faq(city);
+  // v562 — arrondissement de Paris : contenu local réel à la place des blocs génériques.
+  const paris = city.lang === "fr" && !!parisEntry(city.slug);
+  const faq = paris ? [] : copy.faq(city);
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -363,14 +365,14 @@ export default function OwnerCityPage({ city }: { city: RecruitCity }) {
         areaServed: { "@type": "City", name: city.name },
         inLanguage: copy.inLanguage,
       },
-      {
+      ...(faq.length ? [{
         "@type": "FAQPage",
         mainEntity: faq.map((f) => ({
           "@type": "Question",
           name: f.q,
           acceptedAnswer: { "@type": "Answer", text: f.a },
         })),
-      },
+      }] : []),
     ],
   };
   const recruitHref = `${RECRUIT_PATH_PREFIX[city.lang]}/${city.slug}`;
@@ -378,16 +380,17 @@ export default function OwnerCityPage({ city }: { city: RecruitCity }) {
   return (
     <div className="mx-auto max-w-3xl px-4 py-16 md:py-24">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <p className="text-sm font-semibold text-owner">{copy.kicker(city)}</p>
-      <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">{copy.h1(city)}</h1>
-      <p className="mt-4 text-lg leading-relaxed text-ink-muted">{copy.intro(city)}</p>
+      {!paris && <p className="text-sm font-semibold text-owner">{copy.kicker(city)}</p>}
+      <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">{paris ? `Pet sitter ${city.name} : garde et promenade` : copy.h1(city)}</h1>
+      {!paris && <p className="mt-4 text-lg leading-relaxed text-ink-muted">{copy.intro(city)}</p>}
 
       <div className="mt-10 rounded-2xl border border-owner/20 bg-owner-light/60 p-6">
         <p className="text-sm leading-relaxed text-ink">{city.local}</p>
       </div>
 
-      {city.lang === "fr" && <ParisLocalPlaces slug={city.slug} mode="owner" />}
+      {paris && <ParisLocalPlaces slug={city.slug} mode="owner" />}
 
+      {!paris && (<>
       <h2 className="mt-14 font-display text-2xl font-extrabold text-ink">{copy.servicesTitle}</h2>
       <div className="mt-6 grid gap-4 md:grid-cols-3">
         {copy.services.map((s) => (
@@ -426,15 +429,16 @@ export default function OwnerCityPage({ city }: { city: RecruitCity }) {
           </div>
         ))}
       </div>
+      </>)}
 
       <div className="mt-14 rounded-3xl bg-owner-light p-8 text-center">
-        <h2 className="font-display text-2xl font-extrabold text-ink">{copy.ctaTitle(city)}</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-ink-muted">{copy.ctaText}</p>
-        <Link href="/download" className="mt-5 inline-block rounded-full bg-owner px-7 py-3 text-sm font-bold text-white">{copy.ctaBtn}</Link>
+        <h2 className="font-display text-2xl font-extrabold text-ink">{paris ? `${city.name} avec HoPetSit` : copy.ctaTitle(city)}</h2>
+        {!paris && <p className="mx-auto mt-2 max-w-md text-sm text-ink-muted">{copy.ctaText}</p>}
+        <Link href="/download" className="mt-5 inline-block rounded-full bg-owner px-7 py-3 text-sm font-bold text-white">{paris ? "Télécharger" : copy.ctaBtn}</Link>
       </div>
 
       <p className="mt-8 text-center text-sm">
-        <Link href={recruitHref} className="font-semibold text-sitter-dark underline-offset-4 hover:underline">{copy.recruitLink(city)}</Link>
+        <Link href={recruitHref} className="font-semibold text-sitter-dark underline-offset-4 hover:underline">{paris ? `${city.name} : devenir pet sitter →` : copy.recruitLink(city)}</Link>
       </p>
     </div>
   );

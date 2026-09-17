@@ -2,11 +2,12 @@
  "paris-1": {
   "n": 1,
   "counts": {
-   "groomer": 3,
-   "water": 45,
-   "park": 1,
-   "vet": 3,
-   "shop": 3
+   "vet": 1,
+   "shop": 0,
+   "groomer": 2,
+   "dogpark": 1,
+   "water": 27,
+   "green": 12
   },
   "places": [
    {
@@ -15,13 +16,6 @@
     "address": "",
     "hours": "Mo-Fr 09:00-13:00,15:00-19:00 \"sur rendez-vous uniquement\"",
     "m": 752
-   },
-   {
-    "title": "Cabinet Saint-Michel",
-    "cat": "vet",
-    "address": "",
-    "hours": "Mo-Fr 09:30-19:00; Sa 09:30-13:00",
-    "m": 1061
    },
    {
     "title": "Alpha",
@@ -34,36 +28,80 @@
     "title": "Les Trésors Pets",
     "cat": "groomer",
     "address": "",
-    "hours": "",
+    "hours": "Tu-Sa 10:00-13:00,14:00-18:00; PH closed",
     "m": 669
-   },
+   }
+  ],
+  "greens": [
    {
-    "title": "Pet So Chic",
-    "cat": "groomer",
+    "title": "Jardin du Palais Royal",
+    "cat": "green",
     "address": "",
-    "hours": "Tu-Fr 11:00-18:30, Sa 11:00-19:00",
-    "m": 816
+    "hours": "Mo-Su 08:00-22:30",
+    "m": 299
    },
    {
-    "title": "Animalis",
-    "cat": "shop",
-    "address": "19 Rue du Quatre Septembre",
-    "hours": "Mo-Sa 10:00-19:30; Su off",
-    "m": 778
+    "title": "Jardin Nelson Mandela",
+    "cat": "green",
+    "address": "75001",
+    "hours": "24/7",
+    "m": 599
    },
    {
-    "title": "Royal Canin",
-    "cat": "shop",
+    "title": "Square du Vert Galant",
+    "cat": "green",
     "address": "",
-    "hours": "Mo 13:00-19:00, Tu-Sa 10:00-20:00",
-    "m": 1071
+    "hours": "24/7",
+    "m": 634
    },
    {
-    "title": "Moustaches",
-    "cat": "shop",
+    "title": "Jardin des Tuileries",
+    "cat": "green",
+    "address": "113 Rue de Rivoli 75001",
+    "hours": "Mo-Su 07:30-21:00",
+    "m": 715
+   },
+   {
+    "title": "Jardin de l'Oratoire",
+    "cat": "green",
     "address": "",
-    "hours": "Mo-Sa 10:30-19:30",
-    "m": 1076
+    "hours": "",
+    "m": 195
+   },
+   {
+    "title": "Jardinet place du lieutenant Henri-Karcher",
+    "cat": "green",
+    "address": "75001",
+    "hours": "",
+    "m": 280
+   },
+   {
+    "title": "Jardin de l'Infante",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 324
+   },
+   {
+    "title": "Porte du Louvre",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 499
+   },
+   {
+    "title": "Potager",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 808
+   },
+   {
+    "title": "Place Dauphine",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 809
    }
   ],
   "neighbours": [
@@ -73,66 +111,51 @@
    6,
    7,
    8
-  ]
+  ],
+  "vetSat": 0,
+  "vetSun": 0,
+  "vetHours": 1
  },
  "paris-2": {
   "n": 2,
   "counts": {
-   "water": 34,
-   "shop": 3,
-   "vet": 4,
-   "groomer": 2,
-   "park": 1
+   "vet": 1,
+   "shop": 1,
+   "groomer": 0,
+   "dogpark": 0,
+   "water": 9,
+   "green": 3
   },
   "places": [
-   {
-    "title": "Argos",
-    "cat": "vet",
-    "address": "",
-    "hours": "Mo-Fr 09:00-13:00,14:00-19:00; Sa 09:00-13:00; Su off",
-    "m": 927
-   },
-   {
-    "title": "Dr. Franz Cappé",
-    "cat": "vet",
-    "address": "",
-    "hours": "Mo-Fr 09:00-13:00,15:00-19:00 \"sur rendez-vous uniquement\"",
-    "m": 1064
-   },
-   {
-    "title": "Clinique Vétérinaire de l'Horloge",
-    "cat": "vet",
-    "address": "",
-    "hours": "",
-    "m": 1096
-   },
-   {
-    "title": "Les Trésors Pets",
-    "cat": "groomer",
-    "address": "",
-    "hours": "",
-    "m": 514
-   },
-   {
-    "title": "Alpha",
-    "cat": "groomer",
-    "address": "",
-    "hours": "Mo-Sa 09:00-19:30, Su 10:00-17:00",
-    "m": 849
-   },
    {
     "title": "Animalis",
     "cat": "shop",
     "address": "19 Rue du Quatre Septembre",
-    "hours": "Mo-Sa 10:00-19:30; Su off",
+    "hours": "Mo-Sa 10:00-19:30; Su 10:00-13:00",
     "m": 490
+   }
+  ],
+  "greens": [
+   {
+    "title": "Jardin Vivienne",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 326
    },
    {
-    "title": "C4V",
-    "cat": "shop",
+    "title": "Square Louvois",
+    "cat": "green",
     "address": "",
-    "hours": "Mo-Sa 10:00-13:30,14:30-19:00",
-    "m": 1011
+    "hours": "",
+    "m": 383
+   },
+   {
+    "title": "Square Jacques Bidault",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 551
    }
   ],
   "neighbours": [
@@ -140,17 +163,29 @@
    3,
    9,
    10
-  ]
+  ],
+  "vetSat": 0,
+  "vetSun": 0,
+  "vetHours": 0
  },
  "paris-3": {
   "n": 3,
   "counts": {
-   "water": 60,
-   "groomer": 4,
-   "vet": 6,
-   "shop": 5
+   "vet": 3,
+   "shop": 2,
+   "groomer": 1,
+   "dogpark": 0,
+   "water": 14,
+   "green": 14
   },
   "places": [
+   {
+    "title": "Clinique vétérinaire du Temple",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 08:30-13:00,14:00-19:30; Sa 08:30-13:00; Su off",
+    "m": 284
+   },
    {
     "title": "AniCuea",
     "cat": "vet",
@@ -166,39 +201,11 @@
     "m": 474
    },
    {
-    "title": "Assistance aux animaux",
-    "cat": "vet",
-    "address": "",
-    "hours": "",
-    "m": 898
-   },
-   {
     "title": "Les Trésors",
     "cat": "groomer",
     "address": "26 Rue Réaumur",
     "hours": "",
-    "m": 275
-   },
-   {
-    "title": "Michette",
-    "cat": "groomer",
-    "address": "",
-    "hours": "Mo-Fr 10:30-19:30,Sa 09:00-19:30,Su 11:00-18:00",
-    "m": 806
-   },
-   {
-    "title": "nina dalle",
-    "cat": "groomer",
-    "address": "",
-    "hours": "",
-    "m": 982
-   },
-   {
-    "title": "Les Trésors Pets",
-    "cat": "groomer",
-    "address": "",
-    "hours": "",
-    "m": 1096
+    "m": 277
    },
    {
     "title": "ChaCabo",
@@ -206,6 +213,113 @@
     "address": "",
     "hours": "Mo-Sa 09:30-19:00",
     "m": 472
+   },
+   {
+    "title": "Animalis",
+    "cat": "shop",
+    "address": "16 Rue du Grenier Saint-Lazare",
+    "hours": "Mo-Sa 10:00-19:30; Su 10:00-13:00",
+    "m": 473
+   }
+  ],
+  "greens": [
+   {
+    "title": "Square du Temple- Elie Wiesel",
+    "cat": "green",
+    "address": "",
+    "hours": "sunrise-sunset",
+    "m": 169
+   },
+   {
+    "title": "Jardin Arnaud Beltrame",
+    "cat": "green",
+    "address": "",
+    "hours": "Oct-Mar 09:00-17:00; Apr-Sep 09:00-19:00",
+    "m": 794
+   },
+   {
+    "title": "Potager des Oiseaux",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 117
+   },
+   {
+    "title": "Place Renée Vivien",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 262
+   },
+   {
+    "title": "Jardin de l'Hôtel Salé-Léonor-Fini",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 334
+   },
+   {
+    "title": "Jardin des Archives-Nationales",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 350
+   },
+   {
+    "title": "Jardin Anne Frank",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 408
+   },
+   {
+    "title": "Jardin Berthe Weill",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 422
+   },
+   {
+    "title": "Square du Général Morin",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 468
+   },
+   {
+    "title": "Square Léopold Achille",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 562
+   },
+   {
+    "title": "Square Saint-Gilles Grand Veneur - Pauline-Roland",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 569
+   },
+   {
+    "title": "Jardin Lazare-Rachline",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 574
+   },
+   {
+    "title": "Square Georges-Cain",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 582
+   },
+   {
+    "title": "Square Émile Chautemps",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 653
    }
   ],
   "neighbours": [
@@ -214,16 +328,20 @@
    4,
    10,
    11
-  ]
+  ],
+  "vetSat": 1,
+  "vetSun": 1,
+  "vetHours": 1
  },
  "paris-4": {
   "n": 4,
   "counts": {
-   "water": 67,
-   "shop": 3,
-   "park": 2,
-   "vet": 4,
-   "groomer": 2
+   "vet": 1,
+   "shop": 1,
+   "groomer": 0,
+   "dogpark": 1,
+   "water": 33,
+   "green": 24
   },
   "places": [
    {
@@ -234,53 +352,111 @@
     "m": 631
    },
    {
-    "title": "Clinique Vétérinaire Saint-Germain",
-    "cat": "vet",
-    "address": "",
-    "hours": "Mo-Fr 08:30-19:00; Sa 09:00-17:00",
-    "m": 786
-   },
-   {
-    "title": "Clinique Vétérinaire de l'Horloge",
-    "cat": "vet",
-    "address": "",
-    "hours": "",
-    "m": 864
-   },
-   {
-    "title": "Dr. Franz Cappé",
-    "cat": "vet",
-    "address": "",
-    "hours": "Mo-Fr 09:00-13:00,15:00-19:00 \"sur rendez-vous uniquement\"",
-    "m": 1054
-   },
-   {
-    "title": "nina dalle",
-    "cat": "groomer",
-    "address": "",
-    "hours": "",
-    "m": 839
-   },
-   {
-    "title": "Gino's",
-    "cat": "groomer",
-    "address": "",
-    "hours": "Mo-Fr 10:00-19:00, Sa 11:00-19:00",
-    "m": 853
-   },
-   {
     "title": "Moustaches",
     "cat": "shop",
     "address": "",
     "hours": "Mo-Sa 10:30-19:30, Su 12:00-19:00",
     "m": 505
+   }
+  ],
+  "greens": [
+   {
+    "title": "Jardin Monica Vitti",
+    "cat": "green",
+    "address": "",
+    "hours": "Mo-Fr 08:00-19:50; Sa,Su 09:00-19:50",
+    "m": 96
    },
    {
-    "title": "Caroline Coutret",
-    "cat": "shop",
+    "title": "Jardin de l'Hôtel de Sens",
+    "cat": "green",
     "address": "",
-    "hours": "Tu,Th-Sa 09:00-19:00",
-    "m": 716
+    "hours": "Mo-Fr 08:00-19:50; Sa,Su 09:00-19:50",
+    "m": 100
+   },
+   {
+    "title": "Square Marie Trintignant",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 191
+   },
+   {
+    "title": "Jardin de l'hôtel-Lamoignon - Mark-Ashton",
+    "cat": "green",
+    "address": "",
+    "hours": "Mo-Fr 08:00-17:00; Sa-Su 09:00-17:00",
+    "m": 440
+   },
+   {
+    "title": "Square Barye",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 512
+   },
+   {
+    "title": "Jardin de l'Arsenal",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 921
+   },
+   {
+    "title": "Square Albert Schweitzer",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 24
+   },
+   {
+    "title": "Jardin Albert-Schweitzer",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 51
+   },
+   {
+    "title": "Jardin Roger Priou-Valjean",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 141
+   },
+   {
+    "title": "Jardin du Bataillon de l'ONU",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 156
+   },
+   {
+    "title": "Square Couperin",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 203
+   },
+   {
+    "title": "Jardin Federico-García-Lorca",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 325
+   },
+   {
+    "title": "Jardin du 13 Novembre 2015",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 329
+   },
+   {
+    "title": "Jardin des Rosiers – Joseph-Migneret",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 385
    }
   ],
   "neighbours": [
@@ -289,16 +465,20 @@
    5,
    11,
    12
-  ]
+  ],
+  "vetSat": 1,
+  "vetSun": 0,
+  "vetHours": 1
  },
  "paris-5": {
   "n": 5,
   "counts": {
-   "water": 41,
-   "vet": 6,
+   "vet": 5,
    "shop": 1,
    "groomer": 1,
-   "park": 3
+   "dogpark": 1,
+   "water": 31,
+   "green": 32
   },
   "places": [
    {
@@ -311,7 +491,7 @@
    {
     "title": "Dr Mireille Boller",
     "cat": "vet",
-    "address": "14 Rue Gay-Lussac 75005 Paris",
+    "address": "14 Rue Gay-Lussac 75005",
     "hours": "Mo-Fr 09:00-19:00; Sa 10:00-13:00",
     "m": 648
    },
@@ -321,13 +501,6 @@
     "address": "",
     "hours": "Mo-Sa 08:00-19:00",
     "m": 801
-   },
-   {
-    "title": "Ophtavet",
-    "cat": "vet",
-    "address": "",
-    "hours": "Mo-Fr 09:00-19:00; Sa 09:00-17:30",
-    "m": 1034
    },
    {
     "title": "Gino's",
@@ -344,27 +517,131 @@
     "m": 509
    }
   ],
+  "greens": [
+   {
+    "title": "Square Oronce Fine",
+    "cat": "green",
+    "address": "Rue Lhomond 75005",
+    "hours": "closed \"fermé au public\"",
+    "m": 272
+   },
+   {
+    "title": "Jardin Marie Curie",
+    "cat": "green",
+    "address": "",
+    "hours": "Mo-Fr 08:00-19:00",
+    "m": 391
+   },
+   {
+    "title": "Jardin de l'École de botanique",
+    "cat": "green",
+    "address": "",
+    "hours": "Mo-Su 08:00-17:30",
+    "m": 697
+   },
+   {
+    "title": "Jardin des Plantes",
+    "cat": "green",
+    "address": "",
+    "hours": "Mar 01-Mar 30 08:00-18:30; Mar 31-Sep 30 07:30-20:00; Oct 01-Oct 26 08",
+    "m": 711
+   },
+   {
+    "title": "Jardins du Val-de-Grâce",
+    "cat": "green",
+    "address": "",
+    "hours": "closed",
+    "m": 783
+   },
+   {
+    "title": "Jardin Tino Rossi - Musée de la Sculpture en Plein Air",
+    "cat": "green",
+    "address": "",
+    "hours": "Mo-Su,PH 00:00-24:00",
+    "m": 850
+   },
+   {
+    "title": "Square Marius-Constant",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 124
+   },
+   {
+    "title": "Square des Arènes de Lutèce et Capitan",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 259
+   },
+   {
+    "title": "Jardin Carré",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 310
+   },
+   {
+    "title": "Square Paul Langevin",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 360
+   },
+   {
+    "title": "Square Robert Montagne",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 387
+   },
+   {
+    "title": "Jardin Jacqueline Ferrand",
+    "cat": "green",
+    "address": "11 Rue Pierre et Marie Curie 75005",
+    "hours": "",
+    "m": 416
+   },
+   {
+    "title": "Cour aux Ernest",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 476
+   },
+   {
+    "title": "Square Miss.Tic",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 530
+   }
+  ],
   "neighbours": [
    4,
    6,
    13,
    14
-  ]
+  ],
+  "vetSat": 3,
+  "vetSun": 0,
+  "vetHours": 3
  },
  "paris-6": {
   "n": 6,
   "counts": {
-   "water": 35,
-   "vet": 6,
+   "vet": 5,
    "shop": 3,
-   "park": 1,
-   "groomer": 1
+   "groomer": 1,
+   "dogpark": 1,
+   "water": 24,
+   "green": 16
   },
   "places": [
    {
     "title": "Argos",
     "cat": "vet",
-    "address": "17 Rue de Tournon 75006 Paris",
+    "address": "17 Rue de Tournon 75006",
     "hours": "Mo-Fr 09:00-12:30,14:30-19:00; Sa 10:00-14:00",
     "m": 373
    },
@@ -376,16 +653,9 @@
     "m": 649
    },
    {
-    "title": "Dr Mireille Boller",
-    "cat": "vet",
-    "address": "14 Rue Gay-Lussac 75005 Paris",
-    "hours": "Mo-Fr 09:00-19:00; Sa 10:00-13:00",
-    "m": 743
-   },
-   {
     "title": "Urban Vet",
     "cat": "vet",
-    "address": "81 Rue d'Assas 75006 Paris",
+    "address": "81 Rue d'Assas 75006",
     "hours": "Mo-Fr 09:00-19:00; Sa 09:00-18:00",
     "m": 755
    },
@@ -416,6 +686,120 @@
     "address": "",
     "hours": "Mo-Sa 10:30-19:30",
     "m": 504
+   },
+   {
+    "title": "Royal Canin",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo 13:00-19:00, Tu-Sa 10:00-20:00",
+    "m": 558
+   },
+   {
+    "title": "C4V",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Fr 10:00-19:30, Sa 10:00-19:00",
+    "m": 601
+   }
+  ],
+  "greens": [
+   {
+    "title": "Jardin du Luxembourg",
+    "cat": "green",
+    "address": "",
+    "hours": "open \"check website https://www.senat.fr/visite/jardin/horaires.html\";",
+    "m": 377
+   },
+   {
+    "title": "Promenade Jean-Jacques Sempé",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 57
+   },
+   {
+    "title": "Petit Luxembourg",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 190
+   },
+   {
+    "title": "Square Francis Poulenc",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 365
+   },
+   {
+    "title": "Square Félix Desruelles",
+    "cat": "green",
+    "address": "168b Boulevard Saint-Germain 75006",
+    "hours": "",
+    "m": 527
+   },
+   {
+    "title": "Square Laurent Prache",
+    "cat": "green",
+    "address": "1 place Saint-Germain-des-Prés",
+    "hours": "",
+    "m": 580
+   },
+   {
+    "title": "Square Tarass-Chevtchenko",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 625
+   },
+   {
+    "title": "Jardin Auguste Scheurer-Kestner",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 682
+   },
+   {
+    "title": "Le jardin botanique",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 691
+   },
+   {
+    "title": "Esplanade Gaston Monnerville",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 707
+   },
+   {
+    "title": "Square Ozanam",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 746
+   },
+   {
+    "title": "Jardin Alice-Saunier-Seïté",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 782
+   },
+   {
+    "title": "Jardin du Père-Armand-David",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 787
+   },
+   {
+    "title": "Jardin des Grands-Explorateurs Marco Polo et Robert Cavelier-de-la-Salle",
+    "cat": "green",
+    "address": "Avenue de l'Observatoire 75006",
+    "hours": "",
+    "m": 882
    }
   ],
   "neighbours": [
@@ -424,14 +808,20 @@
    7,
    14,
    15
-  ]
+  ],
+  "vetSat": 4,
+  "vetSun": 0,
+  "vetHours": 4
  },
  "paris-7": {
   "n": 7,
   "counts": {
-   "water": 33,
-   "vet": 2,
-   "groomer": 1
+   "vet": 5,
+   "shop": 0,
+   "groomer": 2,
+   "dogpark": 0,
+   "water": 39,
+   "green": 19
   },
   "places": [
    {
@@ -439,7 +829,21 @@
     "cat": "vet",
     "address": "",
     "hours": "Mo-Fr 09:30-19:00; Sa 10:00-17:00",
-    "m": 345
+    "m": 354
+   },
+   {
+    "title": "Cler grenelle",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 417
+   },
+   {
+    "title": "Les vétos parisiens",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 1143
    },
    {
     "title": "Pattes Blanches",
@@ -447,6 +851,113 @@
     "address": "",
     "hours": "",
     "m": 644
+   },
+   {
+    "title": "TwoTails",
+    "cat": "groomer",
+    "address": "",
+    "hours": "",
+    "m": 660
+   }
+  ],
+  "greens": [
+   {
+    "title": "Square Santiago du Chili",
+    "cat": "green",
+    "address": "",
+    "hours": "May-Aug: Mo-Fr 08:00-20:30; May-Aug:Sa,Su,PH 09:00-20:30;Sep: Mo-Fr 08",
+    "m": 182
+   },
+   {
+    "title": "Archipel des Berges de la Seine - Niki-de-Saint-Phale",
+    "cat": "green",
+    "address": "",
+    "hours": "Sep 16-Feb 28: Mo-Su 10:00-17:00; Mar 1-May15: Mo-Su 10:00-20:00; May ",
+    "m": 941
+   },
+   {
+    "title": "Champ de Mars",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 1043
+   },
+   {
+    "title": "Promenade d'Australie",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 1637
+   },
+   {
+    "title": "Jardin de l'Intendant",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 210
+   },
+   {
+    "title": "Place Salvador Allende",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 212
+   },
+   {
+    "title": "Jardin de l'Abondance",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 225
+   },
+   {
+    "title": "Square d'Ajaccio",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 230
+   },
+   {
+    "title": "Square Pierre de Gaulle",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 587
+   },
+   {
+    "title": "Square Samuel Rousseau",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 639
+   },
+   {
+    "title": "Square de l'Abbé Esquerré",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 664
+   },
+   {
+    "title": "Jardin Catherine Labouré",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 836
+   },
+   {
+    "title": "Jardin du Potager",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 920
+   },
+   {
+    "title": "Square des Missions Étrangères",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 995
    }
   ],
   "neighbours": [
@@ -455,15 +966,20 @@
    8,
    15,
    16
-  ]
+  ],
+  "vetSat": 1,
+  "vetSun": 0,
+  "vetHours": 1
  },
  "paris-8": {
   "n": 8,
   "counts": {
-   "water": 34,
-   "vet": 3,
-   "shop": 1,
-   "hotel": 1
+   "vet": 2,
+   "shop": 3,
+   "groomer": 0,
+   "dogpark": 0,
+   "water": 39,
+   "green": 18
   },
   "places": [
    {
@@ -474,13 +990,6 @@
     "m": 551
    },
    {
-    "title": "Sevetys",
-    "cat": "vet",
-    "address": "",
-    "hours": "Mo-Sa 09:00-19:00",
-    "m": 1093
-   },
-   {
     "title": "À Plumes et à Poils",
     "cat": "shop",
     "address": "",
@@ -488,11 +997,118 @@
     "m": 567
    },
    {
-    "title": "Prince de Galles",
-    "cat": "hotel",
-    "address": "33 33 Avenue George V 75008 Paris",
+    "title": "Moustaches",
+    "cat": "shop",
+    "address": "42 Avenue de Wagram",
+    "hours": "Mo-Sa 10:30-19:30",
+    "m": 1184
+   },
+   {
+    "title": "Animalis",
+    "cat": "shop",
+    "address": "",
     "hours": "",
-    "m": 945
+    "m": 1432
+   }
+  ],
+  "greens": [
+   {
+    "title": "Parc Monceau",
+    "cat": "green",
+    "address": "",
+    "hours": "Oct-Apr 07:00-20:00; May-Aug 07:00-22:00; Sep 07:00-21:00",
+    "m": 787
+   },
+   {
+    "title": "Jardin des Ambassadeurs - Line Renaud",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 804
+   },
+   {
+    "title": "Carré Marigny",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 423
+   },
+   {
+    "title": "Carré du Rond-Point",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 548
+   },
+   {
+    "title": "Square de Berlin - Willy Brandt",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 554
+   },
+   {
+    "title": "Place du Guatémala",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 599
+   },
+   {
+    "title": "Carré de l'Élysée",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 616
+   },
+   {
+    "title": "Jardin Tereska Torrès-Levin",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 628
+   },
+   {
+    "title": "Square Jean Perrin",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 639
+   },
+   {
+    "title": "Jardin de la Mairie du 8e",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 674
+   },
+   {
+    "title": "Square Marcel Pagnol",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 680
+   },
+   {
+    "title": "Carré du Battoir",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 683
+   },
+   {
+    "title": "Jardins des Champs-Élysées",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 727
+   },
+   {
+    "title": "Jardin de l’Hôtel Salomon de Rothschild",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 771
    }
   ],
   "neighbours": [
@@ -501,37 +1117,28 @@
    9,
    16,
    17
-  ]
+  ],
+  "vetSat": 1,
+  "vetSun": 0,
+  "vetHours": 1
  },
  "paris-9": {
   "n": 9,
   "counts": {
-   "water": 31,
-   "vet": 7,
-   "shop": 3,
-   "park": 1
+   "vet": 4,
+   "shop": 2,
+   "groomer": 0,
+   "dogpark": 0,
+   "water": 15,
+   "green": 8
   },
   "places": [
-   {
-    "title": "Argos",
-    "cat": "vet",
-    "address": "",
-    "hours": "Mo-Fr 09:00-13:00,14:00-19:00; Sa 09:00-13:00; Su off",
-    "m": 849
-   },
    {
     "title": "Dr. Marc Cantini",
     "cat": "vet",
     "address": "9 Place Adolphe Max",
     "hours": "",
     "m": 907
-   },
-   {
-    "title": "Clinique Vétérinaire du Faubourg",
-    "cat": "vet",
-    "address": "",
-    "hours": "Mo-Fr 09:00-20:00, Sa 10:00-16:00",
-    "m": 922
    },
    {
     "title": "Dr Laurent Calvo",
@@ -541,13 +1148,6 @@
     "m": 968
    },
    {
-    "title": "Pascal Corbel",
-    "cat": "vet",
-    "address": "",
-    "hours": "",
-    "m": 1047
-   },
-   {
     "title": "C4V",
     "cat": "shop",
     "address": "",
@@ -555,18 +1155,69 @@
     "m": 390
    },
    {
-    "title": "Animalis",
+    "title": "Cachou in Paris",
     "cat": "shop",
-    "address": "19 Rue du Quatre Septembre",
-    "hours": "Mo-Sa 10:00-19:30; Su off",
-    "m": 838
+    "address": "",
+    "hours": "",
+    "m": 890
+   }
+  ],
+  "greens": [
+   {
+    "title": "Square Alex Biscarre",
+    "cat": "green",
+    "address": "",
+    "hours": "Mo-Su 09:00-19:00",
+    "m": 178
    },
    {
-    "title": "Barkers and Brothers",
-    "cat": "shop",
-    "address": "8 Rue Androuet 75018 Paris",
+    "title": "Square d'Estienne d'Orves",
+    "cat": "green",
+    "address": "",
+    "hours": "Mo-Su 09:00-21:30",
+    "m": 431
+   },
+   {
+    "title": "Jardin Cromot du Bourg - Cour Cadet",
+    "cat": "green",
+    "address": "",
+    "hours": "Mo-Fr 08:00-18:00, Sa-Su 09:00-18:00",
+    "m": 439
+   },
+   {
+    "title": "Square d'Anvers - Jean-Claude-Carrière",
+    "cat": "green",
+    "address": "",
+    "hours": "Oct 29-Feb 28: Mo-Fr 08:00-17:45; Sa-Su 09:00-17:45; Mar 01-30: Mo-Fr ",
+    "m": 764
+   },
+   {
+    "title": "Jardin Pauline-García-Viardot",
+    "cat": "green",
+    "address": "",
     "hours": "",
-    "m": 987
+    "m": 621
+   },
+   {
+    "title": "Square Montholon",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 655
+   },
+   {
+    "title": "Terrasse du Passage",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 761
+   },
+   {
+    "title": "Square Hector Berlioz",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 884
    }
   ],
   "neighbours": [
@@ -575,18 +1226,29 @@
    10,
    17,
    18
-  ]
+  ],
+  "vetSat": 1,
+  "vetSun": 1,
+  "vetHours": 1
  },
  "paris-10": {
   "n": 10,
   "counts": {
-   "water": 51,
-   "shop": 3,
+   "vet": 5,
+   "shop": 2,
    "groomer": 1,
-   "park": 1,
-   "vet": 4
+   "dogpark": 1,
+   "water": 42,
+   "green": 17
   },
   "places": [
+   {
+    "title": "Dr Dutter",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 386
+   },
    {
     "title": "Clinique vétérinaire de La Chapelle",
     "cat": "vet",
@@ -626,8 +1288,115 @@
     "title": "Animalis",
     "cat": "shop",
     "address": "",
-    "hours": "Mo-Sa 10:00-19:30",
+    "hours": "Mo-Sa 10:00-20:00",
     "m": 611
+   },
+   {
+    "title": "Espace canin du bassin Louis Blanc",
+    "cat": "dogpark",
+    "address": "",
+    "hours": "07:00-22:00; Sa,Su,PH 09:00-20:00",
+    "m": 696
+   }
+  ],
+  "greens": [
+   {
+    "title": "Square des Recollets",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 332
+   },
+   {
+    "title": "Square Eugène Varlin",
+    "cat": "green",
+    "address": "75010",
+    "hours": "24/7",
+    "m": 438
+   },
+   {
+    "title": "Square Henri Christiné",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 451
+   },
+   {
+    "title": "Jardin Amadou Hampâté Bâ",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 572
+   },
+   {
+    "title": "Jardin de l'Hôpital Saint-Louis",
+    "cat": "green",
+    "address": "",
+    "hours": "Apr-Oct Sa,Su 11:00-18:00",
+    "m": 589
+   },
+   {
+    "title": "Jardin Villemin - Mahsa Jîna Amini",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 134
+   },
+   {
+    "title": "Square Saint-Laurent",
+    "cat": "green",
+    "address": "68 Boulevard de Magenta 75010",
+    "hours": "",
+    "m": 253
+   },
+   {
+    "title": "Square Madeleine Tribolati",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 292
+   },
+   {
+    "title": "Jardin Marielle Franco",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 348
+   },
+   {
+    "title": "Square Alban Satragne",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 400
+   },
+   {
+    "title": "Jardin intérieur Saint-Lazare",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 491
+   },
+   {
+    "title": "Parc Juliette Dodu",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 640
+   },
+   {
+    "title": "Square Aristide Cavaillé-Coll",
+    "cat": "green",
+    "address": "8 Place Franz Liszt 75010",
+    "hours": "",
+    "m": 700
+   },
+   {
+    "title": "Square Frédérick Lemaître",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 877
    }
   ],
   "neighbours": [
@@ -637,29 +1406,33 @@
    11,
    18,
    19
-  ]
+  ],
+  "vetSat": 3,
+  "vetSun": 1,
+  "vetHours": 3
  },
  "paris-11": {
   "n": 11,
   "counts": {
-   "water": 50,
    "vet": 8,
-   "park": 2,
-   "shop": 6,
-   "groomer": 1
+   "shop": 4,
+   "groomer": 1,
+   "dogpark": 1,
+   "water": 42,
+   "green": 34
   },
   "places": [
    {
     "title": "Clinique vétérinaire Azzurra",
     "cat": "vet",
-    "address": "83 Rue Léon Frot 75011 Paris",
+    "address": "83 Rue Léon Frot 75011",
     "hours": "Mo-Fr 09:00-12:30,15:00-19:00; Sa 09:00-14:30",
     "m": 350
    },
    {
     "title": "VETINPARIS",
     "cat": "vet",
-    "address": "89 rue du Faubourg Saint-Antoine 75011 Paris",
+    "address": "89 rue du Faubourg Saint-Antoine 75011",
     "hours": "",
     "m": 859
    },
@@ -671,39 +1444,153 @@
     "m": 987
    },
    {
-    "title": "AniCuea",
+    "title": "VétoNation",
     "cat": "vet",
-    "address": "",
-    "hours": "",
-    "m": 1065
+    "address": "11 Place de la Nation 75011",
+    "hours": "Mo-Fr 09:00-12:30,14:00-19:30; Sa 09:00-12:30,14:00-16:30",
+    "m": 1628
    },
    {
-    "title": "nina dalle",
+    "title": "Nina Dalle",
     "cat": "groomer",
-    "address": "",
-    "hours": "",
-    "m": 880
+    "address": "32 Boulevard Beaumarchais 75011",
+    "hours": "Mo-Sa 10:00-18:00",
+    "m": 881
    },
    {
     "title": "City Pet Shop",
     "cat": "shop",
-    "address": "23 Rue Sedaine 75011 Paris",
+    "address": "23 Rue Sedaine 75011",
     "hours": "Mo-Su 11:00-21:00",
     "m": 578
    },
    {
     "title": "Maxi Zoo",
     "cat": "shop",
-    "address": "190 Boulevard Voltaire 75011 Paris",
-    "hours": "",
+    "address": "190 Boulevard Voltaire 75011",
+    "hours": "Mo-Sa 09:30-19:30",
     "m": 700
    },
    {
     "title": "Ziggy",
     "cat": "shop",
-    "address": "33 Rue de Charonne 75011 Paris",
+    "address": "33 Rue de Charonne 75011",
     "hours": "Mo-Sa 11:00-20:00",
     "m": 701
+   },
+   {
+    "title": "Animalis",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Sa 10:00-20:00; Su 10:00-14:00",
+    "m": 792
+   },
+   {
+    "title": "Parc canin",
+    "cat": "dogpark",
+    "address": "",
+    "hours": "",
+    "m": 354
+   }
+  ],
+  "greens": [
+   {
+    "title": "Square Maurice Gardette",
+    "cat": "green",
+    "address": "",
+    "hours": "sunrise-sunset",
+    "m": 294
+   },
+   {
+    "title": "Jardin Truillot",
+    "cat": "green",
+    "address": "82 Boulevard Voltaire 75011",
+    "hours": "24/7",
+    "m": 464
+   },
+   {
+    "title": "TEP Ménilmontant",
+    "cat": "green",
+    "address": "49 Boulevard de Ménilmontant 75020",
+    "hours": "Mo-Su 12:30-21:00; Aug 11-Aug 18 closed; Sep 20-Oct 05 Mo-Su 12:00-20:",
+    "m": 590
+   },
+   {
+    "title": "Jardin de la Folie Titon",
+    "cat": "green",
+    "address": "",
+    "hours": "May-Aug: Mo-Fr 08:00-21:30; Sa-Su 09:00-21:30",
+    "m": 883
+   },
+   {
+    "title": "Square Denis Poulot",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 141
+   },
+   {
+    "title": "Square Olga Bancic",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 331
+   },
+   {
+    "title": "Square de la Roquette",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 355
+   },
+   {
+    "title": "Jardin Louise Talbot et Augustin Avrial",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 356
+   },
+   {
+    "title": "Square Jean Allemane",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 376
+   },
+   {
+    "title": "Square des Moines de Tibhirine",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 392
+   },
+   {
+    "title": "Square Francis Lemarque",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 407
+   },
+   {
+    "title": "Square Marcel Rajman",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 412
+   },
+   {
+    "title": "Square Edmée Chandon",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 546
+   },
+   {
+    "title": "Jardin sauvage",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 569
    }
   ],
   "neighbours": [
@@ -712,16 +1599,20 @@
    10,
    12,
    20
-  ]
+  ],
+  "vetSat": 2,
+  "vetSun": 0,
+  "vetHours": 2
  },
  "paris-12": {
   "n": 12,
   "counts": {
-   "water": 36,
-   "vet": 6,
+   "vet": 8,
    "shop": 4,
-   "park": 1,
-   "groomer": 1
+   "groomer": 3,
+   "dogpark": 3,
+   "water": 117,
+   "green": 71
   },
   "places": [
    {
@@ -734,7 +1625,7 @@
    {
     "title": "La Clinique Vétérinaire de Bercy",
     "cat": "vet",
-    "address": "4 Rue de la Lancette 75012 Paris",
+    "address": "4 Rue de la Lancette 75012",
     "hours": "Mo-Fr 08:30-19:00; Sa 08:00-13:00; Su off",
     "m": 525
    },
@@ -748,9 +1639,16 @@
    {
     "title": "Sevetys",
     "cat": "vet",
+    "address": "61 Rue Crozatier 75012",
+    "hours": "Mo-Fr 09:00-13:00,15:00-19:00; Sa 09:00-13:00,15:00-17:00",
+    "m": 1041
+   },
+   {
+    "title": "Clinique Vétérinaire du Chat",
+    "cat": "vet",
     "address": "",
-    "hours": "",
-    "m": 963
+    "hours": "Mo-Fr 08:00-19:00; Sa 08:00-18:00",
+    "m": 1261
    },
    {
     "title": "Au Caprice du Chien",
@@ -760,11 +1658,18 @@
     "m": 998
    },
    {
-    "title": "Alimentation Accessoires",
-    "cat": "shop",
+    "title": "Dog Récré",
+    "cat": "groomer",
     "address": "",
-    "hours": "",
-    "m": 573
+    "hours": "Tu-Fr 10:00-19:00; Sa 10:00-18:00",
+    "m": 1248
+   },
+   {
+    "title": "Wash & Waf",
+    "cat": "groomer",
+    "address": "",
+    "hours": "Mo-Tu 14:00-19:00; We-Fr 10:00-13:00,14:00-19:00; Sa-Su 10:00-19:00",
+    "m": 1419
    },
    {
     "title": "Mascottes",
@@ -779,6 +1684,113 @@
     "address": "41 Rue de l'Ambroisie 75012",
     "hours": "Mo-Sa 10:00-19:45; Su 11:00-19:45",
     "m": 837
+   },
+   {
+    "title": "Atelier Markiz",
+    "cat": "shop",
+    "address": "",
+    "hours": "We 16:00-19:00; Th-Fr 14:00-19:00; Sa 13:00-19:00",
+    "m": 987
+   }
+  ],
+  "greens": [
+   {
+    "title": "Square Philippe Farine",
+    "cat": "green",
+    "address": "",
+    "hours": "Oct 01-Oct Su[-1] 09:30-18:30; Oct Su[-1]-Feb 29 09:30-17:00; Mar 01-M",
+    "m": 712
+   },
+   {
+    "title": "Jardin Régine Deforges",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 750
+   },
+   {
+    "title": "Square Charles Péguy",
+    "cat": "green",
+    "address": "",
+    "hours": "May-Aug: Mo-Fr 08:00-21:30; May-Aug: Sa-Su 09:00-21:30; Sep: Mo-Fr 08:",
+    "m": 1410
+   },
+   {
+    "title": "Square Albert Tournaire",
+    "cat": "green",
+    "address": "",
+    "hours": "Sa-Su 09:00-17:00, PH 09:00-17:00, Mar 01-Mar Su[-1] 09:30-18:00, Mar ",
+    "m": 1516
+   },
+   {
+    "title": "Square Van Vollenhoven",
+    "cat": "green",
+    "address": "",
+    "hours": "09:30-17:00, PH,Sa,Su 09:00-09:30, Mar 01-Mar Su[-1] 17:00-18:00, Oct ",
+    "m": 1586
+   },
+   {
+    "title": "Jardin de l'Arsenal",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 1713
+   },
+   {
+    "title": "Arboretum de Paris",
+    "cat": "green",
+    "address": "",
+    "hours": "Oct 28-Feb 28 Mo-Su 09:30-17:00",
+    "m": 5486
+   },
+   {
+    "title": "Jardin d'agronomie tropicale René-Dumont",
+    "cat": "green",
+    "address": "",
+    "hours": "PH,Mo-Su 09:30-19:00",
+    "m": 5878
+   },
+   {
+    "title": "Square Eugène Thomas",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 5
+   },
+   {
+    "title": "Jardin de Reuilly - Paul-Pernin",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 110
+   },
+   {
+    "title": "Jardinières angles des rues Daumesnil - Charenton",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 182
+   },
+   {
+    "title": "Square Jean Morin",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 299
+   },
+   {
+    "title": "Square Frédéric Rossif",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 310
+   },
+   {
+    "title": "Jardin de la Gare de Reuilly - Julien Lauprêtre",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 351
    }
   ],
   "neighbours": [
@@ -786,16 +1798,20 @@
    11,
    13,
    20
-  ]
+  ],
+  "vetSat": 4,
+  "vetSun": 2,
+  "vetHours": 4
  },
  "paris-13": {
   "n": 13,
   "counts": {
-   "water": 58,
+   "vet": 8,
    "shop": 4,
-   "vet": 7,
-   "park": 1,
-   "groomer": 1
+   "groomer": 1,
+   "dogpark": 1,
+   "water": 91,
+   "green": 56
   },
   "places": [
    {
@@ -811,13 +1827,6 @@
     "address": "",
     "hours": "Mo-Fr 09:00-13:00,14:30-19:00; Sa 09:00-13:00",
     "m": 522
-   },
-   {
-    "title": "Cabinet Vétérinaire Docteur Gosselet",
-    "cat": "vet",
-    "address": "",
-    "hours": "Mo,Tu,Th,Fr 09:00-19:00; We 09:00-12:30,14:00-19:00; Sa 09:0",
-    "m": 687
    },
    {
     "title": "Rosenberg Vétérinaire",
@@ -845,7 +1854,7 @@
     "cat": "groomer",
     "address": "",
     "hours": "",
-    "m": 806
+    "m": 785
    },
    {
     "title": "Aqualand",
@@ -853,21 +1862,147 @@
     "address": "",
     "hours": "Mo-Fr 14:30-19:30, Tu-Fr 10:30-12:30, Sa 10:30-19:30",
     "m": 492
+   },
+   {
+    "title": "Les Ateliers du Toilettage",
+    "cat": "shop",
+    "address": "",
+    "hours": "",
+    "m": 698
+   },
+   {
+    "title": "Ambiance Toilettage",
+    "cat": "shop",
+    "address": "",
+    "hours": "",
+    "m": 725
+   },
+   {
+    "title": "La Ferme Tropicale",
+    "cat": "shop",
+    "address": "",
+    "hours": "Su-We 10:00-18:00; Th-Sa 10:00-19:00",
+    "m": 917
+   }
+  ],
+  "greens": [
+   {
+    "title": "Parc de Choisy",
+    "cat": "green",
+    "address": "",
+    "hours": "08:00-17:45; PH,Sa,Su 08:00-09:00 off, Mar 01-Mar Su[-1] 17:45-19:00, ",
+    "m": 149
+   },
+   {
+    "title": "Jardin Berthe-Morisot",
+    "cat": "green",
+    "address": "",
+    "hours": "Mo-Fr 08:00-17:00; Sa-Su 09:00-17:00",
+    "m": 969
+   },
+   {
+    "title": "Square René Le Gall",
+    "cat": "green",
+    "address": "50 Rue de Croulebarbe 75013",
+    "hours": "06:00-19:00",
+    "m": 1075
+   },
+   {
+    "title": "Square Robert Bajac",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 1117
+   },
+   {
+    "title": "Jardin des Grands Moulins",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 1242
+   },
+   {
+    "title": "Jardinières angle des rues de Tolbiac - Baudricourt",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 224
+   },
+   {
+    "title": "Jardin de la Place du Docteur Navarre",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 290
+   },
+   {
+    "title": "Square Florence Blumenthal",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 376
+   },
+   {
+    "title": "Jardin des Deux Moulins",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 403
+   },
+   {
+    "title": "Jardin de la Place Souham",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 407
+   },
+   {
+    "title": "Jardin de la Raffinerie Say",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 413
+   },
+   {
+    "title": "Jardin de l'Ilôt IV",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 459
+   },
+   {
+    "title": "Jardin Olympiades",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 482
+   },
+   {
+    "title": "Jardin partagé",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 543
    }
   ],
   "neighbours": [
    5,
    12,
    14
-  ]
+  ],
+  "vetSat": 3,
+  "vetSun": 0,
+  "vetHours": 3
  },
  "paris-14": {
   "n": 14,
   "counts": {
-   "vet": 9,
+   "vet": 10,
    "shop": 3,
-   "water": 55,
-   "groomer": 1
+   "groomer": 1,
+   "dogpark": 0,
+   "water": 80,
+   "green": 54
   },
   "places": [
    {
@@ -880,15 +2015,15 @@
    {
     "title": "ACDV",
     "cat": "vet",
-    "address": "1 Rue Sophie Germain 75014 Paris",
+    "address": "1 Rue Sophie Germain 75014",
     "hours": "Mo-Fr 09:00-13:00,14:30-19:00; Sa 10:00-13:00,15:00-17:00",
     "m": 371
    },
    {
-    "title": "Clinique Vétérinaire Sarrette",
+    "title": "Clinique vétérinaire Sarrette",
     "cat": "vet",
     "address": "",
-    "hours": "Mo-Fr 08:30-13:00,15:00-19:30 \"by appointment\"; Sa 09:00-17:",
+    "hours": "Mo-Fr 08:30-13:00,15:00-19:30 \"by appointment\"; Sa 09:00-17:00 \"by app",
     "m": 482
    },
    {
@@ -902,8 +2037,15 @@
     "title": "Docteur Ehrlich",
     "cat": "vet",
     "address": "",
-    "hours": "Mo-Sa 10:00-12:00, 14:30-19:30",
+    "hours": "Mo,Tu,Th,Sa 10:00-12:00,14:30-19:30, Fr 10:00-12:00, Fr 14:30-18:30",
     "m": 843
+   },
+   {
+    "title": "Riad Kazi-Aoul",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Sa 09:30-12:00, Mo-Fr 15:00-19:00",
+    "m": 1218
    },
    {
     "title": "Scoubi Doux",
@@ -925,6 +2067,113 @@
     "address": "",
     "hours": "10:00-19:30; Su 10:00-14:00",
     "m": 236
+   },
+   {
+    "title": "Dog Club",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Sa 09:00-19:00",
+    "m": 512
+   }
+  ],
+  "greens": [
+   {
+    "title": "La Roche",
+    "cat": "green",
+    "address": "",
+    "hours": "We 12:00-21:00; Th-Fr 16:00-21:00; Sa 12:00-22:00",
+    "m": 500
+   },
+   {
+    "title": "Square Claude Nicolas Ledoux",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 673
+   },
+   {
+    "title": "Jardin public de l'Observatoire de Paris",
+    "cat": "green",
+    "address": "",
+    "hours": "Mo-Fr 15:00-18:30",
+    "m": 990
+   },
+   {
+    "title": "Jardin des Colonnes - Ricardo Bofill",
+    "cat": "green",
+    "address": "",
+    "hours": "07:00-18:00",
+    "m": 1005
+   },
+   {
+    "title": "Jardin du Moulin de la Vierge - Carole Roussopoulos",
+    "cat": "green",
+    "address": "",
+    "hours": "08:00-19:30",
+    "m": 1068
+   },
+   {
+    "title": "Parc Montsouris",
+    "cat": "green",
+    "address": "",
+    "hours": "Sep PH,Mo-Su 07:00-20:30; Oct 01-Oct Su[-1] PH,Mo-Su 07:00-19:30; Oct ",
+    "m": 1139
+   },
+   {
+    "title": "Jardin Atlantique",
+    "cat": "green",
+    "address": "",
+    "hours": "Oct 01-Oct Su[-1] 08:00-19:30; Oct Su[-1]-Feb 29 08:00-17:45; Mar 01-M",
+    "m": 1311
+   },
+   {
+    "title": "Square Julia Bartet",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 1707
+   },
+   {
+    "title": "Square Jules-Durand",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 307
+   },
+   {
+    "title": "Square de l'Aspirant Dunand",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 309
+   },
+   {
+    "title": "Jardin Lionel Assouad",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 310
+   },
+   {
+    "title": "Square Ferdinand Brunot",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 372
+   },
+   {
+    "title": "Jardin d'Isoré",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 473
+   },
+   {
+    "title": "Square du Chanoine Viollet",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 492
    }
   ],
   "neighbours": [
@@ -932,16 +2181,20 @@
    6,
    13,
    15
-  ]
+  ],
+  "vetSat": 5,
+  "vetSun": 0,
+  "vetHours": 5
  },
  "paris-15": {
   "n": 15,
   "counts": {
-   "water": 35,
-   "vet": 4,
-   "groomer": 3,
-   "shop": 4,
-   "park": 1
+   "vet": 8,
+   "shop": 6,
+   "groomer": 4,
+   "dogpark": 1,
+   "water": 82,
+   "green": 65
   },
   "places": [
    {
@@ -959,6 +2212,27 @@
     "m": 1088
    },
    {
+    "title": "Clinique vétérinaire argos",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-12:30,14:30-19:00; Sa 10:00-14:00",
+    "m": 1293
+   },
+   {
+    "title": "Anne Caron et Sophie Bitté",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 1533
+   },
+   {
+    "title": "EiffelVet",
+    "cat": "vet",
+    "address": "2 Rue Saint-Saëns 75015",
+    "hours": "",
+    "m": 1569
+   },
+   {
     "title": "Amy toilettage",
     "cat": "groomer",
     "address": "13 Rue de l'Abbé Groult",
@@ -968,7 +2242,7 @@
    {
     "title": "Diane Harper",
     "cat": "groomer",
-    "address": "182 Rue Lecourbe 75015 Paris",
+    "address": "182 Rue Lecourbe 75015",
     "hours": "Mo-Sa 09:00-18:30",
     "m": 295
    },
@@ -997,8 +2271,136 @@
     "title": "Animalis",
     "cat": "shop",
     "address": "67 Rue de la Convention",
-    "hours": "Mo-Sa 10:00-19:30",
+    "hours": "Mo-Sa 10:00-19:30; Su 10:00-13:00",
     "m": 734
+   },
+   {
+    "title": "Two Tails",
+    "cat": "shop",
+    "address": "79 Rue Saint-Charles",
+    "hours": "Mo-Sa 09:30-19:30",
+    "m": 964
+   },
+   {
+    "title": "Graineterie du petit zoo",
+    "cat": "shop",
+    "address": "",
+    "hours": "Tu-Sa 10:00-19:00",
+    "m": 1140
+   },
+   {
+    "title": "Wash Dog (toiletteur chien)",
+    "cat": "shop",
+    "address": "",
+    "hours": "",
+    "m": 1155
+   },
+   {
+    "title": "Allée aux chiens chiens de Brassens",
+    "cat": "dogpark",
+    "address": "",
+    "hours": "Mo-Su 09:00-20:00",
+    "m": 950
+   }
+  ],
+  "greens": [
+   {
+    "title": "Square Rosalind-Franklin",
+    "cat": "green",
+    "address": "75015",
+    "hours": "24/7",
+    "m": 782
+   },
+   {
+    "title": "La Petite Ceinture du 15e",
+    "cat": "green",
+    "address": "",
+    "hours": "Mo-Fr 09:00-20:30, Sa-Su 09:30-20:30",
+    "m": 871
+   },
+   {
+    "title": "Jardin d'Alleray",
+    "cat": "green",
+    "address": "Rue d'Alleray 75015",
+    "hours": "sunrise-sunset",
+    "m": 967
+   },
+   {
+    "title": "Parc Georges Brassens",
+    "cat": "green",
+    "address": "",
+    "hours": "08:00-17:45, Sa,Su,PH 08:00-09:00 off, Mar 01-Mar Su[-1] 17:45-19:00, ",
+    "m": 1069
+   },
+   {
+    "title": "Square des Périchaux",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 1221
+   },
+   {
+    "title": "Square Franck Bauer",
+    "cat": "green",
+    "address": "",
+    "hours": "08:00-17:45; PH,Sa,Su 08:00-09:00 off, Mar 01-Mar Su[-1] 17:45-19:00, ",
+    "m": 1247
+   },
+   {
+    "title": "Square Nicole de Hauteclocque",
+    "cat": "green",
+    "address": "",
+    "hours": "Tu 09:00-18:30; Apr : 09:00-20:00; May-Aug : 09:00-21:00; Sep : 09:00-",
+    "m": 1346
+   },
+   {
+    "title": "Jardin des Mères et Grands-Mères de la Place de Mai",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 1369
+   },
+   {
+    "title": "Parc André Citroën",
+    "cat": "green",
+    "address": "",
+    "hours": "May-Aug Mo-Fr 08:00-21:30; May-Aug Sa,Su 09:00-21:30; Sep Mo-Fr 08:00-",
+    "m": 1379
+   },
+   {
+    "title": "Allée des Cygnes",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 1582
+   },
+   {
+    "title": "Promenade d'Australie",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 1818
+   },
+   {
+    "title": "Jardin Atlantique",
+    "cat": "green",
+    "address": "",
+    "hours": "Oct 01-Oct Su[-1] 08:00-19:30; Oct Su[-1]-Feb 29 08:00-17:45; Mar 01-M",
+    "m": 1872
+   },
+   {
+    "title": "Jardin Marie Poussepin",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 127
+   },
+   {
+    "title": "Square de la place Etienne Pernet",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 318
    }
   ],
   "neighbours": [
@@ -1006,23 +2408,27 @@
    7,
    14,
    16
-  ]
+  ],
+  "vetSat": 3,
+  "vetSun": 0,
+  "vetHours": 3
  },
  "paris-16": {
   "n": 16,
   "counts": {
-   "shop": 2,
-   "water": 29,
-   "vet": 2,
-   "groomer": 1,
-   "park": 1
+   "vet": 6,
+   "shop": 4,
+   "groomer": 2,
+   "dogpark": 5,
+   "water": 105,
+   "green": 68
   },
   "places": [
    {
     "title": "Vet' 16",
     "cat": "vet",
-    "address": "13 Chaussée de la Muette 75016 Paris",
-    "hours": "Mo-Tu 09:00-13:00,14:00-18:00; We 09:00-13:30; Th-Fr 09:00-1",
+    "address": "13 Chaussée de la Muette 75016",
+    "hours": "Mo-Tu 09:00-13:00,14:00-18:00; We 09:00-13:30; Th-Fr 09:00-13:00,14:00",
     "m": 679
    },
    {
@@ -1033,11 +2439,39 @@
     "m": 877
    },
    {
+    "title": "My Veto Center",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 1643
+   },
+   {
+    "title": "Clinique Vétérinaire Argos",
+    "cat": "vet",
+    "address": "35 Rue Leconte de Lisle 75016",
+    "hours": "Mo-Fr 09:30-19:30; Sa 10:00-17:00",
+    "m": 1867
+   },
+   {
+    "title": "Clinique vétérinaire Amivet",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 2318
+   },
+   {
     "title": "Bella Spa & Toilettage",
     "cat": "groomer",
     "address": "",
     "hours": "Mo-Sa 10:00-19:00",
     "m": 745
+   },
+   {
+    "title": "Au comptoir des quatre pattes",
+    "cat": "groomer",
+    "address": "7 Rue d'Auteuil 75016",
+    "hours": "Tu-Sa 09:00-18:00",
+    "m": 1913
    },
    {
     "title": "Les animaux de Paris",
@@ -1052,6 +2486,141 @@
     "address": "",
     "hours": "",
     "m": 666
+   },
+   {
+    "title": "Franck Philip",
+    "cat": "shop",
+    "address": "2 Rue Henri Heine 75016",
+    "hours": "",
+    "m": 1579
+   },
+   {
+    "title": "C4V Paris 16",
+    "cat": "shop",
+    "address": "130 Avenue Mozart 75016",
+    "hours": "",
+    "m": 1790
+   },
+   {
+    "title": "Pelouse Longchamp au bout des lacs",
+    "cat": "dogpark",
+    "address": "",
+    "hours": "",
+    "m": 1413
+   },
+   {
+    "title": "Pelouse de l’espérance",
+    "cat": "dogpark",
+    "address": "",
+    "hours": "",
+    "m": 3095
+   },
+   {
+    "title": "Parc canin",
+    "cat": "dogpark",
+    "address": "",
+    "hours": "",
+    "m": 3404
+   }
+  ],
+  "greens": [
+   {
+    "title": "Square Lamartine",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 183
+   },
+   {
+    "title": "Place José Martí",
+    "cat": "green",
+    "address": "Place José Marti",
+    "hours": "24/7",
+    "m": 651
+   },
+   {
+    "title": "Allée des Cygnes",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 1309
+   },
+   {
+    "title": "Parc de Bagatelle",
+    "cat": "green",
+    "address": "Route de Sèvres à Neuilly 75016",
+    "hours": "Mo-Su 09:30-20:00",
+    "m": 2280
+   },
+   {
+    "title": "Jardin des serres d’Auteuil",
+    "cat": "green",
+    "address": "3 Avenue de la Porte d'Auteuil 75016;75116",
+    "hours": "Mo-Fr 08:00-20:00; Sa-Su 09:00-20:00",
+    "m": 2593
+   },
+   {
+    "title": "Jardin Jan Doornik",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 510
+   },
+   {
+    "title": "Jardin Claude Debussy",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 574
+   },
+   {
+    "title": "Jardin Maurice Barlier",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 612
+   },
+   {
+    "title": "Square Alexandre 1er de Yougoslavie",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 636
+   },
+   {
+    "title": "Jardin du Général Anselin",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 652
+   },
+   {
+    "title": "Square Robert Schuman",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 670
+   },
+   {
+    "title": "Square de Yorktown",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 735
+   },
+   {
+    "title": "Jardin du Ranelagh",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 789
+   },
+   {
+    "title": "Place du Maréchal de Lattre de Tassigny",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 892
    }
   ],
   "neighbours": [
@@ -1059,16 +2628,20 @@
    8,
    15,
    17
-  ]
+  ],
+  "vetSat": 2,
+  "vetSun": 0,
+  "vetHours": 3
  },
  "paris-17": {
   "n": 17,
   "counts": {
-   "water": 37,
-   "vet": 7,
-   "shop": 4,
-   "park": 2,
-   "groomer": 1
+   "vet": 12,
+   "shop": 5,
+   "groomer": 1,
+   "dogpark": 1,
+   "water": 36,
+   "green": 40
   },
   "places": [
    {
@@ -1093,11 +2666,25 @@
     "m": 1028
    },
    {
-    "title": "La Laisse",
+    "title": "Clinique vétérinaire Batignolles-Epinettes",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-12:00,14:00-19:30; Sa 09:00-13:00,14:00-18:00",
+    "m": 1117
+   },
+   {
+    "title": "Ouest My Vet",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 08:00-20:00; Sa 09:00-19:00",
+    "m": 1711
+   },
+   {
+    "title": "Toutou des Épinettes",
     "cat": "groomer",
     "address": "",
-    "hours": "Tu-Fr 10:00-19:00; Sa 10:30-19:30; PH closed; Mo 10:00-18:00",
-    "m": 782
+    "hours": "",
+    "m": 1776
    },
    {
     "title": "The Doggy Shop",
@@ -1126,6 +2713,113 @@
     "address": "",
     "hours": "",
     "m": 933
+   },
+   {
+    "title": "C4V",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Fr 10:00-19:30; Sa 10:00-19:00; PH closed",
+    "m": 1547
+   }
+  ],
+  "greens": [
+   {
+    "title": "Parc Clichy-Batignolles Martin Luther King",
+    "cat": "green",
+    "address": "",
+    "hours": "May-Aug Mo-Fr 07:00-21:30; May-Aug Sa,Su 08:00-21:30; Sep Mo-Fr 07:00-",
+    "m": 666
+   },
+   {
+    "title": "Square Ernest Gouin",
+    "cat": "green",
+    "address": "Rue Boulay 75017",
+    "hours": "Mo-Fr 08:00-19:30, Sa-Su 09:00-19:30",
+    "m": 1137
+   },
+   {
+    "title": "Square de la Villa Sainte-Croix",
+    "cat": "green",
+    "address": "",
+    "hours": "Mo-Fr 09:30-20:30; Sa-Su 09:00-20:30",
+    "m": 1528
+   },
+   {
+    "title": "Square Alexis-Clerel de Tocqueville",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 69
+   },
+   {
+    "title": "Jardin Claire Motte",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 519
+   },
+   {
+    "title": "Jardin Solitude",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 570
+   },
+   {
+    "title": "Jardin de la Lituanie",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 602
+   },
+   {
+    "title": "Jardin André-Ulmann",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 640
+   },
+   {
+    "title": "Square des Batignolles",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 705
+   },
+   {
+    "title": "Terrain de boules Boulevard de Reims",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 715
+   },
+   {
+    "title": "Square Albert Besnard",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 735
+   },
+   {
+    "title": "Jardin de Perlimpinpin",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 763
+   },
+   {
+    "title": "Promenade Gilberte Brossolette",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 863
+   },
+   {
+    "title": "Promenade Bernard Lafray",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 866
    }
   ],
   "neighbours": [
@@ -1133,22 +2827,26 @@
    9,
    16,
    18
-  ]
+  ],
+  "vetSat": 4,
+  "vetSun": 0,
+  "vetHours": 4
  },
  "paris-18": {
   "n": 18,
   "counts": {
-   "water": 40,
-   "vet": 2,
+   "vet": 4,
+   "shop": 2,
    "groomer": 1,
-   "park": 1,
-   "shop": 2
+   "dogpark": 3,
+   "water": 75,
+   "green": 51
   },
   "places": [
    {
     "title": "Clinique vétérinaire Clignancourt Paris - Sevetys",
     "cat": "vet",
-    "address": "15 Square de Clignancourt 75018 Paris",
+    "address": "15 Square de Clignancourt 75018",
     "hours": "Mo-Fr 09:00-14:00,15:00-19:00; Sa 09:00-13:30,14:30-17:00",
     "m": 193
    },
@@ -1158,6 +2856,20 @@
     "address": "",
     "hours": "",
     "m": 945
+   },
+   {
+    "title": "Pascal Corbel",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 1180
+   },
+   {
+    "title": "Clinique vétérinaire Championnet",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 1422
    },
    {
     "title": "Gwendog",
@@ -1170,22 +2882,129 @@
     "title": "Animalis",
     "cat": "shop",
     "address": "87 Rue Damrémont 75018",
-    "hours": "Mo-Sa 10:00-19:30",
+    "hours": "Mo-Sa 10:00-19:30; Su 10:00-14:00",
     "m": 883
    },
    {
     "title": "Barkers and Brothers",
     "cat": "shop",
-    "address": "8 Rue Androuet 75018 Paris",
+    "address": "8 Rue Androuet 75018",
     "hours": "",
     "m": 1028
    },
    {
+    "title": "Jardin Nusch Éluard",
+    "cat": "dogpark",
+    "address": "",
+    "hours": "",
+    "m": 800
+   },
+   {
     "title": "Square Nadar",
-    "cat": "park",
+    "cat": "dogpark",
     "address": "",
     "hours": "24/7",
     "m": 872
+   }
+  ],
+  "greens": [
+   {
+    "title": "Jardin Jane Vialle",
+    "cat": "green",
+    "address": "",
+    "hours": "Oct 01-Oct Su[-1] 08:00-18:30; Oct Su[-1]-Feb 29 08:00-17:00; Mar 01-M",
+    "m": 486
+   },
+   {
+    "title": "Petite Ceinture du 18e",
+    "cat": "green",
+    "address": "75018",
+    "hours": "We-Fr 08:00-19:30; Sa-Su 09:00-19:30",
+    "m": 583
+   },
+   {
+    "title": "Square du 21 Avril 1944",
+    "cat": "green",
+    "address": "",
+    "hours": "Oct 01-Oct Su[-1] 09:00-18:30; Oct Su[-1]-Feb 29 09:00-17:00; Mar 01-M",
+    "m": 815
+   },
+   {
+    "title": "Square Louise Michel",
+    "cat": "green",
+    "address": "",
+    "hours": "08:00-17:45; PH,Sa,Su 08:00-09:00 off, Mar 01-Mar Su[-1] 17:45-19:00, ",
+    "m": 861
+   },
+   {
+    "title": "jardin Louise-Weber-dite-La-Goulue",
+    "cat": "green",
+    "address": "14 Rue Burq 75018",
+    "hours": "Oct 01-Oct Su[-1] 09:00-18:30; Oct Su[-1]-Feb 29 09:00-17:00; Mar 01-M",
+    "m": 1079
+   },
+   {
+    "title": "Jardins Rosa Luxemburg",
+    "cat": "green",
+    "address": "",
+    "hours": "Oct 01-Oct Su[-1] 09:00-18:30; Oct Su[-1]-Feb 29 09:00-17:00; Mar 01-M",
+    "m": 1154
+   },
+   {
+    "title": "Jardin éphémère Baudelique",
+    "cat": "green",
+    "address": "27 Rue Baudelique 75018",
+    "hours": "",
+    "m": 108
+   },
+   {
+    "title": "Square Maurice Kriegel-Valrimont",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 147
+   },
+   {
+    "title": "Jardin d'enfants de la rue du Simplon",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 199
+   },
+   {
+    "title": "Jardin Henri-Sauvage",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 327
+   },
+   {
+    "title": "Square Sainte-Hélène",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 569
+   },
+   {
+    "title": "Square Marcel-Bleustein-Blanchet",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 618
+   },
+   {
+    "title": "Les Jardins du Ruisseau",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 692
+   },
+   {
+    "title": "Jardin sauvage Saint-Vincent",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 715
    }
   ],
   "neighbours": [
@@ -1193,16 +3012,20 @@
    10,
    17,
    19
-  ]
+  ],
+  "vetSat": 1,
+  "vetSun": 0,
+  "vetHours": 1
  },
  "paris-19": {
   "n": 19,
   "counts": {
-   "shop": 2,
    "vet": 6,
-   "water": 31,
-   "park": 2,
-   "groomer": 1
+   "shop": 4,
+   "groomer": 1,
+   "dogpark": 4,
+   "water": 67,
+   "green": 53
   },
   "places": [
    {
@@ -1216,15 +3039,15 @@
     "title": "Clinique Vétérinaire Mon Véto Paris 19",
     "cat": "vet",
     "address": "",
-    "hours": "",
+    "hours": "Mo-Sa 09:00-19:00",
     "m": 976
    },
    {
-    "title": "Vétérinaire Crimée",
+    "title": "Clinique vétérinaire Place des Fêtes",
     "cat": "vet",
     "address": "",
-    "hours": "",
-    "m": 1056
+    "hours": "24/7",
+    "m": 1379
    },
    {
     "title": "Centre Canin Toilettage",
@@ -1241,6 +3064,13 @@
     "m": 117
    },
    {
+    "title": "A 4 Pattes",
+    "cat": "shop",
+    "address": "",
+    "hours": "",
+    "m": 499
+   },
+   {
     "title": "Cayu",
     "cat": "shop",
     "address": "",
@@ -1249,25 +3079,137 @@
    },
    {
     "title": "Parc à chien (Buttes Chaumont)",
-    "cat": "park",
+    "cat": "dogpark",
     "address": "",
     "hours": "",
     "m": 666
+   },
+   {
+    "title": "Plate-bande du boulevard Sérurier",
+    "cat": "dogpark",
+    "address": "",
+    "hours": "",
+    "m": 1728
+   }
+  ],
+  "greens": [
+   {
+    "title": "Petite Ceinture du 19e",
+    "cat": "green",
+    "address": "30 Rue de Thionville 75019",
+    "hours": "Tu-Su 12:00-17:00",
+    "m": 37
+   },
+   {
+    "title": "Parc des Buttes-Chaumont",
+    "cat": "green",
+    "address": "",
+    "hours": "Apr,Sep 07:00-21:00; Oct-Mar 07:00-20:00; May-Aug 07:00-22:00",
+    "m": 843
+   },
+   {
+    "title": "Jardin de l'îlot Riquet",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 856
+   },
+   {
+    "title": "Jardin 21",
+    "cat": "green",
+    "address": "",
+    "hours": "We-Sa 12:00-02:00;Su 12:00-22:00",
+    "m": 1275
+   },
+   {
+    "title": "Jardin promenade Cesária Évora",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 1305
+   },
+   {
+    "title": "Square Rébeval",
+    "cat": "green",
+    "address": "",
+    "hours": "Oct 01-Oct Su[-1] 09:30-18:30; Oct Su[-1]-Feb 29 09:30-17:00; Mar 01-M",
+    "m": 1508
+   },
+   {
+    "title": "Square Claude Bernard",
+    "cat": "green",
+    "address": "176 Boulevard Macdonald 75019",
+    "hours": "Oct 01-Oct Su[-1] 08:00-19:30; Oct Su[-1]-Feb 29 08:00-17:45; Mar 01-M",
+    "m": 1531
+   },
+   {
+    "title": "Forêt linéaire Nord",
+    "cat": "green",
+    "address": "",
+    "hours": "Oct 01-Oct Su[-1] 09:00-19:30; Oct Su[-1]-Feb 29 09:00-17:45; Mar 01-M",
+    "m": 1595
+   },
+   {
+    "title": "La parcelle",
+    "cat": "green",
+    "address": "",
+    "hours": "Sa-Su",
+    "m": 1921
+   },
+   {
+    "title": "Le P'tit Bol d'Herbe",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 182
+   },
+   {
+    "title": "Square Petit",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 300
+   },
+   {
+    "title": "Jardin Saint-Serge",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 446
+   },
+   {
+    "title": "Square Serge Reggiani",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 463
+   },
+   {
+    "title": "Jardin des Miroirs",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 540
    }
   ],
   "neighbours": [
    10,
    18,
    20
-  ]
+  ],
+  "vetSat": 3,
+  "vetSun": 1,
+  "vetHours": 3
  },
  "paris-20": {
   "n": 20,
   "counts": {
-   "vet": 7,
-   "water": 58,
+   "vet": 8,
    "shop": 1,
-   "park": 2
+   "groomer": 0,
+   "dogpark": 3,
+   "water": 100,
+   "green": 64
   },
   "places": [
    {
@@ -1280,16 +3222,16 @@
    {
     "title": "Vétérinaires 2 toute urgence",
     "cat": "vet",
-    "address": "175bis rue des Pyrénées 75020 Paris",
-    "hours": "Mo-Su 00:00-24:00; 2026 May 1,2026 May 8,2026 May 14,2026 Ma",
-    "m": 329
+    "address": "175bis rue des Pyrénées 75020",
+    "hours": "Mo-Su 00:00-24:00; 2026 Nov 1,2026 Nov 11 00:00-24:00; 2027 Jan 1 00:0",
+    "m": 336
    },
    {
     "title": "UC Vet",
     "cat": "vet",
-    "address": "175 Rue des Pyrénées 75020 Paris",
+    "address": "175 Rue des Pyrénées 75020",
     "hours": "Mo-Fr 08:00-19:00; Sa 08:00-18:00",
-    "m": 339
+    "m": 342
    },
    {
     "title": "Clinique vétérinaire Gambetta",
@@ -1301,7 +3243,7 @@
    {
     "title": "Focteur Sophie dolparis",
     "cat": "vet",
-    "address": "62 Rue de Bagnolet 75020 Paris",
+    "address": "62 Rue de Bagnolet 75020",
     "hours": "Mo-Fr 09:00-12:00, Mo-Fr 14:30-19:00, Sa 09:00-13:00",
     "m": 634
    },
@@ -1311,12 +3253,122 @@
     "address": "",
     "hours": "",
     "m": 473
+   },
+   {
+    "title": "Parc Canin",
+    "cat": "dogpark",
+    "address": "",
+    "hours": "",
+    "m": 1321
+   }
+  ],
+  "greens": [
+   {
+    "title": "Jardinet de l'église Saint-Germain de Charonne",
+    "cat": "green",
+    "address": "",
+    "hours": "Oct 01-Oct Su[-1] 09:30-18:30; Oct Su[-1]-Feb 29 09:30-17:00; Mar 01-M",
+    "m": 395
+   },
+   {
+    "title": "Square Henri-Karcher",
+    "cat": "green",
+    "address": "Rue des Pyrénées",
+    "hours": "Oct 01-Oct Su[-1] 09:30-18:30; Oct Su[-1]-Feb 29 09:30-17:00; Mar 01-M",
+    "m": 397
+   },
+   {
+    "title": "Square du Docteur Jacques-Joseph Grancher",
+    "cat": "green",
+    "address": "",
+    "hours": "Mo-Su 09:30-17:00; Jan 27-Feb 28 closed",
+    "m": 562
+   },
+   {
+    "title": "Jardin de Vitaly",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 696
+   },
+   {
+    "title": "Jardin Nicole Maestracci",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 724
+   },
+   {
+    "title": "Square de la Place de la Réunion",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 813
+   },
+   {
+    "title": "La Petite Ceinture du 20e",
+    "cat": "green",
+    "address": "11 Rue de la Mare 75020",
+    "hours": "Mo-Fr 08:00-17:00",
+    "m": 1133
+   },
+   {
+    "title": "Square du Docteur Variot",
+    "cat": "green",
+    "address": "",
+    "hours": "24/7",
+    "m": 1472
+   },
+   {
+    "title": "Parc de Belleville",
+    "cat": "green",
+    "address": "",
+    "hours": "Mo-Fr 08:00-19:00; Sa-Su 09:00-19:00; Mar 27-Apr 30 Mo-Su 09:00-20:30",
+    "m": 1494
+   },
+   {
+    "title": "Bois de Charonne",
+    "cat": "green",
+    "address": "Cours de Vincennes 75020",
+    "hours": "Mo-Fr 08:00-20:30; Sa-Su 09:00-20:30",
+    "m": 1587
+   },
+   {
+    "title": "Jardin des Oiseaux",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 201
+   },
+   {
+    "title": "Square Édouard-Vaillant",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 254
+   },
+   {
+    "title": "Square Antoine Blondin",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 424
+   },
+   {
+    "title": "Jardin de l'Hospice Debrousse",
+    "cat": "green",
+    "address": "",
+    "hours": "",
+    "m": 444
    }
   ],
   "neighbours": [
    11,
    12,
    19
-  ]
+  ],
+  "vetSat": 5,
+  "vetSun": 2,
+  "vetHours": 5
  }
 }

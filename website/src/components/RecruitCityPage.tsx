@@ -1,5 +1,5 @@
 import Link from "next/link";
-import ParisLocalPlaces from "@/components/ParisLocalPlaces";
+import ParisLocalPlaces, { parisEntry } from "@/components/ParisLocalPlaces";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 import { OWNER_PATH_PREFIX } from "@/lib/recruit-cities";
 
@@ -283,42 +283,44 @@ export function recruitMetadata(c: RecruitCity, canonical: string) {
 
 export default function RecruitCityPage({ city }: { city: RecruitCity }) {
   const copy = COPY[city.lang];
-  const faq = copy.faq(city);
+  const paris = city.lang === "fr" && !!parisEntry(city.slug);
+  const faq = paris ? [] : copy.faq(city);
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
       { "@type": "WebPage", name: copy.h1(city), inLanguage: copy.inLanguage },
-      {
+      ...(faq.length ? [{
         "@type": "FAQPage",
         mainEntity: faq.map((f) => ({
           "@type": "Question",
           name: f.q,
           acceptedAnswer: { "@type": "Answer", text: f.a },
         })),
-      },
+      }] : []),
     ],
   };
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-16 md:py-24">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <p className="text-sm font-semibold text-sitter-dark">{copy.kicker(city)}</p>
-      <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">{copy.h1(city)}</h1>
-      <p className="mt-4 text-lg leading-relaxed text-ink-muted">{copy.intro(city)}</p>
+      {!paris && <p className="text-sm font-semibold text-sitter-dark">{copy.kicker(city)}</p>}
+      <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">{paris ? `Devenir pet sitter, ${city.name}` : copy.h1(city)}</h1>
+      {!paris && <p className="mt-4 text-lg leading-relaxed text-ink-muted">{copy.intro(city)}</p>}
 
-      <div className="mt-8 flex flex-wrap gap-3">
+      {!paris && <div className="mt-8 flex flex-wrap gap-3">
         {copy.badges.map((b) => (
           <span key={b} className="rounded-full border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink shadow-card">{b}</span>
         ))}
-      </div>
+      </div>}
 
       <div className="mt-10 rounded-2xl border border-sitter/20 bg-sitter-light/60 p-6">
         <h2 className="font-display text-xl font-extrabold text-ink">{copy.localTitle(city)}</h2>
         <p className="mt-2 text-sm leading-relaxed text-ink-muted">{city.local}</p>
       </div>
 
-      {city.lang === "fr" && <ParisLocalPlaces slug={city.slug} mode="recruit" />}
+      {paris && <ParisLocalPlaces slug={city.slug} mode="recruit" />}
 
+      {!paris && (<>
       <h2 className="mt-14 font-display text-2xl font-extrabold text-ink">{copy.howTitle}</h2>
       <ol className="mt-6 space-y-4">
         {copy.steps.map((s, i) => (
@@ -341,17 +343,18 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
           </div>
         ))}
       </div>
+      </>)}
 
       <div className="mt-14 rounded-3xl bg-sitter-light p-8 text-center">
-        <h2 className="font-display text-2xl font-extrabold text-ink">{copy.ctaTitle(city)}</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-ink-muted">{copy.ctaText(city)}</p>
-        <Link href="/download" className="mt-5 inline-block rounded-full bg-sitter px-7 py-3 text-sm font-bold text-white">{copy.ctaBtn}</Link>
+        <h2 className="font-display text-2xl font-extrabold text-ink">{paris ? `${city.name} avec HoPetSit` : copy.ctaTitle(city)}</h2>
+        {!paris && <p className="mx-auto mt-2 max-w-md text-sm text-ink-muted">{copy.ctaText(city)}</p>}
+        <Link href="/download" className="mt-5 inline-block rounded-full bg-sitter px-7 py-3 text-sm font-bold text-white">{paris ? "Télécharger" : copy.ctaBtn}</Link>
       </div>
 
       {/* v560 — lien croisé vers la page « trouver un pet sitter à <ville> ». */}
       <p className="mt-8 text-center text-sm">
         <Link href={`${OWNER_PATH_PREFIX[city.lang]}/${city.slug}`} className="font-semibold text-owner underline-offset-4 hover:underline">
-          {OWNER_LINK[city.lang](city)}
+          {paris ? `${city.name} : trouver un pet sitter →` : OWNER_LINK[city.lang](city)}
         </Link>
       </p>
     </div>
