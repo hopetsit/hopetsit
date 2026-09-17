@@ -220,6 +220,17 @@ leur e-mail** (0 des 5 inscrits de la semaine) → la vérification par code est
 13 codes renvoyés le 14/09. Piste (rebuild app) : laisser entrer sans code et vérifier plus tard,
 ou lien magique dans l'e-mail. Routines cloud « équipe d'agents » NON créées (consomment son
 forfait) : tout est en scripts locaux gratuits.
+**17/09 — SEARCH CONSOLE : doublons et pages non indexées** (Daniel : « dis à Bob de corriger ça et
+de me faire exploser à Paris et USA »). Constat : 320 détectées non indexées, 20 doublons sans
+canonique, 14 explorées non indexées. Cause des doublons = QR des affiches `/download?ref=…` (et
+?utm/?lang) sans canonique. Corrigé : `website/src/middleware.ts` → en-tête HTTP
+`Link: <https://www.hopetsit.com{path}>; rel="canonical"` sur TOUTES les pages (y compris « use
+client », qui ne peuvent pas exporter de metadata) + `X-Robots-Tag: noindex, follow` sur login,
+signup, verify-email, open, pay, kyc-complete, search, map, boutique, posts, pawpoints, family, book
+et espaces privés ; `sitemap.ts` : login/signup retirés, priorités (accueil 1 ; blog, /villes, FR et
+villes US 0,8 ; villes EN hors USA 0,4 ; autres langues 0,3) ; accueil : bloc « Pet sitters à Paris
+et en Île-de-France / in the United States » (20 arrondissements, 7 communes, 16 villes US).
+Vérifié en ligne (en-têtes présents, PDF des affiches non touchés) ; IndexNow 651 URL.
 **16/09 — Bob : prospection des pros de l'animal** (3 fichiers xlsx fournis par Daniel : pros
 Paris/IDF 180, vétérinaires IDF 120, santé animale 10 villes 156). Vérifiés : 456 lignes → **329
 retenues** (écartés : 106 2e adresse d'une même entreprise, 14 déjà contactés, 4 domaines sans
