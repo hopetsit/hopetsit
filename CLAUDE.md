@@ -231,6 +231,23 @@ et espaces privés ; `sitemap.ts` : login/signup retirés, priorités (accueil 1
 villes US 0,8 ; villes EN hors USA 0,4 ; autres langues 0,3) ; accueil : bloc « Pet sitters à Paris
 et en Île-de-France / in the United States » (20 arrondissements, 7 communes, 16 villes US).
 Vérifié en ligne (en-têtes présents, PDF des affiches non touchés) ; IndexNow 651 URL.
+**17/09 (après-midi) — Paris ≥ 80 % unique (consigne Daniel « 80 % minimum », « fais preuve
+d'excellence »).** Mesure (`~/hopetsit-social/uniq_paris.py`, contenu `<main>` seul, chaque page
+contre les 19 autres) : avant 15-50 % unique ; après **90-99 % par phrases et 80-91 % en 5-mots
+(le plus strict), 40/40 pages ≥ 80 %**. Moyens : sur les arrondissements, OwnerCityPage et
+RecruitCityPage masquent kicker, intro, badges, services, garanties, prix, étapes et FAQ
+génériques (plus de FAQPage JSON-LD), titres courts avec le numéro (« Pet sitter Paris 11e : garde
+et promenade », « Devenir pet sitter, Paris 11e »), CTA « Paris 11e avec HoPetSit » ;
+`ParisLocalPlaces` = chiffres, vétos (ouverts sam./dim.), commerces animaliers, espaces canins,
+jardins nommés (horaires OSM humanisés, formats saisonniers masqués), balades canines, voisins.
+Données `paris_places_build.py` réécrit : **OpenStreetMap par FRONTIÈRE d'arrondissement**
+(Overpass admin_level 9, aucun lieu partagé) + PawMap seulement si le lieu PawMap est à < 150 m
+(sinon une enseigne comme Animalis prenait l'adresse d'une autre boutique). Pas de page ville hors
+Paris touchée (/garde-animaux/lyon inchangée). ⚠️ **Vercel Security Checkpoint** (403
+`x-vercel-mitigated: challenge`) présenté à CE Mac après des centaines de curl de vérification :
+un navigateur le passe en 5 s, Googlebot et les robots Meta ne sont pas concernés. NE PLUS
+sonder le site en boucle ; `indexnow.py` reconstruit la liste des URL depuis le dépôt si le
+sitemap est illisible, `bob_prospection.py` et `publier_semaine.py` tolèrent ce 403.
 **17/09 — PRIORITÉ BOB : INDEXATION PARIS** (Daniel). Cause : 20 arrondissements quasi identiques
 (21 phrases sur 27 communes entre 11e et 15e). Fait : `components/ParisLocalPlaces.tsx` inséré dans
 OwnerCityPage et RecruitCityPage (fr) = compteurs et 8 lieux RÉELS de la PawMap autour de
