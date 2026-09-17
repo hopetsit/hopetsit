@@ -231,6 +231,20 @@ et espaces privés ; `sitemap.ts` : login/signup retirés, priorités (accueil 1
 villes US 0,8 ; villes EN hors USA 0,4 ; autres langues 0,3) ; accueil : bloc « Pet sitters à Paris
 et en Île-de-France / in the United States » (20 arrondissements, 7 communes, 16 villes US).
 Vérifié en ligne (en-têtes présents, PDF des affiches non touchés) ; IndexNow 651 URL.
+**17/09 — Bob lit la Search Console tout seul** (lecture seule). Clés de compte de service
+INTERDITES par la règle d'organisation `iam.disableServiceAccountKeyCreation` → OAuth « application de
+bureau » : projet Google Cloud `orbital-bee-508911-e0` (compte hopetsit@gmail.com, séparé de
+LawsTravels), écran de consentement « HoPetSit Bob » PUBLIÉ en production (sinon jeton expiré en
+7 jours ; branding = hopetsit.com + /privacy + /terms), client `~/.hopetsit_gsc_client.json`, jeton
+`~/.hopetsit_gsc_token.json` (600, rafraîchi automatiquement), venv `~/hopetsit-social/.venv-gsc`.
+Ré-autoriser si besoin : `.venv-gsc/bin/python gsc_auth.py` (ouvre la page Google dans Chrome u/8).
+Le navigateur intégré refuse la connexion Google (« Un problème est survenu ») et y est connecté à
+lawstravels@gmail.com : ne rien créer dedans. `gsc_bob.py` = clics/impressions 28 j (FR/US), top
+requêtes/pages, sitemap, et inspection d'URL de 42 pages clés Paris + USA ; intégré au rapport du
+lundi (`bob_hebdo.py`, bloc GOOGLE). **Premier relevé 17/09** : 16 clics / 1 321 impressions en 28 j
+(France 99 impressions, USA 770) ; pages clés indexées 14/42 (14 détectées non indexées, 13 inconnues
+de Google = villes US ajoutées le 14/09, 1 doublon) ; /devenir-petsitter/paris et les 20
+arrondissements PAS indexés → priorité SEO France.
 **16/09 — Bob : prospection des pros de l'animal** (3 fichiers xlsx fournis par Daniel : pros
 Paris/IDF 180, vétérinaires IDF 120, santé animale 10 villes 156). Vérifiés : 456 lignes → **329
 retenues** (écartés : 106 2e adresse d'une même entreprise, 14 déjà contactés, 4 domaines sans
