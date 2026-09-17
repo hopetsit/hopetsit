@@ -414,6 +414,14 @@ faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
     chaque tableau se charge, chaque filtre et export marche, les compteurs sont à jour et
     cliquables (points 21 et 31). Contrainte permanente : ne rien retirer des fonctions existantes,
     et l'admin étant servi par le backend Render, pas de rebuild app nécessaire pour cette partie.
+35. **Accueil et Réservations : même consigne que le Profil (point 33)** (Daniel, 17/09) : carte
+    blanche pour réorganiser les blocs, onglets et catégories de l'**Accueil** (bandeau, demande de
+    service, Mes annonces / Pet-sitters / Promeneurs, cartes) et de **Réservations** (filtres,
+    statuts, factures) si c'est plus clair ; moderniser chaque page ET chaque sous-page (détail
+    d'annonce, création/édition d'annonce, profil sitter/promeneur ouvert depuis l'accueil, détail
+    de réservation, paiement, facture, avis, suivi de promenade) ; vérifier pour chaque écran
+    qu'il est branché, fonctionnel (aucun bouton mort, états vide/chargement/erreur) et traduit
+    dans les 9 langues sans débordement. Excellence exigée, aucune fonction retirée.
 Puis : build simulateur + tests, IPA (flutter clean avant) + Transporter, AAB + `play_release_api.py`,
 admin « Versions de l'app » 565/565 après validations, journal + mémoire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
