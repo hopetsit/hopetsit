@@ -422,6 +422,12 @@ faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
     de réservation, paiement, facture, avis, suivi de promenade) ; vérifier pour chaque écran
     qu'il est branché, fonctionnel (aucun bouton mort, états vide/chargement/erreur) et traduit
     dans les 9 langues sans débordement. Excellence exigée, aucune fonction retirée.
+36. **Messages (chat) : même consigne** (Daniel, 17/09, complète les points 13, 16 et 18) :
+    réorganiser la liste des conversations et l'écran de discussion si c'est plus clair ;
+    moderniser chaque sous-page (conversation, envoi photo/vidéo, vocal, réponse à un message,
+    profil du correspondant, demandes d'amis, chat du cercle PawMap, notifications de message) ;
+    vérifier que tout est branché (temps réel, non-lus, point vert en ligne), fonctionnel et
+    traduit dans les 9 langues. Excellence exigée, aucune fonction retirée.
 Puis : build simulateur + tests, IPA (flutter clean avant) + Transporter, AAB + `play_release_api.py`,
 admin « Versions de l'app » 565/565 après validations, journal + mémoire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
