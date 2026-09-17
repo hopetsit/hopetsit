@@ -401,6 +401,13 @@ faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
 32. **Chaîne de paiement complète, re-vérifiée de bout en bout** : propriétaire → sitter/promeneur
     (paiement, commission 20 %, séquestre, libération au rendu, wallet, retrait) ET boutique /
     abonnements (PawBoost, PawSpot, PawFollow/Family, Premium, Apple IAP, Google Play).
+33. **Carte blanche sur le Profil et ses sous-pages** (Daniel, 17/09, renforce le point 26) : ne
+    pas hésiter à **réorganiser les catégories** de la page Profil et les **slides / carrousels**
+    (ordre, regroupements, libellés) si c'est plus clair ; **moderniser les pages et SURTOUT les
+    sous-pages** (chacune, une par une) ; pour chaque écran vérifier qu'il est **branché** (vraies
+    données serveur, actions qui aboutissent, synchro entre les 3 profils), **fonctionnel** (aucun
+    bouton mort, états vide/chargement/erreur) et **bien traduit dans les 9 langues** (aucune clé
+    brute, aucun texte en dur, textes qui ne débordent pas). Exigence d'excellence.
 Puis : build simulateur + tests, IPA (flutter clean avant) + Transporter, AAB + `play_release_api.py`,
 admin « Versions de l'app » 565/565 après validations, journal + mémoire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
