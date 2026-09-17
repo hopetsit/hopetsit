@@ -231,6 +231,14 @@ et espaces privés ; `sitemap.ts` : login/signup retirés, priorités (accueil 1
 villes US 0,8 ; villes EN hors USA 0,4 ; autres langues 0,3) ; accueil : bloc « Pet sitters à Paris
 et en Île-de-France / in the United States » (20 arrondissements, 7 communes, 16 villes US).
 Vérifié en ligne (en-têtes présents, PDF des affiches non touchés) ; IndexNow 651 URL.
+**17/09 — PRIORITÉ BOB : INDEXATION PARIS** (Daniel). Cause : 20 arrondissements quasi identiques
+(21 phrases sur 27 communes entre 11e et 15e). Fait : `components/ParisLocalPlaces.tsx` inséré dans
+OwnerCityPage et RecruitCityPage (fr) = compteurs et 8 lieux RÉELS de la PawMap autour de
+l'arrondissement (vétos, animaleries, toiletteurs, parcs, points d'eau), FAQ locale générée de ces
+lieux, liens vers les arrondissements voisins ; données `website/src/lib/paris-places.json` produites
+par `~/hopetsit-social/paris_places_build.py` (compte test owner, /map-pois/nearby rayon 1,1 km,
+noms génériques filtrés) et rafraîchies le 1er du mois par launchd `com.hopetsit.bob.paris`.
+Résultat mesuré 11e vs 15e : 42 % des mots en commun (≈ 85 % avant), 866 mots. IndexNow 651 URL.
 **17/09 — Bob lit la Search Console tout seul** (lecture seule). Clés de compte de service
 INTERDITES par la règle d'organisation `iam.disableServiceAccountKeyCreation` → OAuth « application de
 bureau » : projet Google Cloud `orbital-bee-508911-e0` (compte hopetsit@gmail.com, séparé de
