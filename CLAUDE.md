@@ -309,8 +309,18 @@ faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
    s'ouvre. Sur la **mini carte** aussi : petit bouton **chat direct avec les amis** dans le rail.
 4. **PawMap** : un vieux pop-up « Suivre en direct sur la PawMap » réapparaît parfois (reste
    d'anciens builds) → le supprimer.
-5. **Notifications** : vérifier Android et SURTOUT **Apple (ne marche pas)** — APNs, permission,
-   jeton, ouverture sur le bon écran.
+5. **Notifications — PRIORITÉ HAUTE (Daniel l'a redemandé le 17/09 : « toutes les notifications
+   Apple ne marchent pas »)** : vérifier Android et SURTOUT **Apple**, de bout en bout et type par type.
+   Chaîne iOS à contrôler dans l'ordre : clé APNs WJSPRXB7FC bien chargée côté Firebase (slot
+   PRODUCTION) ; entitlement `aps-environment = production` dans le build App Store ; capacité Push +
+   Background Modes « remote-notification » ; demande d'autorisation au bon moment ;
+   `getAPNSToken` puis jeton FCM obtenu et ENREGISTRÉ côté serveur pour le bon profil (les 3 rôles) ;
+   charge utile avec bloc `notification` + `apns` (son, badge) ; affichage app ouverte (premier plan),
+   en arrière-plan et app fermée ; tap → ouverture sur le bon écran (route). Tester CHAQUE type :
+   message, demande et acceptation d'ami, demande de service, réservation (demande, acceptation,
+   paiement, rappel 30 min, récupération, rendu), avis, wallet/retrait, abonnement, alerte PawMap,
+   partage en direct. Preuve attendue : notification reçue sur iPhone réel (TestFlight) pour chaque
+   type, pas seulement sur simulateur.
 6. **E-mails** : vérifier que TOUS les e-mails (vérification, cycle de vie, notifications, promo)
    sont bien traduits dans la langue du compte.
 7. **Autour de moi** : n'afficher QUE les lieux/services dédiés aux animaux ou pet-friendly
