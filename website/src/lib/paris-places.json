@@ -1,0 +1,1322 @@
+{
+ "paris-1": {
+  "n": 1,
+  "counts": {
+   "groomer": 3,
+   "water": 45,
+   "park": 1,
+   "vet": 3,
+   "shop": 3
+  },
+  "places": [
+   {
+    "title": "Dr. Franz Cappé",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-13:00,15:00-19:00 \"sur rendez-vous uniquement\"",
+    "m": 752
+   },
+   {
+    "title": "Cabinet Saint-Michel",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:30-19:00; Sa 09:30-13:00",
+    "m": 1061
+   },
+   {
+    "title": "Alpha",
+    "cat": "groomer",
+    "address": "",
+    "hours": "Mo-Sa 09:00-19:30, Su 10:00-17:00",
+    "m": 186
+   },
+   {
+    "title": "Les Trésors Pets",
+    "cat": "groomer",
+    "address": "",
+    "hours": "",
+    "m": 669
+   },
+   {
+    "title": "Pet So Chic",
+    "cat": "groomer",
+    "address": "",
+    "hours": "Tu-Fr 11:00-18:30, Sa 11:00-19:00",
+    "m": 816
+   },
+   {
+    "title": "Animalis",
+    "cat": "shop",
+    "address": "19 Rue du Quatre Septembre",
+    "hours": "Mo-Sa 10:00-19:30; Su off",
+    "m": 778
+   },
+   {
+    "title": "Royal Canin",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo 13:00-19:00, Tu-Sa 10:00-20:00",
+    "m": 1071
+   },
+   {
+    "title": "Moustaches",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Sa 10:30-19:30",
+    "m": 1076
+   }
+  ],
+  "neighbours": [
+   2,
+   3,
+   4,
+   6,
+   7,
+   8
+  ]
+ },
+ "paris-2": {
+  "n": 2,
+  "counts": {
+   "water": 34,
+   "shop": 3,
+   "vet": 4,
+   "groomer": 2,
+   "park": 1
+  },
+  "places": [
+   {
+    "title": "Argos",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-13:00,14:00-19:00; Sa 09:00-13:00; Su off",
+    "m": 927
+   },
+   {
+    "title": "Dr. Franz Cappé",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-13:00,15:00-19:00 \"sur rendez-vous uniquement\"",
+    "m": 1064
+   },
+   {
+    "title": "Clinique Vétérinaire de l'Horloge",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 1096
+   },
+   {
+    "title": "Les Trésors Pets",
+    "cat": "groomer",
+    "address": "",
+    "hours": "",
+    "m": 514
+   },
+   {
+    "title": "Alpha",
+    "cat": "groomer",
+    "address": "",
+    "hours": "Mo-Sa 09:00-19:30, Su 10:00-17:00",
+    "m": 849
+   },
+   {
+    "title": "Animalis",
+    "cat": "shop",
+    "address": "19 Rue du Quatre Septembre",
+    "hours": "Mo-Sa 10:00-19:30; Su off",
+    "m": 490
+   },
+   {
+    "title": "C4V",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Sa 10:00-13:30,14:30-19:00",
+    "m": 1011
+   }
+  ],
+  "neighbours": [
+   1,
+   3,
+   9,
+   10
+  ]
+ },
+ "paris-3": {
+  "n": 3,
+  "counts": {
+   "water": 60,
+   "groomer": 4,
+   "vet": 6,
+   "shop": 5
+  },
+  "places": [
+   {
+    "title": "AniCuea",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 467
+   },
+   {
+    "title": "Clinique Vétérinaire de l'Horloge",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 474
+   },
+   {
+    "title": "Assistance aux animaux",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 898
+   },
+   {
+    "title": "Les Trésors",
+    "cat": "groomer",
+    "address": "26 Rue Réaumur",
+    "hours": "",
+    "m": 275
+   },
+   {
+    "title": "Michette",
+    "cat": "groomer",
+    "address": "",
+    "hours": "Mo-Fr 10:30-19:30,Sa 09:00-19:30,Su 11:00-18:00",
+    "m": 806
+   },
+   {
+    "title": "nina dalle",
+    "cat": "groomer",
+    "address": "",
+    "hours": "",
+    "m": 982
+   },
+   {
+    "title": "Les Trésors Pets",
+    "cat": "groomer",
+    "address": "",
+    "hours": "",
+    "m": 1096
+   },
+   {
+    "title": "ChaCabo",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Sa 09:30-19:00",
+    "m": 472
+   }
+  ],
+  "neighbours": [
+   1,
+   2,
+   4,
+   10,
+   11
+  ]
+ },
+ "paris-4": {
+  "n": 4,
+  "counts": {
+   "water": 67,
+   "shop": 3,
+   "park": 2,
+   "vet": 4,
+   "groomer": 2
+  },
+  "places": [
+   {
+    "title": "Ophtavet",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-19:00; Sa 09:00-17:30",
+    "m": 631
+   },
+   {
+    "title": "Clinique Vétérinaire Saint-Germain",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 08:30-19:00; Sa 09:00-17:00",
+    "m": 786
+   },
+   {
+    "title": "Clinique Vétérinaire de l'Horloge",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 864
+   },
+   {
+    "title": "Dr. Franz Cappé",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-13:00,15:00-19:00 \"sur rendez-vous uniquement\"",
+    "m": 1054
+   },
+   {
+    "title": "nina dalle",
+    "cat": "groomer",
+    "address": "",
+    "hours": "",
+    "m": 839
+   },
+   {
+    "title": "Gino's",
+    "cat": "groomer",
+    "address": "",
+    "hours": "Mo-Fr 10:00-19:00, Sa 11:00-19:00",
+    "m": 853
+   },
+   {
+    "title": "Moustaches",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Sa 10:30-19:30, Su 12:00-19:00",
+    "m": 505
+   },
+   {
+    "title": "Caroline Coutret",
+    "cat": "shop",
+    "address": "",
+    "hours": "Tu,Th-Sa 09:00-19:00",
+    "m": 716
+   }
+  ],
+  "neighbours": [
+   1,
+   3,
+   5,
+   11,
+   12
+  ]
+ },
+ "paris-5": {
+  "n": 5,
+  "counts": {
+   "water": 41,
+   "vet": 6,
+   "shop": 1,
+   "groomer": 1,
+   "park": 3
+  },
+  "places": [
+   {
+    "title": "Clinique Vétérinaire Saint-Germain",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 08:30-19:00; Sa 09:00-17:00",
+    "m": 578
+   },
+   {
+    "title": "Dr Mireille Boller",
+    "cat": "vet",
+    "address": "14 Rue Gay-Lussac 75005 Paris",
+    "hours": "Mo-Fr 09:00-19:00; Sa 10:00-13:00",
+    "m": 648
+   },
+   {
+    "title": "Cabinet Vétérinaire Garcia Hardy Spitz",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Sa 08:00-19:00",
+    "m": 801
+   },
+   {
+    "title": "Ophtavet",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-19:00; Sa 09:00-17:30",
+    "m": 1034
+   },
+   {
+    "title": "Gino's",
+    "cat": "groomer",
+    "address": "",
+    "hours": "Mo-Fr 10:00-19:00, Sa 11:00-19:00",
+    "m": 530
+   },
+   {
+    "title": "Caroline Coutret",
+    "cat": "shop",
+    "address": "",
+    "hours": "Tu,Th-Sa 09:00-19:00",
+    "m": 509
+   }
+  ],
+  "neighbours": [
+   4,
+   6,
+   13,
+   14
+  ]
+ },
+ "paris-6": {
+  "n": 6,
+  "counts": {
+   "water": 35,
+   "vet": 6,
+   "shop": 3,
+   "park": 1,
+   "groomer": 1
+  },
+  "places": [
+   {
+    "title": "Argos",
+    "cat": "vet",
+    "address": "17 Rue de Tournon 75006 Paris",
+    "hours": "Mo-Fr 09:00-12:30,14:30-19:00; Sa 10:00-14:00",
+    "m": 373
+   },
+   {
+    "title": "Argos Stanislas",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-13:00,15:00-19:00; Sa 09:00-13:00",
+    "m": 649
+   },
+   {
+    "title": "Dr Mireille Boller",
+    "cat": "vet",
+    "address": "14 Rue Gay-Lussac 75005 Paris",
+    "hours": "Mo-Fr 09:00-19:00; Sa 10:00-13:00",
+    "m": 743
+   },
+   {
+    "title": "Urban Vet",
+    "cat": "vet",
+    "address": "81 Rue d'Assas 75006 Paris",
+    "hours": "Mo-Fr 09:00-19:00; Sa 09:00-18:00",
+    "m": 755
+   },
+   {
+    "title": "Cabinet Saint-Michel",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:30-19:00; Sa 09:30-13:00",
+    "m": 837
+   },
+   {
+    "title": "Physio by Urban Vet",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 902
+   },
+   {
+    "title": "Pet So Chic",
+    "cat": "groomer",
+    "address": "",
+    "hours": "Tu-Fr 11:00-18:30, Sa 11:00-19:00",
+    "m": 890
+   },
+   {
+    "title": "Moustaches",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Sa 10:30-19:30",
+    "m": 504
+   }
+  ],
+  "neighbours": [
+   1,
+   5,
+   7,
+   14,
+   15
+  ]
+ },
+ "paris-7": {
+  "n": 7,
+  "counts": {
+   "water": 33,
+   "vet": 2,
+   "groomer": 1
+  },
+  "places": [
+   {
+    "title": "SpèNAC",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:30-19:00; Sa 10:00-17:00",
+    "m": 345
+   },
+   {
+    "title": "Pattes Blanches",
+    "cat": "groomer",
+    "address": "",
+    "hours": "",
+    "m": 644
+   }
+  ],
+  "neighbours": [
+   1,
+   6,
+   8,
+   15,
+   16
+  ]
+ },
+ "paris-8": {
+  "n": 8,
+  "counts": {
+   "water": 34,
+   "vet": 3,
+   "shop": 1,
+   "hotel": 1
+  },
+  "places": [
+   {
+    "title": "Clinique vétérinaire Metivet",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-13:00,14:00-19:00; Sa 09:00-13:00",
+    "m": 551
+   },
+   {
+    "title": "Sevetys",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Sa 09:00-19:00",
+    "m": 1093
+   },
+   {
+    "title": "À Plumes et à Poils",
+    "cat": "shop",
+    "address": "",
+    "hours": "",
+    "m": 567
+   },
+   {
+    "title": "Prince de Galles",
+    "cat": "hotel",
+    "address": "33 33 Avenue George V 75008 Paris",
+    "hours": "",
+    "m": 945
+   }
+  ],
+  "neighbours": [
+   1,
+   7,
+   9,
+   16,
+   17
+  ]
+ },
+ "paris-9": {
+  "n": 9,
+  "counts": {
+   "water": 31,
+   "vet": 7,
+   "shop": 3,
+   "park": 1
+  },
+  "places": [
+   {
+    "title": "Argos",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-13:00,14:00-19:00; Sa 09:00-13:00; Su off",
+    "m": 849
+   },
+   {
+    "title": "Dr. Marc Cantini",
+    "cat": "vet",
+    "address": "9 Place Adolphe Max",
+    "hours": "",
+    "m": 907
+   },
+   {
+    "title": "Clinique Vétérinaire du Faubourg",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-20:00, Sa 10:00-16:00",
+    "m": 922
+   },
+   {
+    "title": "Dr Laurent Calvo",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Su 08:30-19:30",
+    "m": 968
+   },
+   {
+    "title": "Pascal Corbel",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 1047
+   },
+   {
+    "title": "C4V",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Sa 10:00-13:30,14:30-19:00",
+    "m": 390
+   },
+   {
+    "title": "Animalis",
+    "cat": "shop",
+    "address": "19 Rue du Quatre Septembre",
+    "hours": "Mo-Sa 10:00-19:30; Su off",
+    "m": 838
+   },
+   {
+    "title": "Barkers and Brothers",
+    "cat": "shop",
+    "address": "8 Rue Androuet 75018 Paris",
+    "hours": "",
+    "m": 987
+   }
+  ],
+  "neighbours": [
+   2,
+   8,
+   10,
+   17,
+   18
+  ]
+ },
+ "paris-10": {
+  "n": 10,
+  "counts": {
+   "water": 51,
+   "shop": 3,
+   "groomer": 1,
+   "park": 1,
+   "vet": 4
+  },
+  "places": [
+   {
+    "title": "Clinique vétérinaire de La Chapelle",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-20:00, Sa 09:00-16:00",
+    "m": 812
+   },
+   {
+    "title": "Argos",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-13:00,14:00-19:00; Sa 09:00-13:00; Su off",
+    "m": 862
+   },
+   {
+    "title": "Clinique Vétérinaire du Faubourg",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-20:00, Sa 10:00-16:00",
+    "m": 896
+   },
+   {
+    "title": "Michette",
+    "cat": "groomer",
+    "address": "",
+    "hours": "Mo-Fr 10:30-19:30,Sa 09:00-19:30,Su 11:00-18:00",
+    "m": 653
+   },
+   {
+    "title": "Le Décor Exotique",
+    "cat": "shop",
+    "address": "",
+    "hours": "Tu-Fr 10:00-12:30, 14:30-19:00; Sa 10:00-13:00, 14:00-19:00",
+    "m": 388
+   },
+   {
+    "title": "Animalis",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Sa 10:00-19:30",
+    "m": 611
+   }
+  ],
+  "neighbours": [
+   2,
+   3,
+   9,
+   11,
+   18,
+   19
+  ]
+ },
+ "paris-11": {
+  "n": 11,
+  "counts": {
+   "water": 50,
+   "vet": 8,
+   "park": 2,
+   "shop": 6,
+   "groomer": 1
+  },
+  "places": [
+   {
+    "title": "Clinique vétérinaire Azzurra",
+    "cat": "vet",
+    "address": "83 Rue Léon Frot 75011 Paris",
+    "hours": "Mo-Fr 09:00-12:30,15:00-19:00; Sa 09:00-14:30",
+    "m": 350
+   },
+   {
+    "title": "VETINPARIS",
+    "cat": "vet",
+    "address": "89 rue du Faubourg Saint-Antoine 75011 Paris",
+    "hours": "",
+    "m": 859
+   },
+   {
+    "title": "Assistance aux animaux",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 987
+   },
+   {
+    "title": "AniCuea",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 1065
+   },
+   {
+    "title": "nina dalle",
+    "cat": "groomer",
+    "address": "",
+    "hours": "",
+    "m": 880
+   },
+   {
+    "title": "City Pet Shop",
+    "cat": "shop",
+    "address": "23 Rue Sedaine 75011 Paris",
+    "hours": "Mo-Su 11:00-21:00",
+    "m": 578
+   },
+   {
+    "title": "Maxi Zoo",
+    "cat": "shop",
+    "address": "190 Boulevard Voltaire 75011 Paris",
+    "hours": "",
+    "m": 700
+   },
+   {
+    "title": "Ziggy",
+    "cat": "shop",
+    "address": "33 Rue de Charonne 75011 Paris",
+    "hours": "Mo-Sa 11:00-20:00",
+    "m": 701
+   }
+  ],
+  "neighbours": [
+   3,
+   4,
+   10,
+   12,
+   20
+  ]
+ },
+ "paris-12": {
+  "n": 12,
+  "counts": {
+   "water": 36,
+   "vet": 6,
+   "shop": 4,
+   "park": 1,
+   "groomer": 1
+  },
+  "places": [
+   {
+    "title": "Clinique vétérinaire Montgallet",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-20:00; Sa 09:00-18:00; Su off",
+    "m": 283
+   },
+   {
+    "title": "La Clinique Vétérinaire de Bercy",
+    "cat": "vet",
+    "address": "4 Rue de la Lancette 75012 Paris",
+    "hours": "Mo-Fr 08:30-19:00; Sa 08:00-13:00; Su off",
+    "m": 525
+   },
+   {
+    "title": "Clinique vétérinaire Nation Bel-Air",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 793
+   },
+   {
+    "title": "Sevetys",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 963
+   },
+   {
+    "title": "Au Caprice du Chien",
+    "cat": "groomer",
+    "address": "",
+    "hours": "Tu-Sa 09:30-12:30,14:30-19:00",
+    "m": 998
+   },
+   {
+    "title": "Alimentation Accessoires",
+    "cat": "shop",
+    "address": "",
+    "hours": "",
+    "m": 573
+   },
+   {
+    "title": "Mascottes",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Sa 09:30-19:30; Su,PH 11:30-18:30",
+    "m": 772
+   },
+   {
+    "title": "Animalis",
+    "cat": "shop",
+    "address": "41 Rue de l'Ambroisie 75012",
+    "hours": "Mo-Sa 10:00-19:45; Su 11:00-19:45",
+    "m": 837
+   }
+  ],
+  "neighbours": [
+   4,
+   11,
+   13,
+   20
+  ]
+ },
+ "paris-13": {
+  "n": 13,
+  "counts": {
+   "water": 58,
+   "shop": 4,
+   "vet": 7,
+   "park": 1,
+   "groomer": 1
+  },
+  "places": [
+   {
+    "title": "Clinique Vétérinaire des Olympiades",
+    "cat": "vet",
+    "address": "79 Rue du Château des Rentiers 75013",
+    "hours": "Mo-Fr 08:00-19:00; Sa 08:00-18:00",
+    "m": 510
+   },
+   {
+    "title": "Domvet nationale",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-13:00,14:30-19:00; Sa 09:00-13:00",
+    "m": 522
+   },
+   {
+    "title": "Cabinet Vétérinaire Docteur Gosselet",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo,Tu,Th,Fr 09:00-19:00; We 09:00-12:30,14:00-19:00; Sa 09:0",
+    "m": 687
+   },
+   {
+    "title": "Rosenberg Vétérinaire",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo,Tu,Th,Fr 08:30-12:30,14:00-19:00; We,Sa 08:30-12:30",
+    "m": 712
+   },
+   {
+    "title": "Dom Vet",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 784
+   },
+   {
+    "title": "Obsèques Animales",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 961
+   },
+   {
+    "title": "Les Ateliers d'Audreco",
+    "cat": "groomer",
+    "address": "",
+    "hours": "",
+    "m": 806
+   },
+   {
+    "title": "Aqualand",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Fr 14:30-19:30, Tu-Fr 10:30-12:30, Sa 10:30-19:30",
+    "m": 492
+   }
+  ],
+  "neighbours": [
+   5,
+   12,
+   14
+  ]
+ },
+ "paris-14": {
+  "n": 14,
+  "counts": {
+   "vet": 9,
+   "shop": 3,
+   "water": 55,
+   "groomer": 1
+  },
+  "places": [
+   {
+    "title": "Clinique Vétérinaire Vetalesia",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 75
+   },
+   {
+    "title": "ACDV",
+    "cat": "vet",
+    "address": "1 Rue Sophie Germain 75014 Paris",
+    "hours": "Mo-Fr 09:00-13:00,14:30-19:00; Sa 10:00-13:00,15:00-17:00",
+    "m": 371
+   },
+   {
+    "title": "Clinique Vétérinaire Sarrette",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 08:30-13:00,15:00-19:30 \"by appointment\"; Sa 09:00-17:",
+    "m": 482
+   },
+   {
+    "title": "Alizée Vet Clinic",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 08:30-13:00,14:00-19:30; Sa 09:00-12:00,14:00-19:00",
+    "m": 654
+   },
+   {
+    "title": "Docteur Ehrlich",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Sa 10:00-12:00, 14:30-19:30",
+    "m": 843
+   },
+   {
+    "title": "Scoubi Doux",
+    "cat": "groomer",
+    "address": "",
+    "hours": "Tu-Sa 11:00-19:00",
+    "m": 510
+   },
+   {
+    "title": "Pattes à Strass",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Sa 10:30-19:00",
+    "m": 170
+   },
+   {
+    "title": "Animalis",
+    "cat": "shop",
+    "address": "",
+    "hours": "10:00-19:30; Su 10:00-14:00",
+    "m": 236
+   }
+  ],
+  "neighbours": [
+   5,
+   6,
+   13,
+   15
+  ]
+ },
+ "paris-15": {
+  "n": 15,
+  "counts": {
+   "water": 35,
+   "vet": 4,
+   "groomer": 3,
+   "shop": 4,
+   "park": 1
+  },
+  "places": [
+   {
+    "title": "Thierry Benalloul",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Sa 09:00-19:30",
+    "m": 957
+   },
+   {
+    "title": "Messica",
+    "cat": "vet",
+    "address": "148 Avenue Félix Faure",
+    "hours": "Mo-Fr 08:30-12:30,14:00-18:30; Sa 08:30-12:30",
+    "m": 1088
+   },
+   {
+    "title": "Amy toilettage",
+    "cat": "groomer",
+    "address": "13 Rue de l'Abbé Groult",
+    "hours": "Mo-Sa 09:00-19:00",
+    "m": 293
+   },
+   {
+    "title": "Diane Harper",
+    "cat": "groomer",
+    "address": "182 Rue Lecourbe 75015 Paris",
+    "hours": "Mo-Sa 09:00-18:30",
+    "m": 295
+   },
+   {
+    "title": "La Maison du Toutou",
+    "cat": "groomer",
+    "address": "",
+    "hours": "",
+    "m": 629
+   },
+   {
+    "title": "La Boutique Miaou Waou",
+    "cat": "shop",
+    "address": "",
+    "hours": "",
+    "m": 411
+   },
+   {
+    "title": "Papatte et Coussinet",
+    "cat": "shop",
+    "address": "",
+    "hours": "Tu-Sa 10:30-13:30,14:30-19:00; Sa 18:00-20:00 closed",
+    "m": 597
+   },
+   {
+    "title": "Animalis",
+    "cat": "shop",
+    "address": "67 Rue de la Convention",
+    "hours": "Mo-Sa 10:00-19:30",
+    "m": 734
+   }
+  ],
+  "neighbours": [
+   6,
+   7,
+   14,
+   16
+  ]
+ },
+ "paris-16": {
+  "n": 16,
+  "counts": {
+   "shop": 2,
+   "water": 29,
+   "vet": 2,
+   "groomer": 1,
+   "park": 1
+  },
+  "places": [
+   {
+    "title": "Vet' 16",
+    "cat": "vet",
+    "address": "13 Chaussée de la Muette 75016 Paris",
+    "hours": "Mo-Tu 09:00-13:00,14:00-18:00; We 09:00-13:30; Th-Fr 09:00-1",
+    "m": 679
+   },
+   {
+    "title": "LuteceVet Passy",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Sa 09:00-13:00,14:00-19:00",
+    "m": 877
+   },
+   {
+    "title": "Bella Spa & Toilettage",
+    "cat": "groomer",
+    "address": "",
+    "hours": "Mo-Sa 10:00-19:00",
+    "m": 745
+   },
+   {
+    "title": "Les animaux de Paris",
+    "cat": "shop",
+    "address": "",
+    "hours": "",
+    "m": 153
+   },
+   {
+    "title": "La Tour Câline",
+    "cat": "shop",
+    "address": "",
+    "hours": "",
+    "m": 666
+   }
+  ],
+  "neighbours": [
+   7,
+   8,
+   15,
+   17
+  ]
+ },
+ "paris-17": {
+  "n": 17,
+  "counts": {
+   "water": 37,
+   "vet": 7,
+   "shop": 4,
+   "park": 2,
+   "groomer": 1
+  },
+  "places": [
+   {
+    "title": "Clinique Vétérinaire Jouffroy",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Sa 08:30-19:30, Th 08:30-22:00",
+    "m": 360
+   },
+   {
+    "title": "Dispensaire SPA",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 916
+   },
+   {
+    "title": "Sevetys",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Sa 09:00-19:00",
+    "m": 1028
+   },
+   {
+    "title": "La Laisse",
+    "cat": "groomer",
+    "address": "",
+    "hours": "Tu-Fr 10:00-19:00; Sa 10:30-19:30; PH closed; Mo 10:00-18:00",
+    "m": 782
+   },
+   {
+    "title": "The Doggy Shop",
+    "cat": "shop",
+    "address": "",
+    "hours": "",
+    "m": 352
+   },
+   {
+    "title": "Two Tails",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Sa 09:30-19:30; Su 09:30-13:30",
+    "m": 688
+   },
+   {
+    "title": "Le Paris Canin",
+    "cat": "shop",
+    "address": "",
+    "hours": "Mo-Sa 09:30-19:30",
+    "m": 902
+   },
+   {
+    "title": "C4V espace forme sante animaux de compagnie",
+    "cat": "shop",
+    "address": "",
+    "hours": "",
+    "m": 933
+   }
+  ],
+  "neighbours": [
+   8,
+   9,
+   16,
+   18
+  ]
+ },
+ "paris-18": {
+  "n": 18,
+  "counts": {
+   "water": 40,
+   "vet": 2,
+   "groomer": 1,
+   "park": 1,
+   "shop": 2
+  },
+  "places": [
+   {
+    "title": "Clinique vétérinaire Clignancourt Paris - Sevetys",
+    "cat": "vet",
+    "address": "15 Square de Clignancourt 75018 Paris",
+    "hours": "Mo-Fr 09:00-14:00,15:00-19:00; Sa 09:00-13:30,14:30-17:00",
+    "m": 193
+   },
+   {
+    "title": "Clinique vétérinaire Belais",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 945
+   },
+   {
+    "title": "Gwendog",
+    "cat": "groomer",
+    "address": "",
+    "hours": "Tu-Fr 09:00-18:00; Sa 09:00-19:00",
+    "m": 433
+   },
+   {
+    "title": "Animalis",
+    "cat": "shop",
+    "address": "87 Rue Damrémont 75018",
+    "hours": "Mo-Sa 10:00-19:30",
+    "m": 883
+   },
+   {
+    "title": "Barkers and Brothers",
+    "cat": "shop",
+    "address": "8 Rue Androuet 75018 Paris",
+    "hours": "",
+    "m": 1028
+   },
+   {
+    "title": "Square Nadar",
+    "cat": "park",
+    "address": "",
+    "hours": "24/7",
+    "m": 872
+   }
+  ],
+  "neighbours": [
+   9,
+   10,
+   17,
+   19
+  ]
+ },
+ "paris-19": {
+  "n": 19,
+  "counts": {
+   "shop": 2,
+   "vet": 6,
+   "water": 31,
+   "park": 2,
+   "groomer": 1
+  },
+  "places": [
+   {
+    "title": "Docteur Margareth Plotnitzki",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-12:00,14:30-19:00; Sa 09:00-14:00",
+    "m": 960
+   },
+   {
+    "title": "Clinique Vétérinaire Mon Véto Paris 19",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 976
+   },
+   {
+    "title": "Vétérinaire Crimée",
+    "cat": "vet",
+    "address": "",
+    "hours": "",
+    "m": 1056
+   },
+   {
+    "title": "Centre Canin Toilettage",
+    "cat": "groomer",
+    "address": "",
+    "hours": "Mo-Sa 09:00-19:00",
+    "m": 723
+   },
+   {
+    "title": "La réserve animale",
+    "cat": "shop",
+    "address": "135 Avenue Jean Jaurès",
+    "hours": "Mo 15:00-19:30; Tu-Sa 10:00-19:30; PH off",
+    "m": 117
+   },
+   {
+    "title": "Cayu",
+    "cat": "shop",
+    "address": "",
+    "hours": "",
+    "m": 976
+   },
+   {
+    "title": "Parc à chien (Buttes Chaumont)",
+    "cat": "park",
+    "address": "",
+    "hours": "",
+    "m": 666
+   }
+  ],
+  "neighbours": [
+   10,
+   18,
+   20
+  ]
+ },
+ "paris-20": {
+  "n": 20,
+  "counts": {
+   "vet": 7,
+   "water": 58,
+   "shop": 1,
+   "park": 2
+  },
+  "places": [
+   {
+    "title": "Urgences et consultants vétérinaires",
+    "cat": "vet",
+    "address": "",
+    "hours": "24/7",
+    "m": 84
+   },
+   {
+    "title": "Vétérinaires 2 toute urgence",
+    "cat": "vet",
+    "address": "175bis rue des Pyrénées 75020 Paris",
+    "hours": "Mo-Su 00:00-24:00; 2026 May 1,2026 May 8,2026 May 14,2026 Ma",
+    "m": 329
+   },
+   {
+    "title": "UC Vet",
+    "cat": "vet",
+    "address": "175 Rue des Pyrénées 75020 Paris",
+    "hours": "Mo-Fr 08:00-19:00; Sa 08:00-18:00",
+    "m": 339
+   },
+   {
+    "title": "Clinique vétérinaire Gambetta",
+    "cat": "vet",
+    "address": "",
+    "hours": "Mo-Fr 09:00-19:00; Sa 10:00-17:00",
+    "m": 533
+   },
+   {
+    "title": "Focteur Sophie dolparis",
+    "cat": "vet",
+    "address": "62 Rue de Bagnolet 75020 Paris",
+    "hours": "Mo-Fr 09:00-12:00, Mo-Fr 14:30-19:00, Sa 09:00-13:00",
+    "m": 634
+   },
+   {
+    "title": "La Bande a Cabot",
+    "cat": "shop",
+    "address": "",
+    "hours": "",
+    "m": 473
+   }
+  ],
+  "neighbours": [
+   11,
+   12,
+   19
+  ]
+ }
+}

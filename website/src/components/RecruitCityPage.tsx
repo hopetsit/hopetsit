@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ParisLocalPlaces from "@/components/ParisLocalPlaces";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 import { OWNER_PATH_PREFIX } from "@/lib/recruit-cities";
 
@@ -315,6 +316,8 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
         <h2 className="font-display text-xl font-extrabold text-ink">{copy.localTitle(city)}</h2>
         <p className="mt-2 text-sm leading-relaxed text-ink-muted">{city.local}</p>
       </div>
+
+      {city.lang === "fr" && <ParisLocalPlaces slug={city.slug} mode="recruit" />}
 
       <h2 className="mt-14 font-display text-2xl font-extrabold text-ink">{copy.howTitle}</h2>
       <ol className="mt-6 space-y-4">
