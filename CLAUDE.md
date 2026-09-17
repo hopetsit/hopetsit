@@ -428,6 +428,14 @@ faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
     profil du correspondant, demandes d'amis, chat du cercle PawMap, notifications de message) ;
     vérifier que tout est branché (temps réel, non-lus, point vert en ligne), fonctionnel et
     traduit dans les 9 langues. Excellence exigée, aucune fonction retirée.
+37. **PawMap (petite et grande carte) : même consigne** (Daniel, 17/09, complète les points 3, 4,
+    7, 8, 9, 20 et 23) : réorganiser les rails, filtres et panneaux si c'est plus clair, en
+    respectant les préférences fixées (bouton PawMap rectangle arrondi orange uni, rails alignés en
+    bas et jamais contre le menu, design Paw Buttons) ; moderniser chaque sous-page (Autour de moi,
+    itinéraire, signaler / voir les signalements, spots de la communauté et création de spot avec
+    photo, amis en direct, partage en direct, profil d'un membre, demande d'ami ou de service
+    depuis la carte, fiche d'un lieu) ; vérifier que tout est branché et synchronisé avec le reste
+    de l'app, fonctionnel et traduit dans les 9 langues. Excellence exigée, aucune fonction retirée.
 Puis : build simulateur + tests, IPA (flutter clean avant) + Transporter, AAB + `play_release_api.py`,
 admin « Versions de l'app » 565/565 après validations, journal + mémoire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
