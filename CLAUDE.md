@@ -408,6 +408,12 @@ faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
     données serveur, actions qui aboutissent, synchro entre les 3 profils), **fonctionnel** (aucun
     bouton mort, états vide/chargement/erreur) et **bien traduit dans les 9 langues** (aucune clé
     brute, aucun texte en dur, textes qui ne débordent pas). Exigence d'excellence.
+34. **Admin : même exigence** (Daniel, 17/09) : réorganiser le menu et les pages si c'est plus
+    clair, améliorer le design de chaque page ET de chaque sous-page (modales, onglets, tableaux),
+    et vérifier que TOUT est fonctionnel : chaque bouton appelle une route qui existe et répond,
+    chaque tableau se charge, chaque filtre et export marche, les compteurs sont à jour et
+    cliquables (points 21 et 31). Contrainte permanente : ne rien retirer des fonctions existantes,
+    et l'admin étant servi par le backend Render, pas de rebuild app nécessaire pour cette partie.
 Puis : build simulateur + tests, IPA (flutter clean avant) + Transporter, AAB + `play_release_api.py`,
 admin « Versions de l'app » 565/565 après validations, journal + mémoire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,
