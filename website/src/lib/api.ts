@@ -1425,7 +1425,47 @@ export type Invoice = {
   total: number;
   currency: string;
   status?: "paid" | "issued" | "void";
+  // v566 — le serveur renvoie `grossAmount` (pas `total`) + les deux
+  // instantanés de facturation figés sur la facture.
+  grossAmount?: number;
+  providerRole?: "sitter" | "walker";
+  issuerBilling?: BillingSnapshot;
+  customerBilling?: BillingSnapshot;
 };
+
+// v566 — informations de facturation (NIF, NIE, CIF, SIRET, TVA, EIN,
+// passeport…) : GET/PATCH /users/me/billing-info (synchro 3 profils).
+export type BillingIdType =
+  | "nif" | "nie" | "cif" | "siret" | "vat" | "ein"
+  | "passport" | "company_number" | "other";
+
+export type BillingInfo = {
+  type: "individual" | "business";
+  legalName: string;
+  idType: BillingIdType | "";
+  idNumber: string;
+  vatNumber: string;
+  address: string;
+  postalCode: string;
+  city: string;
+  country: string; // ISO-2
+  updatedAt: string | null;
+};
+
+export type BillingSnapshot = BillingInfo & { snapshotAt: string | null };
+
+export async function getMyBillingInfo(): Promise<BillingInfo> {
+  return request<BillingInfo>("/users/me/billing-info");
+}
+
+export async function updateMyBillingInfo(
+  patch: Partial<Omit<BillingInfo, "updatedAt">>,
+): Promise<BillingInfo> {
+  return request<BillingInfo>("/users/me/billing-info", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
 
 export async function getMyInvoices(): Promise<Invoice[]> {
   const raw = await request<{ invoices?: Invoice[] }>("/invoices/my");
@@ -1475,7 +1515,35 @@ export type Conversation = {
   // (`isUserOnline`), puis tenue à jour par le socket `presence:update`.
   isOnline?: boolean;
   lastSeenAt?: string | null;
+  // v566 — coches devant l'aperçu quand le dernier message est le mien.
+  lastMessageMine?: boolean;
+  lastMessageStatus?: ChatReceiptStatus | null;
 };
+
+// v566 — accusés façon WhatsApp : ✓ envoyé, ✓✓ remis, ✓✓ bleu lu.
+export type ChatReceiptStatus = "sent" | "delivered" | "read";
+/** Socket `message:read` (serveur → expéditeur). */
+export type ChatReadEvent = {
+  conversationId: string;
+  readerId: string;
+  readAt: string;
+  messageIds: string[];
+};
+/** Socket `message:delivered` (serveur → expéditeur). */
+export type ChatDeliveredEvent = {
+  conversationId: string;
+  messageId: string;
+  messageIds?: string[];
+  deliveredAt: string;
+};
+export function chatReceiptStatus(m: {
+  deliveredAt?: string | null;
+  readAt?: string | null;
+}): ChatReceiptStatus {
+  if (m.readAt) return "read";
+  if (m.deliveredAt) return "delivered";
+  return "sent";
+}
 
 // v565 (contrat §5) — instantané du message cité (réponse « comme WhatsApp »).
 export type ChatReplyTo = {
@@ -1510,6 +1578,9 @@ export type ChatMessage = {
   metadata?: Record<string, unknown>;
   /** v565 — message cité, ou null. */
   replyTo?: ChatReplyTo | null;
+  /** v566 — accusés serveur (null = pas encore remis / lu). */
+  deliveredAt?: string | null;
+  readAt?: string | null;
 };
 
 // v565 (contrat §5) — drapeaux admin du chat. En cas d'erreur réseau on
@@ -2492,6 +2563,20 @@ export async function subscribeToPawSpot(
     method: "POST",
     body: JSON.stringify({ plan, currency }),
   });
+}
+
+// v566 — prix PawSpot lus côté serveur (GET /pawspots/plans, public) : même
+// source que la facturation. Renvoie [] si la route n'est pas encore déployée
+// → la boutique garde alors son repli 4,99 € / 39,99 €.
+export type PawSpotPlan = { plan: string; amount: number; currency: string; intervalDays: number };
+export async function getPawSpotPlans(currency?: string): Promise<PawSpotPlan[]> {
+  try {
+    const qs = currency ? `?currency=${encodeURIComponent(currency)}` : "";
+    const raw = await request<{ plans?: PawSpotPlan[] }>(`/pawspots/plans${qs}`);
+    return (raw.plans || []).filter((p) => p && typeof p.amount === "number");
+  } catch {
+    return [];
+  }
 }
 
 export async function confirmPawSpot(

@@ -35,6 +35,7 @@ router.post('/validate', requireAuth, async (req, res) => {
       PRODUCT_MAP,
       verifySignedTransaction,
       creditForTransaction,
+      storeInfoFromPayload,
     } = require('../services/appleIapService');
 
     if (!PRODUCT_MAP[productId]) {
@@ -75,6 +76,9 @@ router.post('/validate', requireAuth, async (req, res) => {
       productId,
       transactionId,
       originalTransactionId,
+      // v566 — prix RÉEL (milli-unités → décimal), devise, pays du store et
+      // environnement lus dans la transaction SIGNÉE (jamais dans le body).
+      store: storeInfoFromPayload(payload, environment),
     });
 
     logger.info(

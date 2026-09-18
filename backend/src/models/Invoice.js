@@ -9,6 +9,7 @@
  */
 
 const mongoose = require('mongoose');
+const { billingSnapshotSchemaFields } = require('../utils/billingInfo');
 
 const invoiceSchema = new mongoose.Schema(
   {
@@ -48,6 +49,15 @@ const invoiceSchema = new mongoose.Schema(
     },
     providerName: { type: String, default: '' },
     providerEmail: { type: String, default: '' },
+
+    // v566 — instantanés des informations de facturation, copiés à la
+    // CRÉATION de la facture : `issuerBilling` = le prestataire (émetteur),
+    // `customerBilling` = le propriétaire (client). Un instantané figé
+    // (`snapshotAt` non nul) ne change plus jamais. Pour les factures
+    // antérieures (ou une partie qui n'avait encore rien saisi), remplissage
+    // UNE seule fois à la première lecture où des données existent.
+    issuerBilling: billingSnapshotSchemaFields(),
+    customerBilling: billingSnapshotSchemaFields(),
 
     // Service summary (snapshot).
     serviceType: { type: String, default: '' },

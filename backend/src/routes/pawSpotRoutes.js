@@ -25,6 +25,8 @@ const pawPoints = require('../services/pawPointsService');
 const logger = require('../utils/logger');
 // v532 — verification du paiement avant toute activation boutique.
 const { assertPaidIntent, PaymentNotVerifiedError } = require('../utils/assertPaidIntent');
+// v566 — plateforme d'origine de l'achat (ios | android | web).
+const { platformFromRequest } = require('../utils/purchasePlatform');
 
 const router = express.Router();
 const PROVIDER = (process.env.PAYMENT_PROVIDER || 'airwallex').toLowerCase();
@@ -331,6 +333,27 @@ router.get('/leaderboard', requireAuth, async (req, res) => {
     });
   } catch (e) {
     logger.error('[pawspots/leaderboard]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// v566 — GET /pawspots/plans?currency=EUR|GBP|CHF|USD|KRW|JPY (public, lecture
+// seule). Audit boutique : l'app et le site affichaient « 4,99 € / 39,99 € » EN
+// DUR alors que /pawspots/subscribe facture dans la devise choisie (ex. 5,49 $)
+// et que l'admin peut changer ces prix. Même source que /subscribe
+// (getPawSpotPricing) → prix affiché = prix facturé. 100 % additif.
+router.get('/plans', (req, res) => {
+  try {
+    const plans = Object.keys(PAWSPOT_PLAN_DAYS)
+      .map((key) => {
+        const p = getPawSpotPricing(key, req.query.currency);
+        if (!p) return null;
+        return { plan: key, amount: p.amount, currency: p.currency, intervalDays: p.days };
+      })
+      .filter(Boolean);
+    res.json({ plans, trialDays: TRIAL_DAYS, freeSpotLimit: FREE_SPOT_LIMIT });
+  } catch (e) {
+    logger.error('[pawspots/plans]', e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -897,28 +920,16 @@ router.post('/subscribe', requireAuth, async (req, res) => {
     const role = req.user.role;
 
     // v416 — réduction PawPoints applicable à PawSpot (sentinelle 'pawspot'
-    // dans snapshot.plans). Consomme la 1re réduction en attente, 1×/user.
-    try {
-      const PawRewardRedemption = require('../models/PawRewardRedemption');
-      const pending = await PawRewardRedemption.find({
-        userId, rewardKey: { $regex: '^sub_disc_' }, status: 'pending',
-      }).sort({ createdAt: 1 });
-      const match = pending.find((r) => {
-        const plans = (r.snapshot && r.snapshot.plans) || [];
-        return Array.isArray(plans) && plans.includes('pawspot');
-      });
-      if (match) {
-        const pct = Number(match.snapshot.percent) || 0;
-        if (pct > 0) {
-          pricing.amount = Math.round(pricing.amount * (1 - pct / 100) * 100) / 100;
-          match.status = 'fulfilled';
-          await match.save();
-          logger.info(`[pawspots] réduction PawPoints -${pct}% appliquée pour ${role} ${userId} → ${pricing.amount}`);
-        }
-      }
-    } catch (e) {
-      logger.warn(`[pawspots] pawpoints discount check failed: ${e.message}`);
-    }
+    // dans snapshot.plans).
+    // v566 — CHOISIE ici sans rien écrire, RÉSERVÉE sur l'intention créée,
+    // CONSOMMÉE seulement à la réussite du paiement (avant : consommée dès la
+    // création → perdue si l'utilisateur fermait la feuille de paiement).
+    const discounts = require('../services/discountReservationService');
+    const picked = await discounts.pickDiscounts({
+      userId, plan, baseAmount: pricing.amount, scope: 'pawspot',
+    });
+    pricing.amount = picked.amount;
+    const discountRefs = discounts.encodeRefs(picked.applied);
 
     const amountCents = Math.round(pricing.amount * 100);
 
@@ -955,9 +966,14 @@ router.post('/subscribe', requireAuth, async (req, res) => {
         const { activatePawSpotFromWebhook } = require('../controllers/purchaseActivationController');
         await activatePawSpotFromWebhook({
           piId: `wallet_${Date.now()}_pawspot`,
+          // v566 — wallet = payé tout de suite → l'activation consomme la réduction.
           metadata: {
             userId: String(userId), role, plan,
             days: String(pricing.days), currency: pricing.currency,
+            provider: 'wallet',
+            paidAmount: String(pricing.amount),
+            platform: platformFromRequest(req),
+            ...(discountRefs ? { discountRefs } : {}),
           },
         });
         return res.json({
@@ -1003,8 +1019,15 @@ router.post('/subscribe', requireAuth, async (req, res) => {
             userId: String(userId), role, plan,
             days: String(pricing.days),
             currency: pricing.currency,
+            paidAmount: String(pricing.amount),
+            ...(discountRefs ? { discountRefs } : {}),
+            ...(platformFromRequest(req) ? { platform: platformFromRequest(req) } : {}),
           },
         });
+        // v566 — réserve (30 min) liée à CETTE intention, non consommée.
+        if (picked.applied.length) {
+          await discounts.reserveDiscounts({ applied: picked.applied, piId: intent.id });
+        }
         logger.info(
           `[pawspots] airwallex PI ${intent.id} ${pricing.amount} ${pricing.currency} plan=${plan} by ${role} ${userId}`,
         );
@@ -1035,8 +1058,9 @@ router.post('/confirm', requireAuth, async (req, res) => {
     // v532 — FAILLE : cet endpoint activait le produit sans jamais verifier
     // le paiement aupres d Airwallex. On exige desormais un PaymentIntent
     // reellement SUCCEEDED, appartenant a l appelant, et non deja consomme.
+    let paidIntent = null;
     try {
-      await assertPaidIntent({
+      paidIntent = await assertPaidIntent({
         paymentIntentId: req.body?.paymentIntentId,
         userId: req.user.id,
         purpose: 'pawspot',
@@ -1064,9 +1088,22 @@ router.post('/confirm', requireAuth, async (req, res) => {
     const { activatePawSpotFromWebhook } = require('../controllers/purchaseActivationController');
     const result = await activatePawSpotFromWebhook({
       piId: String(req.body?.paymentIntentId || `sync_${Date.now()}_pawspot`),
+      // v566 — assertPaidIntent vient de poser le verrou `purchase:<piId>` :
+      // sans alreadyClaimed l'activation se croyait « déjà faite » et PawSpot
+      // n'était JAMAIS activé quand /confirm arrivait avant le webhook.
+      alreadyClaimed: true,
       metadata: {
         userId: String(req.user.id), role: req.user.role, plan,
         days: String(pricing.days), currency: pricing.currency,
+        // v566 — montant et devise RÉELLEMENT débités (intention vérifiée).
+        ...(paidIntent && paidIntent.amount !== undefined && paidIntent.amount !== null
+          ? { providerAmount: String(paidIntent.amount) } : {}),
+        ...(paidIntent?.currency ? { providerCurrency: String(paidIntent.currency).toUpperCase() } : {}),
+        ...(paidIntent?.metadata?.paidAmount ? { paidAmount: paidIntent.metadata.paidAmount } : {}),
+        platform: paidIntent?.metadata?.platform || platformFromRequest(req),
+        ...(paidIntent?.metadata?.discountRefs
+          ? { discountRefs: paidIntent.metadata.discountRefs }
+          : {}),
       },
     });
     res.json({ activated: true, pawspotExpiry: result?.pawspotExpiry || null });

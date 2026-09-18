@@ -181,6 +181,16 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="hopetsit_default_channel" />
+        <!-- v566 — AUDIT NOTIFICATIONS : petite icône monochrome (patte blanche) +
+             couleur d'accent pour les pushes affichés par le SYSTÈME (app en
+             arrière-plan / fermée). Sans ces deux meta-data, FCM prend l'icône du
+             lanceur (opaque) → carré blanc dans la barre d'état. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_notify" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
 
         <!-- v529 — SDK Meta (App Events) : identifiants de l'app Meta HoPetSit
              (App ID 27796356886626061). Signale les installs/events à Facebook

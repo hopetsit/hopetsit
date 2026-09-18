@@ -4,7 +4,7 @@ const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const { createNotificationSafe } = require('./notificationService');
-const { sendEmail } = require('./emailService');
+const { sendEmail, buildNotificationEmailHtml } = require('./emailService');
 const { render } = require('../utils/i18nTemplate');
 const firebaseAdmin = require('../config/firebaseAdmin');
 const { decrypt } = require('../utils/encryption');
@@ -233,7 +233,7 @@ const resolveUser = async (role, userId) => {
     role === 'walker' ? Walker :
     null;
   if (!Model) return null;
-  const primary = await Model.findById(userId).select('email language appLocale fcmTokens name oldId notificationPrefs').lean();
+  const primary = await Model.findById(userId).select('email language appLocale fcmTokens fcmDevices name oldId notificationPrefs').lean();
   if (primary) return primary;
 
   // v23.1 part 49 — cross-collection fallback. The destructive switchRole
@@ -254,7 +254,7 @@ const resolveUser = async (role, userId) => {
   const fallbackModels = [Owner, Sitter, Walker].filter((m) => m !== Model);
   for (const Fb of fallbackModels) {
     try {
-      const found = await Fb.findById(userId).select('email language appLocale fcmTokens name oldId notificationPrefs').lean();
+      const found = await Fb.findById(userId).select('email language appLocale fcmTokens fcmDevices name oldId notificationPrefs').lean();
       if (found) {
         logger.warn(
           `[notif.fallback] user ${userId} expected in ${role} collection but ` +
@@ -279,34 +279,67 @@ const resolveUser = async (role, userId) => {
  * device quel que soit le rôle sous lequel le token a été enregistré.
  * Bénéficie à TOUTES les notifs push, pas seulement au suivi.
  */
+// v566 — badge chiffré iOS : réservé aux jetons enregistrés par une app iOS de build
+// ≥ 566 (elle sait remettre le badge au bon nombre via le canal natif `hopetsit/badge`).
+// Une app plus ancienne garderait un badge figé → on ne lui en envoie pas.
+const BADGE_MIN_IOS_BUILD = 566;
+const isBadgeCapableDevice = (d) =>
+  !!d && !!d.token && String(d.platform || '').toLowerCase() === 'ios' &&
+  Number(d.appBuild || 0) >= BADGE_MIN_IOS_BUILD;
+
 const gatherFcmTokens = async (primary, userId) => {
   const tokens = new Set((primary?.fcmTokens || []).filter(Boolean));
+  const badgeTokens = new Set();
+  (primary?.fcmDevices || []).forEach((d) => { if (isBadgeCapableDevice(d)) badgeTokens.add(d.token); });
   try {
     const or = [{ _id: userId }];
     if (primary?.email) or.push({ email: primary.email });
     if (primary?.oldId) or.push({ oldId: primary.oldId });
     const [owners, sitters, walkers] = await Promise.all([
-      Owner.find({ $or: or }).select('fcmTokens').lean(),
-      Sitter.find({ $or: or }).select('fcmTokens').lean(),
-      Walker.find({ $or: or }).select('fcmTokens').lean(),
+      Owner.find({ $or: or }).select('fcmTokens fcmDevices').lean(),
+      Sitter.find({ $or: or }).select('fcmTokens fcmDevices').lean(),
+      Walker.find({ $or: or }).select('fcmTokens fcmDevices').lean(),
     ]);
     [...owners, ...sitters, ...walkers].forEach((d) => {
       (d.fcmTokens || []).forEach((t) => {
         if (t) tokens.add(t);
       });
+      (d.fcmDevices || []).forEach((dev) => { if (isBadgeCapableDevice(dev)) badgeTokens.add(dev.token); });
     });
   } catch (e) {
     logger.warn(`[notif.push] gatherFcmTokens failed : ${e?.message || e}`);
   }
-  return Array.from(tokens);
+  const list = Array.from(tokens);
+  // Propriété non énumérable : les appelants existants continuent de recevoir un simple tableau.
+  Object.defineProperty(list, 'badgeTokens', {
+    value: new Set([...badgeTokens].filter((t) => tokens.has(t))), enumerable: false,
+  });
+  return list;
 };
 
-const sendPush = async (tokens, title, body, data, { userId, role, sound } = {}) => {
-  const list = (tokens || []).filter(Boolean);
-  if (!list.length) {
+const sendPush = async (tokens, title, body, data, opts = {}) => {
+  const all = (tokens || []).filter(Boolean);
+  if (!all.length) {
     logger.warn('[notif.push] skipped : user has no fcmTokens registered');
     return { skipped: true, reason: 'no_tokens' };
   }
+  // v566 — deux lots : jetons iOS ≥ 566 AVEC `aps.badge`, tous les autres SANS.
+  const badge = Number.isInteger(opts.badge) && opts.badge >= 0 ? opts.badge : null;
+  const badgeSet = badge != null && opts.badgeTokens ? new Set(opts.badgeTokens) : new Set();
+  const withBadge = all.filter((t) => badgeSet.has(t));
+  const without = all.filter((t) => !badgeSet.has(t));
+  const out = { successCount: 0, failureCount: 0, responses: [], badgeTokens: withBadge.length };
+  for (const [list, b] of [[without, null], [withBadge, badge]]) {
+    if (!list.length) continue;
+    const r = await sendPushBatch(list, title, body, data, { ...opts, badge: b });
+    out.successCount += r?.successCount || 0;
+    out.failureCount += r?.failureCount || 0;
+    out.responses.push(...(r?.responses || []));
+  }
+  return out;
+};
+
+const sendPushBatch = async (list, title, body, data, { userId, role, sound, badge = null } = {}) => {
   // v565 §2 — son choisi par l'utilisateur (défaut = comportement v558).
   const snd = pushSoundConfig(sound);
   const message = {
@@ -331,7 +364,12 @@ const sendPush = async (tokens, title, body, data, { userId, role, sound } = {})
     },
     apns: {
       headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
-      payload: { aps: snd.apnsSound ? { sound: snd.apnsSound } : {} },
+      payload: {
+        aps: {
+          ...(snd.apnsSound ? { sound: snd.apnsSound } : {}),
+          ...(badge != null ? { badge } : {}),
+        },
+      },
     },
   };
   const result = await firebaseAdmin.messaging().sendEachForMulticast(message);
@@ -384,6 +422,40 @@ const sendPush = async (tokens, title, body, data, { userId, role, sound } = {})
   return result;
 };
 
+/**
+ * v566 — audit : le chat AMIS / FAMILLE (conversationController.sendFriendMessage)
+ * émet NEW_MESSAGE sans `senderName` → titre « Nouveau message de » troué (push,
+ * cloche et e-mail). Filet de sécurité ici : si le nom manque, on le retrouve par
+ * le message (senderId + senderRole) ; à défaut « HoPetSit » (même repli que
+ * conversationService). Ne touche à rien quand `senderName` est fourni.
+ */
+const ensureSenderName = async (type, data) => {
+  if (String(type).toLowerCase() !== 'new_message') return data;
+  if (data && typeof data.senderName === 'string' && data.senderName.trim()) return data;
+  let senderName = '';
+  try {
+    const messageId = data && data.messageId ? String(data.messageId) : '';
+    if (/^[a-fA-F0-9]{24}$/.test(messageId)) {
+      const Message = require('../models/Message');
+      const msg = await Message.findById(messageId).select('senderId senderRole').lean();
+      if (msg && msg.senderId) {
+        const order = { owner: [Owner, Sitter, Walker], sitter: [Sitter, Owner, Walker], walker: [Walker, Owner, Sitter] };
+        const models = order[String(msg.senderRole || '').toLowerCase()] || order.owner;
+        for (const M of models) {
+          const u = await M.findById(msg.senderId).select('name').lean();
+          if (u && u.name) { senderName = String(u.name).trim(); break; }
+        }
+      }
+    }
+  } catch (e) {
+    logger.warn(`[notif.senderName] lookup failed : ${e?.message || e}`);
+  }
+  return { ...(data || {}), senderName: senderName || 'HoPetSit' };
+};
+
+const escapeHtmlValue = (v) => String(v)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 const _roleModelForPurge = (role) =>
   role === 'sitter' ? Sitter :
   role === 'owner' ? Owner :
@@ -401,7 +473,7 @@ const _roleModelForPurge = (role) =>
  * @param {Object} [params.data]   - template variables + notification payload
  * @param {Object} [params.actor]  - { role, id } who triggered the event
  */
-const sendNotification = async ({ userId, role, type, data = {}, actor = null }) => {
+const sendNotification = async ({ userId, role, type, data: rawData = {}, actor = null }) => {
   // v23.1 part 48 — entry log fires UNCONDITIONALLY before any early return.
   // Lets us prove from Render logs that sendNotification was actually
   // invoked (vs being skipped upstream). Previous logs only fired once
@@ -445,6 +517,7 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
   // (buildAppRoute) et sert au bouton du mail (lien universel) ET au push
   // (champ `route`). Un `data.emailLink` fourni par l'appelant n'est gardé
   // que si le type n'a pas de route dédiée.
+  const data = await ensureSenderName(type, rawData && typeof rawData === 'object' ? rawData : {});
   const { buildAppRoute, BASE_URL: SITE_BASE } = require('../utils/emailLinkBuilder');
   const appRoute = buildAppRoute(type, data);
   const renderData = {
@@ -457,7 +530,20 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
   const title = render(tmpl.title, renderData);
   const body = render(tmpl.body, renderData);
   const emailSubject = render(tmpl.emailSubject, renderData);
-  const emailBody = render(tmpl.emailBody, renderData);
+  // v566 — gabarit commun (viewport mobile, bouton centré, lien de secours, pied de
+  // page traduit) + repli texte avec le lien (clients mail sans HTML).
+  // Les variables viennent en partie des utilisateurs (aperçu d'un message, commentaire
+  // d'avis, nom) : elles sont ÉCHAPPÉES avant d'entrer dans le HTML de l'e-mail, sinon un
+  // message « <a href=…> » devenait un vrai lien dans un e-mail à l'en-tête HoPetSit.
+  const htmlData = Object.fromEntries(
+    Object.entries(renderData).map(([k, v]) => [k, typeof v === 'string' ? escapeHtmlValue(v) : v]),
+  );
+  const emailBody = buildNotificationEmailHtml(render(tmpl.emailBody, htmlData), {
+    locale,
+    link: renderData.emailLink,
+    preheader: body,
+  });
+  const emailText = `${body}\n\n${renderData.emailLink}`;
   const email = decrypt(user.email || '');
   // v407 — union des fcmTokens sur les 3 docs de rôle (fix push multi-profils).
   const allTokens = await gatherFcmTokens(user, userId);
@@ -546,6 +632,18 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
     }
   }
 
+  // v566 — badge de l'icône iOS = notifications non lues de la cloche (celle qu'on vient de
+  // créer comprise). Calculé seulement s'il existe un jeton iOS ≥ 566.
+  let badgeCount = null;
+  if (categoryEnabled && allTokens.badgeTokens && allTokens.badgeTokens.size > 0) {
+    try {
+      const { getUnreadCount } = require('./notificationService');
+      badgeCount = await getUnreadCount({ recipientRole: role, recipientId: userId });
+    } catch (e) {
+      logger.warn(`[notif.badge] unread count failed : ${e?.message || e}`);
+    }
+  }
+
   const results = await Promise.allSettled([
     Promise.resolve(inAppCreated),
     // v23.1.317 — Daniel : "notifs pas en doublon". CAUSE : le payload FCM ne
@@ -566,11 +664,11 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
             ? { notificationId: String(inAppCreated._id) }
             : {}),
         },
-        { userId, role, sound: prefs.sound },
+        { userId, role, sound: prefs.sound, badge: badgeCount, badgeTokens: allTokens.badgeTokens },
       )
       : Promise.resolve({ skipped: true, reason: `prefs_category_off:${category}` }),
     sendEmailNow
-      ? sendEmail(email, emailSubject, body, emailBody)
+      ? sendEmail(email, emailSubject || title, emailText, emailBody)
       : Promise.resolve({ skipped: true, reason: categoryEnabled ? 'no_email' : `prefs_category_off:${category}` }),
   ]);
 
@@ -591,6 +689,35 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
       logger.info(`[notif.channel] ${channel} ok for ${type}${skipped}`);
     }
   });
+};
+
+/**
+ * v566 — remet le badge de l'icône iOS au bon nombre sur les AUTRES appareils quand une
+ * notification est lue / supprimée ailleurs (app fermée comprise). Push « badge seul »,
+ * sans bannière ni son, envoyé UNIQUEMENT aux jetons iOS ≥ 566 (l'app ignore le type
+ * `badge_sync` au premier plan). Best-effort, ne lève jamais.
+ */
+const sendBadgeSync = async ({ role, userId, unreadCount }) => {
+  try {
+    const n = Number(unreadCount);
+    if (!Number.isInteger(n) || n < 0) return { skipped: true, reason: 'bad_count' };
+    const user = await resolveUser(role, userId);
+    if (!user) return { skipped: true, reason: 'no_user' };
+    const tokens = await gatherFcmTokens(user, userId);
+    const list = [...(tokens.badgeTokens || [])];
+    if (!list.length) return { skipped: true, reason: 'no_badge_tokens' };
+    return await firebaseAdmin.messaging().sendEachForMulticast({
+      tokens: list,
+      data: { type: 'badge_sync', unreadCount: String(n) },
+      apns: {
+        headers: { 'apns-priority': '5', 'apns-push-type': 'alert' },
+        payload: { aps: { badge: n } },
+      },
+    });
+  } catch (e) {
+    logger.warn(`[notif.badge] sync failed : ${e?.message || e}`);
+    return { skipped: true, reason: 'error' };
+  }
 };
 
 // v497 — Daniel : « je suis en espagnol mais les notifs du site sortent en FR ».
@@ -626,4 +753,6 @@ module.exports = {
   categoryForType,
   resolveNotificationPrefsAcrossRoles,
   pushSoundConfig,
+  sendBadgeSync, // v566
+  BADGE_MIN_IOS_BUILD,
 };

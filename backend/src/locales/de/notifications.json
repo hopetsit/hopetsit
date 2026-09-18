@@ -104,8 +104,8 @@
   "CHAT_AUTO_WELCOME": {
     "title": "Chat freigeschaltet",
     "body": "Hallo 👋 Klären wir hier den genauen Ort und die Details des Services.",
-    "emailSubject": "",
-    "emailBody": ""
+    "emailSubject": "Der Chat zu deiner Buchung ist offen",
+    "emailBody": "<p>Der Chat zu deiner Buchung ist offen: Klärt hier den genauen Ort und die Details des Services.</p><p>— Das HoPetSit-Team</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Chat öffnen</a></p>"
   },
   "BOOKING_COMPLETED": {
     "title": "Buchung abgeschlossen",
@@ -115,7 +115,7 @@
   },
   "booking_paid": {
     "title": "Zahlung erhalten!",
-    "body": "Der Eigentümer hat deine Buchung bezahlt. Du kannst jetzt im Chat die Details besprechen. Am Tag des Services tippe auf „🐾 Tier abgeholt\", um den Start zu bestätigen.",
+    "body": "Der Tierhalter hat die Buchung bezahlt. Der Chat ist offen, um die Details zu klären. Am Tag des Services tippe auf „Tier abgeholt“.",
     "emailSubject": "Zahlung erhalten — HoPetSit",
     "emailBody": "<p>Gute Nachricht! Die Zahlung für die Buchung wurde gerade bestätigt. Du kannst jetzt mit dem Eigentümer chatten, um Ort und Zeit des Services zu vereinbaren.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, öffne die HoPetSit-App manuell.</p>"
   },
@@ -259,9 +259,9 @@
   },
   "payout_failed": {
     "title": "Auszahlung fehlgeschlagen",
-    "body": "Die Überweisung konnte nicht abgeschlossen werden. Überprüfe dein IBAN in der App und versuche es erneut.",
+    "body": "Die Überweisung konnte nicht abgeschlossen werden. Überprüfe deine IBAN in der App und versuche es erneut.",
     "emailSubject": "HoPetSit-Auszahlung fehlgeschlagen",
-    "emailBody": "<p>Die HoPetSit-Überweisung auf dein IBAN ist fehlgeschlagen. Grund: {{reason}}. Überprüfe dein IBAN und kontaktiere bei Bedarf den Support.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">In der App öffnen</a></p>"
+    "emailBody": "<p>Die HoPetSit-Überweisung auf dein IBAN ist fehlgeschlagen. Grund: {{reason}}. Überprüfe deine IBAN und kontaktiere bei Bedarf den Support.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">In der App öffnen</a></p>"
   },
   "withdrawal_initiated": {
     "title": "Abhebung läuft",
@@ -397,7 +397,7 @@
   },
   "handover_returned": {
     "title": "Tier zurückgegeben 🏁",
-    "body": "Dein Anbieter gibt an, dein Tier zurückgegeben zu haben. Bestätige, dass alles gut lief, um die Zahlung freizugeben (sonst automatische Bestätigung in {{autoConfirmHours}} Std.).",
+    "body": "Dein Betreuer meldet die Rückgabe deines Tieres. Bestätige, um die Zahlung freizugeben (automatisch in {{autoConfirmHours}} Std.).",
     "emailSubject": "Dein Tier wurde zurückgegeben — bestätige die Rückgabe",
     "emailBody": "<p>Dein Anbieter hat gerade auf „Tier zurückgegeben“ getippt. Bestätige, dass alles gut lief: Das gibt die Zahlung an sein Wallet frei. Ohne deine Antwort wird die Rückgabe in {{autoConfirmHours}} Stunden automatisch bestätigt.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
   },

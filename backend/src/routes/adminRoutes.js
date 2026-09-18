@@ -2084,9 +2084,11 @@ router.post('/payments/:id/retry-payout', requireAdmin, async (req, res) => {
 //
 // Each entry carries a `product` field ('profile_boost' | 'map_boost' |
 // 'premium' | 'chat_addon') so the admin UI can filter / color-code.
-router.get('/boosts', requireAdmin, async (req, res) => {
-  try {
-    const { page = 1, limit = 30, tier, role, product } = req.query;
+//
+// v566 — la collecte des achats est sortie dans collectShopPurchases() pour
+// être partagée avec GET /admin/shop-revenue (mêmes lignes, mêmes chiffres
+// dans le tableau de bord, Mes revenus, la Comptabilité et l'Activité boutique).
+async function collectShopPurchases() {
     const now = new Date();
 
     const UserSubscription = require('../models/UserSubscription');
@@ -2108,8 +2110,17 @@ router.get('/boosts', requireAdmin, async (req, res) => {
       Walker.find({ 'boostPurchases.0': { $exists: true } })
         .select('name email boostExpiry boostTier boostPurchases')
         .lean(),
-      UserSubscription.find({ 'payments.0': { $exists: true } })
-        .select('userId userModel payments currentPeriodEnd status plan')
+      // v566 — + `history` / `pawspotHistory` : les activations par le webhook
+      // Airwallex, par code promo et par cadeau admin n'écrivent QUE là
+      // (jamais dans `payments`) et étaient donc invisibles ici.
+      UserSubscription.find({
+        $or: [
+          { 'payments.0': { $exists: true } },
+          { 'history.0': { $exists: true } },
+          { 'pawspotHistory.0': { $exists: true } },
+        ],
+      })
+        .select('userId userModel payments history pawspotHistory pawspotExpiry currentPeriodEnd status plan')
         .lean(),
       UserChatAddon.find({ 'payments.0': { $exists: true } })
         .select('userId userModel payments currentPeriodEnd status')
@@ -2171,6 +2182,12 @@ router.get('/boosts', requireAdmin, async (req, res) => {
             purchasedAt: p.purchasedAt,
             paymentProvider: p.paymentProvider || '-',
             paymentId: p.paymentId || '-',
+            platform: p.platform || null,
+            amountSource: p.amountSource || null,
+            excludedFromRevenue: p.excludedFromRevenue === true,
+            refundedAt: p.refundedAt || null,
+            environment: p.environment || null,
+            storefront: p.storefront || null,
             currentBoostTier: u.boostTier,
             boostExpiry: u.boostExpiry,
             isActive: u.boostExpiry ? new Date(u.boostExpiry) > now : false,
@@ -2209,8 +2226,71 @@ router.get('/boosts', requireAdmin, async (req, res) => {
           purchasedAt: p.paidAt,
           paymentProvider: p.paymentProvider || 'stripe',
           paymentId: p.paymentIntentId || '-',
+          platform: p.platform || null,
+          amountSource: p.amountSource || null,
+          excludedFromRevenue: p.excludedFromRevenue === true,
+          refundedAt: p.refundedAt || null,
+          environment: p.environment || null,
+          storefront: p.storefront || null,
           isActive,
         });
+      }
+
+      // v566 — activations tracées UNIQUEMENT dans `history` (webhook
+      // Airwallex, portefeuille, code promo, cadeau admin) : aucun montant
+      // n'y est stocké → shopRevenueService applique le prix catalogue et
+      // marque la ligne « estimé » (ou 0 € pour un offert). Dédoublonnage
+      // sur l'identifiant de paiement : un achat Apple est dans les DEUX
+      // listes (history + payments), on ne le compte qu'une fois.
+      const paidIds = new Set(
+        (sub.payments || []).map((p) => String(p.paymentIntentId || '')).filter(Boolean),
+      );
+      for (const h of sub.history || []) {
+        const pid = String(h.paymentId || '');
+        if (pid && paidIds.has(pid)) continue;
+        const hPlan = h.plan || sub.plan || 'monthly';
+        allPurchases.push({
+          userId: sub.userId,
+          userName: u.name || '-',
+          userEmail: u.email || '-',
+          role: (sub.userModel || '').toLowerCase(),
+          product: /^pawspot_/.test(String(hPlan)) ? 'pawspot_sub' : /^premium_/.test(String(hPlan)) ? 'pawpremium' : 'premium',
+          tier: hPlan,
+          amount: 0,
+          currency: h.currency || 'EUR',
+          days: h.intervalDays || null,
+          purchasedAt: h.activatedAt,
+          paymentProvider: h.paymentProvider || 'airwallex',
+          paymentId: pid || '-',
+          isActive,
+          fromHistory: true,
+        });
+        if (pid) paidIds.add(pid);
+      }
+      // Abonnement PawSpot payé par carte : seul `pawspotHistory` en garde la
+      // trace (paymentId + jours, ni montant ni prestataire). Les achats Apple
+      // y figurent aussi mais sont déjà comptés via `payments`.
+      const pawspotActive = sub.pawspotExpiry && new Date(sub.pawspotExpiry) > now;
+      for (const h of sub.pawspotHistory || []) {
+        const pid = String(h.paymentId || '');
+        if (!pid || paidIds.has(pid)) continue;
+        allPurchases.push({
+          userId: sub.userId,
+          userName: u.name || '-',
+          userEmail: u.email || '-',
+          role: (sub.userModel || '').toLowerCase(),
+          product: 'pawspot_sub',
+          tier: Number(h.days) >= 365 ? 'pawspot_yearly' : 'pawspot_monthly',
+          amount: 0,
+          currency: 'EUR',
+          days: h.days || null,
+          purchasedAt: h.at,
+          paymentProvider: 'airwallex',
+          paymentId: pid,
+          isActive: !!pawspotActive,
+          fromHistory: true,
+        });
+        paidIds.add(pid);
       }
     }
 
@@ -2235,6 +2315,12 @@ router.get('/boosts', requireAdmin, async (req, res) => {
           purchasedAt: p.paidAt,
           paymentProvider: p.paymentProvider || 'stripe',
           paymentId: p.paymentIntentId || '-',
+          platform: p.platform || null,
+          amountSource: p.amountSource || null,
+          excludedFromRevenue: p.excludedFromRevenue === true,
+          refundedAt: p.refundedAt || null,
+          environment: p.environment || null,
+          storefront: p.storefront || null,
           isActive,
         });
       }
@@ -2284,10 +2370,45 @@ router.get('/boosts', requireAdmin, async (req, res) => {
       });
     }
 
-    // Filter by tier / role / product
+    return allPurchases;
+}
+
+// v566 — taux de commission des stores (réglables dans l'admin) + catalogue de
+// prix, passés au calcul unique de shopRevenueService.
+async function loadShopRevenueContext() {
+  const shopRevenue = require('../services/shopRevenueService');
+  let rates = { ...shopRevenue.DEFAULT_STORE_FEES };
+  try {
+    const ShopFeeConfig = require('../models/ShopFeeConfig');
+    const cfg = await ShopFeeConfig.findOne({ key: 'singleton' }).lean();
+    if (cfg) rates = { ...rates, ...shopRevenue.sanitizeRates(cfg) };
+  } catch (e) {
+    logger.warn(`[admin/shop-revenue] taux non lus, défauts utilisés : ${e.message}`);
+  }
+  let pricing = {};
+  try { pricing = require('../services/pricingService').getAll(); } catch (_) { /* best-effort */ }
+  let apple = {};
+  try { apple = require('../services/appleIapService').PRODUCT_MAP || {}; } catch (_) { /* best-effort */ }
+  return { shopRevenue, rates, catalog: { pricing, apple } };
+}
+
+router.get('/boosts', requireAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 30, tier, role, product, channel } = req.query;
+    // v566 — chaque ligne passe par le calcul unique : canal, brut retenu,
+    // commission du store, net, « estimé » / « non tracé ». `amount` devient le
+    // brut retenu (montant enregistré, sinon prix catalogue) ; le montant
+    // d'origine reste dans `amountRecorded`.
+    const { shopRevenue, rates, catalog } = await loadShopRevenueContext();
+    let allPurchases = (await collectShopPurchases()).map((p) =>
+      shopRevenue.enrichPurchase(p, { rates, catalog }),
+    );
+
+    // Filter by tier / role / product / canal
     if (tier) allPurchases = allPurchases.filter((p) => p.tier === tier);
     if (role) allPurchases = allPurchases.filter((p) => p.role === role);
     if (product) allPurchases = allPurchases.filter((p) => p.product === product);
+    if (channel) allPurchases = allPurchases.filter((p) => p.channel === channel);
 
     // Sort newest first
     allPurchases.sort(
@@ -2332,9 +2453,163 @@ router.get('/boosts', requireAdmin, async (req, res) => {
         activeBoostsCount: activeKeys.size,
         tierBreakdown,
         productBreakdown,
+        // v566 — même agrégat que /admin/shop-revenue, sur les lignes filtrées.
+        shop: shopRevenue.aggregate(allPurchases),
+        rates,
       },
     });
   } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── v566 — REVENUS BOUTIQUE PAR CANAL ──────────────────────────────────────
+// Daniel (18/09) : « je vois les chiffres boutique Apple et Play Store, et que
+// tout soit synchronisé dans la comptabilité, l'onglet revenus aussi ».
+//
+// GET /admin/shop-revenue?from=YYYY-MM-DD&to=YYYY-MM-DD[&lines=1]
+//   → par canal (apple · google_play · airwallex · paypal · promo · autre) et
+//     par produit : ventes, brut, commission du store estimée, net estimé,
+//     part « estimée », lignes « non tracées » ; périodes fixes (mois, 30 j,
+//     7 j, depuis le début) + fenêtre demandée ; commissions de réservation
+//     sur les mêmes fenêtres et total combiné. UN seul calcul
+//     (services/shopRevenueService.js), réutilisé par les 4 vues de l'admin.
+//   `to` est inclusif (fin de journée), comme /admin/payouts.
+// GET/PATCH /admin/shop-revenue/fees → taux de commission des stores.
+router.get('/shop-revenue/fees', requireAdmin, async (req, res) => {
+  try {
+    const { shopRevenue, rates } = await loadShopRevenueContext();
+    res.json({ rates, defaults: shopRevenue.DEFAULT_STORE_FEES });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.patch('/shop-revenue/fees', requireAdmin, async (req, res) => {
+  try {
+    const shopRevenue = require('../services/shopRevenueService');
+    const patch = shopRevenue.sanitizeRates(req.body || {});
+    if (!Object.keys(patch).length) {
+      return res.status(400).json({ error: 'Taux invalide (attendu : apple et/ou google_play, entre 0 et 50 %).' });
+    }
+    const ShopFeeConfig = require('../models/ShopFeeConfig');
+    await ShopFeeConfig.updateOne({ key: 'singleton' }, { $set: patch }, { upsert: true });
+    const { rates } = await loadShopRevenueContext();
+    logger.info(`[admin/shop-revenue/fees] taux mis à jour : ${JSON.stringify(patch)}`);
+    res.json({ rates, defaults: shopRevenue.DEFAULT_STORE_FEES });
+  } catch (e) {
+    logger.error('[admin/shop-revenue/fees]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/shop-revenue', requireAdmin, async (req, res) => {
+  try {
+    const from = req.query.from ? new Date(String(req.query.from)) : null;
+    const to = req.query.to
+      ? new Date(new Date(String(req.query.to)).getTime() + 24 * 3600 * 1000 - 1)
+      : null;
+    if ((from && Number.isNaN(from.getTime())) || (to && Number.isNaN(to.getTime()))) {
+      return res.status(400).json({ error: 'Dates invalides (format attendu : YYYY-MM-DD).' });
+    }
+    const now = new Date();
+    const { shopRevenue, rates, catalog } = await loadShopRevenueContext();
+    const report = shopRevenue.buildReport(await collectShopPurchases(), { from, to, rates, catalog, now });
+
+    // Commissions de réservation sur les MÊMES fenêtres (même agrégation que
+    // /admin/payouts : réservations payées, datées par paidAt).
+    const commissionFor = async (gte, lte) => {
+      const match = { paymentStatus: 'paid' };
+      if (gte || lte) {
+        match.paidAt = {};
+        if (gte) match.paidAt.$gte = gte;
+        if (lte) match.paidAt.$lte = lte;
+      }
+      const r = await Booking.aggregate([
+        { $match: match },
+        { $group: { _id: null, commission: { $sum: { $ifNull: ['$pricing.commission', 0] } }, count: { $sum: 1 } } },
+      ]);
+      return { commission: Math.round((r[0]?.commission || 0) * 100) / 100, count: r[0]?.count || 0 };
+    };
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const [cRange, cAll, cMonth, c30, c7] = await Promise.all([
+      commissionFor(from, to),
+      commissionFor(null, null),
+      commissionFor(monthStart, null),
+      commissionFor(new Date(now.getTime() - 30 * 86400000), null),
+      commissionFor(new Date(now.getTime() - 7 * 86400000), null),
+    ]);
+    const combine = (c, agg) => ({
+      commission: c.commission,
+      bookingCount: c.count,
+      shopGross: agg.totals.gross,
+      shopStoreFee: agg.totals.storeFee,
+      shopNet: agg.totals.net,
+      // Total HoPetSit = commissions des réservations + boutique.
+      totalGross: Math.round((c.commission + agg.totals.gross) * 100) / 100,
+      totalNet: Math.round((c.commission + agg.totals.net) * 100) / 100,
+    });
+
+    const wantLines = String(req.query.lines || '') === '1';
+    const inWindow = (l) => {
+      if (!from && !to) return true;
+      const d = l.purchasedAt ? new Date(l.purchasedAt).getTime() : NaN;
+      if (Number.isNaN(d)) return false;
+      return (!from || d >= from.getTime()) && (!to || d <= to.getTime());
+    };
+    res.json({
+      generatedAt: now.toISOString(),
+      currency: shopRevenue.MAIN_CURRENCY,
+      rates: report.rates,
+      defaultRates: shopRevenue.DEFAULT_STORE_FEES,
+      channels: report.channels,
+      range: report.range,
+      periods: report.periods,
+      combined: {
+        range: combine(cRange, report.range),
+        allTime: combine(cAll, report.periods.allTime),
+        thisMonth: combine(cMonth, report.periods.thisMonth),
+        last30d: combine(c30, report.periods.last30d),
+        last7d: combine(c7, report.periods.last7d),
+      },
+      // Ce qui est réellement tracé aujourd'hui (affiché tel quel dans l'admin).
+      tracking: {
+        apple: 'catalog_price', // prix catalogue EUR, pas le prix payé dans le store
+        google_play: 'not_integrated', // aucun Google Play Billing : Android paie par carte
+        airwallex: 'recorded_or_catalog',
+        refunds: 'not_tracked',
+        catalogHistory: false, // prix catalogue COURANT (pas d'historique des prix)
+      },
+      ...(wantLines
+        ? {
+            lines: report.lines
+              .filter(inWindow)
+              .sort((a, b) => new Date(b.purchasedAt || 0) - new Date(a.purchasedAt || 0))
+              .map((l) => ({
+                purchasedAt: l.purchasedAt,
+                userName: l.userName,
+                userEmail: l.userEmail,
+                role: l.role,
+                channel: l.channel,
+                platform: l.platform,
+                paymentProvider: l.paymentProvider,
+                product: l.shopProduct,
+                tier: l.tier,
+                currency: l.currency,
+                gross: l.gross,
+                storeFeeRate: l.storeFeeRate,
+                storeFee: l.storeFee,
+                net: l.net,
+                estimated: l.estimated,
+                untraced: l.untraced,
+                giftedValue: l.giftedValue,
+                paymentId: l.paymentId,
+              })),
+          }
+        : {}),
+    });
+  } catch (e) {
+    logger.error('[admin/shop-revenue]', e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -3470,6 +3745,14 @@ router.post('/users/:role/:id/staff', requireAdmin, async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// v566 — informations de facturation d'un compte (lecture seule) : NIF, SIRET,
+// TVA… résolues sur les 3 profils de la personne. Fiche utilisateur de l'admin.
+router.get(
+  '/users/:role/:id/billing-info',
+  requireAdmin,
+  require('../controllers/billingInfoController').adminGetBillingInfo,
+);
 
 // v562 — Daniel : « le client s'est trompé de mail, je peux pas le modifier
 // dans l'admin ? » → PATCH /admin/users/:role/:id/email { email }. Vérifie le

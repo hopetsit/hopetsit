@@ -62,7 +62,11 @@ class ChatScreen extends StatelessWidget {
             // v465 — Daniel : le bouton « Nouvelle conversation » était caché
             // derrière le menu du bas flottant. On le remonte (marge basse)
             // pour qu'il flotte AU-DESSUS du menu, toujours cliquable.
-            floatingActionButton: Padding(
+            // v566 — liste vide : le grand bouton centré « Démarrer une
+            // conversation » remplace le bouton flottant (pas de doublon).
+            floatingActionButton: controller.conversations.isEmpty
+                ? null
+                : Padding(
               // v468 — au-dessus de la barre de menu PLEINE LARGEUR (~80) +
               // l'inset Samsung, sinon le bouton passe derrière.
               padding: EdgeInsets.only(
@@ -70,8 +74,11 @@ class ChatScreen extends StatelessWidget {
                   // → remonté nettement au-dessus du menu flottant.
                   bottom: 120.h + MediaQuery.of(context).viewPadding.bottom),
               // v565 — bouton modernisé (pilule à la couleur du rôle).
+              // v566 — rond 56 qui s'étend en pilule à l'arrêt / en haut de
+              // liste et se replie pendant le défilement.
               child: NewConversationButton(
                 theme: ChatRoleTheme.forRole(controller.myRole),
+                expanded: controller.newChatExpanded,
                 onTap: () => Get.to(() => const FriendsScreen()),
               ),
             ),

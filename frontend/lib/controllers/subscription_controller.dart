@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
@@ -7,6 +10,7 @@ import 'package:hopetsit/services/apple_iap_service.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/post_purchase_refresh.dart';
+import 'package:hopetsit/utils/storage_keys.dart';
 
 /// Single plan description as returned by GET /subscriptions/plans.
 class SubscriptionPlan {
@@ -110,8 +114,10 @@ class SubscriptionController extends GetxController {
   final RxnString purchasingPlan = RxnString();
   final Rxn<SubscriptionStatus> status = Rxn<SubscriptionStatus>();
   final RxList<SubscriptionPlan> plans = <SubscriptionPlan>[].obs;
+  // v566 — les 6 devises du serveur dès le départ (avant : 4 → un compte
+  // coréen/japonais aurait eu une devise absente de la liste du sélecteur).
   final RxList<String> supportedCurrencies =
-      <String>['EUR', 'GBP', 'CHF', 'USD'].obs;
+      List<String>.of(CurrencyHelper.supportedCurrencies).obs;
 
   /// Currency the user is paying with. Defaults to EUR but the UI should
   /// call `setCurrency()` once it knows the user's country (or let them pick).
@@ -120,10 +126,41 @@ class SubscriptionController extends GetxController {
   /// Shortcut accessor — the UI reads this to decide whether to show Premium features.
   bool get isPremium => status.value?.isPremium ?? false;
 
+  /// v566 — clé GetStorage du choix de devise fait dans la boutique.
+  static const String _currencyPrefKey = 'shop_currency_v566';
+
   @override
   void onInit() {
     super.onInit();
+    // v566 — audit boutique : la devise restait TOUJOURS sur EUR (setCurrency
+    // n'était appelé que par le sélecteur manuel) → un compte américain voyait
+    // et payait en euros. Désormais : choix mémorisé > devise du compte >
+    // devise du pays du compte > EUR.
+    currency.value = resolveAccountCurrency();
     refresh();
+  }
+
+  /// v566 — devise par défaut de la boutique pour le compte connecté.
+  /// Lecture seule du profil mis en cache au login (aucun appel réseau).
+  static String resolveAccountCurrency() {
+    try {
+      final box = GetStorage();
+      final saved = (box.read(_currencyPrefKey) ?? '').toString().toUpperCase();
+      if (CurrencyHelper.supportedCurrencies.contains(saved)) return saved;
+      final raw = box.read(StorageKeys.userProfile);
+      if (raw is Map) {
+        final cur = (raw['currency'] ?? '').toString().toUpperCase();
+        final country = (raw['country'] ?? '').toString().toUpperCase();
+        // Le champ `currency` vaut 'EUR' par défaut côté serveur : on ne le
+        // croit que s'il n'est pas contredit par le pays du compte.
+        if (country.length == 2) {
+          final fromCountry = CurrencyHelper.fromCountry(country);
+          if (cur.isEmpty || cur == CurrencyHelper.eur) return fromCountry;
+        }
+        if (CurrencyHelper.supportedCurrencies.contains(cur)) return cur;
+      }
+    } catch (_) {/* stockage facultatif */}
+    return CurrencyHelper.eur;
   }
 
   /// Swap currency and reload plan pricing from the backend.
@@ -132,7 +169,62 @@ class SubscriptionController extends GetxController {
     if (!supportedCurrencies.contains(upper)) return;
     if (currency.value == upper) return;
     currency.value = upper;
+    try {
+      GetStorage().write(_currencyPrefKey, upper);
+    } catch (_) {/* best-effort */}
     await loadPlans();
+  }
+
+  /// v566 — plan serveur par identifiant (null tant que /plans n'a pas répondu).
+  SubscriptionPlan? planById(String id) =>
+      plans.firstWhereOrNull((p) => p.plan == id);
+
+  /// v566 — copie locale du code promo % (redeemedPromoDiscount) : elle ne
+  /// sert qu'à l'AFFICHAGE des prix barrés. Côté serveur la réduction est
+  /// RÉSERVÉE à la création du paiement et CONSOMMÉE seulement à sa réussite.
+  /// On efface donc la copie locale :
+  ///   - [paid] = true  : le paiement a réussi au prix réduit → consommée ;
+  ///   - [paid] = false : le serveur a facturé le PLEIN tarif alors qu'on
+  ///     affichait « -X % » → la réduction n'existe plus (utilisée ailleurs) ;
+  ///     l'affichage mentait, on le corrige.
+  /// Si l'utilisateur ferme la feuille de paiement, RIEN n'est effacé : la
+  /// réduction reste disponible. Jamais effacée non plus quand une AUTRE
+  /// réduction (parrainage / PawPoints) a été appliquée à sa place.
+  static void clearPromoDisplayAfterIntent({
+    required double fullAmount,
+    required double? chargedAmount,
+    required bool paid,
+    required String plan,
+  }) {
+    try {
+      final box = GetStorage();
+      final raw = box.read(StorageKeys.redeemedPromoDiscount);
+      if (raw == null) return;
+      final map = raw is String ? jsonDecode(raw) : raw;
+      final pct = map is Map ? ((map['discountPercent'] as num?)?.toInt() ?? 0) : 0;
+      if (pct <= 0 || chargedAmount == null || fullAmount <= 0) {
+        return;
+      }
+      // Un code réservé à un AUTRE forfait n'est pas concerné par cet achat.
+      final scope = (map is Map ? (map['plan'] ?? '') : '').toString().toLowerCase();
+      final p = plan.toLowerCase();
+      final applies = scope.isEmpty ||
+          scope == 'all' ||
+          scope == 'any' ||
+          scope == 'subscription' ||
+          scope == p ||
+          (scope == 'premium' && p.startsWith('premium_')) ||
+          (scope == 'pawfollow' && (p == 'monthly' || p == 'yearly')) ||
+          ((scope == 'pawfamily' || scope == 'famille' || scope == 'family') &&
+              (p == 'family' || p == 'famille' || p == 'family_yearly'));
+      if (!applies) return;
+      final promoAmount = (fullAmount * (100 - pct)).round() / 100;
+      final isPromoPrice = (chargedAmount - promoAmount).abs() < 0.011;
+      final isFullPrice = (chargedAmount - fullAmount).abs() < 0.011;
+      if ((paid && isPromoPrice) || isFullPrice) {
+        box.remove(StorageKeys.redeemedPromoDiscount);
+      }
+    } catch (_) {/* best-effort */}
   }
 
   @override
@@ -210,7 +302,7 @@ class SubscriptionController extends GetxController {
       final clientSecret = piData['clientSecret'] as String?;
       final paymentIntentId = piData['paymentIntentId'] as String?;
       if (clientSecret == null || clientSecret.isEmpty) {
-        throw Exception('Failed to create subscription payment intent.');
+        throw Exception('boost_purchase_error'.tr);
       }
 
       // 3. Resolve display amount. v450 — Daniel : « vérifie que les
@@ -222,6 +314,15 @@ class SubscriptionController extends GetxController {
       final planRow = plans.firstWhereOrNull((p) => p.plan == plan);
       final backendAmount = (piData['amount'] as num?)?.toDouble();
       final displayAmount = backendAmount ?? planRow?.amount ?? 0;
+      // v566 — affichage promo périmé (plein tarif facturé) → on le retire.
+      if (planRow != null) {
+        clearPromoDisplayAfterIntent(
+          fullAmount: planRow.amount,
+          chargedAmount: backendAmount,
+          paid: false,
+          plan: plan,
+        );
+      }
 
       // v21.1.1 — Stripe purgé. Pure Airwallex.
       AppLogger.logInfo('[subscription] AIRWALLEX flow ($displayAmount $currency)');
@@ -241,6 +342,15 @@ class SubscriptionController extends GetxController {
           },
           requiresAuth: true,
         );
+        // v566 — paiement réussi : la réduction promo est consommée.
+        if (planRow != null) {
+          clearPromoDisplayAfterIntent(
+            fullAmount: planRow.amount,
+            chargedAmount: backendAmount,
+            paid: true,
+            plan: plan,
+          );
+        }
         await loadStatus();
         // v23.1 part 109 — refresh profile pour que le badge Premium
         // s'affiche immédiatement.

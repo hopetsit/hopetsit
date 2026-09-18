@@ -10,6 +10,7 @@
 //   (€, €, accents diacritiques, etc.).
 
 import 'package:get/get.dart';
+import 'package:hopetsit/models/billing_info_model.dart';
 import 'package:hopetsit/models/invoice_model.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -133,21 +134,29 @@ class InvoicePdfGenerator {
           ),
           pw.SizedBox(height: 24),
 
-          // Bill To / Service Provider
+          // v566 — Émetteur (prestataire) / Client (propriétaire), avec les
+          // informations de facturation de chacun quand elles existent (nom
+          // légal, « NIF : … », « TVA : … », adresse). Rien si c'est vide.
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Expanded(
-                child: _partyBox('invoice_pdf_bill_to'.tr, inv.ownerName,
-                    'invoice_pdf_owner_role'.tr, accent),
+                child: _partyBox(
+                  'billing_issuer'.tr.toUpperCase(),
+                  inv.providerName,
+                  inv.providerRole.toUpperCase(),
+                  accent,
+                  billing: inv.issuerBilling,
+                ),
               ),
               pw.SizedBox(width: 12),
               pw.Expanded(
                 child: _partyBox(
-                  'invoice_pdf_provider'.tr,
-                  inv.providerName,
-                  inv.providerRole.toUpperCase(),
+                  'billing_customer'.tr.toUpperCase(),
+                  inv.ownerName,
+                  'invoice_pdf_owner_role'.tr,
                   accent,
+                  billing: inv.customerBilling,
                 ),
               ),
             ],
@@ -244,7 +253,21 @@ class InvoicePdfGenerator {
     );
   }
 
-  static pw.Widget _partyBox(String label, String name, String sub, PdfColor accent) {
+  static pw.Widget _partyBox(
+    String label,
+    String name,
+    String sub,
+    PdfColor accent, {
+    BillingInfo billing = BillingInfo.empty,
+  }) {
+    // Le nom légal prime sur le nom de profil ; ce dernier reste affiché en
+    // dessous quand il est différent (ex. raison sociale + personne).
+    final legal = billing.legalName;
+    final title = legal.isNotEmpty ? legal : name;
+    final showProfileName = legal.isNotEmpty &&
+        name.isNotEmpty &&
+        legal.toLowerCase() != name.toLowerCase();
+    final details = billing.detailLines;
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
@@ -262,10 +285,18 @@ class InvoicePdfGenerator {
                   color: accent,
                   fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 6),
-          pw.Text(name.isNotEmpty ? name : '—',
+          pw.Text(title.isNotEmpty ? title : '—',
               style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 2),
-          pw.Text(sub, style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+          pw.Text(showProfileName ? '$name · $sub' : sub,
+              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+          if (details.isNotEmpty) pw.SizedBox(height: 6),
+          for (final line in details)
+            pw.Padding(
+              padding: const pw.EdgeInsets.only(bottom: 1.5),
+              child: pw.Text(line,
+                  style: pw.TextStyle(fontSize: 10, color: PdfColor.fromInt(0xFF1F1F1F))),
+            ),
         ],
       ),
     );

@@ -23,6 +23,11 @@ const pawRewardRedemptionSchema = new mongoose.Schema(
     // pending → fulfilled (admin a livré le goodie / appliqué l'avantage).
     status: { type: String, enum: ['pending', 'fulfilled', 'cancelled'], default: 'pending' },
     snapshot: { type: Object, default: {} },
+    // v566 — réductions sub_disc_* : réservées sur l'intention de paiement
+    // (30 min), consommées (status 'fulfilled') à la réussite du paiement.
+    reservedIntentId: { type: String, default: '' },
+    reservedUntil: { type: Date, default: null },
+    consumedIntentId: { type: String, default: '' },
   },
   { timestamps: true },
 );

@@ -91,7 +91,7 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 566** (565 = v562 publiée le 18/09 : Play release 565 par API, iOS 1.18 build 565 soumis ; 564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 567** (566 = v563 publiée le 18/09 à 13 h 30 : Play release 566 par API, iOS 1.18 build 566 resoumis à la place du 565 ; 565 = v562 publiée le 18/09 : Play release 565 par API, iOS 1.18 build 565 soumis ; 564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
 **18/09 (nuit) — BUILD 565 (v562 app) : la grande passe des 37 points, EN COURS.** Méthode : 8 lots
 en parallèle (contrats figés dans `docs/v565_contracts.md`, clés i18n par lot dans
@@ -195,9 +195,60 @@ Livré et poussé (commit 9b337e5, déploiement Render + Vercel lancé par Danie
   l'onglet ASC de Daniel : build 565 VALID (~15 min après Transporter) → attaché à la 1.18 → reviewSubmission
   `3f3a47b7-5920-4f78-9757-ea1034a36c8c` SUBMITTED 200 (05 h 05) → **1.18/565 WAITING_FOR_REVIEW**. ⚠️ Passer l'admin à 565/565 quand Play ET Apple ont approuvé (`PATCH /admin/app-version`
   `{android:{latest:565},ios:{latest:565}}`).
+- **Bob (18/09, Daniel : « qu'il continue tout ce qui est en son pouvoir, gratuit et seul »)** :
+  `~/hopetsit-social/BOB_PROMPT.md` étendu (effet 565 sur le taux de vérification, contrôle des leviers, un
+  levier gratuit par semaine, actions 15 min pour Daniel) et **routine cloud créée**
+  `trig_015koa7pn7ptRxyKBmVUkd5f` « HoPetSit — Bob, chef de projet » (lundi 07:00 UTC = 9 h Paris, Sonnet 5,
+  Gmail, repo hopetsit/hopetsit ; 1re exécution 21/09), après le KPI local de 8 h.
 - Décisions produit prises seul (à confirmer par Daniel) : cap gratuit 30 min du partage en direct
   SUPPRIMÉ (le partage ne s'arrête que sur action ou durée choisie) ; les anciens types `service_started`/
   `service_completion_request` remplacés par `handover_*` sur ces actions.
+
+**18/09 (journée) — BUILD 566 (v563 app) : « que ce soit nickel » (Daniel, option A validée).** Remplace la
+565 en examen. Méthode : lots exclusifs par vagues de 3-4 agents. Contenu :
+- **Données de facturation** (CIF/NIF/NIE, SIRET, n° d'entreprise, TVA, passeport, adresse) : Profil ›
+  Paiements › « Informations de facturation » (`billing_info_screen.dart`), `GET/PATCH /users/me/billing-info`
+  (`utils/billingInfo.js`, synchronisé entre les 3 profils), **instantané figé sur chaque facture** (PDF app,
+  e-mail, site `BillingInfoSection.tsx`), lecture admin `/admin/users/:role/:id/billing-info`.
+- **Pop-up promo** : il passait DERRIÈRE le menu flottant sur Android (viewPadding = 0) → dégagement calculé
+  (`padding.bottom` sinon `viewPadding + 96`), vérifié iOS aussi.
+- **Chat** : double coche façon WhatsApp + « Lu » (`messageReceiptService.js`, `message:delivered` /
+  `message:read`, `chat_receipt_ticks.dart`), bouton « Nouvelle conversation » (FAB qui s'étend), cartes
+  « Suivre en direct » refaites (`pawfollow_widgets.dart`) ; `live_tracking_accepted|refused` n'étaient JAMAIS
+  envoyées → corrigé.
+- **Notifications (audit complet)** : `backend/scripts/audit_notifications.js` (types × 9 langues × canaux) ;
+  **sons absents de l'AAB 565** (réduction de ressources) → `res/raw/keep.xml` ; icône `ic_stat_notify` ;
+  init push iOS qui sautait les écouteurs sans jeton ; **badge iOS** (`aps.badge` pour build ≥ 566, canal natif
+  `hopetsit/badge` dans `AppDelegate.swift`, `app_badge_service.dart`) ; **« lu » synchronisé entre appareils**
+  (`notification.read` / `notification.removed` par socket + push silencieux) ; e-mails : gabarit unique
+  échappé (`buildNotificationEmailHtml`), tutoiement FR partout.
+- **Boutique** : `shop_ui_kit.dart`, devise du compte (plus d'euro figé), `GET /pawspots/plans`, PawSpot payé
+  par carte jamais activé quand `/confirm` arrivait avant le webhook → corrigé, réductions réservées puis
+  consommées APRÈS paiement (`discountReservationService.js`), site `useShopPrices.ts`.
+- **Amis** : sous-pages refaites (`views/friends/tabs/*`, `friends_i18n.dart`), déblocage qui échouait selon le
+  rôle de la cible (`blockController`), nom du titulaire d'une invitation famille.
+- **PawMap fluide** : `BackdropFilter` retirés au-dessus de la carte (`paw_rail_button.dart` → RepaintBoundary).
+- **Admin — revenus boutique** : `services/shopRevenueService.js` = calcul UNIQUE pour Tableau de bord,
+  Boutique, Comptabilité et Revenus (App Store · Google Play · Carte/PayPal · Offerts), commissions des stores
+  réglables (`ShopFeeConfig`, `/admin/shop-revenue`, `/fees`). **Montants réels** : Apple = prix/devise/pays/
+  environnement lus dans la transaction signée (`amountSource: 'store'`), carte/portefeuille = montant débité
+  (`'psp'`, `utils/paidAmount.js`, y compris boost profil, boost carte, add-on chat qui écrivaient encore le
+  prix catalogue + « stripe »), `platform` ios|android|web (`utils/purchasePlatform.js`), **Sandbox et
+  remboursés exclus des revenus** (`excludedFromRevenue`, `refundedAt` → `excludedCount`/`refundedCount`).
+  Les lignes d'avant le 18/09 restent « estimé » (prix catalogue) — rien n'est inventé. ⚠️ Android : aucun
+  Play Billing (achats par carte Airwallex / portefeuille) → la colonne Google Play reste à 0, c'est normal.
+- **PUBLICATION 18/09 ~13 h 30** : `~/Downloads/HoPetSit_v23.1.563_build566.{ipa,aab,apk}` (4 sons vérifiés dans
+  l'AAB et l'IPA). **Play : release 566 en production par l'API** (commit 200, `notes_566.json`). **iOS** : IPA
+  par Transporter (DISTRIBUER = `click at {1317,307}`, la position change selon la liste), build 566 VALID
+  (`8e527a19-…`) ~12 min après, soumission 565 `3f3a47b7` annulée (200), 566 attaché à la 1.18 (204 au 1er
+  essai après 6 s), whatsNew 8 locales (⚠️ les locales ASC s'appellent `it` et `pl`, pas `it-IT`/`pl-PL`),
+  nouvelle reviewSubmission `8852b59c-ea09-421b-b06c-09c1c09ee478` → **1.18/566 WAITING_FOR_REVIEW**.
+  Serveur : commit + push par Daniel (`~/hopetsit-social/publier_566.sh`). ⚠️ Passer l'admin « Versions de
+  l'app » à 566/566 quand Play ET Apple ont approuvé. **Prochain build = 567.**
+- Contrôles : `dart analyze lib` 0 erreur, i18n 3 945 clés / 0 manquante / 0 inconnue, `tsc` 0, jest 127/127,
+  JS admin valide. ⚠️ Incident : un agent a affiché le mot de passe admin dans une sortie d'outil →
+  **Daniel doit le changer**. À prouver sur vrai téléphone : notifications type par type, sons Android,
+  badge iOS, synchro multi-appareils, un achat de test.
 
 **13/09 — v562 SITE « minimaliste, pro, façon Apple » (Daniel).** Design uniquement, mêmes
 clés i18n / routes. Fond blanc + sections `#F5F5F7`, texte `#1D1D1F` / `#6E6E73`, titres

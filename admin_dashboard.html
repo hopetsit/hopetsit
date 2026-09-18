@@ -16,7 +16,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v565'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v566'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -394,7 +394,7 @@ function filterNav(q) {
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v565</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v566</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -484,6 +484,13 @@ function filterNav(q) {
         <div class="stats-grid" id="stats-grid">
           <div class="loading"><div class="spinner"></div> <span data-i18n="loading">Chargement...</span></div>
         </div>
+
+        <!-- v566 — Boutique par canal (App Store · Google Play · Carte/PayPal · Offerts).
+             Chiffres calculés par GET /admin/shop-revenue, les mêmes que dans
+             Mes revenus, Comptabilité et Activité boutique. -->
+        <div class="section-title">🛍️ <span data-i18n="shopch_title">Boutique par canal</span></div>
+        <div style="font-size:12.5px;color:var(--text-muted);margin:-6px 0 12px" data-i18n="shopch_dash_hint">Brut et net estimé (après commission du store) · ce mois et 30 derniers jours · clique sur un canal pour voir ses ventes.</div>
+        <div class="stats-grid" id="dash-shop-channels"></div>
 
         <div class="section-title">💳 <span data-i18n="dash_recent_payments">Paiements récents</span>
           <button class="action-btn" id="payments-history-btn" style="margin-left:12px;background:#2563EB;color:#fff" onclick="toggleAllPayments()">📜 <span data-i18n="full_history">Tout l'historique</span></button>
@@ -1445,6 +1452,16 @@ function filterNav(q) {
             <option value="owner" data-i18n="role_owners">👤 Propriétaires</option>
             <option value="walker" data-i18n="role_walkers">🚶 Walkers</option>
           </select>
+          <!-- v566 — filtre par canal de vente -->
+          <select class="filter-select" id="boost-channel-filter" onchange="loadBoosts(1)">
+            <option value="" data-i18n="shopch_filter_all">Tous les canaux</option>
+            <option value="apple" data-i18n="shopch_opt_apple">🍎 App Store (iOS)</option>
+            <option value="google_play" data-i18n="shopch_opt_google_play">🤖 Google Play</option>
+            <option value="airwallex" data-i18n="shopch_opt_airwallex">💳 Carte (Airwallex)</option>
+            <option value="paypal" data-i18n="shopch_opt_paypal">🅿️ PayPal</option>
+            <option value="promo" data-i18n="shopch_opt_promo">🎁 Offerts</option>
+            <option value="autre" data-i18n="shopch_opt_autre">👛 Portefeuille / autre</option>
+          </select>
           <button class="action-btn btn-primary" onclick="loadBoosts()">↻ <span data-i18n="refresh">Actualiser</span></button>
         </div>
         <div class="table-wrap">
@@ -1633,6 +1650,17 @@ function filterNav(q) {
     <div class="modal-actions">
       <button class="modal-close" onclick="closeModal('iban-modal')" data-i18n="close">Fermer</button>
       <button class="action-btn btn-verify" id="modal-iban-verify-btn">✓ <span data-i18n="verify_iban">Vérifier IBAN</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: informations de facturation (v566) — fiche utilisateur + facture -->
+<div class="modal-overlay" id="billing-modal">
+  <div class="modal">
+    <div class="modal-title">🧾 <span id="modal-billing-title" data-i18n="billing_title">Informations de facturation</span></div>
+    <div id="modal-billing-content"></div>
+    <div class="modal-actions">
+      <button class="modal-close" onclick="closeModal('billing-modal')" data-i18n="close">Fermer</button>
     </div>
   </div>
 </div>
@@ -4403,6 +4431,8 @@ async function loadDashboard() {
   // de dernière mise à jour pour qu'on VOIE que la page est live.
   const tsEl = document.getElementById('dashboard-last-update');
   if (tsEl) tsEl.textContent = 'Actualisation...';
+  // v566 — bloc « Boutique par canal » (chargé en parallèle, n'attend pas /admin/stats).
+  try { loadDashboardShopChannels(true); } catch (_) {}
   try {
     const d = await api('/admin/stats');
     const colors = ['var(--primary)', 'var(--green)', 'var(--blue)', 'var(--orange)', 'var(--red)', 'var(--green)', 'var(--blue)'];
@@ -4948,6 +4978,7 @@ function renderOwners() {
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="action-btn" style="background:${u.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('${u._role}','${u._id}',${!u.isStaff})">${u.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button>
           <button class="action-btn" onclick="changeUserEmail('${u._role}','${u._id}','${escapeHtml(u.email||'')}')" title="${t('users_email_edit_title','Corriger l\'adresse e-mail (renvoie un code de vérification)')}">✉️ ${t('users_email_edit','E-mail')}</button>
+          <button class="action-btn" onclick="showUserBilling('${u._role}','${u._id}')" title="${t('billing_btn_title','Informations de facturation : NIF, SIRET, TVA, adresse')}">🧾 ${t('billing_btn','Facturation')}</button>
           <button class="action-btn btn-delete" onclick="deleteUnifiedUser('${u._role}','${u._id}')">Supprimer</button>
         </td>
       </tr>`;
@@ -5067,6 +5098,88 @@ async function deleteWalker(id) {
 let paymentsPage = 1;
 const paymentsLimit = 30;
 
+// ─── INFORMATIONS DE FACTURATION (v566) ───────────────────────────────────
+// Daniel (18/09) : NIF, NIE, CIF, SIRET, TVA, EIN, passeport… saisis par les
+// utilisateurs, visibles dans la fiche utilisateur et sur chaque facture
+// (instantanés figés `issuerBilling` = prestataire, `customerBilling` = propriétaire).
+let _invoicesCache = [];
+function billingIdLabel(idType) {
+  const fixed = { nif: 'NIF', nie: 'NIE', cif: 'CIF', siret: 'SIRET', ein: 'EIN' };
+  if (fixed[idType]) return fixed[idType];
+  if (idType === 'vat') return t('billing_vat', 'N° TVA');
+  if (idType === 'passport') return t('billing_passport', 'Passeport');
+  if (idType === 'company_number') return t('billing_company_number', "N° d'entreprise");
+  return t('billing_id_other', 'Identifiant');
+}
+function billingHasData(b) {
+  return !!(b && (b.legalName || b.idNumber || b.vatNumber || b.address || b.postalCode || b.city || b.country));
+}
+function billingAddress(b) {
+  const cityLine = [b.postalCode, b.city].filter(Boolean).join(' ');
+  return [b.address, cityLine, b.country].filter(Boolean).join(', ');
+}
+// Résumé compact sous un nom, dans le tableau des factures.
+function billingInline(b) {
+  if (!billingHasData(b)) return '';
+  const parts = [];
+  if (b.legalName) parts.push(escapeHtml(b.legalName));
+  if (b.idNumber) parts.push(escapeHtml(billingIdLabel(b.idType)) + ' : ' + escapeHtml(b.idNumber));
+  if (b.vatNumber && !(b.idType === 'vat' && b.vatNumber === b.idNumber)) parts.push(escapeHtml(t('billing_vat', 'N° TVA')) + ' : ' + escapeHtml(b.vatNumber));
+  return `<div style="font-size:11px;color:var(--text-muted);margin-top:3px">🧾 ${parts.join(' · ')}</div>`;
+}
+// Bloc détaillé (modale).
+function billingBlock(title, name, b) {
+  const field = (label, value) => `<div class="modal-field"><label class="modal-label">${escapeHtml(label)}</label><div class="modal-value">${value ? escapeHtml(value) : '<span style="color:var(--text-muted)">—</span>'}</div></div>`;
+  const head = `<div class="modal-section">${escapeHtml(title)}${name ? ' · ' + escapeHtml(name) : ''}</div>`;
+  if (!billingHasData(b)) return head + `<div class="modal-value" style="color:var(--text-muted)">${t('billing_empty', 'Aucune information de facturation saisie.')}</div>`;
+  const when = b.snapshotAt || b.updatedAt;
+  return head + `<div class="modal-grid">
+    ${field(t('billing_type', 'Type'), b.type === 'business' ? t('billing_type_business', 'Professionnel') : t('billing_type_individual', 'Particulier'))}
+    ${field(t('billing_legal_name', 'Nom légal'), b.legalName)}
+    ${field(billingIdLabel(b.idType), b.idNumber)}
+    ${field(t('billing_vat', 'N° TVA'), b.vatNumber)}
+    <div class="modal-field full"><label class="modal-label">${t('billing_address', 'Adresse')}</label><div class="modal-value">${escapeHtml(billingAddress(b) || '—')}</div></div>
+    ${when ? `<div class="modal-field full" style="font-size:12px;color:var(--text-muted)">${b.snapshotAt ? t('billing_frozen_on', 'Figé sur la facture le ') : t('billing_updated_on', 'Mis à jour le ')}${new Date(when).toLocaleDateString(adminLocale())}</div>` : ''}
+  </div>`;
+}
+async function showUserBilling(role, id) {
+  const u = (allOwners || []).find(x => x._id === id) || {};
+  const box = document.getElementById('modal-billing-content');
+  document.getElementById('modal-billing-title').textContent = t('billing_title', 'Informations de facturation');
+  box.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  document.getElementById('billing-modal').classList.add('open');
+  try {
+    const d = await api('/admin/users/' + role + '/' + id + '/billing-info');
+    box.innerHTML = billingBlock(t('billing_account', 'Compte'), (u.name || '') + (u.email ? ' — ' + u.email : ''), d.billingInfo)
+      + `<div style="font-size:12px;color:var(--text-muted);margin-top:12px">${t('billing_sync_note', 'Saisies par l\'utilisateur (app ou site), communes à ses 3 profils, copiées sur chaque facture à sa création.')}</div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="empty-state">${t('error_prefix')}${escapeHtml(e.message)}</div>`;
+  }
+}
+function showInvoiceBilling(invoiceId) {
+  const inv = (_invoicesCache || []).find(x => x._id === invoiceId);
+  if (!inv) return;
+  document.getElementById('modal-billing-title').textContent = t('billing_invoice_title', 'Émetteur et client de la facture') + ' ' + (inv.invoiceNumber || '');
+  document.getElementById('modal-billing-content').innerHTML =
+    billingBlock(t('billing_issuer', 'Émetteur (prestataire)'), inv.providerName, inv.issuerBilling)
+    + billingBlock(t('billing_customer', 'Client (propriétaire)'), inv.ownerName, inv.customerBilling);
+  document.getElementById('billing-modal').classList.add('open');
+}
+// La facture HTML exige le jeton : on la charge avec l'en-tête Authorization
+// (jamais de jeton admin dans l'URL) puis on l'ouvre dans un nouvel onglet.
+function openInvoiceHtml(ev, invoiceId) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  const w = window.open('', '_blank');
+  fetch(`${API_URL}/invoices/${invoiceId}/html?lang=${currentAdminLang()}`, { headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` } })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+    .then(html => {
+      const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+      if (w) w.location = url; else window.location.href = url;
+    })
+    .catch(e => { if (w) w.close(); showToast(t('error_prefix') + e.message, 'error'); });
+  return false;
+}
+
 // ─── INVOICES (v23.1) ─────────────────────────────────────────────────────
 let invoicesCurrentRole = 'owner';
 async function loadInvoices(role) {
@@ -5090,6 +5203,7 @@ async function loadInvoices(role) {
   try {
     const d = await api(`/admin/invoices${qs}`);
     const list = d.invoices || [];
+    _invoicesCache = list;
     if (list.length === 0) {
       tbody.innerHTML = `<div class="empty-state">${t('empty_no_invoice_filter')}</div>`;
       return;
@@ -5100,10 +5214,10 @@ async function loadInvoices(role) {
     const rows = list.map((inv) => `
       <tr>
         <td><strong>${inv.invoiceNumber}</strong><br><small style="color:var(--text-muted)">${fmtDate(inv.issuedAt)}</small></td>
-        <td>${inv.ownerName || '—'}<br><small>${inv.ownerEmail || ''}</small></td>
+        <td>${escapeHtml(inv.ownerName || '—')}<br><small>${escapeHtml(inv.ownerEmail || '')}</small>${billingInline(inv.customerBilling)}</td>
         <td>
           <span class="pill" style="background:${inv.providerRole === 'walker' ? '#1976D2' : '#5942CC'};color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;text-transform:uppercase;">${inv.providerRole}</span>
-          ${inv.providerName || '—'}<br><small>${inv.providerEmail || ''}</small>
+          ${escapeHtml(inv.providerName || '—')}<br><small>${escapeHtml(inv.providerEmail || '')}</small>${billingInline(inv.issuerBilling)}
         </td>
         <td>${(inv.serviceType || '').replace(/_/g, ' ') || '—'}<br><small>${fmtDate(inv.serviceDate || inv.startDate)}</small></td>
         <td><strong>${fmtMoney(inv.grossAmount, inv.currency)}</strong><br><small style="color:var(--text-muted)">net €${(inv.netPayout || 0).toFixed(2)}</small></td>
@@ -5111,7 +5225,8 @@ async function loadInvoices(role) {
           <span class="pill" style="background:${inv.status === 'refunded' ? '#FFEBEE' : '#E8F5E9'};color:${inv.status === 'refunded' ? '#C62828' : '#2E7D32'};padding:2px 8px;border-radius:4px;font-size:10px;text-transform:uppercase;">${inv.status}</span>
         </td>
         <td>
-          <a href="${baseUrl}/invoices/${inv._id}/html" target="_blank" rel="noopener"
+          <button type="button" class="action-btn" onclick="showInvoiceBilling('${inv._id}')" title="${t('billing_invoice_title','Émetteur et client de la facture')}">🧾 ${t('billing_btn','Facturation')}</button>
+          <a href="${baseUrl}/invoices/${inv._id}/html" target="_blank" rel="noopener" onclick="return openInvoiceHtml(event,'${inv._id}')"
              class="btn-small" style="background:#5942CC;color:#fff;padding:4px 10px;border-radius:6px;text-decoration:none;font-size:12px;">📄 View</a>
         </td>
       </tr>
@@ -5205,6 +5320,7 @@ async function exportPaymentsCSV() {
 
 // v23.1.393 — Daniel : boutons Actualiser / Tout l'historique sur Mes revenus.
 function refreshRevenuesPage() {
+  _shopRevCache = null; // v566 — « Actualiser » recharge aussi la boutique par canal
   try { loadAdminPayouts(); } catch (_) {}
   try { loadCompanySweeps(); } catch (_) {}
   try { loadCompanySweep(); } catch (_) {}
@@ -5776,15 +5892,297 @@ const PRODUCT_COLORS = {
   kyc: '#8B5CF6',
 };
 
+// ── v566 — BOUTIQUE PAR CANAL ────────────────────────────────────────────────
+// Daniel (18/09) : « je vois les chiffres boutique Apple et Play Store, et que
+// tout soit synchronisé dans la comptabilité, l'onglet revenus aussi ».
+// TOUS les montants viennent de GET /admin/shop-revenue (calcul unique côté
+// serveur : services/shopRevenueService.js). Ici on ne fait QU'AFFICHER : le
+// tableau de bord, Mes revenus, la Comptabilité et l'Activité boutique lisent
+// les mêmes champs (gross / storeFee / net), aucune formule n'est refaite.
+const SHOP_CHANNEL_META = {
+  apple:       { emoji: '🍎', color: '#111827', key: 'shopch_apple',       fr: 'App Store (iOS)' },
+  google_play: { emoji: '🤖', color: '#16A34A', key: 'shopch_google_play', fr: 'Google Play' },
+  airwallex:   { emoji: '💳', color: '#2563EB', key: 'shopch_airwallex',   fr: 'Carte (Airwallex)' },
+  paypal:      { emoji: '🅿️', color: '#0EA5E9', key: 'shopch_paypal',      fr: 'PayPal' },
+  promo:       { emoji: '🎁', color: '#F59E0B', key: 'shopch_promo',       fr: 'Offerts' },
+  autre:       { emoji: '👛', color: '#6E6E73', key: 'shopch_autre',       fr: 'Portefeuille / autre' },
+};
+const SHOP_PRODUCT_META = {
+  pawboost:      { label: '🚀 PawBoost' },
+  pawspot_boost: { label: '🗺️ PawSpot boost', key: 'shopprod_pawspot_boost' },
+  pawfollow:     { label: '⭐ PawFollow' },
+  pawfamily:     { label: '👨‍👩‍👧 PawFamily', key: 'shopprod_pawfamily' },
+  pawspot:       { label: '🐾 PawSpot' },
+  pawpremium:    { label: '👑 PawPremium' },
+  chat_addon:    { label: '💬 Chat add-on', key: 'shopprod_chat_addon' },
+  kyc:           { label: '🪪 Vérification ID', key: 'shopprod_kyc' },
+  donation:      { label: '🎁 Don', key: 'shopprod_donation' },
+  autre:         { label: '📦 Autre', key: 'shopprod_autre' },
+};
+function shopChannelLabel(c, withEmoji) {
+  const m = SHOP_CHANNEL_META[c] || { emoji: '📦', key: 'shopch_autre', fr: c || '?' };
+  return (withEmoji === false ? '' : m.emoji + ' ') + t(m.key, m.fr);
+}
+function shopProductLabel(p) {
+  const m = SHOP_PRODUCT_META[p] || { label: p || '?' };
+  return m.key ? t(m.key, m.label) : m.label;
+}
+function shopMoney(n, currency) {
+  try {
+    return new Intl.NumberFormat(adminLocale(), { style: 'currency', currency: currency || 'EUR' }).format(Number(n) || 0);
+  } catch (_) { return (Number(n) || 0).toFixed(2) + ' ' + (currency || 'EUR'); }
+}
+function shopPct(rate) { return (Math.round((Number(rate) || 0) * 10000) / 100) + ' %'; }
+// Autres devises (jamais converties) : « + 4,39 $US (1) ».
+function shopOtherCurrencies(bucket, field) {
+  const o = (bucket && bucket.otherCurrencies) || {};
+  const parts = Object.keys(o).map((cur) => shopMoney(o[cur][field || 'gross'], cur));
+  return parts.length ? ' <span style="color:var(--text-muted);font-weight:500">+ ' + parts.join(' + ') + '</span>' : '';
+}
+function shopChannelBadge(c) {
+  const m = SHOP_CHANNEL_META[c] || SHOP_CHANNEL_META.autre;
+  return '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap;background:' + m.color + '18;color:' + m.color + '">' + escapeHtml(shopChannelLabel(c)) + '</span>';
+}
+function shopFlagBadges(x) {
+  let h = '';
+  if (x.estimated || x.estimatedCount) h += ' <span class="badge badge-orange" title="' + escapeHtml(t('shopch_estimated_tip', 'Montant réel non enregistré : prix catalogue du produit')) + '">' + t('shopch_estimated', 'estimé') + (x.estimatedCount ? ' ×' + x.estimatedCount : '') + '</span>';
+  if (x.untraced || x.untracedCount) h += ' <span class="badge badge-gray" title="' + escapeHtml(t('shopch_untraced_tip', 'Ni montant enregistré ni prix catalogue : compté, 0 €')) + '">' + t('shopch_untraced', 'non tracé') + (x.untracedCount ? ' ×' + x.untracedCount : '') + '</span>';
+  return h;
+}
+
+let _shopRevCache = null; let _shopRevCacheAt = 0;
+// Sans fenêtre de dates : réponse partagée 30 s entre les vues (même instantané
+// de chiffres partout). Avec from/to (export comptable) : appel direct.
+async function getShopRevenue(opts) {
+  opts = opts || {};
+  const qs = new URLSearchParams();
+  if (opts.from) qs.set('from', opts.from);
+  if (opts.to) qs.set('to', opts.to);
+  if (opts.lines) qs.set('lines', '1');
+  const ranged = !!(opts.from || opts.to || opts.lines);
+  if (!ranged && !opts.force && _shopRevCache && Date.now() - _shopRevCacheAt < 30000) return _shopRevCache;
+  const d = await api('/admin/shop-revenue' + (qs.toString() ? '?' + qs.toString() : ''));
+  if (!ranged) { _shopRevCache = d; _shopRevCacheAt = Date.now(); }
+  return d;
+}
+
+// (a) TABLEAU DE BORD — 4 cartes cliquables (+ « autre » s'il y a des ventes).
+function openShopChannel(channel) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  set('boost-product-filter', ''); set('boost-tier-filter', ''); set('boost-role-filter', '');
+  set('boost-channel-filter', channel || '');
+  boostsPage = 1;
+  showPage('boosts');
+}
+async function loadDashboardShopChannels(force) {
+  const grid = document.getElementById('dash-shop-channels');
+  if (!grid) return;
+  try {
+    const d = await getShopRevenue({ force: !!force });
+    const month = (d.periods && d.periods.thisMonth && d.periods.thisMonth.groups) || {};
+    const d30 = (d.periods && d.periods.last30d && d.periods.last30d.groups) || {};
+    const all = (d.periods && d.periods.allTime && d.periods.allTime.groups) || {};
+    const rates = d.rates || {};
+    const cards = [
+      { g: 'app_store', ch: 'apple', label: shopChannelLabel('apple'), color: SHOP_CHANNEL_META.apple.color, fee: rates.apple },
+      { g: 'google_play', ch: 'google_play', label: shopChannelLabel('google_play'), color: SHOP_CHANNEL_META.google_play.color, fee: rates.google_play },
+      { g: 'card', ch: 'airwallex', label: '💳 ' + t('shopch_card_paypal', 'Carte / PayPal'), color: SHOP_CHANNEL_META.airwallex.color, fee: 0 },
+      { g: 'gifted', ch: 'promo', label: shopChannelLabel('promo'), color: SHOP_CHANNEL_META.promo.color, gifted: true },
+    ];
+    if (all.other && all.other.count) cards.push({ g: 'other', ch: 'autre', label: shopChannelLabel('autre'), color: SHOP_CHANNEL_META.autre.color, fee: 0 });
+    const line = (title, b) => {
+      b = b || {};
+      return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-top:6px"><span style="color:var(--text-muted)">' + title + '</span>' +
+        '<span style="text-align:right"><b>' + shopMoney(b.gross) + '</b>' + shopOtherCurrencies(b) + ' · ' + t('shopch_net_short', 'net') + ' <b style="color:var(--green)">' + shopMoney(b.net) + '</b><br><span style="color:var(--text-muted);font-size:12px">' + (b.paidCount || 0) + ' ' + t('shopch_sales', 'vente(s)') + '</span></span></div>';
+    };
+    const giftedLine = (title, b) => {
+      b = b || {};
+      return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-top:6px"><span style="color:var(--text-muted)">' + title + '</span>' +
+        '<span style="text-align:right"><b>' + (b.giftedCount || 0) + '</b> ' + t('shopch_gifted_count', 'offert(s)') + '<br><span style="color:var(--text-muted);font-size:12px">' + t('shopch_gifted_value', 'valeur catalogue') + ' ' + shopMoney(b.giftedValue) + '</span></span></div>';
+    };
+    grid.innerHTML = cards.map((c) => {
+      const a = all[c.g] || {};
+      let sub;
+      if (c.gifted) sub = t('shopch_gifted_sub', '0 € encaissé — staff, code promo, cadeau admin, PawPoints');
+      else if (c.ch === 'google_play' && !a.count) sub = t('shopch_no_play', 'Aucune vente via Google Play : dans l\'app Android, le paiement se fait par carte.');
+      else sub = t('shopch_since_start', 'Depuis le début') + ' : ' + shopMoney(a.gross) + ' · ' + t('shopch_net_short', 'net') + ' ' + shopMoney(a.net) +
+        (c.fee ? ' · ' + t('shopch_store_fee_short', 'commission store') + ' ' + shopPct(c.fee) : '') + shopFlagBadges({ estimatedCount: a.estimatedCount, untracedCount: a.untracedCount });
+      return '<div class="stat-card clickable" style="--accent:' + c.color + '" role="button" tabindex="0" title="' + escapeHtml(t('shopch_open_sales', 'Voir les ventes de ce canal')) + '" onclick="openShopChannel(\'' + c.ch + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openShopChannel(\'' + c.ch + '\')}">' +
+        '<div class="stat-label">' + escapeHtml(c.label) + '</div>' +
+        (c.gifted ? giftedLine(t('shopch_this_month', 'Ce mois'), month[c.g]) + giftedLine(t('shopch_last30', '30 derniers jours'), d30[c.g])
+                  : line(t('shopch_this_month', 'Ce mois'), month[c.g]) + line(t('shopch_last30', '30 derniers jours'), d30[c.g])) +
+        '<div class="stat-sub" style="margin-top:10px">' + sub + '</div></div>';
+    }).join('');
+  } catch (e) {
+    grid.innerHTML = '<div class="stat-card" style="--accent:var(--red);grid-column:1 / -1"><div class="stat-sub">' + t('error_prefix', 'Erreur : ') + escapeHtml(e.message || String(e)) + '</div></div>';
+  }
+}
+
+// Tableau « par canal » commun à Mes revenus et à la Comptabilité.
+function renderShopChannelTable(agg, rates, opts) {
+  opts = opts || {};
+  const chs = Object.keys(SHOP_CHANNEL_META);
+  let rows = '';
+  for (const c of chs) {
+    const b = (agg.byChannel && agg.byChannel[c]) || {};
+    const isGift = c === 'promo';
+    if (!b.count && (c === 'paypal' || c === 'autre')) continue; // canaux vides non essentiels
+    let note = '';
+    if (c === 'google_play' && !b.count) note = '<br><span style="font-size:12px;color:var(--text-muted)">' + t('shopch_no_play', 'Aucune vente via Google Play : dans l\'app Android, le paiement se fait par carte.') + '</span>';
+    if (c === 'apple') note = '<br><span style="font-size:12px;color:var(--text-muted)">' + t('shopch_apple_note', 'Encaissé par Apple, versé sur le compte bancaire (hors Airwallex). Prix catalogue EUR.') + '</span>';
+    if (isGift) note = '<br><span style="font-size:12px;color:var(--text-muted)">' + t('shopch_gifted_value', 'valeur catalogue') + ' ' + shopMoney(b.giftedValue) + '</span>';
+    rows += '<tr><td><strong>' + escapeHtml(shopChannelLabel(c)) + '</strong>' + note + '</td>' +
+      '<td>' + (isGift ? (b.giftedCount || 0) : (b.paidCount || 0)) + '</td>' +
+      '<td>' + shopMoney(b.gross) + shopOtherCurrencies(b, 'gross') + shopFlagBadges({ estimatedCount: b.estimatedCount, untracedCount: b.untracedCount }) + '</td>' +
+      '<td>' + (rates && rates[c] ? '− ' + shopMoney(b.storeFee) + ' <span style="color:var(--text-muted);font-size:12px">(' + shopPct(rates[c]) + ')</span>' : '—') + '</td>' +
+      '<td><strong>' + shopMoney(b.net) + '</strong>' + shopOtherCurrencies(b, 'net') + '</td></tr>';
+  }
+  const tt = agg.totals || {};
+  rows += '<tr style="background:var(--primary-light,#FFF1EE)"><td><strong>' + t('shopch_total_shop', 'Total boutique') + '</strong></td><td>' + (tt.paidCount || 0) + '</td>' +
+    '<td><strong>' + shopMoney(tt.gross) + '</strong>' + shopOtherCurrencies(tt, 'gross') + '</td><td>− ' + shopMoney(tt.storeFee) + '</td><td><strong style="color:var(--green)">' + shopMoney(tt.net) + '</strong>' + shopOtherCurrencies(tt, 'net') + '</td></tr>';
+  return '<div class="table-wrap"><table class="table"><thead><tr><th>' + t('shopch_th_channel', 'Canal') + '</th><th>' + t('shopch_th_sales', 'Ventes') + '</th><th>' + t('shopch_th_gross', 'Brut') + '</th><th>' +
+    t(opts.accounting ? 'shopch_th_fee_charge' : 'shopch_th_fee', opts.accounting ? 'Commission du store (charge)' : 'Commission du store (estimée)') + '</th><th>' + t('shopch_th_net', 'Net estimé') + '</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<p style="margin:8px 0 0;color:var(--text-muted);font-size:12.5px">' +
+      t('shopch_reconcile', 'Montants enregistrés sur les achats : {rec} · complétés au prix catalogue : {cat} · lignes « estimé » : {est}.')
+        .replace('{rec}', shopMoney(tt.recordedGross)).replace('{cat}', shopMoney((tt.gross || 0) - (tt.recordedGross || 0))).replace('{est}', shopMoney(tt.estimatedGross)) + '</p>';
+}
+function renderShopProductTable(agg) {
+  const rows = (agg.rows || []).map((r) =>
+    '<tr><td>' + shopChannelBadge(r.channel) + '</td><td><strong>' + escapeHtml(shopProductLabel(r.product)) + '</strong></td>' +
+    '<td>' + (r.channel === 'promo' ? (r.giftedCount || 0) : (r.paidCount || 0)) + '</td>' +
+    '<td>' + shopMoney(r.gross) + shopOtherCurrencies(r, 'gross') + shopFlagBadges({ estimatedCount: r.estimatedCount, untracedCount: r.untracedCount }) + '</td>' +
+    '<td>' + (r.storeFee ? '− ' + shopMoney(r.storeFee) : '—') + '</td><td><strong>' + shopMoney(r.net) + '</strong></td></tr>').join('');
+  if (!rows) return '<p style="color:var(--text-muted);font-size:13px">' + t('shopch_no_sales', 'Aucune vente boutique sur cette période.') + '</p>';
+  return '<div class="table-wrap"><table class="table"><thead><tr><th>' + t('shopch_th_channel', 'Canal') + '</th><th>' + t('shopch_th_product', 'Produit') + '</th><th>' + t('shopch_th_sales', 'Ventes') + '</th><th>' +
+    t('shopch_th_gross', 'Brut') + '</th><th>' + t('shopch_th_fee', 'Commission du store (estimée)') + '</th><th>' + t('shopch_th_net', 'Net estimé') + '</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+function renderShopTrackingNotes() {
+  return '<div class="panel" style="margin-top:14px;font-size:13px;line-height:1.6;color:var(--text-muted)">' +
+    '<strong style="color:var(--text)">' + t('shopch_notes_title', 'Ce qui est réellement tracé') + '</strong><br>' +
+    '🍎 ' + t('shopch_note_apple', 'App Store : chaque achat StoreKit validé est enregistré avec le prix catalogue EUR du produit (pas le prix payé dans la devise du store) → « estimé ». Remboursements Apple non déduits.') + '<br>' +
+    '🤖 ' + t('shopch_note_play', 'Google Play : pas de facturation Google Play dans l\'app — sur Android la boutique se paie par carte (Airwallex) ou portefeuille. Le canal reste à 0, rien n\'est inventé.') + '<br>' +
+    '💳 ' + t('shopch_note_card', 'Carte : montant enregistré quand il existe ; sinon prix catalogue courant (« estimé »). Ancien libellé « stripe » = carte Airwallex au plein tarif, « estimé ». Frais bancaires non déduits.') + '<br>' +
+    '🎁 ' + t('shopch_note_gift', 'Offerts (staff, code promo, cadeau admin, PawPoints, crédit Premium) : 0 €, valeur catalogue à titre indicatif.') +
+    '</div>';
+}
+function renderShopFeesEditor(rates) {
+  const v = (k) => Math.round((Number(rates && rates[k]) || 0) * 10000) / 100;
+  return '<div class="panel" style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
+    '<strong>' + t('shopch_fees_title', 'Commission des stores') + '</strong>' +
+    '<label style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap">🍎 App Store <input type="number" id="shop-fee-apple" class="filter-select" min="0" max="50" step="0.5" value="' + v('apple') + '" style="width:84px"> %</label>' +
+    '<label style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap">🤖 Google Play <input type="number" id="shop-fee-google" class="filter-select" min="0" max="50" step="0.5" value="' + v('google_play') + '" style="width:84px"> %</label>' +
+    '<button class="action-btn btn-primary" onclick="saveShopFees()">💾 ' + t('save', 'Enregistrer') + '</button>' +
+    '<span style="font-size:12.5px;color:var(--text-muted)">' + t('shopch_fees_hint', 'Défaut 15 % (programme petites entreprises d\'Apple, 15 % Google Play). Sert au net estimé, partout dans l\'admin. Carte / PayPal : 0 % (hors frais bancaires).') + '</span></div>';
+}
+async function saveShopFees() {
+  const a = document.getElementById('shop-fee-apple'); const g = document.getElementById('shop-fee-google');
+  try {
+    await api('/admin/shop-revenue/fees', 'PATCH', { apple: Number(a && a.value) / 100, google_play: Number(g && g.value) / 100 });
+    _shopRevCache = null;
+    showToast(t('shopch_fees_saved', 'Taux enregistrés — chiffres recalculés.'), 'success');
+    refreshActivePageI18n();
+  } catch (e) { showToast(t('error_prefix', 'Erreur : ') + (e.message || e), 'error'); }
+}
+
+// (b) MES REVENUS — commissions des réservations + boutique par canal.
+let _shopRevPeriod = 'allTime';
+function setShopRevPeriod(p) { _shopRevPeriod = p; loadShopChannelsRevenue(); }
+async function loadShopChannelsRevenue(force) {
+  const wrap = document.getElementById('shop-channels-revenue');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const d = await getShopRevenue({ force: !!force });
+    const p = _shopRevPeriod;
+    const agg = (d.periods && d.periods[p]) || { totals: {}, byChannel: {}, rows: [] };
+    const c = (d.combined && d.combined[p]) || {};
+    const opt = (v, k, fr) => '<option value="' + v + '"' + (p === v ? ' selected' : '') + '>' + t(k, fr) + '</option>';
+    wrap.innerHTML =
+      '<h3 style="font-size:16px;margin:20px 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">🛍️ ' + t('shopch_rev_title', 'Revenus : réservations + boutique par canal') +
+        ' <select class="filter-select" onchange="setShopRevPeriod(this.value)">' + opt('allTime', 'shopch_since_start', 'Depuis le début') + opt('thisMonth', 'shopch_this_month', 'Ce mois') + opt('last30d', 'shopch_last30', '30 derniers jours') + opt('last7d', 'shopch_last7', '7 derniers jours') + '</select></h3>' +
+      '<div class="stats-grid">' +
+        '<div class="stat-card" style="--accent:#EF4324"><div class="stat-label">💼 ' + t('shopch_commissions', 'Commissions des réservations') + '</div><div class="stat-value">' + shopMoney(c.commission) + '</div><div class="stat-sub">' + (c.bookingCount || 0) + ' ' + t('shopch_paid_bookings', 'réservation(s) payée(s)') + '</div></div>' +
+        '<div class="stat-card" style="--accent:#8B5CF6"><div class="stat-label">🛍️ ' + t('shopch_shop_gross', 'Boutique — brut') + '</div><div class="stat-value">' + shopMoney(c.shopGross) + '</div><div class="stat-sub">' + t('shopch_store_fee_total', 'commission des stores') + ' − ' + shopMoney(c.shopStoreFee) + ' → ' + t('shopch_net_short', 'net') + ' ' + shopMoney(c.shopNet) + '</div></div>' +
+        '<div class="stat-card" style="--accent:#0EA5E9"><div class="stat-label">Σ ' + t('shopch_total_gross', 'Total brut (commissions + boutique)') + '</div><div class="stat-value">' + shopMoney(c.totalGross) + '</div><div class="stat-sub">' + shopMoney(c.commission) + ' + ' + shopMoney(c.shopGross) + '</div></div>' +
+        '<div class="stat-card" style="--accent:#16A34A"><div class="stat-label">✅ ' + t('shopch_total_net', 'Total net estimé') + '</div><div class="stat-value" style="color:var(--green)">' + shopMoney(c.totalNet) + '</div><div class="stat-sub">' + t('shopch_total_net_sub', 'après commission estimée des stores') + '</div></div>' +
+      '</div>' +
+      renderShopChannelTable(agg, d.rates) +
+      '<h3 style="font-size:15px;margin:22px 0 10px">' + t('shopch_by_product', 'Par canal et par produit') + '</h3>' + renderShopProductTable(agg) +
+      renderShopFeesEditor(d.rates) + renderShopTrackingNotes();
+  } catch (e) {
+    wrap.innerHTML = '<div style="color:var(--red)">' + t('error_prefix', 'Erreur : ') + escapeHtml(e.message || String(e)) + '</div>';
+  }
+}
+
+// (c) COMPTABILITÉ — lignes boutique par canal, commission du store en charge.
+// Suit les dates Du/Au de la page (mêmes bornes que l'export CSV).
+async function loadShopChannelsAccounting() {
+  const wrap = document.getElementById('shop-channels-accounting');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const from = (document.getElementById('acc-from') || {}).value || '';
+  const to = (document.getElementById('acc-to') || {}).value || '';
+  try {
+    const d = await getShopRevenue({ from, to });
+    const agg = d.range || { totals: {}, byChannel: {}, rows: [] };
+    const c = (d.combined && d.combined.range) || {};
+    const label = (from || to) ? (t('shopch_period_from', 'du') + ' ' + (from || '…') + ' ' + t('shopch_period_to', 'au') + ' ' + (to || '…')) : t('shopch_since_start', 'Depuis le début');
+    wrap.innerHTML =
+      '<h3 style="font-size:16px;margin:24px 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">🛍️ ' + t('shopch_acc_title', 'Boutique par canal — brut, commission du store, net') +
+        ' <span style="font-size:12.5px;font-weight:500;color:var(--text-muted)">' + escapeHtml(label) + '</span>' +
+        ' <button class="action-btn" onclick="loadShopChannelsAccounting()">↻ ' + t('shopch_apply_dates', 'Appliquer les dates') + '</button></h3>' +
+      renderShopChannelTable(agg, d.rates, { accounting: true }) +
+      '<table class="table" style="margin-top:14px"><tbody>' +
+        '<tr><td>' + t('shopch_commissions', 'Commissions des réservations') + '</td><td style="text-align:right">' + shopMoney(c.commission) + '</td></tr>' +
+        '<tr><td>' + t('shopch_shop_gross', 'Boutique — brut') + '</td><td style="text-align:right">' + shopMoney(c.shopGross) + '</td></tr>' +
+        '<tr><td>' + t('shopch_fee_charge_line', 'Charge : commission des stores (estimée)') + '</td><td style="text-align:right">− ' + shopMoney(c.shopStoreFee) + '</td></tr>' +
+        '<tr><td><strong>' + t('shopch_total_net', 'Total net estimé') + '</strong></td><td style="text-align:right"><strong style="color:var(--green)">' + shopMoney(c.totalNet) + '</strong></td></tr>' +
+      '</tbody></table>' +
+      '<h3 style="font-size:15px;margin:22px 0 10px">' + t('shopch_by_product', 'Par canal et par produit') + '</h3>' + renderShopProductTable(agg) +
+      renderShopTrackingNotes();
+  } catch (e) {
+    wrap.innerHTML = '<div style="color:var(--red)">' + t('error_prefix', 'Erreur : ') + escapeHtml(e.message || String(e)) + '</div>';
+  }
+}
+// Lignes ajoutées à l'export CSV de la Comptabilité (synthèse par canal +
+// détail achat par achat). Montants = ceux du serveur, tels quels.
+async function shopRevenueCsvRows(from, to) {
+  const d = await getShopRevenue({ from, to, lines: true });
+  const f = (n) => Number(n || 0).toFixed(2);
+  const agg = d.range || { byChannel: {}, totals: {} };
+  const c = (d.combined && d.combined.range) || {};
+  const yn = (b) => (b ? 'oui' : 'non');
+  const rows = [[], ['BOUTIQUE PAR CANAL', '', '', '', '', '', '', ''],
+    ['Canal', 'Ventes', 'Offerts', 'Brut_EUR', 'Taux_commission_store', 'Commission_store_EUR', 'Net_EUR', 'Dont_estime_EUR', 'Lignes_non_tracees', 'Autres_devises']];
+  for (const ch of Object.keys(SHOP_CHANNEL_META)) {
+    const b = agg.byChannel[ch] || {};
+    const other = Object.keys(b.otherCurrencies || {}).map((cur) => f(b.otherCurrencies[cur].gross) + ' ' + cur).join(' + ');
+    rows.push([shopChannelLabel(ch, false), b.paidCount || 0, b.giftedCount || 0, f(b.gross), f((d.rates || {})[ch]), f(b.storeFee), f(b.net), f(b.estimatedGross), b.untracedCount || 0, other]);
+  }
+  const tt = agg.totals || {};
+  rows.push(['Total boutique', tt.paidCount || 0, tt.giftedCount || 0, f(tt.gross), '', f(tt.storeFee), f(tt.net), f(tt.estimatedGross), tt.untracedCount || 0, '']);
+  rows.push(['Commissions reservations', c.bookingCount || 0, '', f(c.commission), '', '', f(c.commission), '', '', '']);
+  rows.push(['Total HoPetSit (commissions + boutique)', '', '', f(c.totalGross), '', f(c.shopStoreFee), f(c.totalNet), '', '', '']);
+  rows.push([], ['DETAIL DES ACHATS BOUTIQUE', '', '', '', '', '', '', ''],
+    ['Date', 'Canal', 'Plateforme', 'Produit', 'Formule', 'Devise', 'Brut', 'Commission_store', 'Net', 'Estime', 'Non_trace', 'Prestataire', 'Client', 'Email', 'Id_paiement']);
+  for (const l of (d.lines || [])) {
+    rows.push([l.purchasedAt ? String(l.purchasedAt).slice(0, 10) : '', shopChannelLabel(l.channel, false), l.platform === 'unknown' ? '' : l.platform,
+      shopProductLabel(l.product).replace(/^[^A-Za-zÀ-ÿ]+/, ''), l.tier || '', l.currency, f(l.gross), f(l.storeFee), f(l.net), yn(l.estimated), yn(l.untraced), l.paymentProvider || '', l.userName || '', l.userEmail || '', l.paymentId || '']);
+  }
+  return rows;
+}
+
 async function loadBoosts(page) {
   if (page) boostsPage = page;
   const tier = document.getElementById('boost-tier-filter')?.value || '';
   const role = document.getElementById('boost-role-filter')?.value || '';
   const product = document.getElementById('boost-product-filter')?.value || '';
+  const channel = document.getElementById('boost-channel-filter')?.value || '';
   const params = new URLSearchParams({ page: boostsPage, limit: 30 });
   if (tier) params.set('tier', tier);
   if (role) params.set('role', role);
   if (product) params.set('product', product);
+  if (channel) params.set('channel', channel);
   try {
     const data = await api(`/admin/boosts?${params}`);
     renderBoostStats(data.summary);
@@ -5808,9 +6206,32 @@ function renderBoostStats(summary) {
       </div>`;
     }
   }
+  // v566 — total et cartes par canal = agrégat serveur (summary.shop), le même
+  // que sur le tableau de bord, Mes revenus et la Comptabilité.
+  const shop = summary.shop || null;
+  const tot = (shop && shop.totals) || null;
+  let channelHtml = '';
+  if (shop) {
+    for (const c of Object.keys(SHOP_CHANNEL_META)) {
+      const b = (shop.byChannel && shop.byChannel[c]) || {};
+      if (!b.count && c !== 'apple' && c !== 'google_play') continue;
+      const isGift = c === 'promo';
+      const sub = isGift
+        ? `${t('shopch_gifted_value', 'valeur catalogue')} ${shopMoney(b.giftedValue)}`
+        : (c === 'google_play' && !b.count)
+        ? t('shopch_no_play', 'Aucune vente via Google Play : dans l\'app Android, le paiement se fait par carte.')
+        : `${b.paidCount || 0} ${t('shopch_sales', 'vente(s)')} · ${t('shopch_net_short', 'net')} ${shopMoney(b.net)}${shopFlagBadges({ estimatedCount: b.estimatedCount, untracedCount: b.untracedCount })}`;
+      channelHtml += `<div class="stat-card clickable" style="--accent:${SHOP_CHANNEL_META[c].color}" role="button" tabindex="0" onclick="openShopChannel('${c}')">
+        <div class="stat-label">${escapeHtml(shopChannelLabel(c))}</div>
+        <div class="stat-value">${isGift ? (b.giftedCount || 0) : shopMoney(b.gross) + shopOtherCurrencies(b)}</div>
+        <div class="stat-sub">${sub}</div>
+      </div>`;
+    }
+  }
   grid.innerHTML = `
-    <div class="stat-card" style="--accent:var(--green)"><div class="stat-label">Total Shop Revenue</div><div class="stat-value" style="color:var(--green)">€${(summary.totalRevenue||0).toFixed(2)}</div><div class="stat-sub">${summary.totalPurchases||0} purchases</div></div>
+    <div class="stat-card" style="--accent:var(--green)"><div class="stat-label">${t('shopch_total_shop', 'Total boutique')}</div><div class="stat-value" style="color:var(--green)">${tot ? shopMoney(tot.gross) + shopOtherCurrencies(tot) : '€' + (summary.totalRevenue||0).toFixed(2)}</div><div class="stat-sub">${tot ? `${tot.paidCount || 0} ${t('shopch_sales', 'vente(s)')} · ${tot.giftedCount || 0} ${t('shopch_gifted_count', 'offert(s)')} · ${t('shopch_net_short', 'net')} ${shopMoney(tot.net)}` : (summary.totalPurchases||0) + ' purchases'}</div></div>
     <div class="stat-card" style="--accent:var(--orange)"><div class="stat-label">Active Subscriptions</div><div class="stat-value" style="color:var(--orange)">${summary.activeBoostsCount||0}</div><div class="stat-sub">Users currently active</div></div>
+    ${channelHtml}
     ${productHtml}
   `;
 }
@@ -5842,6 +6263,14 @@ function renderBoostsTable(purchases, total) {
       : '<span class="badge badge-orange">👤 Owner</span>';
     const currency = p.currency || 'EUR';
     const symbol = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency === 'USD' ? '$' : 'CHF ';
+    // v566 — canal de vente (+ plateforme d'origine quand elle est connue) et
+    // net après commission du store, fournis par le serveur.
+    const platformLabel = p.platform === 'ios' ? 'iOS' : p.platform === 'android' ? 'Android' : p.platform === 'web' ? 'Web' : '';
+    const channelCell = (p.channel ? shopChannelBadge(p.channel) : '-') +
+      (platformLabel ? `<br><span style="font-size:11px;color:var(--text-muted)">${platformLabel}</span>` : '');
+    const netLine = p.storeFee
+      ? `<br><span style="font-size:11px;font-weight:500;color:var(--text-muted)">− ${shopMoney(p.storeFee, currency)} → ${t('shopch_net_short', 'net')} ${shopMoney(p.net, currency)}</span>`
+      : '';
     // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
     rows += `<tr>
       <td>${fmtDate(p.purchasedAt)}</td>
@@ -5849,13 +6278,14 @@ function renderBoostsTable(purchases, total) {
       <td>${roleBadge}</td>
       <td>${productBadge}</td>
       <td>${tierBadge}</td>
-      <td style="font-weight:600">${escapeHtml(symbol)}${(p.amount||0).toFixed(2)}</td>
+      <td>${channelCell}</td>
+      <td style="font-weight:600;white-space:nowrap">${escapeHtml(symbol)}${(p.amount||0).toFixed(2)}${shopFlagBadges({ estimated: p.estimated, untraced: p.untraced })}${netLine}</td>
       <td>${escapeHtml(p.paymentProvider||'')}</td>
       <td>${statusHtml}</td>
     </tr>`;
   }
   container.innerHTML = `<table><thead><tr>
-    <th>Date</th><th>User</th><th>Rôle</th><th>Product</th><th>Tier</th><th>Montant</th><th>Provider</th><th>Statut</th>
+    <th>Date</th><th>User</th><th>Rôle</th><th>Product</th><th>Tier</th><th>${t('shopch_th_channel', 'Canal')}</th><th>Montant</th><th>Provider</th><th>Statut</th>
   </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
@@ -6186,6 +6616,9 @@ async function loadAdminPayouts() {
       '<div id="payouts-debug-block" style="margin-bottom:28px"></div>' +
       // v522 — bloc ajustements comptables (liste + formulaire).
       '<div id="adjustments-block" style="margin-bottom:28px"></div>' +
+      // v566 — revenus boutique par canal + total cohérent avec les commissions
+      // (rempli par loadShopChannelsRevenue, chiffres de /admin/shop-revenue).
+      '<div id="shop-channels-revenue" style="margin-bottom:28px"></div>' +
       // Détail boutique
       '<h3 style="font-size:16px;margin:20px 0 10px">🛍️ Détail boutique</h3>' +
       '<table class="table"><thead><tr><th>Produit</th><th>Total</th><th>Achats</th></tr></thead><tbody>' +
@@ -6216,6 +6649,8 @@ async function loadAdminPayouts() {
     loadPayoutsDebug();
     // v522 — charge le bloc des ajustements comptables.
     loadAdjustments();
+    // v566 — boutique par canal (App Store · Google Play · carte · offerts).
+    loadShopChannelsRevenue();
   } catch (e) {
     det.innerHTML = '<div style="color:var(--red)">' + e.message + '</div>';
   }
@@ -6265,7 +6700,12 @@ async function loadAccounting() {
       '<tr><td><strong>🍎 dont ventes Apple (iOS)</strong></td><td>' + f(s.appleTotal) + ' EUR</td><td>' + (s.appleCount || 0) + '</td></tr>' +
       '<tr><td><strong>Total boutique</strong></td><td><strong>' + f(boutique) + ' EUR</strong></td><td></td></tr>' +
       '</tbody></table>' +
+      // v566 — lignes boutique par canal, commission du store en charge
+      // (rempli par loadShopChannelsAccounting, chiffres de /admin/shop-revenue).
+      '<div id="shop-channels-accounting"></div>' +
       '<p style="margin-top:14px;color:var(--text-muted);font-size:13px">Note comptable : ces montants sont les <strong>bénéfices HoPetSit</strong> (commissions plateforme + boutique). Les paiements reversés aux prestataires (≈80%) ne sont PAS comptés ici. Les <strong>ventes Apple (iOS)</strong> sont comptées dans les revenus mais l\'argent est encaissé par Apple, qui le verse (net de sa commission) directement sur le compte bancaire ~mensuellement : elles ne sont donc <strong>pas dans le solde retirable Airwallex</strong>.</p>';
+    // v566 — boutique par canal (suit les dates Du/Au de la page).
+    loadShopChannelsAccounting();
   } catch (e) {
     det.innerHTML = '<div style="color:var(--red)">' + e.message + '</div>';
   }
@@ -6308,6 +6748,14 @@ async function exportAccountingCsv() {
     ['Info', 'CA brut reservations (avant reversement)', f(b.grossAllTime), b.count || 0],
     ['Info', 'Solde retirable Airwallex (hors Apple)', f(s.hopetsitNetAvailable), ''],
   ];
+  // v566 — boutique par canal : synthèse (brut, commission du store, net) puis
+  // détail achat par achat (canal, produit, brut, commission store, net, estimé
+  // oui/non). Mêmes bornes de dates, mêmes chiffres que l'écran.
+  try {
+    (await shopRevenueCsvRows(accFrom, accTo)).forEach((r) => rows.push(r));
+  } catch (e) {
+    rows.push([], ['Boutique par canal', 'indisponible : ' + (e.message || e), '', '']);
+  }
   const csv = rows.map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -7058,6 +7506,21 @@ async function toggleStaff(role, userId, isStaff) {
   <script>
     const ADMIN_I18N = {
       fr: {
+        // ── v566 — boutique par canal (App Store · Google Play · carte · offerts) ──
+        shopch_title: "Boutique par canal", shopch_dash_hint: "Brut et net estimé (après commission du store) · ce mois et 30 derniers jours · clique sur un canal pour voir ses ventes.",
+        shopch_apple: "App Store (iOS)", shopch_google_play: "Google Play", shopch_airwallex: "Carte (Airwallex)", shopch_paypal: "PayPal", shopch_promo: "Offerts", shopch_autre: "Portefeuille / autre", shopch_card_paypal: "Carte / PayPal",
+        shopch_filter_all: "Tous les canaux", shopch_opt_apple: "🍎 App Store (iOS)", shopch_opt_google_play: "🤖 Google Play", shopch_opt_airwallex: "💳 Carte (Airwallex)", shopch_opt_paypal: "🅿️ PayPal", shopch_opt_promo: "🎁 Offerts", shopch_opt_autre: "👛 Portefeuille / autre",
+        shopch_this_month: "Ce mois", shopch_last30: "30 derniers jours", shopch_last7: "7 derniers jours", shopch_since_start: "Depuis le début", shopch_period_from: "du", shopch_period_to: "au", shopch_apply_dates: "Appliquer les dates",
+        shopch_sales: "vente(s)", shopch_net_short: "net", shopch_store_fee_short: "commission store", shopch_store_fee_total: "commission des stores", shopch_gifted_count: "offert(s)", shopch_gifted_value: "valeur catalogue", shopch_gifted_sub: "0 € encaissé — staff, code promo, cadeau admin, PawPoints",
+        shopch_no_play: "Aucune vente via Google Play : dans l'app Android, le paiement se fait par carte.", shopch_apple_note: "Encaissé par Apple, versé sur le compte bancaire (hors Airwallex). Prix catalogue EUR.", shopch_open_sales: "Voir les ventes de ce canal", shopch_no_sales: "Aucune vente boutique sur cette période.",
+        shopch_estimated: "estimé", shopch_estimated_tip: "Montant réel non enregistré : prix catalogue du produit", shopch_untraced: "non tracé", shopch_untraced_tip: "Ni montant enregistré ni prix catalogue : compté, 0 €",
+        shopch_th_channel: "Canal", shopch_th_product: "Produit", shopch_th_sales: "Ventes", shopch_th_gross: "Brut", shopch_th_fee: "Commission du store (estimée)", shopch_th_fee_charge: "Commission du store (charge)", shopch_th_net: "Net estimé", shopch_total_shop: "Total boutique",
+        shopch_reconcile: "Montants enregistrés sur les achats : {rec} · complétés au prix catalogue : {cat} · lignes « estimé » : {est}.",
+        shopch_rev_title: "Revenus : réservations + boutique par canal", shopch_commissions: "Commissions des réservations", shopch_paid_bookings: "réservation(s) payée(s)", shopch_shop_gross: "Boutique — brut", shopch_total_gross: "Total brut (commissions + boutique)", shopch_total_net: "Total net estimé", shopch_total_net_sub: "après commission estimée des stores", shopch_by_product: "Par canal et par produit",
+        shopch_acc_title: "Boutique par canal — brut, commission du store, net", shopch_fee_charge_line: "Charge : commission des stores (estimée)",
+        shopch_fees_title: "Commission des stores", shopch_fees_hint: "Défaut 15 % (programme petites entreprises d'Apple, 15 % Google Play). Sert au net estimé, partout dans l'admin. Carte / PayPal : 0 % (hors frais bancaires).", shopch_fees_saved: "Taux enregistrés — chiffres recalculés.",
+        shopch_notes_title: "Ce qui est réellement tracé", shopch_note_apple: "App Store : chaque achat StoreKit validé est enregistré avec le prix catalogue EUR du produit (pas le prix payé dans la devise du store) → « estimé ». Remboursements Apple non déduits.", shopch_note_play: "Google Play : pas de facturation Google Play dans l'app — sur Android la boutique se paie par carte (Airwallex) ou portefeuille. Le canal reste à 0, rien n'est inventé.", shopch_note_card: "Carte : montant enregistré quand il existe ; sinon prix catalogue courant (« estimé »). Ancien libellé « stripe » = carte Airwallex au plein tarif, « estimé ». Frais bancaires non déduits.", shopch_note_gift: "Offerts (staff, code promo, cadeau admin, PawPoints, crédit Premium) : 0 €, valeur catalogue à titre indicatif.",
+        shopprod_pawspot_boost: "🗺️ PawSpot boost", shopprod_pawfamily: "👨‍👩‍👧 PawFamily", shopprod_chat_addon: "💬 Chat add-on", shopprod_kyc: "🪪 Vérification ID", shopprod_donation: "🎁 Don", shopprod_autre: "📦 Autre",
         // ── v565 — lot admin (menu, tableau de bord cliquable, animaux, chat, chronologie) ──
         nav_pets: "Animaux", navsec_settings: "Contenu & réglages", navsec_tools: "Outils",
         dash_click_hint: "Chiffres en direct (auto toutes les 60 s) · clique sur une carte pour ouvrir la liste correspondante.", dash_open_list: "Ouvrir la liste", dash_no_paid: "Aucune réservation payée pour l'instant.", dash_donations: "Dons",
@@ -7198,7 +7661,7 @@ async function toggleStaff(role, userId, isStaff) {
         empty_no_payout_filter: "Aucun payout pour ce filtre.", empty_no_withdrawal_filter: "Aucun retrait pour ce filtre.", empty_no_company_sweep: "Aucun retrait société pour l'instant.",
         empty_no_active_sub: "Aucun abonnement actif.", empty_no_pawpremium_sub: "Aucun abonné PawPremium pour le moment.", empty_no_pawpoints_yet: "Personne n'a encore de PawPoints.",
         empty_no_code: "Aucun code pour le moment.", empty_no_client: "Aucun client.", empty_no_banned_word: "Aucun mot interdit personnalisé.",
-        empty_no_report: "Aucun signalement.", empty_no_pawpoint: "Aucun PawPoint pour le moment.", empty_no_invoice_filter: "Aucune facture pour ce filtre.",
+        empty_no_report: "Aucun signalement.", empty_no_pawpoint: "Aucun PawPoint pour le moment.", empty_no_invoice_filter: "Aucune facture pour ce filtre.", billing_title: "Informations de facturation", billing_btn: "Facturation", billing_btn_title: "Informations de facturation : NIF, SIRET, TVA, adresse", billing_invoice_title: "Émetteur et client de la facture", billing_vat: "N° TVA", billing_passport: "Passeport", billing_company_number: "N° d'entreprise", billing_id_other: "Identifiant", billing_empty: "Aucune information de facturation saisie.", billing_type: "Type", billing_type_business: "Professionnel", billing_type_individual: "Particulier", billing_legal_name: "Nom légal", billing_address: "Adresse", billing_frozen_on: "Figé sur la facture le ", billing_updated_on: "Mis à jour le ", billing_account: "Compte", billing_sync_note: "Saisies par l'utilisateur (app ou site), communes à ses 3 profils, copiées sur chaque facture à sa création.", billing_issuer: "Émetteur (prestataire)", billing_customer: "Client (propriétaire)",
         empty_no_withdrawal: "Aucun retrait.", empty_no_payment_filter: "Aucun paiement ne correspond aux filtres.", empty_no_iban_submitted: "Aucun provider n'a soumis ses coordonnées bancaires.",
         empty_no_pending_iban: "Aucun virement IBAN en attente — tout est à jour !", empty_no_purchase_filter: "Aucun achat ne correspond aux filtres.", empty_no_conversation: "Aucune conversation",
         empty_no_message: "Aucun message", empty_no_wallet: "Aucun wallet", empty_no_bug: "Aucun bug signalé. :)",
@@ -7208,6 +7671,21 @@ async function toggleStaff(role, userId, isStaff) {
         recent_5: "Les 5 récents",
       },
       en: {
+        // ── v566 — shop by channel (App Store · Google Play · card · gifted) ──
+        shopch_title: "Shop by channel", shopch_dash_hint: "Gross and estimated net (after the store's commission) · this month and last 30 days · click a channel to see its sales.",
+        shopch_apple: "App Store (iOS)", shopch_google_play: "Google Play", shopch_airwallex: "Card (Airwallex)", shopch_paypal: "PayPal", shopch_promo: "Gifted", shopch_autre: "Wallet / other", shopch_card_paypal: "Card / PayPal",
+        shopch_filter_all: "All channels", shopch_opt_apple: "🍎 App Store (iOS)", shopch_opt_google_play: "🤖 Google Play", shopch_opt_airwallex: "💳 Card (Airwallex)", shopch_opt_paypal: "🅿️ PayPal", shopch_opt_promo: "🎁 Gifted", shopch_opt_autre: "👛 Wallet / other",
+        shopch_this_month: "This month", shopch_last30: "Last 30 days", shopch_last7: "Last 7 days", shopch_since_start: "All time", shopch_period_from: "from", shopch_period_to: "to", shopch_apply_dates: "Apply dates",
+        shopch_sales: "sale(s)", shopch_net_short: "net", shopch_store_fee_short: "store commission", shopch_store_fee_total: "store commissions", shopch_gifted_count: "gifted", shopch_gifted_value: "catalogue value", shopch_gifted_sub: "€0 collected — staff, promo code, admin gift, PawPoints",
+        shopch_no_play: "No sales through Google Play: in the Android app, the shop is paid by card.", shopch_apple_note: "Collected by Apple, paid to the bank account (outside Airwallex). EUR catalogue price.", shopch_open_sales: "See this channel's sales", shopch_no_sales: "No shop sales in this period.",
+        shopch_estimated: "estimated", shopch_estimated_tip: "Actual amount not recorded: product catalogue price", shopch_untraced: "not tracked", shopch_untraced_tip: "No recorded amount and no catalogue price: counted, €0",
+        shopch_th_channel: "Channel", shopch_th_product: "Product", shopch_th_sales: "Sales", shopch_th_gross: "Gross", shopch_th_fee: "Store commission (estimated)", shopch_th_fee_charge: "Store commission (expense)", shopch_th_net: "Estimated net", shopch_total_shop: "Shop total",
+        shopch_reconcile: "Amounts recorded on purchases: {rec} · filled in from the catalogue price: {cat} · “estimated” lines: {est}.",
+        shopch_rev_title: "Revenue: bookings + shop by channel", shopch_commissions: "Booking commissions", shopch_paid_bookings: "paid booking(s)", shopch_shop_gross: "Shop — gross", shopch_total_gross: "Total gross (commissions + shop)", shopch_total_net: "Estimated total net", shopch_total_net_sub: "after the stores' estimated commission", shopch_by_product: "By channel and product",
+        shopch_acc_title: "Shop by channel — gross, store commission, net", shopch_fee_charge_line: "Expense: store commissions (estimated)",
+        shopch_fees_title: "Store commissions", shopch_fees_hint: "Default 15% (Apple Small Business Program, 15% Google Play). Used for the estimated net everywhere in the admin. Card / PayPal: 0% (bank fees excluded).", shopch_fees_saved: "Rates saved — figures recalculated.",
+        shopch_notes_title: "What is actually tracked", shopch_note_apple: "App Store: every validated StoreKit purchase is recorded with the product's EUR catalogue price (not the price paid in the store's currency) → “estimated”. Apple refunds are not deducted.", shopch_note_play: "Google Play: there is no Google Play Billing in the app — on Android the shop is paid by card (Airwallex) or wallet. The channel stays at 0, nothing is made up.", shopch_note_card: "Card: recorded amount when it exists; otherwise the current catalogue price (“estimated”). Legacy “stripe” label = Airwallex card at full price, “estimated”. Bank fees not deducted.", shopch_note_gift: "Gifted (staff, promo code, admin gift, PawPoints, Premium credit): €0, catalogue value shown for information.",
+        shopprod_pawspot_boost: "🗺️ PawSpot boost", shopprod_pawfamily: "👨‍👩‍👧 PawFamily", shopprod_chat_addon: "💬 Chat add-on", shopprod_kyc: "🪪 ID verification", shopprod_donation: "🎁 Donation", shopprod_autre: "📦 Other",
         // ── v565 — admin lot ──
         nav_pets: "Pets", navsec_settings: "Content & settings", navsec_tools: "Tools",
         dash_click_hint: "Live figures (auto every 60 s) · click a card to open the matching list.", dash_open_list: "Open the list", dash_no_paid: "No paid booking yet.", dash_donations: "Donations",
@@ -7347,7 +7825,7 @@ async function toggleStaff(role, userId, isStaff) {
         empty_no_payout_filter: "No payout for this filter.", empty_no_withdrawal_filter: "No withdrawal for this filter.", empty_no_company_sweep: "No company withdrawal yet.",
         empty_no_active_sub: "No active subscription.", empty_no_pawpremium_sub: "No PawPremium subscriber yet.", empty_no_pawpoints_yet: "Nobody has PawPoints yet.",
         empty_no_code: "No code yet.", empty_no_client: "No customer.", empty_no_banned_word: "No custom banned word.",
-        empty_no_report: "No report.", empty_no_pawpoint: "No PawPoint yet.", empty_no_invoice_filter: "No invoice for this filter.",
+        empty_no_report: "No report.", empty_no_pawpoint: "No PawPoint yet.", empty_no_invoice_filter: "No invoice for this filter.", billing_title: "Billing information", billing_btn: "Billing", billing_btn_title: "Billing information: tax ID, VAT, address", billing_invoice_title: "Invoice issuer and customer", billing_vat: "VAT No.", billing_passport: "Passport", billing_company_number: "Company No.", billing_id_other: "ID", billing_empty: "No billing information entered.", billing_type: "Type", billing_type_business: "Business", billing_type_individual: "Individual", billing_legal_name: "Legal name", billing_address: "Address", billing_frozen_on: "Frozen on the invoice on ", billing_updated_on: "Updated on ", billing_account: "Account", billing_sync_note: "Entered by the user (app or website), shared by their 3 profiles, copied onto each invoice when it is created.", billing_issuer: "Issuer (provider)", billing_customer: "Customer (owner)",
         empty_no_withdrawal: "No withdrawal.", empty_no_payment_filter: "No payment matches the filters.", empty_no_iban_submitted: "No provider has submitted their bank details.",
         empty_no_pending_iban: "No pending IBAN transfer — all up to date!", empty_no_purchase_filter: "No purchase matches the filters.", empty_no_conversation: "No conversation",
         empty_no_message: "No message", empty_no_wallet: "No wallet", empty_no_bug: "No bug reported. :)",
@@ -7357,6 +7835,21 @@ async function toggleStaff(role, userId, isStaff) {
         recent_5: "The 5 most recent",
       },
       es: {
+        // ── v566 — tienda por canal (App Store · Google Play · tarjeta · regalados) ──
+        shopch_title: "Tienda por canal", shopch_dash_hint: "Bruto y neto estimado (tras la comisión de la tienda) · este mes y últimos 30 días · haz clic en un canal para ver sus ventas.",
+        shopch_apple: "App Store (iOS)", shopch_google_play: "Google Play", shopch_airwallex: "Tarjeta (Airwallex)", shopch_paypal: "PayPal", shopch_promo: "Regalados", shopch_autre: "Monedero / otro", shopch_card_paypal: "Tarjeta / PayPal",
+        shopch_filter_all: "Todos los canales", shopch_opt_apple: "🍎 App Store (iOS)", shopch_opt_google_play: "🤖 Google Play", shopch_opt_airwallex: "💳 Tarjeta (Airwallex)", shopch_opt_paypal: "🅿️ PayPal", shopch_opt_promo: "🎁 Regalados", shopch_opt_autre: "👛 Monedero / otro",
+        shopch_this_month: "Este mes", shopch_last30: "Últimos 30 días", shopch_last7: "Últimos 7 días", shopch_since_start: "Desde el inicio", shopch_period_from: "del", shopch_period_to: "al", shopch_apply_dates: "Aplicar fechas",
+        shopch_sales: "venta(s)", shopch_net_short: "neto", shopch_store_fee_short: "comisión de la tienda", shopch_store_fee_total: "comisión de las tiendas", shopch_gifted_count: "regalado(s)", shopch_gifted_value: "valor de catálogo", shopch_gifted_sub: "0 € cobrados — staff, código promocional, regalo del admin, PawPoints",
+        shopch_no_play: "Ninguna venta por Google Play: en la app Android, la tienda se paga con tarjeta.", shopch_apple_note: "Cobrado por Apple, ingresado en la cuenta bancaria (fuera de Airwallex). Precio de catálogo en EUR.", shopch_open_sales: "Ver las ventas de este canal", shopch_no_sales: "Ninguna venta de la tienda en este periodo.",
+        shopch_estimated: "estimado", shopch_estimated_tip: "Importe real no registrado: precio de catálogo del producto", shopch_untraced: "sin rastro", shopch_untraced_tip: "Ni importe registrado ni precio de catálogo: contado, 0 €",
+        shopch_th_channel: "Canal", shopch_th_product: "Producto", shopch_th_sales: "Ventas", shopch_th_gross: "Bruto", shopch_th_fee: "Comisión de la tienda (estimada)", shopch_th_fee_charge: "Comisión de la tienda (gasto)", shopch_th_net: "Neto estimado", shopch_total_shop: "Total tienda",
+        shopch_reconcile: "Importes registrados en las compras: {rec} · completados con el precio de catálogo: {cat} · líneas «estimado»: {est}.",
+        shopch_rev_title: "Ingresos: reservas + tienda por canal", shopch_commissions: "Comisiones de las reservas", shopch_paid_bookings: "reserva(s) pagada(s)", shopch_shop_gross: "Tienda — bruto", shopch_total_gross: "Total bruto (comisiones + tienda)", shopch_total_net: "Total neto estimado", shopch_total_net_sub: "tras la comisión estimada de las tiendas", shopch_by_product: "Por canal y por producto",
+        shopch_acc_title: "Tienda por canal — bruto, comisión de la tienda, neto", shopch_fee_charge_line: "Gasto: comisión de las tiendas (estimada)",
+        shopch_fees_title: "Comisión de las tiendas", shopch_fees_hint: "Por defecto 15 % (programa para pequeñas empresas de Apple, 15 % Google Play). Se usa para el neto estimado en todo el admin. Tarjeta / PayPal: 0 % (sin gastos bancarios).", shopch_fees_saved: "Porcentajes guardados — cifras recalculadas.",
+        shopch_notes_title: "Lo que realmente se registra", shopch_note_apple: "App Store: cada compra StoreKit validada se registra con el precio de catálogo en EUR del producto (no el precio pagado en la moneda de la tienda) → «estimado». Los reembolsos de Apple no se descuentan.", shopch_note_play: "Google Play: no hay facturación de Google Play en la app — en Android la tienda se paga con tarjeta (Airwallex) o monedero. El canal se queda en 0, no se inventa nada.", shopch_note_card: "Tarjeta: importe registrado cuando existe; si no, precio de catálogo actual («estimado»). Etiqueta antigua «stripe» = tarjeta Airwallex a precio completo, «estimado». Gastos bancarios no descontados.", shopch_note_gift: "Regalados (staff, código promocional, regalo del admin, PawPoints, crédito Premium): 0 €, valor de catálogo a título informativo.",
+        shopprod_pawspot_boost: "🗺️ PawSpot boost", shopprod_pawfamily: "👨‍👩‍👧 PawFamily", shopprod_chat_addon: "💬 Chat add-on", shopprod_kyc: "🪪 Verificación de identidad", shopprod_donation: "🎁 Donación", shopprod_autre: "📦 Otro",
         // ── v565 — lote admin ──
         nav_pets: "Mascotas", navsec_settings: "Contenido y ajustes", navsec_tools: "Herramientas",
         dash_click_hint: "Cifras en directo (auto cada 60 s) · pulsa una tarjeta para abrir la lista correspondiente.", dash_open_list: "Abrir la lista", dash_no_paid: "Ninguna reserva pagada por ahora.", dash_donations: "Donaciones",
@@ -7494,7 +7987,7 @@ async function toggleStaff(role, userId, isStaff) {
         empty_no_payout_filter: "Sin payout para este filtro.", empty_no_withdrawal_filter: "Sin retiros para este filtro.", empty_no_company_sweep: "Aún sin retiros de empresa.",
         empty_no_active_sub: "Sin suscripción activa.", empty_no_pawpremium_sub: "Aún sin suscriptores PawPremium.", empty_no_pawpoints_yet: "Nadie tiene PawPoints todavía.",
         empty_no_code: "Aún sin códigos.", empty_no_client: "Sin clientes.", empty_no_banned_word: "Sin palabra prohibida personalizada.",
-        empty_no_report: "Sin denuncias.", empty_no_pawpoint: "Aún sin PawPoints.", empty_no_invoice_filter: "Sin facturas para este filtro.",
+        empty_no_report: "Sin denuncias.", empty_no_pawpoint: "Aún sin PawPoints.", empty_no_invoice_filter: "Sin facturas para este filtro.", billing_title: "Datos de facturación", billing_btn: "Facturación", billing_btn_title: "Datos de facturación: NIF, CIF, IVA, dirección", billing_invoice_title: "Emisor y cliente de la factura", billing_vat: "N.º IVA", billing_passport: "Pasaporte", billing_company_number: "N.º de empresa", billing_id_other: "Identificador", billing_empty: "Ningún dato de facturación introducido.", billing_type: "Tipo", billing_type_business: "Profesional", billing_type_individual: "Particular", billing_legal_name: "Nombre legal", billing_address: "Dirección", billing_frozen_on: "Fijado en la factura el ", billing_updated_on: "Actualizado el ", billing_account: "Cuenta", billing_sync_note: "Introducidos por el usuario (app o web), comunes a sus 3 perfiles, copiados en cada factura al crearla.", billing_issuer: "Emisor (proveedor)", billing_customer: "Cliente (propietario)",
         empty_no_withdrawal: "Sin retiros.", empty_no_payment_filter: "Ningún pago coincide con los filtros.", empty_no_iban_submitted: "Ningún proveedor ha enviado sus datos bancarios.",
         empty_no_pending_iban: "Sin transferencias IBAN pendientes — ¡todo al día!", empty_no_purchase_filter: "Ninguna compra coincide con los filtros.", empty_no_conversation: "Sin conversaciones",
         empty_no_message: "Sin mensajes", empty_no_wallet: "Sin cartera", empty_no_bug: "Sin errores reportados. :)",

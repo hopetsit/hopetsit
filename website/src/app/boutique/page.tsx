@@ -20,23 +20,22 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   ApiError,
-  AuthUser,
   subscribeToPawSpot,
   BoostPackage,
   BoostStatus,
   BoostTier,
-  cancelSubscription,
   getBoostPackages,
   getBoostStatus,
   getMapBoostPackages,
   getMapBoostStatus,
+  getPawSpotPlans,
   getStoredUser,
   getSubscriptionPlans,
   getSubscriptionStatus,
+  PawSpotPlan,
   PaymentIntentResponse,
   purchaseBoost,
   purchaseMapBoost,
-  resumeSubscription,
   subscribeToPlan,
   SubscriptionPlan,
   SubscriptionStatus,
@@ -47,10 +46,52 @@ import BackLink from "@/components/BackLink";
 
 type Section = "premium" | "boost" | "mapboost" | "pawpremium";
 
-export default function BoutiquePage() {
+// v566 — montants et dates dans la langue du site (avant : « 6.99 EUR »,
+// dates toujours en fr-FR).
+function fmtMoney(amount: number, currency: string, lang: string): string {
+  try {
+    return new Intl.NumberFormat(lang, {
+      style: "currency",
+      currency: (currency || "EUR").toUpperCase(),
+    }).format(amount);
+  } catch {
+    return `${amount.toFixed(2)} ${currency}`;
+  }
+}
+function fmtDate(d: string | Date, lang: string): string {
+  try {
+    return new Date(d).toLocaleDateString(lang);
+  } catch {
+    return String(d);
+  }
+}
+/** Économie (en %) de l'annuel par rapport à 12 mensualités ; 0 si incalculable. */
+function yearlySavingsPct(monthly?: number, yearly?: number): number {
+  if (!monthly || !yearly || monthly <= 0 || yearly >= monthly * 12) return 0;
+  return Math.round((1 - yearly / (monthly * 12)) * 100);
+}
+
+/** v566 — mention « paiement unique, pas de renouvellement » + liens légaux. */
+function ShopLegalNote({ dark = false }: { dark?: boolean }) {
   const { t } = useT();
+  const tone = dark ? "text-white/60" : "text-ink-muted";
+  return (
+    <div className={`mt-5 text-xs leading-relaxed ${tone}`}>
+      <p>{t("shop566_legal")}</p>
+      <p className="mt-1">{t("shop566_legal_apple")}</p>
+      <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+        <Link href="/cgu" className="underline">{t("shop566_terms")}</Link>
+        <Link href="/privacy" className="underline">{t("shop566_privacy")}</Link>
+      </p>
+    </div>
+  );
+}
+
+export default function BoutiquePage() {
+  const { t, lang } = useT();
   const router = useRouter();
-  const [user, setUser] = useState<AuthUser | null>(null);
+  // v566 — prix PawSpot lus côté serveur (repli 4,99 / 39,99 € si indisponible).
+  const [spotPlans, setSpotPlans] = useState<PawSpotPlan[]>([]);
 
   // Subscriptions
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -68,7 +109,6 @@ export default function BoutiquePage() {
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<Section>("premium");
   const [purchasing, setPurchasing] = useState<string | null>(null);
-  const [cancelling, setCancelling] = useState(false);
 
 
   useEffect(() => {
@@ -77,7 +117,6 @@ export default function BoutiquePage() {
       router.replace("/login");
       return;
     }
-    setUser(u);
 
     (async () => {
       const errors: string[] = [];
@@ -90,9 +129,13 @@ export default function BoutiquePage() {
       else errors.push("plans");
       if (subResults[1].status === "fulfilled") setSubStatus(subResults[1].value);
       else errors.push("status");
+      // getPawSpotPlans ne lève jamais (renvoie [] en cas d'échec).
+      setSpotPlans(await getPawSpotPlans());
 
-      // Boost annonce + map boost : sitter/walker only.
-      if (u.role === "sitter" || u.role === "walker") {
+      // v566 — PawBoost pour les 3 rôles, comme l'app et le serveur
+      // (/boost/purchase accepte owner, sitter et walker). Avant : caché aux
+      // propriétaires sur le site uniquement.
+      {
         const boostResults = await Promise.allSettled([
           getBoostPackages(),
           getBoostStatus(),
@@ -106,7 +149,7 @@ export default function BoutiquePage() {
       }
 
       if (errors.length === 2) {
-        setError("Impossible de charger la boutique. Réessaye plus tard.");
+        setError("shop566_load_error");
       }
       setLoading(false);
     })();
@@ -134,12 +177,12 @@ export default function BoutiquePage() {
       // incomplète (paymentIntent manquant) » à tort (bug Daniel).
       if ((intent as { activated?: boolean }).activated) {
         setPurchasing(null);
-        alert("✅ Abonnement activé !");
+        alert(`✅ ${t("shop566_activated")}`);
         window.location.reload();
         return;
       }
       if (!intent.clientSecret || !intent.paymentIntentId) {
-        throw new Error("Réponse backend incomplète (paymentIntent manquant).");
+        throw new Error(t("shop566_checkout_error"));
       }
       const country = guessCountryFromCurrency(intent.currency || "EUR");
       const qs = new URLSearchParams({
@@ -159,11 +202,7 @@ export default function BoutiquePage() {
         return;
       }
       // 402 PREMIUM_REQUIRED ou autre erreur business.
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Impossible de démarrer le paiement. Réessaye dans un instant.",
-      );
+      setError(e instanceof Error && e.message ? e.message : "shop566_checkout_error");
     }
   }
 
@@ -205,21 +244,6 @@ export default function BoutiquePage() {
     );
   }
 
-  async function handleCancelSubscription() {
-    if (!confirm("Annuler ton abonnement Premium ? Il restera actif jusqu'à la fin de la période en cours.")) {
-      return;
-    }
-    setCancelling(true);
-    try {
-      const s = await cancelSubscription();
-      setSubStatus(s);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Erreur");
-    } finally {
-      setCancelling(false);
-    }
-  }
-
   // v450 → v565 — code promo : le champ vit dans `PromoCodeBox` (check puis
   // redeem, messages lisibles). free_subscription est accordé immédiatement →
   // on rafraîchit le statut ; percent_discount s'applique au prochain achat.
@@ -233,18 +257,6 @@ export default function BoutiquePage() {
     }
   }
 
-  async function handleResumeSubscription() {
-    setCancelling(true);
-    try {
-      const s = await resumeSubscription();
-      setSubStatus(s);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Erreur");
-    } finally {
-      setCancelling(false);
-    }
-  }
-
   if (loading) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-24 text-center text-ink-muted">
@@ -253,7 +265,11 @@ export default function BoutiquePage() {
     );
   }
 
-  const isProvider = user?.role === "sitter" || user?.role === "walker";
+  // v566 — prix PawSpot serveur (repli sur la grille par défaut en EUR).
+  const spotMonthly = spotPlans.find((p) => p.plan === "monthly") ?? { plan: "monthly", amount: 4.99, currency: "EUR", intervalDays: 30 };
+  const spotYearly = spotPlans.find((p) => p.plan === "yearly") ?? { plan: "yearly", amount: 39.99, currency: "EUR", intervalDays: 365 };
+  const spotPct = yearlySavingsPct(spotMonthly.amount, spotYearly.amount);
+  const spotActive = !!subStatus?.pawspotExpiry && new Date(subStatus.pawspotExpiry).getTime() > Date.now();
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 md:py-16">
@@ -270,7 +286,7 @@ export default function BoutiquePage() {
 
       {error && (
         <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+          {error.startsWith("shop566_") ? t(error) : error}
         </div>
       )}
 
@@ -304,19 +320,17 @@ export default function BoutiquePage() {
         <div className="pointer-events-none absolute -left-16 -top-20 h-56 w-56 rounded-full bg-[#F7B9A6] opacity-80 blur-[50px]" />
         <div className="pointer-events-none absolute -right-16 -top-10 h-56 w-56 rounded-full bg-[#F2D68A] opacity-80 blur-[50px]" />
         <div className="pointer-events-none absolute -bottom-28 left-[35%] h-52 w-56 rounded-full bg-[#C9B5F5] opacity-90 blur-[50px]" />
-        <div className={`relative grid gap-2 ${isProvider ? "grid-cols-4" : "grid-cols-3"} max-w-[440px]`}>
-          {isProvider && (
-            <SectionTab
-              label={t("shop_tab_boost").replace(/^[^A-Za-z]+/, "")}
-              desc={t("shop_card_boost_sub")}
-              active={section === "boost"}
-              onClick={() => setSection("boost")}
-              g1="#FF6B4A"
-              g2="#E0361F"
-              shadow="rgba(224,54,31,.6)"
-              icon={CARD_ICONS.boost}
-            />
-          )}
+        <div className="relative grid max-w-[440px] grid-cols-4 gap-2">
+          <SectionTab
+            label={t("shop_tab_boost").replace(/^[^A-Za-z]+/, "")}
+            desc={t("shop_card_boost_sub")}
+            active={section === "boost"}
+            onClick={() => setSection("boost")}
+            g1="#FF6B4A"
+            g2="#E0361F"
+            shadow="rgba(224,54,31,.6)"
+            icon={CARD_ICONS.boost}
+          />
           <SectionTab
             label={t("shop_tab_premium").replace(/^[^A-Za-z]+/, "")}
             desc={t("shop_card_follow_sub")}
@@ -361,6 +375,9 @@ export default function BoutiquePage() {
           onSubscribe={handleSubscribePlan}
           purchasing={purchasing}
           t={t}
+          lang={lang}
+          spotMonthly={spotMonthly.currency === (plans.find((p) => p.id === "premium_monthly")?.currency ?? "EUR") ? spotMonthly.amount : undefined}
+          spotYearly={spotYearly.currency === (plans.find((p) => p.id === "premium_yearly")?.currency ?? "EUR") ? spotYearly.amount : undefined}
         />
       )}
 
@@ -369,14 +386,11 @@ export default function BoutiquePage() {
           plans={plans}
           status={subStatus}
           onSubscribe={handleSubscribePlan}
-          onCancel={handleCancelSubscription}
-          onResume={handleResumeSubscription}
           purchasing={purchasing}
-          cancelling={cancelling}
         />
       )}
 
-      {section === "boost" && isProvider && (
+      {section === "boost" && (
         <BoostSection
           title={t("shop_boost_title")}
           subtitle={t("shop_boost_subtitle")}
@@ -403,7 +417,10 @@ export default function BoutiquePage() {
           <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-ink/5 bg-amber-50 p-6">
               <h3 className="text-lg font-bold text-ink">{t("pawspot_monthly_name")}</h3>
-              <p className="mt-2 text-3xl font-extrabold text-amber-600">4,99 €</p>
+              <p className="mt-2 text-3xl font-extrabold text-amber-600">
+                {fmtMoney(spotMonthly.amount, spotMonthly.currency, lang)}
+                <span className="ml-1 text-sm font-medium text-ink-muted">{t("shop566_per_month")}</span>
+              </p>
               <p className="mt-2 text-sm text-ink-muted">{t("pawspot_monthly_details")}</p>
               <button
                 type="button"
@@ -411,15 +428,23 @@ export default function BoutiquePage() {
                 disabled={purchasing === "pawspot-monthly"}
                 className="mt-4 w-full rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
               >
-                {purchasing === "pawspot-monthly" ? "…" : "S'abonner"}
+                {purchasing === "pawspot-monthly" ? "…" : spotActive ? t("shop566_extend") : t("shop566_subscribe")}
               </button>
             </div>
             <div className="rounded-2xl border-4 border-amber-400 bg-amber-50 p-6 ring-2 ring-amber-200 shadow-lg">
               <h3 className="text-lg font-bold text-ink">
                 {t("pawspot_yearly_name")}{" "}
-                <span className="ml-1 rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-white">-33%</span>
+                {spotPct > 0 && (
+                  <span className="ml-1 whitespace-nowrap rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-white">-{spotPct}%</span>
+                )}
               </h3>
-              <p className="mt-2 text-3xl font-extrabold text-amber-600">39,99 €</p>
+              <p className="mt-2 text-3xl font-extrabold text-amber-600">
+                {fmtMoney(spotYearly.amount, spotYearly.currency, lang)}
+                <span className="ml-1 text-sm font-medium text-ink-muted">{t("shop566_per_year")}</span>
+              </p>
+              <p className="text-xs font-semibold text-amber-700">
+                {t("shop566_equiv_month").replace("{price}", fmtMoney(spotYearly.amount / 12, spotYearly.currency, lang))}
+              </p>
               <p className="mt-2 text-sm text-ink-muted">{t("pawspot_yearly_details")}</p>
               <button
                 type="button"
@@ -427,7 +452,7 @@ export default function BoutiquePage() {
                 disabled={purchasing === "pawspot-yearly"}
                 className="mt-4 w-full rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
               >
-                {purchasing === "pawspot-yearly" ? "…" : "S'abonner"}
+                {purchasing === "pawspot-yearly" ? "…" : spotActive ? t("shop566_extend") : t("shop566_subscribe")}
               </button>
             </div>
           </div>
@@ -438,6 +463,7 @@ export default function BoutiquePage() {
             <span>{t("pawspot_feat_nearby")}</span>
           </p>
           <p className="mt-4 text-sm text-ink-muted">{t("pawspot_footer_note")}</p>
+          <ShopLegalNote />
           <a
             href="/download"
             className="mt-6 inline-block rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white hover:bg-amber-600"
@@ -545,6 +571,7 @@ function BenefitsChips({
   status: SubscriptionStatus | null;
   boost: (BoostStatus & { expiresAt?: string; expiry?: string }) | null;
 }) {
+  const { t } = useT();
   if (!status) return null;
   const now = Date.now();
   const days = (d?: string | null) =>
@@ -553,22 +580,23 @@ function BenefitsChips({
     ? new Date(status.currentPeriodEnd).getFullYear() >= 2090
     : false;
   const chips: { e: string; l: string; c: string }[] = [];
-  if (staff) chips.push({ e: "⭐", l: "Staff — accès illimité", c: "bg-emerald-100 text-emerald-800" });
+  const dj = (n: number) => t("shop566_days_short").replace("{n}", String(n));
+  if (staff) chips.push({ e: "⭐", l: t("shop566_staff_unlimited"), c: "bg-emerald-100 text-emerald-800" });
   if (status.premiumExpiry && days(status.premiumExpiry) > 0)
-    chips.push({ e: "👑", l: `PawPremium · ${days(status.premiumExpiry)} j`, c: "bg-amber-100 text-amber-900" });
+    chips.push({ e: "👑", l: `PawPremium · ${dj(days(status.premiumExpiry))}`, c: "bg-amber-100 text-amber-900" });
   // v23.1.394 — Daniel : « le badge PawFollow n'apparaît plus » — pour les
   // comptes STAFF on l'affichait pas du tout ; désormais chip « illimité ».
   if (staff) {
-    chips.push({ e: "📍", l: "PawFollow · illimité", c: "bg-violet-100 text-violet-800" });
+    chips.push({ e: "📍", l: `PawFollow · ${t("shop566_unlimited")}`, c: "bg-violet-100 text-violet-800" });
   } else if (status.currentPeriodEnd && days(status.currentPeriodEnd) > 0 && status.plan !== "famille" && status.plan !== "family")
-    chips.push({ e: "📍", l: `PawFollow · ${days(status.currentPeriodEnd)} j`, c: "bg-violet-100 text-violet-800" });
+    chips.push({ e: "📍", l: `PawFollow · ${dj(days(status.currentPeriodEnd))}`, c: "bg-violet-100 text-violet-800" });
   if (status.familyExpiry && days(status.familyExpiry) > 0)
-    chips.push({ e: "👨‍👩‍👧", l: `Famille · ${days(status.familyExpiry)} j`, c: "bg-violet-100 text-violet-800" });
+    chips.push({ e: "👨‍👩‍👧", l: `PawFamily · ${dj(days(status.familyExpiry))}`, c: "bg-violet-100 text-violet-800" });
   if (status.pawspotExpiry && days(status.pawspotExpiry) > 0)
-    chips.push({ e: "🐾", l: `PawSpot · ${days(status.pawspotExpiry)} j`, c: "bg-amber-100 text-amber-800" });
+    chips.push({ e: "🐾", l: `PawSpot · ${dj(days(status.pawspotExpiry))}`, c: "bg-amber-100 text-amber-800" });
   const boostExp = boost?.expiresAt || boost?.expiry;
   if (boost?.isActive && boostExp && days(boostExp) > 0)
-    chips.push({ e: "🚀", l: `PawBoost · ${days(boostExp)} j`, c: "bg-red-100 text-red-700" });
+    chips.push({ e: "🚀", l: `PawBoost · ${dj(days(boostExp))}`, c: "bg-red-100 text-red-700" });
   if (!chips.length) return null;
   return (
     <div className="mt-6 flex flex-wrap gap-2">
@@ -585,22 +613,18 @@ function PremiumSection({
   plans,
   status,
   onSubscribe,
-  onCancel,
-  onResume,
   purchasing,
-  cancelling,
 }: {
   plans: SubscriptionPlan[];
   status: SubscriptionStatus | null;
   // v23.1.387 — + family_yearly (les premium_* sont filtrés de cette section).
   onSubscribe: (plan: string) => void;
-  onCancel: () => void;
-  onResume: () => void;
   purchasing: string | null;
-  cancelling: boolean;
 }) {
+  const { t, lang } = useT();
   const isPremium = status?.isPremium;
-  const willCancel = status?.cancelAtPeriodEnd;
+  const monthlyAmount = plans.find((p) => p.id === "monthly")?.amount;
+  const familyAmount = plans.find((p) => p.id === "family")?.amount;
 
   return (
     <div className="mt-8 space-y-6">
@@ -615,69 +639,63 @@ function PremiumSection({
             <>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-2xl">🌟</span>
-                <h3 className="text-lg font-bold text-ink">Premium actif</h3>
-                <span className="rounded-full bg-violet-200 px-2 py-0.5 text-xs font-semibold text-violet-900">
-                  {status.plan}
-                </span>
+                <h3 className="text-lg font-bold text-ink">PawFollow · {t("shop566_active")}</h3>
               </div>
               {status.currentPeriodEnd && (
                 <p className="mt-1 text-sm text-ink-muted">
+                  {/* v566 — « Renouvellement le … » était FAUX : un achat par
+                      carte est un paiement unique, rien ne se renouvelle. */}
                   {new Date(status.currentPeriodEnd).getFullYear() >= 2090
-                    ? "Accès illimité (compte staff) ⭐"
-                    : `${willCancel ? "Se terminera" : "Renouvellement"} le ${new Date(status.currentPeriodEnd).toLocaleDateString("fr-FR")}`}
+                    ? `${t("shop566_staff_unlimited")} ⭐`
+                    : t("shop566_onetime_until").replace("{date}", fmtDate(status.currentPeriodEnd, lang))}
                 </p>
               )}
               {typeof status.mapBoostCreditsRemaining === "number" && (
                 <p className="mt-1 text-xs text-ink-muted">
-                  {status.mapBoostCreditsRemaining} crédit(s) PawSpot inclus restants
+                  {t("shop566_credits_left").replace("{n}", String(status.mapBoostCreditsRemaining))}
                 </p>
               )}
-              <div className="mt-4">
-                {willCancel ? (
-                  <button
-                    type="button"
-                    onClick={onResume}
-                    disabled={cancelling}
-                    className="rounded-full bg-violet-600 px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                  >
-                    {cancelling ? "…" : "Réactiver le renouvellement"}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={onCancel}
-                    disabled={cancelling}
-                    className="rounded-full border border-ink/15 px-5 py-2 text-sm font-semibold text-ink hover:border-ink/30 disabled:opacity-60"
-                  >
-                    {cancelling ? "…" : "Annuler le renouvellement"}
-                  </button>
-                )}
-              </div>
+              {/* v566 — boutons « Annuler / Réactiver le renouvellement » retirés :
+                  aucun renouvellement par carte n'existe (paiement unique), ils
+                  n'avaient aucun effet. La mention ci-dessus les remplace. */}
             </>
           ) : (
-            <p className="text-sm text-ink-muted">
-              Tu n&apos;as pas d&apos;abonnement Premium actif. Choisis un plan ci-dessous.
-            </p>
+            <p className="text-sm text-ink-muted">{t("shop566_no_active")}</p>
           )}
         </div>
       )}
 
-      {/* Plans — v23.1.387 : les plans premium_* ont leur PROPRE section. */}
-      {!isPremium && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {plans
-            .filter((plan) => !plan.id.startsWith("premium_"))
-            .map((plan) => (
-              <PlanCard
-                key={plan.id}
-                plan={plan}
-                onPurchase={() => onSubscribe(plan.id)}
-                purchasing={purchasing === `plan-${plan.id}`}
-                highlighted={plan.id === "yearly"}
-              />
-            ))}
-        </div>
-      )}
+      {/* Plans — v23.1.387 : les plans premium_* ont leur PROPRE section.
+          v566 — les offres restent visibles quand un abonnement est actif :
+          le serveur PROLONGE la période (et PawFamily est indépendant de
+          PawFollow) ; avant, un abonné ne pouvait ni prolonger ni prendre
+          PawFamily depuis le site. */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {plans
+          .filter((plan) => !plan.id.startsWith("premium_"))
+          .map((plan) => (
+            <PlanCard
+              key={plan.id}
+              plan={plan}
+              onPurchase={() => onSubscribe(plan.id)}
+              purchasing={purchasing === `plan-${plan.id}`}
+              highlighted={plan.id === "yearly"}
+              extend={
+                plan.id.startsWith("family")
+                  ? status?.familyActive === true
+                  : !!isPremium
+              }
+              savingsPct={
+                plan.id === "yearly"
+                  ? yearlySavingsPct(monthlyAmount, plan.amount)
+                  : plan.id === "family_yearly"
+                    ? yearlySavingsPct(familyAmount, plan.amount)
+                    : 0
+              }
+            />
+          ))}
+      </div>
+      <ShopLegalNote />
     </div>
   );
 }
@@ -687,26 +705,30 @@ function PlanCard({
   onPurchase,
   purchasing,
   highlighted,
+  extend = false,
+  savingsPct = 0,
 }: {
   plan: SubscriptionPlan;
   onPurchase: () => void;
   purchasing: boolean;
   highlighted: boolean;
+  extend?: boolean;
+  savingsPct?: number;
 }) {
+  const { t, lang } = useT();
   const intervalLabel =
     plan.intervalDays >= 365
-      ? "/an"
-      : plan.intervalDays >= 30
-        ? "/mois"
-        : `/${plan.intervalDays}j`;
+      ? t("shop566_per_year")
+      : plan.intervalDays >= 28
+        ? t("shop566_per_month")
+        : ` · ${t("shop566_days").replace("{n}", String(plan.intervalDays))}`;
+  // v401 — Daniel : rebrand "PawFollow Famille" → "PawFamily" (mensuel/annuel).
   const planLabels: Record<string, string> = {
-    monthly: "Mensuel",
-    yearly: "Annuel",
-    // v401 — Daniel : rebrand "PawFollow Famille" → "PawFamily" (mensuel/annuel).
-    family: "PawFamily Mensuel",
-    family_yearly: "PawFamily Annuel",
-    premium_monthly: "PawPremium Mensuel",
-    premium_yearly: "PawPremium Annuel",
+    monthly: t("shop566_plan_monthly"),
+    yearly: t("shop566_plan_yearly"),
+    family: t("shop566_plan_family"),
+    famille: t("shop566_plan_family"),
+    family_yearly: t("shop566_plan_family_yearly"),
   };
 
   return (
@@ -717,29 +739,40 @@ function PlanCard({
           : "border-ink/5"
       }`}
     >
+      {/* v566 — économie CALCULÉE sur les prix serveur (avant : « 40% » figé). */}
       {highlighted && (
-        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-walker px-3 py-1 text-xs font-semibold text-white">
-          Économise 40%
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-walker px-3 py-1 text-xs font-semibold text-white">
+          {(savingsPct ?? 0) > 0
+            ? t("shop566_save_pct").replace("{pct}", String(savingsPct))
+            : t("shop566_best_price")}
         </span>
       )}
       <h3 className="text-lg font-bold text-ink">
-        {plan.name || planLabels[plan.id] || plan.id}
+        {planLabels[plan.id] || plan.name || plan.id}
+        {!highlighted && (savingsPct ?? 0) > 0 && (
+          <span className="ml-2 whitespace-nowrap rounded-full bg-walker/10 px-2 py-0.5 text-xs font-bold text-walker-dark">-{savingsPct}%</span>
+        )}
       </h3>
       <p className="mt-3 text-3xl font-extrabold text-walker-dark">
-        {plan.amount} {plan.currency}
+        {fmtMoney(plan.amount, plan.currency, lang)}
         <span className="ml-1 text-sm font-medium text-ink-muted">
           {intervalLabel}
         </span>
       </p>
+      {plan.intervalDays >= 365 && (
+        <p className="text-xs font-semibold text-ink-muted">
+          {t("shop566_equiv_month").replace("{price}", fmtMoney(plan.amount / 12, plan.currency, lang))}
+        </p>
+      )}
       <ul className="mt-5 space-y-2 text-sm">
-        <FeatureLi>Signalements communautaires complets</FeatureLi>
-        <FeatureLi>Amis sur la carte + alertes proximité</FeatureLi>
-        <FeatureLi>Chat sans limite</FeatureLi>
+        <FeatureLi>{t("shop566_feat_reports")}</FeatureLi>
+        <FeatureLi>{t("shop566_feat_friends")}</FeatureLi>
+        <FeatureLi>{t("shop566_feat_chat")}</FeatureLi>
         {(plan.id === "yearly" || plan.id === "family_yearly") && (
-          <FeatureLi>+12 crédits PawSpot offerts (1/mois)</FeatureLi>
+          <FeatureLi>{t("shop566_feat_credits")}</FeatureLi>
         )}
         {(plan.id === "family" || plan.id === "family_yearly") && (
-          <FeatureLi>Toi + 5 proches (6 personnes au total)</FeatureLi>
+          <FeatureLi>{t("shop566_feat_family")}</FeatureLi>
         )}
       </ul>
       <button
@@ -748,7 +781,7 @@ function PlanCard({
         disabled={purchasing}
         className="mt-6 w-full rounded-full bg-walker px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
       >
-        {purchasing ? "Ouverture app…" : "S'abonner"}
+        {purchasing ? "…" : extend ? t("shop566_extend") : t("shop566_subscribe")}
       </button>
     </div>
   );
@@ -763,20 +796,33 @@ function PawPremiumSection({
   onSubscribe,
   purchasing,
   t,
+  lang,
+  spotMonthly,
+  spotYearly,
 }: {
   plans: SubscriptionPlan[];
   status: SubscriptionStatus | null;
   onSubscribe: (plan: string) => void;
   purchasing: string | null;
   t: (k: string) => string;
+  lang: string;
+  spotMonthly?: number;
+  spotYearly?: number;
 }) {
   const monthly = plans.find((p) => p.id === "premium_monthly");
   const yearly = plans.find((p) => p.id === "premium_yearly");
   const monthlyPrice = monthly?.amount ?? 7.99;
   const yearlyPrice = yearly?.amount ?? 59.99;
   const cur = monthly?.currency ?? "EUR";
-  const fmt = (n: number) =>
-    `${n.toFixed(2).replace(".", ",")} ${cur === "EUR" ? "€" : cur}`;
+  const fmt = (n: number) => fmtMoney(n, cur, lang);
+  // v566 — prix « 2 abonnements séparés » CALCULÉ (PawFollow + PawSpot, prix
+  // serveur) au lieu de 11,98 / 89,98 € figés ; repli sur ces valeurs.
+  const followMonthly = plans.find((p) => p.id === "monthly")?.amount;
+  const followYearly = plans.find((p) => p.id === "yearly")?.amount;
+  const sepMonthly = followMonthly && spotMonthly ? followMonthly + spotMonthly : 11.98;
+  const sepYearly = followYearly && spotYearly ? followYearly + spotYearly : 89.98;
+  const pctOf = (price: number, sep: number) =>
+    sep > price ? `-${Math.round(100 - (price / sep) * 100)}%` : "";
   const bundleActive = status?.premiumBundleActive === true;
   const expiry = status?.premiumExpiry
     ? new Date(status.premiumExpiry)
@@ -803,7 +849,7 @@ function PawPremiumSection({
             {t("pawpremium_active")}
             {expiry && (
               <span className="ml-1 text-ink-muted">
-                · {expiry.toLocaleDateString("fr-FR")}
+                · {t("shop566_active_until").replace("{date}", fmtDate(expiry, lang))}
               </span>
             )}
           </p>
@@ -844,8 +890,8 @@ function PawPremiumSection({
           <PawPremiumPlanCard
             label={t("pawpremium_monthly")}
             price={fmt(monthlyPrice)}
-            strike={fmt(11.98)}
-            pct="-33%"
+            strike={fmt(sepMonthly)}
+            pct={pctOf(monthlyPrice, sepMonthly)}
             purchasing={purchasing === "plan-premium_monthly"}
             onClick={() => onSubscribe("premium_monthly")}
             cta={t("pawpremium_cta")}
@@ -853,8 +899,8 @@ function PawPremiumSection({
           <PawPremiumPlanCard
             label={t("pawpremium_yearly")}
             price={fmt(yearlyPrice)}
-            strike={fmt(89.98)}
-            pct="-33%"
+            strike={fmt(sepYearly)}
+            pct={pctOf(yearlyPrice, sepYearly)}
             highlight
             purchasing={purchasing === "plan-premium_yearly"}
             onClick={() => onSubscribe("premium_yearly")}
@@ -864,6 +910,9 @@ function PawPremiumSection({
         <p className="mt-5 text-xs font-semibold text-yellow-300">
           {t("pawpremium_savings")}
         </p>
+        <div className="mx-auto max-w-md text-left">
+          <ShopLegalNote dark />
+        </div>
       </section>
     </div>
   );
@@ -896,9 +945,11 @@ function PawPremiumPlanCard({
           : "border-amber-400/50 bg-white/5"
       }`}
     >
-      <span className="absolute -top-2.5 right-3 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-2 py-0.5 text-[10px] font-extrabold text-black">
-        {pct}
-      </span>
+      {pct && (
+        <span className="absolute -top-2.5 right-3 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-2 py-0.5 text-[10px] font-extrabold text-black">
+          {pct}
+        </span>
+      )}
       <p className="text-xs font-bold text-white/85">{label}</p>
       <p className="mt-1 text-2xl font-extrabold text-yellow-400">{price}</p>
       <p className="text-xs text-white/50 line-through">{strike}</p>
@@ -931,6 +982,7 @@ function BoostSection({
   onBuy: (tier: BoostTier) => void;
   purchasing: string | null;
 }) {
+  const { t, lang } = useT();
   return (
     <div className="mt-8 space-y-6">
       <div>
@@ -943,13 +995,16 @@ function BoostSection({
         <div className="rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 p-5 shadow-card">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-2xl">✨</span>
-            <h3 className="font-bold text-ink">Boost actif — {status.tier}</h3>
+            <h3 className="font-bold text-ink">
+              {t("shop566_boost_active")}
+              {status.tier ? ` — ${t(`shop566_tier_${status.tier}`)}` : ""}
+            </h3>
           </div>
           {status.expiresAt && (
             <p className="mt-1 text-sm text-ink-muted">
-              Expire le {new Date(status.expiresAt).toLocaleDateString("fr-FR")}
+              {t("shop566_expires_on").replace("{date}", fmtDate(status.expiresAt, lang))}
               {typeof status.remainingDays === "number" &&
-                ` (${status.remainingDays} jour${status.remainingDays > 1 ? "s" : ""} restant${status.remainingDays > 1 ? "s" : ""})`}
+                ` (${t("shop566_days_left").replace("{n}", String(status.remainingDays))})`}
             </p>
           )}
         </div>
@@ -966,6 +1021,7 @@ function BoostSection({
           />
         ))}
       </div>
+      <ShopLegalNote />
     </div>
   );
 }
@@ -979,6 +1035,7 @@ function PackageCard({
   onPurchase: () => void;
   purchasing: boolean;
 }) {
+  const { t, lang } = useT();
   const tierColors: Record<string, string> = {
     bronze: "from-amber-700 to-amber-500",
     silver: "from-slate-500 to-slate-300",
@@ -1000,13 +1057,13 @@ function PackageCard({
         <div className="flex items-center justify-between">
           <span className="text-2xl">{tierEmoji[pkg.tier] || "✨"}</span>
           <span className="text-xs font-semibold uppercase tracking-wider opacity-90">
-            {pkg.tier}
+            {t(`shop566_tier_${pkg.tier}`)}
           </span>
         </div>
         <div className="mt-3 text-2xl font-extrabold">
-          {pkg.amount} {pkg.currency}
+          {fmtMoney(pkg.amount, pkg.currency, lang)}
         </div>
-        <div className="text-xs opacity-90">{pkg.days} jour{pkg.days > 1 ? "s" : ""}</div>
+        <div className="text-xs opacity-90">{t("shop566_days").replace("{n}", String(pkg.days))}</div>
       </div>
       <div className="p-4">
         <button
@@ -1015,7 +1072,7 @@ function PackageCard({
           disabled={purchasing}
           className="w-full rounded-full bg-ink px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
         >
-          {purchasing ? "…" : "Acheter"}
+          {purchasing ? "…" : t("shop566_buy")}
         </button>
       </div>
     </div>

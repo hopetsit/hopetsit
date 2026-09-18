@@ -23,6 +23,8 @@ const { getChatAccess } = require('../services/chatAccessService');
 const { uploadMedia } = require('../services/cloudinary');
 const { HttpError } = require('../utils/errors');
 const { emitToConversation, emitChatMessage } = require('../sockets/emitter');
+// v566 — accusés de réception / lecture (✓ ✓✓ ✓✓ bleu).
+const receipts = require('../services/messageReceiptService');
 const logger = require('../utils/logger');
 
 const bufferToDataUri = (file) => `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
@@ -314,6 +316,26 @@ const getChatList = async (req, res) => {
       lastSeenAt: doc?.lastSeenAt ? new Date(doc.lastSeenAt).toISOString() : null,
     });
 
+    // v566 — coches devant l'aperçu : statut du DERNIER message de chaque
+    // conversation (une seule requête pour toute la liste).
+    let lastReceipts = new Map();
+    try {
+      lastReceipts = await receipts.lastMessageReceipts({ conversations, userId });
+    } catch (e) {
+      logger.warn(`[chat.list] lastMessageReceipts failed : ${e?.message || e}`);
+    }
+    const receiptOf = (conversation) =>
+      lastReceipts.get(String(conversation._id)) || {
+        lastMessageId: null,
+        lastMessageSenderId: null,
+        lastMessageSenderRole: null,
+        lastMessageMine: false,
+        lastMessageStatus: null,
+        lastMessageDeliveredAt: null,
+        lastMessageReadAt: null,
+      };
+    const unreadConversationIds = [];
+
     // Enhance conversations with user details
     const enhancedConversations = await Promise.all(
       conversations.map(async (conversation) => {
@@ -357,7 +379,8 @@ const getChatList = async (req, res) => {
           }
           // Conversation amie avec un compte supprimé → on l'enlève.
           if (!otherParty) return null;
-          return { ...sanitized, otherParty, unreadCount: unread, ...pres };
+          if (unread > 0) unreadConversationIds.push(conversation._id);
+          return { ...sanitized, otherParty, unreadCount: unread, ...pres, ...receiptOf(conversation) };
         }
 
         // Branch booking classique (legacy).
@@ -391,13 +414,16 @@ const getChatList = async (req, res) => {
         // v490 — Daniel : compte supprimé (provider/owner introuvable après
         // populate) → on retire la conversation au lieu d'afficher un ghost.
         if (!otherParty) return null;
+        const bookingUnread = normalizedRole === 'owner'
+          ? conversation.ownerUnreadCount || 0
+          : conversation.sitterUnreadCount || 0;
+        if (bookingUnread > 0) unreadConversationIds.push(conversation._id);
         return {
           ...sanitized,
           otherParty,
-          unreadCount: normalizedRole === 'owner'
-            ? conversation.ownerUnreadCount || 0
-            : conversation.sitterUnreadCount || 0,
+          unreadCount: bookingUnread,
           ...pres,
+          ...receiptOf(conversation),
         };
       })
     );
@@ -410,6 +436,19 @@ const getChatList = async (req, res) => {
       conversations: cleanedConversations,
       count: cleanedConversations.length,
     });
+
+    // v566 — rattrapage « remis » : la liste vient d'atteindre l'appareil, donc
+    // tout ce qui attendait dans les conversations NON LUES est remis (✓✓ gris
+    // chez l'expéditeur). Après la réponse, groupé, jamais bloquant.
+    if (unreadConversationIds.length) {
+      receipts.safely(
+        'markDeliveredForConversations',
+        receipts.markDeliveredForConversations({
+          conversationIds: unreadConversationIds,
+          recipientId: userId,
+        }),
+      );
+    }
   } catch (error) {
     logger.error('Get chat list error', error);
     if (error.name === 'CastError') {
@@ -591,6 +630,17 @@ const sendFriendMessage = async ({
   // Notif push au(x) destinataire(s).
   try {
     const { sendNotification } = require('../services/notificationSender');
+    // v566 — audit notifications : `senderName` manquait → titre « Nouveau message de »
+    // troué (push, cloche, e-mail) pour le chat amis / famille.
+    let senderName = '';
+    try {
+      const sr = String(senderRole || '').toLowerCase();
+      const order = sr === 'sitter' ? [Sitter, Owner, Walker] : sr === 'walker' ? [Walker, Owner, Sitter] : [Owner, Sitter, Walker];
+      for (const M of order) {
+        const doc = M ? await M.findById(senderId).select('name').lean() : null;
+        if (doc && doc.name) { senderName = String(doc.name).trim(); break; }
+      }
+    } catch (_) {/* le serveur complète à défaut (ensureSenderName) */}
     for (const p of (conversation.participants || [])) {
       if (String(p.userId) === String(senderId)) continue;
       const roleLower = String(p.userModel || 'Owner').toLowerCase();
@@ -601,8 +651,10 @@ const sendFriendMessage = async ({
         data: {
           conversationId: String(conversation._id),
           messageId: String(msg._id),
-          preview,
+          senderName: senderName || 'HoPetSit',
+          preview: String(preview || '').slice(0, 120),
         },
+        actor: senderRole ? { role: String(senderRole).toLowerCase(), id: senderId } : null,
       }).catch(() => {});
     }
   } catch (_) {/* defensive */}
@@ -853,6 +905,17 @@ const markConversationRead = async (req, res) => {
       userId,
     });
 
+    // v566 — « lu » façon WhatsApp : readAt sur tous les messages de l'autre
+    // partie encore non lus + `message:read` à l'expéditeur. Indépendant du
+    // compteur (`updated`) : le compteur peut déjà être à 0 (remis à zéro par
+    // GET /messages) alors que les messages ne sont pas encore marqués lus.
+    // Idempotent : rien à marquer → aucune écriture, aucune émission.
+    const read = await receipts.safely(
+      'markMessagesRead',
+      receipts.markMessagesRead({ conversationId: id, readerId: userId }),
+    );
+    const readInfo = { readCount: read?.count || 0, readAt: read?.readAt || null };
+
     if (updated) {
       emitToConversation(
         id,
@@ -869,9 +932,9 @@ const markConversationRead = async (req, res) => {
     }
 
     if (updated) {
-      res.json({ updated: true, conversation });
+      res.json({ updated: true, conversation, ...readInfo });
     } else {
-      res.json({ updated: false });
+      res.json({ updated: false, ...readInfo });
     }
   } catch (error) {
     logger.error('Mark conversation read error', error);

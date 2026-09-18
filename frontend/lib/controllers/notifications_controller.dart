@@ -15,6 +15,8 @@ import 'package:hopetsit/repositories/notifications_repository.dart';
 // au lieu d'un compteur local qui dérive / se ré-inflate à la reconnexion.
 import 'package:hopetsit/repositories/chat_repository.dart';
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/services/app_badge_service.dart';
+import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -76,7 +78,12 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
       svc.addOnConnectedHook(_attachSocketListener);
     } catch (_) { /* SocketService pas encore enregistré */ }
     refreshUnreadCount();
+    // v566 — badge chiffré de l'icône iOS = compteur de la cloche, à chaque changement
+    // (nouvelle notification, lecture ici ou sur un autre appareil, « tout lire » = 0).
+    _badgeWorker = ever<int>(unreadCount, (n) => AppBadgeService.set(n));
   }
+
+  Worker? _badgeWorker;
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -118,6 +125,7 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
       WidgetsBinding.instance.removeObserver(this);
     } catch (_) {}
     _chatResyncTimer?.cancel();
+    _badgeWorker?.dispose();
     super.onClose();
   }
 
@@ -256,6 +264,11 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
       // (qui font pareil), puis carrément supprimé quand on quittait un chat.
       // Le mux garantit que le badge survit à l'ouverture/fermeture des chats.
       s.addMessageNewListener(_onSocketMessageNew);
+      // v566 — synchro « lu / supprimé » entre appareils (iPhone ↔ Android ↔ site).
+      s.socket?.off('notification.read');
+      s.socket?.on('notification.read', _onSocketNotificationRead);
+      s.socket?.off('notification.removed');
+      s.socket?.on('notification.removed', _onSocketNotificationRemoved);
       s.socket?.off('notification.new');
       s.socket?.on('notification.new', (data) {
         try {
@@ -375,8 +388,17 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
           final isIncomingRequest = lower == 'friend_request_received' ||
               lower == 'family_invitation_received' ||
               lower == 'live_tracking_request_received';
+          // v566 — un seul affichage : sur iOS, app ouverte, la bannière SYSTÈME du push
+          // s'affiche déjà pour ces types → pas de bandeau in-app en plus (compteurs et
+          // liste mis à jour ci-dessus). Android : comportement inchangé.
+          var systemBannerShown = false;
+          try {
+            systemBannerShown = Get.isRegistered<PushNotificationService>() &&
+                Get.find<PushNotificationService>().iosShowsSystemBannerInForeground;
+          } catch (_) {/* defensive */}
           if ((lower.startsWith('friend') || lower.startsWith('family')) &&
-              !isIncomingRequest) {
+              !isIncomingRequest &&
+              !systemBannerShown) {
             final bannerTitle = (map['title'] ?? '').toString();
             final bannerBody = (map['body'] ?? '').toString();
             if (bannerTitle.isNotEmpty) {
@@ -390,6 +412,124 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
       });
     } catch (_) {
       // SocketService not registered yet — listener will be re-attached on next onInit.
+    }
+  }
+
+  // ─── v566 — synchro « lu / supprimé » entre appareils ─────────────────────
+  // Daniel (18/09) : « quand je mets une notification en lu sur un appareil, les
+  // autres doivent se synchroniser ». Le serveur émet, après chaque changement :
+  //   notification.read    { ids: [...] | all: true, unreadCount, at }
+  //   notification.removed { ids: [...] | all: true, unreadCount, at }
+  // On met à jour la liste + la cloche SANS recharger, et on retire de la barre
+  // système les notifications correspondantes. Hors ligne : `refreshAll()` au
+  // retour au premier plan (didChangeAppLifecycleState) reprend l'état serveur.
+  ({bool all, Set<String> ids, int? unread}) _parseSync(dynamic data) {
+    final map = data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+    final rawIds = map['ids'];
+    final ids = rawIds is List
+        ? rawIds.map((e) => e.toString()).where((e) => e.isNotEmpty).toSet()
+        : <String>{};
+    final u = map['unreadCount'];
+    final unread = u is num ? u.toInt() : int.tryParse(u?.toString() ?? '');
+    return (all: map['all'] == true, ids: ids, unread: unread);
+  }
+
+  void _applyServerUnread(int? unread) {
+    if (unread != null && unread >= 0) {
+      unreadCount.value = unread;
+    } else {
+      refreshUnreadCount();
+    }
+  }
+
+  void _dismissSystem({
+    required bool all,
+    required Set<String> ids,
+    int? unread,
+    List<({String title, String body})> contents = const [],
+  }) {
+    try {
+      if (Get.isRegistered<PushNotificationService>()) {
+        Get.find<PushNotificationService>().dismissSystemNotifications(
+          all: all,
+          ids: ids,
+          unreadCount: unread,
+          contents: contents,
+        );
+      }
+    } catch (_) {/* best-effort */}
+  }
+
+  void _onSocketNotificationRead(dynamic data) {
+    try {
+      final sync = _parseSync(data);
+      final now = DateTime.now().toUtc();
+      final contents = <({String title, String body})>[];
+      var changed = false;
+      for (var i = 0; i < notifications.length; i++) {
+        final n = notifications[i];
+        if (!(sync.all || sync.ids.contains(n.id))) continue;
+        contents.add((title: n.title, body: n.body));
+        if (n.isUnread) {
+          notifications[i] = n.copyWith(readAt: now);
+          changed = true;
+        }
+      }
+      if (changed) notifications.refresh();
+      _applyServerUnread(sync.unread);
+      _dismissSystem(all: sync.all, ids: sync.ids, unread: sync.unread, contents: contents);
+    } catch (e) {
+      AppLogger.logError('notification.read sync failed', error: e);
+    }
+  }
+
+  void _onSocketNotificationRemoved(dynamic data) {
+    try {
+      final sync = _parseSync(data);
+      final contents = <({String title, String body})>[];
+      if (sync.all) {
+        notifications.clear();
+        nextCursor.value = null;
+      } else if (sync.ids.isNotEmpty) {
+        for (final n in notifications) {
+          if (sync.ids.contains(n.id)) contents.add((title: n.title, body: n.body));
+        }
+        notifications.removeWhere((n) => sync.ids.contains(n.id));
+      }
+      _applyServerUnread(sync.unread);
+      _dismissSystem(all: sync.all, ids: sync.ids, unread: sync.unread, contents: contents);
+    } catch (e) {
+      AppLogger.logError('notification.removed sync failed', error: e);
+    }
+  }
+
+  /// v566 — supprimer UNE notification (DELETE /notifications/my/:id). Optimiste ;
+  /// les autres appareils sont prévenus par `notification.removed`.
+  Future<void> deleteNotification(AppNotificationModel item) async {
+    final index = notifications.indexWhere((e) => e.id == item.id);
+    if (index != -1) notifications.removeAt(index);
+    try {
+      await _repository.deleteNotification(item.id);
+      await refreshUnreadCount();
+    } catch (e) {
+      AppLogger.logError('Delete notification failed', error: e);
+      if (index != -1 && !notifications.any((n) => n.id == item.id)) {
+        notifications.insert(index.clamp(0, notifications.length), item);
+      }
+    }
+  }
+
+  /// v566 — tout effacer (DELETE /notifications/my/clear).
+  Future<void> clearAll() async {
+    final backup = notifications.toList();
+    notifications.clear();
+    try {
+      await _repository.clearAll();
+      unreadCount.value = 0;
+      nextCursor.value = null;
+    } catch (e) {
+      AppLogger.logError('Clear notifications failed', error: e);
+      notifications.assignAll(backup);
     }
   }
 
@@ -477,6 +617,9 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
     try {
       final n = await _repository.getUnreadCount();
       unreadCount.value = n;
+      // v566 — vérité serveur → badge de l'icône recalé même si la valeur n'a pas changé
+      // (retour au premier plan : un push reçu app fermée a pu poser un autre nombre).
+      AppBadgeService.set(n, force: true);
     } catch (e) {
       AppLogger.logError('Unread count failed', error: e);
     }

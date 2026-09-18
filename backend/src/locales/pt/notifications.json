@@ -104,8 +104,8 @@
   "CHAT_AUTO_WELCOME": {
     "title": "Chat desbloqueado",
     "body": "Olá 👋 Vamos combinar aqui o local exato e os detalhes do serviço.",
-    "emailSubject": "",
-    "emailBody": ""
+    "emailSubject": "O chat da tua reserva está aberto",
+    "emailBody": "<p>O chat da tua reserva está aberto: combina aqui o local exato e os detalhes do serviço.</p><p>— A equipa HoPetSit</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir o chat</a></p>"
   },
   "BOOKING_COMPLETED": {
     "title": "Reserva concluída",
@@ -115,7 +115,7 @@
   },
   "booking_paid": {
     "title": "Pagamento recebido!",
-    "body": "O proprietário pagou a sua reserva. Já pode conversar no chat para combinar os detalhes. No dia do serviço, toca em «🐾 Recolhi o animal» para confirmar o início do serviço.",
+    "body": "O dono pagou a reserva. O chat está aberto para combinar os detalhes. No dia do serviço, toca em «Animal recolhido».",
     "emailSubject": "Pagamento recebido — HoPetSit",
     "emailBody": "<p>Boas notícias! O pagamento da reserva acabou de ser confirmado. Já pode conversar com o proprietário para combinar o local e a hora do serviço.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver reserva</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link no teu navegador: {{emailLink}}</p>"
   },
@@ -397,7 +397,7 @@
   },
   "handover_returned": {
     "title": "Animal devolvido 🏁",
-    "body": "O teu prestador indica que devolveu o teu animal. Confirma que correu tudo bem para libertar o pagamento (senão, confirmação automática em {{autoConfirmHours}} h).",
+    "body": "O teu cuidador indica que devolveu o teu animal. Confirma para libertar o pagamento (automático em {{autoConfirmHours}} h).",
     "emailSubject": "O teu animal foi devolvido — confirma a devolução",
     "emailBody": "<p>O teu prestador acabou de tocar em «Animal devolvido». Confirma que correu tudo bem: isso liberta o pagamento para a carteira dele. Sem resposta da tua parte, a devolução será confirmada automaticamente em {{autoConfirmHours}} horas.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver a reserva</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia e cola este link: {{emailLink}}</p>"
   },

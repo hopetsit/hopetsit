@@ -1,58 +1,31 @@
-// v23.1 part 225 — Daniel : "vire personne en live de l'onglet famille amis".
-// L'onglet a ete supprime de FriendsScreen, mais la card quick-action
-// "Personnes live position" du header PawMap doit toujours marcher. On
-// extrait ici le contenu de l'ancien _PeopleLiveTab dans une screen
-// autonome avec son propre AppBar.
+// v23.1 part 225 — « Personnes en live » : écran autonome ouvert depuis la
+// carte rapide de la PawMap (l'onglet a quitté FriendsScreen).
+// v566 — modernisé : mêmes cartes que « Mes amis » (avatar cerclé, pastille de
+// rôle traduite), états chargement / vide / erreur + Réessayer, boutons
+// Suivre / Itinéraire / Message.
 //
-// Affiche la liste des amis/membres famille qui partagent leur position
-// EN CE MOMENT (theirSharePosition == true) OU qui ont un plan PawFollow
-// actif (partage auto via la mecanique PawFollow Family).
-import 'package:cached_network_image/cached_network_image.dart';
+// Liste les amis / membres de la famille :
+//  (a) qui partagent explicitement leur position avec moi,
+//  (b) qui ont PawFollow actif (partage automatique, v222),
+//  (c) v565 — dont on a une position en direct (le serveur a déjà appliqué les
+//      règles d'accès), avec l'état réel « actif / signal perdu · vu il y a X ».
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/controllers/friend_controller.dart';
-import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/models/friendship_model.dart';
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/pawmap_theme.dart';
-import 'package:hopetsit/widgets/dotted_invite_card.dart';
-import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
-import 'package:hopetsit/views/map/paw_map_screen.dart';
+import 'package:hopetsit/views/friends/friends_screen.dart';
+import 'package:hopetsit/views/friends/tabs/friends_ui.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/dotted_invite_card.dart';
 
-/// v559 — position d'un ami : en direct (LiveMapService) sinon la dernière
-/// connue côté serveur. Null si aucune.
-Future<LatLng?> _resolveFriendPosition(String friendId) async {
-  try {
-    final svc = Get.isRegistered<LiveMapService>() ? Get.find<LiveMapService>() : null;
-    final pos = svc?.friendPositions[friendId];
-    if (pos != null) return LatLng(pos.latitude, pos.longitude);
-  } catch (_) {/* défensif */}
-  try {
-    final api = Get.find<ApiClient>();
-    final r = await api.get('/friends/$friendId/last-position', requiresAuth: true);
-    if (r is Map && r['lat'] is num && r['lng'] is num) {
-      return LatLng((r['lat'] as num).toDouble(), (r['lng'] as num).toDouble());
-    }
-  } catch (_) {/* défensif */}
-  return null;
-}
-
-/// v565 — « il y a X » (mêmes clés que la PawMap).
-String _timeAgo(DateTime at) {
-  final diff = DateTime.now().difference(at);
-  if (diff.inMinutes < 1) return 'pawmap_time_just_now'.tr;
-  if (diff.inMinutes < 60) {
-    return 'pawmap_time_min_short'.trParams({'n': diff.inMinutes.toString()});
-  }
-  if (diff.inHours < 24) {
-    return 'pawmap_time_hours_short'.trParams({'n': diff.inHours.toString()});
-  }
-  return 'pawmap_time_days_short'.trParams({'n': diff.inDays.toString()});
-}
+const Color _liveGreen = Color(0xFF16A34A);
+const Color _liveAmber = Color(0xFFE8920A);
 
 class PeopleLiveScreen extends StatelessWidget {
   const PeopleLiveScreen({super.key});
@@ -62,51 +35,45 @@ class PeopleLiveScreen extends StatelessWidget {
     final FriendController controller = Get.isRegistered<FriendController>()
         ? Get.find<FriendController>()
         : Get.put(FriendController());
-    return Scaffold(
-      backgroundColor: PawMapTheme.bg,
-      appBar: AppBar(
-        backgroundColor: PawMapTheme.bg,
-        elevation: 0,
-        title: Row(
-          children: [
-            Icon(Icons.gps_fixed_rounded,
-                color: const Color(0xFF10B981), size: 20.sp),
-            SizedBox(width: 8.w),
-            InterText(
-              text: 'pawmap_quick_people_live'.tr,
-              fontSize: 18.sp,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
-            ),
-          ],
-        ),
-      ),
+    final accent = currentRoleAccent();
+
+    Future<void> refresh() async {
+      await controller.refresh();
+      // v565 — contrat §8 : rafraîchit aussi stale / lastSeenAt.
+      try {
+        if (Get.isRegistered<LiveMapService>()) {
+          await Get.find<LiveMapService>().refreshFriendPositions();
+        }
+      } catch (_) {/* défensif */}
+    }
+
+    return ProfileSubPageScaffold(
+      title: 'pawmap_quick_people_live'.tr,
+      accent: accent,
+      scroll: false,
       body: RefreshIndicator(
-        onRefresh: () async {
-          await controller.refresh();
-          // v565 — contrat §8 : rafraîchit aussi stale / lastSeenAt.
-          try {
-            if (Get.isRegistered<LiveMapService>()) {
-              await Get.find<LiveMapService>().refreshFriendPositions();
-            }
-          } catch (_) {/* défensif */}
-        },
+        color: accent,
+        onRefresh: refresh,
         child: Obx(() {
-          // v23.1 part 222 — filtre etendu :
-          //  (a) amis acceptes qui partagent explicitement leur position
-          //  (b) amis acceptes avec PawFollow plan actif (auto-share via
-          //      la mecanique PawFollow Family).
-          //  (c) v565 — TOUT ami dont on a une position en direct (le serveur
-          //      a déjà appliqué les règles d'accès), avec son état réel
-          //      « actif / signal perdu · vu il y a X ».
           final live = Get.isRegistered<LiveMapService>()
               ? Get.find<LiveMapService>()
               : null;
           live?.staleTick.value; // « vu il y a » se rafraîchit
-          final positions = live?.friendPositions ?? const <String, FriendPosition>{};
-          final livePeople = controller.friends
+          final positions =
+              live?.friendPositions ?? const <String, FriendPosition>{};
+          final friends = controller.friends.toList();
+
+          if (controller.isLoading.value && friends.isEmpty) {
+            return const FriendsSkeletonList(count: 3);
+          }
+          if (controller.loadFailed.value && friends.isEmpty) {
+            return FriendsStateView.loadError(accent: accent, onRetry: refresh);
+          }
+
+          final livePeople = friends
               .where((f) =>
                   f.status == 'accepted' &&
+                  f.other != null &&
                   (f.theirSharePosition ||
                       (f.other?.hasPawFollow ?? false) ||
                       positions.containsKey(f.other?.id ?? '')))
@@ -118,257 +85,254 @@ class PeopleLiveScreen extends StatelessWidget {
               final sb = pb == null ? 2 : (pb.isStale ? 1 : 0);
               return sa.compareTo(sb);
             });
+
           if (livePeople.isEmpty) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.all(24.w),
-              children: [
-                SizedBox(height: 80.h),
-                Center(
-                  child: Column(
-                    children: [
-                      Icon(Icons.gps_off_rounded,
-                          size: 56.sp, color: AppColors.greyText),
-                      SizedBox(height: 12.h),
-                      InterText(
-                        text: 'friends_people_live_empty_title'.tr,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary(context),
-                      ),
-                      SizedBox(height: 4.h),
-                      InterText(
-                        text: 'friends_people_live_empty_msg'.tr,
-                        fontSize: 13.sp,
-                        color: AppColors.greyText,
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 18.h),
-                // v552 — spec redesign v3 : carte pointillée verte
-                // « Inviter quelqu'un à partager sa position ». L'écran ne
-                // laissait aucune porte de sortie quand personne ne partage.
-                GestureDetector(
+            return FriendsStateView(
+              icon: Icons.location_off_rounded,
+              title: 'friends_people_live_empty_title'.tr,
+              message: 'friends_people_live_empty_msg'.tr,
+              accent: accent,
+              // v552 — porte de sortie : inviter quelqu'un à partager.
+              footer: Padding(
+                padding: EdgeInsets.only(top: 4.h),
+                child: GestureDetector(
                   onTap: () => Get.to(() => const FriendsScreen()),
                   behavior: HitTestBehavior.opaque,
                   child: DottedInviteCard(
                     title: 'friends_live_invite_title'.tr,
                     subtitle: 'friends_live_invite_sub'.tr,
+                    color: accent,
                   ),
                 ),
-              ],
+              ),
             );
           }
-          return ListView.separated(
-            padding: EdgeInsets.all(12.w),
+
+          final activeCount = livePeople
+              .where((f) => positions[f.other!.id]?.isStale == false)
+              .length;
+          return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: livePeople.length,
-            separatorBuilder: (_, __) => SizedBox(height: 10.h),
-            itemBuilder: (_, i) {
-              final f = livePeople[i];
-              final other = f.other;
-              if (other == null) return const SizedBox.shrink();
-              // v565 — état réel de la session de l'ami.
-              final pos = positions[other.id];
-              final bool stale = pos?.isStale ?? true;
-              final Color dot = pos == null
-                  ? AppColors.greyText
-                  : (stale ? const Color(0xFFE8920A) : Colors.green);
-              final String statusText = pos == null
-                  ? 'friends_people_live_subtitle'.tr
-                  : (stale
-                      ? '${'v565_live_signal_lost'.tr} · ${'pawmap_seen_ago'.tr.replaceAll('{ago}', _timeAgo(pos.seenAt))}'
-                      : '${'v565_live_active'.tr} · ${_timeAgo(pos.seenAt)}');
-              // v23.1.190 — code couleur role (Owner=violet, Walker=vert,
-              // Sitter=bleu) pour le halo + accent. v23.1 part 225 etend :
-              // walker vert / sitter bleu est aussi le code halo de la
-              // map quand on les suit.
-              final roleColor = {
-                'Owner': AppColors.primaryColor, // v23.1.295 — owner = ORANGE
-                'Sitter': AppColors.sitterAccent,
-                'Walker': AppColors.greenColor,
-              }[other.model] ??
-                  AppColors.primaryColor;
-              return InkWell(
-                borderRadius: BorderRadius.circular(16.r),
-                // v23.1 part 239 — Daniel : "je clic sur witoulek qui est
-                // a murcia et sa me met ma geolocalisation a pego". Root
-                // cause : PawMapScreen ouverte sans initialLat/Lng →
-                // centre sur la position du user au lieu de l'ami.
-                // Fix : on lit la derniere position broadcast de l'ami
-                // depuis LiveMapService.friendPositions (event socket
-                // map:friend-position) et on passe ces coords a PawMap.
-                onTap: () async {
-                  double? lat;
-                  double? lng;
-                  // 1) Try real-time socket position (most fresh).
-                  try {
-                    final svc = Get.isRegistered<LiveMapService>()
-                        ? Get.find<LiveMapService>()
-                        : null;
-                    final pos = svc?.friendPositions[other.id];
-                    if (pos != null) {
-                      lat = pos.latitude;
-                      lng = pos.longitude;
-                    }
-                  } catch (_) {/* defensive */}
-                  // 2) Fallback to DB position via /friends/:id/last-position
-                  // (v23.1 part 239 — Daniel : witoulek pas vu en live →
-                  // friendPositions vide → fallback DB qui retourne sa
-                  // derniere position broadcastee).
-                  if (lat == null || lng == null) {
-                    try {
-                      final api = Get.find<ApiClient>();
-                      final r = await api.get(
-                        '/friends/${other.id}/last-position',
-                        requiresAuth: true,
-                      );
-                      if (r is Map) {
-                        final rLat = r['lat'];
-                        final rLng = r['lng'];
-                        if (rLat is num && rLng is num) {
-                          lat = rLat.toDouble();
-                          lng = rLng.toDouble();
-                        }
-                      }
-                    } catch (_) {/* defensive — open PawMap centered on user */}
-                  }
-                  // v23.1 part 240 — Daniel : "as tu bien fixer le probleme
-                  // de geolocalisation de suivre personne live ?".
-                  // Avant v240 : on passait initialLat/Lng mais _bootstrap
-                  // de PawMap ecrasait _currentCenter avec MA position GPS.
-                  // → la map s'ouvrait centree sur moi a la place du friend.
-                  // FIX : (1) _bootstrap respecte maintenant initialLat/Lng
-                  // (cf paw_map_screen.dart hasInitialFocus). (2) on passe
-                  // focusUserId/Role/Name pour injecter une FriendPosition
-                  // synthetique dans LiveMapService → halo violet (Owner) /
-                  // vert (Walker) / bleu (Sitter) autour de l'ami.
-                  Get.off(() => PawMapScreen(
-                        initialLat: lat,
-                        initialLng: lng,
-                        focusUserId: other.id,
-                        focusUserRole: other.model.toLowerCase(),
-                        focusUserName: other.name,
-                      ));
-                },
-                child: Container(
-                  padding: EdgeInsets.all(12.w),
-                  decoration: BoxDecoration(
-                    color: AppColors.card(context),
-                    borderRadius: BorderRadius.circular(16.r),
-                    border: Border.all(
-                      color: roleColor.withValues(alpha: 0.30),
-                      width: 1.2,
-                    ),
-                    boxShadow: AppColors.cardShadow(context),
-                  ),
-                  child: Row(
-                    children: [
-                      Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 24.r,
-                            backgroundColor: roleColor.withValues(alpha: 0.18),
-                            // v23.1 part 231 — perf cache + maxWidth.
-                            backgroundImage: (other.avatar.isNotEmpty &&
-                                    other.avatar.startsWith('http'))
-                                ? CachedNetworkImageProvider(other.avatar, maxWidth: 150)
-                                : null,
-                            child: other.avatar.isEmpty
-                                ? Icon(Icons.person,
-                                    color: roleColor, size: 24.sp)
-                                : null,
-                          ),
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              width: 14.w,
-                              height: 14.w,
-                              decoration: BoxDecoration(
-                                color: dot,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.card(context),
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+            padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w,
+                24.h + MediaQuery.of(context).viewPadding.bottom),
+            children: [
+              FriendsSectionHeader(
+                title: 'pawmap_quick_people_live'.tr,
+                count: livePeople.length,
+                color: accent,
+                trailing: activeCount == 0
+                    ? null
+                    : FriendsBadge(
+                        label: '$activeCount · ${'v565_live_active'.tr}',
+                        color: _liveGreen,
+                        icon: Icons.circle,
                       ),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            InterText(
-                              text: other.name.isEmpty ? '—' : other.name,
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary(context),
-                            ),
-                            SizedBox(height: 2.h),
-                            Row(
-                              children: [
-                                Icon(Icons.gps_fixed_rounded,
-                                    color: dot, size: 12.sp),
-                                SizedBox(width: 4.w),
-                                Flexible(
-                                  child: InterText(
-                                    text: statusText,
-                                    fontSize: 11.sp,
-                                    color: stale && pos != null
-                                        ? dot
-                                        : AppColors.textSecondary(context),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                SizedBox(width: 8.w),
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 6.w, vertical: 1.h),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        roleColor.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(6.r),
-                                  ),
-                                  child: InterText(
-                                    text: other.model,
-                                    fontSize: 9.sp,
-                                    fontWeight: FontWeight.w700,
-                                    color: roleColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      // v559 — Daniel : itinéraire vers l'ami (à pied / vélo /
-                      // voiture + virages) lancé directement sur la PawMap.
-                      IconButton(
-                        tooltip: 'pawmap_btn_directions'.tr,
-                        icon: const Icon(Icons.directions_rounded,
-                            color: Color(0xFF16A34A)),
-                        onPressed: () async {
-                          final pos = await _resolveFriendPosition(other.id);
-                          if (pos == null) return;
-                          openPawMapWithRoute(pos.latitude, pos.longitude);
-                        },
-                      ),
-                      Icon(Icons.chevron_right_rounded,
-                          color: AppColors.greyText, size: 22.sp),
-                    ],
+              ),
+              for (final f in livePeople)
+                Padding(
+                  padding: EdgeInsets.only(bottom: 12.h),
+                  child: _LivePersonCard(
+                    key: ValueKey('live_${f.id}'),
+                    friendship: f,
+                    controller: controller,
+                    position: positions[f.other!.id],
+                    accent: accent,
                   ),
                 ),
-              );
-            },
+            ],
           );
         }),
+      ),
+    );
+  }
+}
+
+class _LivePersonCard extends StatefulWidget {
+  const _LivePersonCard({
+    super.key,
+    required this.friendship,
+    required this.controller,
+    required this.position,
+    required this.accent,
+  });
+
+  final Friendship friendship;
+  final FriendController controller;
+  final FriendPosition? position;
+  final Color accent;
+
+  @override
+  State<_LivePersonCard> createState() => _LivePersonCardState();
+}
+
+class _LivePersonCardState extends State<_LivePersonCard> {
+  bool _followBusy = false;
+  bool _routeBusy = false;
+  bool _chatBusy = false;
+
+  FriendProfile get _other => widget.friendship.other!;
+
+  // v23.1 part 239/240 — la carte s'ouvre centrée sur L'AMI (socket → repli
+  // /friends/:id/last-position), avec focusUserId pour le halo de suivi.
+  Future<void> _follow() async {
+    setState(() => _followBusy = true);
+    try {
+      await openPawMapOnMember(
+        userId: _other.id,
+        role: _other.model,
+        name: _other.name,
+      );
+    } finally {
+      if (mounted) setState(() => _followBusy = false);
+    }
+  }
+
+  // v559 — itinéraire vers l'ami (à pied / vélo / voiture) sur la PawMap.
+  Future<void> _route() async {
+    setState(() => _routeBusy = true);
+    try {
+      final (lat, lng) = await resolveFriendLatLng(_other.id);
+      if (lat == null || lng == null) {
+        CustomSnackbar.showInfo(
+          title: 'friends_tap_not_shared_title'.tr,
+          message: 'friends566_no_position'.tr,
+        );
+        return;
+      }
+      openPawMapWithRoute(lat, lng);
+    } finally {
+      if (mounted) setState(() => _routeBusy = false);
+    }
+  }
+
+  Future<void> _chat() async {
+    setState(() => _chatBusy = true);
+    try {
+      await openFriendChatRoleAware(
+          controller: widget.controller, other: _other);
+    } finally {
+      if (mounted) setState(() => _chatBusy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final other = _other;
+    final pos = widget.position;
+    // v565 — état réel de la session de l'ami.
+    final bool stale = pos?.isStale ?? true;
+    final Color dot = pos == null
+        ? AppColors.greyText
+        : (stale ? _liveAmber : _liveGreen);
+    final String statusText = pos == null
+        ? 'friends_people_live_subtitle'.tr
+        : (stale
+            ? '${'v565_live_signal_lost'.tr} · ${'pawmap_seen_ago'.tr.replaceAll('{ago}', friendsTimeAgo(pos.seenAt))}'
+            : '${'v565_live_active'.tr} · ${friendsTimeAgo(pos.seenAt)}');
+    final roleColor = friendRoleColor(other.model);
+    final ring = pawSpotRingColor(other.pawSpotTier) ?? roleColor;
+
+    return FriendsCard(
+      onTap: _followBusy ? null : _follow,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              FriendAvatar(imageUrl: other.avatar, ringColor: ring),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: InterText(
+                            text: other.name.isEmpty
+                                ? 'common_user'.tr
+                                : other.name,
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary(context),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        SizedBox(width: 6.w),
+                        FriendsBadge(
+                          label: friendRoleLabel(other.model),
+                          color: roleColor,
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 5.h),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8.w,
+                          height: 8.w,
+                          decoration:
+                              BoxDecoration(color: dot, shape: BoxShape.circle),
+                        ),
+                        SizedBox(width: 6.w),
+                        Expanded(
+                          child: InterText(
+                            text: statusText,
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w600,
+                            color: pos == null
+                                ? AppColors.textSecondary(context)
+                                : dot,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Row(
+            children: [
+              Expanded(
+                child: FriendsPillButton(
+                  label: 'friends566_action_follow'.tr,
+                  icon: Icons.near_me_rounded,
+                  color: widget.accent,
+                  filled: true,
+                  expand: true,
+                  loading: _followBusy,
+                  onTap: _follow,
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: FriendsPillButton(
+                  label: 'pawmap_btn_directions'.tr,
+                  icon: Icons.directions_rounded,
+                  color: widget.accent,
+                  expand: true,
+                  loading: _routeBusy,
+                  onTap: _route,
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: FriendsPillButton(
+                  label: 'friends566_action_message'.tr,
+                  icon: Icons.chat_bubble_rounded,
+                  color: widget.accent,
+                  expand: true,
+                  loading: _chatBusy,
+                  onTap: _chat,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

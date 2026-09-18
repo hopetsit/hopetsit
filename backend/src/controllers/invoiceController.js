@@ -14,6 +14,67 @@ const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const logger = require('../utils/logger');
+const {
+  resolveBillingInfoAcrossRoles,
+  toBillingSnapshot,
+  snapshotForApi,
+  isSnapshotFrozen,
+} = require('../utils/billingInfo');
+
+// ─── v566 — instantanés de facturation ──────────────────────────────────────
+// `issuerBilling` (prestataire) et `customerBilling` (propriétaire) sont copiés
+// à la création. Une fois figé (`snapshotAt`), un instantané ne change plus :
+// modifier son NIF plus tard ne réécrit pas les factures déjà émises.
+// Factures antérieures à la v566 (ou partie qui n'avait encore rien saisi) :
+// remplissage UNE fois, à la première lecture où la personne a des données,
+// puis figé. L'écriture est conditionnelle (`snapshotAt: null`) → deux lectures
+// simultanées ne peuvent pas figer deux versions différentes.
+const _billingSides = (inv) => [
+  { field: 'issuerBilling', partyId: inv.providerId, model: inv.providerRole === 'walker' ? 'Walker' : 'Sitter' },
+  { field: 'customerBilling', partyId: inv.ownerId, model: 'Owner' },
+];
+
+async function ensureBillingSnapshots(invoices) {
+  const list = (Array.isArray(invoices) ? invoices : [invoices]).filter(Boolean);
+  const memo = new Map(); // une résolution par personne et par requête
+  const resolve = (id, model) => {
+    const key = `${model}:${id}`;
+    if (!memo.has(key)) memo.set(key, resolveBillingInfoAcrossRoles(id, model));
+    return memo.get(key);
+  };
+  for (const inv of list) {
+    for (const side of _billingSides(inv)) {
+      if (isSnapshotFrozen(inv[side.field]) || !side.partyId) continue;
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const snap = toBillingSnapshot(await resolve(String(side.partyId), side.model), new Date());
+        if (!snap) continue; // rien à figer pour l'instant
+        // eslint-disable-next-line no-await-in-loop
+        const r = await Invoice.updateOne(
+          { _id: inv._id, [`${side.field}.snapshotAt`]: null },
+          { $set: { [side.field]: snap } },
+        );
+        if (r && r.modifiedCount === 0) {
+          // Figé entre-temps par une autre lecture : on relit la version retenue.
+          // eslint-disable-next-line no-await-in-loop
+          const fresh = await Invoice.findById(inv._id).select(side.field).lean();
+          inv[side.field] = (fresh && fresh[side.field]) || inv[side.field];
+        } else {
+          inv[side.field] = snap;
+        }
+      } catch (e) {
+        logger.warn(`[invoice] billing snapshot failed for ${inv._id} (${side.field}): ${e.message}`);
+      }
+    }
+  }
+  return invoices;
+}
+
+const _withBillingForApi = (inv) => ({
+  ...inv,
+  issuerBilling: snapshotForApi(inv.issuerBilling),
+  customerBilling: snapshotForApi(inv.customerBilling),
+});
 
 const _providerModel = (role) => {
   const r = (role || '').toLowerCase();
@@ -104,6 +165,16 @@ async function createInvoiceForBooking(booking) {
   }
   const currency = (booking.pricing?.currency || 'EUR').toUpperCase();
 
+  // v566 — instantanés de facturation pris MAINTENANT (la facture ne change
+  // plus ensuite). Un échec de lecture ne doit jamais bloquer la facture.
+  const snapshotAt = new Date();
+  const [issuerInfo, customerInfo] = await Promise.all([
+    resolveBillingInfoAcrossRoles(provider._id, isWalker ? 'Walker' : 'Sitter').catch(() => null),
+    resolveBillingInfoAcrossRoles(owner._id, 'Owner').catch(() => null),
+  ]);
+  const issuerBilling = toBillingSnapshot(issuerInfo, snapshotAt);
+  const customerBilling = toBillingSnapshot(customerInfo, snapshotAt);
+
   const invoice = await Invoice.create({
     invoiceNumber: await nextInvoiceNumber(),
     bookingId: booking._id,
@@ -115,6 +186,8 @@ async function createInvoiceForBooking(booking) {
     providerRole,
     providerName: provider.name || '',
     providerEmail: provider.email || '',
+    ...(issuerBilling ? { issuerBilling } : {}),
+    ...(customerBilling ? { customerBilling } : {}),
     serviceType: booking.serviceType || '',
     serviceDate: booking.serviceDate || null,
     startDate: booking.startDate || null,
@@ -179,6 +252,7 @@ const listMyInvoices = async (req, res) => {
       .sort({ issuedAt: -1 })
       .limit(200)
       .lean();
+    await ensureBillingSnapshots(invoices);
 
     // Hide the counterparty's email in the response (GDPR-friendly).
     // v498 — Daniel : « Server error » au téléchargement PDF côté web. CAUSE :
@@ -186,7 +260,7 @@ const listMyInvoices = async (req, res) => {
     // === undefined → URL `/invoices/undefined/html` → findById('undefined')
     // = CastError → 500. On expose `id` explicitement (en plus de `_id`).
     const sanitised = invoices.map((inv) => ({
-      ...inv,
+      ..._withBillingForApi(inv),
       id: inv._id ? inv._id.toString() : undefined,
       ownerEmail: role === 'owner' ? inv.ownerEmail : undefined,
       providerEmail:
@@ -219,7 +293,8 @@ const getInvoice = async (req, res) => {
       return res.status(403).json({ error: 'Access denied to this invoice.' });
     }
 
-    return res.json({ invoice: inv });
+    await ensureBillingSnapshots([inv]);
+    return res.json({ invoice: _withBillingForApi(inv) });
   } catch (err) {
     logger.error('[invoiceController.getInvoice]', err);
     return res.status(500).json({ error: 'Unable to fetch invoice.' });
@@ -256,6 +331,15 @@ const renderInvoiceHtml = async (req, res) => {
       }
     }
 
+    // v566 — instantanés de facturation (remplissage unique si absents).
+    await ensureBillingSnapshots([inv]);
+
+    // v566 — tout texte saisi par un utilisateur est échappé (la page est
+    // servie depuis le domaine de l'API, avec le jeton en paramètre).
+    const esc = (v) => String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
     const fmt = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '—');
     const money = (n) =>
       `${(Number(n) || 0).toFixed(2)} ${(inv.currency || 'EUR').toUpperCase()}`;
@@ -265,14 +349,25 @@ const renderInvoiceHtml = async (req, res) => {
     // le backend → on lit le `lang` query param (ou Accept-Language) et
     // on choisit la locale appropriee. Le frontend Flutter passe deja
     // ?lang=es/de/it/pt/en/fr quand il ouvre la WebView.
-    const rawLang = (req.query.lang ||
-      (req.headers['accept-language'] || 'en').split(',')[0].split('-')[0] ||
-      'en')
-      .toString()
-      .toLowerCase()
-      .slice(0, 2);
-    const supported = ['en', 'fr', 'es', 'de', 'it', 'pt'];
-    const lang = supported.includes(rawLang) ? rawLang : 'en';
+    // v566 — 9 langues (ko / ja / pl ajoutés) ; sans `?lang`, on prend la
+    // langue du COMPTE (appLocale) avant l'Accept-Language du navigateur.
+    const supported = ['en', 'fr', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl'];
+    const two = (v) => String(v || '').toLowerCase().slice(0, 2);
+    let accountLang = '';
+    if (!supported.includes(two(req.query.lang)) && req.user?.id && req.user.role !== 'admin') {
+      try {
+        const docs = await Promise.all(
+          [Owner, Sitter, Walker].map((M) => M.findById(req.user.id).select('appLocale').lean().catch(() => null)),
+        );
+        accountLang = two((docs.find((d) => d && d.appLocale) || {}).appLocale);
+      } catch (_) { /* langue du navigateur en repli */ }
+    }
+    const rawLang = [
+      two(req.query.lang),
+      accountLang,
+      two((req.headers['accept-language'] || '').split(',')[0].split('-')[0]),
+    ].find((l) => supported.includes(l));
+    const lang = rawLang || 'en';
 
     // v23.1.164 — Daniel : "dans la fcture ya tjr ecris invoice fais que tt
     // soit bien traduit". Ajout du label `invoiceLabel` qui sert pour le
@@ -367,7 +462,82 @@ const renderInvoiceHtml = async (req, res) => {
         serviceBoarding: 'Hospedagem noturna', serviceSitting: 'Pet-sitting',
         serviceGeneric: 'Serviço',
       },
+      ko: {
+        invoiceTitle: 'HoPetSit 청구서', invoiceLabel: '청구서', downloadBtn: '⬇ PDF 다운로드',
+        billTo: '청구 대상 (보호자)', serviceProvider: '서비스 제공자',
+        description: '내용', serviceDate: '서비스 날짜', pets: '반려동물',
+        amount: '금액', issued: '발행일', paid: '결제일',
+        grossAmount: '총액', commission: 'HoPetSit 플랫폼 수수료 (20%)',
+        netProvider: '제공자 정산액', totalCharged: '보호자 결제 총액',
+        footer: '결제는 Airwallex(PCI-DSS 레벨 1 인증)에서 처리됩니다. HoPetSit은 카드 정보에 접근하거나 전송·저장하지 않습니다.',
+        cancelTerms: '서비스 시작 72시간 전까지 직접 취소 시 전액 환불됩니다. 자세히 보기:',
+        escrowText: '결제 금액은 서비스 종료 후 24시간까지 에스크로로 보관된 뒤 제공자의 등록된 IBAN으로 지급됩니다.',
+        serviceWalk: '반려견 산책', serviceDaycare: '데이케어',
+        serviceBoarding: '숙박 돌봄', serviceSitting: '펫시팅',
+        serviceGeneric: '서비스',
+      },
+      ja: {
+        invoiceTitle: 'HoPetSit 請求書', invoiceLabel: '請求書', downloadBtn: '⬇ PDFをダウンロード',
+        billTo: '請求先（飼い主）', serviceProvider: 'サービス提供者',
+        description: '内容', serviceDate: 'サービス日', pets: 'ペット',
+        amount: '金額', issued: '発行日', paid: '支払日',
+        grossAmount: '総額', commission: 'HoPetSit プラットフォーム手数料 (20%)',
+        netProvider: '提供者への支払額', totalCharged: '飼い主への請求総額',
+        footer: '決済は Airwallex（PCI-DSS レベル1認定）が処理します。HoPetSit はカード情報へのアクセス・送信・保存を行いません。',
+        cancelTerms: 'サービス開始の72時間前までのキャンセルは全額返金されます。詳細：',
+        escrowText: '代金はサービス終了後24時間までエスクローで保管され、その後提供者の登録済み IBAN に支払われます。',
+        serviceWalk: '犬の散歩', serviceDaycare: 'デイケア',
+        serviceBoarding: 'お泊まり預かり', serviceSitting: 'ペットシッティング',
+        serviceGeneric: 'サービス',
+      },
+      pl: {
+        invoiceTitle: 'Faktura HoPetSit', invoiceLabel: 'Faktura', downloadBtn: '⬇ Pobierz PDF',
+        billTo: 'Nabywca (właściciel)', serviceProvider: 'Usługodawca',
+        description: 'Opis', serviceDate: 'Data usługi', pets: 'Zwierzęta',
+        amount: 'Kwota', issued: 'Wystawiono', paid: 'Opłacono',
+        grossAmount: 'Kwota brutto', commission: 'Prowizja platformy HoPetSit (20%)',
+        netProvider: 'Kwota netto dla usługodawcy', totalCharged: 'Łączna kwota pobrana od właściciela',
+        footer: 'Płatność obsługuje Airwallex (certyfikat PCI-DSS poziom 1). HoPetSit nie ma dostępu do danych karty, nie przesyła ich ani nie przechowuje.',
+        cancelTerms: 'Samodzielne anulowanie z pełnym zwrotem jest możliwe do 72 godzin przed rozpoczęciem usługi. Zobacz',
+        escrowText: 'Środki są przechowywane w depozycie do 24 godzin po zakończeniu usługi, a następnie wypłacane na zarejestrowany IBAN usługodawcy.',
+        serviceWalk: 'Spacer z psem', serviceDaycare: 'Opieka dzienna',
+        serviceBoarding: 'Opieka z noclegiem', serviceSitting: 'Pet-sitting',
+        serviceGeneric: 'Usługa',
+      },
     }[lang];
+
+    // v566 — blocs « Émetteur » / « Client » (informations de facturation).
+    const BT = {
+      en: { issuer: 'Issuer', customer: 'Customer', vat: 'VAT No.', passport: 'Passport', companyNumber: 'Company No.', idOther: 'ID', business: 'Business', individual: 'Individual' },
+      fr: { issuer: 'Émetteur', customer: 'Client', vat: 'N° TVA', passport: 'Passeport', companyNumber: "N° d'entreprise", idOther: 'Identifiant', business: 'Professionnel', individual: 'Particulier' },
+      es: { issuer: 'Emisor', customer: 'Cliente', vat: 'N.º IVA', passport: 'Pasaporte', companyNumber: 'N.º de empresa', idOther: 'Identificador', business: 'Profesional', individual: 'Particular' },
+      de: { issuer: 'Aussteller', customer: 'Kunde', vat: 'USt-IdNr.', passport: 'Reisepass', companyNumber: 'Handelsregisternr.', idOther: 'Kennnummer', business: 'Gewerblich', individual: 'Privatperson' },
+      it: { issuer: 'Emittente', customer: 'Cliente', vat: 'P. IVA', passport: 'Passaporto', companyNumber: 'N. impresa', idOther: 'Identificativo', business: 'Professionista', individual: 'Privato' },
+      pt: { issuer: 'Emitente', customer: 'Cliente', vat: 'N.º IVA', passport: 'Passaporte', companyNumber: 'N.º de empresa', idOther: 'Identificador', business: 'Profissional', individual: 'Particular' },
+      ko: { issuer: '발행자', customer: '고객', vat: '부가세 번호', passport: '여권', companyNumber: '사업자 번호', idOther: '식별 번호', business: '사업자', individual: '개인' },
+      ja: { issuer: '発行者', customer: '顧客', vat: 'VAT番号', passport: 'パスポート', companyNumber: '法人番号', idOther: '識別番号', business: '事業者', individual: '個人' },
+      pl: { issuer: 'Wystawca', customer: 'Klient', vat: 'Nr VAT', passport: 'Paszport', companyNumber: 'Nr firmy', idOther: 'Identyfikator', business: 'Firma', individual: 'Osoba prywatna' },
+    }[lang];
+    const idTypeLabel = (t) => ({
+      nif: 'NIF', nie: 'NIE', cif: 'CIF', siret: 'SIRET', ein: 'EIN',
+      vat: BT.vat, passport: BT.passport, company_number: BT.companyNumber, other: BT.idOther,
+    }[t] || BT.idOther);
+    // Lignes d'un bloc : nom légal, « NIF : X… », n° TVA, adresse. Vide → ''.
+    const billingLines = (b, accountName) => {
+      if (!b) return '';
+      const lines = [];
+      // Nom légal identique au nom du compte (particulier) : pas de doublon.
+      const sameName = String(b.legalName || '').trim().toLowerCase() === String(accountName || '').trim().toLowerCase();
+      if (b.legalName && !(sameName && b.type !== 'business')) lines.push(`<div class="sub"><strong>${esc(b.legalName)}</strong>${b.type === 'business' ? ` · ${BT.business}` : ''}</div>`);
+      if (b.idNumber) lines.push(`<div class="sub">${esc(idTypeLabel(b.idType))} : ${esc(b.idNumber)}</div>`);
+      if (b.vatNumber && !(b.idType === 'vat' && b.vatNumber === b.idNumber)) lines.push(`<div class="sub">${BT.vat} : ${esc(b.vatNumber)}</div>`);
+      const cityLine = [b.postalCode, b.city].filter(Boolean).join(' ');
+      const addr = [b.address, cityLine, b.country].filter(Boolean).map(esc).join(', ');
+      if (addr) lines.push(`<div class="sub">${addr}</div>`);
+      return lines.join('\n      ');
+    };
+    const issuerB = snapshotForApi(inv.issuerBilling);
+    const customerB = snapshotForApi(inv.customerBilling);
 
     // v23.1.175 — helper qui traduit le serviceType brut (ex: 'dog_walk',
     // 'overnight_boarding') en label de la langue courante. Mirror exact
@@ -513,14 +683,16 @@ const renderInvoiceHtml = async (req, res) => {
 
   <div class="grid">
     <div class="card">
-      <h3>${T.billTo}</h3>
-      <div class="name">${inv.ownerName || '—'}</div>
-      <div class="sub">${inv.ownerEmail || ''}</div>
+      <h3>${BT.issuer} · ${T.serviceProvider} <span class="pill">${esc(inv.providerRole)}</span></h3>
+      <div class="name">${esc(inv.providerName || '—')}</div>
+      <div class="sub">${esc(inv.providerEmail || '')}</div>
+      ${billingLines(issuerB, inv.providerName)}
     </div>
     <div class="card">
-      <h3>${T.serviceProvider} <span class="pill">${inv.providerRole}</span></h3>
-      <div class="name">${inv.providerName || '—'}</div>
-      <div class="sub">${inv.providerEmail || ''}</div>
+      <h3>${BT.customer} · ${T.billTo}</h3>
+      <div class="name">${esc(inv.ownerName || '—')}</div>
+      <div class="sub">${esc(inv.ownerEmail || '')}</div>
+      ${billingLines(customerB, inv.ownerName)}
     </div>
   </div>
 
@@ -623,7 +795,8 @@ const adminListInvoices = async (req, res) => {
       .sort({ issuedAt: -1 })
       .limit(500)
       .lean();
-    return res.json({ invoices, count: invoices.length });
+    await ensureBillingSnapshots(invoices);
+    return res.json({ invoices: invoices.map(_withBillingForApi), count: invoices.length });
   } catch (err) {
     logger.error('[invoiceController.adminListInvoices]', err);
     return res.status(500).json({ error: 'Unable to fetch invoices.' });
@@ -637,4 +810,5 @@ module.exports = {
   getInvoice,
   renderInvoiceHtml,
   adminListInvoices,
+  ensureBillingSnapshots,
 };

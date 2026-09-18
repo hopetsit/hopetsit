@@ -29,6 +29,8 @@ const { normalizeCurrency } = require('../utils/currency');
 const logger = require('../utils/logger');
 // v532 — verification du paiement avant toute activation boutique.
 const { assertPaidIntent, PaymentNotVerifiedError } = require('../utils/assertPaidIntent');
+// v566 — plateforme d'origine de l'achat (ios | android | web).
+const { platformFromRequest, normalizePlatform } = require('../utils/purchasePlatform');
 
 const router = express.Router();
 
@@ -40,6 +42,33 @@ const ROLE_TO_MODEL_NAME = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' 
 
 function userModelFromRole(role) {
   return ROLE_TO_MODEL_NAME[role] || 'Owner';
+}
+
+// v566 — montant / devise RÉELLEMENT payés : d'abord l'intention Airwallex
+// vérifiée (unités majeures), puis la métadonnée posée à la création, enfin le
+// prix catalogue.
+function resolvePaidAmount(pi, pricing) {
+  const candidates = [pi?.amount, pi?.metadata?.paidAmount];
+  for (const c of candidates) {
+    const n = Number(c);
+    if (c !== undefined && c !== null && c !== '' && Number.isFinite(n) && n >= 0) {
+      return {
+        amount: n,
+        currency: String(pi?.currency || pi?.metadata?.currency || pricing.currency).toUpperCase(),
+      };
+    }
+  }
+  return { amount: pricing.amount, currency: pricing.currency };
+}
+
+// v566 — prestataire enregistré dans l'historique : airwallex | paypal |
+// wallet | apple — jamais 'stripe'.
+function resolveProvider(pi) {
+  const raw = String(pi?.metadata?.provider || '').toLowerCase();
+  if (raw === 'paypal') return 'paypal';
+  if (raw === 'wallet') return 'wallet';
+  if (raw === 'apple' || raw === 'apple_iap') return 'apple';
+  return 'airwallex';
 }
 
 function serializeSubscription(sub) {
@@ -286,96 +315,25 @@ router.post('/subscribe', requireAuth, async (req, res) => {
       });
     }
 
-    // v23.1.332 — Daniel : nouveau parrainage = -10% sur un plan PawFollow ou
-    // PawFamily (au lieu de 5€), valable pour les 3 rôles. Si l'utilisateur a une
-    // réduction de parrainage DISPONIBLE (un filleul a complété sa 1ère
-    // réservation), on applique -10% sur CE plan et on consomme la réduction.
-    let referralDiscountApplied = false;
-    try {
-      const Referral = require('../models/Referral');
-      const avail = await Referral.findOne({
-        referrerId: userId,
-        status: 'completed',
-        creditAwarded: true,
-        rewardConsumed: { $ne: true },
-      });
-      if (avail) {
-        pricing.amount = Math.round(pricing.amount * 0.9 * 100) / 100;
-        avail.rewardConsumed = true;
-        avail.rewardConsumedAt = new Date();
-        await avail.save();
-        referralDiscountApplied = true;
-        logger.info(
-          `[subscription] parrainage -10% appliqué pour ${role} ${userId} `
-          + `(referral ${avail._id}) → nouveau montant ${pricing.amount} ${pricing.currency}`,
-        );
-      }
-    } catch (e) {
-      logger.warn(`[subscription] referral discount check failed: ${e.message}`);
-    }
-
-    // v416 — réduction PawPoints (récompense échangée -10/-25/-50%). On
-    // consomme la 1re réduction en attente qui s'applique à CE plan, on réduit
-    // le montant et on marque la redemption "fulfilled" (1 seule fois).
-    let pawDiscountApplied = 0;
-    try {
-      const PawRewardRedemption = require('../models/PawRewardRedemption');
-      const pending = await PawRewardRedemption.find({
-        userId, rewardKey: { $regex: '^sub_disc_' }, status: 'pending',
-      }).sort({ createdAt: 1 });
-      const match = pending.find((r) => {
-        const plans = (r.snapshot && r.snapshot.plans) || [];
-        return Array.isArray(plans) && plans.includes(plan);
-      });
-      if (match) {
-        const pct = Number(match.snapshot.percent) || 0;
-        if (pct > 0) {
-          pricing.amount = Math.round(pricing.amount * (1 - pct / 100) * 100) / 100;
-          pawDiscountApplied = pct;
-          match.status = 'fulfilled';
-          await match.save();
-          logger.info(`[subscription] réduction PawPoints -${pct}% appliquée pour ${role} ${userId} → ${pricing.amount} ${pricing.currency}`);
-        }
-      }
-    } catch (e) {
-      logger.warn(`[subscription] pawpoints discount check failed: ${e.message}`);
-    }
-
-    // v450 — Daniel : « vérifie que les promotions fonctionnent ». RACINE :
-    // un code promo `percent_discount` était bien validé + sa redemption
-    // enregistrée, mais la réduction n'était JAMAIS appliquée à l'achat
-    // (seuls parrainage + réductions PawPoints l'étaient). On consomme ici la
-    // 1re redemption `percent_discount` non encore consommée qui s'applique à
-    // CE plan (ou tous plans), et on réduit le montant. Une seule réduction à
-    // la fois (pas d'empilage avec parrainage/PawPoints).
-    let promoDiscountApplied = 0;
-    try {
-      if (!referralDiscountApplied && !pawDiscountApplied) {
-        const PromoCodeRedemption = require('../models/PromoCodeRedemption');
-        const pendingPromos = await PromoCodeRedemption.find({
-          userId,
-          'reward.kind': 'percent_discount',
-          discountConsumedAt: null,
-        }).sort({ createdAt: 1 });
-        const match = pendingPromos.find((r) => {
-          const p = r.reward && r.reward.plan;
-          return !p || p === 'any' || p === plan
-            || (plan === 'family' && p === 'famille')
-            || (plan === 'famille' && p === 'family');
-        });
-        if (match) {
-          const pct = Number(match.reward.discountPercent) || 0;
-          if (pct > 0) {
-            pricing.amount = Math.round(pricing.amount * (1 - pct / 100) * 100) / 100;
-            promoDiscountApplied = pct;
-            match.discountConsumedAt = new Date();
-            await match.save();
-            logger.info(`[subscription] code promo -${pct}% appliqué pour ${role} ${userId} (${match.code}) → ${pricing.amount} ${pricing.currency}`);
-          }
-        }
-      }
-    } catch (e) {
-      logger.warn(`[subscription] promo discount check failed: ${e.message}`);
+    // v566 — RÉDUCTIONS (parrainage -10 %, PawPoints -X %, code promo %) :
+    // on les CHOISIT ici sans rien écrire ; elles sont RÉSERVÉES sur
+    // l'intention de paiement une fois créée, et CONSOMMÉES seulement quand le
+    // paiement a réussi (/confirm, webhook, ou tout de suite pour le wallet).
+    // Avant : consommées dès la création de l'intention → un utilisateur qui
+    // fermait la feuille de paiement perdait sa réduction sans avoir payé.
+    // Règles de cumul inchangées (cf discountReservationService.pickDiscounts).
+    const discounts = require('../services/discountReservationService');
+    const fullAmount = pricing.amount;
+    const picked = await discounts.pickDiscounts({
+      userId, plan, baseAmount: pricing.amount, scope: 'subscription',
+    });
+    pricing.amount = picked.amount;
+    const discountRefs = discounts.encodeRefs(picked.applied);
+    if (picked.applied.length) {
+      logger.info(
+        `[subscription] réductions ${discountRefs} pour ${role} ${userId} : `
+        + `${fullAmount} → ${pricing.amount} ${pricing.currency} (réservées, pas consommées)`,
+      );
     }
 
     const amountCents = Math.round(pricing.amount * 100);
@@ -395,6 +353,8 @@ router.post('/subscribe', requireAuth, async (req, res) => {
           meta: { kind: 'subscription', plan, intervalDays: pricing.intervalDays },
         });
         const { activateSubscriptionFromWebhook } = require('../controllers/purchaseActivationController');
+        // v566 — paiement wallet = réussi immédiatement : l'activation
+        // consomme les réductions et enregistre le montant RÉELLEMENT débité.
         await activateSubscriptionFromWebhook({
           piId: `wallet_${Date.now()}_${plan}`,
           metadata: {
@@ -403,6 +363,11 @@ router.post('/subscribe', requireAuth, async (req, res) => {
             plan,
             intervalDays: String(pricing.intervalDays),
             currency: pricing.currency,
+            provider: 'wallet',
+            paidAmount: String(pricing.amount),
+            fullAmount: String(fullAmount),
+            discountRefs,
+            platform: platformFromRequest(req),
           },
         });
         return res.json({
@@ -459,8 +424,19 @@ router.post('/subscribe', requireAuth, async (req, res) => {
             plan,
             currency: pricing.currency,
             intervalDays: String(pricing.intervalDays),
+            // v566 — montant réellement facturé + réductions réservées.
+            paidAmount: String(pricing.amount),
+            fullAmount: String(fullAmount),
+            // (jamais de valeur vide dans les métadonnées d'une intention)
+            ...(discountRefs ? { discountRefs } : {}),
+            ...(platformFromRequest(req) ? { platform: platformFromRequest(req) } : {}),
           },
         });
+
+        // v566 — réserve (30 min) : liée à CETTE intention, non consommée.
+        if (picked.applied.length) {
+          await discounts.reserveDiscounts({ applied: picked.applied, piId: intent.id });
+        }
 
         logger.info(
           `[subscription] airwallex PI created ${intent.id} ${pricing.amount} ${pricing.currency} ` +
@@ -473,6 +449,8 @@ router.post('/subscribe', requireAuth, async (req, res) => {
           provider: 'airwallex',
           plan,
           amount: pricing.amount,
+          fullAmount,
+          discountPercent: picked.applied.reduce((m, a) => Math.max(m, a.percent), 0),
           currency: pricing.currency,
           intervalDays: pricing.intervalDays,
         });
@@ -498,8 +476,9 @@ router.post('/confirm', requireAuth, async (req, res) => {
     // v532 — FAILLE : cet endpoint activait le produit sans jamais verifier
     // le paiement aupres d Airwallex. On exige desormais un PaymentIntent
     // reellement SUCCEEDED, appartenant a l appelant, et non deja consomme.
+    let paidIntent = null;
     try {
-      await assertPaidIntent({
+      paidIntent = await assertPaidIntent({
         paymentIntentId: req.body?.paymentIntentId,
         userId: req.user.id,
         purpose: 'subscription',
@@ -589,19 +568,43 @@ router.post('/confirm', requireAuth, async (req, res) => {
     sub.mapBoostCreditsRemaining = (sub.mapBoostCreditsRemaining || 0) + creditsToAdd;
     sub.mapBoostCreditsResetAt = newPeriodEnd;
 
+    // v566 — historique : le montant RÉELLEMENT payé (après réduction) et la
+    // devise lus sur l'intention vérifiée chez Airwallex, et le vrai
+    // prestataire. Avant : plein tarif catalogue + 'stripe' (compte fermé).
+    // Les anciennes lignes ne sont pas modifiées ('stripe' historique = carte
+    // Airwallex).
+    const paid = resolvePaidAmount(paidIntent, pricing);
     sub.payments = sub.payments || [];
-    sub.payments.push({
-      plan,
-      amount: pricing.amount,
-      currency: pricing.currency,
-      paidAt: now,
-      paymentProvider: 'stripe',
-      paymentIntentId: paymentIntentId || '',
-      periodStart: startFrom,
-      periodEnd: newPeriodEnd,
-    });
+    if (!sub.payments.some((pm) => paymentIntentId && pm.paymentIntentId === paymentIntentId)) {
+      const platform = normalizePlatform(paidIntent?.metadata?.platform) || platformFromRequest(req);
+      sub.payments.push({
+        plan,
+        amount: paid.amount,
+        currency: paid.currency,
+        // v566 — montant lu chez le prestataire + plateforme d'origine.
+        amountSource: 'psp',
+        ...(platform ? { platform } : {}),
+        paidAt: now,
+        paymentProvider: resolveProvider(paidIntent),
+        paymentIntentId: paymentIntentId || '',
+        periodStart: startFrom,
+        periodEnd: newPeriodEnd,
+      });
+    }
 
     await sub.save();
+
+    // v566 — le paiement a réussi : on consomme les réductions réservées sur
+    // cette intention (idempotent : le webhook peut repasser sans effet).
+    try {
+      const discounts = require('../services/discountReservationService');
+      await discounts.consumeDiscounts({
+        refs: paidIntent?.metadata?.discountRefs,
+        piId: paymentIntentId,
+      });
+    } catch (e) {
+      logger.warn(`[subscription/confirm] consume discounts failed: ${e.message}`);
+    }
 
     // v23.1.388 — propage les timers aux comptes frères (même email).
     try {

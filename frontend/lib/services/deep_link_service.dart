@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/views/pet_sitter/booking-application/sitter_booking_detail_screen.dart';
+import 'package:hopetsit/controllers/walker_bookings_controller.dart';
+import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/controllers/friend_controller.dart';
@@ -305,6 +308,10 @@ class DeepLinkService {
       // (le suivi de balade est intégré à la réservation).
       if (_objectIdRegex.hasMatch(second) && _currentRole() == 'owner') {
         await _openOwnerBookingDetail(second);
+      } else if (_objectIdRegex.hasMatch(second)) {
+        // v566 — prestataire : la FICHE de la réservation (chronologie de remise,
+        // « Animal récupéré / rendu »), plus la liste.
+        await _openProviderBookingDetail(second);
       } else {
         _openBookingsScreen();
       }
@@ -618,6 +625,46 @@ class DeepLinkService {
           booking: b,
           onPay: () => _openPayment(b.id),
         ));
+  }
+
+  /// v566 — `/bookings/:id` côté gardien / promeneur → fiche de la réservation.
+  /// Repli sur la liste si la réservation est introuvable, ou si elle est encore
+  /// « en attente » : les boutons Accepter / Refuser vivent dans la liste (la
+  /// fiche ouverte sans ses callbacks aurait un bouton inerte).
+  Future<void> _openProviderBookingDetail(String bookingId) async {
+    BookingModel? booking;
+    try {
+      final isWalker = _currentRole() == 'walker';
+      BookingModel? find() => isWalker
+          ? (Get.isRegistered<WalkerBookingsController>()
+              ? Get.find<WalkerBookingsController>()
+                  .bookings
+                  .firstWhereOrNull((b) => b.id == bookingId)
+              : null)
+          : (Get.isRegistered<SitterBookingsController>()
+              ? Get.find<SitterBookingsController>()
+                  .bookings
+                  .firstWhereOrNull((b) => b.id == bookingId)
+              : null);
+      booking = find();
+      if (booking == null) {
+        // Réservation plus récente que la liste en mémoire → on recharge une fois.
+        if (isWalker && Get.isRegistered<WalkerBookingsController>()) {
+          await Get.find<WalkerBookingsController>().loadBookings(silent: true);
+        } else if (!isWalker && Get.isRegistered<SitterBookingsController>()) {
+          await Get.find<SitterBookingsController>().loadBookings(silent: true);
+        }
+        booking = find();
+      }
+    } catch (e) {
+      AppLogger.logError('DeepLink _openProviderBookingDetail failed', error: e);
+    }
+    if (booking == null || booking.status == 'pending') {
+      _openBookingsScreen();
+      return;
+    }
+    final b = booking;
+    Get.to(() => SitterBookingDetailScreen(booking: b));
   }
 
   Future<void> _openPost(String postId) async {

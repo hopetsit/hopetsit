@@ -18,6 +18,19 @@ class FriendController extends GetxController {
   // Lu par _FriendTile pour rendre la switch read-only-ON + badge.
   final RxBool viewerHasPawFollow = false.obs;
 
+  // v566 — sous-pages Amis modernisées.
+  /// true quand le DERNIER chargement de la liste a échoué (réseau / 5xx) :
+  /// l'UI affiche un état d'erreur + « Réessayer » au lieu d'une fausse
+  /// liste vide.
+  final RxBool loadFailed = false.obs;
+
+  /// Présence en direct (contrat §6) : `userId → en ligne ?`. Amorcée par
+  /// `GET /friends` (`other.isOnline`), tenue à jour par `presence:update`.
+  final RxMap<String, bool> onlineById = <String, bool>{}.obs;
+
+  /// Ami en ligne ? (false si inconnu).
+  bool isOnline(String userId) => onlineById[userId] == true;
+
   @override
   void onInit() {
     super.onInit();
@@ -63,6 +76,9 @@ class FriendController extends GetxController {
         // notre propre handler (la cloche écoute le même event).
         socket.off('notification.new', _onNotificationNew);
         socket.on('notification.new', _onNotificationNew);
+        // v566 — point vert en direct : multiplexeur du SocketService
+        // (référence stable, idempotent, survit aux reconnexions).
+        s.addPresenceListener(_onPresenceUpdate);
       }
 
       wireFriendListeners();
@@ -70,6 +86,23 @@ class FriendController extends GetxController {
     } catch (e) {
       debugPrint('[Friends] could not attach socket listeners: $e');
     }
+  }
+
+  /// v566 — `presence:update { userId, online, at }` (contrat §6).
+  void _onPresenceUpdate(Map<String, dynamic> map) {
+    final uid = (map['userId'] ?? '').toString();
+    if (uid.isEmpty) return;
+    onlineById[uid] = map['online'] == true;
+  }
+
+  @override
+  void onClose() {
+    try {
+      if (Get.isRegistered<SocketService>()) {
+        Get.find<SocketService>().removePresenceListener(_onPresenceUpdate);
+      }
+    } catch (_) {/* défensif */}
+    super.onClose();
   }
 
   /// v565 — handler `notification.new` (référence stable pour `off`).
@@ -168,8 +201,59 @@ class FriendController extends GetxController {
       );
       friends.value =
           acceptedRaw.map((f) => Friendship.fromJson(f)).toList();
+      loadFailed.value = false;
+      // v566 — /diagnose ne porte NI la présence, NI la ville, NI le vrai
+      // réglage « je partage ma position » (il était reconstruit à partir de
+      // viewerHasPawFollow → l'interrupteur retombait sur OFF à chaque
+      // rechargement). On complète avec GET /friends, au mieux.
+      await _mergeFriendsListDetails();
     } catch (e) {
       debugPrint('[Friends] loadFriends error: $e');
+      loadFailed.value = true;
+    }
+  }
+
+  /// v566 — complète `friends` avec `GET /friends` : `other.isOnline`,
+  /// `other.lastSeenAt`, `other.city`, `mySharePosition` (valeur DB réelle),
+  /// `theirSharePosition`. Best-effort : un échec ne vide jamais la liste.
+  Future<void> _mergeFriendsListDetails() async {
+    if (friends.isEmpty) return;
+    try {
+      final api = Get.find<ApiClient>();
+      final r = await api.get('/friends', requiresAuth: true);
+      final list = (r is Map && r['friends'] is List) ? r['friends'] as List : const [];
+      final byId = <String, Friendship>{};
+      for (final raw in list) {
+        if (raw is! Map) continue;
+        final f = Friendship.fromJson(Map<String, dynamic>.from(raw));
+        if (f.id.isNotEmpty) byId[f.id] = f;
+      }
+      if (byId.isEmpty) return;
+      final merged = <Friendship>[];
+      for (final f in friends) {
+        final full = byId[f.id];
+        final o = f.other;
+        final fo = full?.other;
+        if (full == null || o == null || fo == null) {
+          merged.add(f);
+          continue;
+        }
+        if (o.id.isNotEmpty) onlineById[o.id] = fo.isOnline;
+        merged.add(f.copyWith(
+          other: o.copyWith(
+            avatar: o.avatar.isEmpty ? fo.avatar : null,
+            city: fo.city,
+            isOnline: fo.isOnline,
+            lastSeenAt: fo.lastSeenAt,
+          ),
+          mySharePosition: full.mySharePosition,
+          // PawFollow de l'ami = partage automatique (règle v222 conservée).
+          theirSharePosition: full.theirSharePosition || o.hasPawFollow,
+        ));
+      }
+      friends.assignAll(merged);
+    } catch (e) {
+      debugPrint('[Friends] mergeFriendsListDetails error: $e');
     }
   }
 
@@ -417,6 +501,7 @@ class FriendController extends GetxController {
   Future<bool> blockUser({
     required String targetUserId,
     required String targetRole,
+    String? friendshipId,
   }) async {
     try {
       final api = Get.find<ApiClient>();
@@ -428,6 +513,12 @@ class FriendController extends GetxController {
         },
         requiresAuth: true,
       );
+      // v566 — ni `POST /blocks` ni `GET /friends` ne retirent l'amitié :
+      // la personne bloquée restait dans « Mes amis ». Bloquer un ami = le
+      // retirer aussi (`DELETE /friends/:id`), best-effort.
+      if (friendshipId != null && friendshipId.isNotEmpty) {
+        await unfriend(friendshipId);
+      }
       // Après block on retire l'ami de la liste amis (le backend ne le
       // fait pas auto — friendship reste mais devient inutilisable).
       await refresh();
@@ -440,14 +531,34 @@ class FriendController extends GetxController {
   }
 
   /// Débloque un user (DELETE /blocks/:id). Retourne true en cas de succès.
-  Future<bool> unblockUser(String targetUserId) async {
+  ///
+  /// v566 — BUG : `DELETE /blocks/:id` déduit le rôle de la cible comme
+  /// « l'opposé du mien » (owner → sitter, sinon → owner). Impossible donc de
+  /// débloquer un promeneur, ou un membre du même rôle que moi (404 « Block
+  /// entry not found »). Quand le rôle est connu (il l'est : `blockedRole`
+  /// dans `GET /blocks`), on passe par `DELETE /blocks` avec le corps
+  /// `{ targetUserId, targetRole }` — route existante, sans ambiguïté.
+  Future<bool> unblockUser(String targetUserId, {String? targetRole}) async {
     try {
       final api = Get.find<ApiClient>();
-      await api.delete(
-        '/blocks/$targetUserId',
-        requiresAuth: true,
-      );
-      await loadBlocked();
+      final role = (targetRole ?? '').trim().toLowerCase();
+      if (role == 'owner' || role == 'sitter' || role == 'walker') {
+        await api.delete(
+          '/blocks',
+          body: {'targetUserId': targetUserId, 'targetRole': role},
+          requiresAuth: true,
+        );
+      } else {
+        await api.delete(
+          '/blocks/$targetUserId',
+          requiresAuth: true,
+        );
+      }
+      blockedUsers.removeWhere((b) {
+        final u = b['blocked'];
+        return u is Map && (u['id'] ?? u['_id'] ?? '').toString() == targetUserId;
+      });
+      unawaited(loadBlocked());
       return true;
     } catch (e) {
       debugPrint('[Friends] unblockUser error: $e');
@@ -455,8 +566,13 @@ class FriendController extends GetxController {
     }
   }
 
+  /// v566 — états de l'écran « Utilisateurs bloqués ».
+  final RxBool isLoadingBlocked = false.obs;
+  final RxBool blockedLoadFailed = false.obs;
+
   /// Charge la liste des users que J'AI bloqués.
   Future<void> loadBlocked() async {
+    isLoadingBlocked.value = true;
     try {
       final api = Get.find<ApiClient>();
       final r = await api.get('/blocks', requiresAuth: true);
@@ -468,9 +584,13 @@ class FriendController extends GetxController {
               .toList(),
         );
       }
+      blockedLoadFailed.value = false;
     } catch (e) {
       debugPrint('[Friends] loadBlocked error: $e');
       blockedUsers.clear();
+      blockedLoadFailed.value = true;
+    } finally {
+      isLoadingBlocked.value = false;
     }
   }
 
@@ -492,8 +612,13 @@ class FriendController extends GetxController {
   final RxBool isFamilyHolder = false.obs;
   final Rxn<Map<String, dynamic>> familyHolder = Rxn<Map<String, dynamic>>();
 
+  /// v566 — états de l'onglet Famille (chargement initial / erreur).
+  final RxBool isLoadingFamily = false.obs;
+  final RxBool familyLoadFailed = false.obs;
+
   /// Charge les membres de ma famille PawFollow.
   Future<void> loadFamily() async {
+    isLoadingFamily.value = true;
     try {
       final api = Get.find<ApiClient>();
       final r = await api.get('/friends/family/members', requiresAuth: true);
@@ -513,6 +638,7 @@ class FriendController extends GetxController {
         );
         familyRemainingSlots.value = (r['remainingSlots'] as int?) ?? 0;
       }
+      familyLoadFailed.value = false;
     } catch (e) {
       debugPrint('[Friends] loadFamily error: $e');
       hasFamilyPlan.value = false;
@@ -520,6 +646,9 @@ class FriendController extends GetxController {
       familyHolder.value = null;
       familyMembers.clear();
       familyRemainingSlots.value = 0;
+      familyLoadFailed.value = true;
+    } finally {
+      isLoadingFamily.value = false;
     }
   }
 
@@ -587,7 +716,7 @@ class FriendController extends GetxController {
   /// message). Maintenant on renvoie l'erreur (null = succès, sinon message)
   /// pour que l'UI l'affiche ET on guard l'id vide.
   Future<String?> removeFamilyMember(String userId) async {
-    if (userId.trim().isEmpty) return 'ID du membre introuvable.';
+    if (userId.trim().isEmpty) return 'friends566_member_id_missing'.tr;
     try {
       final api = Get.find<ApiClient>();
       await api.delete(
@@ -738,11 +867,14 @@ class FriendController extends GetxController {
     }
   }
 
-  Future<bool> accept(String friendshipId) async {
+  /// [deferRefresh] (v566) : l'appelant joue d'abord l'animation de
+  /// disparition de la ligne puis appelle `refresh()` lui-même.
+  Future<bool> accept(String friendshipId, {bool deferRefresh = false}) async {
     try {
       final api = Get.find<ApiClient>();
       await api.post('/friends/$friendshipId/accept', requiresAuth: true);
-      await refresh();
+      if (!deferRefresh) await refresh();
+      _refreshNotificationsBell();
       return true;
     } catch (e) {
       debugPrint('[Friends] accept error: $e');
@@ -762,14 +894,43 @@ class FriendController extends GetxController {
     }
   }
 
-  Future<bool> decline(String friendshipId) async {
+  /// [deferRemove] (v566) : la ligne est retirée par l'appelant après son
+  /// animation (`removeRequestLocally`).
+  Future<bool> decline(String friendshipId, {bool deferRemove = false}) async {
     try {
       final api = Get.find<ApiClient>();
       await api.post('/friends/$friendshipId/decline', requiresAuth: true);
-      incomingRequests.removeWhere((f) => f.id == friendshipId);
+      if (!deferRemove) {
+        incomingRequests.removeWhere((f) => f.id == friendshipId);
+      }
+      _refreshNotificationsBell();
       return true;
     } catch (e) {
       debugPrint('[Friends] decline error: $e');
+      return false;
+    }
+  }
+
+  /// v566 — retire localement une demande (reçue ou envoyée) une fois son
+  /// animation de disparition terminée.
+  void removeRequestLocally(String friendshipId) {
+    incomingRequests.removeWhere((f) => f.id == friendshipId);
+    outgoingRequests.removeWhere((f) => f.id == friendshipId);
+  }
+
+  /// v566 — annule une demande ENVOYÉE (`DELETE /friends/:id`, la route
+  /// accepte n'importe quelle partie de l'amitié, quel que soit le statut).
+  /// AVANT : le bandeau appelait `unfriend()` qui ne retirait la ligne que de
+  /// `friends` → la demande annulée restait affichée jusqu'au rechargement.
+  Future<bool> cancelRequest(String friendshipId, {bool deferRemove = false}) async {
+    try {
+      final api = Get.find<ApiClient>();
+      await api.delete('/friends/$friendshipId', requiresAuth: true);
+      if (!deferRemove) removeRequestLocally(friendshipId);
+      _refreshNotificationsBell();
+      return true;
+    } catch (e) {
+      debugPrint('[Friends] cancelRequest error: $e');
       return false;
     }
   }
@@ -779,6 +940,8 @@ class FriendController extends GetxController {
       final api = Get.find<ApiClient>();
       await api.delete('/friends/$friendshipId', requiresAuth: true);
       friends.removeWhere((f) => f.id == friendshipId);
+      // v566 — même route pour une demande en attente : on nettoie aussi.
+      removeRequestLocally(friendshipId);
       return true;
     } catch (e) {
       debugPrint('[Friends] unfriend error: $e');
@@ -796,9 +959,19 @@ class FriendController extends GetxController {
       );
       final updatedJson = (data['friendship'] as Map?)?.cast<String, dynamic>();
       if (updatedJson != null) {
-        final updated = Friendship.fromJson(updatedJson);
+        final parsed = Friendship.fromJson(updatedJson);
         final idx = friends.indexWhere((f) => f.id == friendshipId);
         if (idx != -1) {
+          // v566 — la réponse de /share ne porte pas la présence ni le flag
+          // PawFollow de l'ami : on garde le profil déjà enrichi.
+          final prev = friends[idx];
+          final updated = prev.other == null
+              ? parsed
+              : parsed.copyWith(
+                  other: prev.other,
+                  theirSharePosition: parsed.theirSharePosition ||
+                      (prev.other?.hasPawFollow ?? false),
+                );
           friends[idx] = updated;
           friends.refresh();
         }

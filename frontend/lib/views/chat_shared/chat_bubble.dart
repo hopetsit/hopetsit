@@ -12,6 +12,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/chat_shared/chat_avatar.dart';
 import 'package:hopetsit/views/chat_shared/chat_media_viewer.dart';
 import 'package:hopetsit/views/chat_shared/chat_models.dart';
+import 'package:hopetsit/views/chat_shared/chat_receipt_ticks.dart';
 import 'package:hopetsit/views/chat_shared/chat_session.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/views/chat_shared/chat_time.dart';
@@ -31,6 +32,7 @@ class ChatMessageBubble extends StatelessWidget {
     required this.onQuoteTap,
     this.highlighted = false,
     this.showAvatar = true,
+    this.showReadLabel = false,
   });
 
   final ChatMessageBase message;
@@ -41,6 +43,9 @@ class ChatMessageBubble extends StatelessWidget {
   final void Function(String messageId) onQuoteTap;
   final bool highlighted;
   final bool showAvatar;
+
+  /// v566 — « Lu · 14:32 » sous la bulle (dernier message lu seulement).
+  final bool showReadLabel;
 
   bool get mine => message.isFromCurrentUser;
 
@@ -250,11 +255,20 @@ class ChatMessageBubble extends StatelessWidget {
           ] else if (!mine)
             SizedBox(width: 34.w),
           Flexible(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onLongPress: () => _showActions(context),
-              onTap: m.isFailed ? () => session.retryFailed(m.id) : null,
-              child: bubble,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment:
+                  mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onLongPress: () => _showActions(context),
+                  onTap: m.isFailed ? () => session.retryFailed(m.id) : null,
+                  child: bubble,
+                ),
+                if (mine && showReadLabel && m.readAt != null)
+                  ChatReadLabel(readAt: m.readAt!),
+              ],
             ),
           ),
         ],
@@ -537,18 +551,8 @@ class ChatMessageBubble extends StatelessWidget {
   Widget _meta(BuildContext context, Color textColor) {
     final m = message;
     final c = textColor.withValues(alpha: 0.7);
-    IconData? status;
-    Color statusColor = c;
-    if (mine) {
-      if (m.isFailed) {
-        status = Icons.error_rounded;
-        statusColor = mine ? Colors.white : AppColors.errorColor;
-      } else if (m.isPending) {
-        status = Icons.schedule_rounded;
-      } else {
-        status = Icons.done_rounded;
-      }
-    }
+    // v566 — coches façon WhatsApp à droite de l'heure (messages envoyés).
+    final showTicks = mine && !m.isDeleted && !m.isSystem;
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.end,
@@ -572,9 +576,15 @@ class ChatMessageBubble extends StatelessWidget {
           chatClock(context, m.timestamp),
           style: TextStyle(color: c, fontSize: 10.sp),
         ),
-        if (status != null) ...[
+        if (showTicks) ...[
           SizedBox(width: 3.w),
-          Icon(status, size: 12.sp, color: statusColor),
+          ChatReceiptTicks(
+            status: m.receiptStatus,
+            greyColor: c,
+            size: 13,
+            onColoredBubble: true,
+            failedColor: Colors.white,
+          ),
         ],
       ],
     );

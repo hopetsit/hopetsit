@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v566 — AUDIT NOTIFICATIONS. Le build release active shrinkResources (build.gradle.kts).
+     Les sons de notification ne sont référencés QUE par leur nom depuis Dart
+     (RawResourceAndroidNotificationSound('frog') → getIdentifier au runtime) : le
+     réducteur de ressources ne voit pas ces chaînes (code Dart AOT) et SUPPRIMAIT
+     frog/bark/tweet.wav de l'AAB (constaté dans le build 565 : seul meow.wav restait).
+     Conséquences : canal Android `hopetsit_<son>` impossible à créer et notification
+     au premier plan jamais affichée (exception invalid_sound).
+     Même protection pour la petite icône de notification. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/frog,@raw/bark,@raw/meow,@raw/tweet,@drawable/ic_stat_notify"
+    tools:shrinkMode="safe" />

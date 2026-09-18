@@ -7,9 +7,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import BackLink from "@/components/BackLink";
+import { BillingPartyBlock } from "@/components/BillingInfoSection";
 import {
   ApiError,
   getInvoiceHtmlUrl,
@@ -19,7 +20,9 @@ import {
 } from "@/lib/api";
 
 export default function InvoicesPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
+  // v566 — facture dépliée : blocs « Émetteur » / « Client ».
+  const [openId, setOpenId] = useState<string | null>(null);
   const router = useRouter();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +53,9 @@ export default function InvoicesPage() {
   }, [router]);
 
   function openInvoice(invoiceId: string) {
-    const url = getInvoiceHtmlUrl(invoiceId);
+    const base = getInvoiceHtmlUrl(invoiceId);
+    // v566 — la facture HTML suit la langue du site (9 langues côté serveur).
+    const url = base ? `${base}&lang=${lang}` : null;
     if (!url) {
       // Pas de token -> session expirée : on renvoie au login plutôt que
       // de cliquer dans le vide.
@@ -90,11 +95,16 @@ export default function InvoicesPage() {
       </div>
 
       <h1 className="font-display text-3xl font-extrabold md:text-4xl">
-        Mes factures
+        {t("dash_card_invoices_title")}
       </h1>
       <p className="mt-2 text-ink-muted">
-        Clique sur une facture pour l&apos;ouvrir, puis utilise Ctrl+P pour
-        l&apos;enregistrer en PDF.
+        {t("invoices_hint")}
+      </p>
+      <p className="mt-2 text-sm text-ink-muted">
+        {t("invoices_billing_hint")}{" "}
+        <Link href="/profile#billing" className="font-semibold text-owner-dark underline-offset-2 hover:underline">
+          {t("billing_add_cta")}
+        </Link>
       </p>
 
       {error && (
@@ -106,10 +116,9 @@ export default function InvoicesPage() {
       {invoices.length === 0 ? (
         <div className="mt-12 rounded-3xl border border-dashed border-ink/15 px-6 py-16 text-center">
           <p className="text-2xl">🧾</p>
-          <p className="mt-3 font-semibold text-ink">Aucune facture</p>
+          <p className="mt-3 font-semibold text-ink">{t("invoices_empty_title")}</p>
           <p className="mt-1 text-sm text-ink-muted">
-            Les factures sont générées automatiquement après chaque paiement
-            d&apos;une réservation.
+            {t("invoices_empty_sub")}
           </p>
         </div>
       ) : (
@@ -117,45 +126,70 @@ export default function InvoicesPage() {
           <table className="w-full text-sm">
             <thead className="bg-bg-soft text-xs uppercase tracking-wider text-ink-muted">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold">Numéro</th>
-                <th className="px-4 py-3 text-left font-semibold">Date</th>
-                <th className="px-4 py-3 text-left font-semibold">Description</th>
-                <th className="px-4 py-3 text-right font-semibold">Montant</th>
+                <th className="px-4 py-3 text-left font-semibold">{t("invoices_col_number")}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t("invoices_col_date")}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t("invoices_col_description")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{t("invoices_col_amount")}</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
               {invoices.map((inv) => (
-                <tr
-                  key={inv.id}
-                  className="border-t border-ink/5 hover:bg-bg-soft/50"
-                >
+                <Fragment key={inv.id}>
+                <tr className="border-t border-ink/5 hover:bg-bg-soft/50">
                   <td className="px-4 py-3 font-mono text-xs text-ink">
                     {inv.invoiceNumber}
                   </td>
                   <td className="px-4 py-3 text-ink-muted">
-                    {new Date(inv.issuedAt).toLocaleDateString("fr-FR", {
+                    {new Date(inv.issuedAt).toLocaleDateString(lang, {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
                     })}
                   </td>
                   <td className="px-4 py-3 text-ink-muted">
-                    {inv.serviceType || "Service HoPetSit"}
+                    {(inv.serviceType || "HoPetSit").replace(/_/g, " ")}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-ink">
-                    {inv.total} {inv.currency}
+                    {Number(inv.total ?? inv.grossAmount ?? 0).toFixed(2)} {inv.currency}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="whitespace-nowrap px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setOpenId(openId === inv.id ? null : inv.id)}
+                      aria-expanded={openId === inv.id}
+                      className="mr-2 rounded-full bg-bg-soft px-3 py-1.5 text-xs font-semibold text-ink hover:bg-owner-light hover:text-owner-dark"
+                    >
+                      {t("invoices_details")}
+                    </button>
                     <button
                       type="button"
                       onClick={() => openInvoice(inv.id)}
                       className="rounded-full bg-walker px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
                     >
-                      Voir / PDF
+                      {t("invoices_view_pdf")}
                     </button>
                   </td>
                 </tr>
+                {openId === inv.id && (
+                  <tr className="border-t border-ink/5 bg-white">
+                    <td colSpan={5} className="px-4 py-4">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <BillingPartyBlock
+                          title={t("billing_issuer")}
+                          name={inv.providerName}
+                          billing={inv.issuerBilling}
+                        />
+                        <BillingPartyBlock
+                          title={t("billing_customer")}
+                          name={inv.ownerName}
+                          billing={inv.customerBilling}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>

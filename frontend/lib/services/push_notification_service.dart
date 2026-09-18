@@ -4,11 +4,13 @@ import 'dart:io' show Platform;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
+import 'package:hopetsit/services/app_badge_service.dart';
 import 'package:hopetsit/services/deep_link_service.dart';
 // v23.1.319 — Daniel (audit) : routage du tap PUSH vers l'écran Notifications.
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
@@ -125,6 +127,25 @@ class PushNotificationService extends GetxService {
     return _androidChannel;
   }
 
+  /// v566 — petite icône de notification Android (res/drawable/ic_stat_notify.xml,
+  /// protégée du réducteur de ressources par res/raw/keep.xml).
+  static const String _smallIcon = 'ic_stat_notify';
+  static const Color _accent = Color(0xFFD83C28);
+
+  /// v566 — identifiant STABLE de la notification locale affichée pour une
+  /// notification serveur : permet de la retirer de la barre système quand elle
+  /// est lue sur un autre appareil (événement socket `notification.read`).
+  static int localIdFor(String notificationId) =>
+      notificationId.hashCode & 0x7fffffff;
+
+  bool _systemBannersAuthorized = false;
+
+  /// v566 — vrai sur iOS quand la bannière SYSTÈME s'affiche déjà pour un push reçu
+  /// app ouverte (autorisation accordée + setForegroundNotificationPresentationOptions).
+  /// Sert à ne pas afficher EN PLUS le bandeau in-app (demandes d'ami / famille).
+  bool get iosShowsSystemBannerInForeground =>
+      !kIsWeb && Platform.isIOS && _systemBannersAuthorized;
+
   bool _initialized = false;
 
   /// Must be called once at app startup (after Firebase.initializeApp).
@@ -134,16 +155,22 @@ class PushNotificationService extends GetxService {
 
     try {
       // iOS: request permission. Android 13+ also needs POST_NOTIFICATIONS.
-      await _messaging.requestPermission(
+      final settings = await _messaging.requestPermission(
         alert: true,
         badge: true,
         sound: true,
         provisional: false,
       );
+      _systemBannersAuthorized =
+          settings.authorizationStatus == AuthorizationStatus.authorized ||
+              settings.authorizationStatus == AuthorizationStatus.provisional;
 
       // Configure local notifications (used for foreground messages).
+      // v566 — audit : petite icône MONOCHROME (patte blanche, drawable vectoriel).
+      // `@mipmap/ic_launcher` (icône pleine, opaque) donnait un carré blanc dans
+      // la barre d'état Android.
       const AndroidInitializationSettings androidInit =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
+          AndroidInitializationSettings(_smallIcon);
       const DarwinInitializationSettings iosInit = DarwinInitializationSettings(
         requestAlertPermission: true,
         requestBadgePermission: true,
@@ -177,26 +204,6 @@ class PushNotificationService extends GetxService {
         sound: true,
       );
 
-      // v23.1.396b — iOS : attendre le token APNs AVANT getToken(), sinon FCM
-      // renvoie null au 1er lancement → token jamais enregistré → push iOS
-      // jamais livré (email OK). getAPNSToken() est iOS-only.
-      if (Platform.isIOS) {
-        String? apnsToken = await _messaging.getAPNSToken();
-        for (int i = 0; i < 6 && (apnsToken == null || apnsToken.isEmpty); i++) {
-          await Future.delayed(const Duration(milliseconds: 500));
-          apnsToken = await _messaging.getAPNSToken();
-        }
-        debugPrint('APNs token ready: ${apnsToken != null}');
-      }
-
-      // Get and cache the token.
-      final token = await _messaging.getToken();
-      fcmToken.value = token;
-      debugPrint('FCM token: $token');
-      if (token != null && token.isNotEmpty) {
-        unawaited(_registerTokenOnBackend(token));
-      }
-
       // Refresh the cached token whenever Firebase rotates it.
       _messaging.onTokenRefresh.listen((String newToken) {
         fcmToken.value = newToken;
@@ -217,12 +224,49 @@ class PushNotificationService extends GetxService {
       if (initialMessage != null) {
         _onMessageOpened(initialMessage);
       }
+      // v566 — audit : l'obtention du jeton vient APRÈS l'installation des écouteurs et
+      // dans son propre try/catch. Avant, sur iOS, un `getToken()` qui levait
+      // `apns-token-not-set` (jeton APNs pas encore prêt : premier lancement, réseau
+      // lent) sautait TOUT le reste de init() : ni affichage au premier plan, ni
+      // ouverture du bon écran au tap, ni onTokenRefresh pour cette session.
+      unawaited(_fetchAndRegisterToken());
     } catch (e, st) {
       // Never crash the app because of notifications.
       debugPrint('Push notification init failed: $e\n$st');
     }
 
     return this;
+  }
+
+  /// v566 — jeton FCM : attend le jeton APNs sur iOS (jusqu'à 3 s), puis réessaie
+  /// jusqu'à 3 fois (10 s, 30 s, 60 s) si le jeton n'est pas encore disponible.
+  Future<void> _fetchAndRegisterToken({int attempt = 0}) async {
+    try {
+      if (!kIsWeb && Platform.isIOS) {
+        String? apnsToken = await _messaging.getAPNSToken();
+        for (int i = 0; i < 6 && (apnsToken == null || apnsToken.isEmpty); i++) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          apnsToken = await _messaging.getAPNSToken();
+        }
+        debugPrint('APNs token ready: ${apnsToken != null}');
+      }
+      final token = await _messaging.getToken();
+      if (token != null && token.isNotEmpty) {
+        fcmToken.value = token;
+        debugPrint('FCM token: $token');
+        await _registerTokenOnBackend(token);
+        return;
+      }
+    } catch (e) {
+      debugPrint('FCM getToken failed (attempt $attempt): $e');
+    }
+    const delays = <int>[10, 30, 60];
+    if (attempt < delays.length) {
+      await Future.delayed(Duration(seconds: delays[attempt]));
+      if (fcmToken.value == null || fcmToken.value!.isEmpty) {
+        await _fetchAndRegisterToken(attempt: attempt + 1);
+      }
+    }
   }
 
   /// Subscribe to a topic (e.g. "offers_fr") to receive targeted pushes
@@ -249,6 +293,18 @@ class PushNotificationService extends GetxService {
 
   Future<void> _onForegroundMessage(RemoteMessage message) async {
     debugPrint('FCM foreground: ${message.messageId}');
+    // v566 — push « badge seul » (notification lue / supprimée sur un autre appareil) :
+    // rien à afficher, on recale seulement la cloche et le badge de l'icône.
+    if ((message.data['type'] ?? '').toString() == 'badge_sync') {
+      final n = int.tryParse((message.data['unreadCount'] ?? '').toString());
+      if (n != null) unawaited(AppBadgeService.set(n, force: true));
+      try {
+        if (Get.isRegistered<NotificationsController>()) {
+          unawaited(Get.find<NotificationsController>().refreshUnreadCount());
+        }
+      } catch (_) {/* best-effort */}
+      return;
+    }
     final notification = message.notification;
     final title = notification?.title ?? message.data['title'] ?? 'HoPetSit';
     final body = notification?.body ?? message.data['body'] ?? '';
@@ -370,31 +426,104 @@ class PushNotificationService extends GetxService {
     final bool vibrateOnly = sound == 'vibrate';
     final bool customSound = sound == 'frog' || sound == 'bark' || sound == 'meow' || sound == 'tweet';
 
-    await _localNotifications.show(
-      message.hashCode,
-      title,
-      body,
-      NotificationDetails(
+    final serverId = (message.data['notificationId'] ?? '').toString();
+    final int localId =
+        serverId.isNotEmpty ? localIdFor(serverId) : message.hashCode;
+
+    NotificationDetails details({required bool withCustomSound}) {
+      final ch = withCustomSound ? channel : _androidChannel;
+      return NotificationDetails(
         android: AndroidNotificationDetails(
-          channel.id,
-          channel.name,
-          channelDescription: channel.description,
+          ch.id,
+          ch.name,
+          channelDescription: ch.description,
           importance: silent ? Importance.low : Importance.high,
           priority: silent ? Priority.low : Priority.high,
-          icon: '@mipmap/ic_launcher',
+          icon: _smallIcon,
+          color: _accent,
           playSound: !(silent || vibrateOnly),
-          sound: customSound ? RawResourceAndroidNotificationSound(sound) : null,
+          sound: withCustomSound && customSound
+              ? RawResourceAndroidNotificationSound(sound)
+              : null,
           enableVibration: !silent,
         ),
         iOS: DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
           presentSound: !(silent || vibrateOnly),
-          sound: customSound ? '$sound.caf' : null,
+          sound: withCustomSound && customSound ? '$sound.caf' : null,
         ),
-      ),
-      payload: payload,
-    );
+      );
+    }
+
+    // v566 — audit : dans l'AAB 565 le réducteur de ressources avait retiré
+    // frog/bark/tweet.wav → `show` levait `invalid_sound` et la notification au
+    // premier plan n'était JAMAIS affichée. Les fichiers sont désormais protégés
+    // (res/raw/keep.xml) ; en plus, si le son manque quand même, on affiche la
+    // notification sur le canal par défaut plutôt que de la perdre.
+    try {
+      await _localNotifications.show(
+        localId,
+        title,
+        body,
+        details(withCustomSound: true),
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Local notification with custom sound failed ($e) → default channel');
+      try {
+        await _localNotifications.show(
+          localId,
+          title,
+          body,
+          details(withCustomSound: false),
+          payload: payload,
+        );
+      } catch (e2) {
+        debugPrint('Local notification failed: $e2');
+      }
+    }
+  }
+
+  /// v566 — Daniel : « quand je mets une notification en lu sur un appareil, les
+  /// autres doivent se synchroniser ». Retire de la barre système ce qui vient
+  /// d'être lu / supprimé ailleurs :
+  ///   • tout lu, ou plus aucune non lue → on vide la barre (`cancelAll`, qui
+  ///     retire aussi les notifications affichées par le système / FCM) ;
+  ///   • sinon → la notification locale de chaque id (identifiant stable
+  ///     `localIdFor`) et, sur Android, les notifications système au même
+  ///     titre + corps (celles affichées par FCM app fermée n'ont pas notre id).
+  Future<void> dismissSystemNotifications({
+    bool all = false,
+    Iterable<String> ids = const <String>[],
+    int? unreadCount,
+    Iterable<({String title, String body})> contents =
+        const <({String title, String body})>[],
+  }) async {
+    try {
+      if (all || (unreadCount != null && unreadCount <= 0)) {
+        await _localNotifications.cancelAll();
+        return;
+      }
+      for (final id in ids) {
+        if (id.isEmpty) continue;
+        await _localNotifications.cancel(localIdFor(id));
+      }
+      if (!kIsWeb && Platform.isAndroid && contents.isNotEmpty) {
+        final active = await _localNotifications.getActiveNotifications();
+        for (final a in active) {
+          final match = contents.any((c) =>
+              c.title.isNotEmpty &&
+              (a.title ?? '') == c.title &&
+              (a.body ?? '') == c.body);
+          if (match && a.id != null) {
+            await _localNotifications.cancel(a.id!, tag: a.tag);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('dismissSystemNotifications failed: $e');
+    }
   }
 
   void _onMessageOpened(RemoteMessage message) {
@@ -436,6 +565,7 @@ class PushNotificationService extends GetxService {
   ///     plus jamais une action backend silencieuse depuis un tap FCM.
   void _routeFromData(Map<String, dynamic> data) {
     final type = (data['type'] ?? '').toString().toLowerCase();
+    if (type == 'badge_sync') return; // v566 — jamais de navigation pour un push « badge seul »
 
     // Always refresh so the in-app list shows the new entry.
     try {
@@ -569,6 +699,8 @@ class PushNotificationService extends GetxService {
     } catch (e) {
       debugPrint('cancelAll local notifications failed: $e');
     }
+    // v566 — badge de l'icône remis à 0 (déconnexion).
+    await AppBadgeService.clear();
     // Reset badge counter (iOS principalement).
     try {
       final iosPlugin = _localNotifications.resolvePlatformSpecificImplementation<

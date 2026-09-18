@@ -327,7 +327,98 @@ class SocketService {
           AppLogger.logError('message:new subscriber threw', error: e);
         }
       }
+      _ackDelivered(map);
     });
+  }
+
+  // ── v566 — accusés de réception / lecture (✓ ✓✓ ✓✓ bleu) ────────────────
+  /// Conversation réellement AFFICHÉE (posée par l'écran de discussion via
+  /// ChatSessionMixin.setChatVisible). Un message reçu pour cette
+  /// conversation est marqué LU par le contrôleur (`POST /read`) ; pour toute
+  /// autre, on accuse seulement réception ici.
+  static String visibleConversationId = '';
+
+  /// Ids déjà accusés (le même `message:new` arrive par la room de
+  /// conversation ET par la room utilisateur) — borné.
+  final List<String> _ackedIds = [];
+
+  /// Émet `message:delivered { conversationId, messageId }` pour un message
+  /// REÇU (jamais pour les miens, jamais pour un message système). Le serveur
+  /// pose `deliveredAt` et prévient l'expéditeur ; il ne renvoie RIEN au
+  /// destinataire → aucune boucle possible.
+  void _ackDelivered(Map<String, dynamic> map) {
+    try {
+      final s = _socket;
+      if (s == null || !_isConnected) return;
+      final raw = map['message'] is Map
+          ? map['message'] as Map
+          : (map['sentMessage'] is Map ? map['sentMessage'] as Map : map);
+      final messageId = (raw['id'] ?? raw['_id'] ?? '').toString();
+      final conversationId =
+          (map['conversationId'] ?? raw['conversationId'] ?? '').toString();
+      final senderId = (raw['senderId'] ?? map['senderId'] ?? '').toString();
+      final senderRole = (raw['senderRole'] ?? '').toString().toLowerCase();
+      if (messageId.isEmpty || conversationId.isEmpty || senderId.isEmpty) return;
+      if (senderRole == 'system') return;
+      if (raw['deliveredAt'] != null || raw['readAt'] != null) return;
+      final profile = _storage.read<Map<String, dynamic>>(StorageKeys.userProfile);
+      final me = profile?['id']?.toString() ?? '';
+      if (me.isEmpty || senderId == me) return;
+      // Conversation à l'écran → le contrôleur appelle /read (lu ⊃ remis).
+      if (conversationId == visibleConversationId) return;
+      if (_ackedIds.contains(messageId)) return;
+      _ackedIds.add(messageId);
+      if (_ackedIds.length > 80) _ackedIds.removeAt(0);
+      s.emit('message:delivered', {
+        'conversationId': conversationId,
+        'messageId': messageId,
+      });
+    } catch (e) {
+      AppLogger.logError('message:delivered ack failed', error: e);
+    }
+  }
+
+  /// Multiplexeur `message:read` + `message:delivered` : UN listener socket
+  /// par événement, N abonnés (référence STABLE), comme message:new.
+  final List<void Function(String event, Map<String, dynamic> data)>
+      _receiptSubs = [];
+
+  void _bindReceiptMux() {
+    final s = _socket;
+    if (s == null) return;
+    for (final event in const ['message:read', 'message:delivered']) {
+      s.off(event);
+      s.on(event, (data) {
+        Map<String, dynamic> map;
+        try {
+          map = data is Map
+              ? Map<String, dynamic>.from(data)
+              : <String, dynamic>{};
+        } catch (_) {
+          return;
+        }
+        for (final cb in List.of(_receiptSubs)) {
+          try {
+            cb(event, map);
+          } catch (e) {
+            AppLogger.logError('$event subscriber threw', error: e);
+          }
+        }
+      });
+    }
+  }
+
+  /// Abonne un listener d'accusés (idempotent ; à rappeler depuis un
+  /// onConnected hook pour survivre aux reconnexions).
+  void addReceiptListener(
+      void Function(String event, Map<String, dynamic> data) cb) {
+    if (!_receiptSubs.contains(cb)) _receiptSubs.add(cb);
+    _bindReceiptMux();
+  }
+
+  void removeReceiptListener(
+      void Function(String event, Map<String, dynamic> data) cb) {
+    _receiptSubs.remove(cb);
   }
 
   /// Abonne un listener `message:new` SANS écraser les autres. Passer une

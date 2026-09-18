@@ -104,8 +104,8 @@
   "CHAT_AUTO_WELCOME": {
     "title": "チャットが解放されました",
     "body": "こんにちは 👋 ここでサービスの正確な場所や詳細を決めましょう。",
-    "emailSubject": "",
-    "emailBody": ""
+    "emailSubject": "予約のチャットが開きました",
+    "emailBody": "<p>予約のチャットが開きました。ここでサービスの正確な場所や詳細を決めましょう。</p><p>— HoPetSitチーム</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">チャットを開く</a></p>"
   },
   "BOOKING_COMPLETED": {
     "title": "予約が完了しました",
@@ -115,7 +115,7 @@
   },
   "booking_paid": {
     "title": "入金がありました!",
-    "body": "飼い主さんが予約の支払いを済ませました。チャットで詳細を相談できます。サービス当日は「🐾 ペットを預かりました」をタップして開始を確定してください。",
+    "body": "飼い主さんが予約の支払いを済ませました。チャットで詳細を相談できます。当日は「ペットを預かりました」をタップしてください。",
     "emailSubject": "入金確認 — HoPetSit",
     "emailBody": "<p>朗報です! 予約のお支払いが確認されました。これから飼い主さんとチャットで、サービスの場所と時間を決められます。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">予約を見る</a></p><p style=\"color:#666;font-size:12px;\">ボタンが動作しない場合は、このリンクをブラウザに貼り付けてください: {{emailLink}}</p>"
   },
@@ -397,7 +397,7 @@
   },
   "handover_returned": {
     "title": "ペットを返しました 🏁",
-    "body": "シッターがペットを返したと報告しています。問題なく終わったことを確認するとお支払いが解放されます（未応答の場合は{{autoConfirmHours}}時間後に自動確認）。",
+    "body": "シッターがペットを返したと報告しています。確認するとお支払いが解放されます（{{autoConfirmHours}}時間後に自動確認）。",
     "emailSubject": "ペットが返されました — お返しを確認してください",
     "emailBody": "<p>シッターが「ペットを返した」をタップしました。問題なく終わったことを確認してください。確認するとお支払いがシッターのウォレットに解放されます。応答がない場合、{{autoConfirmHours}}時間後に自動的に確認されます。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">予約を見る</a></p><p style=\"color:#666;font-size:12px;\">ボタンが動作しない場合は、このリンクをコピーしてください: {{emailLink}}</p>"
   },

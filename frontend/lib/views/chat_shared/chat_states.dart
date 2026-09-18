@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
+import 'package:hopetsit/views/chat_shared/new_conversation_button.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 class ChatLoadingState extends StatelessWidget {
@@ -95,26 +96,12 @@ class ChatEmptyState extends StatelessWidget {
               height: 1.4,
             ),
             if (action != null && actionLabel != null) ...[
-              SizedBox(height: 18.h),
-              ElevatedButton(
-                onPressed: action,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.accent,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(22.r),
-                  ),
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 22.w, vertical: 12.h),
-                ),
-                child: Text(
-                  actionLabel!,
-                  style: TextStyle(
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              SizedBox(height: 22.h),
+              // v566 — grand bouton centré « Démarrer une conversation ».
+              StartConversationButton(
+                theme: theme,
+                label: actionLabel!,
+                onTap: action!,
               ),
             ],
           ],

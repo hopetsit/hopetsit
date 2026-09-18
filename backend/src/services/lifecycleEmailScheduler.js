@@ -143,7 +143,16 @@ const deliver = async ({ user, role, step, refId = '', vars = {} }) => {
     unsubscribeUrl: unsubscribeUrl(role, id),
   });
   const text = [render(tpl.title, data), ...(tpl.paragraphs || []).map((p) => render(p, data).replace(/<[^>]+>/g, ''))].join('\n\n');
-  await sendEmail(email, render(tpl.subject, data), text, html);
+  // v566 — audit : en-tête List-Unsubscribe (lien « Se désabonner » natif de Gmail /
+  // Apple Mail, meilleure délivrabilité) + le lien de désabonnement aussi dans le repli texte.
+  const uUrl = unsubscribeUrl(role, id);
+  await sendEmail(
+    email,
+    render(tpl.subject, data),
+    `${text}\n\n${tpl.cta ? `${render(tpl.cta, data)} : ${tpl.ctaUrl ? render(tpl.ctaUrl, data) : SITE}\n\n` : ''}${cat.unsubscribe || 'unsubscribe'} : ${uUrl}`,
+    html,
+    { headers: { 'List-Unsubscribe': `<${uUrl}>` } },
+  );
   await LifecycleEmail.updateOne({ userId: id, role, step, refId }, { $set: { skipped: false, locale, sentAt: new Date() } });
   logger.info(`[lifecycle] sent step=${step} role=${role} user=${id} locale=${locale}`);
   return true;

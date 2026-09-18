@@ -14,9 +14,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/controllers/billing_info_controller.dart';
 import 'package:hopetsit/models/invoice_model.dart';
 import 'package:hopetsit/services/invoice_pdf_generator.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/views/invoices/widgets/invoice_billing_blocks.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -50,12 +54,26 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
   // v565 — état d'erreur de chargement de la page (WebView) avec « Réessayer ».
   bool _loadFailed = false;
   bool _sharing = false;
+  // v566 — informations de facturation : blocs Émetteur / Client + bandeau.
+  late final BillingInfoController _billing;
 
   Color get _accent => currentRoleAccent();
+
+  String get _role {
+    try {
+      return GetStorage().read<String>(StorageKeys.userRole) ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _billing = BillingInfoController.ensure();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _billing.loadIfNeeded();
+    });
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.white)
@@ -237,6 +255,27 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
         top: false,
         child: Column(
           children: [
+            // v566 — Émetteur / Client (feuille) + « Ajoute tes informations
+            // de facturation » quand le bloc de l'utilisateur courant est vide.
+            if (widget.invoice != null)
+              Obx(() {
+                final loaded = _billing.loaded.value;
+                final mineEmpty = _billing.info.value.isEmpty;
+                final inv = widget.invoice!;
+                final showBanner = loaded && mineEmpty && inv.billingFor(_role).isEmpty;
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (inv.hasAnyBilling) InvoicePartiesStrip(invoice: inv, accent: accent),
+                    if (showBanner)
+                      BillingMissingBanner(
+                        accent: accent,
+                        margin: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 8.h),
+                        onReturn: _reload,
+                      ),
+                  ],
+                );
+              }),
             Expanded(
               child: Stack(
                 children: [

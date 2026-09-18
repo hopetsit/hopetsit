@@ -86,6 +86,12 @@ const messageSchema = new mongoose.Schema(
     },
     // v565 §5 — réponse à un message précis (null = message simple).
     replyTo: { type: replyToSchema, default: null },
+    // v566 — accusés façon WhatsApp. `deliveredAt` = le message a atteint
+    // l'appareil du destinataire (événement socket `message:delivered` ou
+    // rattrapage à la lecture de la liste) ; `readAt` = le destinataire a
+    // ouvert la conversation (`POST /conversations/:id/read`). null = pas encore.
+    deliveredAt: { type: Date, default: null },
+    readAt: { type: Date, default: null },
     // v19.1.3 — soft-delete so history stays available for admin moderation
     // even after the sender removes the message on their phone.
     deletedAt: { type: Date, default: null },

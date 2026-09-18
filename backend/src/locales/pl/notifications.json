@@ -104,8 +104,8 @@
   "CHAT_AUTO_WELCOME": {
     "title": "Czat odblokowany",
     "body": "Witamy 👋 Porozmawiajmy tutaj w celu ustalenia dokładnej lokalizacji i szczegółów usługi.",
-    "emailSubject": "",
-    "emailBody": ""
+    "emailSubject": "Czat Twojej rezerwacji jest otwarty",
+    "emailBody": "<p>Czat Twojej rezerwacji jest otwarty: ustalcie tutaj dokładne miejsce i szczegóły usługi.</p><p>— Zespół HoPetSit</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Otwórz czat</a></p>"
   },
   "BOOKING_COMPLETED": {
     "title": "Rezerwacja zakończona",
@@ -115,7 +115,7 @@
   },
   "booking_paid": {
     "title": "Płatność otrzymana!",
-    "body": "Właściciel zapłacił za Twoją rezerwację. Możesz teraz porozmawiać na czacie, aby uzgodnić szczegóły. W dniu usługi kliknij „🐾 odebrałem zwierzaka”, aby potwierdzić rozpoczęcie usługi.",
+    "body": "Właściciel opłacił rezerwację. Czat jest otwarty, aby ustalić szczegóły. W dniu usługi kliknij „Zwierzak odebrany”.",
     "emailSubject": "Płatność otrzymana — HoPetSit",
     "emailBody": "<p>Wspaniała wiadomość! Właśnie potwierdzono płatność za rezerwację. Możesz teraz porozmawiać z właścicielem, aby uzgodnić miejsce i godzinę usługi.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Widok rezerwacja</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link do swojej przeglądarki: {{emailLink}}</p>"
   },
@@ -318,7 +318,7 @@
     "emailBody": "<p>Twoja usługa kończy się za około 5 minut! Otwórz aplikację HoPetSit i dotknij <b>✅ Zwróciłem zwierzaka</b>, aby potwierdzić zakończenie usługi (płatność zostaje zwolniona po potwierdzeniu przez właściciela).</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Wyświetl rezerwację</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj i wklej ten link: {{emailLink}}</p>"
   },
   "service_start_t72h": {
-    "title": "Serwis w 72h 🐾",
+    "title": "Usługa za 72 godz. 🐾",
     "body": "Twoja rezerwacja rozpoczyna się za niecałe 72 godziny. Przygotuj się – start usługi potwierdzisz w swoich rezerwacjach.",
     "emailSubject": "Twoja usługa rozpocznie się za 72 godziny — HoPetSit",
     "emailBody": "<p>Twoja rezerwacja rozpoczyna się za niecałe 72 godziny. Otwórz aplikację HoPetSit, aby zobaczyć szczegóły i przygotować się.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Wyświetl rezerwacja</a></p>"
@@ -397,7 +397,7 @@
   },
   "handover_returned": {
     "title": "Zwierzak oddany 🏁",
-    "body": "Twój usługodawca zgłasza, że oddał Twojego zwierzaka. Potwierdź, że wszystko poszło dobrze, aby uwolnić płatność (w przeciwnym razie automatyczne potwierdzenie za {{autoConfirmHours}} godz.).",
+    "body": "Opiekun zgłasza, że oddał Twojego zwierzaka. Potwierdź, aby zwolnić płatność (automatycznie za {{autoConfirmHours}} godz.).",
     "emailSubject": "Twój zwierzak został oddany — potwierdź zwrot",
     "emailBody": "<p>Twój usługodawca właśnie nacisnął „Zwierzak oddany”. Potwierdź, że wszystko poszło dobrze: uwolni to płatność do jego portfela. Bez Twojej odpowiedzi zwrot zostanie potwierdzony automatycznie za {{autoConfirmHours}} godz.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz rezerwację</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link: {{emailLink}}</p>"
   },

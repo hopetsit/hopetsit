@@ -5,6 +5,7 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { PageHero, SectionTitle } from "@/components/PageHero";
 import { SubscriptionsExplainer } from "@/components/SubscriptionsExplainer";
 import { PromoCodeBox } from "@/components/PromoCodeBox";
+import { useShopPriceLines } from "@/lib/useShopPrices";
 
 /**
  * v556 — « Tarifs » en version premium (Daniel). En-tête commun, deux cartes
@@ -14,6 +15,8 @@ import { PromoCodeBox } from "@/components/PromoCodeBox";
  */
 export default function PricingPage() {
   const { t } = useT();
+  // v566 — montants injectés depuis l'API des prix (repli sans montant).
+  const priceLines = useShopPriceLines();
 
   const tiers = [
     {
@@ -102,7 +105,7 @@ export default function PricingPage() {
           <div className="flex-1">
             <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-[#FFD34D] md:text-3xl">PawPremium</h2>
             <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-white/75 md:mx-0">{t("home_pawpremium_blurb")}</p>
-            <p className="mt-3 text-sm font-semibold text-[#FFD34D]">{t("home_pawpremium_price_line")}</p>
+            <p className="mt-3 text-sm font-semibold text-[#FFD34D]">{priceLines.premium}</p>
           </div>
           <Link href="/boutique" className="shrink-0 rounded-full bg-white px-7 py-3.5 text-sm font-semibold text-[#1D1D1F] transition hover:bg-[#E8E8ED]">
             {t("pawpremium_cta")} →

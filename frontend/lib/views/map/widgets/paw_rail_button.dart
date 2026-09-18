@@ -9,7 +9,6 @@
 //   - [PawGlassCapsule] / [PawCapsuleButton] : capsule DROITE — une seule
 //     capsule blanche translucide (blur), coins 22, séparateurs fins, icônes
 //     noires `#1D1D1F` / grises `#6E6E73`, bouton actif teinté.
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -175,12 +174,14 @@ class PawGlassCapsule extends StatelessWidget {
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(22.r),
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+      // v566 — fluidité : plus de flou (BackdropFilter) au-dessus de la carte
+      // (une vue native) : il force un calque par image pendant le déplacement.
+      // Blanc translucide sans flou = même rendu, zéro coût.
+      child: RepaintBoundary(
         child: Container(
           width: width.w,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.82),
+            color: Colors.white.withValues(alpha: 0.94),
             borderRadius: BorderRadius.circular(22.r),
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.9),
@@ -357,8 +358,10 @@ class PawGlassPill extends StatelessWidget {
     final r = BorderRadius.circular(radius);
     return ClipRRect(
       borderRadius: r,
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+      // v566 — fluidité : plus de flou (BackdropFilter) au-dessus de la carte
+      // (une vue native) : il force un calque par image pendant le déplacement.
+      // Blanc translucide sans flou = même rendu, zéro coût.
+      child: RepaintBoundary(
         child: Container(
           height: height,
           width: width,
@@ -367,7 +370,7 @@ class PawGlassPill extends StatelessWidget {
           decoration: BoxDecoration(
             color: filled
                 ? (gradient == null ? color : null)
-                : Colors.white.withValues(alpha: 0.84),
+                : Colors.white.withValues(alpha: 0.94),
             gradient: filled ? gradient : null,
             borderRadius: r,
             border: Border.all(

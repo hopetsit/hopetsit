@@ -108,6 +108,23 @@ class NotificationsRepository {
     );
   }
 
+  /// v566 — DELETE /notifications/my/{id}
+  Future<void> deleteNotification(String notificationId) async {
+    if (notificationId.isEmpty) return;
+    await _apiClient.delete(
+      '${ApiEndpoints.notificationsMy}/$notificationId',
+      requiresAuth: true,
+    );
+  }
+
+  /// v566 — DELETE /notifications/my/clear
+  Future<void> clearAll() async {
+    await _apiClient.delete(
+      '${ApiEndpoints.notificationsMy}/clear',
+      requiresAuth: true,
+    );
+  }
+
   /// PATCH /notifications/my/read-all
   Future<void> markAllAsRead() async {
     await _apiClient.patch(

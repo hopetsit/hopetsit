@@ -110,6 +110,40 @@ export default function NotificationBanner() {
   useSocketEvent("booking:accepted", () => refresh());
   useSocketEvent("application:new", () => refresh());
 
+  // v566 — Daniel : « quand je mets une notification en lu sur un appareil, les
+  // autres doivent se synchroniser ». Le serveur émet, après chaque changement fait
+  // sur l'iPhone, l'Android ou un autre onglet :
+  //   notification.read    { ids: [...] | all: true, unreadCount }
+  //   notification.removed { ids: [...] | all: true, unreadCount }
+  // On reflète l'état sans recharger ; l'état serveur reste la référence (refresh au
+  // retour sur l'onglet, ci-dessous).
+  useSocketEvent("notification.read", (payload: unknown) => {
+    const p = (payload || {}) as { ids?: unknown; all?: boolean };
+    const ids = new Set(Array.isArray(p.ids) ? p.ids.map(String) : []);
+    const now = new Date().toISOString();
+    setItems((prev) =>
+      prev.map((x) => (!x.readAt && (p.all === true || ids.has(x.id)) ? { ...x, readAt: now } : x)),
+    );
+  });
+  useSocketEvent("notification.removed", (payload: unknown) => {
+    const p = (payload || {}) as { ids?: unknown; all?: boolean };
+    const ids = new Set(Array.isArray(p.ids) ? p.ids.map(String) : []);
+    setItems((prev) => (p.all === true ? [] : prev.filter((x) => !ids.has(x.id))));
+  });
+  // Onglet resté en arrière-plan (socket coupé par le navigateur) → on reprend
+  // l'état serveur dès qu'il redevient visible.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [refresh]);
+
   const unread = items.filter((n) => !n.readAt);
 
   async function onItemClick(n: AppNotification) {

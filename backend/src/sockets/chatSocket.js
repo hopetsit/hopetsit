@@ -11,6 +11,8 @@ const {
 const WalkSession = require('../models/WalkSession');
 const { evaluateChatAccess } = require('../middleware/chatAccess');
 const logger = require('../utils/logger');
+// v566 — accusés de réception / lecture (✓ ✓✓ ✓✓ bleu).
+const receipts = require('../services/messageReceiptService');
 
 // ─── v565 §6 — présence « en ligne » ────────────────────────────────────────
 // À la connexion (jeton validé par io.use) et à la déconnexion, on prévient
@@ -365,6 +367,29 @@ const registerChatHandlers = (io, socket) => {
     }
   });
 
+  // v566 — accusé de réception : le destinataire signale que `message:new`
+  // a atteint son appareil. Charge utile `{ conversationId, messageId }` (ou
+  // `messageIds: []`). Identité = JWT du socket. Le serveur pose `deliveredAt`
+  // (updateMany groupé) et émet `message:delivered` à l'EXPÉDITEUR seulement :
+  // celui-ci ne répond jamais à cet événement → pas de boucle.
+  socket.on('message:delivered', async (payload = {}, callback) => {
+    try {
+      const { conversationId } = payload;
+      const { userId } = _authedIdentity(payload);
+      const ids = Array.isArray(payload.messageIds) && payload.messageIds.length
+        ? payload.messageIds
+        : [payload.messageId];
+      const result = await receipts.markMessagesDelivered({
+        conversationId,
+        messageIds: ids,
+        recipientId: userId,
+      });
+      if (callback) callback({ status: 'ok', ...result });
+    } catch (error) {
+      if (callback) callback({ status: 'error', ...asErrorPayload(error) });
+    }
+  });
+
   socket.on('conversation:read', async (payload = {}, callback) => {
     try {
       // v23.1 part 130 — Phase 6 audit P6-1 : identité depuis JWT.
@@ -375,6 +400,13 @@ const registerChatHandlers = (io, socket) => {
         role,
         userId,
       });
+
+      // v566 — même effet que POST /conversations/:id/read : readAt groupé +
+      // `message:read` à l'expéditeur (idempotent, rien à marquer = rien émis).
+      await receipts.safely(
+        'markMessagesRead',
+        receipts.markMessagesRead({ conversationId, readerId: userId }),
+      );
 
       if (updated) {
         emitToConversation(

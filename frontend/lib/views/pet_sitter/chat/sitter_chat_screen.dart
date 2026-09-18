@@ -57,14 +57,21 @@ class SitterChatScreen extends StatelessWidget {
             // Le FAB sitter/walker n'avait PAS le Padding (contrairement à
             // l'owner) → il passait derrière la barre de menu pleine largeur.
             // On le remonte au-dessus du menu (~80) + inset Samsung, comme owner.
-            floatingActionButton: Padding(
+            // v566 — liste vide : le grand bouton centré « Démarrer une
+            // conversation » remplace le bouton flottant (pas de doublon).
+            floatingActionButton: controller.conversations.isEmpty
+                ? null
+                : Padding(
               padding: EdgeInsets.only(
                   // v488 — Daniel : « nouvelle conversation toujours trop bas »
                   // → remonté nettement au-dessus du menu flottant.
                   bottom: 120.h + MediaQuery.of(context).viewPadding.bottom),
               // v565 — bouton modernisé (pilule à la couleur du rôle).
+              // v566 — rond 56 qui s'étend en pilule à l'arrêt / en haut de
+              // liste et se replie pendant le défilement.
               child: NewConversationButton(
                 theme: ChatRoleTheme.forRole(controller.myRole),
+                expanded: controller.newChatExpanded,
                 onTap: () => Get.to(() => const FriendsScreen()),
               ),
             ),

@@ -759,11 +759,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 );
               }
               final item = _c.notifications[index];
+              // v566 — glisser vers la gauche = supprimer (synchronisé avec les
+              // autres appareils par l'événement `notification.removed`).
               return Padding(
                 padding: EdgeInsets.only(bottom: 12.h),
-                child: NotificationCard(
-                  notification: item,
-                  onTap: () => _onTapNotification(item),
+                child: Dismissible(
+                  key: ValueKey<String>('notif_${item.id}'),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: EdgeInsets.symmetric(horizontal: 20.w),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE5484D),
+                      borderRadius: BorderRadius.circular(16.r),
+                    ),
+                    child: Semantics(
+                      label: 'notifications_delete'.tr,
+                      child: const Icon(Icons.delete_outline_rounded,
+                          color: Colors.white),
+                    ),
+                  ),
+                  onDismissed: (_) => _c.deleteNotification(item),
+                  child: NotificationCard(
+                    notification: item,
+                    onTap: () => _onTapNotification(item),
+                  ),
                 ),
               );
             },

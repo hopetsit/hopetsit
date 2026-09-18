@@ -37,6 +37,8 @@ class SitterChatMessage extends ChatMessageBase {
     super.replyTo,
     super.isPending,
     super.isFailed,
+    super.deliveredAt,
+    super.readAt,
   });
 
   SitterChatMessage copyWith({
@@ -46,6 +48,8 @@ class SitterChatMessage extends ChatMessageBase {
     bool? isPending,
     bool? isFailed,
     bool? isDeleted,
+    DateTime? deliveredAt,
+    DateTime? readAt,
   }) {
     return SitterChatMessage(
       id: id ?? this.id,
@@ -64,6 +68,9 @@ class SitterChatMessage extends ChatMessageBase {
       replyTo: replyTo,
       isPending: isPending ?? this.isPending,
       isFailed: isFailed ?? this.isFailed,
+      // v566 — les accusés ne reculent jamais (null = on garde l'existant).
+      deliveredAt: deliveredAt ?? this.deliveredAt,
+      readAt: readAt ?? this.readAt,
     );
   }
 }
@@ -82,6 +89,8 @@ class SitterChatConversation extends ChatConversationBase {
     super.contactId,
     super.contactRole,
     super.lastSeenAt,
+    super.lastMessageMine,
+    super.lastMessageStatus,
   });
 
   SitterChatConversation copyWith({
@@ -90,6 +99,8 @@ class SitterChatConversation extends ChatConversationBase {
     bool? isOnline,
     int? unreadCount,
     DateTime? lastSeenAt,
+    bool? lastMessageMine,
+    ChatReceiptStatus? lastMessageStatus,
   }) {
     return SitterChatConversation(
       id: id,
@@ -102,6 +113,8 @@ class SitterChatConversation extends ChatConversationBase {
       contactId: contactId,
       contactRole: contactRole,
       lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+      lastMessageMine: lastMessageMine ?? this.lastMessageMine,
+      lastMessageStatus: lastMessageStatus ?? this.lastMessageStatus,
     );
   }
 }
@@ -229,6 +242,19 @@ class SitterChatController extends GetxController
   @override
   void updateLastMessagePreview(String preview) => _updateLastMessage(preview);
 
+  // v566 — accusés façon WhatsApp (voir ChatSessionMixin).
+  @override
+  SitterChatMessage withReceipts(SitterChatMessage m, {DateTime? deliveredAt, DateTime? readAt}) =>
+      m.copyWith(deliveredAt: deliveredAt, readAt: readAt);
+
+  @override
+  SitterChatConversation withLastReceipt(
+    SitterChatConversation c, {
+    required bool mine,
+    required ChatReceiptStatus status,
+  }) =>
+      c.copyWith(lastMessageMine: mine, lastMessageStatus: status);
+
   /// Aperçu d'un message sans texte (photo / vidéo / vocal / partage).
   String _previewFromRaw(Map<String, dynamic> raw) {
     final type = (raw['type'] ?? '').toString();
@@ -278,6 +304,8 @@ class SitterChatController extends GetxController
         _socketService.addMessageNewListener(_handleNewMessage);
         // v565 — présence en ligne (contrat §6), réf. stable du mixin.
         _socketService.addPresenceListener(handlePresenceUpdate);
+        // v566 — `message:read` / `message:delivered` → coches sans recharger.
+        _socketService.addReceiptListener(handleReceiptEvent);
         _socketService.onMessageDeleted((payload) {
           _handleMessageDeleted(payload);
         });
@@ -311,6 +339,7 @@ class SitterChatController extends GetxController
     // chat_controller) ; le listener badge reste vivant.
     _socketService.removeMessageNewListener(_handleNewMessage);
     _socketService.removePresenceListener(handlePresenceUpdate);
+    _socketService.removeReceiptListener(handleReceiptEvent);
     _socketService.removeListener('message:deleted');
   }
 
@@ -412,6 +441,11 @@ class SitterChatController extends GetxController
         final exists = currentChatMessages.any(
           (msg) => msg.id == newMessage.id,
         );
+        // v566 — conversation À L'ÉCRAN : le message est lu tout de suite
+        // (POST /read débouncé → ✓✓ bleu chez l'expéditeur). Si l'écran de
+        // discussion n'est plus affiché, SocketService accuse seulement
+        // réception (`message:delivered`).
+        if (!isMine) onIncomingMessageWhileOpen(conversationId);
         if (!isMine && !exists && _isRenderableMessage(newMessage)) {
           currentChatMessages.add(newMessage);
           // Update last message in conversations
@@ -466,6 +500,9 @@ class SitterChatController extends GetxController
             unreadCount: isFromOther && msgConvId != currentChatId.value
                 ? existing.unreadCount + 1
                 : existing.unreadCount,
+            // v566 — coches devant l'aperçu quand le dernier message est le mien.
+            lastMessageMine: !isFromOther,
+            lastMessageStatus: ChatReceiptStatus.sent,
           );
           conversations.removeAt(idx);
           conversations.insert(0, updated);
@@ -674,6 +711,10 @@ class SitterChatController extends GetxController
       contactId: contactId,
       contactRole: contactRole,
       lastSeenAt: lastSeenAt,
+      // v566 — statut du dernier message (GET /conversations/list).
+      lastMessageMine: data['lastMessageMine'] == true,
+      lastMessageStatus:
+          chatReceiptStatusFromString(data['lastMessageStatus']?.toString()),
     );
   }
 
@@ -1074,6 +1115,9 @@ class SitterChatController extends GetxController
       // v565 — pièces typées + citation (contrat §5).
       media: parseChatAttachments(data['attachments']),
       replyTo: parseChatReplyTo(data['replyTo']),
+      // v566 — accusés (✓✓ remis / ✓✓ bleu lu).
+      deliveredAt: parseChatReceiptDate(data['deliveredAt']),
+      readAt: parseChatReceiptDate(data['readAt']),
     );
   }
 
@@ -1250,11 +1294,15 @@ class SitterChatController extends GetxController
           metadata: a.metadata,
           media: a.media,
           replyTo: a.replyTo ?? replyRef,
+          deliveredAt: a.deliveredAt,
+          readAt: a.readAt,
         );
+        // v566 — un accusé arrivé AVANT la réponse du POST est rejoué ici.
+        final withAck = applyCachedReceipts(finalMessage);
         if (index != -1) {
-          currentChatMessages[index] = finalMessage;
+          currentChatMessages[index] = withAck;
         } else {
-          currentChatMessages.add(finalMessage);
+          currentChatMessages.add(withAck);
         }
       } else if (index != -1) {
         currentChatMessages[index] = optimisticMessage.copyWith(isPending: false);
@@ -1353,6 +1401,8 @@ class SitterChatController extends GetxController
           conversations[conversationIndex].copyWith(
         lastMessage: '${'cs_you'.tr}: $message',
         lastMessageTime: DateTime.now(),
+        lastMessageMine: true,
+        lastMessageStatus: ChatReceiptStatus.sent,
       );
     }
   }

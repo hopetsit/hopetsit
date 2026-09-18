@@ -61,6 +61,10 @@ const walkerSchema = new mongoose.Schema(
     city: { type: String, default: '', trim: true },
     // v565 §6 — présence : horodatage de la dernière déconnexion socket.
     lastSeenAt: { type: Date, default: null },
+    // v566 — informations de facturation (NIF, NIE, CIF, SIRET, TVA, EIN,
+    // passeport…), synchronisées sur les 3 docs de la personne et copiées
+    // en instantané sur chaque facture. Contrat : utils/billingInfo.js.
+    billingInfo: require('../utils/billingInfo').billingInfoSchemaFields(),
     // v565 §2 — préférences de notification (son + catégories), synchronisées
     // sur les 3 docs de la personne. Défauts appliqués côté route si absent.
     notificationPrefs: {
@@ -152,7 +156,7 @@ const walkerSchema = new mongoose.Schema(
     // v565 — plateforme de chaque jeton (diagnostic « notifications Apple ») :
     // renseignée par POST /users/fcm-token { token, platform }.
     fcmDevices: {
-      type: [{ token: { type: String, trim: true }, platform: { type: String, default: '' }, at: { type: Date, default: Date.now } }],
+      type: [{ token: { type: String, trim: true }, platform: { type: String, default: '' }, appBuild: { type: Number, default: 0 }, at: { type: Date, default: Date.now } }], // v566 — appBuild : badge iOS réservé aux builds ≥ 566
       default: [],
     },
 
@@ -260,6 +264,14 @@ const walkerSchema = new mongoose.Schema(
         paymentProvider: { type: String },
         paymentId: { type: String },
         kind: { type: String, default: 'profile' }, // 'profile' | 'map'
+        // v566 — comptabilité à montants réels (cf UserSubscription.payments).
+        amountSource: { type: String },
+        platform: { type: String },
+        environment: { type: String },
+        storefront: { type: String },
+        originalTransactionId: { type: String },
+        excludedFromRevenue: { type: Boolean, default: false },
+        refundedAt: { type: Date, default: null },
       },
     ],
     // Phase 5 — PawMap boost: pin highlighted on the map.

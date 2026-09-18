@@ -16,6 +16,11 @@ const promoCodeRedemptionSchema = new mongoose.Schema(
     // que c'est null, la réduction est en attente d'application. (free_subscription
     // est appliqué tout de suite à la redemption, donc ce champ reste null.)
     discountConsumedAt: { type: Date, default: null, index: true },
+    // v566 — la réduction est RÉSERVÉE sur l'intention de paiement (30 min) et
+    // n'est consommée qu'à la réussite du paiement (discountReservationService).
+    discountReservedIntentId: { type: String, default: '' },
+    discountReservedUntil: { type: Date, default: null },
+    discountConsumedIntentId: { type: String, default: '' },
   },
   { timestamps: true },
 );

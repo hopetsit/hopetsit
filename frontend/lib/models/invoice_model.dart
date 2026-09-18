@@ -1,3 +1,5 @@
+import 'package:hopetsit/models/billing_info_model.dart';
+
 /// v23.1 — Invoice model used by Mes Réservations → onglet Factures
 /// (owner / sitter / walker).
 class InvoiceModel {
@@ -20,6 +22,10 @@ class InvoiceModel {
   final DateTime? issuedAt;
   final DateTime? paidAt;
   final DateTime? refundedAt;
+  // v566 — informations de facturation figées sur la facture : émetteur
+  // (prestataire) et client (propriétaire). Vides si non renseignées.
+  final BillingInfo issuerBilling;
+  final BillingInfo customerBilling;
 
   InvoiceModel({
     required this.id,
@@ -41,6 +47,8 @@ class InvoiceModel {
     this.issuedAt,
     this.paidAt,
     this.refundedAt,
+    this.issuerBilling = BillingInfo.empty,
+    this.customerBilling = BillingInfo.empty,
   });
 
   static DateTime? _date(dynamic v) {
@@ -74,6 +82,17 @@ class InvoiceModel {
       issuedAt: _date(json['issuedAt']),
       paidAt: _date(json['paidAt']),
       refundedAt: _date(json['refundedAt']),
+      issuerBilling: BillingInfo.fromJson(json['issuerBilling']),
+      customerBilling: BillingInfo.fromJson(json['customerBilling']),
     );
   }
+
+  /// Bloc de l'utilisateur COURANT : le propriétaire est le client, le
+  /// prestataire (sitter / walker) est l'émetteur.
+  BillingInfo billingFor(String? role) {
+    final r = (role ?? '').toLowerCase();
+    return (r.contains('sitter') || r.contains('walker')) ? issuerBilling : customerBilling;
+  }
+
+  bool get hasAnyBilling => issuerBilling.isNotEmpty || customerBilling.isNotEmpty;
 }

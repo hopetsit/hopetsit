@@ -160,12 +160,21 @@ const unblockUser = async (req, res) => {
     const blockerModel = ROLE_TO_MODEL[blockerRole];
     const blockedModel = ROLE_TO_MODEL[targetRole];
 
-    const result = await Block.findOneAndDelete({
+    let result = await Block.findOneAndDelete({
       blockerId,
       blockerModel,
       blockedId: targetUserId,
       blockedModel,
     });
+
+    // v566 — le rôle de la cible était DEVINÉ (opposé au mien) quand l'appelant
+    // ne le donnait pas (`DELETE /blocks/:id`, `unblockSitter` de l'app) → 404
+    // en débloquant un promeneur ou quelqu'un du même rôle que soi. Un blocage
+    // est identifié par (moi, l'autre) : on retire l'entrée quel que soit le
+    // modèle enregistré pour la cible.
+    if (!result) {
+      result = await Block.findOneAndDelete({ blockerId, blockerModel, blockedId: targetUserId });
+    }
 
     if (!result) {
       return res.status(404).json({ error: 'Block entry not found.' });

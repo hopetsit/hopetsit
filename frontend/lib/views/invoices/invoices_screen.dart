@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
+import 'package:hopetsit/controllers/billing_info_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/invoice_model.dart';
@@ -10,6 +11,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
 import 'package:hopetsit/views/invoices/invoice_viewer_screen.dart';
+import 'package:hopetsit/views/invoices/widgets/invoice_billing_blocks.dart';
 import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -33,6 +35,8 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   final RxList<InvoiceModel> _invoices = <InvoiceModel>[].obs;
   final RxBool _isLoading = false.obs;
   final RxnString _errorMessage = RxnString();
+  // v566 — bandeau « Ajoute tes informations de facturation ».
+  late final BillingInfoController _billing;
 
   Color get _accent => currentRoleAccent();
 
@@ -42,6 +46,10 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     _repo = Get.isRegistered<InvoiceRepository>()
         ? Get.find<InvoiceRepository>()
         : InvoiceRepository(Get.find<ApiClient>());
+    _billing = BillingInfoController.ensure();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _billing.loadIfNeeded();
+    });
     _load();
   }
 
@@ -97,6 +105,8 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
         color: accent,
         onRefresh: _load,
         child: Obx(() {
+          // v566 — lu AVANT les retours anticipés : l'Obx doit suivre ces valeurs.
+          final billingMissing = _billing.loaded.value && _billing.info.value.isEmpty;
           if (_isLoading.value && _invoices.isEmpty) {
             return BookingLoadingList(accent: accent);
           }
@@ -124,6 +134,11 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                 accent: accent,
               ),
               SizedBox(height: 12.h),
+              if (billingMissing) ...[
+                // Au retour : recharger pour reprendre les blocs à jour.
+                BillingMissingBanner(accent: accent, onReturn: _load),
+                SizedBox(height: 12.h),
+              ],
               ProfileGroupCard(
                 children: [
                   for (final inv in _invoices)

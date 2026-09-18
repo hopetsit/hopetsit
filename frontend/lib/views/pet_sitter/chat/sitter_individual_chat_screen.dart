@@ -16,6 +16,8 @@ import 'package:hopetsit/views/chat_shared/chat_header.dart';
 import 'package:hopetsit/views/chat_shared/chat_models.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/views/chat_shared/contacts_locked_sheet.dart';
+import 'package:hopetsit/views/chat_shared/pawfollow_widgets.dart';
+import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/widgets/pawfollow_request_card.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
@@ -127,10 +129,15 @@ class _SitterIndividualChatScreenState
 
   // v23.1.176 — handler des boutons Accepter / Refuser sur la carte
   // pawfollow_request. Appelle le repo + refresh la conversation.
+  // v566 — réponses Accepter / Refuser en cours (anti double-tap).
+  final Set<String> _respondingIds = <String>{};
+
   Future<void> _respondPawfollow(
     SitterChatMessage message,
     String action,
   ) async {
+    if (_respondingIds.contains(message.id)) return;
+    setState(() => _respondingIds.add(message.id));
     try {
       final repo = Get.find<SitterRepository>();
       await repo.respondPawfollowRequest(
@@ -156,13 +163,61 @@ class _SitterIndividualChatScreenState
         title: 'common_error'.tr,
         message: e.toString().replaceAll('ApiException:', '').trim(),
       );
+    } finally {
+      if (mounted) setState(() => _respondingIds.remove(message.id));
     }
   }
 
+  /// v566 — feuille « Partager ma position » modernisée : explication courte,
+  /// état d'envoi, erreurs lisibles. L'envoi réel reste `_sendFollowMe`
+  /// (position GPS + POST /conversations/:id/follow-request).
+  Future<void> _onFollowMeSheet() async {
+    final sent = await showPawFollowRequestSheet(
+      context,
+      contactName: widget.contactName,
+      contactImage: widget.contactImage,
+      sharing: true,
+      onSend: _sendFollowMe,
+    );
+    if (!sent || !mounted) return;
+    await chatController.loadChatMessages(
+      widget.conversationId,
+      contactName: widget.contactName,
+    );
+  }
+
+  /// Lève en cas d'échec (l'erreur est affichée dans la feuille).
+  Future<void> _sendFollowMe() async {
+    final repo = Get.find<SitterRepository>();
+    double? lat;
+    double? lng;
+    try {
+      final perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        await Geolocator.requestPermission();
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 8),
+        ),
+      );
+      lat = pos.latitude;
+      lng = pos.longitude;
+    } catch (_) {/* on continue sans coords */}
+    await repo.requestLiveTrackingByConversation(
+      conversationId: widget.conversationId,
+      lat: lat,
+      lng: lng,
+    );
+  }
+
   // v23.1.170 — handler du bouton "Suis-moi" miroir côté sitter/walker.
+  // v566 — conservé (aucune fonction retirée) ; l'UI passe par _onFollowMeSheet.
   // 1. Cherche un booking actif (paid + non-cancelled) avec ce owner
   // 2. POST /bookings/:id/follow-request → backend push notif à l'owner
   // 3. Snackbar de confirmation
+  // ignore: unused_element
   Future<void> _onFollowMeTap() async {
     // v23.1.256 — DEEP FIX : on envoie TOUJOURS la demande de suivi dans la
     // conversation actuellement OUVERTE (widget.conversationId). Avant, on
@@ -356,6 +411,16 @@ class _SitterIndividualChatScreenState
         myRole: myRole,
         onAccept: () => _respondPawfollow(m, 'accept'),
         onRefuse: () => _respondPawfollow(m, 'refuse'),
+        // v566 — « Suivi actif → Ouvrir la carte » aussi côté prestataire
+        // (il voit sa propre position partagée sur la PawMap).
+        onOpenMap: m.pawfollowStatus == 'accepted'
+            ? () => Get.to(() => PawMapScreen(
+                  initialLat: m.pawfollowLastLat,
+                  initialLng: m.pawfollowLastLng,
+                ))
+            : null,
+        busy: _respondingIds.contains(m.id),
+        expiresAt: m.pawfollowExpiresAt,
         // v23.1 part 200 — snapshot booking pour la refonte mockup
         petName: m.pawfollowPetName,
         petPhoto: m.pawfollowPetPhoto,
@@ -388,8 +453,9 @@ class _SitterIndividualChatScreenState
           icon: Icons.share_location_rounded,
           label: 'follow_share_position_button'.tr,
           subtitle: 'cs_action_pawfollow_sub'.tr,
-          color: const Color(0xFF7C3AED),
-          onTap: _onFollowMeTap,
+          color: kPawFollowPurple,
+          highlight: true,
+          onTap: _onFollowMeSheet,
         ),
       ];
 
@@ -435,12 +501,23 @@ class _SitterIndividualChatScreenState
         contactName: widget.contactName,
         contactImage: widget.contactImage,
         actions: [
-          ChatHeaderPill(
-            icon: Icons.share_location_rounded,
-            label: 'follow_share_position_button'.tr,
-            onTap: _onFollowMeTap,
-            theme: t,
-          ),
+          // v566 — pilule violette PawFollow ; suivi EN COURS → point vert
+          // animé + « En direct · voir la carte ».
+          Obx(() {
+            final live =
+                pawFollowLiveMessage(chatController.currentChatMessages);
+            return PawFollowPill(
+              icon: Icons.share_location_rounded,
+              label: 'follow_share_position_button'.tr,
+              live: live != null,
+              onTap: live != null
+                  ? () => Get.to(() => PawMapScreen(
+                        initialLat: live.pawfollowLastLat,
+                        initialLng: live.pawfollowLastLng,
+                      ))
+                  : _onFollowMeSheet,
+            );
+          }),
         ],
       ),
       body: ChatConversationBody(

@@ -606,6 +606,14 @@ router.patch('/me/app-locale', requireAuth, updateAppLocale);
 router.get('/me/notification-prefs', requireAuth, requireRole('owner', 'sitter', 'walker'), getNotificationPrefs);
 router.patch('/me/notification-prefs', requireAuth, requireRole('owner', 'sitter', 'walker'), updateNotificationPrefs);
 
+// v566 — informations de facturation (NIF, NIE, CIF, SIRET, TVA, EIN, passeport…),
+// synchronisées sur les 3 profils de la personne ; reprises sur les factures.
+{
+  const { getMyBillingInfo, updateMyBillingInfo } = require('../controllers/billingInfoController');
+  router.get('/me/billing-info', requireAuth, requireRole('owner', 'sitter', 'walker'), getMyBillingInfo);
+  router.patch('/me/billing-info', requireAuth, requireRole('owner', 'sitter', 'walker'), updateMyBillingInfo);
+}
+
 // v565 §3 — changement d'e-mail par l'utilisateur (code envoyé à la NOUVELLE
 // adresse, 24 h ; confirmation → e-mail remplacé sur les 3 profils).
 router.post('/me/email-change', requireAuth, requireRole('owner', 'sitter', 'walker'), requestEmailChange);

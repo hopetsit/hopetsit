@@ -5498,6 +5498,38 @@ const respondToPawfollowRequest = async (req, res) => {
       emitChatMessage(conv, 'message:new', payload);
     } catch (_) {/* defensive */}
 
+    // v566 — le DEMANDEUR est prévenu de la réponse (push + cloche). Les
+    // gabarits `live_tracking_accepted` / `live_tracking_refused` existaient
+    // dans les 9 langues mais n'étaient JAMAIS envoyés : sans l'app ouverte
+    // sur ce chat, l'acceptation passait inaperçue.
+    try {
+      const requesterId = message.metadata?.requesterId || message.senderId;
+      const requesterRole = String(
+        message.metadata?.requesterRole || message.senderRole || '',
+      ).toLowerCase();
+      if (
+        requesterId &&
+        ['owner', 'sitter', 'walker'].includes(requesterRole) &&
+        String(requesterId) !== String(userId)
+      ) {
+        const { sendNotification } = require('../services/notificationSender');
+        const { buildEmailLink } = require('../utils/emailLinkBuilder');
+        await sendNotification({
+          userId: String(requesterId),
+          role: requesterRole,
+          type: action === 'accept' ? 'live_tracking_accepted' : 'live_tracking_refused',
+          data: {
+            conversationId: String(conv._id),
+            messageId: String(message._id),
+            responderRole: userRole,
+            emailLink: buildEmailLink('chat', { conversationId: String(conv._id) }),
+          },
+        });
+      }
+    } catch (e) {
+      logger.warn('[respondToPawfollowRequest] notification au demandeur impossible', e?.message || e);
+    }
+
     return res.json({
       success: true,
       messageId: String(message._id),

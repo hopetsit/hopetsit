@@ -102,6 +102,10 @@ const buildAppRoute = (notifType, data = {}) => {
     return conversationId ? chatPath : '/friends/requests';
   }
   if (t === 'live_tracking_accepted') return '/friends/live';
+  // v566 — audit : partage en direct « toujours actif » / « session terminée »
+  // tombaient sur /notifications côté serveur alors que l'app les route vers
+  // /friends/live (DeepLinkService.routeForNotification) → même chemin des deux côtés.
+  if (t === 'live_still_active' || t === 'live_session_ended') return '/friends/live';
   if (t.startsWith('friend_') || t.startsWith('family_') ||
       t.startsWith('live_tracking')) {
     return '/friends';

@@ -112,6 +112,8 @@ const sanitizeUser = (userDoc, { includeCard = false, includeEmail = false, incl
       'acceptedTerms', 'termsAcceptedAt', 'termsVersion',
       'banReason', 'bannedAt', 'oldId', 'authProvider', 'appLocale',
       'blockedUsers', 'notificationPreferences',
+      // v566 — données fiscales (NIF, SIRET, TVA…) : profil propre / admin seulement.
+      'billingInfo',
     ]) {
       delete sanitized[k];
     }

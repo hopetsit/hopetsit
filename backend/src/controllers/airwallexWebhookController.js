@@ -76,7 +76,16 @@ const handleAirwallexWebhook = async (req, res) => {
         // v23.1 — route by metadata.type so non-booking purchases
         // (map_boost / subscription / premium / coins) are activated server-side
         // even if the client-side /confirm call never fires.
-        const piMetadata = data?.metadata || {};
+        // v566 — comptabilité à montants réels : on joint aux métadonnées le
+        // montant et la devise RÉELLEMENT débités (lus sur l'événement
+        // Airwallex, unités majeures) pour que chaque activation boutique
+        // écrive sa ligne de paiement avec le vrai montant. `platform`
+        // (ios|android|web) est déjà dans les métadonnées, posé à la création.
+        const piMetadata = { ...(data?.metadata || {}) };
+        if (Number.isFinite(Number(data?.amount)) && data?.amount !== null && data?.amount !== '') {
+          piMetadata.providerAmount = String(data.amount);
+          if (data?.currency) piMetadata.providerCurrency = String(data.currency).toUpperCase();
+        }
         const purchaseType = (piMetadata.type || '').toLowerCase();
 
         if (purchaseType === 'map_boost_purchase') {

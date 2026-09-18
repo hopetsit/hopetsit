@@ -104,8 +104,8 @@
   "CHAT_AUTO_WELCOME": {
     "title": "채팅이 열렸어요",
     "body": "안녕하세요 👋 여기에서 서비스의 정확한 장소와 세부 사항을 함께 정해요.",
-    "emailSubject": "",
-    "emailBody": ""
+    "emailSubject": "예약 채팅이 열렸어요",
+    "emailBody": "<p>예약 채팅이 열렸어요. 여기에서 서비스의 정확한 장소와 세부 사항을 정해 주세요.</p><p>— HoPetSit 팀</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">채팅 열기</a></p>"
   },
   "BOOKING_COMPLETED": {
     "title": "예약 완료",
@@ -115,7 +115,7 @@
   },
   "booking_paid": {
     "title": "결제가 들어왔어요!",
-    "body": "반려인이 예약 금액을 결제했어요. 이제 채팅으로 세부 사항을 정할 수 있어요. 서비스 당일에는 '🐾 반려동물을 인계받았어요'를 눌러 서비스 시작을 확인해 주세요.",
+    "body": "반려인이 예약을 결제했어요. 채팅에서 세부 사항을 정할 수 있어요. 서비스 당일에는 '반려동물 인계받음'을 눌러 주세요.",
     "emailSubject": "결제 완료 — HoPetSit",
     "emailBody": "<p>좋은 소식입니다! 예약 결제가 방금 확인되었습니다. 이제 반려인과 채팅하며 서비스 장소와 시간을 정할 수 있습니다.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">예약 보기</a></p><p style=\"color:#666;font-size:12px;\">버튼이 작동하지 않으면 이 링크를 브라우저에 붙여넣어 주세요: {{emailLink}}</p>"
   },
@@ -397,7 +397,7 @@
   },
   "handover_returned": {
     "title": "반려동물 반환 완료 🏁",
-    "body": "돌보미가 반려동물을 반환했다고 알렸어요. 모든 것이 잘 진행되었는지 확인하면 결제 금액이 지급돼요 (미응답 시 {{autoConfirmHours}}시간 후 자동 확인).",
+    "body": "돌보미가 반려동물을 돌려보냈다고 알렸어요. 확인하면 결제 금액이 지급돼요 ({{autoConfirmHours}}시간 후 자동 확인).",
     "emailSubject": "반려동물이 반환되었어요 — 반환을 확인해 주세요",
     "emailBody": "<p>돌보미가 방금 「반려동물 반환함」을 눌렀습니다. 모든 것이 잘 진행되었는지 확인해 주세요. 확인하면 결제 금액이 돌보미의 지갑으로 지급됩니다. 응답이 없으면 {{autoConfirmHours}}시간 후 자동으로 확인됩니다.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">예약 보기</a></p><p style=\"color:#666;font-size:12px;\">버튼이 작동하지 않으면 이 링크를 복사해 주세요: {{emailLink}}</p>"
   },

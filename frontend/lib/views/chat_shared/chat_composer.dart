@@ -20,7 +20,12 @@ class ChatMenuItem {
     required this.color,
     required this.onTap,
     this.subtitle,
+    this.highlight = false,
   });
+
+  /// v566 — entrée mise en avant (PawFollow) : disque en dégradé plein,
+  /// icône blanche, ombre colorée.
+  final bool highlight;
   final IconData icon;
   final String label;
   final String? subtitle;
@@ -399,10 +404,36 @@ class _MenuRow extends StatelessWidget {
                 width: 42.w,
                 height: 42.w,
                 decoration: BoxDecoration(
-                  color: item.color.withValues(alpha: 0.12),
+                  color: item.highlight
+                      ? null
+                      : item.color.withValues(alpha: 0.12),
+                  gradient: item.highlight
+                      ? LinearGradient(
+                          colors: [
+                            Color.lerp(item.color, Colors.white, 0.25) ??
+                                item.color,
+                            item.color,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
                   borderRadius: BorderRadius.circular(14.r),
+                  boxShadow: item.highlight
+                      ? [
+                          BoxShadow(
+                            color: item.color.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : null,
                 ),
-                child: Icon(item.icon, color: item.color, size: 22.sp),
+                child: Icon(
+                  item.icon,
+                  color: item.highlight ? Colors.white : item.color,
+                  size: 22.sp,
+                ),
               ),
               SizedBox(width: 12.w),
               Expanded(

@@ -296,6 +296,23 @@ const userSubscriptionSchema = new mongoose.Schema(
         paymentIntentId: String,
         periodStart: Date,
         periodEnd: Date,
+        // v566 — comptabilité à montants RÉELS (lus par shopRevenueService) :
+        //   amountSource : 'store' (prix réel App Store), 'psp' (montant débité
+        //                  par Airwallex / wallet) ; absent = ancienne ligne.
+        //   platform     : ios | android | web (en-tête X-App-Platform).
+        //   Apple        : environment (Production|Sandbox), storefront (pays),
+        //                  transactionId / originalTransactionId.
+        //   excludedFromRevenue : achat Sandbox (review Apple, tests) — tracé
+        //                  mais À EXCLURE des revenus.
+        //   refundedAt   : posé sur la notification Apple REFUND.
+        amountSource: String,
+        platform: String,
+        environment: String,
+        storefront: String,
+        transactionId: String,
+        originalTransactionId: String,
+        excludedFromRevenue: { type: Boolean, default: false },
+        refundedAt: { type: Date, default: null },
       },
     ],
 

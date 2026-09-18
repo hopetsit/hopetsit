@@ -98,14 +98,18 @@ const sendEmail = async (email, subject, text, html, opts = {}) => {
       subject,
       text,
       ...(html ? { html } : {}),
-      headers: isCampaign
-        ? {}
-        : {
-            // RFC 2076 — marque l'email comme automatisé, Gmail / Outlook
-            // cachent alors le bouton Reply directement.
-            'Auto-Submitted': 'auto-generated',
-            'X-Auto-Response-Suppress': 'All',
-          },
+      headers: {
+        ...(isCampaign
+          ? {}
+          : {
+              // RFC 2076 — marque l'email comme automatisé, Gmail / Outlook
+              // cachent alors le bouton Reply directement.
+              'Auto-Submitted': 'auto-generated',
+              'X-Auto-Response-Suppress': 'All',
+            }),
+        // v566 — en-têtes supplémentaires (ex. List-Unsubscribe du cycle de vie).
+        ...(opts && opts.headers && typeof opts.headers === 'object' ? opts.headers : {}),
+      },
     });
     logger.info(`[emailService] sent to=${email} subject="${subject}" messageId=${info.messageId}`);
     return info;
@@ -202,6 +206,59 @@ ${t.ignore}
   await sendEmail(email, subject, text, html);
 };
 
+// ─── v566 — AUDIT NOTIFICATIONS : gabarit commun des e-mails de notification ───
+// Avant : le `emailBody` du catalogue (quelques <p>) partait TEL QUEL : pas de
+// viewport (texte minuscule sur mobile), bouton collé à gauche, 35 types sans lien
+// de secours, aucun pied de page. Désormais chaque e-mail de notification est
+// enveloppé ici : en-tête de marque, largeur 560 px fluide, bouton centré, lien de
+// secours ajouté s'il manque, pied de page traduit (pourquoi je reçois ce message +
+// où régler mes notifications). Aucun envoi ici : fonction pure, testable.
+const NOTIF_EMAIL_I18N = {
+  fr: { fallback: 'Si le bouton ne fonctionne pas, copie ce lien dans ton navigateur :', footer: 'Tu reçois cet e-mail parce que tu as un compte HoPetSit. Tu peux choisir tes notifications dans l\'app : Profil › Préférences › Notifications.', noreply: 'Message automatique, merci de ne pas y répondre.' },
+  en: { fallback: 'If the button doesn\'t work, copy this link into your browser:', footer: 'You are receiving this email because you have a HoPetSit account. You can choose your notifications in the app: Profile › Preferences › Notifications.', noreply: 'Automated message, please do not reply.' },
+  es: { fallback: 'Si el botón no funciona, copia este enlace en tu navegador:', footer: 'Recibes este correo porque tienes una cuenta HoPetSit. Puedes elegir tus notificaciones en la app: Perfil › Preferencias › Notificaciones.', noreply: 'Mensaje automático, por favor no respondas.' },
+  de: { fallback: 'Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:', footer: 'Du erhältst diese E-Mail, weil du ein HoPetSit-Konto hast. Deine Benachrichtigungen wählst du in der App: Profil › Einstellungen › Benachrichtigungen.', noreply: 'Automatische Nachricht, bitte nicht antworten.' },
+  it: { fallback: 'Se il pulsante non funziona, copia questo link nel browser:', footer: 'Ricevi questa e-mail perché hai un account HoPetSit. Puoi scegliere le notifiche nell\'app: Profilo › Preferenze › Notifiche.', noreply: 'Messaggio automatico, non rispondere.' },
+  pt: { fallback: 'Se o botão não funcionar, copia este link para o teu navegador:', footer: 'Recebes este e-mail porque tens uma conta HoPetSit. Podes escolher as tuas notificações na app: Perfil › Preferências › Notificações.', noreply: 'Mensagem automática, por favor não respondas.' },
+  pl: { fallback: 'Jeśli przycisk nie działa, skopiuj ten link do przeglądarki:', footer: 'Otrzymujesz tę wiadomość, ponieważ masz konto HoPetSit. Powiadomienia wybierzesz w aplikacji: Profil › Preferencje › Powiadomienia.', noreply: 'Wiadomość automatyczna, prosimy nie odpowiadać.' },
+  ko: { fallback: '버튼이 작동하지 않으면 이 링크를 브라우저에 복사하세요:', footer: 'HoPetSit 계정이 있어 이 메일을 받으셨습니다. 알림은 앱의 프로필 › 환경설정 › 알림에서 선택할 수 있어요.', noreply: '자동 발송 메일입니다. 회신하지 마세요.' },
+  ja: { fallback: 'ボタンが動作しない場合は、このリンクをブラウザにコピーしてください：', footer: 'HoPetSitのアカウントをお持ちのため、このメールをお送りしています。通知はアプリの「プロフィール › 設定 › 通知」で選べます。', noreply: '自動送信メールです。返信しないでください。' },
+};
+const escapeHtml = (v) => String(v == null ? '' : v)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/**
+ * @param {string} innerHtml  emailBody rendu (catalogue locales/<lang>/notifications.json)
+ * @param {Object} [o]
+ * @param {string} [o.locale]    fr|en|es|de|it|pt|ko|ja|pl
+ * @param {string} [o.link]      lien universel du bouton (ajoute le lien de secours s'il manque)
+ * @param {string} [o.preheader] texte d'aperçu (corps du push)
+ */
+const buildNotificationEmailHtml = (innerHtml, { locale = 'fr', link = '', preheader = '' } = {}) => {
+  const t = NOTIF_EMAIL_I18N[locale] || NOTIF_EMAIL_I18N.en;
+  let inner = String(innerHtml || '');
+  // Bouton centré : le paragraphe qui contient le bouton (lien « display:inline-block »).
+  inner = inner.replace(/<p>(\s*<a\s[^>]*display:inline-block)/g, '<p style="text-align:center;margin:24px 0">$1');
+  const safeLink = escapeHtml(link);
+  const occurrences = link ? inner.split(link).length - 1 : 0;
+  const fallback = link && occurrences < 2
+    ? `<p style="color:#6E6E73;font-size:12px;line-height:1.5;word-break:break-all">${t.fallback} <a href="${safeLink}" style="color:#6E6E73">${safeLink}</a></p>`
+    : '';
+  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${BRAND_NAME}</title></head>
+<body style="margin:0;padding:0;background:#F5F5F7">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escapeHtml(preheader)}</div>
+<div style="padding:16px 12px;background:#F5F5F7">
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:24px 22px;background:#FFFFFF;border-radius:16px;color:#1D1D1F;font-size:16px;line-height:1.55">
+<p style="font-size:20px;font-weight:700;margin:0 0 14px;color:#D83C28">🐾 ${BRAND_NAME}</p>
+${inner}
+${fallback}
+<hr style="border:none;border-top:1px solid #EEEEF0;margin:22px 0 14px">
+<p style="color:#8E8E93;font-size:12px;line-height:1.5;margin:0">${t.footer}<br>${t.noreply}</p>
+</div></div></body></html>`;
+};
+
+// (L'e-mail de réinitialisation traduit vit dans authController.sendPasswordResetEmailI18n ;
+// cette version anglaise n'est que son repli.)
 const sendPasswordResetEmail = async (email, code) => {
   const subject = `Reset your ${BRAND_NAME} password`;
   const text = `Use the following code to reset your ${BRAND_NAME} password: ${code}. It expires in 10 minutes.
@@ -226,5 +283,6 @@ module.exports = {
   sendEmail,
   sendTestEmail,
   sendCampaignEmail,
+  buildNotificationEmailHtml, // v566
 };
 

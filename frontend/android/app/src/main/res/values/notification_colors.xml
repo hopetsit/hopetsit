@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v566 — couleur d'accent des notifications (orange HoPetSit). Fichier séparé de
+     colors.xml, qui est régénéré par flutter_launcher_icons. -->
+<resources>
+    <color name="notification_accent">#D83C28</color>
+</resources>

@@ -16,6 +16,10 @@ class FriendProfile {
   // v469 — Daniel : couronne 👑 Paw Premium visible par TOUS. Backend
   // (fetchUserMini) expose isPremium par contact.
   final bool isPremium;
+  // v566 — contrat §6 (présence) : `GET /friends` renvoie `other.isOnline`
+  // (calcul en direct) et `other.lastSeenAt`. Point vert sur les cartes amis.
+  final bool isOnline;
+  final DateTime? lastSeenAt;
 
   const FriendProfile({
     required this.id,
@@ -26,7 +30,28 @@ class FriendProfile {
     this.hasPawFollow = false,
     this.pawSpotTier = '',
     this.isPremium = false,
+    this.isOnline = false,
+    this.lastSeenAt,
   });
+
+  FriendProfile copyWith({
+    String? avatar,
+    String? city,
+    bool? isOnline,
+    DateTime? lastSeenAt,
+  }) =>
+      FriendProfile(
+        id: id,
+        model: model,
+        name: name,
+        avatar: avatar ?? this.avatar,
+        city: city ?? this.city,
+        hasPawFollow: hasPawFollow,
+        pawSpotTier: pawSpotTier,
+        isPremium: isPremium,
+        isOnline: isOnline ?? this.isOnline,
+        lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+      );
 
   factory FriendProfile.fromJson(Map<String, dynamic> j) => FriendProfile(
         id: j['id']?.toString() ?? j['_id']?.toString() ?? '',
@@ -37,6 +62,8 @@ class FriendProfile {
         hasPawFollow: j['hasPawFollow'] == true,
         pawSpotTier: (j['pawSpotTier'] ?? '').toString().toLowerCase(),
         isPremium: j['isPremium'] == true,
+        isOnline: j['isOnline'] == true,
+        lastSeenAt: DateTime.tryParse(j['lastSeenAt']?.toString() ?? ''),
       );
 
   String get roleLowercase => model.toLowerCase();
@@ -70,6 +97,23 @@ class Friendship {
     this.createdAt,
     this.acceptedAt,
   });
+
+  Friendship copyWith({
+    FriendProfile? other,
+    bool? mySharePosition,
+    bool? theirSharePosition,
+  }) =>
+      Friendship(
+        id: id,
+        status: status,
+        initiatedByMe: initiatedByMe,
+        other: other ?? this.other,
+        mySharePosition: mySharePosition ?? this.mySharePosition,
+        theirSharePosition: theirSharePosition ?? this.theirSharePosition,
+        myShareAutoByPawFollow: myShareAutoByPawFollow,
+        createdAt: createdAt,
+        acceptedAt: acceptedAt,
+      );
 
   factory Friendship.fromJson(Map<String, dynamic> j) => Friendship(
         id: j['id']?.toString() ?? '',

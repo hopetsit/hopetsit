@@ -10,6 +10,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/localization/app_translations.dart';
+import 'package:permission_handler/permission_handler.dart' show openAppSettings;
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -25,6 +27,7 @@ class NotificationTestScreen extends StatefulWidget {
 
 class _NotificationTestScreenState extends State<NotificationTestScreen> {
   List<String> _types = const [];
+  Map<String, String> _titles = const {};
   bool _loading = true;
   String? _busyType;
   AuthorizationStatus? _perm;
@@ -54,11 +57,41 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
       _token = null;
     }
     try {
-      final res = await _api.get('/notifications/test-types', requiresAuth: true);
+      // v566 — `items: [{type, title}]` = titre du gabarit dans la langue courante ;
+      // `types` (liste de chaînes) reste le repli si le serveur n'est pas à jour.
+      final res = await _api.get(
+        '/notifications/test-types',
+        queryParameters: {'lang': LocalizationService.getCurrentLanguageCode()},
+        requiresAuth: true,
+      );
       final list = (res is Map ? res['types'] : null) as List? ?? const [];
-      _types = list.map((e) => e.toString()).toList();
+      final parsed = <String>[];
+      final titles = <String, String>{};
+      for (final e in list) {
+        if (e is Map) {
+          final t = (e['type'] ?? '').toString();
+          if (t.isEmpty) continue;
+          parsed.add(t);
+          final title = (e['title'] ?? '').toString().trim();
+          if (title.isNotEmpty) titles[t] = title;
+        } else {
+          parsed.add(e.toString());
+        }
+      }
+      final items = res is Map ? res['items'] : null;
+      if (items is List) {
+        for (final e in items) {
+          if (e is! Map) continue;
+          final t = (e['type'] ?? '').toString();
+          final title = (e['title'] ?? '').toString().trim();
+          if (t.isNotEmpty && title.isNotEmpty) titles[t] = title;
+        }
+      }
+      _types = parsed;
+      _titles = titles;
     } catch (_) {
       _types = const [];
+      _titles = const {};
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -111,7 +144,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
   }
 
   String _label(String type) =>
-      type.toLowerCase().replaceAll('_', ' ').trim();
+      _titles[type] ?? type.toLowerCase().replaceAll('_', ' ').trim();
 
   @override
   Widget build(BuildContext context) {
@@ -179,6 +212,18 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                           label: Text('notif_test_reregister'.tr),
                         ),
                       ),
+                      // v566 — autorisation refusée : le système ne redemande plus,
+                      // seul un passage par les Réglages la rétablit.
+                      if (!permOk)
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton.icon(
+                            onPressed: () => openAppSettings(),
+                            icon: Icon(Icons.settings_outlined, size: 18, color: accent),
+                            label: Text('notif_test_open_settings'.tr,
+                                style: TextStyle(color: accent)),
+                          ),
+                        ),
                     ],
                   ),
                 ),

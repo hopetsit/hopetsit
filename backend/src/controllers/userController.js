@@ -1473,13 +1473,17 @@ const registerFcmToken = async (req, res) => {
     const Model = resolveUserModel(req.user?.role);
     if (!Model) return res.status(403).json({ error: 'Unsupported role for FCM registration.' });
     const platform = String(req.body?.platform || '').toLowerCase().slice(0, 12);
+    // v566 — build de l'app (entier après le « + » de X-App-Version, ex. « 23.1.563+566 »)
+    // → le serveur n'envoie le badge chiffré iOS qu'aux apps qui savent le remettre à jour.
+    const buildMatch = String(req.headers['x-app-version'] || req.body?.appBuild || '').match(/(?:\+|^)(\d{1,6})$/);
+    const appBuild = buildMatch ? Number(buildMatch[1]) : 0;
     // v565 — mémorise la plateforme du jeton (ios/android) pour l'admin.
     await Model.findByIdAndUpdate(req.user.id, { $pull: { fcmDevices: { token: token.trim() } } });
     const result = await Model.findByIdAndUpdate(
       req.user.id,
       {
         $addToSet: { fcmTokens: token.trim() },
-        $push: { fcmDevices: { token: token.trim(), platform, at: new Date() } },
+        $push: { fcmDevices: { token: token.trim(), platform, appBuild, at: new Date() } },
       },
       { new: true }
     ).select('fcmTokens');

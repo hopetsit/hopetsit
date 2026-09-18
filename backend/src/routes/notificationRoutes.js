@@ -40,6 +40,9 @@ const TEST_SAMPLE_DATA = {
   rating: '5', minutes: '30', hours: '4', reason: 'test', plan: 'PawPremium', tier: 'bronze',
   requesterName: 'Camille', friendName: 'Alex', inviterName: 'Camille', memberName: 'Alex',
   code: '1234', count: '1',
+  // v566 — audit : variables de gabarit qui manquaient (textes troués pendant le test).
+  comment: 'Super prestation, merci !', photoCount: '3', mood: '😊', avgRating: '4,9',
+  autoConfirmHours: '2', bookingId: 'TEST',
 };
 const _testFireHits = new Map();
 router.post('/test-fire', requireAuth, async (req, res) => {
@@ -79,13 +82,31 @@ router.post('/test-fire', requireAuth, async (req, res) => {
 });
 
 // v565 — GET /notifications/test-types : les clés du catalogue (langue fr = référence).
-router.get('/test-types', requireAuth, (req, res) => {
+// v566 — ajoute `items: [{ type, title }]` : `title` = titre du gabarit rendu dans la langue
+// du compte (?lang= prioritaire, sinon appLocale / language), variables = valeurs d'exemple.
+// `types` RESTE une liste de chaînes : l'app 565 publiée fait `types.map(toString)`.
+router.get('/test-types', requireAuth, async (req, res) => {
   try {
     const fs = require('fs');
     const path = require('path');
     const file = path.join(__dirname, '..', 'locales', 'fr', 'notifications.json');
     const keys = Object.keys(JSON.parse(fs.readFileSync(file, 'utf8') || '{}')).sort();
-    return res.json({ types: keys });
+    const { renderNotificationContent, resolveAppLocaleAcrossRoles } = require('../services/notificationSender');
+    let lang = String(req.query?.lang || '').toLowerCase().slice(0, 2) || null;
+    if (!lang) {
+      try {
+        const role = req.user?.role;
+        const Model = role === 'sitter' ? require('../models/Sitter')
+          : role === 'walker' ? require('../models/Walker') : require('../models/Owner');
+        const u = await Model.findById(req.user.id).select('appLocale language email oldId').lean();
+        lang = (await resolveAppLocaleAcrossRoles(u, req.user.id)) || u?.language || null;
+      } catch (_) { lang = null; }
+    }
+    const items = keys.map((type) => {
+      const loc = renderNotificationContent(type, TEST_SAMPLE_DATA, lang);
+      return { type, title: (loc && loc.title ? loc.title : type).trim() };
+    });
+    return res.json({ types: keys, items });
   } catch (e) {
     return res.status(500).json({ error: e?.message || String(e) });
   }

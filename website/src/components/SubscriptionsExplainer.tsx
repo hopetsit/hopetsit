@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { useShopPriceLines } from "@/lib/useShopPrices";
 
 /**
  * v556 — Daniel : « explique mieux les abonnements ». Trois cartes, une par
@@ -12,6 +13,8 @@ import { useT } from "@/lib/i18n/LanguageProvider";
  */
 export function SubscriptionsExplainer({ compact = false }: { compact?: boolean }) {
   const { t } = useT();
+  // v566 — montants injectés depuis l'API des prix (repli sans montant).
+  const priceLines = useShopPriceLines();
 
   const plans = [
     {
@@ -21,7 +24,7 @@ export function SubscriptionsExplainer({ compact = false }: { compact?: boolean 
       accent: "#6A34E0",
       free: t("sub_pf_free"),
       plus: t("sub_pf_plus"),
-      price: t("home_pawfollow_price_line"),
+      price: priceLines.follow,
     },
     {
       key: "ps",
@@ -30,7 +33,7 @@ export function SubscriptionsExplainer({ compact = false }: { compact?: boolean 
       accent: "#E8890A",
       free: t("sub_ps_free"),
       plus: t("sub_ps_plus"),
-      price: t("home_pawspot_price_line"),
+      price: priceLines.spot,
     },
     {
       key: "pp",
@@ -39,7 +42,7 @@ export function SubscriptionsExplainer({ compact = false }: { compact?: boolean 
       accent: "#B8860B",
       free: t("sub_pp_free"),
       plus: t("sub_pp_plus"),
-      price: t("home_pawpremium_price_line"),
+      price: priceLines.premium,
     },
   ] as const;
 

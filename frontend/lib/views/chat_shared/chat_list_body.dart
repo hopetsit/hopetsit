@@ -2,19 +2,22 @@
 // écrans owner (ChatScreen) et sitter/walker (SitterChatScreen).
 // Avatar + point vert, aperçu, heure, badge non-lus, glisser pour supprimer,
 // états chargement / vide / erreur, tirer pour rafraîchir.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/chat_shared/chat_avatar.dart';
 import 'package:hopetsit/views/chat_shared/chat_models.dart';
+import 'package:hopetsit/views/chat_shared/chat_receipt_ticks.dart';
 import 'package:hopetsit/views/chat_shared/chat_session.dart';
 import 'package:hopetsit/views/chat_shared/chat_states.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/views/chat_shared/chat_time.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
-class ChatListBody extends StatelessWidget {
+class ChatListBody extends StatefulWidget {
   const ChatListBody({
     super.key,
     required this.session,
@@ -27,6 +30,57 @@ class ChatListBody extends StatelessWidget {
   final ChatRoleTheme theme;
   final void Function(ChatConversationBase conversation) onOpen;
   final VoidCallback? onNewConversation;
+
+  @override
+  State<ChatListBody> createState() => _ChatListBodyState();
+}
+
+class _ChatListBodyState extends State<ChatListBody> {
+  ChatSession get session => widget.session;
+  ChatRoleTheme get theme => widget.theme;
+  void Function(ChatConversationBase conversation) get onOpen => widget.onOpen;
+  VoidCallback? get onNewConversation => widget.onNewConversation;
+
+  // v566 — bouton « Nouvelle conversation » : pilule quand la liste est en
+  // haut ou à l'arrêt, rond pendant le défilement.
+  Timer? _idle;
+
+  void _setExpanded(bool v) {
+    if (session.newChatExpanded.value != v) session.newChatExpanded.value = v;
+  }
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical) return false;
+    final atTop = n.metrics.pixels <= 4;
+    if (n is ScrollEndNotification) {
+      _idle?.cancel();
+      _idle = Timer(const Duration(milliseconds: 250), () {
+        if (mounted) _setExpanded(true);
+      });
+    } else if (n is ScrollUpdateNotification && n.dragDetails != null ||
+        n is ScrollStartNotification && n.dragDetails != null) {
+      _idle?.cancel();
+      _setExpanded(atTop);
+    } else if (atTop) {
+      _setExpanded(true);
+    }
+    return false;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Après la frame : jamais de notification pendant un build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _setExpanded(true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _idle?.cancel();
+    super.dispose();
+  }
 
   Future<bool> _confirmDelete(
       BuildContext context, ChatConversationBase c) async {
@@ -88,10 +142,12 @@ class ChatListBody extends StatelessWidget {
           body: 'cs_list_empty_body'.tr,
           action: onNewConversation,
           actionLabel:
-              onNewConversation == null ? null : 'chat_new_conversation_btn'.tr,
+              onNewConversation == null ? null : 'cs_start_conversation'.tr,
         );
       }
-      return RefreshIndicator(
+      return NotificationListener<ScrollNotification>(
+        onNotification: _onScroll,
+        child: RefreshIndicator(
         color: theme.accent,
         onRefresh: session.reloadConversations,
         child: ListView.separated(
@@ -141,6 +197,7 @@ class ChatListBody extends StatelessWidget {
             );
           },
         ),
+        ),
       );
     });
   }
@@ -163,6 +220,18 @@ class _ConversationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = conversation;
     final unread = c.unreadCount > 0;
+    // v566 — coches devant l'aperçu quand le dernier message est le mien
+    // (le préfixe « Vous : » devient alors redondant).
+    final status = c.lastMessageMine && c.lastMessage.isNotEmpty
+        ? c.lastMessageStatus
+        : null;
+    var preview = c.lastMessage;
+    if (status != null) {
+      final youPrefix = '${'cs_you'.tr}: ';
+      if (preview.startsWith(youPrefix)) {
+        preview = preview.substring(youPrefix.length);
+      }
+    }
     return Material(
       color: AppColors.card(context),
       borderRadius: BorderRadius.circular(22.r),
@@ -216,10 +285,18 @@ class _ConversationTile extends StatelessWidget {
                     SizedBox(height: 3.h),
                     Row(
                       children: [
+                        if (status != null) ...[
+                          ChatReceiptTicks(
+                            status: status,
+                            greyColor: AppColors.textSecondary(context),
+                            size: 15,
+                          ),
+                          SizedBox(width: 4.w),
+                        ],
                         Expanded(
                           child: InterText(
                             text: c.lastMessage.isNotEmpty
-                                ? c.lastMessage
+                                ? preview
                                 : chatPresenceLabel(c.isOnline, c.lastSeenAt),
                             fontSize: 12.5.sp,
                             fontWeight:

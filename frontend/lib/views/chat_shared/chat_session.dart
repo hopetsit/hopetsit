@@ -4,11 +4,13 @@
 // message, envoi photo/vidéo réparé, message vocal, présence en ligne,
 // traduction) — une seule implémentation pour ChatController (owner) et
 // SitterChatController (sitter/walker).
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/chat_shared/chat_api.dart';
 import 'package:hopetsit/views/chat_shared/chat_models.dart';
@@ -56,6 +58,17 @@ abstract class ChatSession {
   Future<void> ensureTranslated(ChatMessageBase message);
   void syncPeerPresence(String chatId);
   String formatTime(DateTime dateTime);
+
+  /// v566 — bouton « Nouvelle conversation » : pilule (true) quand la liste
+  /// est en haut ou à l'arrêt, rond (false) pendant le défilement.
+  ValueNotifier<bool> get newChatExpanded;
+
+  /// v566 — l'écran de discussion signale qu'il est affiché / masqué : une
+  /// conversation À L'ÉCRAN marque les messages reçus comme LUS, sinon ils
+  /// sont seulement « remis ». `markRead` = appeler `/read` tout de suite
+  /// (retour au premier plan).
+  void setChatVisible(String conversationId, bool visible,
+      {bool markRead = false});
 }
 
 /// Logique commune (build 565). Le contrôleur fournit les fabriques de ses
@@ -89,6 +102,16 @@ mixin ChatSessionMixin<M extends ChatMessageBase,
   /// Met à jour l'aperçu « dernier message » de la conversation ouverte.
   void updateLastMessagePreview(String preview);
 
+  /// v566 — copie avec accusés (null = on garde l'existant).
+  M withReceipts(M m, {DateTime? deliveredAt, DateTime? readAt});
+
+  /// v566 — copie d'une conversation avec le statut de son dernier message.
+  C withLastReceipt(
+    C c, {
+    required bool mine,
+    required ChatReceiptStatus status,
+  });
+
   // ── état partagé ─────────────────────────────────────────────────────────
   @override
   RxList<ChatMessageBase> get messagesRx => currentChatMessages;
@@ -109,6 +132,9 @@ mixin ChatSessionMixin<M extends ChatMessageBase,
   final RxMap<String, String> translations = <String, String>{}.obs;
   @override
   final RxSet<String> translating = <String>{}.obs;
+
+  @override
+  final ValueNotifier<bool> newChatExpanded = ValueNotifier<bool>(true);
 
   final ImagePicker _mediaPicker = ImagePicker();
 
@@ -320,7 +346,7 @@ mixin ChatSessionMixin<M extends ChatMessageBase,
       }
       if (idx < 0) return;
       if (mapped != null && mapped.media.isNotEmpty) {
-        currentChatMessages[idx] = mapped;
+        currentChatMessages[idx] = applyCachedReceipts(mapped);
       } else {
         // Réponse illisible : on garde la bulle locale mais plus « en cours ».
         currentChatMessages[idx] =
@@ -360,6 +386,148 @@ mixin ChatSessionMixin<M extends ChatMessageBase,
         title: 'cs_send_failed_title'.tr,
         message: msg.length > 200 ? msg.substring(0, 200) : msg,
       );
+    }
+  }
+
+  // ── accusés de réception / lecture (v566) ────────────────────────────────
+  // Serveur → expéditeur :
+  //   message:delivered { conversationId, messageId, messageIds, deliveredAt }
+  //   message:read      { conversationId, readerId, readAt, messageIds }
+  // Les bulles se mettent à jour SANS recharger la conversation.
+
+  /// Conversation réellement affichée (≠ currentChatId, jamais remis à zéro
+  /// quand on revient à la liste).
+  String _visibleChatId = '';
+  Timer? _readDebounce;
+
+  /// Accusés arrivés avant que le message n'ait son id serveur (course entre
+  /// la réponse du POST et l'événement socket). Petit cache borné.
+  final Map<String, _CachedReceipt> _receiptCache = {};
+
+  @override
+  void setChatVisible(String conversationId, bool visible,
+      {bool markRead = false}) {
+    try {
+      if (visible) {
+        _visibleChatId = conversationId;
+        SocketService.visibleConversationId = conversationId;
+        if (markRead) _scheduleRead(conversationId);
+      } else if (_visibleChatId == conversationId) {
+        _visibleChatId = '';
+        if (SocketService.visibleConversationId == conversationId) {
+          SocketService.visibleConversationId = '';
+        }
+        _readDebounce?.cancel();
+      }
+    } catch (e) {
+      AppLogger.logError('setChatVisible failed', error: e);
+    }
+  }
+
+  /// Un message de l'autre partie arrive dans la conversation ouverte.
+  void onIncomingMessageWhileOpen(String conversationId) {
+    if (conversationId.isEmpty || _visibleChatId != conversationId) return;
+    _scheduleRead(conversationId);
+  }
+
+  void _scheduleRead(String conversationId) {
+    _readDebounce?.cancel();
+    _readDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (_visibleChatId != conversationId) return;
+      ChatApi.markRead(conversationId);
+    });
+  }
+
+  /// Rejoue un accusé mis en cache sur un message fraîchement identifié.
+  M applyCachedReceipts(M m) {
+    final c = _receiptCache.remove(m.id);
+    if (c == null) return m;
+    return withReceipts(m, deliveredAt: c.deliveredAt, readAt: c.readAt);
+  }
+
+  void _cacheReceipt(String id, {DateTime? deliveredAt, DateTime? readAt}) {
+    if (id.isEmpty) return;
+    if (_receiptCache.length > 60) {
+      _receiptCache.remove(_receiptCache.keys.first);
+    }
+    final old = _receiptCache[id];
+    _receiptCache[id] = _CachedReceipt(
+      deliveredAt: deliveredAt ?? old?.deliveredAt,
+      readAt: readAt ?? old?.readAt,
+    );
+  }
+
+  /// Handler socket unique (réf. stable) pour les deux événements.
+  void handleReceiptEvent(String event, Map<String, dynamic> data) {
+    try {
+      final conversationId = (data['conversationId'] ?? '').toString();
+      if (conversationId.isEmpty) return;
+      final isRead = event == 'message:read';
+      final at = parseChatReceiptDate(isRead ? data['readAt'] : data['deliveredAt']) ??
+          DateTime.now();
+      final ids = <String>{};
+      final rawIds = data['messageIds'];
+      if (rawIds is List) {
+        for (final v in rawIds) {
+          if (v != null) ids.add(v.toString());
+        }
+      }
+      final single = data['messageId'];
+      if (single != null && single.toString().isNotEmpty) {
+        ids.add(single.toString());
+      }
+
+      // 1) Bulles de la conversation ouverte.
+      if (conversationId == currentChatId.value) {
+        final known = <String>{};
+        var touched = false;
+        for (var i = 0; i < currentChatMessages.length; i++) {
+          final m = currentChatMessages[i];
+          known.add(m.id);
+          if (!m.isFromCurrentUser || m.isSystem) continue;
+          if (isRead) {
+            // « Lu » = pointeur : tout ce que j'ai envoyé avant `readAt`.
+            final hit = ids.contains(m.id) ||
+                (!m.isPending && !m.isFailed && !m.timestamp.isAfter(at));
+            if (hit && m.readAt == null) {
+              currentChatMessages[i] = withReceipts(
+                m,
+                deliveredAt: m.deliveredAt ?? at,
+                readAt: at,
+              );
+              touched = true;
+            }
+          } else if (ids.contains(m.id) && m.deliveredAt == null) {
+            currentChatMessages[i] = withReceipts(m, deliveredAt: at);
+            touched = true;
+          }
+        }
+        for (final id in ids) {
+          if (!known.contains(id)) {
+            _cacheReceipt(id,
+                deliveredAt: at, readAt: isRead ? at : null);
+          }
+        }
+        if (touched) currentChatMessages.refresh();
+      }
+
+      // 2) Coches de la liste des conversations.
+      for (var i = 0; i < conversations.length; i++) {
+        final c = conversations[i];
+        if (c.id != conversationId || !c.lastMessageMine) continue;
+        final current = c.lastMessageStatus;
+        if (current == ChatReceiptStatus.read) break;
+        if (!isRead && current == ChatReceiptStatus.delivered) break;
+        conversations[i] = withLastReceipt(
+          c,
+          mine: true,
+          status: isRead ? ChatReceiptStatus.read : ChatReceiptStatus.delivered,
+        );
+        conversations.refresh();
+        break;
+      }
+    } catch (e) {
+      AppLogger.logError('receipt event handling failed', error: e);
     }
   }
 
@@ -438,6 +606,12 @@ mixin ChatSessionMixin<M extends ChatMessageBase,
       translating.remove(id);
     }
   }
+}
+
+class _CachedReceipt {
+  const _CachedReceipt({this.deliveredAt, this.readAt});
+  final DateTime? deliveredAt;
+  final DateTime? readAt;
 }
 
 class _PendingUpload {

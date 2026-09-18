@@ -2901,11 +2901,24 @@ router.get('/family/invitations', requireAuth, async (req, res) => {
       if (!member) continue;
       // Récupère le nom du titulaire pour l'afficher dans la cloche.
       const ownerModel = require('../models/' + sub.userModel);
-      const ownerDoc = await ownerModel
+      let ownerDoc = await ownerModel
         .findById(sub.userId)
         .select('name avatar')
         .lean()
         .catch(() => null);
+      // v566 — titulaire introuvable dans le modèle enregistré (ancien
+      // changement de profil destructif) → on le cherche dans les deux autres
+      // collections (même _id ou oldId) pour ne plus afficher un nom vide.
+      if (!ownerDoc) {
+        for (const M of ['Owner', 'Sitter', 'Walker'].filter((m) => m !== sub.userModel)) {
+          ownerDoc = await require('../models/' + M)
+            .findOne({ $or: [{ _id: sub.userId }, { oldId: sub.userId }] })
+            .select('name avatar')
+            .lean()
+            .catch(() => null);
+          if (ownerDoc) break;
+        }
+      }
       invitations.push({
         id: String(member._id),
         invitationId: String(member._id),

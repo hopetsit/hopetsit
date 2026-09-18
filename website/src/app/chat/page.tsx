@@ -13,8 +13,12 @@ import BackLink from "@/components/BackLink";
 import {
   ApiError,
   AuthRole,
+  ChatDeliveredEvent,
   ChatFeatures,
   ChatMessage,
+  ChatReadEvent,
+  chatReceiptStatus,
+  ChatReceiptStatus,
   ChatReplyTo,
   Conversation,
   deleteConversation,
@@ -79,6 +83,38 @@ function toReplySnapshot(m: ChatMessage): ChatReplyTo {
 function isAudioAttachment(a: { resourceType?: string; type?: string; url: string }): boolean {
   const rt = String(a.resourceType || a.type || "").toLowerCase();
   return rt === "audio" || /\.(m4a|aac|mp3|ogg|wav|webm)(\?|$)/i.test(a.url || "");
+}
+
+// v566 — coches façon WhatsApp. Sur une bulle colorée, le bleu « lu » est posé
+// sur une mini-pastille blanche pour rester lisible.
+function ReceiptTicks({
+  status,
+  label,
+  onColor = false,
+}: {
+  status: ChatReceiptStatus;
+  label: string;
+  onColor?: boolean;
+}) {
+  const read = status === "read";
+  const glyph = status === "sent" ? "✓" : "✓✓";
+  return (
+    <span
+      title={label}
+      aria-label={label}
+      className={`shrink-0 text-[11px] font-bold leading-none tracking-[-0.15em] ${
+        read
+          ? onColor
+            ? "rounded-full bg-white/95 px-1 py-px text-[#34B7F1]"
+            : "text-[#34B7F1]"
+          : onColor
+            ? "text-white/70"
+            : "text-ink-muted"
+      }`}
+    >
+      {glyph}
+    </span>
+  );
 }
 
 export default function ChatPage() {
@@ -230,11 +266,49 @@ export default function ChatPage() {
       // Si le message arrive pour la conversation actuellement ouverte, on
       // l'append à la liste. Sinon on bump l'unreadCount dans la liste des
       // conversations (et on refresh pour mettre à jour le lastMessage).
+      // v566 — accusés façon WhatsApp. Message REÇU dans la conversation
+      // ouverte et onglet visible → lu (`conversation:read` pose readAt côté
+      // serveur) ; sinon simple accusé de réception (`message:delivered`).
+      // Le serveur ne répond qu'à l'EXPÉDITEUR → aucune boucle.
+      const fromOther =
+        !!msg.id && !!msg.senderId && msg.senderId !== user?.id &&
+        String(msg.senderRole) !== "system";
+      if (fromOther) {
+        const sock = getSocket();
+        const visible =
+          typeof document === "undefined" || document.visibilityState === "visible";
+        if (sock && msg.conversationId === activeId && visible && user) {
+          sock.emit("conversation:read", {
+            conversationId: msg.conversationId,
+            role: user.role,
+            userId: user.id,
+          });
+        } else if (sock && !msg.deliveredAt && !ackedRef.current.has(msg.id)) {
+          ackedRef.current.add(msg.id);
+          sock.emit("message:delivered", {
+            conversationId: msg.conversationId,
+            messageId: msg.id,
+          });
+        }
+      }
       if (msg.conversationId === activeId) {
         setMessages((prev) => {
           if (prev.some((m) => m.id === msg.id)) return prev; // dédup
           return [...prev, msg];
         });
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === msg.conversationId
+              ? {
+                  ...c,
+                  lastMessage: msg.body || c.lastMessage,
+                  lastMessageAt: msg.createdAt,
+                  lastMessageMine: !fromOther,
+                  lastMessageStatus: "sent" as ChatReceiptStatus,
+                }
+              : c,
+          ),
+        );
       } else {
         // Bump unread sur la conv concernée, et hoist en haut.
         setConversations((prev) => {
@@ -245,7 +319,9 @@ export default function ChatPage() {
             ...next[idx],
             lastMessage: msg.body,
             lastMessageAt: msg.createdAt,
-            unreadCount: (next[idx].unreadCount || 0) + 1,
+            unreadCount: (next[idx].unreadCount || 0) + (fromOther ? 1 : 0),
+            lastMessageMine: !fromOther,
+            lastMessageStatus: "sent" as ChatReceiptStatus,
           };
           next.splice(idx, 1);
           return [target, ...next];
@@ -253,6 +329,67 @@ export default function ChatPage() {
       }
     },
   );
+
+  // v566 — `message:read` / `message:delivered` : les coches se mettent à
+  // jour sans recharger. « Lu » est un pointeur : tous MES messages envoyés
+  // avant `readAt` sont lus.
+  const ackedRef = useRef<Set<string>>(new Set());
+  function bumpListStatus(conversationId: string, status: ChatReceiptStatus) {
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id !== conversationId || !c.lastMessageMine) return c;
+        if (c.lastMessageStatus === "read") return c;
+        if (status === "delivered" && c.lastMessageStatus === "delivered") return c;
+        return { ...c, lastMessageStatus: status };
+      }),
+    );
+  }
+  useSocketEvent<ChatReadEvent>("message:read", (data) => {
+    if (!data?.conversationId) return;
+    const readAt = data.readAt || new Date().toISOString();
+    const ids = new Set(data.messageIds || []);
+    const limit = new Date(readAt).getTime();
+    if (data.conversationId === activeId) {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.senderId !== user?.id || m.readAt) return m;
+          const hit = ids.has(m.id) || new Date(m.createdAt).getTime() <= limit;
+          return hit ? { ...m, deliveredAt: m.deliveredAt || readAt, readAt } : m;
+        }),
+      );
+    }
+    bumpListStatus(data.conversationId, "read");
+  });
+  useSocketEvent<ChatDeliveredEvent>("message:delivered", (data) => {
+    if (!data?.conversationId) return;
+    const deliveredAt = data.deliveredAt || new Date().toISOString();
+    const ids = new Set([...(data.messageIds || []), data.messageId].filter(Boolean));
+    if (data.conversationId === activeId) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          ids.has(m.id) && m.senderId === user?.id && !m.deliveredAt
+            ? { ...m, deliveredAt }
+            : m,
+        ),
+      );
+    }
+    bumpListStatus(data.conversationId, "delivered");
+  });
+
+  // v566 — l'onglet redevient visible avec une conversation ouverte → lu.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || !activeId || !user) return;
+      getSocket()?.emit("conversation:read", {
+        conversationId: activeId,
+        role: user.role,
+        userId: user.id,
+      });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId]);
 
   useSocketEvent<{ conversationId: string; messageId: string }>(
     "message:deleted",
@@ -262,6 +399,16 @@ export default function ChatPage() {
       }
     },
   );
+
+  // v566 — « Lu · heure » : sous le DERNIER de mes messages lus.
+  let lastReadId = "";
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.senderId === user?.id && m.readAt) {
+      lastReadId = m.id;
+      break;
+    }
+  }
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -284,6 +431,20 @@ export default function ChatPage() {
         if (prev.some((m) => m.id === saved.id)) return prev;
         return [...prev, saved];
       });
+      // v566 — le dernier message est le mien : ✓ devant l'aperçu.
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeId
+            ? {
+                ...c,
+                lastMessage: body,
+                lastMessageAt: saved.createdAt,
+                lastMessageMine: true,
+                lastMessageStatus: chatReceiptStatus(saved),
+              }
+            : c,
+        ),
+      );
     } catch (e) {
       const disabled =
         e instanceof ApiError &&
@@ -533,8 +694,15 @@ export default function ChatPage() {
                     )}
                   </div>
                   {c.lastMessage && (
-                    <div className="mt-1 truncate text-xs text-ink-muted">
-                      {c.lastMessage}
+                    <div className="mt-1 flex items-center gap-1 text-xs text-ink-muted">
+                      {/* v566 — coches quand le dernier message est le mien. */}
+                      {c.lastMessageMine && c.lastMessageStatus && (
+                        <ReceiptTicks
+                          status={c.lastMessageStatus}
+                          label={t(`chat_receipt_${c.lastMessageStatus}`)}
+                        />
+                      )}
+                      <span className="truncate">{c.lastMessage}</span>
                     </div>
                   )}
                 </button>
@@ -762,15 +930,37 @@ export default function ChatPage() {
                               </div>
                             )}
                           <div
-                            className={`mt-0.5 text-[10px] ${
-                              mine ? "text-white/70" : "text-ink-muted"
+                            className={`mt-0.5 flex items-center gap-1 text-[10px] ${
+                              mine ? "justify-end text-white/70" : "text-ink-muted"
                             }`}
                           >
-                            {new Date(m.createdAt).toLocaleTimeString("fr-FR", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            <span>
+                              {new Date(m.createdAt).toLocaleTimeString("fr-FR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                            {/* v566 — ✓ envoyé / ✓✓ remis / ✓✓ bleu lu. */}
+                            {mine && (
+                              <ReceiptTicks
+                                status={chatReceiptStatus(m)}
+                                label={t(`chat_receipt_${chatReceiptStatus(m)}`)}
+                                onColor
+                              />
+                            )}
                           </div>
+                          {/* v566 — « Lu · heure » sous le DERNIER message lu. */}
+                          {mine && m.id === lastReadId && m.readAt && (
+                            <div className="mt-0.5 text-right text-[10px] font-semibold text-white/85">
+                              {t("chat_read_at").replace(
+                                "{time}",
+                                new Date(m.readAt).toLocaleTimeString("fr-FR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }),
+                              )}
+                            </div>
+                          )}
                         </div>
                         {/* v565 — « Répondre » (masqué si l'admin a coupé la fonction). */}
                         {features.reply && (

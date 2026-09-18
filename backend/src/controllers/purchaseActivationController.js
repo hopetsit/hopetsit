@@ -106,8 +106,11 @@ async function activateMapBoostFromWebhook({ piId, metadata }) {
   user.boostPurchases = user.boostPurchases || [];
   user.boostPurchases.push({
     tier,
-    amount: 0, // amount is on the Airwallex side; we keep the entry minimal
-    currency,
+    // v566 — montant RÉELLEMENT débité (avant : 0, « tracé côté Airwallex »).
+    ...(() => {
+      const { amount, currency: cur, paymentProvider: _p, ...extra } = _paidLine(metadata, currency);
+      return { amount: amount ?? 0, currency: cur, ...extra };
+    })(),
     days,
     purchasedAt: now,
     paymentProvider: 'airwallex',
@@ -145,7 +148,67 @@ async function activateMapBoostFromWebhook({ piId, metadata }) {
  * Activate a PawFollow / premium subscription purchase from a webhook.
  * Idempotent on the metadata.paymentId field of UserSubscription.history.
  */
+// v566 — le paiement a RÉUSSI : on consomme les réductions réservées sur
+// cette intention. Appelé AVANT le verrou d'activation et sur tous les chemins
+// (webhook, /confirm, wallet) : la consommation est atomique et idempotente,
+// donc « /confirm puis webhook » ne consomme qu'une fois.
+async function _consumeDiscounts(piId, metadata, label) {
+  try {
+    const refs = metadata?.discountRefs;
+    if (!refs) return 0;
+    const { consumeDiscounts } = require('../services/discountReservationService');
+    return await consumeDiscounts({ refs, piId });
+  } catch (e) {
+    logger.warn(`[${label}] consume discounts failed (non bloquant) : ${e.message}`);
+    return 0;
+  }
+}
+
+// v566 — prestataire normalisé pour l'historique des paiements.
+function _paymentProvider(metadata) {
+  const raw = String(metadata?.provider || '').toLowerCase();
+  if (raw === 'paypal') return 'paypal';
+  if (raw === 'wallet') return 'wallet';
+  if (raw === 'apple' || raw === 'apple_iap') return 'apple';
+  return 'airwallex';
+}
+
+// v566 — comptabilité à montants RÉELS. Montant réellement débité, dans
+// l'ordre : `providerAmount` (montant de l'intention lu chez le prestataire :
+// événement webhook ou intention vérifiée par /confirm), `paidAmount` (posé
+// dans les métadonnées à la création, après réduction), `amount` (Apple IAP,
+// historique). Renvoie aussi devise, prestataire, source et plateforme.
+function _paidLine(metadata, fallbackCurrency) {
+  const pick = (v) => {
+    if (v === undefined || v === null || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  };
+  const provider = _paymentProvider(metadata);
+  const amount = pick(metadata?.providerAmount) ?? pick(metadata?.paidAmount) ?? pick(metadata?.amount);
+  const { normalizePlatform } = require('../utils/purchasePlatform');
+  const line = {
+    amount,
+    currency: String(
+      metadata?.providerCurrency || metadata?.currency || fallbackCurrency || 'EUR',
+    ).toUpperCase(),
+    paymentProvider: provider,
+  };
+  // Apple : la source ('store' ou rien si prix catalogue) est décidée par
+  // appleIapService ; carte / wallet : montant du prestataire = 'psp'.
+  const source = metadata?.amountSource || (provider !== 'apple' && amount !== null ? 'psp' : '');
+  if (source) line.amountSource = source;
+  const platform = normalizePlatform(metadata?.platform) || (provider === 'apple' ? 'ios' : '');
+  if (platform) line.platform = platform;
+  if (metadata?.environment) line.environment = String(metadata.environment);
+  if (metadata?.storefront) line.storefront = String(metadata.storefront);
+  if (metadata?.originalTransactionId) line.originalTransactionId = String(metadata.originalTransactionId);
+  if (String(metadata?.environment || '') === 'Sandbox') line.excludedFromRevenue = true;
+  return line;
+}
+
 async function activateSubscriptionFromWebhook({ piId, metadata }) {
+  await _consumeDiscounts(piId, metadata, 'subscription');
   if (!(await _claimPurchase(piId, 'subscription'))) return { skipped: true, reason: 'already_activated' };
   const userId = metadata?.userId;
   const role = metadata?.role;
@@ -255,6 +318,26 @@ async function activateSubscriptionFromWebhook({ piId, metadata }) {
     currency,
   });
 
+  // v566 — ligne comptable `payments` avec le montant RÉELLEMENT payé (après
+  // réduction), la devise et le vrai prestataire. Avant : ce chemin (webhook,
+  // wallet) n'écrivait QUE `history` → l'achat n'apparaissait pas dans les
+  // revenus. Apple IAP écrit sa propre ligne (appleIapService) → ignoré ici.
+  const paid = _paidLine(metadata, currency);
+  if (paid.paymentProvider !== 'apple' && paid.amount !== null) {
+    sub.payments = sub.payments || [];
+    if (!sub.payments.some((pm) => pm.paymentIntentId === String(piId))) {
+      const { paymentProvider, ...rest } = paid;
+      sub.payments.push({
+        plan,
+        ...rest,
+        paidAt: now,
+        paymentProvider,
+        paymentIntentId: String(piId),
+        periodEnd: newExpiry,
+      });
+    }
+  }
+
   await sub.save();
 
   logger.info(
@@ -339,10 +422,12 @@ async function activateBoostFromWebhook({ piId, metadata }) {
   user.boostPurchases = user.boostPurchases || [];
   user.boostPurchases.push({
     tier,
-    // v508 - Apple IAP passe le prix catalogue via metadata.amount ;
-    // Airwallex reste a 0 (montant trace ailleurs) = inchange.
-    amount: Number(metadata?.amount || 0),
-    currency,
+    // v566 — montant RÉELLEMENT payé : prix réel App Store (metadata.amount +
+    // amountSource 'store') ou montant débité par Airwallex (avant : 0).
+    ...(() => {
+      const { amount, currency: cur, paymentProvider: _p, ...extra } = _paidLine(metadata, currency);
+      return { amount: amount ?? 0, currency: cur, ...extra };
+    })(),
     days,
     purchasedAt: now,
     paymentProvider: metadata?.provider || 'airwallex',
@@ -424,7 +509,8 @@ async function activateChatAddonFromWebhook({ piId, metadata }) {
   addon.currency = currency;
   addon.payments = payments;
   addon.payments.push({
-    amount: Number(metadata?.amount) || 0,
+    // v566 — montant réellement débité (webhook : montant de l'intention).
+    amount: _paidLine(metadata, currency).amount ?? 0,
     currency,
     paidAt: now,
     paymentProvider: 'airwallex',
@@ -457,8 +543,17 @@ async function activateChatAddonFromWebhook({ piId, metadata }) {
  * communautaire (4,99 €/mois · 39,99 €/an). Idempotent par paymentId via
  * UserSubscription.history (kind 'pawspot').
  */
-async function activatePawSpotFromWebhook({ piId, metadata }) {
-  if (!(await _claimPurchase(piId, 'pawspot'))) return { skipped: true, reason: 'already_activated' };
+// v566 — `alreadyClaimed` : POST /pawspots/confirm a DÉJÀ posé le verrou
+// anti-rejeu (assertPaidIntent écrit la même clé `purchase:<piId>`). Sans ce
+// paramètre, l'appel ci-dessous trouvait sa propre clé, concluait « déjà
+// activé par l'autre chemin » et n'activait JAMAIS PawSpot quand /confirm
+// arrivait avant le webhook (le webhook, lui, voyait ensuite la clé aussi).
+// L'idempotence reste garantie par pawspotHistory.paymentId.
+async function activatePawSpotFromWebhook({ piId, metadata, alreadyClaimed = false }) {
+  await _consumeDiscounts(piId, metadata, 'pawspot');
+  if (!alreadyClaimed && !(await _claimPurchase(piId, 'pawspot'))) {
+    return { skipped: true, reason: 'already_activated' };
+  }
   const UserSubscription = require('../models/UserSubscription');
   const userId = metadata?.userId;
   const role = String(metadata?.role || 'owner').toLowerCase();
@@ -478,6 +573,25 @@ async function activatePawSpotFromWebhook({ piId, metadata }) {
     ? new Date(sub.pawspotExpiry) : now;
   sub.pawspotExpiry = new Date(base.getTime() + days * 86400000);
   sub.pawspotHistory.push({ paymentId: piId || '', at: now, days });
+  // v566 — ligne comptable : PawSpot payé par carte / wallet ne laissait AUCUN
+  // montant (seulement pawspotHistory : id + jours). Apple IAP écrit sa propre
+  // ligne (appleIapService) → ignoré ici. Idempotent sur paymentIntentId.
+  const paid = _paidLine(metadata, metadata?.currency);
+  if (piId && paid.paymentProvider !== 'apple' && paid.amount !== null) {
+    sub.payments = sub.payments || [];
+    if (!sub.payments.some((pm) => pm.paymentIntentId === String(piId))) {
+      const { paymentProvider, ...rest } = paid;
+      sub.payments.push({
+        plan: days >= 365 ? 'pawspot_yearly' : 'pawspot_monthly',
+        ...rest,
+        paidAt: now,
+        paymentProvider,
+        paymentIntentId: String(piId),
+        periodStart: base,
+        periodEnd: sub.pawspotExpiry,
+      });
+    }
+  }
   await sub.save();
   return { pawspotExpiry: sub.pawspotExpiry };
 }

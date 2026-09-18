@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/chat_shared/pawfollow_widgets.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:intl/intl.dart';
 
@@ -50,6 +51,10 @@ class PawfollowRequestCard extends StatelessWidget {
     // carte" affiché sur la carte quand status=='accepted' et que je
     // suis du côté receveur de la position (typiquement owner).
     this.onOpenMap,
+    // v566 — état « envoi de la réponse » (boutons figés + roue) et
+    // expiration de la demande.
+    this.busy = false,
+    this.expiresAt,
   });
 
   final String messageId;
@@ -69,6 +74,11 @@ class PawfollowRequestCard extends StatelessWidget {
   final String? serviceType;
   // v23.1 part 206 — callback "Voir sur la carte" (cf. note plus haut)
   final VoidCallback? onOpenMap;
+  // v566
+  final bool busy;
+  final DateTime? expiresAt;
+
+  static const _green = Color(0xFF16A34A);
 
   static const _orangeBrand = Color(0xFFC92A12);
 
@@ -99,10 +109,30 @@ class PawfollowRequestCard extends StatelessWidget {
       headerText = 'pawfollow_request_generic'.tr;
     }
 
+    // v566 — une demande restée sans réponse après `expiresAt` est EXPIRÉE :
+    // état clair, plus de boutons (le serveur refuserait de toute façon).
+    final bool ended = status == 'accepted' &&
+        endAt != null &&
+        endAt!.isBefore(DateTime.now());
+    final bool expired = status == 'expired' ||
+        (status == 'pending' &&
+            expiresAt != null &&
+            expiresAt!.isBefore(DateTime.now()));
+    final bool canRespond = status == 'pending' && isResponder && !expired;
+    final bool trackingActive = status == 'accepted' && !ended;
+
     String statusBadge;
     Color statusColor;
     IconData statusIcon;
-    if (status == 'accepted') {
+    if (expired) {
+      statusBadge = 'cs_pf_status_expired'.tr;
+      statusColor = AppColors.greyColor;
+      statusIcon = Icons.timer_off_rounded;
+    } else if (ended) {
+      statusBadge = 'cs_pf_status_ended'.tr;
+      statusColor = AppColors.greyColor;
+      statusIcon = Icons.flag_rounded;
+    } else if (status == 'accepted') {
       statusBadge = 'pawfollow_status_accepted'.tr;
       statusColor = const Color(0xFF16A34A);
       statusIcon = Icons.check_circle_rounded;
@@ -366,7 +396,7 @@ class PawfollowRequestCard extends StatelessWidget {
             ],
 
             // ── Bullets de rassurance (mockup : 3 cases avec check) ───
-            if (status == 'pending' && isResponder) ...[
+            if (canRespond) ...[
               const Divider(height: 1, thickness: 0.6, color: Color(0xFFE5E7EB)),
               Padding(
                 padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 10.h),
@@ -384,7 +414,7 @@ class PawfollowRequestCard extends StatelessWidget {
             ],
 
             // ── Actions Accepter / Plus tard (mockup) ─────────────────
-            if (status == 'pending' && isResponder) ...[
+            if (canRespond) ...[
               Padding(
                 padding: EdgeInsets.fromLTRB(14.w, 4.h, 14.w, 12.h),
                 child: Column(
@@ -394,8 +424,18 @@ class PawfollowRequestCard extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        icon: const Icon(Icons.check_circle_rounded,
-                            color: Colors.white),
+                        icon: busy
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              )
+                            : const Icon(Icons.check_circle_rounded,
+                                color: Colors.white),
                         label: Padding(
                           padding: EdgeInsets.symmetric(vertical: 2.h),
                           child: InterText(
@@ -405,17 +445,20 @@ class PawfollowRequestCard extends StatelessWidget {
                             color: Colors.white,
                           ),
                         ),
+                        // v566 — Accepter = VERT, Refuser = gris (états clairs).
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _orangeBrand,
+                          backgroundColor: _green,
+                          disabledBackgroundColor:
+                              _green.withValues(alpha: 0.6),
                           foregroundColor: Colors.white,
                           padding: EdgeInsets.symmetric(vertical: 12.h),
                           elevation: 3,
-                          shadowColor: _orangeBrand.withValues(alpha: 0.5),
+                          shadowColor: _green.withValues(alpha: 0.45),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14.r),
                           ),
                         ),
-                        onPressed: onAccept,
+                        onPressed: busy ? null : onAccept,
                       ),
                     ),
                     SizedBox(height: 8.h),
@@ -424,20 +467,22 @@ class PawfollowRequestCard extends StatelessWidget {
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           padding: EdgeInsets.symmetric(vertical: 12.h),
+                          backgroundColor:
+                              AppColors.greyColor.withValues(alpha: 0.10),
                           side: BorderSide(
-                            color: _orangeBrand.withValues(alpha: 0.5),
+                            color: AppColors.greyColor.withValues(alpha: 0.45),
                             width: 1.2,
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14.r),
                           ),
                         ),
-                        onPressed: onRefuse,
+                        onPressed: busy ? null : onRefuse,
                         child: InterText(
-                          text: 'pawfollow_later'.tr,
+                          text: 'cs_pf_refuse'.tr,
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w700,
-                          color: _orangeBrand,
+                          color: AppColors.textSecondary(context),
                         ),
                       ),
                     ),
@@ -453,34 +498,18 @@ class PawfollowRequestCard extends StatelessWidget {
             // un callback onOpenMap (typiquement le owner side qui sait
             // récupérer bookingId via metadata et naviguer vers
             // LiveWalkMapScreen).
+            // v566 — « Suivi actif → Ouvrir la carte » : pilule violette
+            // PawFollow avec point vert animé tant que le suivi est en cours.
             if (status == 'accepted' && onOpenMap != null) ...[
               Padding(
-                padding: EdgeInsets.fromLTRB(14.w, 4.h, 14.w, 4.h),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.map_rounded, color: Colors.white),
-                    label: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 2.h),
-                      child: InterText(
-                        text: 'pawfollow_open_map'.tr,
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _orangeBrand,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 12.h),
-                      elevation: 3,
-                      shadowColor: _orangeBrand.withValues(alpha: 0.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14.r),
-                      ),
-                    ),
-                    onPressed: onOpenMap,
-                  ),
+                padding: EdgeInsets.fromLTRB(14.w, 6.h, 14.w, 6.h),
+                child: PawFollowPrimaryButton(
+                  label: trackingActive
+                      ? 'cs_pf_active_open_map'.tr
+                      : 'pawfollow_open_map'.tr,
+                  icon: Icons.map_rounded,
+                  live: trackingActive,
+                  onTap: onOpenMap,
                 ),
               ),
             ],
@@ -523,7 +552,7 @@ class PawfollowRequestCard extends StatelessWidget {
                 ),
               ),
             ] else
-              SizedBox(height: status == 'pending' && isResponder ? 0 : 12.h),
+              SizedBox(height: canRespond ? 0 : 12.h),
           ],
         ),
       ),

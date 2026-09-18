@@ -592,11 +592,20 @@ class _PromoPopupState extends State<PromoPopup> with SingleTickerProviderStateM
     if (!_visible) return const SizedBox.shrink();
     final role = GetStorage().read<String>(StorageKeys.userRole);
     final accent = profileAccentFor(role);
-    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
+    // v566 — Daniel : « le pop-up sur Android est trop bas, derrière le menu ».
+    // Le Scaffold du wrapper est en `extendBody: true` : dans le corps,
+    // `MediaQuery.padding.bottom` vaut EXACTEMENT la hauteur réelle du menu
+    // flottant + l'inset système (Android 3 boutons, gestes, iPhone). On se
+    // pose donc 12 px au-dessus, au lieu d'une marge fixe (86) qui passait
+    // sous le menu sur Android et le frôlait sur iPhone. Plancher de sécurité
+    // si le menu est masqué (carte agrandie).
+    final mq = MediaQuery.of(context);
+    final double clearance =
+        mq.padding.bottom > mq.viewPadding.bottom ? mq.padding.bottom : mq.viewPadding.bottom + 96;
     return Positioned(
       left: 14.w,
       right: 14.w,
-      bottom: 86.h + bottomInset,
+      bottom: clearance + 12,
       child: SlideTransition(
         position: _slide,
         child: Material(

@@ -95,6 +95,11 @@ const userChatAddonSchema = new mongoose.Schema(
         currency: { type: String, default: 'EUR' },
         paidAt: { type: Date, default: Date.now },
         paymentProvider: { type: String, default: 'stripe' },
+        // v566 — montant lu chez le prestataire + plateforme d'origine.
+        amountSource: { type: String },
+        platform: { type: String },
+        excludedFromRevenue: { type: Boolean },
+        refundedAt: { type: Date },
         paymentIntentId: String,
         periodStart: Date,
         periodEnd: Date,

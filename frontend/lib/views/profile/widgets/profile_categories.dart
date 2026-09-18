@@ -10,6 +10,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
+import 'package:hopetsit/controllers/billing_info_controller.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/models/profile_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
@@ -27,6 +28,7 @@ import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/profile/add_task_screen.dart';
+import 'package:hopetsit/views/profile/billing_info_screen.dart';
 import 'package:hopetsit/views/profile/bug_report_screen.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
 import 'package:hopetsit/views/profile/my_pets_screen.dart';
@@ -324,6 +326,8 @@ class ProfileCategories extends StatelessWidget {
               color: accent,
               onTap: () => Get.to(() => const IbanSetupScreen()),
             ),
+          // v566 — informations de facturation (NIF, SIRET, TVA…) des 3 rôles.
+          BillingInfoRow(accent: accent),
         ]),
       ],
     );
@@ -505,5 +509,43 @@ class ProfileCategories extends StatelessWidget {
         ]),
       ],
     );
+  }
+}
+
+/// v566 — rangée « Informations de facturation » (Paiements & wallet, 3 rôles).
+/// Sous-titre = résumé « CIF · B12345678 » une fois rempli, sinon l'invitation.
+class BillingInfoRow extends StatefulWidget {
+  final Color accent;
+  const BillingInfoRow({super.key, required this.accent});
+
+  @override
+  State<BillingInfoRow> createState() => _BillingInfoRowState();
+}
+
+class _BillingInfoRowState extends State<BillingInfoRow> {
+  late final BillingInfoController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = BillingInfoController.ensure();
+    // Après la 1re frame : jamais de changement d'état pendant un build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _c.loadIfNeeded();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final summary = _c.info.value.summary;
+      return ProfileRow(
+        icon: Icons.request_quote_rounded,
+        title: 'billing_title'.tr,
+        subtitle: summary.isNotEmpty ? summary : 'billing_row_subtitle'.tr,
+        color: widget.accent,
+        onTap: () => Get.to(() => BillingInfoScreen(accent: widget.accent)),
+      );
+    });
   }
 }

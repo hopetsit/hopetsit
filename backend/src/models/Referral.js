@@ -20,6 +20,11 @@ const referralSchema = new mongoose.Schema(
     // prochain achat d'abonnement (cf subscriptionRoutes /subscribe).
     rewardConsumed: { type: Boolean, default: false },
     rewardConsumedAt: { type: Date, default: null },
+    // v566 — réservée sur l'intention de paiement (30 min), consommée à la
+    // réussite du paiement (discountReservationService).
+    rewardReservedIntentId: { type: String, default: '' },
+    rewardReservedUntil: { type: Date, default: null },
+    rewardConsumedIntentId: { type: String, default: '' },
   },
   { timestamps: true }
 );

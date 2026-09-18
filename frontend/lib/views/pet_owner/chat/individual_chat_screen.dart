@@ -24,6 +24,7 @@ import 'package:hopetsit/views/chat_shared/chat_header.dart';
 import 'package:hopetsit/views/chat_shared/chat_models.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/views/chat_shared/contacts_locked_sheet.dart';
+import 'package:hopetsit/views/chat_shared/pawfollow_widgets.dart';
 import 'package:hopetsit/widgets/pawfollow_request_card.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
@@ -283,6 +284,9 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
       onAccept: () => _respondPawfollow(message, 'accept'),
       onRefuse: () => _respondPawfollow(message, 'refuse'),
       onOpenMap: openMap,
+      // v566 — réponse en cours (boutons figés) + expiration.
+      busy: _respondingIds.contains(message.id),
+      expiresAt: message.pawfollowExpiresAt,
       // v23.1 part 200 — snapshot booking
       petName: message.pawfollowPetName,
       petPhoto: message.pawfollowPetPhoto,
@@ -294,10 +298,46 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     );
   }
 
+  // v566 — réponses Accepter / Refuser en cours (anti double-tap).
+  final Set<String> _respondingIds = <String>{};
+
+  /// v566 — pilule d'en-tête « En direct · voir la carte » : ouvre la PawMap
+  /// centrée sur le correspondant (position fraîche via peer-position).
+  Future<void> _openLiveMap(ChatMessageBase message) async {
+    double? lat = message.pawfollowLastLat;
+    double? lng = message.pawfollowLastLng;
+    String? peerId;
+    String? peerRole;
+    try {
+      final r = await Get.find<ApiClient>().get(
+        '/conversations/${widget.conversationId}/peer-position',
+        requiresAuth: true,
+      );
+      if (r is Map) {
+        if (r['lat'] is num && r['lng'] is num) {
+          lat = (r['lat'] as num).toDouble();
+          lng = (r['lng'] as num).toDouble();
+        }
+        peerId = r['peerId']?.toString();
+        peerRole = r['peerRole']?.toString();
+      }
+    } catch (_) {/* on ouvre quand même la carte */}
+    if (!mounted) return;
+    Get.to(() => PawMapScreen(
+          initialLat: lat,
+          initialLng: lng,
+          focusUserId: peerId,
+          focusUserRole: peerRole,
+          focusUserName: widget.contactName,
+        ));
+  }
+
   Future<void> _respondPawfollow(
     ChatMessage message,
     String action,
   ) async {
+    if (_respondingIds.contains(message.id)) return;
+    setState(() => _respondingIds.add(message.id));
     try {
       final repo = Get.find<OwnerRepository>();
       await repo.respondPawfollowRequest(
@@ -324,10 +364,43 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         title: 'common_error'.tr,
         message: e.toString().replaceAll('ApiException:', '').trim(),
       );
+    } finally {
+      if (mounted) setState(() => _respondingIds.remove(message.id));
     }
   }
 
+  /// v566 — feuille de demande modernisée (views/chat_shared/
+  /// pawfollow_widgets.dart) : s'ouvre TOUT DE SUITE (plus d'attente sur la
+  /// liste des réservations), affiche l'envoi, puis une erreur lisible avec
+  /// un bouton vers la boutique quand il faut PawFollow / une réservation.
+  /// L'ancien écran plein format reste disponible (_onSuivreTapLegacy).
   Future<void> _onSuivreTap() async {
+    String petName = '';
+    for (final m in chatController.currentChatMessages.reversed) {
+      if (m.isPawfollowRequest && m.pawfollowPetName.isNotEmpty) {
+        petName = m.pawfollowPetName;
+        break;
+      }
+    }
+    final sent = await showPawFollowRequestSheet(
+      context,
+      contactName: widget.contactName,
+      contactImage: widget.contactImage,
+      petName: petName,
+      onSend: () => Get.find<OwnerRepository>()
+          .requestLiveTrackingByConversation(
+        conversationId: widget.conversationId,
+      ),
+    );
+    if (!sent || !mounted) return;
+    await chatController.loadChatMessages(
+      widget.conversationId,
+      contactName: widget.contactName,
+    );
+  }
+
+  // ignore: unused_element
+  Future<void> _onSuivreTapLegacy() async {
     try {
       final repo = Get.find<OwnerRepository>();
 
@@ -577,7 +650,8 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
           icon: Icons.location_on_rounded,
           label: 'follow_button_live_my_pet'.tr,
           subtitle: 'cs_action_pawfollow_sub'.tr,
-          color: const Color(0xFF7C3AED),
+          color: kPawFollowPurple,
+          highlight: true,
           onTap: _onSuivreTap,
         ),
       ];
@@ -624,12 +698,18 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         contactName: widget.contactName,
         contactImage: widget.contactImage,
         actions: [
-          ChatHeaderPill(
-            icon: Icons.location_on_rounded,
-            label: 'follow_button_live_my_pet'.tr,
-            onTap: _onSuivreTap,
-            theme: t,
-          ),
+          // v566 — pilule violette PawFollow ; suivi EN COURS → point vert
+          // animé + « En direct · voir la carte » (ouvre la PawMap).
+          Obx(() {
+            final live =
+                pawFollowLiveMessage(chatController.currentChatMessages);
+            return PawFollowPill(
+              icon: Icons.my_location_rounded,
+              label: 'follow_button_live_my_pet'.tr,
+              live: live != null,
+              onTap: live != null ? () => _openLiveMap(live) : _onSuivreTap,
+            );
+          }),
         ],
       ),
       body: ChatConversationBody(

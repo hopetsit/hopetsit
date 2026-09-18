@@ -9,6 +9,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/chat_shared/chat_bubble.dart';
 import 'package:hopetsit/views/chat_shared/chat_models.dart';
+import 'package:hopetsit/views/chat_shared/chat_receipt_ticks.dart';
 import 'package:hopetsit/views/chat_shared/chat_session.dart';
 import 'package:hopetsit/views/chat_shared/chat_states.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
@@ -42,13 +43,38 @@ class ChatConversationBody extends StatefulWidget {
   State<ChatConversationBody> createState() => _ChatConversationBodyState();
 }
 
-class _ChatConversationBodyState extends State<ChatConversationBody> {
+class _ChatConversationBodyState extends State<ChatConversationBody>
+    with WidgetsBindingObserver {
   final ScrollController _scroll = ScrollController();
   final Map<String, GlobalKey> _keys = {};
   String? _highlightId;
 
+  // v566 — « lu » façon WhatsApp : la conversation n'est LUE que tant que cet
+  // écran est affiché et l'app au premier plan. (currentChatId du contrôleur
+  // n'est jamais remis à zéro au retour à la liste : il ne suffit pas.)
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    widget.session.setChatVisible(widget.conversationId, true);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      widget.session
+          .setChatVisible(widget.conversationId, true, markRead: true);
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      widget.session.setChatVisible(widget.conversationId, false);
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    widget.session.setChatVisible(widget.conversationId, false);
     _scroll.dispose();
     super.dispose();
   }
@@ -140,7 +166,7 @@ class _ChatConversationBodyState extends State<ChatConversationBody> {
   }
 
   Widget _item(BuildContext context, ChatMessageBase m, ChatMessageBase? older,
-      ChatMessageBase? newer) {
+      ChatMessageBase? newer, {bool showReadLabel = false}) {
     Widget content;
     final special = widget.specialCardBuilder(m);
     if (special != null) {
@@ -174,6 +200,15 @@ class _ChatConversationBodyState extends State<ChatConversationBody> {
         onQuoteTap: _scrollToMessage,
         highlighted: _highlightId == m.id,
         showAvatar: showAvatar,
+        showReadLabel: showReadLabel,
+      );
+    }
+    // v566 — cartes (adresse, numéro, PawFollow) : « Lu · heure » posé dessous.
+    if (showReadLabel && m.readAt != null && content is! ChatMessageBubble) {
+      content = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [content, ChatReadLabel(readAt: m.readAt!)],
       );
     }
     final needsDay = older == null || !chatSameDay(older.timestamp, m.timestamp);
@@ -225,6 +260,15 @@ class _ChatConversationBodyState extends State<ChatConversationBody> {
             },
           );
         }
+        // v566 — « Lu · heure » sous le DERNIER de mes messages lus.
+        String lastReadId = '';
+        for (var k = msgs.length - 1; k >= 0; k--) {
+          final x = msgs[k];
+          if (x.isFromCurrentUser && !x.isDeleted && x.readAt != null) {
+            lastReadId = x.id;
+            break;
+          }
+        }
         return SafeArea(
           top: false,
           child: Column(
@@ -251,7 +295,8 @@ class _ChatConversationBodyState extends State<ChatConversationBody> {
                           final m = msgs[i];
                           final older = i > 0 ? msgs[i - 1] : null;
                           final newer = i < msgs.length - 1 ? msgs[i + 1] : null;
-                          return _item(context, m, older, newer);
+                          return _item(context, m, older, newer,
+                              showReadLabel: m.id == lastReadId);
                         },
                       ),
               ),

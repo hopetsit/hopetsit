@@ -166,6 +166,19 @@ const emitChatMessage = (conversation, event, payload) => {
   }
 };
 
+// v566 — accusés de réception/lecture : UNE seule diffusion vers les 3 rooms
+// de rôle de chaque destinataire (socket.io dédoublonne les sockets quand
+// plusieurs rooms sont passées au même `to([...])`) → une livraison par socket.
+const emitToUsersAllRoles = (userIds, event, payload) => {
+  if (!ioInstance) return 0;
+  const ids = [...new Set((userIds || []).map((v) => (v ? String(v._id || v) : '')).filter(Boolean))];
+  if (!ids.length) return 0;
+  const rooms = [];
+  for (const id of ids) for (const r of ['owner', 'sitter', 'walker']) rooms.push(userRoom(r, id));
+  ioInstance.to(rooms).emit(event, payload);
+  return ids.length;
+};
+
 // v448 — AUDIT MESSAGERIE : présence en ligne pour le gating des emails.
 // Un utilisateur est « en ligne » (= app ouverte/connectée) s'il a au moins un
 // socket dans l'une de ses 3 rooms de rôle. On teste les 3 rôles car le même
@@ -345,6 +358,7 @@ module.exports = {
   emitToUser,
   emitToWalk,
   emitChatMessage,
+  emitToUsersAllRoles,
   isUserOnline,
   userRoom,
   walkRoom,

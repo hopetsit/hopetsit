@@ -21,6 +21,7 @@ import {
   UserProfile,
 } from "@/lib/api";
 import { PromoCodeBox } from "@/components/PromoCodeBox";
+import { BillingInfoSection } from "@/components/BillingInfoSection";
 
 // v402 — Daniel : "le badge avec le nombre de jours restants des abonnements
 // doit apparaître sur les 3 profils". Chip par abo actif (Premium / PawFollow /
@@ -613,6 +614,14 @@ export default function ProfilePage() {
           </Link>
         </div>
       </form>
+
+      {/* v566 — informations de facturation (NIF, NIE, CIF, SIRET, TVA, EIN,
+          passeport…) reprises sur les factures ; hors du <form> du profil
+          (formulaire et enregistrement séparés, synchro 3 profils côté serveur). */}
+      <BillingInfoSection
+        className="mt-10"
+        defaultCountry={(profile as { country?: string } | null)?.country || ""}
+      />
     </div>
   );
 }

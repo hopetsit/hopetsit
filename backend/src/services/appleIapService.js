@@ -131,9 +131,45 @@ async function verifySignedNotification(signedPayload) {
  * @param {{userId: string, role: string, productId: string,
  *          transactionId: string, originalTransactionId: string}} p
  */
-async function creditForTransaction({ userId, role, productId, transactionId, originalTransactionId }) {
+/**
+ * v566 — prix RÉEL d'une transaction Apple signée. `price` est exprimé en
+ * MILLI-unités de la devise (4990 = 4,99) ; `storefront` = pays du store
+ * (ISO-3, ex. FRA / USA). Renvoie amount = null si Apple ne fournit pas le
+ * prix (on retombe alors sur le prix catalogue, ligne « estimé »).
+ */
+function storeInfoFromPayload(payload, environment) {
+  const milli = Number(payload?.price);
+  const hasPrice = payload?.price !== undefined && payload?.price !== null
+    && Number.isFinite(milli) && milli >= 0 && !!payload?.currency;
+  return {
+    amount: hasPrice ? Math.round(milli / 10) / 100 : null,
+    currency: hasPrice ? String(payload.currency).toUpperCase() : '',
+    storefront: String(payload?.storefront || ''),
+    environment: String(environment || payload?.environment || ''),
+  };
+}
+
+async function creditForTransaction({
+  userId, role, productId, transactionId, originalTransactionId, store,
+}) {
   const mapping = PRODUCT_MAP[productId];
   if (!mapping) throw new Error(`productId Apple inconnu : ${productId}`);
+
+  // v566 — montant RÉEL payé dans le store (sinon prix catalogue EUR).
+  const info = store || {};
+  const real = info.amount !== null && info.amount !== undefined;
+  const lineAmount = real ? info.amount : mapping.price;
+  const lineCurrency = real ? info.currency : 'EUR';
+  // Sandbox = review Apple / tests : tracé, mais à EXCLURE des revenus.
+  const sandbox = String(info.environment || '') === 'Sandbox';
+  const storeFields = {
+    ...(real ? { amountSource: 'store' } : {}),
+    platform: 'ios',
+    ...(info.environment ? { environment: info.environment } : {}),
+    ...(info.storefront ? { storefront: info.storefront } : {}),
+    ...(originalTransactionId ? { originalTransactionId: String(originalTransactionId) } : {}),
+    ...(sandbox ? { excludedFromRevenue: true } : {}),
+  };
 
   const {
     activateSubscriptionFromWebhook,
@@ -167,11 +203,12 @@ async function creditForTransaction({ userId, role, productId, transactionId, or
         role,
         tier: mapping.tier,
         days: mapping.days,
-        currency: 'EUR',
         provider: 'apple_iap',
-        // v508 — prix catalogue enregistré dans boostPurchases.amount
-        // (visible dans l'activité boutique + revenus admin).
-        amount: mapping.price,
+        // v508 — prix enregistré dans boostPurchases.amount ; v566 — prix
+        // RÉEL du store + devise, pays, environnement (Sandbox = exclu).
+        currency: lineCurrency,
+        amount: lineAmount,
+        ...storeFields,
       },
     });
   }
@@ -181,7 +218,7 @@ async function creditForTransaction({ userId, role, productId, transactionId, or
   // Comptabilité / Activité boutique, et EXCLU du solde retirable Airwallex.
   // Idempotent : paymentIntentId = transactionId Apple.
   const newlyCredited = !(result?.alreadyActivated || result?.deduplicated);
-  if (newlyCredited && mapping.kind !== 'boost' && mapping.price) {
+  if (newlyCredited && mapping.kind !== 'boost' && (mapping.price || real)) {
     try {
       const UserSubscription = require('../models/UserSubscription');
       const userModel = role === 'walker' ? 'Walker' : role === 'sitter' ? 'Sitter' : 'Owner';
@@ -192,11 +229,13 @@ async function creditForTransaction({ userId, role, productId, transactionId, or
           plan: mapping.kind === 'pawspot'
             ? (mapping.days >= 365 ? 'pawspot_yearly' : 'pawspot_monthly')
             : mapping.plan,
-          amount: mapping.price,
-          currency: 'EUR',
+          amount: lineAmount,
+          currency: lineCurrency,
           paidAt: new Date(),
           paymentProvider: 'apple_iap',
           paymentIntentId: String(transactionId),
+          transactionId: String(transactionId),
+          ...storeFields,
         });
         await sub.save();
       }
@@ -234,10 +273,13 @@ async function handleNotification(signedPayload) {
 
   // Décode la transaction jointe (si présente) pour productId + ids.
   let tx = null;
+  let txEnvironment = String(notif?.data?.environment || '');
   const signedTx = notif?.data?.signedTransactionInfo;
   if (signedTx) {
     try {
-      tx = (await verifySignedTransaction(signedTx)).payload;
+      const decoded = await verifySignedTransaction(signedTx);
+      tx = decoded.payload;
+      txEnvironment = decoded.environment || txEnvironment;
     } catch (e) {
       logger.warn(`[appleIap][webhook] signedTransactionInfo invalide : ${e.message}`);
     }
@@ -275,11 +317,23 @@ async function handleNotification(signedPayload) {
       productId,
       transactionId: String(tx.transactionId),
       originalTransactionId,
+      // v566 — prix réel du renouvellement (devise / pays / environnement).
+      store: storeInfoFromPayload(tx, txEnvironment),
     });
     return { handled: true, credited: true };
   }
 
   if (REVOKE_TYPES.includes(type)) {
+    // v566 — REFUND : on date le remboursement sur la ligne de paiement de
+    // la transaction remboursée (la comptabilité pourra la sortir des
+    // revenus). Idempotent : une ligne déjà datée n'est pas re-datée.
+    if (type === 'REFUND' && tx?.transactionId) {
+      const refundedAt = tx.revocationDate ? new Date(Number(tx.revocationDate)) : new Date();
+      const line = (sub.payments || []).find(
+        (pm) => String(pm.paymentIntentId || '') === String(tx.transactionId),
+      );
+      if (line && !line.refundedAt) line.refundedAt = refundedAt;
+    }
     // Coupe le timer correspondant au produit (ou tous si produit inconnu).
     const now = new Date();
     const mapping = PRODUCT_MAP[productId];
@@ -311,6 +365,7 @@ module.exports = {
   PRODUCT_MAP,
   verifySignedTransaction,
   verifySignedNotification,
+  storeInfoFromPayload,
   creditForTransaction,
   handleNotification,
 };

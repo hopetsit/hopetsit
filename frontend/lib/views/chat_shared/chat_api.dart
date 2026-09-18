@@ -42,6 +42,18 @@ class ChatApi {
     }
   }
 
+  /// v566 — `POST /conversations/:id/read` : remet le compteur à zéro ET pose
+  /// `readAt` sur les messages reçus (→ `message:read` chez l'expéditeur).
+  /// Best-effort, idempotent côté serveur.
+  static Future<void> markRead(String conversationId) async {
+    if (conversationId.isEmpty) return;
+    try {
+      await _api.post('/conversations/$conversationId/read', requiresAuth: true);
+    } catch (e) {
+      AppLogger.logError('chat markRead failed', error: e);
+    }
+  }
+
   /// `POST /conversations/:id/messages` avec `replyTo: { messageId }`.
   static Future<Map<String, dynamic>> sendText({
     required String conversationId,

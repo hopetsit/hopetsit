@@ -104,8 +104,8 @@
   "CHAT_AUTO_WELCOME": {
     "title": "Chat sbloccata",
     "body": "Ciao 👋 Parliamo qui per concordare il luogo esatto e i dettagli del servizio.",
-    "emailSubject": "",
-    "emailBody": ""
+    "emailSubject": "La chat della tua prenotazione è aperta",
+    "emailBody": "<p>La chat della tua prenotazione è aperta: concorda qui il luogo esatto e i dettagli del servizio.</p><p>— Il team HoPetSit</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Apri la chat</a></p>"
   },
   "BOOKING_COMPLETED": {
     "title": "Prenotazione completata",
@@ -115,7 +115,7 @@
   },
   "booking_paid": {
     "title": "Pagamento ricevuto!",
-    "body": "Il proprietario ha pagato la tua prenotazione. Ora puoi chattare per concordare i dettagli. Il giorno del servizio, tocca «🐾 Ho preso l'animale» per confermare l'inizio del servizio.",
+    "body": "Il proprietario ha pagato la prenotazione. La chat è aperta per concordare i dettagli. Il giorno del servizio, tocca «Animale ritirato».",
     "emailSubject": "Pagamento ricevuto — HoPetSit",
     "emailBody": "<p>Ottime notizie! Il pagamento della prenotazione è appena stato confermato. Ora puoi chattare con il proprietario per concordare il luogo e l'ora del servizio.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi prenotazione</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia questo link nel tuo browser: {{emailLink}}</p>"
   },
@@ -397,7 +397,7 @@
   },
   "handover_returned": {
     "title": "Animale riconsegnato 🏁",
-    "body": "Il tuo prestatore indica di aver riconsegnato il tuo animale. Conferma che è andato tutto bene per sbloccare il pagamento (altrimenti conferma automatica tra {{autoConfirmHours}} ore).",
+    "body": "Il tuo pet sitter indica di aver riconsegnato il tuo animale. Conferma per sbloccare il pagamento (automatico tra {{autoConfirmHours}} ore).",
     "emailSubject": "Il tuo animale è stato riconsegnato — conferma la riconsegna",
     "emailBody": "<p>Il tuo prestatore ha appena toccato «Animale riconsegnato». Conferma che è andato tutto bene: questo sblocca il pagamento sul suo wallet. Senza una tua risposta, la riconsegna sarà confermata automaticamente tra {{autoConfirmHours}} ore.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi la prenotazione</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia e incolla questo link: {{emailLink}}</p>"
   },

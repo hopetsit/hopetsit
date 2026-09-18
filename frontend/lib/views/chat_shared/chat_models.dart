@@ -189,6 +189,38 @@ ChatReplyRef? parseChatReplyTo(dynamic raw) {
   );
 }
 
+/// v566 — état d'un message ENVOYÉ, façon WhatsApp.
+///   sending   : horloge (envoi en cours)
+///   sent      : une coche grise (le serveur l'a)
+///   delivered : deux coches grises (remis à l'appareil du destinataire)
+///   read      : deux coches bleues (#34B7F1) — le destinataire l'a lu
+///   failed    : l'envoi a échoué (la bulle propose déjà « réessayer »)
+enum ChatReceiptStatus { sending, sent, delivered, read, failed }
+
+/// 'sent' | 'delivered' | 'read' (champ `lastMessageStatus` de la liste).
+ChatReceiptStatus? chatReceiptStatusFromString(String? raw) {
+  switch ((raw ?? '').toLowerCase()) {
+    case 'read':
+      return ChatReceiptStatus.read;
+    case 'delivered':
+      return ChatReceiptStatus.delivered;
+    case 'sent':
+      return ChatReceiptStatus.sent;
+    case 'sending':
+      return ChatReceiptStatus.sending;
+    default:
+      return null;
+  }
+}
+
+/// Lit une date ISO / epoch ms du serveur (`deliveredAt`, `readAt`) → locale.
+DateTime? parseChatReceiptDate(dynamic raw) {
+  if (raw == null || raw == '') return null;
+  if (raw is DateTime) return raw.toLocal();
+  if (raw is int) return DateTime.fromMillisecondsSinceEpoch(raw);
+  return DateTime.tryParse(raw.toString())?.toLocal();
+}
+
 /// Base commune des messages — tous les getters utilisés par les widgets.
 abstract class ChatMessageBase {
   ChatMessageBase({
@@ -208,6 +240,8 @@ abstract class ChatMessageBase {
     this.replyTo,
     this.isPending = false,
     this.isFailed = false,
+    this.deliveredAt,
+    this.readAt,
   });
 
   final String id;
@@ -238,6 +272,19 @@ abstract class ChatMessageBase {
   /// v565 — envoi optimiste en cours / échoué (bulle grisée, icône).
   final bool isPending;
   final bool isFailed;
+
+  /// v566 — accusés serveur (null = pas encore remis / pas encore lu).
+  final DateTime? deliveredAt;
+  final DateTime? readAt;
+
+  /// v566 — état affiché sous un message ENVOYÉ (coches façon WhatsApp).
+  ChatReceiptStatus get receiptStatus {
+    if (isFailed) return ChatReceiptStatus.failed;
+    if (isPending) return ChatReceiptStatus.sending;
+    if (readAt != null) return ChatReceiptStatus.read;
+    if (deliveredAt != null) return ChatReceiptStatus.delivered;
+    return ChatReceiptStatus.sent;
+  }
 
   bool get isSystem => senderRole.toLowerCase() == 'system';
 
@@ -308,6 +355,9 @@ abstract class ChatMessageBase {
       (metadata['serviceType'] ?? '').toString();
   String get pawfollowBookingId => (metadata['bookingId'] ?? '').toString();
 
+  /// v566 — échéance de la demande (au-delà : « Expirée », plus de boutons).
+  DateTime? get pawfollowExpiresAt => _date(metadata['expiresAt']);
+
   static double? _num(dynamic raw) {
     if (raw is num) return raw.toDouble();
     if (raw is String) return double.tryParse(raw);
@@ -333,6 +383,8 @@ abstract class ChatConversationBase {
     this.contactId = '',
     this.contactRole = '',
     this.lastSeenAt,
+    this.lastMessageMine = false,
+    this.lastMessageStatus,
   });
 
   final String id;
@@ -347,6 +399,10 @@ abstract class ChatConversationBase {
   final String contactId;
   final String contactRole;
   final DateTime? lastSeenAt;
+
+  /// v566 — le dernier message est le mien → coches devant l'aperçu.
+  final bool lastMessageMine;
+  final ChatReceiptStatus? lastMessageStatus;
 }
 
 /// Aperçu lisible d'un message pour la liste et les citations.

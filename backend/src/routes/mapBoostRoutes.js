@@ -25,6 +25,8 @@ const logger = require('../utils/logger');
 const pricingService = require('../services/pricingService');
 // v532 — verification du paiement avant toute activation boutique.
 const { assertPaidIntent, PaymentNotVerifiedError } = require('../utils/assertPaidIntent');
+const { resolvePaidAmount, resolveProvider } = require('../utils/paidAmount');
+const { platformFromRequest, normalizePlatform } = require('../utils/purchasePlatform');
 
 const router = express.Router();
 
@@ -316,8 +318,9 @@ router.post('/confirm', requireAuth, async (req, res) => {
     // v532 — FAILLE : cet endpoint activait le produit sans jamais verifier
     // le paiement aupres d Airwallex. On exige desormais un PaymentIntent
     // reellement SUCCEEDED, appartenant a l appelant, et non deja consomme.
+    let paidIntent = null;
     try {
-      await assertPaidIntent({
+      paidIntent = await assertPaidIntent({
         paymentIntentId: req.body?.paymentIntentId,
         userId: req.user.id,
         purpose: 'map_boost',
@@ -359,13 +362,22 @@ router.post('/confirm', requireAuth, async (req, res) => {
     if (!user.boostPurchases) user.boostPurchases = [];
     user.boostPurchases.push({
       tier,
-      amount: pricing.amount,
-      currency: pricing.currency,
       days: pricing.days,
       purchasedAt: now,
-      paymentProvider: 'stripe',
       paymentId: paymentIntentId || '',
       kind: 'map',
+      ...(() => {
+        // v566 — montant réellement débité + plateforme d'origine.
+        const paid = resolvePaidAmount(paidIntent, pricing);
+        const platform = normalizePlatform(paidIntent?.metadata?.platform) || platformFromRequest(req);
+        return {
+          amount: paid.amount,
+          currency: paid.currency,
+          ...(paid.fromProvider ? { amountSource: 'psp' } : {}),
+          ...(platform ? { platform } : {}),
+          paymentProvider: resolveProvider(paidIntent),
+        };
+      })(),
     });
     await user.save();
 

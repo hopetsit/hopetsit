@@ -7,6 +7,37 @@ const {
   deleteNotification,
   clearNotifications,
 } = require('../services/notificationService');
+const { emitToUser } = require('../sockets/emitter');
+
+// v566 — Daniel (18/09) : « quand je mets une notification en lu sur un appareil, les
+// autres doivent se synchroniser ». L'état lu / supprimé vit en base (source de vérité
+// unique, par compte + rôle) ; après chaque changement on prévient EN DIRECT tous les
+// appareils connectés du même compte (iPhone, Android, site) :
+//   notification.read    { ids: [...] | all: true, unreadCount, at }
+//   notification.removed { ids: [...] | all: true, unreadCount, at }
+// Un appareil hors ligne se resynchronise à son retour (GET /my + /my/unread-count).
+const emitNotificationSync = async (event, { role, userId, ids = null, all = false }) => {
+  try {
+    const unreadCount = await getUnreadCount({ recipientRole: role, recipientId: userId });
+    const payload = {
+      ...(all ? { all: true } : { ids: (ids || []).map(String) }),
+      unreadCount,
+      recipientRole: role,
+      at: new Date().toISOString(),
+    };
+    emitToUser(role, userId, event, payload);
+    // v566 — badge de l'icône iOS remis au bon nombre sur les autres appareils, même app
+    // fermée (push « badge seul » aux jetons iOS ≥ 566). Sans attendre, jamais bloquant.
+    try {
+      const { sendBadgeSync } = require('../services/notificationSender');
+      Promise.resolve(sendBadgeSync({ role, userId, unreadCount })).catch(() => {});
+    } catch (_) { /* best-effort */ }
+    return payload;
+  } catch (e) {
+    logger.warn(`[notif.sync] ${event} emit failed : ${e?.message || e}`);
+    return null;
+  }
+};
 
 const mapNotification = (n) => ({
   id: n._id.toString(),
@@ -53,7 +84,8 @@ const getMyNotifications = async (req, res) => {
     // RÉELLE au moment de la lecture, insensible aux docs pas synchronisés),
     // 2) appLocale cherchée sur les 3 docs de rôle de la personne (l'app ne la
     // synchronisait que sur le rôle courant), 3) champ libre `language`.
-    const VALID_LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ko', 'ja'];
+    // v566 — audit : 'pl' manquait (polonais ajouté en v546) → ?lang=pl était ignoré.
+    const VALID_LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl'];
     const reqLang = String(req.query?.lang || '').toLowerCase().slice(0, 2);
     let userLang = VALID_LANGS.includes(reqLang) ? reqLang : null;
     if (!userLang) {
@@ -136,6 +168,7 @@ const markMyNotificationRead = async (req, res) => {
       return res.status(404).json({ error: 'Notification not found (or already read).' });
     }
 
+    await emitNotificationSync('notification.read', { role, userId, ids: [id] });
     res.json({ notification: mapNotification(updated) });
   } catch (error) {
     logger.error('Mark notification read error', error);
@@ -156,6 +189,7 @@ const markMyNotificationsReadAll = async (req, res) => {
     }
 
     const updatedCount = await markAllRead({ recipientRole: role, recipientId: userId });
+    await emitNotificationSync('notification.read', { role, userId, all: true });
     res.json({ updatedCount });
   } catch (error) {
     logger.error('Mark all notifications read error', error);
@@ -183,6 +217,7 @@ const deleteMyNotification = async (req, res) => {
     if (!deleted) {
       return res.status(404).json({ error: 'Notification not found.' });
     }
+    await emitNotificationSync('notification.removed', { role, userId, ids: [id] });
     res.json({ ok: true });
   } catch (error) {
     logger.error('Delete notification error', error);
@@ -201,6 +236,7 @@ const clearMyNotifications = async (req, res) => {
       return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
     }
     const deletedCount = await clearNotifications({ recipientRole: role, recipientId: userId });
+    await emitNotificationSync('notification.removed', { role, userId, all: true });
     res.json({ deletedCount });
   } catch (error) {
     logger.error('Clear notifications error', error);
@@ -215,5 +251,6 @@ module.exports = {
   markMyNotificationsReadAll,
   deleteMyNotification,
   clearMyNotifications,
+  emitNotificationSync, // v566 (tests)
 };
 

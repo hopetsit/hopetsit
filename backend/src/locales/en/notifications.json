@@ -104,8 +104,8 @@
   "CHAT_AUTO_WELCOME": {
     "title": "Chat unlocked",
     "body": "Hello 👋 Let's chat here to agree on the exact location and details of the service.",
-    "emailSubject": "",
-    "emailBody": ""
+    "emailSubject": "Your booking chat is open",
+    "emailBody": "<p>The chat for your booking is open: use it to agree on the exact location and the details of the service.</p><p>— The HoPetSit team</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open the chat</a></p>"
   },
   "BOOKING_COMPLETED": {
     "title": "Booking completed",
@@ -115,7 +115,7 @@
   },
   "booking_paid": {
     "title": "Payment received!",
-    "body": "The owner has paid for your booking. You can now chat to agree on the details. On the day of the service, tap \"🐾 I picked up the pet\" to confirm the start of the service.",
+    "body": "The owner has paid the booking. The chat is open to agree on the details. On the day, tap \"Pet picked up\".",
     "emailSubject": "Payment received — HoPetSit",
     "emailBody": "<p>Great news! The payment for the booking has just been confirmed. You can now chat with the owner to agree on the place and time of the service.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link into your browser: {{emailLink}}</p>"
   },
@@ -397,7 +397,7 @@
   },
   "handover_returned": {
     "title": "Pet returned 🏁",
-    "body": "Your provider says they returned your pet. Confirm everything went well to release the payment (otherwise auto-confirmed in {{autoConfirmHours}} h).",
+    "body": "Your provider says your pet is back. Confirm to release the payment (automatic in {{autoConfirmHours}} h).",
     "emailSubject": "Your pet has been returned — confirm the return",
     "emailBody": "<p>Your provider just tapped \"Pet returned\". Confirm everything went well: this releases the payment to their wallet. Without your answer, the return will be confirmed automatically in {{autoConfirmHours}} hours.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy and paste this link: {{emailLink}}</p>"
   },

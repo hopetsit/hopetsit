@@ -442,6 +442,33 @@ router.post('/:id/messages/attachments', requireAuth, requirePaidBooking, upload
 // Le handler doit vérifier que l'user est partie à la conversation.
 router.post('/:id/read', requireAuth, markConversationRead);
 
+// v566 — accusé de réception par HTTP (secours du socket `message:delivered`,
+// p. ex. un client dont le socket n'est pas encore connecté). Corps :
+// `{ messageIds: [...] }` ou `{ messageId }`. Identité = JWT. Idempotent :
+// répond `{ count: 0 }` quand tout est déjà remis. Seul un participant de la
+// conversation peut accuser réception (vérifié dans le service).
+router.post('/:id/delivered', requireAuth, async (req, res) => {
+  try {
+    const { markMessagesDelivered } = require('../services/messageReceiptService');
+    const body = req.body || {};
+    const ids = Array.isArray(body.messageIds) && body.messageIds.length
+      ? body.messageIds
+      : [body.messageId];
+    const result = await markMessagesDelivered({
+      conversationId: req.params.id,
+      messageIds: ids,
+      recipientId: req.user?.id,
+    });
+    res.json(result);
+  } catch (error) {
+    if (error?.name === 'CastError') {
+      return res.status(400).json({ error: 'Invalid id.' });
+    }
+    logger.error('Mark messages delivered error', error);
+    res.status(500).json({ error: 'Unable to mark messages as delivered.' });
+  }
+});
+
 // v23.1.195 — Daniel : "dans le message chat ajouter effacer pour
 // effacer la conversation en entier". DELETE /conversations/:id supprime
 // la conversation et tous ses messages associes (hard delete). Verifie
