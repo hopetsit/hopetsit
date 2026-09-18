@@ -91,7 +91,7 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 565** (564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 566** (565 = v562 publiée le 18/09 : Play release 565 par API, iOS 1.18 build 565 soumis ; 564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
 **18/09 (nuit) — BUILD 565 (v562 app) : la grande passe des 37 points, EN COURS.** Méthode : 8 lots
 en parallèle (contrats figés dans `docs/v565_contracts.md`, clés i18n par lot dans
@@ -186,6 +186,15 @@ Livré et poussé (commit 9b337e5, déploiement Render + Vercel lancé par Danie
   l'option en vert + temps restant + `changeDuration()`, pilules du haut en verre (badge filtres actifs), dock
   du bas assorti. Admin : « Promotions » sous « Utilisateurs », EMBEDDED v565. Contrôles finaux : `dart analyze
   lib` 0 erreur/0 warning, i18n 3 787 clés / 0 manquante, `tsc` 0, jest 49/49.
+- **PUBLICATION 18/09 ~05 h** : `~/Downloads/HoPetSit_v23.1.562_build565.{ipa,aab,apk}`. **Play : release 565
+  envoyée en production par l'API** (`play_release_api.py`, bundles.upload → track production → commit 200,
+  notes `notes_565.json` 8 langues). **iOS : 1.17/564 était READY_FOR_SALE** → admin « Versions de l'app »
+  iOS 564/0 posé ; **version 1.18 créée** (id `85b02ee8-8e79-4c2f-bce4-3d4da20a9047`), whatsNew 8 locales
+  (`notes_565_asc.json`, 200 ×8), IPA distribuée par Transporter (DISTRIBUER cliqué via osascript
+  `click at {1122,254}` — la fenêtre Transporter n'expose pas le bouton en AX), chaîne iris exécutée dans
+  l'onglet ASC de Daniel : build 565 VALID (~15 min après Transporter) → attaché à la 1.18 → reviewSubmission
+  `3f3a47b7-5920-4f78-9757-ea1034a36c8c` SUBMITTED 200 (05 h 05) → **1.18/565 WAITING_FOR_REVIEW**. ⚠️ Passer l'admin à 565/565 quand Play ET Apple ont approuvé (`PATCH /admin/app-version`
+  `{android:{latest:565},ios:{latest:565}}`).
 - Décisions produit prises seul (à confirmer par Daniel) : cap gratuit 30 min du partage en direct
   SUPPRIMÉ (le partage ne s'arrête que sur action ou durée choisie) ; les anciens types `service_started`/
   `service_completion_request` remplacés par `handover_*` sur ces actions.
