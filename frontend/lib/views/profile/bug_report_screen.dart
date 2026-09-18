@@ -5,7 +5,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
-import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:io' show Platform;
@@ -79,7 +79,7 @@ class _BugReportScreenState extends State<BugReportScreen> {
       if (!mounted) return;
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: e.toString(),
+        message: 'common_error_generic'.tr,
       );
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -89,142 +89,53 @@ class _BugReportScreenState extends State<BugReportScreen> {
   @override
   Widget build(BuildContext context) {
     final accent = _roleColor();
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        iconTheme: IconThemeData(color: accent),
-        title: PoppinsText(
-          text: 'bug_report_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
+    // v565 — sous-page modernisée (kit Profil) : champs « Apple », bouton bas.
+    return ProfileSubPageScaffold(
+      title: 'bug_report_title'.tr,
+      accent: accent,
+      actions: [
+        IconButton(
+          icon: Icon(Icons.close_rounded, color: accent, size: 24.sp),
+          tooltip: 'common_close'.tr,
+          onPressed: () => Get.back(),
         ),
-        // v23.1.170 — Daniel : "sur la page signalement en haut a droite met
-        // une croix pour fermer la page". On ajoute le bouton close en plus
-        // de la flèche back par défaut (geste alternatif plus rapide).
-        actions: [
-          IconButton(
-            icon: Icon(Icons.close, color: accent, size: 24.sp),
-            tooltip: 'common_close'.tr,
-            onPressed: () => Get.back(),
+      ],
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ProfileInfoBanner(
+            icon: Icons.bug_report_rounded,
+            accent: accent,
+            text: 'bug_report_intro'.tr,
+          ),
+          SizedBox(height: 20.h),
+          ProfileInput(
+            label: 'bug_report_subject_label'.tr,
+            hint: 'bug_report_subject_hint'.tr,
+            controller: _titleCtl,
+            accent: accent,
+            maxLength: 120,
+            textInputAction: TextInputAction.next,
+            textCapitalization: TextCapitalization.sentences,
+          ),
+          SizedBox(height: 14.h),
+          ProfileInput(
+            label: 'bug_report_desc_label'.tr,
+            hint: 'bug_report_desc_hint'.tr,
+            controller: _descCtl,
+            accent: accent,
+            maxLines: 8,
+            maxLength: 4000,
+            textCapitalization: TextCapitalization.sentences,
           ),
         ],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(20.w),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: EdgeInsets.all(14.w),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(14.r),
-                  border: Border.all(
-                    color: accent.withValues(alpha: 0.25),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.bug_report_rounded, color: accent, size: 22.sp),
-                    SizedBox(width: 10.w),
-                    Expanded(
-                      child: Text(
-                        'bug_report_intro'.tr,
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w500,
-                          color: accent,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 20.h),
-              InterText(
-                text: 'bug_report_subject_label'.tr,
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary(context),
-              ),
-              SizedBox(height: 6.h),
-              TextField(
-                controller: _titleCtl,
-                maxLength: 120,
-                decoration: InputDecoration(
-                  hintText: 'bug_report_subject_hint'.tr,
-                  filled: true,
-                  fillColor: AppColors.card(context),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: BorderSide(color: AppColors.divider(context)),
-                  ),
-                ),
-              ),
-              SizedBox(height: 12.h),
-              InterText(
-                text: 'bug_report_desc_label'.tr,
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary(context),
-              ),
-              SizedBox(height: 6.h),
-              TextField(
-                controller: _descCtl,
-                maxLines: 8,
-                maxLength: 4000,
-                decoration: InputDecoration(
-                  hintText: 'bug_report_desc_hint'.tr,
-                  filled: true,
-                  fillColor: AppColors.card(context),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: BorderSide(color: AppColors.divider(context)),
-                  ),
-                ),
-              ),
-              SizedBox(height: 18.h),
-              SizedBox(
-                width: double.infinity,
-                height: 52.h,
-                child: ElevatedButton.icon(
-                  onPressed: _sending ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.r),
-                    ),
-                    elevation: 3,
-                  ),
-                  icon: _sending
-                      ? SizedBox(
-                          width: 18.w,
-                          height: 18.w,
-                          child: const CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.send_rounded),
-                  label: PoppinsText(
-                    text: _sending
-                        ? 'bug_report_sending'.tr
-                        : 'bug_report_submit'.tr,
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+      bottom: ProfilePrimaryButton(
+        label: _sending ? 'bug_report_sending'.tr : 'bug_report_submit'.tr,
+        accent: accent,
+        loading: _sending,
+        onTap: _sending ? null : _submit,
+        icon: Icons.send_rounded,
       ),
     );
   }

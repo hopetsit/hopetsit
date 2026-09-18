@@ -4,9 +4,120 @@ const {
   assertAccessAndFetch,
 } = require('../services/conversationService');
 const { HttpError } = require('../utils/errors');
-const { emitToConversation, emitChatMessage, userRoom, walkRoom } = require('./emitter');
+const {
+  emitToConversation, emitChatMessage, userRoom, walkRoom,
+  countSocketsForIds, expandIdentityIds, emitPresenceUpdate, invalidatePresenceIndex,
+} = require('./emitter');
 const WalkSession = require('../models/WalkSession');
 const { evaluateChatAccess } = require('../middleware/chatAccess');
+const logger = require('../utils/logger');
+
+// ─── v565 §6 — présence « en ligne » ────────────────────────────────────────
+// À la connexion (jeton validé par io.use) et à la déconnexion, on prévient
+// les amis et les correspondants de conversation : `presence:update
+// { userId, userIds, online, at }`. L'identité complète (owner/sitter/walker)
+// est résolue via identityGroup ; on n'émet que sur une VRAIE transition
+// (premier socket de la personne / plus aucun socket, après 5 s de grâce
+// pour absorber les reconnexions). `lastSeenAt` est écrit sur les 3 docs.
+const PRESENCE_GRACE_MS = 5000;
+
+const presenceRecipientsOf = async (ids) => {
+  const out = new Set();
+  try {
+    const Friendship = require('../models/Friendship');
+    const Conversation = require('../models/Conversation');
+    const idSet = new Set(ids.map(String));
+    const [friendships, conversations] = await Promise.all([
+      Friendship.find({
+        status: 'accepted',
+        $or: [{ requesterId: { $in: ids } }, { addresseeId: { $in: ids } }],
+      }).select('requesterId addresseeId').lean(),
+      Conversation.find({
+        $or: [
+          { ownerId: { $in: ids } }, { sitterId: { $in: ids } }, { walkerId: { $in: ids } },
+          { 'participants.userId': { $in: ids } },
+        ],
+      }).select('ownerId sitterId walkerId participants').limit(500).lean(),
+    ]);
+    for (const f of friendships) {
+      for (const v of [f.requesterId, f.addresseeId]) {
+        const s = v ? String(v) : null;
+        if (s && !idSet.has(s)) out.add(s);
+      }
+    }
+    for (const c of conversations) {
+      const cand = [c.ownerId, c.sitterId, c.walkerId, ...((c.participants || []).map((p) => p.userId))];
+      for (const v of cand) {
+        const s = v ? String(v) : null;
+        if (s && !idSet.has(s)) out.add(s);
+      }
+    }
+  } catch (e) {
+    logger.warn(`[presence] recipients lookup failed : ${e?.message || e}`);
+  }
+  // Les destinataires peuvent être connectés sous un autre rôle → on étend.
+  return expandIdentityIds([...out]);
+};
+
+const identityIdsOf = async (userId) => {
+  try {
+    const { identityGroup } = require('../utils/identityGroup');
+    const g = await identityGroup(userId);
+    return g.ids;
+  } catch (_) {
+    return [String(userId)];
+  }
+};
+
+const handlePresenceConnect = async (socket) => {
+  const me = socket.data?.user;
+  if (!me?.id) return;
+  try {
+    invalidatePresenceIndex();
+    const ids = await identityIdsOf(me.id);
+    socket.data.presenceIds = ids;
+    const others = await countSocketsForIds(ids, socket.id);
+    if (others > 0) return; // déjà en ligne sous un autre socket/rôle
+    const recipients = await presenceRecipientsOf(ids);
+    const n = emitPresenceUpdate({
+      userId: me.id, userIds: ids, online: true, at: new Date().toISOString(), recipients,
+    });
+    logger.info(`[presence] ${me.role}:${me.id} ONLINE → ${n} destinataire(s)`);
+  } catch (e) {
+    logger.warn(`[presence] connect failed : ${e?.message || e}`);
+  }
+};
+
+const handlePresenceDisconnect = async (socket) => {
+  const me = socket.data?.user;
+  if (!me?.id) return;
+  const ids = socket.data?.presenceIds || (await identityIdsOf(me.id));
+  setTimeout(async () => {
+    try {
+      invalidatePresenceIndex();
+      const remaining = await countSocketsForIds(ids, socket.id);
+      if (remaining > 0) return; // reconnecté ou autre appareil/rôle
+      const at = new Date();
+      try {
+        const Owner = require('../models/Owner');
+        const Sitter = require('../models/Sitter');
+        const Walker = require('../models/Walker');
+        await Promise.all([Owner, Sitter, Walker].map((M) =>
+          M.updateMany({ _id: { $in: ids } }, { $set: { lastSeenAt: at } }),
+        ));
+      } catch (e) {
+        logger.warn(`[presence] lastSeenAt write failed : ${e?.message || e}`);
+      }
+      const recipients = await presenceRecipientsOf(ids);
+      const n = emitPresenceUpdate({
+        userId: me.id, userIds: ids, online: false, at: at.toISOString(), recipients,
+      });
+      logger.info(`[presence] ${me.role}:${me.id} OFFLINE → ${n} destinataire(s)`);
+    } catch (e) {
+      logger.warn(`[presence] disconnect failed : ${e?.message || e}`);
+    }
+  }, PRESENCE_GRACE_MS);
+};
 
 // v20.0.19 — align with REST chatAccess.js middleware:
 //   1) pass walkerId (walker convos were always blocked before)
@@ -110,6 +221,18 @@ const registerChatHandlers = (io, socket) => {
     return { role: payload.role, userId: payload.userId };
   };
 
+  // v565 §6 — rejoint sa room de rôle dès le handshake (jeton validé) et
+  // annonce la présence ; à la déconnexion, `lastSeenAt` + annonce hors ligne.
+  {
+    const trusted = socket.data?.user;
+    if (trusted?.id && trusted?.role) {
+      socket.join(userRoom(trusted.role, trusted.id));
+      socket.data.userRoom = { role: trusted.role, userId: trusted.id };
+    }
+    handlePresenceConnect(socket).catch(() => {});
+    socket.on('disconnect', () => { handlePresenceDisconnect(socket).catch(() => {}); });
+  }
+
   // Sprint 4 step 4 — per-user room for targeted notifications.
   socket.on('user:identify', (payload = {}, callback) => {
     // v23.1 part 130 — Phase 6 audit P6-1 : role/userId proviennent
@@ -145,7 +268,7 @@ const registerChatHandlers = (io, socket) => {
       }
     } catch (error) {
       if (error instanceof HttpError && callback) {
-        return callback({ status: 'error', ...asErrorPayload(error) });
+        return callback({ status: 'error', ...asErrorPayload(error), ...(error.code ? { code: error.code } : {}) });
       }
       if (callback) {
         callback({ status: 'error', ...asErrorPayload(error) });
@@ -200,6 +323,9 @@ const registerChatHandlers = (io, socket) => {
       const authed = _authedIdentity(payload);
       const senderRole = authed.role;
       const senderId = authed.userId;
+      // v565 §5 — réponse à un message précis (payload.replyTo.messageId).
+      const { buildReplySnapshot, patchMessageExtras } = require('../controllers/conversationController');
+      const replyTo = await buildReplySnapshot(conversationId, payload.replyTo);
 
       // Gate chat: verify conversation exists, user is participant, and the
       // latest booking between these two parties is paid (or absent).
@@ -216,6 +342,7 @@ const registerChatHandlers = (io, socket) => {
         senderId,
         body,
       });
+      if (replyTo) await patchMessageExtras(result, { replyTo });
 
       // v23.1 part 227 — Daniel : "badge 1 dans le menu a coter de l'icone
       // qd message recu". On emit aussi aux user-rooms via emitChatMessage,

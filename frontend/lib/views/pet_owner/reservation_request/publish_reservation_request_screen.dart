@@ -14,6 +14,7 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/views/profile/my_pets_screen.dart';
+import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/views/pet_owner/pet_profile/pet_profile_screen.dart';
 
 class PublishReservationRequestScreen extends StatefulWidget {
@@ -231,7 +232,15 @@ class _PublishReservationRequestScreenState
                             : 'publish_request_publish_button'.tr),
                     onTap: controller.isSubmitting.value
                         ? null
-                        : () => controller.submit(),
+                        : () async {
+                            // v565 (point 25) — coordonnées obligatoires
+                            // avant de publier une demande de réservation.
+                            if (!await ensureContactInfo(context,
+                                role: 'owner')) {
+                              return;
+                            }
+                            controller.submit();
+                          },
                     isGradient: true,
                     textColor: AppColors.whiteColor,
                     height: 52.h,

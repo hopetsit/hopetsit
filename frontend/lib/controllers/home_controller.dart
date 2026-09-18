@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/sitter_model.dart';
@@ -61,6 +63,52 @@ class HomeController extends GetxController {
   final RxString searchCity = ''.obs;
   final RxnDouble searchLat = RxnDouble();
   final RxnDouble searchLng = RxnDouble();
+
+  /// v565 — vrai si la dernière recherche « Autour de moi » s'est ancrée sur le
+  /// GPS de l'appareil (le libellé affiche alors « Ma position », pas la ville
+  /// du profil : sur un téléphone loin de sa ville, le libellé mentait).
+  final RxBool anchoredOnGps = false.obs;
+
+  /// v565 — point d'ancrage de la recherche : ville manuelle, sinon GPS,
+  /// sinon coordonnées enregistrées du profil (avant : GPS refusé = liste
+  /// vide, alors que le profil connaît la ville).
+  Future<({double lat, double lng})?> _resolveAnchor() async {
+    final mLat = searchLat.value;
+    final mLng = searchLng.value;
+    if (mLat != null && mLng != null) {
+      anchoredOnGps.value = false;
+      return (lat: mLat, lng: mLng);
+    }
+    try {
+      final position = await LocationService().getCurrentLocation();
+      if (position != null) {
+        anchoredOnGps.value = true;
+        return (lat: position.latitude, lng: position.longitude);
+      }
+    } catch (_) {/* GPS indisponible */}
+    try {
+      final profile = GetStorage().read(StorageKeys.userProfile) as Map<String, dynamic>?;
+      final loc = profile?['location'];
+      double? lat;
+      double? lng;
+      if (loc is Map) {
+        lat = (loc['lat'] as num?)?.toDouble();
+        lng = (loc['lng'] as num?)?.toDouble();
+        final coords = loc['coordinates'];
+        if ((lat == null || lng == null) && coords is List && coords.length == 2) {
+          lng = (coords[0] as num?)?.toDouble();
+          lat = (coords[1] as num?)?.toDouble();
+        }
+      }
+      lat ??= (profile?['latitude'] as num?)?.toDouble();
+      lng ??= (profile?['longitude'] as num?)?.toDouble();
+      if (lat != null && lng != null) {
+        anchoredOnGps.value = false;
+        return (lat: lat, lng: lng);
+      }
+    } catch (_) {/* profil illisible */}
+    return null;
+  }
 
   /// Fixe une ville de recherche manuelle (depuis le picker "Autour de moi")
   /// puis relance la recherche nearby sitters + walkers autour de ce point.
@@ -145,26 +193,15 @@ class HomeController extends GetxController {
   Future<void> loadNearbySitters({required int radiusKm}) async {
     isLoadingSitters.value = true;
     try {
-      // v435 — si une ville de recherche manuelle est fixée, on l'utilise
-      // comme point d'ancrage ; sinon on retombe sur le GPS de l'appareil.
-      double? lat = searchLat.value;
-      double? lng = searchLng.value;
-      if (lat == null || lng == null) {
-        final locationService = LocationService();
-        final position = await locationService.getCurrentLocation();
-        if (position == null) {
-          // Pas de GPS : on ne peut pas filtrer, mais on n'expose plus
-          // toute la base. Liste vide ; l'UI invite a activer la geoloc.
-          sitters.clear();
-          return;
-        }
-        lat = position.latitude;
-        lng = position.longitude;
+      // v565 — ancre : ville manuelle > GPS > coordonnées du profil.
+      final anchor = await _resolveAnchor();
+      if (anchor == null) {
+        sitters.clear();
+        return;
       }
-
       final list = await _ownerRepository.getNearbySitters(
-        lat: lat,
-        lng: lng,
+        lat: anchor.lat,
+        lng: anchor.lng,
         radiusInMeters: radiusKm * 1000,
       );
       sitters.assignAll(list);
@@ -210,23 +247,15 @@ class HomeController extends GetxController {
   Future<void> loadNearbyWalkers({required int radiusKm}) async {
     isLoadingWalkers.value = true;
     try {
-      // v435 — ancrage sur la ville de recherche manuelle si définie, sinon GPS.
-      double? lat = searchLat.value;
-      double? lng = searchLng.value;
-      if (lat == null || lng == null) {
-        final locationService = LocationService();
-        final position = await locationService.getCurrentLocation();
-        if (position == null) {
-          walkers.clear();
-          return;
-        }
-        lat = position.latitude;
-        lng = position.longitude;
+      // v565 — ancre : ville manuelle > GPS > coordonnées du profil.
+      final anchor = await _resolveAnchor();
+      if (anchor == null) {
+        walkers.clear();
+        return;
       }
-
       final list = await _walkerRepository.getNearbyWalkers(
-        lat: lat,
-        lng: lng,
+        lat: anchor.lat,
+        lng: anchor.lng,
         radiusInMeters: radiusKm * 1000,
       );
       walkers.assignAll(list);

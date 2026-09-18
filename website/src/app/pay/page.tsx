@@ -20,7 +20,10 @@
 
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { PromoCodeBox } from "@/components/PromoCodeBox";
 
 // Allow `Airwallex` global from the loaded script.
 declare global {
@@ -64,8 +67,13 @@ function ensureAirwallexScript(): Promise<void> {
 }
 
 export default function PayPage() {
+  const { t } = useT();
   const [status, setStatus] = useState<"loading" | "redirecting" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState<string>("");
+  // v565 (point 29) — `/pay?bookingId=` est la route « thème » des e-mails
+  // booking_accepted / payment_failed : sans intent Airwallex, on explique
+  // où payer (app ou réservations) au lieu de « Missing payment parameters ».
+  const [bookingHint, setBookingHint] = useState(false);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -108,7 +116,9 @@ export default function PayPage() {
 
     if (!intentId || !clientSecret) {
       setStatus("error");
-      setErrorMsg("Missing payment parameters.");
+      const fromEmail = !!(params.get("bookingId") || bookingParam);
+      setBookingHint(fromEmail);
+      setErrorMsg(fromEmail ? "" : "Missing payment parameters.");
       return;
     }
 
@@ -158,13 +168,34 @@ export default function PayPage() {
         </>
       ) : (
         <>
-          <p className="text-lg font-semibold text-owner-dark">Couldn't start payment.</p>
-          <p className="mt-2 max-w-sm text-sm text-ink-muted">{errorMsg}</p>
-          <p className="mt-6 text-xs text-ink-soft">
-            You can close this window and try again from the app.
-          </p>
+          {bookingHint ? (
+            <>
+              <p className="max-w-sm text-lg font-semibold text-ink">{t("pay_booking_hint")}</p>
+              <Link
+                href="/bookings"
+                className="mt-5 inline-flex rounded-full bg-[#1D1D1F] px-6 py-3 text-sm font-semibold text-white transition hover:bg-black"
+              >
+                {t("pay_open_bookings")} →
+              </Link>
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-semibold text-owner-dark">Couldn't start payment.</p>
+              <p className="mt-2 max-w-sm text-sm text-ink-muted">{errorMsg}</p>
+              <p className="mt-6 text-xs text-ink-soft">
+                You can close this window and try again from the app.
+              </p>
+            </>
+          )}
         </>
       )}
+
+      {/* v565 (point 27) — « J'ai un code » sur la page de paiement : le code
+          (abonnement offert / remise) s'applique au compte avant de payer. */}
+      <div className="mt-8 flex w-full max-w-md flex-col items-center gap-2">
+        <p className="text-xs text-ink-muted">{t("promo_pay_hint")}</p>
+        <PromoCodeBox collapsible className="w-full text-left" />
+      </div>
     </div>
   );
 }

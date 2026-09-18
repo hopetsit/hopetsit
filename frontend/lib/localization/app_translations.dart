@@ -16,6 +16,7 @@ import 'translations/pt.dart';
 import 'translations/ko.dart';
 import 'translations/ja.dart';
 import 'translations/pl.dart'; // v546 — polonais (ouverture Varsovie)
+import 'v565/v565_i18n.dart'; // v565 — paquets de clés du build 565 (fusionnés)
 
 /// Centralizes supported locales and translation keys for the app.
 class LocalizationService {
@@ -169,16 +170,18 @@ class AppTranslations extends Translations {
   @override
   Map<String, Map<String, String>> get keys {
     _checkMissingKeys();
+    // v565 — les clés ajoutées par le build 565 vivent dans v565/*.dart et
+    // sont fusionnées ici (elles priment sur une clé homonyme historique).
     return <String, Map<String, String>>{
-      'en_US': enUSTranslations,
-      'fr_FR': frFRTranslations,
-      'es_ES': esESTranslations,
-      'de_DE': deDETranslations,
-      'it_IT': itITTranslations,
-      'pt_PT': ptPTTranslations,
-      'ko_KR': koKRTranslations,
-      'ja_JP': jaJPTranslations,
-      'pl_PL': plPLTranslations, // v546 — polonais
+      'en_US': {...enUSTranslations, ...v565For('en')},
+      'fr_FR': {...frFRTranslations, ...v565For('fr')},
+      'es_ES': {...esESTranslations, ...v565For('es')},
+      'de_DE': {...deDETranslations, ...v565For('de')},
+      'it_IT': {...itITTranslations, ...v565For('it')},
+      'pt_PT': {...ptPTTranslations, ...v565For('pt')},
+      'ko_KR': {...koKRTranslations, ...v565For('ko')},
+      'ja_JP': {...jaJPTranslations, ...v565For('ja')},
+      'pl_PL': {...plPLTranslations, ...v565For('pl')}, // v546 — polonais
     };
   }
 
@@ -186,16 +189,16 @@ class AppTranslations extends Translations {
   void _checkMissingKeys() {
     if (_didCheck || !kDebugMode) return;
     _didCheck = true;
-    final canonical = enUSTranslations.keys.toSet();
+    final canonical = {...enUSTranslations.keys, ...v565For('en').keys};
     final others = <String, Map<String, String>>{
-      'fr_FR': frFRTranslations,
-      'es_ES': esESTranslations,
-      'de_DE': deDETranslations,
-      'it_IT': itITTranslations,
-      'pt_PT': ptPTTranslations,
-      'ko_KR': koKRTranslations,
-      'ja_JP': jaJPTranslations,
-      'pl_PL': plPLTranslations, // v546 — polonais
+      'fr_FR': {...frFRTranslations, ...v565For('fr')},
+      'es_ES': {...esESTranslations, ...v565For('es')},
+      'de_DE': {...deDETranslations, ...v565For('de')},
+      'it_IT': {...itITTranslations, ...v565For('it')},
+      'pt_PT': {...ptPTTranslations, ...v565For('pt')},
+      'ko_KR': {...koKRTranslations, ...v565For('ko')},
+      'ja_JP': {...jaJPTranslations, ...v565For('ja')},
+      'pl_PL': {...plPLTranslations, ...v565For('pl')}, // v546 — polonais
     };
     others.forEach((locale, map) {
       final missing = canonical.difference(map.keys.toSet());

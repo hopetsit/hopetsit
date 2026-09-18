@@ -371,8 +371,10 @@ class SignUpController extends GetxController {
   }
 
   String? validateAddress(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'error_address_required'.tr;
+    // v565 — point 25 : l'adresse est FACULTATIVE à l'inscription (demandée
+    // au moment utile via ensureContactInfo).
+    if (value == null || value.trim().isEmpty) {
+      return null;
     }
     if (value.length < 2) {
       return 'error_address_length'.tr;
@@ -608,17 +610,22 @@ class SignUpController extends GetxController {
     };
 
     // API expects location as { lat, lng }, not latitude/longitude.
+    // v565 — point 1 : la VILLE part TOUJOURS (obligatoire à l'inscription),
+    // même sans coordonnées GPS (saisie manuelle refusée / permission
+    // refusée) — avant, `location` n'était envoyé qu'avec lat/lng, d'où les
+    // comptes « pays/ville ? ».
+    final cityText = cityController.text.trim().isNotEmpty
+        ? cityController.text.trim()
+        : userCity.value.trim();
     if (userLatitude.value != null && userLongitude.value != null) {
       data['location'] = {
         'lat': userLatitude.value,
         'lng': userLongitude.value,
-        'city': cityController.text.trim(),
+        'city': cityText,
       };
+    } else if (cityText.isNotEmpty) {
+      data['location'] = {'city': cityText};
     }
-
-    // if (cityController.text.isNotEmpty) {
-    //   data['location']['city'] = cityController.text.trim();
-    // }
 
     if (userType == 'pet_sitter') {
       data['skills'] = skillsController.text.trim();

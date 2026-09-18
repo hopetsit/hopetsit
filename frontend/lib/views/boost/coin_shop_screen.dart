@@ -4,6 +4,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hopetsit/widgets/paw_card_icons.dart';
+import 'package:hopetsit/widgets/promo_code_sheet.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -183,6 +184,9 @@ class CoinShopScreen extends StatefulWidget {
 }
 
 class _CoinShopScreenState extends State<CoinShopScreen> {
+  // v565 (point 27) — incrémenté après un code promo appliqué : recrée les
+  // onglets pour relire la réduction persistée (redeemedPromoDiscount).
+  int _promoEpoch = 0;
   // v503 — spinner du bouton « Restaurer mes achats » (iOS uniquement).
   bool _restoring = false;
 
@@ -393,14 +397,47 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
             children: [
               Text('🐕', style: TextStyle(fontSize: 22.sp)),
               SizedBox(width: 8.w),
-              InterText(
-                text: 'boost_shop_title'.tr,
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary(context),
+              Flexible(
+                child: InterText(
+                  text: 'boost_shop_title'.tr,
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
+          // v565 (point 27) — « J'ai un code » dans la boutique. La feuille
+          // (lot profil) consomme le code et écrit
+          // StorageKeys.redeemedPromoDiscount ; on relance le build des
+          // onglets (clé) pour que _PromoDiscount.read() s'applique aux prix.
+          actions: [
+            Padding(
+              padding: EdgeInsets.only(right: 8.w),
+              child: TextButton.icon(
+                onPressed: () async {
+                  final ok = await showPromoCodeSheet(context,
+                      accent: AppColors.primaryColor);
+                  if (ok && mounted) setState(() => _promoEpoch++);
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primaryColor,
+                  padding: EdgeInsets.symmetric(horizontal: 10.w),
+                ),
+                icon: Icon(Icons.confirmation_number_outlined, size: 18.sp),
+                label: InterText(
+                  text: 'v565_promo_have_code'.tr,
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primaryColor,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ],
           // v561 — Daniel (maquette 12/09) : onglets = 4 CARTES colorées
           // (PawBoost orange, PawFollow violet, PawSpot or, PawPremium noir)
           // avec logo, nom et sous-titre ; la carte active est plus vive.
@@ -459,8 +496,9 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
             ),
           ),
         ),
-        body: const TabBarView(
-          children: [
+        body: TabBarView(
+          key: ValueKey<int>(_promoEpoch),
+          children: const [
             _BoostTab(),
             _PremiumTab(),
             _PawSpotTab(),

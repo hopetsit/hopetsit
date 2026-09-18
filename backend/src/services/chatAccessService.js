@@ -151,9 +151,126 @@ async function canChatFreely(userId, userModelOrRole) {
   return access.hasAny;
 }
 
+// ─── v565 §4 — verrou du partage de contacts (téléphone / adresse) ─────────
+// Daniel (14/09) : gratuit jusqu'à CONTACTS_FREE_UNTIL_USERS comptes (700 par
+// défaut), puis l'échange de téléphone/adresse se verrouille côté serveur
+// (sans rebuild) et ne se débloque qu'après une réservation PAYÉE entre les
+// deux personnes ou un abonnement actif de l'expéditeur (ou staff).
+// Indépendant de la phase de lancement du chat (CHAT_FREE_UNTIL_USERS).
+const CONTACTS_FREE_UNTIL_USERS = Number(process.env.CONTACTS_FREE_UNTIL_USERS || 700);
+let _contactsCache = { at: 0, locked: false };
+async function isContactsLockedGlobally() {
+  if (!(CONTACTS_FREE_UNTIL_USERS > 0)) return false;
+  const now = Date.now();
+  if (now - _contactsCache.at < 10 * 60 * 1000) return _contactsCache.locked;
+  try {
+    const [o, s, w] = await Promise.all([
+      Owner.estimatedDocumentCount(),
+      Sitter.estimatedDocumentCount(),
+      Walker.estimatedDocumentCount(),
+    ]);
+    _contactsCache = { at: now, locked: (o + s + w) >= CONTACTS_FREE_UNTIL_USERS };
+  } catch (_) {
+    _contactsCache = { at: now, locked: _contactsCache.locked };
+  }
+  return _contactsCache.locked;
+}
+
+const HARDCODED_STAFF_EMAILS = new Set(['dadaciao84@gmail.com']);
+function _staffEmailSet() {
+  const set = new Set(HARDCODED_STAFF_EMAILS);
+  String(process.env.STAFF_EMAILS || '')
+    .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
+    .forEach((e) => set.add(e));
+  return set;
+}
+
+/**
+ * Débloquage « global » de l'expéditeur (indépendant du correspondant) :
+ * staff (drapeau ou e-mail) OU abonnement actif (PawPremium / PawFollow /
+ * Famille / PawSpot, par date) OU add-on chat actif — cherché sur les 3 docs
+ * de la personne (identityGroup).
+ */
+async function hasContactsUnlock(userId) {
+  const { identityGroup } = require('../utils/identityGroup');
+  const g = await identityGroup(userId);
+  const now = new Date();
+  const staffEmails = _staffEmailSet();
+  try {
+    const docs = (await Promise.all([Owner, Sitter, Walker].map((M) =>
+      M.find({ _id: { $in: g.ids } }).select('isStaff email').lean(),
+    ))).flat();
+    if (docs.some((d) => d.isStaff === true || (d.email && staffEmails.has(String(d.email).toLowerCase())))) {
+      return { unlocked: true, reason: 'staff' };
+    }
+  } catch (_) { /* on continue avec les abonnements */ }
+  try {
+    const { hasAnyActiveSubscription } = require('../models/UserSubscription');
+    for (const id of g.ids) {
+      // eslint-disable-next-line no-await-in-loop
+      if (await hasAnyActiveSubscription(id)) return { unlocked: true, reason: 'subscription' };
+    }
+  } catch (_) { /* défensif */ }
+  try {
+    const addon = await UserChatAddon.findOne({
+      userId: { $in: g.ids }, status: 'active', currentPeriodEnd: { $gt: now },
+    }).select('_id').lean();
+    if (addon) return { unlocked: true, reason: 'chat_addon' };
+    const legacy = await UserSubscription.findOne({
+      userId: { $in: g.ids }, chatAddonActive: true, chatAddonExpiresAt: { $gt: now },
+    }).select('_id').lean();
+    if (legacy) return { unlocked: true, reason: 'chat_addon' };
+  } catch (_) { /* défensif */ }
+  return { unlocked: false, reason: null };
+}
+
+/** Réservation PAYÉE entre deux personnes, quel que soit le rôle de chacune. */
+async function hasPaidBookingBetween(userIdA, userIdB) {
+  if (!userIdA || !userIdB) return false;
+  const { identityGroup } = require('../utils/identityGroup');
+  const Booking = require('../models/Booking');
+  const [ga, gb] = await Promise.all([identityGroup(userIdA), identityGroup(userIdB)]);
+  const A = ga.ids;
+  const B = gb.ids;
+  const paid = await Booking.exists({
+    $and: [
+      { $or: [{ paymentStatus: 'paid' }, { status: 'paid' }, { status: 'completed', paymentStatus: 'paid' }] },
+      {
+        $or: [
+          { ownerId: { $in: A }, $or: [{ sitterId: { $in: B } }, { walkerId: { $in: B } }] },
+          { ownerId: { $in: B }, $or: [{ sitterId: { $in: A } }, { walkerId: { $in: A } }] },
+        ],
+      },
+    ],
+  });
+  return !!paid;
+}
+
+/**
+ * Décision complète pour share-phone / share-address.
+ * @returns {{ locked: boolean, reason: string|null, threshold: number }}
+ *   reason ∈ 'below_threshold' | 'staff' | 'subscription' | 'chat_addon' | 'paid_booking' | 'locked'
+ */
+async function evaluateContactsAccess({ userId, otherUserId }) {
+  const threshold = CONTACTS_FREE_UNTIL_USERS;
+  if (!(await isContactsLockedGlobally())) return { locked: false, reason: 'below_threshold', threshold };
+  const unlock = await hasContactsUnlock(userId);
+  if (unlock.unlocked) return { locked: false, reason: unlock.reason, threshold };
+  if (otherUserId && (await hasPaidBookingBetween(userId, otherUserId))) {
+    return { locked: false, reason: 'paid_booking', threshold };
+  }
+  return { locked: true, reason: 'locked', threshold };
+}
+
 module.exports = {
   getChatAccess,
   canChatFreely,
   isLaunchPhase,
   ROLE_TO_MODEL,
+  // v565 §4
+  CONTACTS_FREE_UNTIL_USERS,
+  isContactsLockedGlobally,
+  hasContactsUnlock,
+  hasPaidBookingBetween,
+  evaluateContactsAccess,
 };

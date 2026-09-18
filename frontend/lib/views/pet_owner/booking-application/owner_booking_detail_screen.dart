@@ -37,17 +37,67 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
   // confirmer / signaler un problème, sans refetch).
   late String _confirmationStatus = widget.booking.confirmationStatus;
   bool _serviceBusy = false;
+  // v565 (point 24) — détail vivant (`GET /bookings/:id` : handover +
+  // timeline). Null tant que non chargé → on affiche la réservation reçue.
+  BookingModel? _liveBooking;
+
+  @override
+  void initState() {
+    super.initState();
+    _reloadDetail();
+  }
+
+  Future<void> _reloadDetail() async {
+    try {
+      final b = await Get.find<OwnerRepository>()
+          .getBookingDetail(widget.booking.id);
+      if (!mounted || b == null) return;
+      setState(() {
+        _liveBooking = b;
+        if (b.confirmationStatus.isNotEmpty) {
+          _confirmationStatus = b.confirmationStatus;
+        }
+      });
+    } catch (_) {
+      // Silencieux : la fiche reçue reste affichée.
+    }
+  }
+
+  // v565 (point 24) — confirmer la récupération (handover/confirm-pickup).
+  Future<void> _onOwnerConfirmPickup() async {
+    setState(() => _serviceBusy = true);
+    try {
+      await Get.find<OwnerRepository>().confirmPickup(bookingId: widget.booking.id);
+      if (!mounted) return;
+      CustomSnackbar.showSuccess(
+        title: 'v565_ho_pickup_confirmed_title'.tr,
+        message: 'v565_ho_pickup_confirmed_msg'.tr,
+      );
+      await _reloadDetail();
+    } catch (e) {
+      if (!mounted) return;
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    } finally {
+      if (mounted) setState(() => _serviceBusy = false);
+    }
+  }
 
   Future<void> _onOwnerConfirm() async {
     setState(() => _serviceBusy = true);
     try {
-      await Get.find<OwnerRepository>().confirmService(bookingId: widget.booking.id);
+      // v565 — « Confirmer le rendu » = /handover/confirm-return (repli
+      // /service/confirm si le backend n'est pas encore déployé).
+      await Get.find<OwnerRepository>().confirmReturn(bookingId: widget.booking.id);
       if (!mounted) return;
       setState(() => _confirmationStatus = 'confirmed');
       CustomSnackbar.showSuccess(
         title: 'service_confirmed_snack_title'.tr,
         message: 'service_confirmed_snack_msg'.tr,
       );
+      await _reloadDetail();
     } catch (e) {
       if (!mounted) return;
       CustomSnackbar.showError(
@@ -636,6 +686,9 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                   role: 'owner',
                   isPaid: isPaid,
                   busy: _serviceBusy,
+                  booking: _liveBooking ?? booking,
+                  accent: AppColors.primaryColor,
+                  onConfirmPickup: _onOwnerConfirmPickup,
                   onConfirm: _onOwnerConfirm,
                   onDispute: _onOwnerDispute,
                 ),

@@ -913,6 +913,22 @@ const CONFIRMATION_AUTO_RELEASE_MS = 48 * 60 * 60 * 1000;
 // avance, mais pas déclencher un service prévu dans trois semaines.
 const EARLY_START_TOLERANCE_MS = 2 * 60 * 60 * 1000;
 
+// v565 — point 24 (contrat §7) : délai d'auto-confirmation du propriétaire.
+// 2 h après « animal récupéré » sans confirmation → remise confirmée d'office ;
+// 2 h après « animal rendu » AVEC preuve (photo ou GPS) → rendu confirmé
+// d'office + libération du séquestre (remplace les 48 h pour ce cas).
+const HANDOVER_AUTO_CONFIRM_MS = 2 * 60 * 60 * 1000;
+
+/** Lit `lat`/`lng` (nombres ou chaînes multipart) ; null si absents/invalides. */
+const _parseLatLng = (body) => {
+  const lat = Number(body?.lat);
+  const lng = Number(body?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  if (lat === 0 && lng === 0) return null;
+  return { lat, lng };
+};
+
 // Bascule d'application STRICTE de la preuve (photo + code).
 //
 // Pourquoi une bascule : la v530 est en production sur le Play Store et
@@ -959,6 +975,18 @@ const _saveHandoverPhoto = async (req, booking, kind) => {
 const schedulePayoutForBooking = async (booking) => {
   if (!booking) return;
   if (booking.payoutStatus === 'completed' || booking.payoutStatus === 'processing') {
+    return;
+  }
+  // v565 — audit paiement (points 15/32) : cette fonction est rappelée par le
+  // chemin synchrone /confirm-payment (deux fois) ET par le webhook, y compris
+  // sur un simple RETRY tardif d'une réservation déjà payée. Elle recalculait
+  // alors autoReleaseAt/scheduledPayoutAt = fin + 48 h, écrasant l'échéance
+  // posée par « animal rendu » (+2 h avec preuve) ou par la confirmation du
+  // propriétaire (= maintenant) tant que le payout n'était pas 'completed'.
+  // Une fois le service démarré, l'échéance de séquestre n'appartient plus au
+  // paiement : on ne touche à rien.
+  if (['in_progress', 'awaiting_confirmation', 'confirmed', 'disputed']
+    .includes(booking.confirmationStatus)) {
     return;
   }
 
@@ -1586,11 +1614,79 @@ const getMyBookings = async (req, res) => {
       .populate('walkerId', 'name email avatar mobile address location rating reviewsCount')
       .populate('petIds');
 
-    // v532 — le code de remise n'est exposé qu'au propriétaire (cf. plus bas).
-    const isOwnerView = userRole === 'owner';
+    // v565 — la sérialisation est partagée avec GET /bookings/:id (détail).
+    const formattedBookings = await Promise.all(
+      bookings.map((booking) => _formatBookingForUser(booking, userRole)),
+    );
+    return _respondMyBookings(res, bookings, formattedBookings);
+  } catch (error) {
+    logger.error('Get my bookings error', error);
+    res.status(500).json({ error: 'Unable to fetch bookings. Please try again later.' });
+  }
+};
 
-    // Format bookings for Bookings History screen
-    const formattedBookings = await Promise.all(bookings.map(async (booking) => {
+/**
+ * v565 — point 24 : chronologie remise/rendu (contrat §7).
+ * Étapes : planned | picked_up | pickup_confirmed | returned | return_confirmed | completed.
+ * Seules les étapes ATTEINTES sont renvoyées (dans l'ordre), `planned` toujours.
+ * `by` ∈ 'system' | 'provider' | 'owner'.
+ */
+const _buildHandoverTimeline = (booking) => {
+  const h = booking?.handover || {};
+  const steps = [];
+  const push = (step, at, by) => {
+    if (!at) return;
+    const d = at instanceof Date ? at : new Date(at);
+    if (Number.isNaN(d.getTime())) return;
+    steps.push({ step, at: d.toISOString(), by });
+  };
+  let plannedAt = null;
+  try { plannedAt = resolveBookingStartDate(booking); } catch (_) { /* ignore */ }
+  push('planned', plannedAt || booking?.createdAt, 'system');
+  push('picked_up', h.pickupProviderAt || booking?.serviceStartedAt, 'provider');
+  if (h.pickupOwnerConfirmedAt) push('pickup_confirmed', h.pickupOwnerConfirmedAt, 'owner');
+  else if (h.pickupAutoConfirmedAt) push('pickup_confirmed', h.pickupAutoConfirmedAt, 'system');
+  push('returned', h.returnProviderAt || booking?.serviceEndedAt, 'provider');
+  if (h.returnOwnerConfirmedAt) push('return_confirmed', h.returnOwnerConfirmedAt, 'owner');
+  else if (h.returnAutoConfirmedAt) push('return_confirmed', h.returnAutoConfirmedAt, 'system');
+  else if (booking?.confirmationStatus === 'confirmed' && booking?.ownerConfirmedAt) {
+    // Legacy (avant v565) : confirmation sans jalons handover.
+    push('return_confirmed', booking.ownerConfirmedAt, 'owner');
+  }
+  if (booking?.confirmationStatus === 'confirmed') {
+    push(
+      'completed',
+      booking.payoutCompletedAt || booking.payoutAt || booking.ownerConfirmedAt,
+      'system',
+    );
+  }
+  return steps;
+};
+
+/** Objet `handover` tel qu'exposé à l'app (toutes les clés, null par défaut). */
+const _serializeHandover = (booking) => {
+  const h = (booking?.handover && typeof booking.handover.toObject === 'function')
+    ? booking.handover.toObject()
+    : (booking?.handover || {});
+  const keys = [
+    'pickupReminderAt', 'pickupOverdueAt', 'pickupProviderAt', 'pickupOwnerConfirmedAt',
+    'pickupAutoConfirmedAt', 'returnReminderAt', 'returnProviderAt', 'returnOwnerConfirmedAt',
+    'returnAutoConfirmedAt', 'pickupLat', 'pickupLng', 'returnLat', 'returnLng',
+    'stillActiveNoticeAt',
+  ];
+  const out = {};
+  for (const k of keys) out[k] = h[k] == null ? null : h[k];
+  return out;
+};
+
+/**
+ * v565 — sérialise UNE réservation pour l'app (liste `GET /bookings/my` ET
+ * détail `GET /bookings/:id`). Le doc doit être peuplé (ownerId, sitterId,
+ * walkerId, petIds). Extrait tel quel de getMyBookings.
+ */
+const _formatBookingForUser = async (booking, userRole) => {
+      // v532 — le code de remise n'est exposé qu'au propriétaire (cf. plus bas).
+      const isOwnerView = userRole === 'owner';
       const sanitized = sanitizeBooking(booking);
       // Session v17 — pick the right "other party" depending on whether the
       // booking targets a sitter or a walker. For an owner, the other party
@@ -1721,9 +1817,15 @@ const getMyBookings = async (req, res) => {
         } : null,
         createdAt: sanitized.createdAt,
         updatedAt: sanitized.updatedAt,
+        // v565 — point 24 (contrat §7) : jalons de remise/rendu + chronologie.
+        handover: _serializeHandover(booking),
+        timeline: _buildHandoverTimeline(booking),
+        payoutStatus: booking.payoutStatus || 'pending',
+        ownerConfirmedAt: booking.ownerConfirmedAt || null,
       };
-    }));
+};
 
+const _respondMyBookings = (res, bookings, formattedBookings) => {
     // Count bookings by status
     const statusCounts = {
       all: bookings.length,
@@ -1740,9 +1842,45 @@ const getMyBookings = async (req, res) => {
       statusCounts,
       count: formattedBookings.length,
     });
+};
+
+/**
+ * v565 — point 24 : GET /bookings/:id (détail, contrat §7).
+ * Même forme qu'un élément de GET /bookings/my + `handover` + `timeline`.
+ * Réservé aux parties de la réservation (propriétaire ou prestataire assigné).
+ */
+const getBookingDetail = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
+    }
+    if (!['owner', 'sitter', 'walker'].includes(userRole)) {
+      return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
+    }
+    const booking = await Booking.findById(req.params.id)
+      .populate('ownerId', 'name email avatar mobile address')
+      .populate('sitterId', 'name email avatar mobile address location rating reviewsCount')
+      .populate('walkerId', 'name email avatar mobile address location rating reviewsCount')
+      .populate('petIds');
+    if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+    const idOf = (ref) => (ref && ref._id ? String(ref._id) : (ref ? String(ref) : null));
+    const isParty =
+      (userRole === 'owner' && idOf(booking.ownerId) === String(userId)) ||
+      (userRole === 'sitter' && idOf(booking.sitterId) === String(userId)) ||
+      (userRole === 'walker' && idOf(booking.walkerId) === String(userId));
+    if (!isParty) {
+      return res.status(403).json({ error: 'You do not have access to this booking.' });
+    }
+    const formatted = await _formatBookingForUser(booking, userRole);
+    return res.json({ booking: formatted, ...formatted });
   } catch (error) {
-    logger.error('Get my bookings error', error);
-    res.status(500).json({ error: 'Unable to fetch bookings. Please try again later.' });
+    if (error?.name === 'CastError') {
+      return res.status(400).json({ error: 'Invalid booking id.' });
+    }
+    logger.error('Get booking detail error', error);
+    return res.status(500).json({ error: 'Unable to fetch booking. Please try again later.' });
   }
 };
 
@@ -3958,19 +4096,47 @@ const captureBookingPaypalPayment = async (req, res) => {
 
       await booking.save();
 
-      await createNotificationSafe({
-        recipientRole: 'sitter',
-        recipientId: booking.sitterId?._id ? booking.sitterId._id.toString() : booking.sitterId.toString(),
-        actorRole: 'owner',
-        actorId: booking.ownerId?._id ? booking.ownerId._id.toString() : booking.ownerId.toString(),
-        type: 'booking_paid',
-        title: 'Booking paid',
-        body: 'A booking was paid successfully.',
-        data: {
-          bookingId: booking._id.toString(),
-          paymentProvider: 'paypal',
-        },
-      });
+      // v565 — audit paiement (points 15/32) : ce chemin PayPal notifiait
+      // UNIQUEMENT la cloche du sitter (pas de push, pas d'e-mail, rien pour
+      // le propriétaire) et plantait sur une réservation WALKER
+      // (`booking.sitterId.toString()` sur null). Même canal que le chemin
+      // Airwallex : booking_paid (prestataire) + booking_paid_owner (owner).
+      try {
+        const providerPp = getBookingProvider(booking);
+        const ownerIdPp = booking.ownerId?._id
+          ? booking.ownerId._id.toString()
+          : (booking.ownerId ? String(booking.ownerId) : null);
+        const notifs = [];
+        if (providerPp.id && providerPp.type) {
+          notifs.push(sendNotification({
+            userId: providerPp.id,
+            role: providerPp.type,
+            type: 'booking_paid',
+            data: {
+              bookingId: booking._id.toString(),
+              providerRole: providerPp.type,
+              paymentProvider: 'paypal',
+            },
+            actor: { role: 'owner', id: ownerIdPp },
+          }));
+        }
+        if (ownerIdPp) {
+          notifs.push(sendNotification({
+            userId: ownerIdPp,
+            role: 'owner',
+            type: 'booking_paid_owner',
+            data: {
+              bookingId: booking._id.toString(),
+              providerRole: providerPp.type || 'sitter',
+              paymentProvider: 'paypal',
+            },
+            actor: { role: providerPp.type || 'sitter', id: providerPp.id },
+          }));
+        }
+        await Promise.allSettled(notifs);
+      } catch (e) {
+        logger.warn(`[captureBookingPaypalPayment] booking_paid notif failed: ${e?.message || e}`);
+      }
 
       // Business rule: the money stays in escrow until the first day of the
       // pet sitting service. schedulePayoutForBooking() will either release
@@ -5703,24 +5869,38 @@ const startService = async (req, res) => {
     if (pickupProof) booking.pickupProof = pickupProof;
     booking.confirmationStatus = 'in_progress';
     booking.serviceStartedAt = booking.serviceStartedAt || new Date();
+    // v565 — point 24 (contrat §7) : jalon « animal récupéré » + position GPS
+    // horodatée (champs `lat`/`lng`, JSON ou multipart → chaînes).
+    const gps = _parseLatLng(req.body);
+    booking.handover = booking.handover || {};
+    booking.handover.pickupProviderAt = booking.handover.pickupProviderAt || new Date();
+    if (gps) {
+      booking.handover.pickupLat = gps.lat;
+      booking.handover.pickupLng = gps.lng;
+    }
     await booking.save();
     try {
       const { sendNotification } = require('../services/notificationSender');
       const buildEmailLink = require('../utils/emailLinkBuilder').buildEmailLink;
+      // v565 — `handover_picked_up` (contrat §7) remplace `service_started` :
+      // même événement, texte avec le bouton « Confirmer la remise ».
       await sendNotification({
         userId: String(booking.ownerId),
         role: 'owner',
-        type: 'service_started',
+        type: 'handover_picked_up',
         data: {
           bookingId: String(booking._id),
           emailLink: buildEmailLink('booking', { bookingId: String(booking._id) }),
         },
+        actor: { role: userRole, id: String(userId) },
       });
     } catch (e) { logger.warn('[startService] notif failed', e); }
     return res.json({
       success: true,
       confirmationStatus: booking.confirmationStatus,
       serviceStartedAt: booking.serviceStartedAt,
+      handover: _serializeHandover(booking),
+      timeline: _buildHandoverTimeline(booking),
     });
   } catch (e) {
     logger.error('[startService]', e);
@@ -5764,7 +5944,21 @@ const completeService = async (req, res) => {
     if (returnProof) booking.returnProof = returnProof;
     booking.confirmationStatus = 'awaiting_confirmation';
     booking.serviceEndedAt = new Date();
-    booking.autoReleaseAt = new Date(Date.now() + CONFIRMATION_AUTO_RELEASE_MS);
+    // v565 — point 24 (contrat §7) : jalon « animal rendu » + GPS. Avec une
+    // PREUVE (photo ou position), la confirmation du propriétaire est
+    // automatique 2 h après (auto-release à +2 h par le planificateur de
+    // paiement existant) ; sans preuve, la règle historique des 48 h reste.
+    const gpsReturn = _parseLatLng(req.body);
+    booking.handover = booking.handover || {};
+    booking.handover.returnProviderAt = booking.handover.returnProviderAt || new Date();
+    if (gpsReturn) {
+      booking.handover.returnLat = gpsReturn.lat;
+      booking.handover.returnLng = gpsReturn.lng;
+    }
+    const hasReturnProof = !!returnProof || !!gpsReturn;
+    booking.autoReleaseAt = new Date(
+      Date.now() + (hasReturnProof ? HANDOVER_AUTO_CONFIRM_MS : CONFIRMATION_AUTO_RELEASE_MS),
+    );
     booking.scheduledPayoutAt = booking.autoReleaseAt;
     if (booking.payoutStatus !== 'completed' && booking.payoutStatus !== 'processing') {
       booking.payoutStatus = 'scheduled';
@@ -5784,14 +5978,17 @@ const completeService = async (req, res) => {
     try {
       const { sendNotification } = require('../services/notificationSender');
       const buildEmailLink = require('../utils/emailLinkBuilder').buildEmailLink;
+      // v565 — `handover_returned` (contrat §7) remplace `service_completion_request`.
       await sendNotification({
         userId: String(booking.ownerId),
         role: 'owner',
-        type: 'service_completion_request',
+        type: 'handover_returned',
         data: {
           bookingId: String(booking._id),
+          autoConfirmHours: hasReturnProof ? '2' : '48',
           emailLink: buildEmailLink('booking', { bookingId: String(booking._id) }),
         },
+        actor: { role: userRole, id: String(userId) },
       });
     } catch (e) { logger.warn('[completeService] notif failed', e); }
     return res.json({
@@ -5799,6 +5996,8 @@ const completeService = async (req, res) => {
       confirmationStatus: booking.confirmationStatus,
       serviceEndedAt: booking.serviceEndedAt,
       autoReleaseAt: booking.autoReleaseAt,
+      handover: _serializeHandover(booking),
+      timeline: _buildHandoverTimeline(booking),
     });
   } catch (e) {
     logger.error('[completeService]', e);
@@ -6055,6 +6254,11 @@ const confirmService = async (req, res) => {
     }
     booking.confirmationStatus = 'confirmed';
     booking.ownerConfirmedAt = new Date();
+    // v565 — point 24 (contrat §7) : jalon « rendu confirmé par le propriétaire »
+    // (POST /handover/confirm-return est un alias de cette route).
+    booking.handover = booking.handover || {};
+    booking.handover.returnOwnerConfirmedAt =
+      booking.handover.returnOwnerConfirmedAt || booking.ownerConfirmedAt;
     // Libération immédiate : scheduledPayoutAt = maintenant.
     booking.scheduledPayoutAt = new Date();
     if (booking.payoutStatus !== 'completed' && booking.payoutStatus !== 'processing') {
@@ -6089,21 +6293,92 @@ const confirmService = async (req, res) => {
       const buildEmailLink = require('../utils/emailLinkBuilder').buildEmailLink;
       const prov = _resolveConfirmProvider(booking);
       if (prov.id) {
+        // v565 — `handover_return_confirmed` (contrat §7) remplace
+        // `service_confirmed` sur ce chemin (texte : rendu confirmé + paiement
+        // libéré). `service_confirmed` reste utilisé par l'arbitrage admin.
         await sendNotification({
           userId: prov.id,
           role: prov.role,
-          type: 'service_confirmed',
+          type: 'handover_return_confirmed',
           data: {
             bookingId: String(booking._id),
             emailLink: buildEmailLink('wallet'),
           },
+          actor: { role: 'owner', id: String(userId) },
         });
       }
     } catch (e) { logger.warn('[confirmService] notif failed', e); }
-    return res.json({ success: true, confirmationStatus: 'confirmed', ownerConfirmedAt: booking.ownerConfirmedAt });
+    return res.json({
+      success: true,
+      confirmationStatus: 'confirmed',
+      ownerConfirmedAt: booking.ownerConfirmedAt,
+      handover: _serializeHandover(booking),
+      timeline: _buildHandoverTimeline(booking),
+    });
   } catch (e) {
     logger.error('[confirmService]', e);
     return res.status(500).json({ error: 'Unable to confirm service.' });
+  }
+};
+
+// v565 — point 24 (contrat §7).
+// POST /bookings/:id/handover/confirm-pickup — le propriétaire confirme que
+// le prestataire a bien récupéré l'animal (aucun effet sur le paiement ; la
+// libération n'intervient qu'au rendu confirmé). Idempotent.
+const confirmPickup = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+    if (userRole !== 'owner' || String(booking.ownerId) !== String(userId)) {
+      return res.status(403).json({ error: 'Only the owner can confirm the pickup.' });
+    }
+    const h = booking.handover || {};
+    const pickedUpAt = h.pickupProviderAt || booking.serviceStartedAt;
+    if (!pickedUpAt) {
+      return res.status(409).json({
+        error: 'The provider has not marked the pet as picked up yet.',
+        code: 'PICKUP_NOT_MARKED',
+        confirmationStatus: booking.confirmationStatus,
+      });
+    }
+    if (h.pickupOwnerConfirmedAt) {
+      return res.json({
+        success: true,
+        alreadyConfirmed: true,
+        handover: _serializeHandover(booking),
+        timeline: _buildHandoverTimeline(booking),
+      });
+    }
+    booking.handover = booking.handover || {};
+    booking.handover.pickupOwnerConfirmedAt = new Date();
+    await booking.save();
+    try {
+      const { sendNotification } = require('../services/notificationSender');
+      const buildEmailLink = require('../utils/emailLinkBuilder').buildEmailLink;
+      const prov = _resolveConfirmProvider(booking);
+      if (prov.id) {
+        await sendNotification({
+          userId: prov.id,
+          role: prov.role,
+          type: 'handover_pickup_confirmed',
+          data: {
+            bookingId: String(booking._id),
+            emailLink: buildEmailLink('booking', { bookingId: String(booking._id) }),
+          },
+          actor: { role: 'owner', id: String(userId) },
+        });
+      }
+    } catch (e) { logger.warn('[confirmPickup] notif failed', e); }
+    return res.json({
+      success: true,
+      handover: _serializeHandover(booking),
+      timeline: _buildHandoverTimeline(booking),
+    });
+  } catch (e) {
+    logger.error('[confirmPickup]', e);
+    return res.status(500).json({ error: 'Unable to confirm pickup.' });
   }
 };
 
@@ -6291,4 +6566,14 @@ module.exports = {
   processServiceEndReminders,
   confirmService,
   disputeService,
+  // v565 — point 24 (contrat §7) : remise/rendu de l'animal.
+  getBookingDetail,
+  confirmPickup,
+  confirmReturn: confirmService, // POST /handover/confirm-return ≡ /service/confirm
+  // Helpers partagés avec services/handoverScheduler.js.
+  resolveBookingStartDate,
+  resolveBookingEndDate,
+  getBookingProvider,
+  buildHandoverTimeline: _buildHandoverTimeline,
+  HANDOVER_AUTO_CONFIRM_MS,
 };

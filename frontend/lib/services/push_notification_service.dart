@@ -59,6 +59,64 @@ class PushNotificationService extends GetxService {
     importance: Importance.high,
   );
 
+  // v565 — docs/v565_contracts.md §1 : canaux Android PAR SON. Le serveur
+  // envoie `notification.channelId = 'hopetsit_<sound>'` + `data.sound`.
+  //   bark / meow / tweet → fichier res/raw/<son>.wav
+  //   vibrate             → sans son, vibration
+  //   silent              → importance basse, ni son ni vibration
+  static const List<AndroidNotificationChannel> _soundChannels =
+      <AndroidNotificationChannel>[
+    AndroidNotificationChannel(
+      'hopetsit_bark',
+      'HoPetSit — bark',
+      description: 'HoPetSit notifications with a dog bark sound.',
+      importance: Importance.high,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound('bark'),
+    ),
+    AndroidNotificationChannel(
+      'hopetsit_meow',
+      'HoPetSit — meow',
+      description: 'HoPetSit notifications with a cat meow sound.',
+      importance: Importance.high,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound('meow'),
+    ),
+    AndroidNotificationChannel(
+      'hopetsit_tweet',
+      'HoPetSit — tweet',
+      description: 'HoPetSit notifications with a bird tweet sound.',
+      importance: Importance.high,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound('tweet'),
+    ),
+    AndroidNotificationChannel(
+      'hopetsit_vibrate',
+      'HoPetSit — vibrate',
+      description: 'HoPetSit notifications with vibration only.',
+      importance: Importance.high,
+      playSound: false,
+      enableVibration: true,
+    ),
+    AndroidNotificationChannel(
+      'hopetsit_silent',
+      'HoPetSit — silent',
+      description: 'HoPetSit silent notifications.',
+      importance: Importance.low,
+      playSound: false,
+      enableVibration: false,
+    ),
+  ];
+
+  /// Canal Android à utiliser pour un son (§2) — `default` → canal historique.
+  static AndroidNotificationChannel channelForSound(String? sound) {
+    final s = (sound ?? '').trim().toLowerCase();
+    for (final c in _soundChannels) {
+      if (c.id == 'hopetsit_$s') return c;
+    }
+    return _androidChannel;
+  }
+
   bool _initialized = false;
 
   /// Must be called once at app startup (after Firebase.initializeApp).
@@ -91,10 +149,18 @@ class PushNotificationService extends GetxService {
         initSettings,
         onDidReceiveNotificationResponse: _onLocalNotificationTap,
       );
-      await _localNotifications
+      final androidPlugin = _localNotifications
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(_androidChannel);
+              AndroidFlutterLocalNotificationsPlugin>();
+      await androidPlugin?.createNotificationChannel(_androidChannel);
+      // v565 — canaux par son (créés au démarrage, idempotent).
+      for (final c in _soundChannels) {
+        try {
+          await androidPlugin?.createNotificationChannel(c);
+        } catch (e) {
+          debugPrint('createNotificationChannel ${c.id} failed: $e');
+        }
+      }
 
       // iOS: display alerts even when the app is in the foreground.
       await _messaging.setForegroundNotificationPresentationOptions(
@@ -275,7 +341,26 @@ class PushNotificationService extends GetxService {
       return;
     }
 
+    // v565 — BUG iOS « double bannière » : setForegroundNotificationPresentation
+    // Options(alert: true) fait déjà afficher la bannière SYSTÈME pour tout push
+    // qui porte un bloc `notification`. Appeler `show` en plus en affichait une
+    // deuxième. Sur iOS on ne montre donc PAS de notification locale quand le
+    // push a un bloc notification (les badges sont déjà mis à jour ci-dessus) ;
+    // un push « data-only » reste affiché localement.
+    if (!kIsWeb && Platform.isIOS && notification != null) {
+      return;
+    }
+
     final String payload = jsonEncode(message.data);
+
+    // v565 — §2 : le push porte `data.sound` ('default'|'bark'|'meow'|'tweet'|
+    // 'vibrate'|'silent') pour l'affichage en premier plan → canal Android
+    // correspondant / son APNs `<sound>.caf` sur iOS.
+    final sound = (message.data['sound'] ?? '').toString().trim().toLowerCase();
+    final channel = channelForSound(sound);
+    final bool silent = sound == 'silent';
+    final bool vibrateOnly = sound == 'vibrate';
+    final bool customSound = sound == 'bark' || sound == 'meow' || sound == 'tweet';
 
     await _localNotifications.show(
       message.hashCode,
@@ -283,17 +368,21 @@ class PushNotificationService extends GetxService {
       body,
       NotificationDetails(
         android: AndroidNotificationDetails(
-          _androidChannel.id,
-          _androidChannel.name,
-          channelDescription: _androidChannel.description,
-          importance: Importance.high,
-          priority: Priority.high,
+          channel.id,
+          channel.name,
+          channelDescription: channel.description,
+          importance: silent ? Importance.low : Importance.high,
+          priority: silent ? Priority.low : Priority.high,
           icon: '@mipmap/ic_launcher',
+          playSound: !(silent || vibrateOnly),
+          sound: customSound ? RawResourceAndroidNotificationSound(sound) : null,
+          enableVibration: !silent,
         ),
-        iOS: const DarwinNotificationDetails(
+        iOS: DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
-          presentSound: true,
+          presentSound: !(silent || vibrateOnly),
+          sound: customSound ? '$sound.caf' : null,
         ),
       ),
       payload: payload,

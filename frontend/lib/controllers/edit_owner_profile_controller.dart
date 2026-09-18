@@ -11,6 +11,7 @@ import 'package:hopetsit/utils/date_slash_formatter.dart'
     show parseDdMmYyyy, ageInYears;
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/views/profile/widgets/phone_prefix_helper.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/services/location_service.dart';
 
@@ -107,10 +108,18 @@ class EditOwnerProfileController extends GetxController {
       // Populate form fields
       nameController.text = profileData['name']?.toString() ?? '';
       emailController.text = profileData['email']?.toString() ?? '';
-      phoneController.text =
-          profileData['mobile']?.toString() ??
+      // v565 — point 12 : indicatif = stocké, sinon déduit du PAYS du compte,
+      // sinon extrait du numéro ; le champ n'affiche que le numéro national.
+      final rawMobile = profileData['mobile']?.toString() ??
           profileData['phone']?.toString() ??
           '';
+      selectedCountryCode.value = PhonePrefix.resolveDial(
+        storedCode: profileData['countryCode']?.toString(),
+        countryIso: profileData['country']?.toString(),
+        rawMobile: rawMobile,
+      );
+      phoneController.text =
+          PhonePrefix.nationalNumber(rawMobile, selectedCountryCode.value);
 
       // Address + location handling
       // Backend returns location as an object, e.g.:
@@ -160,8 +169,6 @@ class EditOwnerProfileController extends GetxController {
       } else {
         languageController.text = rawLanguage?.toString() ?? '';
       }
-
-      selectedCountryCode.value = profileData['countryCode']?.toString() ?? '';
 
       // Set current avatar URL
       final avatar = profileData['avatar'];
@@ -267,10 +274,10 @@ class EditOwnerProfileController extends GetxController {
         return false;
       }
 
-      final rawPhone = phoneController.text.trim();
-      final mobile = rawPhone.startsWith('+')
-          ? rawPhone
-          : '${selectedCountryCode.value}$rawPhone';
+      // v565 — point 12 : `mobile` = numéro NATIONAL, `countryCode` = indicatif
+      // (le serveur joint les deux au partage de téléphone).
+      final mobile = PhonePrefix.nationalNumber(
+          phoneController.text, selectedCountryCode.value);
 
       final payload = <String, dynamic>{
         'name': nameController.text.trim(),

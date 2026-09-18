@@ -49,6 +49,101 @@ class BookingPet {
   }
 }
 
+/// v565 (point 24 / contrat §7) — étape de la chronologie de remise renvoyée
+/// par `GET /bookings/:id` : `timeline: [{ step, at, by }]`, step ∈ planned |
+/// picked_up | pickup_confirmed | returned | return_confirmed | completed.
+class BookingTimelineStep {
+  final String step;
+  final String? at;
+  final String? by;
+  const BookingTimelineStep({required this.step, this.at, this.by});
+
+  factory BookingTimelineStep.fromJson(Map<String, dynamic> json) {
+    return BookingTimelineStep(
+      step: (json['step'] ?? '').toString(),
+      at: json['at']?.toString(),
+      by: json['by']?.toString(),
+    );
+  }
+
+  DateTime? get atDate => at == null ? null : DateTime.tryParse(at!)?.toLocal();
+}
+
+/// v565 (point 24 / contrat §7) — objet `handover` du booking : horodatages
+/// des rappels, des actions prestataire, des confirmations owner (manuelles
+/// ou automatiques après 2 h) et positions GPS. Toutes les dates sont null par
+/// défaut (vieux backend ou étape pas encore atteinte).
+class BookingHandover {
+  final String? pickupReminderAt;
+  final String? pickupOverdueAt;
+  final String? pickupProviderAt;
+  final String? pickupOwnerConfirmedAt;
+  final String? pickupAutoConfirmedAt;
+  final String? returnReminderAt;
+  final String? returnProviderAt;
+  final String? returnOwnerConfirmedAt;
+  final String? returnAutoConfirmedAt;
+  final double? pickupLat;
+  final double? pickupLng;
+  final double? returnLat;
+  final double? returnLng;
+  final String? stillActiveNoticeAt;
+
+  const BookingHandover({
+    this.pickupReminderAt,
+    this.pickupOverdueAt,
+    this.pickupProviderAt,
+    this.pickupOwnerConfirmedAt,
+    this.pickupAutoConfirmedAt,
+    this.returnReminderAt,
+    this.returnProviderAt,
+    this.returnOwnerConfirmedAt,
+    this.returnAutoConfirmedAt,
+    this.pickupLat,
+    this.pickupLng,
+    this.returnLat,
+    this.returnLng,
+    this.stillActiveNoticeAt,
+  });
+
+  static String? _s(dynamic v) => v?.toString();
+  static double? _d(dynamic v) => v is num ? v.toDouble() : double.tryParse('${v ?? ''}');
+
+  factory BookingHandover.fromJson(Map<String, dynamic> json) {
+    return BookingHandover(
+      pickupReminderAt: _s(json['pickupReminderAt']),
+      pickupOverdueAt: _s(json['pickupOverdueAt']),
+      pickupProviderAt: _s(json['pickupProviderAt']),
+      pickupOwnerConfirmedAt: _s(json['pickupOwnerConfirmedAt']),
+      pickupAutoConfirmedAt: _s(json['pickupAutoConfirmedAt']),
+      returnReminderAt: _s(json['returnReminderAt']),
+      returnProviderAt: _s(json['returnProviderAt']),
+      returnOwnerConfirmedAt: _s(json['returnOwnerConfirmedAt']),
+      returnAutoConfirmedAt: _s(json['returnAutoConfirmedAt']),
+      pickupLat: _d(json['pickupLat']),
+      pickupLng: _d(json['pickupLng']),
+      returnLat: _d(json['returnLat']),
+      returnLng: _d(json['returnLng']),
+      stillActiveNoticeAt: _s(json['stillActiveNoticeAt']),
+    );
+  }
+
+  /// Le prestataire a déclaré la récupération.
+  bool get pickedUp => pickupProviderAt != null;
+  /// Récupération confirmée (par le propriétaire OU automatiquement).
+  bool get pickupConfirmed =>
+      pickupOwnerConfirmedAt != null || pickupAutoConfirmedAt != null;
+  /// Le prestataire a déclaré le rendu.
+  bool get returned => returnProviderAt != null;
+  /// Rendu confirmé (par le propriétaire OU automatiquement).
+  bool get returnConfirmed =>
+      returnOwnerConfirmedAt != null || returnAutoConfirmedAt != null;
+  /// Le propriétaire doit confirmer la récupération.
+  bool get pickupAwaitingOwner => pickedUp && !pickupConfirmed;
+  /// Le propriétaire doit confirmer le rendu.
+  bool get returnAwaitingOwner => returned && !returnConfirmed;
+}
+
 class BookingModel {
   final String id;
   final String petName;
@@ -106,6 +201,15 @@ class BookingModel {
   // on retombe sur un recalcul local robuste (cf. getters plus bas).
   final bool? canSelfCancel;
   final int? hoursUntilStart;
+  // v565 (point 24) — remise / rendu : objet `handover` + chronologie
+  // `timeline` renvoyés par le détail (`GET /bookings/:id`). La liste peut ne
+  // pas les porter → null / vide, et la carte de service retombe sur
+  // `confirmationStatus` + `serviceStartedAt` / `serviceEndedAt`.
+  final BookingHandover? handover;
+  final List<BookingTimelineStep> timeline;
+  // v565 — fin prévue (ISO) quand le serveur la renvoie ; sert au rappel
+  // « rendu dans 30 min ». Null si absent.
+  final String? endDate;
 
   BookingModel({
     required this.id,
@@ -144,7 +248,11 @@ class BookingModel {
     this.providerRole,
     this.canSelfCancel,
     this.hoursUntilStart,
-  }) : pets = pets ?? [];
+    this.handover,
+    List<BookingTimelineStep>? timeline,
+    this.endDate,
+  })  : pets = pets ?? [],
+        timeline = timeline ?? const <BookingTimelineStep>[];
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
     // Handle 'sitter', 'walker' and 'otherParty' fields from API.
@@ -279,7 +387,58 @@ class BookingModel {
       // v462 — éligibilité 72h autoritaire renvoyée par le backend.
       canSelfCancel: json['canSelfCancel'] as bool?,
       hoursUntilStart: (json['hoursUntilStart'] as num?)?.toInt(),
+      // v565 — remise / rendu (contrat §7).
+      handover: json['handover'] is Map
+          ? BookingHandover.fromJson(
+              Map<String, dynamic>.from(json['handover'] as Map))
+          : null,
+      timeline: json['timeline'] is List
+          ? (json['timeline'] as List)
+              .whereType<Map>()
+              .map((e) => BookingTimelineStep.fromJson(
+                  Map<String, dynamic>.from(e)))
+              .where((e) => e.step.isNotEmpty)
+              .toList()
+          : null,
+      endDate: (json['endDate'] ?? json['end_date'] ?? json['dateEnd'])
+          ?.toString(),
     );
+  }
+
+  // ── v565 — aides remise / rendu ────────────────────────────────────────
+  /// Début prévu du service (date + heure du créneau si lisible), en heure
+  /// locale. Null si la date n'est pas interprétable.
+  DateTime? get plannedStart {
+    final d = _localStartDate();
+    if (d == null) return null;
+    final m = RegExp(r'(\d{1,2})[:h](\d{2})').firstMatch(timeSlot);
+    if (m == null) return d;
+    final h = int.tryParse(m.group(1)!) ?? 0;
+    final mi = int.tryParse(m.group(2)!) ?? 0;
+    return DateTime(d.year, d.month, d.day, h, mi);
+  }
+
+  /// Fin prévue : `endDate` serveur, sinon début + durée (promenade), sinon
+  /// début + 1 h (garde à la journée : le serveur envoie le rappel, l'app ne
+  /// fait qu'afficher).
+  DateTime? get plannedEnd {
+    if (endDate != null) {
+      final e = DateTime.tryParse(endDate!);
+      if (e != null) return e.toLocal();
+    }
+    final s = plannedStart;
+    if (s == null) return null;
+    if (duration != null && duration! > 0) {
+      return s.add(Duration(minutes: duration!));
+    }
+    final m = RegExp(r'(\d{1,2})[:h](\d{2})\s*[-–]\s*(\d{1,2})[:h](\d{2})')
+        .firstMatch(timeSlot);
+    if (m != null) {
+      final h = int.tryParse(m.group(3)!) ?? s.hour;
+      final mi = int.tryParse(m.group(4)!) ?? s.minute;
+      return DateTime(s.year, s.month, s.day, h, mi);
+    }
+    return null;
   }
 
   // ── v462 — Éligibilité annulation 72h ─────────────────────────────────

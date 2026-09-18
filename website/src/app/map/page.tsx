@@ -63,6 +63,7 @@ import {
   visitSpot,
 } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
+import { usePresence } from "@/lib/usePresence";
 import { getSocket } from "@/lib/socket";
 // v23.1.365 — FIX build Vercel : importer haloColor depuis FriendsLiveMap
 // chargeait Leaflet AU PRERENDER ("window is not defined" sur /map). Les
@@ -297,6 +298,10 @@ export default function MapPage() {
     getSocket()?.emit("map:identify", { userId: me.id, role: me.role });
   }, [socketConnected]);
 
+  // v565 (point 10, contrat §6) — présence réelle : `isOnline` lu sur
+  // /friends et /friends/members/nearby, puis `presence:update` en direct.
+  const { presence, resolveOnline } = usePresence();
+
   // Index id → FriendItem pour résoudre nom/avatar/role des events socket
   // (porté de FriendsLiveMap — la résolution vit désormais côté page).
   const friendByUserId = useMemo(() => {
@@ -327,6 +332,8 @@ export default function MapPage() {
         lat: data.lat,
         lng: data.lng,
         at: data.at || new Date().toISOString(),
+        // v565 — présence : quelqu'un qui diffuse est connecté sauf info contraire.
+        isOnline: prev.get(data.userId)?.isOnline ?? friend?.isOnline ?? friend?.other?.isOnline ?? true,
       });
       return next;
     });
@@ -996,9 +1003,20 @@ export default function MapPage() {
     }
   }
 
+  // v565 — la présence socket prime sur la valeur lue au chargement.
   const livePositionsList = useMemo(
-    () => Array.from(livePositions.values()),
-    [livePositions],
+    () =>
+      Array.from(livePositions.values()).map((p) =>
+        presence.has(p.userId) ? { ...p, isOnline: !!presence.get(p.userId) } : p,
+      ),
+    [livePositions, presence],
+  );
+  const membersWithPresence = useMemo(
+    () =>
+      allMembers.map((m) =>
+        m.approx ? m : { ...m, isOnline: resolveOnline(m.id, m.isOnline) },
+      ),
+    [allMembers, resolveOnline],
   );
 
   if (loading) {
@@ -1233,7 +1251,9 @@ export default function MapPage() {
               >
                 {(p.name || "?").charAt(0).toUpperCase()}
               </span>
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+              <span
+                className={`inline-block h-2 w-2 rounded-full ${p.isOnline === false ? "bg-[#C7C7CC]" : "bg-emerald-500"}`}
+              />
               {p.name} · {t(`role_${p.role}`)}
             </button>
           ))}
@@ -1621,7 +1641,7 @@ export default function MapPage() {
           onSpotVisit={handleSpotVisit}
           reports={showReports ? reports : []}
           reportTypeLabels={reportTypeLabels}
-          members={allMembers}
+          members={membersWithPresence}
           memberRoleLabels={{
             owner: t("role_owner"),
             sitter: t("role_sitter"),

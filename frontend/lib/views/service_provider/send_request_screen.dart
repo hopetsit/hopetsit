@@ -7,6 +7,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/views/profile/my_pets_screen.dart';
 
 class SendRequestScreen extends StatefulWidget {
@@ -207,7 +208,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                         : 'send_request_button'.tr,
                     onTap: controller.isLoading.value
                         ? null
-                        : () {
+                        : () async {
                             // v20.0.14 — check required sections before
                             // sending. If any missing, turn them orange via
                             // attemptedSubmit.
@@ -255,6 +256,13 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                                 message: controller
                                     .dateTimeValidationError.value!,
                               );
+                              return;
+                            }
+                            // v565 (point 25) — adresse (lieu de garde) +
+                            // téléphone obligatoires avant d'envoyer une
+                            // demande de réservation.
+                            if (!await ensureContactInfo(context,
+                                role: 'owner')) {
                               return;
                             }
                             controller.sendRequest(

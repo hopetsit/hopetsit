@@ -352,5 +352,71 @@
     "body": "Der Spaziergang ist vorbei ({{minutes}} Min.). Öffne die App für die Route und den Bericht.",
     "emailSubject": "Spaziergang beendet ✅",
     "emailBody": "<p>Der Spaziergang ist vorbei ({{minutes}} Min.). Öffne die App für die Route und den Bericht.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">HoPetSit</a></p>"
+  },
+  "handover_pickup_soon": {
+    "title": "Übergabe in 30 Min. 🐾",
+    "body": "Die Übergabe des Tieres ist in 30 Minuten geplant. Alles bereit?",
+    "emailSubject": "Übergabe des Tieres in 30 Minuten — HoPetSit",
+    "emailBody": "<p>Die Übergabe des Tieres ist in 30 Minuten geplant. Der Anbieter tippt bei der Übergabe auf „Tier abgeholt“, und der Besitzer bestätigt einfach mit einem Tipp.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "handover_return_soon": {
+    "title": "Rückgabe in 30 Min. 🏁",
+    "body": "Die Rückgabe des Tieres ist in 30 Minuten geplant.",
+    "emailSubject": "Rückgabe des Tieres in 30 Minuten — HoPetSit",
+    "emailBody": "<p>Die Rückgabe des Tieres ist in 30 Minuten geplant. Der Anbieter tippt bei der Rückgabe auf „Tier zurückgegeben“; die Bestätigung des Besitzers gibt anschließend die Zahlung frei.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "handover_pickup_overdue": {
+    "title": "Übergabe nicht bestätigt ⏰",
+    "body": "Eine Stunde nach der geplanten Zeit wurde die Abholung des Tieres noch nicht bestätigt. Der Anbieter muss auf „Tier abgeholt“ tippen.",
+    "emailSubject": "Übergabe des Tieres nicht bestätigt — HoPetSit",
+    "emailBody": "<p>Eine Stunde nach der geplanten Zeit wurde die Abholung des Tieres in der App noch nicht bestätigt. Anbieter: Tippe auf „Tier abgeholt“, sobald das Tier bei dir ist. Besitzer: Schreib dem Anbieter im Chat, wenn du unsicher bist.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "handover_pickup_auto": {
+    "title": "Übergabe automatisch bestätigt",
+    "body": "Ohne Antwort des Besitzers innerhalb von 2 Stunden wurde die Abholung des Tieres automatisch bestätigt (Foto oder Standort als Nachweis).",
+    "emailSubject": "Übergabe automatisch bestätigt — HoPetSit",
+    "emailBody": "<p>Der Besitzer hat die Übergabe nicht innerhalb von 2 Stunden bestätigt: Die Abholung des Tieres wurde automatisch bestätigt, mit dem Foto oder dem Standort als Nachweis. Der vollständige Verlauf ist in der Buchung sichtbar.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "handover_return_auto": {
+    "title": "Rückgabe automatisch bestätigt ✅",
+    "body": "Die Rückgabe des Tieres wurde automatisch bestätigt und die Zahlung an das Wallet des Anbieters freigegeben.",
+    "emailSubject": "Rückgabe automatisch bestätigt — Zahlung freigegeben",
+    "emailBody": "<p>Der Besitzer hat die Rückgabe nicht rechtzeitig bestätigt: Sie wurde automatisch bestätigt, mit dem Foto oder dem Standort als Nachweis, und die treuhänderisch gehaltene Zahlung wurde an das Wallet des Anbieters freigegeben.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "handover_picked_up": {
+    "title": "Tier abgeholt 🐾",
+    "body": "Dein Anbieter hat dein Tier gerade abgeholt. Bestätige die Übergabe mit einem Tipp (automatische Bestätigung in 2 Stunden).",
+    "emailSubject": "Dein Tier wurde abgeholt — bestätige die Übergabe",
+    "emailBody": "<p>Dein Anbieter hat gerade auf „Tier abgeholt“ getippt. Öffne die Buchung und bestätige die Übergabe mit einem Tipp. Ohne deine Antwort wird sie in 2 Stunden automatisch bestätigt.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "handover_pickup_confirmed": {
+    "title": "Übergabe bestätigt ✅",
+    "body": "Der Besitzer hat bestätigt, dass du das Tier abgeholt hast. Viel Freude beim Service!",
+    "emailSubject": "Übergabe vom Besitzer bestätigt — HoPetSit",
+    "emailBody": "<p>Der Besitzer hat bestätigt, dass du das Tier abgeholt hast. Viel Freude beim Service! Denk daran, am Ende auf „Tier zurückgegeben“ zu tippen.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "handover_returned": {
+    "title": "Tier zurückgegeben 🏁",
+    "body": "Dein Anbieter gibt an, dein Tier zurückgegeben zu haben. Bestätige, dass alles gut lief, um die Zahlung freizugeben (sonst automatische Bestätigung in {{autoConfirmHours}} Std.).",
+    "emailSubject": "Dein Tier wurde zurückgegeben — bestätige die Rückgabe",
+    "emailBody": "<p>Dein Anbieter hat gerade auf „Tier zurückgegeben“ getippt. Bestätige, dass alles gut lief: Das gibt die Zahlung an sein Wallet frei. Ohne deine Antwort wird die Rückgabe in {{autoConfirmHours}} Stunden automatisch bestätigt.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "handover_return_confirmed": {
+    "title": "Rückgabe bestätigt ✅",
+    "body": "Der Besitzer hat die Rückgabe des Tieres bestätigt. Deine Zahlung wurde an dein Wallet freigegeben.",
+    "emailSubject": "Rückgabe bestätigt — Zahlung freigegeben",
+    "emailBody": "<p>Der Besitzer hat die Rückgabe des Tieres bestätigt. Deine Zahlung wurde an dein Wallet freigegeben: Nutze sie im Shop oder überweise sie auf deine IBAN.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "live_session_ended": {
+    "title": "Live-Teilen beendet",
+    "body": "Die gewählte Dauer ({{duration}}) ist abgelaufen: Dein Standort wird nicht mehr mit deinen Freunden geteilt.",
+    "emailSubject": "Dein Live-Teilen ist beendet — HoPetSit",
+    "emailBody": "<p>Die gewählte Dauer ({{duration}}) ist abgelaufen: Dein Standort wird nicht mehr mit deinen Freunden geteilt. Du kannst das Teilen jederzeit über die PawMap neu starten.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">PawMap öffnen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "live_still_active": {
+    "title": "Live-Teilen weiterhin aktiv 📍",
+    "body": "Du teilst deinen Live-Standort seit {{hours}} Std. Du kannst es jederzeit über die PawMap beenden.",
+    "emailSubject": "Dein Live-Teilen ist weiterhin aktiv — HoPetSit",
+    "emailBody": "<p>Du teilst deinen Live-Standort seit {{hours}} Std. mit deinen Freunden. Wenn das gewollt ist, musst du nichts tun; du kannst es jederzeit über die PawMap beenden.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">PawMap öffnen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
   }
 }

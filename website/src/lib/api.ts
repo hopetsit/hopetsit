@@ -70,6 +70,43 @@ export function clearAuth() {
   notifyAuthChange();
 }
 
+// v565 (contrat §3) — changement d'e-mail par l'utilisateur lui-même :
+// demande (mot de passe + nouvel e-mail) → code envoyé à la NOUVELLE adresse
+// → confirmation (remplace l'e-mail sur les 3 profils) ; renvoi limité 1/2 min.
+export async function requestEmailChange(
+  newEmail: string,
+  password: string,
+): Promise<{ ok: boolean }> {
+  return request("/users/me/email-change", {
+    method: "POST",
+    body: JSON.stringify({ newEmail, password }),
+  });
+}
+
+export async function confirmEmailChange(
+  code: string,
+): Promise<{ ok: boolean; email?: string }> {
+  const res = await request<{ ok: boolean; email?: string }>(
+    "/users/me/email-change/confirm",
+    { method: "POST", body: JSON.stringify({ code }) },
+  );
+  // L'e-mail stocké localement (en-tête, profil) suit le nouveau.
+  if (res?.email) {
+    const u = getStoredUser();
+    if (u) {
+      try {
+        window.localStorage.setItem(USER_KEY, JSON.stringify({ ...u, email: res.email }));
+      } catch { /* ignore */ }
+      notifyAuthChange();
+    }
+  }
+  return res;
+}
+
+export async function resendEmailChange(): Promise<{ ok: boolean }> {
+  return request("/users/me/email-change/resend", { method: "POST" });
+}
+
 // v498 — Daniel : page web « Supprimer mon compte » (exigence Google Play).
 // Suppression RGPD complète côté backend (DELETE /users/me) : retire des amis/
 // familles/map, anonymise les données financières conservées par la loi.
@@ -931,6 +968,9 @@ export type FriendOther = {
   // isPremium par ami (fetchUserMini) mais le type ne l'exposait pas → la carte
   // web ne pouvait pas mettre la couronne 👑 sur un ami premium.
   isPremium?: boolean;
+  /** v565 — présence réelle (certaines réponses la portent sur `other`). */
+  isOnline?: boolean;
+  lastSeenAt?: string | null;
 };
 
 export type FriendItem = {
@@ -938,6 +978,9 @@ export type FriendItem = {
   status: "accepted" | "pending" | "declined" | "blocked_pending_cleanup";
   initiatedByMe: boolean;
   other: FriendOther;
+  /** v565 (contrat §6) — présence réelle renvoyée par `GET /friends`. */
+  isOnline?: boolean;
+  lastSeenAt?: string | null;
   mySharePosition: boolean;
   theirSharePosition: boolean;
   myShareAutoByPawFollow?: boolean;
@@ -1408,6 +1451,29 @@ export type Conversation = {
     avatar: string;
     role: AuthRole;
   };
+  // v565 (contrat §6) — présence réelle calculée par le serveur à la lecture
+  // (`isUserOnline`), puis tenue à jour par le socket `presence:update`.
+  isOnline?: boolean;
+  lastSeenAt?: string | null;
+};
+
+// v565 (contrat §5) — instantané du message cité (réponse « comme WhatsApp »).
+export type ChatReplyTo = {
+  messageId: string;
+  body?: string;
+  senderRole?: AuthRole | string;
+  senderId?: string;
+  kind?: "text" | "image" | "video" | "audio" | "phone_share" | "address_share" | string;
+};
+
+export type ChatAttachment = {
+  type?: string;
+  url: string;
+  publicId?: string;
+  /** v565 — 'image' | 'video' | 'audio' (vocal). */
+  resourceType?: string;
+  /** v565 — durée d'un vocal en secondes. */
+  duration?: number;
 };
 
 export type ChatMessage = {
@@ -1416,12 +1482,32 @@ export type ChatMessage = {
   senderRole: AuthRole;
   senderId: string;
   createdAt: string;
-  attachments?: Array<{ type?: string; url: string; publicId?: string }>;
+  attachments?: ChatAttachment[];
   // v413 — suivi animal dans le chat web : type 'pawfollow_request' + metadata
   // (status pending/accepted/refused, responderRole, bookingId…).
+  // v565 — 'voice' = message vocal (attachments[0] = audio).
   type?: string;
   metadata?: Record<string, unknown>;
+  /** v565 — message cité, ou null. */
+  replyTo?: ChatReplyTo | null;
 };
+
+// v565 (contrat §5) — drapeaux admin du chat. En cas d'erreur réseau on
+// considère tout activé (le serveur refuse de toute façon avec 403
+// FEATURE_DISABLED si un drapeau est à false).
+export type ChatFeatures = { media: boolean; voice: boolean; reply: boolean };
+export async function getChatFeatures(): Promise<ChatFeatures> {
+  try {
+    const raw = await request<Partial<ChatFeatures>>("/app-config/chat-features");
+    return {
+      media: raw?.media !== false,
+      voice: raw?.voice !== false,
+      reply: raw?.reply !== false,
+    };
+  } catch {
+    return { media: true, voice: true, reply: true };
+  }
+}
 
 // v413 — PawFamily : ajouter/retirer un membre depuis le web (réutilise le
 // type FamilyMember + getMyFamily existants plus haut).
@@ -1478,6 +1564,9 @@ export async function getMessages(
 export async function sendMessage(
   conversationId: string,
   body: string,
+  // v565 (contrat §5) — réponse à un message : { messageId } seulement, le
+  // serveur charge le message cité et stocke l'instantané complet.
+  replyTo?: { messageId: string } | null,
 ): Promise<ChatMessage> {
   const user = getStoredUser();
   if (!user) throw new ApiError("Not logged in", 401);
@@ -1489,6 +1578,7 @@ export async function sendMessage(
         senderRole: user.role,
         senderId: user.id,
         body,
+        ...(replyTo?.messageId ? { replyTo: { messageId: replyTo.messageId } } : {}),
       }),
     },
   );

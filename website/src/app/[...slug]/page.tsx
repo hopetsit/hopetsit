@@ -66,9 +66,9 @@ function webFallbackFor(path: string): { href: string; label: string } | null {
     case "friends":
     case "amis":
       // v23.1.254 — notifs amis / famille / suivi live (friend_request_*,
-      // family_*, live_tracking_*). v23.1 carte unique : le hub web vit
-      // désormais sur /map (couche PawFollow de la carte unique).
-      return { href: "/map", label: "Voir mes amis" };
+      // family_*, live_tracking_*). v565 : la page /friends (demandes,
+      // liste, famille) existe depuis la v509 → on y renvoie directement.
+      return { href: "/friends", label: "Voir mes amis" };
     // v23.1.175 — cases manquantes ajoutées (audit web Next.js).
     case "profile":
       return { href: "/profile", label: "Voir mon profil" };

@@ -6,7 +6,44 @@ const Admin = require('../models/Admin');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const VerificationCode = require('../models/VerificationCode');
-const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
+const { sendVerificationEmail, sendPasswordResetEmail, sendEmail } = require('../services/emailService');
+
+// v565 point 6 (audit e-mails) — l'e-mail de réinitialisation du mot de passe
+// (emailService.sendPasswordResetEmail) est en anglais figé. On l'envoie ici
+// dans la langue du compte (appLocale des 3 profils, sinon `language`) avec un
+// dictionnaire local 9 langues ; sendPasswordResetEmail reste le repli.
+const RESET_I18N = {
+  fr: { subject: 'Réinitialisation de votre mot de passe HoPetSit', title: 'Réinitialiser votre mot de passe', intro: 'Utilisez ce code pour réinitialiser votre mot de passe HoPetSit :', expires: 'Il expire dans 10 minutes.', ignore: "Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.", team: "L'équipe HoPetSit" },
+  en: { subject: 'Reset your HoPetSit password', title: 'Reset your password', intro: 'Use the following code to reset your HoPetSit password:', expires: 'It expires in 10 minutes.', ignore: "If you didn't request this, you can ignore this email.", team: 'The HoPetSit Team' },
+  es: { subject: 'Restablece tu contraseña de HoPetSit', title: 'Restablecer tu contraseña', intro: 'Usa este código para restablecer tu contraseña de HoPetSit:', expires: 'Caduca en 10 minutos.', ignore: 'Si no has solicitado esto, ignora este correo.', team: 'El equipo de HoPetSit' },
+  de: { subject: 'HoPetSit-Passwort zurücksetzen', title: 'Passwort zurücksetzen', intro: 'Verwende diesen Code, um dein HoPetSit-Passwort zurückzusetzen:', expires: 'Er läuft in 10 Minuten ab.', ignore: 'Wenn du das nicht angefordert hast, ignoriere diese E-Mail.', team: 'Das HoPetSit-Team' },
+  it: { subject: 'Reimposta la tua password HoPetSit', title: 'Reimposta la tua password', intro: 'Usa questo codice per reimpostare la tua password HoPetSit:', expires: 'Scade tra 10 minuti.', ignore: 'Se non hai richiesto tu questa operazione, ignora questa e-mail.', team: 'Il team HoPetSit' },
+  pt: { subject: 'Redefinir a sua palavra-passe HoPetSit', title: 'Redefinir a sua palavra-passe', intro: 'Use este código para redefinir a sua palavra-passe HoPetSit:', expires: 'Expira em 10 minutos.', ignore: 'Se não fez este pedido, ignore este e-mail.', team: 'A equipa HoPetSit' },
+  ko: { subject: 'HoPetSit 비밀번호 재설정', title: '비밀번호 재설정', intro: '다음 코드를 사용해 HoPetSit 비밀번호를 재설정하세요:', expires: '이 코드는 10분 후 만료됩니다.', ignore: '요청하지 않으셨다면 이 이메일을 무시하세요.', team: 'HoPetSit 팀' },
+  ja: { subject: 'HoPetSit パスワードの再設定', title: 'パスワードの再設定', intro: '次のコードを使って HoPetSit のパスワードを再設定してください：', expires: 'このコードは10分で失効します。', ignore: 'お心当たりがない場合は、このメールを無視してください。', team: 'HoPetSit チーム' },
+  pl: { subject: 'Zresetuj hasło HoPetSit', title: 'Zresetuj swoje hasło', intro: 'Użyj tego kodu, aby zresetować hasło HoPetSit:', expires: 'Kod wygasa za 10 minut.', ignore: 'Jeśli to nie Ty, zignoruj tę wiadomość.', team: 'Zespół HoPetSit' },
+};
+const sendPasswordResetEmailI18n = async (email, code, lang) => {
+  const t = RESET_I18N[lang] || RESET_I18N.en;
+  const text = `${t.title}
+
+${t.intro} ${code}
+${t.expires}
+
+${t.ignore}
+
+— ${t.team}`;
+  const html = `<div style="font-family:-apple-system,Arial,Helvetica,sans-serif;max-width:560px;margin:auto;padding:28px;background:#fff;border:1px solid #eee;border-radius:14px;color:#1D1D1F">
+  <p style="font-size:20px;font-weight:700;margin:0 0 8px">🐾 HoPetSit</p>
+  <h2 style="margin:0 0 12px">${t.title}</h2>
+  <p>${t.intro}</p>
+  <div style="font-size:30px;font-weight:800;letter-spacing:8px;background:#F5F5F7;padding:16px;text-align:center;border-radius:12px;margin:0 0 16px">${code}</div>
+  <p style="color:#6E6E73;font-size:13px">${t.expires}</p>
+  <p style="color:#6E6E73;font-size:12px">${t.ignore}</p>
+  <p style="margin-top:24px">— ${t.team}</p>
+</div>`;
+  await sendEmail(email, t.subject, text, html);
+};
 // v23.1 part 133 — Phase 7 audit P7-7 : OTP stocké en SHA-256.
 const { generateVerificationCode, hashCode, compareCode } = require('../utils/code');
 // v562 — langue de l'e-mail de vérification (appLocale de l'app, sinon « language »
@@ -261,6 +298,10 @@ const signup = async (req, res) => {
       countryCode,
       // Sprint 6.5 step 2 — ISO-2 country collecté au wizard (indicatif/devise).
       country: (user.country || '').toString().toUpperCase().trim(),
+      // v565 point 1 — ville plate : conservée même sans GPS (AVANT, sans
+      // coordonnées, processLocationData renvoyait undefined et la ville
+      // saisie disparaissait → « ? » dans l'admin).
+      city: (user.city || user.location?.city || '').toString().trim(),
       password: user.password,
       language: user.language || '',
       address: user.address || '',
@@ -359,6 +400,7 @@ const signup = async (req, res) => {
     // préférences réapparaissaient vides dans « Modifier le profil »). ADDITIF
     // (tous présents dans Sitter.js).
     sitterPayload.country = (user.country || '').toString().toUpperCase().trim();
+    sitterPayload.city = (user.city || user.location?.city || '').toString().trim(); // v565 point 1
     if (typeof user.dateOfBirth === 'string' && user.dateOfBirth.trim()) {
       sitterPayload.dateOfBirth = user.dateOfBirth.trim();
     }
@@ -488,6 +530,7 @@ const signup = async (req, res) => {
     // vides). acceptedPetTypes + coverageRadiusKm sont déjà gérés plus haut.
     // ADDITIF (tous présents dans Walker.js).
     walkerPayload.country = (user.country || '').toString().toUpperCase().trim();
+    walkerPayload.city = (user.city || user.location?.city || '').toString().trim(); // v565 point 1
     if (typeof user.dateOfBirth === 'string' && user.dateOfBirth.trim()) {
       walkerPayload.dateOfBirth = user.dateOfBirth.trim();
     }
@@ -960,6 +1003,7 @@ const googleAuth = async (req, res) => {
       email: normalizedEmail,
       mobile: '',
       countryCode: (user?.countryCode || '').toString().trim(),
+      city: (user?.city || user?.location?.city || '').toString().trim(), // v565 point 1
       password: generateRandomPassword(),
       language: '',
       address: '',
@@ -1283,6 +1327,7 @@ const appleAuth = async (req, res) => {
       email: normalizedEmail,
       mobile: '',
       countryCode: (user?.countryCode || '').toString().trim(),
+      city: (user?.city || user?.location?.city || '').toString().trim(), // v565 point 1
       password: generateRandomPassword(),
       language: '',
       address: '',
@@ -1591,9 +1636,17 @@ const forgotPassword = async (req, res) => {
     );
 
     try {
-      await sendPasswordResetEmail(email.toLowerCase(), resetCode);
+      // v565 point 6 — langue du compte (appLocale sur les 3 profils, sinon language).
+      let lang = 'en';
+      try {
+        const { resolveAppLocaleAcrossRoles } = require('../services/notificationSender');
+        const appLocale = await resolveAppLocaleAcrossRoles(result.account, result.account._id);
+        lang = verifyLang(appLocale, result.account.language);
+      } catch (_) { lang = verifyLang(result.account.appLocale, result.account.language); }
+      await sendPasswordResetEmailI18n(email.toLowerCase(), resetCode, lang);
     } catch (emailError) {
-      logger.error('Failed to send password reset email', emailError);
+      logger.error('Failed to send password reset email (i18n), falling back', emailError);
+      try { await sendPasswordResetEmail(email.toLowerCase(), resetCode); } catch (e2) { logger.error('Password reset fallback failed', e2); }
     }
 
     res.json({ message: 'Password reset code sent to email.' });
@@ -1929,5 +1982,6 @@ module.exports = {
   appleAuth,
   adminLogin,
   signAuthToken,
+  findAvailableRolesForAccount, // v565 — réutilisé par switchRole
 };
 

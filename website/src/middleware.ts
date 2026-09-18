@@ -13,6 +13,9 @@ const NOINDEX = [
   "/search", "/map", "/boutique", "/posts", "/pawpoints", "/family", "/book",
   "/dashboard", "/chat", "/bookings", "/invoices", "/profile", "/pets",
   "/walk", "/friends", "/sitter-setup", "/delete-account",
+  // v565 — pages « thème » des e-mails/push (ouvrent l'app ou renvoient
+  // vers l'équivalent web) : privées, jamais à indexer.
+  "/notifications", "/wallet", "/subscription", "/paw-spot", "/post", "/report",
 ];
 
 export function middleware(req: NextRequest) {
@@ -28,5 +31,9 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   // Pages seulement : ni API, ni fichiers statiques (images, PDF des affiches, sitemap…).
-  matcher: ["/((?!api/|_next/|.*\\.[a-zA-Z0-9]+$).*)"],
+  // v565 — `/.well-known/*` exclu EXPLICITEMENT : `apple-app-site-association`
+  // n'a pas d'extension, il passait donc dans le middleware et recevait un
+  // en-tête Link canonical. Apple veut ce fichier servi tel quel (JSON pur,
+  // sans redirection) → on ne le touche plus.
+  matcher: ["/((?!api/|_next/|\\.well-known/|.*\\.[a-zA-Z0-9]+$).*)"],
 };

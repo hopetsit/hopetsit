@@ -368,6 +368,9 @@ class _HomeScreenState extends State<HomeScreen> {
   String _ownerCityCountryLabel() {
     final manual = _homeController.searchCity.value.trim();
     if (manual.isNotEmpty) return manual;
+    // v565 — recherche ancrée sur le GPS → « Ma position » (la ville du profil
+    // ne correspond pas forcément à l'endroit où l'on est).
+    if (_homeController.anchoredOnGps.value) return 'home_my_position'.tr;
     try {
       final profile =
           _storage.read(StorageKeys.userProfile) as Map<String, dynamic>?;

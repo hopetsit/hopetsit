@@ -15,6 +15,7 @@ import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/views/payment/paypal_payment_screen.dart';
 import 'package:hopetsit/utils/app_constants.dart';
 import 'package:hopetsit/controllers/loyalty_controller.dart';
+import 'package:hopetsit/widgets/promo_code_sheet.dart';
 
 class BookingAgreementScreen extends StatefulWidget {
   final BookingModel booking;
@@ -336,6 +337,33 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
                               );
                             });
                           },
+                        ),
+                        // v565 (point 27) — entrée claire « J'ai un code »
+                        // à l'étape de paiement.
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: () async {
+                              final ok = await showPromoCodeSheet(context,
+                                  accent: AppColors.primaryColor);
+                              if (ok && mounted) {
+                                try {
+                                  if (Get.isRegistered<LoyaltyController>()) {
+                                    await Get.find<LoyaltyController>().load();
+                                  }
+                                } catch (_) {/* best-effort */}
+                                if (mounted) setState(() {});
+                              }
+                            },
+                            icon: Icon(Icons.confirmation_number_outlined,
+                                size: 18.sp, color: AppColors.primaryColor),
+                            label: InterText(
+                              text: 'v565_promo_have_code'.tr,
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primaryColor,
+                            ),
+                          ),
                         ),
                         CustomButton(
                           title: 'payment_pay_with_card'.tr.replaceAll(

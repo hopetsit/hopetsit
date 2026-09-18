@@ -13,10 +13,13 @@ import BackLink from "@/components/BackLink";
 import {
   ApiError,
   AuthRole,
+  ChatFeatures,
   ChatMessage,
+  ChatReplyTo,
   Conversation,
   deleteConversation,
   FriendItem,
+  getChatFeatures,
   getConversations,
   getMessages,
   getMyFriends,
@@ -29,6 +32,54 @@ import {
 } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
 import { getSocket } from "@/lib/socket";
+import { usePresence } from "@/lib/usePresence";
+
+// v565 (point 10) — identité de l'autre personne d'une conversation (chat
+// ami : `otherParty`, chat réservation : l'autre rôle que le mien).
+function otherUserId(c: Conversation, myRole?: string): string | undefined {
+  if (c.otherParty?.id) return c.otherParty.id;
+  if (myRole === "owner") return c.sitterId || c.walkerId;
+  return c.ownerId;
+}
+
+// v565 (point 36/18) — résumé lisible d'un message cité (réponse).
+function replyPreview(r: ChatReplyTo, t: (k: string) => string): string {
+  if (r.kind === "image") return `📷 ${t("chat_reply_photo")}`;
+  if (r.kind === "video") return `🎬 ${t("chat_reply_video")}`;
+  if (r.kind === "audio") return `🎤 ${t("chat_reply_voice")}`;
+  if (r.kind === "phone_share") return `📞 ${t("chat_reply_phone")}`;
+  if (r.kind === "address_share") return `📍 ${t("chat_reply_address")}`;
+  return r.body || "…";
+}
+
+// Instantané `replyTo` construit localement depuis le message qu'on cite
+// (le serveur stocke le sien ; celui-ci sert à l'aperçu dans le composeur).
+function toReplySnapshot(m: ChatMessage): ChatReplyTo {
+  const a = Array.isArray(m.attachments) ? m.attachments[0] : undefined;
+  const rt = String(a?.resourceType || a?.type || "").toLowerCase();
+  const kind: ChatReplyTo["kind"] =
+    m.type === "voice" || rt === "audio"
+      ? "audio"
+      : m.type === "phone_share" || m.type === "address_share"
+        ? m.type
+        : rt === "video"
+          ? "video"
+          : a?.url
+            ? "image"
+            : "text";
+  return {
+    messageId: m.id,
+    body: (m.body || "").slice(0, 120),
+    senderRole: m.senderRole,
+    senderId: m.senderId,
+    kind,
+  };
+}
+
+function isAudioAttachment(a: { resourceType?: string; type?: string; url: string }): boolean {
+  const rt = String(a.resourceType || a.type || "").toLowerCase();
+  return rt === "audio" || /\.(m4a|aac|mp3|ogg|wav|webm)(\?|$)/i.test(a.url || "");
+}
 
 export default function ChatPage() {
   const { t } = useT();
@@ -42,6 +93,12 @@ export default function ChatPage() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // v565 (point 36/18) — réponse à un message + drapeaux admin du chat.
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [features, setFeatures] = useState<ChatFeatures>({ media: true, voice: true, reply: true });
+  const draftInputRef = useRef<HTMLInputElement>(null);
+  // v565 (point 10) — présence réelle (`isOnline` de /conversations/list + socket).
+  const { resolveOnline } = usePresence();
   // v23.1 part 248b — Modal "Nouvelle conversation" : Daniel veut
   // choisir un ami pour ouvrir un chat direct avec lui (au lieu d'etre
   // redirige sur /friends/live). On lazy-load les amis a l'ouverture
@@ -64,6 +121,8 @@ export default function ChatPage() {
       return;
     }
     refresh();
+    // v565 — drapeaux admin (médias / vocal / réponse) chargés à l'ouverture.
+    getChatFeatures().then(setFeatures).catch(() => {});
   }, [router]);
 
   async function refresh() {
@@ -110,6 +169,7 @@ export default function ChatPage() {
     setActiveId(id);
     setLoadingMessages(true);
     setMessages([]);
+    setReplyTo(null);
     try {
       const msgs = await getMessages(id);
       setMessages(msgs);
@@ -207,10 +267,16 @@ export default function ChatPage() {
     e.preventDefault();
     if (!activeId || !draft.trim() || !user) return;
     const body = draft.trim();
+    const quoted = replyTo;
     setDraft("");
+    setReplyTo(null);
     setSending(true);
     try {
-      const saved = await sendMessage(activeId, body);
+      const saved = await sendMessage(
+        activeId,
+        body,
+        quoted && features.reply ? { messageId: quoted.id } : null,
+      );
       // L'event socket message:new va arriver mais on append tout de suite
       // pour la latence perçue. Le dédup ID-based dans le listener évite
       // d'avoir le message en double.
@@ -219,11 +285,24 @@ export default function ChatPage() {
         return [...prev, saved];
       });
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed to send");
+      const disabled =
+        e instanceof ApiError &&
+        e.status === 403 &&
+        (e.details as { code?: string } | null)?.code === "FEATURE_DISABLED";
+      alert(disabled ? t("chat_feature_disabled") : e instanceof Error ? e.message : "Failed to send");
       setDraft(body); // restore le draft si erreur
+      if (quoted) setReplyTo(quoted);
+      if (disabled) setFeatures((f) => ({ ...f, reply: false }));
     } finally {
       setSending(false);
     }
+  }
+
+  // v565 — « Répondre » sur une bulle → aperçu au-dessus du composeur.
+  function startReply(m: ChatMessage) {
+    if (!features.reply) return;
+    setReplyTo(m);
+    draftInputRef.current?.focus();
   }
 
   // v413 — Daniel : suivi animal dans le chat web. Demande de suivi en direct
@@ -258,7 +337,12 @@ export default function ChatPage() {
         prev.some((m) => m.id === saved.id) ? prev : [...prev, saved],
       );
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erreur");
+      const disabled =
+        err instanceof ApiError &&
+        err.status === 403 &&
+        (err.details as { code?: string } | null)?.code === "FEATURE_DISABLED";
+      alert(disabled ? t("chat_feature_disabled") : err instanceof Error ? err.message : "Erreur");
+      if (disabled) setFeatures((f) => ({ ...f, media: false }));
     } finally {
       setSending(false);
     }
@@ -406,7 +490,9 @@ export default function ChatPage() {
               {t("chat_empty_state")}
             </div>
           ) : (
-            conversations.map((c) => (
+            conversations.map((c) => {
+              const online = resolveOnline(otherUserId(c, user?.role), c.isOnline);
+              return (
               <div
                 key={c.id}
                 className={`group relative w-full rounded-xl border px-4 py-3 transition ${
@@ -425,10 +511,20 @@ export default function ChatPage() {
                         friendChats (backend v23.1.200) afin que les
                         conversations entre amis apparaissent avec le bon nom
                         sur le web aussi (parite Android/iOS). */}
-                    <span className="truncate text-sm font-semibold text-ink">
-                      {c.participantName ||
-                        c.otherParty?.name ||
-                        "Conversation"}
+                    <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                      {/* v565 (point 10) — point vert « en ligne » réel. */}
+                      <span
+                        aria-label={online ? t("chat_online") : t("chat_offline")}
+                        title={online ? t("chat_online") : t("chat_offline")}
+                        className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${
+                          online ? "bg-emerald-500" : "bg-[#C7C7CC]"
+                        }`}
+                      />
+                      <span className="truncate">
+                        {c.participantName ||
+                          c.otherParty?.name ||
+                          "Conversation"}
+                      </span>
                     </span>
                     {(c.unreadCount ?? 0) > 0 && (
                       <span className="rounded-full bg-walker px-2 py-0.5 text-xs font-bold text-white">
@@ -472,7 +568,8 @@ export default function ChatPage() {
                   </svg>
                 </button>
               </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -484,7 +581,7 @@ export default function ChatPage() {
         >
           {!activeId ? (
             <div className="p-12 text-center text-sm text-ink-muted">
-              Sélectionne une conversation
+              {t("chat_select_conv")}
             </div>
           ) : (
             <>
@@ -494,9 +591,28 @@ export default function ChatPage() {
                   onClick={() => setActiveId(null)}
                   className="text-sm text-ink-muted hover:text-ink md:hidden"
                 >
-                  ← Conversations
+                  ← {t("chat_back")}
                 </button>
-                <span className="hidden md:block" />
+                {/* v565 (point 10) — nom + état en ligne du correspondant. */}
+                {(() => {
+                  const c = conversations.find((x) => x.id === activeId);
+                  const online = c ? resolveOnline(otherUserId(c, user?.role), c.isOnline) : false;
+                  return (
+                    <span className="hidden min-w-0 items-center gap-2 md:flex">
+                      <span
+                        className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${
+                          online ? "bg-emerald-500" : "bg-[#C7C7CC]"
+                        }`}
+                      />
+                      <span className="truncate text-sm font-semibold text-ink">
+                        {c?.participantName || c?.otherParty?.name || ""}
+                      </span>
+                      <span className={`text-xs ${online ? "text-emerald-600" : "text-ink-muted"}`}>
+                        {online ? t("chat_online") : t("chat_offline")}
+                      </span>
+                    </span>
+                  );
+                })()}
                 {/* v413 — Demander à suivre l'animal en direct (PawFollow). */}
                 <button
                   type="button"
@@ -512,7 +628,7 @@ export default function ChatPage() {
                   <div className="text-center text-sm text-ink-muted">{t("common_loading")}</div>
                 ) : messages.length === 0 ? (
                   <div className="text-center text-sm text-ink-muted">
-                    Aucun message pour l&apos;instant.
+                    {t("chat_no_messages")}
                   </div>
                 ) : (
                   messages.map((m) => {
@@ -572,10 +688,18 @@ export default function ChatPage() {
                         </div>
                       );
                     }
+                    // v565 (point 36/18) — pièces jointes : vocal (audio) lu
+                    // dans un <audio controls>, le reste en image cliquable.
+                    const atts = Array.isArray(m.attachments) ? m.attachments.filter((a) => a?.url) : [];
+                    const audios = atts.filter(isAudioAttachment);
+                    const images = atts.filter((a) => !isAudioAttachment(a));
+                    const isVoice = m.type === "voice" || audios.length > 0;
+                    const quote = m.replyTo && m.replyTo.messageId ? m.replyTo : null;
+                    const quoteMine = quote ? quote.senderId === user?.id : false;
                     return (
                       <div
                         key={m.id}
-                        className={`flex ${mine ? "justify-end" : "justify-start"}`}
+                        className={`group/msg flex items-end gap-1 ${mine ? "flex-row-reverse" : "flex-row"}`}
                       >
                         <div
                           className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
@@ -584,14 +708,43 @@ export default function ChatPage() {
                               : "bg-ink/5 text-ink"
                           }`}
                         >
-                          {m.body}
+                          {/* v565 — citation du message auquel on répond. */}
+                          {quote && (
+                            <div
+                              className={`mb-1.5 rounded-lg border-l-4 px-2.5 py-1.5 text-xs ${
+                                mine
+                                  ? "border-white/70 bg-white/15 text-white/90"
+                                  : "border-walker bg-white/70 text-ink/80"
+                              }`}
+                            >
+                              <div className="font-semibold">
+                                {quoteMine
+                                  ? t("chat_reply_you")
+                                  : conversations.find((x) => x.id === activeId)?.participantName ||
+                                    conversations.find((x) => x.id === activeId)?.otherParty?.name ||
+                                    ""}
+                              </div>
+                              <div className="line-clamp-2 break-words">{replyPreview(quote, t)}</div>
+                            </div>
+                          )}
+                          {isVoice && (
+                            <div className="flex flex-col gap-1">
+                              <span className={`text-xs font-semibold ${mine ? "text-white/85" : "text-ink-muted"}`}>
+                                🎤 {t("chat_voice_message")}
+                                {typeof audios[0]?.duration === "number" && audios[0].duration > 0
+                                  ? ` · ${Math.floor(audios[0].duration / 60)}:${String(Math.round(audios[0].duration % 60)).padStart(2, "0")}`
+                                  : ""}
+                              </span>
+                              {audios.map((a, i) => (
+                                <audio key={i} controls preload="metadata" src={a.url} className="h-9 w-[220px] max-w-full" />
+                              ))}
+                            </div>
+                          )}
+                          {m.body && <div className="whitespace-pre-wrap break-words">{m.body}</div>}
                           {/* v413 — photos jointes. */}
-                          {Array.isArray(m.attachments) &&
-                            m.attachments.filter((a) => a?.url).length > 0 && (
+                          {images.length > 0 && (
                               <div className="mt-1 flex flex-col gap-1">
-                                {m.attachments
-                                  .filter((a) => a?.url)
-                                  .map((a, i) => (
+                                {images.map((a, i) => (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <a
                                       key={i}
@@ -619,17 +772,57 @@ export default function ChatPage() {
                             })}
                           </div>
                         </div>
+                        {/* v565 — « Répondre » (masqué si l'admin a coupé la fonction). */}
+                        {features.reply && (
+                          <button
+                            type="button"
+                            onClick={() => startReply(m)}
+                            aria-label={t("chat_reply")}
+                            title={t("chat_reply")}
+                            className="mb-1 shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold text-ink-muted opacity-70 transition hover:bg-owner-light hover:text-owner-dark hover:opacity-100 md:opacity-0 md:group-hover/msg:opacity-100"
+                          >
+                            ↩ {t("chat_reply")}
+                          </button>
+                        )}
                       </div>
                     );
                   })
                 )}
                 <div ref={messagesEndRef} />
               </div>
+              {/* v565 — aperçu « Réponse à … » au-dessus du composeur. */}
+              {replyTo && (
+                <div className="flex items-center gap-3 border-t border-ink/5 bg-owner-light/60 px-4 py-2">
+                  <div className="min-w-0 flex-1 border-l-4 border-owner pl-3">
+                    <div className="text-xs font-semibold text-owner-dark">
+                      {t("chat_replying_to")}{" "}
+                      {replyTo.senderId === user?.id
+                        ? t("chat_reply_you")
+                        : conversations.find((x) => x.id === activeId)?.participantName ||
+                          conversations.find((x) => x.id === activeId)?.otherParty?.name ||
+                          ""}
+                    </div>
+                    <div className="truncate text-xs text-ink/80">
+                      {replyPreview(toReplySnapshot(replyTo), t)}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReplyTo(null)}
+                    aria-label={t("chat_reply_cancel")}
+                    title={t("chat_reply_cancel")}
+                    className="shrink-0 rounded-full px-2 py-1 text-sm text-ink-muted hover:bg-white hover:text-ink"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
               <form
                 onSubmit={handleSend}
                 className="flex items-center gap-2 border-t border-ink/5 p-3"
               >
-                {/* v413 — envoi de photo dans le chat web. */}
+                {/* v413 — envoi de photo dans le chat web ; v565 : masqué si
+                    l'admin a coupé les médias (drapeau `media`). */}
                 <input
                   ref={photoInputRef}
                   type="file"
@@ -638,20 +831,27 @@ export default function ChatPage() {
                   className="hidden"
                   onChange={handlePhotoSelected}
                 />
-                <button
-                  type="button"
-                  onClick={() => photoInputRef.current?.click()}
-                  disabled={sending}
-                  aria-label="Photo"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ink/15 text-lg hover:bg-bg-soft disabled:opacity-60"
-                >
-                  📷
-                </button>
+                {features.media && (
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={sending}
+                    aria-label={t("chat_photo")}
+                    title={t("chat_photo")}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ink/15 text-lg hover:bg-bg-soft disabled:opacity-60"
+                  >
+                    📷
+                  </button>
+                )}
                 <input
+                  ref={draftInputRef}
                   type="text"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  placeholder="Écris un message…"
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape" && replyTo) setReplyTo(null);
+                  }}
+                  placeholder={t("chat_placeholder")}
                   className="flex-1 rounded-full border border-ink/15 px-4 py-2 text-sm focus:border-walker focus:outline-none focus:ring-2 focus:ring-walker/20"
                 />
                 <button
@@ -659,7 +859,7 @@ export default function ChatPage() {
                   disabled={sending || !draft.trim()}
                   className="rounded-full bg-walker px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
                 >
-                  Envoyer
+                  {t("chat_send")}
                 </button>
               </form>
             </>

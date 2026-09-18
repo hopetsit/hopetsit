@@ -16,6 +16,24 @@ const attachmentSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// v565 §5 — instantané du message cité (« répondre à », style WhatsApp).
+// Stocké en entier pour que le rendu ne dépende pas d'une relecture du
+// message d'origine (qui peut être supprimé ensuite).
+const replyToSchema = new mongoose.Schema(
+  {
+    messageId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    body: { type: String, default: '', trim: true, maxlength: 120 },
+    senderRole: { type: String, enum: ['owner', 'sitter', 'walker', 'system'], default: 'owner' },
+    senderId: { type: mongoose.Schema.Types.ObjectId, default: null },
+    kind: {
+      type: String,
+      enum: ['text', 'image', 'video', 'audio', 'phone_share', 'address_share'],
+      default: 'text',
+    },
+  },
+  { _id: false }
+);
+
 const messageSchema = new mongoose.Schema(
   {
     conversationId: {
@@ -62,9 +80,12 @@ const messageSchema = new mongoose.Schema(
     // (deep-link Google Maps).
     type: {
       type: String,
-      enum: ['text', 'attachment', 'phone_share', 'pawfollow_request', 'address_share'],
+      // v565 §5 — 'voice' : message vocal (attachments[0].resourceType = 'audio').
+      enum: ['text', 'attachment', 'phone_share', 'pawfollow_request', 'address_share', 'voice'],
       default: 'text',
     },
+    // v565 §5 — réponse à un message précis (null = message simple).
+    replyTo: { type: replyToSchema, default: null },
     // v19.1.3 — soft-delete so history stays available for admin moderation
     // even after the sender removes the message on their phone.
     deletedAt: { type: Date, default: null },

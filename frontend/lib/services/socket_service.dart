@@ -345,6 +345,46 @@ class SocketService {
     _messageNewSubs.remove(cb);
   }
 
+  // ── presence:update multiplexeur (v565, contrat §6) ─────────────────────
+  // Le serveur émet `presence:update { userId, online, at }` aux amis et aux
+  // correspondants de conversation à chaque connexion/déconnexion socket.
+  // Même principe que message:new : UN listener socket, N abonnés (liste de
+  // conversations owner/sitter, écran de discussion, onglet amis…).
+  final List<void Function(Map<String, dynamic>)> _presenceSubs = [];
+
+  void _bindPresenceMux() {
+    final s = _socket;
+    if (s == null) return;
+    s.off('presence:update');
+    s.on('presence:update', (data) {
+      Map<String, dynamic> map;
+      try {
+        map = data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+      } catch (_) {
+        return;
+      }
+      for (final cb in List.of(_presenceSubs)) {
+        try {
+          cb(map);
+        } catch (e) {
+          AppLogger.logError('presence:update subscriber threw', error: e);
+        }
+      }
+    });
+  }
+
+  /// Abonne un listener `presence:update` (référence STABLE, idempotent).
+  /// À appeler depuis un onConnected hook pour survivre aux reconnexions.
+  void addPresenceListener(void Function(Map<String, dynamic>) cb) {
+    if (!_presenceSubs.contains(cb)) _presenceSubs.add(cb);
+    _bindPresenceMux();
+  }
+
+  /// Désabonne UN listener `presence:update`.
+  void removePresenceListener(void Function(Map<String, dynamic>) cb) {
+    _presenceSubs.remove(cb);
+  }
+
   /// LEGACY — délègue désormais au multiplexeur pour ne plus clobberer les
   /// autres abonnés. Préférer addMessageNewListener avec une réf stable.
   void onNewMessage(Function(Map<String, dynamic>) callback) {

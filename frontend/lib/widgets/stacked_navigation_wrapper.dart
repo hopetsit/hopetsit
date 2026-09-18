@@ -12,6 +12,8 @@ import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/services/app_update_service.dart';
+// v565 — pop-up promo discret (docs/v565_contracts.md §9), monté une fois ici.
+import 'package:hopetsit/widgets/promo_code_sheet.dart';
 
 /// v462 — NOUVEAU MENU (maquette Claude Design) appliqué AU VRAI wrapper de
 /// navigation (celui réellement monté). Barre flottante blanche arrondie +
@@ -183,9 +185,15 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
       ),
       child: Scaffold(
       extendBody: true,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: widget.screens,
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: _currentIndex,
+            children: widget.screens,
+          ),
+          // v565 — pop-up promo (une fois, jamais à la 1re ouverture).
+          const PromoPopup(),
+        ],
       ),
       // v465 — en mode « carte agrandie » (PawMap), on MASQUE le menu pour que
       // la carte soit plein écran et que Signaler / Tag Spot / les bandeaux de

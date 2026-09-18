@@ -352,5 +352,71 @@
     "body": "Spacer się skończył ({{minutes}} min). Otwórz aplikację, aby zobaczyć trasę i raport.",
     "emailSubject": "Spacer zakończony ✅",
     "emailBody": "<p>Spacer się skończył ({{minutes}} min). Otwórz aplikację, aby zobaczyć trasę i raport.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">HoPetSit</a></p>"
+  },
+  "handover_pickup_soon": {
+    "title": "Odbiór za 30 min 🐾",
+    "body": "Przekazanie zwierzaka zaplanowano za 30 minut. Wszystko gotowe?",
+    "emailSubject": "Odbiór zwierzaka za 30 minut — HoPetSit",
+    "emailBody": "<p>Przekazanie zwierzaka zaplanowano za 30 minut. W chwili przekazania usługodawca naciśnie „Zwierzak odebrany”, a właściciel potwierdzi jednym dotknięciem.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz rezerwację</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link: {{emailLink}}</p>"
+  },
+  "handover_return_soon": {
+    "title": "Zwrot za 30 min 🏁",
+    "body": "Zwrot zwierzaka zaplanowano za 30 minut.",
+    "emailSubject": "Zwrot zwierzaka za 30 minut — HoPetSit",
+    "emailBody": "<p>Zwrot zwierzaka zaplanowano za 30 minut. W chwili zwrotu usługodawca naciśnie „Zwierzak oddany”; potwierdzenie właściciela uwalnia następnie płatność.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz rezerwację</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link: {{emailLink}}</p>"
+  },
+  "handover_pickup_overdue": {
+    "title": "Odbiór niepotwierdzony ⏰",
+    "body": "Godzinę po planowanym terminie odbiór zwierzaka nadal nie został potwierdzony. Usługodawca musi nacisnąć „Zwierzak odebrany”.",
+    "emailSubject": "Odbiór zwierzaka niepotwierdzony — HoPetSit",
+    "emailBody": "<p>Godzinę po planowanym terminie odbiór zwierzaka nadal nie został potwierdzony w aplikacji. Usługodawco: naciśnij „Zwierzak odebrany”, gdy tylko zwierzak będzie u Ciebie. Właścicielu: w razie wątpliwości napisz do usługodawcy na czacie.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz rezerwację</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link: {{emailLink}}</p>"
+  },
+  "handover_pickup_auto": {
+    "title": "Odbiór potwierdzony automatycznie",
+    "body": "Wobec braku odpowiedzi właściciela w ciągu 2 godzin odbiór zwierzaka został potwierdzony automatycznie (zdjęcie lub lokalizacja jako dowód).",
+    "emailSubject": "Odbiór potwierdzony automatycznie — HoPetSit",
+    "emailBody": "<p>Właściciel nie potwierdził przekazania w ciągu 2 godzin: odbiór zwierzaka został potwierdzony automatycznie, a zapisane zdjęcie lub lokalizacja stanowią dowód. Pełna oś czasu jest widoczna w rezerwacji.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz rezerwację</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link: {{emailLink}}</p>"
+  },
+  "handover_return_auto": {
+    "title": "Zwrot potwierdzony automatycznie ✅",
+    "body": "Zwrot zwierzaka został potwierdzony automatycznie, a płatność uwolniono do portfela usługodawcy.",
+    "emailSubject": "Zwrot potwierdzony automatycznie — płatność uwolniona",
+    "emailBody": "<p>Właściciel nie potwierdził zwrotu w terminie: został on potwierdzony automatycznie, zapisane zdjęcie lub lokalizacja stanowią dowód, a zabezpieczona płatność została uwolniona do portfela usługodawcy.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz rezerwację</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link: {{emailLink}}</p>"
+  },
+  "handover_picked_up": {
+    "title": "Zwierzak odebrany 🐾",
+    "body": "Twój usługodawca właśnie odebrał Twojego zwierzaka. Potwierdź przekazanie jednym dotknięciem (automatyczne potwierdzenie za 2 godziny).",
+    "emailSubject": "Twój zwierzak został odebrany — potwierdź przekazanie",
+    "emailBody": "<p>Twój usługodawca właśnie nacisnął „Zwierzak odebrany”. Otwórz rezerwację i potwierdź przekazanie jednym dotknięciem. Bez Twojej odpowiedzi zostanie ono potwierdzone automatycznie za 2 godziny.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz rezerwację</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link: {{emailLink}}</p>"
+  },
+  "handover_pickup_confirmed": {
+    "title": "Przekazanie potwierdzone ✅",
+    "body": "Właściciel potwierdził, że odebrałeś zwierzaka. Udanej opieki!",
+    "emailSubject": "Przekazanie potwierdzone przez właściciela — HoPetSit",
+    "emailBody": "<p>Właściciel potwierdził, że odebrałeś zwierzaka. Udanej opieki! Pamiętaj, aby na koniec nacisnąć „Zwierzak oddany”.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz rezerwację</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link: {{emailLink}}</p>"
+  },
+  "handover_returned": {
+    "title": "Zwierzak oddany 🏁",
+    "body": "Twój usługodawca zgłasza, że oddał Twojego zwierzaka. Potwierdź, że wszystko poszło dobrze, aby uwolnić płatność (w przeciwnym razie automatyczne potwierdzenie za {{autoConfirmHours}} godz.).",
+    "emailSubject": "Twój zwierzak został oddany — potwierdź zwrot",
+    "emailBody": "<p>Twój usługodawca właśnie nacisnął „Zwierzak oddany”. Potwierdź, że wszystko poszło dobrze: uwolni to płatność do jego portfela. Bez Twojej odpowiedzi zwrot zostanie potwierdzony automatycznie za {{autoConfirmHours}} godz.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz rezerwację</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link: {{emailLink}}</p>"
+  },
+  "handover_return_confirmed": {
+    "title": "Zwrot potwierdzony ✅",
+    "body": "Właściciel potwierdził zwrot zwierzaka. Twoja płatność została uwolniona do Twojego portfela.",
+    "emailSubject": "Zwrot potwierdzony — płatność uwolniona",
+    "emailBody": "<p>Właściciel potwierdził zwrot zwierzaka. Twoja płatność została uwolniona do Twojego portfela: możesz ją wykorzystać w sklepie lub wypłacić na swój IBAN.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz rezerwację</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link: {{emailLink}}</p>"
+  },
+  "live_session_ended": {
+    "title": "Udostępnianie na żywo zakończone",
+    "body": "Wybrany czas udostępniania ({{duration}}) minął: Twoja lokalizacja nie jest już udostępniana znajomym.",
+    "emailSubject": "Twoje udostępnianie na żywo zostało zakończone — HoPetSit",
+    "emailBody": "<p>Wybrany czas udostępniania ({{duration}}) minął: Twoja lokalizacja nie jest już udostępniana znajomym. Możesz ponownie włączyć udostępnianie w dowolnym momencie z poziomu PawMap.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Otwórz PawMap</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link: {{emailLink}}</p>"
+  },
+  "live_still_active": {
+    "title": "Udostępnianie na żywo nadal aktywne 📍",
+    "body": "Udostępniasz swoją lokalizację na żywo od {{hours}} godz. Możesz to zatrzymać w dowolnym momencie z poziomu PawMap.",
+    "emailSubject": "Twoje udostępnianie na żywo jest nadal aktywne — HoPetSit",
+    "emailBody": "<p>Udostępniasz swoją lokalizację na żywo znajomym od {{hours}} godz. Jeśli tak ma być, nie musisz nic robić; możesz to zatrzymać w dowolnym momencie z poziomu PawMap.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Otwórz PawMap</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link: {{emailLink}}</p>"
   }
 }

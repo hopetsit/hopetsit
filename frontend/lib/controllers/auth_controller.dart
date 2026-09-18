@@ -1238,6 +1238,19 @@ class AuthController extends GetxController {
       unawaited(LocalizationService.syncToBackend());
       }
 
+      // v565 — les 3 profils coexistent : le serveur renvoie la liste des
+      // profils existants après le changement (« Mes profils » : Activé/Activer).
+      try {
+        final rawAvail = response['availableRoles'];
+        if (rawAvail is List) {
+          availableRoles.assignAll(rawAvail
+              .map((e) => e is String ? e : (e is Map && e['role'] is String ? e['role'] as String : ''))
+              .where((r) => r.isNotEmpty)
+              .toSet()
+              .toList());
+        }
+      } catch (_) {/* best-effort */}
+
       final userData = _extractUser(response);
       if (userData != null) {
         final userDataWithRole = Map<String, dynamic>.from(userData);

@@ -18,7 +18,11 @@
  *   /post/:id  /wallet  /subscription  /paw-spot  /profile  /notifications
  *   /friends  /friends/requests  /friends/live  /alert/:reportId  /map
  */
-const BASE_URL = (process.env.WEBSITE_URL || 'https://hopetsit.com').replace(
+// v565 — Daniel : « le bouton d'un e-mail ouvre encore le SITE ». Cause : Apple exige
+// que le fichier apple-app-site-association soit servi SANS redirection ; or
+// https://hopetsit.com/.well-known/… répond 308 → www. Les liens universels
+// ne sont donc valides que sur www.hopetsit.com → on génère TOUS les liens sur www.
+const BASE_URL = (process.env.WEBSITE_URL || 'https://www.hopetsit.com').replace(
   /\/+$/,
   '',
 );
@@ -70,8 +74,8 @@ const buildAppRoute = (notifType, data = {}) => {
   }
   // Tout le déroulé d'une réservation / candidature / service / rapport
   if (t.startsWith('booking_') || t.startsWith('application_') ||
-      t.startsWith('service_') || t === 'visit_report' ||
-      t === 'payment_success') {
+      t.startsWith('service_') || t.startsWith('handover_') ||
+      t === 'visit_report' || t === 'payment_success') {
     return bookingPath;
   }
   // Argent

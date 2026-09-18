@@ -419,9 +419,11 @@ const updateMyWalkerProfile = async (req, res) => {
         // v20.0.19 — pas de coords mais une ville : on persiste location.city
         // en nested update pour ne pas perdre le champ. Avant, location était
         // intégralement droppé → la ville tapée par l'user disparaissait.
+        // v565 — un Point sans coordonnées fait échouer l'index 2dsphere
+        // (« can't extract geo keys ») → la ville va dans le champ plat `city`
+        // (modèle v565), `location` n'est pas touché.
         delete update.location;
-        update['location.city'] = String(loc.city).trim();
-        update['location.type'] = 'Point';
+        update.city = String(loc.city).trim();
       } else {
         // No valid coordinates — drop to avoid GeoJSON validation error.
         delete update.location;

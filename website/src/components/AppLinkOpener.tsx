@@ -34,6 +34,8 @@ const APP_PATHS = [
   "shop",
   "alert",
   "spot",
+  // v565 — alias de /alert et liens /open/<route> des e-mails.
+  "report",
 ];
 
 export function AppLinkOpener() {

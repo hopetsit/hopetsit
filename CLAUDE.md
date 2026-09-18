@@ -446,6 +446,13 @@ faire et publier iOS + Android dans la même passe. Rien de coûteux avant.
     photo, amis en direct, partage en direct, profil d'un membre, demande d'ami ou de service
     depuis la carte, fiche d'un lieu) ; vérifier que tout est branché et synchronisé avec le reste
     de l'app, fonctionnel et traduit dans les 9 langues. Excellence exigée, aucune fonction retirée.
+38. **Avis dans Réservations** (Daniel, 18/09) : à la fin du service le propriétaire peut noter son
+    sitter/promeneur (étoiles + commentaire, depuis le détail de réservation et la chronologie) ; les
+    notes des sitters et promeneurs s'affichent en étoiles, de façon moderne (carte profil, liste
+    des prestataires, détail de réservation).
+39. **Sous-pages restantes du Profil à moderniser** (constat 18/09) : fiche animal (modification),
+    tarifs, calendrier de disponibilités, IBAN, ajout de carte, onboarding sitter, corps des 3 écrans
+    « Modifier le profil », paiements / wallet / KYC.
 Puis : build simulateur + tests, IPA (flutter clean avant) + Transporter, AAB + `play_release_api.py`,
 admin « Versions de l'app » 565/565 après validations, journal + mémoire.
 2e passe (retour Daniel sur capture du dashboard) : `/dashboard` (barre latérale gris clair,

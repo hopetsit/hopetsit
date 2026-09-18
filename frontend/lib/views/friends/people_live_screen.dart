@@ -41,6 +41,19 @@ Future<LatLng?> _resolveFriendPosition(String friendId) async {
   return null;
 }
 
+/// v565 — « il y a X » (mêmes clés que la PawMap).
+String _timeAgo(DateTime at) {
+  final diff = DateTime.now().difference(at);
+  if (diff.inMinutes < 1) return 'pawmap_time_just_now'.tr;
+  if (diff.inMinutes < 60) {
+    return 'pawmap_time_min_short'.trParams({'n': diff.inMinutes.toString()});
+  }
+  if (diff.inHours < 24) {
+    return 'pawmap_time_hours_short'.trParams({'n': diff.inHours.toString()});
+  }
+  return 'pawmap_time_days_short'.trParams({'n': diff.inDays.toString()});
+}
+
 class PeopleLiveScreen extends StatelessWidget {
   const PeopleLiveScreen({super.key});
 
@@ -69,18 +82,42 @@ class PeopleLiveScreen extends StatelessWidget {
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: controller.refresh,
+        onRefresh: () async {
+          await controller.refresh();
+          // v565 — contrat §8 : rafraîchit aussi stale / lastSeenAt.
+          try {
+            if (Get.isRegistered<LiveMapService>()) {
+              await Get.find<LiveMapService>().refreshFriendPositions();
+            }
+          } catch (_) {/* défensif */}
+        },
         child: Obx(() {
           // v23.1 part 222 — filtre etendu :
           //  (a) amis acceptes qui partagent explicitement leur position
           //  (b) amis acceptes avec PawFollow plan actif (auto-share via
           //      la mecanique PawFollow Family).
+          //  (c) v565 — TOUT ami dont on a une position en direct (le serveur
+          //      a déjà appliqué les règles d'accès), avec son état réel
+          //      « actif / signal perdu · vu il y a X ».
+          final live = Get.isRegistered<LiveMapService>()
+              ? Get.find<LiveMapService>()
+              : null;
+          live?.staleTick.value; // « vu il y a » se rafraîchit
+          final positions = live?.friendPositions ?? const <String, FriendPosition>{};
           final livePeople = controller.friends
               .where((f) =>
                   f.status == 'accepted' &&
                   (f.theirSharePosition ||
-                      (f.other?.hasPawFollow ?? false)))
-              .toList();
+                      (f.other?.hasPawFollow ?? false) ||
+                      positions.containsKey(f.other?.id ?? '')))
+              .toList()
+            ..sort((a, b) {
+              final pa = positions[a.other?.id ?? ''];
+              final pb = positions[b.other?.id ?? ''];
+              final sa = pa == null ? 2 : (pa.isStale ? 1 : 0);
+              final sb = pb == null ? 2 : (pb.isStale ? 1 : 0);
+              return sa.compareTo(sb);
+            });
           if (livePeople.isEmpty) {
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -133,6 +170,17 @@ class PeopleLiveScreen extends StatelessWidget {
               final f = livePeople[i];
               final other = f.other;
               if (other == null) return const SizedBox.shrink();
+              // v565 — état réel de la session de l'ami.
+              final pos = positions[other.id];
+              final bool stale = pos?.isStale ?? true;
+              final Color dot = pos == null
+                  ? AppColors.greyText
+                  : (stale ? const Color(0xFFE8920A) : Colors.green);
+              final String statusText = pos == null
+                  ? 'friends_people_live_subtitle'.tr
+                  : (stale
+                      ? '${'v565_live_signal_lost'.tr} · ${'pawmap_seen_ago'.tr.replaceAll('{ago}', _timeAgo(pos.seenAt))}'
+                      : '${'v565_live_active'.tr} · ${_timeAgo(pos.seenAt)}');
               // v23.1.190 — code couleur role (Owner=violet, Walker=vert,
               // Sitter=bleu) pour le halo + accent. v23.1 part 225 etend :
               // walker vert / sitter bleu est aussi le code halo de la
@@ -240,7 +288,7 @@ class PeopleLiveScreen extends StatelessWidget {
                               width: 14.w,
                               height: 14.w,
                               decoration: BoxDecoration(
-                                color: Colors.green,
+                                color: dot,
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: AppColors.card(context),
@@ -266,12 +314,18 @@ class PeopleLiveScreen extends StatelessWidget {
                             Row(
                               children: [
                                 Icon(Icons.gps_fixed_rounded,
-                                    color: Colors.green, size: 12.sp),
+                                    color: dot, size: 12.sp),
                                 SizedBox(width: 4.w),
-                                InterText(
-                                  text: 'friends_people_live_subtitle'.tr,
-                                  fontSize: 11.sp,
-                                  color: AppColors.textSecondary(context),
+                                Flexible(
+                                  child: InterText(
+                                    text: statusText,
+                                    fontSize: 11.sp,
+                                    color: stale && pos != null
+                                        ? dot
+                                        : AppColors.textSecondary(context),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                                 SizedBox(width: 8.w),
                                 Container(

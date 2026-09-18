@@ -20,6 +20,31 @@ const router = express.Router();
 // Admin JWTs are issued by POST /auth/admin/login (see authController.adminLogin).
 const requireAdmin = [requireAuth, requireRole('admin')];
 
+// v565 — lot admin (points 21/31/24). Helpers partagés par les listes et les
+// détails : e-mail en clair (decrypt tolère le texte brut historique), chronologie
+// de remise/rendu (contrat §7) reconstruite depuis `handover` + horodatages.
+const _plainEmail = (v) => {
+  try { return decrypt(v || '') || ''; } catch (_) { return ''; }
+};
+const _withPlainEmail = (u) => (u ? { ...u, email: _plainEmail(u.email) } : u);
+const _slimUser = (u) => (u ? { _id: u._id, name: u.name || '', email: _plainEmail(u.email) } : null);
+const _adminTimeline = (b) => {
+  if (!b) return [];
+  const h = b.handover || {};
+  const steps = [];
+  const push = (step, at, by) => { if (at) steps.push({ step, at, by: by || null }); };
+  push('planned', b.paidAt || b.createdAt, 'system');
+  push('picked_up', h.pickupProviderAt || (b.pickupProof && b.pickupProof.at) || b.serviceStartedAt, 'provider');
+  if (h.pickupOwnerConfirmedAt) push('pickup_confirmed', h.pickupOwnerConfirmedAt, 'owner');
+  else if (h.pickupAutoConfirmedAt) push('pickup_confirmed', h.pickupAutoConfirmedAt, 'auto');
+  push('returned', h.returnProviderAt || (b.returnProof && b.returnProof.at) || b.serviceEndedAt, 'provider');
+  if (h.returnOwnerConfirmedAt) push('return_confirmed', h.returnOwnerConfirmedAt, 'owner');
+  else if (h.returnAutoConfirmedAt) push('return_confirmed', h.returnAutoConfirmedAt, 'auto');
+  else if (b.ownerConfirmedAt) push('return_confirmed', b.ownerConfirmedAt, 'owner');
+  if (b.status === 'completed') push('completed', b.completedAt || b.updatedAt, 'system');
+  return steps;
+};
+
 // ─── SMTP TEST ───────────────────────────────────────────────────────────────
 // POST /admin/test-email?to=someone@example.com
 // Lets admins verify the SMTP configuration by sending a test email.
@@ -628,6 +653,33 @@ router.get('/bookings', requireAdmin, async (req, res) => {
       .limit(Number(limit))
       .lean();
     const total = await Booking.countDocuments(filter);
+    // v565 — l'admin lisait `b.owner.name` / `b.sitter.name` qui n'ont jamais
+    // existé sur le document (seuls ownerId/sitterId/walkerId) : la colonne
+    // affichait « - ». On résout les parties + les animaux en un lot.
+    try {
+      const ids = (k) => [...new Set(bookings.map((b) => b[k] && String(b[k])).filter(Boolean))];
+      const petIds = [...new Set(bookings.flatMap((b) => (b.petIds || []).map(String)))];
+      const [owners, sitters, walkers, pets] = await Promise.all([
+        Owner.find({ _id: { $in: ids('ownerId') } }).select('name email').lean(),
+        Sitter.find({ _id: { $in: ids('sitterId') } }).select('name email').lean(),
+        Walker.find({ _id: { $in: ids('walkerId') } }).select('name email').lean(),
+        petIds.length ? Pet.find({ _id: { $in: petIds } }).select('petName category avatar').lean() : [],
+      ]);
+      const m = (arr) => new Map(arr.map((u) => [String(u._id), u]));
+      const oM = m(owners), sM = m(sitters), wM = m(walkers), pM = m(pets);
+      for (const b of bookings) {
+        b.owner = _slimUser(oM.get(String(b.ownerId)));
+        b.sitter = _slimUser(sM.get(String(b.sitterId)));
+        b.walker = _slimUser(wM.get(String(b.walkerId)));
+        b.provider = b.walker || b.sitter || null;
+        b.providerRole = b.walkerId ? 'walker' : (b.sitterId ? 'sitter' : null);
+        b.pets = (b.petIds || []).map((id) => pM.get(String(id))).filter(Boolean)
+          .map((p) => ({ _id: p._id, petName: p.petName || '', category: p.category || '', avatar: (p.avatar && p.avatar.url) || '' }));
+        b.timeline = _adminTimeline(b);
+      }
+    } catch (e) {
+      logger.warn(`[admin/bookings] enrich failed: ${e.message}`);
+    }
     res.json({ bookings, total, page: Number(page), limit: Number(limit) });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -647,7 +699,7 @@ router.get('/sitters', requireAdmin, async (req, res) => {
       .limit(Number(limit))
       .lean();
     const total = await Sitter.countDocuments(filter);
-    res.json({ sitters, total, page: Number(page), limit: Number(limit) });
+    res.json({ sitters: sitters.map(_withPlainEmail), total, page: Number(page), limit: Number(limit) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -664,7 +716,7 @@ router.get('/owners', requireAdmin, async (req, res) => {
       .limit(Number(limit))
       .lean();
     const total = await Owner.countDocuments();
-    res.json({ owners, total, page: Number(page), limit: Number(limit) });
+    res.json({ owners: owners.map(_withPlainEmail), total, page: Number(page), limit: Number(limit) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -746,7 +798,7 @@ router.get('/walkers', requireAdmin, async (req, res) => {
       .limit(Number(limit))
       .lean();
     const total = await Walker.countDocuments(filter);
-    res.json({ walkers, total, page: Number(page), limit: Number(limit) });
+    res.json({ walkers: walkers.map(_withPlainEmail), total, page: Number(page), limit: Number(limit) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -1359,14 +1411,28 @@ router.get('/users/search', requireAdmin, async (req, res) => {
   try {
     const { q = '' } = req.query;
     const regex = new RegExp(String(q).trim(), 'i');
-    const [owners, sitters] = await Promise.all([
-      Owner.find({ $or: [{ email: regex }, { name: regex }] }).select('name email status').limit(20).lean(),
-      Sitter.find({ $or: [{ email: regex }, { name: regex }] }).select('name email status').limit(20).lean(),
+    // v565 — les promeneurs manquaient (suspend/ban/reactivate les acceptent
+    // déjà) + nombre d'appareils push (fcmTokens) pour diagnostiquer les notifs.
+    const sel = 'name email status fcmTokens fcmDevices isStaff createdAt';
+    const [owners, sitters, walkers] = await Promise.all([
+      Owner.find({ $or: [{ email: regex }, { name: regex }] }).select(sel).limit(20).lean(),
+      Sitter.find({ $or: [{ email: regex }, { name: regex }] }).select(sel).limit(20).lean(),
+      Walker.find({ $or: [{ email: regex }, { name: regex }] }).select(sel).limit(20).lean(),
     ]);
+    const shape = (u, role) => ({
+      ...u, role, email: _plainEmail(u.email),
+      devices: Array.isArray(u.fcmTokens) ? u.fcmTokens.length : 0,
+      // v565 — plateformes connues des jetons (ios/android), pour le diagnostic push.
+      platforms: Array.isArray(u.fcmDevices)
+        ? [...new Set(u.fcmDevices.filter((d) => (u.fcmTokens || []).includes(d.token)).map((d) => d.platform).filter(Boolean))]
+        : [],
+      fcmTokens: undefined,
+    });
     res.json({
       results: [
-        ...owners.map(o => ({ ...o, role: 'owner' })),
-        ...sitters.map(s => ({ ...s, role: 'sitter' })),
+        ...owners.map(o => shape(o, 'owner')),
+        ...sitters.map(s => shape(s, 'sitter')),
+        ...walkers.map(w => shape(w, 'walker')),
       ],
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -5598,6 +5664,96 @@ router.put('/pawpoints/redemptions/:id', requireAdmin, async (req, res) => {
   } catch (e) {
     logger.error('[admin/pawpoints/redemptions PUT]', e);
     return res.status(500).json({ error: 'Erreur.' });
+  }
+});
+
+// ─── v565 — LOT ADMIN : ANIMAUX + DÉTAIL RÉSERVATION ────────────────────────
+// GET /admin/pets?withOwner=1&limit=500&page=1&q=rex&ownerId=…
+// Point 31 : le compteur « Animaux » du tableau de bord ouvre cette liste, avec
+// l'e-mail du compte propriétaire de chaque animal.
+router.get('/pets', requireAdmin, async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page || '1', 10));
+    const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit || '200', 10)));
+    const withOwner = String(req.query.withOwner || '1') !== '0';
+    const filter = {};
+    if (req.query.ownerId) filter.ownerId = req.query.ownerId;
+    if (req.query.category) filter.category = new RegExp('^' + String(req.query.category).trim(), 'i');
+    if (req.query.q) {
+      const rx = new RegExp(String(req.query.q).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [{ petName: rx }, { breed: rx }, { category: rx }, { chipNumber: rx }];
+    }
+    const [pets, total] = await Promise.all([
+      Pet.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .select('petName breed category gender dob weight colour avatar chipNumber ownerId createdAt updatedAt')
+        .lean(),
+      Pet.countDocuments(filter),
+    ]);
+    let ownerMap = new Map();
+    if (withOwner && pets.length) {
+      const ownerIds = [...new Set(pets.map((p) => p.ownerId && String(p.ownerId)).filter(Boolean))];
+      const owners = await Owner.find({ _id: { $in: ownerIds } }).select('name email country location.city').lean();
+      ownerMap = new Map(owners.map((o) => [String(o._id), o]));
+    }
+    res.json({
+      pets: pets.map((p) => {
+        const o = ownerMap.get(String(p.ownerId));
+        return {
+          ...p,
+          avatarUrl: (p.avatar && p.avatar.url) || '',
+          owner: o ? {
+            _id: o._id, name: o.name || '', email: _plainEmail(o.email),
+            country: o.country || '', city: (o.location && o.location.city) || '',
+          } : null,
+          ownerEmail: o ? _plainEmail(o.email) : '',
+        };
+      }),
+      total, page, limit,
+    });
+  } catch (e) {
+    logger.error('[admin/pets]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /admin/bookings/:id — détail pour la modale admin (point 24, contrat §7) :
+// parties (nom + e-mail), animaux, `handover`, `timeline`, preuves photo.
+router.get('/bookings/:id', requireAdmin, async (req, res) => {
+  try {
+    const b = await Booking.findById(req.params.id).lean();
+    if (!b) return res.status(404).json({ error: 'Booking not found.' });
+    const [o, s, w, pets] = await Promise.all([
+      b.ownerId ? Owner.findById(b.ownerId).select('name email mobile country location.city').lean() : null,
+      b.sitterId ? Sitter.findById(b.sitterId).select('name email mobile country location.city').lean() : null,
+      b.walkerId ? Walker.findById(b.walkerId).select('name email mobile country location.city').lean() : null,
+      (b.petIds || []).length ? Pet.find({ _id: { $in: b.petIds } }).select('petName category breed avatar').lean() : [],
+    ]);
+    const person = (u) => (u ? {
+      _id: u._id, name: u.name || '', email: _plainEmail(u.email), mobile: u.mobile || '',
+      country: u.country || '', city: (u.location && u.location.city) || '',
+    } : null);
+    res.json({
+      booking: {
+        ...b,
+        owner: person(o),
+        sitter: person(s),
+        walker: person(w),
+        provider: person(w || s),
+        providerRole: b.walkerId ? 'walker' : (b.sitterId ? 'sitter' : null),
+        pets: (pets || []).map((p) => ({
+          _id: p._id, petName: p.petName || '', category: p.category || '', breed: p.breed || '',
+          avatar: (p.avatar && p.avatar.url) || '',
+        })),
+        handover: b.handover || null,
+        timeline: _adminTimeline(b),
+      },
+    });
+  } catch (e) {
+    logger.error('[admin/bookings/:id]', e);
+    res.status(500).json({ error: e.message });
   }
 });
 

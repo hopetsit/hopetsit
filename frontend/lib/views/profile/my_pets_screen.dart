@@ -24,22 +24,28 @@ class MyPetsScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
+      // v565 — barre modernisée (kit Profil) : titre centré, bouton
+      // « Ajouter » en pilule teintée.
       appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
+        backgroundColor: AppColors.scaffold(context),
         elevation: 0,
-        scrolledUnderElevation: 0.5,
+        scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
+        centerTitle: true,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
-        leading: BackButton(),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20.sp, color: AppColors.primaryColor),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
         title: PoppinsText(
           text: 'my_pets_title'.tr,
-          fontSize: 18.sp,
+          fontSize: 17.sp,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
         ),
         actions: [
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.w),
+            padding: EdgeInsets.symmetric(horizontal: 12.w),
             child: TextButton(
               onPressed: () async {
                 // v428 — système unifié : « Ajouter un animal » ouvre l'écran
@@ -49,10 +55,15 @@ class MyPetsScreen extends StatelessWidget {
                   await Get.find<MyPetsController>().refreshPets();
                 }
               },
+              style: TextButton.styleFrom(
+                backgroundColor: AppColors.primaryColor.withValues(alpha: 0.12),
+                padding: EdgeInsets.symmetric(horizontal: 12.w),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+              ),
               child: PoppinsText(
                 text: 'my_pets_add_pet'.tr,
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w500,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w700,
                 color: AppColors.primaryColor,
               ),
             ),

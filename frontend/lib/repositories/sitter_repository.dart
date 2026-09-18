@@ -294,6 +294,28 @@ class SitterRepository {
     );
   }
 
+  /// v565 (point 24) — `GET /bookings/:id` : même forme qu'un élément de la
+  /// liste + `handover` + `timeline`. Renvoie null si le backend ne connaît
+  /// pas encore la route (404) : l'écran garde alors la réservation reçue.
+  Future<BookingModel?> getBookingDetail(String bookingId) async {
+    try {
+      final r = await _apiClient.get(
+        '/bookings/$bookingId',
+        requiresAuth: true,
+      );
+      if (r is Map) {
+        final m = Map<String, dynamic>.from(r);
+        final inner = m['booking'];
+        return BookingModel.fromJson(
+            inner is Map ? Map<String, dynamic>.from(inner) : m);
+      }
+      return null;
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
+    }
+  }
+
   /// v23.1.259 — Confirmation de service (côté provider). Démarrer = "J'ai
   /// récupéré l'animal" ; terminer = "J'ai rendu l'animal".
   /// v532 — preuve de remise : [photo] de l'animal et [code] à 4 chiffres
@@ -304,17 +326,29 @@ class SitterRepository {
     required String bookingId,
     File? photo,
     String? code,
+    double? lat,
+    double? lng,
   }) async {
+    // v565 (contrat §7) — position GPS horodatée envoyée avec la preuve
+    // (`lat`/`lng`), en multipart comme en JSON.
+    final text = <String, String>{
+      if (code != null && code.isNotEmpty) 'code': code,
+      if (lat != null) 'lat': lat.toString(),
+      if (lng != null) 'lng': lng.toString(),
+    };
     final r = (photo != null || (code != null && code.isNotEmpty))
         ? await _apiClient.postMultipartWithFields(
             endpoint: '/bookings/$bookingId/service/start',
             fileFields: photo != null ? {'photo': photo} : const {},
-            textFields: code != null && code.isNotEmpty ? {'code': code} : null,
+            textFields: text.isEmpty ? null : text,
             requiresAuth: true,
           )
         : await _apiClient.post(
             '/bookings/$bookingId/service/start',
-            body: const <String, dynamic>{},
+            body: <String, dynamic>{
+              if (lat != null) 'lat': lat,
+              if (lng != null) 'lng': lng,
+            },
             requiresAuth: true,
           );
     if (r is Map<String, dynamic>) return r;
@@ -325,16 +359,26 @@ class SitterRepository {
   Future<Map<String, dynamic>> completeService({
     required String bookingId,
     File? photo,
+    double? lat,
+    double? lng,
   }) async {
+    final text = <String, String>{
+      if (lat != null) 'lat': lat.toString(),
+      if (lng != null) 'lng': lng.toString(),
+    };
     final r = photo != null
         ? await _apiClient.postMultipartWithFields(
             endpoint: '/bookings/$bookingId/service/complete',
             fileFields: {'photo': photo},
+            textFields: text.isEmpty ? null : text,
             requiresAuth: true,
           )
         : await _apiClient.post(
             '/bookings/$bookingId/service/complete',
-            body: const <String, dynamic>{},
+            body: <String, dynamic>{
+              if (lat != null) 'lat': lat,
+              if (lng != null) 'lng': lng,
+            },
             requiresAuth: true,
           );
     if (r is Map<String, dynamic>) return r;

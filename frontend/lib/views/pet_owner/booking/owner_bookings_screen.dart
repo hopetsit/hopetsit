@@ -43,10 +43,33 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
   // 30s". Rafraîchissement de fond silencieux (pas de spinner).
   Timer? _autoRefresh;
 
+  // v565 (point 24) — le propriétaire confirme la récupération déclarée par
+  // le prestataire (POST /bookings/:id/handover/confirm-pickup).
+  Future<void> _onConfirmPickup(BookingModel booking) async {
+    setState(() => _busySvcId = booking.id);
+    try {
+      await Get.find<OwnerRepository>().confirmPickup(bookingId: booking.id);
+      CustomSnackbar.showSuccess(
+        title: 'v565_ho_pickup_confirmed_title'.tr,
+        message: 'v565_ho_pickup_confirmed_msg'.tr,
+      );
+      await _bookingsController.loadBookings();
+    } catch (e) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    } finally {
+      if (mounted) setState(() => _busySvcId = null);
+    }
+  }
+
   Future<void> _onServiceConfirm(BookingModel booking) async {
     setState(() => _busySvcId = booking.id);
     try {
-      await Get.find<OwnerRepository>().confirmService(bookingId: booking.id);
+      // v565 — « Confirmer le rendu » = /handover/confirm-return (repli
+      // /service/confirm si le backend n'est pas encore déployé).
+      await Get.find<OwnerRepository>().confirmReturn(bookingId: booking.id);
       CustomSnackbar.showSuccess(
         title: 'service_confirmed_snack_title'.tr,
         message: 'service_confirmed_snack_msg'.tr,
@@ -423,6 +446,9 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
                 role: 'owner',
                 isPaid: true,
                 busy: _busySvcId == booking.id,
+                booking: booking,
+                accent: _ownerAccent,
+                onConfirmPickup: () => _onConfirmPickup(booking),
                 onConfirm: () => _onServiceConfirm(booking),
                 onDispute: () => _onServiceDispute(booking),
               ),

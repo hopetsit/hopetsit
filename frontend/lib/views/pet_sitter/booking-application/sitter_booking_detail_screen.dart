@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/services/service_tracking_helper.dart';
-import 'package:hopetsit/views/shared/handover_proof_sheet.dart';
+import 'package:hopetsit/views/booking/handover/handover_action_sheet.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -12,6 +12,8 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/widgets/service_confirmation_card.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/utils/storage_keys.dart';
 
 /// Detail screen for a booking request (sitter view).
 /// Shows: Requests (client card), Pets, Note, Accept/Decline.
@@ -39,11 +41,42 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
   // v23.1.259 — flux de confirmation côté provider (start/complete).
   late String _confirmationStatus = widget.booking.confirmationStatus;
   bool _serviceBusy = false;
+  // v565 (point 24) — détail vivant (`GET /bookings/:id` : handover +
+  // timeline) et couleur du rôle courant (sitter bleu / walker vert).
+  BookingModel? _liveBooking;
+  late final Color _providerAccent =
+      (GetStorage().read<String>(StorageKeys.userRole) ?? 'sitter') == 'walker'
+          ? const Color(0xFF16A34A)
+          : const Color(0xFF2563EB);
+
+  @override
+  void initState() {
+    super.initState();
+    _reloadDetail();
+  }
+
+  Future<void> _reloadDetail() async {
+    try {
+      final b = await Get.find<SitterRepository>()
+          .getBookingDetail(widget.booking.id);
+      if (!mounted || b == null) return;
+      setState(() {
+        _liveBooking = b;
+        if (b.confirmationStatus.isNotEmpty) {
+          _confirmationStatus = b.confirmationStatus;
+        }
+      });
+    } catch (_) {
+      // Silencieux : la fiche reçue reste affichée.
+    }
+  }
 
   Future<void> _onProviderStart() async {
     // v532 — preuve de remise : photo de l'animal + code a 4 chiffres
     // dicte par le proprietaire. Annuler la feuille annule l'action.
-    final proof = await HandoverProofSheet.show(isPickup: true);
+    // v565 — photo facultative + position GPS (lat/lng) envoyée avec la preuve.
+    final proof = await HandoverActionSheet.show(
+        isPickup: true, accent: _providerAccent);
     if (proof == null) return;
     setState(() => _serviceBusy = true);
     try {
@@ -51,6 +84,8 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
         bookingId: widget.booking.id,
         photo: proof.photo,
         code: proof.code,
+        lat: proof.lat,
+        lng: proof.lng,
       );
       // v534 — le suivi en direct demarre AVEC la prestation. Sans ca, le
       // proprietaire ne voyait qu un point fige : il fallait que le
@@ -62,6 +97,7 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
         title: 'service_started_snack_title'.tr,
         message: 'service_started_snack_msg'.tr,
       );
+      await _reloadDetail();
     } catch (e) {
       if (!mounted) return;
       CustomSnackbar.showError(
@@ -75,13 +111,16 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
 
   Future<void> _onProviderComplete() async {
     // v532 — preuve de restitution : photo de l'animal rendu.
-    final proof = await HandoverProofSheet.show(isPickup: false);
+    final proof = await HandoverActionSheet.show(
+        isPickup: false, accent: _providerAccent);
     if (proof == null) return;
     setState(() => _serviceBusy = true);
     try {
       await Get.find<SitterRepository>().completeService(
         bookingId: widget.booking.id,
         photo: proof.photo,
+        lat: proof.lat,
+        lng: proof.lng,
       );
       // v534 — fin de prestation : on coupe la diffusion de position.
       await ServiceTrackingHelper.stopForService();
@@ -91,6 +130,7 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
         title: 'service_completed_snack_title'.tr,
         message: 'service_completed_snack_msg'.tr,
       );
+      await _reloadDetail();
     } catch (e) {
       if (!mounted) return;
       CustomSnackbar.showError(
@@ -598,6 +638,8 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
                   role: 'sitter',
                   isPaid: true,
                   busy: _serviceBusy,
+                  booking: _liveBooking ?? booking,
+                  accent: _providerAccent,
                   onStart: _onProviderStart,
                   onComplete: _onProviderComplete,
                 ),

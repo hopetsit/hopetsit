@@ -14,6 +14,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -28,7 +29,10 @@ class PhoneShareCard extends StatelessWidget {
   final String phone;
   final bool isFromCurrentUser;
 
-  static const _orangeBrand = Color(0xFFC92A12);
+  // v565 — couleur du rôle courant (owner orange / walker vert / sitter
+  // bleu) au lieu de l'orange fixe.
+  Color get _orangeBrand => ChatRoleTheme.current().accent;
+  Color get _accentLight => ChatRoleTheme.current().accent.withValues(alpha: 0.75);
   static const _callGreen = Color(0xFF16A34A);
 
   Future<void> _call() async {
@@ -85,8 +89,8 @@ class PhoneShareCard extends StatelessWidget {
                         width: 38.w,
                         height: 38.w,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [_orangeBrand, Color(0xFFFF6B45)],
+                          gradient: LinearGradient(
+                            colors: [_orangeBrand, _accentLight],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),

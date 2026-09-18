@@ -40,6 +40,188 @@ const mapUploadToAttachment = (uploadResult) => ({
   originalFilename: uploadResult.originalFilename || '',
 });
 
+// ─── v565 §5 — chat : réponse à un message, vocal, drapeaux admin ───────────
+const AppConfig = require('../models/AppConfig');
+const { buildPresenceIndex, isIdentityOnline } = require('../sockets/emitter');
+
+/** 403 FEATURE_DISABLED si le drapeau admin est à false. */
+const assertChatFeature = async (feature) => {
+  const flags = await AppConfig.getChatFeatures();
+  if (flags && flags[feature] === false) {
+    const err = new HttpError(403, `This chat feature is disabled by the administrator (${feature}).`);
+    err.code = 'FEATURE_DISABLED';
+    err.details = { feature };
+    throw err;
+  }
+};
+
+/** Identité de l'expéditeur : JWT en priorité, corps en repli (anciens clients). */
+const resolveSender = (req) => {
+  const jwtRole = String(req.user?.role || '').toLowerCase();
+  const jwtId = req.user?.id ? String(req.user.id) : '';
+  const bodyRole = String(req.body?.senderRole || '').toLowerCase();
+  const bodyId = req.body?.senderId ? String(req.body.senderId) : '';
+  if (jwtId && ['owner', 'sitter', 'walker'].includes(jwtRole)) {
+    if (bodyId && bodyId !== jwtId) {
+      logger.warn(`[chat] senderId ${bodyId} ignoré : le jeton dit ${jwtRole}:${jwtId}`);
+    }
+    return { senderRole: jwtRole, senderId: jwtId };
+  }
+  return { senderRole: bodyRole, senderId: bodyId };
+};
+
+const replyKindOf = (msg) => {
+  if (!msg) return 'text';
+  if (msg.type === 'phone_share' || msg.type === 'address_share') return msg.type;
+  if (msg.type === 'voice') return 'audio';
+  const a = Array.isArray(msg.attachments) && msg.attachments[0];
+  if (a) {
+    if (a.resourceType === 'audio') return 'audio';
+    if (a.resourceType === 'video') return 'video';
+    return 'image';
+  }
+  return 'text';
+};
+
+/**
+ * Charge le message cité (même conversation, non supprimé) et renvoie
+ * l'instantané à stocker : { messageId, body ≤120, senderRole, senderId, kind }.
+ * `replyTo` accepte un objet ou une chaîne JSON (multipart).
+ */
+const buildReplySnapshot = async (conversationId, replyTo) => {
+  let raw = replyTo;
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (!t) return null;
+    try { raw = JSON.parse(t); } catch (_) { raw = { messageId: t }; }
+  }
+  const messageId = raw && (raw.messageId || raw.id || raw._id);
+  if (!messageId) return null;
+  if (!mongoose.Types.ObjectId.isValid(String(messageId))) {
+    throw new HttpError(400, 'replyTo.messageId is invalid.');
+  }
+  await assertChatFeature('reply');
+  const quoted = await Message.findOne({ _id: messageId, conversationId }).lean();
+  if (!quoted) throw new HttpError(404, 'Quoted message not found in this conversation.');
+  if (quoted.deletedAt) throw new HttpError(400, 'Quoted message has been deleted.');
+  const kind = replyKindOf(quoted);
+  let body = typeof quoted.body === 'string' ? quoted.body.trim() : '';
+  if (!body) {
+    body = kind === 'audio' ? '🎤' : kind === 'video' ? '🎬' : kind === 'image' ? '📷' : '';
+  }
+  return {
+    messageId: quoted._id,
+    body: body.slice(0, 120),
+    senderRole: quoted.senderRole || 'owner',
+    senderId: quoted.senderId || null,
+    kind,
+  };
+};
+
+/** Aperçu de conversation / notification pour une pièce jointe. */
+const attachmentPreview = (attachments, kind) => {
+  if (kind === 'voice') return '🎤 Message vocal';
+  const list = Array.isArray(attachments) ? attachments : [];
+  if (list.length === 1) return list[0].resourceType === 'video' ? 'Sent a video' : 'Sent a photo';
+  const videos = list.filter((a) => a.resourceType === 'video').length;
+  if (videos === list.length) return `Sent ${videos} ${videos === 1 ? 'video' : 'videos'}`;
+  if (videos) return `Sent ${list.length} attachments`;
+  return `Sent ${list.length} ${list.length === 1 ? 'photo' : 'photos'}`;
+};
+
+/**
+ * Persiste `replyTo` / `type` sur un message créé par conversationService
+ * (qui ne connaît pas ces champs) et met à jour l'objet renvoyé.
+ */
+const patchMessageExtras = async (result, { replyTo, type, lastMessage, conversationId }) => {
+  const $set = {};
+  if (replyTo) $set.replyTo = replyTo;
+  if (type) $set.type = type;
+  const msgId = result?.message?.id || result?.message?._id;
+  if (msgId && Object.keys($set).length) {
+    await Message.updateOne({ _id: msgId }, { $set });
+    if (replyTo) result.message.replyTo = { ...replyTo, messageId: String(replyTo.messageId), senderId: replyTo.senderId ? String(replyTo.senderId) : null };
+    if (type) result.message.type = type;
+  }
+  if (lastMessage && conversationId) {
+    await Conversation.updateOne({ _id: conversationId }, { $set: { lastMessage } });
+    if (result?.conversation) result.conversation.lastMessage = lastMessage;
+  }
+  return result;
+};
+
+/**
+ * Message vocal (ou pièce jointe) dans une conversation BOOKING, sans passer
+ * par conversationService.sendMessage (qui fige type='text' et un aperçu
+ * « Sent a photo »). Le gating d'accès est déjà fait par requirePaidBooking ;
+ * on revérifie participant + blocage comme le service.
+ */
+const persistBookingAttachmentMessage = async ({ conversation, senderRole, senderId, body, attachments, type, replyTo }) => {
+  const idStr = (v) => (v ? String(v._id || v) : null);
+  const ownerId = idStr(conversation.ownerId);
+  const sitterId = idStr(conversation.sitterId);
+  const walkerId = idStr(conversation.walkerId);
+  const mine = senderRole === 'owner' ? ownerId : senderRole === 'sitter' ? sitterId : walkerId;
+  if (!mine || mine !== String(senderId)) {
+    throw new HttpError(403, 'User is not part of this conversation.');
+  }
+  const providerId = sitterId || walkerId;
+  const providerModel = sitterId ? 'Sitter' : 'Walker';
+  const blocked = await Block.exists({
+    $or: [
+      { blockerId: ownerId, blockerModel: 'Owner', blockedId: providerId, blockedModel: providerModel },
+      { blockerId: providerId, blockerModel: providerModel, blockedId: ownerId, blockedModel: 'Owner' },
+    ],
+  });
+  if (blocked) throw new HttpError(403, 'Messaging is disabled because one user has been blocked.');
+  const cleanBody = typeof body === 'string'
+    ? require('../services/textModerationService').moderateText(body.trim()).clean
+    : '';
+  const message = await Message.create({
+    conversationId: conversation._id,
+    senderRole,
+    senderId,
+    body: cleanBody,
+    attachments,
+    type: type || 'text',
+    replyTo: replyTo || null,
+  });
+  const preview = cleanBody || attachmentPreview(attachments, type === 'voice' ? 'voice' : 'media');
+  const inc = senderRole === 'owner' ? { sitterUnreadCount: 1 } : { ownerUnreadCount: 1 };
+  await Conversation.updateOne(
+    { _id: conversation._id },
+    { $set: { lastMessage: preview, lastMessageAt: new Date(), clearedFor: [] }, $inc: inc },
+  );
+  // Notification NEW_MESSAGE au destinataire (owner ↔ prestataire).
+  try {
+    const recipientRole = senderRole === 'owner' ? (walkerId ? 'walker' : 'sitter') : 'owner';
+    const recipientId = senderRole === 'owner' ? (walkerId || sitterId) : ownerId;
+    if (recipientId && recipientId !== String(senderId)) {
+      const SenderModel = senderRole === 'owner' ? Owner : senderRole === 'sitter' ? Sitter : Walker;
+      const senderDoc = SenderModel ? await SenderModel.findById(senderId).select('name').lean() : null;
+      const { sendNotification } = require('../services/notificationSender');
+      sendNotification({
+        userId: recipientId,
+        role: recipientRole,
+        type: 'NEW_MESSAGE',
+        data: {
+          conversationId: String(conversation._id),
+          messageId: String(message._id),
+          senderName: (senderDoc?.name || '').trim() || 'HoPetSit',
+          preview: preview.slice(0, 120),
+        },
+        actor: { role: senderRole, id: senderId },
+      }).catch((e) => logger.warn(`[chat.voice] NEW_MESSAGE notif failed : ${e?.message || e}`));
+    }
+  } catch (_) { /* best-effort */ }
+  const fresh = await Conversation.findById(conversation._id)
+    .populate('ownerId').populate('sitterId').populate('walkerId');
+  return {
+    message: sanitizeMessage(message),
+    conversation: sanitizeConversation(fresh || conversation),
+  };
+};
+
 const listConversations = async (req, res) => {
   try {
     const { role, userId } = req.query;
@@ -118,9 +300,19 @@ const getChatList = async (req, res) => {
 
     const conversations = await Conversation.find(query)
       .sort({ updatedAt: -1 })
-      .populate('ownerId', 'name email avatar')
-      .populate('sitterId', 'name email avatar')
-      .populate('walkerId', 'name email avatar');
+      .populate('ownerId', 'name email avatar oldId lastSeenAt')
+      .populate('sitterId', 'name email avatar oldId lastSeenAt')
+      .populate('walkerId', 'name email avatar oldId lastSeenAt');
+
+    // v565 §6 — présence réelle : un index (sockets connectés → ids/e-mails/
+    // oldId) construit UNE fois, puis chaque correspondant testé en O(1) sur
+    // son identité complète (owner/sitter/walker).
+    let presence = null;
+    try { presence = await buildPresenceIndex(); } catch (_) { presence = null; }
+    const presenceOf = (doc) => ({
+      isOnline: presence ? isIdentityOnline(doc, presence) : false,
+      lastSeenAt: doc?.lastSeenAt ? new Date(doc.lastSeenAt).toISOString() : null,
+    });
 
     // Enhance conversations with user details
     const enhancedConversations = await Promise.all(
@@ -128,6 +320,7 @@ const getChatList = async (req, res) => {
         const sanitized = sanitizeConversation(conversation);
         let otherParty = null;
         let unread = 0;
+        let pres = { isOnline: false, lastSeenAt: null };
 
         // v23.1.200 — friendChat : autre participant = celui qui n'est pas moi.
         if (conversation.friendChat === true) {
@@ -144,14 +337,16 @@ const getChatList = async (req, res) => {
             try {
               const Model = require('../models/' + o.userModel);
               const otherDoc = await Model.findById(o.userId)
-                .select('name email avatar').lean();
+                .select('name email avatar oldId lastSeenAt').lean();
               if (otherDoc) {
+                pres = presenceOf(otherDoc);
                 otherParty = {
                   id: otherDoc._id?.toString() || '',
                   name: otherDoc.name || '',
                   email: otherDoc.email || '',
                   avatar: otherDoc.avatar?.url || '',
                   role: ROLE_MODELS[o.userModel] || 'owner',
+                  ...pres,
                 };
               }
               // v490 — Daniel : un utilisateur SUPPRIMÉ (otherDoc introuvable)
@@ -162,30 +357,34 @@ const getChatList = async (req, res) => {
           }
           // Conversation amie avec un compte supprimé → on l'enlève.
           if (!otherParty) return null;
-          return { ...sanitized, otherParty, unreadCount: unread };
+          return { ...sanitized, otherParty, unreadCount: unread, ...pres };
         }
 
         // Branch booking classique (legacy).
         if (normalizedRole === 'owner') {
           const provider = conversation.sitterId || conversation.walkerId;
           if (provider) {
+            pres = presenceOf(provider);
             otherParty = {
               id: provider._id?.toString() || '',
               name: provider.name || '',
               email: provider.email || '',
               avatar: provider.avatar?.url || '',
               role: conversation.sitterId ? 'sitter' : 'walker',
+              ...pres,
             };
           }
         } else {
           const owner = conversation.ownerId;
           if (owner) {
+            pres = presenceOf(owner);
             otherParty = {
               id: owner._id?.toString() || '',
               name: owner.name || '',
               email: owner.email || '',
               avatar: owner.avatar?.url || '',
               role: 'owner',
+              ...pres,
             };
           }
         }
@@ -198,6 +397,7 @@ const getChatList = async (req, res) => {
           unreadCount: normalizedRole === 'owner'
             ? conversation.ownerUnreadCount || 0
             : conversation.sitterUnreadCount || 0,
+          ...pres,
         };
       })
     );
@@ -348,7 +548,7 @@ const getConversationMessages = async (req, res) => {
  *   5. Renvoyer la card sanitized
  */
 const sendFriendMessage = async ({
-  conversation, senderId, senderRole, body, attachments,
+  conversation, senderId, senderRole, body, attachments, type, replyTo,
 }) => {
   const Message = require('../models/Message');
   const isParticipant = (conversation.participants || []).some(
@@ -365,13 +565,15 @@ const sendFriendMessage = async ({
     senderRole,
     body: typeof body === 'string' ? body : '',
     attachments: Array.isArray(attachments) ? attachments : [],
-    type: 'text',
+    // v565 §5 — 'voice' pour un message vocal ; replyTo = instantané cité.
+    type: type === 'voice' ? 'voice' : 'text',
+    replyTo: replyTo || null,
   });
   // Update conversation : lastMessage + unreadCount du destinataire +1.
   const preview = typeof body === 'string' && body.length > 0
     ? body.slice(0, 120)
     : (Array.isArray(attachments) && attachments.length > 0
-        ? '📎 Pièce jointe' : '');
+        ? (type === 'voice' ? '🎤 Message vocal' : '📎 Pièce jointe') : '');
   const update = {
     lastMessage: preview,
     lastMessageAt: new Date(),
@@ -419,7 +621,11 @@ const sendFriendMessage = async ({
 const createConversationMessage = async (req, res) => {
   try {
     const { id } = req.params;
-    const { senderRole, senderId, body, attachments } = req.body;
+    const { body, attachments } = req.body;
+    // v565 — expéditeur depuis le JWT (le corps ne fait plus foi).
+    const { senderRole, senderId } = resolveSender(req);
+    // v565 §5 — réponse à un message précis : instantané complet stocké.
+    const replyTo = await buildReplySnapshot(id, req.body?.replyTo);
 
     // v23.1.200 — branch friendChat : pipeline simplifie (pas de check
     // booking-paye, pas de owner-sitter logic). Verifie juste que le
@@ -435,6 +641,7 @@ const createConversationMessage = async (req, res) => {
         senderRole,
         body,
         attachments,
+        replyTo,
       });
       // v23.1 part 227 — emit aux user-rooms aussi (badge unread).
       emitChatMessage(convPre, 'message:new', {
@@ -452,6 +659,7 @@ const createConversationMessage = async (req, res) => {
       body,
       attachments,
     });
+    if (replyTo) await patchMessageExtras(result, { replyTo });
 
     // v23.1 part 227 — emit aux user-rooms aussi (Daniel : badge unread
     // qui n'apparaissait pas car les users hors-chat-room ne recevaient
@@ -481,9 +689,11 @@ const createConversationMessage = async (req, res) => {
 const createConversationAttachmentMessage = async (req, res) => {
   try {
     const { id } = req.params;
-    const { senderRole, senderId, body, folder } = req.body || {};
+    const { body, folder } = req.body || {};
     const files = Array.isArray(req.files) ? req.files : [];
-
+    // v565 — expéditeur depuis le JWT (les champs multipart ne font plus foi ;
+    // AVANT un multipart sans senderRole/senderId prenait 400).
+    const { senderRole, senderId } = resolveSender(req);
     if (!senderRole || !senderId) {
       return res.status(400).json({ error: 'senderRole and senderId are required.' });
     }
@@ -492,19 +702,48 @@ const createConversationAttachmentMessage = async (req, res) => {
       return res.status(400).json({ error: 'At least one file is required.' });
     }
 
+    // v565 §5 — kind=voice (1 fichier audio) | media (défaut : photos/vidéos).
+    const kind = String(req.body?.kind || 'media').toLowerCase() === 'voice' ? 'voice' : 'media';
+    await assertChatFeature(kind === 'voice' ? 'voice' : 'media');
+    const replyTo = await buildReplySnapshot(id, req.body?.replyTo);
+    const isAudioFile = (f) =>
+      /^audio\//i.test(f.mimetype || '') ||
+      /\.(m4a|aac|mp3|wav|ogg|opus|caf)$/i.test(f.originalname || '');
+    if (kind === 'voice') {
+      if (files.length !== 1) {
+        return res.status(400).json({ error: 'A voice message must contain exactly one audio file.' });
+      }
+      if (!isAudioFile(files[0])) {
+        return res.status(400).json({ error: 'Voice message must be an audio file (.m4a / .aac).' });
+      }
+    }
+    const durationRaw = Number(req.body?.duration);
+    const duration = Number.isFinite(durationRaw) && durationRaw > 0 ? Math.round(durationRaw * 100) / 100 : null;
+
     const uploadFolder =
       typeof folder === 'string' && folder.trim()
         ? folder.trim()
         : `petsinsta/conversations/${id}`;
 
+    // Cloudinary : l'audio ET la vidéo passent par resource_type 'video' ;
+    // la transformation `strip_profile` (EXIF) n'a de sens que pour les images
+    // et fait échouer/ralentir l'upload des médias non-image → retirée pour eux.
     const uploads = await Promise.all(
-      files.map((file) =>
-        uploadMedia({
+      files.map((file) => {
+        const isVideo = /^video\//i.test(file.mimetype || '');
+        const isAudio = isAudioFile(file);
+        const nonImage = isVideo || isAudio || kind === 'voice';
+        return uploadMedia({
           file: bufferToDataUri(file),
           folder: uploadFolder,
-          resourceType: 'auto',
-        })
-      )
+          resourceType: nonImage ? 'video' : (/^image\//i.test(file.mimetype || '') ? 'image' : 'auto'),
+          options: nonImage
+            ? { transformation: undefined, image_metadata: undefined, quality_analysis: undefined }
+            : {},
+        }).then((up) => (isAudio || kind === 'voice'
+          ? { ...up, resourceType: 'audio', duration: duration ?? up.duration ?? null, thumbnailUrl: '' }
+          : up));
+      })
     );
 
     // Session v3.3 — moderate image attachments with Google Vision. Only
@@ -513,7 +752,7 @@ const createConversationAttachmentMessage = async (req, res) => {
     // the whole message is rejected with 422.
     const { rejectIfUnsafe } = require('../services/contentModerationService');
     for (const up of uploads) {
-      if (!up || up.resourceType === 'video') continue;
+      if (!up || up.resourceType === 'video' || up.resourceType === 'audio') continue;
       try {
         await rejectIfUnsafe(up);
       } catch (modErr) {
@@ -529,18 +768,48 @@ const createConversationAttachmentMessage = async (req, res) => {
     }
 
     const attachmentPayload = uploads.map(mapUploadToAttachment);
+    const msgType = kind === 'voice' ? 'voice' : undefined;
 
-    const result = await sendMessage({
-      conversationId: id,
-      senderRole,
-      senderId,
-      body,
-      attachments: attachmentPayload,
-    });
-
-    // v23.1 part 227 — fetch conv pour emit user-rooms + conv-room.
+    // v565 — chat AMI/FAMILLE : AVANT, les pièces jointes passaient par
+    // conversationService.sendMessage (pipeline booking : ownerId/sitterId)
+    // → 403 « not part of this conversation » sur toute conversation amie →
+    // « l'envoi de photos/vidéos ne marche pas ». On route vers le pipeline ami.
     const convForEmit = await Conversation.findById(id)
       .select('friendChat participants ownerId sitterId walkerId').lean();
+    let result;
+    if (convForEmit?.friendChat === true) {
+      result = await sendFriendMessage({
+        conversation: convForEmit,
+        senderId,
+        senderRole,
+        body,
+        attachments: attachmentPayload,
+        type: msgType,
+        replyTo,
+      });
+    } else if (kind === 'voice') {
+      result = await persistBookingAttachmentMessage({
+        conversation: convForEmit,
+        senderRole,
+        senderId,
+        body,
+        attachments: attachmentPayload,
+        type: 'voice',
+        replyTo,
+      });
+    } else {
+      result = await sendMessage({
+        conversationId: id,
+        senderRole,
+        senderId,
+        body,
+        attachments: attachmentPayload,
+      });
+      if (replyTo) await patchMessageExtras(result, { replyTo });
+    }
+
+    // v23.1 part 227 — emit user-rooms + conv-room (payload : message avec
+    // replyTo / type / attachments[].resourceType — contrat §5).
     emitChatMessage(convForEmit, 'message:new', {
       conversationId: id,
       triggeredBy: { role: senderRole, userId: senderId },
@@ -1200,6 +1469,11 @@ const startFriendConversation = async (req, res) => {
 };
 
 module.exports = {
+  // v565 §5 — réutilisés par chatSocket.
+  buildReplySnapshot,
+  patchMessageExtras,
+  assertChatFeature,
+  resolveSender,
   listConversations,
   getChatList,
   getConversationMessages,

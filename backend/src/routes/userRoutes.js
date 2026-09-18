@@ -1,7 +1,9 @@
 const express = require('express');
 const multer = require('multer');
 
-const { updateService, updateProfile, updateCard, deleteAccount, updateOwnerCardFromToken, deleteAccountFromToken, updateProfilePicture, getOwnerProfile, switchRole, registerFcmToken, unregisterFcmToken, acceptTerms, updateAppLocale, getMyLoyalty, getMyReferralsRoute, addFavoriteProvider, removeFavoriteProvider, getFavoriteProviders } = require('../controllers/userController');
+const { updateService, updateProfile, updateCard, deleteAccount, updateOwnerCardFromToken, deleteAccountFromToken, updateProfilePicture, getOwnerProfile, switchRole, registerFcmToken, unregisterFcmToken, acceptTerms, updateAppLocale, getMyLoyalty, getMyReferralsRoute, addFavoriteProvider, removeFavoriteProvider, getFavoriteProviders,
+  // v565
+  getNotificationPrefs, updateNotificationPrefs, requestEmailChange, confirmEmailChange, resendEmailChange } = require('../controllers/userController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -227,9 +229,23 @@ router.get(
         }
       }
 
+      // v565 §4 — verrou contacts : true = seuil (CONTACTS_FREE_UNTIL_USERS)
+      // atteint ET aucun débloquage global (staff / abonnement / add-on chat).
+      let contactsLocked = false;
+      try {
+        const { isContactsLockedGlobally, hasContactsUnlock } = require('../services/chatAccessService');
+        if (await isContactsLockedGlobally()) {
+          const unlock = isStaff ? { unlocked: true } : await hasContactsUnlock(req.user.id);
+          contactsLocked = !unlock.unlocked;
+        }
+      } catch (e) {
+        logger.warn(`[users/me/benefits] contacts lock check failed : ${e.message}`);
+      }
+
       const payload = {
         role,
         isStaff,
+        contactsLocked,
         boostExpiry: user.boostExpiry || null,
         boostTier: user.boostTier || null,
         mapBoostExpiry: user.mapBoostExpiry || null,
@@ -584,6 +600,17 @@ router.delete('/fcm-token', requireAuth, unregisterFcmToken);
 router.patch('/accept-terms', requireAuth, acceptTerms);
 // v23.1.348 — la langue suit le système : l'app synchronise sa locale UI.
 router.patch('/me/app-locale', requireAuth, updateAppLocale);
+
+// v565 §2 — préférences de notification (son + catégories), synchronisées
+// sur les 3 profils de la personne. Corps partiel accepté au PATCH.
+router.get('/me/notification-prefs', requireAuth, requireRole('owner', 'sitter', 'walker'), getNotificationPrefs);
+router.patch('/me/notification-prefs', requireAuth, requireRole('owner', 'sitter', 'walker'), updateNotificationPrefs);
+
+// v565 §3 — changement d'e-mail par l'utilisateur (code envoyé à la NOUVELLE
+// adresse, 24 h ; confirmation → e-mail remplacé sur les 3 profils).
+router.post('/me/email-change', requireAuth, requireRole('owner', 'sitter', 'walker'), requestEmailChange);
+router.post('/me/email-change/confirm', requireAuth, requireRole('owner', 'sitter', 'walker'), confirmEmailChange);
+router.post('/me/email-change/resend', requireAuth, requireRole('owner', 'sitter', 'walker'), resendEmailChange);
 
 // Sprint 7 step 1 — owner loyalty stats
 router.get('/me/loyalty', requireAuth, requireRole('owner'), getMyLoyalty);

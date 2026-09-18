@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import BackLink from "@/components/BackLink";
+import { usePresence } from "@/lib/usePresence";
 import {
   FamilyMember,
   FriendItem,
@@ -36,20 +37,33 @@ function roleKey(model?: string): string {
   return "friends_role_owner";
 }
 
-function Avatar({ url, name }: { url?: string; name?: string }) {
-  if (url) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return (
-      <img
-        src={url}
-        alt={name || ""}
-        className="h-10 w-10 shrink-0 rounded-full border border-ink/10 object-cover"
+// v565 (point 10) — `online` : point vert / gris en bas à droite (absent si
+// la présence n'est pas connue, ex. résultats de recherche).
+function Avatar({ url, name, online }: { url?: string; name?: string; online?: boolean | null }) {
+  const dot =
+    online === undefined || online === null ? null : (
+      <span
+        aria-hidden="true"
+        className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${
+          online ? "bg-emerald-500" : "bg-[#C7C7CC]"
+        }`}
       />
     );
-  }
   return (
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bg-soft text-lg">
-      🐶
+    <span className="relative shrink-0">
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={url}
+          alt={name || ""}
+          className="h-10 w-10 rounded-full border border-ink/10 object-cover"
+        />
+      ) : (
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-bg-soft text-lg">
+          🐶
+        </span>
+      )}
+      {dot}
     </span>
   );
 }
@@ -57,6 +71,8 @@ function Avatar({ url, name }: { url?: string; name?: string }) {
 export default function FriendsPage() {
   const { t } = useT();
   const router = useRouter();
+  // v565 (point 10) — présence réelle (`isOnline` de GET /friends + socket).
+  const { resolveOnline } = usePresence();
 
   const [loading, setLoading] = useState(true);
   const [friends, setFriends] = useState<FriendItem[]>([]);
@@ -294,9 +310,11 @@ export default function FriendsPage() {
               <div className={emptyCls}>{t("friends_empty")}</div>
             ) : (
               <ul className="flex flex-col gap-2">
-                {friends.map((f) => (
+                {friends.map((f) => {
+                  const online = resolveOnline(f.other?.id, f.isOnline ?? f.other?.isOnline);
+                  return (
                   <li key={f.id} className={rowCls}>
-                    <Avatar url={f.other?.avatar} name={f.other?.name} />
+                    <Avatar url={f.other?.avatar} name={f.other?.name} online={online} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold text-ink">
                         {f.other?.name || f.other?.email || "—"}
@@ -305,6 +323,10 @@ export default function FriendsPage() {
                       <div className="text-xs text-ink-muted">
                         {t(roleKey(f.other?.model))}
                         {f.other?.city ? ` · ${f.other.city}` : ""}
+                        <span className={online ? " text-emerald-600" : ""}>
+                          {" · "}
+                          {online ? t("friends_online") : t("friends_offline")}
+                        </span>
                       </div>
                     </div>
                     {f.theirSharePosition && (
@@ -316,7 +338,8 @@ export default function FriendsPage() {
                       </Link>
                     )}
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
             {friends.some((f) => f.theirSharePosition) && (

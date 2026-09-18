@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { useT } from "@/lib/i18n/LanguageProvider";
+import { OpenAppRedirect } from "@/components/OpenAppRedirect";
 
 // v449 — Lien canonique des emails HoPetSit. Daniel : « tous les boutons des
 // emails : ouvrir l'app si installée, sinon rediriger vers /download. Jamais
@@ -20,54 +19,6 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 // finit soit dans l'app, soit sur /download — jamais une page morte.
 
 export default function OpenAppPage() {
-  const { t } = useT();
-
-  useEffect(() => {
-    let redirected = false;
-    const goDownload = () => {
-      if (redirected) return;
-      redirected = true;
-      window.location.replace("/download");
-    };
-
-    // Fallback : si l'app ne s'ouvre pas, on part sur /download.
-    const timer = setTimeout(goDownload, 1400);
-
-    // Si l'onglet passe en arrière-plan, c'est que l'app s'est ouverte →
-    // on annule la redirection vers /download.
-    const onVisibility = () => {
-      if (document.visibilityState === "hidden") {
-        clearTimeout(timer);
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-
-    // Tentative d'ouverture de l'app via le schéma custom (deferred deep link).
-    try {
-      window.location.href = "hopetsit://open";
-    } catch {
-      /* schéma non supporté (desktop) → le timeout redirige vers /download */
-    }
-
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, []);
-
-  return (
-    <div className="mx-auto flex max-w-md flex-col items-center px-4 py-24 text-center">
-      <div className="h-12 w-12 animate-spin rounded-full border-4 border-ink/10 border-t-[#C92A12]" />
-      <h1 className="mt-8 font-display text-2xl font-extrabold tracking-tight">
-        {t("open_app_title")}
-      </h1>
-      <p className="mt-3 text-ink-muted">{t("open_app_sub")}</p>
-      <a
-        href="/download"
-        className="mt-8 inline-block rounded-full bg-[#C92A12] px-8 py-3 font-bold text-white shadow-lg shadow-[#C92A12]/30 transition hover:brightness-105"
-      >
-        {t("open_app_download")}
-      </a>
-    </div>
-  );
+  // v565 — la logique vit dans OpenAppRedirect (partagée avec /open/<route>).
+  return <OpenAppRedirect route="open" />;
 }

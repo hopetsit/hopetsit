@@ -258,4 +258,70 @@ const requirePaidBooking = async (req, res, next) => {
   }
 };
 
-module.exports = { requirePaidBooking, evaluateChatAccess };
+// ─── v565 §4 — verrou contacts à 700 comptes ────────────────────────────────
+/** Id du correspondant dans une conversation (booking ou amie), ou null. */
+const otherPartyIdOf = (conversation, myId) => {
+  const idStr = (v) => (v ? String(v._id || v) : null);
+  const me = String(myId);
+  if (conversation?.friendChat === true && Array.isArray(conversation.participants)) {
+    const other = conversation.participants.find((p) => idStr(p.userId) !== me);
+    return other ? idStr(other.userId) : null;
+  }
+  const ids = [conversation?.ownerId, conversation?.sitterId, conversation?.walkerId]
+    .map(idStr).filter(Boolean);
+  return ids.find((id) => id !== me) || null;
+};
+
+/**
+ * Vérifie le verrou du partage de contacts pour `req.user` dans `conversation`.
+ * @returns {Promise<null|{status:number, body:object}>} null = autorisé.
+ */
+const checkContactsLock = async (req, conversation) => {
+  try {
+    const { evaluateContactsAccess } = require('../services/chatAccessService');
+    const otherUserId = otherPartyIdOf(conversation, req.user?.id);
+    const verdict = await evaluateContactsAccess({ userId: req.user?.id, otherUserId });
+    logger.info(
+      `[contactsLock] user=${req.user?.role}:${req.user?.id} conv=${String(conversation?._id || '')} ` +
+      `locked=${verdict.locked} reason=${verdict.reason}`,
+    );
+    if (!verdict.locked) return null;
+    return {
+      status: 402,
+      body: {
+        error: 'Le partage de contacts est réservé aux membres ayant une réservation payée ou un abonnement actif.',
+        code: 'CONTACTS_LOCKED',
+        threshold: verdict.threshold,
+      },
+    };
+  } catch (e) {
+    // Doute → on n'enferme personne à tort.
+    logger.warn(`[contactsLock] check failed (allowing) : ${e?.message || e}`);
+    return null;
+  }
+};
+
+/** Middleware Express (charge la conversation par req.params.id). */
+const requireContactsUnlocked = async (req, res, next) => {
+  try {
+    const conversation = await Conversation.findById(req.params.id)
+      .select('ownerId sitterId walkerId friendChat participants')
+      .lean();
+    if (!conversation) return res.status(404).json({ error: 'Conversation not found.' });
+    const denied = await checkContactsLock(req, conversation);
+    if (denied) return res.status(denied.status).json(denied.body);
+    return next();
+  } catch (e) {
+    logger.error('requireContactsUnlocked error', e);
+    return res.status(500).json({ error: 'Contacts access check failed.' });
+  }
+};
+
+module.exports = {
+  requirePaidBooking,
+  evaluateChatAccess,
+  // v565 §4
+  otherPartyIdOf,
+  checkContactsLock,
+  requireContactsUnlocked,
+};

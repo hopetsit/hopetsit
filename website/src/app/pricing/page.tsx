@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { PageHero, SectionTitle } from "@/components/PageHero";
 import { SubscriptionsExplainer } from "@/components/SubscriptionsExplainer";
+import { PromoCodeBox } from "@/components/PromoCodeBox";
 
 /**
  * v556 — « Tarifs » en version premium (Daniel). En-tête commun, deux cartes
@@ -77,6 +78,12 @@ export default function PricingPage() {
           <p className="mx-auto mt-8 max-w-3xl text-center text-sm leading-relaxed text-[#6E6E73]">
             {t("pricing_note")}
           </p>
+
+          {/* v565 (point 27) — entrée discrète « J'ai un code » sur les tarifs. */}
+          <div className="mx-auto mt-6 flex max-w-xl flex-col items-center gap-3 text-center">
+            <p className="text-sm text-[#6E6E73]">{t("promo_pricing_hint")}</p>
+            <PromoCodeBox collapsible className="w-full text-left" />
+          </div>
         </div>
       </section>
 

@@ -9,6 +9,7 @@ import 'package:hopetsit/views/booking/booking_agreement_screen.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 import 'package:hopetsit/views/profile/edit_owner_profile_screen.dart';
 import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart';
+import 'package:hopetsit/views/profile/widgets/profile_settings_host.dart';
 import 'package:hopetsit/views/profile/view_task_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
@@ -32,7 +33,7 @@ import 'package:hopetsit/views/auth/choose_service_screen.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
-class ProfileController extends GetxController {
+class ProfileController extends GetxController implements ProfileSettingsHost {
   ProfileController({
     OwnerRepository? ownerRepository,
     UserRepository? userRepository,

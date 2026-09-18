@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -35,7 +36,10 @@ class AddressShareCard extends StatelessWidget {
   final double? lng;
   final bool isFromCurrentUser;
 
-  static const _orangeBrand = Color(0xFFC92A12);
+  // v565 — couleur du rôle courant (owner orange / walker vert / sitter
+  // bleu) au lieu de l'orange fixe.
+  Color get _orangeBrand => ChatRoleTheme.current().accent;
+  Color get _accentLight => ChatRoleTheme.current().accent.withValues(alpha: 0.75);
 
   Future<void> _openInMaps() async {
     // Prefer GPS coords (most accurate) ; fallback on address+city string.
@@ -98,8 +102,8 @@ class AddressShareCard extends StatelessWidget {
                         width: 38.w,
                         height: 38.w,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [_orangeBrand, Color(0xFFFF6B45)],
+                          gradient: LinearGradient(
+                            colors: [_orangeBrand, _accentLight],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),

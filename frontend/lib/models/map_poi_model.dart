@@ -86,6 +86,14 @@ class PoiCategories {
     vet, shop, groomer, park, beach, water, trainer, hotel, restaurant, other,
   ];
 
+  /// v565 — point 7 : catégories dédiées aux animaux / pet-friendly, les
+  /// SEULES proposées dans « Autour de moi » (jamais « autre »).
+  static const List<String> petFriendly = [
+    vet, shop, groomer, park, beach, water, trainer, hotel, restaurant,
+  ];
+
+  static bool isPetFriendly(String c) => petFriendly.contains(c);
+
   /// Emoji badge per category.
   static String emoji(String c) {
     switch (c) {

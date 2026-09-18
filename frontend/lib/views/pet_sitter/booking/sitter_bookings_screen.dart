@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/services/service_tracking_helper.dart';
-import 'package:hopetsit/views/shared/handover_proof_sheet.dart';
+import 'package:hopetsit/views/booking/handover/handover_action_sheet.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
@@ -36,7 +36,9 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
   Future<void> _onServiceStart(BookingModel booking) async {
     // v532 — preuve de remise : photo de l'animal + code a 4 chiffres
     // dicte par le proprietaire. Annuler la feuille annule l'action.
-    final proof = await HandoverProofSheet.show(isPickup: true);
+    // v565 — photo facultative + position GPS (lat/lng) envoyée avec la preuve.
+    final proof = await HandoverActionSheet.show(
+        isPickup: true, accent: _sitterAccent);
     if (proof == null) return;
     setState(() => _busySvcId = booking.id);
     try {
@@ -44,6 +46,8 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
         bookingId: booking.id,
         photo: proof.photo,
         code: proof.code,
+        lat: proof.lat,
+        lng: proof.lng,
       );
       // v534 — le suivi en direct demarre AVEC la prestation. Sans ca, le
       // proprietaire ne voyait qu un point fige : il fallait que le
@@ -66,13 +70,16 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
 
   Future<void> _onServiceComplete(BookingModel booking) async {
     // v532 — preuve de restitution : photo de l'animal rendu.
-    final proof = await HandoverProofSheet.show(isPickup: false);
+    final proof = await HandoverActionSheet.show(
+        isPickup: false, accent: _sitterAccent);
     if (proof == null) return;
     setState(() => _busySvcId = booking.id);
     try {
       await Get.find<SitterRepository>().completeService(
         bookingId: booking.id,
         photo: proof.photo,
+        lat: proof.lat,
+        lng: proof.lng,
       );
       // v534 — fin de prestation : on coupe la diffusion de position.
       await ServiceTrackingHelper.stopForService();
@@ -490,6 +497,8 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
               role: 'sitter',
               isPaid: true,
               busy: _busySvcId == booking.id,
+              booking: booking,
+              accent: _sitterAccent,
               onStart: () => _onServiceStart(booking),
               onComplete: () => _onServiceComplete(booking),
             ),

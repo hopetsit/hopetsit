@@ -53,6 +53,39 @@ const walkerSchema = new mongoose.Schema(
     mobile: { type: String, default: '' },
     countryCode: { type: String, default: '' },
     country: { type: String, default: '', uppercase: true, trim: true },
+    // v565 — ville du compte (point 1). AVANT : la ville n'existait que dans
+    // `location.city`, or les hooks retirent `location` entier dès que
+    // [lng, lat] manque (index 2dsphere) → la ville saisie à l'inscription
+    // sans GPS était perdue (« ? » dans l'admin). Champ plat, conservé par les
+    // hooks et synchronisé sur les 3 profils de la personne.
+    city: { type: String, default: '', trim: true },
+    // v565 §6 — présence : horodatage de la dernière déconnexion socket.
+    lastSeenAt: { type: Date, default: null },
+    // v565 §2 — préférences de notification (son + catégories), synchronisées
+    // sur les 3 docs de la personne. Défauts appliqués côté route si absent.
+    notificationPrefs: {
+      sound: {
+        type: String,
+        enum: ['default', 'bark', 'meow', 'tweet', 'vibrate', 'silent'],
+        default: 'default',
+      },
+      categories: {
+        messages: { type: Boolean, default: true },
+        bookings: { type: Boolean, default: true },
+        payments: { type: Boolean, default: true },
+        friends: { type: Boolean, default: true },
+        pawmap: { type: Boolean, default: true },
+        live: { type: Boolean, default: true },
+        reviews: { type: Boolean, default: true },
+        subscriptions: { type: Boolean, default: true },
+      },
+    },
+    // v565 §3 — changement d'e-mail par l'utilisateur : nouvelle adresse en
+    // attente + code haché (24 h) + horodatage du dernier envoi (1 / 2 min).
+    pendingEmail: { type: String, default: '', lowercase: true, trim: true },
+    pendingEmailCodeHash: { type: String, default: '', select: false }, // jamais renvoyé par sanitizeUser
+    pendingEmailExpiresAt: { type: Date, default: null },
+    pendingEmailSentAt: { type: Date, default: null },
     password: { type: String, required: true, minlength: 8 },
     language: { type: String, default: '' },
     // v23.1.348 — Daniel : 'la langue doit suivre le système dès l'installation'.
@@ -115,6 +148,12 @@ const walkerSchema = new mongoose.Schema(
     authProvider: { type: String, enum: ['password', 'google', 'apple'], default: 'password' },
     // Firebase Cloud Messaging registration tokens (one per device).
     fcmTokens: { type: [String], default: [] },
+    // v565 — plateforme de chaque jeton (diagnostic « notifications Apple ») :
+    // renseignée par POST /users/fcm-token { token, platform }.
+    fcmDevices: {
+      type: [{ token: { type: String, trim: true }, platform: { type: String, default: '' }, at: { type: Date, default: Date.now } }],
+      default: [],
+    },
 
     // Walker-specific: accepted pet types. v417 — Daniel : l'inscription
     // promeneur PLANTAIT ("Validation failed on acceptedPetTypes.0") car le
@@ -393,8 +432,11 @@ const _walkerIsValidGeoCoord = (coords) =>
 
 walkerSchema.pre('validate', function stripInvalidLocation(next) {
   if (this.location && !_walkerIsValidGeoCoord(this.location.coordinates)) {
+    // v565 — ville conservée dans le champ plat `city` (point 1).
+    if (this.location.city && !this.city) this.city = String(this.location.city).trim();
     this.location = undefined;
   }
+  if (this.location && this.location.city && !this.city) this.city = String(this.location.city).trim(); // v565
   if (this.mapBoostLocation && !_walkerIsValidGeoCoord(this.mapBoostLocation.coordinates)) {
     this.mapBoostLocation = undefined;
   }

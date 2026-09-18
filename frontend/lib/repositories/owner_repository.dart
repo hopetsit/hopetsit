@@ -1447,6 +1447,63 @@ class OwnerRepository {
     throw ApiException('Unexpected confirm-service response.', details: r);
   }
 
+  /// v565 (point 24) — `GET /bookings/:id` : même forme qu'un élément de la
+  /// liste + `handover` + `timeline`. Renvoie null si le backend ne connaît
+  /// pas encore la route (404) : l'écran garde alors la réservation reçue.
+  Future<BookingModel?> getBookingDetail(String bookingId) async {
+    try {
+      final r = await _apiClient.get(
+        '/bookings/$bookingId',
+        requiresAuth: true,
+      );
+      if (r is Map) {
+        final m = Map<String, dynamic>.from(r);
+        final inner = m['booking'];
+        return BookingModel.fromJson(
+            inner is Map ? Map<String, dynamic>.from(inner) : m);
+      }
+      return null;
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
+    }
+  }
+
+  /// v565 (point 24 / contrat §7) — le propriétaire confirme la RÉCUPÉRATION
+  /// déclarée par le prestataire. `POST /bookings/:id/handover/confirm-pickup`.
+  Future<Map<String, dynamic>> confirmPickup({required String bookingId}) async {
+    final r = await _apiClient.post(
+      '/bookings/$bookingId/handover/confirm-pickup',
+      body: const <String, dynamic>{},
+      requiresAuth: true,
+    );
+    if (r is Map<String, dynamic>) return r;
+    if (r is Map) return Map<String, dynamic>.from(r);
+    throw ApiException('Unexpected confirm-pickup response.', details: r);
+  }
+
+  /// v565 (point 24 / contrat §7) — le propriétaire confirme le RENDU :
+  /// `POST /bookings/:id/handover/confirm-return` (identique à
+  /// `/service/confirm` : libère le séquestre vers le wallet). Si le backend
+  /// n'expose pas encore la route (404), on retombe sur `/service/confirm`.
+  Future<Map<String, dynamic>> confirmReturn({required String bookingId}) async {
+    try {
+      final r = await _apiClient.post(
+        '/bookings/$bookingId/handover/confirm-return',
+        body: const <String, dynamic>{},
+        requiresAuth: true,
+      );
+      if (r is Map<String, dynamic>) return r;
+      if (r is Map) return Map<String, dynamic>.from(r);
+      throw ApiException('Unexpected confirm-return response.', details: r);
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) {
+        return confirmService(bookingId: bookingId);
+      }
+      rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>> disputeService({
     required String bookingId,
     String? reason,

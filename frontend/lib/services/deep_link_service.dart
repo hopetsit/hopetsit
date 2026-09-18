@@ -457,9 +457,10 @@ class DeepLinkService {
         t.startsWith('post_')) {
       return postPath;
     }
+    // v565 — remise / rendu de l'animal (handover_*) → détail de réservation.
     if (t.startsWith('booking_') || t.startsWith('application_') ||
-        t.startsWith('service_') || t == 'visit_report' ||
-        t == 'payment_success') {
+        t.startsWith('service_') || t.startsWith('handover_') ||
+        t == 'visit_report' || t == 'payment_success') {
       return bookingPath;
     }
     if (t.startsWith('payout_') || t.startsWith('withdrawal_') ||
@@ -482,6 +483,8 @@ class DeepLinkService {
       return conv.isNotEmpty ? chatPath : '/friends/requests';
     }
     if (t == 'live_tracking_accepted') return '/friends/live';
+    // v565 — partage en direct : « toujours actif » / session terminée.
+    if (t == 'live_still_active' || t == 'live_session_ended') return '/friends/live';
     if (t.startsWith('friend_') || t.startsWith('family_') ||
         t.startsWith('live_tracking')) {
       return '/friends';

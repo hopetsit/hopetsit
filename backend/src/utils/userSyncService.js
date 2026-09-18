@@ -170,4 +170,8 @@ async function syncSharedFields({ email, update, excludeRole }) {
   return safe;
 }
 
-module.exports = syncSafeFields;
+// v565 — BUG RACINE (point 1, profils non synchronisés) : l'export référençait
+// `syncSafeFields`, identifiant inexistant → ReferenceError au require, avalée
+// par les try/catch des appelants → AUCUNE synchro entre les 3 profils ne
+// fonctionnait. Tous les appelants font `const { syncSharedFields } = require(...)`.
+module.exports = { syncSharedFields, SHARED_FIELDS };

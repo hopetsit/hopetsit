@@ -32,6 +32,220 @@ const logger = require('../utils/logger');
 const MIN_EMIT_INTERVAL_MS = 3000;
 const ROLE_TO_MODEL_NAME = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' };
 
+// ─────────────────────────────────────────────────────────────────────────
+// v565 — point 23 (contrat §8) : PARTAGE EN DIRECT ROBUSTE.
+//
+// Daniel : « le partage s'arrête tout seul en < 2 h, j'ai rien touché ».
+// Côté serveur, DEUX causes : (1) à la moindre déconnexion socket (app
+// suspendue par l'OS, réseau qui saute) le handler `disconnect` émettait
+// `map:friend-offline` à tous les amis → le marqueur disparaissait comme si
+// l'utilisateur avait coupé ; (2) rien ne gardait la dernière position en
+// mémoire, donc « vu il y a X min » était impossible.
+//
+// Règle désormais : le serveur NE COUPE JAMAIS un partage de sa propre
+// initiative. Il garde la DERNIÈRE position de chaque diffuseur en RAM
+// pendant 24 h avec `lastSeenAt` ; les amis voient « signal perdu »
+// (`stale` = plus de 3 min sans signal) au lieu d'un marqueur qui disparaît.
+// Le partage ne s'arrête QUE : (a) sur `map:go-offline` / `offline:true`
+// (action utilisateur), (b) à l'échéance de la durée CHOISIE par
+// l'utilisateur ('1h' | '4h' ; 'until_stop' = jamais). Toutes les 4 h de
+// partage, notification `live_still_active` au diffuseur.
+// ─────────────────────────────────────────────────────────────────────────
+const LIVE_RAM_TTL_MS = 24 * 60 * 60 * 1000;   // dernière position gardée 24 h
+const LIVE_STALE_MS = 3 * 60 * 1000;            // « signal perdu » après 3 min
+const LIVE_STILL_ACTIVE_MS = 4 * 60 * 60 * 1000; // rappel « toujours actif » / 4 h
+const LIVE_DURATIONS = { '1h': 60 * 60 * 1000, '4h': 4 * 60 * 60 * 1000, until_stop: null };
+
+/** userId (String) → session { userId, role, lat, lng, city, at, lastSeenAt,
+ *  startedAt, duration, expiresAt, lastStillActiveNoticeAt } */
+const liveSessions = new Map();
+
+const normalizeDuration = (d) => {
+  const key = String(d || '').trim().toLowerCase();
+  return Object.prototype.hasOwnProperty.call(LIVE_DURATIONS, key) ? key : null;
+};
+
+/**
+ * Crée/rafraîchit la session de partage d'un diffuseur.
+ * - position (lat/lng) → met à jour la position + lastSeenAt ;
+ * - heartbeat seul → met à jour lastSeenAt uniquement ;
+ * - `duration` n'est appliquée que si fournie ('1h'|'4h'|'until_stop').
+ */
+function touchLiveSession({ userId, role, lat, lng, city, duration, heartbeat }) {
+  const key = String(userId);
+  const now = Date.now();
+  let s = liveSessions.get(key);
+  const hasPos = Number.isFinite(lat) && Number.isFinite(lng);
+  if (!s) {
+    if (!hasPos) return null; // un battement sans position ni session : rien à garder
+    s = {
+      userId: key,
+      role: String(role || '').toLowerCase(),
+      lat, lng, city: city || '',
+      at: now,
+      lastSeenAt: now,
+      startedAt: now,
+      duration: 'until_stop',
+      expiresAt: null,
+      lastStillActiveNoticeAt: now,
+    };
+    liveSessions.set(key, s);
+  }
+  if (role) s.role = String(role).toLowerCase();
+  if (hasPos) {
+    s.lat = lat; s.lng = lng; s.at = now;
+    if (city) s.city = String(city);
+  }
+  s.lastSeenAt = now;
+  const d = normalizeDuration(duration);
+  if (d) {
+    s.duration = d;
+    const ms = LIVE_DURATIONS[d];
+    // La durée court depuis le DÉBUT du partage (pas depuis ce battement).
+    s.expiresAt = ms ? s.startedAt + ms : null;
+  }
+  void heartbeat;
+  return s;
+}
+
+function getLiveSession(userId) {
+  return liveSessions.get(String(userId)) || null;
+}
+
+/** Session la plus fraîche parmi plusieurs ids (les 3 docs de rôle d'une personne). */
+function getLiveSessionForIds(ids = []) {
+  let best = null;
+  for (const id of ids) {
+    const s = liveSessions.get(String(id));
+    if (s && (!best || s.lastSeenAt > best.lastSeenAt)) best = s;
+  }
+  return best;
+}
+
+function clearLiveSession(userId) {
+  return liveSessions.delete(String(userId));
+}
+
+const isLiveStale = (lastSeenAt) => (Date.now() - Number(lastSeenAt || 0)) > LIVE_STALE_MS;
+
+/** Sérialisation publique d'une session (pour /friends/live-positions). */
+function describeLiveSession(s) {
+  if (!s) return null;
+  return {
+    lat: s.lat,
+    lng: s.lng,
+    city: s.city || '',
+    at: new Date(s.at).toISOString(),
+    lastSeenAt: new Date(s.lastSeenAt).toISOString(),
+    stale: isLiveStale(s.lastSeenAt),
+    duration: s.duration,
+    expiresAt: s.expiresAt ? new Date(s.expiresAt).toISOString() : null,
+  };
+}
+
+/**
+ * Termine une session à l'ÉCHÉANCE de la durée choisie : drapeau DB éteint,
+ * `map:friend-offline` aux amis, notification `live_session_ended` au
+ * diffuseur. Jamais appelée pour une simple perte de signal.
+ */
+async function endLiveSessionByDuration(s) {
+  liveSessions.delete(s.userId);
+  const model = ROLE_TO_MODEL_NAME[s.role];
+  if (model) {
+    try {
+      await require(`../models/${model}`).updateOne(
+        { _id: s.userId },
+        { $set: { 'location.liveShareActive': false } },
+      );
+    } catch (e) {
+      logger.warn(`[live] offline flag (duration end) failed : ${e.message}`);
+    }
+  }
+  try {
+    const listeners = await listPositionListeners(s.userId, s.role);
+    for (const l of listeners) {
+      emitToUser(l.role, l.userId, 'map:friend-offline', {
+        userId: l.viewAsId || s.userId,
+        role: s.role,
+        at: new Date().toISOString(),
+        reason: 'duration_ended',
+      });
+    }
+  } catch (e) {
+    logger.warn(`[live] friend-offline (duration end) failed : ${e.message}`);
+  }
+  // Le diffuseur lui-même : son écran repasse sur « arrêté ».
+  emitToUser(s.role, s.userId, 'map:live-session-ended', {
+    userId: s.userId,
+    role: s.role,
+    duration: s.duration,
+    at: new Date().toISOString(),
+  });
+  try {
+    const { sendNotification } = require('../services/notificationSender');
+    const { BASE_URL } = require('../utils/emailLinkBuilder');
+    await sendNotification({
+      userId: s.userId,
+      role: s.role,
+      type: 'live_session_ended',
+      data: { duration: s.duration, emailLink: `${BASE_URL}/map` },
+      actor: { role: 'system', id: null },
+    });
+  } catch (e) {
+    logger.warn(`[live] live_session_ended notif failed : ${e.message}`);
+  }
+}
+
+/**
+ * Tick (60 s, appelé par services/handoverScheduler.js) :
+ *   - durée choisie écoulée → fin de session (seule coupure serveur) ;
+ *   - toutes les 4 h de partage → `live_still_active` au diffuseur ;
+ *   - 24 h sans aucun signal → oubli silencieux de la RAM (les amis ne
+ *     voyaient déjà plus qu'un point « signal perdu » ; aucune notification).
+ */
+async function tickLiveShare() {
+  const now = Date.now();
+  let ended = 0;
+  let noticed = 0;
+  for (const s of Array.from(liveSessions.values())) {
+    try {
+      if (now - s.lastSeenAt > LIVE_RAM_TTL_MS) {
+        liveSessions.delete(s.userId);
+        continue;
+      }
+      if (s.expiresAt && now >= s.expiresAt) {
+        await endLiveSessionByDuration(s);
+        ended += 1;
+        continue;
+      }
+      if (now - s.lastStillActiveNoticeAt >= LIVE_STILL_ACTIVE_MS) {
+        s.lastStillActiveNoticeAt = now; // posé AVANT l'envoi : jamais deux fois
+        const hours = Math.max(1, Math.round((now - s.startedAt) / (60 * 60 * 1000)));
+        try {
+          const { sendNotification } = require('../services/notificationSender');
+          const { BASE_URL } = require('../utils/emailLinkBuilder');
+          await sendNotification({
+            userId: s.userId,
+            role: s.role,
+            type: 'live_still_active',
+            data: { hours: String(hours), duration: s.duration, emailLink: `${BASE_URL}/map` },
+            actor: { role: 'system', id: null },
+          });
+          noticed += 1;
+        } catch (e) {
+          logger.warn(`[live] live_still_active notif failed : ${e.message}`);
+        }
+      }
+    } catch (e) {
+      logger.warn(`[live] tick error for ${s.userId} : ${e.message}`);
+    }
+  }
+  if (ended || noticed) {
+    logger.info(`[live] tick : ${ended} session(s) terminée(s) (durée), ${noticed} rappel(s) « toujours actif ».`);
+  }
+  return { ended, noticed, active: liveSessions.size };
+}
+
 /** List friends who currently receive my position (based on their toggle). */
 async function listPositionListeners(userId, role) {
   const model = ROLE_TO_MODEL_NAME[role];
@@ -169,14 +383,39 @@ async function listPositionListeners(userId, role) {
 // pour que le SERVICE DE FOND Android (isolate séparé, survit au swipe-kill via
 // foreground service) puisse pousser la position SANS socket — il POST sur
 // /friends/live-position et on diffuse ici aux amis/famille comme d'habitude.
-async function relayLivePosition({ userId, role, lat, lng, city, offline }) {
+async function relayLivePosition({ userId, role, lat, lng, city, offline, duration, heartbeat }) {
   const r = String(role || '').toLowerCase();
   let Model = null;
   if (r === 'walker') Model = require('../models/Walker');
   else if (r === 'sitter') Model = require('../models/Sitter');
   else Model = require('../models/Owner');
 
+  // v565 (contrat §8) — battement sans position : on prolonge seulement
+  // `lastSeenAt` (et on applique une éventuelle nouvelle durée), puis on
+  // ré-émet la dernière position connue pour que les amis sortent de
+  // « signal perdu ». Sans session en RAM (serveur redémarré), rien à
+  // rejouer : l'app renverra une vraie position au prochain tick GPS.
+  if (heartbeat && !(Number.isFinite(lat) && Number.isFinite(lng))) {
+    const s = touchLiveSession({ userId, role: r, duration, heartbeat: true });
+    if (!s) return 0;
+    const listeners = await listPositionListeners(userId, r);
+    const event = {
+      userId, role: r, lat: s.lat, lng: s.lng, city: s.city || '',
+      at: new Date(s.at).toISOString(),
+      lastSeenAt: new Date(s.lastSeenAt).toISOString(),
+      heartbeat: true,
+    };
+    for (const l of listeners) {
+      emitToUser(l.role, l.userId, 'map:friend-position', {
+        ...event,
+        userId: l.viewAsId || userId,
+      });
+    }
+    return listeners.length;
+  }
+
   if (offline) {
+    clearLiveSession(userId); // v565 — arrêt VOULU par l'utilisateur
     try {
       // v532 — on EFFAÇAIT `location.coordinates`. Or la recherche de
       // prestataires filtre sur l'existence de ce champ : couper le partage
@@ -222,9 +461,13 @@ async function relayLivePosition({ userId, role, lat, lng, city, offline }) {
     logger.warn(`[relayLivePosition] persist failed : ${e.message}`);
   }
 
+  // v565 (contrat §8) — dernière position gardée en RAM 24 h + durée choisie.
+  const session = touchLiveSession({ userId, role: r, lat, lng, city, duration });
+
   const listeners = await listPositionListeners(userId, r);
   const event = {
     userId, role: r, lat, lng, at: new Date().toISOString(), city: city || '',
+    lastSeenAt: new Date(session ? session.lastSeenAt : Date.now()).toISOString(),
   };
   for (const l of listeners) {
     // v526 — id traduit par destinataire : son app matche le marker de l'ami
@@ -322,6 +565,16 @@ function registerMapHandlers(io, socket) {
         logger.warn(`[mapSocket:position-update] DB persist failed : ${e.message}`);
       }
 
+      // v565 (contrat §8) — dernière position en RAM 24 h + durée choisie
+      // (`duration` optionnelle dans le payload : '1h' | '4h' | 'until_stop').
+      const session = touchLiveSession({
+        userId: identity.userId,
+        role: identity.role,
+        lat, lng,
+        city: payload.city,
+        duration: payload.duration,
+      });
+
       const listeners = await listPositionListeners(identity.userId, identity.role);
       if (listeners.length === 0) return;
 
@@ -331,11 +584,18 @@ function registerMapHandlers(io, socket) {
         lat,
         lng,
         at: new Date().toISOString(),
+        lastSeenAt: new Date(session ? session.lastSeenAt : now).toISOString(),
         city: payload.city || '',
       };
 
       for (const l of listeners) {
-        emitToUser(l.role, l.userId, 'map:friend-position', event);
+        // v565 — id traduit par destinataire (comme relayLivePosition) : sans
+        // cette traduction, le marqueur ne matchait pas quand le diffuseur
+        // émettait depuis un autre de ses rôles.
+        emitToUser(l.role, l.userId, 'map:friend-position', {
+          ...event,
+          userId: l.viewAsId || identity.userId,
+        });
       }
     } catch (err) {
       logger.error('[mapSocket:position-update] error', err);
@@ -346,6 +606,10 @@ function registerMapHandlers(io, socket) {
     try {
       const identity = socket.data?.mapIdentity;
       if (!identity) return;
+      // v565 (contrat §8, point 11) — SEUL arrêt à l'initiative de
+      // l'utilisateur : on oublie la session RAM, on éteint le drapeau DB
+      // (ci-dessous) et on prévient les amis (map:friend-offline).
+      clearLiveSession(identity.userId);
       // v23.1 part 243 — Daniel : "le bouton suivre si il est etain on
       // peux plus nous voir sa desactive la position". Avant : on
       // emettait map:friend-offline aux listeners → leur halo Rx
@@ -377,9 +641,11 @@ function registerMapHandlers(io, socket) {
       const listeners = await listPositionListeners(identity.userId, identity.role);
       for (const l of listeners) {
         emitToUser(l.role, l.userId, 'map:friend-offline', {
-          userId: identity.userId,
+          // v565 — id traduit par destinataire (cf. relayLivePosition).
+          userId: l.viewAsId || identity.userId,
           role: identity.role,
           at: new Date().toISOString(),
+          reason: 'user_stopped',
         });
       }
     } catch (err) {
@@ -387,24 +653,27 @@ function registerMapHandlers(io, socket) {
     }
   });
 
-  socket.on('disconnect', async () => {
-    try {
-      const identity = socket.data?.mapIdentity;
-      if (!identity) return;
-      const listeners = await listPositionListeners(identity.userId, identity.role);
-      for (const l of listeners) {
-        emitToUser(l.role, l.userId, 'map:friend-offline', {
-          userId: identity.userId,
-          role: identity.role,
-          at: new Date().toISOString(),
-        });
-      }
-    } catch (_) {
-      // best-effort on disconnect
-    }
+  socket.on('disconnect', () => {
+    // v565 — point 23 (contrat §8) : AVANT, toute déconnexion socket (app
+    // suspendue par l'OS, réseau qui saute, changement d'écran) émettait
+    // `map:friend-offline` : le marqueur disparaissait chez les amis comme si
+    // l'utilisateur avait coupé — c'est le « partage qui s'arrête tout seul ».
+    // Le serveur ne coupe plus rien de lui-même : la dernière position reste
+    // en RAM avec `lastSeenAt`, les amis voient « signal perdu » (`stale`)
+    // après 3 min sans battement, et le partage ne s'arrête que sur
+    // `map:go-offline` / `offline:true` ou à l'échéance de la durée choisie.
   });
 }
 
 module.exports = registerMapHandlers;
 module.exports.relayLivePosition = relayLivePosition;
 module.exports.listPositionListeners = listPositionListeners;
+// v565 — contrat §8.
+module.exports.touchLiveSession = touchLiveSession;
+module.exports.getLiveSession = getLiveSession;
+module.exports.getLiveSessionForIds = getLiveSessionForIds;
+module.exports.clearLiveSession = clearLiveSession;
+module.exports.describeLiveSession = describeLiveSession;
+module.exports.tickLiveShare = tickLiveShare;
+module.exports.isLiveStale = isLiveStale;
+module.exports.LIVE_STALE_MS = LIVE_STALE_MS;

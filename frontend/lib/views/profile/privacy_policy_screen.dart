@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/data/static/privacy_policy.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 
 /// Sprint 8 step 3 — Privacy Policy screen (distinct file required by Play / App Store).
 class PrivacyPolicyScreen extends StatelessWidget {
@@ -14,31 +14,24 @@ class PrivacyPolicyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final lang = LocalizationService.getCurrentLanguageCode();
     final text = privacyPolicyForLocale(lang);
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        centerTitle: true,
-        // v23.1.345 — Daniel : "politique de confidentialité pas traduite".
-        // Le CORPS était déjà localisé 6 langues (privacyPolicyForLocale) mais
-        // le TITRE restait en anglais codé en dur → clé 6/6 'profile_privacy'.
-        title: PoppinsText(
-          text: 'profile_privacy'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary(context),
+    // v565 — sous-page modernisée (kit Profil) : texte dans une carte.
+    final accent = currentRoleAccent();
+    return ProfileSubPageScaffold(
+      title: 'profile_privacy'.tr,
+      accent: accent,
+      body: Container(
+        padding: EdgeInsets.all(18.w),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(20.r),
+          boxShadow: AppColors.cardShadow(context),
         ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(20.w),
-          child: SelectableText(
-            text,
-            style: TextStyle(
-              fontSize: 13.sp,
-              height: 1.45,
-              color: AppColors.textPrimary(context),
-            ),
+        child: SelectableText(
+          text,
+          style: TextStyle(
+            fontSize: 13.sp,
+            height: 1.5,
+            color: AppColors.textPrimary(context),
           ),
         ),
       ),

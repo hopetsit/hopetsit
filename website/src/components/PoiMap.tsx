@@ -120,7 +120,7 @@ function LiveFriendMarker({
       )}
       <Marker
         position={[p.lat, p.lng]}
-        icon={makeAvatarIcon(p.role, p.name, p.avatar, isFamily, isPremium)}
+        icon={makeAvatarIcon(p.role, p.name, p.avatar, isFamily, isPremium, p.isOnline)}
         zIndexOffset={800}
         eventHandlers={{
           // v23.1.364 — le clic notifie la PAGE (focusTarget) → FlyToFocus

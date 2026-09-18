@@ -10,14 +10,17 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import BackLink from "@/components/BackLink";
 import {
   ApiError,
+  confirmEmailChange,
   getMyProfile,
   getStoredUser,
   getSubscriptionStatus,
-  redeemPromo,
+  requestEmailChange,
+  resendEmailChange,
   updateMyProfile,
   uploadMyAvatar,
   UserProfile,
 } from "@/lib/api";
+import { PromoCodeBox } from "@/components/PromoCodeBox";
 
 // v402 — Daniel : "le badge avec le nombre de jours restants des abonnements
 // doit apparaître sur les 3 profils". Chip par abo actif (Premium / PawFollow /
@@ -57,13 +60,14 @@ export default function ProfilePage() {
 
   // v402 — chips d'abonnement (jours restants).
   const [subChips, setSubChips] = useState<SubChip[]>([]);
-  // v497 — Daniel : « code promo câblé sur le web » → parité avec l'app (qui
-  // l'a sur les 3 profils). Carte « Code promo » sur le profil web aussi.
-  const [promoCode, setPromoCode] = useState("");
-  const [promoBusy, setPromoBusy] = useState(false);
-  const [promoMsg, setPromoMsg] = useState<{ ok: boolean; text: string } | null>(
-    null,
-  );
+  // v565 (point 3, contrat §3) — changement d'e-mail : nouvel e-mail + mot de
+  // passe → code envoyé à la NOUVELLE adresse → confirmation (3 profils).
+  const [emailStep, setEmailStep] = useState<"idle" | "form" | "code">("idle");
+  const [newEmail, setNewEmail] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailMsg, setEmailMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -151,29 +155,66 @@ export default function ProfilePage() {
     })();
   }, []);
 
-  async function handleApplyPromo() {
-    const code = promoCode.trim();
-    if (!code || promoBusy) return;
-    setPromoBusy(true);
-    setPromoMsg(null);
+  function emailErrorText(e: unknown): string {
+    if (e instanceof ApiError) {
+      if (e.status === 401) return t("profile_email_err_password");
+      if (e.status === 409) return t("profile_email_err_taken");
+      if (e.status === 400 && emailStep === "code") return t("profile_email_err_code");
+      if (e.status === 400) return t("profile_email_err_format");
+      if (e.message) return e.message;
+    }
+    return t("profile_email_err_generic");
+  }
+
+  async function handleEmailRequest(e: React.FormEvent) {
+    e.preventDefault();
+    if (emailBusy) return;
+    setEmailBusy(true);
+    setEmailMsg(null);
     try {
-      const res = await redeemPromo(code);
-      const type = res.reward?.rewardType;
-      setPromoMsg({
-        ok: true,
-        text:
-          type === "free_subscription"
-            ? t("promo_ok_sub")
-            : t("promo_ok_discount"),
-      });
-      setPromoCode("");
-    } catch (e) {
-      setPromoMsg({
-        ok: false,
-        text: e instanceof Error ? e.message : t("promo_invalid"),
-      });
+      await requestEmailChange(newEmail.trim(), emailPassword);
+      setEmailPassword("");
+      setEmailStep("code");
+      setEmailMsg({ ok: true, text: t("profile_email_sent") });
+    } catch (err) {
+      setEmailMsg({ ok: false, text: emailErrorText(err) });
     } finally {
-      setPromoBusy(false);
+      setEmailBusy(false);
+    }
+  }
+
+  async function handleEmailConfirm(e: React.FormEvent) {
+    e.preventDefault();
+    if (emailBusy) return;
+    setEmailBusy(true);
+    setEmailMsg(null);
+    try {
+      const res = await confirmEmailChange(emailCode.trim());
+      const email = res?.email || newEmail.trim();
+      setProfile((p) => (p ? { ...p, email } : p));
+      setEmailStep("idle");
+      setEmailCode("");
+      setNewEmail("");
+      setEmailMsg({ ok: true, text: t("profile_email_done") });
+    } catch (err) {
+      setEmailMsg({ ok: false, text: emailErrorText(err) });
+    } finally {
+      setEmailBusy(false);
+    }
+  }
+
+  async function handleEmailResend() {
+    if (emailBusy) return;
+    setEmailBusy(true);
+    setEmailMsg(null);
+    try {
+      await resendEmailChange();
+      setEmailMsg({ ok: true, text: t("profile_email_resent") });
+    } catch (err) {
+      // 429 = déjà renvoyé il y a moins de 2 min : le serveur le dit.
+      setEmailMsg({ ok: false, text: err instanceof ApiError && err.message ? err.message : t("profile_email_err_generic") });
+    } finally {
+      setEmailBusy(false);
     }
   }
 
@@ -305,38 +346,9 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* v497 — Code promo sur le profil web (parité app : l'app l'a sur les 3
-          profils). Même endpoint /promo/redeem que la boutique. */}
-      <div className="mt-6 rounded-2xl border border-ink/10 bg-white p-4 shadow-card">
-        <p className="text-sm font-extrabold text-ink">{t("promo_title")}</p>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <input
-            type="text"
-            value={promoCode}
-            onChange={(e) => setPromoCode(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleApplyPromo();
-            }}
-            placeholder={t("promo_placeholder")}
-            className="min-w-0 flex-1 rounded-full border border-ink/15 px-4 py-2.5 text-sm uppercase tracking-wide outline-none focus:border-amber-400"
-          />
-          <button
-            type="button"
-            onClick={handleApplyPromo}
-            disabled={promoBusy || !promoCode.trim()}
-            className="shrink-0 rounded-full bg-amber-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
-          >
-            {promoBusy ? "…" : t("promo_apply")}
-          </button>
-        </div>
-        {promoMsg && (
-          <p
-            className={`mt-3 text-sm ${promoMsg.ok ? "text-emerald-700" : "text-red-700"}`}
-          >
-            {promoMsg.text}
-          </p>
-        )}
-      </div>
+      {/* v497 → v565 — Code promo sur le profil web (parité app : l'app l'a
+          sur les 3 profils). Champ commun PromoCodeBox (check → redeem). */}
+      <PromoCodeBox className="mt-6" />
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
         <Field label="Nom complet">
@@ -349,14 +361,137 @@ export default function ProfilePage() {
           />
         </Field>
 
-        <Field label="Email (non modifiable)">
-          <input
-            type="email"
-            value={profile.email}
-            disabled
-            className="w-full rounded-xl border border-ink/10 bg-ink/5 px-4 py-2.5 text-sm text-ink-muted"
-          />
-        </Field>
+        {/* v565 (point 3) — e-mail modifiable : formulaire + code de vérification
+            envoyé à la nouvelle adresse (contrat §3, 3 profils synchronisés). */}
+        <div className="block">
+          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-muted">
+            {t("profile_email_label")}
+          </span>
+          <div className="flex items-center gap-2">
+            <input
+              type="email"
+              value={profile.email}
+              disabled
+              className="w-full rounded-xl border border-ink/10 bg-ink/5 px-4 py-2.5 text-sm text-ink-muted"
+            />
+            {emailStep === "idle" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEmailStep("form");
+                  setEmailMsg(null);
+                }}
+                className="shrink-0 rounded-full bg-owner-light px-4 py-2 text-xs font-semibold text-owner-dark transition hover:brightness-95"
+              >
+                {t("profile_email_change")}
+              </button>
+            )}
+          </div>
+          {emailStep !== "idle" && (
+            <div className="mt-3 space-y-3 rounded-[20px] bg-[#F5F5F7] p-4">
+              {emailStep === "form" ? (
+                <>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-semibold text-ink-muted">{t("profile_email_new")}</span>
+                    <input
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      autoComplete="email"
+                      className="w-full rounded-xl border-0 bg-white px-4 py-2.5 text-sm ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-owner/40"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-semibold text-ink-muted">{t("profile_email_password")}</span>
+                    <input
+                      type="password"
+                      value={emailPassword}
+                      onChange={(e) => setEmailPassword(e.target.value)}
+                      autoComplete="current-password"
+                      className="w-full rounded-xl border-0 bg-white px-4 py-2.5 text-sm ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-owner/40"
+                    />
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => void handleEmailRequest(e)}
+                      disabled={emailBusy || !newEmail.trim() || !emailPassword}
+                      className="rounded-full bg-[#1D1D1F] px-5 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
+                    >
+                      {emailBusy ? "…" : t("profile_email_send")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmailStep("idle");
+                        setEmailMsg(null);
+                        setEmailPassword("");
+                      }}
+                      className="text-sm text-ink-muted hover:text-ink"
+                    >
+                      {t("profile_email_cancel")}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-semibold text-ink-muted">
+                      {t("profile_email_code")} · {newEmail}
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      value={emailCode}
+                      onChange={(e) => setEmailCode(e.target.value)}
+                      className="w-full rounded-xl border-0 bg-white px-4 py-2.5 text-sm tracking-[0.3em] ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-owner/40"
+                    />
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => void handleEmailConfirm(e)}
+                      disabled={emailBusy || emailCode.trim().length < 4}
+                      className="rounded-full bg-[#1D1D1F] px-5 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
+                    >
+                      {emailBusy ? "…" : t("profile_email_confirm")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleEmailResend()}
+                      disabled={emailBusy}
+                      className="text-sm text-ink-muted hover:text-ink disabled:opacity-50"
+                    >
+                      {t("profile_email_resend")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmailStep("idle");
+                        setEmailMsg(null);
+                        setEmailCode("");
+                      }}
+                      className="text-sm text-ink-muted hover:text-ink"
+                    >
+                      {t("profile_email_cancel")}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          {emailMsg && (
+            <p
+              role={emailMsg.ok ? "status" : "alert"}
+              className={`mt-2 rounded-xl px-3 py-2 text-sm ${
+                emailMsg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+              }`}
+            >
+              {emailMsg.text}
+            </p>
+          )}
+        </div>
 
         <div className="grid gap-4 md:grid-cols-[1fr_2fr]">
           <Field label="Indicatif">

@@ -57,6 +57,12 @@ const String kBgLiveActive = 'bg_live_active';
 const String kBgToken = 'bg_live_token';
 const String kBgBaseUrl = 'bg_live_base_url';
 const String kBgCity = 'bg_live_city';
+// v565 — durée choisie par l'utilisateur ('1h' | '4h' | 'until_stop') et
+// échéance absolue (epoch ms, 0 = jusqu'à l'arrêt). Le service de fond les
+// envoie au serveur (contrat §8) et s'arrête SEUL à l'échéance : plus aucune
+// autre cause d'arrêt (ni cap 2 h, ni immobilité).
+const String kBgDuration = 'bg_live_duration';
+const String kBgUntil = 'bg_live_until';
 
 /// À appeler UNE fois au démarrage (main). Idempotent + non bloquant.
 Future<void> configureLiveTrackingService() async {
@@ -171,8 +177,31 @@ void onLiveBgStart(ServiceInstance service) async {
         } catch (_) {}
         return;
       }
+      // v565 — fin de la durée choisie (1 h / 4 h) : on coupe proprement
+      // (ping offline + drapeau à false) puis le service s'arrête. C'est la
+      // SEULE cause d'arrêt automatique du partage (contrat §8).
+      final until = (box.read(kBgUntil) as num?)?.toInt() ?? 0;
+      if (until > 0 && DateTime.now().millisecondsSinceEpoch >= until) {
+        timer.cancel();
+        try {
+          await box.write(kBgLiveActive, false);
+          await box.write(kBgUntil, 0);
+        } catch (_) {}
+        try {
+          await _postOffline();
+        } catch (_) {}
+        try {
+          await service.stopSelf();
+        } catch (_) {}
+        return;
+      }
       final pos = await _readPosition();
-      if (pos == null) return;
+      if (pos == null) {
+        // v565 — pas de fix GPS : simple battement pour que le serveur garde
+        // la session vivante (« vu il y a X » côté amis, jamais coupé).
+        await _postHeartbeat();
+        return;
+      }
       await _postPosition(pos.latitude, pos.longitude);
     } catch (e) {
       debugPrint('[bgLive] tick error: $e');
@@ -228,11 +257,43 @@ Future<void> _postPosition(double lat, double lng) async {
             'lat': lat,
             'lng': lng,
             if (city.isNotEmpty) 'city': city,
+            // v565 — contrat §8 : la durée choisie accompagne chaque position.
+            'duration': _bgDuration(box),
           }),
         )
         .timeout(const Duration(seconds: 12));
   } catch (e) {
     debugPrint('[bgLive] post failed: $e');
+  }
+}
+
+/// v565 — durée persistée ('1h' | '4h' | 'until_stop'), défaut jusqu'à l'arrêt.
+String _bgDuration(GetStorage box) {
+  final d = (box.read(kBgDuration) ?? '').toString();
+  return (d == '1h' || d == '4h') ? d : 'until_stop';
+}
+
+/// v565 — battement sans position (contrat §8 : `heartbeat: true` sans
+/// lat/lng = simple signe de vie). Le serveur conserve la dernière position
+/// et ne coupe jamais de lui-même.
+Future<void> _postHeartbeat() async {
+  final box = GetStorage();
+  final token = (box.read(kBgToken) ?? '').toString();
+  final base = (box.read(kBgBaseUrl) ?? '').toString();
+  if (token.isEmpty || base.isEmpty) return;
+  try {
+    await http
+        .post(
+          Uri.parse('$base/friends/live-position'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({'heartbeat': true, 'duration': _bgDuration(box)}),
+        )
+        .timeout(const Duration(seconds: 10));
+  } catch (e) {
+    debugPrint('[bgLive] heartbeat failed: $e');
   }
 }
 

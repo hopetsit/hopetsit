@@ -28,6 +28,125 @@ const SUPPORTED_LOCALES = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl']
 // chargé via updateProfile.
 const FALLBACK_LOCALE = 'fr';
 
+// ─── v565 §2 — préférences de notification (son + catégories) ───────────────
+// Contrat docs/v565_contracts.md §2 : stockage `notificationPrefs` sur les 3
+// docs de la personne ; catégorie désactivée → PAS de push ni d'e-mail (la
+// notification in-app reste créée) ; son → APNs `aps.sound`, canal Android
+// `hopetsit_<son>` + `data.sound` pour l'affichage au premier plan.
+const NOTIFICATION_SOUNDS = ['default', 'bark', 'meow', 'tweet', 'vibrate', 'silent'];
+const NOTIFICATION_CATEGORIES = [
+  'messages', 'bookings', 'payments', 'friends', 'pawmap', 'live', 'reviews', 'subscriptions',
+];
+const defaultNotificationPrefs = () => ({
+  sound: 'default',
+  categories: Object.fromEntries(NOTIFICATION_CATEGORIES.map((c) => [c, true])),
+});
+/** Objet complet (défauts + valeurs fournies), tolérant aux entrées partielles. */
+const normalizeNotificationPrefs = (raw) => {
+  const out = defaultNotificationPrefs();
+  if (!raw || typeof raw !== 'object') return out;
+  const sound = String(raw.sound || '').toLowerCase().trim();
+  if (NOTIFICATION_SOUNDS.includes(sound)) out.sound = sound;
+  const cats = raw.categories && typeof raw.categories === 'object' ? raw.categories : {};
+  for (const c of NOTIFICATION_CATEGORIES) {
+    if (cats[c] === false || cats[c] === 'false' || cats[c] === 0) out.categories[c] = false;
+    else if (cats[c] === true || cats[c] === 'true' || cats[c] === 1) out.categories[c] = true;
+  }
+  return out;
+};
+/** Vrai si le doc porte des préférences explicites (pas seulement des défauts Mongoose absents). */
+const hasExplicitPrefs = (doc) =>
+  !!(doc && doc.notificationPrefs && typeof doc.notificationPrefs === 'object' &&
+    (doc.notificationPrefs.sound || doc.notificationPrefs.categories));
+
+/**
+ * Catégorie d'un type de notification — mappage FIGÉ par le contrat §2 :
+ *   messages = NEW_MESSAGE, CHAT_AUTO_WELCOME, chat_addon_activated, BOOKING_PAID_CHAT_UNLOCKED
+ *   bookings = booking_*, application_*, service_*, VISIT_REPORT, BOOKING_*, walk_*, new_request_nearby, handover_*
+ *   payments = PAYMENT_*, payout_*, withdrawal_*, wallet_credited, kyc_payment_succeeded, REFERRAL_CREDITED
+ *   friends = friend_*, family_* ; pawmap = lost_pet_sighting, sos_pet_nearby, map_boost_activated, profile_boost_activated
+ *   live = live_tracking_*, live_still_active, live_session_ended ; reviews = NEW_REVIEW, PREMIUM_ACHIEVED, TOP_SITTER_ACHIEVED
+ *   subscriptions = subscription_activated, kyc_verified, kyc_rejected ; inconnu = bookings.
+ */
+const EXACT_CATEGORY = {
+  NEW_MESSAGE: 'messages', CHAT_AUTO_WELCOME: 'messages', chat_addon_activated: 'messages',
+  BOOKING_PAID_CHAT_UNLOCKED: 'messages',
+  VISIT_REPORT: 'bookings', new_request_nearby: 'bookings',
+  wallet_credited: 'payments', kyc_payment_succeeded: 'payments', REFERRAL_CREDITED: 'payments',
+  lost_pet_sighting: 'pawmap', sos_pet_nearby: 'pawmap', map_boost_activated: 'pawmap',
+  profile_boost_activated: 'pawmap',
+  live_still_active: 'live', live_session_ended: 'live',
+  NEW_REVIEW: 'reviews', PREMIUM_ACHIEVED: 'reviews', TOP_SITTER_ACHIEVED: 'reviews',
+  subscription_activated: 'subscriptions', kyc_verified: 'subscriptions', kyc_rejected: 'subscriptions',
+};
+const PREFIX_CATEGORY = [
+  ['booking_', 'bookings'], ['application_', 'bookings'], ['service_', 'bookings'],
+  ['BOOKING_', 'bookings'], ['walk_', 'bookings'], ['handover_', 'bookings'],
+  ['PAYMENT_', 'payments'], ['payout_', 'payments'], ['withdrawal_', 'payments'],
+  ['friend_', 'friends'], ['family_', 'friends'],
+  ['live_tracking_', 'live'],
+];
+const categoryForType = (type) => {
+  const t = String(type || '');
+  if (EXACT_CATEGORY[t]) return EXACT_CATEGORY[t];
+  for (const [prefix, cat] of PREFIX_CATEGORY) {
+    if (t.startsWith(prefix)) return cat;
+  }
+  // Repli insensible à la casse (n'altère aucun mappage listé ci-dessus).
+  const lower = t.toLowerCase();
+  for (const [k, cat] of Object.entries(EXACT_CATEGORY)) {
+    if (k.toLowerCase() === lower) return cat;
+  }
+  for (const [prefix, cat] of PREFIX_CATEGORY) {
+    if (lower.startsWith(prefix.toLowerCase())) return cat;
+  }
+  return 'bookings';
+};
+
+/**
+ * Préférences de la personne : sur le doc résolu, sinon sur ses frères
+ * (même email / oldId / _id) — même famille que gatherFcmTokens (v407).
+ */
+const resolveNotificationPrefsAcrossRoles = async (primary, userId) => {
+  if (hasExplicitPrefs(primary)) return normalizeNotificationPrefs(primary.notificationPrefs);
+  try {
+    const or = [{ _id: userId }];
+    if (primary?.email) or.push({ email: primary.email });
+    if (primary?.oldId != null) or.push({ oldId: primary.oldId });
+    const [owners, sitters, walkers] = await Promise.all([
+      Owner.find({ $or: or }).select('notificationPrefs').lean(),
+      Sitter.find({ $or: or }).select('notificationPrefs').lean(),
+      Walker.find({ $or: or }).select('notificationPrefs').lean(),
+    ]);
+    const withPrefs = [...owners, ...sitters, ...walkers].find(hasExplicitPrefs);
+    return normalizeNotificationPrefs(withPrefs ? withPrefs.notificationPrefs : null);
+  } catch (e) {
+    logger.warn(`[notif.prefs] cross-role prefs lookup failed : ${e?.message || e}`);
+    return defaultNotificationPrefs();
+  }
+};
+
+/** Champs FCM dérivés du son choisi (contrat §2 / §1 pour les canaux). */
+const pushSoundConfig = (sound) => {
+  const s = NOTIFICATION_SOUNDS.includes(sound) ? sound : 'default';
+  if (s === 'default') {
+    return {
+      android: { channelId: 'hopetsit_default_channel', sound: 'default' },
+      apnsSound: 'default',
+      dataSound: 'default',
+    };
+  }
+  if (s === 'vibrate' || s === 'silent') {
+    // Canaux dédiés (vibration seule / silencieux) ; aucun champ `sound`.
+    return { android: { channelId: `hopetsit_${s}` }, apnsSound: null, dataSound: s };
+  }
+  return {
+    android: { channelId: `hopetsit_${s}`, sound: s },
+    apnsSound: `${s}.caf`,
+    dataSound: s,
+  };
+};
+
 const catalogCache = {};
 
 const loadCatalog = (locale) => {
@@ -114,7 +233,7 @@ const resolveUser = async (role, userId) => {
     role === 'walker' ? Walker :
     null;
   if (!Model) return null;
-  const primary = await Model.findById(userId).select('email language appLocale fcmTokens name oldId').lean();
+  const primary = await Model.findById(userId).select('email language appLocale fcmTokens name oldId notificationPrefs').lean();
   if (primary) return primary;
 
   // v23.1 part 49 — cross-collection fallback. The destructive switchRole
@@ -135,7 +254,7 @@ const resolveUser = async (role, userId) => {
   const fallbackModels = [Owner, Sitter, Walker].filter((m) => m !== Model);
   for (const Fb of fallbackModels) {
     try {
-      const found = await Fb.findById(userId).select('email language appLocale fcmTokens name oldId').lean();
+      const found = await Fb.findById(userId).select('email language appLocale fcmTokens name oldId notificationPrefs').lean();
       if (found) {
         logger.warn(
           `[notif.fallback] user ${userId} expected in ${role} collection but ` +
@@ -182,17 +301,19 @@ const gatherFcmTokens = async (primary, userId) => {
   return Array.from(tokens);
 };
 
-const sendPush = async (tokens, title, body, data, { userId, role } = {}) => {
+const sendPush = async (tokens, title, body, data, { userId, role, sound } = {}) => {
   const list = (tokens || []).filter(Boolean);
   if (!list.length) {
     logger.warn('[notif.push] skipped : user has no fcmTokens registered');
     return { skipped: true, reason: 'no_tokens' };
   }
+  // v565 §2 — son choisi par l'utilisateur (défaut = comportement v558).
+  const snd = pushSoundConfig(sound);
   const message = {
     tokens: list,
     notification: { title, body },
     data: Object.fromEntries(
-      Object.entries(data || {}).map(([k, v]) => [k, String(v ?? '')])
+      Object.entries({ ...(data || {}), sound: snd.dataSound }).map(([k, v]) => [k, String(v ?? '')])
     ),
     // v558 (serveur seul) — Daniel : « je reçois les notifications en retard ».
     // Diagnostic Render : le serveur émet en ~1 s (entrée → push → e-mail
@@ -206,11 +327,11 @@ const sendPush = async (tokens, title, body, data, { userId, role } = {}) => {
     // ce défaut) + canal Android + son + type APNs « alert ».
     android: {
       priority: 'high',
-      notification: { channelId: 'hopetsit_default_channel', sound: 'default' },
+      notification: { ...snd.android },
     },
     apns: {
       headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
-      payload: { aps: { sound: 'default' } },
+      payload: { aps: snd.apnsSound ? { sound: snd.apnsSound } : {} },
     },
   };
   const result = await firebaseAdmin.messaging().sendEachForMulticast(message);
@@ -341,10 +462,21 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
   // v407 — union des fcmTokens sur les 3 docs de rôle (fix push multi-profils).
   const allTokens = await gatherFcmTokens(user, userId);
   const tokenCount = allTokens.length;
+  // v565 §2 — préférences : catégorie coupée → ni push ni e-mail (in-app gardée).
+  const prefs = await resolveNotificationPrefsAcrossRoles(user, userId);
+  const category = categoryForType(type);
+  const categoryEnabled = prefs.categories[category] !== false;
+  if (!categoryEnabled) {
+    logger.info(
+      `[notif.prefs.skip] category=${category} disabled → push+email suppressed ` +
+      `type=${type} role=${role} userId=${userId} (in-app kept)`,
+    );
+  }
   logger.info(
     `[notif.send] type=${type} role=${role} userId=${userId} ` +
     `locale=${locale} fcmTokens=${tokenCount} ` +
     `emailReady=${email && email.length > 3 ? 'yes' : 'NO'} ` +
+    `category=${category} sound=${prefs.sound} ` +
     `title="${(title || '').slice(0, 60)}"`,
   );
 
@@ -398,7 +530,7 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
   // Si le destinataire a un socket connecté (app ouverte), il voit déjà la
   // notif en direct → on n'envoie PAS l'email (évite le spam + le retard
   // Gmail). Best-effort : en cas de doute, l'email part.
-  let sendEmailNow = Boolean(email);
+  let sendEmailNow = Boolean(email) && categoryEnabled;
   if (sendEmailNow &&
       PRESENCE_GATED_EMAIL_TYPES.has(String(type).toLowerCase())) {
     try {
@@ -420,22 +552,26 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
     // contenait PAS l'id de la notif → la dédup côté app (_markSeenOrDupe, qui
     // lit data.notificationId) ne pouvait jamais rapprocher le push et l'event
     // socket → badge compté 2×. On injecte notificationId dans le data push.
-    sendPush(
-      allTokens,
-      title,
-      body,
-      {
-        type,
-        ...data,
-        // v561 — même chemin que le bouton du mail : l'app l'ouvre au tap.
-        route: appRoute,
-        ...(inAppCreated && inAppCreated._id
-          ? { notificationId: String(inAppCreated._id) }
-          : {}),
-      },
-      { userId, role },
-    ),
-    sendEmailNow ? sendEmail(email, emailSubject, body, emailBody) : Promise.resolve({ skipped: true }),
+    categoryEnabled
+      ? sendPush(
+        allTokens,
+        title,
+        body,
+        {
+          type,
+          ...data,
+          // v561 — même chemin que le bouton du mail : l'app l'ouvre au tap.
+          route: appRoute,
+          ...(inAppCreated && inAppCreated._id
+            ? { notificationId: String(inAppCreated._id) }
+            : {}),
+        },
+        { userId, role, sound: prefs.sound },
+      )
+      : Promise.resolve({ skipped: true, reason: `prefs_category_off:${category}` }),
+    sendEmailNow
+      ? sendEmail(email, emailSubject, body, emailBody)
+      : Promise.resolve({ skipped: true, reason: categoryEnabled ? 'no_email' : `prefs_category_off:${category}` }),
   ]);
 
   // v23.1 part 48 — log success/failure per channel so the Render log
@@ -482,4 +618,12 @@ module.exports = {
   sendNotification,
   renderNotificationContent,
   resolveAppLocaleAcrossRoles,
+  // v565 §2
+  NOTIFICATION_SOUNDS,
+  NOTIFICATION_CATEGORIES,
+  defaultNotificationPrefs,
+  normalizeNotificationPrefs,
+  categoryForType,
+  resolveNotificationPrefsAcrossRoles,
+  pushSoundConfig,
 };

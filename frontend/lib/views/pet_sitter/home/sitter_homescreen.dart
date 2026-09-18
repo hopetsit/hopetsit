@@ -17,6 +17,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/post_price_estimator.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_detail_screen.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
@@ -1078,6 +1079,14 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                                   // avec snackbar explicite si quelque
                                   // chose manque.
                                   onSendRequest: () async {
+                                // v565 (point 25) — coordonnées obligatoires
+                                // avant de postuler à une annonce.
+                                if (!await ensureContactInfo(context,
+                                    role: _isWalkerViewer
+                                        ? 'walker'
+                                        : 'sitter')) {
+                                  return;
+                                }
                                 if (ownerId.isEmpty ||
                                     petId == null ||
                                     post.serviceTypes.isEmpty) {

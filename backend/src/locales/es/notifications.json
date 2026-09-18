@@ -352,5 +352,71 @@
     "body": "El paseo ha terminado ({{minutes}} min). Abre la app para ver el recorrido y el informe.",
     "emailSubject": "Paseo terminado ✅",
     "emailBody": "<p>El paseo ha terminado ({{minutes}} min). Abre la app para ver el recorrido y el informe.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">HoPetSit</a></p>"
+  },
+  "handover_pickup_soon": {
+    "title": "Entrega en 30 min 🐾",
+    "body": "La entrega de la mascota está prevista en 30 minutos. ¿Todo listo?",
+    "emailSubject": "Entrega de la mascota en 30 minutos — HoPetSit",
+    "emailBody": "<p>La entrega de la mascota está prevista en 30 minutos. El cuidador pulsará «Mascota recogida» en el momento de la entrega y el propietario solo tendrá que confirmar con un toque.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver la reserva</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia y pega este enlace: {{emailLink}}</p>"
+  },
+  "handover_return_soon": {
+    "title": "Devolución en 30 min 🏁",
+    "body": "La devolución de la mascota está prevista en 30 minutos.",
+    "emailSubject": "Devolución de la mascota en 30 minutos — HoPetSit",
+    "emailBody": "<p>La devolución de la mascota está prevista en 30 minutos. El cuidador pulsará «Mascota devuelta» en el momento de la devolución; la confirmación del propietario libera después el pago.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver la reserva</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia y pega este enlace: {{emailLink}}</p>"
+  },
+  "handover_pickup_overdue": {
+    "title": "Entrega sin validar ⏰",
+    "body": "Una hora después de la hora prevista, la recogida de la mascota aún no se ha validado. El cuidador debe pulsar «Mascota recogida».",
+    "emailSubject": "Entrega de la mascota sin validar — HoPetSit",
+    "emailBody": "<p>Una hora después de la hora prevista, la recogida de la mascota aún no se ha validado en la app. Cuidador: pulsa «Mascota recogida» en cuanto la mascota esté contigo. Propietario: escribe al cuidador por el chat si tienes dudas.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver la reserva</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia y pega este enlace: {{emailLink}}</p>"
+  },
+  "handover_pickup_auto": {
+    "title": "Entrega confirmada automáticamente",
+    "body": "Sin respuesta del propietario en 2 h, la recogida de la mascota se ha confirmado automáticamente (foto o ubicación como prueba).",
+    "emailSubject": "Entrega confirmada automáticamente — HoPetSit",
+    "emailBody": "<p>El propietario no confirmó la entrega en 2 horas: la recogida de la mascota se ha confirmado automáticamente, con la foto o la ubicación registrada como prueba. La cronología completa está en la reserva.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver la reserva</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia y pega este enlace: {{emailLink}}</p>"
+  },
+  "handover_return_auto": {
+    "title": "Devolución confirmada automáticamente ✅",
+    "body": "La devolución de la mascota se ha confirmado automáticamente y el pago se ha liberado al wallet del cuidador.",
+    "emailSubject": "Devolución confirmada automáticamente — pago liberado",
+    "emailBody": "<p>El propietario no confirmó la devolución a tiempo: se ha confirmado automáticamente, con la foto o la ubicación registrada como prueba, y el pago en custodia se ha liberado al wallet del cuidador.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver la reserva</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia y pega este enlace: {{emailLink}}</p>"
+  },
+  "handover_picked_up": {
+    "title": "Mascota recogida 🐾",
+    "body": "Tu cuidador acaba de recoger a tu mascota. Confirma la entrega con un toque (confirmación automática en 2 h).",
+    "emailSubject": "Han recogido a tu mascota — confirma la entrega",
+    "emailBody": "<p>Tu cuidador acaba de pulsar «Mascota recogida». Abre la reserva y confirma la entrega con un toque. Si no respondes, se confirmará automáticamente en 2 horas.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver la reserva</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia y pega este enlace: {{emailLink}}</p>"
+  },
+  "handover_pickup_confirmed": {
+    "title": "Entrega confirmada ✅",
+    "body": "El propietario ha confirmado que has recogido a la mascota. ¡Buen servicio!",
+    "emailSubject": "Entrega confirmada por el propietario — HoPetSit",
+    "emailBody": "<p>El propietario ha confirmado que has recogido a la mascota. ¡Buen servicio! Recuerda pulsar «Mascota devuelta» al final.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver la reserva</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia y pega este enlace: {{emailLink}}</p>"
+  },
+  "handover_returned": {
+    "title": "Mascota devuelta 🏁",
+    "body": "Tu cuidador indica que ha devuelto a tu mascota. Confirma que todo ha ido bien para liberar el pago (si no, confirmación automática en {{autoConfirmHours}} h).",
+    "emailSubject": "Han devuelto a tu mascota — confirma la devolución",
+    "emailBody": "<p>Tu cuidador acaba de pulsar «Mascota devuelta». Confirma que todo ha ido bien: esto libera el pago a su wallet. Si no respondes, la devolución se confirmará automáticamente en {{autoConfirmHours}} horas.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver la reserva</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia y pega este enlace: {{emailLink}}</p>"
+  },
+  "handover_return_confirmed": {
+    "title": "Devolución confirmada ✅",
+    "body": "El propietario ha confirmado la devolución de la mascota. Tu pago se ha liberado a tu wallet.",
+    "emailSubject": "Devolución confirmada — pago liberado",
+    "emailBody": "<p>El propietario ha confirmado la devolución de la mascota. Tu pago se ha liberado a tu wallet: puedes usarlo en la tienda o retirarlo a tu IBAN.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver la reserva</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia y pega este enlace: {{emailLink}}</p>"
+  },
+  "live_session_ended": {
+    "title": "Compartir en directo finalizado",
+    "body": "La duración que elegiste ({{duration}}) ha terminado: tu ubicación ya no se comparte con tus amigos.",
+    "emailSubject": "Tu ubicación en directo ha dejado de compartirse — HoPetSit",
+    "emailBody": "<p>La duración que elegiste ({{duration}}) ha terminado: tu ubicación ya no se comparte con tus amigos. Puedes volver a activarla cuando quieras desde la PawMap.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir la PawMap</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia y pega este enlace: {{emailLink}}</p>"
+  },
+  "live_still_active": {
+    "title": "Ubicación en directo aún activa 📍",
+    "body": "Llevas {{hours}} h compartiendo tu ubicación en directo. Puedes detenerla cuando quieras desde la PawMap.",
+    "emailSubject": "Tu ubicación en directo sigue activa — HoPetSit",
+    "emailBody": "<p>Llevas {{hours}} h compartiendo tu ubicación en directo con tus amigos. No tienes que hacer nada si es lo que quieres; puedes detenerla cuando quieras desde la PawMap.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir la PawMap</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia y pega este enlace: {{emailLink}}</p>"
   }
 }

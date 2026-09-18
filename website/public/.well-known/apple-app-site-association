@@ -95,6 +95,18 @@
             "comment": "Canonical email link: open app or /download"
           },
           {
+            "/": "/open/*",
+            "comment": "v565 \u2014 Email link with a target path (/open/<route>)"
+          },
+          {
+            "/": "/verify-email",
+            "comment": "v565 \u2014 Email verification (signup) opens the app"
+          },
+          {
+            "/": "/report",
+            "comment": "v565 \u2014 Map reports (alias of /alert)"
+          },
+          {
             "/": "/app",
             "comment": "Canonical email link alias"
           },

@@ -11,6 +11,7 @@ import 'package:hopetsit/utils/date_slash_formatter.dart'
     show parseDdMmYyyy, ageInYears;
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/views/profile/widgets/phone_prefix_helper.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/services/location_service.dart';
@@ -162,11 +163,18 @@ class EditSitterProfileController extends GetxController {
       // Populate form fields
       nameController.text = profileData['name']?.toString() ?? '';
       emailController.text = profileData['email']?.toString() ?? '';
-      phoneController.text =
-          profileData['mobile']?.toString() ??
+      // v565 — point 12 : indicatif = stocké, sinon déduit du PAYS du compte,
+      // sinon extrait du numéro ; le champ n'affiche que le numéro national.
+      final rawMobile = profileData['mobile']?.toString() ??
           profileData['phone']?.toString() ??
           '';
-      selectedCountryCode.value = profileData['countryCode']?.toString() ?? '';
+      selectedCountryCode.value = PhonePrefix.resolveDial(
+        storedCode: profileData['countryCode']?.toString(),
+        countryIso: profileData['country']?.toString(),
+        rawMobile: rawMobile,
+      );
+      phoneController.text =
+          PhonePrefix.nationalNumber(rawMobile, selectedCountryCode.value);
 
       // Address + location handling (same pattern as owner):
       // Backend returns location as an object, e.g.:
@@ -194,9 +202,9 @@ class EditSitterProfileController extends GetxController {
 
       userCity.value = city;
 
-      addressController.text = city.isNotEmpty
-          ? '$rawAddress, $city'
-          : rawAddress;
+      // v565 — l'adresse reste BRUTE (avant, la ville y était concaténée à
+      // chaque chargement puis renvoyée → « rue X, Paris, Paris, Paris »).
+      addressController.text = rawAddress;
 
       // For the separate Location field, just show the city (or empty)
       locationController.text = city;
@@ -511,7 +519,9 @@ class EditSitterProfileController extends GetxController {
       await _sitterRepository.updateSitterProfileMe(
         name: nameController.text.trim(),
         email: emailController.text.trim(),
-        mobile: phoneController.text.trim(),
+        // v565 — point 12 : numéro NATIONAL + indicatif séparé.
+        mobile: PhonePrefix.nationalNumber(
+            phoneController.text, selectedCountryCode.value),
         countryCode: selectedCountryCode.value,
         address: addressController.text.trim().isNotEmpty
             ? addressController.text.trim()

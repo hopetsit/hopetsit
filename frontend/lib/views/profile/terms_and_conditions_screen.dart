@@ -6,7 +6,7 @@ import 'package:hopetsit/data/static/terms_of_service.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
-import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 
 /// Sprint 8 step 3 — displays the full Terms of Service in the user's language.
 ///
@@ -65,46 +65,42 @@ class _TermsAndConditionsScreenState extends State<TermsAndConditionsScreen> {
   Widget build(BuildContext context) {
     final lang = LocalizationService.getCurrentLanguageCode();
     final text = _remoteContent ?? termsOfServiceForLocale(lang);
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        centerTitle: true,
-        title: PoppinsText(
-          text: 'terms_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary(context),
-        ),
-      ),
-      body: SafeArea(
-        child: _loading
-            ? const Center(
-                child: CircularProgressIndicator(
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
-                ),
-              )
-            : RefreshIndicator(
-                color: AppColors.primaryColor,
-                onRefresh: () async {
-                  setState(() => _loading = true);
-                  await _load();
-                },
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.all(20.w),
+    // v565 — sous-page modernisée (kit Profil) : chargement, tirer pour
+    // rafraîchir, texte dans une carte.
+    final accent = currentRoleAccent();
+    return ProfileSubPageScaffold(
+      title: 'terms_title'.tr,
+      accent: accent,
+      scroll: false,
+      body: _loading
+          ? Center(child: CircularProgressIndicator(color: accent))
+          : RefreshIndicator(
+              color: accent,
+              onRefresh: () async {
+                setState(() => _loading = true);
+                await _load();
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 28.h),
+                child: Container(
+                  padding: EdgeInsets.all(18.w),
+                  decoration: BoxDecoration(
+                    color: AppColors.card(context),
+                    borderRadius: BorderRadius.circular(20.r),
+                    boxShadow: AppColors.cardShadow(context),
+                  ),
                   child: SelectableText(
                     text,
                     style: TextStyle(
                       fontSize: 13.sp,
-                      height: 1.45,
+                      height: 1.5,
                       color: AppColors.textPrimary(context),
                     ),
                   ),
                 ),
               ),
-      ),
+            ),
     );
   }
 }

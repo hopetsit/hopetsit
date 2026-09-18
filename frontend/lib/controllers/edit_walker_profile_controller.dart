@@ -17,6 +17,7 @@ import 'package:hopetsit/utils/date_slash_formatter.dart'
     show parseDdMmYyyy, ageInYears;
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/views/profile/widgets/phone_prefix_helper.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// Dedicated controller for the Walker "Edit profile" screen.
@@ -199,14 +200,14 @@ class EditWalkerProfileController extends GetxController {
       // to desync when the stored number format changed (e.g. flag showing
       // Afghanistan while the number started with +34). Regex stays as a
       // fallback for old accounts that don't have countryCode persisted.
-      if (walker.countryCode.isNotEmpty) {
-        selectedCountryCode.value = walker.countryCode;
-      } else {
-        final mobileMatch = RegExp(r'^\+(\d+)').firstMatch(walker.mobile);
-        if (mobileMatch != null) {
-          selectedCountryCode.value = '+${mobileMatch.group(1)}';
-        }
-      }
+      // v565 — point 12 : indicatif stocké, sinon extrait du numéro, sinon
+      // celui du téléphone ; le champ n'affiche que le numéro national.
+      selectedCountryCode.value = PhonePrefix.resolveDial(
+        storedCode: walker.countryCode,
+        rawMobile: walker.mobile,
+      );
+      phoneController.text =
+          PhonePrefix.nationalNumber(walker.mobile, selectedCountryCode.value);
 
       // Load the four standard walk durations (30/60/90/120 min). Any can
       // be empty — the UI shows "Tarif à confirmer" when none is set.
@@ -346,10 +347,9 @@ class EditWalkerProfileController extends GetxController {
     isLoading.value = true;
 
     try {
-      final rawPhone = phoneController.text.trim();
-      final mobile = rawPhone.startsWith('+')
-          ? rawPhone
-          : '${selectedCountryCode.value}$rawPhone';
+      // v565 — point 12 : `mobile` = numéro NATIONAL, `countryCode` = indicatif.
+      final mobile = PhonePrefix.nationalNumber(
+          phoneController.text, selectedCountryCode.value);
 
       final payload = <String, dynamic>{
         'name': nameController.text.trim(),

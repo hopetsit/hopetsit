@@ -352,5 +352,71 @@
     "body": "The walk is over ({{minutes}} min). Open the app to see the route and the report.",
     "emailSubject": "Walk finished ✅",
     "emailBody": "<p>The walk is over ({{minutes}} min). Open the app to see the route and the report.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">HoPetSit</a></p>"
+  },
+  "handover_pickup_soon": {
+    "title": "Pickup in 30 min 🐾",
+    "body": "The pet handover is scheduled in 30 minutes. All set?",
+    "emailSubject": "Pet pickup in 30 minutes — HoPetSit",
+    "emailBody": "<p>The pet handover is scheduled in 30 minutes. The provider will tap \"Pet picked up\" at handover time, and the owner just has to confirm with one tap.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy and paste this link: {{emailLink}}</p>"
+  },
+  "handover_return_soon": {
+    "title": "Return in 30 min 🏁",
+    "body": "The pet is due to be returned in 30 minutes.",
+    "emailSubject": "Pet return in 30 minutes — HoPetSit",
+    "emailBody": "<p>The pet is due to be returned in 30 minutes. The provider will tap \"Pet returned\" at return time; the owner's confirmation then releases the payment.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy and paste this link: {{emailLink}}</p>"
+  },
+  "handover_pickup_overdue": {
+    "title": "Pickup not confirmed ⏰",
+    "body": "One hour after the scheduled time, the pet pickup has not been confirmed yet. The provider needs to tap \"Pet picked up\".",
+    "emailSubject": "Pet pickup not confirmed — HoPetSit",
+    "emailBody": "<p>One hour after the scheduled time, the pet pickup has not been confirmed in the app yet. Provider: tap \"Pet picked up\" as soon as the pet is with you. Owner: reach out to the provider in the chat if in doubt.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy and paste this link: {{emailLink}}</p>"
+  },
+  "handover_pickup_auto": {
+    "title": "Pickup confirmed automatically",
+    "body": "With no answer from the owner within 2 hours, the pet pickup was confirmed automatically (photo or location kept as proof).",
+    "emailSubject": "Pickup confirmed automatically — HoPetSit",
+    "emailBody": "<p>The owner did not confirm the handover within 2 hours: the pet pickup was confirmed automatically, with the photo or location recorded as proof. The full timeline is visible in the booking.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy and paste this link: {{emailLink}}</p>"
+  },
+  "handover_return_auto": {
+    "title": "Return confirmed automatically ✅",
+    "body": "The pet return was confirmed automatically and the payment has been released to the provider's wallet.",
+    "emailSubject": "Return confirmed automatically — payment released",
+    "emailBody": "<p>The owner did not confirm the return in time: it was confirmed automatically, with the photo or location recorded as proof, and the escrowed payment has been released to the provider's wallet.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy and paste this link: {{emailLink}}</p>"
+  },
+  "handover_picked_up": {
+    "title": "Pet picked up 🐾",
+    "body": "Your provider just picked up your pet. Confirm the handover with one tap (auto-confirmed in 2 hours).",
+    "emailSubject": "Your pet has been picked up — confirm the handover",
+    "emailBody": "<p>Your provider just tapped \"Pet picked up\". Open the booking and confirm the handover with one tap. Without your answer, it will be confirmed automatically in 2 hours.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy and paste this link: {{emailLink}}</p>"
+  },
+  "handover_pickup_confirmed": {
+    "title": "Handover confirmed ✅",
+    "body": "The owner confirmed that you picked up the pet. Enjoy the service!",
+    "emailSubject": "Handover confirmed by the owner — HoPetSit",
+    "emailBody": "<p>The owner confirmed that you picked up the pet. Enjoy the service! Remember to tap \"Pet returned\" at the end.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy and paste this link: {{emailLink}}</p>"
+  },
+  "handover_returned": {
+    "title": "Pet returned 🏁",
+    "body": "Your provider says they returned your pet. Confirm everything went well to release the payment (otherwise auto-confirmed in {{autoConfirmHours}} h).",
+    "emailSubject": "Your pet has been returned — confirm the return",
+    "emailBody": "<p>Your provider just tapped \"Pet returned\". Confirm everything went well: this releases the payment to their wallet. Without your answer, the return will be confirmed automatically in {{autoConfirmHours}} hours.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy and paste this link: {{emailLink}}</p>"
+  },
+  "handover_return_confirmed": {
+    "title": "Return confirmed ✅",
+    "body": "The owner confirmed the pet return. Your payment has been released to your wallet.",
+    "emailSubject": "Return confirmed — payment released",
+    "emailBody": "<p>The owner confirmed the pet return. Your payment has been released to your wallet: use it in the shop or withdraw it to your IBAN.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy and paste this link: {{emailLink}}</p>"
+  },
+  "live_session_ended": {
+    "title": "Live sharing ended",
+    "body": "The sharing duration you chose ({{duration}}) is over: your location is no longer shared with your friends.",
+    "emailSubject": "Your live sharing has ended — HoPetSit",
+    "emailBody": "<p>The sharing duration you chose ({{duration}}) is over: your location is no longer shared with your friends. You can start sharing again anytime from the PawMap.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open the PawMap</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy and paste this link: {{emailLink}}</p>"
+  },
+  "live_still_active": {
+    "title": "Live sharing still active 📍",
+    "body": "You have been sharing your live location for {{hours}} h. You can stop it anytime from the PawMap.",
+    "emailSubject": "Your live sharing is still active — HoPetSit",
+    "emailBody": "<p>You have been sharing your live location with your friends for {{hours}} h. Nothing to do if that's intended; you can stop it anytime from the PawMap.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open the PawMap</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy and paste this link: {{emailLink}}</p>"
   }
 }

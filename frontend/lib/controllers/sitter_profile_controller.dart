@@ -1,6 +1,7 @@
 import 'dart:async' show unawaited;
 
 import 'package:get/get.dart';
+import 'package:hopetsit/views/profile/widgets/profile_settings_host.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
@@ -29,7 +30,7 @@ import 'package:hopetsit/models/profile_model.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
-class SitterProfileController extends GetxController {
+class SitterProfileController extends GetxController implements ProfileSettingsHost {
   SitterProfileController({
     SitterRepository? sitterRepository,
     GetStorage? storage,

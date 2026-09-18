@@ -14,6 +14,8 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
+import 'package:hopetsit/widgets/promo_code_sheet.dart';
 
 /// Écran de saisie d'un code promo (accessible depuis les 3 profils).
 ///
@@ -126,22 +128,20 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.scaffold(context),
-        elevation: 0,
-        iconTheme: IconThemeData(color: AppColors.textPrimary(context)),
-        title: PoppinsText(
-          text: 'promo_screen_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
+    // v565 — écran modernisé (kit Profil) ; la saisie rapide passe aussi par
+    // la feuille partagée `showPromoCodeSheet` (même API que le paiement).
+    return ProfileSubPageScaffold(
+      title: 'promo_screen_title'.tr,
+      accent: widget.accent,
+      actions: [
+        IconButton(
+          tooltip: 'promo_popup_cta'.tr,
+          icon: Icon(Icons.bolt_rounded, color: widget.accent),
+          onPressed: () => showPromoCodeSheet(context, accent: widget.accent),
         ),
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 32.h),
-        child: Column(
+      ],
+      padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 32.h),
+      body: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header illustration chip.
@@ -343,7 +343,6 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
             ],
           ],
         ),
-      ),
     );
   }
 

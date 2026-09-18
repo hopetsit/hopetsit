@@ -6,39 +6,19 @@ import 'package:hopetsit/widgets/boost_profile_card.dart';
 import 'package:hopetsit/widgets/kyc_status_banner.dart';
 import 'package:hopetsit/widgets/my_kyc_verified_badge.dart';
 import 'package:get/get.dart';
-import 'package:hopetsit/controllers/auth_controller.dart';
+import 'package:hopetsit/views/profile/widgets/my_profiles_card.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
-import 'package:hopetsit/controllers/theme_controller.dart';
-import 'package:hopetsit/models/profile_model.dart';
-import 'package:hopetsit/views/profile/widgets/profile_settings_tabs.dart';
+import 'package:hopetsit/views/profile/widgets/profile_categories.dart';
+import 'package:hopetsit/views/profile/widgets/profile_completion_card.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/views/profile/widgets/profile_notification_bell.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/views/boost/coin_shop_screen.dart';
-import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
-import 'package:hopetsit/views/map/paw_map_screen.dart';
-import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 // v23.1 — Mes cartes (Airwallex saved payment_consents) — walker peut payer un PawSpot/PawFollow.
-import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
-import 'package:hopetsit/views/kyc/kyc_verification_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
-import 'package:hopetsit/views/profile/blocked_users_screen.dart';
-import 'package:hopetsit/views/profile/change_password_screen.dart';
 import 'package:hopetsit/views/pet_walker/profile/edit_walker_profile_screen.dart';
-import 'package:hopetsit/views/profile/my_rates_screen.dart';
-import 'package:hopetsit/views/reviews/my_reviews_screen.dart';
-import 'package:hopetsit/repositories/owner_repository.dart';
-import 'package:get_storage/get_storage.dart';
-import 'package:hopetsit/utils/storage_keys.dart';
 // v23.1.332 — parrainage RÉACTIVÉ pour walker (récompense -10% PawFollow/Family).
-import 'package:hopetsit/views/profile/my_referrals_screen.dart';
-import 'package:hopetsit/views/profile/promo_code_screen.dart';
-import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
-import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/rounded_text_button.dart';
-import 'package:hopetsit/widgets/top_walker_card.dart';
-import 'package:hopetsit/views/profile/bug_report_screen.dart';
 
 /// Walker profile screen — full redesign (session avril 2026).
 ///
@@ -94,6 +74,15 @@ class WalkerProfileScreen extends StatelessWidget {
                 children: [
                   SizedBox(height: 16.h),
 
+                  // v565 — point 25 : barre « profil complété à X % ».
+                  Obx(() => ProfileCompletionCard(
+                        profile: controller.profile.value,
+                        role: 'walker',
+                        accent: _accent,
+                        onEditProfile: () => Get.to(() => const EditWalkerProfileScreen()),
+                        onPhoto: controller.pickAndUploadProfilePicture,
+                      )),
+
                   // Quick Actions: revenues, calendar, boost, iban.
                   _buildQuickActions(context),
                   SizedBox(height: 20.h),
@@ -106,29 +95,25 @@ class WalkerProfileScreen extends StatelessWidget {
                   SizedBox(height: 20.h),
 
                   // Switch role cards — one per role the walker can move to.
-                  _buildSwitchRoleCards(context),
+                  const MyProfilesCard(),
                   SizedBox(height: 20.h),
 
-                  // Settings section.
-                  _buildSettingsSection(context, controller),
+                  // v565 — points 26/33 : catégories claires partagées.
+                  ProfileCategories(
+                    role: 'walker',
+                    accent: _accent,
+                    host: controller,
+                    onEditProfile: () => Get.to(() => const EditWalkerProfileScreen()),
+                  ),
 
-                  SizedBox(height: 30.h),
+                  SizedBox(height: 24.h),
 
                   // Logout button.
-                  Center(
-                    child: CustomButton(
-                      width: 305.w,
-                      radius: 16.r,
-                      isGradient: false,
-                      title: 'button_logout'.tr,
-                      bgColor: Colors.grey.shade200,
-                      textColor: _accent,
-                      onTap: () async {
-                        if (Get.isRegistered<AuthController>()) {
-                          await Get.find<AuthController>().logout();
-                        }
-                      },
-                    ),
+                  ProfileSecondaryButton(
+                    label: 'button_logout'.tr,
+                    accent: _accent,
+                    icon: Icons.logout_rounded,
+                    onTap: () => controller.showLogoutDialog(context),
                   ),
                 ],
               ),
@@ -556,520 +541,6 @@ class WalkerProfileScreen extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  // ═════════════════════════════════════════════════════════════════════════
-  // SWITCH ROLE
-  // ═════════════════════════════════════════════════════════════════════════
-
-  Widget _buildSwitchRoleCards(BuildContext context) {
-    final authController = Get.find<AuthController>();
-    final currentRole = authController.userRole.value;
-    const allRoles = ['owner', 'sitter', 'walker'];
-    final otherRoles = allRoles.where((r) => r != currentRole).toList();
-    // v448 — Daniel : les 2 boutons « Passer en … » CÔTE À CÔTE, plus compacts,
-    // police lisible (au lieu de l'un sous l'autre, pleine largeur).
-    return Row(
-      children: [
-        for (int i = 0; i < otherRoles.length; i++) ...[
-          Expanded(
-            child: _buildSwitchRoleCard(context, targetRole: otherRoles[i]),
-          ),
-          if (i < otherRoles.length - 1) SizedBox(width: 10.w),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildSwitchRoleCard(
-    BuildContext context, {
-    required String targetRole,
-  }) {
-    String roleLabelKey;
-    Color accentColor;
-    switch (targetRole) {
-      case 'owner':
-        roleLabelKey = 'role_pet_owner';
-        accentColor = AppColors.primaryColor;
-        break;
-      case 'walker':
-        roleLabelKey = 'role_pet_walker';
-        accentColor = AppColors.greenColor;
-        break;
-      case 'sitter':
-      default:
-        roleLabelKey = 'role_pet_sitter';
-        accentColor = const Color(0xFF1A73E8);
-        break;
-    }
-    final roleLabel = roleLabelKey.tr;
-
-    return GestureDetector(
-      onTap: () => _confirmSwitchRole(context, targetRole, roleLabel),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 12.h),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(14.r),
-          boxShadow: AppColors.cardShadow(context),
-        ),
-        child: Row(
-          children: [
-            // Colored icon chip on the left (compact).
-            Container(
-              width: 36.w,
-              height: 36.w,
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10.r),
-              ),
-              child: Icon(Icons.pets_rounded, size: 18.sp, color: accentColor),
-            ),
-            SizedBox(width: 9.w),
-            Expanded(
-              child: InterText(
-                text: 'switch_role_to'.trParams({'role': roleLabel}),
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w700,
-                color: accentColor,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmSwitchRole(
-    BuildContext context,
-    String targetRole,
-    String roleLabel,
-  ) {
-    final auth = Get.isRegistered<AuthController>()
-        ? Get.find<AuthController>()
-        : null;
-    if (auth == null) return;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return Obx(() {
-          final isLoading = auth.isSwitchingRole.value;
-          return AlertDialog(
-            backgroundColor: AppColors.card(dialogContext),
-            title: Text('switch_role_dialog_title'.tr,
-                style: TextStyle(color: AppColors.textPrimary(dialogContext))),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isLoading)
-                  Padding(
-                    padding: EdgeInsets.only(bottom: 16.h),
-                    child: const CircularProgressIndicator(),
-                  ),
-                Text(
-                  isLoading
-                      ? 'switch_role_loading'.trParams({'role': roleLabel})
-                      : 'switch_role_confirm'.trParams({'role': roleLabel}),
-                  style:
-                      TextStyle(color: AppColors.textPrimary(dialogContext)),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: isLoading
-                    ? null
-                    : () => Navigator.of(dialogContext).pop(),
-                child: Text(
-                  'common_cancel'.tr,
-                  style: TextStyle(
-                      color: AppColors.textSecondary(dialogContext)),
-                ),
-              ),
-              TextButton(
-                onPressed: isLoading
-                    ? null
-                    : () async {
-                        await auth.switchRole(targetRole: targetRole);
-                        if (!dialogContext.mounted) return;
-                        if (Get.isDialogOpen == true) {
-                          Navigator.of(dialogContext).pop();
-                        }
-                      },
-                child: Text(
-                  'switch_role_to'.trParams({'role': roleLabel}),
-                  style: TextStyle(
-                    color: isLoading
-                        ? AppColors.textSecondary(dialogContext)
-                        : Colors.blue,
-                  ),
-                ),
-              ),
-            ],
-          );
-        });
-      },
-    );
-  }
-
-  // ═════════════════════════════════════════════════════════════════════════
-  // SETTINGS
-  // ═════════════════════════════════════════════════════════════════════════
-
-  // v406 refonte — section paramètres en onglets Profil / Préférences /
-  // Sécurité (maquette). Walker accent = vert.
-  Widget _buildSettingsSection(
-    BuildContext context,
-    ProfileController controller,
-  ) {
-    return Obx(() {
-      final tab = controller.profileTab.value;
-      final p = controller.profile.value;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ProfileTabBar(
-            index: tab,
-            accent: _accent,
-            onChanged: (i) => controller.profileTab.value = i,
-          ),
-          SizedBox(height: 16.h),
-          if (tab == 1) ...[
-            ProfilePreferencesTab(
-              accent: _accent,
-              prefs: p?.preferences ?? const ProfilePreferences(),
-              saving: controller.prefsSaving.value,
-              onSave: (u) => controller.savePreferences(u.toJson()),
-              onLanguage: controller.showLanguageDialog,
-            ),
-            _settingsTile(
-              'theme_setting_title'.tr,
-              Icons.brightness_6_rounded,
-              () => _showThemeDialog(),
-              subtitle: 'theme_setting_subtitle'.tr,
-              color: const Color(0xFF8B5CF6),
-            ),
-          ],
-          if (tab == 2)
-            ProfileSecurityTab(
-              accent: _accent,
-              twoFactorEnabled: p?.twoFactorEnabled ?? false,
-              emailVerified: p?.verified ?? false,
-              phoneVerified: (p?.mobile.isNotEmpty ?? false),
-              saving: controller.prefsSaving.value,
-              onToggle2FA: controller.setTwoFactor,
-              onChangePassword: () =>
-                  Get.to(() => const ChangePasswordScreen()),
-              onBlockedUsers: () => Get.to(
-                  () => const BlockedUsersScreen(userType: 'pet_walker')),
-              onDeleteAccount: () =>
-                  controller.showDeleteAccountDialog(context),
-            ),
-          if (tab == 0) _buildProfilTab(context, controller),
-        ],
-      );
-    });
-  }
-
-  Widget _buildProfilTab(
-    BuildContext context,
-    ProfileController controller,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionHeader('profile_section_account'.tr),
-        _settingsTile(
-          'profile_edit_my_profile'.tr,
-          Icons.person_outline_rounded,
-          () => Get.to(() => const EditWalkerProfileScreen()),
-          subtitle: 'profile_edit_profile_subtitle'.tr,
-          color: _accent,
-        ),
-        // v20.0.7 — Paiement management (ajouter CB) remonté en section
-        // COMPTE pour être immédiatement accessible, comme chez owner/sitter.
-        _settingsTile(
-          'profile_payment_management'.tr,
-          Icons.credit_card_rounded,
-          () => Get.to(() => const PaymentManagementScreen()),
-          subtitle: 'payment_management_subtitle'.tr,
-          color: _accent,
-        ),
-        // v23.1 — Mes cartes : walker peut enregistrer une CB pour ses
-        // achats (PawSpot, PawFollow). L'écran est role-aware côté backend.
-        _settingsTile(
-          'saved_cards_title'.tr,
-          Icons.credit_card_outlined,
-          () => Get.to(() => const SavedCardsScreen()),
-          subtitle: 'saved_cards_empty_message'.tr,
-          color: _accent,
-        ),
-        // v23.1 part 36 — KYC verification (3€) → badge "Vérifié" sur profil.
-        _settingsTile(
-          'kyc_tile_title'.tr,
-          Icons.verified_rounded,
-          () => Get.to(() => const KycVerificationScreen()),
-          subtitle: 'kyc_tile_subtitle'.tr,
-          color: const Color(0xFF1976D2),
-        ),
-        // v19.1.5 — "Mes tarifs" tile : dedicated screen to tweak 30/60 min
-        // rates without scrolling through the full edit profile form.
-        _settingsTile(
-          'my_rates_section_title'.tr,
-          Icons.payments_rounded,
-          () => Get.to(() => const MyRatesScreen(role: 'walker')),
-          subtitle: 'my_rates_walker_hint'.tr,
-          color: _accent,
-        ),
-        _settingsTile(
-          'profile_pawmap'.tr,
-          Icons.map_rounded,
-          () => Get.to(() => const PawMapScreen()),
-          subtitle: 'sitter_pawmap_subtitle'.tr,
-          color: const Color(0xFF8B5CF6),
-        ),
-        // v21.1.1 — Tile "Vérifier identité" retirée : Stripe Identity purgé.
-
-        // v20.0.7 — Top Walker loyalty card (Avantages walker) — mirrors
-        // TopSitterCard used in sitter profile so the walker sees his
-        // progress vers 20 balades + 4.5★ → 15% commission.
-        _sectionHeader('profile_section_my_services'.tr),
-        const TopWalkerCard(),
-        // v23.1.296 — Daniel : avis cliquable sur le profil walker. Récupère les
-        // avis reçus (endpoint public /reviews) puis ouvre l'écran « Mes avis ».
-        _settingsTile(
-          'reviews_title'.tr,
-          Icons.rate_review_rounded,
-          () async {
-            final id = GetStorage()
-                    .read<Map<String, dynamic>>(StorageKeys.userProfile)?['id']
-                    ?.toString() ??
-                '';
-            if (id.isEmpty) return;
-            final reviews = await Get.find<OwnerRepository>()
-                .getProviderReviews(revieweeId: id, revieweeRole: 'walker');
-            double avg = 0;
-            if (reviews.isNotEmpty) {
-              final sum = reviews.fold<double>(0, (a, r) {
-                final v = (r is Map) ? r['rating'] : null;
-                return a + ((v is num) ? v.toDouble() : 0);
-              });
-              avg = sum / reviews.length;
-            }
-            Get.to(() => MyReviewsScreen(
-                  reviews: reviews,
-                  rating: avg,
-                  reviewsCount: reviews.length,
-                  accent: _accent,
-                ));
-          },
-          color: _accent,
-        ),
-
-        _sectionHeader('profile_section_payments'.tr),
-        // v19.0 — Mon portefeuille en tête des paiements : c'est le solde
-        // des gains du walker, d'où il peut retirer vers IBAN/PayPal ou
-        // dépenser dans le shop.
-        _settingsTile(
-          'wallet_menu_title'.tr,
-          Icons.account_balance_wallet_rounded,
-          () => Get.to(() => const WalletScreen()),
-          subtitle: 'wallet_menu_subtitle'.tr,
-          color: const Color(0xFF1A73E8),
-        ),
-        _settingsTile(
-          'profile_shop'.tr,
-          Icons.storefront_rounded,
-          () => Get.to(() => const CoinShopScreen()),
-          color: _accent,
-        ),
-        // v23.1.332 — Daniel : parrainage RÉACTIVÉ pour les 3 profils
-        // (récompense = -10% sur PawFollow/PawFamily).
-        _settingsTile(
-          'profile_referrals'.tr,
-          Icons.group_add_rounded,
-          () => Get.to(() => const MyReferralsScreen()),
-          subtitle: 'referrals_subtitle'.tr,
-          color: const Color(0xFFF59E0B),
-        ),
-        // Code promo — saisie d'un code émis par l'admin (abo offert ou -%).
-        _settingsTile(
-          'promo_screen_title'.tr,
-          Icons.confirmation_number_rounded,
-          () => Get.to(() => const PromoCodeScreen(accent: _accent)),
-          subtitle: 'promo_profile_tile_subtitle'.tr,
-          color: const Color(0xFF6A5AE0),
-        ),
-        // Refonte PawSpot — accès direct au classement PawPoints (doré).
-        _settingsTile(
-          'pawspot_profile_tile'.tr,
-          Icons.emoji_events_rounded,
-          () => Get.to(() => const PawspotLeaderboardScreen()),
-          subtitle: 'pawspot_profile_tile_sub'.tr,
-          color: const Color(0xFFE8A00A),
-        ),
-
-        // v406 — PRÉFÉRENCES + SÉCURITÉ déplacés dans les onglets dédiés.
-
-        _sectionHeader('profile_section_legal'.tr),
-        _settingsTile(
-          'profile_terms'.tr,
-          Icons.description_outlined,
-          () => Get.to(() => const TermsAndConditionsScreen()),
-          subtitle: 'terms_read_subtitle'.tr,
-          color: const Color(0xFF94A3B8),
-        ),
-        _settingsTile(
-          'profile_privacy'.tr,
-          Icons.privacy_tip_outlined,
-          () => Get.to(() => const PrivacyPolicyScreen()),
-          subtitle: 'profile_privacy_subtitle'.tr,
-          color: const Color(0xFF94A3B8),
-        ),
-
-        // v20.0.8 — Bug report tile.
-        _sectionHeader('profile_section_support'.tr),
-        _settingsTile(
-          'bug_report_title'.tr,
-          Icons.bug_report_rounded,
-          () => Get.to(() => const BugReportScreen()),
-          subtitle: 'bug_report_subtitle'.tr,
-          color: const Color(0xFFF59E0B),
-        ),
-
-        // v406 — ZONE DANGER (supprimer le compte) déplacée dans l'onglet
-        // Sécurité (ProfileSecurityTab).
-      ],
-    );
-  }
-
-  Widget _sectionHeader(String label) {
-    return Padding(
-      padding: EdgeInsets.only(top: 18.h, bottom: 8.h, left: 4.w),
-      child: PoppinsText(
-        text: label.toUpperCase(),
-        fontSize: 11.sp,
-        fontWeight: FontWeight.w700,
-        color: AppColors.greyText,
-      ),
-    );
-  }
-
-  // v23.1 part 252 — Daniel : "dans les pages profile faite que le designe
-  // soit a peu pres le meme". On aligne la tuile walker sur celle de
-  // owner/sitter (_buildSettingsTile) : chip icone 38px colore par tuile +
-  // titre PoppinsText w600 primaire + sous-titre 11sp + chevron. Les params
-  // subtitle/color sont nommes optionnels → les anciens appels 3-args
-  // compilent encore (defaut subtitle vide, couleur accent vert walker).
-  Widget _settingsTile(
-    String title,
-    IconData icon,
-    VoidCallback onTap, {
-    String subtitle = '',
-    Color? color,
-  }) {
-    final iconColor = color ?? _accent;
-    return GestureDetector(
-      onTap: onTap,
-      child: Builder(
-        builder: (context) => Container(
-          margin: EdgeInsets.only(bottom: 8.h),
-          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(14.r),
-            boxShadow: AppColors.cardShadow(context),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 38.w,
-                height: 38.w,
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                child: Icon(icon, size: 18.sp, color: iconColor),
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    PoppinsText(
-                      text: title,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary(context),
-                    ),
-                    if (subtitle.isNotEmpty) ...[
-                      SizedBox(height: 2.h),
-                      InterText(
-                        text: subtitle,
-                        fontSize: 11.sp,
-                        color: AppColors.textSecondary(context),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 14.sp,
-                color: AppColors.textSecondary(context),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // v406 — _settingsTileDanger retiré : suppression du compte rendue par
-  // ProfileSecurityTab (onglet Sécurité).
-
-  void _showThemeDialog() {
-    final tc = Get.find<ThemeController>();
-    Get.dialog(
-      AlertDialog(
-        title: Text('theme_setting_title'.tr),
-        content: Obx(
-          () => RadioGroup<ThemeMode>(
-            groupValue: tc.themeMode.value,
-            onChanged: (v) {
-              if (v != null) tc.setMode(v);
-            },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                RadioListTile<ThemeMode>(
-                  title: Text('theme_light'.tr),
-                  value: ThemeMode.light,
-                ),
-                RadioListTile<ThemeMode>(
-                  title: Text('theme_dark'.tr),
-                  value: ThemeMode.dark,
-                ),
-                RadioListTile<ThemeMode>(
-                  title: Text('theme_system'.tr),
-                  value: ThemeMode.system,
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text('common_close'.tr),
-          ),
-        ],
       ),
     );
   }

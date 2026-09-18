@@ -1055,5 +1055,35 @@ router.post(
   require('../controllers/bookingController').disputeService,
 );
 
+// v565 — point 24 : remise et rendu de l'animal (contrat §7).
+//   confirm-pickup : le propriétaire confirme la récupération (aucun effet
+//                    sur le paiement).
+//   confirm-return : le propriétaire confirme le rendu → identique à
+//                    /service/confirm (libère le séquestre).
+// Les routes /service/start et /service/complete acceptent désormais aussi
+// `lat` et `lng` (position GPS horodatée du prestataire).
+router.post(
+  '/:id/handover/confirm-pickup',
+  requireAuth,
+  requireRole('owner'),
+  require('../controllers/bookingController').confirmPickup,
+);
+router.post(
+  '/:id/handover/confirm-return',
+  requireAuth,
+  requireRole('owner'),
+  require('../controllers/bookingController').confirmReturn,
+);
+
+// v565 — point 24 : détail d'une réservation (même forme qu'un élément de
+// GET /bookings/my + `handover` + `timeline`). Déclarée EN DERNIER pour ne
+// capturer aucun chemin fixe déclaré plus haut (/my, /:id/agreement, …).
+router.get(
+  '/:id',
+  requireAuth,
+  attachUserFromToken,
+  require('../controllers/bookingController').getBookingDetail,
+);
+
 module.exports = router;
 

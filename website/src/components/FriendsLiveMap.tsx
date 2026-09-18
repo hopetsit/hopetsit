@@ -23,6 +23,7 @@ import {
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useSocketEvent } from "@/lib/useSocket";
+import type { PresenceUpdate } from "@/lib/usePresence";
 import type { FriendItem } from "@/lib/api";
 
 // Hack standard Leaflet bundler-safe.
@@ -87,8 +88,15 @@ export function makeAvatarIcon(
   avatar?: string,
   isFamily?: boolean,
   isPremium?: boolean,
+  // v565 (point 10) — présence réelle : point vert / gris en bas à droite
+  // de l'avatar (rien si inconnue).
+  isOnline?: boolean | null,
 ): L.DivIcon {
   const color = haloColor(role);
+  const onlineDot =
+    isOnline === undefined || isOnline === null
+      ? ""
+      : `<div style="position:absolute;bottom:2px;right:2px;width:14px;height:14px;border-radius:50%;border:2.5px solid #fff;background:${isOnline ? "#22C55E" : "#C7C7CC"};box-shadow:0 1px 3px rgba(0,0,0,.3);"></div>`;
   // v23.1.399 — Daniel : couronne 👑 + anneau OR pour les membres Paw
   // Premium (prioritaire sur le violet famille), comme dans l'app.
   const GOLD = "#E8A00A";
@@ -122,6 +130,7 @@ export function makeAvatarIcon(
         display: flex; align-items: center; justify-content: center;
         overflow: hidden;">${inner}</div>
       ${crown}
+      ${onlineDot}
     </div>`,
     iconSize: [64, 64],
     iconAnchor: [32, 32],
@@ -136,6 +145,8 @@ export type FriendLivePosition = {
   lat: number;
   lng: number;
   at: string;
+  /** v565 — présence réelle (socket `presence:update` / lecture `isOnline`). */
+  isOnline?: boolean;
 };
 
 function FitBoundsOnChange({
@@ -331,8 +342,31 @@ export default function FriendsLiveMap({
         lat: data.lat,
         lng: data.lng,
         at: data.at || new Date().toISOString(),
+        // Quelqu'un qui diffuse sa position est connecté, sauf info contraire.
+        isOnline: prev.get(data.userId)?.isOnline ?? friend?.isOnline ?? friend?.other?.isOnline ?? true,
       });
       return next;
+    });
+  });
+
+  // v565 (point 10, contrat §6) — présence en direct sur les avatars.
+  useSocketEvent<PresenceUpdate>("presence:update", (data) => {
+    const ids = [
+      ...(data?.userId ? [String(data.userId)] : []),
+      ...(Array.isArray(data?.userIds) ? data.userIds.map(String) : []),
+    ];
+    if (ids.length === 0) return;
+    setPositions((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const id of ids) {
+        const p = next.get(id);
+        if (p && p.isOnline !== !!data.online) {
+          next.set(id, { ...p, isOnline: !!data.online });
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
     });
   });
 
@@ -436,7 +470,7 @@ export default function FriendsLiveMap({
               )}
               <Marker
                 position={[p.lat, p.lng]}
-                icon={makeAvatarIcon(p.role, p.name, p.avatar, isFamily)}
+                icon={makeAvatarIcon(p.role, p.name, p.avatar, isFamily, undefined, p.isOnline)}
                 ref={(instance) => {
                   if (instance) {
                     markerRefs.current.set(p.userId, instance);

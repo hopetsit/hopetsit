@@ -6,6 +6,7 @@ import 'package:hopetsit/controllers/task_controller.dart';
 import 'package:hopetsit/models/task_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:intl/intl.dart';
 
 class ViewTaskScreen extends StatelessWidget {
@@ -16,58 +17,41 @@ class ViewTaskScreen extends StatelessWidget {
     final TaskController controller = Get.put(TaskController());
     final ProfileController profileController = Get.put(ProfileController());
 
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
+    final accent = currentRoleAccent();
+    // v565 — sous-page modernisée (kit Profil) : états vide/chargement, FAB.
+    return ProfileSubPageScaffold(
+      title: 'view_task_title'.tr,
+      accent: accent,
+      scroll: false,
       floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primaryColor,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(60.r),
-        ),
+        backgroundColor: accent,
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18.r)),
         onPressed: profileController.navigateToAddTasks,
-        child: Icon(Icons.add, color: AppColors.whiteColor),
+        child: Icon(Icons.add_rounded, color: AppColors.whiteColor),
       ),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: AppColors.primaryColor),
-        leading: BackButton(),
-        title: PoppinsText(
-          text: 'view_task_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
-        ),
-      ),
-      body: SafeArea(
-        child: Obx(() {
-          if (controller.isFetching.value) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (controller.tasks.isEmpty) {
-            return Center(
-              child: PoppinsText(
-                text: 'view_task_empty'.tr,
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textSecondary(context),
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
-            itemCount: controller.tasks.length,
-            itemBuilder: (context, index) {
-              final task = controller.tasks[index];
-              return _buildTaskCard(task, controller);
-            },
+      body: Obx(() {
+        if (controller.isFetching.value) {
+          return Center(child: CircularProgressIndicator(color: accent));
+        }
+        if (controller.tasks.isEmpty) {
+          return ProfileEmptyState(
+            icon: Icons.task_alt_rounded,
+            title: 'view_task_empty'.tr,
+            accent: accent,
+            actionLabel: 'add_task_title'.tr,
+            onAction: profileController.navigateToAddTasks,
           );
-        }),
-      ),
+        }
+        return ListView.builder(
+          padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 96.h),
+          itemCount: controller.tasks.length,
+          itemBuilder: (context, index) {
+            final task = controller.tasks[index];
+            return _buildTaskCard(task, controller);
+          },
+        );
+      }),
     );
   }
 
@@ -94,14 +78,8 @@ class ViewTaskScreen extends StatelessWidget {
         padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
           color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(12.r),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.textPrimary(context).withValues(alpha: 0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(20.r),
+          boxShadow: AppColors.cardShadow(context),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

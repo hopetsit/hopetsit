@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/friendship_model.dart';
 import 'package:hopetsit/services/socket_service.dart';
@@ -54,6 +57,12 @@ class FriendController extends GetxController {
           debugPrint('[Friends] socket friend_request:received → refresh');
           loadRequests();
         });
+        // v565 — point 9 : une demande d'ami envoyée depuis la PawMap doit
+        // remonter PARTOUT. Ceinture et bretelles : on écoute AUSSI le flux
+        // `notification.new` (types friend_* / family_*) — on ne retire QUE
+        // notre propre handler (la cloche écoute le même event).
+        socket.off('notification.new', _onNotificationNew);
+        socket.on('notification.new', _onNotificationNew);
       }
 
       wireFriendListeners();
@@ -61,6 +70,57 @@ class FriendController extends GetxController {
     } catch (e) {
       debugPrint('[Friends] could not attach socket listeners: $e');
     }
+  }
+
+  /// v565 — handler `notification.new` (référence stable pour `off`).
+  void _onNotificationNew(dynamic data) {
+    try {
+      final map = data is Map ? data : const {};
+      final type = (map['type'] ?? '').toString().toLowerCase();
+      if (type.startsWith('friend_') || type.startsWith('family_')) {
+        refresh();
+      }
+    } catch (_) {/* payload inattendu */}
+  }
+
+  // ── v565 — point 9 : état d'une relation avec un membre (PawMap) ─────────
+  /// Demande envoyée par moi, en attente de réponse ?
+  bool hasPendingRequestTo(String userId) {
+    final id = userId.trim().toLowerCase();
+    return outgoingRequests.any((f) =>
+        f.status == 'pending' &&
+        (f.other?.id ?? '').trim().toLowerCase() == id);
+  }
+
+  /// Demande reçue de ce membre, à laquelle je n'ai pas encore répondu.
+  Friendship? incomingRequestFrom(String userId) {
+    final id = userId.trim().toLowerCase();
+    for (final f in incomingRequests) {
+      if (f.status == 'pending' &&
+          (f.other?.id ?? '').trim().toLowerCase() == id) {
+        return f;
+      }
+    }
+    return null;
+  }
+
+  /// Déjà amis (amitié acceptée) ?
+  bool isFriendWith(String userId) {
+    final id = userId.trim().toLowerCase();
+    return friends.any((f) =>
+        f.status == 'accepted' &&
+        (f.other?.id ?? '').trim().toLowerCase() == id);
+  }
+
+  /// v565 — rafraîchit la cloche / le bandeau (NotificationsController) sans
+  /// dépendre de son import (évite un couplage dur entre lots).
+  void _refreshNotificationsBell() {
+    try {
+      final ctrl = Get.isRegistered<NotificationsController>()
+          ? Get.find<NotificationsController>()
+          : null;
+      if (ctrl != null) unawaited(ctrl.refreshAll());
+    } catch (_) {/* cloche non montée */}
   }
 
   @override
@@ -237,6 +297,7 @@ class FriendController extends GetxController {
         requiresAuth: true,
       );
       await loadRequests();
+      _refreshNotificationsBell(); // v565 — point 9
       return '';
     } catch (e) {
       debugPrint('[Friends] sendRequest error: $e');

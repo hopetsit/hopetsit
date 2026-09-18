@@ -188,6 +188,156 @@ const isUserOnline = async (userId) => {
   return false;
 };
 
+// ─── v565 §6 — présence « en ligne » ────────────────────────────────────────
+// Un humain = jusqu'à 3 docs (owner/sitter/walker) ; le socket porte l'id du
+// rôle de SA session. Pour répondre « cette personne est-elle en ligne ? »
+// on construit UN index (ids des sockets connectés + e-mails/oldId de ces
+// docs), mis en cache 10 s, puis chaque doc lu (liste de conversations, amis,
+// membres proches) est testé en O(1) — au lieu de 3 fetchSockets par ligne.
+const ROLE_KEYS = ['owner', 'sitter', 'walker'];
+const socketUserId = (s) => {
+  const d = s && s.data;
+  if (d?.user?.id) return String(d.user.id);
+  if (d?.userRoom?.userId) return String(d.userRoom.userId);
+  if (d?.mapIdentity?.userId) return String(d.mapIdentity.userId);
+  return null;
+};
+
+/** Ids (String) de tous les utilisateurs ayant au moins un socket connecté. */
+const getOnlineUserIds = async () => {
+  const set = new Set();
+  if (!ioInstance) return set;
+  try {
+    const sockets = await ioInstance.fetchSockets();
+    for (const s of sockets) {
+      const id = socketUserId(s);
+      if (id) set.add(id);
+    }
+  } catch (_) { /* best-effort */ }
+  return set;
+};
+
+/** Nombre de sockets des ids donnés (3 rooms de rôle chacun), hors `excludeSocketId`. */
+const countSocketsForIds = async (ids, excludeSocketId = null) => {
+  if (!ioInstance || !ids || !ids.length) return 0;
+  try {
+    const rooms = [];
+    for (const id of ids) for (const r of ROLE_KEYS) rooms.push(userRoom(r, id));
+    const sockets = await ioInstance.in(rooms).fetchSockets();
+    const idSet = new Set(ids.map(String));
+    let n = 0;
+    for (const s of sockets) {
+      if (excludeSocketId && s.id === excludeSocketId) continue;
+      n += 1;
+    }
+    // Sockets connectés mais pas encore dans une room (juste après le handshake).
+    const all = await ioInstance.fetchSockets();
+    for (const s of all) {
+      if (excludeSocketId && s.id === excludeSocketId) continue;
+      const uid = socketUserId(s);
+      if (uid && idSet.has(uid)) {
+        const inRoom = ROLE_KEYS.some((r) => s.rooms && s.rooms.has && s.rooms.has(userRoom(r, uid)));
+        if (!inRoom) n += 1;
+      }
+    }
+    return n;
+  } catch (_) {
+    return 0;
+  }
+};
+
+/** Étend une liste d'ids de rôle à TOUS les ids de rôle des mêmes personnes. */
+const expandIdentityIds = async (ids) => {
+  const out = new Set((ids || []).map(String).filter(Boolean));
+  if (!out.size) return out;
+  try {
+    const Owner = require('../models/Owner');
+    const Sitter = require('../models/Sitter');
+    const Walker = require('../models/Walker');
+    const arr = [...out];
+    const docs = (await Promise.all([Owner, Sitter, Walker].map((M) =>
+      M.find({ _id: { $in: arr } }).select('email oldId').lean(),
+    ))).flat();
+    const emails = [...new Set(docs.map((d) => d.email).filter(Boolean))];
+    const oldIds = [...new Set(docs.map((d) => d.oldId).filter((v) => v != null).map(String))];
+    const or = [];
+    if (emails.length) or.push({ email: { $in: emails } });
+    if (oldIds.length) or.push({ oldId: { $in: oldIds } });
+    if (or.length) {
+      const sib = (await Promise.all([Owner, Sitter, Walker].map((M) =>
+        M.find({ $or: or }).select('_id').lean(),
+      ))).flat();
+      for (const d of sib) out.add(String(d._id));
+    }
+  } catch (_) { /* best-effort */ }
+  return out;
+};
+
+let _presenceCache = { at: 0, index: null };
+const PRESENCE_CACHE_MS = 10 * 1000;
+/** Index { ids, emails, oldIds } des personnes en ligne (cache 10 s). */
+const buildPresenceIndex = async ({ fresh = false } = {}) => {
+  const now = Date.now();
+  if (!fresh && _presenceCache.index && now - _presenceCache.at < PRESENCE_CACHE_MS) {
+    return _presenceCache.index;
+  }
+  const ids = await getOnlineUserIds();
+  const index = { ids, emails: new Set(), oldIds: new Set() };
+  if (ids.size) {
+    try {
+      const Owner = require('../models/Owner');
+      const Sitter = require('../models/Sitter');
+      const Walker = require('../models/Walker');
+      const arr = [...ids];
+      const docs = (await Promise.all([Owner, Sitter, Walker].map((M) =>
+        M.find({ _id: { $in: arr } }).select('email oldId').lean(),
+      ))).flat();
+      for (const d of docs) {
+        if (d.email) index.emails.add(String(d.email).toLowerCase());
+        if (d.oldId != null) index.oldIds.add(String(d.oldId));
+      }
+    } catch (_) { /* best-effort */ }
+  }
+  _presenceCache = { at: now, index };
+  return index;
+};
+const invalidatePresenceIndex = () => { _presenceCache = { at: 0, index: null }; };
+
+/** Vrai si la PERSONNE derrière ce doc ({ _id|id, email, oldId }) est en ligne. */
+const isIdentityOnline = (doc, index) => {
+  if (!doc || !index) return false;
+  const id = doc._id ? String(doc._id) : (doc.id ? String(doc.id) : null);
+  if (id && index.ids.has(id)) return true;
+  if (doc.email && index.emails.has(String(doc.email).toLowerCase())) return true;
+  if (doc.oldId != null && index.oldIds.has(String(doc.oldId))) return true;
+  return false;
+};
+
+/**
+ * Émet `presence:update { userId, userIds, online, at }` aux destinataires
+ * (ids de rôle → 3 rooms chacun). `userId` = id du socket, `userIds` = tous
+ * les ids de rôle de la personne (pour que le client matche l'id qu'il connaît).
+ */
+const emitPresenceUpdate = ({ userId, userIds, online, at, recipients }) => {
+  if (!ioInstance) return 0;
+  const payload = {
+    userId: String(userId),
+    userIds: [...new Set((userIds || [userId]).map(String))],
+    online: !!online,
+    at: at || new Date().toISOString(),
+  };
+  const seen = new Set();
+  let n = 0;
+  for (const rid of recipients || []) {
+    const id = String(rid);
+    if (!id || seen.has(id) || payload.userIds.includes(id)) continue;
+    seen.add(id);
+    for (const r of ROLE_KEYS) ioInstance.to(userRoom(r, id)).emit('presence:update', payload);
+    n += 1;
+  }
+  return n;
+};
+
 module.exports = {
   setSocketServer,
   getSocketServer,
@@ -198,5 +348,13 @@ module.exports = {
   isUserOnline,
   userRoom,
   walkRoom,
+  // v565 §6
+  getOnlineUserIds,
+  countSocketsForIds,
+  expandIdentityIds,
+  buildPresenceIndex,
+  invalidatePresenceIndex,
+  isIdentityOnline,
+  emitPresenceUpdate,
 };
 

@@ -213,6 +213,27 @@ const bookingSchema = new mongoose.Schema(
       publicId: { type: String, default: '' },
       at: { type: Date, default: null },
     },
+    // v565 — point 24 : REMISE ET RENDU DE L'ANIMAL (contrat §7).
+    // Chaque date est posée UNE fois (null = pas encore arrivé) ; le
+    // planificateur handoverScheduler s'en sert comme marqueur d'idempotence
+    // (rappels, retards, auto-confirmations) — jamais deux notifications
+    // pour le même jalon.
+    handover: {
+      pickupReminderAt: { type: Date, default: null },      // rappel T-30 min envoyé
+      pickupOverdueAt: { type: Date, default: null },       // relance H+1 h sans récupération
+      pickupProviderAt: { type: Date, default: null },      // prestataire : « animal récupéré »
+      pickupOwnerConfirmedAt: { type: Date, default: null },// propriétaire a confirmé la remise
+      pickupAutoConfirmedAt: { type: Date, default: null }, // confirmation automatique (+2 h)
+      returnReminderAt: { type: Date, default: null },      // rappel T-30 min avant la fin
+      returnProviderAt: { type: Date, default: null },      // prestataire : « animal rendu »
+      returnOwnerConfirmedAt: { type: Date, default: null },// propriétaire a confirmé le rendu
+      returnAutoConfirmedAt: { type: Date, default: null }, // confirmation automatique (+2 h, avec preuve)
+      pickupLat: { type: Number, default: null },
+      pickupLng: { type: Number, default: null },
+      returnLat: { type: Number, default: null },
+      returnLng: { type: Number, default: null },
+      stillActiveNoticeAt: { type: Date, default: null },
+    },
     // Arbitrage d'un litige par l'administrateur (cf. resolveDispute).
     disputeResolvedAt: { type: Date, default: null },
     disputeResolution: {

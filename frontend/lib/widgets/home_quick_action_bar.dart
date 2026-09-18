@@ -45,7 +45,10 @@ import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart' as snack;
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
+import 'package:hopetsit/views/booking/handover/handover_action_sheet.dart';
+import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/invoices/invoices_screen.dart';
 // v23.1.327 — écrans de chat pour le bouton "Discuter" du sheet Paiement.
@@ -951,8 +954,17 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   }
 
   void _onNeutralTap() {
-    // En l'absence d'action urgente, on emmène vers l'historique des bookings
-    // (l'écran le plus utile pour comprendre l'état général).
+    // v565 (point 22) — le bandeau dit « découvre la PawMap » : il ouvre donc
+    // l'ONGLET PawMap (menu conservé), plus l'historique des réservations.
+    // Repli : si le wrapper de navigation n'est pas monté (écran poussé hors
+    // onglets), on garde l'ancien comportement.
+    if (navWrapperMounted.value) {
+      try {
+        Get.until((route) => route.isFirst);
+      } catch (_) {/* pile déjà à la racine */}
+      requestedTab.value = kPawMapTabIndex;
+      return;
+    }
     Get.to(() => const BookingsHistoryScreen());
   }
 
@@ -1114,6 +1126,12 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                 role: widget.role,
                 isPaid: (b.paymentStatus ?? '').toLowerCase() == 'paid',
                 busy: false,
+                booking: b,
+                accent: accent,
+                onConfirmPickup: () async {
+                  Navigator.pop(ctx);
+                  await _svcConfirmPickup(b);
+                },
                 onStart: () async {
                   Navigator.pop(ctx);
                   await _svcStart(b);
@@ -1142,17 +1160,32 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   // snackbars que les écrans Réservations, puis refresh → le bandeau passe
   // automatiquement à l'étape suivante.
   Future<void> _svcStart(BookingModel b) async {
+    // v565 (point 24) — même feuille de preuve que les écrans Réservations :
+    // photo facultative, code de remise, position GPS (lat/lng).
+    final proof = await HandoverActionSheet.show(
+        isPickup: true, accent: _roleAccent());
+    if (proof == null) return;
     try {
       if (widget.role == 'walker') {
         final repo = Get.isRegistered<WalkerRepository>()
             ? Get.find<WalkerRepository>()
             : WalkerRepository(Get.find<ApiClient>());
-        await repo.startService(bookingId: b.id);
+        await repo.startService(
+            bookingId: b.id,
+            photo: proof.photo,
+            code: proof.code,
+            lat: proof.lat,
+            lng: proof.lng);
       } else {
         final repo = Get.isRegistered<SitterRepository>()
             ? Get.find<SitterRepository>()
             : SitterRepository(Get.find<ApiClient>());
-        await repo.startService(bookingId: b.id);
+        await repo.startService(
+            bookingId: b.id,
+            photo: proof.photo,
+            code: proof.code,
+            lat: proof.lat,
+            lng: proof.lng);
       }
       snack.CustomSnackbar.showSuccess(
         title: 'service_started_snack_title'.tr,
@@ -1168,21 +1201,57 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   }
 
   Future<void> _svcComplete(BookingModel b) async {
+    final proof = await HandoverActionSheet.show(
+        isPickup: false, accent: _roleAccent());
+    if (proof == null) return;
     try {
       if (widget.role == 'walker') {
         final repo = Get.isRegistered<WalkerRepository>()
             ? Get.find<WalkerRepository>()
             : WalkerRepository(Get.find<ApiClient>());
-        await repo.completeService(bookingId: b.id);
+        await repo.completeService(
+            bookingId: b.id, photo: proof.photo, lat: proof.lat, lng: proof.lng);
       } else {
         final repo = Get.isRegistered<SitterRepository>()
             ? Get.find<SitterRepository>()
             : SitterRepository(Get.find<ApiClient>());
-        await repo.completeService(bookingId: b.id);
+        await repo.completeService(
+            bookingId: b.id, photo: proof.photo, lat: proof.lat, lng: proof.lng);
       }
       snack.CustomSnackbar.showSuccess(
         title: 'service_completed_snack_title'.tr,
         message: 'service_completed_snack_msg'.tr,
+      );
+    } catch (e) {
+      snack.CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    }
+    _refreshBookings();
+  }
+
+  Color _roleAccent() {
+    switch (widget.role) {
+      case 'walker':
+        return const Color(0xFF16A34A);
+      case 'sitter':
+        return const Color(0xFF2563EB);
+      default:
+        return const Color(0xFFC92A12);
+    }
+  }
+
+  // v565 (point 24) — owner : confirmer la récupération depuis le bandeau.
+  Future<void> _svcConfirmPickup(BookingModel b) async {
+    try {
+      final repo = Get.isRegistered<OwnerRepository>()
+          ? Get.find<OwnerRepository>()
+          : OwnerRepository(Get.find<ApiClient>());
+      await repo.confirmPickup(bookingId: b.id);
+      snack.CustomSnackbar.showSuccess(
+        title: 'v565_ho_pickup_confirmed_title'.tr,
+        message: 'v565_ho_pickup_confirmed_msg'.tr,
       );
     } catch (e) {
       snack.CustomSnackbar.showError(
@@ -1198,7 +1267,8 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       final repo = Get.isRegistered<OwnerRepository>()
           ? Get.find<OwnerRepository>()
           : OwnerRepository(Get.find<ApiClient>());
-      await repo.confirmService(bookingId: b.id);
+      // v565 — « Confirmer le rendu » (repli /service/confirm côté dépôt).
+      await repo.confirmReturn(bookingId: b.id);
       snack.CustomSnackbar.showSuccess(
         title: 'service_confirmed_snack_title'.tr,
         message: 'service_confirmed_snack_msg'.tr,
@@ -2452,6 +2522,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       await _acceptFamilyInvitation(a);
       return;
     }
+    // v565 (point 25) — téléphone + adresse obligatoires avant d'accepter.
+    if (!mounted) return;
+    if (!await ensureContactInfo(context, role: widget.role)) return;
     // v23.1 — bug #3 fix : really call POST /bookings/:id/respond instead of
     // navigating to the details screen. Same endpoint works for sitter AND
     // walker (no role middleware on the route).

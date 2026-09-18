@@ -13,6 +13,7 @@ import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart' show CustomButton;
 import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/views/profile/widgets/profile_field_widgets.dart';
+import 'package:hopetsit/views/profile/widgets/email_change_field.dart';
 import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart';
 import 'package:hopetsit/utils/pet_species_color.dart';
 
@@ -159,22 +160,11 @@ class EditSitterProfileScreen extends StatelessWidget {
                     SizedBox(height: 20.h),
 
                     // Email Field
-                    CustomTextField(
-                      labelText: 'label_email'.tr,
-                      hintText: 'hint_email'.tr,
+                    // v565 — point 2 : e-mail modifiable via la feuille « Changer
+                    // mon e-mail » (code envoyé à la nouvelle adresse).
+                    EmailChangeField(
                       controller: controller.emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      enabled: false,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'error_email_required'.tr;
-                        }
-                        if (!GetUtils.isEmail(value.trim())) {
-                          return 'error_email_invalid'.tr;
-                        }
-                        return null;
-                      },
+                      accent: AppColors.sitterAccent,
                     ),
 
                     SizedBox(height: 20.h),
@@ -193,9 +183,9 @@ class EditSitterProfileScreen extends StatelessWidget {
                         FormField<String>(
                           validator: (_) {
                             final v = controller.phoneController.text.trim();
-                            if (v.isEmpty) {
-                              return 'error_phone_required'.tr;
-                            }
+                            // v565 — point 25 : téléphone facultatif ici (demandé
+                            // au moment utile via ensureContactInfo).
+                            if (v.isEmpty) return null;
                             final allowedChars = RegExp(r'^\+?[0-9\s\-\(\)]+$');
                             if (!allowedChars.hasMatch(v)) {
                               return 'error_phone_invalid'.tr;

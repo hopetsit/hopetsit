@@ -302,19 +302,101 @@ const createPost = async (req, res) => {
         const RecipientModel = isWalkingPost ? Walker : Sitter;
         const recipientRole = isWalkingPost ? 'walker' : 'sitter';
 
-        const filter = {};
+        // v565 — point 30 : « les prestataires PROCHES reçoivent la notif ».
+        // AVANT : égalité stricte sur la ville (« Málaga » ≠ « malaga » ≠
+        // « Malaga (Andalucía) » → 0 destinataire) et, sans ville, les 50
+        // premiers prestataires DU MONDE étaient notifiés ; le rayon
+        // géographique n'était jamais utilisé.
+        // MAINTENANT : (a) même ville, insensible à la casse, aux accents et
+        // aux compléments entre parenthèses / après virgule ; (b) ET/OU dans
+        // le rayon de couverture du prestataire (coverageRadiusKm, plancher
+        // 10 km, plafond 100 km) autour des coordonnées de l'annonce ;
+        // sans ville ni coordonnées → personne (plus d'envoi mondial).
         const cityKey = postPayload.location && postPayload.location.city;
+        const postLat = Number(postPayload.location && postPayload.location.lat);
+        const postLng = Number(postPayload.location && postPayload.location.lng);
+        const hasPostCoords =
+          Number.isFinite(postLat) && Number.isFinite(postLng) &&
+          !(postLat === 0 && postLng === 0);
+
+        const byId = new Map();
+        const addRecipients = (docs) => {
+          for (const d of docs || []) {
+            if (d && d._id) byId.set(d._id.toString(), d);
+          }
+        };
+
         if (cityKey) {
-          filter['$or'] = [
-            { 'location.city': cityKey },
-            { city: cityKey },
-          ];
+          const cityCore = String(cityKey).split(/[(,/]/)[0].trim();
+          if (cityCore) {
+            // Regex insensible aux accents : chaque lettre de base accepte
+            // ses variantes accentuées (« malaga » ↔ « Málaga »).
+            const ACCENTS = {
+              a: 'aàáâãäåą', c: 'cçćč', e: 'eèéêëęě', i: 'iìíîïı', l: 'lł',
+              n: 'nñńň', o: 'oòóôõöøő', s: 'sśšş', u: 'uùúûüůű', y: 'yýÿ', z: 'zźżž',
+            };
+            const base = cityCore
+              .normalize('NFD').replace(/[̀-ͯ]/g, '')
+              .toLowerCase();
+            const pattern = base
+              .split('')
+              .map((ch) => {
+                if (ACCENTS[ch]) return `[${ACCENTS[ch]}${ACCENTS[ch].toUpperCase()}]`;
+                if (/\s/.test(ch)) return '\\s*';
+                return ch.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
+              })
+              .join('');
+            const rx = new RegExp(pattern, 'i');
+            const cityDocs = await RecipientModel.find({
+              $or: [
+                { 'location.city': rx },
+                { city: rx },
+                { coverageCity: rx },
+              ],
+            })
+              .select('_id oldId')
+              .limit(100)
+              .lean();
+            addRecipients(cityDocs);
+          }
         }
 
-        const recipients = await RecipientModel.find(filter)
-          .select('_id oldId')
-          .limit(50)
-          .lean();
+        if (hasPostCoords) {
+          try {
+            const MAX_RADIUS_KM = 100;
+            const geoDocs = await RecipientModel.find({
+              location: {
+                $geoWithin: {
+                  $centerSphere: [[postLng, postLat], MAX_RADIUS_KM / 6371],
+                },
+              },
+            })
+              .select('_id oldId coverageRadiusKm location.coordinates')
+              .limit(300)
+              .lean();
+            const toRad = (x) => (x * Math.PI) / 180;
+            for (const d of geoDocs) {
+              const c = d.location && d.location.coordinates;
+              if (!Array.isArray(c) || c.length < 2) continue;
+              const dLat = toRad(Number(c[1]) - postLat);
+              const dLng = toRad(Number(c[0]) - postLng);
+              const a =
+                Math.sin(dLat / 2) ** 2 +
+                Math.cos(toRad(postLat)) * Math.cos(toRad(Number(c[1]))) *
+                Math.sin(dLng / 2) ** 2;
+              const km = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+              const radius = Math.min(
+                MAX_RADIUS_KM,
+                Math.max(10, Number(d.coverageRadiusKm) || 0),
+              );
+              if (km <= radius) addRecipients([d]);
+            }
+          } catch (geoErr) {
+            logger.warn(`[createPost] geo recipients failed (non-blocking): ${geoErr?.message || geoErr}`);
+          }
+        }
+
+        const recipients = Array.from(byId.values()).slice(0, 150);
 
         // v448 — AUDIT : ne PAS s'auto-notifier. 1 compte = 3 profils (owner +
         // sitter + walker) ; si l'owner qui publie est aussi prestataire dans la

@@ -41,6 +41,11 @@ class ProfileModel {
   final List<String> availableDays;
   final int coverageRadiusKm;
   final int? responseTimeMinutes;
+  // v565 — point 12 : pays du compte (ISO 3166-1 alpha-2, ex. « FR ») et
+  // indicatif téléphonique stocké séparément du numéro (ex. « +33 »). Le
+  // serveur joint `countryCode + ' ' + mobile` au partage de téléphone.
+  final String country;
+  final String countryCode;
 
   ProfileModel({
     required this.id,
@@ -81,11 +86,19 @@ class ProfileModel {
     this.availableDays = const [],
     this.coverageRadiusKm = 20,
     this.responseTimeMinutes,
+    this.country = '',
+    this.countryCode = '',
   });
+
+  /// v565 — vrai si le téléphone ET l'adresse sont renseignés (porte de
+  /// complétion « au bon moment », point 25).
+  bool get hasContactInfo => mobile.trim().isNotEmpty && address.trim().isNotEmpty;
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
     return ProfileModel(
-      id: json['id'] as String? ?? '',
+      id: json['id'] as String? ?? json['_id']?.toString() ?? '',
+      country: (json['country'] ?? '').toString().toUpperCase(),
+      countryCode: (json['countryCode'] ?? '').toString(),
       name: json['name'] as String? ?? '',
       email: json['email'] as String? ?? '',
       mobile: json['mobile'] as String? ?? '',
@@ -198,6 +211,8 @@ class ProfileModel {
       'availableDays': availableDays,
       'coverageRadiusKm': coverageRadiusKm,
       if (responseTimeMinutes != null) 'responseTimeMinutes': responseTimeMinutes,
+      'country': country,
+      'countryCode': countryCode,
     };
   }
 }

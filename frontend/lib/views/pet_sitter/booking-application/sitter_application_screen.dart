@@ -16,6 +16,7 @@ import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/utils/string_utils.dart';
 import 'package:hopetsit/widgets/chat_access_upsell_helper.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
@@ -29,6 +30,19 @@ class SitterApplicationScreen extends StatefulWidget {
 }
 
 class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
+  /// v565 — rôle courant (sitter | walker) pour la porte de coordonnées.
+  String get _viewerRole {
+    try {
+      final r = (Get.isRegistered<AuthController>()
+              ? Get.find<AuthController>().userRole.value
+              : null) ??
+          'sitter';
+      return r.toLowerCase() == 'walker' ? 'walker' : 'sitter';
+    } catch (_) {
+      return 'sitter';
+    }
+  }
+
   /// Mirrors the owner-side ApplicationScreen filter: 'all' | 'pending' |
   /// 'accepted' | 'paid' | 'cancelled'.
   String _selectedFilter = 'all';
@@ -465,6 +479,11 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
                           }
                         : null,
                     onAccept: () async {
+                      // v565 (point 25) — téléphone + adresse obligatoires
+                      // avant d'accepter une réservation.
+                      if (!await ensureContactInfo(context, role: _viewerRole)) {
+                        return;
+                      }
                       final result = await _sitterApplicationController
                           .acceptApplication(booking.id);
                       if (result['success'] == true) {
@@ -530,6 +549,10 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
                   // list). Without this a fast double-tap raised an API 500
                   // / 409 wrapped as a generic error and confused the user.
                   if (booking.status.toLowerCase().trim() != 'pending') {
+                    return;
+                  }
+                  // v565 (point 25) — coordonnées obligatoires avant d'accepter.
+                  if (!await ensureContactInfo(context, role: _viewerRole)) {
                     return;
                   }
                   final result = await _sitterApplicationController

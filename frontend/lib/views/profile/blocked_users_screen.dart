@@ -8,6 +8,7 @@ import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 
 class BlockedUser {
   final String id; // Block ID
@@ -55,96 +56,49 @@ class BlockedUsersScreen extends StatelessWidget {
     // Load blocked users on screen open
     controller.loadBlockedUsers();
 
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: AppColors.primaryColor),
-        leading: BackButton(),
-        title: PoppinsText(
-          text: 'blocked_users_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
-        ),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(20.w),
-                child: Obx(() {
-                  if (controller.isLoadingBlockedUsers.value) {
-                    return Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(40.w),
-                        child: CircularProgressIndicator(
-                          color: AppColors.primaryColor,
-                        ),
-                      ),
-                    );
-                  }
-
-                  if (controller.blockedUsers.isEmpty) {
-                    return _buildEmptyState();
-                  }
-
-                  return Column(
-                    children: controller.blockedUsers
-                        .map(
-                          (user) =>
-                              _buildBlockedUserCard(context, user, controller),
-                        )
-                        .toList(),
-                  );
-                }),
-              ),
-            ),
-
-            // Save Button at bottom - Commented out
-            // Padding(
-            //   padding: EdgeInsets.all(20.w),
-            //   child: CustomButton(
-            //     title: 'Save',
-            //     onTap: controller.saveBlockedUsers,
-            //     bgColor: AppColors.primaryColor,
-            //     textColor: AppColors.whiteColor,
-            //     height: 48.h,
-            //     radius: 48.r,
-            //   ),
-            // ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(height: 100.h),
-          Icon(Icons.block, size: 64.sp, color: AppColors.greyColor),
-          SizedBox(height: 16.h),
-          InterText(
-            text: 'blocked_users_empty_title'.tr,
-            fontSize: 16.sp,
-            color: AppColors.greyColor,
-            fontWeight: FontWeight.w500,
-          ),
-          SizedBox(height: 8.h),
-          InterText(
-            text: 'blocked_users_empty_message'.tr,
-            fontSize: 14.sp,
-            color: AppColors.grey500Color,
-          ),
-        ],
-      ),
+    // v565 — sous-page modernisée (kit Profil) : accent du rôle, états
+    // chargement/vide, tirer pour rafraîchir, cartes groupées.
+    final accent = userType == 'pet_sitter'
+        ? profileAccentFor('sitter')
+        : (userType == 'pet_walker' ? profileAccentFor('walker') : currentRoleAccent());
+    return ProfileSubPageScaffold(
+      title: 'blocked_users_title'.tr,
+      accent: accent,
+      scroll: false,
+      body: Obx(() {
+        if (controller.isLoadingBlockedUsers.value && controller.blockedUsers.isEmpty) {
+          return Center(child: CircularProgressIndicator(color: accent));
+        }
+        return RefreshIndicator(
+          color: accent,
+          onRefresh: controller.loadBlockedUsers,
+          child: controller.blockedUsers.isEmpty
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    SizedBox(height: 60.h),
+                    ProfileEmptyState(
+                      icon: Icons.block_rounded,
+                      title: 'blocked_users_empty_title'.tr,
+                      message: 'blocked_users_empty_message'.tr,
+                      accent: accent,
+                    ),
+                  ],
+                )
+              : ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 28.h),
+                  children: [
+                    ProfileGroupCard(
+                      children: [
+                        for (final user in controller.blockedUsers)
+                          _buildBlockedUserCard(context, user, controller, accent),
+                      ],
+                    ),
+                  ],
+                ),
+        );
+      }),
     );
   }
 
@@ -152,15 +106,10 @@ class BlockedUsersScreen extends StatelessWidget {
     BuildContext context,
     BlockedUser user,
     ProfileController controller,
+    Color accent,
   ) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 12.h),
-      padding: EdgeInsets.all(10.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(10.r),
-        boxShadow: AppColors.cardShadow(context),
-      ),
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
       child: Row(
         children: [
           // Profile Picture
@@ -179,9 +128,7 @@ class BlockedUsersScreen extends StatelessWidget {
                       child: Center(
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.primaryColor,
-                          ),
+                          valueColor: AlwaysStoppedAnimation<Color>(accent),
                         ),
                       ),
                     ),
@@ -236,17 +183,20 @@ class BlockedUsersScreen extends StatelessWidget {
           ),
 
           // Unblock Button
-          GestureDetector(
-            onTap: () =>
+          TextButton(
+            onPressed: () =>
                 controller.showUnblockUserDialog(context, user.id, user.name),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-              child: PoppinsText(
-                text: 'blocked_users_unblock_button'.tr,
-                fontSize: 12.sp,
-                color: AppColors.primaryColor,
-                fontWeight: FontWeight.w400,
-              ),
+            style: TextButton.styleFrom(
+              backgroundColor: accent.withValues(alpha: 0.12),
+              foregroundColor: accent,
+              padding: EdgeInsets.symmetric(horizontal: 12.w),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+            ),
+            child: PoppinsText(
+              text: 'blocked_users_unblock_button'.tr,
+              fontSize: 12.sp,
+              color: accent,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],

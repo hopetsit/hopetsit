@@ -27,31 +27,66 @@ const router = express.Router();
  * Auth-protected so only logged-in users can trigger it on their own
  * account ; no admin role needed.
  */
+// v565 — Daniel : « toutes les notifications Apple ne marchent pas » → test type par
+// type depuis l'app (Profil › Aide › Tester mes notifications). Le corps accepte
+// `type` (n'importe quelle clé du catalogue locales/*/notifications.json) ; les
+// variables de gabarit reçoivent des valeurs d'exemple. Limité à 20 tests / 10 min
+// par utilisateur (chaque test envoie un push + un e-mail au compte lui-même).
+const TEST_SAMPLE_DATA = {
+  senderName: 'HoPetSit', ownerName: 'Camille', sitterName: 'Alex', walkerName: 'Sam',
+  providerName: 'Alex', petName: 'Rex', name: 'Camille', preview: 'Ceci est un test.',
+  serviceType: 'pet_sitting', city: 'Paris', amount: '24,00', currency: 'EUR', total: '24,00',
+  price: '24,00', date: new Date().toISOString().slice(0, 10), time: '10:00', duration: '30',
+  rating: '5', minutes: '30', hours: '4', reason: 'test', plan: 'PawPremium', tier: 'bronze',
+  requesterName: 'Camille', friendName: 'Alex', inviterName: 'Camille', memberName: 'Alex',
+  code: '1234', count: '1',
+};
+const _testFireHits = new Map();
 router.post('/test-fire', requireAuth, async (req, res) => {
   const userId = req.user?.id;
   const role = req.user?.role;
   if (!userId || !role) {
     return res.status(401).json({ error: 'Auth required.' });
   }
-  logger.info(`[notif.test-fire] requested by ${role}:${userId}`);
+  const key = `${role}:${userId}`;
+  const now = Date.now();
+  const hits = (_testFireHits.get(key) || []).filter((t) => now - t < 10 * 60 * 1000);
+  if (hits.length >= 20) {
+    return res.status(429).json({ error: 'Trop de tests : réessaie dans 10 minutes.' });
+  }
+  hits.push(now);
+  _testFireHits.set(key, hits);
+  const requested = String(req.body?.type || 'NEW_MESSAGE').trim();
+  logger.info(`[notif.test-fire] requested by ${key} type=${requested}`);
   try {
-    // We use NEW_MESSAGE template because it exists for all 3 roles
-    // and all 6 locales — guaranteed renderable.
     await sendNotification({
       userId,
       role,
-      type: 'NEW_MESSAGE',
+      type: requested,
       data: {
-        senderName: 'HoPetSit Test',
-        preview: 'Test notification from /notifications/test-fire',
+        ...TEST_SAMPLE_DATA,
         conversationId: 'debug',
         messageId: 'debug',
+        isTest: '1',
       },
       actor: { role: 'system', id: null },
     });
-    return res.json({ ok: true, message: 'Notification fired. Check Render logs for [notif.*] lines and your device for the push/email.' });
+    return res.json({ ok: true, type: requested, message: 'Notification fired. Check Render logs for [notif.*] lines and your device for the push/email.' });
   } catch (e) {
     logger.error(`[notif.test-fire] failed : ${e?.message || e}`);
+    return res.status(500).json({ error: e?.message || String(e) });
+  }
+});
+
+// v565 — GET /notifications/test-types : les clés du catalogue (langue fr = référence).
+router.get('/test-types', requireAuth, (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const file = path.join(__dirname, '..', 'locales', 'fr', 'notifications.json');
+    const keys = Object.keys(JSON.parse(fs.readFileSync(file, 'utf8') || '{}')).sort();
+    return res.json({ types: keys });
+  } catch (e) {
     return res.status(500).json({ error: e?.message || String(e) });
   }
 });

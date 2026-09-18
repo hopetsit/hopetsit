@@ -23,6 +23,39 @@ const ownerSchema = new mongoose.Schema(
     mobile: { type: String, default: '' },
     countryCode: { type: String, default: '' }, // e.g. "+1", "+44"
     country: { type: String, default: '', uppercase: true, trim: true }, // ISO 3166-1 alpha-2, e.g. "FR"
+    // v565 — ville du compte (point 1). AVANT : la ville n'existait que dans
+    // `location.city`, or les hooks retirent `location` entier dès que
+    // [lng, lat] manque (index 2dsphere) → la ville saisie à l'inscription
+    // sans GPS était perdue (« ? » dans l'admin). Champ plat, conservé par les
+    // hooks et synchronisé sur les 3 profils de la personne.
+    city: { type: String, default: '', trim: true },
+    // v565 §6 — présence : horodatage de la dernière déconnexion socket.
+    lastSeenAt: { type: Date, default: null },
+    // v565 §2 — préférences de notification (son + catégories), synchronisées
+    // sur les 3 docs de la personne. Défauts appliqués côté route si absent.
+    notificationPrefs: {
+      sound: {
+        type: String,
+        enum: ['default', 'bark', 'meow', 'tweet', 'vibrate', 'silent'],
+        default: 'default',
+      },
+      categories: {
+        messages: { type: Boolean, default: true },
+        bookings: { type: Boolean, default: true },
+        payments: { type: Boolean, default: true },
+        friends: { type: Boolean, default: true },
+        pawmap: { type: Boolean, default: true },
+        live: { type: Boolean, default: true },
+        reviews: { type: Boolean, default: true },
+        subscriptions: { type: Boolean, default: true },
+      },
+    },
+    // v565 §3 — changement d'e-mail par l'utilisateur : nouvelle adresse en
+    // attente + code haché (24 h) + horodatage du dernier envoi (1 / 2 min).
+    pendingEmail: { type: String, default: '', lowercase: true, trim: true },
+    pendingEmailCodeHash: { type: String, default: '', select: false }, // jamais renvoyé par sanitizeUser
+    pendingEmailExpiresAt: { type: Date, default: null },
+    pendingEmailSentAt: { type: Date, default: null },
     password: { type: String, required: true, minlength: 8 },
     language: { type: String, default: '' },
     // v23.1.348 — Daniel : 'la langue doit suivre le système dès l'installation'.
@@ -59,6 +92,12 @@ const ownerSchema = new mongoose.Schema(
     authProvider: { type: String, enum: ['password', 'google', 'apple'], default: 'password' },
     // Firebase Cloud Messaging registration tokens (one per device). Deduplicated via $addToSet.
     fcmTokens: { type: [String], default: [] },
+    // v565 — plateforme de chaque jeton (diagnostic « notifications Apple ») :
+    // renseignée par POST /users/fcm-token { token, platform }.
+    fcmDevices: {
+      type: [{ token: { type: String, trim: true }, platform: { type: String, default: '' }, at: { type: Date, default: Date.now } }],
+      default: [],
+    },
     // Coin Boost — profile boosting system
     boostExpiry: { type: Date, default: null },
     boostTier: { type: String, enum: [null, 'bronze', 'silver', 'gold', 'platinum'], default: null },
@@ -210,6 +249,8 @@ ownerSchema.pre('save', function stripInvalidLocation(next) {
     coords[1] >= -90 &&
     coords[1] <= 90;
   if (!valid) {
+    // v565 — on garde la ville avant de jeter l'objet géo.
+    if (this.location.city && !this.city) this.city = String(this.location.city).trim();
     this.location = undefined;
   }
   next();
@@ -232,9 +273,13 @@ ownerSchema.pre('validate', function sanitizeLocation(next) {
       typeof c[0] === 'number' && Number.isFinite(c[0]) &&
       typeof c[1] === 'number' && Number.isFinite(c[1]);
     if (!valid) {
+      // v565 — ville conservée dans le champ plat `city` (point 1).
+      if (loc.city && !this.city) this.city = String(loc.city).trim();
       this.location = undefined;
     }
   }
+  // v565 — ville plate alignée sur location.city quand elle est vide.
+  if (this.location && this.location.city && !this.city) this.city = String(this.location.city).trim();
   // Idem pour mapBoostLocation (PawSpot custom).
   const mloc = this.mapBoostLocation;
   if (mloc) {

@@ -14,7 +14,7 @@ const {
   startFriendConversation,
 } = require('../controllers/conversationController');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const { requirePaidBooking } = require('../middleware/chatAccess');
+const { requirePaidBooking, checkContactsLock } = require('../middleware/chatAccess');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -743,6 +743,12 @@ router.post(
         return res.status(403).json({ error: 'Not a chat participant.' });
       }
 
+      // v565 §4 — verrou contacts à CONTACTS_FREE_UNTIL_USERS comptes (700) :
+      // 402 CONTACTS_LOCKED sauf réservation payée entre les deux personnes,
+      // abonnement actif de l'expéditeur ou staff. Rien ne change sous le seuil.
+      const contactsDenied = await checkContactsLock(req, conversation);
+      if (contactsDenied) return res.status(contactsDenied.status).json(contactsDenied.body);
+
       // Lit le numéro depuis le profil de l'expéditeur (3 modèles supportés).
       const ModelByRole = { owner: Owner, sitter: Sitter, walker: Walker };
       const SenderModel = ModelByRole[myRole];
@@ -840,6 +846,10 @@ router.post(
         return res.status(403).json({ error: 'Not a chat participant.' });
       }
 
+      // v565 §4 — même verrou que share-phone (402 CONTACTS_LOCKED).
+      const contactsDenied = await checkContactsLock(req, conversation);
+      if (contactsDenied) return res.status(contactsDenied.status).json(contactsDenied.body);
+
       // Read sender's address from their profile (3 models supported).
       const ModelByRole = { owner: Owner, sitter: Sitter, walker: Walker };
       const SenderModel = ModelByRole[myRole];
@@ -847,14 +857,14 @@ router.post(
         return res.status(400).json({ error: 'Unsupported sender role.' });
       }
       const senderDoc = await SenderModel.findById(myId)
-        .select('address location')
+        .select('address location city')
         .lean();
       if (!senderDoc) {
         return res.status(404).json({ error: 'Sender profile not found.' });
       }
 
       const address = (senderDoc.address || '').trim();
-      const city = (senderDoc.location && senderDoc.location.city) || '';
+      const city = (senderDoc.location && senderDoc.location.city) || senderDoc.city || '';
       const coords = senderDoc.location && senderDoc.location.coordinates;
       const lat = Array.isArray(coords) && coords.length >= 2 ? Number(coords[1]) : null;
       const lng = Array.isArray(coords) && coords.length >= 2 ? Number(coords[0]) : null;

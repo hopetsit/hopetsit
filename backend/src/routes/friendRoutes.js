@@ -44,24 +44,45 @@ function me(req) {
 // toutes les ~15 s avec son Bearer token. On relaie aux amis/famille via la
 // MÊME logique que le handler socket (relayLivePosition). { lat, lng, city?,
 // offline? }. offline:true = je coupe le partage (équiv. map:go-offline).
+// v565 — point 23 (contrat §8) : accepte aussi `duration` ∈ '1h' | '4h' |
+// 'until_stop' (défaut until_stop, appliquée à la session en cours) et
+// `heartbeat: true` (sans lat/lng = simple battement : prolonge `lastSeenAt`
+// et rejoue la dernière position aux amis). Le serveur ne coupe jamais le
+// partage de lui-même ; seule `offline:true` (ou la fin de la durée) l'arrête.
 router.post('/live-position', requireAuth, async (req, res) => {
   try {
-    const { relayLivePosition } = require('../sockets/mapSocket');
+    const { relayLivePosition, getLiveSession, describeLiveSession } = require('../sockets/mapSocket');
     const u = me(req);
-    const { lat, lng, city, offline } = req.body || {};
-    if (offline === true) {
+    const { lat, lng, city, offline, duration, heartbeat } = req.body || {};
+    if (offline === true || offline === 'true') {
       await relayLivePosition({ userId: u.id, role: u.role, offline: true });
       return res.json({ ok: true, offline: true });
     }
     const la = Number(lat);
     const ln = Number(lng);
-    if (!Number.isFinite(la) || !Number.isFinite(ln) || (la === 0 && ln === 0)) {
+    const hasPos = Number.isFinite(la) && Number.isFinite(ln) && !(la === 0 && ln === 0);
+    if (!hasPos && (heartbeat === true || heartbeat === 'true')) {
+      const listeners = await relayLivePosition({
+        userId: u.id, role: u.role, duration, heartbeat: true,
+      });
+      return res.json({
+        ok: true,
+        heartbeat: true,
+        listeners,
+        session: describeLiveSession(getLiveSession(u.id)),
+      });
+    }
+    if (!hasPos) {
       return res.status(400).json({ error: 'lat and lng are required.' });
     }
     const listeners = await relayLivePosition({
-      userId: u.id, role: u.role, lat: la, lng: ln, city,
+      userId: u.id, role: u.role, lat: la, lng: ln, city, duration,
     });
-    return res.json({ ok: true, listeners });
+    return res.json({
+      ok: true,
+      listeners,
+      session: describeLiveSession(getLiveSession(u.id)),
+    });
   } catch (e) {
     logger.error('[friends/live-position]', e);
     return res.status(500).json({ error: 'Unable to relay live position.' });
@@ -134,7 +155,15 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
     };
     const sel =
       'name avatar profilePicture location mapBoostExpiry mapBoostTier ' +
-      'isStaff isOnline oldId email preferences.hideFromMap';
+      'isStaff isOnline oldId email preferences.hideFromMap lastSeenAt';
+    // v565 §6 — présence RÉELLE (sockets connectés, identité complète), plus
+    // le champ figé `isOnline` du doc. Index construit une fois par requête.
+    let presenceIdx = null;
+    try {
+      const { buildPresenceIndex } = require('../sockets/emitter');
+      presenceIdx = await buildPresenceIndex();
+    } catch (_) { presenceIdx = null; }
+    const { isIdentityOnline } = require('../sockets/emitter');
     // v551 — un membre masqué reste visible de ses amis.
     const friendIds = await _friendIdsOf(u.id);
     const [owners, sitters, walkers] = await Promise.all([
@@ -247,7 +276,8 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
         isPremiumOnly: premiumOnlySet.has(idStr) || staff,
         hasPawFollow: pawFollowSet.has(idStr),
         hasPawSpot: !!pawspot,
-        isOnline: d.isOnline !== false,
+        isOnline: presenceIdx ? isIdentityOnline(d, presenceIdx) : false,
+        lastSeenAt: d.lastSeenAt ? new Date(d.lastSeenAt).toISOString() : null,
       });
     }
     return res.json({ members, count: members.length });
@@ -1210,6 +1240,28 @@ router.get('/', requireAuth, async (req, res) => {
     // d'« unfriend » manuel). [Remplace le placeholder « Utilisateur supprimé »
     // de v23.1.201.]
     const alive = enriched.filter((e) => !(e.other && e.other.deleted === true));
+    // v565 §6 — `other.isOnline` réel (identité complète) + `other.lastSeenAt`.
+    try {
+      const { buildPresenceIndex, isIdentityOnline } = require('../sockets/emitter');
+      const presenceIdx = await buildPresenceIndex();
+      const otherIds = [...new Set(alive.map((e) => e.other && e.other.id).filter(Boolean).map(String))];
+      const seenDocs = otherIds.length
+        ? (await Promise.all([Owner, Sitter, Walker].map((M) =>
+          M.find({ _id: { $in: otherIds } }).select('email oldId lastSeenAt').lean(),
+        ))).flat()
+        : [];
+      const byId = new Map(seenDocs.map((d) => [String(d._id), d]));
+      for (const e of alive) {
+        if (!e.other || !e.other.id) continue;
+        const d = byId.get(String(e.other.id)) || { _id: e.other.id, email: e.other.email };
+        e.other.isOnline = isIdentityOnline(d, presenceIdx);
+        e.other.lastSeenAt = d.lastSeenAt ? new Date(d.lastSeenAt).toISOString() : null;
+        e.isOnline = e.other.isOnline;
+        e.lastSeenAt = e.other.lastSeenAt;
+      }
+    } catch (presErr) {
+      logger.warn(`[friends/list] presence enrich failed : ${presErr?.message || presErr}`);
+    }
     const orphanIds = enriched
       .filter((e) => e.other && e.other.deleted === true)
       .map((e) => e.id);
@@ -2077,6 +2129,15 @@ router.get('/live-positions', requireAuth, async (req, res) => {
       if ([...gOther.set].some((oid) => seenOther.has(oid))) continue;
       gOther.set.forEach((oid) => seenOther.add(oid));
 
+      // v565 — point 23 (contrat §8) : la session RAM du diffuseur (dernière
+      // position < 24 h, `lastSeenAt`) prime sur la base quand elle est plus
+      // fraîche. Elle porte `stale` (> 3 min sans signal = « signal perdu »).
+      let live = null;
+      try {
+        const { getLiveSessionForIds } = require('../sockets/mapSocket');
+        live = getLiveSessionForIds([...gOther.set]);
+      } catch (_) {/* */}
+
       // Position la plus fraîche (< 24h) parmi tous ses docs de rôle.
       let best = null;
       for (const d of gOther.docs) {
@@ -2105,8 +2166,20 @@ router.get('/live-positions', requireAuth, async (req, res) => {
           best = { coords, at, t, city: doc.location?.city || '' };
         }
       }
+      // v565 — fusion RAM/base : on garde la plus fraîche des deux.
+      if (live && (!best || live.at >= best.t)) {
+        best = {
+          coords: [live.lng, live.lat],
+          at: new Date(live.at),
+          t: live.at,
+          city: live.city || (best && best.city) || '',
+          lastSeenAt: new Date(live.lastSeenAt),
+        };
+      }
       if (!best) continue;
 
+      const lastSeen = best.lastSeenAt || best.at || null;
+      const { LIVE_STALE_MS } = require('../sockets/mapSocket');
       positions.push({
         // userId = l'id référencé dans l'amitié → l'app matche ses markers.
         userId: otherId,
@@ -2115,6 +2188,9 @@ router.get('/live-positions', requireAuth, async (req, res) => {
         lng: Number(best.coords[0]),
         at: best.at ? best.at.toISOString() : null,
         city: best.city,
+        // v565 (contrat §8) : « vu il y a X min » + « signal perdu ».
+        lastSeenAt: lastSeen ? new Date(lastSeen).toISOString() : null,
+        stale: !lastSeen || (now - new Date(lastSeen).getTime()) > LIVE_STALE_MS,
       });
     }
 

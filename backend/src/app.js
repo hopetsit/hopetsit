@@ -212,7 +212,7 @@ const ADMIN_HTML_PATH = path.join(__dirname, '..', '..', 'admin_dashboard.html')
 // build is actually LIVE on Render (GET /__build). If /__build still returns an
 // old value after a push, Render did not redeploy (auto-deploy off / build
 // filter / failed deploy) — not a code problem.
-const ADMIN_BUILD = 'v561';
+const ADMIN_BUILD = 'v565';
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -302,6 +302,8 @@ const versionedRoutes = [
   { path: '/kyc', mw: [], router: require('./routes/kycRoutes') },
   { path: '/donations', mw: [sensitiveLimiter], router: donationRoutes },
   { path: '/notifications', mw: [], router: notificationRoutes },
+  // v565 — configuration applicative (fonctions du chat pilotées par l'admin).
+  { path: '/app-config', mw: [], router: require('./routes/appConfigRoutes') },
   { path: '/walks', mw: [], router: walkRoutes },
   { path: '/terms', mw: [], router: termsRoutes },
   { path: '/privacy-policy', mw: [], router: privacyPolicyRoutes },

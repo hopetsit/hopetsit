@@ -270,6 +270,83 @@ label > input, label > select, label > textarea { color: var(--text); }
   header { padding: 0 14px; }
   #api-url-display { display: none; }
 }
+/* ─── v565 — lot admin (points 21/31/34/18/24) ─────────────────────────────
+   Menu regroupé, compteurs cliquables, sous-onglets, interrupteurs, chronologie
+   de remise/rendu, bulles du chat, classes utilisées par le JS mais jamais
+   définies (.data-table, .input, .btn-approve, .btn-reject, .primary). */
+:root { --card-2: #FAFAFC; --card-bg: #FAFAFC; }
+.nav-section { margin-top: 18px; }
+.nav-section:first-of-type { margin-top: 6px; }
+.nav-item .nav-count { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--text-muted); background: var(--surface2); padding: 1px 7px; border-radius: 999px; }
+.stat-card.clickable { cursor: pointer; transition: transform .12s, box-shadow .12s; }
+.stat-card.clickable:hover { transform: translateY(-2px); box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 16px 32px -14px rgba(0,0,0,.2); }
+.stat-card.clickable::after { content: '→'; position: absolute; right: 16px; top: 14px; color: var(--text-muted); font-size: 15px; opacity: .45; transition: opacity .12s, transform .12s; }
+.stat-card.clickable:hover::after { opacity: 1; transform: translateX(3px); color: var(--primary); }
+.stat-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.page-desc { color: var(--text-muted); font-size: 13.5px; margin-bottom: 16px; max-width: 840px; line-height: 1.55; }
+.subtabs { display: inline-flex; gap: 4px; flex-wrap: wrap; background: var(--surface2); padding: 4px; border-radius: 999px; max-width: 100%; margin-bottom: 14px; }
+.subtab { border: 0; background: transparent; padding: 7px 14px; border-radius: 999px; font: inherit; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all .12s; white-space: nowrap; }
+.subtab:hover { color: var(--text); }
+.subtab.active { background: var(--surface); color: var(--primary-dark); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.data-table, .table { width: 100%; }
+.input { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; font-family: inherit; padding: 9px 12px; color: var(--text); font-size: 13px; outline: none; margin-top: 5px; transition: border-color .15s, box-shadow .15s; }
+.input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+.btn-approve, .btn-reject { padding: 7px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 600; font-family: inherit; cursor: pointer; border: 0; transition: filter .12s; }
+.btn-approve { background: rgba(31,157,85,.12); color: var(--green); }
+.btn-reject { background: rgba(217,48,37,.10); color: var(--red); }
+.btn-approve:hover, .btn-reject:hover { filter: brightness(.95); }
+.action-btn.primary { background: var(--primary); color: #fff; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid #F0F0F3; }
+.toggle-row:last-child { border-bottom: 0; }
+.toggle-row .tl { font-weight: 600; font-size: 14px; }
+.toggle-row .ts { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.switch { position: relative; width: 46px; height: 28px; flex-shrink: 0; display: inline-block; }
+.switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.switch .knob { position: absolute; inset: 0; background: #D2D2D7; border-radius: 999px; cursor: pointer; transition: background .15s; }
+.switch .knob::before { content: ''; position: absolute; width: 22px; height: 22px; left: 3px; top: 3px; background: #fff; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,.2); transition: transform .15s; }
+.switch input:checked + .knob { background: var(--green); }
+.switch input:checked + .knob::before { transform: translateX(18px); }
+.switch input:disabled + .knob { opacity: .5; cursor: not-allowed; }
+.timeline { list-style: none; margin: 6px 0 0; padding: 0; position: relative; }
+.timeline li { position: relative; padding: 0 0 14px 28px; }
+.timeline li::before { content: ''; position: absolute; left: 7px; top: 18px; bottom: -4px; width: 2px; background: var(--border); }
+.timeline li:last-child::before { display: none; }
+.timeline li .dot { position: absolute; left: 0; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); border: 2px solid #D2D2D7; box-sizing: border-box; }
+.timeline li.done .dot { background: var(--green); border-color: var(--green); }
+.timeline li.done .dot::after { content: '✓'; color: #fff; font-size: 10px; font-weight: 700; position: absolute; left: 2px; top: -3px; }
+.timeline li.current .dot { border-color: var(--primary); background: var(--primary-light); }
+.timeline li.pending .tl-step { color: var(--text-muted); font-weight: 500; }
+.timeline .tl-step { font-weight: 600; font-size: 13px; }
+.timeline .tl-when { font-size: 12px; color: var(--text-muted); }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--surface2); color: var(--text); white-space: nowrap; }
+.chip.on { background: rgba(31,157,85,.12); color: var(--green); }
+.chip.off { background: rgba(217,48,37,.10); color: var(--red); }
+.convo { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; transition: background .12s, border-color .12s; }
+.convo:hover { background: #FFF7F5; }
+.convo.active { border-color: var(--primary); background: var(--primary-light); }
+.chat-thread { display: flex; flex-direction: column; gap: 8px; }
+.bubble { max-width: 80%; padding: 10px 12px; border-radius: 16px; background: var(--surface2); font-size: 13px; position: relative; }
+.bubble.owner { align-self: flex-start; border-bottom-left-radius: 4px; }
+.bubble.provider { align-self: flex-end; background: var(--primary-light); border-bottom-right-radius: 4px; }
+.bubble.system { align-self: center; background: transparent; color: var(--text-muted); font-size: 12px; }
+.bubble .meta { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.bubble .quote { border-left: 3px solid var(--primary); padding: 4px 8px; margin-bottom: 6px; font-size: 12px; color: var(--text-muted); background: rgba(0,0,0,.035); border-radius: 6px; }
+.bubble img { max-width: 220px; max-height: 220px; border-radius: 10px; display: block; margin-top: 6px; }
+.bubble audio, .bubble video { max-width: 260px; display: block; margin-top: 6px; }
+.bubble.deleted { opacity: .55; }
+.avatar-sm { width: 34px; height: 34px; border-radius: 10px; object-fit: cover; background: var(--surface2); display: inline-block; vertical-align: middle; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.trace-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; font-size: 12px; white-space: pre-wrap; margin-bottom: 22px; color: var(--text); }
+.modal-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
+.modal-grid .modal-field { margin-bottom: 4px; }
+.modal-field.full { grid-column: 1 / -1; }
+.modal-section { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin: 16px 0 8px; }
+.badge-purple { background: rgba(139,92,246,.12); color: #6D28D9; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--primary); cursor: pointer; font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
+.stat-mini { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow); min-width: 150px; }
+.stat-mini .v { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.stat-mini .l { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+@media (max-width: 760px) { .modal-grid { grid-template-columns: 1fr; } .stat-card.clickable::after { display: none; } }
 </style>
 <script>
 // v562 — filtre du menu latéral : masque les entrées qui ne contiennent pas
@@ -332,70 +409,55 @@ function filterNav(q) {
   </header>
 
   <div class="main-content">
-    <!-- SIDEBAR — v23.1 part 105 : reorganisée par catégories logiques. -->
+    <!-- SIDEBAR — v565 (point 34) : menu regroupé en 6 blocs clairs. Chaque entrée
+         porte data-page pour que showPage() la retrouve sans dépendre de `event`
+         (compteurs du tableau de bord, liens internes). Aucune page retirée. -->
     <nav class="sidebar">
-      <!-- v562 — filtre rapide du menu (design/pratique, aucune fonction touchée) -->
       <input class="nav-filter" id="nav-filter" type="search" placeholder="🔍 Menu…" oninput="filterNav(this.value)" autocomplete="off">
-      <!-- v23.1.331 — Daniel : "remets de l'ordre dans mes finances / vue
-           d'ensemble / mes revenus, pas tout mélangé". Vue d'ensemble = juste
-           le tableau de bord. Toutes les finances regroupées dans UNE section
-           "Mes finances" placée en haut, dans l'ordre logique : ce que JE gagne
-           d'abord (Revenus, Comptabilité), puis l'opérationnel (Paiements,
-           Factures, Virements, Portefeuilles). -->
-      <!-- Vue d'ensemble -->
+
       <div class="nav-section" style="margin-top:8px">📊 <span data-i18n="navsec_overview">Vue d'ensemble</span></div>
-      <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> <span data-i18n="nav_dashboard">Tableau de bord</span></div>
+      <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard', this)"><span class="nav-icon">📊</span> <span data-i18n="nav_dashboard">Tableau de bord</span></div>
 
-      <!-- Mes finances -->
-      <div class="nav-section" style="margin-top:18px">💰 <span data-i18n="navsec_finance">Mes finances</span></div>
-      <div class="nav-item" onclick="showPage('payouts')"><span class="nav-icon">💰</span> <span data-i18n="nav_revenue">Mes revenus</span></div>
-      <div class="nav-item" onclick="showPage('accounting')"><span class="nav-icon">📒</span> <span data-i18n="nav_accounting">Comptabilité</span></div>
-      <div class="nav-item" onclick="showPage('payments')"><span class="nav-icon">💳</span> <span data-i18n="nav_payments">Paiements</span></div>
-      <!-- v500 — Daniel : « Activité boutique » rangée avec les finances. -->
-      <div class="nav-item" onclick="showPage('boosts')"><span class="nav-icon">🛍️</span> <span data-i18n="nav_shop_activity">Activité boutique</span></div>
-      <div class="nav-item" onclick="showPage('invoices')"><span class="nav-icon">🧾</span> <span data-i18n="nav_invoices">Factures</span></div>
-      <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> <span data-i18n="nav_iban">Virements IBAN</span></div>
-      <div class="nav-item" onclick="showPage('wallets')"><span class="nav-icon">💼</span> <span data-i18n="nav_wallets">Portefeuilles</span></div>
-      <div class="nav-item" onclick="showPage('disputes')"><span class="nav-icon">⚖️</span> <span data-i18n="nav_disputes">Litiges</span></div>
+      <div class="nav-section">💰 <span data-i18n="navsec_finance">Finances</span></div>
+      <div class="nav-item" data-page="payouts" onclick="showPage('payouts', this)"><span class="nav-icon">💰</span> <span data-i18n="nav_revenue">Mes revenus</span></div>
+      <div class="nav-item" data-page="accounting" onclick="showPage('accounting', this)"><span class="nav-icon">📒</span> <span data-i18n="nav_accounting">Comptabilité</span></div>
+      <div class="nav-item" data-page="payments" onclick="showPage('payments', this)"><span class="nav-icon">💳</span> <span data-i18n="nav_payments">Paiements</span></div>
+      <div class="nav-item" data-page="boosts" onclick="showPage('boosts', this)"><span class="nav-icon">🛍️</span> <span data-i18n="nav_shop_activity">Activité boutique</span></div>
+      <div class="nav-item" data-page="invoices" onclick="showPage('invoices', this)"><span class="nav-icon">🧾</span> <span data-i18n="nav_invoices">Factures</span></div>
+      <div class="nav-item" data-page="iban" onclick="showPage('iban', this)"><span class="nav-icon">🏦</span> <span data-i18n="nav_iban">Virements IBAN</span></div>
+      <div class="nav-item" data-page="wallets" onclick="showPage('wallets', this)"><span class="nav-icon">💼</span> <span data-i18n="nav_wallets">Portefeuilles</span></div>
+      <div class="nav-item" data-page="disputes" onclick="showPage('disputes', this)"><span class="nav-icon">⚖️</span> <span data-i18n="nav_disputes">Litiges</span></div>
 
-      <!-- Utilisateurs -->
-      <div class="nav-section" style="margin-top:18px">👥 <span data-i18n="navsec_users">Utilisateurs</span></div>
-      <!-- v530 — Daniel : un SEUL onglet « Utilisateurs » (la vue unifiée par
-           rôle existait déjà ici) ; onglets Pet-sitters / Promeneurs retirés. -->
-      <div class="nav-item" onclick="showPage('owners')"><span class="nav-icon">👥</span> <span data-i18n="nav_owners">Utilisateurs</span></div>
-      <div class="nav-item" onclick="showPage('identity')"><span class="nav-icon">🪪</span> <span data-i18n="nav_identity">Vérifications ID</span></div>
-      <div class="nav-item" onclick="showPage('moderation')"><span class="nav-icon">🛡️</span> <span data-i18n="nav_moderation">Modération users</span></div>
-      <div class="nav-item" onclick="showPage('loyalty')"><span class="nav-icon">🏆</span> <span data-i18n="nav_loyalty">Avantages fidélité</span></div>
-      <div class="nav-item" onclick="showPage('pawfollow')"><span class="nav-icon">⭐</span> <span data-i18n="nav_pawfollow">PawFollow</span></div>
-      <div class="nav-item" onclick="showPage('pawpremium')"><span class="nav-icon">👑</span> <span data-i18n="nav_pawpremium">PawPremium</span></div>
-      <div class="nav-item" onclick="showPage('pawspot')"><span class="nav-icon">🐾</span> <span data-i18n="nav_pawspot">PawSpot</span></div>
-      <div class="nav-item" onclick="showPage('promotions')"><span class="nav-icon">🎟️</span> <span data-i18n="nav_promotions">Promotions</span></div>
-      <div class="nav-item" onclick="showPage('filtre')"><span class="nav-icon">🛡️</span> <span data-i18n="nav_filtre">Filtre &amp; modération</span></div>
-      <div class="nav-item" onclick="showPage('reportstats')"><span class="nav-icon">🗺️</span> <span data-i18n="nav_reportstats">Signalements</span></div>
-      <div class="nav-item" onclick="showPage('pawpoints')"><span class="nav-icon">🏆</span> <span data-i18n="nav_pawpoints">PawPoints</span></div>
+      <div class="nav-section">👥 <span data-i18n="navsec_users">Utilisateurs</span></div>
+      <div class="nav-item" data-page="owners" onclick="showPage('owners', this)"><span class="nav-icon">👥</span> <span data-i18n="nav_owners">Utilisateurs</span></div>
+      <div class="nav-item" data-page="pets" onclick="showPage('pets', this)"><span class="nav-icon">🐾</span> <span data-i18n="nav_pets">Animaux</span></div>
+      <div class="nav-item" data-page="identity" onclick="showPage('identity', this)"><span class="nav-icon">🪪</span> <span data-i18n="nav_identity">Vérifications ID</span></div>
+      <div class="nav-item" data-page="moderation" onclick="showPage('moderation', this)"><span class="nav-icon">🛡️</span> <span data-i18n="nav_moderation">Modération users</span></div>
+      <div class="nav-item" data-page="loyalty" onclick="showPage('loyalty', this)"><span class="nav-icon">🏆</span> <span data-i18n="nav_loyalty">Avantages fidélité</span></div>
+      <div class="nav-item" data-page="pawfollow" onclick="showPage('pawfollow', this)"><span class="nav-icon">⭐</span> <span data-i18n="nav_pawfollow">PawFollow</span></div>
+      <div class="nav-item" data-page="pawpremium" onclick="showPage('pawpremium', this)"><span class="nav-icon">👑</span> <span data-i18n="nav_pawpremium">PawPremium</span></div>
+      <div class="nav-item" data-page="pawspot" onclick="showPage('pawspot', this)"><span class="nav-icon">🐾</span> <span data-i18n="nav_pawspot">PawSpot</span></div>
+      <div class="nav-item" data-page="pawpoints" onclick="showPage('pawpoints', this)"><span class="nav-icon">🎯</span> <span data-i18n="nav_pawpoints">PawPoints</span></div>
+      <div class="nav-item" data-page="promotions" onclick="showPage('promotions', this)"><span class="nav-icon">🎟️</span> <span data-i18n="nav_promotions">Promotions</span></div>
 
-      <!-- Activité -->
-      <div class="nav-section" style="margin-top:18px">📅 <span data-i18n="navsec_activity">Activité</span></div>
-      <div class="nav-item" onclick="showPage('bookings')"><span class="nav-icon">📅</span> <span data-i18n="nav_bookings">Réservations</span></div>
-      <div class="nav-item" onclick="showPage('annonces')"><span class="nav-icon">📣</span> <span data-i18n="nav_listings">Annonces</span></div>
-      <div class="nav-item" onclick="showPage('chat')"><span class="nav-icon">💬</span> <span data-i18n="nav_chat">Chat &amp; messages</span></div>
-      <div class="nav-item" onclick="showPage('reviews')"><span class="nav-icon">⭐</span> <span data-i18n="nav_reviews">Avis utilisateurs</span></div>
-      <div class="nav-item" onclick="showPage('reports')"><span class="nav-icon">🚩</span> <span data-i18n="nav_reports">Signalements</span></div>
+      <div class="nav-section">📅 <span data-i18n="navsec_activity">Activité</span></div>
+      <div class="nav-item" data-page="bookings" onclick="showPage('bookings', this)"><span class="nav-icon">📅</span> <span data-i18n="nav_bookings">Réservations</span></div>
+      <div class="nav-item" data-page="annonces" onclick="showPage('annonces', this)"><span class="nav-icon">📣</span> <span data-i18n="nav_listings">Annonces</span></div>
+      <div class="nav-item" data-page="chat" onclick="showPage('chat', this)"><span class="nav-icon">💬</span> <span data-i18n="nav_chat">Chat &amp; messages</span></div>
+      <div class="nav-item" data-page="reviews" onclick="showPage('reviews', this)"><span class="nav-icon">⭐</span> <span data-i18n="nav_reviews">Avis utilisateurs</span></div>
+      <div class="nav-item" data-page="reports" onclick="showPage('reports', this)"><span class="nav-icon">🚩</span> <span data-i18n="nav_reports">Signalements</span></div>
+      <div class="nav-item" data-page="reportstats" onclick="showPage('reportstats', this)"><span class="nav-icon">📈</span> <span data-i18n="nav_reportstats">Stats signalements PawMap</span></div>
 
-      <!-- Boutique -->
-      <div class="nav-section" style="margin-top:18px">🛍️ <span data-i18n="navsec_shop">Boutique</span></div>
-      <div class="nav-item" onclick="showPage('pricing')"><span class="nav-icon">💶</span> <span data-i18n="nav_pricing">Tarifs</span></div>
-      <div class="nav-item" onclick="showPage('services')"><span class="nav-icon">🧰</span> <span data-i18n="nav_services">Services</span></div>
+      <div class="nav-section">⚙️ <span data-i18n="navsec_settings">Contenu &amp; réglages</span></div>
+      <div class="nav-item" data-page="pricing" onclick="showPage('pricing', this)"><span class="nav-icon">💶</span> <span data-i18n="nav_pricing">Tarifs &amp; versions</span></div>
+      <div class="nav-item" data-page="services" onclick="showPage('services', this)"><span class="nav-icon">🧰</span> <span data-i18n="nav_services">Services</span></div>
+      <div class="nav-item" data-page="filtre" onclick="showPage('filtre', this)"><span class="nav-icon">🛡️</span> <span data-i18n="nav_filtre">Filtre &amp; modération</span></div>
+      <div class="nav-item" data-page="terms" onclick="showPage('terms', this)"><span class="nav-icon">📜</span> <span data-i18n="nav_terms">CGU</span></div>
+      <div class="nav-item" data-page="privacy" onclick="showPage('privacy', this)"><span class="nav-icon">🔒</span> <span data-i18n="nav_privacy">Confidentialité</span></div>
 
-      <!-- Contenu -->
-      <div class="nav-section" style="margin-top:18px">📜 <span data-i18n="navsec_content">Contenu</span></div>
-      <div class="nav-item" onclick="showPage('terms')"><span class="nav-icon">📜</span> <span data-i18n="nav_terms">CGU</span></div>
-      <div class="nav-item" onclick="showPage('privacy')"><span class="nav-icon">🔒</span> <span data-i18n="nav_privacy">Confidentialité</span></div>
-
-      <!-- Système -->
-      <div class="nav-section" style="margin-top:18px">⚙️ <span data-i18n="navsec_system">Système</span></div>
-      <div class="nav-item" onclick="showPage('pawmap')"><span class="nav-icon">🗺️</span> <span data-i18n="nav_pawmap">PawMap</span></div>
-      <div class="nav-item" onclick="showPage('bugs')"><span class="nav-icon">🐛</span> <span data-i18n="nav_bugs">Bugs reportés</span></div>
+      <div class="nav-section">🧰 <span data-i18n="navsec_tools">Outils</span></div>
+      <div class="nav-item" data-page="pawmap" onclick="showPage('pawmap', this)"><span class="nav-icon">🗺️</span> <span data-i18n="nav_pawmap">PawMap</span></div>
+      <div class="nav-item" data-page="bugs" onclick="showPage('bugs', this)"><span class="nav-icon">🐛</span> <span data-i18n="nav_bugs">Bugs reportés</span></div>
     </nav>
 
     <!-- PAGES -->
@@ -409,7 +471,10 @@ function filterNav(q) {
              indicateur "dernière mise à jour" pour qu'on VOIE que la
              page est live. -->
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px">
-          <div class="section-title" style="margin:0">📊 <span data-i18n="dash_overview">Vue d'ensemble</span></div>
+          <div>
+            <div class="section-title" style="margin:0">📊 <span data-i18n="dash_overview">Vue d'ensemble</span></div>
+            <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px" data-i18n="dash_click_hint">Chiffres en direct (auto toutes les 60 s) · clique sur une carte pour ouvrir la liste correspondante.</div>
+          </div>
           <div style="display:flex;align-items:center;gap:10px">
             <span id="dashboard-last-update" style="font-size:12px;color:var(--text-muted)"></span>
             <button class="action-btn" onclick="reconcilePendingPayments()" data-i18n-title="dash_resync_title" title="Re-vérifie chaque paiement en attente auprès d'Airwallex et marque payé ceux qui ont réussi (récupère les transactions non synchronisées par le webhook)" style="background:#F59E0B;color:#fff;border-color:#F59E0B">🔄 <span data-i18n="dash_resync_btn">Re-synchroniser les paiements</span></button>
@@ -437,16 +502,23 @@ function filterNav(q) {
             <select class="filter-select" id="booking-status-filter" onchange="filterBookings()">
               <option value="" data-i18n="filter_all_status">Tous les statuts</option>
               <option value="pending" data-i18n="status_pending">En attente</option>
-              <option value="agreed" data-i18n="status_agreed">Acceptée</option>
+              <option value="accepted" data-i18n="status_accepted">Acceptée (prestataire)</option>
+              <option value="agreed" data-i18n="status_agreed">Confirmée</option>
+              <option value="paid" data-i18n="status_paid">Payée</option>
               <option value="completed" data-i18n="status_completed">Terminée</option>
               <option value="cancelled" data-i18n="status_cancelled">Annulée</option>
+              <option value="refunded" data-i18n="status_refunded">Remboursée</option>
+              <option value="rejected" data-i18n="status_rejected">Refusée</option>
+              <option value="payment_failed" data-i18n="status_payment_failed">Paiement échoué</option>
             </select>
             <select class="filter-select" id="booking-payment-filter" onchange="filterBookings()">
               <option value="" data-i18n="filter_all_payments">Tous les paiements</option>
               <option value="paid" data-i18n="pay_paid_f">Payée</option>
               <option value="pending" data-i18n="status_pending">En attente</option>
               <option value="failed" data-i18n="pay_failed_f">Échouée</option>
+              <option value="refunded" data-i18n="pay_refunded">Remboursé</option>
             </select>
+            <span id="bookings-count" style="font-size:12.5px;color:var(--text-muted);margin-left:auto"></span>
           </div>
           <div id="bookings-table-body">
             <div class="loading"><div class="spinner"></div></div>
@@ -530,6 +602,25 @@ function filterNav(q) {
           <div id="walkers-table-body">
             <div class="loading"><div class="spinner"></div></div>
           </div>
+        </div>
+      </div>
+
+      <!-- ANIMAUX — v565 (points 21/31) : liste ouverte par le compteur « Animaux »
+           du tableau de bord, avec l'e-mail du compte propriétaire. -->
+      <div id="page-pets" class="page">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+          <div class="section-title" style="margin:0">🐾 <span data-i18n="pets_title">Animaux</span> <span id="pets-count" style="font-size:13px;color:var(--text-muted);font-weight:500"></span></div>
+          <button class="action-btn btn-primary" onclick="loadPets()">↻ <span data-i18n="refresh">Actualiser</span></button>
+        </div>
+        <p class="page-desc" data-i18n="pets_desc">Tous les animaux enregistrés dans l'app, avec le compte propriétaire (nom + e-mail). Clique sur l'e-mail pour ouvrir la fiche du propriétaire dans « Utilisateurs ».</p>
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <input class="search-input" id="pets-search" data-i18n-placeholder="pets_search_ph" placeholder="🔍 Nom, race, propriétaire, e-mail…" oninput="renderPets()"/>
+            <select class="filter-select" id="pets-category-filter" onchange="renderPets()">
+              <option value="" data-i18n="filter_all_categories">Toutes catégories</option>
+            </select>
+          </div>
+          <div id="pets-table-body"><div class="loading"><div class="spinner"></div></div></div>
         </div>
       </div>
 
@@ -658,7 +749,7 @@ function filterNav(q) {
           </tr></thead><tbody id="provider-withdrawals-wrap"><tr><td colspan="8" style="color:var(--text-muted)" data-i18n="loading_short">Chargement…</td></tr></tbody></table>
         </div>
         <!-- v23.1.384 — trace pas-à-pas du dernier « Traiter maintenant » -->
-        <pre id="wd-process-trace" style="display:none;background:var(--card-bg,#1e1e2e);border:1px solid #333;border-radius:8px;padding:12px;font-size:12px;white-space:pre-wrap;margin-bottom:22px;color:#ddd"></pre>
+        <pre id="wd-process-trace" class="trace-box" style="display:none"></pre>
 
         <!-- Provider + Payout breakdown -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="payment-breakdown-row">
@@ -677,13 +768,15 @@ function filterNav(q) {
         </p>
 
         <!-- Sub-tabs : Owner / Sitter / Walker -->
-        <div style="display:flex;gap:8px;margin-bottom:12px">
-          <button class="filter-select active" id="inv-tab-owner"
-                  onclick="loadInvoices('owner')">👤 <span data-i18n="tab_owner">Propriétaire</span></button>
-          <button class="filter-select" id="inv-tab-sitter"
-                  onclick="loadInvoices('sitter')">🐕 <span data-i18n="tab_sitter">Pet-sitter</span></button>
-          <button class="filter-select" id="inv-tab-walker"
-                  onclick="loadInvoices('walker')">🚶 <span data-i18n="tab_walker">Promeneur</span></button>
+        <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+          <div class="subtabs" style="margin:0">
+            <button class="subtab active" id="inv-tab-owner"
+                    onclick="loadInvoices('owner')">👤 <span data-i18n="tab_owner">Propriétaire</span></button>
+            <button class="subtab" id="inv-tab-sitter"
+                    onclick="loadInvoices('sitter')">🐕 <span data-i18n="tab_sitter">Pet-sitter</span></button>
+            <button class="subtab" id="inv-tab-walker"
+                    onclick="loadInvoices('walker')">🚶 <span data-i18n="tab_walker">Promeneur</span></button>
+          </div>
           <input type="date" class="filter-select" id="inv-filter-from"
                  onchange="loadInvoices()" data-i18n-title="from_date" title="From date" />
           <input type="date" class="filter-select" id="inv-filter-to"
@@ -729,22 +822,23 @@ function filterNav(q) {
         <div class="section-title">🛡️ <span data-i18n="mod_title">Modération des utilisateurs</span></div>
         <div id="platform-stats" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;"></div>
         <div style="margin-bottom:12px">
-          <input id="user-search-q" data-i18n-placeholder="mod_search_placeholder" placeholder="Rechercher par email ou nom…" style="padding:8px;width:260px" />
+          <input id="user-search-q" class="search-input" data-i18n-placeholder="mod_search_placeholder" placeholder="Rechercher par email ou nom…" style="width:300px" onkeydown="if(event.key==='Enter')searchUsers()" />
           <button class="action-btn btn-primary" onclick="searchUsers()" data-i18n="search_btn">Rechercher</button>
         </div>
         <div class="table-wrap">
           <table style="width:100%;border-collapse:collapse">
             <thead>
-              <tr style="text-align:left;border-bottom:1px solid #333">
+              <tr>
                 <th style="padding:8px" data-i18n="th_role">Rôle</th>
                 <th style="padding:8px" data-i18n="th_name">Nom</th>
                 <th style="padding:8px" data-i18n="th_email">Email</th>
+                <th style="padding:8px" data-i18n="th_devices" title="Jetons push (fcmTokens) enregistrés — 0 = aucune notification possible">📱 Appareils</th>
                 <th style="padding:8px" data-i18n="th_status">Statut</th>
                 <th style="padding:8px" data-i18n="th_actions">Actions</th>
               </tr>
             </thead>
             <tbody id="users-list">
-              <tr><td colspan="5" style="color:var(--text-muted)" data-i18n="mod_empty_hint">Tape un email ou un nom puis clique sur Rechercher.</td></tr>
+              <tr><td colspan="6" style="color:var(--text-muted)" data-i18n="mod_empty_hint">Tape un email ou un nom puis clique sur Rechercher.</td></tr>
             </tbody>
           </table>
         </div>
@@ -753,15 +847,15 @@ function filterNav(q) {
       <!-- REVIEW MODERATION (Sprint 7 step 5) -->
       <div id="page-reviews" class="page">
         <div class="section-title">⭐ <span data-i18n="reviews_title">Modération des avis</span></div>
-        <div style="margin-bottom:12px">
-          <button class="action-btn btn-primary" onclick="loadReviewsModeration('all')" data-i18n="filter_all">Tous</button>
-          <button class="action-btn" onclick="loadReviewsModeration('reported')" data-i18n="filter_reported">Signalés</button>
-          <button class="action-btn" onclick="loadReviewsModeration('hidden')" data-i18n="filter_hidden">Masqués</button>
+        <div class="subtabs">
+          <button class="subtab active" id="rev-tab-all" onclick="loadReviewsModeration('all')" data-i18n="filter_all">Tous</button>
+          <button class="subtab" id="rev-tab-reported" onclick="loadReviewsModeration('reported')" data-i18n="filter_reported">Signalés</button>
+          <button class="subtab" id="rev-tab-hidden" onclick="loadReviewsModeration('hidden')" data-i18n="filter_hidden">Masqués</button>
         </div>
         <div class="table-wrap">
           <table style="width:100%;border-collapse:collapse">
             <thead>
-              <tr style="text-align:left;border-bottom:1px solid #333">
+              <tr>
                 <th style="padding:8px">★</th>
                 <th style="padding:8px" data-i18n="th_comment">Commentaire</th>
                 <th style="padding:8px" data-i18n="th_reports">Signalements</th>
@@ -787,7 +881,7 @@ function filterNav(q) {
         <div class="table-wrap">
           <table style="width:100%;border-collapse:collapse">
             <thead>
-              <tr style="text-align:left;border-bottom:1px solid #333">
+              <tr>
                 <th style="padding:8px" data-i18n="nav_sitters">Pet-sitter</th>
                 <th style="padding:8px" data-i18n="th_submitted_on">Soumis le</th>
                 <th style="padding:8px" data-i18n="th_document">Document</th>
@@ -808,7 +902,7 @@ function filterNav(q) {
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px" data-i18n="terms_desc">
           Édite les conditions affichées dans l'app mobile, par langue. Les changements sont visibles immédiatement par les utilisateurs. Si une langue n'a pas de document, l'app utilise le texte par défaut embarqué dans l'APK.
         </p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="terms-lang-tabs"></div>
+        <div class="subtabs" id="terms-lang-tabs"></div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
           <label style="font-size:12px;color:var(--text-muted)" data-i18n="label_version">Version</label>
           <input id="terms-version-input" class="search-input" style="width:120px" value="1.0" />
@@ -828,8 +922,8 @@ function filterNav(q) {
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px" data-i18n="reports_desc">
           Signalements envoyés par les utilisateurs depuis les profils, commentaires, messages chat et photos. Utilise les filtres ci-dessous pour les trier.
         </p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px" id="reports-status-tabs"></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="reports-type-tabs"></div>
+        <div class="subtabs" id="reports-status-tabs" style="margin-bottom:8px"></div>
+        <div class="subtabs" id="reports-type-tabs"></div>
         <div id="reports-list" style="display:grid;gap:10px"></div>
         <button class="action-btn btn-primary" style="margin-top:12px" onclick="loadReports()">↻ <span data-i18n="refresh">Actualiser</span></button>
       </div>
@@ -869,19 +963,48 @@ function filterNav(q) {
         <!-- v23.1 part 240 — légende des nouveaux types de messages que les admins voient
              dans les conversations. Ces types ont un rendu spécial dans l'app mobile mais
              apparaissent ici comme du JSON metadata pour audit. -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;font-size:11px">
-          <span style="background:#FFF1ED;color:#EF4324;padding:4px 10px;border-radius:12px;border:1px solid #EF432244" title="Carte d'invitation au suivi GPS en direct (PawFollow)">📍 pawfollow_request</span>
-          <span style="background:#FFF1ED;color:#EF4324;padding:4px 10px;border-radius:12px;border:1px solid #EF432244" title="v240 — Partage d'adresse pour le rendez-vous (owner/sitter/walker)">🏠 address_share <strong>(v240)</strong></span>
-          <span style="background:#E8F4FD;color:#2563EB;padding:4px 10px;border-radius:12px;border:1px solid #2563EB44" title="Partage de numéro de téléphone (sitter post-paiement)">📞 phone_share</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+          <span class="chip" title="Carte d'invitation au suivi GPS en direct (PawFollow)">📍 pawfollow_request</span>
+          <span class="chip" title="Partage d'adresse pour le rendez-vous (owner/sitter/walker)">🏠 address_share</span>
+          <span class="chip" title="Partage de numéro de téléphone (post-paiement)">📞 phone_share</span>
+          <span class="chip" title="v565 — photo / vidéo (attachments)">🖼️ image · video</span>
+          <span class="chip" title="v565 — message vocal (attachments[0].resourceType = audio)">🎤 voice</span>
+          <span class="chip" title="v565 — réponse à un message précis (replyTo)">↩️ replyTo</span>
         </div>
-        <div style="display:grid;grid-template-columns:340px 1fr;gap:16px">
+
+        <!-- v565 — point 18 (contrat §5) : drapeaux serveur des fonctions du chat.
+             GET/PATCH /api/v1/app-config/admin/chat-features → { media, voice, reply }.
+             Drapeau à false = la route correspondante répond 403 FEATURE_DISABLED
+             et l'app / le web cachent le bouton. -->
+        <div class="panel" id="chat-features-panel">
+          <div class="section-title" style="font-size:16px;margin-top:0">🎛️ <span data-i18n="chatf_title">Fonctions du chat</span>
+            <span id="chat-features-status" class="chip" style="font-weight:500">…</span>
+            <button class="action-btn" style="margin-left:auto" onclick="loadChatFeatures()">↻ <span data-i18n="refresh">Actualiser</span></button>
+          </div>
+          <p class="page-desc" style="margin-bottom:6px" data-i18n="chatf_desc">Active ou désactive à distance, sans mise à jour de l'app : un interrupteur à « off » masque le bouton dans l'app et sur le site, et le serveur refuse l'envoi correspondant.</p>
+          <div class="toggle-row">
+            <div><div class="tl">🖼️ <span data-i18n="chatf_media">Photos &amp; vidéos</span></div><div class="ts" data-i18n="chatf_media_sub">Envoi de pièces jointes image / vidéo dans les conversations.</div></div>
+            <label class="switch"><input type="checkbox" id="chatf-media" disabled onchange="setChatFeature('media', this.checked)"><span class="knob"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div><div class="tl">🎤 <span data-i18n="chatf_voice">Messages vocaux</span></div><div class="ts" data-i18n="chatf_voice_sub">Enregistrer et envoyer un message audio.</div></div>
+            <label class="switch"><input type="checkbox" id="chatf-voice" disabled onchange="setChatFeature('voice', this.checked)"><span class="knob"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div><div class="tl">↩️ <span data-i18n="chatf_reply">Réponses à un message</span></div><div class="ts" data-i18n="chatf_reply_sub">Citer un message précis (comme WhatsApp).</div></div>
+            <label class="switch"><input type="checkbox" id="chatf-reply" disabled onchange="setChatFeature('reply', this.checked)"><span class="knob"></span></label>
+          </div>
+          <div id="chat-features-msg" style="font-size:12.5px;color:var(--text-muted);margin-top:8px"></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:16px">
           <div>
             <button class="action-btn btn-primary" style="width:100%;margin-bottom:10px" onclick="loadChatConversations()">↻ <span data-i18n="chat_refresh_convos">Actualiser les conversations</span></button>
-            <div id="chat-conversations-list" style="display:grid;gap:6px;max-height:70vh;overflow-y:auto"></div>
+            <div id="chat-conversations-list" style="display:grid;gap:6px;max-height:70vh;overflow-y:auto;padding-right:4px"></div>
           </div>
           <div>
             <div id="chat-messages-header" style="color:var(--text-muted);font-size:13px;margin-bottom:8px" data-i18n="chat_select_convo">Sélectionne une conversation à gauche</div>
-            <div id="chat-messages-list" style="display:grid;gap:8px;max-height:70vh;overflow-y:auto"></div>
+            <div id="chat-messages-list" class="chat-thread" style="max-height:70vh;overflow-y:auto;padding:4px"></div>
           </div>
         </div>
       </div>
@@ -943,6 +1066,21 @@ function filterNav(q) {
           L'expéditeur reste l'adresse de marque HoPetSit (anti-spam) ; les réponses arrivent sur l'adresse Reply-To que tu choisis.
           Les clients saisiront leur code dans l'app (onglet « Offre » du profil) — à activer après la vidéo du vidéaste.
         </p>
+
+        <!-- v565 — Code du moment (pré-rempli dans le pop-up promo de l'app) -->
+        <div class="panel" id="promo-public-panel">
+          <div class="section-title" style="font-size:16px" data-i18n="promo_public_title">⭐ Code du moment (pop-up de l'app)</div>
+          <p style="color:var(--text-muted);font-size:13px;margin:6px 0 12px;max-width:860px;line-height:1.5" data-i18n="promo_public_desc">Ce code s'affiche déjà rempli dans le pop-up promo de l'app : l'utilisateur n'a qu'à toucher « Appliquer ». Le code doit exister dans la liste ci-dessous et être valable sur iOS (code App Store identique), Android et web.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:end;max-width:860px">
+            <label style="font-size:12px;color:var(--text-muted);flex:1 1 220px"><span data-i18n="promo_public_code">Code</span>
+              <input id="promo-public-code" class="filter-select" style="width:100%;margin-top:5px;text-transform:uppercase" placeholder="HOPDALIOS" maxlength="24"></label>
+            <label style="font-size:12px;color:var(--text-muted);flex:2 1 280px"><span data-i18n="promo_public_message">Message (facultatif)</span>
+              <input id="promo-public-message" class="filter-select" style="width:100%;margin-top:5px" maxlength="140"></label>
+            <label style="font-size:13px;display:flex;align-items:center;gap:8px;padding-bottom:8px"><input type="checkbox" id="promo-public-enabled" checked> <span data-i18n="promo_public_enabled">Afficher le pop-up</span></label>
+            <button class="action-btn primary" onclick="savePublicPromo()" data-i18n="promo_public_save">Enregistrer</button>
+          </div>
+          <div id="promo-public-status" style="font-size:12px;color:var(--text-muted);margin-top:8px"></div>
+        </div>
 
         <!-- 1) Générer -->
         <div class="panel">
@@ -1135,7 +1273,7 @@ function filterNav(q) {
           Ces récompenses sont affichées dans l'app et sur le site (boutique PawPoints). Ajoute, modifie ou désactive sans rebuild. La liste ci-dessous montre TOUTES les récompenses (actives ET désactivées).
         </p>
         <div style="font-size:13px;color:var(--text-muted);font-weight:600;margin-bottom:6px" data-i18n="rewards_custom_label">Récompenses personnalisées (éditables)</div>
-        <div id="reward-form" style="display:none;background:var(--card-2,rgba(255,255,255,.04));border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px;max-width:720px">
+        <div id="reward-form" class="panel" style="display:none;max-width:720px">
           <input type="hidden" id="rw-id">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <label style="font-size:12px;color:var(--text-muted)"><span data-i18n="rw_title">Titre</span>
@@ -1351,7 +1489,7 @@ function filterNav(q) {
 
         <!-- Seed controls -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
-          <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px">🌱 <span data-i18n="pawmap_seed_title">Alimenter la carte (OpenStreetMap)</span></div>
+          <div style="font-family:inherit;font-size:16px;font-weight:700;margin-bottom:8px">🌱 <span data-i18n="pawmap_seed_title">Alimenter la carte (OpenStreetMap)</span></div>
           <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;max-width:720px" data-i18n="pawmap_seed_desc">
             Charge automatiquement les POIs depuis OpenStreetMap pour un pays européen, un état américain, une province canadienne — ou toute l'Europe, tous les USA, tout le Canada.
             Les catégories couvrent vétos, parcs à chiens, boutiques, toiletteurs, points d'eau, hôtels/restos pet-friendly.
@@ -1393,7 +1531,7 @@ function filterNav(q) {
              GET /admin/map-reports existe deja (adminRoutes.js:1462) mais
              aucune UI ne l'exposait. -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-top:24px">
-          <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px">🚩 <span data-i18n="pawmap_flags_title">Signalements abusifs (flags)</span></div>
+          <div style="font-family:inherit;font-size:16px;font-weight:700;margin-bottom:8px">🚩 <span data-i18n="pawmap_flags_title">Signalements abusifs (flags)</span></div>
           <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;max-width:720px" data-i18n="pawmap_flags_desc">
             Liste des signalements communautaires qui ont reçu des « flag abuse » de la part d'utilisateurs.
             Un report est auto-masqué après 3 flags (hidden=true). Restaure ou supprime définitivement selon le contexte.
@@ -1506,6 +1644,7 @@ function filterNav(q) {
 let API_URL = '';
 let ADMIN_TOKEN = '';
 let allBookings = [], allSitters = [], allOwners = [], allWalkers = [];
+let _recentPaid = []; // v565 — paiements récents du tableau de bord (modale réservation)
 let currentBookingId = null, currentIbanSitterId = null;
 
 // v19.1.5 — global date formatter (used across Bookings/Sitters/Owners/Payments).
@@ -1526,12 +1665,12 @@ function fmtDate(d, withTime) {
 // v19.1.5 — global helpers (statusBadge + payBadge + showToast) promoted from
 // the old local scope so they work in Bookings/Sitters/Owners loaders.
 function statusBadge(s) {
-  const map = { pending: 'badge-orange', agreed: 'badge-blue', completed: 'badge-green', cancelled: 'badge-red' };
-  return `<span class="badge ${map[s] || 'badge-gray'}">${s || 'unknown'}</span>`;
+  const map = { pending: 'badge-orange', accepted: 'badge-blue', agreed: 'badge-blue', paid: 'badge-green', completed: 'badge-green', cancelled: 'badge-red', rejected: 'badge-red', payment_failed: 'badge-red', refunded: 'badge-gray' };
+  return `<span class="badge ${map[s] || 'badge-gray'}">${t('status_' + s, s || 'unknown')}</span>`;
 }
 function payBadge(s) {
-  const map = { paid: 'badge-green', pending: 'badge-orange', failed: 'badge-red' };
-  return `<span class="badge ${map[s] || 'badge-gray'}">${s || 'pending'}</span>`;
+  const map = { paid: 'badge-green', pending: 'badge-orange', failed: 'badge-red', refunded: 'badge-gray', cancelled: 'badge-gray' };
+  return `<span class="badge ${map[s] || 'badge-gray'}">${t('pay_' + (s || 'pending'), s || 'pending')}</span>`;
 }
 function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
@@ -1737,13 +1876,13 @@ async function loadPlatformStats() {
   if (!box) return;
   try {
     const s = await api('/admin/platform-stats');
-    box.innerHTML = `
-      <div class="stat-card">👥 Users: <strong>${s.totalUsers}</strong> (${s.totalOwners} owners + ${s.totalSitters} sitters)</div>
-      <div class="stat-card">📅 Bookings completed: <strong>${s.totalBookingsCompleted}</strong> / ${s.totalBookings}</div>
-      <div class="stat-card">💰 Platform revenue: <strong>${Number(s.platformRevenue).toFixed(2)}</strong></div>
-      <div class="stat-card">👑 PawFollow owners: <strong>${s.premiumCount}</strong></div>
-      <div class="stat-card">🏆 Top sitters: <strong>${s.topSitterCount}</strong></div>
-    `;
+    const mini = (l, v, go) => `<div class="stat-mini" ${go ? `style="cursor:pointer" onclick="openStat('${go}')"` : ''}><div class="v">${v}</div><div class="l">${l}</div></div>`;
+    box.innerHTML =
+      mini(`👥 ${t('dash_stat_users', 'Utilisateurs').replace(/^\S+\s/, '')} · ${s.totalOwners} 👤 / ${s.totalSitters} 🐕 / ${s.totalWalkers || 0} 🚶`, s.totalUsers, 'users') +
+      mini(`📅 ${t('mod_completed_bookings', 'Réservations terminées')} / ${s.totalBookings}`, s.totalBookingsCompleted, 'bookings') +
+      mini(`💰 ${t('mod_platform_revenue', 'Commissions plateforme')}`, '€' + Number(s.platformRevenue || 0).toFixed(2), 'revenue') +
+      mini(`👑 ${t('mod_premium_owners', 'Propriétaires Premium')}`, s.premiumCount, 'pawfollow') +
+      mini(`🏆 ${t('mod_top_sitters', 'Top sitters')} / ${t('mod_top_walkers', 'walkers')}`, `${s.topSitterCount} / ${s.topWalkerCount || 0}`, 'loyalty');
   } catch (e) {
     box.innerHTML = `<span style="color:var(--error)">${e.message}</span>`;
   }
@@ -1758,22 +1897,28 @@ async function searchUsers() {
     const data = await api(`/admin/users/search?q=${encodeURIComponent(q)}`);
     const rows = data.results || [];
     if (rows.length === 0) {
-      tb.innerHTML = `<tr><td colspan="5" style="color:var(--text-muted)">${t('empty_no_result')}</td></tr>`;
+      tb.innerHTML = `<tr><td colspan="6" style="color:var(--text-muted)">${t('empty_no_result')}</td></tr>`;
       return;
     }
-    tb.innerHTML = rows.map(u => `
+    const stBadge = (st) => ({ active: 'badge-green', suspended: 'badge-orange', banned: 'badge-red' }[st || 'active'] || 'badge-gray');
+    tb.innerHTML = rows.map(u => {
+      const b = _ROLE_BADGE[u.role] || _ROLE_BADGE.owner;
+      const dev = u.devices != null ? u.devices : (Array.isArray(u.fcmTokens) ? u.fcmTokens.length : null);
+      const plat = Array.isArray(u.platforms) && u.platforms.length ? ' ' + u.platforms.map(p => p === 'ios' ? '' : p === 'android' ? '🤖' : p).join('') : '';
+      return `
       <tr>
-        <td style="padding:8px">${u.role}</td>
-        <td style="padding:8px">${escapeHtml(u.name || '')}</td>
-        <td style="padding:8px">${escapeHtml(u.email || '')}</td>
-        <td style="padding:8px">${u.status || 'active'}</td>
-        <td style="padding:8px">
-          <button class="action-btn" onclick="moderateUser('${u._id}','${u.role}','suspend')">Suspendre</button>
-          <button class="action-btn btn-verify" onclick="moderateUser('${u._id}','${u.role}','reactivate')">Réactiver</button>
-          <button class="btn-reject" onclick="moderateUser('${u._id}','${u.role}','ban')">Bannir</button>
+        <td><span style="background:${b.color};color:#fff;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700">${b.icon} ${b.label}</span></td>
+        <td><strong>${escapeHtml(u.name || '')}</strong>${u.isStaff ? ' <span title="Staff">⭐</span>' : ''}</td>
+        <td style="color:var(--text-muted)">${escapeHtml(u.email || '')}</td>
+        <td>${dev == null ? '?' : (dev ? `<span class="badge badge-green">📱 ${dev}${plat}</span>` : '<span class="badge badge-red">📵 0</span>')}</td>
+        <td><span class="badge ${stBadge(u.status)}">${escapeHtml(u.status || 'active')}</span></td>
+        <td style="white-space:nowrap">
+          <button class="action-btn" onclick="moderateUser('${u._id}','${u.role}','suspend')">${t('mod_suspend', 'Suspendre')}</button>
+          <button class="action-btn btn-verify" onclick="moderateUser('${u._id}','${u.role}','reactivate')">${t('mod_reactivate', 'Réactiver')}</button>
+          <button class="btn-reject" onclick="moderateUser('${u._id}','${u.role}','ban')">${t('mod_ban', 'Bannir')}</button>
         </td>
-      </tr>
-    `).join('');
+      </tr>`;
+    }).join('');
   } catch (e) {
     tb.innerHTML = `<tr><td colspan="5" style="color:var(--error)">${e.message}</td></tr>`;
   }
@@ -1797,6 +1942,7 @@ async function moderateUser(id, role, action) {
 async function loadReviewsModeration(status) {
   const tb = document.getElementById('reviews-list');
   if (!tb) return;
+  ['all', 'reported', 'hidden'].forEach(k => { const b = document.getElementById('rev-tab-' + k); if (b) b.classList.toggle('active', k === status); });
   tb.innerHTML = '<tr><td colspan="5" class="loading"><div class="spinner"></div></td></tr>';
   try {
     const data = await api(`/admin/reviews?status=${encodeURIComponent(status)}`);
@@ -1807,11 +1953,11 @@ async function loadReviewsModeration(status) {
     }
     tb.innerHTML = rows.map(r => `
       <tr>
-        <td style="padding:8px">${r.rating}★</td>
-        <td style="padding:8px">${escapeHtml((r.comment || '').slice(0, 120))}</td>
-        <td style="padding:8px">${r.reportedCount || 0}</td>
-        <td style="padding:8px">${r.hidden ? '<span style="color:var(--red)">hidden</span>' : 'visible'}</td>
-        <td style="padding:8px">
+        <td><strong>${r.rating}★</strong></td>
+        <td>${escapeHtml((r.comment || '').slice(0, 120))}</td>
+        <td>${r.reportedCount || 0}</td>
+        <td>${r.hidden ? `<span class="badge badge-red">${t('rev_hidden', 'masqué')}</span>` : `<span class="badge badge-green">${t('rev_visible', 'visible')}</span>`}</td>
+        <td style="white-space:nowrap">
           ${r.hidden
             ? `<button class="action-btn btn-verify" onclick="moderateReview('${r._id}','restore')">Restore</button>`
             : `<button class="action-btn" onclick="moderateReview('${r._id}','hide')">Hide</button>`}
@@ -2310,11 +2456,18 @@ async function loadPawSpotSubs() {
   }
 }
 
-function showPage(name) {
+function showPage(name, el) {
+  const target = document.getElementById(`page-${name}`);
+  if (!target) return;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById(`page-${name}`).classList.add('active');
-  event.currentTarget.classList.add('active');
+  target.classList.add('active');
+  // v565 — appelable SANS clic (compteurs du tableau de bord, liens internes) :
+  // l'entrée de menu est retrouvée par data-page ; `event` n'est plus requis.
+  let navEl = (el && el.classList) ? el : document.querySelector(`.nav-item[data-page="${name}"]`);
+  if (!navEl) { try { navEl = event && event.currentTarget; } catch (_) { navEl = null; } }
+  if (navEl && navEl.classList && navEl.classList.contains('nav-item')) navEl.classList.add('active');
+  try { target.scrollTop = 0; if (target.parentElement) target.parentElement.scrollTop = 0; } catch (_) {}
   // v23.1 part 105 — chaque tab refresh les data quand on clique dessus
   // (avant : les tabs Bookings/Sitters/Owners/Dashboard ne re-chargeaient
   // jamais après le 1er chargement à _enterApp → données obsolètes).
@@ -2353,6 +2506,98 @@ function showPage(name) {
   if (name === 'payments') { loadProviderPayouts(); loadShopPanel(); }
   if (name === 'payouts') loadCompanySweeps();
   if (name === 'annonces') loadAnnonces();
+  if (name === 'pets') loadPets();
+  if (name === 'chat') loadChatFeatures();
+}
+
+// v565 — points 21/31 : un compteur du tableau de bord ouvre la liste
+// correspondante, déjà filtrée (rôle, statut, paiement…).
+function openStat(target) {
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  switch (target) {
+    case 'users': case 'owners': case 'sitters': case 'walkers':
+      setVal('owner-role-filter', target === 'users' ? 'all' : target.replace(/s$/, ''));
+      setVal('owner-staff-filter', ''); setVal('owner-search', '');
+      showPage('owners'); break;
+    case 'pets': showPage('pets'); break;
+    case 'bookings': setVal('booking-status-filter', ''); setVal('booking-payment-filter', ''); setVal('booking-search', ''); showPage('bookings'); break;
+    case 'bookings_pending': setVal('booking-status-filter', 'pending'); setVal('booking-payment-filter', ''); setVal('booking-search', ''); showPage('bookings'); break;
+    case 'bookings_paid': setVal('booking-status-filter', ''); setVal('booking-payment-filter', 'paid'); setVal('booking-search', ''); showPage('bookings'); break;
+    case 'subscriptions': showPage('pawfollow'); break;
+    case 'boutique': showPage('boosts'); break;
+    case 'wallets': showPage('wallets'); break;
+    case 'payments': showPage('payments'); break;
+    case 'revenue': showPage('payouts'); break;
+    default: showPage(target);
+  }
+}
+// Ouvre « Utilisateurs » pré-filtré sur un e-mail (depuis Animaux, Réservations…).
+function openUserByEmail(email) {
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  setVal('owner-role-filter', 'all'); setVal('owner-staff-filter', ''); setVal('owner-search', email || '');
+  showPage('owners');
+}
+
+// ── ANIMAUX (v565, points 21/31) ─────────────────────────────────────────────
+let _allPets = [];
+async function loadPets() {
+  const body = document.getElementById('pets-table-body');
+  if (!body) return;
+  body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const d = await api('/admin/pets?withOwner=1&limit=1000');
+    _allPets = d.pets || [];
+    const cnt = document.getElementById('pets-count');
+    if (cnt) cnt.textContent = '· ' + (d.total != null ? d.total : _allPets.length);
+    // Catégories rencontrées → filtre (on garde la valeur choisie).
+    const sel = document.getElementById('pets-category-filter');
+    if (sel) {
+      const cur = sel.value;
+      const cats = [...new Set(_allPets.map(p => (p.category || '').trim()).filter(Boolean))].sort();
+      sel.innerHTML = `<option value="">${t('filter_all_categories', 'Toutes catégories')}</option>` +
+        cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      sel.value = cats.includes(cur) ? cur : '';
+    }
+    renderPets();
+  } catch (e) {
+    body.innerHTML = `<div class="empty-state"><div class="empty-icon">🐾</div><div>${t('error_prefix')}${escapeHtml(e.message)}</div></div>`;
+  }
+}
+function renderPets() {
+  const body = document.getElementById('pets-table-body');
+  if (!body) return;
+  const q = (document.getElementById('pets-search')?.value || '').toLowerCase().trim();
+  const cat = document.getElementById('pets-category-filter')?.value || '';
+  const genderLbl = { male: '♂ ' + t('pet_male', 'Mâle'), female: '♀ ' + t('pet_female', 'Femelle') };
+  const rows = _allPets.filter(p => {
+    if (cat && (p.category || '') !== cat) return false;
+    if (!q) return true;
+    const o = p.owner || {};
+    return [p.petName, p.breed, p.category, p.chipNumber, o.name, o.email, o.city].some(v => (v || '').toLowerCase().includes(q));
+  });
+  if (!rows.length) {
+    body.innerHTML = `<div class="empty-state"><div class="empty-icon">🐾</div><div>${t('pets_empty', 'Aucun animal trouvé.')}</div></div>`;
+    return;
+  }
+  body.innerHTML = `<table><thead><tr>
+      <th></th><th>${t('th_name')}</th><th>${t('th_category', 'Catégorie')}</th><th>${t('th_breed', 'Race')}</th><th>${t('th_gender', 'Sexe')}</th>
+      <th>${t('th_owner')}</th><th>${t('th_email')}</th><th>${t('th_zone', 'Zone')}</th><th>${t('th_added_on', 'Ajouté le')}</th>
+    </tr></thead><tbody>${rows.map(p => {
+      const o = p.owner || {};
+      const av = p.avatarUrl ? `<img class="avatar-sm" src="${escapeHtml(p.avatarUrl)}" alt="" loading="lazy">` : '<span class="avatar-sm" style="display:inline-flex;align-items:center;justify-content:center">🐾</span>';
+      const zone = [countryFlag(o.country), o.city].filter(Boolean).join(' ');
+      return `<tr>
+        <td style="width:44px">${av}</td>
+        <td><strong>${escapeHtml(p.petName || '-')}</strong></td>
+        <td>${escapeHtml(p.category || '-')}</td>
+        <td>${escapeHtml(p.breed || '-')}</td>
+        <td>${genderLbl[p.gender] || '—'}</td>
+        <td>${escapeHtml(o.name || '—')}</td>
+        <td>${o.email ? `<button class="link-btn" onclick="openUserByEmail('${escapeHtml(o.email)}')">${escapeHtml(o.email)}</button>` : '<span style="color:var(--text-muted)">—</span>'}</td>
+        <td style="font-size:12px">${escapeHtml(zone || '-')}</td>
+        <td>${fmtDate(p.createdAt)}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
 }
 
 // v448 i18n — quand on change de langue, ré-exécute le loader de la page active
@@ -2395,6 +2640,7 @@ function refreshActivePageI18n() {
     else if (name === 'reportstats') loadReportStats();
     else if (name === 'pawpoints') { loadPawPointsBoard(); loadRewards(); loadRedemptions(); }
     else if (name === 'annonces') loadAnnonces();
+    else if (name === 'pets') loadPets();
   } catch (_) { /* loaders gèrent leurs propres erreurs */ }
 }
 
@@ -2426,7 +2672,38 @@ function promoPlanLabel(c) {
 // et la sélection multiple (suppression en masse).
 let _promoCodes = [];
 
+// v565 — code du moment (pré-rempli dans le pop-up promo de l'app).
+async function loadPublicPromo() {
+  const st = document.getElementById('promo-public-status');
+  try {
+    const d = await api('/api/v1/app-config/admin/public-promo');
+    document.getElementById('promo-public-code').value = d.code || '';
+    document.getElementById('promo-public-message').value = d.message || '';
+    document.getElementById('promo-public-enabled').checked = d.enabled !== false;
+    if (st) st.textContent = '';
+  } catch (e) {
+    if (st) st.textContent = (e && e.message) || 'Erreur';
+  }
+}
+async function savePublicPromo() {
+  const st = document.getElementById('promo-public-status');
+  try {
+    const body = {
+      code: (document.getElementById('promo-public-code').value || '').trim().toUpperCase(),
+      message: document.getElementById('promo-public-message').value || '',
+      enabled: document.getElementById('promo-public-enabled').checked,
+    };
+    const d = await api('/api/v1/app-config/admin/public-promo', 'PATCH', body);
+    document.getElementById('promo-public-code').value = d.code || '';
+    if (st) st.textContent = '✅ ' + t('promo_public_saved', 'Enregistré — le pop-up de l\'app affichera ce code.');
+    showToast(t('promo_public_saved', 'Enregistré'), 'success');
+  } catch (e) {
+    if (st) st.textContent = '❌ ' + ((e && e.message) || 'Erreur');
+  }
+}
+
 async function loadPromotions() {
+  loadPublicPromo();
   try {
     const data = await api('/admin/promo/list');
     _promoCodes = data.codes || [];
@@ -3434,7 +3711,7 @@ function renderPawmapStats(d) {
   }).join('');
   const typeTable = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
-      <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:12px">Signalements par type</div>
+      <div style="font-family:inherit;font-size:16px;font-weight:700;margin-bottom:12px">Signalements par type</div>
       <table style="width:100%;border-collapse:collapse">
         <thead><tr style="color:var(--text-muted);font-size:11px;letter-spacing:1px;text-align:left">
           <th style="padding:8px">TYPE</th>
@@ -3454,7 +3731,7 @@ function renderPawmapStats(d) {
   }).join('');
   const poiTable = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
-      <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:12px">POIs par catégorie</div>
+      <div style="font-family:inherit;font-size:16px;font-weight:700;margin-bottom:12px">POIs par catégorie</div>
       <table style="width:100%;border-collapse:collapse">
         <thead><tr style="color:var(--text-muted);font-size:11px;letter-spacing:1px;text-align:left">
           <th style="padding:8px">CATÉGORIE</th>
@@ -3475,7 +3752,7 @@ function renderPawmapStats(d) {
   `).join('');
   const cityTable = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
-      <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:12px">Top 10 villes (signalements)</div>
+      <div style="font-family:inherit;font-size:16px;font-weight:700;margin-bottom:12px">Top 10 villes (signalements)</div>
       <table style="width:100%;border-collapse:collapse">
         <thead><tr style="color:var(--text-muted);font-size:11px;letter-spacing:1px;text-align:left">
           <th style="padding:8px">#</th>
@@ -3525,7 +3802,7 @@ function renderServices() {
   const longCsv = (catalog.longOutingMinutes || []).join(', ');
   const durationsCard = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
-      <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:14px">⏱️ Duration presets (minutes)</div>
+      <div style="font-family:inherit;font-size:18px;font-weight:700;margin-bottom:14px">⏱️ Duration presets (minutes)</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <div>
           <div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);margin-bottom:6px">PROMENADE</div>
@@ -3571,7 +3848,7 @@ function renderServices() {
     return `
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-          <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700">${s.label}</div>
+          <div style="font-family:inherit;font-size:18px;font-weight:700">${s.label}</div>
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-muted)">
             <input type="checkbox" ${active ? 'checked' : ''} onchange="onServiceToggle('${s.key}', this.checked)">
             Active
@@ -3773,7 +4050,7 @@ function renderPricing() {
     const headerCells = currencies.map((c) => `<th style="padding:8px;color:var(--text-muted);font-size:11px;letter-spacing:1px;text-align:right">${c}</th>`).join('');
     return `
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
-        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:14px">${cat.label}</div>
+        <div style="font-family:inherit;font-size:18px;font-weight:700;margin-bottom:14px">${cat.label}</div>
         <table style="width:100%;border-collapse:collapse">
           <thead>
             <tr>
@@ -3843,11 +4120,11 @@ let reportsTypeFilter = 'all';
 function initReportsPage() {
   const s = document.getElementById('reports-status-tabs');
   s.innerHTML = REPORT_STATUSES.map(st => `
-    <button class="action-btn ${st === reportsStatusFilter ? 'btn-primary' : ''}" id="rep-stat-${st}" onclick="setReportsStatus('${st}')">${st.toUpperCase()}</button>
+    <button class="subtab ${st === reportsStatusFilter ? 'active' : ''}" id="rep-stat-${st}" onclick="setReportsStatus('${st}')">${st.toUpperCase()}</button>
   `).join('');
   const t = document.getElementById('reports-type-tabs');
   t.innerHTML = REPORT_TYPES.map(ty => `
-    <button class="action-btn ${ty === reportsTypeFilter ? 'btn-primary' : ''}" id="rep-type-${ty}" onclick="setReportsType('${ty}')" style="font-size:11px;padding:6px 10px">${ty}</button>
+    <button class="subtab ${ty === reportsTypeFilter ? 'active' : ''}" id="rep-type-${ty}" onclick="setReportsType('${ty}')" style="font-size:11px">${ty}</button>
   `).join('');
   loadReports();
 }
@@ -3856,7 +4133,7 @@ function setReportsStatus(st) {
   reportsStatusFilter = st;
   REPORT_STATUSES.forEach(x => {
     const el = document.getElementById(`rep-stat-${x}`);
-    if (el) el.className = 'action-btn ' + (x === st ? 'btn-primary' : '');
+    if (el) el.className = 'subtab ' + (x === st ? 'active' : '');
   });
   loadReports();
 }
@@ -3865,7 +4142,7 @@ function setReportsType(ty) {
   reportsTypeFilter = ty;
   REPORT_TYPES.forEach(x => {
     const el = document.getElementById(`rep-type-${x}`);
-    if (el) el.className = 'action-btn ' + (x === ty ? 'btn-primary' : '') + ' ';
+    if (el) el.className = 'subtab ' + (x === ty ? 'active' : '');
   });
   loadReports();
 }
@@ -3897,7 +4174,7 @@ function renderReportCard(r) {
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
         <span style="background:rgba(232,71,42,0.12);color:var(--primary);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600">${escapeHtml(r.targetType || '?')}</span>
-        <span style="background:rgba(0,0,0,0.25);padding:2px 8px;border-radius:6px;font-size:11px">${escapeHtml(r.reason || '?')}</span>
+        <span class="chip">${escapeHtml(r.reason || '?')}</span>
         <span style="color:${col};font-size:11px;font-weight:600">● ${escapeHtml(r.status || 'open')}</span>
         <span style="color:var(--text-muted);font-size:11px;margin-left:auto">${escapeHtml(when)}</span>
       </div>
@@ -3945,7 +4222,7 @@ let termsDocsCache = {};
 function initTermsPage() {
   const tabs = document.getElementById('terms-lang-tabs');
   tabs.innerHTML = TERMS_LANGS.map(l => `
-    <button class="action-btn ${l === currentTermsLang ? 'btn-primary' : ''}" id="terms-tab-${l}" onclick="switchTermsLang('${l}')">${l.toUpperCase()}</button>
+    <button class="subtab ${l === currentTermsLang ? 'active' : ''}" id="terms-tab-${l}" onclick="switchTermsLang('${l}')">${l.toUpperCase()}</button>
   `).join('');
   loadTermsDocument(currentTermsLang);
 }
@@ -3954,7 +4231,7 @@ function switchTermsLang(lang) {
   currentTermsLang = lang;
   TERMS_LANGS.forEach(l => {
     const el = document.getElementById(`terms-tab-${l}`);
-    if (el) el.className = 'action-btn ' + (l === lang ? 'btn-primary' : '');
+    if (el) el.className = 'subtab ' + (l === lang ? 'active' : '');
   });
   loadTermsDocument(lang);
 }
@@ -4089,7 +4366,9 @@ function startDashboardAutoRefresh() {
     // Tick toutes les 15s (au lieu de 30s) pour qu'on voie la mise à
     // jour de plus près. Combiné au bouton "Actualiser" + timestamp,
     // le sentiment "live" est restauré.
-  }, 15000);
+    // v565 — point 31 : tick toutes les 60 s (le bouton « Actualiser » reste
+    // pour forcer), avec l'horodatage visible « Dernière mise à jour ».
+  }, 60000);
 }
 function stopDashboardAutoRefresh() {
   if (_dashboardAutoRefreshTimer) {
@@ -4137,21 +4416,25 @@ async function loadDashboard() {
     // boutique incluant désormais 🪪 vérifications ID + 🎁 dons côté backend),
     // puis 👥 COMMUNAUTÉ.
     const _benefTotal = (d.commissionTotal || 0) + (d.boutiqueTotal || 0);
+    // v565 — points 21/31 : chaque carte porte `go` (cible d'openStat) → TOUT
+    // est cliquable, libellés traduits.
+    const _users = (d.totalOwners || 0) + (d.totalSitters || 0) + (d.totalWalkers || 0);
     const stats = [
       // ── Finances ──
-      { label: '💶 Bénéfice total HoPetSit', value: `€${_benefTotal.toFixed(2)}`, sub: 'commissions + boutique (ID + dons inclus)', accent: colors[0] },
-      { label: '💰 Commission 20%', value: `€${(d.commissionTotal||0).toFixed(2)}`, sub: 'ta part sur les réservations', accent: colors[1] },
-      { label: '🛍️ Boutique bénéfice', value: `€${(d.boutiqueTotal||0).toFixed(2)}`, sub: 'PawBoost + PawSpot + PawFollow + 👑 PawPremium + 🪪 ID + 🎁 Dons', accent: colors[3] },
-      { label: '📈 CA brut réservations', value: `€${(d.totalRevenue||0).toFixed(2)}`, sub: 'total payé par les owners', accent: colors[2] },
-      { label: '↩️ À reverser aux prestataires', value: `€${(d.providerWalletTotal||0).toFixed(2)}`, sub: 'wallets sitters + walkers + gardes payées non encore versées', accent: colors[4] },
-      { label: '📦 Abonnements', value: d.subscriptions?.total || 0, sub: `€${(d.subscriptions?.totalRevenue||0).toFixed(2)} de revenus`, accent: colors[5] },
+      { label: t('dash_stat_profit', '💶 Bénéfice total HoPetSit'), value: `€${_benefTotal.toFixed(2)}`, sub: t('dash_stat_profit_sub', 'commissions + boutique (ID + dons inclus)'), accent: colors[0], go: 'revenue' },
+      { label: t('dash_stat_commission', '💰 Commission 20%'), value: `€${(d.commissionTotal||0).toFixed(2)}`, sub: t('dash_stat_commission_sub', 'ta part sur les réservations'), accent: colors[1], go: 'payments' },
+      { label: t('dash_stat_shop', '🛍️ Boutique bénéfice'), value: `€${(d.boutiqueTotal||0).toFixed(2)}`, sub: 'PawBoost + PawSpot + PawFollow + 👑 PawPremium + 🪪 ID + 🎁 ' + t('dash_donations', 'Dons'), accent: colors[3], go: 'boutique' },
+      { label: t('dash_stat_gross', '📈 CA brut réservations'), value: `€${(d.totalRevenue||0).toFixed(2)}`, sub: t('dash_stat_gross_sub', 'total payé par les propriétaires'), accent: colors[2], go: 'payments' },
+      { label: t('dash_stat_owed', '↩️ À reverser aux prestataires'), value: `€${(d.providerWalletTotal||0).toFixed(2)}`, sub: t('dash_stat_owed_sub', 'wallets sitters + walkers + gardes payées non encore versées'), accent: colors[4], go: 'wallets' },
+      { label: t('dash_stat_subs', '📦 Abonnements'), value: d.subscriptions?.total || 0, sub: `€${(d.subscriptions?.totalRevenue||0).toFixed(2)} ${t('dash_stat_subs_sub', 'de revenus')}`, accent: colors[5], go: 'subscriptions' },
       // ── Communauté ──
-      { label: '📅 Réservations', value: d.totalBookings, sub: `${d.pendingBookings} en attente`, accent: colors[0] },
-      { label: '✅ Réservations payées', value: d.paidBookings, sub: 'paiements aboutis', accent: colors[1] },
-      { label: '🏠 Pet-sitters', value: d.totalSitters, sub: 'inscrits', accent: colors[3] },
-      { label: '🚶 Promeneurs', value: d.totalWalkers || 0, sub: 'inscrits', accent: colors[5] },
-      { label: '👤 Propriétaires', value: d.totalOwners, sub: 'inscrits', accent: colors[4] },
-      { label: '🐾 Animaux', value: d.totalPets, sub: 'dans le système', accent: colors[6] },
+      { label: t('dash_stat_bookings', '📅 Réservations'), value: d.totalBookings, sub: `${d.pendingBookings} ${t('dash_stat_bookings_sub', 'en attente')}`, accent: colors[0], go: 'bookings' },
+      { label: t('dash_stat_paid', '✅ Réservations payées'), value: d.paidBookings, sub: t('dash_stat_paid_sub', 'paiements aboutis'), accent: colors[1], go: 'bookings_paid' },
+      { label: t('dash_stat_users', '👥 Utilisateurs'), value: _users, sub: t('dash_stat_users_sub', 'tous rôles confondus'), accent: colors[2], go: 'users' },
+      { label: t('dash_stat_owners', '👤 Propriétaires'), value: d.totalOwners, sub: t('dash_stat_registered', 'inscrits'), accent: colors[4], go: 'owners' },
+      { label: t('dash_stat_sitters', '🏠 Pet-sitters'), value: d.totalSitters, sub: t('dash_stat_registered', 'inscrits'), accent: colors[3], go: 'sitters' },
+      { label: t('dash_stat_walkers', '🚶 Promeneurs'), value: d.totalWalkers || 0, sub: t('dash_stat_registered', 'inscrits'), accent: colors[5], go: 'walkers' },
+      { label: t('dash_stat_pets', '🐾 Animaux'), value: d.totalPets, sub: t('dash_stat_pets_sub', 'dans le système'), accent: colors[6], go: 'pets' },
     ];
     // v562 — Daniel : « PawFollow / Premium — combien de personnes et quel plan,
     // éclaircis et traduis bien ». Chaque clé de plan → PRODUIT + PÉRIODE, puis
@@ -4194,13 +4477,13 @@ async function loadDashboard() {
     const subsSub = t('dash_subs_total', '{n} abonnements actifs · €{eur} encaissés · 0,00 € = offert (staff, code promo, essai)')
       .replace('{n}', subsTotalCount).replace('{eur}', subsTotalRev.toFixed(2));
     document.getElementById('stats-grid').innerHTML = stats.map(s => `
-      <div class="stat-card" style="--accent:${s.accent}">
+      <div class="stat-card clickable" style="--accent:${s.accent}" role="button" tabindex="0" title="${t('dash_open_list', 'Ouvrir la liste')}" onclick="openStat('${s.go}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openStat('${s.go}')}">
         <div class="stat-label">${s.label}</div>
         <div class="stat-value">${s.value}</div>
         <div class="stat-sub">${s.sub}</div>
       </div>
     `).join('') + `
-      <div class="stat-card" style="--accent:var(--green);grid-column:1 / -1">
+      <div class="stat-card clickable" style="--accent:var(--green);grid-column:1 / -1" role="button" tabindex="0" onclick="openStat('subscriptions')">
         <div class="stat-label">📦 ${t('dash_subs_title', 'Abonnements — qui a pris quoi')}</div>
         <div class="stat-value" style="font-size:15px;line-height:1.5;font-weight:500;margin-top:4px">${subsHtml}</div>
         <div class="stat-sub" style="margin-top:10px">${subsSub}</div>
@@ -4218,18 +4501,20 @@ async function loadDashboard() {
   // celui du Dashboard).
   try {
     const d = await api('/admin/bookings?limit=5&paymentStatus=paid');
+    _recentPaid = d.bookings || [];
     const html = d.bookings.length ? `
-      <table><thead><tr><th>Date</th><th>Propriétaire</th><th>Pet-sitter</th><th>Montant</th><th>Statut</th></tr></thead><tbody>
+      <table><thead><tr><th>${t('th_date')}</th><th>${t('th_owner')}</th><th>${t('th_provider')}</th><th>${t('th_amount')}</th><th>${t('th_status')}</th><th></th></tr></thead><tbody>
       ${d.bookings.map(b => `
-        <tr>
+        <tr style="cursor:pointer" onclick="openBookingModal('${b._id}')">
           <td>${fmtDate(b.createdAt)}</td>
-          <td>${escapeHtml(b.owner?.name || '-')}</td>
-          <td>${escapeHtml(b.sitter?.name || '-')}</td>
+          <td>${escapeHtml(b.owner?.name || '-')}<div style="font-size:11px;color:var(--text-muted)">${escapeHtml(b.owner?.email || '')}</div></td>
+          <td>${escapeHtml((b.provider || b.sitter || b.walker)?.name || '-')} ${b.providerRole === 'walker' ? '🚶' : (b.providerRole === 'sitter' ? '🐕' : '')}</td>
           <td>€${(b.pricing?.totalPrice||b.totalAmount||0).toFixed(2)}</td>
-          <td><span class="badge badge-green">Payé</span></td>
+          <td><span class="badge badge-green">${t('pay_paid', 'Payé')}</span></td>
+          <td style="text-align:right;color:var(--text-muted)">→</td>
         </tr>
       `).join('')}</tbody></table>
-    ` : '<div class="empty-state"><div class="empty-icon">💳</div><div>Aucune réservation payée pour l\'instant.</div></div>';
+    ` : `<div class="empty-state"><div class="empty-icon">💳</div><div>${t('dash_no_paid', 'Aucune réservation payée pour l\'instant.')}</div></div>`;
     document.getElementById('recent-payments-wrap').innerHTML = html;
   } catch(e) {/* silent */}
 
@@ -4256,55 +4541,137 @@ function renderBookings() {
   const search = document.getElementById('booking-search')?.value.toLowerCase() || '';
   const statusF = document.getElementById('booking-status-filter')?.value || '';
   const payF = document.getElementById('booking-payment-filter')?.value || '';
+  // v565 — recherche aussi sur l'e-mail du propriétaire, le prestataire
+  // (sitter OU walker) et le nom des animaux ; colonnes Prestataire + Animaux.
+  const prov = (b) => b.provider || b.walker || b.sitter || null;
   const filtered = allBookings.filter(b => {
-    const match = !search || b._id?.includes(search) || (b.owner?.name||'').toLowerCase().includes(search) || (b.sitter?.name||'').toLowerCase().includes(search);
+    const hay = [b._id, b.owner?.name, b.owner?.email, prov(b)?.name, prov(b)?.email, ...(b.pets || []).map(p => p.petName)].map(v => (v || '').toLowerCase());
+    const match = !search || hay.some(v => v.includes(search));
     const st = !statusF || b.status === statusF;
     const pay = !payF || b.paymentStatus === payF;
     return match && st && pay;
   });
-  if (!filtered.length) { document.getElementById('bookings-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><div>Aucune réservation trouvée.</div></div>'; return; }
+  const cnt = document.getElementById('bookings-count');
+  if (cnt) cnt.textContent = `${filtered.length} / ${allBookings.length}`;
+  if (!filtered.length) { document.getElementById('bookings-table-body').innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><div>${t('bookings_empty', 'Aucune réservation trouvée.')}</div></div>`; return; }
   // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep sur bookings.
   document.getElementById('bookings-table-body').innerHTML = `
-    <table><thead><tr><th>Date</th><th>Propriétaire</th><th>Pet-sitter</th><th>Service</th><th>Total</th><th>Statut</th><th>Paiement</th><th>Action</th></tr></thead>
-    <tbody>${filtered.map(b => `
+    <table><thead><tr><th>${t('th_date')}</th><th>${t('th_owner')}</th><th>${t('th_provider')}</th><th>${t('th_pets', 'Animaux')}</th><th>${t('th_service', 'Service')}</th><th>${t('th_dates', 'Dates')}</th><th>${t('th_total', 'Total')}</th><th>${t('th_status')}</th><th>${t('th_payment', 'Paiement')}</th><th></th></tr></thead>
+    <tbody>${filtered.map(b => {
+      const p = prov(b);
+      const roleIcon = b.providerRole === 'walker' ? '🚶' : (b.providerRole === 'sitter' ? '🐕' : '');
+      const when = [b.startDate || b.date, b.endDate].filter(Boolean).join(' → ');
+      return `
       <tr>
         <td>${fmtDate(b.createdAt)}</td>
-        <td>${escapeHtml(b.owner?.name || '-')}</td>
-        <td>${escapeHtml(b.sitter?.name || '-')}</td>
-        <td>${escapeHtml((b.serviceType||'').replace('_',' ') || '-')}</td>
-        <td>€${(b.totalAmount||b.basePrice||0).toFixed(2)}</td>
+        <td><strong>${escapeHtml(b.owner?.name || '-')}</strong><div style="font-size:11px;color:var(--text-muted)">${escapeHtml(b.owner?.email || '')}</div></td>
+        <td>${roleIcon} ${escapeHtml(p?.name || '-')}<div style="font-size:11px;color:var(--text-muted)">${escapeHtml(p?.email || '')}</div></td>
+        <td style="font-size:12px">${(b.pets || []).map(x => escapeHtml(x.petName)).join(', ') || '—'}</td>
+        <td>${escapeHtml((b.serviceType||'').replace(/_/g,' ') || '-')}</td>
+        <td style="font-size:12px;white-space:nowrap">${escapeHtml(when || b.timeSlot || '-')}</td>
+        <td>€${(b.pricing?.totalPrice||b.totalAmount||b.basePrice||0).toFixed(2)}</td>
         <td>${statusBadge(b.status)}</td>
         <td>${payBadge(b.paymentStatus)}</td>
-        <td><button class="action-btn btn-primary" onclick="openBookingModal('${b._id}')">Modifier</button></td>
-      </tr>
-    `).join('')}</tbody></table>
+        <td><button class="action-btn btn-primary" onclick="openBookingModal('${b._id}')">${t('booking_open', 'Détail')}</button></td>
+      </tr>`;
+    }).join('')}</tbody></table>
   `;
 }
-function openBookingModal(id) {
-  const b = allBookings.find(x => x._id === id);
-  if (!b) return;
+// v565 — point 24 (contrat §7) : chronologie remise/rendu dans la modale.
+// Les 6 jalons sont toujours affichés (faits / en cours / à venir) à partir de
+// `timeline` [{step, at, by}] + `handover` ; absents → « pas encore ».
+const TIMELINE_STEPS = ['planned', 'picked_up', 'pickup_confirmed', 'returned', 'return_confirmed', 'completed'];
+function renderBookingTimeline(b) {
+  const tl = Array.isArray(b.timeline) ? b.timeline : [];
+  const h = b.handover || {};
+  const byLbl = (by) => by ? ` · ${t('tl_by_' + by, by)}` : '';
+  const done = new Map(tl.map(x => [x.step, x]));
+  let currentSet = false;
+  const items = TIMELINE_STEPS.map(step => {
+    const x = done.get(step);
+    let cls = 'pending';
+    if (x) cls = 'done';
+    else if (!currentSet) { cls = 'current'; currentSet = true; }
+    const when = x ? fmtDate(x.at, true) + byLbl(x.by) : t('tl_not_yet', 'pas encore');
+    return `<li class="${cls}"><span class="dot"></span><div class="tl-step">${t('tl_' + step, step)}</div><div class="tl-when">${escapeHtml(when)}</div></li>`;
+  }).join('');
+  const extras = [];
+  if (h.pickupReminderAt) extras.push(`⏰ ${t('tl_pickup_reminder', 'Rappel récupération envoyé')} · ${fmtDate(h.pickupReminderAt, true)}`);
+  if (h.pickupOverdueAt) extras.push(`⚠️ ${t('tl_pickup_overdue', 'Relance : récupération en retard')} · ${fmtDate(h.pickupOverdueAt, true)}`);
+  if (h.returnReminderAt) extras.push(`⏰ ${t('tl_return_reminder', 'Rappel rendu envoyé')} · ${fmtDate(h.returnReminderAt, true)}`);
+  if (h.stillActiveNoticeAt) extras.push(`📡 ${t('tl_still_active', 'Avis « toujours actif »')} · ${fmtDate(h.stillActiveNoticeAt, true)}`);
+  const gps = (lat, lng, lbl) => (lat != null && lng != null)
+    ? `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener">📍 ${lbl} (${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)})</a>` : '';
+  const proofs = [
+    b.pickupProof?.url ? `<a href="${escapeHtml(b.pickupProof.url)}" target="_blank" rel="noopener">📷 ${t('tl_pickup_proof', 'Photo récupération')}</a>` : '',
+    gps(h.pickupLat, h.pickupLng, t('tl_pickup_gps', 'GPS récupération')),
+    b.returnProof?.url ? `<a href="${escapeHtml(b.returnProof.url)}" target="_blank" rel="noopener">📷 ${t('tl_return_proof', 'Photo rendu')}</a>` : '',
+    gps(h.returnLat, h.returnLng, t('tl_return_gps', 'GPS rendu')),
+  ].filter(Boolean);
+  return `<ul class="timeline">${items}</ul>` +
+    (extras.length ? `<div style="font-size:12px;color:var(--text-muted);display:grid;gap:3px">${extras.map(escapeHtml).join('')}</div>` : '') +
+    (proofs.length ? `<div style="font-size:12.5px;display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">${proofs.join('')}</div>` : '') +
+    (b.handoverCode ? `<div style="font-size:12px;color:var(--text-muted);margin-top:8px">🔐 ${t('tl_code', 'Code de remise')} : <span class="mono">${escapeHtml(b.handoverCode)}</span></div>` : '');
+}
+function renderBookingModalContent(b, loadingTimeline) {
+  const p = b.provider || b.walker || b.sitter || null;
+  const roleLbl = b.providerRole === 'walker' ? t('role_walker', 'Promeneur') : t('role_sitter', 'Pet-sitter');
+  const money = (v) => `€${Number(v || 0).toFixed(2)}`;
+  const when = [b.startDate || b.date, b.endDate].filter(Boolean).join(' → ');
+  const pets = (b.pets || []).map(x => `${x.avatar ? `<img class="avatar-sm" src="${escapeHtml(x.avatar)}" alt="" style="width:26px;height:26px;border-radius:8px;margin-right:4px">` : '🐾 '}${escapeHtml(x.petName)}${x.category ? ` <span style="color:var(--text-muted)">(${escapeHtml(x.category)})</span>` : ''}`).join(' · ') || '—';
+  const statuses = ['pending', 'accepted', 'agreed', 'paid', 'completed', 'cancelled', 'rejected', 'refunded', 'payment_failed'];
+  const payStatuses = ['pending', 'paid', 'failed', 'refunded', 'cancelled'];
+  return `
+    <div class="modal-grid">
+      <div class="modal-field"><label class="modal-label">${t('th_owner')}</label><div class="modal-value">${escapeHtml(b.owner?.name||'-')}<div style="font-size:12px;color:var(--text-muted)">${escapeHtml(b.owner?.email||'-')}${b.owner?.mobile ? ' · ' + escapeHtml(b.owner.mobile) : ''}</div></div></div>
+      <div class="modal-field"><label class="modal-label">${roleLbl}</label><div class="modal-value">${escapeHtml(p?.name||'-')}<div style="font-size:12px;color:var(--text-muted)">${escapeHtml(p?.email||'-')}${p?.mobile ? ' · ' + escapeHtml(p.mobile) : ''}</div></div></div>
+      <div class="modal-field full"><label class="modal-label">${t('th_pets', 'Animaux')}</label><div class="modal-value" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">${pets}</div></div>
+      <div class="modal-field"><label class="modal-label">${t('th_service', 'Service')}</label><div class="modal-value">${escapeHtml((b.serviceType||'-').replace(/_/g,' '))}</div></div>
+      <div class="modal-field"><label class="modal-label">${t('th_dates', 'Dates')}</label><div class="modal-value">${escapeHtml(when || '-')}${b.timeSlot ? ` <span style="color:var(--text-muted)">· ${escapeHtml(b.timeSlot)}</span>` : ''}</div></div>
+      <div class="modal-field"><label class="modal-label">${t('th_total', 'Total')}</label><div class="modal-value">${money(b.pricing?.totalPrice ?? b.totalAmount)} <span style="color:var(--text-muted);font-size:12px">· ${t('bk_commission', 'commission')} ${money(b.pricing?.commission)} · ${t('bk_net', 'net prestataire')} ${money(b.pricing?.netPayout)}</span></div></div>
+      <div class="modal-field"><label class="modal-label">${t('bk_payout', 'Versement')}</label><div class="modal-value">${escapeHtml(b.payoutStatus || 'pending')}${b.paidAt ? ` <span style="color:var(--text-muted);font-size:12px">· ${t('bk_paid_on', 'payé le')} ${fmtDate(b.paidAt, true)}</span>` : ''}</div></div>
+      <div class="modal-field">
+        <label class="modal-label">${t('th_status')}</label>
+        <select id="edit-status" class="filter-select" style="width:100%;margin-top:4px">
+          ${statuses.map(s => `<option value="${s}" ${b.status===s?'selected':''}>${t('status_' + s, s)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">${t('th_payment', 'Paiement')}</label>
+        <select id="edit-payment-status" class="filter-select" style="width:100%;margin-top:4px">
+          ${payStatuses.map(s => `<option value="${s}" ${b.paymentStatus===s?'selected':''}>${t('pay_' + s, s)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="modal-section">🐾 ${t('tl_title', 'Chronologie remise / rendu')}</div>
+    <div id="modal-booking-timeline">${loadingTimeline ? `<div class="loading" style="padding:12px"><div class="spinner"></div></div>` : renderBookingTimeline(b)}</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:10px" class="mono">#${escapeHtml(b._id || '')}</div>
+  `;
+}
+async function openBookingModal(id) {
+  const cached = allBookings.find(x => x._id === id) || (_recentPaid || []).find(x => x._id === id);
+  if (!cached) return;
   currentBookingId = id;
   document.getElementById('modal-booking-title').textContent = `${t('booking_modal_title')} ${id.slice(-6).toUpperCase()}`;
-  // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
-  document.getElementById('modal-booking-content').innerHTML = `
-    <div class="modal-field"><label class="modal-label">Propriétaire</label><div class="modal-value">${escapeHtml(b.owner?.name||'-')} (${escapeHtml(b.owner?.email||'-')})</div></div>
-    <div class="modal-field"><label class="modal-label">Pet-sitter</label><div class="modal-value">${escapeHtml(b.sitter?.name||'-')}</div></div>
-    <div class="modal-field"><label class="modal-label">Total Amount</label><div class="modal-value">€${(b.totalAmount||0).toFixed(2)}</div></div>
-    <div class="modal-field"><label class="modal-label">Pricing Tier</label><div class="modal-value">${b.pricing?.pricingTier||'hourly'}</div></div>
-    <div class="modal-field">
-      <label class="modal-label">Booking Status</label>
-      <select id="edit-status" class="filter-select" style="width:100%;margin-top:4px">
-        ${['pending','agreed','completed','cancelled'].map(s => `<option value="${s}" ${b.status===s?'selected':''}>${s}</option>`).join('')}
-      </select>
-    </div>
-    <div class="modal-field">
-      <label class="modal-label">Payment Status</label>
-      <select id="edit-payment-status" class="filter-select" style="width:100%;margin-top:4px">
-        ${['pending','paid','failed'].map(s => `<option value="${s}" ${b.paymentStatus===s?'selected':''}>${s}</option>`).join('')}
-      </select>
-    </div>
-  `;
+  // Rendu immédiat depuis le cache, puis détail complet (parties, animaux,
+  // handover + timeline) via GET /admin/bookings/:id ; en cas d'échec on garde
+  // ce qu'on a (timeline de la liste si présente).
+  document.getElementById('modal-booking-content').innerHTML = renderBookingModalContent(cached, !cached.timeline);
   document.getElementById('booking-modal').classList.add('open');
+  try {
+    const d = await api(`/admin/bookings/${id}`);
+    const full = d && (d.booking || d);
+    if (full && full._id && currentBookingId === id) {
+      const st = document.getElementById('edit-status')?.value;
+      const ps = document.getElementById('edit-payment-status')?.value;
+      document.getElementById('modal-booking-content').innerHTML = renderBookingModalContent(full, false);
+      if (st) document.getElementById('edit-status').value = st;
+      if (ps) document.getElementById('edit-payment-status').value = ps;
+    }
+  } catch (_) {
+    const tlEl = document.getElementById('modal-booking-timeline');
+    if (tlEl) tlEl.innerHTML = renderBookingTimeline(cached);
+  }
 }
 async function saveBookingStatus() {
   const status = document.getElementById('edit-status').value;
@@ -4559,9 +4926,15 @@ function renderOwners() {
   }
   // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
   document.getElementById('owners-table-body').innerHTML = `
-    <table><thead><tr><th>Rôle</th><th>Nom</th><th>Email</th><th>Téléphone</th><th>Zone</th><th>Inscrit le</th><th>Staff</th><th>Actions</th></tr></thead>
+    <table><thead><tr><th>${t('th_role')}</th><th>${t('th_name')}</th><th>${t('th_email')}</th><th>${t('th_phone', 'Téléphone')}</th><th>${t('th_zone', 'Zone')}</th><th>${t('th_registered')}</th><th title="${t('th_devices_title', 'Jetons push enregistrés (fcmTokens) — 0 = aucune notification possible')}">${t('th_devices', '📱 Appareils')}</th><th>Staff</th><th>${t('th_actions')}</th></tr></thead>
     <tbody>${filtered.map(u => {
       const b = _ROLE_BADGE[u._role] || _ROLE_BADGE.owner;
+      // v565 — point 5 (diagnostic notifications Apple) : nombre d'appareils
+      // (fcmTokens) + plateformes ( / 🤖) via fcmDevices (v565).
+      const dev = Array.isArray(u.fcmTokens) ? u.fcmTokens.length : (u.devices != null ? u.devices : null);
+      const plat = Array.isArray(u.platforms) && u.platforms.length ? ' ' + u.platforms.map(p => p === 'ios' ? '' : p === 'android' ? '🤖' : p).join('') : '';
+      const devCell = dev == null ? '<span style="color:var(--text-muted)">?</span>'
+        : (dev ? `<span class="badge badge-green">📱 ${dev}${plat}</span>` : `<span class="badge badge-red" title="${t('no_device_title', 'Aucun jeton push : ce compte ne peut pas recevoir de notification')}">📵 0</span>`);
       return `
       <tr>
         <td><span style="background:${b.color};color:#fff;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700">${b.icon} ${b.label}</span></td>
@@ -4570,6 +4943,7 @@ function renderOwners() {
         <td>${escapeHtml(u.mobile||'-')}</td>
         <td style="font-size:12px">${zoneLabel(u)}</td>
         <td>${signupDate(u)}</td>
+        <td>${devCell}</td>
         <td>${u.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="action-btn" style="background:${u.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('${u._role}','${u._id}',${!u.isStaff})">${u.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button>
@@ -5515,10 +5889,11 @@ async function loadChatConversations() {
       const roleTag = c.providerRole
         ? `<span style="background:${c.providerRole === 'walker' ? '#1976D2' : '#5942CC'};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;text-transform:uppercase;margin-left:4px">${c.providerRole}</span>`
         : '';
-      return `<div class="card" style="padding:10px;cursor:pointer" onclick="loadChatMessages('${c.id}')">
-        <div style="font-weight:600;font-size:13px">👤 ${owner} ⇄ ${provider}${roleTag}</div>
+      const unread = (c.ownerUnreadCount || 0) + (c.sitterUnreadCount || 0) + (c.walkerUnreadCount || 0);
+      return `<div class="convo ${c.id === currentChatConvId ? 'active' : ''}" id="convo-${c.id}" onclick="loadChatMessages('${c.id}')">
+        <div style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px">👤 ${owner} <span style="color:var(--text-muted)">⇄</span> ${provider}${roleTag}${unread ? `<span class="badge badge-orange" style="margin-left:auto" title="non lus">${unread}</span>` : ''}</div>
         <div style="color:var(--text-muted);font-size:11px;margin-top:2px">#${c.id.slice(-6)} · ${when}</div>
-        <div style="color:var(--text-muted);font-size:12px;margin-top:4px">${preview}</div>
+        <div style="color:var(--text-muted);font-size:12px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview || '<i>—</i>'}</div>
       </div>`;
     }).join('');
     list.innerHTML = rows || `<div style="color:var(--text-muted)">${t('empty_no_conversation')}</div>`;
@@ -5528,9 +5903,10 @@ async function loadChatConversations() {
 }
 async function loadChatMessages(convId) {
   currentChatConvId = convId;
+  document.querySelectorAll('.convo').forEach(el => el.classList.toggle('active', el.id === 'convo-' + convId));
   const header = document.getElementById('chat-messages-header');
   const listEl = document.getElementById('chat-messages-list');
-  if (header) header.textContent = 'Conversation ' + convId.slice(-6);
+  if (header) header.textContent = t('chat_conversation', 'Conversation') + ' #' + convId.slice(-6);
   if (listEl) listEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
     const data = await api('/admin/conversations/' + convId + '/messages');
@@ -5538,15 +5914,30 @@ async function loadChatMessages(convId) {
     // messages. AVANT le body était juste replace(/</g,'&lt;') qui ne
     // protège pas contre `<img src=x onerror=...` injecté via attribut
     // — escapeHtml gère &, <, >, ", '.
+    // v565 — bulles par expéditeur, pièces jointes (image / vidéo / vocal),
+    // citation `replyTo` (contrat §5), badge de type.
     const rows = (data.messages || []).map(m => {
-      const when = m.createdAt ? new Date(m.createdAt).toLocaleString() : '';
-      const deleted = m.deletedAt ? `<span style="color:var(--error);font-size:11px">[deleted by ${escapeHtml(m.deletedBy||'?')} at ${new Date(m.deletedAt).toLocaleString()}]</span>` : '';
-      const btn = m.deletedAt ? '' : `<button class="action-btn" style="background:var(--error);color:#fff;font-size:11px" onclick="adminDeleteMessage('${m.id}')">Supprimer</button>`;
-      return `<div class="card" style="padding:10px">
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted)">
-          <span>${escapeHtml(m.senderRole||'?')} - ${when}</span> ${btn}
-        </div>
-        <div style="margin-top:6px;font-size:13px">${escapeHtml(m.body || '')}</div>
+      const when = m.createdAt ? new Date(m.createdAt).toLocaleString(adminLocale()) : '';
+      const side = m.senderRole === 'owner' ? 'owner' : (m.senderRole === 'system' || m.senderRole === 'admin' ? 'system' : 'provider');
+      const deleted = m.deletedAt ? `<div style="color:var(--error);font-size:11px;margin-top:4px">🗑 ${t('chat_deleted_by', 'supprimé par')} ${escapeHtml(m.deletedBy||'?')} · ${new Date(m.deletedAt).toLocaleString(adminLocale())}</div>` : '';
+      const btn = m.deletedAt ? '' : `<button class="link-btn" style="color:var(--red);font-size:11px;margin-left:auto" onclick="adminDeleteMessage('${m.id}')">${t('delete', 'Supprimer')}</button>`;
+      const type = m.type || 'text';
+      const typeChip = type !== 'text' ? `<span class="chip" style="font-size:10px">${escapeHtml(type)}</span>` : '';
+      const att = (m.attachments || []).map(a => {
+        const url = escapeHtml(a.url || a.secureUrl || '');
+        if (!url) return '';
+        const rt = a.resourceType || a.resource_type || '';
+        if (rt === 'audio' || type === 'voice') return `<audio controls preload="none" src="${url}"></audio>${a.duration ? `<div style="font-size:11px;color:var(--text-muted)">🎤 ${Math.round(a.duration)} s</div>` : ''}`;
+        if (rt === 'video') return `<video controls preload="metadata" src="${url}"></video>`;
+        return `<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="" loading="lazy"></a>`;
+      }).join('');
+      const quote = m.replyTo && (m.replyTo.body || m.replyTo.kind)
+        ? `<div class="quote">↩️ <b>${escapeHtml(m.replyTo.senderRole || '')}</b> · ${escapeHtml(m.replyTo.body || m.replyTo.kind || '')}</div>` : '';
+      return `<div class="bubble ${side} ${m.deletedAt ? 'deleted' : ''}">
+        <div class="meta"><b>${escapeHtml(m.senderRole||'?')}</b> <span>${when}</span> ${typeChip} ${btn}</div>
+        ${quote}
+        <div>${escapeHtml(m.body || '')}</div>
+        ${att}
         ${deleted}
       </div>`;
     }).join('');
@@ -5555,13 +5946,64 @@ async function loadChatMessages(convId) {
     if (listEl) listEl.innerHTML = '<div style="color:var(--error)">' + e.message + '</div>';
   }
 }
+// v565 — point 18 (contrat §5) : drapeaux serveur des fonctions du chat.
+const CHAT_FEATURES_PATH = '/api/v1/app-config/admin/chat-features';
+const CHAT_FEATURE_KEYS = ['media', 'voice', 'reply'];
+function _applyChatFeatures(d) {
+  const f = (d && (d.features || d)) || {};
+  CHAT_FEATURE_KEYS.forEach(k => {
+    const el = document.getElementById('chatf-' + k);
+    if (!el) return;
+    el.checked = f[k] !== false;
+    el.disabled = false;
+  });
+  const st = document.getElementById('chat-features-status');
+  if (st) {
+    const off = CHAT_FEATURE_KEYS.filter(k => f[k] === false);
+    st.className = 'chip ' + (off.length ? 'off' : 'on');
+    st.textContent = off.length ? `${off.length} ${t('chatf_disabled_n', 'désactivée(s)')}` : t('chatf_all_on', 'tout activé');
+  }
+}
+async function loadChatFeatures() {
+  const msg = document.getElementById('chat-features-msg');
+  const st = document.getElementById('chat-features-status');
+  if (!document.getElementById('chatf-media')) return;
+  if (st) { st.className = 'chip'; st.textContent = '…'; }
+  try {
+    const d = await api(CHAT_FEATURES_PATH);
+    _applyChatFeatures(d);
+    if (msg) msg.textContent = '';
+  } catch (e) {
+    CHAT_FEATURE_KEYS.forEach(k => { const el = document.getElementById('chatf-' + k); if (el) el.disabled = true; });
+    if (st) { st.className = 'chip off'; st.textContent = t('chatf_unavailable', 'indisponible'); }
+    if (msg) msg.textContent = (e.status === 404 ? t('chatf_not_deployed', 'Route non déployée côté serveur (build 565).') : t('error_prefix') + e.message);
+  }
+}
+async function setChatFeature(key, enabled) {
+  const el = document.getElementById('chatf-' + key);
+  const msg = document.getElementById('chat-features-msg');
+  if (el) el.disabled = true;
+  try {
+    const d = await api(CHAT_FEATURES_PATH, 'PATCH', { [key]: !!enabled });
+    _applyChatFeatures(d);
+    const lbl = t('chatf_' + key, key);
+    const txt = `${lbl} : ${enabled ? t('chatf_on', 'activé') : t('chatf_off', 'désactivé')} ✓`;
+    showToast(txt, 'success');
+    if (msg) msg.textContent = '✓ ' + txt + ' — ' + t('chatf_applied', 'appliqué immédiatement dans l\'app et sur le site.');
+  } catch (e) {
+    if (el) { el.checked = !enabled; el.disabled = false; }
+    showToast(t('error_prefix') + e.message, 'error');
+    if (msg) msg.textContent = t('error_prefix') + e.message;
+  }
+}
 async function adminDeleteMessage(msgId) {
-  if (!confirm('Supprimer ce message ?')) return;
+  if (!confirm(t('chat_delete_confirm', 'Supprimer ce message ?'))) return;
   try {
     await api('/admin/messages/' + msgId, 'DELETE');
+    showToast(t('chat_deleted_ok', 'Message supprimé.'), 'success');
     if (currentChatConvId) loadChatMessages(currentChatConvId);
   } catch (e) {
-    alert('Erreur: ' + e.message);
+    showToast(t('error_prefix') + e.message, 'error');
   }
 }
 
@@ -5912,7 +6354,7 @@ async function loadPayoutsDebug() {
     wrap.innerHTML =
       '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">' +
-          '<h3 style="font-family:Syne,sans-serif;font-size:18px;font-weight:700">🔍 Paiements récents (7 jours)</h3>' +
+          '<h3 style="font-family:inherit;font-size:18px;font-weight:700">🔍 Paiements récents (7 jours)</h3>' +
           '<button class="action-btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text-muted)" onclick="loadPayoutsDebug()">↻ Actualiser</button>' +
         '</div>' +
         '<div style="background:rgba(52,152,219,0.06);border:1px solid rgba(52,152,219,0.25);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;line-height:1.6">' +
@@ -6014,7 +6456,7 @@ async function loadCompanySweep() {
     if (bal._err) {
       wrap.innerHTML =
         '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px">' +
-          '<h3 style="font-family:Syne,sans-serif;font-size:18px;font-weight:700;margin-bottom:8px">💼 Mes bénéfices société</h3>' +
+          '<h3 style="font-family:inherit;font-size:18px;font-weight:700;margin-bottom:8px">💼 Mes bénéfices société</h3>' +
           '<div style="color:var(--red);font-size:13px">Impossible de charger le solde Airwallex : ' + bal._err + '</div>' +
         '</div>';
       return;
@@ -6167,7 +6609,7 @@ async function loadCompanySweep() {
     wrap.innerHTML =
       '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">' +
-          '<h3 style="font-family:Syne,sans-serif;font-size:18px;font-weight:700">🏦 Solde Airwallex (compte société)</h3>' +
+          '<h3 style="font-family:inherit;font-size:18px;font-weight:700">🏦 Solde Airwallex (compte société)</h3>' +
           '<button class="action-btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text-muted)" onclick="loadCompanySweep()">↻ Actualiser</button>' +
           '<button class="action-btn" style="margin-left:8px;background:#16A34A;color:#fff" onclick="exportRevenueCSV()">⬇️ Export CSV</button>' +
         '</div>' +
@@ -6182,7 +6624,7 @@ async function loadCompanySweep() {
           sweepBtn +
           '<span style="color:var(--text-muted);font-size:12px">Plafonné au solde HoPetSit retirable. Délai : 1-2 jours ouvrés.</span>' +
         '</div>' +
-        '<h4 style="font-family:Syne,sans-serif;font-size:14px;font-weight:700;margin:18px 0 10px">📜 Historique des retraits</h4>' +
+        '<h4 style="font-family:inherit;font-size:14px;font-weight:700;margin:18px 0 10px">📜 Historique des retraits</h4>' +
         '<div class="table-wrap">' +
           '<table><thead><tr><th>Date</th><th>Montant</th><th>Statut</th><th>Payout ID</th><th>Erreur</th></tr></thead>' +
           '<tbody>' + histRows + '</tbody></table>' +
@@ -6616,6 +7058,18 @@ async function toggleStaff(role, userId, isStaff) {
   <script>
     const ADMIN_I18N = {
       fr: {
+        // ── v565 — lot admin (menu, tableau de bord cliquable, animaux, chat, chronologie) ──
+        nav_pets: "Animaux", navsec_settings: "Contenu & réglages", navsec_tools: "Outils",
+        dash_click_hint: "Chiffres en direct (auto toutes les 60 s) · clique sur une carte pour ouvrir la liste correspondante.", dash_open_list: "Ouvrir la liste", dash_no_paid: "Aucune réservation payée pour l'instant.", dash_donations: "Dons",
+        dash_stat_profit: "💶 Bénéfice total HoPetSit", dash_stat_profit_sub: "commissions + boutique (ID + dons inclus)", dash_stat_commission: "💰 Commission 20%", dash_stat_commission_sub: "ta part sur les réservations", dash_stat_shop: "🛍️ Boutique bénéfice", dash_stat_gross: "📈 CA brut réservations", dash_stat_gross_sub: "total payé par les propriétaires", dash_stat_owed: "↩️ À reverser aux prestataires", dash_stat_owed_sub: "wallets sitters + walkers + gardes payées non encore versées", dash_stat_subs: "📦 Abonnements", dash_stat_subs_sub: "de revenus", dash_stat_bookings: "📅 Réservations", dash_stat_bookings_sub: "en attente", dash_stat_paid: "✅ Réservations payées", dash_stat_paid_sub: "paiements aboutis", dash_stat_users: "👥 Utilisateurs", dash_stat_users_sub: "tous rôles confondus", dash_stat_owners: "👤 Propriétaires", dash_stat_sitters: "🏠 Pet-sitters", dash_stat_walkers: "🚶 Promeneurs", dash_stat_pets: "🐾 Animaux", dash_stat_pets_sub: "dans le système", dash_stat_registered: "inscrits",
+        pets_title: "Animaux", pets_desc: "Tous les animaux enregistrés dans l'app, avec le compte propriétaire (nom + e-mail). Clique sur l'e-mail pour ouvrir la fiche du propriétaire dans « Utilisateurs ».", pets_search_ph: "🔍 Nom, race, propriétaire, e-mail…", filter_all_categories: "Toutes catégories", pets_empty: "Aucun animal trouvé.", pet_male: "Mâle", pet_female: "Femelle",
+        th_category: "Catégorie", th_breed: "Race", th_gender: "Sexe", th_zone: "Zone", th_added_on: "Ajouté le", th_phone: "Téléphone", th_pets: "Animaux", th_service: "Service", th_dates: "Dates", th_total: "Total", th_payment: "Paiement", th_devices: "📱 Appareils", th_devices_title: "Jetons push enregistrés (fcmTokens) — 0 = aucune notification possible", no_device_title: "Aucun jeton push : ce compte ne peut pas recevoir de notification",
+        booking_open: "Détail", bookings_empty: "Aucune réservation trouvée.", status_accepted: "Acceptée (prestataire)", status_paid: "Payée", status_refunded: "Remboursée", status_rejected: "Refusée", status_payment_failed: "Paiement échoué", pay_pending: "En attente", pay_cancelled: "Annulé", role_walker: "Promeneur", role_sitter: "Pet-sitter",
+        bk_commission: "commission", bk_net: "net prestataire", bk_payout: "Versement", bk_paid_on: "payé le",
+        tl_title: "Chronologie remise / rendu", tl_planned: "Prévu (réservation payée)", tl_picked_up: "Animal récupéré", tl_pickup_confirmed: "Récupération confirmée", tl_returned: "Animal rendu", tl_return_confirmed: "Rendu confirmé (paiement libéré)", tl_completed: "Terminée", tl_not_yet: "pas encore", tl_by_owner: "par le propriétaire", tl_by_provider: "par le prestataire", tl_by_auto: "confirmation automatique", tl_by_system: "système", tl_pickup_reminder: "Rappel récupération envoyé", tl_pickup_overdue: "Relance : récupération en retard", tl_return_reminder: "Rappel rendu envoyé", tl_still_active: "Avis « toujours actif »", tl_pickup_proof: "Photo récupération", tl_return_proof: "Photo rendu", tl_pickup_gps: "GPS récupération", tl_return_gps: "GPS rendu", tl_code: "Code de remise",
+        mod_suspend: "Suspendre", mod_reactivate: "Réactiver", mod_ban: "Bannir", mod_completed_bookings: "Réservations terminées", mod_platform_revenue: "Commissions plateforme", mod_premium_owners: "Propriétaires Premium", mod_top_sitters: "Top sitters", mod_top_walkers: "walkers", rev_hidden: "masqué", rev_visible: "visible",
+        chat_conversation: "Conversation", chat_deleted_by: "supprimé par", chat_delete_confirm: "Supprimer ce message ?", chat_deleted_ok: "Message supprimé.",
+        chatf_title: "Fonctions du chat", chatf_desc: "Active ou désactive à distance, sans mise à jour de l'app : un interrupteur à « off » masque le bouton dans l'app et sur le site, et le serveur refuse l'envoi correspondant.", chatf_media: "Photos & vidéos", chatf_media_sub: "Envoi de pièces jointes image / vidéo dans les conversations.", chatf_voice: "Messages vocaux", chatf_voice_sub: "Enregistrer et envoyer un message audio.", chatf_reply: "Réponses à un message", chatf_reply_sub: "Citer un message précis (comme WhatsApp).", chatf_disabled_n: "désactivée(s)", chatf_all_on: "tout activé", chatf_unavailable: "indisponible", chatf_not_deployed: "Route non déployée côté serveur (build 565).", chatf_on: "activé", chatf_off: "désactivé", chatf_applied: "appliqué immédiatement dans l'app et sur le site.",
         rt_poop: "Caca à ramasser",
         rt_pee: "Pipi / marquage",
         rt_water_active: "Point d'eau OK",
@@ -6650,8 +7104,8 @@ async function toggleStaff(role, userId, isStaff) {
         access_dashboard: "Accéder au tableau de bord →",
         logout: "Déconnexion",
         loading: "Chargement...",
-        navsec_overview: "Vue d'ensemble", navsec_users: "Utilisateurs", navsec_activity: "Activité", navsec_finance: "Mes finances", navsec_shop: "Boutique", navsec_content: "Contenu", navsec_system: "Système",
-        nav_dashboard: "Tableau de bord", nav_revenue: "Mes revenus", nav_owners: "Utilisateurs", users_signups: "Dernières inscriptions", users_deletions: "Dernières désinscriptions", users_deletions_empty: "Aucune désinscription enregistrée pour l'instant (suivi actif depuis le 20/07/2026)", th_deleted_on: "Désinscrit le", th_source: "Source", nav_sitters: "Pet-sitters", nav_walkers: "Promeneurs", nav_identity: "Vérifications ID", nav_moderation: "Modération users", nav_loyalty: "Avantages fidélité", nav_bookings: "Réservations", nav_listings: "Annonces", nav_chat: "Chat & messages", nav_reviews: "Avis utilisateurs", nav_reports: "Signalements", nav_payments: "Paiements", nav_invoices: "Factures", nav_iban: "Virements IBAN", nav_wallets: "Portefeuilles", nav_accounting: "Comptabilité", nav_shop_activity: "Activité boutique", nav_pricing: "Tarifs", nav_services: "Services", nav_terms: "CGU", nav_privacy: "Confidentialité", nav_pawmap: "PawMap", nav_bugs: "Bugs reportés", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_filtre: "Filtre & modération", nav_reportstats: "Signalements", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — abonnements", pawspot_admin_title: "PawSpot — abonnements & classement",
+        navsec_overview: "Vue d'ensemble", navsec_users: "Utilisateurs", navsec_activity: "Activité", navsec_finance: "Finances", navsec_shop: "Boutique", navsec_content: "Contenu", navsec_system: "Système",
+        nav_dashboard: "Tableau de bord", nav_revenue: "Mes revenus", nav_owners: "Utilisateurs", users_signups: "Dernières inscriptions", users_deletions: "Dernières désinscriptions", users_deletions_empty: "Aucune désinscription enregistrée pour l'instant (suivi actif depuis le 20/07/2026)", th_deleted_on: "Désinscrit le", th_source: "Source", nav_sitters: "Pet-sitters", nav_walkers: "Promeneurs", nav_identity: "Vérifications ID", nav_moderation: "Modération users", nav_loyalty: "Avantages fidélité", nav_bookings: "Réservations", nav_listings: "Annonces", nav_chat: "Chat & messages", nav_reviews: "Avis utilisateurs", nav_reports: "Signalements", nav_payments: "Paiements", nav_invoices: "Factures", nav_iban: "Virements IBAN", nav_wallets: "Portefeuilles", nav_accounting: "Comptabilité", nav_shop_activity: "Activité boutique", nav_pricing: "Tarifs & versions", nav_services: "Services", nav_terms: "CGU", nav_privacy: "Confidentialité", nav_pawmap: "PawMap", nav_bugs: "Bugs reportés", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_filtre: "Filtre & modération", promo_public_title: "⭐ Code du moment (pop-up de l'app)", promo_public_desc: "Ce code s'affiche déjà rempli dans le pop-up promo de l'app : l'utilisateur n'a qu'à toucher « Appliquer ». Le code doit exister dans la liste ci-dessous et être valable sur iOS (code App Store identique), Android et web.", promo_public_code: "Code", promo_public_message: "Message (facultatif)", promo_public_enabled: "Afficher le pop-up", promo_public_save: "Enregistrer", promo_public_saved: "Enregistré — le pop-up de l'app affichera ce code.", nav_reportstats: "Stats signalements PawMap", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — abonnements", pawspot_admin_title: "PawSpot — abonnements & classement",
         acc_title: "Comptabilité — Mon bilan", acc_export: "Exporter CSV",
         acc_desc: "Mes bénéfices HoPetSit uniquement : commissions plateforme sur les réservations + revenus boutique (PawBoost, PawSpot, PawFollow, 👑 PawPremium). Hors paiements reversés aux prestataires. Pour mon comptable.",
         dash_overview: "Vue d'ensemble",
@@ -6670,7 +7124,7 @@ async function toggleStaff(role, userId, isStaff) {
         dash_resync_btn: "Re-synchroniser les paiements", dash_resync_title: "Re-vérifie chaque paiement en attente auprès d'Airwallex et marque payé ceux qui ont réussi (récupère les transactions non synchronisées par le webhook)", dash_refresh_title: "Forcer le rafraîchissement",
         bookings_title: "Toutes les réservations", bookings_search_ph: "🔍 Rechercher par ID de réservation...",
         filter_all_status: "Tous les statuts", filter_all_status_2: "Tous statuts", filter_all_payments: "Tous les paiements",
-        status_pending: "En attente", status_agreed: "Acceptée", status_completed: "Terminée", status_cancelled: "Annulée", status_processing: "En cours", status_done: "Terminé",
+        status_pending: "En attente", status_agreed: "Confirmée", status_completed: "Terminée", status_cancelled: "Annulée", status_processing: "En cours", status_done: "Terminé",
         pay_paid_f: "Payée", pay_failed_f: "Échouée", pay_paid: "Payé", pay_failed: "Échec", pay_refunded: "Remboursé",
         sitters_search_ph: "🔍 Rechercher un pet-sitter...", filter_all: "Tous", filter_verified: "Vérifiés ✓", filter_unverified: "Non vérifiés",
         users_title: "Tous les utilisateurs", users_desc: "Vue unifiée : propriétaires + pet-sitters + walkers. Filtre par rôle en haut. Utilise les boutons « Staff » pour accorder Premium gratuit, ou « Supprimer » pour effacer un compte.", users_search_ph: "🔍 Rechercher par nom ou email...",
@@ -6754,6 +7208,18 @@ async function toggleStaff(role, userId, isStaff) {
         recent_5: "Les 5 récents",
       },
       en: {
+        // ── v565 — admin lot ──
+        nav_pets: "Pets", navsec_settings: "Content & settings", navsec_tools: "Tools",
+        dash_click_hint: "Live figures (auto every 60 s) · click a card to open the matching list.", dash_open_list: "Open the list", dash_no_paid: "No paid booking yet.", dash_donations: "Donations",
+        dash_stat_profit: "💶 Total HoPetSit profit", dash_stat_profit_sub: "commissions + shop (ID + donations included)", dash_stat_commission: "💰 20% commission", dash_stat_commission_sub: "your share on bookings", dash_stat_shop: "🛍️ Shop profit", dash_stat_gross: "📈 Gross booking revenue", dash_stat_gross_sub: "total paid by owners", dash_stat_owed: "↩️ Owed to providers", dash_stat_owed_sub: "sitter + walker wallets + paid stays not yet released", dash_stat_subs: "📦 Subscriptions", dash_stat_subs_sub: "in revenue", dash_stat_bookings: "📅 Bookings", dash_stat_bookings_sub: "pending", dash_stat_paid: "✅ Paid bookings", dash_stat_paid_sub: "successful payments", dash_stat_users: "👥 Users", dash_stat_users_sub: "all roles", dash_stat_owners: "👤 Owners", dash_stat_sitters: "🏠 Pet-sitters", dash_stat_walkers: "🚶 Walkers", dash_stat_pets: "🐾 Pets", dash_stat_pets_sub: "in the system", dash_stat_registered: "registered",
+        pets_title: "Pets", pets_desc: "Every pet registered in the app, with its owner account (name + e-mail). Click the e-mail to open the owner in “Users”.", pets_search_ph: "🔍 Name, breed, owner, e-mail…", filter_all_categories: "All categories", pets_empty: "No pet found.", pet_male: "Male", pet_female: "Female",
+        th_category: "Category", th_breed: "Breed", th_gender: "Sex", th_zone: "Area", th_added_on: "Added on", th_phone: "Phone", th_pets: "Pets", th_service: "Service", th_dates: "Dates", th_total: "Total", th_payment: "Payment", th_devices: "📱 Devices", th_devices_title: "Registered push tokens (fcmTokens) — 0 = no notification can be delivered", no_device_title: "No push token: this account cannot receive notifications",
+        booking_open: "Details", bookings_empty: "No booking found.", status_accepted: "Accepted (provider)", status_paid: "Paid", status_refunded: "Refunded", status_rejected: "Rejected", status_payment_failed: "Payment failed", pay_pending: "Pending", pay_cancelled: "Cancelled", role_walker: "Walker", role_sitter: "Pet-sitter",
+        bk_commission: "commission", bk_net: "provider net", bk_payout: "Payout", bk_paid_on: "paid on",
+        tl_title: "Handover timeline (pick-up / return)", tl_planned: "Planned (booking paid)", tl_picked_up: "Pet picked up", tl_pickup_confirmed: "Pick-up confirmed", tl_returned: "Pet returned", tl_return_confirmed: "Return confirmed (payment released)", tl_completed: "Completed", tl_not_yet: "not yet", tl_by_owner: "by the owner", tl_by_provider: "by the provider", tl_by_auto: "auto-confirmed", tl_by_system: "system", tl_pickup_reminder: "Pick-up reminder sent", tl_pickup_overdue: "Follow-up: pick-up overdue", tl_return_reminder: "Return reminder sent", tl_still_active: "“Still active” notice", tl_pickup_proof: "Pick-up photo", tl_return_proof: "Return photo", tl_pickup_gps: "Pick-up GPS", tl_return_gps: "Return GPS", tl_code: "Handover code",
+        mod_suspend: "Suspend", mod_reactivate: "Reactivate", mod_ban: "Ban", mod_completed_bookings: "Completed bookings", mod_platform_revenue: "Platform commissions", mod_premium_owners: "Premium owners", mod_top_sitters: "Top sitters", mod_top_walkers: "walkers", rev_hidden: "hidden", rev_visible: "visible",
+        chat_conversation: "Conversation", chat_deleted_by: "deleted by", chat_delete_confirm: "Delete this message?", chat_deleted_ok: "Message deleted.",
+        chatf_title: "Chat features", chatf_desc: "Enable or disable remotely, without an app update: a switch set to “off” hides the button in the app and on the website, and the server rejects the matching upload.", chatf_media: "Photos & videos", chatf_media_sub: "Image / video attachments in conversations.", chatf_voice: "Voice messages", chatf_voice_sub: "Record and send an audio message.", chatf_reply: "Reply to a message", chatf_reply_sub: "Quote a specific message (like WhatsApp).", chatf_disabled_n: "disabled", chatf_all_on: "all enabled", chatf_unavailable: "unavailable", chatf_not_deployed: "Route not deployed on the server yet (build 565).", chatf_on: "enabled", chatf_off: "disabled", chatf_applied: "applied immediately in the app and on the website.",
         rt_poop: "Poop to pick up",
         rt_pee: "Pee / marking",
         rt_water_active: "Water point OK",
@@ -6788,8 +7254,8 @@ async function toggleStaff(role, userId, isStaff) {
         access_dashboard: "Access Dashboard →",
         logout: "Logout",
         loading: "Loading...",
-        navsec_overview: "Overview", navsec_users: "Users", navsec_activity: "Activity", navsec_finance: "My finances", navsec_shop: "Shop", navsec_content: "Content", navsec_system: "System",
-        nav_dashboard: "Dashboard", nav_revenue: "My revenue", nav_owners: "Users", users_signups: "Latest signups", users_deletions: "Latest deletions", users_deletions_empty: "No account deletions recorded yet (tracking active since Jul 20, 2026)", th_deleted_on: "Deleted on", th_source: "Source", nav_sitters: "Pet-sitters", nav_walkers: "Walkers", nav_identity: "ID verifications", nav_moderation: "User moderation", nav_loyalty: "Loyalty benefits", nav_bookings: "Bookings", nav_listings: "Listings", nav_chat: "Chat & messages", nav_reviews: "User reviews", nav_reports: "Reports", nav_payments: "Payments", nav_invoices: "Invoices", nav_iban: "IBAN transfers", nav_wallets: "Wallets", nav_accounting: "Accounting", nav_shop_activity: "Shop activity", nav_pricing: "Pricing", nav_services: "Services", nav_terms: "Terms", nav_privacy: "Privacy", nav_pawmap: "PawMap", nav_bugs: "Bug reports", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_filtre: "Filter & moderation", nav_reportstats: "Reports", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — subscriptions", pawspot_admin_title: "PawSpot — subscriptions & ranking",
+        navsec_overview: "Overview", navsec_users: "Users", navsec_activity: "Activity", navsec_finance: "Finances", navsec_shop: "Shop", navsec_content: "Content", navsec_system: "System",
+        nav_dashboard: "Dashboard", nav_revenue: "My revenue", nav_owners: "Users", users_signups: "Latest signups", users_deletions: "Latest deletions", users_deletions_empty: "No account deletions recorded yet (tracking active since Jul 20, 2026)", th_deleted_on: "Deleted on", th_source: "Source", nav_sitters: "Pet-sitters", nav_walkers: "Walkers", nav_identity: "ID verifications", nav_moderation: "User moderation", nav_loyalty: "Loyalty benefits", nav_bookings: "Bookings", nav_listings: "Listings", nav_chat: "Chat & messages", nav_reviews: "User reviews", nav_reports: "Reports", nav_payments: "Payments", nav_invoices: "Invoices", nav_iban: "IBAN transfers", nav_wallets: "Wallets", nav_accounting: "Accounting", nav_shop_activity: "Shop activity", nav_pricing: "Pricing & versions", nav_services: "Services", nav_terms: "Terms", nav_privacy: "Privacy", nav_pawmap: "PawMap", nav_bugs: "Bug reports", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_filtre: "Filter & moderation", promo_public_title: "⭐ Code of the moment (app pop-up)", promo_public_desc: "This code is shown pre-filled in the app promo pop-up: the user only taps “Apply”. It must exist in the list below and be valid on iOS (same App Store code), Android and web.", promo_public_code: "Code", promo_public_message: "Message (optional)", promo_public_enabled: "Show the pop-up", promo_public_save: "Save", promo_public_saved: "Saved — the app pop-up will show this code.", nav_reportstats: "PawMap report stats", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — subscriptions", pawspot_admin_title: "PawSpot — subscriptions & ranking",
         acc_title: "Accounting — My balance", acc_export: "Export CSV",
         acc_desc: "My HoPetSit profits only: platform commissions on bookings + shop revenue (Boost, PawSpot, Premium, Chat). Excludes payouts to providers. For my accountant.",
         dash_overview: "Overview",
@@ -6808,7 +7274,7 @@ async function toggleStaff(role, userId, isStaff) {
         dash_resync_btn: "Re-sync payments", dash_resync_title: "Re-checks each pending payment with Airwallex and marks paid those that succeeded (recovers transactions not synced by the webhook)", dash_refresh_title: "Force refresh",
         bookings_title: "All bookings", bookings_search_ph: "🔍 Search by booking ID...",
         filter_all_status: "All statuses", filter_all_status_2: "All statuses", filter_all_payments: "All payments",
-        status_pending: "Pending", status_agreed: "Accepted", status_completed: "Completed", status_cancelled: "Cancelled", status_processing: "Processing", status_done: "Completed",
+        status_pending: "Pending", status_agreed: "Confirmed", status_completed: "Completed", status_cancelled: "Cancelled", status_processing: "Processing", status_done: "Completed",
         pay_paid_f: "Paid", pay_failed_f: "Failed", pay_paid: "Paid", pay_failed: "Failed", pay_refunded: "Refunded",
         sitters_search_ph: "🔍 Search a pet-sitter...", filter_all: "All", filter_verified: "Verified ✓", filter_unverified: "Unverified",
         users_title: "All users", users_desc: "Unified view: owners + pet-sitters + walkers. Filter by role at the top. Use the “Staff” buttons to grant free Premium, or “Delete” to remove an account.", users_search_ph: "🔍 Search by name or email...",
@@ -6891,6 +7357,18 @@ async function toggleStaff(role, userId, isStaff) {
         recent_5: "The 5 most recent",
       },
       es: {
+        // ── v565 — lote admin ──
+        nav_pets: "Mascotas", navsec_settings: "Contenido y ajustes", navsec_tools: "Herramientas",
+        dash_click_hint: "Cifras en directo (auto cada 60 s) · pulsa una tarjeta para abrir la lista correspondiente.", dash_open_list: "Abrir la lista", dash_no_paid: "Ninguna reserva pagada por ahora.", dash_donations: "Donaciones",
+        dash_stat_profit: "💶 Beneficio total HoPetSit", dash_stat_profit_sub: "comisiones + tienda (ID + donaciones incluidos)", dash_stat_commission: "💰 Comisión 20%", dash_stat_commission_sub: "tu parte en las reservas", dash_stat_shop: "🛍️ Beneficio tienda", dash_stat_gross: "📈 Ingresos brutos reservas", dash_stat_gross_sub: "total pagado por los propietarios", dash_stat_owed: "↩️ A pagar a los proveedores", dash_stat_owed_sub: "carteras cuidadores + paseadores + cuidados pagados aún no liberados", dash_stat_subs: "📦 Suscripciones", dash_stat_subs_sub: "de ingresos", dash_stat_bookings: "📅 Reservas", dash_stat_bookings_sub: "pendientes", dash_stat_paid: "✅ Reservas pagadas", dash_stat_paid_sub: "pagos completados", dash_stat_users: "👥 Usuarios", dash_stat_users_sub: "todos los roles", dash_stat_owners: "👤 Propietarios", dash_stat_sitters: "🏠 Cuidadores", dash_stat_walkers: "🚶 Paseadores", dash_stat_pets: "🐾 Mascotas", dash_stat_pets_sub: "en el sistema", dash_stat_registered: "registrados",
+        pets_title: "Mascotas", pets_desc: "Todas las mascotas registradas en la app, con la cuenta del propietario (nombre + e-mail). Pulsa el e-mail para abrir al propietario en «Usuarios».", pets_search_ph: "🔍 Nombre, raza, propietario, e-mail…", filter_all_categories: "Todas las categorías", pets_empty: "Ninguna mascota encontrada.", pet_male: "Macho", pet_female: "Hembra",
+        th_category: "Categoría", th_breed: "Raza", th_gender: "Sexo", th_zone: "Zona", th_added_on: "Añadido el", th_phone: "Teléfono", th_pets: "Mascotas", th_service: "Servicio", th_dates: "Fechas", th_total: "Total", th_payment: "Pago", th_devices: "📱 Dispositivos", th_devices_title: "Tokens push registrados (fcmTokens) — 0 = ninguna notificación posible", no_device_title: "Sin token push: esta cuenta no puede recibir notificaciones",
+        booking_open: "Detalle", bookings_empty: "Ninguna reserva encontrada.", status_accepted: "Aceptada (proveedor)", status_paid: "Pagada", status_refunded: "Reembolsada", status_rejected: "Rechazada", status_payment_failed: "Pago fallido", pay_pending: "Pendiente", pay_cancelled: "Cancelado", role_walker: "Paseador", role_sitter: "Cuidador",
+        bk_commission: "comisión", bk_net: "neto proveedor", bk_payout: "Pago al proveedor", bk_paid_on: "pagado el",
+        tl_title: "Cronología entrega / devolución", tl_planned: "Previsto (reserva pagada)", tl_picked_up: "Mascota recogida", tl_pickup_confirmed: "Recogida confirmada", tl_returned: "Mascota devuelta", tl_return_confirmed: "Devolución confirmada (pago liberado)", tl_completed: "Terminada", tl_not_yet: "todavía no", tl_by_owner: "por el propietario", tl_by_provider: "por el proveedor", tl_by_auto: "confirmación automática", tl_by_system: "sistema", tl_pickup_reminder: "Recordatorio de recogida enviado", tl_pickup_overdue: "Aviso: recogida con retraso", tl_return_reminder: "Recordatorio de devolución enviado", tl_still_active: "Aviso «sigue activo»", tl_pickup_proof: "Foto recogida", tl_return_proof: "Foto devolución", tl_pickup_gps: "GPS recogida", tl_return_gps: "GPS devolución", tl_code: "Código de entrega",
+        mod_suspend: "Suspender", mod_reactivate: "Reactivar", mod_ban: "Bloquear", mod_completed_bookings: "Reservas terminadas", mod_platform_revenue: "Comisiones plataforma", mod_premium_owners: "Propietarios Premium", mod_top_sitters: "Top cuidadores", mod_top_walkers: "paseadores", rev_hidden: "oculta", rev_visible: "visible",
+        chat_conversation: "Conversación", chat_deleted_by: "eliminado por", chat_delete_confirm: "¿Eliminar este mensaje?", chat_deleted_ok: "Mensaje eliminado.",
+        chatf_title: "Funciones del chat", chatf_desc: "Activa o desactiva a distancia, sin actualizar la app: un interruptor en «off» oculta el botón en la app y en la web, y el servidor rechaza el envío correspondiente.", chatf_media: "Fotos y vídeos", chatf_media_sub: "Adjuntos de imagen / vídeo en las conversaciones.", chatf_voice: "Mensajes de voz", chatf_voice_sub: "Grabar y enviar un mensaje de audio.", chatf_reply: "Responder a un mensaje", chatf_reply_sub: "Citar un mensaje concreto (como WhatsApp).", chatf_disabled_n: "desactivada(s)", chatf_all_on: "todo activado", chatf_unavailable: "no disponible", chatf_not_deployed: "Ruta aún no desplegada en el servidor (build 565).", chatf_on: "activado", chatf_off: "desactivado", chatf_applied: "aplicado al instante en la app y en la web.",
         rt_poop: "Caca por recoger",
         rt_pee: "Pipí / marcaje",
         rt_water_active: "Punto de agua OK",
@@ -6925,8 +7403,8 @@ async function toggleStaff(role, userId, isStaff) {
         access_dashboard: "Acceder al panel →",
         logout: "Cerrar sesión",
         loading: "Cargando...",
-        navsec_overview: "Resumen", navsec_users: "Usuarios", navsec_activity: "Actividad", navsec_finance: "Mis finanzas", navsec_shop: "Tienda", navsec_content: "Contenido", navsec_system: "Sistema",
-        nav_dashboard: "Panel", nav_revenue: "Mis ingresos", nav_owners: "Usuarios", users_signups: "Últimas inscripciones", users_deletions: "Últimas bajas", users_deletions_empty: "Ninguna baja registrada todavía (seguimiento activo desde el 20/07/2026)", th_deleted_on: "Baja el", th_source: "Origen", nav_sitters: "Cuidadores", nav_walkers: "Paseadores", nav_identity: "Verificaciones ID", nav_moderation: "Moderación usuarios", nav_loyalty: "Ventajas fidelidad", nav_bookings: "Reservas", nav_listings: "Anuncios", nav_chat: "Chat y mensajes", nav_reviews: "Opiniones", nav_reports: "Denuncias", nav_payments: "Pagos", nav_invoices: "Facturas", nav_iban: "Transferencias IBAN", nav_wallets: "Carteras", nav_accounting: "Contabilidad", nav_shop_activity: "Actividad tienda", nav_pricing: "Tarifas", nav_services: "Servicios", nav_terms: "Términos", nav_privacy: "Privacidad", nav_pawmap: "PawMap", nav_bugs: "Errores reportados", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promociones", nav_filtre: "Filtro y moderación", nav_reportstats: "Denuncias", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — suscripciones", pawspot_admin_title: "PawSpot — suscripciones y ranking",
+        navsec_overview: "Resumen", navsec_users: "Usuarios", navsec_activity: "Actividad", navsec_finance: "Finanzas", navsec_shop: "Tienda", navsec_content: "Contenido", navsec_system: "Sistema",
+        nav_dashboard: "Panel", nav_revenue: "Mis ingresos", nav_owners: "Usuarios", users_signups: "Últimas inscripciones", users_deletions: "Últimas bajas", users_deletions_empty: "Ninguna baja registrada todavía (seguimiento activo desde el 20/07/2026)", th_deleted_on: "Baja el", th_source: "Origen", nav_sitters: "Cuidadores", nav_walkers: "Paseadores", nav_identity: "Verificaciones ID", nav_moderation: "Moderación usuarios", nav_loyalty: "Ventajas fidelidad", nav_bookings: "Reservas", nav_listings: "Anuncios", nav_chat: "Chat y mensajes", nav_reviews: "Opiniones", nav_reports: "Denuncias", nav_payments: "Pagos", nav_invoices: "Facturas", nav_iban: "Transferencias IBAN", nav_wallets: "Carteras", nav_accounting: "Contabilidad", nav_shop_activity: "Actividad tienda", nav_pricing: "Tarifas y versiones", nav_services: "Servicios", nav_terms: "Términos", nav_privacy: "Privacidad", nav_pawmap: "PawMap", nav_bugs: "Errores reportados", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promociones", promo_public_title: "⭐ Código del momento (pop-up de la app)", promo_public_desc: "Este código aparece ya rellenado en el pop-up promo de la app: el usuario solo toca «Aplicar». Debe existir en la lista de abajo y ser válido en iOS (mismo código App Store), Android y web.", promo_public_code: "Código", promo_public_message: "Mensaje (opcional)", promo_public_enabled: "Mostrar el pop-up", promo_public_save: "Guardar", promo_public_saved: "Guardado — el pop-up de la app mostrará este código.", nav_filtre: "Filtro y moderación", nav_reportstats: "Estadísticas denuncias PawMap", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — suscripciones", pawspot_admin_title: "PawSpot — suscripciones y ranking",
         acc_title: "Contabilidad — Mi balance", acc_export: "Exportar CSV",
         acc_desc: "Solo mis beneficios HoPetSit: comisiones de la plataforma sobre las reservas + ingresos de tienda (Boost, PawSpot, Premium, Chat). Sin los pagos a los proveedores. Para mi contable.",
         dash_overview: "Resumen",
@@ -6945,7 +7423,7 @@ async function toggleStaff(role, userId, isStaff) {
         dash_resync_btn: "Re-sincronizar los pagos", dash_resync_title: "Vuelve a comprobar cada pago pendiente con Airwallex y marca como pagados los que tuvieron éxito (recupera las transacciones no sincronizadas por el webhook)", dash_refresh_title: "Forzar la actualización",
         bookings_title: "Todas las reservas", bookings_search_ph: "🔍 Buscar por ID de reserva...",
         filter_all_status: "Todos los estados", filter_all_status_2: "Todos los estados", filter_all_payments: "Todos los pagos",
-        status_pending: "Pendiente", status_agreed: "Aceptada", status_completed: "Completada", status_cancelled: "Cancelada", status_processing: "En curso", status_done: "Completado",
+        status_pending: "Pendiente", status_agreed: "Confirmada", status_completed: "Completada", status_cancelled: "Cancelada", status_processing: "En curso", status_done: "Completado",
         pay_paid_f: "Pagada", pay_failed_f: "Fallida", pay_paid: "Pagado", pay_failed: "Fallido", pay_refunded: "Reembolsado",
         sitters_search_ph: "🔍 Buscar un cuidador...", filter_all: "Todos", filter_verified: "Verificados ✓", filter_unverified: "No verificados",
         users_title: "Todos los usuarios", users_desc: "Vista unificada: propietarios + cuidadores + paseadores. Filtra por rol arriba. Usa los botones «Staff» para conceder Premium gratis, o «Eliminar» para borrar una cuenta.", users_search_ph: "🔍 Buscar por nombre o email...",

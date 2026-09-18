@@ -11,141 +11,103 @@ import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
+import 'package:hopetsit/views/chat_shared/chat_api.dart';
+import 'package:hopetsit/views/chat_shared/chat_models.dart';
+import 'package:hopetsit/views/chat_shared/chat_session.dart';
 import 'package:image_picker/image_picker.dart';
 
-class SitterChatMessage {
-  final String id;
-  final String senderId;
-  final String senderName;
-  final String senderImage;
-  final String message;
-  final DateTime timestamp;
-  final bool isFromCurrentUser;
-  final List<String> attachments;
-  // v19.1.3 — soft-delete flag, mirrors ChatMessage.
-  final bool isDeleted;
-  final String senderRole;
-  // v23.1.176 — Daniel : carte chat pour les demandes "Suivre" entre
-  // owner et walker/sitter. Type 'pawfollow_request' + metadata.
-  final String type;
-  final Map<String, dynamic> metadata;
-
+/// v565 — hérite de ChatMessageBase (views/chat_shared/chat_models.dart) :
+/// tous les getters (système, pawfollow, partage numéro/adresse, médias,
+/// citation) vivent dans la base commune aux deux contrôleurs.
+class SitterChatMessage extends ChatMessageBase {
   SitterChatMessage({
-    required this.id,
-    required this.senderId,
-    required this.senderName,
-    required this.senderImage,
-    required this.message,
-    required this.timestamp,
-    required this.isFromCurrentUser,
-    this.attachments = const [],
-    this.isDeleted = false,
-    this.senderRole = '',
-    this.type = 'text',
-    this.metadata = const {},
+    required super.id,
+    required super.senderId,
+    required super.senderName,
+    required super.senderImage,
+    required super.message,
+    required super.timestamp,
+    required super.isFromCurrentUser,
+    super.attachments,
+    super.isDeleted,
+    super.senderRole,
+    super.type,
+    super.metadata,
+    super.media,
+    super.replyTo,
+    super.isPending,
+    super.isFailed,
   });
 
-  bool get isSystem => senderRole.toLowerCase() == 'system';
-  // v23.1.255 — messages système localisés par viewer (cf chat_controller).
-  String get systemKind => (metadata['kind'] ?? '').toString();
-  String get systemDisplayText {
-    switch (systemKind) {
-      case 'payment_confirmed':
-        return 'chat_system_payment_confirmed'.tr;
-      case 'rendezvous_prompt':
-        return 'chat_system_rendezvous_prompt'.tr;
-      default:
-        return message;
-    }
+  SitterChatMessage copyWith({
+    String? id,
+    String? message,
+    List<ChatAttachment>? media,
+    bool? isPending,
+    bool? isFailed,
+    bool? isDeleted,
+  }) {
+    return SitterChatMessage(
+      id: id ?? this.id,
+      senderId: senderId,
+      senderName: senderName,
+      senderImage: senderImage,
+      message: message ?? this.message,
+      timestamp: timestamp,
+      isFromCurrentUser: isFromCurrentUser,
+      attachments: attachments,
+      isDeleted: isDeleted ?? this.isDeleted,
+      senderRole: senderRole,
+      type: type,
+      metadata: metadata,
+      media: media ?? this.media,
+      replyTo: replyTo,
+      isPending: isPending ?? this.isPending,
+      isFailed: isFailed ?? this.isFailed,
+    );
   }
-  bool get isPawfollowRequest => type == 'pawfollow_request';
-  // v449 — type 'phone_share' = carte « Numéro de téléphone » partagé via
-  // POST /conversations/:id/share-phone (3 rôles). Le numéro est dans `body`
-  // (= message) et dupliqué dans metadata.phone. Parité avec ChatMessage.
-  bool get isPhoneShare => type == 'phone_share';
-  String get phoneShareNumber {
-    final m = (metadata['phone'] ?? '').toString();
-    return m.isNotEmpty ? m : message;
-  }
-  // v23.1 part 240 — type 'address_share' (cf chat_controller.dart pour
-  // explication detaillee). Parite SitterChatMessage/ChatMessage.
-  bool get isAddressShare => type == 'address_share';
-  String get addressShareAddress =>
-      (metadata['address'] ?? '').toString();
-  String get addressShareCity =>
-      (metadata['city'] ?? '').toString();
-  double? get addressShareLat {
-    final raw = metadata['lat'];
-    if (raw is num) return raw.toDouble();
-    if (raw is String) return double.tryParse(raw);
-    return null;
-  }
-  double? get addressShareLng {
-    final raw = metadata['lng'];
-    if (raw is num) return raw.toDouble();
-    if (raw is String) return double.tryParse(raw);
-    return null;
-  }
-  String get pawfollowStatus =>
-      (metadata['status'] ?? 'pending').toString();
-  String get pawfollowResponderRole =>
-      (metadata['responderRole'] ?? '').toString();
-  String get pawfollowRequesterRole =>
-      (metadata['requesterRole'] ?? '').toString();
-  // v23.1 part 200 — snapshot booking pour la refonte mockup (parité avec
-  // ChatMessage côté owner). Le backend pousse ces champs dans le metadata
-  // du message pawfollow_request.
-  String get pawfollowPetName =>
-      (metadata['petName'] ?? '').toString();
-  String get pawfollowPetPhoto =>
-      (metadata['petPhoto'] ?? '').toString();
-  DateTime? get pawfollowStartAt {
-    final raw = metadata['startAt'];
-    if (raw == null || raw == '') return null;
-    return DateTime.tryParse(raw.toString());
-  }
-  DateTime? get pawfollowEndAt {
-    final raw = metadata['endAt'];
-    if (raw == null || raw == '') return null;
-    return DateTime.tryParse(raw.toString());
-  }
-  double? get pawfollowLastLat {
-    final raw = metadata['lastLat'];
-    if (raw is num) return raw.toDouble();
-    if (raw is String) return double.tryParse(raw);
-    return null;
-  }
-  double? get pawfollowLastLng {
-    final raw = metadata['lastLng'];
-    if (raw is num) return raw.toDouble();
-    if (raw is String) return double.tryParse(raw);
-    return null;
-  }
-  String get pawfollowServiceType =>
-      (metadata['serviceType'] ?? '').toString();
 }
 
-class SitterChatConversation {
-  final String id;
-  final String contactName;
-  final String contactImage;
-  final String lastMessage;
-  final DateTime lastMessageTime;
-  final bool isOnline;
-  final int unreadCount;
-
+/// v565 — hérite de ChatConversationBase (contactId / lastSeenAt pour la
+/// présence en ligne).
+class SitterChatConversation extends ChatConversationBase {
   SitterChatConversation({
-    required this.id,
-    required this.contactName,
-    required this.contactImage,
-    required this.lastMessage,
-    required this.lastMessageTime,
-    required this.isOnline,
-    required this.unreadCount,
+    required super.id,
+    required super.contactName,
+    required super.contactImage,
+    required super.lastMessage,
+    required super.lastMessageTime,
+    required super.isOnline,
+    required super.unreadCount,
+    super.contactId,
+    super.contactRole,
+    super.lastSeenAt,
   });
+
+  SitterChatConversation copyWith({
+    String? lastMessage,
+    DateTime? lastMessageTime,
+    bool? isOnline,
+    int? unreadCount,
+    DateTime? lastSeenAt,
+  }) {
+    return SitterChatConversation(
+      id: id,
+      contactName: contactName,
+      contactImage: contactImage,
+      lastMessage: lastMessage ?? this.lastMessage,
+      lastMessageTime: lastMessageTime ?? this.lastMessageTime,
+      isOnline: isOnline ?? this.isOnline,
+      unreadCount: unreadCount ?? this.unreadCount,
+      contactId: contactId,
+      contactRole: contactRole,
+      lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+    );
+  }
 }
 
-class SitterChatController extends GetxController {
+class SitterChatController extends GetxController
+    with ChatSessionMixin<SitterChatMessage, SitterChatConversation> {
   SitterChatController(
     this._chatRepository, {
     GetStorage? storage,
@@ -156,15 +118,20 @@ class SitterChatController extends GetxController {
   final ChatRepository _chatRepository;
   final GetStorage _storage;
   final SocketService _socketService;
+  @override
   final TextEditingController messageController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
 
   // Observable state
+  @override
   final RxList<SitterChatConversation> conversations =
       <SitterChatConversation>[].obs;
+  @override
   final RxList<SitterChatMessage> currentChatMessages =
       <SitterChatMessage>[].obs;
+  @override
   final RxString currentChatId = ''.obs;
+  @override
   final RxBool isLoading = false.obs;
 
   /// v500 — Daniel : « impossible d'ecrire, le clavier se referme tout seul ».
@@ -174,13 +141,17 @@ class SitterChatController extends GetxController {
   /// badge, activite web du meme compte) basculait l'ecran de conversation
   /// sur le spinner plein ecran -> le champ de saisie etait detruit -> le
   /// clavier se fermait instantanement. Flag DEDIE aux messages :
+  @override
   final RxBool isMessagesLoading = false.obs;
+  @override
   final RxString errorMessage = ''.obs;
+  @override
   final RxBool isChatLocked = false.obs;
 
   /// v500 — parité avec le chat owner : le backend renvoie 403
   /// PAYMENT_REQUIRED tant que la réservation n'est pas payée. Avant, le
   /// côté sitter/walker affichait juste une erreur générique incomprise.
+  @override
   final RxBool isPaymentRequired = false.obs;
   final RxList<File> selectedAttachments = <File>[].obs;
 
@@ -191,6 +162,85 @@ class SitterChatController extends GetxController {
   void setContactInfo(String name, String image) {
     _contactName = name;
     _contactImage = image;
+  }
+
+  // ── v565 — hooks du ChatSessionMixin (views/chat_shared/chat_session.dart) ─
+  @override
+  String get myRole =>
+      _storage.read<String>(StorageKeys.userRole) ?? 'sitter';
+
+  @override
+  String get currentUserId =>
+      (_storage.read<Map<String, dynamic>>(StorageKeys.userProfile)?['id'] ??
+              '')
+          .toString();
+
+  @override
+  SitterChatMessage buildLocalMessage({
+    required String id,
+    required String body,
+    required String type,
+    List<ChatAttachment> media = const [],
+    ChatReplyRef? replyTo,
+    bool isPending = false,
+    bool isFailed = false,
+  }) {
+    final p = _storage.read<Map<String, dynamic>>(StorageKeys.userProfile);
+    String img = '';
+    final a = p?['avatar'];
+    if (a is String) {
+      img = a;
+    } else if (a is Map && a['url'] != null) {
+      img = a['url'].toString();
+    }
+    return SitterChatMessage(
+      id: id,
+      senderId: currentUserId,
+      senderName: p?['name']?.toString() ?? 'cs_you'.tr,
+      senderImage: img,
+      message: body,
+      timestamp: DateTime.now(),
+      isFromCurrentUser: true,
+      senderRole: myRole,
+      type: type,
+      media: media,
+      replyTo: replyTo,
+      isPending: isPending,
+      isFailed: isFailed,
+    );
+  }
+
+  @override
+  SitterChatMessage mapServerMessage(Map<String, dynamic> raw) =>
+      _mapToSitterChatMessage(raw, currentUserId, myRole);
+
+  @override
+  SitterChatMessage withStatus(SitterChatMessage m, {bool? isPending, bool? isFailed}) =>
+      m.copyWith(isPending: isPending, isFailed: isFailed);
+
+  @override
+  SitterChatConversation withPresence(
+    SitterChatConversation c, {
+    required bool isOnline,
+    DateTime? lastSeenAt,
+  }) =>
+      c.copyWith(isOnline: isOnline, lastSeenAt: lastSeenAt);
+
+  @override
+  void updateLastMessagePreview(String preview) => _updateLastMessage(preview);
+
+  /// Aperçu d'un message sans texte (photo / vidéo / vocal / partage).
+  String _previewFromRaw(Map<String, dynamic> raw) {
+    final type = (raw['type'] ?? '').toString();
+    if (type == 'voice') return chatPreviewForKind('audio', '');
+    if (type == 'phone_share' || type == 'address_share') {
+      return chatPreviewForKind(type, '');
+    }
+    final media = parseChatAttachments(raw['attachments']);
+    if (media.isNotEmpty) {
+      return chatPreviewForKind(media.first.resourceType, '');
+    }
+    return '';
   }
 
   @override
@@ -226,6 +276,8 @@ class SitterChatController extends GetxController {
         // v401 — réf stable via le multiplexeur (cf. chat_controller) : ne
         // clobbere plus le listener badge du NotificationsController.
         _socketService.addMessageNewListener(_handleNewMessage);
+        // v565 — présence en ligne (contrat §6), réf. stable du mixin.
+        _socketService.addPresenceListener(handlePresenceUpdate);
         _socketService.onMessageDeleted((payload) {
           _handleMessageDeleted(payload);
         });
@@ -258,6 +310,7 @@ class SitterChatController extends GetxController {
     // v401 — retire UNIQUEMENT notre abonnement message:new (cf.
     // chat_controller) ; le listener badge reste vivant.
     _socketService.removeMessageNewListener(_handleNewMessage);
+    _socketService.removePresenceListener(handlePresenceUpdate);
     _socketService.removeListener('message:deleted');
   }
 
@@ -396,7 +449,9 @@ class SitterChatController extends GetxController {
             messageData['conversation']?['id']?.toString() ??
             '';
         if (msgConvId.isEmpty) return;
-        final body = (raw['body'] ?? raw['message'] ?? '').toString();
+        final rawBody = (raw['body'] ?? raw['message'] ?? '').toString();
+        // v565 — aperçu lisible pour photo / vidéo / vocal sans texte.
+        final body = rawBody.trim().isNotEmpty ? rawBody : _previewFromRaw(raw);
         final senderIdForList =
             raw['senderId']?.toString() ??
             (raw['sender'] is Map ? (raw['sender'] as Map)['_id']?.toString() : null) ??
@@ -405,13 +460,9 @@ class SitterChatController extends GetxController {
         final idx = conversations.indexWhere((c) => c.id == msgConvId);
         if (idx >= 0) {
           final existing = conversations[idx];
-          final updated = SitterChatConversation(
-            id: existing.id,
-            contactName: existing.contactName,
-            contactImage: existing.contactImage,
+          final updated = existing.copyWith(
             lastMessage: body.isNotEmpty ? body : existing.lastMessage,
             lastMessageTime: DateTime.now(),
-            isOnline: existing.isOnline,
             unreadCount: isFromOther && msgConvId != currentChatId.value
                 ? existing.unreadCount + 1
                 : existing.unreadCount,
@@ -429,6 +480,7 @@ class SitterChatController extends GetxController {
   }
 
   /// Public method to reload conversations (can be called from UI)
+  @override
   Future<void> reloadConversations() async {
     await _loadConversations();
   }
@@ -590,9 +642,21 @@ class SitterChatController extends GetxController {
       lastMessageTime = DateTime.now();
     }
 
-    // Extract online status
+    // v565 — présence (contrat §6) : `isOnline` calculé par le serveur +
+    // `lastSeenAt` ; identité du correspondant pour `presence:update`.
     final isOnline =
         data['isOnline'] == true || data['online'] == true || false;
+    final op = data['otherParty'] is Map
+        ? Map<String, dynamic>.from(data['otherParty'] as Map)
+        : const <String, dynamic>{};
+    final contactId =
+        (op['id'] ?? op['_id'] ?? op['userId'] ?? data['otherPartyId'] ?? '')
+            .toString();
+    final contactRole = (op['role'] ?? data['otherPartyRole'] ?? '').toString();
+    DateTime? lastSeenAt;
+    final rawSeen = data['lastSeenAt'] ?? op['lastSeenAt'];
+    if (rawSeen is String) lastSeenAt = DateTime.tryParse(rawSeen);
+    if (rawSeen is int) lastSeenAt = DateTime.fromMillisecondsSinceEpoch(rawSeen);
 
     // Extract unread count
     final unreadCount = data['unreadCount'] is int
@@ -607,9 +671,13 @@ class SitterChatController extends GetxController {
       lastMessageTime: lastMessageTime,
       isOnline: isOnline,
       unreadCount: unreadCount,
+      contactId: contactId,
+      contactRole: contactRole,
+      lastSeenAt: lastSeenAt,
     );
   }
 
+  @override
   Future<void> loadChatMessages(
     String chatId, {
     String? contactName,
@@ -653,6 +721,10 @@ class SitterChatController extends GetxController {
 
       // Join conversation room for real-time updates
       _socketService.joinConversation(chatId);
+      // v565 — point vert / vu il y a X + drapeaux admin du chat.
+      replyTarget.value = null;
+      syncPeerPresence(chatId);
+      loadFeatures();
 
       // v23.1.301 — Daniel : "une fois lus, les badges reviennent quand je me
       // reconnecte". On marque la conversation LUE côté serveur dès l'ouverture
@@ -999,6 +1071,9 @@ class SitterChatController extends GetxController {
       senderRole: senderRoleStr,
       type: typeStr,
       metadata: metadataMap,
+      // v565 — pièces typées + citation (contrat §5).
+      media: parseChatAttachments(data['attachments']),
+      replyTo: parseChatReplyTo(data['replyTo']),
     );
   }
 
@@ -1012,6 +1087,7 @@ class SitterChatController extends GetxController {
   /// v23.1.196 — Daniel : "ajouter effacer pour effacer la conversation
   /// en entier". Supprime hard la conv + tous ses messages cote backend,
   /// puis retire de la liste locale. Optimistic + rollback si echec.
+  @override
   Future<bool> deleteConversation(String conversationId) async {
     final idx = conversations.indexWhere((c) => c.id == conversationId);
     if (idx < 0) return false;
@@ -1037,6 +1113,7 @@ class SitterChatController extends GetxController {
     }
   }
 
+  @override
   Future<bool> deleteMessage(String messageId) async {
     if (currentChatId.value.isEmpty) return false;
     final idx = currentChatMessages.indexWhere((m) => m.id == messageId);
@@ -1099,108 +1176,90 @@ class SitterChatController extends GetxController {
     }
   }
 
+  @override
   Future<void> sendMessage() async {
-    if (messageController.text.trim().isEmpty && selectedAttachments.isEmpty) {
-      return;
-    }
-    if (currentChatId.value.isEmpty) {
-      return;
-    }
-
     final messageText = messageController.text.trim();
-    final tempId = DateTime.now().millisecondsSinceEpoch.toString();
-
-    // Get user info from storage
-    final userProfile = _storage.read<Map<String, dynamic>>(
-      StorageKeys.userProfile,
-    );
-    final userId = userProfile?['id']?.toString() ?? '';
-    final userName = userProfile?['name']?.toString() ?? 'You';
-
-    // Extract user image - handle both string URLs and objects with url field
-    String userImage = '';
-    if (userProfile?['avatar'] != null) {
-      if (userProfile!['avatar'] is String) {
-        userImage = userProfile['avatar'] as String;
-      } else if (userProfile['avatar'] is Map &&
-          userProfile['avatar']['url'] != null) {
-        userImage = userProfile['avatar']['url'] as String;
-      }
+    // v565 — les pièces jointes sélectionnées (ancien flux « + » avec aperçu)
+    // partent par le canal média réparé : une requête par fichier, timeout
+    // long, `kind=media` (contrat §5).
+    if (selectedAttachments.isNotEmpty) {
+      final files = List<File>.from(selectedAttachments);
+      selectedAttachments.clear();
+      await sendMediaFiles(files);
+    }
+    if (messageText.isEmpty || currentChatId.value.isEmpty) {
+      return;
     }
 
-    // Create optimistic message
-    final optimisticMessage = SitterChatMessage(
+    final tempId = 'tmp_${DateTime.now().microsecondsSinceEpoch}';
+    // v565 — réponse à un message : instantané local + `replyTo.messageId`.
+    final replyRef = snapshotReply();
+    final optimisticMessage = buildLocalMessage(
       id: tempId,
-      senderId: userId,
-      senderName: userName,
-      senderImage: userImage,
-      message: messageText.isNotEmpty ? messageText : '📎 Attachment',
-      timestamp: DateTime.now(),
-      isFromCurrentUser: true,
+      body: messageText,
+      type: 'text',
+      replyTo: replyRef,
+      isPending: true,
     );
 
     // Add optimistic message immediately
     currentChatMessages.add(optimisticMessage);
-    final attachmentsToSend = List<File>.from(selectedAttachments);
     messageController.clear();
-    selectedAttachments.clear();
-    _updateLastMessage(messageText.isNotEmpty ? messageText : '📎 Attachment');
+    replyTarget.value = null;
+    _updateLastMessage(messageText);
 
     try {
-      // Get user role
-      final role = _storage.read<String>(StorageKeys.userRole) ?? 'sitter';
-
-      // Send message with attachments if any, otherwise send text message
-      Map<String, dynamic> response;
-      if (attachmentsToSend.isNotEmpty) {
-        response = await _chatRepository.sendMessageWithAttachments(
-          conversationId: currentChatId.value,
-          senderRole: role,
-          senderId: userId,
-          files: attachmentsToSend,
-          body: messageText.isNotEmpty ? messageText : null,
-        );
-      } else {
-        response = await _chatRepository.sendMessage(
-          conversationId: currentChatId.value,
-          body: messageText,
-          senderRole: role,
-          senderId: userId,
-        );
-      }
-
-      // Replace optimistic message with actual message from API
-      // Preserve sender name and image from optimistic message if API doesn't provide them
-      final actualMessage = _mapToSitterChatMessage(response, userId, 'sitter');
-
-      // If API response doesn't have sender info, preserve from optimistic message
-      final finalMessage = SitterChatMessage(
-        id: actualMessage.id,
-        senderId: actualMessage.senderId,
-        senderName:
-            actualMessage.senderName == 'You' ||
-                actualMessage.senderName == 'Unknown'
-            ? optimisticMessage.senderName
-            : actualMessage.senderName,
-        senderImage: actualMessage.senderImage.isEmpty
-            ? optimisticMessage.senderImage
-            : actualMessage.senderImage,
-        message: actualMessage.message,
-        timestamp: actualMessage.timestamp,
-        isFromCurrentUser: actualMessage.isFromCurrentUser,
-        attachments: actualMessage.attachments,
+      final response = await ChatApi.sendText(
+        conversationId: currentChatId.value,
+        body: messageText,
+        senderRole: myRole,
+        senderId: currentUserId,
+        replyToMessageId: replyRef?.messageId,
       );
 
-      final index = currentChatMessages.indexWhere((msg) => msg.id == tempId);
-      if (index != -1) {
-        currentChatMessages[index] = finalMessage;
-      } else {
-        // If not found, add it (shouldn't happen, but just in case)
-        currentChatMessages.add(finalMessage);
+      // v23.1 part 240 — mapping défensif : si le payload est illisible on
+      // GARDE la bulle optimiste (plus d'écran noir).
+      SitterChatMessage? actualMessage;
+      try {
+        actualMessage = mapServerMessage(response);
+      } catch (mappingErr) {
+        AppLogger.logError(
+          'sendMessage : mapping failed, keeping optimistic',
+          error: mappingErr,
+        );
       }
 
-      // Socket will handle real-time updates for other users
-      // The message is already sent via API, socket will broadcast to other participants
+      final index = currentChatMessages.indexWhere((msg) => msg.id == tempId);
+      if (actualMessage != null) {
+        final a = actualMessage;
+        final finalMessage = SitterChatMessage(
+          id: a.id,
+          senderId: a.senderId.isNotEmpty ? a.senderId : currentUserId,
+          senderName: a.senderName == 'You' || a.senderName == 'Unknown'
+              ? optimisticMessage.senderName
+              : a.senderName,
+          senderImage: a.senderImage.isEmpty
+              ? optimisticMessage.senderImage
+              : a.senderImage,
+          message: a.message.isNotEmpty ? a.message : messageText,
+          timestamp: a.timestamp,
+          isFromCurrentUser: true,
+          attachments: a.attachments,
+          senderRole: a.senderRole,
+          type: a.type,
+          metadata: a.metadata,
+          media: a.media,
+          replyTo: a.replyTo ?? replyRef,
+        );
+        if (index != -1) {
+          currentChatMessages[index] = finalMessage;
+        } else {
+          currentChatMessages.add(finalMessage);
+        }
+      } else if (index != -1) {
+        currentChatMessages[index] = optimisticMessage.copyWith(isPending: false);
+      }
+      // Socket will handle real-time updates for other users.
     } catch (e) {
       AppLogger.logError('Error sending message', error: e);
       // Remove optimistic message on error
@@ -1210,25 +1269,33 @@ class SitterChatController extends GetxController {
         messageController.clear();
         selectedAttachments.clear();
         CustomSnackbar.showWarning(
-          title: 'chat_locked_title',
-          message: 'chat_locked_after_payment',
+          title: 'chat_locked_title'.tr,
+          message: 'chat_locked_after_payment'.tr,
         );
         return;
       }
-      // Restore message text and attachments
+      // Restore message text (and the quoted message) so the user can retry.
       messageController.text = messageText;
-      selectedAttachments.value = attachmentsToSend;
-      // Show error to user
-      errorMessage.value = 'Failed to send message. Please try again.';
-      // v500 — Daniel (version Store) : « impossible d'envoyer des messages »
-      // sans AUCUN détail visible. On affiche la VRAIE raison renvoyée par le
-      // serveur (code + message) pour diagnostiquer sur l'appareil, au lieu
-      // du texte générique qui cache la cause.
+      if (ChatApi.isFeatureDisabled(e)) {
+        // v565 — l'admin a désactivé les réponses : on renvoie sans citation.
+        final f = features.value;
+        features.value =
+            ChatFeatureFlags(media: f.media, voice: f.voice, reply: false);
+        CustomSnackbar.showWarning(
+          title: 'common_error'.tr,
+          message: 'cs_feature_disabled'.tr,
+        );
+        return;
+      }
+      errorMessage.value = 'cs_send_failed_body'.tr;
+      // v500 — afficher la VRAIE raison renvoyée par le serveur.
       final apiMsg = e is ApiException
           ? '[${e.statusCode ?? '?'}] ${e.message}'
-          : e.toString();
+          : (e is NetworkUnreachableException
+              ? 'cs_send_failed_body'.tr
+              : e.toString());
       CustomSnackbar.showError(
-        title: 'common_error'.tr,
+        title: 'cs_send_failed_title'.tr,
         message: apiMsg.length > 220 ? apiMsg.substring(0, 220) : apiMsg,
       );
     }
@@ -1281,32 +1348,29 @@ class SitterChatController extends GetxController {
     final conversationIndex = conversations.indexWhere(
       (conv) => conv.id == currentChatId.value,
     );
-
     if (conversationIndex != -1) {
-      conversations[conversationIndex] = SitterChatConversation(
-        id: conversations[conversationIndex].id,
-        contactName: conversations[conversationIndex].contactName,
-        contactImage: conversations[conversationIndex].contactImage,
-        lastMessage: 'You: $message',
+      conversations[conversationIndex] =
+          conversations[conversationIndex].copyWith(
+        lastMessage: '${'cs_you'.tr}: $message',
         lastMessageTime: DateTime.now(),
-        isOnline: conversations[conversationIndex].isOnline,
-        unreadCount: conversations[conversationIndex].unreadCount,
       );
     }
   }
 
+  @override
   String formatTime(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
+    // v565 — localisé (parité avec ChatController owner).
     if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
+      return 'time_days_ago'.trParams({'count': difference.inDays.toString()});
     } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
+      return 'time_hours_ago'.trParams({'count': difference.inHours.toString()});
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
+      return 'time_minutes_ago'.trParams({'count': difference.inMinutes.toString()});
     } else {
-      return 'Just now';
+      return 'time_just_now'.tr;
     }
   }
 

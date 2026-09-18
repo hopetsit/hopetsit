@@ -16,6 +16,7 @@ import 'package:hopetsit/controllers/paw_map_controller.dart';
 import 'package:hopetsit/controllers/pawspot_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/map_poi_model.dart';
+import 'package:hopetsit/models/friendship_model.dart';
 import 'package:hopetsit/models/map_report_model.dart';
 import 'package:hopetsit/models/nearby_request_model.dart';
 import 'package:get_storage/get_storage.dart';
@@ -253,6 +254,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   double _zoomLevel = 13;
   /// v550 — dernier centre réellement rechargé (voir `_scheduleReload`).
   LatLng? _lastReloadCenter;
+  /// v565 — point 8 : zoom à partir duquel les membres prennent la couleur
+  /// de leur rôle (rose fluo en dessous).
+  static const double _roleColorZoom = 9.0;
   /// v551 — Daniel : « filtres par type, joli et minimaliste, pas de slide ».
   /// Rôles de membres affichés sur la carte (tous par défaut).
   final RxSet<String> _memberRoles = <String>{'sitter', 'walker', 'owner'}.obs;
@@ -1125,6 +1129,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   // Avant : simple snackbar. Maintenant : fiche membre (photo/patte rose,
   // nom, rôle, statut ou « position approximative ») + bouton Ajouter en
   // ami (FriendController.sendRequest) avec retour envoyé / déjà / erreur.
+  /// v565 — relecture serveur des demandes, une fois par ouverture de fiche.
+  bool _memberSheetRefreshed = false;
+
   void _onNearbyTap({
     required String id,
     required String role,
@@ -1142,6 +1149,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     String currency = 'EUR',
   }) {
     _selectedNearbyId = id;
+    _memberSheetRefreshed = false;
     if (mounted) setState(() {});
     final title = name.isNotEmpty
         ? name
@@ -1153,20 +1161,52 @@ class _PawMapScreenState extends State<PawMapScreen>
         : (role == 'owner' ? 'role_pet_owner'.tr : 'role_pet_sitter'.tr);
     const pink = Color(0xFFF06AA0);
     const pinkDark = Color(0xFFE0568B);
-    String reqState = 'idle'; // idle | busy | sent | already | error
+    // v565 — point 9 : l'état de la demande est PERSISTANT (relu depuis le
+    // serveur via FriendController, pas seulement en mémoire) : demande déjà
+    // envoyée → « Demande déjà envoyée · en attente de réponse » ; déjà amis ;
+    // demande REÇUE de ce membre → « Répondre » (ouvre l'onglet Amis).
+    // idle | busy | sent | already | friends | incoming | error
+    String relationState(String uid) {
+      if (_friendController.isFriendWith(uid)) return 'friends';
+      if (_friendController.hasPendingRequestTo(uid)) return 'sent';
+      if (_friendController.incomingRequestFrom(uid) != null) return 'incoming';
+      return 'idle';
+    }
+
+    String reqState = relationState(id);
+    // v565 — contrat §6 : présence temps réel si connue, sinon valeur chargée.
+    final bool onlineNow = _liveMap.isOnline(id) ?? online;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) {
+          // Relecture serveur à l'ouverture (une fois) : l'état affiché ne
+          // dépend jamais d'une liste périmée.
+          if (!_memberSheetRefreshed) {
+            _memberSheetRefreshed = true;
+            unawaited(_friendController.loadRequests().then((_) {
+              if (!ctx.mounted) return;
+              if (reqState == 'idle' || reqState == 'sent' ||
+                  reqState == 'friends' || reqState == 'incoming') {
+                setSheet(() => reqState = relationState(id));
+              }
+            }));
+          }
           String btnLabel;
           switch (reqState) {
             case 'sent':
-              btnLabel = 'pawmap_member_request_sent'.tr;
+              btnLabel = 'v565_member_request_pending'.tr;
               break;
             case 'already':
               btnLabel = 'pawmap_member_already'.tr;
+              break;
+            case 'friends':
+              btnLabel = 'v565_member_already_friends'.tr;
+              break;
+            case 'incoming':
+              btnLabel = 'v565_member_request_reply'.tr;
               break;
             case 'error':
               btnLabel = 'pawmap_member_request_failed'.tr;
@@ -1177,7 +1217,12 @@ class _PawMapScreenState extends State<PawMapScreen>
             default:
               btnLabel = 'pawmap_member_add_friend'.tr;
           }
-          final bool btnEnabled = reqState == 'idle' || reqState == 'error';
+          final bool btnEnabled = reqState == 'idle' ||
+              reqState == 'error' ||
+              reqState == 'incoming';
+          final bool btnMuted = reqState == 'sent' ||
+              reqState == 'already' ||
+              reqState == 'friends';
           return SafeArea(
             child: Container(
               margin: EdgeInsets.fromLTRB(12.w, 0, 12.w, 12.h),
@@ -1252,7 +1297,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                             Text(
                               approx
                                   ? '$roleLabel · 📍 ${'pawmap_member_approx'.tr.replaceAll('{km}', _fmtKm(approxKm))}'
-                                  : '$roleLabel · ${online ? '🟢 ${'pawmap_member_online'.tr}' : '⚪ ${'pawmap_member_offline'.tr}'}',
+                                  : '$roleLabel · ${onlineNow ? '🟢 ${'pawmap_member_online'.tr}' : '⚪ ${'pawmap_member_offline'.tr}'}',
                               style: TextStyle(
                                 fontSize: 12.sp,
                                 color: AppColors.textSecondary(context),
@@ -1294,13 +1339,13 @@ class _PawMapScreenState extends State<PawMapScreen>
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            reqState == 'sent' || reqState == 'already'
-                                ? AppColors.textSecondary(context)
-                                    .withValues(alpha: 0.25)
-                                : pinkDark,
-                        foregroundColor: reqState == 'sent' ||
-                                reqState == 'already'
+                        backgroundColor: btnMuted
+                            ? AppColors.textSecondary(context)
+                                .withValues(alpha: 0.25)
+                            : (reqState == 'incoming'
+                                ? const Color(0xFF16A34A)
+                                : pinkDark),
+                        foregroundColor: btnMuted
                             ? AppColors.textPrimary(context)
                             : Colors.white,
                         elevation: 0,
@@ -1312,24 +1357,49 @@ class _PawMapScreenState extends State<PawMapScreen>
                       onPressed: !btnEnabled
                           ? null
                           : () async {
+                              if (reqState == 'incoming') {
+                                // Demande reçue : on répond depuis l'onglet
+                                // Amis (Accepter / Refuser), même flux que
+                                // partout ailleurs dans l'app.
+                                Navigator.of(ctx).pop();
+                                _openScreen(
+                                    () => const FriendsScreen(initialIndex: 1));
+                                return;
+                              }
                               setSheet(() => reqState = 'busy');
+                              // POST /friends/request (même route que l'onglet
+                              // Amis) ; FriendController recharge la liste des
+                              // demandes et rafraîchit la cloche.
                               final err = await _friendController
                                   .sendRequest(id, role);
                               if (!ctx.mounted) return;
                               setSheet(() {
                                 if (err.isEmpty) {
                                   reqState = 'sent';
+                                } else if (err == 'ALREADY_ACCEPTED') {
+                                  reqState = 'friends';
                                 } else if (err.startsWith('ALREADY')) {
-                                  reqState = 'already';
+                                  reqState = 'sent';
                                 } else {
                                   reqState = 'error';
                                 }
                               });
+                              if (err.isNotEmpty &&
+                                  !err.startsWith('ALREADY')) {
+                                CustomSnackbar.showError(
+                                  title: 'common_error'.tr,
+                                  message: err,
+                                );
+                              }
                             },
                       icon: Icon(
                         reqState == 'sent'
-                            ? Icons.check_rounded
-                            : Icons.person_add_alt_1_rounded,
+                            ? Icons.hourglass_top_rounded
+                            : (reqState == 'friends'
+                                ? Icons.check_rounded
+                                : (reqState == 'incoming'
+                                    ? Icons.mark_email_unread_rounded
+                                    : Icons.person_add_alt_1_rounded)),
                         size: 18.sp,
                       ),
                       label: Text(
@@ -2639,6 +2709,13 @@ class _PawMapScreenState extends State<PawMapScreen>
       return;
     }
 
+    // v565 — points 11 / 23 (contrat §8) : durée choisie au démarrage —
+    // 1 h / 4 h / jusqu'à l'arrêt (défaut). Le partage ne s'arrête plus
+    // qu'à l'échéance ou sur l'interrupteur (plus de cap 2 h ni d'arrêt
+    // sur immobilité). Feuille fermée sans choix → on n'active rien.
+    final chosen = await _pickLiveDuration();
+    if (chosen == null || !mounted) return;
+
     // v19.1.5 — refresh GPS FIRST, then zoom. Before this fix we used the
     // stale `_currentCenter` which could be the last panned position on the
     // map (parfois "à côté" de l'utilisateur réel).
@@ -2668,7 +2745,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v23.1 part 237 — broadcast suit _userPosition (GPS reel) au lieu de
     // _currentCenter (qui derive avec le pan). Les amis recoivent ainsi
     // VRAIMENT la position GPS de Daniel, pas son map center.
-    _liveMap.startBroadcasting(() => _userPosition ?? _currentCenter);
+    _liveMap.startBroadcasting(
+      () => _userPosition ?? _currentCenter,
+      duration: chosen,
+    );
     CustomSnackbar.showSuccess(
       title: 'pawmap_snack_tracking_on_title'.tr,
       message: 'pawmap_snack_tracking_on_msg'.tr,
@@ -2683,6 +2763,465 @@ class _PawMapScreenState extends State<PawMapScreen>
         ),
       );
     } catch (_) {}
+  }
+
+  /// v565 — feuille « Combien de temps ? » du partage en direct.
+  Future<LiveShareDuration?> _pickLiveDuration() {
+    Widget option(BuildContext ctx, LiveShareDuration d, IconData icon,
+        String title, String sub, bool recommended) {
+      return InkWell(
+        borderRadius: BorderRadius.circular(16.r),
+        onTap: () => Navigator.of(ctx).pop(d),
+        child: Container(
+          margin: EdgeInsets.only(bottom: 8.h),
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+          decoration: BoxDecoration(
+            color: recommended
+                ? const Color(0xFF16A34A).withValues(alpha: 0.08)
+                : AppColors.scaffold(ctx),
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(
+              color: recommended
+                  ? const Color(0xFF16A34A)
+                  : AppColors.divider(ctx),
+              width: recommended ? 1.6 : 1,
+            ),
+          ),
+          child: Row(children: [
+            Container(
+              width: 38.w,
+              height: 38.w,
+              decoration: BoxDecoration(
+                color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Icon(icon, color: const Color(0xFF16A34A), size: 20.sp),
+            ),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InterText(
+                    text: title,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary(ctx),
+                    maxLines: 1,
+                  ),
+                  InterText(
+                    text: sub,
+                    fontSize: 11.5.sp,
+                    color: AppColors.textSecondary(ctx),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
+            ),
+            if (recommended)
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF16A34A),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: InterText(
+                  text: 'v565_live_default'.tr,
+                  fontSize: 9.5.sp,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+          ]),
+        ),
+      );
+    }
+
+    return showModalBottomSheet<LiveShareDuration>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: Container(
+          margin: EdgeInsets.fromLTRB(12.w, 0, 12.w, 12.h),
+          padding: EdgeInsets.fromLTRB(18.w, 14.h, 18.w, 14.h),
+          decoration: BoxDecoration(
+            color: AppColors.card(ctx),
+            borderRadius: BorderRadius.circular(24.r),
+            boxShadow: PawMapTheme.pillShadow,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 38.w,
+                  height: 4.h,
+                  margin: EdgeInsets.only(bottom: 12.h),
+                  decoration: BoxDecoration(
+                    color: AppColors.textSecondary(ctx).withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+              ),
+              Row(children: [
+                Icon(Icons.podcasts_rounded,
+                    color: const Color(0xFF16A34A), size: 22.sp),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: InterText(
+                    text: 'v565_live_duration_title'.tr,
+                    fontSize: 17.sp,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary(ctx),
+                    maxLines: 2,
+                  ),
+                ),
+              ]),
+              SizedBox(height: 4.h),
+              InterText(
+                text: 'v565_live_duration_sub'.tr,
+                fontSize: 12.sp,
+                color: AppColors.textSecondary(ctx),
+                maxLines: 3,
+              ),
+              SizedBox(height: 14.h),
+              option(ctx, LiveShareDuration.untilStop, Icons.all_inclusive_rounded,
+                  'v565_live_until_stop'.tr, 'v565_live_until_stop_sub'.tr, true),
+              option(ctx, LiveShareDuration.fourHours, Icons.timer_rounded,
+                  'v565_live_4h'.tr, 'v565_live_4h_sub'.tr, false),
+              option(ctx, LiveShareDuration.oneHour, Icons.timer_outlined,
+                  'v565_live_1h'.tr, 'v565_live_1h_sub'.tr, false),
+              SizedBox(height: 2.h),
+              Center(
+                child: TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: InterText(
+                    text: 'common_cancel'.tr,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary(ctx),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// v565 — point 3 : feuille « Amis en direct ». Liste tous ceux dont on a
+  /// une position (amis, famille), avec photo, rôle et « vu il y a X » /
+  /// « signal perdu ». Tap = suivre sur la carte (le panneau se replie, rien
+  /// d'autre ne s'ouvre). Itinéraire et « tout voir » en bonus.
+  Future<void> _openLiveFriendsSheet() async {
+    // Rafraîchit l'état de session des amis (stale / lastSeenAt) en fond.
+    unawaited(_liveMap.refreshFriendPositions());
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) {
+        final maxH = MediaQuery.of(sheetCtx).size.height * 0.72;
+        return SafeArea(
+          child: Container(
+            constraints: BoxConstraints(maxHeight: maxH),
+            margin: EdgeInsets.fromLTRB(12.w, 0, 12.w, 12.h),
+            decoration: BoxDecoration(
+              color: AppColors.card(sheetCtx),
+              borderRadius: BorderRadius.circular(24.r),
+              boxShadow: PawMapTheme.pillShadow,
+            ),
+            child: Obx(() {
+              _liveMap.staleTick.value; // « vu il y a » se rafraîchit
+              final positions = _liveMap.friendPositions.values.toList()
+                ..sort((a, b) {
+                  if (a.isStale != b.isStale) return a.isStale ? 1 : -1;
+                  return b.seenAt.compareTo(a.seenAt);
+                });
+              final friendById = <String, Friendship>{
+                for (final f in _friendController.friends)
+                  if (f.other != null)
+                    f.other!.id.trim().toLowerCase(): f,
+              };
+              final familyById = {
+                for (final m in _friendController.familyMembers)
+                  ((m['id'] ?? m['userId'] ?? '').toString())
+                      .trim()
+                      .toLowerCase(): m,
+              };
+              final liveCount = positions.where((p) => !p.isStale).length;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(18.w, 12.h, 8.w, 6.h),
+                    child: Row(children: [
+                      Container(
+                        width: 40.w,
+                        height: 40.w,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF6EB4), PawMapTheme.roseDark],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(14.r),
+                        ),
+                        child: Icon(Icons.people_alt_rounded,
+                            color: Colors.white, size: 22.sp),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            InterText(
+                              text: 'v565_live_friends_title'.tr,
+                              fontSize: 17.sp,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary(sheetCtx),
+                              maxLines: 1,
+                            ),
+                            InterText(
+                              text: 'v565_live_friends_count'
+                                  .trParams({'n': '$liveCount'}),
+                              fontSize: 12.sp,
+                              color: AppColors.textSecondary(sheetCtx),
+                              maxLines: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (positions.length > 1)
+                        IconButton(
+                          tooltip: 'v565_live_friends_fit'.tr,
+                          icon: Icon(Icons.zoom_out_map_rounded,
+                              color: PawMapTheme.roseDark),
+                          onPressed: () {
+                            Navigator.of(sheetCtx).pop();
+                            unawaited(_fitAllFriends());
+                          },
+                        ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.of(sheetCtx).pop(),
+                      ),
+                    ]),
+                  ),
+                  Divider(height: 1, color: AppColors.divider(sheetCtx)),
+                  Flexible(
+                    child: positions.isEmpty
+                        ? Padding(
+                            padding: EdgeInsets.fromLTRB(24.w, 26.h, 24.w, 20.h),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.gps_off_rounded,
+                                    size: 44.sp, color: AppColors.greyText),
+                                SizedBox(height: 10.h),
+                                InterText(
+                                  text: 'friends_people_live_empty_title'.tr,
+                                  fontSize: 15.sp,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary(sheetCtx),
+                                  textAlign: TextAlign.center,
+                                ),
+                                SizedBox(height: 4.h),
+                                InterText(
+                                  text: 'friends_people_live_empty_msg'.tr,
+                                  fontSize: 12.sp,
+                                  color: AppColors.textSecondary(sheetCtx),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 4,
+                                ),
+                                SizedBox(height: 14.h),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: PawMapTheme.roseDark,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14.r),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.of(sheetCtx).pop();
+                                    _openScreen(() => const FriendsScreen());
+                                  },
+                                  icon: Icon(Icons.person_add_alt_1_rounded,
+                                      size: 18.sp),
+                                  label: Text('v565_live_friends_invite'.tr),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
+                            shrinkWrap: true,
+                            padding: EdgeInsets.fromLTRB(10.w, 8.h, 10.w, 10.h),
+                            itemCount: positions.length,
+                            separatorBuilder: (_, __) => SizedBox(height: 6.h),
+                            itemBuilder: (_, i) {
+                              final pos = positions[i];
+                              final key = pos.userId.trim().toLowerCase();
+                              final friend = friendById[key];
+                              final fam = familyById[key];
+                              final name = friend?.other?.name ??
+                                  (fam?['name'] ?? '').toString();
+                              final display = name.isNotEmpty
+                                  ? name
+                                  : (widget.focusUserId == pos.userId
+                                      ? (widget.focusUserName ?? '')
+                                      : '');
+                              final role = (friend?.other?.model ??
+                                      (fam?['role'] ?? pos.role).toString())
+                                  .toLowerCase();
+                              final avatar = friend?.other?.avatar ??
+                                  (fam?['avatar'] ?? '').toString();
+                              final roleColor = PawMapTheme.forRole(role);
+                              final stale = pos.isStale;
+                              return _liveFriendRow(
+                                sheetCtx,
+                                pos: pos,
+                                name: display.isEmpty
+                                    ? 'pawmap_following_default'.tr
+                                    : display,
+                                role: role,
+                                avatar: avatar,
+                                roleColor: roleColor,
+                                stale: stale,
+                                isFamily: fam != null,
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              );
+            }),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _liveFriendRow(
+    BuildContext ctx, {
+    required FriendPosition pos,
+    required String name,
+    required String role,
+    required String avatar,
+    required Color roleColor,
+    required bool stale,
+    required bool isFamily,
+  }) {
+    final roleLabel = role == 'walker'
+        ? 'role_pet_walker'.tr
+        : (role == 'owner' ? 'role_pet_owner'.tr : 'role_pet_sitter'.tr);
+    final statusColor = stale ? const Color(0xFFE8920A) : const Color(0xFF16A34A);
+    final statusText = stale
+        ? '${'v565_live_signal_lost'.tr} · ${'pawmap_seen_ago'.tr.replaceAll('{ago}', _timeAgo(pos.seenAt))}'
+        : '${'v565_live_active'.tr} · ${_timeAgo(pos.seenAt)}';
+    void follow() {
+      Navigator.of(ctx).pop();
+      // Point 3 : suivre SANS ouvrir le panneau déroulant → on le replie.
+      if (!_panelCollapsed.value) _panelCollapsed.value = true;
+      _startFollow(pos.userId, LatLng(pos.latitude, pos.longitude), name);
+    }
+
+    return Material(
+      color: AppColors.scaffold(ctx),
+      borderRadius: BorderRadius.circular(16.r),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16.r),
+        onTap: follow,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+          child: Row(children: [
+            Stack(children: [
+              Container(
+                width: 46.w,
+                height: 46.w,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: roleColor.withValues(alpha: 0.15),
+                  border: Border.all(
+                    color: isFamily ? PawMapTheme.pawFollow : roleColor,
+                    width: 2,
+                  ),
+                  image: avatar.startsWith('http')
+                      ? DecorationImage(
+                          image: NetworkImage(avatar), fit: BoxFit.cover)
+                      : null,
+                ),
+                child: avatar.startsWith('http')
+                    ? null
+                    : Icon(Icons.pets, color: roleColor, size: 20.sp),
+              ),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: 13.w,
+                  height: 13.w,
+                  decoration: BoxDecoration(
+                    color: statusColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.card(ctx), width: 2),
+                  ),
+                ),
+              ),
+            ]),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InterText(
+                    text: name,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary(ctx),
+                    maxLines: 1,
+                  ),
+                  SizedBox(height: 2.h),
+                  InterText(
+                    text: '$roleLabel · $statusText',
+                    fontSize: 11.sp,
+                    color: stale ? statusColor : AppColors.textSecondary(ctx),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'pawmap_btn_directions'.tr,
+              icon: Icon(Icons.directions_rounded,
+                  color: const Color(0xFF16A34A), size: 22.sp),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                unawaited(_startDirections(LatLng(pos.latitude, pos.longitude)));
+              },
+            ),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+              decoration: BoxDecoration(
+                color: PawMapTheme.roseDark,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: InterText(
+                text: 'v565_live_friends_follow'.tr,
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
   }
 
   // v23.1 part 123 — Platinum halo pulse. Returns a Set<Circle> with one
@@ -3343,8 +3882,11 @@ class _PawMapScreenState extends State<PawMapScreen>
         final bool approx = p['approx'] == true;
         // v550 — rayon d'imprécision annoncé par le backend.
         final double approxKm = (p['approxKm'] as num?)?.toDouble() ?? 1.0;
-        // v561 — rose fluo dézoomé, couleur du rôle dès le zoom 12.
-        final bool roleColored = _zoomLevel >= 12;
+        // v561 — rose fluo dézoomé, couleur du rôle en zoomant.
+        // v565 — point 8 (Daniel : « la couleur du rôle n'apparaît qu'en
+        // zoomant beaucoup ») : seuil 12 → 9 (échelle ville). Les bitmaps
+        // sont générés par clé (rôle + état), donc régénérés d'eux-mêmes.
+        final bool roleColored = _zoomLevel >= _roleColorZoom;
         final icon = _pawBadgeMarkers[
             _pawBadgeKey(online, premium, selected, role, roleColored)];
         if (icon == null) {
@@ -3592,9 +4134,13 @@ class _PawMapScreenState extends State<PawMapScreen>
             anchor: const Offset(0.5, 0.5),
             infoWindow: InfoWindow(
               title: '👤 $displayName',
-              snippet: isFamily
-                  ? '${'pawmap_quick_family'.tr} · ${_timeAgo(pos.at)}'
-                  : 'pawmap_seen_ago'.tr.replaceAll('{ago}', _timeAgo(pos.at)),
+              // v565 — contrat §8 : « signal perdu · vu il y a X » si le
+              // serveur / le délai de 3 min le disent, sinon « en direct ».
+              snippet: pos.isStale
+                  ? '${'v565_live_signal_lost'.tr} · ${'pawmap_seen_ago'.tr.replaceAll('{ago}', _timeAgo(pos.seenAt))}'
+                  : (isFamily
+                      ? '${'pawmap_quick_family'.tr} · ${'v565_live_active'.tr}'
+                      : '${'v565_live_active'.tr} · ${_timeAgo(pos.seenAt)}'),
               // v559 — Daniel : un appui sur la bulle ouvre la fiche de l'ami
               // avec « Itinéraire » (à pied / vélo / voiture + virages).
               onTap: () => _onNearbyTap(
@@ -4135,15 +4681,14 @@ class _PawMapScreenState extends State<PawMapScreen>
                   // La carte « Autour de vous » occupe le bas de l'écran
                   // jusqu'à ~200 : quand elle est là, les rails passent
                   // au-dessus d'elle au lieu de la chevaucher.
-                  final aroundShown = _routePolylines.isEmpty &&
-                      !picking &&
-                      _aroundYouVisible.value &&
-                      _reportController.reports.isNotEmpty;
-                  // v559 — Daniel : « le bandeau d'itinéraire gêne, qu'il ne
-                  // touche pas les barres ». Tracé affiché → les rails montent
-                  // (206) comme pour « Autour de vous » : le bandeau (136 →
-                  // ~182) garde 24 px de marge sous les rails, centré.
-                  final routeShown = _routePolylines.isNotEmpty && !picking;
+                  // v565 — point 20 (Daniel : « quand on bouge la carte, les
+                  // barres se masquent / passent sous le menu »). Les rails
+                  // montaient et descendaient de 60 px à chaque rechargement
+                  // des signalements (la carte « Autour de vous » apparaissait
+                  // ou disparaissait) → ils semblaient se masquer pendant le
+                  // déplacement. Baseline désormais FIXE (hors placement) ;
+                  // c'est la carte « Autour de vous » et le bandeau d'itinéraire
+                  // qui laissent la place aux rails (marges latérales).
                   return Positioned(
                     left: 12.w,
                     right: 12.w,
@@ -4155,9 +4700,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // ne doit ni toucher le menu ni passer derrière » : le
                     // menu est désormais une pilule flottante (6 + 58) →
                     // rails remontés de 22 px dans chaque état.
-                    bottom: (picking
-                            ? 284.h
-                            : ((aroundShown || routeShown) ? 228.h : 168.h)) -
+                    bottom: (picking ? 284.h : 168.h) -
                         _tabBarLift(context) +
                         MediaQuery.of(context).viewPadding.bottom,
                     child: Row(
@@ -4165,7 +4708,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                       // de gauche » → alignée sur le BAS de la capsule de droite.
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        if (!picking) _buildMapActionsColumn(),
+                        if (!picking) _railScroller(_buildMapActionsColumn()),
                         const Spacer(),
                         _buildMapControlsStack(),
                       ],
@@ -4212,8 +4755,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                   Positioned(
                     // v418 — le FAB Signaler est passé en bas à GAUCHE : on
                     // décale la carte « Autour de vous » pour ne pas le couvrir.
+                    // v565 — point 20 : marge droite aussi (capsule), les rails
+                    // gardent une baseline fixe.
                     left: 72.w,
-                    right: 12.w,
+                    right: 62.w,
                     // v470 — Daniel : « Autour de vous derrière le menu et trop
                     // grand ». On relève la carte au-dessus du menu pleine
                     // largeur (116) + inset ; la taille est réduite dans
@@ -4237,7 +4782,14 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // v470 — relevé franchement au-dessus de la barre de menu
                     // pleine largeur.
                     bottom: 136.h - _tabBarLift(context) + MediaQuery.of(context).viewPadding.bottom,
-                    child: Center(child: _buildDirectionsBanner()),
+                    // v565 — point 20 : le bandeau reste ENTRE les deux rails
+                    // (baseline fixe) au lieu de les faire remonter.
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 52.w),
+                        child: _buildDirectionsBanner(),
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -5738,9 +6290,19 @@ class _PawMapScreenState extends State<PawMapScreen>
     // remplacée par cette bannière). OFF → gris, ON → vert.
     return Obx(() {
       final on = _liveMap.broadcasting.value;
-      final label = on
-          ? 'pawmap_live_banner_title'.tr
+      // v565 — état RÉEL (contrat §8) : actif / signal perdu, + temps
+      // restant quand une durée a été choisie.
+      _liveMap.staleTick.value;
+      final lost = on && _liveMap.liveStatus.value == LiveShareStatus.lost;
+      final rem = _liveMap.remaining;
+      String label = on
+          ? (lost ? 'v565_live_signal_lost'.tr : 'pawmap_live_banner_title'.tr)
           : 'pawmap_live_share_off'.tr;
+      if (on && !lost && rem != null) {
+        final h = rem.inHours;
+        final m = rem.inMinutes % 60;
+        label = '$label · ${h > 0 ? '${h}h${m.toString().padLeft(2, '0')}' : '${rem.inMinutes} min'}';
+      }
       final fg = on ? Colors.white : AppColors.textPrimary(context);
       return Container(
         // v555 — Daniel : « le bouton Partager ma position, fais-le fin comme
@@ -5756,24 +6318,31 @@ class _PawMapScreenState extends State<PawMapScreen>
             : EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
         decoration: BoxDecoration(
           gradient: on
-              ? const LinearGradient(
-                  colors: [Color(0xFF16A34A), Color(0xFF059669)],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                )
+              ? (lost
+                  ? const LinearGradient(
+                      colors: [Color(0xFFE8920A), Color(0xFFD97706)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    )
+                  : const LinearGradient(
+                      colors: [Color(0xFF16A34A), Color(0xFF059669)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ))
               : null,
           color: on ? null : AppColors.card(context),
           borderRadius: BorderRadius.circular(16.r),
           // v488 — Daniel : surbrillance contour VERT sur « Partager ma
           // position » (toujours visible, ON comme OFF).
           border: Border.all(
-            color: const Color(0xFF16A34A),
+            color: lost ? const Color(0xFFE8920A) : const Color(0xFF16A34A),
             width: 2,
           ),
           boxShadow: on
               ? [
                   BoxShadow(
-                    color: const Color(0xFF16A34A).withValues(alpha: 0.4),
+                    color: (lost ? const Color(0xFFE8920A) : const Color(0xFF16A34A))
+                        .withValues(alpha: 0.4),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -6069,7 +6638,21 @@ class _PawMapScreenState extends State<PawMapScreen>
                   // v553 — au-dessus du dock (14 + hauteur du dock 46 + 22 de
                   // respiration) : plus aucun chevauchement entre les rangées.
                   bottom: _navInset(context) + 82.h,
-                  child: _buildMapActionsColumn(expanded: true),
+                  child: _railScroller(_buildMapActionsColumn(expanded: true),
+                      expanded: true),
+                )),
+
+          // v565 — point 20 : sur la grande carte le menu du bas a disparu →
+          // bouton RETOUR en bas à gauche (même hauteur que le dock), qui
+          // réduit la carte. Masqué pendant un placement (bandeau Valider).
+          Obx(() => (_pickingSpotPos.value ||
+                  _pickingReportPos.value ||
+                  _pickingRoutePos.value)
+              ? const SizedBox.shrink()
+              : Positioned(
+                  left: 12.w,
+                  bottom: _navInset(context) + 14.h,
+                  child: _buildExpandedBackButton(),
                 )),
 
           // v554 — bandeau « distance + Effacer l'itinéraire » : il n'existait
@@ -6187,17 +6770,32 @@ class _PawMapScreenState extends State<PawMapScreen>
             },
           ),
           SizedBox(height: 4.h),
+          // v565 — point 3 : bouton ROSE « Amis en direct » (petite ET grande
+          // carte) → liste de qui est en direct → tap = suivre sur la carte,
+          // sans ouvrir le panneau déroulant.
+          _roundMapBtn(
+            icon: Icons.people_alt_rounded,
+            color: PawMapTheme.rose,
+            svg: _fabSvgLiveFriends,
+            g1: const Color(0xFFFF6EB4),
+            g2: PawMapTheme.roseDark,
+            label: 'v565_live_friends_title'.tr,
+            onTap: () => unawaited(_openLiveFriendsSheet()),
+          ),
+          SizedBox(height: 4.h),
+          // v565 — point 3 : « chat direct avec les amis » aussi sur la MINI
+          // carte (avant : grande carte seulement).
+          _roundMapBtn(
+            icon: Icons.forum_rounded,
+            color: PawMapTheme.sitter,
+            svg: _fabSvgChat,
+            g1: const Color(0xFF5B9DFF),
+            g2: const Color(0xFF2358D6),
+            label: 'pawmap_btn_circle_chat'.tr,
+            onTap: _openCircleChat,
+          ),
+          SizedBox(height: 4.h),
           if (expanded) ...[
-            _roundMapBtn(
-              icon: Icons.forum_rounded,
-              color: PawMapTheme.sitter,
-              svg: _fabSvgChat,
-              g1: const Color(0xFF5B9DFF),
-              g2: const Color(0xFF2358D6),
-              label: 'pawmap_btn_circle_chat'.tr,
-              onTap: _openCircleChat,
-            ),
-            SizedBox(height: 4.h),
             _roundMapBtn(
               icon: Icons.photo_camera_rounded,
               color: PawMapTheme.pawSpot,
@@ -6423,6 +7021,56 @@ class _PawMapScreenState extends State<PawMapScreen>
   // brique qui existe déjà dans l'app quand il y en a une (mode nuit = style
   // sombre de la carte, historique = suivi de balade, calques = les couches
   // déjà présentes) ; SOS animal est la seule vraie nouveauté produit.
+  /// v565 — point 20 : bouton Retour de la grande carte (bas-gauche).
+  Widget _buildExpandedBackButton() {
+    return Tooltip(
+      message: 'pawmap_reduce_map'.tr,
+      child: Semantics(
+        button: true,
+        label: 'pawmap_reduce_map'.tr,
+        child: GestureDetector(
+          onTap: () {
+            _expandedCtl = null;
+            _mapExpanded.value = false;
+          },
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: 46.h,
+            height: 46.h,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: PawMapTheme.pillShadow,
+            ),
+            child: Icon(Icons.arrow_back_rounded,
+                size: 22.sp, color: PawMapTheme.ink),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// v565 — le rail gauche compte désormais 9 boutons : sur un petit écran il
+  /// pourrait dépasser le haut de la carte. On le borne à la hauteur
+  /// disponible et il défile (aligné en BAS, jamais collé au menu).
+  Widget _railScroller(Widget column, {bool expanded = false}) {
+    final h = MediaQuery.of(context).size.height;
+    final top = MediaQuery.of(context).viewPadding.top;
+    // Petite carte : AppBar + rangée du haut (≈ 56 + 62) + baseline 168.
+    // Grande carte : rangée Partager/Réduire (≈ 64) + baseline 82.
+    final double maxH = expanded
+        ? h - top - 72.h - _navInset(context) - 82.h - 12.h
+        : h - top - 130.h - 168.h - 24.h;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxH.clamp(120.0, h)),
+      child: SingleChildScrollView(
+        reverse: true,
+        physics: const ClampingScrollPhysics(),
+        child: column,
+      ),
+    );
+  }
+
   Widget _buildMapDock() {
     Widget pill({
       required IconData icon,
@@ -6468,7 +7116,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       height: 46.h,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: 12.w),
+        // v565 — point 20 : le bouton Retour occupe le coin bas-gauche.
+        padding: EdgeInsets.only(left: 66.w, right: 12.w),
         children: [
           pill(
             icon: Icons.sos_rounded,
@@ -6658,12 +7307,15 @@ class _PawMapScreenState extends State<PawMapScreen>
         'category': category,
       },
       requiresAuth: true,
-    ).catchError((_) => <String, dynamic>{});
+    );
     final list = ((res as Map?)?['pois'] as List?) ?? const [];
     final out = <MapPOI>[];
     for (final j in list) {
       if (j is Map) {
         final poi = MapPOI.fromJson(Map<String, dynamic>.from(j));
+        // v565 — point 7 : filtre côté app, on ne garde que les catégories
+        // dédiées aux animaux (quoi que renvoie /map-pois/nearby).
+        if (!PoiCategories.isPetFriendly(poi.category)) continue;
         if (poi.latitude != 0 || poi.longitude != 0) out.add(poi);
       }
     }
@@ -6677,6 +7329,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     String? category;
     List<MapPOI> results = const [];
     bool loading = false;
+    bool failed = false;
     String mode = _routeMode;
     double radius = _aroundRadiusKm;
     const radii = <double>[1, 2, 5, 10];
@@ -6689,12 +7342,20 @@ class _PawMapScreenState extends State<PawMapScreen>
           setSheet(() {
             category = cat;
             loading = true;
+            failed = false;
             results = const [];
           });
-          final r = await _fetchAroundPois(cat, radius, origin);
+          List<MapPOI> r = const [];
+          bool ok = true;
+          try {
+            r = await _fetchAroundPois(cat, radius, origin);
+          } catch (_) {
+            ok = false; // v565 — état d'erreur + bouton Réessayer
+          }
           if (!ctx.mounted) return;
           setSheet(() {
             results = r;
+            failed = !ok;
             loading = false;
           });
         }
@@ -6826,7 +7487,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                         crossAxisSpacing: 8.w,
                         childAspectRatio: 3.1,
                         children: [
-                          for (final c in PoiCategories.all)
+                          // v565 — point 7 : UNIQUEMENT les lieux animaux /
+                          // pet-friendly (vétos, animaleries, toiletteurs,
+                          // parcs, plages, points d'eau, éducateurs, hôtels
+                          // et restaurants pet-friendly) — jamais « autre ».
+                          for (final c in PoiCategories.petFriendly)
                             GestureDetector(
                               onTap: () => unawaited(load(c)),
                               child: Container(
@@ -6862,6 +7527,29 @@ class _PawMapScreenState extends State<PawMapScreen>
                             child: const Center(
                                 child: CircularProgressIndicator(strokeWidth: 3)),
                           )
+                        : failed
+                            ? Padding(
+                                padding: EdgeInsets.all(24.h),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.wifi_off_rounded,
+                                        size: 30.sp, color: AppColors.greyText),
+                                    SizedBox(height: 8.h),
+                                    Text('v565_map_load_error'.tr,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                            color: AppColors.greyText)),
+                                    SizedBox(height: 10.h),
+                                    TextButton.icon(
+                                      onPressed: () =>
+                                          unawaited(load(category!)),
+                                      icon: const Icon(Icons.refresh_rounded),
+                                      label: Text('common_retry'.tr),
+                                    ),
+                                  ],
+                                ),
+                              )
                         : results.isEmpty
                             ? Padding(
                                 padding: EdgeInsets.all(24.h),
@@ -6953,6 +7641,9 @@ class _PawMapScreenState extends State<PawMapScreen>
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 2.8 22.6 21H1.4z"/><path d="M10.9 9h2.2v6h-2.2zM10.9 16.5h2.2v2.2h-2.2z" fill="rgba(0,0,0,.4)"/></svg>';
   static const String _fabSvgFeed =
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M5 2.5h2.2V21.5H5z"/><path d="M7.2 3.5h11.3l-2.4 4.5 2.4 4.5H7.2z"/><circle cx="18.5" cy="5" r="3.6" fill="#E24834" stroke="#fff" stroke-width="1.4"/></svg>';
+  // v565 — « Amis en direct » : deux silhouettes + point live.
+  static const String _fabSvgLiveFriends =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 18.5c0-3.3 2.9-5.5 6.5-5.5s6.5 2.2 6.5 5.5V20h-13z"/><circle cx="16.5" cy="9" r="2.5"/><path d="M15.2 13.4c3.2.2 6.3 2.1 6.3 5.1V20h-4.6v-1.5c0-1.9-.6-3.6-1.7-5.1z"/><circle cx="19.5" cy="4.5" r="2.2" fill="#7CFFB2"/></svg>';
   static const String _fabSvgChat =
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 3C6.9 3 3 6.3 3 10.4c0 2 1 3.9 2.6 5.2L4.8 20l4.6-1.9c.8.2 1.7.3 2.6.3 5.1 0 9-3.3 9-7.4S17.1 3 12 3z"/><g fill="rgba(0,0,0,.34)"><circle cx="8.6" cy="10.6" r="1.1"/><circle cx="12" cy="10.6" r="1.1"/><circle cx="15.4" cy="10.6" r="1.1"/></g></svg>';
   static const String _fabSvgPhoto =

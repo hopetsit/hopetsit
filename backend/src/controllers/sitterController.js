@@ -1224,9 +1224,17 @@ const updateSitterProfile = async (req, res) => {
     if (Object.keys(updateData).length > 0) updateOps.$set = updateData;
     if (unsetLocation) updateOps.$unset = { location: '' };
     if (cityOnly) {
+      // v565 — un Point sans coordonnées fait échouer l'index 2dsphere → la
+      // ville va dans le champ plat `city` ; `location.city` seulement si le
+      // doc a déjà des coordonnées (sinon la ville était perdue, point 1).
       updateOps.$set = updateOps.$set || {};
-      updateOps.$set['location.city'] = cityOnly;
-      updateOps.$set['location.type'] = 'Point';
+      updateOps.$set.city = cityOnly;
+      try {
+        const cur = await Sitter.findById(sitterId).select('location.coordinates').lean();
+        if (Array.isArray(cur?.location?.coordinates) && cur.location.coordinates.length === 2) {
+          updateOps.$set['location.city'] = cityOnly;
+        }
+      } catch (_) { /* best-effort */ }
     }
 
     const updatedSitter = await Sitter.findByIdAndUpdate(

@@ -256,8 +256,11 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
   /// violet PawFollow-Famille / jaune PawSpot / rouge PawBoost). Plus de nom
   /// d'abonnement ni de cadre couleur-rôle : l'emoji + la couleur identifient.
   Widget _badge(BuildContext context, String emoji, int days, Color color) {
-    final daysLabel =
-        days > 0 ? 'pawmap_time_days_short'.trParams({'n': '$days'}) : '';
+    // v565 — un abonnement « à vie » (expiration très lointaine) affichait
+    // « 26766 j » : au-delà de 10 ans on montre ∞.
+    final daysLabel = days > 3650
+        ? '∞'
+        : (days > 0 ? 'pawmap_time_days_short'.trParams({'n': '$days'}) : '');
     // Texte SOMBRE sur le jaune PawSpot (contraste), BLANC sinon.
     final onColor = color == const Color(0xFFE8A00A)
         ? const Color(0xFF1A1A1A)

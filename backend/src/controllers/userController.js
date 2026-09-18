@@ -22,6 +22,59 @@ const { normalizeCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
 const { processLocationData } = require('../utils/location');
 const logger = require('../utils/logger');
 const { ensureAvatarFromSiblingRoles } = require('../utils/avatarFallback');
+const { identityGroup } = require('../utils/identityGroup');
+
+// ─── v565 point 1 — propagation aux 3 profils de la personne ───────────────
+// AVANT : updateProfile/updateProfilePicture appelaient utils/userSyncService,
+// dont le `module.exports = syncSafeFields` (identifiant inexistant) lève
+// ReferenceError au require → le try/catch avalait l'erreur et AUCUNE synchro
+// n'a jamais eu lieu (« cross-role sync failed (non-blocking) » dans les logs).
+// On propage ici, par identityGroup (même _id / e-mail / oldId), les champs
+// partagés : nom, photo, téléphone, indicatif, pays, ville, adresse, langue…
+const MODEL_BY_NAME = { Owner, Sitter, Walker };
+const SIBLING_SYNC_FIELDS = [
+  'name', 'avatar', 'mobile', 'countryCode', 'country', 'city', 'address',
+  'language', 'currency', 'bio', 'skills', 'dateOfBirth', 'location',
+];
+const propagateToSiblings = async (accountId, update, { fields = SIBLING_SYNC_FIELDS } = {}) => {
+  const payload = {};
+  for (const k of fields) {
+    if (Object.prototype.hasOwnProperty.call(update || {}, k) && update[k] !== undefined) payload[k] = update[k];
+  }
+  if (!Object.keys(payload).length) return { synced: [], targets: 0 };
+  const g = await identityGroup(accountId);
+  let targets = 0;
+  for (const d of g.docs) {
+    if (String(d.id) === String(accountId)) continue;
+    const Model = MODEL_BY_NAME[d.model];
+    if (!Model) continue;
+    try {
+      const r = await Model.updateOne({ _id: d.id }, { $set: payload });
+      if (r?.modifiedCount) targets += 1;
+      // `location.city` ne peut être posé que si le doc a des coordonnées
+      // (index 2dsphere) → mise à jour conditionnelle.
+      if (payload.city && !payload.location) {
+        await Model.updateOne(
+          { _id: d.id, 'location.coordinates.1': { $exists: true } },
+          { $set: { 'location.city': payload.city } },
+        );
+      }
+    } catch (e) {
+      logger.warn(`[propagateToSiblings] ${d.model}:${d.id} failed : ${e?.message || e}`);
+    }
+  }
+  logger.info(`[propagateToSiblings] ${accountId} → ${targets} doc(s) : ${Object.keys(payload).join(', ')}`);
+  return { synced: Object.keys(payload), targets };
+};
+
+// v565 point 12 — indicatif renvoyé/accepté tel quel (« +33 ») ; on ajoute
+// juste le « + » manquant quand le client envoie « 33 ».
+const normalizeCountryCode = (v) => {
+  const raw = String(v ?? '').trim().replace(/\s+/g, '');
+  if (!raw) return '';
+  if (/^\d{1,4}$/.test(raw)) return `+${raw}`;
+  return raw;
+};
 
 const OWNER_SERVICES = ['Pet Sitting', 'House Sitting', 'Day Care', 'Long Stay'];
 const SITTER_SERVICES = [...OWNER_SERVICES, 'Dog Walking'];
@@ -88,8 +141,17 @@ const buildCardPayload = ({ holderName, cardNumber, expDate, cvc }) => {
   };
 };
 
-const buildProfileUpdate = ({ name, mobile, countryCode, language, address, avatar, bio, skills, currency }) => {
+const buildProfileUpdate = ({ name, mobile, countryCode, language, address, avatar, bio, skills, currency, country, city }) => {
   const update = {};
+  // v565 point 1 — pays (ISO-2) et ville (champ plat, conservé sans GPS).
+  if (country !== undefined) {
+    if (country !== null && typeof country !== 'string') throw new Error('Country must be a string.');
+    update.country = String(country || '').trim().toUpperCase().slice(0, 2);
+  }
+  if (city !== undefined) {
+    if (city !== null && typeof city !== 'string') throw new Error('City must be a string.');
+    update.city = String(city || '').trim();
+  }
   if (name !== undefined) {
     if (typeof name !== 'string' || !name.trim()) {
       throw new Error('Name must be a non-empty string.');
@@ -103,7 +165,7 @@ const buildProfileUpdate = ({ name, mobile, countryCode, language, address, avat
     update.mobile = mobile.trim();
   }
   if (countryCode !== undefined) {
-    update.countryCode = countryCode.toString().trim();
+    update.countryCode = normalizeCountryCode(countryCode);
   }
   if (language !== undefined) {
     if (typeof language !== 'string') {
@@ -207,9 +269,9 @@ const updateService = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, mobile, countryCode, language, address, avatar, bio, skills, currency, location, servicePreferences } = req.body || {};
+    const { name, mobile, countryCode, language, address, avatar, bio, skills, currency, location, servicePreferences, country, city } = req.body || {};
 
-    const update = buildProfileUpdate({ name, mobile, countryCode, language, address, avatar, bio, skills, currency });
+    const update = buildProfileUpdate({ name, mobile, countryCode, language, address, avatar, bio, skills, currency, country, city });
 
     // Sprint 5 step 2 — accept owner service preferences.
     if (servicePreferences && typeof servicePreferences === 'object') {
@@ -242,6 +304,11 @@ const updateProfile = async (req, res) => {
         const processed = processLocationData(location, { locationType });
         if (processed) {
           locationUpdate = processed;
+          if (processed.city && update.city === undefined) update.city = processed.city;
+        } else if (typeof location.city === 'string' && location.city.trim() && update.city === undefined) {
+          // v565 point 1 — ville sans coordonnées : AVANT elle était perdue
+          // (processLocationData → undefined). On la garde dans `city`.
+          update.city = location.city.trim();
         }
       }
     }
@@ -291,6 +358,21 @@ const updateProfile = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
+    // v565 point 1 — `location.city` du doc courant quand il a des coordonnées
+    // (sinon l'index 2dsphere refuse l'objet) — la ville plate `city` est déjà posée.
+    if (update.city && !update.location) {
+      try {
+        const Model = MODEL_BY_NAME[role === 'owner' ? 'Owner' : role === 'sitter' ? 'Sitter' : 'Walker'];
+        await Model.updateOne(
+          { _id: account._id, 'location.coordinates.1': { $exists: true } },
+          { $set: { 'location.city': update.city } },
+        );
+        if (account.location && Array.isArray(account.location.coordinates) && account.location.coordinates.length === 2) {
+          account.location.city = update.city;
+        }
+      } catch (_) { /* best-effort */ }
+    }
+
     // v18.9.8 — sync des champs partagés (nom, adresse, ville, carte…)
     // vers les autres rôles du même user (matché par email). Les tarifs
     // et autres champs rôle-spécifiques sont automatiquement ignorés.
@@ -304,8 +386,16 @@ const updateProfile = async (req, res) => {
     } catch (syncErr) {
       logger.warn('[updateProfile] cross-role sync failed (non-blocking)', syncErr?.message || syncErr);
     }
+    // v565 point 1 — propagation fiable (identityGroup) des champs partagés.
+    try {
+      await propagateToSiblings(account._id, update);
+    } catch (propErr) {
+      logger.warn('[updateProfile] propagateToSiblings failed (non-blocking)', propErr?.message || propErr);
+    }
 
-    res.json({ role, user: sanitizeUser(account, { includeEmail: true }) });
+    const out = sanitizeUser(account, { includeEmail: true });
+    out.city = out.city || (out.location && out.location.city) || '';
+    res.json({ role, user: out });
   } catch (error) {
     logger.error('Update profile error', error);
     if (error.name === 'CastError') {
@@ -807,6 +897,12 @@ const updateProfilePicture = async (req, res) => {
         syncErr?.message || syncErr,
       );
     }
+    // v565 point 1 — propagation fiable de la photo aux 2 autres profils.
+    try {
+      await propagateToSiblings(user._id, { avatar: user.avatar });
+    } catch (propErr) {
+      logger.warn('[updateProfilePicture] propagateToSiblings failed', propErr?.message || propErr);
+    }
 
     res.json({
       message: 'Profile picture updated successfully.',
@@ -847,7 +943,11 @@ const getOwnerProfile = async (req, res) => {
       }
       // v546 — photo complétée depuis un rôle frère si vide (autre appareil).
       await ensureAvatarFromSiblingRoles(account, userRole);
-      return res.json({ profile: sanitizeUser(account, { includeEmail: true }) });
+      const p = sanitizeUser(account, { includeEmail: true });
+      // v565 — ville plate (point 1) ; countryCode renvoyé tel quel (point 12).
+      p.city = p.city || (p.location && p.location.city) || '';
+      p.countryCode = p.countryCode || '';
+      return res.json({ profile: p });
     }
 
     const owner = await Owner.findById(ownerId);
@@ -881,8 +981,12 @@ const getOwnerProfile = async (req, res) => {
       .populate('reviewerId', 'name email avatar')
       .sort({ createdAt: -1 });
 
+    const ownerOut = sanitizeUser(owner, { includeEmail: true });
+    // v565 — ville plate (point 1) ; countryCode renvoyé tel quel (point 12).
+    ownerOut.city = ownerOut.city || (ownerOut.location && ownerOut.location.city) || '';
+    ownerOut.countryCode = ownerOut.countryCode || '';
     const profile = {
-      ...sanitizeUser(owner, { includeEmail: true }),
+      ...ownerOut,
       pets: pets.map((pet) => sanitizePet(pet)),
       bookings: bookings.map((booking) => sanitizeBooking(booking)),
       posts: posts.map((post) => sanitizePost(post)),
@@ -1121,6 +1225,57 @@ const switchRole = async (req, res) => {
     // "Email already exists", obligeant l'user à passer par le chemin long
     // owner→sitter→walker. Le filtre par email est safe car chaque rôle a son
     // propre espace email-unique.
+    // v565 — Daniel : « un compte, trois profils » + « garder mes abonnements
+    // déjà payés ». Le changement de profil n'est PLUS destructif : si le profil
+    // cible existe déjà, on le RÉUTILISE (jeton + champs partagés + abonnement
+    // synchronisés) ; sinon on le crée SANS supprimer le profil courant. Les
+    // trois profils coexistent donc (login → availableRoles).
+    const capRole = (r) => r.charAt(0).toUpperCase() + r.slice(1);
+    const existingTarget = await ROLE_MODELS[targetRole].findOne({
+      $or: [{ email: userData.email }, ...(baseOldId ? [{ oldId: baseOldId }] : [])],
+    });
+    if (existingTarget) {
+      try {
+        const shared = {};
+        for (const k of ['name', 'avatar', 'mobile', 'countryCode', 'country', 'city', 'address', 'language', 'appLocale', 'currency']) {
+          const v = userData[k];
+          if (v != null && v !== '' && !(typeof v === 'object' && !Array.isArray(v) && !v.url)) shared[k] = v;
+        }
+        if (Array.isArray(userData.fcmTokens) && userData.fcmTokens.length) {
+          await ROLE_MODELS[targetRole].updateOne(
+            { _id: existingTarget._id },
+            { $set: shared, $addToSet: { fcmTokens: { $each: userData.fcmTokens } } },
+          );
+        } else if (Object.keys(shared).length) {
+          await ROLE_MODELS[targetRole].updateOne({ _id: existingTarget._id }, { $set: shared });
+        }
+      } catch (e) {
+        logger.warn('[switchRole] synchro des champs partagés échouée (non bloquant)', e);
+      }
+      try {
+        const { syncSubscriptionAcrossRoles } = require('../models/UserSubscription');
+        await syncSubscriptionAcrossRoles(userId, capRole(currentRole));
+      } catch (e) {
+        logger.warn('[switchRole] synchro abonnement échouée (non bloquant)', e);
+      }
+      const reusedDoc = await ROLE_MODELS[targetRole].findById(existingTarget._id);
+      const token = signAuthToken({ id: reusedDoc._id.toString(), role: targetRole });
+      let availableRoles = [];
+      try {
+        const { findAvailableRolesForAccount } = require('./authController');
+        availableRoles = await findAvailableRolesForAccount(userData.email, baseOldId);
+      } catch (_) { /* best-effort */ }
+      logger.info(`[switchRole] ${currentRole} -> ${targetRole} : profil existant réutilisé (${reusedDoc._id})`);
+      return res.json({
+        message: `Switched to existing ${targetRole} profile.`,
+        role: targetRole,
+        token,
+        user: sanitizeUser(reusedDoc, { includeEmail: true }),
+        availableRoles,
+        reused: true,
+      });
+    }
+
     const TargetModelForCleanup = ROLE_MODELS[targetRole];
     if (TargetModelForCleanup) {
       const zombieFilter = {
@@ -1175,70 +1330,22 @@ const switchRole = async (req, res) => {
     await TargetModel.updateOne({ _id: newUser._id }, updateOps);
     newUser = await TargetModel.findById(newUser._id);
 
-    // v23.1.260 — Daniel : "si un ami change son profil en walker/sitter, il
-    // doit RESTER dans ma liste d'amis". CAUSE : switchRole supprime l'ancien
-    // doc (ci-dessous) → toutes les amitiés/conversations qui le référençaient
-    // pointaient vers un doc supprimé → l'ami disparaissait des listes des
-    // autres. FIX : on MIGRE le graphe social (amitiés + chats amis) de
-    // l'ancien doc (userId, currentRole) vers le nouveau (newUser._id,
-    // targetRole) AVANT de supprimer l'ancien doc. Les bookings/avis NE sont
-    // PAS migrés (ils restent liés au rôle d'origine).
+    // v565 — les trois profils coexistent : amitiés et conversations RESTENT
+    // sur le profil d'origine (les lectures passent par identityGroup) ; seul
+    // l'abonnement est COPIÉ vers le nouveau profil (« garder mes abonnements »).
     try {
-      const Friendship = require('../models/Friendship');
-      const Conversation = require('../models/Conversation');
-      const cap = (r) => r.charAt(0).toUpperCase() + r.slice(1); // owner→Owner
-      const oldModelName = cap(currentRole);
-      const newModelName = cap(targetRole);
-      // Amitiés : que je sois requester ou addressee.
-      await Friendship.updateMany(
-        { requesterId: userId, requesterModel: oldModelName },
-        { $set: { requesterId: newUser._id, requesterModel: newModelName } },
-      );
-      await Friendship.updateMany(
-        { addresseeId: userId, addresseeModel: oldModelName },
-        { $set: { addresseeId: newUser._id, addresseeModel: newModelName } },
-      );
-      // Conversations friendChat : repointer le participant.
-      await Conversation.updateMany(
-        { friendChat: true, 'participants.userId': userId },
-        {
-          $set: {
-            'participants.$[p].userId': newUser._id,
-            'participants.$[p].userModel': newModelName,
-          },
-        },
-        { arrayFilters: [{ 'p.userId': userId }] },
-      );
-      // v23.1.266 — Daniel : "FAMILY_PLAN_REQUIRED alors que j'ai le PawFollow
-      // Famille". CAUSE RACINE : on migrait amitiés + chats mais PAS
-      // l'abonnement. Après un changement de rôle, la sub (PawFollow Famille/
-      // Solo, PawPass) pointait toujours vers l'ANCIEN doc supprimé → les
-      // endpoints famille (findOne par userId du titulaire) ne la trouvaient
-      // plus → 403. On repointe userId/userModel vers le nouveau doc.
-      try {
-        const UserSubscription = require('../models/UserSubscription');
-        await UserSubscription.updateMany(
-          { userId, userModel: oldModelName },
-          { $set: { userId: newUser._id, userModel: newModelName } },
-        );
-      } catch (subErr) {
-        // Conflit d'index unique {userId,userModel} possible si une sub existe
-        // déjà sous le nouveau rôle — non bloquant, le self-heal côté invite
-        // prendra le relais.
-        logger.warn('[switchRole] migration abonnement échouée (non bloquant)', subErr);
-      }
-      logger.info(
-        `[switchRole] graphe social migré ${oldModelName}:${userId} → ${newModelName}:${newUser._id}`,
-      );
-    } catch (migErr) {
-      logger.warn('[switchRole] migration graphe social échouée (non bloquant)', migErr);
+      const { syncSubscriptionAcrossRoles } = require('../models/UserSubscription');
+      await syncSubscriptionAcrossRoles(userId, capRole(currentRole));
+    } catch (subErr) {
+      logger.warn('[switchRole] copie abonnement échouée (non bloquant)', subErr);
     }
 
-    // Delete old user from the correct collection.
-    const OldModel = ROLE_MODELS[currentRole];
-    if (OldModel) {
-      await OldModel.findByIdAndDelete(userId);
-    }
+    // v565 — l'ancien profil N'EST PLUS supprimé (coexistence des 3 profils).
+    let availableRolesAfter = [];
+    try {
+      const { findAvailableRolesForAccount } = require('./authController');
+      availableRolesAfter = await findAvailableRolesForAccount(userData.email, baseOldId);
+    } catch (_) { /* best-effort */ }
 
     // Generate new token with new role and new user ID
     const token = signAuthToken({ id: newUser._id.toString(), role: targetRole });
@@ -1248,6 +1355,8 @@ const switchRole = async (req, res) => {
       role: targetRole,
       token,
       user: sanitizeUser(newUser, { includeEmail: true }),
+      availableRoles: availableRolesAfter,
+      reused: false,
     });
   } catch (error) {
     logger.error('Switch role error', error);
@@ -1353,9 +1462,15 @@ const registerFcmToken = async (req, res) => {
     }
     const Model = resolveUserModel(req.user?.role);
     if (!Model) return res.status(403).json({ error: 'Unsupported role for FCM registration.' });
+    const platform = String(req.body?.platform || '').toLowerCase().slice(0, 12);
+    // v565 — mémorise la plateforme du jeton (ios/android) pour l'admin.
+    await Model.findByIdAndUpdate(req.user.id, { $pull: { fcmDevices: { token: token.trim() } } });
     const result = await Model.findByIdAndUpdate(
       req.user.id,
-      { $addToSet: { fcmTokens: token.trim() } },
+      {
+        $addToSet: { fcmTokens: token.trim() },
+        $push: { fcmDevices: { token: token.trim(), platform, at: new Date() } },
+      },
       { new: true }
     ).select('fcmTokens');
     if (!result) return res.status(404).json({ error: 'User not found.' });
@@ -1376,7 +1491,7 @@ const unregisterFcmToken = async (req, res) => {
     if (!Model) return res.status(403).json({ error: 'Unsupported role for FCM unregistration.' });
     const result = await Model.findByIdAndUpdate(
       req.user.id,
-      { $pull: { fcmTokens: token.trim() } },
+      { $pull: { fcmTokens: token.trim(), fcmDevices: { token: token.trim() } } },
       { new: true }
     ).select('fcmTokens');
     if (!result) return res.status(404).json({ error: 'User not found.' });
@@ -1496,7 +1611,222 @@ const getFavoriteProviders = async (req, res) => {
   }
 };
 
+// ─── v565 §2 — préférences de notification ──────────────────────────────────
+const getNotificationPrefs = async (req, res) => {
+  try {
+    const Model = resolveUserModel(req.user?.role);
+    if (!Model) return res.status(403).json({ error: 'Unsupported role.' });
+    const doc = await Model.findById(req.user.id).select('email oldId notificationPrefs').lean();
+    if (!doc) return res.status(404).json({ error: 'User not found.' });
+    const { resolveNotificationPrefsAcrossRoles } = require('../services/notificationSender');
+    return res.json(await resolveNotificationPrefsAcrossRoles(doc, req.user.id));
+  } catch (e) {
+    logger.error('getNotificationPrefs error', e);
+    return res.status(500).json({ error: 'Unable to load notification preferences.' });
+  }
+};
+
+const updateNotificationPrefs = async (req, res) => {
+  try {
+    const Model = resolveUserModel(req.user?.role);
+    if (!Model) return res.status(403).json({ error: 'Unsupported role.' });
+    const {
+      NOTIFICATION_SOUNDS, NOTIFICATION_CATEGORIES,
+      normalizeNotificationPrefs, resolveNotificationPrefsAcrossRoles,
+    } = require('../services/notificationSender');
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    if (body.sound !== undefined && !NOTIFICATION_SOUNDS.includes(String(body.sound).toLowerCase())) {
+      return res.status(400).json({ error: `sound must be one of: ${NOTIFICATION_SOUNDS.join(', ')}.` });
+    }
+    if (body.categories !== undefined && (typeof body.categories !== 'object' || body.categories === null)) {
+      return res.status(400).json({ error: 'categories must be an object.' });
+    }
+    const doc = await Model.findById(req.user.id).select('email oldId notificationPrefs').lean();
+    if (!doc) return res.status(404).json({ error: 'User not found.' });
+    // Corps partiel : on part de l'état courant (défauts si absent).
+    const current = await resolveNotificationPrefsAcrossRoles(doc, req.user.id);
+    const merged = normalizeNotificationPrefs({
+      sound: body.sound !== undefined ? body.sound : current.sound,
+      categories: { ...current.categories, ...(body.categories || {}) },
+    });
+    for (const k of Object.keys(body.categories || {})) {
+      if (!NOTIFICATION_CATEGORIES.includes(k)) {
+        return res.status(400).json({ error: `Unknown category "${k}".`, categories: NOTIFICATION_CATEGORIES });
+      }
+    }
+    // Synchro sur les 3 docs de la personne.
+    const g = await identityGroup(req.user.id);
+    await Promise.all(g.docs.map((d) => {
+      const M = MODEL_BY_NAME[d.model];
+      return M ? M.updateOne({ _id: d.id }, { $set: { notificationPrefs: merged } }) : null;
+    }));
+    logger.info(`[notif.prefs] ${req.user.role}:${req.user.id} → sound=${merged.sound} categories=${JSON.stringify(merged.categories)} (${g.docs.length} doc(s))`);
+    return res.json(merged);
+  } catch (e) {
+    logger.error('updateNotificationPrefs error', e);
+    return res.status(500).json({ error: 'Unable to update notification preferences.' });
+  }
+};
+
+// ─── v565 §3 — changement d'e-mail par l'utilisateur ────────────────────────
+// Même logique que PATCH /admin/users/:role/:id/email (unicité sur les 3
+// collections hors comptes frères, propagation aux 3 docs), en version
+// « moi-même » : mot de passe exigé, code de vérification envoyé à la NOUVELLE
+// adresse (emailService.sendVerificationEmail, langue du compte), 24 h.
+// Les e-mails sont stockés en clair (lowercase) — comme authController.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const EMAIL_CHANGE_TTL_H = 24;
+const EMAIL_CHANGE_RESEND_MS = 2 * 60 * 1000;
+const LANG_NAMES = {
+  'français': 'fr', francais: 'fr', french: 'fr', english: 'en', anglais: 'en',
+  'español': 'es', espanol: 'es', spanish: 'es', deutsch: 'de', german: 'de',
+  italiano: 'it', italian: 'it', 'português': 'pt', portugues: 'pt', portuguese: 'pt',
+  polski: 'pl', polish: 'pl', '한국어': 'ko', korean: 'ko', '日本語': 'ja', japanese: 'ja',
+};
+const emailLangOf = async (doc, userId) => {
+  const { resolveAppLocaleAcrossRoles } = require('../services/notificationSender');
+  const appLocale = await resolveAppLocaleAcrossRoles(doc, userId);
+  const raw = String(appLocale || doc?.language || '').toLowerCase().trim();
+  if (LANG_NAMES[raw]) return LANG_NAMES[raw];
+  const short = raw.slice(0, 2);
+  return ['fr', 'en', 'es', 'de', 'it', 'pt', 'pl', 'ko', 'ja'].includes(short) ? short : 'en';
+};
+const _sendEmailChangeCode = async (Model, doc, userId, newEmail) => {
+  const { generateVerificationCode, hashCode } = require('../utils/code');
+  const { sendVerificationEmail } = require('../services/emailService');
+  const code = generateVerificationCode();
+  const pending = {
+    pendingEmail: newEmail,
+    pendingEmailCodeHash: hashCode(code),
+    pendingEmailExpiresAt: new Date(Date.now() + EMAIL_CHANGE_TTL_H * 3600 * 1000),
+    pendingEmailSentAt: new Date(),
+  };
+  // Posé sur les 3 docs : la confirmation peut venir d'un autre rôle.
+  const g = await identityGroup(userId);
+  await Promise.all(g.docs.map((d) => {
+    const M = MODEL_BY_NAME[d.model];
+    return M ? M.updateOne({ _id: d.id }, { $set: pending }) : null;
+  }));
+  const lang = await emailLangOf(doc, userId);
+  await sendVerificationEmail(newEmail, code, lang, doc.name);
+  logger.info(`[email-change] code sent to new address for ${userId} (lang=${lang})`);
+};
+
+const requestEmailChange = async (req, res) => {
+  try {
+    const Model = resolveUserModel(req.user?.role);
+    if (!Model) return res.status(403).json({ error: 'Unsupported role.' });
+    const newEmail = String((req.body || {}).newEmail || '').trim().toLowerCase();
+    const password = String((req.body || {}).password || '');
+    if (!EMAIL_RE.test(newEmail)) return res.status(400).json({ error: 'Invalid email address.', code: 'EMAIL_INVALID' });
+    if (!password) return res.status(400).json({ error: 'Password is required.', code: 'PASSWORD_REQUIRED' });
+    const doc = await Model.findById(req.user.id);
+    if (!doc) return res.status(404).json({ error: 'User not found.' });
+    const ok = await doc.comparePassword(password).catch(() => false);
+    if (!ok) return res.status(401).json({ error: 'Incorrect password.', code: 'PASSWORD_INCORRECT' });
+    const currentEmail = String(doc.email || '').toLowerCase();
+    if (newEmail === currentEmail) {
+      return res.status(400).json({ error: 'This is already your email address.', code: 'EMAIL_SAME' });
+    }
+    // Unicité sur les 3 collections, hors comptes frères (même personne).
+    const g = await identityGroup(req.user.id);
+    const taken = (await Promise.all([Owner, Sitter, Walker].map((M) =>
+      M.find({ $or: [{ email: newEmail }, { pendingEmail: newEmail }] }).select('_id email').lean(),
+    ))).flat().filter((d) => !g.set.has(String(d._id)) && String(d.email).toLowerCase() === newEmail);
+    if (taken.length) {
+      return res.status(409).json({ error: 'This email address is already in use.', code: 'EMAIL_TAKEN' });
+    }
+    await _sendEmailChangeCode(Model, doc.toObject(), req.user.id, newEmail);
+    return res.json({ ok: true });
+  } catch (e) {
+    logger.error('requestEmailChange error', e);
+    return res.status(500).json({ error: 'Unable to start email change.' });
+  }
+};
+
+const confirmEmailChange = async (req, res) => {
+  try {
+    const Model = resolveUserModel(req.user?.role);
+    if (!Model) return res.status(403).json({ error: 'Unsupported role.' });
+    const code = String((req.body || {}).code || '').trim();
+    if (!/^\d{6}$/.test(code)) return res.status(400).json({ error: 'Invalid code.', code: 'CODE_INVALID' });
+    const doc = await Model.findById(req.user.id)
+      .select('email oldId pendingEmail +pendingEmailCodeHash pendingEmailExpiresAt').lean();
+    if (!doc) return res.status(404).json({ error: 'User not found.' });
+    const newEmail = String(doc.pendingEmail || '').toLowerCase();
+    if (!newEmail || !doc.pendingEmailCodeHash) {
+      return res.status(400).json({ error: 'No pending email change.', code: 'NO_PENDING_EMAIL' });
+    }
+    if (!doc.pendingEmailExpiresAt || new Date(doc.pendingEmailExpiresAt) < new Date()) {
+      return res.status(400).json({ error: 'Verification code expired. Please request a new code.', code: 'CODE_EXPIRED' });
+    }
+    const { compareCode } = require('../utils/code');
+    if (!compareCode(code, doc.pendingEmailCodeHash)) {
+      return res.status(400).json({ error: 'Invalid verification code.', code: 'CODE_INVALID' });
+    }
+    // Groupe d'identité calculé AVANT de changer l'e-mail (clé de liaison).
+    const g = await identityGroup(req.user.id);
+    const taken = (await Promise.all([Owner, Sitter, Walker].map((M) =>
+      M.find({ email: newEmail }).select('_id').lean(),
+    ))).flat().filter((d) => !g.set.has(String(d._id)));
+    if (taken.length) {
+      return res.status(409).json({ error: 'This email address is already in use.', code: 'EMAIL_TAKEN' });
+    }
+    const oldEmail = String(doc.email || '').toLowerCase();
+    const results = await Promise.all(g.docs.map((d) => {
+      const M = MODEL_BY_NAME[d.model];
+      return M ? M.updateOne({ _id: d.id }, {
+        $set: { email: newEmail, verified: true },
+        $unset: { pendingEmail: '', pendingEmailCodeHash: '', pendingEmailExpiresAt: '', pendingEmailSentAt: '' },
+      }) : { modifiedCount: 0 };
+    }));
+    const changed = results.reduce((n, r) => n + (r?.modifiedCount || 0), 0);
+    try {
+      const VerificationCode = require('../models/VerificationCode');
+      await VerificationCode.deleteMany({ email: { $in: [oldEmail, newEmail] }, purpose: 'email_verification' });
+    } catch (_) { /* best-effort */ }
+    logger.info(`[email-change] ${req.user.role}:${req.user.id} ${oldEmail} -> ${newEmail} (${changed} doc(s))`);
+    return res.json({ ok: true, email: newEmail, changed });
+  } catch (e) {
+    logger.error('confirmEmailChange error', e);
+    return res.status(500).json({ error: 'Unable to confirm email change.' });
+  }
+};
+
+const resendEmailChange = async (req, res) => {
+  try {
+    const Model = resolveUserModel(req.user?.role);
+    if (!Model) return res.status(403).json({ error: 'Unsupported role.' });
+    const doc = await Model.findById(req.user.id)
+      .select('name email oldId language appLocale pendingEmail pendingEmailSentAt pendingEmailExpiresAt').lean();
+    if (!doc) return res.status(404).json({ error: 'User not found.' });
+    const newEmail = String(doc.pendingEmail || '').toLowerCase();
+    if (!newEmail) return res.status(400).json({ error: 'No pending email change.', code: 'NO_PENDING_EMAIL' });
+    const last = doc.pendingEmailSentAt ? new Date(doc.pendingEmailSentAt).getTime() : 0;
+    const wait = EMAIL_CHANGE_RESEND_MS - (Date.now() - last);
+    if (wait > 0) {
+      return res.status(429).json({
+        error: 'Please wait before requesting a new code.',
+        code: 'RESEND_TOO_SOON',
+        retryAfterSeconds: Math.ceil(wait / 1000),
+      });
+    }
+    await _sendEmailChangeCode(Model, doc, req.user.id, newEmail);
+    return res.json({ ok: true });
+  } catch (e) {
+    logger.error('resendEmailChange error', e);
+    return res.status(500).json({ error: 'Unable to resend the verification code.' });
+  }
+};
+
 module.exports = {
+  // v565
+  getNotificationPrefs,
+  updateNotificationPrefs,
+  requestEmailChange,
+  confirmEmailChange,
+  resendEmailChange,
+  propagateToSiblings,
   updateService,
   updateProfile,
   updateCard,
