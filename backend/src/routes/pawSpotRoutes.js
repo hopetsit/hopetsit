@@ -36,6 +36,9 @@ const modelForRole = (role) =>
   role === 'walker' ? Walker : role === 'sitter' ? Sitter : Owner;
 
 const FREE_SPOT_LIMIT = 3;
+// v567 — anti-ferme à points : au-delà de ce nombre de spots créés en 24 h par
+// un même compte, les tags supplémentaires ne rapportent plus de PawPoints.
+const SPOT_POINTS_DAILY_CAP = 10;
 // v23.1.357 — Daniel : "spot validé par la communauté au bout de 10 likes".
 const LIKES_FOR_VALIDATION = 10;
 const PAWSPOT_PLAN_DAYS = { monthly: 30, yearly: 365 };
@@ -67,20 +70,45 @@ function getPawSpotPricing(plan, currency = 'EUR') {
 // premiumExpiry) était bloqué sur /directions et /rewards/redeem alors que le
 // gate de création POST / le laissait passer. On aligne : staff OU premiumExpiry
 // futur OU pawspotExpiry futur. 100 % additif.
+// v567 — CROSS-RÔLE. Un compte HoPetSit = jusqu'à TROIS documents (owner /
+// sitter / walker) reliés par l'email, et l'abonnement est stocké sur le
+// document du rôle avec lequel il a été acheté. Ce helper ne lisait que le rôle
+// ACTIF : un utilisateur ayant payé PawSpot (ou Paw Premium) en propriétaire
+// était traité comme non-abonné depuis son profil promeneur — bloqué au 4e tag
+// et renvoyé à la boutique alors qu'il paie déjà. On résout donc aussi sur les
+// profils frères, comme friendRoutes le fait pour le badge Premium.
 async function hasActivePawSpot(userId, role) {
   try {
+    const now = new Date();
     const Model = modelForRole(role);
-    const me = await Model.findById(userId).select('isStaff').lean();
+    const me = await Model.findById(userId).select('isStaff email').lean();
     if (me && me.isStaff === true) return true;
     const sub = await UserSubscription.findOne({
       userId,
       userModel: userModelFromRole(role),
     }).select('pawspotExpiry premiumExpiry').lean();
-    if (!sub) return false;
-    const now = new Date();
-    if (sub.pawspotExpiry && new Date(sub.pawspotExpiry) > now) return true;
-    if (sub.premiumExpiry && new Date(sub.premiumExpiry) > now) return true;
-    return false;
+    if (sub) {
+      if (sub.pawspotExpiry && new Date(sub.pawspotExpiry) > now) return true;
+      if (sub.premiumExpiry && new Date(sub.premiumExpiry) > now) return true;
+    }
+    const email = String(me?.email || '').toLowerCase().trim();
+    if (!email) return false;
+    const sibIds = [];
+    for (const M of [Owner, Sitter, Walker]) {
+      const d = await M.findOne({ email }).select('_id isStaff').lean();
+      if (!d) continue;
+      if (d.isStaff === true) return true;
+      if (String(d._id) !== String(userId)) sibIds.push(d._id);
+    }
+    if (!sibIds.length) return false;
+    const sibSub = await UserSubscription.findOne({
+      userId: { $in: sibIds },
+      $or: [
+        { pawspotExpiry: { $gt: now } },
+        { premiumExpiry: { $gt: now } },
+      ],
+    }).select('_id').lean();
+    return !!sibSub;
   } catch (_) {
     return false;
   }
@@ -142,7 +170,11 @@ async function enrichGoldenCreators(spots) {
 // original n'est jamais perdu. (Les anciens spots déjà stockés censurés
 // restent tels quels — il faut les recréer.)
 const { moderateText: _moderateSpot } = require('../services/textModerationService');
-const spotJson = (s) => ({
+// v567 — `viewerId` : l'app affichait TOUJOURS le cœur vide et le trophée
+// actif, parce que le serveur ne disait jamais si la personne avait déjà aimé /
+// validé / visité ce spot. Rouvrir la fiche puis retaper le cœur RETIRAIT donc
+// son like sans prévenir. On renvoie l'état réel du lecteur.
+const spotJson = (s, viewerId = '') => ({
   id: String(s._id),
   type: s.type,
   name: _moderateSpot(s.name || '').clean,
@@ -164,8 +196,97 @@ const spotJson = (s) => ({
   featured: !!(s.featuredUntil && new Date(s.featuredUntil) > new Date()),
   // ⭐ qualité (système de confiance) : 3.0 base, +0.5/validation, cap 5.
   quality: Math.min(5, Math.round((3 + (s.validationsCount || 0) * 0.5) * 10) / 10),
+  // v567 — état du lecteur (cœur plein / trophée grisé / visite déjà marquée).
+  likedByMe: !!viewerId && (s.likedBy || []).some((u) => String(u) === String(viewerId)),
+  validatedByMe: !!viewerId && (s.validatedBy || []).some((u) => String(u) === String(viewerId)),
+  visitedByMe: !!viewerId && (s.visitedBy || []).some((u) => String(u) === String(viewerId)),
+  isMine: !!viewerId && String(s.creatorId) === String(viewerId),
   createdAt: s.createdAt,
 });
+
+// v567 — un spot supprimé reste en base (corbeille) pour que le quota gratuit
+// compte les créations cumulées : TOUTES les lectures doivent donc l'exclure.
+const VISIBLE = { hidden: false, deletedAt: null };
+
+/**
+ * v567 — les identifiants des TROIS documents de rôle du compte (owner /
+ * sitter / walker, reliés par l'email). Les spots, le quota gratuit et la
+ * reprise de points doivent raisonner sur le COMPTE, pas sur le profil actif.
+ */
+async function accountRoleIds(userId, role) {
+  try {
+    const Model = modelForRole(role);
+    const me = await Model.findById(userId).select('email').lean();
+    const email = String(me?.email || '').toLowerCase().trim();
+    if (!email) return [userId];
+    const ids = [];
+    for (const M of [Owner, Sitter, Walker]) {
+      const d = await M.findOne({ email }).select('_id').lean();
+      if (d) ids.push(d._id);
+    }
+    return ids.length ? ids : [userId];
+  } catch (_) {
+    return [userId];
+  }
+}
+
+/**
+ * v567 — palier de récompense (spot validé par la communauté, spot très
+ * populaire) crédité UNE SEULE FOIS, même si deux ❤️ arrivent en même temps.
+ *
+ * Avant : `if (!spot.popularAwarded) { spot.popularAwarded = true; award(); }`
+ * sur un document lu en mémoire — deux requêtes concurrentes passaient toutes
+ * les deux le test et créditaient le créateur DEUX fois. Ici le drapeau est
+ * posé par un findOneAndUpdate conditionnel : seule la requête qui a réellement
+ * modifié le document crédite les points.
+ *
+ * Crédite aussi `pointsAwarded` (ce que le spot a rapporté, repris si le spot
+ * est supprimé) et prévient l'auteur (notification + push traduits).
+ */
+async function creditMilestone(spot, flagField, { points, reason, notifyType, alsoSet = {} }) {
+  try {
+    const claimed = await PawSpot.findOneAndUpdate(
+      { _id: spot._id, [flagField]: { $ne: true } },
+      { $set: { [flagField]: true, ...alsoSet } },
+      { new: true },
+    );
+    if (!claimed) return null; // déjà crédité par une autre requête
+    const role = String(spot.creatorModel || 'Owner').toLowerCase();
+    const got = await pawPoints.awardPointsDetailed({
+      userId: spot.creatorId, role, points, reason,
+    });
+    const credited = got?.credited ?? points;
+    await PawSpot.updateOne(
+      { _id: spot._id },
+      { $inc: { pointsAwarded: credited } },
+    ).catch(() => {});
+    if (notifyType) {
+      // v567 — Daniel : l'auteur n'était JAMAIS prévenu que son spot avait été
+      // validé par la communauté ni qu'il était devenu doré ; il découvrait ses
+      // points par hasard en ouvrant la boutique. Push + notification in-app
+      // traduits dans les 9 langues (locales/*/notifications.json).
+      try {
+        const { sendNotification } = require('../services/notificationSender');
+        await sendNotification({
+          userId: spot.creatorId,
+          role,
+          type: notifyType,
+          data: {
+            spotId: String(spot._id),
+            spotName: _moderateSpot(spot.name || '').clean,
+            points: String(credited),
+          },
+        });
+      } catch (e) {
+        logger.warn(`[pawspots] notif ${notifyType} failed: ${e?.message || e}`);
+      }
+    }
+    return credited;
+  } catch (e) {
+    logger.warn(`[pawspots] milestone ${flagField} failed: ${e?.message || e}`);
+    return null;
+  }
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // LECTURE
@@ -190,7 +311,7 @@ router.get('/public/:id', async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(404).json({ error: 'Spot not found.' });
     }
-    const s = await PawSpot.findById(req.params.id)
+    const s = await PawSpot.findOne({ _id: req.params.id, ...VISIBLE })
       .select('type name description photoUrl location likesCount validationsCount communityValidated creatorName createdAt')
       .lean();
     if (!s) return res.status(404).json({ error: 'Spot not found.' });
@@ -226,7 +347,7 @@ router.get('/nearby', requireAuth, async (req, res) => {
     }
     const maxDistance = Math.min(Number(req.query.radius) || 25000, 100000);
     const spots = await PawSpot.find({
-      hidden: false,
+      ...VISIBLE,
       location: {
         $near: {
           $geometry: { type: 'Point', coordinates: [lng, lat] },
@@ -241,7 +362,7 @@ router.get('/nearby', requireAuth, async (req, res) => {
       return fb - fa;
     });
     await enrichGoldenCreators(spots);
-    res.json({ spots: spots.map(spotJson) });
+    res.json({ spots: spots.map((s) => spotJson(s, req.user.id)) });
   } catch (e) {
     logger.error('[pawspots/nearby]', e);
     res.status(500).json({ error: e.message });
@@ -258,12 +379,12 @@ router.get('/top', requireAuth, async (req, res) => {
         code: 'PAWSPOT_REQUIRED',
       });
     }
-    const spots = await PawSpot.find({ hidden: false })
+    const spots = await PawSpot.find({ ...VISIBLE })
       .sort({ likesCount: -1, validationsCount: -1 })
       .limit(50)
       .lean();
     await enrichGoldenCreators(spots);
-    res.json({ spots: spots.map(spotJson) });
+    res.json({ spots: spots.map((s) => spotJson(s, req.user.id)) });
   } catch (e) {
     logger.error('[pawspots/top]', e);
     res.status(500).json({ error: e.message });
@@ -303,7 +424,7 @@ router.get('/leaderboard', requireAuth, async (req, res) => {
       const docs = await Model.find(filter)
         .sort({ pawPoints: -1 })
         .limit(50)
-        .select('name avatar pawPoints pawBadgeColor pawGoldFrame location.city countryCode')
+        .select('name avatar email pawPoints pawBadgeColor pawGoldFrame location.city countryCode')
         .lean();
       for (const d of docs) {
         const c = countryFromPhone(d.countryCode);
@@ -319,9 +440,27 @@ router.get('/leaderboard', requireAuth, async (req, res) => {
           city: d.location?.city || '',
           countryFlag: c?.flag || '',
           countryName: c?.name || '',
+          _email: String(d.email || '').toLowerCase().trim(),
         });
       }
     }
+    // v567 — UNE personne = UNE ligne. Les PawPoints sont recopiés sur les
+    // trois documents de rôle du compte (syncPointsAcrossRoles) et on balaie
+    // les trois collections : un compte à trois profils occupait donc les
+    // places 1, 2 ET 3 du classement avec le même nom et le même score. On
+    // déduplique par email (repli : identifiant) en gardant la meilleure ligne.
+    const byPerson = new Map();
+    for (const r of rows) {
+      const key = r._email || `id:${r.userId}`;
+      const prev = byPerson.get(key);
+      if (!prev || r.points > prev.points || (r.points === prev.points && r.avatar && !prev.avatar)) {
+        byPerson.set(key, r);
+      }
+    }
+    const deduped = [...byPerson.values()];
+    for (const r of deduped) delete r._email;
+    rows.length = 0;
+    rows.push(...deduped);
     rows.sort((a, b) => b.points - a.points);
     res.json({
       scope,
@@ -366,7 +505,12 @@ router.get('/me/points', requireAuth, async (req, res) => {
     // dépensable, pas sur le total à vie. `points` reste le total à vie (niveau).
     const st = await pawPoints.getPawState(req.user.id, req.user.role);
     const points = st.lifetime;
-    const mySpots = await PawSpot.countDocuments({ creatorId: req.user.id });
+    // v567 — comptés sur les TROIS profils du compte (comme le quota).
+    const myIds = await accountRoleIds(req.user.id, req.user.role);
+    const mySpots = await PawSpot.countDocuments({
+      creatorId: { $in: myIds }, deletedAt: null,
+    });
+    const createdTotal = await PawSpot.countDocuments({ creatorId: { $in: myIds } });
     const subscribed = await hasActivePawSpot(req.user.id, req.user.role);
     const sub = await UserSubscription.findOne({
       userId: req.user.id,
@@ -375,12 +519,22 @@ router.get('/me/points', requireAuth, async (req, res) => {
     res.json({
       points,
       spendable: st.spendable,
+      // v567 — ALIAS. La boutique (coin_shop_screen) lit `pawPointsSpendable`
+      // et retombait sur `points` (le total À VIE) quand la clé n'existait
+      // pas : elle affichait « 1 200 pts » à quelqu'un qui n'avait plus que
+      // 200 points dépensables, et l'échange répondait ensuite « pas assez de
+      // PawPoints ». Même valeur que `spendable`.
+      pawPointsSpendable: st.spendable,
       lifetime: st.lifetime,
       badge: pawPoints.badgeFor(points),
       nextBadge: pawPoints.nextBadgeFor(points),
       isGoldCreator: pawPoints.isGoldCreator(points),
       mySpotsCount: mySpots,
+      spotsCreatedTotal: createdTotal,
       freeSpotLimit: FREE_SPOT_LIMIT,
+      // v567 — « il te reste N tags gratuits » : la valeur existait côté
+      // serveur mais n'était jamais calculée ni affichée. null = illimité.
+      freeSpotsLeft: subscribed ? null : Math.max(0, FREE_SPOT_LIMIT - createdTotal),
       subscribed,
       pawspotExpiry: sub?.pawspotExpiry || null,
       trialUsed: !!sub?.pawspotTrialUsedAt,
@@ -596,12 +750,22 @@ router.post('/', requireAuth, async (req, res) => {
     const meDoc = await Model.findById(req.user.id)
       .select('name isStaff pawPoints').lean();
     const subscribed = await hasActivePawSpot(req.user.id, req.user.role);
+    // v567 — les spots sont comptés sur les TROIS profils du compte. Avant, le
+    // quota gratuit portait sur le seul document de rôle : 3 spots en
+    // propriétaire + 3 en gardien + 3 en promeneur = 9 tags gratuits au lieu
+    // de 3 (il suffisait de changer de profil pour repartir à zéro).
+    const myIds = await accountRoleIds(req.user.id, req.user.role);
+    // v567 — le quota porte sur les CRÉATIONS CUMULÉES (corbeille comprise) :
+    // supprimer un spot ne rend plus un tag gratuit.
+    const createdTotal = await PawSpot.countDocuments({ creatorId: { $in: myIds } });
     if (!subscribed && meDoc?.isStaff !== true) {
-      const count = await PawSpot.countDocuments({ creatorId: req.user.id });
-      if (count >= FREE_SPOT_LIMIT) {
+      if (createdTotal >= FREE_SPOT_LIMIT) {
         return res.status(402).json({
           error: `Free accounts can create up to ${FREE_SPOT_LIMIT} PawSpots. Subscribe to PawSpot for unlimited tagging.`,
           code: 'PAWSPOT_REQUIRED',
+          freeSpotLimit: FREE_SPOT_LIMIT,
+          spotsCreatedTotal: createdTotal,
+          freeSpotsLeft: 0,
         });
       }
     }
@@ -633,20 +797,54 @@ router.post('/', requireAuth, async (req, res) => {
     });
 
     // Points : +10 création, +5 photo.
-    let earned = pawPoints.POINTS.spotCreated;
-    await pawPoints.awardPoints({
-      userId: req.user.id, role: req.user.role,
-      points: pawPoints.POINTS.spotCreated, reason: 'spot created',
+    // v567 — on renvoie les points RÉELLEMENT crédités (le ×2 Paw Premium et
+    // le bonus de niveau étaient appliqués en base mais l'app annonçait
+    // toujours « +10 » : l'abonné Premium ne voyait jamais son doublement).
+    // v567 — 2e garde-fou anti-ferme : au-delà de SPOT_POINTS_DAILY_CAP spots
+    // créés en 24 h, le spot est bien publié mais ne rapporte plus de points
+    // (un abonné « illimité » ne peut donc pas scripter 1 000 tags par jour).
+    const since = new Date(Date.now() - 86400000);
+    const createdToday = await PawSpot.countDocuments({
+      creatorId: { $in: myIds },
+      createdAt: { $gte: since },
     });
-    if (spot.photoUrl) {
-      earned += pawPoints.POINTS.photoAdded;
-      await pawPoints.awardPoints({
+    const overDailyCap = createdToday > SPOT_POINTS_DAILY_CAP;
+    let earned = 0;
+    if (!overDailyCap) {
+      const gotCreate = await pawPoints.awardPointsDetailed({
         userId: req.user.id, role: req.user.role,
-        points: pawPoints.POINTS.photoAdded, reason: 'spot photo',
+        points: pawPoints.POINTS.spotCreated, reason: 'spot created',
       });
+      earned += gotCreate?.credited ?? pawPoints.POINTS.spotCreated;
+      if (spot.photoUrl) {
+        const gotPhoto = await pawPoints.awardPointsDetailed({
+          userId: req.user.id, role: req.user.role,
+          points: pawPoints.POINTS.photoAdded, reason: 'spot photo',
+        });
+        earned += gotPhoto?.credited ?? pawPoints.POINTS.photoAdded;
+      }
+    } else {
+      logger.info(
+        `[pawspots] plafond quotidien atteint (${createdToday} spots/24 h) → 0 point pour ${req.user.role}:${req.user.id}`,
+      );
     }
+    // Mémorise ce que ce spot a rapporté : repris si le spot est supprimé.
+    try {
+      spot.pointsAwarded = earned;
+      await spot.save();
+    } catch (_) { /* best-effort */ }
 
-    res.status(201).json({ spot: spotJson(spot), pointsEarned: earned });
+    const unlimited = subscribed || meDoc?.isStaff === true;
+    res.status(201).json({
+      spot: spotJson(spot, req.user.id),
+      pointsEarned: earned,
+      dailyCapReached: overDailyCap,
+      mySpotsCount: await PawSpot.countDocuments({ creatorId: { $in: myIds }, deletedAt: null }),
+      spotsCreatedTotal: createdTotal + 1,
+      freeSpotLimit: FREE_SPOT_LIMIT,
+      // Illimité pour les abonnés / le staff → null.
+      freeSpotsLeft: unlimited ? null : Math.max(0, FREE_SPOT_LIMIT - (createdTotal + 1)),
+    });
   } catch (e) {
     logger.error('[pawspots POST]', e);
     res.status(500).json({ error: e.message });
@@ -656,37 +854,57 @@ router.post('/', requireAuth, async (req, res) => {
 // POST /pawspots/:id/like — toggle ❤️ (+25 pts créateur à 50 likes, 1 fois).
 router.post('/:id/like', requireAuth, async (req, res) => {
   try {
-    const spot = await PawSpot.findById(req.params.id);
-    if (!spot || spot.hidden) return res.status(404).json({ error: 'Spot not found.' });
     const uid = String(req.user.id);
-    const idx = spot.likedBy.indexOf(uid);
-    if (idx >= 0) {
-      spot.likedBy.splice(idx, 1);
-    } else {
-      spot.likedBy.push(uid);
+    const current = await PawSpot.findOne({ _id: req.params.id, ...VISIBLE })
+      .select('likedBy creatorId')
+      .lean();
+    if (!current) return res.status(404).json({ error: 'Spot not found.' });
+    // v567 — anti-triche : on ne peut pas aimer son propre spot (la route
+    // /validate l'interdisait déjà, pas /like). Sans ça, l'auteur comptait
+    // pour l'un des 10 ❤️ qui déclenchent SES propres +10 points.
+    if (uid === String(current.creatorId)) {
+      return res.status(400).json({
+        error: 'You cannot like your own spot.',
+        code: 'SELF_LIKE',
+      });
     }
+    const wasLiked = (current.likedBy || []).some((u) => String(u) === uid);
+    // v567 — $addToSet / $pull : atomique. L'ancien push/splice + save
+    // permettait à deux requêtes simultanées d'inscrire DEUX fois le même
+    // utilisateur dans likedBy (compteur de likes gonflé).
+    const spot = await PawSpot.findOneAndUpdate(
+      { _id: req.params.id, ...VISIBLE },
+      wasLiked ? { $pull: { likedBy: uid } } : { $addToSet: { likedBy: uid } },
+      { new: true },
+    );
+    if (!spot) return res.status(404).json({ error: 'Spot not found.' });
     spot.likesCount = spot.likedBy.length;
+    await spot.save();
+
     // v23.1.357 — validé par la communauté à 10 ❤️ : +10 pts créateur (1 fois).
     if (spot.likesCount >= LIKES_FOR_VALIDATION && !spot.communityValidated) {
-      spot.communityValidated = true;
-      if (!spot.validationAwarded) {
-        spot.validationAwarded = true;
-        await pawPoints.awardPoints({
-          userId: spot.creatorId, role: spot.creatorModel.toLowerCase(),
-          points: pawPoints.POINTS.spotValidated, reason: 'spot validated (10 likes)',
-        });
-      }
+      await creditMilestone(spot, 'validationAwarded', {
+        points: pawPoints.POINTS.spotValidated,
+        reason: 'spot validated (10 likes)',
+        notifyType: 'pawspot_validated',
+        alsoSet: { communityValidated: true },
+      });
     }
     // Très populaire : 50 likes → +25 pts créateur (une seule fois).
     if (spot.likesCount >= 50 && !spot.popularAwarded) {
-      spot.popularAwarded = true;
-      await pawPoints.awardPoints({
-        userId: spot.creatorId, role: spot.creatorModel.toLowerCase(),
-        points: pawPoints.POINTS.spotPopular, reason: 'spot popular (50 likes)',
+      await creditMilestone(spot, 'popularAwarded', {
+        points: pawPoints.POINTS.spotPopular,
+        reason: 'spot popular (50 likes)',
+        notifyType: 'pawspot_popular',
       });
     }
-    await spot.save();
-    res.json({ liked: idx < 0, likesCount: spot.likesCount });
+    const fresh = await PawSpot.findById(spot._id)
+      .select('likesCount communityValidated').lean();
+    res.json({
+      liked: !wasLiked,
+      likesCount: fresh?.likesCount ?? spot.likesCount,
+      communityValidated: fresh?.communityValidated === true,
+    });
   } catch (e) {
     logger.error('[pawspots like]', e);
     res.status(500).json({ error: e.message });
@@ -696,29 +914,50 @@ router.post('/:id/like', requireAuth, async (req, res) => {
 // POST /pawspots/:id/validate — 🏆 valider (3 validations = validé, +10 créateur).
 router.post('/:id/validate', requireAuth, async (req, res) => {
   try {
-    const spot = await PawSpot.findById(req.params.id);
-    if (!spot || spot.hidden) return res.status(404).json({ error: 'Spot not found.' });
     const uid = String(req.user.id);
-    if (uid === String(spot.creatorId)) {
-      return res.status(400).json({ error: 'You cannot validate your own spot.' });
+    const current = await PawSpot.findOne({ _id: req.params.id, ...VISIBLE })
+      .select('creatorId validatedBy communityValidated validationsCount')
+      .lean();
+    if (!current) return res.status(404).json({ error: 'Spot not found.' });
+    if (uid === String(current.creatorId)) {
+      return res.status(400).json({
+        error: 'You cannot validate your own spot.',
+        code: 'SELF_VALIDATE',
+      });
     }
-    if (spot.validatedBy.includes(uid)) {
-      return res.json({ validated: spot.communityValidated, validationsCount: spot.validationsCount, already: true });
+    if ((current.validatedBy || []).some((u) => String(u) === uid)) {
+      return res.json({
+        validated: current.communityValidated === true,
+        validationsCount: current.validationsCount || 0,
+        already: true,
+      });
     }
-    spot.validatedBy.push(uid);
+    // v567 — atomique : une double requête ne peut plus inscrire deux fois le
+    // même validateur (le compteur de validations ne se gonfle plus tout seul).
+    const spot = await PawSpot.findOneAndUpdate(
+      { _id: req.params.id, ...VISIBLE, validatedBy: { $ne: uid } },
+      { $addToSet: { validatedBy: uid } },
+      { new: true },
+    );
+    if (!spot) {
+      return res.json({
+        validated: current.communityValidated === true,
+        validationsCount: current.validationsCount || 0,
+        already: true,
+      });
+    }
     spot.validationsCount = spot.validatedBy.length;
-    if (spot.validationsCount >= 3 && !spot.communityValidated) {
-      spot.communityValidated = true;
-      if (!spot.validationAwarded) {
-        spot.validationAwarded = true;
-        await pawPoints.awardPoints({
-          userId: spot.creatorId, role: spot.creatorModel.toLowerCase(),
-          points: pawPoints.POINTS.spotValidated, reason: 'spot community-validated',
-        });
-      }
-    }
     await spot.save();
-    res.json({ validated: spot.communityValidated, validationsCount: spot.validationsCount });
+    if (spot.validationsCount >= 3 && !spot.communityValidated) {
+      await creditMilestone(spot, 'validationAwarded', {
+        points: pawPoints.POINTS.spotValidated,
+        reason: 'spot community-validated',
+        notifyType: 'pawspot_validated',
+        alsoSet: { communityValidated: true },
+      });
+      spot.communityValidated = true;
+    }
+    res.json({ validated: spot.communityValidated === true, validationsCount: spot.validationsCount });
   } catch (e) {
     logger.error('[pawspots validate]', e);
     res.status(500).json({ error: e.message });
@@ -730,12 +969,13 @@ router.post('/:id/visit', requireAuth, async (req, res) => {
   try {
     const uid = String(req.user.id);
     const spot = await PawSpot.findOneAndUpdate(
-      { _id: req.params.id, hidden: false, visitedBy: { $ne: uid } },
-      { $push: { visitedBy: uid }, $inc: { visitsCount: 1 } },
+      { _id: req.params.id, ...VISIBLE, visitedBy: { $ne: uid } },
+      { $addToSet: { visitedBy: uid }, $inc: { visitsCount: 1 } },
       { new: true },
     );
     if (!spot) {
-      const existing = await PawSpot.findById(req.params.id).select('visitsCount').lean();
+      const existing = await PawSpot.findOne({ _id: req.params.id, ...VISIBLE })
+        .select('visitsCount').lean();
       return res.json({ visitsCount: existing?.visitsCount || 0, already: true });
     }
     res.json({ visitsCount: spot.visitsCount });
@@ -750,10 +990,11 @@ router.post('/:id/comment', requireAuth, async (req, res) => {
   try {
     const text = String(req.body?.text || '').trim();
     if (!text) return res.status(400).json({ error: 'Comment text required.' });
-    const spot = await PawSpot.findById(req.params.id);
-    if (!spot || spot.hidden) return res.status(404).json({ error: 'Spot not found.' });
+    const spot = await PawSpot.findOne({ _id: req.params.id, ...VISIBLE });
+    if (!spot) return res.status(404).json({ error: 'Spot not found.' });
     const Model = modelForRole(req.user.role);
     const meDoc = await Model.findById(req.user.id).select('name').lean();
+    const uid = String(req.user.id);
     spot.comments.push({
       authorId: req.user.id,
       authorModel: userModelFromRole(req.user.role),
@@ -761,12 +1002,22 @@ router.post('/:id/comment', requireAuth, async (req, res) => {
       // v465 — texte BRUT stocké, censuré à la lecture (GET comments).
       text: text.slice(0, 300),
     });
+    // v567 — anti-triche : le +2 « commentaire utile » n'est crédité qu'une
+    // fois par personne ET par spot. Avant, écrire 50 fois « ok » sur le même
+    // spot rapportait 100 PawPoints — le classement et les récompenses à
+    // points n'avaient plus aucun sens.
+    const firstComment = !(spot.commentAwardedBy || []).some((u) => String(u) === uid);
+    if (firstComment) spot.commentAwardedBy.push(uid);
     await spot.save();
-    await pawPoints.awardPoints({
-      userId: req.user.id, role: req.user.role,
-      points: pawPoints.POINTS.usefulComment, reason: 'spot comment',
-    });
-    res.json({ commentsCount: spot.comments.length });
+    let pointsEarned = 0;
+    if (firstComment) {
+      const got = await pawPoints.awardPointsDetailed({
+        userId: req.user.id, role: req.user.role,
+        points: pawPoints.POINTS.usefulComment, reason: 'spot comment',
+      });
+      pointsEarned = got?.credited ?? pawPoints.POINTS.usefulComment;
+    }
+    res.json({ commentsCount: spot.comments.length, pointsEarned });
   } catch (e) {
     logger.error('[pawspots comment]', e);
     res.status(500).json({ error: e.message });
@@ -776,7 +1027,8 @@ router.post('/:id/comment', requireAuth, async (req, res) => {
 // GET /pawspots/:id/comments — liste des commentaires (récents d'abord).
 router.get('/:id/comments', requireAuth, async (req, res) => {
   try {
-    const spot = await PawSpot.findById(req.params.id).select('comments').lean();
+    const spot = await PawSpot.findOne({ _id: req.params.id, ...VISIBLE })
+      .select('comments').lean();
     if (!spot) return res.status(404).json({ error: 'Spot not found.' });
     const comments = [...(spot.comments || [])]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -796,15 +1048,42 @@ router.get('/:id/comments', requireAuth, async (req, res) => {
 });
 
 // DELETE /pawspots/:id — créateur uniquement (admin via route admin).
+//
+// v567 — MESURÉ EN PROD : créer 4 spots donnait 80 points, les supprimer tous
+// les quatre renvoyait 200 et laissait `points: 80, mySpotsCount: 0` → créer et
+// supprimer en boucle fabriquait des PawPoints à l'infini, et remettait à zéro
+// le quota de 3 tags gratuits. Désormais :
+//   • le spot part à la CORBEILLE (deletedAt) : invisible partout, mais toujours
+//     compté dans les créations cumulées → la limite gratuite tient ;
+//   • les points que ce spot avait rapportés sont REPRIS (à vie + dépensables,
+//     plancher 0, sur les trois profils du compte).
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
-    const spot = await PawSpot.findById(req.params.id);
+    const spot = await PawSpot.findOne({ _id: req.params.id, deletedAt: null });
     if (!spot) return res.status(404).json({ error: 'Spot not found.' });
     if (String(spot.creatorId) !== String(req.user.id)) {
       return res.status(403).json({ error: 'Only the creator can delete this spot.' });
     }
-    await spot.deleteOne();
-    res.json({ deleted: true });
+    // Verrou : seule la requête qui pose deletedAt reprend les points (une
+    // double suppression ne peut pas les reprendre deux fois).
+    const claimed = await PawSpot.findOneAndUpdate(
+      { _id: spot._id, deletedAt: null },
+      { $set: { deletedAt: new Date(), hidden: true, featuredUntil: null, pointsAwarded: 0 } },
+      { new: false },
+    );
+    if (!claimed) return res.status(404).json({ error: 'Spot not found.' });
+    const toRevoke = Number(claimed.pointsAwarded) || 0;
+    let pointsRevoked = 0;
+    if (toRevoke > 0) {
+      await pawPoints.revokePoints({
+        userId: claimed.creatorId,
+        role: String(claimed.creatorModel || 'Owner').toLowerCase(),
+        points: toRevoke,
+        reason: 'spot deleted',
+      });
+      pointsRevoked = toRevoke;
+    }
+    res.json({ deleted: true, pointsRevoked });
   } catch (e) {
     logger.error('[pawspots delete]', e);
     res.status(500).json({ error: e.message });

@@ -8,6 +8,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/booking/booking_agreement_screen.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 import 'package:hopetsit/views/profile/edit_owner_profile_screen.dart';
+import 'package:hopetsit/views/profile/widgets/delete_account_reasons_sheet.dart';
 import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart';
 import 'package:hopetsit/views/profile/widgets/profile_settings_host.dart';
 import 'package:hopetsit/views/profile/view_task_screen.dart';
@@ -426,14 +427,27 @@ class ProfileController extends GetxController implements ProfileSettingsHost {
     );
   }
 
-  void showDeleteAccountDialog(BuildContext context) {
+  /// v567 — Daniel : « si quelqu'un supprime son compte, demander 3 raisons ».
+  /// La feuille « Avant de partir… » passe AVANT le dialogue de confirmation
+  /// existant : si l'utilisateur la ferme, rien ne se passe.
+  void showDeleteAccountDialog(BuildContext context) async {
+    final answer = await showDeleteAccountReasonsSheet(
+      context,
+      accent: AppColors.activeRoleAccent(),
+    );
+    if (answer == null) return;
+    if (!context.mounted) return;
+
     CustomConfirmationDialog.show(
       context: context,
       message: 'delete_account_dialog_message'.tr,
       yesText: 'common_yes'.tr,
       cancelText: 'common_cancel'.tr,
       onYes: () async {
-        await deleteAccount();
+        await deleteAccount(
+          reasons: answer.reasons,
+          comment: answer.comment,
+        );
       },
     );
   }
@@ -487,13 +501,19 @@ class ProfileController extends GetxController implements ProfileSettingsHost {
     }
   }
 
-  Future<void> deleteAccount() async {
+  /// v567 — [reasons] (1 à 3 identifiants stables) et [comment] facultatif
+  /// sont enregistrés côté serveur AVANT la suppression. Une liste vide reste
+  /// acceptée (appels historiques).
+  Future<void> deleteAccount({
+    List<String> reasons = const <String>[],
+    String comment = '',
+  }) async {
     Get.dialog(
       const Center(child: CircularProgressIndicator()),
       barrierDismissible: false,
     );
     try {
-      await _userRepository.deleteAccount();
+      await _userRepository.deleteAccount(reasons: reasons, comment: comment);
 
       // Clear authentication token and user data
       // v23.1 part 125 — Phase 2 audit C4 : purge SecureTokenStore aussi.

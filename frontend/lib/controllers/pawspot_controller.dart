@@ -35,6 +35,10 @@ class PawSpotModel {
     this.isGolden = false,
     this.featured = false,
     this.quality = 3.0,
+    this.likedByMe = false,
+    this.validatedByMe = false,
+    this.visitedByMe = false,
+    this.isMine = false,
   });
 
   final String id;
@@ -59,6 +63,17 @@ class PawSpotModel {
   /// ⭐ qualité (système de confiance) : 3.0 base, +0.5/validation, cap 5.
   final double quality;
 
+  /// v567 — état RÉEL du lecteur, renvoyé par le serveur. Avant, la fiche
+  /// repartait toujours de « pas aimé » : rouvrir un spot déjà aimé montrait
+  /// un cœur vide, et retaper dessus RETIRAIT le like sans le dire.
+  final bool likedByMe;
+  final bool validatedByMe;
+  final bool visitedByMe;
+
+  /// Suis-je l'auteur du spot ? (like et validation interdits sur son propre
+  /// spot — le serveur les refuse).
+  final bool isMine;
+
   factory PawSpotModel.fromJson(Map<String, dynamic> j) {
     return PawSpotModel(
       id: (j['id'] ?? j['_id'] ?? '').toString(),
@@ -78,8 +93,22 @@ class PawSpotModel {
       isGolden: j['isGolden'] == true,
       featured: j['featured'] == true,
       quality: ((j['quality'] as num?) ?? 3).toDouble(),
+      likedByMe: j['likedByMe'] == true,
+      validatedByMe: j['validatedByMe'] == true,
+      visitedByMe: j['visitedByMe'] == true,
+      isMine: j['isMine'] == true,
     );
   }
+}
+
+/// v567 — traduction TOLÉRANTE : si la clé n'est pas (encore) branchée dans
+/// `v565_i18n.dart`, `.tr` renvoie la clé elle-même et l'écran afficherait
+/// « pawspot567_free_left » à l'utilisateur. On retombe alors sur un texte
+/// anglais lisible. Même repli que `pawpoints_earn_<key>` dans l'écran de
+/// classement.
+String pawSpotTr(String key, String fallback) {
+  final v = key.tr;
+  return v == key ? fallback : v;
 }
 
 /// Mapping type de spot → (emoji, couleur) — parité avec le doc PawSpot.
@@ -259,10 +288,12 @@ class PawSpotController extends GetxController {
     }
   }
 
-  /// POST /pawspots — crée un spot. Retourne les points gagnés (+10, +5 si
-  /// photo). LAISSE REMONTER l'ApiException (402 PAWSPOT_REQUIRED = limite
-  /// gratuite de 3 spots atteinte) pour que l'UI ouvre la boutique.
-  Future<int> create({
+  /// POST /pawspots — crée un spot. Retourne la réponse serveur complète :
+  /// `pointsEarned` (points RÉELLEMENT crédités : ×2 Paw Premium et bonus de
+  /// niveau compris), `freeSpotsLeft` (null = illimité) et `dailyCapReached`.
+  /// LAISSE REMONTER l'ApiException (402 PAWSPOT_REQUIRED = limite gratuite de
+  /// 3 tags atteinte) pour que l'UI ouvre la boutique.
+  Future<Map<String, dynamic>> create({
     required String type,
     required String name,
     String description = '',
@@ -285,7 +316,7 @@ class PawSpotController extends GetxController {
       },
       requiresAuth: true,
     );
-    return (r is Map ? (r['pointsEarned'] as num?) : null)?.toInt() ?? 0;
+    return r is Map ? Map<String, dynamic>.from(r) : <String, dynamic>{};
   }
 
   /// POST /pawspots/:id/like — toggle ❤️. Retourne {liked, likesCount} ou
@@ -321,18 +352,21 @@ class PawSpotController extends GetxController {
     }
   }
 
-  /// POST /pawspots/:id/comment — 💬 ajoute un commentaire (+2 pts, modéré).
-  Future<bool> comment(String id, String text) async {
+  /// POST /pawspots/:id/comment — 💬 ajoute un commentaire. Retourne la
+  /// réponse serveur (`pointsEarned` : +2 la PREMIÈRE fois seulement sur un
+  /// spot donné — les commentaires suivants ne rapportent plus rien) ou null
+  /// en cas d'échec.
+  Future<Map<String, dynamic>?> comment(String id, String text) async {
     try {
-      await _api?.post(
+      final r = await _api?.post(
         '/pawspots/$id/comment',
         body: {'text': text},
         requiresAuth: true,
       );
-      return true;
+      return r is Map ? Map<String, dynamic>.from(r) : <String, dynamic>{};
     } catch (e) {
       debugPrint('[PawSpot] comment error: $e');
-      return false;
+      return null;
     }
   }
 
@@ -351,15 +385,17 @@ class PawSpotController extends GetxController {
     }
   }
 
-  /// DELETE /pawspots/:id — créateur uniquement.
-  Future<bool> deleteSpot(String id) async {
+  /// DELETE /pawspots/:id — créateur uniquement. Retourne la réponse serveur
+  /// (`pointsRevoked` : les PawPoints que ce spot avait rapportés sont repris)
+  /// ou null en cas d'échec.
+  Future<Map<String, dynamic>?> deleteSpot(String id) async {
     try {
-      await _api?.delete('/pawspots/$id', requiresAuth: true);
+      final r = await _api?.delete('/pawspots/$id', requiresAuth: true);
       spots.removeWhere((s) => s.id == id);
-      return true;
+      return r is Map ? Map<String, dynamic>.from(r) : <String, dynamic>{};
     } catch (e) {
       debugPrint('[PawSpot] delete error: $e');
-      return false;
+      return null;
     }
   }
 

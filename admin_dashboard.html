@@ -16,7 +16,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v566'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v567'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -394,7 +394,7 @@ function filterNav(q) {
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v566</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v567</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -431,6 +431,7 @@ function filterNav(q) {
       <div class="nav-section">👥 <span data-i18n="navsec_users">Utilisateurs</span></div>
       <div class="nav-item" data-page="owners" onclick="showPage('owners', this)"><span class="nav-icon">👥</span> <span data-i18n="nav_owners">Utilisateurs</span></div>
       <div class="nav-item" data-page="promotions" onclick="showPage('promotions', this)"><span class="nav-icon">🎟️</span> <span data-i18n="nav_promotions">Promotions</span></div>
+      <div class="nav-item" data-page="deletions" onclick="showPage('deletions', this)"><span class="nav-icon">🚪</span> <span data-i18n="nav_deletions">Comptes supprimés</span></div>
       <div class="nav-item" data-page="pets" onclick="showPage('pets', this)"><span class="nav-icon">🐾</span> <span data-i18n="nav_pets">Animaux</span></div>
       <div class="nav-item" data-page="identity" onclick="showPage('identity', this)"><span class="nav-icon">🪪</span> <span data-i18n="nav_identity">Vérifications ID</span></div>
       <div class="nav-item" data-page="moderation" onclick="showPage('moderation', this)"><span class="nav-icon">🛡️</span> <span data-i18n="nav_moderation">Modération users</span></div>
@@ -1209,6 +1210,27 @@ function filterNav(q) {
         <div id="promo-clients" style="max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:8px;margin-top:8px;background:var(--bg)"></div>
         <button class="action-btn" style="margin-top:14px;background:#EF4324;color:#fff" onclick="sendPromoCampaign()">📧 <span data-i18n="promo_send_btn">Envoyer la campagne</span></button>
         <div id="promo-send-result" style="margin-top:12px"></div>
+        </div>
+      </div>
+
+      <!-- COMPTES SUPPRIMÉS (v567) — Daniel : « si quelqu'un supprime son
+           compte, demander 3 raisons et que ça me le dise dans l'admin ».
+           Source : GET /admin/account-deletions (modèle AccountDeletion).
+           L'e-mail n'est jamais stocké en clair (RGPD) — pas de colonne e-mail. -->
+      <div id="page-deletions" class="page">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+          <div class="section-title" style="margin:0">🚪 <span data-i18n="del_title">Comptes supprimés</span></div>
+          <button class="action-btn btn-primary" onclick="loadAccountDeletions()">↻ <span data-i18n="refresh">Actualiser</span></button>
+        </div>
+        <p class="page-desc" data-i18n="del_desc">Pourquoi les gens partent. La feuille « Avant de partir… » de l'app demande jusqu'à 3 raisons (au moins une) et un commentaire facultatif, enregistrés juste avant la suppression. Les comptes supprimés par d'anciennes versions de l'app n'ont pas de raison.</p>
+        <div class="stats-grid" id="del-stats"></div>
+        <div class="table-wrap">
+          <div class="section-title" style="font-size:16px">📊 <span data-i18n="del_reasons_title">Raisons</span></div>
+          <div id="del-reasons"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+        <div class="table-wrap">
+          <div class="section-title" style="font-size:16px">🗒️ <span data-i18n="del_list_title">Dernières suppressions</span></div>
+          <div id="del-list"><div class="loading"><div class="spinner"></div></div></div>
         </div>
       </div>
 
@@ -2528,6 +2550,7 @@ function showPage(name, el) {
   if (name === 'pawpremium') loadPawPremiumAdmin();
   if (name === 'pawspot') loadPawSpotSubs();
   if (name === 'promotions') loadPromotions();
+  if (name === 'deletions') loadAccountDeletions();
   if (name === 'filtre') loadFiltre();
   if (name === 'reportstats') loadReportStats();
   if (name === 'pawpoints') { loadPawPointsBoard(); loadRewards(); loadRedemptions(); }
@@ -2664,12 +2687,125 @@ function refreshActivePageI18n() {
     else if (name === 'pawpremium') loadPawPremiumAdmin();
     else if (name === 'pawspot') loadPawSpotSubs();
     else if (name === 'promotions') loadPromotions();
+    else if (name === 'deletions') loadAccountDeletions();
     else if (name === 'filtre') loadFiltre();
     else if (name === 'reportstats') loadReportStats();
     else if (name === 'pawpoints') { loadPawPointsBoard(); loadRewards(); loadRedemptions(); }
     else if (name === 'annonces') loadAnnonces();
     else if (name === 'pets') loadPets();
   } catch (_) { /* loaders gèrent leurs propres erreurs */ }
+}
+
+// ── COMPTES SUPPRIMÉS (v567) ─────────────────────────────────────────────────
+// Daniel : « si quelqu'un supprime son compte, demander 3 raisons et que ça me
+// le dise dans l'admin ». GET /admin/account-deletions renvoie { total, last30d,
+// byReason, items }. Les identifiants de raison sont figés côté serveur
+// (models/AccountDeletion.js) — ici on ne fait que les traduire.
+const DEL_REASON_LABELS = {
+  no_providers_nearby: 'Pas de pet-sitter / promeneur à proximité',
+  no_clients: 'Pas de clients ni de demandes',
+  too_expensive: 'Trop cher',
+  too_complicated: 'Trop compliqué',
+  bugs: 'Bugs / lenteurs',
+  notifications_too_many: 'Trop de notifications',
+  found_other_app: 'A trouvé une autre application',
+  privacy: 'Données personnelles',
+  no_longer_need: "N'en a plus besoin",
+  temporary_break: 'Pause temporaire',
+  other: 'Autre raison',
+};
+function delReasonLabel(id) {
+  const fr = DEL_REASON_LABELS[id];
+  // Libellé FR par défaut ; une clé `del_reason_<id>` dans ADMIN_I18N le
+  // remplace si elle existe (traductions ajoutables plus tard).
+  return fr ? t('del_reason_' + id, fr) : id;
+}
+async function loadAccountDeletions() {
+  const stats = document.getElementById('del-stats');
+  const reasonsBox = document.getElementById('del-reasons');
+  const listBox = document.getElementById('del-list');
+  if (!listBox) return;
+  listBox.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const d = await api('/admin/account-deletions?limit=200');
+    const items = d.items || [];
+    const byReason = d.byReason || {};
+    const total = d.total != null ? d.total : items.length;
+    const last30d = d.last30d != null ? d.last30d : 0;
+
+    // Raison n°1 (la plus citée) — « — » quand personne n'a encore répondu.
+    const ranked = Object.keys(byReason)
+      .map((id) => ({ id: id, n: byReason[id] || 0 }))
+      .filter((r) => r.n > 0)
+      .sort((a, b) => b.n - a.n);
+    const top = ranked.length ? ranked[0] : null;
+
+    if (stats) {
+      stats.innerHTML =
+        '<div class="stat-card"><div class="stat-label">' + t('del_stat_total', 'Total des suppressions') + '</div>' +
+        '<div class="stat-value">' + total + '</div></div>' +
+        '<div class="stat-card"><div class="stat-label">' + t('del_stat_30d', '30 derniers jours') + '</div>' +
+        '<div class="stat-value">' + last30d + '</div></div>' +
+        '<div class="stat-card"><div class="stat-label">' + t('del_stat_top', 'Raison n°1') + '</div>' +
+        '<div class="stat-value" style="font-size:18px;line-height:1.3">' +
+        (top ? escapeHtml(delReasonLabel(top.id)) + ' <span style="color:var(--text-muted);font-weight:600">(' + top.n + ')</span>' : '—') +
+        '</div></div>';
+    }
+
+    // Tableau des raisons : le % est calculé sur le nombre de raisons citées
+    // (un utilisateur pouvant en cocher jusqu'à 3).
+    if (reasonsBox) {
+      const cited = ranked.reduce((s, r) => s + r.n, 0);
+      if (!cited) {
+        reasonsBox.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div>' +
+          t('del_reasons_empty', 'Aucune raison enregistrée pour l’instant.') + '</div></div>';
+      } else {
+        reasonsBox.innerHTML = '<table><thead><tr>' +
+          '<th>' + t('del_th_reason', 'Raison') + '</th>' +
+          '<th>' + t('del_th_count', 'Nombre') + '</th>' +
+          '<th>' + t('del_th_share', 'Part') + '</th>' +
+          '</tr></thead><tbody>' +
+          ranked.map((r) => '<tr><td>' + escapeHtml(delReasonLabel(r.id)) + '</td><td>' + r.n +
+            '</td><td>' + Math.round((r.n / cited) * 100) + ' %</td></tr>').join('') +
+          '</tbody></table>';
+      }
+    }
+
+    if (!items.length) {
+      listBox.innerHTML = '<div class="empty-state"><div class="empty-icon">🚪</div><div>' +
+        t('del_list_empty', 'Aucune suppression enregistrée pour l’instant.') + '</div></div>';
+      return;
+    }
+    const platformLabel = { ios: '', android: '🤖', web: '🌐' };
+    listBox.innerHTML = '<table><thead><tr>' +
+      '<th>' + t('del_th_date', 'Supprimé le') + '</th>' +
+      '<th>' + t('del_th_role', 'Rôle') + '</th>' +
+      '<th>' + t('del_th_zone', 'Zone') + '</th>' +
+      '<th>' + t('del_th_platform', 'Plateforme') + '</th>' +
+      '<th>' + t('del_th_version', 'Version') + '</th>' +
+      '<th>' + t('del_th_reason', 'Raison') + '</th>' +
+      '<th>' + t('del_th_comment', 'Commentaire') + '</th>' +
+      '</tr></thead><tbody>' +
+      items.map((it) => {
+        const zone = [countryFlag(it.country || ''), it.city || ''].filter(Boolean).join(' ');
+        const plat = it.platform ? ((platformLabel[it.platform] || '') + ' ' + escapeHtml(it.platform)).trim() : '—';
+        const pills = (it.reasons || []).length
+          ? (it.reasons || []).map((r) => '<span class="badge badge-gray">' + escapeHtml(delReasonLabel(r)) + '</span>').join(' ')
+          : '<span style="color:var(--text-muted)">—</span>';
+        return '<tr><td>' + escapeHtml(fmtDate(it.deletedAt, true)) + '</td>' +
+          '<td>' + escapeHtml(it.role || '—') + '</td>' +
+          '<td>' + (zone ? escapeHtml(zone) : '—') + '</td>' +
+          '<td>' + plat + '</td>' +
+          '<td>' + escapeHtml(it.appVersion || '—') + '</td>' +
+          '<td style="white-space:normal">' + pills + '</td>' +
+          '<td style="white-space:normal;max-width:320px">' +
+          (it.comment ? escapeHtml(it.comment) : '<span style="color:var(--text-muted)">—</span>') +
+          '</td></tr>';
+      }).join('') + '</tbody></table>';
+  } catch (e) {
+    listBox.innerHTML = '<div class="empty-state"><div class="empty-icon">🚪</div><div>' +
+      t('error_prefix') + escapeHtml(e.message) + '</div></div>';
+  }
 }
 
 // ── PROMOTIONS (v402) ────────────────────────────────────────────────────────
@@ -7568,7 +7704,7 @@ async function toggleStaff(role, userId, isStaff) {
         logout: "Déconnexion",
         loading: "Chargement...",
         navsec_overview: "Vue d'ensemble", navsec_users: "Utilisateurs", navsec_activity: "Activité", navsec_finance: "Finances", navsec_shop: "Boutique", navsec_content: "Contenu", navsec_system: "Système",
-        nav_dashboard: "Tableau de bord", nav_revenue: "Mes revenus", nav_owners: "Utilisateurs", users_signups: "Dernières inscriptions", users_deletions: "Dernières désinscriptions", users_deletions_empty: "Aucune désinscription enregistrée pour l'instant (suivi actif depuis le 20/07/2026)", th_deleted_on: "Désinscrit le", th_source: "Source", nav_sitters: "Pet-sitters", nav_walkers: "Promeneurs", nav_identity: "Vérifications ID", nav_moderation: "Modération users", nav_loyalty: "Avantages fidélité", nav_bookings: "Réservations", nav_listings: "Annonces", nav_chat: "Chat & messages", nav_reviews: "Avis utilisateurs", nav_reports: "Signalements", nav_payments: "Paiements", nav_invoices: "Factures", nav_iban: "Virements IBAN", nav_wallets: "Portefeuilles", nav_accounting: "Comptabilité", nav_shop_activity: "Activité boutique", nav_pricing: "Tarifs & versions", nav_services: "Services", nav_terms: "CGU", nav_privacy: "Confidentialité", nav_pawmap: "PawMap", nav_bugs: "Bugs reportés", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_filtre: "Filtre & modération", promo_public_title: "⭐ Code du moment (pop-up de l'app)", promo_public_desc: "Ce code s'affiche déjà rempli dans le pop-up promo de l'app : l'utilisateur n'a qu'à toucher « Appliquer ». Le code doit exister dans la liste ci-dessous et être valable sur iOS (code App Store identique), Android et web.", promo_public_code: "Code", promo_public_message: "Message (facultatif)", promo_public_enabled: "Afficher le pop-up", promo_public_save: "Enregistrer", promo_public_saved: "Enregistré — le pop-up de l'app affichera ce code.", nav_reportstats: "Stats signalements PawMap", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — abonnements", pawspot_admin_title: "PawSpot — abonnements & classement",
+        nav_dashboard: "Tableau de bord", nav_revenue: "Mes revenus", nav_owners: "Utilisateurs", users_signups: "Dernières inscriptions", users_deletions: "Dernières désinscriptions", users_deletions_empty: "Aucune désinscription enregistrée pour l'instant (suivi actif depuis le 20/07/2026)", th_deleted_on: "Désinscrit le", th_source: "Source", nav_sitters: "Pet-sitters", nav_walkers: "Promeneurs", nav_identity: "Vérifications ID", nav_moderation: "Modération users", nav_loyalty: "Avantages fidélité", nav_bookings: "Réservations", nav_listings: "Annonces", nav_chat: "Chat & messages", nav_reviews: "Avis utilisateurs", nav_reports: "Signalements", nav_payments: "Paiements", nav_invoices: "Factures", nav_iban: "Virements IBAN", nav_wallets: "Portefeuilles", nav_accounting: "Comptabilité", nav_shop_activity: "Activité boutique", nav_pricing: "Tarifs & versions", nav_services: "Services", nav_terms: "CGU", nav_privacy: "Confidentialité", nav_pawmap: "PawMap", nav_bugs: "Bugs reportés", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_deletions: "Comptes supprimés", del_title: "Comptes supprimés", del_desc: "Pourquoi les gens partent. La feuille « Avant de partir… » de l'app demande jusqu'à 3 raisons (au moins une) et un commentaire facultatif, enregistrés juste avant la suppression. Les comptes supprimés par d'anciennes versions de l'app n'ont pas de raison.", del_reasons_title: "Raisons", del_list_title: "Dernières suppressions", del_stat_total: "Total des suppressions", del_stat_30d: "30 derniers jours", del_stat_top: "Raison n°1", del_reasons_empty: "Aucune raison enregistrée pour l'instant.", del_list_empty: "Aucune suppression enregistrée pour l'instant.", del_th_reason: "Raison", del_th_count: "Nombre", del_th_share: "Part", del_th_date: "Supprimé le", del_th_role: "Rôle", del_th_zone: "Zone", del_th_platform: "Plateforme", del_th_version: "Version", del_th_comment: "Commentaire", nav_filtre: "Filtre & modération", promo_public_title: "⭐ Code du moment (pop-up de l'app)", promo_public_desc: "Ce code s'affiche déjà rempli dans le pop-up promo de l'app : l'utilisateur n'a qu'à toucher « Appliquer ». Le code doit exister dans la liste ci-dessous et être valable sur iOS (code App Store identique), Android et web.", promo_public_code: "Code", promo_public_message: "Message (facultatif)", promo_public_enabled: "Afficher le pop-up", promo_public_save: "Enregistrer", promo_public_saved: "Enregistré — le pop-up de l'app affichera ce code.", nav_reportstats: "Stats signalements PawMap", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — abonnements", pawspot_admin_title: "PawSpot — abonnements & classement",
         acc_title: "Comptabilité — Mon bilan", acc_export: "Exporter CSV",
         acc_desc: "Mes bénéfices HoPetSit uniquement : commissions plateforme sur les réservations + revenus boutique (PawBoost, PawSpot, PawFollow, 👑 PawPremium). Hors paiements reversés aux prestataires. Pour mon comptable.",
         dash_overview: "Vue d'ensemble",
@@ -7733,7 +7869,7 @@ async function toggleStaff(role, userId, isStaff) {
         logout: "Logout",
         loading: "Loading...",
         navsec_overview: "Overview", navsec_users: "Users", navsec_activity: "Activity", navsec_finance: "Finances", navsec_shop: "Shop", navsec_content: "Content", navsec_system: "System",
-        nav_dashboard: "Dashboard", nav_revenue: "My revenue", nav_owners: "Users", users_signups: "Latest signups", users_deletions: "Latest deletions", users_deletions_empty: "No account deletions recorded yet (tracking active since Jul 20, 2026)", th_deleted_on: "Deleted on", th_source: "Source", nav_sitters: "Pet-sitters", nav_walkers: "Walkers", nav_identity: "ID verifications", nav_moderation: "User moderation", nav_loyalty: "Loyalty benefits", nav_bookings: "Bookings", nav_listings: "Listings", nav_chat: "Chat & messages", nav_reviews: "User reviews", nav_reports: "Reports", nav_payments: "Payments", nav_invoices: "Invoices", nav_iban: "IBAN transfers", nav_wallets: "Wallets", nav_accounting: "Accounting", nav_shop_activity: "Shop activity", nav_pricing: "Pricing & versions", nav_services: "Services", nav_terms: "Terms", nav_privacy: "Privacy", nav_pawmap: "PawMap", nav_bugs: "Bug reports", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_filtre: "Filter & moderation", promo_public_title: "⭐ Code of the moment (app pop-up)", promo_public_desc: "This code is shown pre-filled in the app promo pop-up: the user only taps “Apply”. It must exist in the list below and be valid on iOS (same App Store code), Android and web.", promo_public_code: "Code", promo_public_message: "Message (optional)", promo_public_enabled: "Show the pop-up", promo_public_save: "Save", promo_public_saved: "Saved — the app pop-up will show this code.", nav_reportstats: "PawMap report stats", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — subscriptions", pawspot_admin_title: "PawSpot — subscriptions & ranking",
+        nav_dashboard: "Dashboard", nav_revenue: "My revenue", nav_owners: "Users", users_signups: "Latest signups", users_deletions: "Latest deletions", users_deletions_empty: "No account deletions recorded yet (tracking active since Jul 20, 2026)", th_deleted_on: "Deleted on", th_source: "Source", nav_sitters: "Pet-sitters", nav_walkers: "Walkers", nav_identity: "ID verifications", nav_moderation: "User moderation", nav_loyalty: "Loyalty benefits", nav_bookings: "Bookings", nav_listings: "Listings", nav_chat: "Chat & messages", nav_reviews: "User reviews", nav_reports: "Reports", nav_payments: "Payments", nav_invoices: "Invoices", nav_iban: "IBAN transfers", nav_wallets: "Wallets", nav_accounting: "Accounting", nav_shop_activity: "Shop activity", nav_pricing: "Pricing & versions", nav_services: "Services", nav_terms: "Terms", nav_privacy: "Privacy", nav_pawmap: "PawMap", nav_bugs: "Bug reports", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promotions", nav_deletions: "Deleted accounts", del_title: "Deleted accounts", del_desc: "Why people leave. The app's « Before you go… » sheet asks for up to 3 reasons (at least one) and an optional comment, saved right before the deletion. Accounts deleted by older app versions have no reason.", del_reasons_title: "Reasons", del_list_title: "Latest deletions", del_stat_total: "Total deletions", del_stat_30d: "Last 30 days", del_stat_top: "Top reason", del_reasons_empty: "No reason recorded yet.", del_list_empty: "No deletion recorded yet.", del_th_reason: "Reason", del_th_count: "Count", del_th_share: "Share", del_th_date: "Deleted on", del_th_role: "Role", del_th_zone: "Area", del_th_platform: "Platform", del_th_version: "Version", del_th_comment: "Comment", nav_filtre: "Filter & moderation", promo_public_title: "⭐ Code of the moment (app pop-up)", promo_public_desc: "This code is shown pre-filled in the app promo pop-up: the user only taps “Apply”. It must exist in the list below and be valid on iOS (same App Store code), Android and web.", promo_public_code: "Code", promo_public_message: "Message (optional)", promo_public_enabled: "Show the pop-up", promo_public_save: "Save", promo_public_saved: "Saved — the app pop-up will show this code.", nav_reportstats: "PawMap report stats", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — subscriptions", pawspot_admin_title: "PawSpot — subscriptions & ranking",
         acc_title: "Accounting — My balance", acc_export: "Export CSV",
         acc_desc: "My HoPetSit profits only: platform commissions on bookings + shop revenue (Boost, PawSpot, Premium, Chat). Excludes payouts to providers. For my accountant.",
         dash_overview: "Overview",
@@ -7897,7 +8033,7 @@ async function toggleStaff(role, userId, isStaff) {
         logout: "Cerrar sesión",
         loading: "Cargando...",
         navsec_overview: "Resumen", navsec_users: "Usuarios", navsec_activity: "Actividad", navsec_finance: "Finanzas", navsec_shop: "Tienda", navsec_content: "Contenido", navsec_system: "Sistema",
-        nav_dashboard: "Panel", nav_revenue: "Mis ingresos", nav_owners: "Usuarios", users_signups: "Últimas inscripciones", users_deletions: "Últimas bajas", users_deletions_empty: "Ninguna baja registrada todavía (seguimiento activo desde el 20/07/2026)", th_deleted_on: "Baja el", th_source: "Origen", nav_sitters: "Cuidadores", nav_walkers: "Paseadores", nav_identity: "Verificaciones ID", nav_moderation: "Moderación usuarios", nav_loyalty: "Ventajas fidelidad", nav_bookings: "Reservas", nav_listings: "Anuncios", nav_chat: "Chat y mensajes", nav_reviews: "Opiniones", nav_reports: "Denuncias", nav_payments: "Pagos", nav_invoices: "Facturas", nav_iban: "Transferencias IBAN", nav_wallets: "Carteras", nav_accounting: "Contabilidad", nav_shop_activity: "Actividad tienda", nav_pricing: "Tarifas y versiones", nav_services: "Servicios", nav_terms: "Términos", nav_privacy: "Privacidad", nav_pawmap: "PawMap", nav_bugs: "Errores reportados", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promociones", promo_public_title: "⭐ Código del momento (pop-up de la app)", promo_public_desc: "Este código aparece ya rellenado en el pop-up promo de la app: el usuario solo toca «Aplicar». Debe existir en la lista de abajo y ser válido en iOS (mismo código App Store), Android y web.", promo_public_code: "Código", promo_public_message: "Mensaje (opcional)", promo_public_enabled: "Mostrar el pop-up", promo_public_save: "Guardar", promo_public_saved: "Guardado — el pop-up de la app mostrará este código.", nav_filtre: "Filtro y moderación", nav_reportstats: "Estadísticas denuncias PawMap", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — suscripciones", pawspot_admin_title: "PawSpot — suscripciones y ranking",
+        nav_dashboard: "Panel", nav_revenue: "Mis ingresos", nav_owners: "Usuarios", users_signups: "Últimas inscripciones", users_deletions: "Últimas bajas", users_deletions_empty: "Ninguna baja registrada todavía (seguimiento activo desde el 20/07/2026)", th_deleted_on: "Baja el", th_source: "Origen", nav_sitters: "Cuidadores", nav_walkers: "Paseadores", nav_identity: "Verificaciones ID", nav_moderation: "Moderación usuarios", nav_loyalty: "Ventajas fidelidad", nav_bookings: "Reservas", nav_listings: "Anuncios", nav_chat: "Chat y mensajes", nav_reviews: "Opiniones", nav_reports: "Denuncias", nav_payments: "Pagos", nav_invoices: "Facturas", nav_iban: "Transferencias IBAN", nav_wallets: "Carteras", nav_accounting: "Contabilidad", nav_shop_activity: "Actividad tienda", nav_pricing: "Tarifas y versiones", nav_services: "Servicios", nav_terms: "Términos", nav_privacy: "Privacidad", nav_pawmap: "PawMap", nav_bugs: "Errores reportados", nav_pawfollow: "PawFollow", nav_pawpremium: "PawPremium", nav_pawspot: "PawSpot", nav_promotions: "Promociones", nav_deletions: "Cuentas eliminadas", del_title: "Cuentas eliminadas", del_desc: "Por qué se van. La hoja « Antes de irte… » de la app pide hasta 3 razones (al menos una) y un comentario opcional, guardados justo antes de eliminar la cuenta. Las cuentas eliminadas por versiones antiguas de la app no tienen razón.", del_reasons_title: "Razones", del_list_title: "Últimas eliminaciones", del_stat_total: "Total de eliminaciones", del_stat_30d: "Últimos 30 días", del_stat_top: "Razón n.º 1", del_reasons_empty: "Ninguna razón registrada todavía.", del_list_empty: "Ninguna eliminación registrada todavía.", del_th_reason: "Razón", del_th_count: "Cantidad", del_th_share: "Porcentaje", del_th_date: "Eliminada el", del_th_role: "Rol", del_th_zone: "Zona", del_th_platform: "Plataforma", del_th_version: "Versión", del_th_comment: "Comentario", promo_public_title: "⭐ Código del momento (pop-up de la app)", promo_public_desc: "Este código aparece ya rellenado en el pop-up promo de la app: el usuario solo toca «Aplicar». Debe existir en la lista de abajo y ser válido en iOS (mismo código App Store), Android y web.", promo_public_code: "Código", promo_public_message: "Mensaje (opcional)", promo_public_enabled: "Mostrar el pop-up", promo_public_save: "Guardar", promo_public_saved: "Guardado — el pop-up de la app mostrará este código.", nav_filtre: "Filtro y moderación", nav_reportstats: "Estadísticas denuncias PawMap", nav_pawpoints: "PawPoints", pawfollow_admin_title: "PawFollow — suscripciones", pawspot_admin_title: "PawSpot — suscripciones y ranking",
         acc_title: "Contabilidad — Mi balance", acc_export: "Exportar CSV",
         acc_desc: "Solo mis beneficios HoPetSit: comisiones de la plataforma sobre las reservas + ingresos de tienda (Boost, PawSpot, Premium, Chat). Sin los pagos a los proveedores. Para mi contable.",
         dash_overview: "Resumen",

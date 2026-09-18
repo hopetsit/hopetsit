@@ -4,6 +4,7 @@
 // rangées séparées par un filet, chip d'icône teinté, chevron discret.
 // La couleur du rôle est passée en `accent` (owner orange #C92A12, sitter
 // bleu #2563EB, walker vert #16A34A).
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -725,7 +726,20 @@ Future<T?> showProfileSheet<T>(
           color: AppColors.scaffold(ctx),
           borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
         ),
-        child: SafeArea(top: false, child: builder(ctx)),
+        // v567 — Samsung edge-to-edge : l'inset bas vaut 0 alors que la barre
+        // système couvre le bas de la feuille → 48 px réservés sur Android.
+        child: SafeArea(
+          top: false,
+          minimum: EdgeInsets.only(
+            bottom: (!kIsWeb &&
+                    defaultTargetPlatform == TargetPlatform.android &&
+                    MediaQuery.of(ctx).viewPadding.bottom == 0 &&
+                    MediaQuery.of(ctx).viewInsets.bottom == 0)
+                ? 48
+                : 0,
+          ),
+          child: builder(ctx),
+        ),
       ),
     ),
   );

@@ -418,5 +418,17 @@
     "body": "Du teilst deinen Live-Standort seit {{hours}} Std. Du kannst es jederzeit über die PawMap beenden.",
     "emailSubject": "Dein Live-Teilen ist weiterhin aktiv — HoPetSit",
     "emailBody": "<p>Du teilst deinen Live-Standort seit {{hours}} Std. mit deinen Freunden. Wenn das gewollt ist, musst du nichts tun; du kannst es jederzeit über die PawMap beenden.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">PawMap öffnen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "pawspot_validated": {
+    "title": "Dein PawSpot ist bestätigt 🏆",
+    "body": "Die Community hat „{{spotName}}“ bestätigt. Du erhältst {{points}} PawPoints und dein Spot trägt die goldene Pfote 🐾.",
+    "emailSubject": "Dein PawSpot ist bestätigt — HoPetSit",
+    "emailBody": "<p>Glückwunsch! Die Community hat deinen PawSpot „{{spotName}}“ bestätigt. Er trägt jetzt die goldene Pfote auf der PawMap und hat dir {{points}} PawPoints gebracht.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Meinen Spot ansehen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "pawspot_popular": {
+    "title": "Dein PawSpot kommt an ⭐",
+    "body": "„{{spotName}}“ hat 50 ❤️ überschritten! Du erhältst {{points}} PawPoints.",
+    "emailSubject": "Dein PawSpot ist sehr beliebt — HoPetSit",
+    "emailBody": "<p>Dein PawSpot „{{spotName}}“ hat 50 ❤️ überschritten: Er gehört zu den Lieblingsorten der Community und hat dir {{points}} PawPoints gebracht.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Meinen Spot ansehen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
   }
 }

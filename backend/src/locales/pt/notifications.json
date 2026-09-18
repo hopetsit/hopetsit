@@ -418,5 +418,17 @@
     "body": "Partilhas a tua localização em direto há {{hours}} h. Podes parar quando quiseres a partir da PawMap.",
     "emailSubject": "A tua partilha em direto continua ativa — HoPetSit",
     "emailBody": "<p>Partilhas a tua localização em direto com os teus amigos há {{hours}} h. Se é intencional, não precisas de fazer nada; podes parar quando quiseres a partir da PawMap.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir a PawMap</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia e cola este link: {{emailLink}}</p>"
+  },
+  "pawspot_validated": {
+    "title": "O teu PawSpot está validado 🏆",
+    "body": "A comunidade validou «{{spotName}}». Ganhas {{points}} PawPoints e o teu spot tem a pata dourada 🐾.",
+    "emailSubject": "O teu PawSpot está validado — HoPetSit",
+    "emailBody": "<p>Parabéns! A comunidade validou o teu PawSpot «{{spotName}}». Passa a ter a pata dourada no PawMap e deu-te {{points}} PawPoints.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver o meu spot</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
+  },
+  "pawspot_popular": {
+    "title": "O teu PawSpot é um sucesso ⭐",
+    "body": "«{{spotName}}» passou os 50 ❤️! Ganhas {{points}} PawPoints.",
+    "emailSubject": "O teu PawSpot é muito popular — HoPetSit",
+    "emailBody": "<p>O teu PawSpot «{{spotName}}» passou os 50 ❤️: é um dos lugares preferidos da comunidade e deu-te {{points}} PawPoints.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver o meu spot</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
   }
 }

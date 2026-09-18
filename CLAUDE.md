@@ -250,6 +250,38 @@ Livré et poussé (commit 9b337e5, déploiement Render + Vercel lancé par Danie
   **Daniel doit le changer**. À prouver sur vrai téléphone : notifications type par type, sons Android,
   badge iOS, synchro multi-appareils, un achat de test.
 
+**19/09 (nuit) — BUILD 567 (v564 app) : retours Daniel sur la 566 installée (captures Samsung).**
+- **SONS / VIBREUR ANDROID MUETS — cause racine** : Android FIGE un canal de notification à sa création. Les
+  téléphones passés par le build 565 (sons absents de l'AAB) ont créé `hopetsit_<son>` muets, à vie (un canal
+  supprimé puis recréé sous le même id retrouve ses anciens réglages). → **canaux « _v2 »**
+  (`hopetsit_<son>_v2`, `hopetsit_default_v2`, importance max, vibration 220/260 ms), anciens canaux supprimés
+  au démarrage, manifeste `default_notification_channel_id = hopetsit_default_v2`, serveur
+  `pushSoundConfig` aligné (une ancienne app retombe sur le canal par défaut de son manifeste). ⚠️ RÈGLE : ne
+  JAMAIS changer le son/la vibration d'un canal existant — créer un `_v3`.
+- **Sons v3** (`scratchpad/synth567.py`, synthèse source/filtre, plus forts : −5 à −12 dBFS RMS) : nouveau
+  **`chime`** (bip moderne 2 notes) = son « par défaut » (libellé « Bip moderne », `chime.wav/.caf/.m4a`,
+  `keep.xml`, pbxproj), aboiement « ouaf ouaf », miaulement, grenouille « rib-bit », hibou. La grenouille reste
+  le son par défaut d'un compte neuf.
+- **Boutique** : helper `shopBottomInset()` (inset 0 sur Samsung edge-to-edge → 48 px ; iOS = inset réel) sur la
+  barre d'achat et les feuilles ; `ShopHero`, `ShopStatusPill`, « Illimité ∞ » > 3 650 j ; même règle posée
+  dans `showProfileSheet` (feuille « J'ai un code »). **Bannière** `CustomSnackbar` refaite (carte blanche
+  flottante dans l'Overlay racine, API inchangée, `ensureVisualUpdate` ajouté ; test `test/banner567_test.dart`).
+  **Page Avis** refaite. **Suppression de compte** : feuille « Avant de partir… » (3 raisons max + commentaire)
+  → modèle `AccountDeletion` (e-mail haché), `DELETE /users/me?reasons=…`, admin « 🚪 Comptes supprimés »
+  (`GET /admin/account-deletions`).
+- **PawSpot (audit)** : points infinis par création/suppression (confirmé en prod avec le compte test → corrigé :
+  reprise des points, limite gratuite sur les créations cumulées et PAR COMPTE, plafond 10 spots/jour), abonné
+  reconnu cross-profil, solde boutique, classement dédoublonné, like réel, anti-triche, « +20 » Premium affiché,
+  2 notifications auteur (`pawspot_validated`, `pawspot_popular`, catégorie pawmap, 9 langues), compteur de tags
+  gratuits. **Voir les spots = gratuit** (verrou d'abonnement retiré de `_togglePawSpotLayer`). **Nouveau repère
+  carte** `_buildSpotPinBitmap` (goutte couleur du type + emoji, noir/or pour les dorés, ancre 0.5/1.0) — vérifié
+  au simulateur avec 4 spots de test en zone fictive (−35/−30), supprimés ensuite. Reste : le texte « 20
+  signalements premium » de la boutique ne correspond à aucun quota serveur (illimité en réalité).
+- i18n : paquets `shop567`, `ui567`, `delete567`, `pawspot567` branchés (3 996 clés, 0 inconnue). jest 169/169.
+  Agents lancés en modèle Opus (forfait « tous modèles ») pour économiser le quota Fable.
+
+**18/09 — Pliables / tablettes / iPad : REPORTÉ (décision Daniel).** « Quand on sera beaucoup plus connus. » L'app tourne déjà (gonflée : `designSize` 393 px ; iPad = mode compatibilité, `TARGETED_DEVICE_FAMILY = 1`). Le jour venu : plafonner l'échelle + colonne centrée ≥ 600 px, portrait bloqué sur grand écran ; iPad natif = irréversible + captures 13" en 8 langues. **Priorité unique : plus d'utilisateurs et les premières réservations payées.**
+
 **13/09 — v562 SITE « minimaliste, pro, façon Apple » (Daniel).** Design uniquement, mêmes
 clés i18n / routes. Fond blanc + sections `#F5F5F7`, texte `#1D1D1F` / `#6E6E73`, titres
 XXL centrés (`tracking-[-0.03em]`), cartes `rounded-[24px]` sans bordure ni ombre, bandes

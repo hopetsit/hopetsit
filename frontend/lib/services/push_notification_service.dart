@@ -51,65 +51,49 @@ class PushNotificationService extends GetxService {
 
   final RxnString fcmToken = RxnString();
 
-  /// Android channel used for message + offer notifications.
-  static const AndroidNotificationChannel _androidChannel =
-      AndroidNotificationChannel(
-    'hopetsit_default_channel',
-    'HoPetSit notifications',
-    description:
-        'Messages, booking updates and special offers from HoPetSit.',
-    importance: Importance.high,
-  );
+  // v567 — CANAUX « v2 ». Android FIGE un canal à sa création : sur les
+  // téléphones passés par le build 565 (fichiers son absents de l'AAB), les
+  // canaux `hopetsit_<son>` ont été créés MUETS et le restent à vie, même
+  // après mise à jour (et un canal supprimé puis recréé sous le même id
+  // retrouve ses anciens réglages). Seule issue : de nouveaux identifiants.
+  // Le serveur envoie `hopetsit_<son>_v2` ; une ancienne app qui ne connaît
+  // pas ce canal retombe sur le canal par défaut du manifeste.
+  static final Int64List _vibration = Int64List.fromList(<int>[0, 220, 120, 260]);
 
-  // v565 — docs/v565_contracts.md §1 : canaux Android PAR SON. Le serveur
-  // envoie `notification.channelId = 'hopetsit_<sound>'` + `data.sound`.
-  //   bark / meow / tweet → fichier res/raw/<son>.wav
-  //   vibrate             → sans son, vibration
-  //   silent              → importance basse, ni son ni vibration
-  static const List<AndroidNotificationChannel> _soundChannels =
+  static AndroidNotificationChannel _soundChannel(String id, String label, String raw) =>
+      AndroidNotificationChannel(
+        'hopetsit_${id}_v2',
+        'HoPetSit — $label',
+        description: 'HoPetSit notifications ($label).',
+        importance: Importance.max,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound(raw),
+        enableVibration: true,
+        vibrationPattern: _vibration,
+        enableLights: true,
+      );
+
+  /// Canal par défaut : bip moderne `chime` (res/raw/chime.wav).
+  static final AndroidNotificationChannel _androidChannel =
+      _soundChannel('default', 'notifications', 'chime');
+
+  static final List<AndroidNotificationChannel> _soundChannels =
       <AndroidNotificationChannel>[
+    _soundChannel('frog', 'frog', 'frog'),
+    _soundChannel('bark', 'bark', 'bark'),
+    _soundChannel('meow', 'meow', 'meow'),
+    _soundChannel('tweet', 'owl', 'tweet'),
     AndroidNotificationChannel(
-      'hopetsit_frog',
-      'HoPetSit — frog',
-      description: 'HoPetSit notifications with a frog croak sound.',
-      importance: Importance.high,
-      playSound: true,
-      sound: RawResourceAndroidNotificationSound('frog'),
-    ),
-    AndroidNotificationChannel(
-      'hopetsit_bark',
-      'HoPetSit — bark',
-      description: 'HoPetSit notifications with a dog bark sound.',
-      importance: Importance.high,
-      playSound: true,
-      sound: RawResourceAndroidNotificationSound('bark'),
-    ),
-    AndroidNotificationChannel(
-      'hopetsit_meow',
-      'HoPetSit — meow',
-      description: 'HoPetSit notifications with a cat meow sound.',
-      importance: Importance.high,
-      playSound: true,
-      sound: RawResourceAndroidNotificationSound('meow'),
-    ),
-    AndroidNotificationChannel(
-      'hopetsit_tweet',
-      'HoPetSit — owl',
-      description: 'HoPetSit notifications with an owl hoot sound.',
-      importance: Importance.high,
-      playSound: true,
-      sound: RawResourceAndroidNotificationSound('tweet'),
-    ),
-    AndroidNotificationChannel(
-      'hopetsit_vibrate',
+      'hopetsit_vibrate_v2',
       'HoPetSit — vibrate',
       description: 'HoPetSit notifications with vibration only.',
-      importance: Importance.high,
+      importance: Importance.max,
       playSound: false,
       enableVibration: true,
+      vibrationPattern: _vibration,
     ),
-    AndroidNotificationChannel(
-      'hopetsit_silent',
+    const AndroidNotificationChannel(
+      'hopetsit_silent_v2',
       'HoPetSit — silent',
       description: 'HoPetSit silent notifications.',
       importance: Importance.low,
@@ -118,11 +102,22 @@ class PushNotificationService extends GetxService {
     ),
   ];
 
+  /// Anciens canaux (≤ 566) à retirer des réglages du téléphone.
+  static const List<String> _legacyChannelIds = <String>[
+    'hopetsit_default_channel',
+    'hopetsit_frog',
+    'hopetsit_bark',
+    'hopetsit_meow',
+    'hopetsit_tweet',
+    'hopetsit_vibrate',
+    'hopetsit_silent',
+  ];
+
   /// Canal Android à utiliser pour un son (§2) — `default` → canal historique.
   static AndroidNotificationChannel channelForSound(String? sound) {
     final s = (sound ?? '').trim().toLowerCase();
     for (final c in _soundChannels) {
-      if (c.id == 'hopetsit_$s') return c;
+      if (c.id == 'hopetsit_${s}_v2') return c;
     }
     return _androidChannel;
   }
@@ -188,6 +183,12 @@ class PushNotificationService extends GetxService {
           .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
       await androidPlugin?.createNotificationChannel(_androidChannel);
+      // v567 — retire les canaux figés des builds ≤ 566 (voir plus haut).
+      for (final id in _legacyChannelIds) {
+        try {
+          await androidPlugin?.deleteNotificationChannel(id);
+        } catch (_) {}
+      }
       // v565 — canaux par son (créés au démarrage, idempotent).
       for (final c in _soundChannels) {
         try {
@@ -424,7 +425,9 @@ class PushNotificationService extends GetxService {
     final channel = channelForSound(sound);
     final bool silent = sound == 'silent';
     final bool vibrateOnly = sound == 'vibrate';
-    final bool customSound = sound == 'frog' || sound == 'bark' || sound == 'meow' || sound == 'tweet';
+    // v567 — `default` (ou vide) = bip moderne `chime`.
+    final bool customSound = !(silent || vibrateOnly);
+    final String soundFile = (sound == 'frog' || sound == 'bark' || sound == 'meow' || sound == 'tweet') ? sound : 'chime';
 
     final serverId = (message.data['notificationId'] ?? '').toString();
     final int localId =
@@ -443,15 +446,16 @@ class PushNotificationService extends GetxService {
           color: _accent,
           playSound: !(silent || vibrateOnly),
           sound: withCustomSound && customSound
-              ? RawResourceAndroidNotificationSound(sound)
+              ? RawResourceAndroidNotificationSound(soundFile)
               : null,
           enableVibration: !silent,
+          vibrationPattern: silent ? null : _vibration,
         ),
         iOS: DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
           presentSound: !(silent || vibrateOnly),
-          sound: withCustomSound && customSound ? '$sound.caf' : null,
+          sound: withCustomSound && customSound ? '$soundFile.caf' : null,
         ),
       );
     }

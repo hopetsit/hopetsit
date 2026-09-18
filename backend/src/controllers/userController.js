@@ -522,6 +522,29 @@ const deleteAccount = async (req, res) => {
       role === 'owner' ? 'Owner' : role === 'sitter' ? 'Sitter' : 'Walker';
     const userId = account._id;
 
+    // v567 — Daniel : « demander 3 raisons et que ça me le dise dans l'admin ».
+    // Le nombre de réservations est relevé AVANT la cascade (qui les efface),
+    // sinon le journal des motifs afficherait toujours 0. Best-effort.
+    let deletionStats = { hadPaidBooking: false, bookingsCount: 0 };
+    try {
+      const bookingFilter =
+        role === 'owner'
+          ? { ownerId: userId }
+          : role === 'sitter'
+            ? { sitterId: userId }
+            : { walkerId: userId };
+      const [bookingsCount, paidCount] = await Promise.all([
+        Booking.countDocuments(bookingFilter),
+        Booking.countDocuments({
+          ...bookingFilter,
+          paymentStatus: { $in: ['paid', 'refunded', 'refund'] },
+        }),
+      ]);
+      deletionStats = { hadPaidBooking: paidCount > 0, bookingsCount };
+    } catch (e) {
+      logger.warn(`[deleteAccount] booking stats failed (continuing): ${e?.message || e}`);
+    }
+
     // Conversation / Booking / Application are keyed by ownerId + sitterId
     // (the walker table is not yet wired into these). For walkers we skip
     // these cleanups — anything that references the walker goes orphan and
@@ -746,6 +769,27 @@ const deleteAccount = async (req, res) => {
     // suppression physique (source 'user' = suppression depuis l'app/le site).
     const { logDeletedAccount } = require('../utils/deletedAccountLog');
     await logDeletedAccount({ role, doc: account, source: 'user' });
+
+    // v567 — motifs de départ (feuille « Avant de partir… » de l'app). Les
+    // anciennes apps n'envoient rien : on enregistre quand même une ligne avec
+    // `reasons: []`. Jamais bloquant pour la suppression.
+    try {
+      const { recordAccountDeletion } = require('../models/AccountDeletion');
+      let plainEmail = '';
+      try {
+        const { decrypt } = require('../utils/encryption');
+        plainEmail = decrypt(account.email || '') || '';
+      } catch (_) { plainEmail = ''; }
+      await recordAccountDeletion({
+        req,
+        role,
+        doc: account,
+        email: plainEmail,
+        stats: deletionStats,
+      });
+    } catch (e) {
+      logger.warn(`[deleteAccount] reason journal failed (continuing): ${e?.message || e}`);
+    }
 
     if (role === 'owner') {
       await Pet.deleteMany({ ownerId: userId });

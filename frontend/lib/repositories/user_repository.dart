@@ -113,10 +113,26 @@ class UserRepository {
   }
 
   /// Deletes the current user's account.
-  Future<Map<String, dynamic>> deleteAccount() async {
-    final response =
-        await _apiClient.delete(ApiEndpoints.deleteAccount, requiresAuth: true)
-            as Map?;
+  ///
+  /// v567 — la feuille « Avant de partir… » remonte jusqu'à 3 raisons et un
+  /// commentaire facultatif. Ils partent dans le CORPS de la requête, et les
+  /// raisons sont doublées en query string (`?reasons=a,b,c`) car certains
+  /// intermédiaires HTTP suppriment le corps d'un DELETE. Rien d'envoyé =
+  /// comportement historique.
+  Future<Map<String, dynamic>> deleteAccount({
+    List<String> reasons = const <String>[],
+    String comment = '',
+  }) async {
+    final response = await _apiClient.delete(
+      ApiEndpoints.deleteAccount,
+      requiresAuth: true,
+      body: (reasons.isEmpty && comment.isEmpty)
+          ? null
+          : <String, dynamic>{'reasons': reasons, 'comment': comment},
+      queryParameters: reasons.isEmpty
+          ? null
+          : <String, dynamic>{'reasons': reasons.join(',')},
+    ) as Map?;
 
     if (response is! Map<String, dynamic>) {
       throw ApiException(

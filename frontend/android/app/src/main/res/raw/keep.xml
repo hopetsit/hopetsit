@@ -8,5 +8,5 @@
      au premier plan jamais affichée (exception invalid_sound).
      Même protection pour la petite icône de notification. -->
 <resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@raw/frog,@raw/bark,@raw/meow,@raw/tweet,@drawable/ic_stat_notify"
+    tools:keep="@raw/chime,@raw/frog,@raw/bark,@raw/meow,@raw/tweet,@drawable/ic_stat_notify"
     tools:shrinkMode="safe" />

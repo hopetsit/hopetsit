@@ -418,5 +418,17 @@
     "body": "Llevas {{hours}} h compartiendo tu ubicación en directo. Puedes detenerla cuando quieras desde la PawMap.",
     "emailSubject": "Tu ubicación en directo sigue activa — HoPetSit",
     "emailBody": "<p>Llevas {{hours}} h compartiendo tu ubicación en directo con tus amigos. No tienes que hacer nada si es lo que quieres; puedes detenerla cuando quieras desde la PawMap.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir la PawMap</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia y pega este enlace: {{emailLink}}</p>"
+  },
+  "pawspot_validated": {
+    "title": "Tu PawSpot está validado 🏆",
+    "body": "La comunidad ha validado «{{spotName}}». Ganas {{points}} PawPoints y tu sitio luce la huella dorada 🐾.",
+    "emailSubject": "Tu PawSpot está validado — HoPetSit",
+    "emailBody": "<p>¡Enhorabuena! La comunidad ha validado tu PawSpot «{{spotName}}». Ahora luce la huella dorada en el PawMap y te ha dado {{points}} PawPoints.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver mi sitio</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia este enlace: {{emailLink}}</p>"
+  },
+  "pawspot_popular": {
+    "title": "Tu PawSpot arrasa ⭐",
+    "body": "«{{spotName}}» ha superado los 50 ❤️. Ganas {{points}} PawPoints.",
+    "emailSubject": "Tu PawSpot es muy popular — HoPetSit",
+    "emailBody": "<p>Tu PawSpot «{{spotName}}» ha superado los 50 ❤️: es uno de los lugares favoritos de la comunidad y te ha dado {{points}} PawPoints.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver mi sitio</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia este enlace: {{emailLink}}</p>"
   }
 }

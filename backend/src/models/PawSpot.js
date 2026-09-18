@@ -63,6 +63,15 @@ const pawSpotSchema = new mongoose.Schema(
     visitedBy: { type: [String], default: [] },
     visitsCount: { type: Number, default: 0 },
     comments: { type: [commentSchema], default: [] },
+    // v567 — anti-triche : le +2 « commentaire utile » n'est crédité qu'UNE
+    // fois par personne et par spot. Avant, 100 commentaires sur le même spot
+    // = 200 PawPoints (ferme à points, classement faussé).
+    commentAwardedBy: { type: [String], default: [] },
+    // v567 — total des PawPoints que CE spot a rapportés à son créateur
+    // (création + photo + validation + popularité). Sert à les reprendre si le
+    // spot est supprimé : sans ça, créer/supprimer en boucle rapportait 10 pts
+    // à chaque tour.
+    pointsAwarded: { type: Number, default: 0 },
 
     // ── Doré 🐾 ────────────────────────────────────────────────────────
     // Empreinte dorée sur la carte : spot validé par la communauté, OU très
@@ -76,6 +85,13 @@ const pawSpotSchema = new mongoose.Schema(
     // Modération.
     hidden: { type: Boolean, default: false, index: true },
     flags: { type: [String], default: [] },
+
+    // v567 — SUPPRESSION = corbeille, pas effacement. Mesuré en prod : créer 4
+    // spots donnait 80 pts, les supprimer laissait les 80 pts ET remettait le
+    // compteur de tags gratuits à zéro → points infinis + limite de 3 tags
+    // contournable à volonté. On garde donc la trace du spot (invisible
+    // partout) pour que le quota gratuit compte les CRÉATIONS CUMULÉES.
+    deletedAt: { type: Date, default: null, index: true },
   },
   { timestamps: true },
 );

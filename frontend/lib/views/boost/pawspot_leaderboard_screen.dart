@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/pawspot_controller.dart' show pawSpotTr;
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -101,8 +102,11 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
     switch (key) {
       case 'explorer':
         return 'pawspot_badge_explorer'.tr;
+      // v567 — ces trois libellés étaient écrits EN DUR EN FRANÇAIS : un
+      // utilisateur anglophone, coréen ou polonais lisait « Contributeur » et
+      // « Légendaire » dans son classement.
       case 'contributor':
-        return 'Contributeur';
+        return pawSpotTr('pawspot567_badge_contributor', 'Contributor');
       case 'expert':
         return 'pawspot_badge_expert'.tr;
       case 'ambassador':
@@ -110,9 +114,9 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
       case 'pawmaster':
         return 'pawspot_badge_pawmaster'.tr;
       case 'legend':
-        return 'Légendaire';
+        return pawSpotTr('pawspot567_badge_legend', 'Legendary');
       case 'paw_legend':
-        return 'Paw Legend';
+        return pawSpotTr('pawspot567_badge_paw_legend', 'Paw Legend');
       default:
         return key;
     }
@@ -191,9 +195,15 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
                   const _LeaderboardList(scope: 'country'),
                   const _LeaderboardList(scope: 'europe'),
                   // v420 — 4e onglet : récompenses listées inline (pas un sheet).
+                  // v567 — `myPoints` est le solde DÉPENSABLE affiché avant
+                  // que la feuille recharge /pawpoints/me. On passait `points`
+                  // (le total À VIE) : quelqu'un ayant déjà dépensé ses points
+                  // voyait un solde trop haut puis « pas assez de PawPoints ».
                   _RewardsSheet(
                     inTab: true,
-                    myPoints: (_me['points'] as num?)?.toInt() ?? 0,
+                    myPoints: (_me['spendable'] as num?)?.toInt() ??
+                        (_me['points'] as num?)?.toInt() ??
+                        0,
                     onChanged: _loadMyPoints,
                   ),
                 ],
@@ -293,7 +303,8 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
               borderRadius: BorderRadius.circular(12.r),
               child: InkWell(
                 borderRadius: BorderRadius.circular(12.r),
-                onTap: () => _openRewards(context, points),
+                onTap: () => _openRewards(
+                    context, (_me['spendable'] as num?)?.toInt() ?? points),
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 11.h),
                   child: Row(
@@ -1266,7 +1277,14 @@ class _LeaderboardListState extends State<_LeaderboardList>
     final name = (row['name'] ?? '').toString();
     final avatar = (row['avatar'] ?? '').toString();
     final points = (row['points'] as num?)?.toInt() ?? 0;
-    final badge = (row['badge'] ?? '').toString();
+    // v567 — le serveur renvoie `badge` sous forme d'OBJET {key, emoji, min}
+    // (pawPointsService.badgeFor) ou null. Le `.toString()` d'avant produisait
+    // la chaîne « {key: explorer, emoji: 🧭, min: 1000} », qui était affichée
+    // TELLE QUELLE dans la pastille de chaque personne classée. On lit la clé.
+    final badgeRaw = row['badge'];
+    final badge = badgeRaw is Map
+        ? (badgeRaw['key'] ?? badgeRaw['emoji'] ?? '').toString()
+        : (badgeRaw ?? '').toString();
     final goldFrame = row['goldFrame'] == true;
     final badgeColor = _hexColor((row['badgeColor'] as String?));
 

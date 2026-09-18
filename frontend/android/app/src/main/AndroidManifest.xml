@@ -180,7 +180,7 @@
              flutter_local_notifications (push_notification_service.dart). -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="hopetsit_default_channel" />
+            android:value="hopetsit_default_v2" />
         <!-- v566 — AUDIT NOTIFICATIONS : petite icône monochrome (patte blanche) +
              couleur d'accent pour les pushes affichés par le SYSTÈME (app en
              arrière-plan / fermée). Sans ces deux meta-data, FCM prend l'icône du

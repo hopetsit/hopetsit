@@ -108,6 +108,31 @@ class _PawSpotCreateSheetState extends State<_PawSpotCreateSheet> {
   bool _uploadingPhoto = false;
   bool _submitting = false;
 
+  // v567 — « compteur de tags gratuits restants ». Le serveur le renvoyait
+  // (freeSpotLimit / mySpotsCount) mais AUCUN écran ne l'affichait : on
+  // découvrait la limite de 3 en se prenant le refus 402 au 4e tag.
+  // null = pas encore chargé ; -1 = illimité (abonné / staff).
+  int? _freeLeft;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFreeLeft();
+  }
+
+  Future<void> _loadFreeLeft() async {
+    final me = await widget.controller.myPoints();
+    if (!mounted || me == null) return;
+    final raw = me['freeSpotsLeft'];
+    setState(() {
+      if (me['subscribed'] == true || raw == null) {
+        _freeLeft = -1; // illimité
+      } else {
+        _freeLeft = (raw as num).toInt();
+      }
+    });
+  }
+
   @override
   void dispose() {
     _nameCtrl.dispose();
@@ -162,7 +187,7 @@ class _PawSpotCreateSheetState extends State<_PawSpotCreateSheet> {
     }
     setState(() => _submitting = true);
     try {
-      final earned = await widget.controller.create(
+      final res = await widget.controller.create(
         type: _type!,
         name: name,
         description: _descCtrl.text.trim(),
@@ -171,11 +196,26 @@ class _PawSpotCreateSheetState extends State<_PawSpotCreateSheet> {
         lng: widget.position.longitude,
       );
       if (!mounted) return;
+      // v567 — on annonce les points RÉELLEMENT crédités par le serveur
+      // (avant : toujours « +10 », alors qu'un abonné Paw Premium en reçoit 20
+      // grâce aux « points doublés » — sa récompense était invisible).
+      final earned = (res['pointsEarned'] as num?)?.toInt() ?? 0;
+      final capped = res['dailyCapReached'] == true;
       Navigator.of(context).pop(true);
-      CustomSnackbar.showSuccess(
-        title: 'PawSpot 🐾',
-        message: 'pawspot_published_msg'.trParams({'points': '$earned'}),
-      );
+      if (capped || earned == 0) {
+        CustomSnackbar.showWarning(
+          title: 'PawSpot 🐾',
+          message: pawSpotTr(
+            'pawspot567_daily_cap',
+            'Daily points limit reached: this spot earns no PawPoints',
+          ),
+        );
+      } else {
+        CustomSnackbar.showSuccess(
+          title: 'PawSpot 🐾',
+          message: 'pawspot_published_msg'.trParams({'points': '$earned'}),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
@@ -221,6 +261,46 @@ class _PawSpotCreateSheetState extends State<_PawSpotCreateSheet> {
         fontSize: 12.sp,
         fontWeight: FontWeight.w700,
         color: AppColors.textSecondary(context),
+      ),
+    );
+  }
+
+  /// v567 — « il te reste N tags gratuits » / « tags illimités ».
+  Widget _freeLeftChip() {
+    final left = _freeLeft ?? 0;
+    final unlimited = left < 0;
+    final none = !unlimited && left <= 0;
+    final Color tint = unlimited
+        ? const Color(0xFF16A34A)
+        : none
+            ? _kOrange
+            : _kGold;
+    final String text;
+    if (unlimited) {
+      text = '∞ ${pawSpotTr('pawspot567_unlimited_tags', 'Unlimited tags')}';
+    } else if (none) {
+      text = pawSpotTr(
+        'pawspot567_no_free_left',
+        'No free tag left — subscribe for unlimited tagging',
+      );
+    } else if (left == 1) {
+      text = pawSpotTr('pawspot567_free_left_one', '1 free tag left');
+    } else {
+      text = pawSpotTr('pawspot567_free_left', '{n} free tags left')
+          .replaceAll('{n}', '$left');
+    }
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: tint.withValues(alpha: 0.5)),
+      ),
+      child: InterText(
+        text: text,
+        fontSize: 11.sp,
+        fontWeight: FontWeight.w700,
+        color: tint,
       ),
     );
   }
@@ -281,6 +361,11 @@ class _PawSpotCreateSheetState extends State<_PawSpotCreateSheet> {
                 ),
               ],
             ),
+            // v567 — tags gratuits restants (serveur : freeSpotsLeft).
+            if (_freeLeft != null) ...[
+              SizedBox(height: 8.h),
+              _freeLeftChip(),
+            ],
             SizedBox(height: 14.h),
             _label('pawspot_add_type_label'.tr),
             Container(
@@ -462,7 +547,11 @@ class _PawSpotDetailSheet extends StatefulWidget {
 class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
   late int _likesCount = widget.spot.likesCount;
   late int _validationsCount = widget.spot.validationsCount;
-  bool _liked = false;
+  // v567 — état RÉEL renvoyé par le serveur (likedByMe / validatedByMe).
+  // Avant, le cœur repartait TOUJOURS vide : rouvrir une fiche déjà aimée puis
+  // retaper le cœur retirait le like en croyant l'ajouter.
+  late bool _liked = widget.spot.likedByMe;
+  late bool _validated = widget.spot.validatedByMe;
   bool _likeBusy = false;
   bool _validateBusy = false;
   List<Map<String, dynamic>> _comments = const [];
@@ -470,8 +559,12 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
   final TextEditingController _commentCtrl = TextEditingController();
   bool _sendingComment = false;
 
-  /// Suis-je le créateur du spot ? (profil GetStorage → id)
+  /// Suis-je le créateur du spot ?
+  /// v567 — on fait d'abord confiance au serveur (`isMine`), qui compare sur
+  /// le VRAI identifiant du profil courant. Le repli GetStorage reste pour les
+  /// spots déjà en mémoire avant la mise à jour du serveur.
   bool get _isCreator {
+    if (widget.spot.isMine) return true;
     try {
       final raw = GetStorage().read(StorageKeys.userProfile);
       final myId = raw is Map ? (raw['id'] ?? '').toString() : '';
@@ -526,32 +619,55 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
       if (r != null) {
         _validationsCount =
             ((r['validationsCount'] as num?) ?? _validationsCount).toInt();
+        _validated = true;
       }
     });
-    if (r != null && r['already'] != true) {
-      CustomSnackbar.showSuccess(
+    if (r == null) return;
+    if (r['already'] == true) {
+      // v567 — avant, un 2e tap ne disait rien du tout.
+      CustomSnackbar.showInfo(
         title: 'PawSpot 🐾',
-        message: 'pawspot_validate_btn'.tr,
+        message: pawSpotTr(
+          'pawspot567_already_validated',
+          'You already validated this spot',
+        ),
       );
-      widget.onChanged?.call();
+      return;
     }
+    // v567 — on affichait le LIBELLÉ DU BOUTON (« Valider ce spot ») comme
+    // message de confirmation. On confirme maintenant vraiment.
+    CustomSnackbar.showSuccess(
+      title: 'PawSpot 🐾',
+      message: pawSpotTr('pawspot567_validate_thanks', 'Thanks! Spot validated'),
+    );
+    widget.onChanged?.call();
   }
 
   Future<void> _sendComment() async {
     final text = _commentCtrl.text.trim();
     if (text.isEmpty || _sendingComment) return;
     setState(() => _sendingComment = true);
-    final ok = await widget.controller.comment(widget.spot.id, text);
+    final res = await widget.controller.comment(widget.spot.id, text);
     if (!mounted) return;
     setState(() => _sendingComment = false);
-    if (ok) {
+    if (res != null) {
       _commentCtrl.clear();
       // v23.1.357 — Daniel : "que ça comptabilise les points sur la PawMap".
-      // Feedback immédiat : +2 PawPoints pour un commentaire utile.
-      CustomSnackbar.showSuccess(
-        title: 'pawspot_reward_redeemed'.tr,
-        message: 'pawspot_points_comment'.tr,
-      );
+      // v567 — les +2 ne sont crédités qu'au PREMIER commentaire d'une
+      // personne sur un spot donné (anti-ferme à points). On n'annonce donc
+      // « +2 PawPoints » que si le serveur les a vraiment donnés.
+      final earned = (res['pointsEarned'] as num?)?.toInt() ?? 0;
+      if (earned > 0) {
+        CustomSnackbar.showSuccess(
+          title: 'pawspot_reward_redeemed'.tr,
+          message: 'pawspot_points_comment'.tr,
+        );
+      } else {
+        CustomSnackbar.showSuccess(
+          title: 'PawSpot 🐾',
+          message: pawSpotTr('pawspot567_comment_posted', 'Comment posted'),
+        );
+      }
       setState(() => _commentsLoading = true);
       await _loadComments();
     }
@@ -589,13 +705,23 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    final ok = await widget.controller.deleteSpot(widget.spot.id);
+    final res = await widget.controller.deleteSpot(widget.spot.id);
     if (!mounted) return;
     Navigator.of(context).pop();
-    if (ok) {
+    if (res != null) {
+      // v567 — supprimer son spot REPREND les PawPoints qu'il avait rapportés
+      // (avant : on gardait les points, donc créer/supprimer en boucle en
+      // fabriquait à l'infini). On le dit clairement plutôt que de laisser
+      // l'utilisateur voir son total baisser sans explication.
+      final revoked = (res['pointsRevoked'] as num?)?.toInt() ?? 0;
       CustomSnackbar.showSuccess(
         title: 'PawSpot 🐾',
-        message: 'common_delete'.tr,
+        message: revoked > 0
+            ? pawSpotTr(
+                'pawspot567_points_revoked',
+                'Spot deleted · {n} PawPoints taken back',
+              ).replaceAll('{n}', '$revoked')
+            : 'common_delete'.tr,
       );
       widget.onChanged?.call();
     } else {
@@ -838,10 +964,15 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
             ],
             SizedBox(height: 14.h),
             // ── Actions : ❤️ like / 🏆 valider / itinéraire ──────────────
+            // v567 — sur SON PROPRE spot, le serveur refuse le ❤️ comme la
+            // validation (anti-triche : l'auteur comptait sinon dans les 10
+            // likes qui déclenchaient SES propres +10 points). On affiche donc
+            // le compteur de likes en lecture seule et « Ton spot » à la place
+            // du bouton Valider, au lieu de boutons qui échouent en silence.
             Row(
               children: [
                 OutlinedButton(
-                  onPressed: _toggleLike,
+                  onPressed: _isCreator ? null : _toggleLike,
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.symmetric(
                         horizontal: 12.w, vertical: 10.h),
@@ -877,7 +1008,10 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
                 SizedBox(width: 8.w),
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: _validateBusy ? null : _validateSpot,
+                    onPressed:
+                        (_validateBusy || _isCreator || _validated)
+                            ? null
+                            : _validateSpot,
                     style: OutlinedButton.styleFrom(
                       padding: EdgeInsets.symmetric(vertical: 10.h),
                       side: const BorderSide(color: _kGold),
@@ -888,7 +1022,11 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       child: InterText(
-                        text: 'pawspot_validate_btn'.tr,
+                        text: _isCreator
+                            ? pawSpotTr('pawspot567_my_spot', 'Your spot')
+                            : _validated
+                                ? '🏆 ${'pawspot_validated_badge'.tr}'
+                                : 'pawspot_validate_btn'.tr,
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w700,
                         color: _kGold,

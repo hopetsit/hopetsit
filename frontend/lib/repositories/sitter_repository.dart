@@ -177,10 +177,24 @@ class SitterRepository {
   }
 
   /// Deletes the current sitter's account.
-  Future<Map<String, dynamic>> deleteAccount() async {
-    final response =
-        await _apiClient.delete(ApiEndpoints.deleteAccount, requiresAuth: true)
-            as Map?;
+  ///
+  /// v567 — voir `UserRepository.deleteAccount` : raisons (max 3) et
+  /// commentaire facultatif envoyés dans le corps, raisons doublées en query
+  /// string au cas où le corps du DELETE serait perdu en route.
+  Future<Map<String, dynamic>> deleteAccount({
+    List<String> reasons = const <String>[],
+    String comment = '',
+  }) async {
+    final response = await _apiClient.delete(
+      ApiEndpoints.deleteAccount,
+      requiresAuth: true,
+      body: (reasons.isEmpty && comment.isEmpty)
+          ? null
+          : <String, dynamic>{'reasons': reasons, 'comment': comment},
+      queryParameters: reasons.isEmpty
+          ? null
+          : <String, dynamic>{'reasons': reasons.join(',')},
+    ) as Map?;
 
     if (response is! Map<String, dynamic>) {
       throw ApiException(

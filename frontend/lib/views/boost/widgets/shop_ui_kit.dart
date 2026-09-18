@@ -9,6 +9,7 @@
 // maxLines + ellipsis ou FittedBox(scaleDown).
 
 import 'dart:io' show Platform;
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -25,6 +26,47 @@ const String kShopPrivacyUrl = 'https://www.hopetsit.com/privacy';
 /// Réglages d'abonnement de l'App Store (lien officiel Apple).
 const String kAppleManageSubscriptionsUrl =
     'https://apps.apple.com/account/subscriptions';
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  v567 — DÉGAGEMENT DU BAS (bug Samsung, captures de Daniel 19/09)
+//  Sur son Samsung (edge-to-edge), `viewPadding.bottom` ET `padding.bottom`
+//  valent 0 alors que la barre de navigation système (3 boutons) est DESSINÉE
+//  par-dessus : la barre d'achat collante passait derrière, à moitié masquée,
+//  bouton intouchable. Règle du projet : inset 0 sur Android → réserver 48 px
+//  logiques ; sinon inset réel ; iOS = inset réel (home indicator ~34), jamais
+//  +48.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Dégagement bas à réserver sous un contenu posé au ras de l'écran.
+double shopBottomInset(BuildContext context) {
+  final mq = MediaQuery.of(context);
+  final raw = math.max(mq.viewPadding.bottom, mq.padding.bottom);
+  return raw > 0 ? raw : (Platform.isAndroid ? 48.0 : 0.0);
+}
+
+/// Dégagement SUPPLÉMENTAIRE dans une zone déjà protégée par un `SafeArea`
+/// (feuilles `showModalBottomSheet(useSafeArea: true)`) : 0 dès que le système
+/// annonce un inset (le SafeArea l'a déjà appliqué — sinon on doublerait le
+/// home indicator iOS), 48 px sur Android quand l'inset est menti à 0.
+double shopSafeAreaExtraInset(BuildContext context) {
+  final mq = MediaQuery.of(context);
+  final raw = math.max(mq.viewPadding.bottom, mq.padding.bottom);
+  return raw > 0 ? 0.0 : (Platform.isAndroid ? 48.0 : 0.0);
+}
+
+/// Rembourrage bas du contenu défilant d'un onglet de la boutique : la
+/// dernière carte ne doit JAMAIS finir sous la barre d'achat collante.
+double shopScrollBottomPadding(BuildContext context) =>
+    ShopStickyBar.heightFor(context) + 16.h;
+
+/// Nombre de jours restants, lisible. Au-delà de 10 ans (abonnement « à vie »,
+/// comptes staff) on montre « Illimité ∞ » — même règle que
+/// `widgets/active_benefits_row.dart`, qui affichait sinon « 26766 j ».
+String shopDaysLabel(int days) {
+  if (days > 3650) return 'shop567_unlimited'.tr;
+  if (days <= 0) return '';
+  return 'shop567_days_left'.tr.replaceAll('{n}', '$days');
+}
 
 /// Économie (en %) d'un forfait annuel par rapport à 12 mensualités.
 /// Renvoie 0 si les prix ne permettent pas de calculer (évite « -0 % »).
@@ -46,6 +88,268 @@ String shopPeriodLabel(int days) {
 String shopShortDate(DateTime d) {
   String two(int v) => v.toString().padLeft(2, '0');
   return '${two(d.day)}/${two(d.month)}/${d.year}';
+}
+
+/// v567 — BANDEAU PRODUIT commun aux 4 onglets (PawBoost, PawFollow, PawSpot,
+/// Paw Premium) : disque blanc + icône du produit, nom, phrase courte, dégradé
+/// du produit. Avant, seuls PawSpot et Paw Premium en avaient un vrai ; les
+/// quatre onglets se lisent désormais pareil.
+class ShopHero extends StatelessWidget {
+  const ShopHero({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.colors,
+    this.titleColor = Colors.white,
+    this.trailing,
+  });
+
+  /// Icône posée sur le disque blanc (SVG « Paw Buttons », pièce dorée…).
+  final Widget icon;
+  final String title;
+  final String subtitle;
+
+  /// Dégradé du produit (Boost, Follow, Spot, Premium).
+  final List<Color> colors;
+  final Color titleColor;
+
+  /// Ligne posée sous la phrase (pastille d'état…).
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: colors,
+          begin: const Alignment(-0.6, -1),
+          end: const Alignment(0.6, 1),
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.30)),
+        boxShadow: [
+          BoxShadow(
+            color: colors.last.withValues(alpha: 0.35),
+            blurRadius: 22,
+            spreadRadius: -10,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Reflet haut (même langage visuel que les 4 cartes d'onglet).
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 1,
+            child: ColoredBox(color: Colors.white.withValues(alpha: 0.45)),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 16.h),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.30),
+                        blurRadius: 14,
+                        spreadRadius: -6,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: icon,
+                ),
+                SizedBox(width: 14.w),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontSize: 19.sp,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.4,
+                            color: titleColor,
+                            height: 1.1,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 5.h),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          height: 1.3,
+                          color: Colors.white.withValues(alpha: 0.90),
+                        ),
+                      ),
+                      if (trailing != null) ...[
+                        SizedBox(height: 10.h),
+                        trailing!,
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// v567 — PASTILLE D'ÉTAT unique pour les 4 onglets (« PawSpot · Actif ·
+/// 30 j restants », « PawBoost · Inactif »). Remplace les 4 cartes d'état
+/// hétérogènes. Les jours passent par [shopDaysLabel] → « Illimité ∞ »
+/// au-delà de 3 650 jours (bug « Il vous reste 26766 jours »).
+class ShopStatusPill extends StatelessWidget {
+  const ShopStatusPill({
+    super.key,
+    required this.label,
+    required this.active,
+    required this.accent,
+    this.days,
+    this.onDark = false,
+  });
+
+  /// Nom du produit (« PawSpot », « PawFamily »…).
+  final String label;
+  final bool active;
+  final Color accent;
+
+  /// Jours restants (null = on n'affiche que l'état).
+  final int? days;
+
+  /// Posée sur un fond sombre (onglet Paw Premium).
+  final bool onDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final state =
+        active ? 'shop567_state_active'.tr : 'shop567_state_inactive'.tr;
+    final left = (active && days != null) ? shopDaysLabel(days!) : '';
+    final text = left.isEmpty ? '$label · $state' : '$label · $state · $left';
+    final Color fg = active
+        ? (onDark ? Colors.white : accent)
+        : (onDark ? Colors.white.withValues(alpha: 0.65) : AppColors.greyText);
+    final Color bg = active
+        ? accent.withValues(alpha: onDark ? 0.30 : 0.12)
+        : (onDark
+            ? Colors.white.withValues(alpha: 0.08)
+            : AppColors.divider(context).withValues(alpha: 0.45));
+    return Container(
+      constraints: BoxConstraints(minHeight: 34.h),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: active ? fg.withValues(alpha: 0.45) : Colors.transparent,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: fg),
+          ),
+          SizedBox(width: 8.w),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.5.sp,
+                fontWeight: FontWeight.w700,
+                color: fg,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// v567 — titre de section régulier (grille 8) : titre + sous-titre optionnel.
+class ShopSectionTitle extends StatelessWidget {
+  const ShopSectionTitle({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.color,
+    this.leading,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Color? color;
+  final Widget? leading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            if (leading != null) ...[leading!, SizedBox(width: 8.w)],
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 17.sp,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                  color: color ?? AppColors.textPrimary(context),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (subtitle != null && subtitle!.isNotEmpty) ...[
+          SizedBox(height: 4.h),
+          Text(
+            subtitle!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12.sp,
+              height: 1.3,
+              color: AppColors.greyText,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 }
 
 /// Pilule « MEILLEUR PRIX » / « −40 % ».
@@ -108,10 +412,13 @@ class ShopSelectDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // v567 — état sélectionné plus net : pastille pleine + halo coloré (le
+    // simple rond vide se lisait comme une radio grise sur les captures).
     return AnimatedContainer(
       duration: const Duration(milliseconds: 160),
-      width: 22,
-      height: 22,
+      curve: Curves.easeOutCubic,
+      width: 24,
+      height: 24,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: selected ? color : Colors.transparent,
@@ -119,9 +426,19 @@ class ShopSelectDot extends StatelessWidget {
           color: selected ? color : (idleColor ?? AppColors.divider(context)),
           width: 2,
         ),
+        boxShadow: selected
+            ? [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.35),
+                  blurRadius: 10,
+                  spreadRadius: -2,
+                  offset: const Offset(0, 3),
+                ),
+              ]
+            : const <BoxShadow>[],
       ),
       child: selected
-          ? Icon(Icons.check_rounded, size: 15, color: checkColor)
+          ? Icon(Icons.check_rounded, size: 16, color: checkColor)
           : null,
     );
   }
@@ -161,138 +478,182 @@ class ShopStickyBar extends StatelessWidget {
   final bool dark;
   final Color buttonTextColor;
 
+  /// Hauteur du BOUTON (cible tactile ≥ 48 px).
+  static const double _buttonHeight = 52;
+
+  /// Hauteur totale occupée par la barre, dégagement système compris. Sert au
+  /// rembourrage bas du contenu défilant ([shopScrollBottomPadding]) pour que
+  /// la dernière carte ne finisse jamais sous la barre.
+  /// (bouton + marge de sécurité) + rembourrages de la carte et du fondu
+  /// + dégagement système.
+  static double heightFor(BuildContext context) =>
+      _buttonHeight + 8 + 24.h + 14.h + 12 + shopBottomInset(context);
+
   @override
   Widget build(BuildContext context) {
     final bg = dark ? const Color(0xFF15120D) : AppColors.card(context);
     final titleColor =
         dark ? Colors.white.withValues(alpha: 0.75) : AppColors.greyText;
-    final priceColor = dark ? const Color(0xFFFFD34D) : AppColors.textPrimary(context);
+    final priceColor =
+        dark ? const Color(0xFFFFD34D) : AppColors.textPrimary(context);
     final enabled = onPressed != null && !loading;
+    final scaffold = AppColors.scaffold(context);
+    // v567 — carte FLOTTANTE arrondie posée sur un fondu vers le fond de la
+    // page (pas de BackdropFilter : on est au-dessus d'une liste défilante).
+    // Le dégagement bas vient de shopBottomInset → plus jamais derrière la
+    // barre de navigation Samsung.
     return Container(
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
-            blurRadius: 22,
-            spreadRadius: -6,
-            offset: const Offset(0, -6),
-          ),
-        ],
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            scaffold.withValues(alpha: 0),
+            scaffold.withValues(alpha: 0.92),
+            scaffold,
+          ],
+          stops: const [0, 0.35, 1],
+        ),
       ),
-      padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 12.h),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 5,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w600,
-                    color: titleColor,
-                  ),
-                ),
-                SizedBox(height: 2.h),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    priceLabel,
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 19.sp,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                      color: priceColor,
-                      height: 1.1,
-                    ),
-                  ),
-                ),
-                if (subLabel != null && subLabel!.isNotEmpty)
+      padding: EdgeInsets.fromLTRB(
+        12.w,
+        14.h,
+        12.w,
+        shopBottomInset(context) + 12,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: dark
+                ? Colors.white.withValues(alpha: 0.10)
+                : AppColors.divider(context),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.14),
+              blurRadius: 24,
+              spreadRadius: -8,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        padding: EdgeInsets.fromLTRB(16.w, 12.h, 12.w, 12.h),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 5,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    subLabel!,
+                    title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 10.sp,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w600,
                       color: titleColor,
                     ),
                   ),
-              ],
-            ),
-          ),
-          SizedBox(width: 12.w),
-          Expanded(
-            flex: 6,
-            child: Semantics(
-              button: true,
-              enabled: enabled,
-              label: buttonLabel,
-              child: GestureDetector(
-                onTap: enabled ? onPressed : null,
-                child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 160),
-                  opacity: enabled || loading ? 1 : 0.45,
-                  child: Container(
-                    height: 50.h,
-                    alignment: Alignment.center,
-                    padding: EdgeInsets.symmetric(horizontal: 12.w),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: colors,
-                        begin: const Alignment(-0.6, -1),
-                        end: const Alignment(0.6, 1),
+                  SizedBox(height: 2.h),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      priceLabel,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 19.sp,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                        color: priceColor,
+                        height: 1.1,
                       ),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.45),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colors.last.withValues(alpha: 0.45),
-                          blurRadius: 18,
-                          spreadRadius: -8,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
                     ),
-                    child: loading
-                        ? SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.2,
-                              color: buttonTextColor,
-                            ),
-                          )
-                        : FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              buttonLabel,
-                              maxLines: 1,
-                              style: TextStyle(
-                                fontSize: 15.sp,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.2,
+                  ),
+                  if (subLabel != null && subLabel!.isNotEmpty)
+                    Text(
+                      subLabel!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10.sp,
+                        fontWeight: FontWeight.w500,
+                        color: titleColor,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            SizedBox(width: 12.w),
+            Expanded(
+              flex: 6,
+              child: Semantics(
+                button: true,
+                enabled: enabled,
+                label: buttonLabel,
+                child: GestureDetector(
+                  onTap: enabled ? onPressed : null,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 160),
+                    opacity: enabled || loading ? 1 : 0.45,
+                    child: Container(
+                      height: _buttonHeight,
+                      alignment: Alignment.center,
+                      padding: EdgeInsets.symmetric(horizontal: 12.w),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: colors,
+                          begin: const Alignment(-0.6, -1),
+                          end: const Alignment(0.6, 1),
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.45),
+                        ),
+                        boxShadow: enabled
+                            ? [
+                                BoxShadow(
+                                  color: colors.last.withValues(alpha: 0.45),
+                                  blurRadius: 18,
+                                  spreadRadius: -8,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ]
+                            : const <BoxShadow>[],
+                      ),
+                      child: loading
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
                                 color: buttonTextColor,
                               ),
+                            )
+                          : FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                buttonLabel,
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontSize: 15.sp,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.2,
+                                  color: buttonTextColor,
+                                ),
+                              ),
                             ),
-                          ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -397,7 +758,9 @@ class ShopManageRow extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(20.w, 14.h, 20.w, 20.h),
+        // v567 — + dégagement système quand Android ment à 0 (Samsung).
+        padding: EdgeInsets.fromLTRB(
+            20.w, 14.h, 20.w, 20.h + shopSafeAreaExtraInset(ctx)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -476,12 +839,19 @@ class ShopManageRow extends StatelessWidget {
     final fg = onDark ? Colors.white.withValues(alpha: 0.9) : accent;
     return InkWell(
       onTap: () => _open(context),
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+        width: double.infinity,
+        // v567 — cible tactile ≥ 48 px, alignée sur le sélecteur de devise.
+        constraints: const BoxConstraints(minHeight: 48),
+        alignment: Alignment.centerLeft,
+        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
         decoration: BoxDecoration(
           color: (onDark ? Colors.white : accent).withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: (onDark ? Colors.white : accent).withValues(alpha: 0.18),
+          ),
         ),
         child: Row(
           children: [
@@ -715,7 +1085,10 @@ Future<bool> showShopConfirmSheet(
       }
 
       return SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 18.h),
+        // v567 — + dégagement système quand Android ment à 0 (Samsung) : le
+        // bouton « Payer » finissait derrière la barre de navigation.
+        padding: EdgeInsets.fromLTRB(
+            20.w, 12.h, 20.w, 18.h + shopSafeAreaExtraInset(ctx)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

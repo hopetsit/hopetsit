@@ -75,6 +75,7 @@ const EXACT_CATEGORY = {
   wallet_credited: 'payments', kyc_payment_succeeded: 'payments', REFERRAL_CREDITED: 'payments',
   lost_pet_sighting: 'pawmap', sos_pet_nearby: 'pawmap', map_boost_activated: 'pawmap',
   profile_boost_activated: 'pawmap',
+  pawspot_validated: 'pawmap', pawspot_popular: 'pawmap', // v567 — récompenses PawSpot
   live_still_active: 'live', live_session_ended: 'live',
   NEW_REVIEW: 'reviews', PREMIUM_ACHIEVED: 'reviews', TOP_SITTER_ACHIEVED: 'reviews',
   subscription_activated: 'subscriptions', kyc_verified: 'subscriptions', kyc_rejected: 'subscriptions',
@@ -128,20 +129,25 @@ const resolveNotificationPrefsAcrossRoles = async (primary, userId) => {
 
 /** Champs FCM dérivés du son choisi (contrat §2 / §1 pour les canaux). */
 const pushSoundConfig = (sound) => {
+  // v567 — canaux Android « _v2 » : ceux des builds ≤ 566 ont été créés muets
+  // sur les téléphones passés par le build 565 (sons absents de l'AAB) et
+  // Android fige un canal à vie. Une ancienne app qui ne connaît pas le canal
+  // v2 retombe sur le canal par défaut de son manifeste ; un fichier son
+  // absent côté iOS retombe sur le son système.
   const s = NOTIFICATION_SOUNDS.includes(sound) ? sound : 'default';
   if (s === 'default') {
     return {
-      android: { channelId: 'hopetsit_default_channel', sound: 'default' },
-      apnsSound: 'default',
+      android: { channelId: 'hopetsit_default_v2', sound: 'chime' },
+      apnsSound: 'chime.caf',
       dataSound: 'default',
     };
   }
   if (s === 'vibrate' || s === 'silent') {
     // Canaux dédiés (vibration seule / silencieux) ; aucun champ `sound`.
-    return { android: { channelId: `hopetsit_${s}` }, apnsSound: null, dataSound: s };
+    return { android: { channelId: `hopetsit_${s}_v2` }, apnsSound: null, dataSound: s };
   }
   return {
-    android: { channelId: `hopetsit_${s}`, sound: s },
+    android: { channelId: `hopetsit_${s}_v2`, sound: s },
     apnsSound: `${s}.caf`,
     dataSound: s,
   };

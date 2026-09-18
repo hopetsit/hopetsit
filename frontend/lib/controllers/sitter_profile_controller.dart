@@ -12,6 +12,7 @@ import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/controllers/user_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/profile/widgets/delete_account_reasons_sheet.dart';
 import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/logger.dart';
@@ -490,25 +491,44 @@ class SitterProfileController extends GetxController implements ProfileSettingsH
     }
   }
 
-  void showDeleteAccountDialog(BuildContext context) {
+  /// v567 — Daniel : « si quelqu'un supprime son compte, demander 3 raisons ».
+  /// La feuille « Avant de partir… » passe AVANT le dialogue de confirmation
+  /// existant : si l'utilisateur la ferme, rien ne se passe.
+  void showDeleteAccountDialog(BuildContext context) async {
+    final answer = await showDeleteAccountReasonsSheet(
+      context,
+      accent: AppColors.sitterAccent,
+    );
+    if (answer == null) return;
+    if (!context.mounted) return;
+
     CustomConfirmationDialog.show(
       context: context,
       message: 'delete_account_dialog_message'.tr,
       yesText: 'common_yes'.tr,
       cancelText: 'common_cancel'.tr,
       onYes: () async {
-        await deleteAccount();
+        await deleteAccount(
+          reasons: answer.reasons,
+          comment: answer.comment,
+        );
       },
     );
   }
 
-  Future<void> deleteAccount() async {
+  /// v567 — [reasons] (1 à 3 identifiants stables) et [comment] facultatif
+  /// sont enregistrés côté serveur AVANT la suppression. Une liste vide reste
+  /// acceptée (appels historiques).
+  Future<void> deleteAccount({
+    List<String> reasons = const <String>[],
+    String comment = '',
+  }) async {
     Get.dialog(
       const Center(child: CircularProgressIndicator()),
       barrierDismissible: false,
     );
     try {
-      await _sitterRepository.deleteAccount();
+      await _sitterRepository.deleteAccount(reasons: reasons, comment: comment);
 
       // Clear authentication token and user data
       // v23.1 part 125 — Phase 2 audit C4 : purge SecureTokenStore aussi.

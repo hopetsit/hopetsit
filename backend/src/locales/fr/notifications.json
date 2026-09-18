@@ -418,5 +418,17 @@
     "body": "Tu partages ta position en direct depuis {{hours}} h. Tu peux l'arrêter à tout moment depuis la PawMap.",
     "emailSubject": "Ton partage en direct est toujours actif — HoPetSit",
     "emailBody": "<p>Tu partages ta position en direct avec tes amis depuis {{hours}} h. Rien à faire si c'est voulu ; tu peux l'arrêter à tout moment depuis la PawMap.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ouvrir la PawMap</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copie-colle ce lien : {{emailLink}}</p>"
+  },
+  "pawspot_validated": {
+    "title": "Ton PawSpot est validé 🏆",
+    "body": "La communauté a validé « {{spotName}} ». Tu gagnes {{points}} PawPoints et ton spot porte l'empreinte dorée 🐾.",
+    "emailSubject": "Ton PawSpot est validé — HoPetSit",
+    "emailBody": "<p>Bravo ! La communauté a validé ton PawSpot « {{spotName}} ». Il porte désormais l'empreinte dorée sur la PawMap et t'a rapporté {{points}} PawPoints.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir mon spot</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copie-colle ce lien : {{emailLink}}</p>"
+  },
+  "pawspot_popular": {
+    "title": "Ton PawSpot cartonne ⭐",
+    "body": "« {{spotName}} » a dépassé 50 ❤️ ! Tu gagnes {{points}} PawPoints.",
+    "emailSubject": "Ton PawSpot est très populaire — HoPetSit",
+    "emailBody": "<p>Ton PawSpot « {{spotName}} » a dépassé 50 ❤️ : il fait partie des lieux préférés de la communauté et t'a rapporté {{points}} PawPoints.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir mon spot</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copie-colle ce lien : {{emailLink}}</p>"
   }
 }

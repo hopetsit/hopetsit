@@ -418,5 +418,17 @@
     "body": "{{hours}}時間にわたってライブ位置情報を共有しています。PawMapからいつでも停止できます。",
     "emailSubject": "ライブ共有は継続中です — HoPetSit",
     "emailBody": "<p>{{hours}}時間にわたって友達とライブ位置情報を共有しています。意図したものであれば何もする必要はありません。PawMapからいつでも停止できます。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">PawMapを開く</a></p><p style=\"color:#666;font-size:12px;\">ボタンが動作しない場合は、このリンクをコピーしてください: {{emailLink}}</p>"
+  },
+  "pawspot_validated": {
+    "title": "あなたの PawSpot が承認されました 🏆",
+    "body": "コミュニティが「{{spotName}}」を承認しました。{{points}} PawPoints を獲得し、金の肉球 🐾 が付きます。",
+    "emailSubject": "あなたの PawSpot が承認されました — HoPetSit",
+    "emailBody": "<p>おめでとうございます！コミュニティがあなたの PawSpot「{{spotName}}」を承認しました。PawMap で金の肉球が付き、{{points}} PawPoints を獲得しました。</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">スポットを見る</a></p><p style=\"color:#666;font-size:12px;\">ボタンが動かない場合は、このリンクをコピーしてください: {{emailLink}}</p>"
+  },
+  "pawspot_popular": {
+    "title": "あなたの PawSpot が大人気 ⭐",
+    "body": "「{{spotName}}」が 50 ❤️ を超えました！{{points}} PawPoints を獲得しました。",
+    "emailSubject": "あなたの PawSpot がとても人気です — HoPetSit",
+    "emailBody": "<p>あなたの PawSpot「{{spotName}}」が 50 ❤️ を超えました。コミュニティのお気に入りスポットの一つで、{{points}} PawPoints を獲得しました。</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">スポットを見る</a></p><p style=\"color:#666;font-size:12px;\">ボタンが動かない場合は、このリンクをコピーしてください: {{emailLink}}</p>"
   }
 }

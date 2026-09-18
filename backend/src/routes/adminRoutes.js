@@ -6040,4 +6040,49 @@ router.get('/bookings/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// v567 — Daniel : « si quelqu'un supprime son compte, demander 3 raisons et que
+// ça me le dise dans l'admin ». Motifs de départ collectés par la feuille
+// « Avant de partir… » de l'app (modèle AccountDeletion — e-mail haché, jamais
+// en clair). Renvoie le total, les 30 derniers jours, le décompte par raison et
+// la liste triée du plus récent au plus ancien.
+router.get('/account-deletions', requireAdmin, async (req, res) => {
+  try {
+    const {
+      AccountDeletion,
+      ACCOUNT_DELETION_REASONS,
+    } = require('../models/AccountDeletion');
+    const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 500);
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [total, last30d, items] = await Promise.all([
+      AccountDeletion.countDocuments({}),
+      AccountDeletion.countDocuments({ deletedAt: { $gte: since } }),
+      AccountDeletion.find({}).sort({ deletedAt: -1 }).limit(limit).lean(),
+    ]);
+
+    // Décompte par raison sur TOUT le journal (pas seulement la page affichée).
+    const byReason = {};
+    for (const id of ACCOUNT_DELETION_REASONS) byReason[id] = 0;
+    try {
+      const grouped = await AccountDeletion.aggregate([
+        { $unwind: '$reasons' },
+        { $group: { _id: '$reasons', n: { $sum: 1 } } },
+      ]);
+      for (const g of grouped || []) {
+        if (g && g._id) byReason[g._id] = (byReason[g._id] || 0) + g.n;
+      }
+    } catch (_) {
+      // Repli : agrégat indisponible → on compte sur la page chargée.
+      for (const it of items) {
+        for (const id of it.reasons || []) byReason[id] = (byReason[id] || 0) + 1;
+      }
+    }
+
+    res.json({ total, last30d, byReason, items });
+  } catch (e) {
+    logger.error('[admin/account-deletions]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

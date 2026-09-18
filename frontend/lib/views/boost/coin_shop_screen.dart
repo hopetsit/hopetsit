@@ -512,14 +512,34 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
             ),
           ),
         ),
-        body: TabBarView(
-          key: ValueKey<int>(_promoEpoch),
-          children: const [
-            _BoostTab(),
-            _PremiumTab(),
-            _PawSpotTab(),
-            _PawPremiumTab(),
-          ],
+        // v567 — sur iOS, la rangée « Restaurer · CGU · Confidentialité »
+        // (bottomNavigationBar ci-dessous) porte DÉJÀ le SafeArea du home
+        // indicator. On retire donc le dégagement bas du corps, sinon la barre
+        // d'achat collante de chaque onglet réservait 34 px de plus et laissait
+        // une bande vide. Sur Android il n'y a pas de bottomNavigationBar : le
+        // corps garde son inset, que shopBottomInset() corrige à 48 px quand le
+        // système ment à 0 (Samsung edge-to-edge).
+        body: Builder(
+          builder: (ctx) {
+            final body = TabBarView(
+              key: ValueKey<int>(_promoEpoch),
+              children: const [
+                _BoostTab(),
+                _PremiumTab(),
+                _PawSpotTab(),
+                _PawPremiumTab(),
+              ],
+            );
+            if (!Platform.isIOS) return body;
+            // removeViewPadding met padding.bottom ET viewPadding.bottom à 0 :
+            // shopBottomInset() renvoie alors 0 sur iOS (jamais +48, c'est
+            // réservé à Android).
+            return MediaQuery.removeViewPadding(
+              context: ctx,
+              removeBottom: true,
+              child: body,
+            );
+          },
         ),
         // v503 — bouton « Restaurer mes achats » en bas de la boutique,
         // iOS uniquement (exigence Apple pour les achats intégrés).
@@ -605,6 +625,12 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
   String? _currentTier;
   int _remainingDays = 0;
   List<dynamic> _history = [];
+
+  /// Dégradé PawBoost (handoff « Paw Buttons »).
+  static const List<Color> _boostGradient = [
+    Color(0xFFFF6B4A),
+    Color(0xFFE0361F),
+  ];
 
   // Session v3.2 — packages used to be hardcoded (25/50/100/200 €), which
   // meant admin price edits on /admin/pricing never showed up in the app.
@@ -970,10 +996,29 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.all(16.w),
+              // v567 — la dernière carte ne doit jamais finir sous la barre
+              // d'achat collante ni sous la barre système Samsung.
+              padding: EdgeInsets.fromLTRB(
+                  16.w, 16.h, 16.w, shopScrollBottomPadding(context)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // v567 — bandeau produit commun aux 4 onglets.
+                  ShopHero(
+                    icon: SvgPicture.string(PawCardIcons.boost,
+                        width: 26, height: 26),
+                    title: 'shop_tab_boost'.tr,
+                    subtitle: 'shop_card_boost_sub'.tr,
+                    colors: _boostGradient,
+                  ),
+                  SizedBox(height: 12.h),
+                  _buildBoostStatus(),
+                  if (_boostActive &&
+                      ShopExpiryNotice.shouldShow(_remainingDays)) ...[
+                    SizedBox(height: 12.h),
+                    ShopExpiryNotice(days: _remainingDays),
+                  ],
+                  SizedBox(height: 16.h),
                   // v556 — gratuit vs boost, comme sur les autres onglets.
                   shopValueCard(
                     context,
@@ -983,25 +1028,10 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                     plusTitle: 'shop_pb_plus_title'.tr,
                     plusBody: 'shop_pb_plus_body'.tr,
                   ),
-                  SizedBox(height: 14.h),
-                  _buildBoostStatus(),
-                  if (_boostActive &&
-                      ShopExpiryNotice.shouldShow(_remainingDays)) ...[
-                    SizedBox(height: 10.h),
-                    ShopExpiryNotice(days: _remainingDays),
-                  ],
-                  SizedBox(height: 20.h),
-                  InterText(
-                    text: 'boost_choose_package'.tr,
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary(context),
-                  ),
-                  SizedBox(height: 4.h),
-                  InterText(
-                    text: 'boost_choose_subtitle'.tr,
-                    fontSize: 13.sp,
-                    color: AppColors.greyText,
+                  SizedBox(height: 24.h),
+                  ShopSectionTitle(
+                    title: 'boost_choose_package'.tr,
+                    subtitle: 'boost_choose_subtitle'.tr,
                   ),
                   SizedBox(height: 16.h),
                   ...visible.map((p) => _buildPackageCard(context, p)),
@@ -1014,15 +1044,14 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                       maxLines: 2,
                     ),
                   ],
-                  SizedBox(height: 14.h),
+                  SizedBox(height: 16.h),
                   const ShopLegalNote(oneTime: true),
-                  SizedBox(height: 20.h),
+                  SizedBox(height: 24.h),
                   _buildHowItWorks(),
                   if (_history.isNotEmpty) ...[
-                    SizedBox(height: 20.h),
+                    SizedBox(height: 24.h),
                     _buildPurchaseHistory(),
                   ],
-                  SizedBox(height: 24.h),
                 ],
               ),
             ),
@@ -1037,7 +1066,7 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
             buttonLabel: _boostActive
                 ? 'v566_shop_cta_extend'.tr
                 : 'v566_shop_cta_boost'.tr,
-            colors: const [Color(0xFFFF6B4A), Color(0xFFE0361F)],
+            colors: _boostGradient,
             loading: _purchasing,
             onPressed: _purchasing
                 ? null
@@ -1047,75 +1076,41 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
     );
   }
 
+  /// v567 — état d'abonnement dans la MÊME pastille que les 3 autres onglets
+  /// (« PawBoost · Actif · 12 j restants » / « PawBoost · Inactif »), suivie
+  /// du palier en cours et de la phrase d'aide quand rien n'est actif.
   Widget _buildBoostStatus() {
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: _boostActive
-              ? [AppColors.primaryColor, AppColors.primaryColor.withValues(alpha: 0.7)]
-              : [Colors.grey.shade300, Colors.grey.shade200],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 56.w,
-            height: 56.w,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(16.r),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8.w,
+          runSpacing: 8.h,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            ShopStatusPill(
+              label: 'shop_tab_boost'.tr,
+              active: _boostActive,
+              accent: AppColors.primaryColor,
+              days: _remainingDays,
             ),
-            child: Center(
-              child: Text(
-                _boostActive ? '🔥' : '🐾',
-                style: TextStyle(fontSize: 28.sp),
+            if (_boostActive && _currentTier != null)
+              ShopPill(
+                label: _tierName(_currentTier!),
+                background: AppColors.primaryColor,
               ),
-            ),
-          ),
-          SizedBox(width: 14.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                InterText(
-                  text: _boostActive ? 'boost_status_active'.tr : 'boost_status_inactive'.tr,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w700,
-                  color: _boostActive ? Colors.white : AppColors.blackColor,
-                ),
-                SizedBox(height: 4.h),
-                InterText(
-                  text: _boostActive
-                      ? 'boost_remaining_days'.tr.replaceAll('@days', _remainingDays.toString())
-                      : 'boost_inactive_hint'.tr,
-                  fontSize: 13.sp,
-                  color: _boostActive ? Colors.white.withValues(alpha: 0.85) : AppColors.greyText,
-                ),
-                if (_boostActive && _currentTier != null) ...[
-                  SizedBox(height: 4.h),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    child: InterText(
-                      text: _tierName(_currentTier!).toUpperCase(),
-                      fontSize: 10.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ],
-            ),
+          ],
+        ),
+        if (!_boostActive) ...[
+          SizedBox(height: 8.h),
+          InterText(
+            text: 'boost_inactive_hint'.tr,
+            fontSize: 12.sp,
+            color: AppColors.greyText,
+            maxLines: 2,
           ),
         ],
-      ),
+      ],
     );
   }
 
@@ -1223,20 +1218,29 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  PoppinsText(
-                    text: _tierPriceLabel(pkg),
-                    fontSize: 19.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primaryColor,
+                  // v567 — FittedBox : prix long (« 11,99 CHF ») en de / pl.
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: PoppinsText(
+                      text: _tierPriceLabel(pkg),
+                      fontSize: 19.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryColor,
+                    ),
                   ),
                   // Sous-prix « /jour » : masqué sur iOS (calculé sur le prix
                   // carte, pas forcément aligné sur le prix Apple).
                   if (applePrice == null && days > 0)
-                    InterText(
-                      text:
-                          '${CurrencyHelper.format(currency, amount / days)}/${'boost_per_day'.tr}',
-                      fontSize: 10.sp,
-                      color: AppColors.greyText,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: InterText(
+                        text:
+                            '${CurrencyHelper.format(currency, amount / days)}/${'boost_per_day'.tr}',
+                        fontSize: 10.sp,
+                        color: AppColors.greyText,
+                      ),
                     ),
                 ],
               ),
@@ -1470,25 +1474,35 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
               },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.all(16.w),
+                // v567 — dégagement barre collante + barre système.
+                padding: EdgeInsets.fromLTRB(
+                    16.w, 16.h, 16.w, shopScrollBottomPadding(context)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // v567 — bandeau produit commun aux 4 onglets.
+                    ShopHero(
+                      icon: SvgPicture.string(PawCardIcons.follow,
+                          width: 26, height: 26),
+                      title: 'shop_tab_pawpass'.tr,
+                      subtitle: 'shop_card_follow_sub'.tr,
+                      colors: _violetGradient,
+                    ),
+                    SizedBox(height: 12.h),
                     _buildStatusCard(context, controller),
                     ..._buildStatusExtras(context, controller),
-                    SizedBox(height: 20.h),
-                    // v503 — iOS : devise/prix imposés par Apple (StoreKit) →
-                    // le sélecteur de devise Airwallex n'a plus de sens.
-                    if (!Platform.isIOS) ...[
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: _buildCurrencyPicker(context, controller),
-                      ),
-                      SizedBox(height: 14.h),
-                    ],
+                    SizedBox(height: 16.h),
                     // v556 — « gratuit / avec PawFollow » avant les prix.
                     _pawFollowValueCard(context),
-                    SizedBox(height: 18.h),
+                    // v503 — iOS : devise/prix imposés par Apple (StoreKit) →
+                    // le sélecteur de devise Airwallex n'a plus de sens.
+                    // v567 — aligné sur toute la largeur, comme « Gérer mon
+                    // abonnement » (avant : collé à droite, en décalage).
+                    if (!Platform.isIOS) ...[
+                      SizedBox(height: 16.h),
+                      _buildCurrencyPicker(context, controller),
+                    ],
+                    SizedBox(height: 24.h),
                     // ── Section 1 : Suis ton animal (PawFollow individuel) ──
                     _planSectionHeader(
                       context,
@@ -1500,7 +1514,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                     SizedBox(height: 12.h),
                     ...soloPlans.map((p) => _buildPlanCard(
                         context, controller, p, picked?.plan == p.plan)),
-                    SizedBox(height: 22.h),
+                    SizedBox(height: 24.h),
                     // ── Section 2 : PawFamily (suivi en famille) ────────────
                     _planSectionHeader(
                       context,
@@ -1517,9 +1531,8 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                         context, controller, p, picked?.plan == p.plan)),
                     SizedBox(height: 8.h),
                     const ShopLegalNote(),
-                    SizedBox(height: 20.h),
-                    _buildFeaturesList(context),
                     SizedBox(height: 24.h),
+                    _buildFeaturesList(context),
                   ],
                 ),
               ),
@@ -1607,56 +1620,81 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     );
   }
 
+  /// v567 — sélecteur de devise sur toute la largeur : libellé à gauche,
+  /// menu à droite, même gabarit (48 px, coins 16) que « Gérer mon
+  /// abonnement » — les deux lignes s'alignent enfin.
   Widget _buildCurrencyPicker(BuildContext context, SubscriptionController controller) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 48),
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.divider(context)),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          // v566 — garde : une valeur absente de `items` fait planter le
-          // DropdownButton (assert) → on retombe sur la 1re devise proposée.
-          value: controller.supportedCurrencies
-                  .contains(controller.currency.value)
-              ? controller.currency.value
-              : (controller.supportedCurrencies.isNotEmpty
-                  ? controller.supportedCurrencies.first
-                  : null),
-          isDense: true,
-          icon: Icon(Icons.arrow_drop_down, size: 18.sp, color: AppColors.greyText),
-          items: controller.supportedCurrencies
-              .map((c) => DropdownMenuItem<String>(
-                    value: c,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          CurrencyHelper.symbol(c).trim(),
-                          style: TextStyle(
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primaryColor,
-                          ),
+      child: Row(
+        children: [
+          Icon(Icons.public_rounded, size: 18.sp, color: AppColors.greyText),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: InterText(
+              text: 'shop567_currency'.tr,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary(context),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          SizedBox(width: 8.w),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              // v566 — garde : une valeur absente de `items` fait planter le
+              // DropdownButton (assert) → repli sur la 1re devise proposée.
+              value: controller.supportedCurrencies
+                      .contains(controller.currency.value)
+                  ? controller.currency.value
+                  : (controller.supportedCurrencies.isNotEmpty
+                      ? controller.supportedCurrencies.first
+                      : null),
+              isDense: true,
+              borderRadius: BorderRadius.circular(16),
+              icon: Icon(Icons.expand_more_rounded,
+                  size: 18.sp, color: AppColors.greyText),
+              items: controller.supportedCurrencies
+                  .map((c) => DropdownMenuItem<String>(
+                        value: c,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              CurrencyHelper.symbol(c).trim(),
+                              style: TextStyle(
+                                fontSize: 13.sp,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primaryColor,
+                              ),
+                            ),
+                            SizedBox(width: 4.w),
+                            Text(
+                              c,
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary(context),
+                              ),
+                            ),
+                          ],
                         ),
-                        SizedBox(width: 4.w),
-                        Text(
-                          c,
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            color: AppColors.textPrimary(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ))
-              .toList(),
-          onChanged: (v) {
-            if (v != null) controller.setCurrency(v);
-          },
-        ),
+                      ))
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) controller.setCurrency(v);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1702,95 +1740,28 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     // v23.1.278 — Daniel : "la page PawFollow a disparu". BUG : un Row avec
     // CrossAxisAlignment.stretch dans un Column/SingleChildScrollView reçoit
     // une hauteur NON BORNÉE → erreur de layout qui masquait tout le reste de
-    // la page (forfaits). On enveloppe dans IntrinsicHeight pour borner la
-    // hauteur, ainsi les 2 moitiés s'égalisent sans casser le scroll.
-    // v566 — règle release de CLAUDE.md : jamais `Expanded` sous
-    // `IntrinsicHeight` ni `stretch` + `Expanded` dans un scroll. Les deux
-    // moitiés s'égalisent par une hauteur MINIMALE commune (minHeight dans
-    // _statusHalf) au lieu d'un calcul intrinsèque.
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    // la page (forfaits). Règle release de CLAUDE.md : jamais `Expanded` sous
+    // `IntrinsicHeight` ni `stretch` + `Expanded` dans un scroll.
+    // v567 — les 2 moitiés deviennent les MÊMES pastilles d'état que les
+    // 3 autres onglets : un `Wrap` (jamais d'Expanded, jamais de hauteur à
+    // égaliser) qui passe à la ligne en allemand / polonais.
+    return Wrap(
+      spacing: 8.w,
+      runSpacing: 8.h,
       children: [
-        Expanded(
-          child: _statusHalf(
-            context,
-            emoji: '⭐',
-            title: 'PawFollow',
-            active: pawFollowActive,
-            days: pawFollowDays,
-            activeColors: const [Color(0xFF8B5CF6), Color(0xFF7C3AED)], // v354 — PawFollow violet
-          ),
+        ShopStatusPill(
+          label: 'PawFollow',
+          active: pawFollowActive,
+          accent: _violet,
+          days: pawFollowDays,
         ),
-        SizedBox(width: 10.w),
-        Expanded(
-          child: _statusHalf(
-            context,
-            emoji: '👨‍👩‍👧',
-            title: 'PawFamily',
-            active: familyActive,
-            days: familyDays,
-            activeColors: const [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
-          ),
+        ShopStatusPill(
+          label: 'PawFamily',
+          active: familyActive,
+          accent: _violet,
+          days: familyDays,
         ),
       ],
-    );
-  }
-
-  Widget _statusHalf(
-    BuildContext context, {
-    required String emoji,
-    required String title,
-    required bool active,
-    required int days,
-    required List<Color> activeColors,
-  }) {
-    return Container(
-      constraints: BoxConstraints(minHeight: 78.h),
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: active
-              ? activeColors
-              : [Colors.grey.shade300, Colors.grey.shade200],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(emoji, style: TextStyle(fontSize: 18.sp)),
-              SizedBox(width: 6.w),
-              Flexible(
-                child: InterText(
-                  text: title,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w800,
-                  color: active ? Colors.white : AppColors.blackColor,
-                  maxLines: 1,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 4.h),
-          InterText(
-            text: active
-                ? (days > 0
-                    ? 'premium_remaining_days'.trParams({'days': '$days'})
-                    : 'premium_active'.tr)
-                : 'shop_status_inactive'.tr,
-            fontSize: 11.sp,
-            fontWeight: FontWeight.w600,
-            color: active
-                ? Colors.white.withValues(alpha: 0.95)
-                : AppColors.greyText,
-            maxLines: 2,
-          ),
-        ],
-      ),
     );
   }
 
@@ -1806,6 +1777,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
         plusBody: 'shop_pf_plus_body'.tr,
       );
 
+  /// v567 — même gabarit de titre de section que les autres onglets.
   Widget _planSectionHeader(
     BuildContext context, {
     required String emoji,
@@ -1813,32 +1785,11 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     required String subtitle,
     required Color color,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(emoji, style: TextStyle(fontSize: 20.sp)),
-            SizedBox(width: 8.w),
-            Flexible(
-              child: InterText(
-                text: title,
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w800,
-                color: color,
-                maxLines: 1,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 4.h),
-        InterText(
-          text: subtitle,
-          fontSize: 12.sp,
-          color: AppColors.greyText,
-          maxLines: 2,
-        ),
-      ],
+    return ShopSectionTitle(
+      title: title,
+      subtitle: subtitle,
+      color: color,
+      leading: Text(emoji, style: TextStyle(fontSize: 18.sp)),
     );
   }
 
@@ -1991,25 +1942,37 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                 ),
               ),
               SizedBox(width: 8.w),
+              // v567 — colonne de prix alignée à droite, chaque ligne bornée
+              // par un FittedBox (allemand / polonais : « 49,99 CHF »,
+              // « czyli 4,17 zł/mies. »).
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   // v444 — prix d'origine barré quand un code promo % s'applique.
                   if (promoApplies)
-                    Text(
-                      CurrencyHelper.format(plan.currency, plan.amount),
-                      style: TextStyle(
-                        fontSize: 11.5.sp,
-                        color: AppColors.greyText,
-                        decoration: TextDecoration.lineThrough,
-                        decorationColor: AppColors.greyText,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        CurrencyHelper.format(plan.currency, plan.amount),
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 11.5.sp,
+                          color: AppColors.greyText,
+                          decoration: TextDecoration.lineThrough,
+                          decorationColor: AppColors.greyText,
+                        ),
                       ),
                     ),
-                  PoppinsText(
-                    text: _planPriceLabel(plan),
-                    fontSize: 19.sp,
-                    fontWeight: FontWeight.w700,
-                    color: _violet,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: PoppinsText(
+                      text: _planPriceLabel(plan),
+                      fontSize: 19.sp,
+                      fontWeight: FontWeight.w700,
+                      color: _violet,
+                    ),
                   ),
                   InterText(
                     text: isYearly
@@ -2019,14 +1982,18 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                     color: AppColors.greyText,
                   ),
                   if (applePrice == null && isYearly)
-                    InterText(
-                      text: 'v566_shop_equiv_month'.tr.replaceAll(
-                          '{price}',
-                          CurrencyHelper.format(
-                              plan.currency, plan.amount / 12)),
-                      fontSize: 10.sp,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.greyText,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: InterText(
+                        text: 'v566_shop_equiv_month'.tr.replaceAll(
+                            '{price}',
+                            CurrencyHelper.format(
+                                plan.currency, plan.amount / 12)),
+                        fontSize: 10.sp,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.greyText,
+                      ),
                     ),
                   if (promoApplies) ...[
                     SizedBox(height: 4.h),
@@ -2311,7 +2278,6 @@ class _PawSpotTabState extends State<_PawSpotTab>
     with AutomaticKeepAliveClientMixin {
   // Identité PawSpot : empreinte sur dégradé doré.
   static const Color _gold = Color(0xFFE8A00A);
-  static const Color _goldLight = Color(0xFFFFD700);
 
   // Repli EUR tant que GET /pawspots/plans n'a pas répondu (serveur pas
   // encore déployé, réseau). Voir [_loadPlans].
@@ -2702,12 +2668,28 @@ class _PawSpotTabState extends State<_PawSpotTab>
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.all(16.w),
+              // v567 — dégagement barre collante + barre système.
+              padding: EdgeInsets.fromLTRB(
+                  16.w, 16.h, 16.w, shopScrollBottomPadding(context)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeader(context),
-                  SizedBox(height: 14.h),
+                  SizedBox(height: 12.h),
+                  _buildStatusCard(context),
+                  if (_subscribed) ...[
+                    if (ShopExpiryNotice.shouldShow(_remainingDays)) ...[
+                      SizedBox(height: 12.h),
+                      ShopExpiryNotice(days: _remainingDays),
+                    ],
+                    SizedBox(height: 12.h),
+                    ShopManageRow(
+                      accent: const Color(0xFFB45309),
+                      activeUntil: DateTime.tryParse(
+                          (_me['pawspotExpiry'] ?? '').toString()),
+                    ),
+                  ],
+                  SizedBox(height: 16.h),
                   // v556 — gratuit vs abonnement, comme sur les autres onglets.
                   shopValueCard(
                     context,
@@ -2717,39 +2699,26 @@ class _PawSpotTabState extends State<_PawSpotTab>
                     plusTitle: 'shop_ps_plus_title'.tr,
                     plusBody: 'shop_ps_plus_body'.tr,
                   ),
-                  SizedBox(height: 14.h),
-                  _buildStatusCard(context),
-                  if (_subscribed) ...[
-                    if (ShopExpiryNotice.shouldShow(_remainingDays)) ...[
-                      SizedBox(height: 10.h),
-                      ShopExpiryNotice(days: _remainingDays),
-                    ],
-                    SizedBox(height: 10.h),
-                    ShopManageRow(
-                      accent: const Color(0xFFB45309),
-                      activeUntil: DateTime.tryParse(
-                          (_me['pawspotExpiry'] ?? '').toString()),
-                    ),
-                  ],
-                  SizedBox(height: 14.h),
-                  _buildPlanCards(context),
-                  SizedBox(height: 10.h),
-                  const ShopLegalNote(),
-                  SizedBox(height: 12.h),
-                  _buildPlanFeatures(context),
+                  SizedBox(height: 24.h),
+                  ShopSectionTitle(title: 'shop567_choose_plan'.tr),
                   SizedBox(height: 20.h),
+                  _buildPlanCards(context),
+                  SizedBox(height: 12.h),
+                  const ShopLegalNote(),
+                  SizedBox(height: 16.h),
+                  _buildPlanFeatures(context),
+                  SizedBox(height: 24.h),
                   _buildPointsCard(context),
                   // v440/v443 — catalogue de récompenses PawPoints OUVERT
                   // inline (plus de carte « Gagner des points » en doublon,
                   // plus d'anciens badges figés).
-                  SizedBox(height: 14.h),
+                  SizedBox(height: 16.h),
                   _buildRewardsCard(context),
-                  SizedBox(height: 18.h),
+                  SizedBox(height: 20.h),
                   _buildLeaderboardButton(context),
-                  SizedBox(height: 18.h),
+                  SizedBox(height: 20.h),
                   // v488 — légende des types de spots, en bas de l'onglet.
                   _buildSpotTypesLegend(context),
-                  SizedBox(height: 24.h),
                 ],
               ),
             ),
@@ -2835,139 +2804,99 @@ class _PawSpotTabState extends State<_PawSpotTab>
     );
   }
 
-  /// a. Header doré : empreinte 🐾 sur dégradé doré.
+  /// a. Bandeau produit doré — v567 : même gabarit que les 3 autres onglets
+  /// ([ShopHero]). L'icône reste la pièce dorée validée par Daniel.
   Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(18.w),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_gold, _goldLight],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: [
-          BoxShadow(
-            color: _gold.withValues(alpha: 0.30),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // v23.1.362 — Daniel : l'emoji PawSpot DORÉ officiel (pièce or +
-          // patte + pointe-pin) dans la description de la page PawSpot.
-          Container(
-            width: 56.w,
-            height: 56.w,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.25),
-              borderRadius: BorderRadius.circular(16.r),
-            ),
-            child: Center(
-              child: GoldenPawCoin(size: 46.w),
-            ),
-          ),
-          SizedBox(width: 14.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                PoppinsText(
-                  text: 'PawSpot',
-                  fontSize: 19.sp,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-                SizedBox(height: 3.h),
-                InterText(
-                  text: 'pawspot_shop_subtitle'.tr,
-                  fontSize: 12.sp,
-                  color: Colors.white.withValues(alpha: 0.95),
-                  maxLines: 2,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return ShopHero(
+      // v23.1.362 — Daniel : l'emoji PawSpot DORÉ officiel (pièce or +
+      // patte + pointe-pin) dans la description de la page PawSpot.
+      icon: GoldenPawCoin(size: 40.w),
+      title: 'PawSpot',
+      subtitle: 'pawspot_shop_subtitle'.tr,
+      colors: _spotGradient,
     );
   }
 
-  /// b. Carte statut : abonné (jours restants) ou bouton essai gratuit.
+  /// b. État PawSpot — v567 : la MÊME pastille que les 3 autres onglets
+  /// (« PawSpot · Actif · 30 j restants », « Illimité ∞ » au-delà de 10 ans),
+  /// puis l'essai gratuit quand rien n'est actif.
   Widget _buildStatusCard(BuildContext context) {
     if (_subscribed) {
-      return Container(
-        padding: EdgeInsets.all(14.w),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _gold, width: 1.5),
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: ShopStatusPill(
+          label: 'PawSpot',
+          active: true,
+          accent: _gold,
+          days: _remainingDays,
         ),
-        child: Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: _gold, size: 24.sp),
-            SizedBox(width: 10.w),
-            Expanded(
-              child: InterText(
-                text: 'pawspot_active_until'
-                    .trParams({'days': '$_remainingDays'}),
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary(context),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ShopStatusPill(
+          label: 'PawSpot',
+          active: false,
+          accent: _gold,
+        ),
+        SizedBox(height: 12.h),
+        if (_trialUsed)
+          // 409 TRIAL_USED (ou flag du payload) → texte grisé non cliquable.
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(minHeight: 48),
+            alignment: Alignment.center,
+            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+            decoration: BoxDecoration(
+              color: AppColors.divider(context).withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: InterText(
+              text: 'pawspot_trial_used'.tr,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.greyText,
+              maxLines: 2,
+            ),
+          )
+        else
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _trialLoading ? null : _startTrial,
+              icon: _trialLoading
+                  ? SizedBox(
+                      width: 16.w,
+                      height: 16.w,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(Icons.card_giftcard_rounded, size: 18.sp),
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  'pawspot_trial_btn'.tr,
+                  maxLines: 1,
+                  style:
+                      TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700),
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _gold,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                minimumSize: const Size.fromHeight(48),
+                padding: EdgeInsets.symmetric(vertical: 12.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
             ),
-          ],
-        ),
-      );
-    }
-    if (_trialUsed) {
-      // 409 TRIAL_USED (ou flag du payload) → texte grisé non cliquable.
-      return Container(
-        padding: EdgeInsets.symmetric(vertical: 12.h),
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.grey.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14.r),
-        ),
-        child: Center(
-          child: InterText(
-            text: 'pawspot_trial_used'.tr,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w600,
-            color: AppColors.greyText,
           ),
-        ),
-      );
-    }
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: _trialLoading ? null : _startTrial,
-        icon: _trialLoading
-            ? SizedBox(
-                width: 16.w,
-                height: 16.w,
-                child: const CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : Icon(Icons.card_giftcard_rounded, size: 18.sp),
-        label: Text(
-          'pawspot_trial_btn'.tr,
-          style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _gold,
-          foregroundColor: Colors.white,
-          padding: EdgeInsets.symmetric(vertical: 12.h),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14.r),
-          ),
-        ),
-      ),
+      ],
     );
   }
 
@@ -3760,24 +3689,36 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.all(16.w),
+              // v567 — dégagement barre collante + barre système.
+              padding: EdgeInsets.fromLTRB(
+                  16.w, 16.h, 16.w, shopScrollBottomPadding(context)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // v567 — bandeau produit commun aux 4 onglets (noir/or).
+                  ShopHero(
+                    icon: Image.asset('assets/images/pawpremium_logo.png',
+                        width: 34, height: 34),
+                    title: 'Paw Premium',
+                    subtitle: 'premium_bundle_subtitle'.tr,
+                    colors: const [Color(0xFF3A3028), Color(0xFF0F0B08)],
+                    titleColor: const Color(0xFFFFD34D),
+                  ),
+                  SizedBox(height: 12.h),
+                  _buildActiveCard(context),
                   if (_active) ...[
-                    _buildActiveCard(context),
                     if (ShopExpiryNotice.shouldShow(_remainingDays)) ...[
-                      SizedBox(height: 10.h),
+                      SizedBox(height: 12.h),
                       ShopExpiryNotice(days: _remainingDays),
                     ],
-                    SizedBox(height: 10.h),
+                    SizedBox(height: 12.h),
                     ShopManageRow(
                       accent: const Color(0xFFB45309),
                       activeUntil: DateTime.tryParse(
                           (_benefits['premiumExpiry'] ?? '').toString()),
                     ),
-                    SizedBox(height: 14.h),
                   ],
+                  SizedBox(height: 16.h),
                   // v556 — gratuit vs abonnement, comme sur les autres onglets.
                   shopValueCard(
                     context,
@@ -3787,9 +3728,8 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
                     plusTitle: 'shop_pp_plus_title'.tr,
                     plusBody: 'shop_pp_plus_body'.tr,
                   ),
-                  SizedBox(height: 14.h),
-                  _buildShowcaseCard(context),
                   SizedBox(height: 24.h),
+                  _buildShowcaseCard(context),
                 ],
               ),
             ),
@@ -3818,30 +3758,17 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
     );
   }
 
-  /// Carte statut quand le bundle est actif (jours restants).
+  /// État du bundle — v567 : la MÊME pastille que les 3 autres onglets
+  /// (« Paw Premium · Actif · 30 j restants », « Illimité ∞ » au-delà de
+  /// 10 ans au lieu de « Il vous reste 26766 jours »).
   Widget _buildActiveCard(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(14.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _gold, width: 1.5),
-      ),
-      child: Row(
-        children: [
-          Image.asset('assets/images/pawpremium_logo.png',
-              width: 26.w, height: 26.w),
-          SizedBox(width: 10.w),
-          Expanded(
-            child: InterText(
-              text: 'premium_bundle_active_until'
-                  .trParams({'days': '$_remainingDays'}),
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
-            ),
-          ),
-        ],
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ShopStatusPill(
+        label: 'Paw Premium',
+        active: _active,
+        accent: _gold,
+        days: _remainingDays,
       ),
     );
   }
@@ -3884,23 +3811,12 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
             ),
           ),
           SizedBox(height: 16.h),
+          // v567 — le logo, le nom et la phrase sont désormais portés par le
+          // bandeau produit ([ShopHero]) en haut de l'onglet : plus de doublon
+          // dans la carte vitrine, qui garde le ruban, les avantages et les
+          // forfaits.
           Image.asset('assets/images/pawpremium_logo.png',
-              width: 84.w, height: 84.w),
-          SizedBox(height: 10.h),
-          PoppinsText(
-            text: 'Paw Premium',
-            fontSize: 22.sp,
-            fontWeight: FontWeight.w800,
-            color: _goldLight,
-          ),
-          SizedBox(height: 4.h),
-          InterText(
-            text: 'premium_bundle_subtitle'.tr,
-            fontSize: 12.5.sp,
-            color: Colors.white.withValues(alpha: 0.85),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-          ),
+              width: 64.w, height: 64.w),
           SizedBox(height: 12.h),
           // Pill « INCLUT PAWFOLLOW + PAWSPOT »
           Container(
@@ -3947,7 +3863,16 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
           SizedBox(height: 16.h),
           // 6 avantages avec checks dorés
           ..._features(context),
-          SizedBox(height: 18.h),
+          SizedBox(height: 20.h),
+          // v567 — titre de section, comme sur les 3 autres onglets.
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ShopSectionTitle(
+              title: 'shop567_choose_plan'.tr,
+              color: Colors.white,
+            ),
+          ),
+          SizedBox(height: 20.h),
           // 2 cartes prix (mensuel / annuel).
           // v566 — plus de `IntrinsicHeight` + `stretch` + `Expanded` (règle
           // release de CLAUDE.md) : hauteur minimale commune dans _planCard.
@@ -4180,6 +4105,9 @@ Widget shopValueCard(
   required String plusTitle,
   required String plusBody,
 }) {
+  // v567 — les deux colonnes ont la MÊME hauteur minimale : elles se terminent
+  // au même niveau sans `IntrinsicHeight` (interdit avec `Expanded`) ni
+  // `CrossAxisAlignment.stretch` dans un scroll (règles release du projet).
   Widget col({
     required IconData icon,
     required Color tone,
@@ -4189,24 +4117,50 @@ Widget shopValueCard(
   }) {
     return Expanded(
       child: Container(
-        padding: EdgeInsets.all(12.w),
+        // Hauteur plancher COMMUNE aux deux colonnes, exprimée en `.sp` :
+        // elle suit la même échelle que le texte, donc les deux cartes
+        // finissent au même niveau sur petit comme sur grand écran.
+        constraints: BoxConstraints(minHeight: 200.sp),
+        padding: EdgeInsets.all(14.w),
         decoration: BoxDecoration(
           color: filled ? color : color.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
               color: filled ? color : color.withValues(alpha: 0.25)),
+          boxShadow: filled
+              ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.28),
+                    blurRadius: 18,
+                    spreadRadius: -10,
+                    offset: const Offset(0, 10),
+                  ),
+                ]
+              : const <BoxShadow>[],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 18.sp, color: filled ? Colors.white : tone),
-            SizedBox(height: 6.h),
+            Container(
+              width: 32,
+              height: 32,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: filled
+                    ? Colors.white.withValues(alpha: 0.18)
+                    : tone.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 18.sp, color: filled ? Colors.white : tone),
+            ),
+            SizedBox(height: 8.h),
             InterText(
               text: title,
               fontSize: 13.sp,
               fontWeight: FontWeight.w800,
               color: filled ? Colors.white : AppColors.textPrimary(context),
-              maxLines: 1,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
             SizedBox(height: 4.h),
             InterText(
@@ -4216,7 +4170,10 @@ Widget shopValueCard(
               color: filled
                   ? Colors.white.withValues(alpha: 0.92)
                   : AppColors.textSecondary(context),
-              maxLines: 7,
+              // 6 lignes max : le texte le plus long (allemand, Paw Premium)
+              // reste sous la hauteur plancher commune → colonnes à égalité.
+              maxLines: 6,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

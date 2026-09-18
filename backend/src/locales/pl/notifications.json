@@ -418,5 +418,17 @@
     "body": "Udostępniasz swoją lokalizację na żywo od {{hours}} godz. Możesz to zatrzymać w dowolnym momencie z poziomu PawMap.",
     "emailSubject": "Twoje udostępnianie na żywo jest nadal aktywne — HoPetSit",
     "emailBody": "<p>Udostępniasz swoją lokalizację na żywo znajomym od {{hours}} godz. Jeśli tak ma być, nie musisz nic robić; możesz to zatrzymać w dowolnym momencie z poziomu PawMap.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Otwórz PawMap</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link: {{emailLink}}</p>"
+  },
+  "pawspot_validated": {
+    "title": "Twój PawSpot został zatwierdzony 🏆",
+    "body": "Społeczność zatwierdziła „{{spotName}}”. Zyskujesz {{points}} PawPoints, a Twój spot ma złotą łapkę 🐾.",
+    "emailSubject": "Twój PawSpot został zatwierdzony — HoPetSit",
+    "emailBody": "<p>Gratulacje! Społeczność zatwierdziła Twój PawSpot „{{spotName}}”. Od teraz ma złotą łapkę na PawMap i dał Ci {{points}} PawPoints.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz mój spot</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link: {{emailLink}}</p>"
+  },
+  "pawspot_popular": {
+    "title": "Twój PawSpot robi furorę ⭐",
+    "body": "„{{spotName}}” przekroczył 50 ❤️! Zyskujesz {{points}} PawPoints.",
+    "emailSubject": "Twój PawSpot jest bardzo popularny — HoPetSit",
+    "emailBody": "<p>Twój PawSpot „{{spotName}}” przekroczył 50 ❤️: należy do ulubionych miejsc społeczności i dał Ci {{points}} PawPoints.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz mój spot</a></p><p style=\"color:#666;font-size:12px;\">Jeśli przycisk nie działa, skopiuj ten link: {{emailLink}}</p>"
   }
 }

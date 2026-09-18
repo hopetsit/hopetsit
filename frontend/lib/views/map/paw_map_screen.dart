@@ -721,12 +721,15 @@ class _PawMapScreenState extends State<PawMapScreen>
     // golden (avec un ANNEAU à la couleur du TYPE, comme la légende —
     // Daniel : "la pièce dorée juste avec le cercle de couleur"), sinon
     // déclinée dans la couleur du type.
-    final future = golden
-        ? _buildCoinBitmap(
-            typeRing: PawSpotTypes.color(
-                cacheKey.substring('__golden__'.length)),
-          )
-        : _buildCoinBitmap(base: PawSpotTypes.color(cacheKey));
+    // v567 — Daniel : « une plus belle icône pour les PawSpots publiés sur la
+    // carte » → vrai repère de carte (goutte) à la couleur du type, emoji du
+    // type dans un disque blanc ; spot doré = repère noir et or + patte.
+    final String spotType =
+        golden ? cacheKey.substring('__golden__'.length) : cacheKey;
+    final future = _buildSpotPinBitmap(type: spotType, golden: golden)
+        .catchError((Object _) => golden
+            ? _buildCoinBitmap(typeRing: PawSpotTypes.color(spotType))
+            : _buildCoinBitmap(base: PawSpotTypes.color(spotType)));
     future.then((bd) {
       _spotEmojiMarkers[cacheKey] = bd;
       _emojiGenInProgress.remove(genKey);
@@ -1611,6 +1614,134 @@ class _PawMapScreenState extends State<PawMapScreen>
     } catch (_) {
       return null;
     }
+  }
+
+  /// v567 — repère PawSpot « goutte » dessiné à 2× (net sur écrans 3×).
+  /// Pointe en bas = position exacte (ancre 0.5 / 1.0 sur le Marker).
+  Future<BitmapDescriptor> _buildSpotPinBitmap({
+    required String type,
+    required bool golden,
+  }) async {
+    const double w = 64, h = 82;
+    final Color base = PawSpotTypes.color(type);
+    final Color top = golden
+        ? const Color(0xFF3A3028)
+        : Color.lerp(base, Colors.white, 0.28)!;
+    final Color bottom = golden
+        ? const Color(0xFF0F0B08)
+        : Color.lerp(base, Colors.black, 0.18)!;
+    final Color rim = golden ? const Color(0xFFFFD34D) : Colors.white;
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.scale(2, 2);
+
+    Path drop(double cx, double cy, double r, double tipY) {
+      final p = Path();
+      p.moveTo(cx, tipY);
+      p.cubicTo(cx - r * 0.30, tipY - r * 0.62, cx - r * 1.02, cy + r * 0.78,
+          cx - r, cy);
+      p.arcToPoint(Offset(cx + r, cy),
+          radius: Radius.circular(r), clockwise: true);
+      p.cubicTo(cx + r * 1.02, cy + r * 0.78, cx + r * 0.30, tipY - r * 0.62,
+          cx, tipY);
+      p.close();
+      return p;
+    }
+
+    const double cx = 32, cy = 29, r = 25, tipY = 76;
+    // Ombre au sol sous la pointe + ombre portée du repère.
+    canvas.drawOval(
+      Rect.fromCenter(center: const Offset(cx, tipY + 1.5), width: 22, height: 7),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.28)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
+    canvas.drawPath(
+      drop(cx, cy + 2.5, r, tipY + 1),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.22)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.5),
+    );
+    // Liseré (blanc, ou or pour un spot doré) puis corps en dégradé.
+    canvas.drawPath(drop(cx, cy, r + 2.6, tipY + 3), Paint()..color = rim);
+    canvas.drawPath(
+      drop(cx, cy, r, tipY),
+      Paint()
+        ..shader = ui.Gradient.linear(
+          const Offset(cx - r, cy - r),
+          const Offset(cx + r, tipY),
+          [top, bottom],
+        ),
+    );
+    // Reflet en haut à gauche.
+    canvas.save();
+    canvas.clipPath(drop(cx, cy, r, tipY));
+    canvas.drawOval(
+      Rect.fromCenter(center: const Offset(cx - 8, cy - 15), width: 34, height: 20),
+      Paint()..color = Colors.white.withValues(alpha: golden ? 0.10 : 0.24),
+    );
+    canvas.restore();
+    // Disque central.
+    canvas.drawCircle(
+      const Offset(cx, cy + 1),
+      17.5,
+      Paint()..color = Colors.black.withValues(alpha: 0.18)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5),
+    );
+    canvas.drawCircle(
+      const Offset(cx, cy),
+      17.5,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          const Offset(cx - 17, cy - 17),
+          const Offset(cx + 17, cy + 17),
+          golden
+              ? const [Color(0xFFFFE989), Color(0xFFE8A00A)]
+              : const [Colors.white, Color(0xFFF3F1EE)],
+        ),
+    );
+    if (golden) {
+      canvas.drawCircle(
+        const Offset(cx, cy),
+        17.5,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2
+          ..color = const Color(0xFFFFF4C2),
+      );
+    }
+    // Emoji du type (🐾 pour un spot doré).
+    final tp = TextPainter(
+      text: TextSpan(
+        text: golden ? '🐾' : PawSpotTypes.emoji(type),
+        style: const TextStyle(fontSize: 20, height: 1.0),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2 + 0.5));
+    // Étincelle du spot doré.
+    if (golden) {
+      final spark = Paint()..color = const Color(0xFFFFF4C2);
+      Path star(Offset c, double s) => Path()
+        ..moveTo(c.dx, c.dy - s)
+        ..quadraticBezierTo(c.dx, c.dy, c.dx + s, c.dy)
+        ..quadraticBezierTo(c.dx, c.dy, c.dx, c.dy + s)
+        ..quadraticBezierTo(c.dx, c.dy, c.dx - s, c.dy)
+        ..quadraticBezierTo(c.dx, c.dy, c.dx, c.dy - s)
+        ..close();
+      canvas.drawPath(star(const Offset(cx + 19, cy - 19), 6), spark);
+      canvas.drawPath(star(const Offset(cx - 21, cy - 12), 3.5), spark);
+    }
+
+    final img = await recorder
+        .endRecording()
+        .toImage((w * 2).toInt(), (h * 2).toInt());
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    return BitmapDescriptor.bytes(
+      bytes!.buffer.asUint8List(),
+      width: golden ? 50 : 44,
+    );
   }
 
   Future<BitmapDescriptor> _buildCoinBitmap({
@@ -4111,6 +4242,9 @@ class _PawMapScreenState extends State<PawMapScreen>
           Marker(
             markerId: MarkerId('pawspot_${spot.id}'),
             position: LatLng(spot.lat, spot.lng),
+            // v567 — repère « goutte » : la pointe désigne le lieu exact.
+            anchor: const Offset(0.5, 1.0),
+            zIndexInt: spot.isGolden ? 3 : 2,
             icon: spotIcon ??
                 BitmapDescriptor.defaultMarkerWithHue(
                   BitmapDescriptor.hueYellow,
@@ -8052,26 +8186,11 @@ class _PawMapScreenState extends State<PawMapScreen>
       GetStorage().write('pawspot_layer_on', false);
       return;
     }
-    final active = _pawSpotController.pawspotActive.value ||
-        await _pawSpotController.refreshBenefits();
-    if (!active) {
-      CustomSnackbar.showWarning(
-        title: 'pawspot_subscribe_required'.tr,
-        message: 'pawspot_shop_subtitle'.tr,
-      );
-      // v23.1.358 — Daniel : "je prends un abonnement mais ça ne passe pas
-      // en ON". Au RETOUR de la boutique, on re-vérifie les benefits : si
-      // l'abo (ou l'essai 7 j) vient d'être activé → switch ON automatique
-      // + chargement des spots, sans que l'utilisateur ait à re-taper.
-      await Get.to(() => const CoinShopScreen(initialTab: 2));
-      final nowActive = await _pawSpotController.refreshBenefits();
-      if (nowActive && mounted) {
-        _showPawSpots.value = true;
-        GetStorage().write('pawspot_layer_on', true);
-        await _pawSpotController.loadNearby(_currentCenter);
-      }
-      return;
-    }
+    // v567 — VOIR les spots est GRATUIT pour tous (promesse de la boutique
+    // « Gratuit pour tous : voir tous les PawSpots », et le serveur l'autorise
+    // déjà). L'ancien verrou d'abonnement renvoyait à tort vers la boutique ;
+    // seule la création au-delà de 3 tags reste payante (402 côté serveur).
+    unawaited(_pawSpotController.refreshBenefits());
     _showPawSpots.value = true;
     GetStorage().write('pawspot_layer_on', true);
     await _pawSpotController.loadNearby(_currentCenter);

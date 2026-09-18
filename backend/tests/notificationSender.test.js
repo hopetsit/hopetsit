@@ -69,7 +69,7 @@ describe('sendNotification', () => {
     expect(msg.data.notificationId).toBe('64b0000000000000000000aa');
     expect(msg.data.sound).toBe('frog');
     expect(msg.android.priority).toBe('high');
-    expect(msg.android.notification.channelId).toBe('hopetsit_frog');
+    expect(msg.android.notification.channelId).toBe('hopetsit_frog_v2');
     expect(msg.apns.payload.aps.sound).toBe('frog.caf');
     expect(msg.apns.headers['apns-priority']).toBe('10');
     const [to, subject, text, html] = sendEmail.mock.calls[0];
@@ -132,7 +132,7 @@ describe('sendNotification', () => {
     await sendNotification({ userId: mockUser._id, role: 'owner', type: 'booking_new', data: {} });
     const msg = mockSendMulticast.mock.calls[0][0];
     expect(msg.apns.payload.aps.sound).toBeUndefined();
-    expect(msg.android.notification.channelId).toBe('hopetsit_silent');
+    expect(msg.android.notification.channelId).toBe('hopetsit_silent_v2');
   });
 
   test('type sans gabarit → rien n\'est envoyé', async () => {

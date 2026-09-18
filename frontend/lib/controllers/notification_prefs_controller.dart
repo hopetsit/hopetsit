@@ -165,7 +165,9 @@ class NotificationPrefsController extends GetxController {
           await HapticFeedback.vibrate();
           break;
         case 'default':
-          await SystemSound.play(SystemSoundType.alert);
+          // v567 — le son par défaut est un vrai bip moderne (chime).
+          await _player.stop();
+          await _player.play(AssetSource('sounds/chime.m4a'));
           await HapticFeedback.lightImpact();
           break;
         default:

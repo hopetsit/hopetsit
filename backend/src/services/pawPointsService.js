@@ -174,12 +174,54 @@ function isGoldCreator(points) {
 }
 
 /**
- * Crédite des PawPoints (atomique) et retourne le nouveau total À VIE.
- * - ×2 pendant un bundle Paw Premium actif (premiumExpiry futur).
+ * v567 — « Points doublés dans la communauté » (promesse Paw Premium affichée
+ * dans la boutique) : Paw Premium actif sur N'IMPORTE LEQUEL des trois profils
+ * du compte (propriétaire / gardien / promeneur).
+ *
+ * Avant, on ne lisait que l'abonnement du DOCUMENT DE RÔLE actif : un compte
+ * ayant acheté Paw Premium en propriétaire et taguant un spot depuis son profil
+ * promeneur ne voyait PAS ses points doublés (la synchro inter-rôles n'ayant pas
+ * forcément tourné pour ce compte). Même résolution par email que friendRoutes
+ * (« mon frère est Premium mais je le vois en promeneur »).
+ */
+async function hasActivePremiumAnyRole(userId, role) {
+  try {
+    const UserSubscription = require('../models/UserSubscription');
+    const now = new Date();
+    const r = String(role || '').toLowerCase();
+    const userModel = r === 'walker' ? 'Walker' : r === 'sitter' ? 'Sitter' : 'Owner';
+    const own = await UserSubscription.findOne({ userId, userModel })
+      .select('premiumExpiry')
+      .lean();
+    if (own?.premiumExpiry && new Date(own.premiumExpiry) > now) return true;
+    // Profils frères du même compte (même email).
+    const Model = _modelFor(role);
+    const me = await Model.findById(userId).select('email').lean();
+    const email = (me?.email || '').toLowerCase().trim();
+    if (!email) return false;
+    const sibIds = [];
+    for (const M of [Owner, Sitter, Walker]) {
+      const d = await M.findOne({ email }).select('_id').lean();
+      if (d && String(d._id) !== String(userId)) sibIds.push(d._id);
+    }
+    if (!sibIds.length) return false;
+    const sib = await UserSubscription.findOne({
+      userId: { $in: sibIds },
+      premiumExpiry: { $gt: now },
+    }).select('_id').lean();
+    return !!sib;
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Crédite des PawPoints (atomique) et retourne `{ credited, lifetime }`.
+ * - ×2 pendant un bundle Paw Premium actif (premiumExpiry futur, tous rôles).
  * - +bonus% selon le niveau À VIE courant (Expert+).
  * Incrémente pawPoints (à vie) ET pawPointsSpendable (dépensable).
  */
-async function awardPoints({ userId, role, points, reason = '' }) {
+async function awardPointsDetailed({ userId, role, points, reason = '' }) {
   try {
     if (!userId || !points) return null;
     let pts = Number(points) || 0;
@@ -192,19 +234,8 @@ async function awardPoints({ userId, role, points, reason = '' }) {
       lifetime = Number(cur?.pawPoints) || 0;
     } catch (_) { /* defensive */ }
 
-    let doubled = false;
-    try {
-      const UserSubscription = require('../models/UserSubscription');
-      const r = String(role || '').toLowerCase();
-      const userModel = r === 'walker' ? 'Walker' : r === 'sitter' ? 'Sitter' : 'Owner';
-      const sub = await UserSubscription.findOne({ userId, userModel })
-        .select('premiumExpiry')
-        .lean();
-      if (sub?.premiumExpiry && new Date(sub.premiumExpiry) > new Date()) {
-        pts *= 2;
-        doubled = true;
-      }
-    } catch (_) { /* best-effort */ }
+    const doubled = await hasActivePremiumAnyRole(userId, role);
+    if (doubled) pts *= 2;
 
     // Bonus de niveau (Expert +5 %, Ambassadeur+ +10 %, Paw Legend +15 %).
     const bonus = bonusPctFor(lifetime);
@@ -221,9 +252,65 @@ async function awardPoints({ userId, role, points, reason = '' }) {
     logger.info(
       `🐾 [pawPoints] +${pts}${doubled ? ' (×2 Premium)' : ''}${bonus ? ' (+' + bonus + '% niveau)' : ''} → ${role}:${userId} (à vie ${updated.pawPoints}) ${reason ? '— ' + reason : ''}`,
     );
-    return updated.pawPoints;
+    return { credited: pts, lifetime: updated.pawPoints, doubled };
   } catch (e) {
     logger.warn(`[pawPoints] award failed (${reason}): ${e?.message || e}`);
+    return null;
+  }
+}
+
+/** Compat : ancienne signature (retourne le total à vie, ou null). */
+async function awardPoints(args) {
+  const r = await awardPointsDetailed(args);
+  return r ? r.lifetime : null;
+}
+
+/**
+ * v567 — REPRISE de points (suppression d'une contribution). Les deux
+ * compteurs redescendent, plancher à 0, puis les trois profils du compte sont
+ * réalignés. Sans ça, « créer un spot / le supprimer / recommencer » était une
+ * ferme à PawPoints illimitée (le classement et les récompenses à points
+ * n'avaient plus aucun sens).
+ */
+async function revokePoints({ userId, role, points, reason = '' }) {
+  try {
+    const pts = Number(points) || 0;
+    if (!userId || pts <= 0) return null;
+    const Model = _modelFor(role);
+    const cur = await Model.findById(userId)
+      .select('pawPoints pawPointsSpendable')
+      .lean();
+    if (!cur) return null;
+    const lifetime = Math.max(0, (Number(cur.pawPoints) || 0) - pts);
+    const spendable = Math.max(
+      0,
+      (cur.pawPointsSpendable === undefined || cur.pawPointsSpendable === null
+        ? Number(cur.pawPoints) || 0
+        : Number(cur.pawPointsSpendable) || 0) - pts,
+    );
+    await Model.updateOne(
+      { _id: userId },
+      { $set: { pawPoints: lifetime, pawPointsSpendable: spendable } },
+    );
+    // Les profils frères doivent DESCENDRE aussi : syncPointsAcrossRoles prend
+    // le MAX, il ne peut donc pas baisser un solde. On écrit explicitement.
+    try {
+      const me = await Model.findById(userId).select('email').lean();
+      if (me?.email) {
+        await Promise.all(
+          [Owner, Sitter, Walker].map((M) => M.updateOne(
+            { email: me.email },
+            { $set: { pawPoints: lifetime, pawPointsSpendable: spendable } },
+          ).catch(() => {})),
+        );
+      }
+    } catch (_) { /* best-effort */ }
+    logger.info(
+      `🐾 [pawPoints] -${pts} → ${role}:${userId} (à vie ${lifetime}) ${reason ? '— ' + reason : ''}`,
+    );
+    return lifetime;
+  } catch (e) {
+    logger.warn(`[pawPoints] revoke failed (${reason}): ${e?.message || e}`);
     return null;
   }
 }
@@ -298,6 +385,9 @@ module.exports = {
   nextBadgeFor,
   isGoldCreator,
   awardPoints,
+  awardPointsDetailed,
+  revokePoints,
+  hasActivePremiumAnyRole,
   getPoints,
   getPawState,
   syncPointsAcrossRoles,

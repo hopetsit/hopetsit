@@ -418,5 +418,17 @@
     "body": "{{hours}}시간째 실시간 위치를 공유하고 있어요. PawMap에서 언제든지 중지할 수 있어요.",
     "emailSubject": "실시간 공유가 아직 진행 중이에요 — HoPetSit",
     "emailBody": "<p>{{hours}}시간째 친구들과 실시간 위치를 공유하고 있습니다. 의도한 것이라면 아무것도 할 필요가 없으며, PawMap에서 언제든지 중지할 수 있습니다.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">PawMap 열기</a></p><p style=\"color:#666;font-size:12px;\">버튼이 작동하지 않으면 이 링크를 복사해 주세요: {{emailLink}}</p>"
+  },
+  "pawspot_validated": {
+    "title": "내 PawSpot이 인증됐어요 🏆",
+    "body": "커뮤니티가 ‘{{spotName}}’을(를) 인증했어요. {{points}} PawPoints를 받았고 골든 발자국 🐾이 표시됩니다.",
+    "emailSubject": "내 PawSpot이 인증됐어요 — HoPetSit",
+    "emailBody": "<p>축하해요! 커뮤니티가 내 PawSpot ‘{{spotName}}’을(를) 인증했어요. 이제 PawMap에 골든 발자국이 표시되고 {{points}} PawPoints를 받았습니다.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">내 스팟 보기</a></p><p style=\"color:#666;font-size:12px;\">버튼이 작동하지 않으면 이 링크를 복사하세요: {{emailLink}}</p>"
+  },
+  "pawspot_popular": {
+    "title": "내 PawSpot이 인기 폭발 ⭐",
+    "body": "‘{{spotName}}’이(가) 50 ❤️를 넘었어요! {{points}} PawPoints를 받았습니다.",
+    "emailSubject": "내 PawSpot이 아주 인기 있어요 — HoPetSit",
+    "emailBody": "<p>내 PawSpot ‘{{spotName}}’이(가) 50 ❤️를 넘었어요. 커뮤니티가 가장 좋아하는 장소 중 하나이며 {{points}} PawPoints를 받았습니다.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">내 스팟 보기</a></p><p style=\"color:#666;font-size:12px;\">버튼이 작동하지 않으면 이 링크를 복사하세요: {{emailLink}}</p>"
   }
 }
