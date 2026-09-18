@@ -3,9 +3,14 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
+import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// Sprint 7 step 4 — compact "Leave a review" dialog (mutual).
+///
+/// v565 — look modernisé (étoiles grandes + libellé de la note, champ du kit
+/// Profil, bouton couleur du rôle), textes en clés (9 langues).
 ///
 /// Usage:
 ///   await SubmitReviewDialog.show(
@@ -30,7 +35,8 @@ class SubmitReviewDialog extends StatefulWidget {
   }) async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (_) => SubmitReviewDialog(revieweeId: revieweeId, bookingId: bookingId),
+      builder: (_) =>
+          SubmitReviewDialog(revieweeId: revieweeId, bookingId: bookingId),
     );
     return result ?? false;
   }
@@ -40,11 +46,18 @@ class SubmitReviewDialog extends StatefulWidget {
 }
 
 class _SubmitReviewDialogState extends State<SubmitReviewDialog> {
-  final ApiClient _api =
-      Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : ApiClient();
+  final ApiClient _api = Get.isRegistered<ApiClient>()
+      ? Get.find<ApiClient>()
+      : ApiClient();
   final _controller = TextEditingController();
   int _rating = 5;
   bool _busy = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   Future<void> _submit() async {
     if (_busy) return;
@@ -62,92 +75,133 @@ class _SubmitReviewDialogState extends State<SubmitReviewDialog> {
       );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      CustomSnackbar.showError(title: 'common_error', message: e.toString());
+      CustomSnackbar.showError(title: 'common_error'.tr, message: e.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
+  String _ratingLabel() => 'v565_rv_star_$_rating'.tr;
+
   @override
   Widget build(BuildContext context) {
+    // v565 — look modernisé : étoiles grandes et animées, libellé de la note,
+    // champ du kit Profil, bouton plein couleur du rôle.
+    final accent = currentRoleAccent();
+    const star = Color(0xFFF4C04A);
     return Dialog(
       backgroundColor: AppColors.card(context),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-      child: Padding(
-        padding: EdgeInsets.all(24.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Leave a review',
-              style: TextStyle(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary(context),
+      insetPadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 24.h),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(22.w, 22.h, 22.w, 18.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40.w,
+                    height: 40.w,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    child: Icon(
+                      Icons.rate_review_rounded,
+                      color: accent,
+                      size: 20.sp,
+                    ),
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: PoppinsText(
+                      text: 'review_leave_title'.tr,
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary(context),
+                      maxLines: 2,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            SizedBox(height: 20.h),
-            Row(
-              children: List.generate(5, (i) {
-                final starIdx = i + 1;
-                return IconButton(
-                  icon: Icon(
-                    starIdx <= _rating ? Icons.star : Icons.star_border,
-                    color: Colors.amber,
-                  ),
-                  onPressed: () => setState(() => _rating = starIdx),
-                );
-              }),
-            ),
-            SizedBox(height: 12.h),
-            TextField(
-              controller: _controller,
-              maxLength: 500,
-              maxLines: 4,
-              style: TextStyle(color: AppColors.textPrimary(context)),
-              decoration: InputDecoration(
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: BorderSide(color: AppColors.divider(context)),
+              SizedBox(height: 18.h),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(5, (i) {
+                    final starIdx = i + 1;
+                    final filled = starIdx <= _rating;
+                    return GestureDetector(
+                      onTap: _busy
+                          ? null
+                          : () => setState(() => _rating = starIdx),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4.w),
+                        child: AnimatedScale(
+                          scale: filled ? 1.0 : 0.86,
+                          duration: const Duration(milliseconds: 160),
+                          child: Icon(
+                            filled
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            size: 42.sp,
+                            color: filled
+                                ? star
+                                : AppColors.textSecondary(
+                                    context,
+                                  ).withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: BorderSide(color: AppColors.divider(context)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: BorderSide(color: AppColors.primaryColor),
-                ),
-                filled: true,
-                fillColor: AppColors.inputFill(context),
-                hintText: 'Share your experience (optional)',
-                hintStyle: TextStyle(color: AppColors.textSecondary(context)),
               ),
-            ),
-            SizedBox(height: 24.h),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: _busy ? null : () => Navigator.of(context).pop(false),
-                  child: Text(
-                    'Cancel',
-                    style: TextStyle(color: AppColors.textSecondary(context)),
+              SizedBox(height: 6.h),
+              Center(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 160),
+                  child: InterText(
+                    key: ValueKey(_rating),
+                    text: _ratingLabel(),
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                    color: accent,
                   ),
                 ),
-                SizedBox(width: 12.w),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor,
-                    foregroundColor: AppColors.whiteColor,
-                  ),
-                  onPressed: _busy ? null : _submit,
-                  child: Text(_busy ? 'Sending...' : 'Submit'),
-                ),
-              ],
-            ),
-          ],
+              ),
+              SizedBox(height: 16.h),
+              ProfileInput(
+                label: '',
+                controller: _controller,
+                accent: accent,
+                hint: 'v565_rv_hint'.tr,
+                maxLength: 500,
+                maxLines: 4,
+                textCapitalization: TextCapitalization.sentences,
+                enabled: !_busy,
+              ),
+              SizedBox(height: 18.h),
+              ProfilePrimaryButton(
+                label: 'review_leave_submit'.tr,
+                accent: accent,
+                icon: Icons.send_rounded,
+                loading: _busy,
+                onTap: _busy ? null : _submit,
+              ),
+              SizedBox(height: 6.h),
+              ProfileSecondaryButton(
+                label: 'common_cancel'.tr,
+                accent: AppColors.greyText,
+                onTap: _busy ? null : () => Navigator.of(context).pop(false),
+              ),
+            ],
+          ),
         ),
       ),
     );

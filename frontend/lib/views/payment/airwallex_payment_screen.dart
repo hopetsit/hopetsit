@@ -302,18 +302,19 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
       child: Scaffold(
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
+        backgroundColor: AppColors.scaffold(context),
         elevation: 0,
-        scrolledUnderElevation: 0.5,
+        scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: accent),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20.sp, color: accent),
           onPressed: () async {
             await _voidIntentIfNeeded();
             if (mounted) Get.back();
           },
         ),
+        centerTitle: true,
         title: PoppinsText(
           text: 'payment_title'.tr,
           fontSize: 18.sp,
@@ -328,56 +329,125 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
       // fails/cancels, we pop this screen automatically (in _onPayTap).
       // The user never sees the recap any more — Daniel asked to keep
       // only "page 11" (HPP) and "page 13" (success).
+      // v565 (point 28) — en-tête clair pendant la connexion à la page
+      // sécurisée : montant, prestataire / service / date, moyen de paiement,
+      // état, et un bouton « Annuler le paiement » (avant : seule la flèche
+      // retour permettait de sortir du loader).
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 32.w),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 80.w,
-                  height: 80.w,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(Icons.lock_rounded, size: 36.sp, color: accent),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 12.h),
+                child: Column(
+                  children: [
+                    SizedBox(height: 12.h),
+                    Container(
+                      width: 80.w,
+                      height: 80.w,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(Icons.lock_rounded, size: 36.sp, color: accent),
+                    ),
+                    SizedBox(height: 16.h),
+                    PoppinsText(
+                      text: 'v565_pay_secure_title'.tr,
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary(context),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 4.h),
+                    PoppinsText(
+                      text: CurrencyHelper.format(currency, widget.totalAmount),
+                      fontSize: 30.sp,
+                      fontWeight: FontWeight.w800,
+                      color: accent,
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 18.h),
+                    _buildSummaryCard(context, accent, currency),
+                    SizedBox(height: 12.h),
+                    Container(
+                      padding: EdgeInsets.all(14.w),
+                      decoration: BoxDecoration(
+                        color: AppColors.card(context),
+                        borderRadius: BorderRadius.circular(16.r),
+                        boxShadow: AppColors.cardShadow(context),
+                      ),
+                      child: Column(
+                        children: [
+                          _summaryRow(
+                            context,
+                            icon: Icons.credit_card_rounded,
+                            label: 'v565_pay_method_label'.tr,
+                            value: 'v565_pay_method_card'.tr,
+                          ),
+                          SizedBox(height: 12.h),
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: 18.w,
+                                height: 18.w,
+                                child: CircularProgressIndicator(
+                                    color: accent, strokeWidth: 2.4),
+                              ),
+                              SizedBox(width: 10.w),
+                              Expanded(
+                                child: InterText(
+                                  text: 'payment_connecting'.tr,
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary(context),
+                                  maxLines: 2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 12.h),
+                    _buildInfoBanner(context, accent),
+                    SizedBox(height: 8.h),
+                    InterText(
+                      text: 'payment_secured_by_airwallex'.tr,
+                      fontSize: 11.5.sp,
+                      color: AppColors.textSecondary(context),
+                      textAlign: TextAlign.center,
+                      height: 1.4,
+                      maxLines: 4,
+                    ),
+                  ],
                 ),
-                SizedBox(height: 24.h),
-                SizedBox(
-                  width: 32.w,
-                  height: 32.w,
-                  child: CircularProgressIndicator(color: accent, strokeWidth: 3),
-                ),
-                SizedBox(height: 24.h),
-                PoppinsText(
-                  text: 'payment_connecting'.tr,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary(context),
-                ),
-                SizedBox(height: 8.h),
-                PoppinsText(
-                  text: '${widget.totalAmount.toStringAsFixed(2)} ${currency.toUpperCase()}',
-                  fontSize: 22.sp,
-                  fontWeight: FontWeight.w700,
-                  color: accent,
-                ),
-                SizedBox(height: 16.h),
-                Text(
-                  'payment_secured_by_airwallex'.tr,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    color: AppColors.textSecondary(context),
-                    height: 1.4,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(20.w, 4.h, 20.w, 12.h),
+              child: Obx(() => TextButton(
+                    onPressed: _controller.isProcessing.value
+                        ? null
+                        : () => _onCancelTap(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: accent,
+                      minimumSize: Size(double.infinity, 46.h),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16.r)),
+                    ),
+                    child: PoppinsText(
+                      text: 'v565_pay_cancel_payment'.tr,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w700,
+                      color: _controller.isProcessing.value
+                          ? AppColors.textSecondary(context)
+                          : accent,
+                    ),
+                  )),
+            ),
+          ],
         ),
       ),
     ),
@@ -763,7 +833,10 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
                     ),
                     if (expM != null && expY != null)
                       InterText(
-                        text: 'Exp $expM/$expY',
+                        text: 'v565_pay_expires'.trParams({
+                          'mm': expM.toString().padLeft(2, '0'),
+                          'yy': expY.toString(),
+                        }),
                         fontSize: 10.sp,
                         color: AppColors.textSecondary(context),
                       ),

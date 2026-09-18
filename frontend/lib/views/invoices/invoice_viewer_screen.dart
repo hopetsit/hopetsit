@@ -5,6 +5,9 @@
 // address bar. From the user's perspective the invoice now feels native to
 // HoPetSit : a branded app bar, no URL visible, and a bottom-right floating
 // button that triggers the in-page `window.print()` for save-as-PDF.
+//
+// v565 (point 28) — barre claire couleur du rôle, bouton bas « Télécharger
+// le PDF », état d'erreur de chargement avec « Réessayer », anti double-tap.
 
 import 'dart:io';
 
@@ -14,6 +17,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/models/invoice_model.dart';
 import 'package:hopetsit/services/invoice_pdf_generator.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:http/http.dart' as http;
@@ -43,6 +47,11 @@ class InvoiceViewerScreen extends StatefulWidget {
 class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
   late final WebViewController _controller;
   bool _loading = true;
+  // v565 — état d'erreur de chargement de la page (WebView) avec « Réessayer ».
+  bool _loadFailed = false;
+  bool _sharing = false;
+
+  Color get _accent => currentRoleAccent();
 
   @override
   void initState() {
@@ -51,8 +60,26 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.white)
       ..setNavigationDelegate(NavigationDelegate(
+        onPageStarted: (_) {
+          if (mounted) {
+            setState(() {
+              _loading = true;
+              _loadFailed = false;
+            });
+          }
+        },
         onPageFinished: (_) {
           if (mounted) setState(() => _loading = false);
+        },
+        onWebResourceError: (err) {
+          // Seule l'erreur du document principal compte (pas une image).
+          if (err.isForMainFrame == false) return;
+          if (mounted) {
+            setState(() {
+              _loading = false;
+              _loadFailed = true;
+            });
+          }
         },
       ))
       // v23.1 part 65 — Bug 7 : the orange "⬇ Télécharger PDF" buttons
@@ -71,6 +98,14 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
       ..loadRequest(Uri.tryParse(widget.url) ?? Uri.parse('about:blank'));
   }
 
+  void _reload() {
+    setState(() {
+      _loading = true;
+      _loadFailed = false;
+    });
+    _controller.loadRequest(Uri.tryParse(widget.url) ?? Uri.parse('about:blank'));
+  }
+
   // v23.1 part 73 — Bug : "facture se telecharge en htlm elle peux pas
   // se telecharger directement en pdf sur le tel".
   // We now generate a real PDF locally on the phone using the `pdf`
@@ -79,6 +114,8 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
   // the phone temp dir, opened via the system Share sheet so the user
   // can save to Files / Drive / email — opens with any PDF viewer.
   Future<void> _triggerPrint() async {
+    if (_sharing) return;
+    if (mounted) setState(() => _sharing = true);
     try {
       CustomSnackbar.showInfo(
         title: 'invoice_download_preparing_title'.tr,
@@ -129,6 +166,8 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
           );
         }
       }
+    } finally {
+      if (mounted) setState(() => _sharing = false);
     }
   }
 
@@ -145,31 +184,38 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final accent = _accent;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: AppColors.primaryColor,
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.scaffold(context),
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        centerTitle: true,
+        iconTheme: IconThemeData(color: accent),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20.sp, color: accent),
           onPressed: () => Get.back(),
         ),
         title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             PoppinsText(
               text: 'invoice_viewer_title'.tr,
               fontSize: 16.sp,
               fontWeight: FontWeight.w700,
-              color: Colors.white,
+              color: AppColors.textPrimary(context),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             if (widget.invoiceNumber.isNotEmpty)
               InterText(
                 text: widget.invoiceNumber,
                 fontSize: 11.sp,
-                color: Colors.white.withValues(alpha: 0.8),
+                color: AppColors.textSecondary(context),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
           ],
         ),
@@ -182,21 +228,55 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
         actions: [
           IconButton(
             tooltip: 'invoice_save_to_files'.tr,
-            icon: const Icon(Icons.save_alt, color: Colors.white),
-            onPressed: _saveToFiles,
+            icon: Icon(Icons.ios_share_rounded, color: accent),
+            onPressed: _sharing ? null : _saveToFiles,
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          WebViewWidget(controller: _controller),
-          if (_loading)
-            const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primaryColor,
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            Expanded(
+              child: Stack(
+                children: [
+                  WebViewWidget(controller: _controller),
+                  if (_loading && !_loadFailed)
+                    Container(
+                      color: Colors.white,
+                      alignment: Alignment.center,
+                      child: CircularProgressIndicator(color: accent),
+                    ),
+                  if (_loadFailed)
+                    Container(
+                      color: AppColors.scaffold(context),
+                      child: ProfileEmptyState(
+                        icon: Icons.cloud_off_rounded,
+                        title: 'v565_pay_load_error_title'.tr,
+                        message: 'v565_pay_invoice_load_error'.tr,
+                        accent: accent,
+                        error: true,
+                        actionLabel: 'common_retry'.tr,
+                        onAction: _reload,
+                      ),
+                    ),
+                ],
               ),
             ),
-        ],
+            // v565 — bouton bas explicite « Télécharger le PDF » (le partage
+            // OS propose Enregistrer dans Fichiers / Drive / e-mail).
+            Padding(
+              padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 12.h),
+              child: ProfilePrimaryButton(
+                label: 'v565_pay_invoice_download_pdf'.tr,
+                accent: accent,
+                icon: Icons.picture_as_pdf_rounded,
+                loading: _sharing,
+                onTap: _sharing ? null : _saveToFiles,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

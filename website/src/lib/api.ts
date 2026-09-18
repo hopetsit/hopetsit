@@ -125,6 +125,8 @@ async function request<T>(
       ? { "Content-Type": "application/json" }
       : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    // v565 — le serveur exige la ville à l'inscription pour « web » / build ≥ 565.
+    "X-App-Version": "web",
     ...((init.headers as Record<string, string>) || {}),
   };
   let res: Response;
@@ -192,7 +194,11 @@ export async function signup(input: {
   email: string;
   password: string;
   role: AuthRole;
-}): Promise<{ needsVerification: boolean; email: string; token?: string; user?: AuthUser }> {
+  // v565 audit-inscription — ville OBLIGATOIRE (ville plate, sans GPS) et
+  // langue du site → e-mail de vérification dans la bonne langue + appLocale.
+  city?: string;
+  lang?: string;
+}): Promise<{ needsVerification: boolean; email: string; token?: string; user?: AuthUser; emailVerified?: boolean }> {
   // The /auth/signup contract requires `{ role, user: {...} }` (and accepts
   // optional fields like mobile, countryCode, currency that we don't collect
   // from the website — the mobile app fills those later in the onboarding).
@@ -203,6 +209,8 @@ export async function signup(input: {
       email: input.email,
       password: input.password,
       acceptedTerms: true,
+      ...(input.city ? { city: input.city, location: { city: input.city } } : {}),
+      ...(input.lang ? { language: input.lang, appLocale: input.lang } : {}),
     },
   };
   // v402 — le backend /auth/signup crée le compte avec verified:false et NE
@@ -212,24 +220,26 @@ export async function signup(input: {
   // code). On renvoie donc needsVerification → la page d'inscription redirige
   // vers /verify-email. Si un jour le backend renvoie un token (auto-login),
   // on le gère aussi.
-  const raw = await request<Partial<AuthRaw> & { message?: string }>(
+  const raw = await request<Partial<AuthRaw> & { message?: string; emailVerified?: boolean }>(
     "/auth/signup",
     { method: "POST", body: JSON.stringify(body) },
   );
   if (raw && raw.token) {
     const data = normalizeAuthResponse(raw as AuthRaw);
     persistAuth(data.token, data.user);
-    return { needsVerification: false, email: input.email, token: data.token, user: data.user };
+    return { needsVerification: false, email: input.email, token: data.token, user: data.user, emailVerified: raw.emailVerified !== false };
   }
   return { needsVerification: true, email: input.email };
 }
 
 // v402 — vérification d'email depuis le SITE (parité app). Le backend renvoie
 // un JWT seulement APRÈS vérification du code 6 chiffres reçu par email.
-export async function verifyEmail(email: string, code: string) {
+export async function verifyEmail(email: string, code: string, role?: AuthRole) {
+  // v565 — `role` : le jeton est émis pour le profil qui vient de s'inscrire
+  // (sinon le serveur prend le premier rôle trouvé, owner > sitter > walker).
   const raw = await request<AuthRaw>(
     `/auth/verify?email=${encodeURIComponent(email)}`,
-    { method: "POST", body: JSON.stringify({ code: code.trim() }) },
+    { method: "POST", body: JSON.stringify({ code: code.trim(), ...(role ? { role } : {}) }) },
   );
   const data = normalizeAuthResponse(raw);
   persistAuth(data.token, data.user);
@@ -263,12 +273,22 @@ export async function switchRole(targetRole: AuthRole) {
  * HoPetSit JWT. Backend creates the user under `defaultRole` if it's the
  * first time this email signs in; otherwise the existing role is kept.
  */
-export async function googleSignIn(idToken: string, defaultRole: AuthRole = "owner") {
+// v565 audit-inscription — `user` (ville, langue) n'est lu par le serveur que
+// pour un NOUVEAU compte Google : ville plate + e-mails dans la langue du site.
+export async function googleSignIn(idToken: string, defaultRole: AuthRole = "owner", user?: { city?: string; lang?: string }) {
+  const extra = user
+    ? {
+        user: {
+          ...(user.city ? { city: user.city, location: { city: user.city } } : {}),
+          ...(user.lang ? { language: user.lang, appLocale: user.lang } : {}),
+        },
+      }
+    : {};
   const raw = await request<AuthRaw>(
     "/auth/google",
     {
       method: "POST",
-      body: JSON.stringify({ idToken, role: defaultRole }),
+      body: JSON.stringify({ idToken, role: defaultRole, ...extra }),
     },
   );
   const data = normalizeAuthResponse(raw);
@@ -2416,6 +2436,20 @@ export async function checkPromo(code: string): Promise<PromoCheck> {
     method: "POST",
     body: JSON.stringify({ code }),
   });
+}
+
+// v565 — code promo « du moment » poussé par l'admin (GET /app-config/public-promo,
+// auth) : pré-rempli dans la boîte promo du site. Silencieux si absent / erreur.
+export type PublicPromo = { code: string; enabled: boolean; message?: string };
+export async function getPublicPromo(): Promise<PublicPromo | null> {
+  try {
+    const raw = await request<Partial<PublicPromo>>("/app-config/public-promo");
+    const code = String(raw?.code || "").trim().toUpperCase();
+    if (!code || raw?.enabled === false) return null;
+    return { code, enabled: true, message: raw?.message ? String(raw.message) : undefined };
+  } catch {
+    return null;
+  }
 }
 
 // Échange un code promo (consomme la redemption). free_subscription est accordé

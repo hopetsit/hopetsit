@@ -1092,6 +1092,16 @@ const switchRole = async (req, res) => {
       countryCode: userData.countryCode || '',
       password: originalPasswordHash, // Include password for validation, will be restored after create
       language: userData.language || '',
+      // v565 audit-inscription — le profil créé par « Activer » perdait la
+      // ville plate, le pays, la langue des e-mails et la date de naissance
+      // (→ « ville ? » dans l'admin, e-mails en anglais). insertOne() ne
+      // passe pas par Mongoose : les timestamps sont posés à la main.
+      city: (userData.city || userData.location?.city || '').toString().trim(),
+      country: (userData.country || '').toString().toUpperCase().trim(),
+      appLocale: userData.appLocale || '',
+      dateOfBirth: userData.dateOfBirth || '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
       address: userData.address || '',
       currency: userData.currency || DEFAULT_CURRENCY,
       bio: userData.bio || '',

@@ -104,6 +104,18 @@ class AuthController extends GetxController {
   final RxList<String> availableRoles = <String>[].obs;
   bool _isShowingPayPalPrompt = false;
 
+  /// v565 audit-inscription — `emailVerified` de la DERNIÈRE réponse /auth/login
+  /// (le login accepte les comptes non vérifiés depuis v535 : l'écran de code
+  /// s'en sert pour savoir si le lien de l'e-mail a déjà validé le compte).
+  bool lastLoginEmailVerified = true;
+
+  /// v565 audit-inscription — fournisseur social en attente d'un rôle.
+  /// AVANT : un NOUVEL utilisateur Google/Apple recevait 400 ROLE_REQUIRED →
+  /// écran « S'inscrire en tant que » → le rôle choisi ouvrait le wizard
+  /// e-mail + mot de passe : l'inscription Google/Apple n'aboutissait JAMAIS.
+  /// Désormais le choix du rôle (+ ville obligatoire) relance le fournisseur.
+  String? pendingSocialProvider;
+
   @override
   void onInit() {
     super.onInit();
@@ -163,6 +175,12 @@ class AuthController extends GetxController {
           details: response,
         );
       }
+      // v565 — état de vérification renvoyé par le serveur (cf. lastLoginEmailVerified).
+      final ev = response['emailVerified'];
+      final u = response['user'];
+      lastLoginEmailVerified = ev is bool
+          ? ev
+          : (u is Map && u['verified'] is bool ? u['verified'] as bool : true);
 
       // Save token
       // v23.1 part 125 — Phase 2 audit C4 : JWT écrit dans Keystore Android
@@ -346,7 +364,13 @@ class AuthController extends GetxController {
 
   /// [role] When provided (e.g. from sign up screen), sends this role to the backend
   /// for new user creation. Use 'owner' or 'sitter'. If null, uses stored userRole.
-  Future<void> loginWithGoogle({String? role}) async {
+  Future<void> loginWithGoogle({
+    String? role,
+    String? city,
+    double? lat,
+    double? lng,
+    String? country,
+  }) async {
     _authProvider = 'google';
     try {
       // v23.1 part 200 — flag indépendant Google (cf. déclaration plus haut)
@@ -426,6 +450,13 @@ class AuthController extends GetxController {
         response = await _authRepository.googleSignInWithIdToken(
           idToken: firebaseIdToken,
           role: (roleToSend != null && roleToSend.isNotEmpty) ? roleToSend : null,
+          user: _socialUserPayload(
+            name: firebaseUser?.displayName,
+            city: city,
+            lat: lat,
+            lng: lng,
+            country: country,
+          ),
         );
       } on ApiException catch (e) {
         // v23.1 part 137 — 400 ROLE_REQUIRED → l'utilisateur est nouveau,
@@ -437,6 +468,8 @@ class AuthController extends GetxController {
             (e.details is Map &&
                 ((e.details as Map)['code'] == 'ROLE_REQUIRED'));
         if (isRoleRequired) {
+          // v565 — nouvel utilisateur : le choix du rôle relancera Google.
+          pendingSocialProvider = 'google';
           CustomSnackbar.showInfo(
             title: 'auth_google_signin_title'.tr,
             message: 'auth_choose_account_type_msg'.tr,
@@ -450,6 +483,7 @@ class AuthController extends GetxController {
       }
 
       // Backend may return success with token/role/user without a "success" key
+      pendingSocialProvider = null; // v565 — rôle résolu ou compte existant
       final backendToken = _extractToken(response);
       final isSuccess =
           (response["success"] == true) ||
@@ -651,6 +685,36 @@ class AuthController extends GetxController {
     return sha256.convert(utf8.encode(input)).toString();
   }
 
+  String? _lastAppleName;
+
+  /// v565 — profil de création envoyé à /auth/google et /auth/apple (lu par
+  /// le serveur seulement pour un NOUVEAU compte) : nom, ville obligatoire,
+  /// coordonnées, pays, langue de l'UI (e-mails/notifs dans la bonne langue).
+  Map<String, dynamic> _socialUserPayload({
+    String? name,
+    String? city,
+    double? lat,
+    double? lng,
+    String? country,
+  }) {
+    final lang = LocalizationService.getCurrentLanguageCode();
+    final m = <String, dynamic>{
+      'appLocale': lang,
+      'language': lang,
+    };
+    if (name != null && name.trim().isNotEmpty) m['name'] = name.trim();
+    if (city != null && city.trim().isNotEmpty) {
+      m['city'] = city.trim();
+      m['location'] = lat != null && lng != null
+          ? {'lat': lat, 'lng': lng, 'city': city.trim()}
+          : {'city': city.trim()};
+    }
+    if (country != null && country.trim().isNotEmpty) {
+      m['country'] = country.trim().toUpperCase();
+    }
+    return m;
+  }
+
   /// v523 — Daniel : « avec le même compte, si je me connecte d'un Android
   /// ou d'un iPhone, ma photo de profil disparaît et réapparaît ». CAUSE :
   /// certaines réponses de connexion (Apple surtout — Apple ne fournit
@@ -717,7 +781,13 @@ class AuthController extends GetxController {
     } catch (_) {/* non bloquant */}
   }
 
-  Future<void> loginWithApple({String? role}) async {
+  Future<void> loginWithApple({
+    String? role,
+    String? city,
+    double? lat,
+    double? lng,
+    String? country,
+  }) async {
     _authProvider = 'apple';
     try {
       // v23.1 part 200 — flag indépendant Apple
@@ -749,6 +819,19 @@ class AuthController extends GetxController {
       );
 
       final String? appleIdToken = appleCredential.identityToken;
+      // v565 — Apple ne donne le prénom/nom QU'AU PREMIER consentement et ne
+      // le met jamais dans le jeton : on le mémorise et on l'envoie au serveur
+      // (avant : compte nommé « abc123 » = préfixe de l'adresse privaterelay).
+      final appleName = [appleCredential.givenName, appleCredential.familyName]
+          .where((p) => p != null && p.trim().isNotEmpty)
+          .join(' ')
+          .trim();
+      if (appleName.isNotEmpty) {
+        _lastAppleName = appleName;
+        try {
+          await _storage.write('apple_signin_name', appleName);
+        } catch (_) {/* non bloquant */}
+      }
       if (appleIdToken == null || appleIdToken.isEmpty) {
         CustomSnackbar.showError(
           title: 'auth_apple_signin_failed',
@@ -789,12 +872,22 @@ class AuthController extends GetxController {
         response = await _authRepository.appleSignInWithIdToken(
           idToken: firebaseIdToken,
           role: (roleToSend != null && roleToSend.isNotEmpty) ? roleToSend : null,
+          user: _socialUserPayload(
+            name: _lastAppleName ??
+                (_storage.read('apple_signin_name') ?? '').toString(),
+            city: city,
+            lat: lat,
+            lng: lng,
+            country: country,
+          ),
         );
       } on ApiException catch (e) {
         final isRoleRequired = e.statusCode == 400 &&
             (e.details is Map &&
                 ((e.details as Map)['code'] == 'ROLE_REQUIRED'));
         if (isRoleRequired) {
+          // v565 — nouvel utilisateur : le choix du rôle relancera Apple.
+          pendingSocialProvider = 'apple';
           CustomSnackbar.showInfo(
             title: 'auth_apple_signin_title'.tr,
             message: 'auth_choose_account_type_msg'.tr,
@@ -805,6 +898,7 @@ class AuthController extends GetxController {
         rethrow;
       }
 
+      pendingSocialProvider = null; // v565 — rôle résolu ou compte existant
       final backendToken = _extractToken(response);
       final isSuccess =
           (response['success'] == true) ||

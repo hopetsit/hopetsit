@@ -5,8 +5,11 @@ import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
-import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/service_type_translator.dart';
+import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
+import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:intl/intl.dart';
 
@@ -14,6 +17,9 @@ import 'package:intl/intl.dart';
 /// Montre les bookings dont le payment est confirmé, avec date, owner, montant
 /// net (80% du total) et statut de versement (held / paid). Peut être ouvert
 /// depuis PaymentManagementScreen (sitter et walker).
+///
+/// v565 (point 28) — kit Profil / Réservations : total net en tête, états
+/// chargement / vide / erreur avec « Réessayer », pastille de statut.
 class ProviderPayoutHistoryScreen extends StatefulWidget {
   const ProviderPayoutHistoryScreen({super.key});
 
@@ -25,7 +31,11 @@ class ProviderPayoutHistoryScreen extends StatefulWidget {
 class _ProviderPayoutHistoryScreenState
     extends State<ProviderPayoutHistoryScreen> {
   bool _loading = true;
+  // v565 — état d'erreur explicite (avant : catch silencieux → « vide »).
+  String? _error;
   List<BookingModel> _bookings = const [];
+
+  Color get _accent => currentRoleAccent();
 
   @override
   void initState() {
@@ -34,7 +44,10 @@ class _ProviderPayoutHistoryScreenState
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final role = Get.isRegistered<AuthController>()
           ? (Get.find<AuthController>().userRole.value ?? 'sitter').toLowerCase()
@@ -63,69 +76,105 @@ class _ProviderPayoutHistoryScreenState
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         _loading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _error = paymentErrorMessage(e);
+      });
     }
   }
 
+  double get _totalNet => _bookings.fold<double>(0, (s, b) => s + _net(b));
+
+  double _net(BookingModel booking) =>
+      booking.pricing?.netAmount ??
+      ((booking.totalAmount ?? booking.basePrice ?? 0) * 0.8);
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: AppColors.primaryColor),
-        leading: const BackButton(),
-        title: PoppinsText(
-          text: 'payment_history_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
-        ),
+    final accent = _accent;
+    return ProfileSubPageScaffold(
+      title: 'payment_history_title'.tr,
+      accent: accent,
+      scroll: false,
+      padding: EdgeInsets.zero,
+      body: RefreshIndicator(
+        color: accent,
+        onRefresh: _load,
+        child: _loading
+            ? BookingLoadingList(accent: accent)
+            : _error != null
+                ? BookingErrorState(message: _error!, onRetry: _load)
+                : _bookings.isEmpty
+                    ? BookingEmptyState(
+                        icon: Icons.receipt_long_rounded,
+                        title: 'payment_history_empty'.tr,
+                        subtitle: 'v565_pay_payout_hint'.tr,
+                        accent: accent,
+                      )
+                    : ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 28.h),
+                        children: [
+                          _summaryCard(accent),
+                          SizedBox(height: 14.h),
+                          ProfileGroupCard(
+                            children: _bookings.map(_buildTile).toList(),
+                          ),
+                        ],
+                      ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _bookings.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24.w),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.receipt_long_rounded,
-                            size: 48.sp, color: AppColors.greyColor),
-                        SizedBox(height: 12.h),
-                        InterText(
-                          text: 'payment_history_empty'.tr,
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.textSecondary(context),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.builder(
-                    padding: EdgeInsets.all(16.w),
-                    itemCount: _bookings.length,
-                    itemBuilder: (context, i) => _buildTile(_bookings[i]),
-                  ),
-                ),
+    );
+  }
+
+  Widget _summaryCard(Color accent) {
+    final currency = _bookings.isNotEmpty
+        ? (_bookings.first.pricing?.currency ?? _bookings.first.sitter.currency)
+        : 'EUR';
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 18.h),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [accent, accent.withValues(alpha: 0.78)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22.r),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.28),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InterText(
+            text: '${'v565_pay_net_label'.tr} · ${'v565_pay_payments_count'.trParams({'count': _bookings.length.toString()})}',
+            fontSize: 12.5.sp,
+            fontWeight: FontWeight.w600,
+            color: Colors.white.withValues(alpha: 0.92),
+          ),
+          SizedBox(height: 6.h),
+          PoppinsText(
+            text: CurrencyHelper.format(currency, _totalNet),
+            fontSize: 30.sp,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildTile(BookingModel booking) {
     final currency =
         booking.pricing?.currency ?? booking.sitter.currency;
-    final net = booking.pricing?.netAmount ??
-        ((booking.totalAmount ?? booking.basePrice ?? 0) * 0.8);
+    final net = _net(booking);
     String createdDate = '';
     try {
       createdDate =
@@ -134,57 +183,34 @@ class _ProviderPayoutHistoryScreenState
     } catch (_) {
       createdDate = booking.createdAt;
     }
+    final service = translateServiceType(booking.serviceType);
+    final subtitle = [
+      if (service.isNotEmpty) service,
+      if (createdDate.isNotEmpty) createdDate,
+    ].join(' · ');
 
-    return Container(
-      margin: EdgeInsets.only(bottom: 10.h),
-      padding: EdgeInsets.all(14.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(12.r),
-        boxShadow: AppColors.cardShadow(context),
-      ),
-      child: Row(
+    return ProfileRow(
+      icon: Icons.check_circle_rounded,
+      color: const Color(0xFF16A34A),
+      title: booking.owner.name.isNotEmpty
+          ? booking.owner.name
+          : booking.petName,
+      subtitle: subtitle,
+      showChevron: false,
+      trailing: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 42.w,
-            height: 42.w,
-            decoration: BoxDecoration(
-              color: Colors.teal.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10.r),
-            ),
-            child: Icon(Icons.check_circle_rounded,
-                size: 22.sp, color: Colors.teal),
-          ),
-          SizedBox(width: 12.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                PoppinsText(
-                  text: booking.owner.name.isNotEmpty
-                      ? booking.owner.name
-                      : booking.petName,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary(context),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 2.h),
-                InterText(
-                  text: createdDate,
-                  fontSize: 11.sp,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.textSecondary(context),
-                ),
-              ],
-            ),
-          ),
           PoppinsText(
-            text: CurrencyHelper.format(currency, net),
+            text: '+${CurrencyHelper.format(currency, net)}',
             fontSize: 14.sp,
-            fontWeight: FontWeight.w700,
-            color: Colors.teal,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF16A34A),
+          ),
+          BookingStatusChip(
+            status: booking.status,
+            paymentStatus: booking.paymentStatus,
+            accent: _accent,
           ),
         ],
       ),

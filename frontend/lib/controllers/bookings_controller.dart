@@ -14,6 +14,9 @@ class BookingsController extends GetxController {
 
   final RxList<BookingModel> bookings = <BookingModel>[].obs;
   final RxBool isLoading = false.obs;
+  // v565 — dernier message d'erreur de chargement (vide = OK) : l'écran
+  // affiche un état « Réessayer » lisible quand la liste est vide.
+  final RxString lastError = ''.obs;
   final RxString selectedStatus = ''.obs;
 
   /// v23.1.266 — nb de réservations en attente de MON action (badge nav).
@@ -82,6 +85,7 @@ class BookingsController extends GetxController {
   /// spinner plein écran pour ne pas faire clignoter la liste.
   Future<void> loadBookings({String? status, bool silent = false}) async {
     if (!silent) isLoading.value = true;
+    lastError.value = '';
     if (status != null) {
       selectedStatus.value = status;
     }
@@ -103,11 +107,13 @@ class BookingsController extends GetxController {
         'Failed to load bookings (keeping previous list)',
         error: error.message,
       );
+      lastError.value = error.message;
     } catch (error) {
       AppLogger.logError(
         'Failed to load bookings (keeping previous list)',
         error: error,
       );
+      lastError.value = 'v565_bk_error_generic'.tr;
     } finally {
       if (!silent) isLoading.value = false;
     }

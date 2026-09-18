@@ -189,6 +189,12 @@ class PublishReservationRequestController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    // v565 — le résumé / la barre collante observent la ville.
+    cityController.addListener(() {
+      if (cityText.value != cityController.text) {
+        cityText.value = cityController.text;
+      }
+    });
     // v441 — en mode édition, on pré-remplit les champs scalaires AVANT le
     // chargement des animaux (pas besoin d'attendre le réseau pour les dates /
     // service / localisation). La sélection des animaux est rétablie une fois
@@ -425,6 +431,62 @@ class PublishReservationRequestController extends GetxController {
     return _firstMissingField() == null;
   }
 
+  // ── v565 — aides pour l'écran en étapes (résumé + barre collante) ──────
+  /// Premier champ manquant (null = formulaire complet), même règle que
+  /// [submit]. Exposé pour la barre collante « Il manque : … ».
+  String? get firstMissingField => _firstMissingField();
+
+  /// Libellé lisible du champ manquant (9 langues).
+  String missingFieldLabel(String field) => _missingFieldLabel(field);
+
+  /// Étapes complétées : animaux / service / dates / ville. Les détails et
+  /// les photos sont facultatifs.
+  bool get stepPetsDone => selectedPetIds.isNotEmpty;
+  bool get stepServiceDone {
+    final st = selectedServiceType.value;
+    if (st == null || st.trim().isEmpty) return false;
+    if (st == 'dog_walking') {
+      final d = selectedDuration.value;
+      if (d == null || d.trim().isEmpty) return false;
+    }
+    if (st == 'house_sitting') {
+      final v = houseSittingVenue.value;
+      if (v == null || v.trim().isEmpty) return false;
+    }
+    return true;
+  }
+  bool get stepDatesDone =>
+      startDate.value != null &&
+      endDate.value != null &&
+      startTime.value != null &&
+      endTime.value != null;
+  /// Miroir réactif du champ ville (TextEditingController n'est pas Rx).
+  final RxString cityText = ''.obs;
+  bool get stepCityDone => cityText.value.trim().isNotEmpty;
+  int get requiredStepsDone =>
+      (stepPetsDone ? 1 : 0) +
+      (stepServiceDone ? 1 : 0) +
+      (stepDatesDone ? 1 : 0) +
+      (stepCityDone ? 1 : 0);
+  static const int requiredStepsTotal = 4;
+
+  /// Libellé du service sélectionné (ou vide).
+  String get selectedServiceLabel {
+    final st = selectedServiceType.value;
+    if (st == null) return '';
+    for (final t in serviceTypes) {
+      if (t['value'] == st) return t['label'] ?? st;
+    }
+    return st;
+  }
+
+  /// Noms des animaux sélectionnés (résumé).
+  String get selectedPetNames => myPets
+      .where((p) => selectedPetIds.contains(p.id))
+      .map((p) => p.petName)
+      .where((n) => n.trim().isNotEmpty)
+      .join(', ');
+
   /// v22.1 — Bug 13c : retourne le NOM du premier champ manquant pour
   /// pouvoir afficher un message clair au user au lieu du générique
   /// "Veuillez remplir les champs requis". Returns null si tout est OK.
@@ -577,6 +639,9 @@ class PublishReservationRequestController extends GetxController {
       }
 
       if (imageFiles.isEmpty) {
+        // v565 — lat/lng (détection GPS ou carte) envoyés avec la ville :
+        // le serveur en a besoin pour prévenir les prestataires PROCHES
+        // (repli sur la ville seule sinon).
         await _ownerRepository.createReservationRequest(
           body: body,
           startDate: start,
@@ -584,6 +649,8 @@ class PublishReservationRequestController extends GetxController {
           serviceTypes: services,
           petIds: petIdsList,
           city: city,
+          lat: userLat.value,
+          lng: userLng.value,
           notes: notes,
           houseSittingVenue: venue,
           serviceLocation: svcLocation,
@@ -597,6 +664,8 @@ class PublishReservationRequestController extends GetxController {
           serviceTypes: services,
           petIds: petIdsList,
           city: city,
+          lat: userLat.value,
+          lng: userLng.value,
           notes: notes,
           houseSittingVenue: venue,
           serviceLocation: svcLocation,

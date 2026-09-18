@@ -101,6 +101,8 @@ class EditWalkerProfileController extends GetxController {
   final Rx<File?> profileImage = Rx<File?>(null);
   final RxBool isLoading = false.obs;
   final RxBool isFetching = false.obs;
+  // v565 — point 39 : message d'erreur de chargement (état « Réessayer »).
+  final RxString loadError = ''.obs;
   final RxBool isUploadingImage = false.obs;
   final RxString currentAvatarUrl = ''.obs;
   final RxString selectedCountryCode = ''.obs;
@@ -149,6 +151,7 @@ class EditWalkerProfileController extends GetxController {
   /// (GET /walkers/me/rates). Populates all form controllers.
   Future<void> loadProfileData() async {
     isFetching.value = true;
+    loadError.value = '';
 
     try {
       final storedProfile = _storage.read<Map<String, dynamic>>(
@@ -249,6 +252,8 @@ class EditWalkerProfileController extends GetxController {
       AppLogger.logError('Failed to load walker profile',
           error: error.message);
       // Never auto-logout the walker from this screen — show the real reason.
+      loadError.value =
+          error.message.isNotEmpty ? error.message : 'profile_load_error'.tr;
       CustomSnackbar.showError(
         title: 'common_error'.tr,
         message: error.message.isNotEmpty
@@ -257,6 +262,7 @@ class EditWalkerProfileController extends GetxController {
       );
     } catch (error) {
       AppLogger.logError('Failed to load walker profile', error: error);
+      loadError.value = 'profile_load_error'.tr;
       CustomSnackbar.showError(
         title: 'common_error'.tr,
         message: 'profile_load_error'.tr,

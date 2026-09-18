@@ -5,8 +5,9 @@ import 'package:hopetsit/controllers/paypal_payment_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/service_type_translator.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/rounded_text_button.dart';
 
 class PayPalPaymentScreen extends StatelessWidget {
   const PayPalPaymentScreen({
@@ -36,128 +37,123 @@ class PayPalPaymentScreen extends StatelessWidget {
       tag: tag,
     );
 
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: AppColors.primaryColor),
-        leading: const BackButton(),
-        title: PoppinsText(
-          text: 'payment_method_paypal'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary(context),
+    // v565 (point 28) — en-tête clair : montant, prestataire, moyen de
+    // paiement (PayPal), état, bouton du rôle ; logique inchangée.
+    final accent = AppColors.roleAccent(booking.serviceType?.toLowerCase().contains('walk') == true ? 'walker' : 'sitter');
+    return ProfileSubPageScaffold(
+      title: 'payment_method_paypal'.tr,
+      accent: accent,
+      bottom: Obx(
+        () => ProfilePrimaryButton(
+          label: 'payment_pay_with_paypal'.tr.replaceAll(
+            '@amount',
+            CurrencyHelper.format(currency, totalAmount),
+          ),
+          accent: accent,
+          icon: Icons.paypal,
+          loading: controller.isProcessing.value,
+          onTap: controller.isProcessing.value
+              ? null
+              : () => controller.initiatePayPalPayment(),
         ),
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(20.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(height: 8.h),
+          Center(
+            child: Container(
+              width: 72.w,
+              height: 72.w,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.10),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.paypal, size: 34.sp, color: accent),
+            ),
+          ),
+          SizedBox(height: 12.h),
+          PoppinsText(
+            text: 'v565_pay_secure_title'.tr,
+            fontSize: 18.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 4.h),
+          PoppinsText(
+            text: CurrencyHelper.format(currency, totalAmount),
+            fontSize: 30.sp,
+            fontWeight: FontWeight.w800,
+            color: accent,
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 18.h),
+          ProfileGroupCard(
+            children: [
+              ProfileRow(
+                icon: Icons.person_rounded,
+                color: accent,
+                title: booking.sitter.name.isNotEmpty
+                    ? booking.sitter.name
+                    : 'provider_unknown'.tr,
+                subtitle: translateServiceType(booking.serviceType),
+                showChevron: false,
+              ),
+              ProfileRow(
+                icon: Icons.paypal,
+                color: accent,
+                title: 'v565_pay_method_label'.tr,
+                subtitle: 'payment_method_paypal'.tr,
+                showChevron: false,
+              ),
+              ProfileRow(
+                icon: Icons.payments_rounded,
+                color: accent,
+                title: 'payment_amount_label'.tr,
+                showChevron: false,
+                trailing: PoppinsText(
+                  text: CurrencyHelper.format(currency, totalAmount),
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w700,
+                  color: accent,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          ProfileInfoBanner(
+            icon: Icons.info_outline_rounded,
+            text: 'payment_paypal_info'.tr,
+            accent: accent,
+          ),
+          SizedBox(height: 10.h),
+          Obx(() => controller.isProcessing.value
+              ? Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      padding: EdgeInsets.all(20.w),
-                      decoration: BoxDecoration(
-                        color: AppColors.card(context),
-                        borderRadius: BorderRadius.circular(16.r),
-                        boxShadow: AppColors.cardShadow(context),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          PoppinsText(
-                            text: 'payment_amount_label'.tr,
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary(context),
-                          ),
-                          SizedBox(height: 8.h),
-                          PoppinsText(
-                            text: CurrencyHelper.format(currency, totalAmount),
-                            fontSize: 24.sp,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primaryColor,
-                          ),
-                        ],
-                      ),
+                    SizedBox(
+                      width: 16.w,
+                      height: 16.w,
+                      child: CircularProgressIndicator(
+                          color: accent, strokeWidth: 2.2),
                     ),
-                    SizedBox(height: 20.h),
-                    Container(
-                      padding: EdgeInsets.all(16.w),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12.r),
-                        border: Border.all(
-                          color: AppColors.primaryColor.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            size: 20.sp,
-                            color: AppColors.primaryColor,
-                          ),
-                          SizedBox(width: 12.w),
-                          Expanded(
-                            child: InterText(
-                              text: 'payment_paypal_info'.tr,
-                              fontSize: 14.sp,
-                              color: AppColors.textSecondary(context),
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
+                    SizedBox(width: 8.w),
+                    Flexible(
+                      child: InterText(
+                        text: 'payment_connecting'.tr,
+                        fontSize: 12.5.sp,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary(context),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.all(20.w),
-              child: Obx(
-                () => CustomButton(
-                  title: controller.isProcessing.value
-                      ? null
-                      : 'payment_pay_with_paypal'.tr.replaceAll(
-                          '@amount',
-                          CurrencyHelper.format(currency, totalAmount),
-                        ),
-                  onTap: controller.isProcessing.value
-                      ? null
-                      : () => controller.initiatePayPalPayment(),
-                  bgColor: controller.isProcessing.value
-                      ? AppColors.primaryColor.withValues(alpha: 0.7)
-                      : AppColors.primaryColor,
-                  textColor: AppColors.whiteColor,
-                  height: 48.h,
-                  radius: 48.r,
-                  child: controller.isProcessing.value
-                      ? SizedBox(
-                          height: 20.h,
-                          width: 20.w,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              AppColors.whiteColor,
-                            ),
-                          ),
-                        )
-                      : null,
-                ),
-              ),
-            ),
-          ],
-        ),
+                )
+              : const SizedBox.shrink()),
+        ],
       ),
     );
   }
 }
-

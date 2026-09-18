@@ -67,6 +67,14 @@ class PushNotificationService extends GetxService {
   static const List<AndroidNotificationChannel> _soundChannels =
       <AndroidNotificationChannel>[
     AndroidNotificationChannel(
+      'hopetsit_frog',
+      'HoPetSit — frog',
+      description: 'HoPetSit notifications with a frog croak sound.',
+      importance: Importance.high,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound('frog'),
+    ),
+    AndroidNotificationChannel(
       'hopetsit_bark',
       'HoPetSit — bark',
       description: 'HoPetSit notifications with a dog bark sound.',
@@ -84,8 +92,8 @@ class PushNotificationService extends GetxService {
     ),
     AndroidNotificationChannel(
       'hopetsit_tweet',
-      'HoPetSit — tweet',
-      description: 'HoPetSit notifications with a bird tweet sound.',
+      'HoPetSit — owl',
+      description: 'HoPetSit notifications with an owl hoot sound.',
       importance: Importance.high,
       playSound: true,
       sound: RawResourceAndroidNotificationSound('tweet'),
@@ -360,7 +368,7 @@ class PushNotificationService extends GetxService {
     final channel = channelForSound(sound);
     final bool silent = sound == 'silent';
     final bool vibrateOnly = sound == 'vibrate';
-    final bool customSound = sound == 'bark' || sound == 'meow' || sound == 'tweet';
+    final bool customSound = sound == 'frog' || sound == 'bark' || sound == 'meow' || sound == 'tweet';
 
     await _localNotifications.show(
       message.hashCode,

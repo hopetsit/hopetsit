@@ -8,12 +8,19 @@ import 'package:hopetsit/models/invoice_model.dart';
 import 'package:hopetsit/repositories/invoice_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
 import 'package:hopetsit/views/invoices/invoice_viewer_screen.dart';
+import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:intl/intl.dart';
 
 /// v23.1 — Mes factures (auto-générées au paiement de chaque réservation).
 /// Accessible depuis l'onglet "Factures" de Mes Réservations sur les 3
 /// profils owner / sitter / walker.
+///
+/// v565 (point 28) — kit Profil / Réservations : liste groupée, couleur du
+/// rôle, états chargement / vide / erreur avec « Réessayer », dates localisées.
 class InvoicesScreen extends StatefulWidget {
   const InvoicesScreen({super.key});
 
@@ -26,6 +33,8 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   final RxList<InvoiceModel> _invoices = <InvoiceModel>[].obs;
   final RxBool _isLoading = false.obs;
   final RxnString _errorMessage = RxnString();
+
+  Color get _accent => currentRoleAccent();
 
   @override
   void initState() {
@@ -43,7 +52,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
       final list = await _repo.getMyInvoices();
       _invoices.assignAll(list);
     } on ApiException catch (e) {
-      _errorMessage.value = e.message;
+      _errorMessage.value = paymentErrorMessage(e);
     } catch (e) {
       _errorMessage.value = e.toString();
     } finally {
@@ -78,150 +87,110 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        title: PoppinsText(
-          text: 'invoices_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
-        ),
-      ),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: Obx(() {
-            if (_isLoading.value && _invoices.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (_errorMessage.value != null) {
-              return Center(
-                child: Padding(
-                  padding: EdgeInsets.all(20.w),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline,
-                          color: const Color(0xFFE53935), size: 48.sp),
-                      SizedBox(height: 12.h),
-                      InterText(
-                        text: _errorMessage.value!,
-                        fontSize: 14.sp,
-                        maxLines: 5,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(height: 16.h),
-                      ElevatedButton(
-                        onPressed: _load,
-                        child: Text('common_retry'.tr),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-            if (_invoices.isEmpty) {
-              return ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  SizedBox(height: 80.h),
-                  Icon(Icons.receipt_long_outlined,
-                      size: 56.sp, color: Colors.grey),
-                  SizedBox(height: 16.h),
-                  Center(
-                    child: PoppinsText(
-                      text: 'invoices_empty_title'.tr,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  SizedBox(height: 8.h),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24.w),
-                    child: InterText(
-                      text: 'invoices_empty_message'.tr,
-                      fontSize: 13.sp,
-                      color: Colors.grey,
-                      textAlign: TextAlign.center,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              );
-            }
-            return ListView.separated(
-              padding: EdgeInsets.all(16.w),
-              itemCount: _invoices.length,
-              separatorBuilder: (_, __) => SizedBox(height: 10.h),
-              itemBuilder: (_, i) {
-                final inv = _invoices[i];
-                return _InvoiceCard(
-                  invoice: inv,
-                  onTap: () => _openInvoice(inv),
-                );
-              },
+    final accent = _accent;
+    return ProfileSubPageScaffold(
+      title: 'invoices_title'.tr,
+      accent: accent,
+      scroll: false,
+      padding: EdgeInsets.zero,
+      body: RefreshIndicator(
+        color: accent,
+        onRefresh: _load,
+        child: Obx(() {
+          if (_isLoading.value && _invoices.isEmpty) {
+            return BookingLoadingList(accent: accent);
+          }
+          if (_errorMessage.value != null && _invoices.isEmpty) {
+            return BookingErrorState(
+              message: _errorMessage.value!,
+              onRetry: _load,
             );
-          }),
-        ),
+          }
+          if (_invoices.isEmpty) {
+            return BookingEmptyState(
+              icon: Icons.receipt_long_rounded,
+              title: 'invoices_empty_title'.tr,
+              subtitle: 'invoices_empty_message'.tr,
+              accent: accent,
+            );
+          }
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 28.h),
+            children: [
+              ProfileInfoBanner(
+                icon: Icons.picture_as_pdf_rounded,
+                text: 'v565_pay_receipts_hint'.tr,
+                accent: accent,
+              ),
+              SizedBox(height: 12.h),
+              ProfileGroupCard(
+                children: [
+                  for (final inv in _invoices)
+                    _InvoiceRow(
+                      invoice: inv,
+                      accent: accent,
+                      onTap: () => _openInvoice(inv),
+                    ),
+                ],
+              ),
+            ],
+          );
+        }),
       ),
     );
   }
 }
 
-class _InvoiceCard extends StatelessWidget {
-  const _InvoiceCard({required this.invoice, required this.onTap});
+/// Rangée d'une facture : numéro + pastille payée / remboursée, date ·
+/// prestataire, montant, chevron.
+class _InvoiceRow extends StatelessWidget {
+  const _InvoiceRow({
+    required this.invoice,
+    required this.accent,
+    required this.onTap,
+  });
 
   final InvoiceModel invoice;
+  final Color accent;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final isRefunded = invoice.status == 'refunded';
-    final accent = isRefunded ? const Color(0xFFE53935) : AppColors.primaryColor;
-    final symbol = CurrencyHelper.symbol(invoice.currency);
+    final statusColor =
+        isRefunded ? const Color(0xFF2563EB) : const Color(0xFF16A34A);
     final dateLabel = invoice.issuedAt != null
-        ? '${invoice.issuedAt!.day.toString().padLeft(2, '0')}/'
-            '${invoice.issuedAt!.month.toString().padLeft(2, '0')}/'
-            '${invoice.issuedAt!.year}'
+        ? DateFormat.yMMMd(Get.locale?.languageCode).format(invoice.issuedAt!)
         : '';
+    final who = invoice.providerName.isNotEmpty
+        ? invoice.providerName
+        : invoice.ownerName;
+    final subtitle = [
+      if (dateLabel.isNotEmpty) dateLabel,
+      if (who.isNotEmpty) who,
+    ].join(' · ');
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14.r),
-      child: Container(
-        padding: EdgeInsets.all(14.w),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(14.r),
-          boxShadow: AppColors.cardShadow(context),
-          border: Border.all(
-            color: accent.withValues(alpha: 0.15),
-            width: 1,
-          ),
-        ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
         child: Row(
           children: [
             Container(
-              width: 44.w,
-              height: 44.w,
+              width: 36.w,
+              height: 36.w,
               decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10.r),
+                color: accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(11.r),
               ),
-              child: Icon(Icons.receipt_long_rounded,
-                  color: accent, size: 24.sp),
+              child: Icon(Icons.receipt_long_rounded, size: 18.sp, color: accent),
             ),
             SizedBox(width: 12.w),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
                     children: [
@@ -229,7 +198,8 @@ class _InvoiceCard extends StatelessWidget {
                         child: PoppinsText(
                           text: invoice.invoiceNumber,
                           fontSize: 14.sp,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary(context),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -237,10 +207,10 @@ class _InvoiceCard extends StatelessWidget {
                       SizedBox(width: 6.w),
                       Container(
                         padding: EdgeInsets.symmetric(
-                            horizontal: 6.w, vertical: 2.h),
+                            horizontal: 7.w, vertical: 3.h),
                         decoration: BoxDecoration(
-                          color: accent.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6.r),
+                          color: statusColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(999),
                         ),
                         child: InterText(
                           text: (isRefunded
@@ -249,39 +219,34 @@ class _InvoiceCard extends StatelessWidget {
                               .tr,
                           fontSize: 10.sp,
                           fontWeight: FontWeight.w700,
-                          color: accent,
+                          color: statusColor,
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 4.h),
-                  InterText(
-                    text: dateLabel.isNotEmpty
-                        ? '$dateLabel · ${invoice.providerName}'
-                        : invoice.providerName,
-                    fontSize: 12.sp,
-                    color: Colors.grey,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  if (subtitle.isNotEmpty) ...[
+                    SizedBox(height: 2.h),
+                    InterText(
+                      text: subtitle,
+                      fontSize: 11.sp,
+                      color: AppColors.textSecondary(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
               ),
             ),
             SizedBox(width: 8.w),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                PoppinsText(
-                  text: '$symbol${invoice.grossAmount.toStringAsFixed(2)}',
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w700,
-                  color: accent,
-                ),
-                SizedBox(height: 2.h),
-                Icon(Icons.download_rounded,
-                    size: 18.sp, color: AppColors.primaryColor),
-              ],
+            PoppinsText(
+              text: CurrencyHelper.format(invoice.currency, invoice.grossAmount),
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+              color: isRefunded ? statusColor : accent,
             ),
+            SizedBox(width: 4.w),
+            Icon(Icons.chevron_right_rounded,
+                size: 20.sp, color: AppColors.textSecondary(context)),
           ],
         ),
       ),

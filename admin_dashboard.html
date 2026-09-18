@@ -16,7 +16,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v561'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v565'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -394,7 +394,7 @@ function filterNav(q) {
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v561</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v565</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -430,6 +430,7 @@ function filterNav(q) {
 
       <div class="nav-section">👥 <span data-i18n="navsec_users">Utilisateurs</span></div>
       <div class="nav-item" data-page="owners" onclick="showPage('owners', this)"><span class="nav-icon">👥</span> <span data-i18n="nav_owners">Utilisateurs</span></div>
+      <div class="nav-item" data-page="promotions" onclick="showPage('promotions', this)"><span class="nav-icon">🎟️</span> <span data-i18n="nav_promotions">Promotions</span></div>
       <div class="nav-item" data-page="pets" onclick="showPage('pets', this)"><span class="nav-icon">🐾</span> <span data-i18n="nav_pets">Animaux</span></div>
       <div class="nav-item" data-page="identity" onclick="showPage('identity', this)"><span class="nav-icon">🪪</span> <span data-i18n="nav_identity">Vérifications ID</span></div>
       <div class="nav-item" data-page="moderation" onclick="showPage('moderation', this)"><span class="nav-icon">🛡️</span> <span data-i18n="nav_moderation">Modération users</span></div>
@@ -438,7 +439,6 @@ function filterNav(q) {
       <div class="nav-item" data-page="pawpremium" onclick="showPage('pawpremium', this)"><span class="nav-icon">👑</span> <span data-i18n="nav_pawpremium">PawPremium</span></div>
       <div class="nav-item" data-page="pawspot" onclick="showPage('pawspot', this)"><span class="nav-icon">🐾</span> <span data-i18n="nav_pawspot">PawSpot</span></div>
       <div class="nav-item" data-page="pawpoints" onclick="showPage('pawpoints', this)"><span class="nav-icon">🎯</span> <span data-i18n="nav_pawpoints">PawPoints</span></div>
-      <div class="nav-item" data-page="promotions" onclick="showPage('promotions', this)"><span class="nav-icon">🎟️</span> <span data-i18n="nav_promotions">Promotions</span></div>
 
       <div class="nav-section">📅 <span data-i18n="navsec_activity">Activité</span></div>
       <div class="nav-item" data-page="bookings" onclick="showPage('bookings', this)"><span class="nav-icon">📅</span> <span data-i18n="nav_bookings">Réservations</span></div>

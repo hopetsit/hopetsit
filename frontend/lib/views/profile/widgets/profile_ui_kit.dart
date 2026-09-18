@@ -5,6 +5,7 @@
 // La couleur du rôle est passée en `accent` (owner orange #C92A12, sitter
 // bleu #2563EB, walker vert #16A34A).
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -574,6 +575,12 @@ class ProfileInput extends StatelessWidget {
   final bool enabled;
   final bool autofocus;
   final TextCapitalization textCapitalization;
+  // v565 — point 39 : options ajoutées pour les sous-pages (masques de
+  // saisie, champ « tap pour choisir » type date, focus).
+  final List<TextInputFormatter>? inputFormatters;
+  final bool readOnly;
+  final VoidCallback? onTap;
+  final FocusNode? focusNode;
 
   const ProfileInput({
     super.key,
@@ -593,6 +600,10 @@ class ProfileInput extends StatelessWidget {
     this.enabled = true,
     this.autofocus = false,
     this.textCapitalization = TextCapitalization.none,
+    this.inputFormatters,
+    this.readOnly = false,
+    this.onTap,
+    this.focusNode,
   });
 
   @override
@@ -621,6 +632,10 @@ class ProfileInput extends StatelessWidget {
           onChanged: onChanged,
           textInputAction: textInputAction,
           textCapitalization: textCapitalization,
+          inputFormatters: inputFormatters,
+          readOnly: readOnly,
+          onTap: onTap,
+          focusNode: focusNode,
           style: TextStyle(
             fontSize: 15.sp,
             fontWeight: FontWeight.w500,

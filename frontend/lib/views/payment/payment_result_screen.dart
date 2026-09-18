@@ -10,8 +10,14 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
-import 'package:hopetsit/widgets/rounded_text_button.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
+import 'package:intl/intl.dart';
 
+/// Résultat de paiement (succès / échec).
+///
+/// v565 (point 28) — kit Profil : boutons du rôle, carte de détails coins 20,
+/// pastille de statut, montant mis en avant, date localisée (avant : mois en
+/// anglais en dur).
 class PaymentResultScreen extends StatelessWidget {
   final bool isSuccess;
   final String? message;
@@ -34,6 +40,7 @@ class PaymentResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = isSuccess ? _resolveAccentColor() : AppColors.primaryColor;
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
       body: SafeArea(
@@ -124,10 +131,29 @@ class PaymentResultScreen extends StatelessWidget {
               PoppinsText(
                 text: isSuccess ? 'payment_success_title'.tr : 'payment_failed_title'.tr,
                 fontSize: 24.sp,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary(context),
                 textAlign: TextAlign.center,
               ),
+
+              SizedBox(height: 10.h),
+              _statusChip(),
+              if (isSuccess && amount != null) ...[
+                SizedBox(height: 10.h),
+                PoppinsText(
+                  text: _formatPrice(
+                    amount!,
+                    currency ??
+                        booking?.pricing?.currency ??
+                        booking?.sitter.currency ??
+                        CurrencyHelper.eur,
+                  ),
+                  fontSize: 30.sp,
+                  fontWeight: FontWeight.w800,
+                  color: accent,
+                  textAlign: TextAlign.center,
+                ),
+              ],
 
               SizedBox(height: 16.h),
 
@@ -155,61 +181,32 @@ class PaymentResultScreen extends StatelessWidget {
               // "Discuter avec le sitter/walker" en succès. L'ancien bouton
               // "Retour à l'accueil" reste en secondary text-link pour
               // ceux qui veulent juste fermer.
-              CustomButton(
-                title: isSuccess
+              ProfilePrimaryButton(
+                label: isSuccess
                     ? _chatButtonLabel()
                     : 'payment_try_again'.tr,
+                accent: accent,
+                icon: isSuccess ? Icons.chat_bubble_rounded : Icons.refresh_rounded,
                 onTap: () {
                   if (isSuccess) {
                     _openChatWithProvider();
                   } else {
-                    onContinue ?? Get.back();
+                    (onContinue ?? Get.back)();
                   }
                 },
-                bgColor: isSuccess
-                    ? _resolveAccentColor()
-                    : AppColors.primaryColor,
-                textColor: AppColors.whiteColor,
-                height: 48.h,
-                radius: 48.r,
-                width: double.infinity,
               ),
 
-              if (isSuccess) ...[
-                SizedBox(height: 12.h),
-                TextButton(
-                  onPressed: () => Get.until(
-                    (route) =>
-                        route.isFirst || route.settings.name == '/home',
-                  ),
-                  child: InterText(
-                    text: 'common_back_to_home'.tr,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary(context),
-                  ),
+              SizedBox(height: 10.h),
+              // Back to Home
+              ProfileSecondaryButton(
+                label: 'common_back_to_home'.tr,
+                accent: isSuccess ? AppColors.greyText : accent,
+                icon: Icons.home_rounded,
+                onTap: () => Get.until(
+                  (route) =>
+                      route.isFirst || route.settings.name == '/home',
                 ),
-              ],
-
-              if (!isSuccess) ...[
-                SizedBox(height: 16.h),
-                // Back to Home Button
-                CustomButton(
-                  title: 'common_back_to_home'.tr,
-                  onTap: () {
-                    Get.until(
-                      (route) =>
-                          route.isFirst || route.settings.name == '/home',
-                    );
-                  },
-                  bgColor: AppColors.whiteColor,
-                  textColor: AppColors.primaryColor,
-                  borderColor: AppColors.primaryColor,
-                  height: 48.h,
-                  radius: 48.r,
-                  width: double.infinity,
-                ),
-              ],
+              ),
 
               SizedBox(height: 40.h),
             ],
@@ -221,10 +218,11 @@ class PaymentResultScreen extends StatelessWidget {
 
   Widget _buildTransactionDetailsCard(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(20.w),
+      padding: EdgeInsets.all(18.w),
+      margin: EdgeInsets.only(bottom: 24.h),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(20.r),
         boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
@@ -264,13 +262,19 @@ class PaymentResultScreen extends StatelessWidget {
   Widget _buildDetailRow(String label, String value, BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InterText(
-          text: label,
-          fontSize: 14.sp,
-          fontWeight: FontWeight.w400,
-          color: AppColors.textSecondary(context),
+        Flexible(
+          child: InterText(
+            text: label,
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w400,
+            color: AppColors.textSecondary(context),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
+        SizedBox(width: 12.w),
         Expanded(
           child: Align(
             alignment: Alignment.centerRight,
@@ -279,6 +283,9 @@ class PaymentResultScreen extends StatelessWidget {
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
               color: AppColors.textPrimary(context),
+              textAlign: TextAlign.right,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),
@@ -290,22 +297,40 @@ class PaymentResultScreen extends StatelessWidget {
     return CurrencyHelper.format(currency, price);
   }
 
+  // v565 — date localisée (avant : mois anglais en dur).
   String _formatDate(DateTime date) {
-    final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+    return DateFormat.yMMMd(Get.locale?.languageCode).format(date);
+  }
+
+  /// v565 — pastille de statut (payé / échec) sous le titre.
+  Widget _statusChip() {
+    final c = isSuccess ? const Color(0xFF16A34A) : AppColors.errorColor;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7.w,
+            height: 7.w,
+            decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+          ),
+          SizedBox(width: 6.w),
+          InterText(
+            text: isSuccess
+                ? 'status_paid_label'.tr
+                : 'status_payment_failed_label'.tr,
+            fontSize: 11.5.sp,
+            fontWeight: FontWeight.w700,
+            color: c,
+          ),
+        ],
+      ),
+    );
   }
 
   /// v18.5 — #17 : resolve the role accent color (green for walker,

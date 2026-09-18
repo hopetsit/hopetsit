@@ -59,6 +59,8 @@ class ServiceConfirmationCard extends StatefulWidget {
     this.onConfirmPickup,
     this.booking,
     this.accent,
+    this.onReview,
+    this.reviewed = false,
   });
 
   final String confirmationStatus;
@@ -75,6 +77,10 @@ class ServiceConfirmationCard extends StatefulWidget {
   final BookingModel? booking;
   /// v565 — couleur du rôle (orange owner / bleu sitter / vert walker).
   final Color? accent;
+  /// v565 (point 38) — owner : noter le prestataire une fois le service
+  /// confirmé. `reviewed` = avis déjà envoyé (le bouton devient « Modifier »).
+  final Future<void> Function()? onReview;
+  final bool reviewed;
 
   @override
   State<ServiceConfirmationCard> createState() =>
@@ -521,7 +527,22 @@ class _ServiceConfirmationCardState extends State<ServiceConfirmationCard> {
   // ── Corps : boutons et états ─────────────────────────────────────────────
   List<Widget> _buildBody(BuildContext context, String st, Color accent) {
     if (st == 'confirmed') {
-      return [_infoLine(context, '✅ ${'service_card_confirmed'.tr}', green: true)];
+      return [
+        _infoLine(context, '✅ ${'service_card_confirmed'.tr}', green: true),
+        if (!_isProvider && widget.onReview != null) ...[
+          SizedBox(height: 10.h),
+          _actionButton(
+            action: 'review',
+            label: widget.reviewed
+                ? 'v565_review_edit'.tr
+                : 'booking_leave_review'.tr,
+            icon: Icons.star_rounded,
+            onTap: widget.onReview,
+            color: const Color(0xFFFFB300),
+            outlined: widget.reviewed,
+          ),
+        ],
+      ];
     }
     if (st == 'disputed') {
       return [

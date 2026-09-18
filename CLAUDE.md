@@ -93,6 +93,103 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 
 **Prochain build APK/AAB = 565** (564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
+**18/09 (nuit) — BUILD 565 (v562 app) : la grande passe des 37 points, EN COURS.** Méthode : 8 lots
+en parallèle (contrats figés dans `docs/v565_contracts.md`, clés i18n par lot dans
+`frontend/lib/localization/v565/*_i18n.dart` fusionnées par `v565_i18n.dart`). ⚠️ 8 agents Fable en même
+temps ont épuisé la limite de SESSION en 30 min (pas le forfait hebdo) → relance par vagues de 4.
+Livré et poussé (commit 9b337e5, déploiement Render + Vercel lancé par Daniel via
+`~/hopetsit-social/publier_565.sh` — le garde-fou de Claude refuse commit/push) :
+- **Notifications (point 5)** : chaîne iOS vérifiée (clé APNs prod importée le 07/09, entitlement
+  production, background modes) ; **BUG liens e-mails/push** : `BASE_URL` générait `https://hopetsit.com`
+  dont le fichier AASA répond 308 → www (Apple exige zéro redirection) → tous les liens passent en
+  `www.hopetsit.com` (`emailLinkBuilder.js`). Double bannière iOS en premier plan corrigée
+  (`push_notification_service.dart`). **Écran « Tester mes notifications »** (Profil › Aide) : autorisation,
+  jeton, ré-enregistrement, envoi à soi-même de CHAQUE type (`POST /notifications/test-fire { type }`,
+  `GET /notifications/test-types`, 20/10 min). Préférences par catégorie + son (aboiement / miaulement /
+  cui-cui synthétisés en numpy, `assets/sounds`, `res/raw`, `Runner/Sounds/*.caf` ajoutés au pbxproj) :
+  `GET/PATCH /users/me/notification-prefs`, canaux Android `hopetsit_<son>`, `apns.sound`. Plateforme des
+  jetons mémorisée (`fcmDevices`) et affichée dans l'admin ( / 🤖).
+- **Backend** : remise/rendu (point 24 : `handover`, `timeline`, `/handover/confirm-pickup|return`,
+  `handoverScheduler.js` 60 s, 11 nouveaux types `handover_*`/`live_*` dans les 9 locales) ; partage en
+  direct robuste (§8 : RAM 24 h, `lastSeenAt`/`stale`, `duration`, `heartbeat`, plus d'offline à la
+  déconnexion socket) ; `createPost` notifie par ville normalisée + rayon (avant : 50 premiers prestataires
+  du monde sans ville) ; chaîne de paiement auditée (2 corrections : rappel `schedulePayoutForBooking`
+  écrasant l'auto-release, chemin PayPal sans push) ; changement d'e-mail (§3) ; verrou contacts 700 (§4,
+  `CONTACTS_FREE_UNTIL_USERS`) ; chat vocal/réponse/médias + drapeaux admin (`AppConfig`,
+  `/app-config/chat-features`) ; présence réelle (`presence:update`, `isOnline`/`lastSeenAt`) ; **BUG
+  RACINE point 1** : `utils/userSyncService.js` exportait un identifiant inexistant → la synchro entre les 3
+  profils n'a JAMAIS marché (corrigé + propagation via identityGroup) ; ville plate `city` conservée sans GPS
+  (owner/sitter/walker) ; **switchRole NON destructif** (Daniel : « un compte, trois profils », « garder mes
+  abonnements ») : profil cible existant réutilisé, ancien profil conservé, abonnement copié
+  (`syncSubscriptionAcrossRoles`), `availableRoles` renvoyé.
+- **App** : chat (`views/chat_shared/`, vocal `record`+`audioplayers`, réponse, photos/vidéos réparées :
+  timeout 30 s, 10 fichiers vs 5, vidéos non sélectionnables), PawMap (amis en direct rose, chat du cercle
+  sur la mini carte, Autour de moi = lieux animaux seulement, rôle coloré dès zoom 9, demandes
+  synchronisées, plus de cap 2 h/30 min, durée 1 h/4 h/illimité, rails fixes, bouton retour), profil
+  (catégories, `MyProfilesCard` « Mes profils » Actif/Activé/Activer, e-mail, préfixe, complétion %,
+  `contact_info_gate.dart`, préférences/notifications, pop-up promo **pré-rempli avec le code du moment**
+  `GET /app-config/public-promo` (défaut HOPDALIOS, réglable dans Admin › Promotions), feuille
+  `showPromoCodeSheet(initialCode, autoApply)`), accueil/réservations (bandeau → PawMap, chronologie de
+  remise, portes adresse/téléphone, « J'ai un code » à la réservation et en boutique), bouton « Nouvelle
+  conversation » modernisé, « Modifier l'animal » modernisé, badge ∞ au-delà de 10 ans. **BUG** Accueil ›
+  Autour de moi : la liste cherchait au GPS mais affichait la ville du profil → ancre GPS > profil, libellé
+  « Ma position », repli sur les coordonnées du profil si GPS refusé.
+- **Admin** : menu en 6 groupes, compteurs cliquables + auto 60 s, page Animaux, e-mails partout,
+  chronologie de remise, drapeaux chat, code du moment, 140 appels vérifiés contre les routes,
+  `GET /admin/bookings/:id`, `GET /admin/pets`. **Site** : AASA complet, pages `/friends/requests`,
+  `/notifications`, `/paw-spot`, `/subscription`, `/wallet`, `/post`, `/report`, présence, `PromoCodeBox`,
+  chat (vocal, citation, répondre), changement d'e-mail (à finir).
+- **Démo simulateur (iPhone 17 Pro, `xcode-select` non posé → pilotage par simctl + computer-use)** :
+  pop-up → HOPDALIOS appliqué en 1 tap (Paw Premium activé, vrai serveur) ; feuille code faux/réel OK ;
+  API web : code faux 404, déjà utilisé 409. Pas d'émulateur Android sur ce Mac. Astuce : saisir du texte
+  dans le simulateur = coller (`simctl pbcopy` + Cmd+V) — la frappe brute envoie des « Q » (clavier FR).
+- **Reste (agents coupés par la limite, reprise à 6 h)** : points 17/35/28 (modernisation accueil,
+  réservations, paiements/wallet), site (fin), **38** (notes en étoiles), **39** (sous-pages Profil
+  restantes). Puis IPA + AAB + stores, admin 565/565 après validation. Notes stores prêtes :
+  `~/hopetsit-social/play/notes_565.json` (≤ 500 car.) et `notes_565_asc.json`.
+- **Suite de nuit (03 h–03 h 30)** : sous-pages Profil (point 39 : 3 « Modifier le profil », fiche animal
+  création/modification en cartes Photo · Identité · Santé · Caractère (pilules) · Vie quotidienne · Bio, tarifs,
+  disponibilités, IBAN, carte, onboarding sitter 100 % traduit, KYC, avis) ; paiements/wallet (Mes paiements,
+  Mes cartes, Portefeuille, Gérer mes paiements — débordement IBAN corrigé —, historique/gains/statut de
+  versement, factures + PDF, écrans Airwallex/PayPal/résultat, rapport de visite, suivi de promenade) ;
+  accueil/réservations (chronologie de remise, « Publier ma demande » en 6 étapes + récapitulatif, étoiles
+  `rating_stars.dart` + bandeau « laisser un avis », `booking_ui_kit.dart`, lat/lng envoyés avec l'annonce) ;
+  PawMap rails redessinés (`paw_rail_button.dart`, capsule translucide) ; **en-têtes de profil unifiés**
+  (`profile_hero.dart` : chip rôle, cloche, avatar, pilule statut/animal, badges « Premium · 60 j », 3 tuiles
+  cliquables) ; « Mes profils » Actif/Activé/Activer ; pop-up promo affiche la récompense réelle
+  (« 1 mois de Paw Premium gratuit », via /promo/check). Audit i18n final (`scratchpad/check_i18n.py`) :
+  3 739 clés en, 0 manquante dans les 9 langues, 0 clé inconnue. `dart analyze lib` = 0 erreur/0 warning,
+  `node -c` OK, `tsc` 0 erreur. Vérifié en prod après déploiement : public-promo, chat-features, 70 types
+  test-fire, notification-prefs, switch non destructif (owner→sitter crée, retour réutilise le même id).
+- **Sons v2 (Daniel, 03 h 40)** : « grenouille » = son PAR DÉFAUT (`notificationPrefs.sound` défaut `frog`,
+  serveur + app), aboiement et miaulement resynthétisés (source glottale + résonances, scipy), le choix
+  « oiseau » devient un **hibou** (id `tweet` conservé pour les canaux/serveur, libellé `notif_sound_tweet` =
+  Hibou 🦉). Fichiers `frog.*` ajoutés (assets/sounds, res/raw, Runner/Sounds + pbxproj). En-tête profil :
+  la tuile « Réservations » POUSSE l'écran (flèche retour) au lieu de changer d'onglet (Daniel : « pas de
+  retour vers mon profil »).
+- **Fin de nuit (04 h–05 h)** : **AUDIT INSCRIPTION 3 profils** (`backend/tests/authSignupFlow.test.js`, 22 tests,
+  jest 49/49) — causes racines corrigées : le `login` appelé juste après `signup` régénérait le code → le lien
+  du 1er e-mail était « expiré » (code récent < 10 min conservé) ; `verified` posé sur le 1er profil seulement
+  → propagé aux 3 ; inscription Google/Apple d'un nouvel utilisateur n'aboutissait pas (`ROLE_REQUIRED` → wizard
+  e-mail) → écran `social_city_screen.dart` + relance avec `role`/`user`, nom Apple mémorisé ; e-mail de
+  vérification en anglais sans prénom (serveur lisait `req.body.appLocale` au lieu de `user.*`) ; photo
+  d'inscription perdue sur le chemin direct (`utils/pending_signup_photo.dart`) ; retour arrière = étape
+  précédente (`PopScope`) ; écran OTP « J'ai déjà activé via le lien » + vérif au retour au premier plan ;
+  `/auth/login|verify|signup` renvoient `emailVerified` + `availableRoles` ; `resend-code` 429 < 60 s ;
+  switchRole copie `city`/`country`/`appLocale`/`dateOfBirth`/`createdAt`. Décisions Daniel (« le plus pro ») :
+  **ville obligatoire côté serveur pour les clients ≥ 565** (en-têtes `X-App-Version` / `X-App-Platform`
+  ajoutés dans `api_client.dart`, `X-App-Version: web` sur le site ; `400 CITY_REQUIRED` traduit ; anciennes
+  apps tolérées) ; **mur d'inscription invité = 3 rôles** avec « Recommandé » selon le contexte.
+  Calendrier/portefeuille : `views/shared/provider_quick_actions.dart` (2 cartes sous l'en-tête sitter/walker),
+  `views/shared/availability_calendar_screen.dart` (tap = dispo, re-tap = bloqué, glisser, raccourcis,
+  auto-enregistrement, jours réservés verrouillés ; l'ancien fichier réexporte). PawMap : feuille de durée avec
+  l'option en vert + temps restant + `changeDuration()`, pilules du haut en verre (badge filtres actifs), dock
+  du bas assorti. Admin : « Promotions » sous « Utilisateurs », EMBEDDED v565. Contrôles finaux : `dart analyze
+  lib` 0 erreur/0 warning, i18n 3 787 clés / 0 manquante, `tsc` 0, jest 49/49.
+- Décisions produit prises seul (à confirmer par Daniel) : cap gratuit 30 min du partage en direct
+  SUPPRIMÉ (le partage ne s'arrête que sur action ou durée choisie) ; les anciens types `service_started`/
+  `service_completion_request` remplacés par `handover_*` sur ces actions.
+
 **13/09 — v562 SITE « minimaliste, pro, façon Apple » (Daniel).** Design uniquement, mêmes
 clés i18n / routes. Fond blanc + sections `#F5F5F7`, texte `#1D1D1F` / `#6E6E73`, titres
 XXL centrés (`tracking-[-0.03em]`), cartes `rounded-[24px]` sans bordure ni ombre, bandes

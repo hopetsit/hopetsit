@@ -27,6 +27,7 @@ class NotificationPrefsTab extends StatelessWidget {
 
   static const Map<String, IconData> _soundIcons = {
     'default': Icons.notifications_rounded,
+    'frog': Icons.water_drop_rounded,
     'bark': Icons.pets_rounded,
     'meow': Icons.pets_rounded,
     'tweet': Icons.flutter_dash_rounded,
@@ -36,9 +37,10 @@ class NotificationPrefsTab extends StatelessWidget {
 
   static const Map<String, String> _soundEmoji = {
     'default': '🔔',
+    'frog': '🐸',
     'bark': '🐶',
     'meow': '🐱',
-    'tweet': '🐦',
+    'tweet': '🦉',
     'vibrate': '📳',
     'silent': '🔕',
   };

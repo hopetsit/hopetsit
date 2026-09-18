@@ -5,8 +5,11 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
+import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/views/profile/widgets/edit_profile_widgets.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -30,6 +33,11 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
   bool _isSaved = false;
   String _maskedIban = '';
   bool _ibanVerified = false;
+  // v565 — point 39 : chargement initial + erreur (état « Réessayer »).
+  bool _loading = true;
+  String _loadError = '';
+  static const Color _green = Color(0xFF16A34A);
+  static const Color _amber = Color(0xFFE8920A);
 
   /// v21 — Role-aware accent color. Reads the user role from GetStorage so
   /// the IBAN screen feels native to walker (green) AND sitter (blue) AND
@@ -64,6 +72,10 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
   }
 
   Future<void> _loadCurrentIban() async {
+    setState(() {
+      _loading = true;
+      _loadError = '';
+    });
     try {
       final client = Get.find<ApiClient>();
       final response = await client.get(
@@ -71,16 +83,21 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
         requiresAuth: true,
       );
       if (response is Map<String, dynamic>) {
-        setState(() {
-          _holderCtrl.text = (response['ibanHolder'] ?? '') as String;
-          _bicCtrl.text = (response['ibanBic'] ?? '') as String;
-          _maskedIban = (response['ibanNumberMasked'] ?? '') as String;
-          _ibanVerified = (response['ibanVerified'] ?? false) as bool;
-          _isSaved = _maskedIban.isNotEmpty;
-        });
+        _holderCtrl.text = (response['ibanHolder'] ?? '').toString();
+        _bicCtrl.text = (response['ibanBic'] ?? '').toString();
+        _maskedIban = (response['ibanNumberMasked'] ?? '').toString();
+        _ibanVerified = response['ibanVerified'] == true;
+        _isSaved = _maskedIban.isNotEmpty;
+      }
+    } on ApiException catch (e) {
+      // 404 = pas encore d'IBAN : formulaire vide, pas une erreur.
+      if (e.statusCode != 404) {
+        _loadError = e.message.isNotEmpty ? e.message : 'iban_load_error'.tr;
       }
     } catch (_) {
-      // No IBAN saved yet — that's fine
+      _loadError = 'iban_load_error'.tr;
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -147,18 +164,19 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
   Future<void> _confirmDelete() async {
     final confirmed = await Get.dialog<bool>(
       AlertDialog(
-        backgroundColor: AppColors.whiteColor,
-        title: InterText(
+        backgroundColor: AppColors.card(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+        title: PoppinsText(
           text: 'iban_delete_confirm_title'.tr,
           fontSize: 16.sp,
           fontWeight: FontWeight.w700,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
         content: InterText(
           text: 'iban_delete_confirm_message'.tr,
           fontSize: 13.sp,
-          color: AppColors.blackColor,
-          maxLines: 4,
+          color: AppColors.textSecondary(context),
+          maxLines: 5,
         ),
         actions: [
           TextButton(
@@ -224,282 +242,206 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary(context)),
-          onPressed: () => Get.back(),
-        ),
-        title: InterText(
-          text: 'iban_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
-        ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(20.w),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Info banner (like Vinted)
-              Container(
-                padding: EdgeInsets.all(16.w),
-                decoration: BoxDecoration(
-                  color: _accent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12.r),
-                  border: Border.all(color: _accent.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.info_outline, color: _accent, size: 20.sp),
-                    SizedBox(width: 10.w),
-                    Expanded(
-                      child: InterText(
-                        text: 'iban_info_message'.tr,
-                        fontSize: 13.sp,
-                        color: _accent,
-                        maxLines: 5,
-                      ),
-                    ),
-                  ],
-                ),
+    final accent = _accent;
+    // v565 — point 39 : kit Profil (bandeau info, carte d'état du compte,
+    // carte « Coordonnées bancaires » en champs ProfileInput, boutons
+    // Enregistrer / Supprimer collants), états chargement / erreur.
+    return ProfileSubPageScaffold(
+      title: 'iban_title'.tr,
+      accent: accent,
+      scroll: false,
+      padding: EdgeInsets.zero,
+      body: _loading
+          ? Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(accent),
               ),
-              SizedBox(height: 20.h),
+            )
+          : _loadError.isNotEmpty
+              ? ProfileEmptyState(
+                  icon: Icons.account_balance_outlined,
+                  title: 'iban_load_error_title'.tr,
+                  message: _loadError,
+                  accent: accent,
+                  error: true,
+                  actionLabel: 'common_retry'.tr,
+                  onAction: _loadCurrentIban,
+                )
+              : Column(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 24.h),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Info banner (like Vinted)
+                              ProfileInfoBanner(
+                                icon: Icons.info_outline_rounded,
+                                text: 'iban_info_message'.tr,
+                                accent: accent,
+                              ),
 
-              // Status badge if already saved
-              if (_isSaved) ...[
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-                  decoration: BoxDecoration(
-                    color: _ibanVerified
-                        ? Colors.green.withValues(alpha: 0.1)
-                        : Colors.orange.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12.r),
-                    border: Border.all(
-                      color: _ibanVerified ? Colors.green : Colors.orange,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _ibanVerified ? Icons.verified : Icons.hourglass_empty,
-                        color: _ibanVerified ? Colors.green : Colors.orange,
-                        size: 20.sp,
+                              // Status card if already saved
+                              if (_isSaved)
+                                ProfileFormCard(
+                                  title: 'iban_section_status'.tr,
+                                  icon: Icons.account_balance_rounded,
+                                  accent: accent,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 40.w,
+                                          height: 40.w,
+                                          decoration: BoxDecoration(
+                                            color: (_ibanVerified ? _green : _amber)
+                                                .withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(12.r),
+                                          ),
+                                          child: Icon(
+                                            _ibanVerified
+                                                ? Icons.verified_rounded
+                                                : Icons.hourglass_top_rounded,
+                                            color: _ibanVerified ? _green : _amber,
+                                            size: 20.sp,
+                                          ),
+                                        ),
+                                        SizedBox(width: 12.w),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              PoppinsText(
+                                                text: _maskedIban,
+                                                fontSize: 15.sp,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.textPrimary(context),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              SizedBox(height: 4.h),
+                                              ProfileStatusPill(
+                                                icon: _ibanVerified
+                                                    ? Icons.check_circle_rounded
+                                                    : Icons.schedule_rounded,
+                                                text: _ibanVerified
+                                                    ? 'iban_status_verified'.tr
+                                                    : 'iban_status_pending'.tr,
+                                                color: _ibanVerified ? _green : _amber,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+
+                              ProfileFormCard(
+                                title: 'iban_section_form'.tr,
+                                icon: Icons.edit_outlined,
+                                accent: accent,
+                                children: [
+                                  // Account holder
+                                  ProfileInput(
+                                    label: 'iban_holder_label'.tr,
+                                    hint: 'iban_holder_hint'.tr,
+                                    controller: _holderCtrl,
+                                    accent: accent,
+                                    textCapitalization: TextCapitalization.words,
+                                    textInputAction: TextInputAction.next,
+                                    prefix: Icon(Icons.person_outline_rounded,
+                                        size: 20.sp, color: accent),
+                                    validator: (v) => (v == null || v.trim().isEmpty)
+                                        ? 'iban_holder_required'.tr
+                                        : null,
+                                  ),
+                                  // IBAN number
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      ProfileInput(
+                                        label: 'iban_number_label'.tr,
+                                        hint: _isSaved ? _maskedIban : 'iban_number_hint'.tr,
+                                        controller: _ibanCtrl,
+                                        accent: accent,
+                                        keyboardType: TextInputType.text,
+                                        textCapitalization: TextCapitalization.characters,
+                                        textInputAction: TextInputAction.next,
+                                        prefix: Icon(Icons.account_balance_outlined,
+                                            size: 20.sp, color: accent),
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter.allow(
+                                              RegExp(r'[A-Za-z0-9 ]')),
+                                          // Auto-format with spaces every 4 chars
+                                          _IbanInputFormatter(),
+                                        ],
+                                        validator: _validateIban,
+                                      ),
+                                      SizedBox(height: 6.h),
+                                      InterText(
+                                        text: 'iban_number_example'.tr,
+                                        fontSize: 11.sp,
+                                        color: AppColors.textSecondary(context),
+                                        maxLines: 2,
+                                      ),
+                                    ],
+                                  ),
+                                  // BIC/SWIFT
+                                  ProfileInput(
+                                    label: 'iban_bic_label'.tr,
+                                    hint: 'iban_bic_hint'.tr,
+                                    controller: _bicCtrl,
+                                    accent: accent,
+                                    textCapitalization: TextCapitalization.characters,
+                                    textInputAction: TextInputAction.done,
+                                    prefix: Icon(Icons.qr_code_2_rounded,
+                                        size: 20.sp, color: accent),
+                                    validator: (v) => (v == null || v.trim().length < 8)
+                                        ? 'iban_bic_required'.tr
+                                        : null,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      SizedBox(width: 10.w),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    ),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 12.h),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          InterText(
-                            text: _maskedIban,
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary(context),
+                          // Save button — labelled "Modifier" once an IBAN is
+                          // already saved (v23.1 part 44).
+                          ProfileSaveBar(
+                            label: _isSaved ? 'iban_edit_button'.tr : 'iban_save_button'.tr,
+                            accent: accent,
+                            loading: _isLoading,
+                            icon: Icons.check_rounded,
+                            note: 'iban_security_note'.tr,
+                            onTap: _isLoading ? null : _save,
                           ),
-                          InterText(
-                            text: _ibanVerified
-                                ? 'iban_status_verified'.tr
-                                : 'iban_status_pending'.tr,
-                            fontSize: 12.sp,
-                            color: _ibanVerified ? Colors.green : Colors.orange,
-                          ),
+                          // v23.1 part 44 — IBAN delete button (confirm first).
+                          if (_isSaved) ...[
+                            SizedBox(height: 8.h),
+                            ProfileSecondaryButton(
+                              label: 'iban_delete_button'.tr,
+                              accent: const Color(0xFFE53935),
+                              icon: Icons.delete_outline_rounded,
+                              onTap: _isLoading ? null : _confirmDelete,
+                            ),
+                          ],
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 20.h),
-              ],
-
-              // Account holder
-              _buildLabel('iban_holder_label'.tr),
-              SizedBox(height: 6.h),
-              TextFormField(
-                controller: _holderCtrl,
-                // v23.1.314 — Daniel : "en dark mode l'écriture est blanche, on
-                // voit rien". Le fond est blanc (fillColor) -> on force le texte
-                // saisi en noir, visible dans les 2 thèmes.
-                style: _inputTextStyle,
-                textCapitalization: TextCapitalization.words,
-                decoration: _inputDecoration('iban_holder_hint'.tr, Icons.person_outline),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'iban_holder_required'.tr : null,
-              ),
-              SizedBox(height: 16.h),
-
-              // IBAN number
-              _buildLabel('iban_number_label'.tr),
-              SizedBox(height: 6.h),
-              TextFormField(
-                controller: _ibanCtrl,
-                style: _inputTextStyle,
-                keyboardType: TextInputType.text,
-                textCapitalization: TextCapitalization.characters,
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 ]')),
-                  // Auto-format with spaces every 4 chars
-                  _IbanInputFormatter(),
-                ],
-                decoration: _inputDecoration(
-                  _isSaved ? _maskedIban : 'iban_number_hint'.tr,
-                  Icons.account_balance_outlined,
-                ),
-                validator: _validateIban,
-              ),
-              SizedBox(height: 6.h),
-              InterText(
-                text: 'iban_number_example'.tr,
-                fontSize: 11.sp,
-                color: AppColors.greyText,
-              ),
-              SizedBox(height: 16.h),
-
-              // BIC/SWIFT
-              _buildLabel('iban_bic_label'.tr),
-              SizedBox(height: 6.h),
-              TextFormField(
-                controller: _bicCtrl,
-                style: _inputTextStyle,
-                textCapitalization: TextCapitalization.characters,
-                decoration: _inputDecoration('iban_bic_hint'.tr, Icons.code),
-                validator: (v) => (v == null || v.trim().length < 8) ? 'iban_bic_required'.tr : null,
-              ),
-              SizedBox(height: 32.h),
-
-              // Save button — labelled "Modifier" once an IBAN is already
-              // saved so users understand they're overwriting it (v23.1
-               // part 44 fix Daniel "rajouter possibilité de modifier").
-              SizedBox(
-                width: double.infinity,
-                height: 52.h,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _accent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14.r),
-                    ),
-                  ),
-                  onPressed: _isLoading ? null : _save,
-                  child: _isLoading
-                      ? SizedBox(
-                          height: 20.h,
-                          width: 20.h,
-                          child: CircularProgressIndicator(
-                            color: AppColors.whiteColor,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : InterText(
-                          text: _isSaved
-                              ? 'iban_edit_button'.tr
-                              : 'iban_save_button'.tr,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.whiteColor,
-                        ),
-                ),
-              ),
-
-              // v23.1 part 44 — IBAN delete button. Only shown when an
-              // IBAN is already saved. Confirms before calling DELETE
-              // /iban (which also detaches the Airwallex Beneficiary).
-              if (_isSaved) ...[
-                SizedBox(height: 12.h),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48.h,
-                  child: OutlinedButton.icon(
-                    onPressed: _isLoading ? null : _confirmDelete,
-                    icon: Icon(
-                      Icons.delete_outline,
-                      size: 18.sp,
-                      color: const Color(0xFFE53935),
-                    ),
-                    label: InterText(
-                      text: 'iban_delete_button'.tr,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFFE53935),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFE53935)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14.r),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-
-              SizedBox(height: 20.h),
-              // Security note
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.lock_outline, size: 14.sp, color: AppColors.greyText),
-                    SizedBox(width: 4.w),
-                    InterText(
-                      text: 'iban_security_note'.tr,
-                      fontSize: 11.sp,
-                      color: AppColors.greyText,
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLabel(String text) {
-    return InterText(
-      text: text,
-      fontSize: 14.sp,
-      fontWeight: FontWeight.w600,
-      color: AppColors.blackColor,
-    );
-  }
-
-  // v23.1.314 — style du texte saisi : NOIR forcé (le fond des champs est
-  // toujours blanc via fillColor) → lisible en clair ET en sombre.
-  TextStyle get _inputTextStyle => TextStyle(
-        color: AppColors.blackColor,
-        fontSize: 15.sp,
-        fontWeight: FontWeight.w600,
-      );
-
-  InputDecoration _inputDecoration(String hint, IconData icon) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(color: AppColors.greyText, fontSize: 14.sp),
-      prefixIcon: Icon(icon, color: AppColors.greyText, size: 20.sp),
-      filled: true,
-      fillColor: AppColors.whiteColor,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.r),
-        borderSide: BorderSide(color: AppColors.grey300Color),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.r),
-        borderSide: BorderSide(color: AppColors.grey300Color),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.r),
-        borderSide: BorderSide(color: _accent, width: 1.5),
-      ),
-      contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
     );
   }
 }

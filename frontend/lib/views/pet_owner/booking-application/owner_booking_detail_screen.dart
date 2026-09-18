@@ -7,9 +7,11 @@ import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/string_utils.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/reviews/widgets/rating_stars.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/widgets/service_confirmation_card.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/submit_review_dialog.dart';
 
 /// Detail screen for a booking (owner view).
 /// Shows: Service Provider (sitter card), Pets, Note, Pay/Chat/Cancel actions.
@@ -40,11 +42,33 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
   // v565 (point 24) — détail vivant (`GET /bookings/:id` : handover +
   // timeline). Null tant que non chargé → on affiche la réservation reçue.
   BookingModel? _liveBooking;
+  // v565 (point 38) — avis déjà laissé sur cette réservation ?
+  Map<String, dynamic>? _myReview;
 
   @override
   void initState() {
     super.initState();
     _reloadDetail();
+    _loadMyReview();
+  }
+
+  Future<void> _loadMyReview() async {
+    try {
+      final r = await Get.find<OwnerRepository>()
+          .getMyReview(bookingId: widget.booking.id);
+      if (mounted) setState(() => _myReview = r);
+    } catch (_) {/* silencieux */}
+  }
+
+  Future<void> _onReview() async {
+    final b = _liveBooking ?? widget.booking;
+    if (b.sitter.id.isEmpty) return;
+    final ok = await SubmitReviewDialog.show(
+      context: context,
+      revieweeId: b.sitter.id,
+      bookingId: b.id,
+    );
+    if (ok) await _loadMyReview();
   }
 
   Future<void> _reloadDetail() async {
@@ -353,33 +377,20 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                               ],
                             ),
                           ],
-                          if (sitter.rating > 0 && sitter.reviewsCount > 0) ...[
-                            SizedBox(height: 8.h),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.star,
-                                  size: 16.sp,
-                                  color: Colors.amber,
+                          // v565 (point 38) — étoiles modernes, « Nouveau »
+                          // sans avis.
+                          SizedBox(height: 8.h),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: RatingStars(
+                                  rating: sitter.rating,
+                                  reviewsCount: sitter.reviewsCount,
+                                  size: 15,
                                 ),
-                                SizedBox(width: 4.w),
-                                InterText(
-                                  text: 'owner_rating_with_reviews'.tr
-                                      .replaceAll(
-                                        '@rating',
-                                        sitter.rating.toStringAsFixed(1),
-                                      )
-                                      .replaceAll(
-                                        '@count',
-                                        sitter.reviewsCount.toString(),
-                                      ),
-                                  fontSize: 13.sp,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.textPrimary(context),
-                                ),
-                              ],
-                            ),
-                          ],
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -691,6 +702,8 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                   onConfirmPickup: _onOwnerConfirmPickup,
                   onConfirm: _onOwnerConfirm,
                   onDispute: _onOwnerDispute,
+                  onReview: _onReview,
+                  reviewed: _myReview != null,
                 ),
 
               SizedBox(height: 40.h),

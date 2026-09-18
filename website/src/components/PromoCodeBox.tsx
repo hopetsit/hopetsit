@@ -16,9 +16,16 @@
 // #1D1D1F / #6E6E73, état sélectionné orange pâle.
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { ApiError, checkPromo, getStoredUser, redeemPromo } from "@/lib/api";
+import {
+  ApiError,
+  checkPromo,
+  getPublicPromo,
+  getStoredUser,
+  PublicPromo,
+  redeemPromo,
+} from "@/lib/api";
 
 type PromoState =
   | { kind: "idle" }
@@ -41,6 +48,21 @@ export function PromoCodeBox({
   const [code, setCode] = useState("");
   const [state, setState] = useState<PromoState>({ kind: "idle" });
   const loggedIn = typeof window !== "undefined" && !!getStoredUser();
+  // v565 — code « du moment » (admin) pré-rempli, avec son message.
+  const [publicPromo, setPublicPromo] = useState<PublicPromo | null>(null);
+
+  useEffect(() => {
+    if (!getStoredUser()) return;
+    let cancelled = false;
+    getPublicPromo().then((p) => {
+      if (cancelled || !p) return;
+      setPublicPromo(p);
+      setCode((c) => (c.trim() ? c : p.code));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function apply() {
     const c = code.trim().toUpperCase();
@@ -87,6 +109,11 @@ export function PromoCodeBox({
         >
           <span aria-hidden="true">🎁</span>
           {t("promo_have_code")}
+          {publicPromo && (
+            <span className="rounded-full bg-white/80 px-2 py-0.5 font-mono text-xs tracking-wide text-owner-dark">
+              {publicPromo.code}
+            </span>
+          )}
         </button>
       </div>
     );
@@ -99,6 +126,12 @@ export function PromoCodeBox({
         <p className="text-sm font-semibold text-[#1D1D1F]">{t("promo_title")}</p>
       </div>
       <p className="mt-1 text-xs text-[#6E6E73]">{t("promo_check_hint")}</p>
+      {publicPromo?.message && loggedIn && (
+        <p className="mt-2 rounded-2xl bg-owner-light px-3 py-2 text-xs font-medium text-owner-dark">
+          🎉 {publicPromo.message}{" "}
+          <span className="font-mono font-semibold">{publicPromo.code}</span>
+        </p>
+      )}
 
       {!loggedIn ? (
         <Link

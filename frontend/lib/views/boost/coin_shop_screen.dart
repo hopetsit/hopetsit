@@ -1869,7 +1869,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                   ),
                 ),
                 child: InterText(
-                  text: 'MEILLEUR PRIX',
+                  text: 'v565_shop_best_price'.tr,
                   fontSize: 9.sp,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,

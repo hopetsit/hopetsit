@@ -16,10 +16,15 @@ import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 class ActiveBenefitsRow extends StatefulWidget {
-  const ActiveBenefitsRow({super.key, this.compact = false});
+  const ActiveBenefitsRow({super.key, this.compact = false, this.hero = false});
 
   /// Quand `compact: true`, badges plus petits (utile dans le header).
   final bool compact;
+
+  /// v565 — mode « hero » (en-tête de profil partagé `ProfileHero`) : pilules
+  /// en verre blanc translucide avec l'icône produit ET son nom court
+  /// (« 👑 Premium · 60 j »), badge discret « Aucun abonnement » si vide.
+  final bool hero;
 
   @override
   State<ActiveBenefitsRow> createState() => _ActiveBenefitsRowState();
@@ -201,25 +206,29 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
           : 0;
       // v444 — Daniel : badge discret = jours restants dans une pastille
       // pleine NOIRE (Premium = le plus prestigieux).
-      children.add(_badge(context, '👑', days, const Color(0xFF111111)));
+      children.add(_badge(context, '👑', days, const Color(0xFF111111),
+          name: 'hero_benefit_premium'.tr));
     }
     if (hasIndividualPawFollow) {
       final days = pawFollowExpiry != null
           ? pawFollowExpiry.difference(now).inDays
           : 0;
       // Violet PawFollow.
-      children.add(_badge(context, '📍', days, const Color(0xFF7C3AED)));
+      children.add(_badge(context, '📍', days, const Color(0xFF7C3AED),
+          name: 'hero_benefit_follow'.tr));
     }
     if (familyActive) {
       final days =
           familyExpiry != null ? familyExpiry.difference(now).inDays : 0;
       // Violet Famille (légèrement plus clair que PawFollow).
-      children.add(_badge(context, '👨‍👩‍👧', days, const Color(0xFF8B5CF6)));
+      children.add(_badge(context, '👨‍👩‍👧', days, const Color(0xFF8B5CF6),
+          name: 'hero_benefit_family'.tr));
     }
     if (boostActive) {
       final days = boostExpiry.difference(now).inDays;
       // Rouge PawBoost.
-      children.add(_badge(context, '🚀', days, const Color(0xFFE8472A)));
+      children.add(_badge(context, '🚀', days, const Color(0xFFE8472A),
+          name: 'hero_benefit_boost'.tr));
     }
     if (pawSpotActive) {
       // Jours au PLAFOND (29,9 j → 30) pour coller à l'abonnement acheté.
@@ -227,9 +236,23 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
           ? (pawspotExpiry.difference(now).inHours / 24).ceil()
           : 0;
       // Jaune/doré PawSpot.
-      children.add(_badge(context, '🐾', days, const Color(0xFFE8A00A)));
+      children.add(_badge(context, '🐾', days, const Color(0xFFE8A00A),
+          name: 'hero_benefit_spot'.tr));
     }
-    if (children.isEmpty) return const SizedBox.shrink();
+    if (children.isEmpty) {
+      // v565 — en mode hero, un badge discret « Aucun abonnement » (les
+      // autres modes restent invisibles quand il n'y a rien à montrer).
+      if (!widget.hero) return const SizedBox.shrink();
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: _heroPill(
+          leading: Icon(Icons.workspace_premium_outlined,
+              size: 13.sp, color: Colors.white.withValues(alpha: 0.85)),
+          text: 'hero_no_subscription'.tr,
+          muted: true,
+        ),
+      );
+    }
     // v444 — Daniel : « les petits badges du cadre orange/vert/bleu, mets-les
     // HORIZONTAUX ». Avant : grille 2 colonnes (LayoutBuilder demi-largeur).
     // Maintenant : une seule LIGNE horizontale, défilable si trop de badges
@@ -255,12 +278,21 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
   /// dans une pastille PLEINE à la couleur de l'ABONNEMENT (noir Premium /
   /// violet PawFollow-Famille / jaune PawSpot / rouge PawBoost). Plus de nom
   /// d'abonnement ni de cadre couleur-rôle : l'emoji + la couleur identifient.
-  Widget _badge(BuildContext context, String emoji, int days, Color color) {
+  Widget _badge(BuildContext context, String emoji, int days, Color color,
+      {String name = ''}) {
     // v565 — un abonnement « à vie » (expiration très lointaine) affichait
     // « 26766 j » : au-delà de 10 ans on montre ∞.
     final daysLabel = days > 3650
         ? '∞'
         : (days > 0 ? 'pawmap_time_days_short'.trParams({'n': '$days'}) : '');
+    if (widget.hero) {
+      // v565 — pilule de verre blanc translucide : icône + nom court + jours.
+      final text = daysLabel.isEmpty ? name : '$name · $daysLabel';
+      return _heroPill(
+        leading: Text(emoji, style: TextStyle(fontSize: 12.sp)),
+        text: text,
+      );
+    }
     // Texte SOMBRE sur le jaune PawSpot (contraste), BLANC sinon.
     final onColor = color == const Color(0xFFE8A00A)
         ? const Color(0xFF1A1A1A)
@@ -293,6 +325,37 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
               color: onColor,
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  /// v565 — pilule « verre » du mode hero (blanc translucide, bord blanc,
+  /// texte blanc) ; `muted` = version discrète pour « Aucun abonnement ».
+  Widget _heroPill({
+    required Widget leading,
+    required String text,
+    bool muted = false,
+  }) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(9.w, 5.h, 11.w, 5.h),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: muted ? 0.10 : 0.18),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: muted ? 0.18 : 0.30)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          leading,
+          SizedBox(width: 5.w),
+          InterText(
+            text: text,
+            fontSize: 11.sp,
+            fontWeight: FontWeight.w800,
+            color: Colors.white.withValues(alpha: muted ? 0.85 : 1),
+            maxLines: 1,
+          ),
         ],
       ),
     );

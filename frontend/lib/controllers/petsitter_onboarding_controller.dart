@@ -84,8 +84,8 @@ class PetsitterOnboardingController extends GetxController {
   Future<void> completeOnboarding() async {
     if (!acceptTerms.value) {
       CustomSnackbar.showWarning(
-        title: 'snackbar_text_required',
-        message: 'snackbar_text_please_accept_the_terms_and_conditions',
+        title: 'snackbar_text_required'.tr,
+        message: 'snackbar_text_please_accept_the_terms_and_conditions'.tr,
       );
       return;
     }
@@ -101,8 +101,8 @@ class PetsitterOnboardingController extends GetxController {
       final rate = double.tryParse(rateText);
       if (rate == null || rate <= 0) {
         CustomSnackbar.showError(
-          title: 'snackbar_text_invalid_hourly_rate',
-          message: 'snackbar_text_hourly_rate_must_be_greater_than_0',
+          title: 'snackbar_text_invalid_hourly_rate'.tr,
+          message: 'snackbar_text_hourly_rate_must_be_greater_than_0'.tr,
         );
         return;
       }
@@ -154,7 +154,7 @@ class PetsitterOnboardingController extends GetxController {
 
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,
-        message: 'snackbar_text_profile_completed_successfully',
+        message: 'snackbar_text_profile_completed_successfully'.tr,
       );
 
       // v21.1.1 — Stripe Connect onboarding retiré (Stripe purgé). On retourne
@@ -171,7 +171,7 @@ class PetsitterOnboardingController extends GetxController {
       AppLogger.logError('Failed to complete onboarding', error: e);
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: 'snackbar_text_failed_to_complete_profile_please_try_again',
+        message: 'snackbar_text_failed_to_complete_profile_please_try_again'.tr,
       );
     } finally {
       isLoading.value = false;

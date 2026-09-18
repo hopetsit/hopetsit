@@ -14,6 +14,7 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/reviews/widgets/rating_stars.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
@@ -338,48 +339,16 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                     ],
                   ),
                   SizedBox(height: 8.h),
+                  // v565 (point 38) — étoiles modernes, « Nouveau » sans avis.
                   Row(
                     children: [
-                      if (sitter.rating > 0 && sitter.reviewsCount > 0) ...[
-                        Row(
-                          children: List.generate(5, (index) {
-                            if (index < sitter.rating.floor()) {
-                              return Icon(
-                                Icons.star,
-                                color: Colors.amber,
-                                size: 16.sp,
-                              );
-                            } else if (index == sitter.rating.floor() &&
-                                sitter.rating % 1 != 0) {
-                              return Icon(
-                                Icons.star_half,
-                                color: Colors.amber,
-                                size: 16.sp,
-                              );
-                            } else {
-                              return Icon(
-                                Icons.star_border,
-                                color: Colors.amber,
-                                size: 16.sp,
-                              );
-                            }
-                          }),
+                      Flexible(
+                        child: RatingStars(
+                          rating: sitter.rating,
+                          reviewsCount: sitter.reviewsCount,
+                          size: 16,
                         ),
-                        SizedBox(width: 8.w),
-                        PoppinsText(
-                          text: sitter.rating.toStringAsFixed(1),
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.textPrimary(context),
-                        ),
-                      ] else ...[
-                        InterText(
-                          text: 'sitter_detail_no_rating'.tr,
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.greyColor,
-                        ),
-                      ],
+                      ),
                     ],
                   ),
                 ],

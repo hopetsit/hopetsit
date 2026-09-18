@@ -78,6 +78,8 @@ class EditPetController extends GetxController {
   final Rx<String?> selectedVaccination = Rx<String?>('Up to Date');
   final RxBool isLoading = false.obs;
   final RxBool isFetching = false.obs;
+  // v565 — point 39 : message d'erreur de chargement (état « Réessayer »).
+  final RxString loadError = ''.obs;
   final RxBool isUploadingImage = false.obs;
   final RxString currentAvatarUrl = ''.obs;
 
@@ -180,11 +182,14 @@ class EditPetController extends GetxController {
 
   Future<void> loadPetData() async {
     isFetching.value = true;
+    loadError.value = '';
 
     try {
       final pet = await _petRepository.getPetById(petId);
       _populateFormFromPetData(pet);
     } catch (e) {
+      loadError.value =
+          'snackbar_text_failed_to_load_pet_data_please_try_again'.tr;
       CustomSnackbar.showError(
         title: 'common_error'.tr,
         message: 'snackbar_text_failed_to_load_pet_data_please_try_again'.tr,
@@ -356,7 +361,7 @@ class EditPetController extends GetxController {
       if (h != null && h <= 0) {
         CustomSnackbar.showError(
           title: 'pet_validation_error'.tr,
-          message: 'snackbar_text_height_must_be_greater_than_0',
+          message: 'snackbar_text_height_must_be_greater_than_0'.tr,
         );
         return false;
       }

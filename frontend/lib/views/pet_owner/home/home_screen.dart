@@ -30,6 +30,7 @@ import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/widgets/expandable_post_input.dart';
@@ -218,13 +219,19 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildWalkersTab() {
     return Obx(() {
       if (_homeController.isLoadingWalkers.value) {
-        return const SliverFillRemaining(
-          hasScrollBody: false,
-          child: Center(
-            child: CircularProgressIndicator(
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
-            ),
+        // v565 — squelette de chargement (kit Réservations).
+        return const SliverToBoxAdapter(
+          child: BookingLoadingList(accent: AppColors.greenColor),
+        );
+      }
+      // v565 — erreur réseau lisible + « Réessayer ».
+      if (_homeController.lastError.value.isNotEmpty &&
+          _homeController.walkers.isEmpty) {
+        return SliverToBoxAdapter(
+          child: BookingErrorState(
+            embedded: true,
+            message: _homeController.lastError.value,
+            onRetry: () => _homeController.loadWalkers(),
           ),
         );
       }
@@ -1112,9 +1119,9 @@ class _HomeScreenState extends State<HomeScreen> {
             );
 
       if (isLoading && sortedMine.isEmpty) {
-        return const SliverFillRemaining(
-          hasScrollBody: false,
-          child: Center(child: CircularProgressIndicator()),
+        // v565 — squelette de chargement (kit Réservations).
+        return const SliverToBoxAdapter(
+          child: BookingLoadingList(accent: AppColors.primaryColor),
         );
       }
 
@@ -1299,24 +1306,37 @@ class _HomeScreenState extends State<HomeScreen> {
       final isLoading = _homeController.isLoadingSitters.value;
 
       if (isLoading) {
-        return const SliverFillRemaining(
-          hasScrollBody: false,
-          child: Center(child: CircularProgressIndicator()),
+        // v565 — squelette de chargement (kit Réservations).
+        return const SliverToBoxAdapter(
+          child: BookingLoadingList(accent: AppColors.primaryColor),
+        );
+      }
+      // v565 — erreur réseau lisible + « Réessayer ».
+      if (_homeController.lastError.value.isNotEmpty &&
+          _homeController.sitters.isEmpty) {
+        return SliverToBoxAdapter(
+          child: BookingErrorState(
+            embedded: true,
+            message: _homeController.lastError.value,
+            onRetry: () => _homeController.loadSitters(),
+          ),
         );
       }
       if (_homeController.sitters.isEmpty) {
-        return SliverFillRemaining(
-          hasScrollBody: false,
-          child: Center(
-            child: Padding(
-              padding: EdgeInsets.all(20.w),
-              child: InterText(
-                text: 'home_no_sitters_message'.tr,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w400,
-                color: AppColors.greyColor,
-              ),
-            ),
+        // v565 — état vide cohérent avec l'onglet Promeneurs (icône, titre,
+        // explication, CTA « Publier une demande »).
+        return SliverToBoxAdapter(
+          child: BookingEmptyState(
+            embedded: true,
+            icon: Icons.home_work_rounded,
+            accent: AppColors.primaryColor,
+            title: 'home_no_sitters_message'.tr,
+            subtitle: 'home_posts_empty_hint'.tr,
+            ctaLabel: 'publish_request_publish_button'.tr,
+            onCta: () {
+              Get.to(() => const PublishReservationRequestScreen())
+                  ?.then((_) => _postsController.refreshPosts());
+            },
           ),
         );
       }

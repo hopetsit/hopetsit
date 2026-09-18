@@ -14,6 +14,7 @@ import 'package:hopetsit/utils/pet_age_format.dart';
 import 'package:hopetsit/utils/pet_species_color.dart';
 import 'package:hopetsit/views/pet_owner/pet_profile/pet_gallery_screen.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -165,13 +166,22 @@ class PetProfileScreen extends StatelessWidget {
         // du nom + badge « À jour » (voir _header) au lieu d'un FAB flottant.
         // L'en-tête est fixe (au-dessus des onglets) → le bouton reste toujours
         // visible sur les 4 onglets.
+        // v565 — point 39 : barre du kit Profil (fond scaffold, retour couleur
+        // de l'espèce, titre centré), sections en cartes Apple, états vides du kit.
         appBar: AppBar(
-          backgroundColor: AppColors.appBar(context),
+          backgroundColor: AppColors.scaffold(context),
           elevation: 0,
-          scrolledUnderElevation: 0.5,
+          scrolledUnderElevation: 0,
           surfaceTintColor: Colors.transparent,
           centerTitle: true,
-          title: InterText(
+          iconTheme: IconThemeData(color: _accent),
+          leading: Navigator.of(context).canPop()
+              ? IconButton(
+                  icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20.sp, color: _accent),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                )
+              : null,
+          title: PoppinsText(
             text: 'pet_profile_title'.trParams({'name': pet.petName}),
             fontSize: 17.sp,
             fontWeight: FontWeight.w700,
@@ -180,6 +190,8 @@ class PetProfileScreen extends StatelessWidget {
           actions: [
             if (editable)
               PopupMenuButton<String>(
+                color: AppColors.card(context),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
                 icon: Icon(Icons.more_horiz_rounded,
                     color: _accent, size: 24.sp),
                 onSelected: (v) {
@@ -223,9 +235,13 @@ class PetProfileScreen extends StatelessWidget {
               isScrollable: true,
               tabAlignment: TabAlignment.center,
               indicatorColor: _accent,
+              indicatorSize: TabBarIndicatorSize.label,
+              indicatorWeight: 3,
+              dividerColor: AppColors.divider(context).withValues(alpha: 0.6),
               labelColor: _accent,
-              unselectedLabelColor: AppColors.greyText,
+              unselectedLabelColor: AppColors.textSecondary(context),
               labelStyle: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w700),
+              unselectedLabelStyle: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600),
               tabs: [
                 Tab(text: 'pet_tab_about'.tr),
                 Tab(text: 'pet_tab_health'.tr),
@@ -763,31 +779,11 @@ class PetProfileScreen extends StatelessWidget {
           ),
         if (editable) ...[
           SizedBox(height: 14.h),
-          GestureDetector(
+          ProfileSecondaryButton(
+            label: 'pet_add_photos'.tr,
+            accent: _accent,
+            icon: Icons.add_photo_alternate_rounded,
             onTap: _openGallery,
-            child: Container(
-              padding: EdgeInsets.symmetric(vertical: 14.h),
-              decoration: BoxDecoration(
-                color: _accent.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(14.r),
-                border: Border.all(
-                    color: _accent.withValues(alpha: 0.4),
-                    style: BorderStyle.solid),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.add_rounded, color: _accent, size: 18.sp),
-                  SizedBox(width: 8.w),
-                  InterText(
-                    text: 'pet_add_photos'.tr,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w700,
-                    color: _accent,
-                  ),
-                ],
-              ),
-            ),
           ),
         ],
       ],
@@ -798,12 +794,12 @@ class PetProfileScreen extends StatelessWidget {
   Widget _section(String title, List<Widget> children,
       {IconData? icon, Widget? trailing}) {
     return Container(
-      margin: EdgeInsets.only(bottom: 14.h),
+      margin: EdgeInsets.only(bottom: 12.h),
       padding: EdgeInsets.all(14.w),
       decoration: BoxDecoration(
-        color: Get.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: _accent.withValues(alpha: 0.15)),
+        color: AppColors.card(Get.context!),
+        borderRadius: BorderRadius.circular(20.r),
+        boxShadow: AppColors.cardShadow(Get.context!),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1048,18 +1044,10 @@ class PetProfileScreen extends StatelessWidget {
             .toList(),
       );
 
-  Widget _empty(String text) => Center(
-        child: Padding(
-          padding: EdgeInsets.all(32.w),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('🐾', style: TextStyle(fontSize: 40.sp)),
-              SizedBox(height: 12.h),
-              InterText(text: text, fontSize: 14.sp, color: AppColors.greyColor),
-            ],
-          ),
-        ),
+  Widget _empty(String text) => ProfileEmptyState(
+        icon: Icons.pets_rounded,
+        title: text,
+        accent: _accent,
       );
 
   // ── label helpers ───────────────────────────────────────────────────────

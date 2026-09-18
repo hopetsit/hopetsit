@@ -5,10 +5,9 @@
 // pour ne pas casser les imports résiduels.
 
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 
 class AddCardScreen extends StatelessWidget {
   final String? setupIntentClientSecret;
@@ -22,51 +21,28 @@ class AddCardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        title: PoppinsText(
-          text: 'add_card_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
-        ),
+    // v565 — stub modernisé (kit Profil) : explique que la carte est
+    // enregistrée automatiquement au premier paiement Airwallex, et propose
+    // d'ouvrir « Mes cartes » (flux d'ajout 0,50 € remboursé) au lieu d'un
+    // simple « Retour » en dur.
+    final accent = currentRoleAccent();
+    return ProfileSubPageScaffold(
+      title: 'add_card_title'.tr,
+      accent: accent,
+      scroll: false,
+      bottom: ProfileSecondaryButton(
+        label: 'v565_pay_back'.tr,
+        accent: accent,
+        icon: Icons.arrow_back_ios_new_rounded,
+        onTap: () => Get.back(result: false),
       ),
-      body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.w),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.credit_card,
-                  size: 48.sp, color: AppColors.textSecondary(context)),
-              SizedBox(height: 16.h),
-              PoppinsText(
-                text: 'add_card_auto_saved'.tr,
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary(context),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 8.h),
-              InterText(
-                text:
-                    'add_card_airwallex_hint'.tr,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w400,
-                color: AppColors.textSecondary(context),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 24.h),
-              TextButton(
-                onPressed: () => Get.back(result: false),
-                child: const Text('Retour'),
-              ),
-            ],
-          ),
-        ),
+      body: ProfileEmptyState(
+        icon: Icons.credit_card_rounded,
+        title: 'add_card_auto_saved'.tr,
+        message: 'add_card_airwallex_hint'.tr,
+        accent: accent,
+        actionLabel: 'saved_cards_add_button'.tr,
+        onAction: () => Get.off(() => const SavedCardsScreen()),
       ),
     );
   }

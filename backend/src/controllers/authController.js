@@ -158,6 +158,98 @@ const findAvailableRolesForAccount = async (email, oldId) => {
 // (bug « la photo disparaît sur l'autre téléphone »). Cf. utils/avatarFallback.
 const { ensureAvatarFromSiblingRoles } = require('../utils/avatarFallback');
 
+// v565 audit-inscription — « un compte, trois profils » : l'e-mail est
+// vérifié UNE fois pour la personne. AVANT, /auth/verify et /auth/verify-link
+// ne posaient `verified:true` que sur le PREMIER profil trouvé (ordre fixe
+// owner > sitter > walker) : un promeneur qui possédait aussi un profil owner
+// validait l'owner, et son profil walker restait « non vérifié » pour
+// toujours (nouveau code à chaque login, actions d'argent bloquées).
+const markVerifiedAcrossRoles = async (email) => {
+  const lower = String(email || '').toLowerCase();
+  if (!lower) return;
+  await Promise.all([Owner, Sitter, Walker].map((M) =>
+    M.updateMany({ email: lower }, { $set: { verified: true } }),
+  ));
+};
+
+// v565 — les 3 docs (éventuels) d'un e-mail, pour savoir s'il reste un profil
+// non vérifié (verify-link) ou pour préférer le rôle demandé (Google/Apple).
+const findAllAccountsByEmail = async (email) => {
+  const lower = String(email || '').toLowerCase();
+  const [owner, sitter, walker] = await Promise.all([
+    Owner.findOne({ email: lower }),
+    Sitter.findOne({ email: lower }),
+    Walker.findOne({ email: lower }),
+  ]);
+  const out = [];
+  if (owner) out.push({ role: 'owner', account: owner });
+  if (sitter) out.push({ role: 'sitter', account: sitter });
+  if (walker) out.push({ role: 'walker', account: walker });
+  return out;
+};
+
+// v565 — un code encore valable et envoyé il y a moins de 10 min n'est PAS
+// régénéré. CAUSE RACINE d'une partie des « jamais vérifié » : l'app appelle
+// /auth/login juste après /auth/signup (entrée directe v535), et le login
+// d'un compte non vérifié régénérait un code → 2 e-mails en 2 secondes, et le
+// bouton « Activer mon compte » du PREMIER e-mail répondait « Lien expiré ».
+const CODE_REUSE_WINDOW_MS = 10 * 60 * 1000;
+const hasFreshVerificationCode = (record) => {
+  if (!record || !record.expiresAt) return false;
+  if (dayjs(record.expiresAt).isBefore(dayjs())) return false;
+  const sentAt = record.updatedAt || record.createdAt;
+  if (!sentAt) return false;
+  return Date.now() - new Date(sentAt).getTime() < CODE_REUSE_WINDOW_MS;
+};
+
+// v565 — langue de l'e-mail : l'app envoie { role, user } → appLocale /
+// language sont DANS user.* (le niveau racine restait vide → e-mail toujours
+// en anglais, sans prénom : `req.body.name` n'existe pas).
+const signupLang = (body) => {
+  const u = (body && body.user) || {};
+  return verifyLang(body.appLocale || u.appLocale, body.language || u.language);
+};
+// v565 audit-inscription (décision Daniel 18/09) — VILLE OBLIGATOIRE côté
+// serveur, sans casser les anciennes apps : l'app envoie `X-App-Version`
+// (ex. « 23.1.562+565 », build après le « + ») et `X-App-Platform`, le site
+// envoie `X-App-Version: web`. Build ≥ 565 ou web → 400 CITY_REQUIRED si la
+// ville manque ; sans en-tête ou build < 565 → tolérant (comportement d'avant).
+const CITY_REQUIRED_MIN_BUILD = 565;
+const clientRequiresCity = (req) => {
+  const raw = String(req.headers?.['x-app-version'] || '').trim().toLowerCase();
+  if (!raw) return false;
+  if (raw === 'web') return true;
+  const plus = raw.split('+');
+  const build = plus.length > 1 ? parseInt(plus[plus.length - 1], 10) : NaN;
+  if (Number.isFinite(build)) return build >= CITY_REQUIRED_MIN_BUILD;
+  const last = parseInt(raw.split('.').pop(), 10); // « 23.1.565 » sans « + »
+  return Number.isFinite(last) && last >= CITY_REQUIRED_MIN_BUILD;
+};
+const CITY_REQUIRED_I18N = {
+  fr: 'Merci d\'indiquer ta ville : elle est obligatoire pour créer ton compte.',
+  en: 'Please enter your city: it is required to create your account.',
+  es: 'Indica tu ciudad: es obligatoria para crear tu cuenta.',
+  de: 'Bitte gib deine Stadt an: Sie ist für die Kontoerstellung erforderlich.',
+  it: 'Inserisci la tua città: è obbligatoria per creare l\'account.',
+  pt: 'Indica a tua cidade: é obrigatória para criar a tua conta.',
+  pl: 'Podaj swoje miasto: jest wymagane do utworzenia konta.',
+  ko: '도시를 입력해 주세요. 계정을 만들려면 필수입니다.',
+  ja: 'お住まいの都市を入力してください。アカウント作成に必須です。',
+};
+const hasCity = (user) =>
+  !!String(user?.city || user?.location?.city || '').trim();
+const cityRequiredResponse = (req, res, lang) =>
+  res.status(400).json({
+    code: 'CITY_REQUIRED',
+    error: CITY_REQUIRED_I18N[lang] || CITY_REQUIRED_I18N.en,
+  });
+
+const appLocaleOf = (body) => {
+  const u = (body && body.user) || {};
+  const raw = String(body.appLocale || u.appLocale || '').toLowerCase().trim().slice(0, 2);
+  return VERIFY_LANGS.includes(raw) ? raw : '';
+};
+
 const generateRandomPassword = () => {
   return `firebase_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
 };
@@ -213,6 +305,9 @@ const signup = async (req, res) => {
     if (!user?.email || !user?.password || !user?.name) {
       return res.status(400).json({ error: 'Missing required fields: name, email, password.' });
     }
+    if (clientRequiresCity(req) && !hasCity(user)) {
+      return cityRequiredResponse(req, res, signupLang(req.body));
+    }
 
     const email = user.email.toLowerCase();
     const mobile = (user.mobile || '').trim();
@@ -252,7 +347,7 @@ const signup = async (req, res) => {
             },
             { upsert: true, new: true, setDefaultsOnInsert: true },
           );
-          await sendVerificationEmail(email, verificationCode, verifyLang(req.body.appLocale, req.body.language), req.body.name);
+          await sendVerificationEmail(email, verificationCode, signupLang(req.body), user.name);
         } catch (e) {
           logger.error('[signup] resend code for unverified existing account failed', e);
         }
@@ -304,6 +399,9 @@ const signup = async (req, res) => {
       city: (user.city || user.location?.city || '').toString().trim(),
       password: user.password,
       language: user.language || '',
+      // v565 — langue des e-mails/notifs posée DÈS l'inscription (avant :
+      // vide jusqu'à la synchro PATCH /users/me/app-locale après le login).
+      ...(appLocaleOf(req.body) ? { appLocale: appLocaleOf(req.body) } : {}),
       address: user.address || '',
       currency: ownerCurrency,
       acceptedTerms: !!user.acceptedTerms,
@@ -357,6 +455,7 @@ const signup = async (req, res) => {
       countryCode,
       password: user.password,
       language: user.language || '',
+      ...(appLocaleOf(req.body) ? { appLocale: appLocaleOf(req.body) } : {}), // v565
       address: user.address || '',
       currency: sitterCurrency,
       rate: user.rate || '',
@@ -448,6 +547,7 @@ const signup = async (req, res) => {
       countryCode,
       password: user.password,
       language: user.language || '',
+      ...(appLocaleOf(req.body) ? { appLocale: appLocaleOf(req.body) } : {}), // v565
       address: user.address || '',
       currency: walkerCurrency,
       skills: user.skills || '',
@@ -668,23 +768,29 @@ const signup = async (req, res) => {
       }
     }
 
-    const verificationCode = generateVerificationCode();
-    await VerificationCode.findOneAndUpdate(
-      { email, purpose: 'email_verification' },
-      {
-        email,
-        code: hashCode(verificationCode),
-        expiresAt: dayjs().add(24, 'hour').toDate(),
-        purpose: 'email_verification',
-        verified: false,
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+    // v565 — e-mail déjà vérifié sur un profil frère (hérité ci-dessus) : pas
+    // de nouveau code, pas d'e-mail, et la réponse dit emailVerified:true
+    // (AVANT : e-mail envoyé + emailVerified:false → écran de code inutile).
+    const alreadyVerified = newUser.verified === true;
+    if (!alreadyVerified) {
+      const verificationCode = generateVerificationCode();
+      await VerificationCode.findOneAndUpdate(
+        { email, purpose: 'email_verification' },
+        {
+          email,
+          code: hashCode(verificationCode),
+          expiresAt: dayjs().add(24, 'hour').toDate(),
+          purpose: 'email_verification',
+          verified: false,
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
 
-    try {
-      await sendVerificationEmail(email, verificationCode, verifyLang(req.body.appLocale, req.body.language), req.body.name);
-    } catch (emailError) {
-      logger.error('Failed to send verification email', emailError);
+      try {
+        await sendVerificationEmail(email, verificationCode, signupLang(req.body), user.name);
+      } catch (emailError) {
+        logger.error('Failed to send verification email', emailError);
+      }
     }
 
     // v23.1 part 127 — Phase 3 audit P3-1 : NE JAMAIS renvoyer le code
@@ -700,8 +806,12 @@ const signup = async (req, res) => {
       // anciennes versions de l'app ignorent ce champ et gardent leur
       // parcours OTP — aucune rupture de compatibilité.
       token: signAuthToken({ id: newUser._id.toString(), role }),
-      emailVerified: false,
-      message: 'Account created. Please verify your email.',
+      emailVerified: alreadyVerified,
+      // v565 — les profils existants de la personne (« Mes profils »).
+      availableRoles: await findAvailableRolesForAccount(email, newUser.oldId),
+      message: alreadyVerified
+        ? 'Account created. Email already verified.'
+        : 'Account created. Please verify your email.',
     });
   } catch (error) {
     logger.error('Signup error', error);
@@ -772,22 +882,29 @@ const login = async (req, res) => {
 
     if (!result.account.verified) {
       const userEmail = (result.account.email || email).toString().toLowerCase();
-      const verificationCode = generateVerificationCode();
-      await VerificationCode.findOneAndUpdate(
-        { email: userEmail, purpose: 'email_verification' },
-        {
-          email: userEmail,
-          code: hashCode(verificationCode),
-          expiresAt: dayjs().add(24, 'hour').toDate(),
-          purpose: 'email_verification',
-          verified: false,
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
-      try {
-        await sendVerificationEmail(userEmail, verificationCode, verifyLang(result.account.appLocale, result.account.language), result.account.name);
-      } catch (emailError) {
-        logger.error('Failed to send verification email on login', emailError);
+      // v565 — code récent encore valable → on ne le remplace PAS (le lien /
+      // code du dernier e-mail reste bon). Voir hasFreshVerificationCode.
+      const existingRecord = await VerificationCode.findOne({ email: userEmail, purpose: 'email_verification' });
+      let codeSent = false;
+      if (!hasFreshVerificationCode(existingRecord)) {
+        const verificationCode = generateVerificationCode();
+        await VerificationCode.findOneAndUpdate(
+          { email: userEmail, purpose: 'email_verification' },
+          {
+            email: userEmail,
+            code: hashCode(verificationCode),
+            expiresAt: dayjs().add(24, 'hour').toDate(),
+            purpose: 'email_verification',
+            verified: false,
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        try {
+          await sendVerificationEmail(userEmail, verificationCode, verifyLang(result.account.appLocale, result.account.language), result.account.name);
+          codeSent = true;
+        } catch (emailError) {
+          logger.error('Failed to send verification email on login', emailError);
+        }
       }
       // v535 — SPEC ONBOARDING P2 : l'OTP email n'est PLUS bloquant au login.
       // Avant : 403 sec → l'utilisateur restait dehors tant qu'il n'avait pas
@@ -806,8 +923,12 @@ const login = async (req, res) => {
         token: unverifiedToken,
         role: result.role,
         emailVerified: false,
-        message: 'A new verification code has been sent to your email.',
+        message: codeSent
+          ? 'A new verification code has been sent to your email.'
+          : 'A verification code was already sent to your email recently.',
         user: sanitizeUser(result.account, { includeEmail: true }),
+        // v565 — même forme que le login vérifié (« Mes profils »).
+        availableRoles: await findAvailableRolesForAccount(userEmail, result.account.oldId),
       });
     }
 
@@ -826,6 +947,7 @@ const login = async (req, res) => {
       token,
       user: sanitizeUser(result.account, { includeEmail: true }),
       availableRoles,
+      emailVerified: true, // v565 — explicite (l'écran de code s'appuie dessus)
     });
   } catch (error) {
     logger.error('Login error', error);
@@ -876,9 +998,16 @@ const googleAuth = async (req, res) => {
 
     const signInProvider = firebaseInfo?.sign_in_provider || 'firebase';
 
-    // Always resolve user by email to avoid duplicate accounts and
-    // ensure password + Google logins with same email map to same account.
-    let result = await findAccountByEmail(email);
+    // v565 — si le client précise `role` ET qu'un profil existe pour CE rôle,
+    // on se connecte dessus (AVANT : ordre fixe owner > sitter > walker, donc
+    // « Continuer avec Google » en tant que sitter ouvrait le profil owner).
+    let result = null;
+    if (role && VALID_ROLES.includes(role)) {
+      const PreferredModel = role === 'owner' ? Owner : role === 'sitter' ? Sitter : Walker;
+      const preferred = await PreferredModel.findOne({ email: String(email).toLowerCase() });
+      if (preferred) result = { role, account: preferred };
+    }
+    if (!result) result = await findAccountByEmail(email);
 
     // Existing user -> update firebase fields if needed and login.
     if (result) {
@@ -985,9 +1114,13 @@ const googleAuth = async (req, res) => {
         code: 'ROLE_REQUIRED',
       });
     }
+    if (clientRequiresCity(req) && !hasCity(user)) {
+      return cityRequiredResponse(req, res, verifyLang(user?.appLocale, user?.language));
+    }
 
     const normalizedEmail = email.toLowerCase();
-    const displayName = name || decoded.name || decoded.email || 'User';
+    // v565 — nom transmis par l'app en priorité (profil rempli côté client).
+    const displayName = (user?.name && String(user.name).trim()) || name || decoded.name || decoded.email || 'User';
 
     // Process location data if provided
     const location = processLocationData(user?.location);
@@ -1003,9 +1136,13 @@ const googleAuth = async (req, res) => {
       email: normalizedEmail,
       mobile: '',
       countryCode: (user?.countryCode || '').toString().trim(),
+      // v565 audit-inscription — pays, ville, langue posés dès la création
+      // (AVANT : country/language/appLocale vides pour tout compte Google/Apple).
+      country: (user?.country || '').toString().toUpperCase().trim(),
       city: (user?.city || user?.location?.city || '').toString().trim(), // v565 point 1
       password: generateRandomPassword(),
-      language: '',
+      language: (user?.language || '').toString().trim(),
+      ...(appLocaleOf({ appLocale: user?.appLocale, user }) ? { appLocale: appLocaleOf({ appLocale: user?.appLocale, user }) } : {}),
       address: '',
       currency: baseCurrency,
       acceptedTerms: false,
@@ -1208,7 +1345,16 @@ const appleAuth = async (req, res) => {
 
     // Always resolve user by email to avoid duplicate accounts and
     // ensure password + Google + Apple logins with same email map to same account.
-    let result = await findAccountByEmail(email);
+    // v565 — si le client précise `role` ET qu'un profil existe pour CE rôle,
+    // on se connecte dessus (AVANT : ordre fixe owner > sitter > walker, donc
+    // « Continuer avec Google » en tant que sitter ouvrait le profil owner).
+    let result = null;
+    if (role && VALID_ROLES.includes(role)) {
+      const PreferredModel = role === 'owner' ? Owner : role === 'sitter' ? Sitter : Walker;
+      const preferred = await PreferredModel.findOne({ email: String(email).toLowerCase() });
+      if (preferred) result = { role, account: preferred };
+    }
+    if (!result) result = await findAccountByEmail(email);
 
     // Existing user -> update firebase fields if needed and login.
     if (result) {
@@ -1307,11 +1453,17 @@ const appleAuth = async (req, res) => {
         code: 'ROLE_REQUIRED',
       });
     }
+    if (clientRequiresCity(req) && !hasCity(user)) {
+      return cityRequiredResponse(req, res, verifyLang(user?.appLocale, user?.language));
+    }
 
     const normalizedEmail = email.toLowerCase();
     // Apple Sign-In may provide name in the first request, but subsequent logins may not
     // Use name from token, decoded name, or fallback to email/User
-    const displayName = name || decoded.name || decoded.email?.split('@')[0] || 'User';
+    // v565 — Apple ne transmet le prénom/nom QU'AU PREMIER consentement et
+    // jamais dans le jeton Firebase : sans `user.name` envoyé par l'app, le
+    // compte s'appelait « abc123 » (préfixe d'une adresse privaterelay).
+    const displayName = (user?.name && String(user.name).trim()) || name || decoded.name || decoded.email?.split('@')[0] || 'User';
 
     // Process location data if provided
     const location = processLocationData(user?.location);
@@ -1327,9 +1479,13 @@ const appleAuth = async (req, res) => {
       email: normalizedEmail,
       mobile: '',
       countryCode: (user?.countryCode || '').toString().trim(),
+      // v565 audit-inscription — pays, ville, langue posés dès la création
+      // (AVANT : country/language/appLocale vides pour tout compte Google/Apple).
+      country: (user?.country || '').toString().toUpperCase().trim(),
       city: (user?.city || user?.location?.city || '').toString().trim(), // v565 point 1
       password: generateRandomPassword(),
-      language: '',
+      language: (user?.language || '').toString().trim(),
+      ...(appLocaleOf({ appLocale: user?.appLocale, user }) ? { appLocale: appLocaleOf({ appLocale: user?.appLocale, user }) } : {}),
       address: '',
       currency: baseCurrency,
       acceptedTerms: false,
@@ -1493,7 +1649,17 @@ const verifyEmail = async (req, res) => {
       return res.status(400).json({ error: 'Code is required.' });
     }
 
-    const result = await findAccountByEmail(email);
+    // v565 — rôle demandé (celui qui vient de s'inscrire) : AVANT, le jeton
+    // était toujours émis pour le PREMIER rôle trouvé (owner > sitter >
+    // walker) → un promeneur possédant aussi un profil owner entrait en owner.
+    const preferredRole = String(req.body?.role || req.query?.role || '').toLowerCase().trim();
+    let result = null;
+    if (VALID_ROLES.includes(preferredRole)) {
+      const Model = preferredRole === 'owner' ? Owner : preferredRole === 'sitter' ? Sitter : Walker;
+      const account = await Model.findOne({ email: String(email).toLowerCase() });
+      if (account) result = { role: preferredRole, account };
+    }
+    if (!result) result = await findAccountByEmail(email);
     if (!result) {
       return res.status(404).json({ error: 'User not found.' });
     }
@@ -1507,7 +1673,7 @@ const verifyEmail = async (req, res) => {
     }
 
     if (dayjs(record.expiresAt).isBefore(dayjs())) {
-      await VerificationCode.deleteOne({ email: email.toLowerCase() });
+      await VerificationCode.deleteOne({ email: email.toLowerCase(), purpose: 'email_verification' });
       return res.status(410).json({ error: 'Verification code expired. Please request a new code.' });
     }
 
@@ -1519,7 +1685,9 @@ const verifyEmail = async (req, res) => {
 
     result.account.verified = true;
     await result.account.save();
-    await VerificationCode.deleteOne({ email: email.toLowerCase() });
+    // v565 — propagation aux 3 profils de la personne (un compte, trois profils).
+    await markVerifiedAcrossRoles(email);
+    await VerificationCode.deleteOne({ email: email.toLowerCase(), purpose: 'email_verification' });
 
     // Generate JWT token after successful verification
     const token = signAuthToken({ id: result.account._id.toString(), role: result.role });
@@ -1529,6 +1697,8 @@ const verifyEmail = async (req, res) => {
       role: result.role,
       token,
       user: sanitizeUser(result.account, { includeEmail: true }),
+      emailVerified: true,
+      availableRoles: await findAvailableRolesForAccount(email, result.account.oldId),
     });
   } catch (error) {
     logger.error('Verification error', error);
@@ -1550,17 +1720,19 @@ const verifyEmailLink = async (req, res) => {
 <p style="font-size:12px;color:#6E6E73"><a href="https://www.hopetsit.com/download" style="color:#6E6E73">App Store · Google Play</a></p></div></body></html>`);
   try {
     if (!email || !code) return page(false, 'Lien incomplet / Incomplete link', 'Ouvre l\'app et demande un nouveau code. / Open the app and request a new code.');
-    const result = await findAccountByEmail(email);
-    if (!result) return page(false, 'Compte introuvable / Account not found', 'Vérifie l\'adresse e-mail. / Check the e-mail address.');
-    if (result.account.verified) return page(true, 'Compte déjà activé / Already activated', 'Ouvre l\'app et connecte-toi. / Open the app and sign in.');
+    // v565 — on regarde les 3 profils : « déjà activé » seulement si TOUS le
+    // sont (AVANT : owner vérifié + walker non → page « déjà activé » et le
+    // walker restait non vérifié).
+    const accounts = await findAllAccountsByEmail(email);
+    if (!accounts.length) return page(false, 'Compte introuvable / Account not found', 'Vérifie l\'adresse e-mail. / Check the e-mail address.');
+    if (accounts.every((a) => a.account.verified === true)) return page(true, 'Compte déjà activé / Already activated', 'Ouvre l\'app et connecte-toi. / Open the app and sign in.');
     const record = await VerificationCode.findOne({ email, purpose: 'email_verification' });
     if (!record || dayjs(record.expiresAt).isBefore(dayjs()) || !compareCode(code, record.code)) {
       return page(false, 'Lien expiré / Link expired', 'Ouvre l\'app, connecte-toi : un nouveau code t\'est envoyé automatiquement. / Open the app and sign in: a new code is sent automatically.');
     }
-    result.account.verified = true;
-    await result.account.save();
+    await markVerifiedAcrossRoles(email);
     await VerificationCode.deleteOne({ email, purpose: 'email_verification' });
-    logger.info(`[auth] verify-link OK ${email} (${result.role})`);
+    logger.info(`[auth] verify-link OK ${email} (${accounts.map((a) => a.role).join('+')})`);
     return page(true, 'Compte activé ! / Account activated!', 'Reviens dans l\'app HoPetSit et connecte-toi, tout est prêt. / Go back to the HoPetSit app and sign in, you\'re all set.');
   } catch (error) {
     logger.error('verify-link error', error);
@@ -1579,6 +1751,16 @@ const resendVerificationCode = async (req, res) => {
     const result = await findAccountByEmail(email);
     if (!result) {
       return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // v565 — anti-rafale : 1 renvoi / 60 s par e-mail (l'app et le site
+    // affichent déjà un compte à rebours de 60 s ; ici c'est la garantie
+    // côté serveur, cf. « rate-limit du renvoi »).
+    const previous = await VerificationCode.findOne({ email: email.toLowerCase(), purpose: 'email_verification' });
+    const previousSentAt = previous && (previous.updatedAt || previous.createdAt);
+    if (previousSentAt && Date.now() - new Date(previousSentAt).getTime() < 60 * 1000) {
+      const retryAfter = Math.ceil((60 * 1000 - (Date.now() - new Date(previousSentAt).getTime())) / 1000);
+      return res.status(429).json({ error: 'Please wait before requesting a new code.', code: 'RESEND_TOO_SOON', retryAfter });
     }
 
     const verificationCode = generateVerificationCode();
@@ -1967,6 +2149,7 @@ const refreshToken = async (req, res) => {
 };
 
 module.exports = {
+  markVerifiedAcrossRoles,
   verifyEmailLink,
   signup,
   login,

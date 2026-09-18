@@ -40,6 +40,8 @@ class HomeController extends GetxController {
   // Sitters
   final RxList<SitterModel> sitters = <SitterModel>[].obs;
   final RxBool isLoadingSitters = false.obs;
+  // v565 — dernière erreur de chargement (sitters / walkers), vide = OK.
+  final RxString lastError = ''.obs;
 
   // Walkers (same "Promeneurs" tab layout as sitters — the Near Me slider
   // is shared with sitters via nearMeRadiusKm below).
@@ -157,15 +159,18 @@ class HomeController extends GetxController {
   /// Loads all sitters (default, no location filter)
   Future<void> loadSitters() async {
     isLoadingSitters.value = true;
+    lastError.value = '';
     offersNearMeEnabled.value = false;
     try {
       final sittersList = await _ownerRepository.getSitters();
       sitters.assignAll(sittersList);
     } on ApiException catch (error) {
       AppLogger.logError('Failed to load sitters', error: error.message);
+      lastError.value = error.message;
       sitters.clear();
     } catch (error) {
       AppLogger.logError('Failed to load sitters', error: error);
+      lastError.value = 'v565_bk_error_generic'.tr;
       sitters.clear();
     } finally {
       isLoadingSitters.value = false;
@@ -226,14 +231,17 @@ class HomeController extends GetxController {
   /// Loads all walkers (default, no location filter).
   Future<void> loadWalkers() async {
     isLoadingWalkers.value = true;
+    lastError.value = '';
     try {
       final list = await _walkerRepository.getAllWalkers();
       walkers.assignAll(list);
     } on ApiException catch (error) {
       AppLogger.logError('Failed to load walkers', error: error.message);
+      lastError.value = error.message;
       walkers.clear();
     } catch (error) {
       AppLogger.logError('Failed to load walkers', error: error);
+      lastError.value = 'v565_bk_error_generic'.tr;
       walkers.clear();
     } finally {
       isLoadingWalkers.value = false;

@@ -670,6 +670,35 @@ class LiveMapService extends GetxService {
   /// Arrêt du partage — UNIQUEMENT sur action de l'utilisateur ou fin de la
   /// durée choisie (contrat §8). Coupe tout : flux GPS, tickers, service de
   /// fond, état persisté, et émet `map:go-offline`.
+  /// v565 (18/09) — changer la durée PENDANT un partage (feuille rouverte) :
+  /// nouvelle échéance calculée depuis maintenant, persistée pour le service
+  /// de fond, timer réarmé, serveur prévenu par HTTP (`duration`).
+  void changeDuration(LiveShareDuration d) {
+    if (!broadcasting.value) return;
+    sessionDuration.value = d;
+    final len = d.length;
+    sessionEndsAt.value = len == null ? null : DateTime.now().add(len);
+    try {
+      _storage.write(kBgDuration, d.apiValue);
+      _storage.write(
+          kBgUntil, sessionEndsAt.value?.millisecondsSinceEpoch ?? 0);
+    } catch (_) {/* best-effort */}
+    _durationTimer?.cancel();
+    _durationTimer = null;
+    final end = sessionEndsAt.value;
+    if (end != null) {
+      _durationTimer = Timer(end.difference(DateTime.now()), () {
+        if (!broadcasting.value) return;
+        stopBroadcasting();
+        CustomSnackbar.showInfo(
+          title: 'v565_live_ended_title'.tr,
+          message: 'v565_live_ended_msg'.tr,
+        );
+      });
+    }
+    unawaited(_postHttp(_lastKnownGps));
+  }
+
   void stopBroadcasting() {
     _broadcastTicker?.cancel();
     _broadcastTicker = null;

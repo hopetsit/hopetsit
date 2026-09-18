@@ -4,12 +4,15 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/kyc_repository.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
+import 'package:hopetsit/views/profile/widgets/edit_profile_widgets.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:permission_handler/permission_handler.dart';
 // v23.1 part 131 — image_picker + dart:io retirés (KYC manuel supprimé).
@@ -40,6 +43,8 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
   Map<String, dynamic> _status = {};
   bool _loading = true;
   bool _busy = false;
+  // v565 — point 39 : message d'erreur de chargement (état « Réessayer »).
+  String _loadError = '';
 
   Color get _accent {
     final role = Get.isRegistered<AuthController>()
@@ -60,7 +65,10 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _loadError = '';
+    });
     try {
       // v23.1 part 247 — capture l'ancien status pour detecter la
       // transition pending -> verified et fire notifyChanged().
@@ -79,6 +87,9 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
       }
     } catch (e) {
       AppLogger.logError('kyc.getStatus failed', error: e);
+      _loadError = e is ApiException && e.message.isNotEmpty
+          ? e.message
+          : 'kyc_load_error'.tr;
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -93,7 +104,7 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
       if (pi == null) {
         CustomSnackbar.showError(
           title: 'common_error'.tr,
-          message: 'Failed to start payment',
+          message: 'kyc_payment_start_failed'.tr,
         );
         return;
       }
@@ -261,20 +272,30 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.appBar(context),
-      appBar: AppBar(
-        title: PoppinsText(
-          text: 'kyc_screen_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-        ),
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-      ),
+    // v565 — point 39 : kit Profil (carte d'état, actions en boutons du kit,
+    // étapes numérotées), états chargement / erreur avec « Réessayer ».
+    return ProfileSubPageScaffold(
+      title: 'kyc_screen_title'.tr,
+      accent: _accent,
+      scroll: false,
+      padding: EdgeInsets.zero,
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildBody(),
+          ? Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(_accent),
+              ),
+            )
+          : (_loadError.isNotEmpty && _status.isEmpty)
+              ? ProfileEmptyState(
+                  icon: Icons.cloud_off_rounded,
+                  title: 'kyc_load_error_title'.tr,
+                  message: _loadError,
+                  accent: _accent,
+                  error: true,
+                  actionLabel: 'common_retry'.tr,
+                  onAction: _refresh,
+                )
+              : _buildBody(),
     );
   }
 
@@ -283,47 +304,59 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
     final price = _status['price'] ?? 3;
     return RefreshIndicator(
       onRefresh: _refresh,
+      color: _accent,
       child: ListView(
-        padding: EdgeInsets.all(20.w),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 28.h),
         children: [
-          // Header explanation
-          Container(
-            padding: EdgeInsets.all(16.w),
-            decoration: BoxDecoration(
-              color: _accent.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12.r),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.verified_rounded, color: _accent, size: 24.sp),
-                    SizedBox(width: 8.w),
-                    PoppinsText(
-                      text: 'kyc_screen_why_title'.tr,
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w700,
-                      color: _accent,
+          // En-tête : pourquoi + état courant.
+          ProfileFormCard(
+            accent: _accent,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 44.w,
+                    height: 44.w,
+                    decoration: BoxDecoration(
+                      color: _accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14.r),
                     ),
-                  ],
-                ),
-                SizedBox(height: 8.h),
-                InterText(
-                  // v23.1 part 243 — i18n. Was hardcoded FR, now uses the
-                  // 6-lang kyc_screen_why_body key.
-                  text: 'kyc_screen_why_body'.tr,
-                  fontSize: 13.sp,
-                  color: AppColors.textPrimary(context),
-                ),
-                SizedBox(height: 12.h),
-                _statusRow(status, price.toString()),
-              ],
-            ),
+                    child: Icon(Icons.verified_user_rounded, color: _accent, size: 22.sp),
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        PoppinsText(
+                          text: 'kyc_screen_why_title'.tr,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary(context),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: 4.h),
+                        InterText(
+                          // v23.1 part 243 — i18n.
+                          text: 'kyc_screen_why_body'.tr,
+                          fontSize: 13.sp,
+                          color: AppColors.textSecondary(context),
+                          height: 1.4,
+                          maxLines: 8,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              _statusRow(status, price.toString()),
+            ],
           ),
-          SizedBox(height: 20.h),
           _buildActionForStatus(status, price),
-          SizedBox(height: 20.h),
+          SizedBox(height: 6.h),
           _buildSteps(),
         ],
       ),
@@ -334,7 +367,7 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
     String label;
     Color color;
     IconData icon;
-    // v23.1 part 243 — i18n. Was hardcoded FR, now uses kyc_status_* keys.
+    // v23.1 part 243 — i18n. kyc_status_* keys.
     switch (status) {
       case 'verified':
         label = 'kyc_status_verified'.tr;
@@ -343,12 +376,12 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
         break;
       case 'pending_verification':
         label = 'kyc_status_pending_verification'.tr;
-        color = const Color(0xFFFFA000);
+        color = const Color(0xFFE8920A);
         icon = Icons.pending_outlined;
         break;
       case 'pending_payment':
         label = 'kyc_status_pending_payment'.tr;
-        color = const Color(0xFFFFA000);
+        color = const Color(0xFFE8920A);
         icon = Icons.payment_outlined;
         break;
       case 'rejected':
@@ -363,14 +396,14 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
     }
     return Row(
       children: [
-        Icon(icon, color: color, size: 18.sp),
-        SizedBox(width: 6.w),
         InterText(
-          text: label,
-          fontSize: 12.sp,
+          text: 'kyc_section_status'.tr,
+          fontSize: 12.5.sp,
           fontWeight: FontWeight.w600,
-          color: color,
+          color: AppColors.textSecondary(context),
         ),
+        SizedBox(width: 8.w),
+        Flexible(child: ProfileStatusPill(icon: icon, text: label, color: color)),
       ],
     );
   }
@@ -378,191 +411,131 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
   Widget _buildActionForStatus(String status, dynamic price) {
     if (status == 'verified') {
       final verifiedAt = _status['kycVerifiedAt']?.toString() ?? '';
-      final dateStr = verifiedAt.isNotEmpty
-          ? verifiedAt.split('T').first
-          : '';
-      return Container(
-        padding: EdgeInsets.all(20.w),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1976D2).withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(color: const Color(0xFF1976D2).withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          children: [
-            Icon(Icons.verified_rounded,
-                color: const Color(0xFF1976D2), size: 60.sp),
-            SizedBox(height: 12.h),
-            // v23.1 part 243 — i18n. Was hardcoded FR.
-            PoppinsText(
-              text: 'kyc_done_title'.tr,
-              fontSize: 18.sp,
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF1976D2),
+      final dateStr = verifiedAt.isNotEmpty ? verifiedAt.split('T').first : '';
+      const blue = Color(0xFF1976D2);
+      return ProfileFormCard(
+        accent: _accent,
+        children: [
+          Center(
+            child: Column(
+              children: [
+                Container(
+                  width: 72.w,
+                  height: 72.w,
+                  decoration: BoxDecoration(
+                    color: blue.withValues(alpha: 0.10),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.verified_rounded, color: blue, size: 40.sp),
+                ),
+                SizedBox(height: 12.h),
+                // v23.1 part 243 — i18n.
+                PoppinsText(
+                  text: 'kyc_done_title'.tr,
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w800,
+                  color: blue,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                ),
+                if (dateStr.isNotEmpty) ...[
+                  SizedBox(height: 4.h),
+                  InterText(
+                    text: 'kyc_done_date'.trParams({'date': dateStr}),
+                    fontSize: 12.sp,
+                    color: AppColors.textSecondary(context),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                  ),
+                ],
+              ],
             ),
-            if (dateStr.isNotEmpty) ...[
-              SizedBox(height: 4.h),
-              InterText(
-                text: 'kyc_done_date'.trParams({'date': dateStr}),
-                fontSize: 12.sp,
-                color: AppColors.greyColor,
-              ),
-            ],
-          ],
-        ),
+          ),
+        ],
       );
     }
     if (status == 'rejected') {
-      return Container(
-        padding: EdgeInsets.all(16.w),
-        decoration: BoxDecoration(
-          color: const Color(0xFFE53935).withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(color: const Color(0xFFE53935).withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.cancel_outlined,
-                    color: const Color(0xFFE53935), size: 24.sp),
-                SizedBox(width: 8.w),
-                PoppinsText(
+      const red = Color(0xFFE53935);
+      return ProfileFormCard(
+        accent: _accent,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.cancel_rounded, color: red, size: 22.sp),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: PoppinsText(
                   // v23.1 part 243 — i18n.
                   text: 'kyc_rejected_title'.tr,
                   fontSize: 15.sp,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFFE53935),
-                ),
-              ],
-            ),
-            SizedBox(height: 8.h),
-            InterText(
-              // v23.1 part 243 — i18n.
-              text: _status['kycRejectionReason']?.toString() ??
-                  'kyc_rejected_default'.tr,
-              fontSize: 13.sp,
-              color: AppColors.textPrimary(context),
-            ),
-            SizedBox(height: 12.h),
-            // v23.1 part 131 — Daniel : "Verification uniquement par
-            // persona et automatique, virer verifier gratuit". L'upload
-            // manuel est désormais retiré. En cas de rejet, on propose
-            // de relancer la vérif Persona.
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _busy ? null : _onStartVerification,
-                icon: Icon(Icons.bolt_rounded, color: _accent, size: 20.sp),
-                label: Text(
-                  // v23.1 part 243 — i18n.
-                  _busy ? 'kyc_loading'.tr : 'kyc_relaunch_persona'.tr,
-                  style: TextStyle(
-                    color: _accent,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: _accent, width: 1.5),
-                  padding: EdgeInsets.symmetric(vertical: 12.h),
+                  color: red,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+          InterText(
+            text: _status['kycRejectionReason']?.toString() ?? 'kyc_rejected_default'.tr,
+            fontSize: 13.sp,
+            color: AppColors.textPrimary(context),
+            height: 1.4,
+            maxLines: 8,
+          ),
+          // v23.1 part 131 — Persona uniquement : relancer la vérification.
+          ProfileSecondaryButton(
+            label: _busy ? 'kyc_loading'.tr : 'kyc_relaunch_persona'.tr,
+            accent: _accent,
+            icon: Icons.bolt_rounded,
+            onTap: _busy ? null : _onStartVerification,
+          ),
+        ],
       );
     }
     if (status == 'pending_verification') {
-      // v23.1 part 131 — Persona only. Upload manuel retiré.
+      // v23.1 part 131 — Persona only.
       return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _busy ? null : _onStartVerification,
-              icon: _busy
-                  ? SizedBox(
-                      width: 18.sp, height: 18.sp,
-                      child: const CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Icon(Icons.bolt_rounded,
-                      color: Colors.white, size: 20.sp),
-              label: Text(
-                // v23.1 part 243 — i18n.
-                _busy ? 'kyc_loading'.tr : 'kyc_launch_persona_btn'.tr,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _accent,
-                padding: EdgeInsets.symmetric(vertical: 14.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-              ),
-            ),
+          ProfilePrimaryButton(
+            label: 'kyc_launch_persona_btn'.tr,
+            accent: _accent,
+            icon: Icons.bolt_rounded,
+            loading: _busy,
+            onTap: _busy ? null : _onStartVerification,
           ),
-          SizedBox(height: 4.h),
+          SizedBox(height: 8.h),
           InterText(
             // v23.1 part 243 — i18n.
             text: 'kyc_hint_after_payment'.tr,
-            fontSize: 11.sp,
-            color: AppColors.greyColor,
+            fontSize: 11.5.sp,
+            color: AppColors.textSecondary(context),
+            textAlign: TextAlign.center,
+            maxLines: 3,
           ),
         ],
       );
     }
     // 'none' or 'pending_payment' — Persona payant uniquement.
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _busy ? null : _onPay,
-            icon: _busy
-                ? SizedBox(
-                    width: 18.sp, height: 18.sp,
-                    child: const CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : Icon(Icons.bolt_rounded,
-                    color: Colors.white, size: 20.sp),
-            label: Text(
-              // v23.1 part 243 — i18n.
-              _busy
-                  ? 'kyc_loading'.tr
-                  : 'kyc_quick_verify_btn'.trParams({'price': price.toString()}),
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _accent,
-              padding: EdgeInsets.symmetric(vertical: 14.h),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-            ),
-          ),
+        ProfilePrimaryButton(
+          label: 'kyc_quick_verify_btn'.trParams({'price': price.toString()}),
+          accent: _accent,
+          icon: Icons.bolt_rounded,
+          loading: _busy,
+          onTap: _busy ? null : _onPay,
         ),
-        SizedBox(height: 4.h),
+        SizedBox(height: 8.h),
         InterText(
           // v23.1 part 243 — i18n.
           text: 'kyc_hint_before_payment'.tr,
-          fontSize: 11.sp,
-          color: AppColors.greyColor,
+          fontSize: 11.5.sp,
+          color: AppColors.textSecondary(context),
+          textAlign: TextAlign.center,
+          maxLines: 3,
         ),
       ],
     );
@@ -570,70 +543,56 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
 
   // v23.1 part 131 — Daniel : "Verification uniquement par persona et
   // automatique, virer verifier gratuit". L'upload manuel a été retiré.
-  // Le code ImagePicker / uploadIdentityManually n'est plus appelé.
-  // Le bouton "Lancer la vérification Persona" appelle _onStartVerification.
 
   Widget _buildSteps() {
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColors.scaffoldLightForRole(),
-        borderRadius: BorderRadius.circular(12.r),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PoppinsText(
-            // v23.1 part 243 — i18n.
-            text: 'kyc_steps_title'.tr,
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary(context),
-          ),
-          SizedBox(height: 10.h),
-          // v23.1 part 243 — i18n. Was hardcoded FR for all 5 steps.
-          _stepItem('1', 'kyc_step1'.tr),
-          _stepItem('2', 'kyc_step2'.tr),
-          _stepItem('3', 'kyc_step3'.tr),
-          _stepItem('4', 'kyc_step4'.tr),
-          _stepItem('5', 'kyc_step5'.tr),
-        ],
-      ),
+    return ProfileFormCard(
+      title: 'kyc_steps_title'.tr,
+      icon: Icons.format_list_numbered_rounded,
+      accent: _accent,
+      gap: 10,
+      children: [
+        // v23.1 part 243 — i18n.
+        _stepItem('1', 'kyc_step1'.tr),
+        _stepItem('2', 'kyc_step2'.tr),
+        _stepItem('3', 'kyc_step3'.tr),
+        _stepItem('4', 'kyc_step4'.tr),
+        _stepItem('5', 'kyc_step5'.tr),
+      ],
     );
   }
 
   Widget _stepItem(String n, String text) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 4.h),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 22.w, height: 22.w,
-            decoration: BoxDecoration(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 24.w,
+          height: 24.w,
+          decoration: BoxDecoration(
+            color: _accent.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            n,
+            style: TextStyle(
+              fontSize: 11.5.sp,
+              fontWeight: FontWeight.w800,
               color: _accent,
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              n,
-              style: TextStyle(
-                fontSize: 11.sp,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
             ),
           ),
-          SizedBox(width: 10.w),
-          Expanded(
-            child: InterText(
-              text: text,
-              fontSize: 12.sp,
-              color: AppColors.textPrimary(context),
-            ),
+        ),
+        SizedBox(width: 10.w),
+        Expanded(
+          child: InterText(
+            text: text,
+            fontSize: 13.sp,
+            color: AppColors.textPrimary(context),
+            height: 1.35,
+            maxLines: 4,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
@@ -10,6 +11,9 @@ import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
+import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
+import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 import 'package:intl/intl.dart';
@@ -21,8 +25,17 @@ import 'package:intl/intl.dart';
 ///   2. Boutons "Retirer" (IBAN/PayPal) et "Dépenser" (ouvre le shop)
 ///   3. Liste paginée des transactions (crédit booking, débit retrait,
 ///      débit shop, remboursement, ajustement admin)
+///
+/// v565 (point 28) — modernisation : kit Profil, états chargement / erreur
+/// (« Réessayer »), minimum de retrait affiché, bouton « Tout » dans la
+/// feuille de retrait, historique en carte groupée.
 class WalletScreen extends StatefulWidget {
-  const WalletScreen({super.key});
+  const WalletScreen({super.key, this.accent});
+
+  /// v565 (lot app-calendar-wallet) — couleur du rôle imposée par l'écran
+  /// appelant (profil sitter = bleu gardien, walker = vert promeneur). Si null,
+  /// déduite du rôle courant de l'AuthController (comportement historique).
+  final Color? accent;
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -33,6 +46,9 @@ class _WalletScreenState extends State<WalletScreen> {
       Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : ApiClient();
 
   bool _loading = true;
+  // v565 — état d'erreur explicite avec « Réessayer » (avant : snackbar et
+  // solde à 0 affiché comme si tout allait bien).
+  String? _error;
   double _balance = 0;
   String _currency = 'EUR';
   int _pendingWithdrawals = 0;
@@ -43,6 +59,11 @@ class _WalletScreenState extends State<WalletScreen> {
   double _pendingEscrowTotal = 0;
   double _minWithdrawal = 5.0;
   List<dynamic> _transactions = [];
+  // v565 (lot app-calendar-wallet) — statut IBAN lu en même temps que le solde :
+  // null = inconnu (erreur réseau, on n'affiche rien), false = pas d'IBAN →
+  // bannière « IBAN manquant » avec accès direct à la configuration, au lieu
+  // de le découvrir seulement au moment du retrait.
+  bool? _ibanConfigured;
 
   @override
   void initState() {
@@ -51,7 +72,10 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final w = await _api.get('/wallet', requiresAuth: true);
       if (w is Map) {
@@ -68,114 +92,83 @@ class _WalletScreenState extends State<WalletScreen> {
       if (t is Map && t['transactions'] is List) {
         _transactions = t['transactions'] as List;
       }
+      await _loadIbanStatus();
     } catch (e) {
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: e.toString(),
-      );
+      _error = paymentErrorMessage(e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Color get _roleColor => AppColors.roleAccent(
+  /// Lecture tolérante du statut IBAN (`/sitter/iban` sert aussi le walker).
+  /// Ne fait jamais échouer le chargement du portefeuille.
+  Future<void> _loadIbanStatus() async {
+    try {
+      final r = await _api.get(ApiEndpoints.sitterMeIban, requiresAuth: true);
+      if (r is Map) {
+        _ibanConfigured =
+            (r['ibanNumberMasked'] ?? '').toString().isNotEmpty;
+      }
+    } catch (_) {
+      _ibanConfigured = null;
+    }
+  }
+
+  Color get _roleColor =>
+      widget.accent ??
+      AppColors.roleAccent(
         Get.find<AuthController>().userRole.value,
       );
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.scaffold(context),
-        elevation: 0,
-        iconTheme: IconThemeData(color: AppColors.textPrimary(context)),
-        title: PoppinsText(
-          text: 'wallet_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
-        ),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: EdgeInsets.all(16.w),
-                children: [
-                  _balanceCard(),
-                  SizedBox(height: 10.h),
-                  // v23.1.330 — Daniel : message clair pour sitter/walker —
-                  // l'argent d'une prestation est BLOQUÉ jusqu'à ce que le
-                  // propriétaire confirme la fin du service.
-                  Container(
-                    padding: EdgeInsets.all(12.w),
-                    decoration: BoxDecoration(
-                      color: _roleColor.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12.r),
-                      border: Border.all(
-                          color: _roleColor.withValues(alpha: 0.25)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.lock_clock_rounded,
-                            color: _roleColor, size: 18.sp),
-                        SizedBox(width: 8.w),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // v23.1.349 — Daniel : afficher LE MONTANT bloqué
-                              // ("sera débloqué une fois le service fini et
-                              // confirmé"). Ligne mise en avant quand > 0.
-                              if (_pendingEscrowTotal > 0) ...[
-                                Text(
-                                  'wallet_held_funds_amount'.trParams({
-                                    'amount': CurrencyHelper.format(
-                                        _currency, _pendingEscrowTotal),
-                                  }),
-                                  style: TextStyle(
-                                    fontSize: 13.sp,
-                                    height: 1.4,
-                                    fontWeight: FontWeight.w700,
-                                    color: _roleColor,
-                                  ),
-                                ),
-                                SizedBox(height: 4.h),
-                              ],
-                              Text(
-                                'wallet_held_funds_info'.tr,
-                                style: TextStyle(
-                                  fontSize: 12.sp,
-                                  height: 1.4,
-                                  color: AppColors.textSecondary(context),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+    final accent = _roleColor;
+    return ProfileSubPageScaffold(
+      title: 'wallet_title'.tr,
+      accent: accent,
+      scroll: false,
+      padding: EdgeInsets.zero,
+      body: RefreshIndicator(
+        color: accent,
+        onRefresh: _load,
+        child: _loading
+            ? BookingLoadingList(accent: accent)
+            : _error != null
+                ? BookingErrorState(message: _error!, onRetry: _load)
+                : ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 32.h),
+                    children: [
+                      _balanceCard(),
+                      SizedBox(height: 12.h),
+                      _actionsRow(),
+                      SizedBox(height: 12.h),
+                      // v23.1.330 — Daniel : message clair pour sitter/walker —
+                      // l'argent d'une prestation est BLOQUÉ jusqu'à ce que le
+                      // propriétaire confirme la fin du service.
+                      _heldFundsBanner(),
+                      if (_ibanConfigured == false) ...[
+                        SizedBox(height: 10.h),
+                        _ibanMissingBanner(),
                       ],
-                    ),
+                      if (_pendingWithdrawals > 0) ...[
+                        SizedBox(height: 10.h),
+                        _pendingBanner(),
+                      ],
+                      ProfileSectionTitle('wallet_history_title'.tr,
+                          icon: Icons.history_rounded),
+                      if (_transactions.isEmpty)
+                        _emptyState()
+                      else
+                        ProfileGroupCard(
+                          children: _transactions
+                              .map((tx) =>
+                                  _TransactionTile(tx: tx as Map<String, dynamic>))
+                              .toList(),
+                        ),
+                    ],
                   ),
-                  SizedBox(height: 14.h),
-                  _actionsRow(),
-                  if (_pendingWithdrawals > 0) ...[
-                    SizedBox(height: 10.h),
-                    _pendingBanner(),
-                  ],
-                  SizedBox(height: 22.h),
-                  _sectionTitle('wallet_history_title'.tr),
-                  SizedBox(height: 8.h),
-                  if (_transactions.isEmpty)
-                    _emptyState()
-                  else
-                    ..._transactions.map((tx) =>
-                        _TransactionTile(tx: tx as Map<String, dynamic>)),
-                ],
-              ),
-            ),
+      ),
     );
   }
 
@@ -192,7 +185,7 @@ class _WalletScreenState extends State<WalletScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20.r),
+        borderRadius: BorderRadius.circular(22.r),
         boxShadow: [
           BoxShadow(
             color: _roleColor.withValues(alpha: 0.3),
@@ -224,11 +217,86 @@ class _WalletScreenState extends State<WalletScreen> {
             fontWeight: FontWeight.w800,
             color: Colors.white,
           ),
-          SizedBox(height: 4.h),
+          SizedBox(height: 6.h),
+          Wrap(
+            spacing: 8.w,
+            runSpacing: 6.h,
+            children: [
+              _whitePill('v565_pay_wallet_min_hint'.trParams({
+                'amount': CurrencyHelper.format(_currency, _minWithdrawal),
+              })),
+            ],
+          ),
+          SizedBox(height: 8.h),
           InterText(
             text: 'wallet_earn_more_hint'.tr,
             fontSize: 11.sp,
             color: Colors.white.withValues(alpha: 0.85),
+            maxLines: 2,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _whitePill(String text) => Container(
+        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: InterText(
+          text: text,
+          fontSize: 11.sp,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+
+  Widget _heldFundsBanner() {
+    return Container(
+      padding: EdgeInsets.all(14.w),
+      decoration: BoxDecoration(
+        color: _roleColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16.r),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.lock_clock_rounded, color: _roleColor, size: 20.sp),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // v23.1.349 — Daniel : afficher LE MONTANT bloqué
+                // ("sera débloqué une fois le service fini et
+                // confirmé"). Ligne mise en avant quand > 0.
+                if (_pendingEscrowTotal > 0) ...[
+                  InterText(
+                    text: 'wallet_held_funds_amount'.trParams({
+                      'amount': CurrencyHelper.format(
+                          _currency, _pendingEscrowTotal),
+                    }),
+                    fontSize: 13.sp,
+                    height: 1.4,
+                    fontWeight: FontWeight.w700,
+                    color: _roleColor,
+                    maxLines: 3,
+                  ),
+                  SizedBox(height: 4.h),
+                ],
+                InterText(
+                  text: 'wallet_held_funds_info'.tr,
+                  fontSize: 12.sp,
+                  height: 1.4,
+                  color: AppColors.textSecondary(context),
+                  maxLines: 6,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -282,16 +350,12 @@ class _WalletScreenState extends State<WalletScreen> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14.r),
+      borderRadius: BorderRadius.circular(16.r),
       child: Container(
-        height: 50.h,
+        height: 52.h,
         decoration: BoxDecoration(
-          color: primary ? _roleColor : AppColors.card(context),
-          borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(
-            color: primary ? _roleColor : AppColors.divider(context),
-            width: 1,
-          ),
+          color: primary ? _roleColor : _roleColor.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(16.r),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -300,11 +364,15 @@ class _WalletScreenState extends State<WalletScreen> {
                 size: 18.sp,
                 color: primary ? Colors.white : _roleColor),
             SizedBox(width: 8.w),
-            InterText(
-              text: label,
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w700,
-              color: primary ? Colors.white : AppColors.textPrimary(context),
+            Flexible(
+              child: PoppinsText(
+                text: label,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w700,
+                color: primary ? Colors.white : _roleColor,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
@@ -312,27 +380,74 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  Widget _pendingBanner() {
+  /// v565 — bannière « IBAN manquant » : titre, explication, bouton vers
+  /// l'écran IBAN ; le portefeuille se recharge au retour.
+  Widget _ibanMissingBanner() {
+    const amber = Color(0xFFE8920A);
     return Container(
-      padding: EdgeInsets.all(12.w),
+      padding: EdgeInsets.all(14.w),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: const Color(0xFFFDBA74)),
+        color: amber.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: amber.withValues(alpha: 0.35)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.hourglass_top_rounded,
-              size: 18.sp, color: const Color(0xFFC2410C)),
-          SizedBox(width: 8.w),
-          Expanded(
-            child: InterText(
-              text: 'wallet_pending_withdrawals'.trParams({
-                'count': _pendingWithdrawals.toString(),
-                'amount': CurrencyHelper.format(_currency, _pendingAmount),
-              }),
-              fontSize: 12.sp,
-              color: const Color(0xFF9A3412),
+          Row(
+            children: [
+              Icon(Icons.account_balance_rounded, size: 20.sp, color: amber),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: PoppinsText(
+                  text: 'wallet_iban_missing_title'.tr,
+                  fontSize: 13.5.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 6.h),
+          InterText(
+            text: 'wallet_iban_missing_body'.tr,
+            fontSize: 12.sp,
+            height: 1.4,
+            color: AppColors.textSecondary(context),
+            maxLines: 3,
+          ),
+          SizedBox(height: 10.h),
+          Align(
+            alignment: Alignment.centerRight,
+            child: InkWell(
+              onTap: () {
+                Get.to(() => const IbanSetupScreen())?.then((_) => _load());
+              },
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+                decoration: BoxDecoration(
+                  color: _roleColor,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_card_rounded, size: 15.sp, color: Colors.white),
+                    SizedBox(width: 6.w),
+                    InterText(
+                      text: 'quick_wallet_iban'.tr,
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -340,40 +455,51 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  Widget _sectionTitle(String text) => PoppinsText(
-        text: text,
-        fontSize: 15.sp,
-        fontWeight: FontWeight.w700,
-        color: AppColors.textPrimary(context),
-      );
-
-  Widget _emptyState() {
+  Widget _pendingBanner() {
+    const amber = Color(0xFFC2410C);
     return Container(
-      padding: EdgeInsets.all(24.w),
-      alignment: Alignment.center,
-      child: Column(
+      padding: EdgeInsets.all(14.w),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF59E0B).withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16.r),
+      ),
+      child: Row(
         children: [
-          Icon(Icons.receipt_long_outlined,
-              size: 48.sp, color: AppColors.greyColor),
-          SizedBox(height: 10.h),
-          InterText(
-            text: 'wallet_history_empty'.tr,
-            fontSize: 13.sp,
-            color: AppColors.textSecondary(context),
+          Icon(Icons.hourglass_top_rounded, size: 20.sp, color: amber),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: InterText(
+              text: 'wallet_pending_withdrawals'.trParams({
+                'count': _pendingWithdrawals.toString(),
+                'amount': CurrencyHelper.format(_currency, _pendingAmount),
+              }),
+              fontSize: 12.5.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary(context),
+              maxLines: 3,
+            ),
           ),
         ],
       ),
     );
   }
 
+  Widget _emptyState() {
+    return ProfileGroupCard(
+      children: [
+        ProfileEmptyState(
+          icon: Icons.receipt_long_outlined,
+          title: 'wallet_history_empty'.tr,
+          message: 'v565_pay_wallet_history_hint'.tr,
+          accent: _roleColor,
+        ),
+      ],
+    );
+  }
+
   void _openWithdrawSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.card(context),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
+    showProfileSheet<void>(
+      context,
       builder: (_) => _WithdrawSheet(
         balance: _balance,
         currency: _currency,
@@ -506,136 +632,110 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
     return null;
   }
 
-  /// v20.0.19 — dialog "Configuration requise" avec bouton d'action direct.
-  void _showConfigNeededDialog({
+  /// v20.0.19 — « Configuration requise » avec bouton d'action direct.
+  /// v565 — feuille Apple (kit Profil) au lieu d'un AlertDialog.
+  Future<void> _showConfigNeededDialog({
     required String title,
     required String message,
     required String ctaLabel,
     required VoidCallback onConfigure,
-  }) {
-    Get.dialog<void>(
-      AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(Get.overlayContext!).pop(),
-            child: Text('common_cancel'.tr),
-          ),
-          ElevatedButton(
-            onPressed: onConfigure,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(ctaLabel),
-          ),
-        ],
-      ),
-      barrierDismissible: true,
+  }) async {
+    final ok = await showPaymentConfirmSheet(
+      context,
+      title: title,
+      message: message,
+      confirmLabel: ctaLabel,
+      accent: widget.roleColor,
+      icon: Icons.settings_rounded,
     );
+    if (ok && mounted) onConfigure();
   }
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
     // v23.1.316 — Daniel : "le menu du téléphone gêne + empêche de scroll". On
-    // rend la feuille scrollable ET on ajoute viewPadding.bottom (barre de
-    // navigation système) en plus du clavier (viewInsets.bottom) pour que le
-    // bouton "Confirmer le retrait" ne passe plus SOUS la barre du téléphone.
+    // rend la feuille scrollable ; showProfileSheet gère déjà le clavier
+    // (viewInsets) et la barre système (SafeArea).
     return SingleChildScrollView(
       child: Padding(
-      padding: EdgeInsets.only(
-        left: 20.w,
-        right: 20.w,
-        top: 20.h,
-        bottom: media.viewInsets.bottom + media.viewPadding.bottom + 24.h,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40.w,
-            height: 4.h,
-            margin: EdgeInsets.only(bottom: 16.h),
-            decoration: BoxDecoration(
-              color: AppColors.divider(context),
-              borderRadius: BorderRadius.circular(2.r),
-            ),
-          ),
-          PoppinsText(
-            text: 'wallet_withdraw_title'.tr,
-            fontSize: 18.sp,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary(context),
-          ),
-          SizedBox(height: 4.h),
-          InterText(
-            text: 'wallet_withdraw_subtitle'.trParams({
-              'balance':
-                  CurrencyHelper.format(widget.currency, widget.balance),
-            }),
-            fontSize: 12.sp,
-            color: AppColors.textSecondary(context),
-          ),
-          SizedBox(height: 18.h),
-          TextField(
-            controller: _amountCtrl,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            // v23.1.314 — Daniel : "en dark mode l'écriture est blanche, on voit
-            // rien". Le style n'avait PAS de couleur -> texte invisible sur fond
-            // sombre. On force les couleurs thème-aware (texte, label, hint, fond).
-            cursorColor: widget.roleColor,
-            decoration: InputDecoration(
-              labelText: 'wallet_amount_label'.tr,
-              labelStyle: TextStyle(color: AppColors.textSecondary(context)),
-              hintText: widget.minWithdrawal.toStringAsFixed(2),
-              hintStyle: TextStyle(color: AppColors.textSecondary(context)),
-              prefixIcon: Icon(Icons.payments, color: widget.roleColor),
-              filled: true,
-              fillColor: AppColors.scaffold(context),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14.r),
-              ),
-            ),
-            style: TextStyle(
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w600,
+        padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 20.h),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ProfileSheetHandle(),
+            PoppinsText(
+              text: 'wallet_withdraw_title'.tr,
+              fontSize: 18.sp,
+              fontWeight: FontWeight.w700,
               color: AppColors.textPrimary(context),
             ),
-          ),
-          SizedBox(height: 16.h),
-          _methodTile('iban', Icons.account_balance,
-              'wallet_method_iban'.tr, 'wallet_method_iban_desc'.tr),
-          SizedBox(height: 8.h),
-          _methodTile('paypal', Icons.mail_outline,
-              'wallet_method_paypal'.tr, 'wallet_method_paypal_desc'.tr),
-          SizedBox(height: 24.h),
-          SizedBox(
-            width: double.infinity,
-            height: 50.h,
-            child: ElevatedButton(
-              onPressed: _processing ? null : _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: widget.roleColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14.r),
+            SizedBox(height: 4.h),
+            InterText(
+              text: 'wallet_withdraw_subtitle'.trParams({
+                'balance':
+                    CurrencyHelper.format(widget.currency, widget.balance),
+              }),
+              fontSize: 12.5.sp,
+              color: AppColors.textSecondary(context),
+              maxLines: 3,
+            ),
+            SizedBox(height: 18.h),
+            // v23.1.314 — Daniel : "en dark mode l'écriture est blanche, on voit
+            // rien". ProfileInput est thème-aware (texte, label, hint, fond).
+            ProfileInput(
+              label: 'wallet_amount_label'.tr,
+              controller: _amountCtrl,
+              accent: widget.roleColor,
+              hint: widget.minWithdrawal.toStringAsFixed(2),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              prefix: Icon(Icons.payments_rounded, color: widget.roleColor),
+              suffix: Padding(
+                padding: EdgeInsets.only(right: 6.w),
+                child: TextButton(
+                  onPressed: () => setState(() {
+                    _amountCtrl.text = widget.balance.toStringAsFixed(2);
+                  }),
+                  style: TextButton.styleFrom(
+                    foregroundColor: widget.roleColor,
+                    minimumSize: Size(0, 32.h),
+                    padding: EdgeInsets.symmetric(horizontal: 10.w),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: InterText(
+                    text: 'v565_pay_wallet_all'.tr,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w700,
+                    color: widget.roleColor,
+                  ),
                 ),
               ),
-              child: _processing
-                  ? const CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2)
-                  : InterText(
-                      text: 'wallet_confirm_withdrawal'.tr,
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
             ),
-          ),
-        ],
-      ),
+            SizedBox(height: 6.h),
+            InterText(
+              text: 'v565_pay_wallet_min_hint'.trParams({
+                'amount':
+                    CurrencyHelper.format(widget.currency, widget.minWithdrawal),
+              }),
+              fontSize: 11.5.sp,
+              color: AppColors.textSecondary(context),
+            ),
+            SizedBox(height: 16.h),
+            _methodTile('iban', Icons.account_balance_rounded,
+                'wallet_method_iban'.tr, 'wallet_method_iban_desc'.tr),
+            SizedBox(height: 8.h),
+            _methodTile('paypal', Icons.mail_outline_rounded,
+                'wallet_method_paypal'.tr, 'wallet_method_paypal_desc'.tr),
+            SizedBox(height: 22.h),
+            ProfilePrimaryButton(
+              label: 'wallet_confirm_withdrawal'.tr,
+              accent: widget.roleColor,
+              loading: _processing,
+              icon: Icons.call_made_rounded,
+              onTap: _processing ? null : _submit,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -649,9 +749,9 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
         padding: EdgeInsets.all(12.w),
         decoration: BoxDecoration(
           color: selected
-              ? widget.roleColor.withValues(alpha: 0.06)
+              ? widget.roleColor.withValues(alpha: 0.08)
               : AppColors.card(context),
-          borderRadius: BorderRadius.circular(14.r),
+          borderRadius: BorderRadius.circular(16.r),
           border: Border.all(
             color: selected ? widget.roleColor : AppColors.divider(context),
             width: selected ? 1.5 : 1,
@@ -659,7 +759,15 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
         ),
         child: Row(
           children: [
-            Icon(icon, size: 20.sp, color: widget.roleColor),
+            Container(
+              width: 36.w,
+              height: 36.w,
+              decoration: BoxDecoration(
+                color: widget.roleColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(11.r),
+              ),
+              child: Icon(icon, size: 18.sp, color: widget.roleColor),
+            ),
             SizedBox(width: 12.w),
             Expanded(
               child: Column(
@@ -667,7 +775,7 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
                 children: [
                   PoppinsText(
                     text: title,
-                    fontSize: 13.sp,
+                    fontSize: 13.5.sp,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary(context),
                   ),
@@ -675,6 +783,7 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
                     text: desc,
                     fontSize: 11.sp,
                     color: AppColors.textSecondary(context),
+                    maxLines: 2,
                   ),
                 ],
               ),
@@ -710,7 +819,7 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
   }
 }
 
-/// Row d'une transaction dans l'historique.
+/// Row d'une transaction dans l'historique (rangée d'un [ProfileGroupCard]).
 class _TransactionTile extends StatelessWidget {
   const _TransactionTile({required this.tx});
 
@@ -752,69 +861,29 @@ class _TransactionTile extends StatelessWidget {
             ? (tx['productType'] as String? ?? '')
             : translateServiceType(tx['serviceType'] as String?));
 
-    return Container(
-      margin: EdgeInsets.only(bottom: 8.h),
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.divider(context)),
-      ),
-      child: Row(
+    return ProfileRow(
+      icon: icon,
+      color: color,
+      title: label,
+      subtitle: subtitle.isNotEmpty ? '$subtitle · $date' : date,
+      showChevron: false,
+      trailing: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 38.w,
-            height: 38.w,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10.r),
+          PoppinsText(
+            text: '$sign${CurrencyHelper.format(currency, amount)}',
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
+          if (status == 'pending')
+            InterText(
+              text: 'wallet_status_pending'.tr,
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFFF59E0B),
             ),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 18.sp, color: color),
-          ),
-          SizedBox(width: 12.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                InterText(
-                  text: label,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary(context),
-                ),
-                if (subtitle.isNotEmpty)
-                  InterText(
-                    text: subtitle,
-                    fontSize: 11.sp,
-                    color: AppColors.textSecondary(context),
-                  ),
-                SizedBox(height: 2.h),
-                InterText(
-                  text: date,
-                  fontSize: 10.sp,
-                  color: AppColors.greyColor,
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              PoppinsText(
-                text: '$sign${CurrencyHelper.format(currency, amount)}',
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w800,
-                color: color,
-              ),
-              if (status == 'pending')
-                InterText(
-                  text: 'wallet_status_pending'.tr,
-                  fontSize: 10.sp,
-                  color: const Color(0xFFF59E0B),
-                ),
-            ],
-          ),
         ],
       ),
     );

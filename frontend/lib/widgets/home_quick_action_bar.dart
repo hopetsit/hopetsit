@@ -65,6 +65,7 @@ import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/service_confirmation_card.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
+import 'package:hopetsit/widgets/submit_review_dialog.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/data/network/api_client.dart';
@@ -564,6 +565,40 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       }
     }
 
+    // v565 (point 38) — owner : service confirmé (7 jours) et pas encore
+    // noté → bandeau « Comment s'est passée la garde ? » → dialogue d'avis.
+    if (widget.role == 'owner') {
+      final revNowMs = DateTime.now().millisecondsSinceEpoch;
+      const revMaxAgeMs = 7 * 24 * 60 * 60 * 1000;
+      final toReview = bookings.where((b) {
+        if (_dismissedIds.contains('rev_${b.id}')) return false;
+        if ((b.paymentStatus ?? '').toLowerCase() != 'paid') return false;
+        if (b.confirmationStatus != 'confirmed') return false;
+        if (b.sitter.id.isEmpty) return false;
+        final updMs = DateTime.tryParse(b.updatedAt)?.millisecondsSinceEpoch;
+        if (updMs == null) return false;
+        return (revNowMs - updMs) <= revMaxAgeMs;
+      }).toList();
+      if (toReview.isNotEmpty) {
+        final b = toReview.first;
+        final providerName = b.sitter.name.trim().isNotEmpty
+            ? b.sitter.name
+            : 'band_provider_fallback'.tr;
+        return _QuickAction(
+          kind: _Kind.ownerReview,
+          color: const Color(0xFFFFB300),
+          icon: Icons.star_rounded,
+          title: 'v565_review_banner_title'.tr,
+          subtitle:
+              'v565_review_banner_subtitle'.trParams({'name': providerName}),
+          ctaLabel: 'booking_leave_review'.tr,
+          booking: b,
+          pulse: false,
+          allBookingIds: ['rev_${b.id}'],
+        );
+      }
+    }
+
     // v23.1.349 — Daniel : "service fini → notification bandeau paiement reçu
     // pour sitter/walker". L'owner a confirmé la fin du service → l'argent
     // vient d'être DÉBLOQUÉ dans le wallet. Fenêtre 24h sur updatedAt (bump à
@@ -1018,6 +1053,11 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       _showServiceActionSheet(a);
       return;
     }
+    // v565 (point 38) — noter le prestataire depuis le bandeau.
+    if (a.kind == _Kind.ownerReview) {
+      _openReviewDialog(a.booking, dismissIds: a.allBookingIds);
+      return;
+    }
     // v23.1.349 — paiement débloqué (service confirmé) → ouvre le wallet.
     if (a.kind == _Kind.providerReleased) {
       Get.to(() => const WalletScreen());
@@ -1132,6 +1172,12 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                   Navigator.pop(ctx);
                   await _svcConfirmPickup(b);
                 },
+                onReview: widget.role == 'owner'
+                    ? () async {
+                        Navigator.pop(ctx);
+                        await _openReviewDialog(b);
+                      }
+                    : null,
                 onStart: () async {
                   Navigator.pop(ctx);
                   await _svcStart(b);
@@ -2674,6 +2720,22 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     }
   }
 
+  /// v565 (point 38) — dialogue d'avis (étoiles + commentaire) ; une fois
+  /// envoyé, le bandeau correspondant est masqué.
+  Future<void> _openReviewDialog(BookingModel b,
+      {List<String> dismissIds = const <String>[]}) async {
+    if (!mounted || b.sitter.id.isEmpty) return;
+    final ok = await SubmitReviewDialog.show(
+      context: context,
+      revieweeId: b.sitter.id,
+      bookingId: b.id,
+    );
+    if (ok && mounted) {
+      _dismissBannerMulti(
+          dismissIds.isEmpty ? ['rev_${b.id}'] : dismissIds);
+    }
+  }
+
   void _dismissBannerMulti(List<String> bookingIds) {
     if (bookingIds.isEmpty) return;
     setState(() => _dismissedIds.addAll(bookingIds));
@@ -3011,6 +3073,8 @@ enum _Kind {
   // passent par le bandeau, plus simple". Action de service (début / fin /
   // confirmation owner) : tap → sheet avec ServiceConfirmationCard.
   serviceAction,
+  // v565 (point 38) — owner : service confirmé → « Note ton prestataire ».
+  ownerReview,
   // v23.1.349 — Daniel : "lorsque le service est fini, je veux la notification
   // bandeau pour sitter et walker : paiement reçu". L'owner a confirmé la fin
   // → l'argent vient d'être DÉBLOQUÉ dans le wallet. Tap → WalletScreen.

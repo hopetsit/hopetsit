@@ -81,11 +81,14 @@ class AuthRepository {
   Future<Map<String, dynamic>> verifyCode({
     required String email,
     required String code,
+    // v565 — rôle qui vient de s'inscrire : le serveur émet le jeton pour CE
+    // rôle (avant : premier rôle trouvé, owner > sitter > walker).
+    String? role,
   }) async {
     final response = await _apiClient.post(
       ApiEndpoints.authVerify,
       queryParameters: {'email': email},
-      body: {'code': code},
+      body: {'code': code, if (role != null && role.isNotEmpty) 'role': role},
     );
 
     if (response is Map<String, dynamic>) {
@@ -254,8 +257,12 @@ class AuthRepository {
   Future<Map<String, dynamic>> googleSignInWithIdToken({
     required String idToken,
     String? role,
+    // v565 audit-inscription — profil de création (nom Apple, ville, GPS,
+    // pays, langue) : lu par le serveur uniquement pour un NOUVEAU compte.
+    Map<String, dynamic>? user,
   }) async {
     final body = <String, dynamic>{'idToken': idToken};
+    if (user != null && user.isNotEmpty) body['user'] = user;
     if (role != null && role.isNotEmpty) {
       body['role'] = role;
       debugPrint(
@@ -290,8 +297,12 @@ class AuthRepository {
   Future<Map<String, dynamic>> appleSignInWithIdToken({
     required String idToken,
     String? role,
+    // v565 audit-inscription — profil de création (nom Apple, ville, GPS,
+    // pays, langue) : lu par le serveur uniquement pour un NOUVEAU compte.
+    Map<String, dynamic>? user,
   }) async {
     final body = <String, dynamic>{'idToken': idToken};
+    if (user != null && user.isNotEmpty) body['user'] = user;
     if (role != null && role.isNotEmpty) {
       body['role'] = role;
     }

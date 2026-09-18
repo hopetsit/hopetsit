@@ -9,6 +9,7 @@ import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/boost_badge.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/reviews/widgets/rating_stars.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/views/pet_owner/booking-application/owner_booking_detail_screen.dart';
 
@@ -360,36 +361,15 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                     widget.cardType != ServiceProviderCardType.booking)
                   Row(
                     children: [
-                      if (widget.rating > 0 &&
-                          (widget.reviewsCount ?? 0) > 0) ...[
-                        Row(
-                          children: List.generate(5, (starIndex) {
-                            return Icon(
-                              starIndex < widget.rating.floor()
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              size: 16.sp,
-                              color: starIndex < widget.rating.floor()
-                                  ? Colors.amber
-                                  : AppColors.greyText,
-                            );
-                          }),
+                      // v565 (point 38) — étoiles modernes ; sans avis :
+                      // pastille « Nouveau » (plus « Aucune note »).
+                      Flexible(
+                        child: RatingStars(
+                          rating: widget.rating,
+                          reviewsCount: widget.reviewsCount ?? 0,
+                          size: 15,
                         ),
-                        SizedBox(width: 8.w),
-                        InterText(
-                          text: widget.rating.toStringAsFixed(1),
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.textSecondary(context),
-                        ),
-                      ] else ...[
-                        InterText(
-                          text: 'sitter_detail_no_rating'.tr,
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.textSecondary(context),
-                        ),
-                      ],
+                      ),
                       SizedBox(width: 16.w),
                     ],
                   ),
@@ -792,15 +772,11 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.star,
-                                      size: 12.sp, color: Colors.amber),
-                                  SizedBox(width: 2.w),
-                                  InterText(
-                                    text:
-                                        '${widget.rating.toStringAsFixed(1)} (${widget.reviewsCount})',
-                                    fontSize: 11.sp,
-                                    fontWeight: FontWeight.w400,
-                                    color: AppColors.textSecondary(context),
+                                  RatingStars(
+                                    rating: widget.rating,
+                                    reviewsCount: widget.reviewsCount ?? 0,
+                                    size: 12,
+                                    compact: true,
                                   ),
                                 ],
                               ),

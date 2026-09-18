@@ -6,10 +6,15 @@ import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/add_card_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/views/profile/widgets/edit_profile_widgets.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/custom_text_field.dart';
-import 'package:hopetsit/widgets/rounded_text_button.dart';
 
+/// v565 — point 39 : « Ajouter une carte » côté Profil modernisé (kit) :
+/// aperçu de carte animé (titulaire / numéro masqué / expiration), champs
+/// `ProfileInput` dans une carte groupée, note « sécurisé », bouton collant
+/// avec état de chargement. Même contrôleur, mêmes formateurs, même appel
+/// réseau (`AddCardController.saveCard`).
 class AddCardScreen extends StatelessWidget {
   final String userType;
 
@@ -30,171 +35,236 @@ class AddCardScreen extends StatelessWidget {
     final controller = Get.put(AddCardController(userType: userType));
     final roleColor = _roleColor();
 
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: roleColor),
-        leading: BackButton(),
-        title: PoppinsText(
-          text: 'add_card_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
+    return ProfileSubPageScaffold(
+      title: 'add_card_title'.tr,
+      accent: roleColor,
+      body: Form(
+        key: controller.formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(height: 4.h),
+            _CardPreview(controller: controller, accent: roleColor),
+            ProfileFormCard(
+              title: 'add_card_section_title'.tr,
+              icon: Icons.credit_card_rounded,
+              accent: roleColor,
+              children: [
+                ProfileInput(
+                  label: 'add_card_holder_label'.tr,
+                  hint: 'add_card_holder_hint'.tr,
+                  controller: controller.cardHolderController,
+                  accent: roleColor,
+                  textCapitalization: TextCapitalization.characters,
+                  textInputAction: TextInputAction.next,
+                  prefix: Icon(Icons.person_outline_rounded, size: 20.sp, color: roleColor),
+                ),
+                ProfileInput(
+                  label: 'add_card_number_label'.tr,
+                  hint: 'add_card_number_hint'.tr,
+                  controller: controller.cardNumberController,
+                  accent: roleColor,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
+                  prefix: Icon(Icons.credit_card_rounded, size: 20.sp, color: roleColor),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(16),
+                    CardNumberInputFormatter(),
+                  ],
+                ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: ProfileInput(
+                        label: 'add_card_exp_label'.tr,
+                        hint: 'add_card_exp_hint'.tr,
+                        controller: controller.expDateController,
+                        accent: roleColor,
+                        keyboardType: TextInputType.number,
+                        textInputAction: TextInputAction.next,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          ExpDateInputFormatter(),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: ProfileInput(
+                        label: 'add_card_cvc_label'.tr,
+                        hint: 'add_card_cvc_hint'.tr,
+                        controller: controller.cvcController,
+                        accent: roleColor,
+                        keyboardType: TextInputType.number,
+                        obscure: true,
+                        textInputAction: TextInputAction.done,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(3),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            ProfileInfoBanner(
+              icon: Icons.lock_outline_rounded,
+              text: 'add_card_secure'.tr,
+              accent: roleColor,
+            ),
+          ],
         ),
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(20.w),
+      // v20.0.3 — bouton « Enregistrer ma carte » couleur rôle.
+      bottom: Obx(
+        () => ProfileSaveBar(
+          label: 'save_my_card_button'.tr,
+          accent: roleColor,
+          loading: controller.isLoading.value,
+          icon: Icons.credit_card_rounded,
+          onTap: controller.isLoading.value ? null : () => controller.saveCard(),
+        ),
+      ),
+    );
+  }
+}
+
+/// Aperçu de carte bancaire (suit la saisie en direct).
+class _CardPreview extends StatelessWidget {
+  final AddCardController controller;
+  final Color accent;
+  const _CardPreview({required this.controller, required this.accent});
+
+  String _masked(String raw) {
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    final buf = StringBuffer();
+    for (var i = 0; i < 16; i++) {
+      if (i > 0 && i % 4 == 0) buf.write(' ');
+      buf.write(i < digits.length ? digits[i] : '•');
+    }
+    return buf.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Color.lerp(accent, Colors.black, 0.35)!;
+    return Container(
+      width: double.infinity,
+      margin: EdgeInsets.only(bottom: 6.h),
+      padding: EdgeInsets.all(18.w),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20.r),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [accent, dark],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.30),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38.w,
+                height: 26.w,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(6.r),
+                ),
+              ),
+              const Spacer(),
+              Icon(Icons.contactless_rounded, color: Colors.white.withValues(alpha: 0.9), size: 22.sp),
+            ],
+          ),
+          SizedBox(height: 18.h),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller.cardNumberController,
+            builder: (_, v, __) => FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: PoppinsText(
+                text: _masked(v.text),
+                fontSize: 19.sp,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 2,
+                color: Colors.white,
+                maxLines: 1,
+              ),
+            ),
+          ),
+          SizedBox(height: 14.h),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Card holder name Field
-                    CustomTextField(
-                      labelText: 'add_card_holder_label'.tr,
-                      controller: controller.cardHolderController,
-                      hintText: 'add_card_holder_hint'.tr,
+                    InterText(
+                      text: 'add_card_holder_label'.tr.toUpperCase(),
+                      fontSize: 9.sp,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.8,
+                      color: Colors.white.withValues(alpha: 0.75),
                       maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: 24.h),
-
-                    // Card Number Field
-                    CustomTextField(
-                      labelText: 'add_card_number_label'.tr,
-                      controller: controller.cardNumberController,
-                      hintText: 'add_card_number_hint'.tr,
-                      maxLines: 1,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(16),
-                        CardNumberInputFormatter(),
-                      ],
+                    SizedBox(height: 2.h),
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: controller.cardHolderController,
+                      builder: (_, v, __) => InterText(
+                        text: v.text.trim().isEmpty
+                            ? 'add_card_holder_hint'.tr
+                            : v.text.trim().toUpperCase(),
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    SizedBox(height: 24.h),
-
-                    // Exp Date and CVC Row
-                    Row(
-                      children: [
-                        // Exp Date Field
-                        Expanded(
-                          child: CustomTextField(
-                            labelText: 'add_card_exp_label'.tr,
-                            controller: controller.expDateController,
-                            hintText: 'add_card_exp_hint'.tr,
-                            maxLines: 1,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              ExpDateInputFormatter(),
-                            ],
-                          ),
-                        ),
-                        SizedBox(width: 16.w),
-
-                        // CVC Field
-                        Expanded(
-                          child: CustomTextField(
-                            labelText: 'add_card_cvc_label'.tr,
-                            controller: controller.cvcController,
-                            hintText: 'add_card_cvc_hint'.tr,
-                            maxLines: 1,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(3),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 40.h),
                   ],
                 ),
               ),
-            ),
-
-            // v20.0.3 — Save Button rebrandé "Enregistrer ma carte" avec
-            // couleur rôle + petit badge "sécurisé Stripe".
-            Padding(
-              padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 20.h),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+              SizedBox(width: 12.w),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.lock_outline_rounded,
-                        size: 14.sp,
-                        color: AppColors.textSecondary(context),
-                      ),
-                      SizedBox(width: 6.w),
-                      Expanded(
-                        child: InterText(
-                          text: 'add_card_secure'.tr,
-                          fontSize: 11.sp,
-                          color: AppColors.textSecondary(context),
-                          maxLines: 2,
-                        ),
-                      ),
-                    ],
+                  InterText(
+                    text: 'add_card_expires'.tr.toUpperCase(),
+                    fontSize: 9.sp,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8,
+                    color: Colors.white.withValues(alpha: 0.75),
+                    maxLines: 1,
                   ),
-                  SizedBox(height: 12.h),
-                  Obx(
-                    () => CustomButton(
-                      title: controller.isLoading.value
-                          ? null
-                          : 'save_my_card_button'.tr,
-                      onTap: !controller.isLoading.value
-                          ? () => controller.saveCard()
-                          : null,
-                      bgColor: controller.isLoading.value
-                          ? roleColor.withValues(alpha: 0.7)
-                          : roleColor,
-                      textColor: AppColors.whiteColor,
-                      height: 52.h,
-                      radius: 52.r,
-                      child: controller.isLoading.value
-                          ? SizedBox(
-                              height: 20.h,
-                              width: 20.w,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  AppColors.whiteColor,
-                                ),
-                              ),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.credit_card_rounded,
-                                  size: 18.sp,
-                                  color: AppColors.whiteColor,
-                                ),
-                                SizedBox(width: 8.w),
-                                PoppinsText(
-                                  text: 'save_my_card_button'.tr,
-                                  fontSize: 15.sp,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.whiteColor,
-                                ),
-                              ],
-                            ),
+                  SizedBox(height: 2.h),
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: controller.expDateController,
+                    builder: (_, v, __) => InterText(
+                      text: v.text.isEmpty ? 'MM/YY' : v.text,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      maxLines: 1,
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
   }

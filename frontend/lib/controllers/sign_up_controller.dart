@@ -22,6 +22,7 @@ import 'package:country_code_picker/country_code_picker.dart'
 import 'package:hopetsit/utils/date_slash_formatter.dart'
     show parseDdMmYyyy, ageInYears;
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/utils/pending_signup_photo.dart';
 
 class SignUpController extends GetxController {
   SignUpController({
@@ -605,6 +606,11 @@ class SignUpController extends GetxController {
       if (referralCodeController.text.trim().isNotEmpty)
         'referralCode': referralCodeController.text.trim().toUpperCase(),
       'language': selectedLanguage.value,
+      // v565 audit-inscription — langue de l'UI envoyée dès l'inscription :
+      // l'e-mail de vérification part dans cette langue et `appLocale` est
+      // posé sur le compte (avant : e-mail toujours en anglais, appLocale
+      // vide jusqu'à la synchro après le premier login).
+      'appLocale': LocalizationService.getCurrentLanguageCode(),
       'address': addressController.text.trim(),
       'acceptedTerms': agreeToTerms.value,
     };
@@ -617,6 +623,9 @@ class SignUpController extends GetxController {
     final cityText = cityController.text.trim().isNotEmpty
         ? cityController.text.trim()
         : userCity.value.trim();
+    // v565 audit-inscription — ville plate `city` en plus de location.city
+    // (le serveur lit les deux ; la plate survit à l'absence de GPS).
+    if (cityText.isNotEmpty) data['city'] = cityText;
     if (userLatitude.value != null && userLongitude.value != null) {
       data['location'] = {
         'lat': userLatitude.value,
@@ -971,6 +980,10 @@ class SignUpController extends GetxController {
           if (ok) {
             FirebaseAnalyticsService.instance
                 .logFunnel('signup_direct_entry', params: {'role': _apiRole});
+            // v565 audit-inscription — la photo choisie au wizard n'était
+            // uploadée QUE par l'écran OTP ; sur ce chemin direct elle était
+            // perdue. On l'envoie maintenant qu'un jeton existe.
+            await uploadPendingSignupPhotoIfAny();
             final role = auth.userRole.value;
             if (role == 'sitter') {
               Get.offAll(() => const SitterNavWrapper());
@@ -993,6 +1006,19 @@ class SignUpController extends GetxController {
         );
       }
     } on ApiException catch (error) {
+      // v565 — ville obligatoire côté serveur (400 CITY_REQUIRED) : on
+      // ramène à l'étape ville (owner = étape 3, prestataire = étape 2).
+      final code = error.details is Map ? (error.details as Map)['code'] : null;
+      if (error.statusCode == 400 && code == 'CITY_REQUIRED') {
+        currentStep.value = userType == 'pet_owner' ? 2 : 1;
+        onStepEntered(currentStep.value);
+        editingLocation.value = true;
+        CustomSnackbar.showError(
+          title: 'signup_failed_title'.tr,
+          message: 'signup_error_city_required'.tr,
+        );
+        return;
+      }
       CustomSnackbar.showError(
         title: 'signup_failed_title'.tr,
         message: _signupErrorMessage(error),

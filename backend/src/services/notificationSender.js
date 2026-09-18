@@ -33,12 +33,12 @@ const FALLBACK_LOCALE = 'fr';
 // docs de la personne ; catégorie désactivée → PAS de push ni d'e-mail (la
 // notification in-app reste créée) ; son → APNs `aps.sound`, canal Android
 // `hopetsit_<son>` + `data.sound` pour l'affichage au premier plan.
-const NOTIFICATION_SOUNDS = ['default', 'bark', 'meow', 'tweet', 'vibrate', 'silent'];
+const NOTIFICATION_SOUNDS = ['default', 'frog', 'bark', 'meow', 'tweet', 'vibrate', 'silent']; // v565 — frog = défaut, tweet = hibou
 const NOTIFICATION_CATEGORIES = [
   'messages', 'bookings', 'payments', 'friends', 'pawmap', 'live', 'reviews', 'subscriptions',
 ];
 const defaultNotificationPrefs = () => ({
-  sound: 'default',
+  sound: 'frog', // v565 — Daniel : son grenouille par défaut
   categories: Object.fromEntries(NOTIFICATION_CATEGORIES.map((c) => [c, true])),
 });
 /** Objet complet (défauts + valeurs fournies), tolérant aux entrées partielles. */

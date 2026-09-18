@@ -5,9 +5,18 @@ import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/service_type_translator.dart';
+import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
+import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:intl/intl.dart';
 
+/// Mes gains (sitter / walker) — résumé + liste paginée.
+///
+/// v565 (point 28) — kit Profil / Réservations : couleur du rôle, états
+/// chargement / vide / erreur avec « Réessayer », type de service traduit,
+/// dates localisées. Rendu atteignable depuis « Gérer mes paiements ».
 class EarningsHistoryScreen extends StatefulWidget {
   const EarningsHistoryScreen({super.key});
 
@@ -17,11 +26,16 @@ class EarningsHistoryScreen extends StatefulWidget {
 
 class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
   bool _loading = true;
+  // v565 — état d'erreur explicite avec « Réessayer » (avant : catch
+  // silencieux → écran « 0 € » trompeur).
+  String? _error;
   List<dynamic> _earnings = [];
   Map<String, dynamic> _summary = {};
   int _page = 1;
   int _totalPages = 1;
   bool _loadingMore = false;
+
+  Color get _accent => currentRoleAccent();
 
   @override
   void initState() {
@@ -34,6 +48,7 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
       setState(() {
         _page = 1;
         _loading = true;
+        _error = null;
       });
     }
     try {
@@ -48,6 +63,7 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
           : '/sitters/me/earnings';
       final data = await api.get('$endpoint?page=$_page&limit=20');
       final map = data as Map<String, dynamic>;
+      if (!mounted) return;
       setState(() {
         if (refresh || _page == 1) {
           _earnings = map['earnings'] as List<dynamic>? ?? [];
@@ -57,14 +73,24 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
         _summary = map['summary'] as Map<String, dynamic>? ?? {};
         final pag = map['pagination'] as Map<String, dynamic>? ?? {};
         _totalPages = pag['pages'] ?? 1;
+        _error = null;
       });
-    } catch (_) {
-      // silently handle
+    } catch (e) {
+      if (!mounted) return;
+      // Première page en erreur → état d'erreur ; page suivante → on garde
+      // la liste et on revient d'un cran.
+      if (_page <= 1) {
+        _error = paymentErrorMessage(e);
+      } else {
+        _page--;
+      }
     } finally {
-      setState(() {
-        _loading = false;
-        _loadingMore = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _loadingMore = false;
+        });
+      }
     }
   }
 
@@ -79,122 +105,128 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: AppColors.primaryColor,
-        title: InterText(
-          text: 'earnings_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
-        ),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: () => _loadEarnings(refresh: true),
-              child: CustomScrollView(
-                slivers: [
-                  // ── Summary cards ──
-                  SliverToBoxAdapter(child: _buildSummary()),
+    final accent = _accent;
+    return ProfileSubPageScaffold(
+      title: 'earnings_title'.tr,
+      accent: accent,
+      scroll: false,
+      padding: EdgeInsets.zero,
+      body: RefreshIndicator(
+        color: accent,
+        onRefresh: () => _loadEarnings(refresh: true),
+        child: _loading
+            ? BookingLoadingList(accent: accent)
+            : _error != null && _earnings.isEmpty
+                ? BookingErrorState(
+                    message: _error!,
+                    onRetry: () => _loadEarnings(refresh: true),
+                  )
+                : CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      // ── Summary cards ──
+                      SliverToBoxAdapter(child: _buildSummary(accent)),
 
-                  // ── Earnings list header ──
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 8.h),
-                      child: InterText(
-                        text: 'earnings_history_label'.tr,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary(context),
-                      ),
-                    ),
-                  ),
-
-                  // ── List or empty ──
-                  _earnings.isEmpty
-                      ? SliverFillRemaining(
-                          child: Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.receipt_long,
-                                    size: 48.sp,
-                                    color: AppColors.greyText.withValues(alpha: 0.4)),
-                                SizedBox(height: 12.h),
-                                InterText(
-                                  text: 'earnings_empty'.tr,
-                                  fontSize: 14.sp,
-                                  color: AppColors.textSecondary(context),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              if (index == _earnings.length) {
-                                return _loadingMore
-                                    ? Padding(
-                                        padding: EdgeInsets.all(16.h),
-                                        child: const Center(
-                                            child:
-                                                CircularProgressIndicator()),
-                                      )
-                                    : const SizedBox.shrink();
-                              }
-                              if (index == _earnings.length - 3) {
-                                _loadMore();
-                              }
-                              return _buildEarningCard(
-                                  _earnings[index] as Map<String, dynamic>);
-                            },
-                            childCount: _earnings.length + 1,
+                      // ── Earnings list header ──
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16.w),
+                          child: ProfileSectionTitle(
+                            'earnings_history_label'.tr,
+                            icon: Icons.history_rounded,
                           ),
                         ),
-                ],
-              ),
-            ),
+                      ),
+
+                      // ── List or empty ──
+                      if (_earnings.isEmpty)
+                        SliverToBoxAdapter(
+                          child: BookingEmptyState(
+                            icon: Icons.receipt_long_rounded,
+                            title: 'earnings_empty'.tr,
+                            subtitle: 'v565_pay_earnings_hint'.tr,
+                            accent: accent,
+                            embedded: true,
+                          ),
+                        )
+                      else
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 28.h),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                if (index == _earnings.length) {
+                                  return _loadingMore
+                                      ? Padding(
+                                          padding: EdgeInsets.all(16.h),
+                                          child: Center(
+                                            child: CircularProgressIndicator(
+                                                color: accent),
+                                          ),
+                                        )
+                                      : const SizedBox.shrink();
+                                }
+                                if (index == _earnings.length - 3) {
+                                  _loadMore();
+                                }
+                                return _buildEarningCard(
+                                    _earnings[index] as Map<String, dynamic>,
+                                    accent);
+                              },
+                              childCount: _earnings.length + 1,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+      ),
     );
   }
 
-  Widget _buildSummary() {
+  Widget _buildSummary(Color accent) {
     final earned = (_summary['totalEarned'] ?? 0).toDouble();
     final paidOut = (_summary['totalPaidOut'] ?? 0).toDouble();
     final pending = (_summary['pendingPayout'] ?? 0).toDouble();
     final commission = (_summary['totalCommission'] ?? 0).toDouble();
 
     return Container(
-      margin: EdgeInsets.all(16.w),
-      padding: EdgeInsets.all(16.w),
+      margin: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 0),
+      padding: EdgeInsets.all(18.w),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primaryColor, AppColors.primaryColor.withValues(alpha: 0.8)],
+          colors: [accent, accent.withValues(alpha: 0.78)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: AppColors.cardShadow(context),
+        borderRadius: BorderRadius.circular(22.r),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.28),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InterText(
-            text: 'earnings_total_earned'.tr,
-            fontSize: 13.sp,
-            color: Colors.white70,
+          Row(
+            children: [
+              Icon(Icons.trending_up_rounded, color: Colors.white, size: 20.sp),
+              SizedBox(width: 8.w),
+              InterText(
+                text: 'earnings_total_earned'.tr,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600,
+                color: Colors.white.withValues(alpha: 0.92),
+              ),
+            ],
           ),
-          SizedBox(height: 4.h),
+          SizedBox(height: 6.h),
           PoppinsText(
             text: CurrencyHelper.format('EUR', earned),
-            fontSize: 28.sp,
-            fontWeight: FontWeight.w700,
+            fontSize: 30.sp,
+            fontWeight: FontWeight.w800,
             color: Colors.white,
           ),
           SizedBox(height: 16.h),
@@ -231,34 +263,48 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
   }
 
   Widget _summaryItem(String label, String value, IconData icon) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 14.sp, color: Colors.white70),
-            SizedBox(width: 4.w),
-            Flexible(
-              child: InterText(
-                text: label,
-                fontSize: 10.sp,
-                color: Colors.white70,
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(14.r),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 13.sp, color: Colors.white70),
+              SizedBox(width: 4.w),
+              Flexible(
+                child: InterText(
+                  text: label,
+                  fontSize: 10.sp,
+                  color: Colors.white70,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+            ],
+          ),
+          SizedBox(height: 4.h),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: PoppinsText(
+              text: value,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              maxLines: 1,
             ),
-          ],
-        ),
-        SizedBox(height: 4.h),
-        PoppinsText(
-          text: value,
-          fontSize: 14.sp,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildEarningCard(Map<String, dynamic> e) {
+  Widget _buildEarningCard(Map<String, dynamic> e, Color accent) {
     final netPayout = (e['netPayout'] ?? 0).toDouble();
     final totalPrice = (e['totalPrice'] ?? 0).toDouble();
     final commission = (e['commission'] ?? 0).toDouble();
@@ -269,21 +315,22 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
     final provider = e['paymentProvider'] ?? '';
     final ownerName = e['owner']?['name'] ?? '';
     final serviceType = e['serviceType'] ?? '';
+    final lang = Get.locale?.languageCode ?? 'fr';
 
     final statusColor = payoutStatus == 'completed'
-        ? Colors.green
+        ? const Color(0xFF16A34A)
         : payoutStatus == 'processing'
-            ? Colors.blue
+            ? const Color(0xFF2563EB)
             : payoutStatus == 'failed'
-                ? Colors.red
-                : Colors.orange;
+                ? const Color(0xFFEF4444)
+                : const Color(0xFFF59E0B);
 
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
+      margin: EdgeInsets.only(bottom: 10.h),
       padding: EdgeInsets.all(14.w),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(20.r),
         boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
@@ -291,80 +338,130 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
         children: [
           // Header: owner name + amount
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              Container(
+                width: 36.w,
+                height: 36.w,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(11.r),
+                ),
+                child: Icon(Icons.pets_rounded, size: 18.sp, color: accent),
+              ),
+              SizedBox(width: 12.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (ownerName.isNotEmpty)
-                      InterText(
+                      PoppinsText(
                         text: ownerName,
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     if (serviceType.isNotEmpty)
                       InterText(
-                        text: serviceType,
+                        text: translateServiceType(serviceType),
                         fontSize: 12.sp,
                         color: AppColors.textSecondary(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                   ],
                 ),
               ),
+              SizedBox(width: 8.w),
               PoppinsText(
                 text: '+${CurrencyHelper.format(currency, netPayout)}',
                 fontSize: 16.sp,
-                fontWeight: FontWeight.w700,
-                color: Colors.green.shade700,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF16A34A),
               ),
             ],
           ),
           SizedBox(height: 10.h),
 
           // Details row
+          // v565 — anti-débordement : date / fournisseur dans un Wrap
+          // Expanded, badge de statut Flexible avec ellipsis (DE / PT longs).
           Row(
             children: [
-              // Date
-              Icon(Icons.calendar_today, size: 13.sp, color: AppColors.textSecondary(context)),
-              SizedBox(width: 4.w),
-              InterText(
-                text: paidAt != null
-                    ? DateFormat('dd MMM yyyy').format(paidAt)
-                    : '-',
-                fontSize: 11.sp,
-                color: AppColors.textSecondary(context),
-              ),
-              SizedBox(width: 14.w),
-
-              // Provider — v21.1.1 : Stripe purgé. Défaut Airwallex, fallback
-              // PayPal pour les anciennes payouts en historique.
-              Icon(
-                provider == 'paypal' ? Icons.paypal : Icons.account_balance,
-                size: 13.sp,
-                color: AppColors.textSecondary(context),
-              ),
-              SizedBox(width: 4.w),
-              InterText(
-                text: provider == 'paypal' ? 'PayPal' : 'Airwallex',
-                fontSize: 11.sp,
-                color: AppColors.textSecondary(context),
-              ),
-              const Spacer(),
-
-              // Payout status badge
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12.r),
+              Expanded(
+                child: Wrap(
+                  spacing: 14.w,
+                  runSpacing: 4.h,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    // Date
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.calendar_today_rounded, size: 13.sp, color: AppColors.textSecondary(context)),
+                        SizedBox(width: 4.w),
+                        InterText(
+                          text: paidAt != null
+                              ? DateFormat('dd MMM yyyy', lang).format(paidAt)
+                              : '-',
+                          fontSize: 11.sp,
+                          color: AppColors.textSecondary(context),
+                        ),
+                      ],
+                    ),
+                    // Provider — v21.1.1 : Stripe purgé. Défaut Airwallex, fallback
+                    // PayPal pour les anciennes payouts en historique.
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          provider == 'paypal' ? Icons.paypal : Icons.account_balance_rounded,
+                          size: 13.sp,
+                          color: AppColors.textSecondary(context),
+                        ),
+                        SizedBox(width: 4.w),
+                        InterText(
+                          text: provider == 'paypal' ? 'PayPal' : 'Airwallex',
+                          fontSize: 11.sp,
+                          color: AppColors.textSecondary(context),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                child: InterText(
-                  text: _payoutStatusLabel(payoutStatus),
-                  fontSize: 10.sp,
-                  fontWeight: FontWeight.w600,
-                  color: statusColor,
+              ),
+              SizedBox(width: 8.w),
+              // Payout status badge
+              Flexible(
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 4.h),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6.w,
+                        height: 6.w,
+                        decoration: BoxDecoration(
+                            color: statusColor, shape: BoxShape.circle),
+                      ),
+                      SizedBox(width: 5.w),
+                      Flexible(
+                        child: InterText(
+                          text: _payoutStatusLabel(payoutStatus),
+                          fontSize: 10.5.sp,
+                          fontWeight: FontWeight.w700,
+                          color: statusColor,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -372,14 +469,15 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
 
           // Breakdown
           SizedBox(height: 8.h),
-          Row(
+          Wrap(
+            spacing: 12.w,
+            runSpacing: 4.h,
             children: [
               InterText(
                 text: '${'earnings_total_label'.tr}: ${CurrencyHelper.format(currency, totalPrice)}',
                 fontSize: 11.sp,
                 color: AppColors.textSecondary(context),
               ),
-              SizedBox(width: 12.w),
               InterText(
                 text: '${'earnings_fee_label'.tr}: -${CurrencyHelper.format(currency, commission)}',
                 fontSize: 11.sp,
@@ -390,9 +488,10 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
           if (payoutAt != null) ...[
             SizedBox(height: 4.h),
             InterText(
-              text: '${'earnings_paid_on'.tr} ${DateFormat('dd MMM yyyy').format(payoutAt)}',
+              text: '${'earnings_paid_on'.tr} ${DateFormat('dd MMM yyyy', lang).format(payoutAt)}',
               fontSize: 11.sp,
-              color: Colors.green,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF16A34A),
             ),
           ],
         ],

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { ApiError, verifyEmail, resendVerificationCode } from "@/lib/api";
+import { ApiError, verifyEmail, resendVerificationCode, getStoredUser } from "@/lib/api";
 
 // v402 — vérification email depuis le SITE (parité app). Le backend a créé le
 // compte avec verified:false et a envoyé un code 6 chiffres par email. Cette
@@ -31,7 +31,9 @@ function VerifyEmailInner() {
     setErr("");
     setInfo("");
     try {
-      await verifyEmail(email, code);
+      // v565 — rôle du compte qui vient de s'inscrire (persisté par signup).
+      const stored = getStoredUser();
+      await verifyEmail(email, code, stored?.email === email ? stored.role : undefined);
       router.push("/dashboard");
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("verify_error"));

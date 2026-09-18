@@ -1,14 +1,21 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
+import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// Sprint 6 step 2 — sitter live walk tracking screen.
+///
+/// v565 — kit Profil : bandeau d'état couleur du rôle / vert en direct,
+/// compteur, bouton Démarrer / Terminer ; 2 titres de snackbar sans `.tr`
+/// corrigés, repli FR en dur du titre retiré (clé présente en 9 langues).
 class WalkTrackingScreen extends StatefulWidget {
   final String bookingId;
   const WalkTrackingScreen({super.key, required this.bookingId});
@@ -60,7 +67,8 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
         _startStreamingPositions();
       }
     } catch (e) {
-      CustomSnackbar.showError(title: 'common_error', message: e.toString());
+      // v565 — `.tr` manquant : la clé brute « common_error » s'affichait.
+      CustomSnackbar.showError(title: 'common_error'.tr, message: e.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -122,7 +130,8 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
       );
       if (mounted) Get.back();
     } catch (e) {
-      CustomSnackbar.showError(title: 'common_error', message: e.toString());
+      // v565 — `.tr` manquant : la clé brute « common_error » s'affichait.
+      CustomSnackbar.showError(title: 'common_error'.tr, message: e.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -136,57 +145,125 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // v565 — kit Profil : bandeau d'état (prêt / en direct) couleur du rôle,
+    // compteur de positions, un seul grand bouton Démarrer / Terminer.
     final active = _walkId != null;
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        title: Text(
-          'live_track_title'.tr.isEmpty ? 'Suivi de balade' : 'live_track_title'.tr,
-          style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary(context)),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // v23.1 part 244 — i18n (Daniel audit deep). All hardcoded
-            // strings of the walk tracking screen.
-            Text(
-              active
-                  ? 'walk_active_status'
-                        .trParams({'count': _pushed.toString()})
-                  : 'walk_ready_status'.tr,
+    final accent = currentRoleAccent();
+    final live = const Color(0xFF16A34A);
+    final stateColor = active ? live : accent;
+    return ProfileSubPageScaffold(
+      title: 'live_track_title'.tr,
+      accent: accent,
+      bottom: active
+          ? ProfilePrimaryButton(
+              label: 'walk_stop_btn'.tr,
+              accent: AppColors.errorColor,
+              icon: Icons.stop_rounded,
+              loading: _busy,
+              onTap: _busy ? null : _stop,
+            )
+          : ProfilePrimaryButton(
+              label: 'walk_start_btn'.tr,
+              accent: accent,
+              icon: Icons.play_arrow_rounded,
+              loading: _busy,
+              onTap: _busy ? null : _start,
             ),
-            const SizedBox(height: 8),
-            if (active)
-              Text(
-                'walk_position_hint'.tr,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary(context),
-                  fontStyle: FontStyle.italic,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(height: 8.h),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(20.w),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [stateColor, stateColor.withValues(alpha: 0.78)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(22.r),
+              boxShadow: [
+                BoxShadow(
+                  color: stateColor.withValues(alpha: 0.28),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
                 ),
-              ),
-            const SizedBox(height: 24),
-            if (!active)
-              ElevatedButton.icon(
-                icon: const Icon(Icons.play_arrow),
-                label: Text('walk_start_btn'.tr),
-                onPressed: _busy ? null : _start,
-              )
-            else
-              ElevatedButton.icon(
-                icon: const Icon(Icons.stop),
-                label: Text('walk_stop_btn'.tr),
-                onPressed: _busy ? null : _stop,
-              ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 52.w,
+                  height: 52.w,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    active ? Icons.directions_walk_rounded : Icons.pets_rounded,
+                    color: Colors.white,
+                    size: 26.sp,
+                  ),
+                ),
+                SizedBox(width: 14.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (active)
+                        Row(
+                          children: [
+                            Container(
+                              width: 8.w,
+                              height: 8.w,
+                              decoration: const BoxDecoration(
+                                  color: Colors.white, shape: BoxShape.circle),
+                            ),
+                            SizedBox(width: 6.w),
+                            InterText(
+                              text: 'v565_pay_walk_live'.tr.toUpperCase(),
+                              fontSize: 10.5.sp,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.8,
+                              color: Colors.white,
+                            ),
+                          ],
+                        ),
+                      PoppinsText(
+                        text: active
+                            ? 'walk_active_status'
+                                .trParams({'count': _pushed.toString()})
+                            : 'walk_ready_status'.tr,
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        maxLines: 3,
+                      ),
+                      if (active) ...[
+                        SizedBox(height: 4.h),
+                        InterText(
+                          text: 'v565_pay_walk_updates'
+                              .trParams({'count': _pushed.toString()}),
+                          fontSize: 11.5.sp,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (active) ...[
+            SizedBox(height: 12.h),
+            ProfileInfoBanner(
+              icon: Icons.gps_fixed_rounded,
+              text: 'walk_position_hint'.tr,
+              accent: live,
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

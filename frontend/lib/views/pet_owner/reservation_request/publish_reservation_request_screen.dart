@@ -53,6 +53,10 @@ class _PublishReservationRequestScreenState
 
   @override
   Widget build(BuildContext context) {
+    // v565 (Daniel, 18/09) — page « Publier ma demande » en ÉTAPES numérotées
+    // (1 Animaux · 2 Service · 3 Dates · 4 Lieu · 5 Détails · 6 Photos),
+    // résumé avant publication et bouton « Publier » collant en bas avec
+    // l'avancement et le champ manquant. Aucune section retirée.
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
@@ -73,133 +77,80 @@ class _PublishReservationRequestScreenState
         ),
       ),
       body: SafeArea(
+        bottom: false,
         child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 24.h),
           child: Form(
             key: controller.formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildSectionCard(
-                  icon: Icons.pets,
-                  title: 'label_pets'.tr,
-                  child: _buildPetsSection(),
-                ),
-                SizedBox(height: 16.h),
-                // v411 — toggle « Afficher le caractère des animaux » (maquette).
-                _buildSectionCard(
-                  icon: Icons.visibility_rounded,
-                  title: 'publish_show_character'.tr,
-                  child: Obx(() {
-                    // v420 — maquette : quand le toggle est ON, aperçu des
-                    // traits de caractère des animaux sélectionnés.
-                    final selectedPets = controller.myPets
-                        .where((p) => controller.selectedPetIds.contains(p.id))
-                        .toList();
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: InterText(
-                                text: 'publish_show_character_hint'.tr,
-                                fontSize: 12.sp,
-                                color: AppColors.textSecondary(context),
-                              ),
-                            ),
-                            AppSwitch(
-                              value: controller.showAnimalCharacter.value,
-                              onChanged: (v) =>
-                                  controller.showAnimalCharacter.value = v,
-                              accent: AppColors.primaryColor,
-                            ),
-                          ],
-                        ),
-                        if (controller.showAnimalCharacter.value) ...[
-                          SizedBox(height: 10.h),
-                          Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.all(12.w),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryColor
-                                  .withValues(alpha: 0.06),
-                              borderRadius: BorderRadius.circular(14.r),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                InterText(
-                                  text: 'publish_character_preview_label'.tr,
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primaryColor,
-                                ),
-                                SizedBox(height: 10.h),
-                                if (selectedPets.isEmpty)
-                                  InterText(
-                                    text: 'publish_character_no_pet_selected'.tr,
-                                    fontSize: 12.sp,
-                                    color: AppColors.greyColor,
-                                  )
-                                else
-                                  // Caractère groupé PAR animal (maquette 222).
-                                  ...selectedPets.map(
-                                    (p) => _characterPreviewForPet(p),
-                                  ),
-                              ],
-                            ),
-                          ),
+                _buildIntro(),
+                SizedBox(height: 14.h),
+                // ── 1. Animaux (+ caractère) ─────────────────────────────
+                Obx(() => _buildSectionCard(
+                      step: 1,
+                      done: controller.stepPetsDone,
+                      icon: Icons.pets,
+                      title: 'label_pets'.tr,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildPetsSection(),
+                          SizedBox(height: 14.h),
+                          _buildCharacterBlock(),
                         ],
-                      ],
-                    );
-                  }),
-                ),
-                SizedBox(height: 16.h),
+                      ),
+                    )),
+                SizedBox(height: 14.h),
+                // ── 2. Service (+ durée, lieu de garde) ──────────────────
                 // v18.8 — ordre demandé : Animaux / Type de service / Dates.
-                // Avant v18.8, les dates venaient avant le type de service, ce
-                // qui obligeait l'owner à choisir une date avant même de savoir
-                // quelle prestation il cherchait.
-                _buildServiceTypeSection(),
-                SizedBox(height: 16.h),
-                _buildSectionCard(
-                  icon: Icons.calendar_today_rounded,
-                  title: 'send_request_dates_label'.tr,
-                  child: _buildDatesSection(),
-                ),
-                Obx(
-                  () => controller.shouldShowDuration
-                      ? Column(
-                          children: [
-                            SizedBox(height: 20.h),
+                Obx(() => _buildSectionCard(
+                      step: 2,
+                      done: controller.stepServiceDone,
+                      icon: Icons.room_service_rounded,
+                      title: 'send_request_service_type_label'.tr,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildServiceTypeSection(),
+                          if (controller.shouldShowDuration) ...[
+                            SizedBox(height: 16.h),
                             _buildDurationSection(),
                           ],
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                Obx(
-                  () => controller.shouldShowServiceLocation
-                      ? Column(
-                          children: [
-                            SizedBox(height: 20.h),
+                          if (controller.shouldShowServiceLocation) ...[
+                            SizedBox(height: 16.h),
                             _buildServiceLocationSection(),
                           ],
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                SizedBox(height: 16.h),
+                        ],
+                      ),
+                    )),
+                SizedBox(height: 14.h),
+                // ── 3. Dates & horaires ──────────────────────────────────
+                Obx(() => _buildSectionCard(
+                      step: 3,
+                      done: controller.stepDatesDone,
+                      icon: Icons.calendar_today_rounded,
+                      title: 'send_request_dates_label'.tr,
+                      child: _buildDatesSection(),
+                    )),
+                SizedBox(height: 14.h),
+                // ── 4. Lieu (ville obligatoire) ──────────────────────────
+                Obx(() => _buildSectionCard(
+                      step: 4,
+                      done: controller.stepCityDone,
+                      icon: Icons.location_on_rounded,
+                      title: 'publish_request_city_label'.tr,
+                      child: _buildLocationSection(),
+                    )),
+                SizedBox(height: 14.h),
+                // ── 5. Détails (facultatif) ──────────────────────────────
                 _buildSectionCard(
-                  icon: Icons.location_on_rounded,
-                  title: 'publish_request_city_label'.tr,
-                  child: _buildLocationSection(),
-                ),
-                SizedBox(height: 16.h),
-                _buildSectionCard(
+                  step: 5,
+                  optional: true,
                   icon: Icons.edit_note_rounded,
-                  // v435 — Daniel : la section "Notes supplémentaires"
-                  // s'affichait "Détails" sur l'annonce publiée. On unifie
-                  // le titre du formulaire sur la clé existante
-                  // post_field_details ("Détails") pour la cohérence.
+                  // v435 — Daniel : titre unifié sur post_field_details.
                   title: 'post_field_details'.tr,
                   child: CustomTextField(
                     labelText: '',
@@ -209,89 +160,387 @@ class _PublishReservationRequestScreenState
                     radius: 16,
                   ),
                 ),
-                // v449 — Daniel : « modifier l'annonce MÊME les photos ». La
-                // section photos est maintenant affichée AUSSI en mode édition
-                // (avant masquée car l'update ne ré-uploadait pas). Les nouvelles
-                // photos s'AJOUTENT à l'annonce via POST /posts/:id/media
-                // (addPostMedia) ; les anciennes restent.
-                SizedBox(height: 16.h),
-                _buildSectionCard(
-                  icon: Icons.photo_library_rounded,
-                  title: 'publish_request_images_label'.tr,
-                  child: _buildImagesSection(),
-                ),
-                SizedBox(height: 24.h),
-                Obx(
-                  () => CustomButton(
-                    // v441 — libellé adapté au mode : « Enregistrer » en édition,
-                    // « Publier la demande » en création.
-                    title: controller.isSubmitting.value
-                        ? null
-                        : (controller.isEditMode
-                            ? 'edit_post_save_button'.tr
-                            : 'publish_request_publish_button'.tr),
-                    onTap: controller.isSubmitting.value
-                        ? null
-                        : () async {
-                            // v565 (point 25) — coordonnées obligatoires
-                            // avant de publier une demande de réservation.
-                            if (!await ensureContactInfo(context,
-                                role: 'owner')) {
-                              return;
-                            }
-                            controller.submit();
-                          },
-                    isGradient: true,
-                    textColor: AppColors.whiteColor,
-                    height: 52.h,
-                    radius: 16.r,
-                    child: controller.isSubmitting.value
-                        ? Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 20.w,
-                                height: 20.h,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    AppColors.whiteColor,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 10.w),
-                              InterText(
-                                text: 'post_button_posting'.tr,
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.whiteColor,
-                              ),
-                            ],
-                          )
-                        : null,
-                  ),
-                ),
-                SizedBox(height: 12.h),
+                SizedBox(height: 14.h),
+                // ── 6. Photos (facultatif) ───────────────────────────────
+                // v449 — Daniel : « modifier l'annonce MÊME les photos ».
+                Obx(() => _buildSectionCard(
+                      step: 6,
+                      optional: true,
+                      done: controller.imageFiles.isNotEmpty,
+                      icon: Icons.photo_library_rounded,
+                      title: 'publish_request_images_label'.tr,
+                      child: _buildImagesSection(),
+                    )),
+                SizedBox(height: 14.h),
+                // ── Résumé avant publication ─────────────────────────────
+                _buildSummaryCard(),
+                SizedBox(height: 8.h),
               ],
             ),
           ),
         ),
       ),
+      bottomNavigationBar: _buildStickyBar(),
     );
   }
 
-  /// Modern card wrapper for each form section.
+  /// Bandeau d'introduction : avancement des 4 étapes obligatoires.
+  Widget _buildIntro() {
+    return Obx(() {
+      final done = controller.requiredStepsDone;
+      const total = PublishReservationRequestController.requiredStepsTotal;
+      return Container(
+        padding: EdgeInsets.all(14.w),
+        decoration: BoxDecoration(
+          color: AppColors.primaryColor.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(18.r),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PoppinsText(
+                    text: 'v565_pub_intro_title'.tr,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary(context),
+                  ),
+                  SizedBox(height: 4.h),
+                  InterText(
+                    text: 'v565_pub_intro_hint'.tr,
+                    fontSize: 12.sp,
+                    color: AppColors.textSecondary(context),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 10.h),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: done / total,
+                      minHeight: 6.h,
+                      backgroundColor:
+                          AppColors.primaryColor.withValues(alpha: 0.15),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.primaryColor),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: 12.w),
+            Container(
+              width: 44.w,
+              height: 44.w,
+              decoration: BoxDecoration(
+                color: AppColors.card(context),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: InterText(
+                text: '$done/$total',
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primaryColor,
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  /// Bloc « Afficher le caractère des animaux » (v411 / v420), désormais
+  /// logé dans l'étape Animaux.
+  Widget _buildCharacterBlock() {
+    final selectedPets = controller.myPets
+        .where((p) => controller.selectedPetIds.contains(p.id))
+        .toList();
+    return Container(
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: AppColors.textSecondary(context).withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14.r),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.visibility_rounded,
+                  size: 16.sp, color: AppColors.primaryColor),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InterText(
+                      text: 'publish_show_character'.tr,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary(context),
+                    ),
+                    InterText(
+                      text: 'publish_show_character_hint'.tr,
+                      fontSize: 11.5.sp,
+                      color: AppColors.textSecondary(context),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: 8.w),
+              AppSwitch(
+                value: controller.showAnimalCharacter.value,
+                onChanged: (v) => controller.showAnimalCharacter.value = v,
+                accent: AppColors.primaryColor,
+              ),
+            ],
+          ),
+          if (controller.showAnimalCharacter.value) ...[
+            SizedBox(height: 10.h),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(12.w),
+              decoration: BoxDecoration(
+                color: AppColors.primaryColor.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InterText(
+                    text: 'publish_character_preview_label'.tr,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryColor,
+                  ),
+                  SizedBox(height: 8.h),
+                  if (selectedPets.isEmpty)
+                    InterText(
+                      text: 'publish_character_no_pet_selected'.tr,
+                      fontSize: 12.sp,
+                      color: AppColors.greyColor,
+                    )
+                  else
+                    // Caractère groupé PAR animal (maquette 222).
+                    ...selectedPets.map((p) => _characterPreviewForPet(p)),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Résumé avant publication : ce que verront les prestataires.
+  Widget _buildSummaryCard() {
+    return Obx(() {
+      final pets = controller.selectedPetNames;
+      final service = controller.selectedServiceLabel;
+      final dates = controller.stepDatesDone
+          ? '${controller.formattedStartDate} ${controller.formattedStartTime}'
+              ' → ${controller.formattedEndDate} ${controller.formattedEndTime}'
+          : '';
+      final city = controller.cityText.value.trim();
+      final photos = controller.imageFiles.length;
+      final duration = controller.shouldShowDuration
+          ? (controller.selectedDuration.value ?? '')
+          : '';
+      return _buildSectionCard(
+        step: 0,
+        icon: Icons.receipt_long_rounded,
+        title: 'v565_pub_summary_title'.tr,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _summaryRow(Icons.pets, 'label_pets'.tr, pets),
+            _summaryRow(Icons.room_service_rounded,
+                'send_request_service_type_label'.tr,
+                duration.isNotEmpty ? '$service · $duration min' : service),
+            _summaryRow(Icons.calendar_today_rounded,
+                'send_request_dates_label'.tr, dates),
+            _summaryRow(Icons.location_on_rounded,
+                'publish_request_city_label'.tr, city),
+            _summaryRow(
+                Icons.photo_library_rounded,
+                'publish_request_images_label'.tr,
+                photos > 0 ? '$photos' : '',
+                last: true),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _summaryRow(IconData icon, String label, String value,
+      {bool last = false}) {
+    final filled = value.trim().isNotEmpty;
+    return Padding(
+      padding: EdgeInsets.only(bottom: last ? 0 : 10.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon,
+              size: 16.sp,
+              color: filled
+                  ? AppColors.primaryColor
+                  : AppColors.textSecondary(context).withValues(alpha: 0.5)),
+          SizedBox(width: 10.w),
+          SizedBox(
+            width: 96.w,
+            child: InterText(
+              text: label,
+              fontSize: 12.sp,
+              color: AppColors.textSecondary(context),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          SizedBox(width: 6.w),
+          Expanded(
+            child: InterText(
+              text: filled ? value : 'v565_pub_summary_missing'.tr,
+              fontSize: 12.5.sp,
+              fontWeight: filled ? FontWeight.w600 : FontWeight.w400,
+              color: filled
+                  ? AppColors.textPrimary(context)
+                  : AppColors.textSecondary(context),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Barre collante : champ manquant (ou « Tout est prêt ») + bouton Publier.
+  Widget _buildStickyBar() {
+    return Obx(() {
+      final missing = controller.firstMissingField;
+      final ready = missing == null;
+      final submitting = controller.isSubmitting.value;
+      return Container(
+        padding: EdgeInsets.fromLTRB(
+            16.w, 10.h, 16.w, 10.h + MediaQuery.of(context).viewPadding.bottom),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          border: Border(
+            top: BorderSide(
+                color: AppColors.textSecondary(context).withValues(alpha: 0.12)),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  ready ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                  size: 15.sp,
+                  color: ready
+                      ? const Color(0xFF16A34A)
+                      : AppColors.textSecondary(context),
+                ),
+                SizedBox(width: 6.w),
+                Expanded(
+                  child: InterText(
+                    text: ready
+                        ? 'v565_pub_ready'.tr
+                        : 'v565_pub_missing'.trParams({
+                            'field': controller.missingFieldLabel(missing),
+                          }),
+                    fontSize: 11.5.sp,
+                    fontWeight: FontWeight.w600,
+                    color: ready
+                        ? const Color(0xFF16A34A)
+                        : AppColors.textSecondary(context),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8.h),
+            CustomButton(
+              // v441 — libellé adapté au mode : « Enregistrer » en édition,
+              // « Publier la demande » en création.
+              title: submitting
+                  ? null
+                  : (controller.isEditMode
+                      ? 'edit_post_save_button'.tr
+                      : 'publish_request_publish_button'.tr),
+              onTap: submitting
+                  ? null
+                  : () async {
+                      // v565 (point 25) — coordonnées obligatoires avant de
+                      // publier une demande de réservation.
+                      if (!await ensureContactInfo(context, role: 'owner')) {
+                        return;
+                      }
+                      controller.submit();
+                    },
+              isGradient: true,
+              textColor: AppColors.whiteColor,
+              height: 52.h,
+              radius: 16.r,
+              child: submitting
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 20.w,
+                          height: 20.h,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.whiteColor,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 10.w),
+                        InterText(
+                          text: 'post_button_posting'.tr,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.whiteColor,
+                        ),
+                      ],
+                    )
+                  : null,
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  /// Carte d'étape : numéro (ou icône), titre, état « fait » / « facultatif ».
   Widget _buildSectionCard({
     required IconData icon,
     required String title,
     required Widget child,
+    int step = 0,
+    bool done = false,
+    bool optional = false,
   }) {
+    final accent = AppColors.primaryColor;
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(18.w),
+      padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(18.r),
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(
+          color: done
+              ? const Color(0xFF16A34A).withValues(alpha: 0.35)
+              : accent.withValues(alpha: 0.10),
+        ),
         boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
@@ -303,20 +552,48 @@ class _PublishReservationRequestScreenState
                 width: 32.w,
                 height: 32.w,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8.r),
+                  color: done
+                      ? const Color(0xFF16A34A)
+                      : accent.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10.r),
                 ),
-                child: Icon(icon, size: 18.sp, color: AppColors.primaryColor),
+                alignment: Alignment.center,
+                child: done
+                    ? Icon(Icons.check_rounded, size: 18.sp, color: Colors.white)
+                    : step > 0
+                        ? InterText(
+                            text: '$step',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w800,
+                            color: accent,
+                          )
+                        : Icon(icon, size: 18.sp, color: accent),
               ),
               SizedBox(width: 10.w),
               Expanded(
                 child: PoppinsText(
                   text: title,
                   fontSize: 15.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary(context),
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (optional)
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+                  decoration: BoxDecoration(
+                    color: AppColors.textSecondary(context).withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: InterText(
+                    text: 'v565_pub_optional'.tr,
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary(context),
+                  ),
+                ),
             ],
           ),
           SizedBox(height: 14.h),

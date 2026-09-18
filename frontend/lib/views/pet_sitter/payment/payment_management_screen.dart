@@ -7,6 +7,10 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/pet_owner/payments/owner_payments_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/provider_payout_history_screen.dart';
+import 'package:hopetsit/views/pet_sitter/payment/earnings_history_screen.dart';
+import 'package:hopetsit/views/invoices/invoices_screen.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
+import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/services/donation_service.dart';
 
 /// v20.1 — Unified payment management screen pour walker + petsitter.
@@ -22,6 +26,9 @@ import 'package:hopetsit/services/donation_service.dart';
 ///     joue aussi le rôle d'owner ou veut acheter Boost/Premium)
 ///   • Historique de paiement
 ///   • Soutenir HoPetSit (donation)
+///
+/// v565 (point 28) — kit Profil (cartes groupées, couleur du rôle), rangées
+/// Portefeuille / Mes gains / Factures ajoutées, chips de statut traduits.
 class PaymentManagementScreen extends StatelessWidget {
   const PaymentManagementScreen({super.key});
 
@@ -30,102 +37,148 @@ class PaymentManagementScreen extends StatelessWidget {
     // v18.5 — #9 fix : charger le statut IBAN pour peindre le point vert
     // dans la rangée des icônes du haut et sur la carte "Compte bancaire".
     final ibanCtrl = Get.put(IbanStatusController());
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: AppColors.primaryColor),
-        leading: const BackButton(),
-        title: PoppinsText(
-          text: 'payment_management_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(16.w),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Header with quick-status icons ──
-              _buildQuickStatusRow(ibanCtrl, context),
-              SizedBox(height: 24.h),
+    // v565 — couleur du rôle (sitter bleu / walker vert), kit Profil.
+    final accent = currentRoleAccent();
+    return ProfileSubPageScaffold(
+      title: 'payment_management_title'.tr,
+      accent: accent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header with quick-status icons ──
+          _buildQuickStatusRow(ibanCtrl, context, accent),
 
-              // ── Payment Methods Section ──
-              PoppinsText(
-                text: 'payment_methods_section'.tr,
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary(context),
-              ),
-              SizedBox(height: 12.h),
-
-              // IBAN / Bank Account Card
-              Obx(() => _buildPaymentMethodCard(
-                context: context,
-                icon: Icons.account_balance_rounded,
-                iconColor: const Color(0xFF1A73E8),
-                iconBg: const Color(0xFF1A73E8).withValues(alpha: 0.1),
-                title: 'payment_iban_title'.tr,
-                subtitle: ibanCtrl.ibanConfigured.value
-                    ? (ibanCtrl.ibanVerified.value
-                        ? 'payment_iban_verified'.tr
-                        : 'payment_iban_saved_pending'.tr)
-                    : 'payment_iban_subtitle'.tr,
-                isConnected: ibanCtrl.ibanConfigured.value,
-                onTap: () async {
-                  await Get.to(() => const IbanSetupScreen());
-                  // Refresh status when coming back from IBAN screen.
-                  ibanCtrl.refreshStatus();
-                },
-                buttonLabel: ibanCtrl.ibanConfigured.value
-                    ? 'payment_manage'.tr
-                    : 'payment_configure'.tr,
+          // ── Payment Methods Section ──
+          ProfileSectionTitle('payment_methods_section'.tr,
+              icon: Icons.account_balance_wallet_rounded),
+          Obx(() => ProfileGroupCard(
+                children: [
+                  // IBAN / Bank Account
+                  ProfileRow(
+                    icon: Icons.account_balance_rounded,
+                    color: const Color(0xFF1A73E8),
+                    title: 'payment_iban_title'.tr,
+                    subtitle: ibanCtrl.ibanConfigured.value
+                        ? (ibanCtrl.ibanVerified.value
+                            ? 'payment_iban_verified'.tr
+                            : 'payment_iban_saved_pending'.tr)
+                        : 'payment_iban_subtitle'.tr,
+                    // v565 — état de chargement du statut IBAN (avant :
+                    // « Configurer » affiché à tort pendant la requête).
+                    trailing: ibanCtrl.isLoading.value
+                        ? SizedBox(
+                            width: 18.w,
+                            height: 18.w,
+                            child: const CircularProgressIndicator(
+                                strokeWidth: 2.2, color: Color(0xFF1A73E8)),
+                          )
+                        : _statusChip(
+                            ibanCtrl.ibanConfigured.value
+                                ? 'payment_manage'.tr
+                                : 'payment_configure'.tr,
+                            ibanCtrl.ibanConfigured.value,
+                            const Color(0xFF1A73E8),
+                          ),
+                    onTap: () async {
+                      await Get.to(() => const IbanSetupScreen());
+                      // Refresh status when coming back from IBAN screen.
+                      ibanCtrl.refreshStatus();
+                    },
+                  ),
+                  // Add card CB — utile pour acheter Boost / Premium / MapBoost.
+                  ProfileRow(
+                    icon: Icons.credit_card_rounded,
+                    color: const Color(0xFF7C3AED),
+                    title: 'payment_add_card_title'.tr,
+                    subtitle: 'payment_add_card_subtitle'.tr,
+                    trailing: _statusChip(
+                      'payment_add_card_button'.tr,
+                      false,
+                      const Color(0xFF7C3AED),
+                    ),
+                    onTap: () => Get.to(() => const OwnerPaymentsScreen()),
+                  ),
+                ],
               )),
-              SizedBox(height: 10.h),
 
-              // Add card CB — utile pour acheter Boost / Premium / MapBoost.
-              _buildPaymentMethodCard(
-                context: context,
-                icon: Icons.credit_card_rounded,
-                iconColor: const Color(0xFF7C3AED),
-                iconBg: const Color(0xFF7C3AED).withValues(alpha: 0.1),
-                title: 'payment_add_card_title'.tr,
-                subtitle: 'payment_add_card_subtitle'.tr,
-                isConnected: false,
-                onTap: () => Get.to(() => const OwnerPaymentsScreen()),
-                buttonLabel: 'payment_add_card_button'.tr,
+          // ── Gains, portefeuille, historiques ──
+          ProfileSectionTitle('payment_history_title'.tr,
+              icon: Icons.history_rounded),
+          ProfileGroupCard(
+            children: [
+              ProfileRow(
+                icon: Icons.account_balance_wallet_rounded,
+                color: accent,
+                title: 'wallet_title'.tr,
+                subtitle: 'v565_pay_wallet_row_hint'.tr,
+                onTap: () => Get.to(() => const WalletScreen()),
               ),
-              SizedBox(height: 10.h),
-
+              // v565 — l'écran « Mes gains » n'était plus atteignable
+              // depuis aucun menu : rangée ajoutée ici.
+              ProfileRow(
+                icon: Icons.trending_up_rounded,
+                color: accent,
+                title: 'earnings_title'.tr,
+                subtitle: 'v565_pay_earnings_row_hint'.tr,
+                onTap: () => Get.to(() => const EarningsHistoryScreen()),
+              ),
               // Historique de paiement (versements reçus).
-              _buildPaymentMethodCard(
-                context: context,
+              ProfileRow(
                 icon: Icons.receipt_long_rounded,
-                iconColor: Colors.teal,
-                iconBg: Colors.teal.withValues(alpha: 0.1),
+                color: Colors.teal,
                 title: 'payment_history_title'.tr,
                 subtitle: 'payment_history_subtitle'.tr,
-                isConnected: false,
                 onTap: () =>
                     Get.to(() => const ProviderPayoutHistoryScreen()),
-                buttonLabel: 'payment_history_open'.tr,
               ),
-
-              SizedBox(height: 28.h),
-
-              // ── Donation Section ──
-              _buildDonationCard(context),
-
-              SizedBox(height: 40.h),
+              ProfileRow(
+                icon: Icons.picture_as_pdf_rounded,
+                color: accent,
+                title: 'v565_pay_receipts'.tr,
+                subtitle: 'v565_pay_receipts_hint'.tr,
+                onTap: () => Get.to(() => const InvoicesScreen()),
+              ),
             ],
           ),
-        ),
+
+          SizedBox(height: 22.h),
+
+          // ── Donation Section ──
+          _buildDonationCard(context),
+
+          SizedBox(height: 24.h),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusChip(String label, bool active, Color color) {
+    final c = active ? const Color(0xFF16A34A) : color;
+    return Container(
+      constraints: BoxConstraints(maxWidth: 110.w),
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (active) ...[
+            Icon(Icons.check_circle_rounded, size: 13.sp, color: c),
+            SizedBox(width: 4.w),
+          ],
+          Flexible(
+            child: InterText(
+              text: label,
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w700,
+              color: c,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -134,6 +187,7 @@ class PaymentManagementScreen extends StatelessWidget {
   Widget _buildQuickStatusRow(
     IbanStatusController ibanCtrl,
     BuildContext context,
+    Color accent,
   ) {
     return Obx(() => Row(
       children: [
@@ -164,10 +218,10 @@ class PaymentManagementScreen extends StatelessWidget {
   Widget _quickIcon(BuildContext context, IconData icon, String label, bool active, Color color) {
     return Expanded(
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: 16.h),
+        padding: EdgeInsets.symmetric(vertical: 14.h),
         decoration: BoxDecoration(
           color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(16.r),
+          borderRadius: BorderRadius.circular(20.r),
           boxShadow: AppColors.cardShadow(context),
           border: active ? Border.all(color: color, width: 1.5) : null,
         ),
@@ -185,107 +239,22 @@ class PaymentManagementScreen extends StatelessWidget {
             SizedBox(height: 6.h),
             InterText(
               text: label,
-              fontSize: 10.sp,
-              fontWeight: FontWeight.w600,
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w700,
               color: active ? color : AppColors.textSecondary(context),
             ),
-            SizedBox(height: 2.h),
-            Container(
-              width: 6.w,
-              height: 6.w,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: active ? Colors.green : AppColors.greyColor.withValues(alpha: 0.3),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPaymentMethodCard({
-    required BuildContext context,
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBg,
-    required String title,
-    required String subtitle,
-    required bool isConnected,
-    required VoidCallback onTap,
-    required String buttonLabel,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.all(16.w),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(16.r),
-          boxShadow: AppColors.cardShadow(context),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48.w,
-              height: 48.w,
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(14.r),
-              ),
-              child: Icon(icon, size: 24.sp, color: iconColor),
-            ),
-            SizedBox(width: 14.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      PoppinsText(
-                        text: title,
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary(context),
-                      ),
-                      if (isConnected) ...[
-                        SizedBox(width: 8.w),
-                        Icon(Icons.check_circle, size: 16.sp, color: Colors.green),
-                      ],
-                    ],
-                  ),
-                  SizedBox(height: 2.h),
-                  // v20.0.17 — maxLines 3 + visible overflow pour que les
-                  // traductions longues (DE / IT) ne soient plus tronquées.
-                  InterText(
-                    text: subtitle,
-                    fontSize: 12.sp,
-                    color: AppColors.textSecondary(context),
-                    maxLines: 3,
-                    overflow: TextOverflow.visible,
-                  ),
-                ],
-              ),
-            ),
-            // v20.0.17 — Wrap the button label so it can flow on 2 lines and
-            // width-limit for very long labels (ex. DE "IBAN konfigurieren").
-            Container(
-              constraints: BoxConstraints(maxWidth: 110.w),
-              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-              decoration: BoxDecoration(
-                color: isConnected
-                    ? Colors.green.withValues(alpha: 0.1)
-                    : iconColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20.r),
-              ),
-              child: InterText(
-                text: buttonLabel,
-                fontSize: 11.sp,
-                fontWeight: FontWeight.w600,
-                color: isConnected ? Colors.green : iconColor,
-                maxLines: 2,
-                overflow: TextOverflow.visible,
-              ),
+            SizedBox(height: 4.h),
+            InterText(
+              text: active
+                  ? 'v565_pay_status_configured'.tr
+                  : 'v565_pay_status_missing'.tr,
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w600,
+              color: active
+                  ? const Color(0xFF16A34A)
+                  : AppColors.textSecondary(context),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -297,21 +266,24 @@ class PaymentManagementScreen extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.primaryColor.withValues(alpha: 0.08),
-            AppColors.primaryColor.withValues(alpha: 0.03),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.primaryColor.withValues(alpha: 0.2)),
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(20.r),
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
         children: [
-          Icon(
-            Icons.favorite_rounded,
-            size: 36.sp,
-            color: AppColors.primaryColor,
+          Container(
+            width: 56.w,
+            height: 56.w,
+            decoration: BoxDecoration(
+              color: AppColors.primaryColor.withValues(alpha: 0.10),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.favorite_rounded,
+              size: 28.sp,
+              color: AppColors.primaryColor,
+            ),
           ),
           SizedBox(height: 10.h),
           PoppinsText(
@@ -327,6 +299,7 @@ class PaymentManagementScreen extends StatelessWidget {
             fontSize: 12.sp,
             color: AppColors.textSecondary(context),
             textAlign: TextAlign.center,
+            maxLines: 4,
           ),
           SizedBox(height: 14.h),
           Row(
@@ -362,10 +335,10 @@ class PaymentManagementScreen extends StatelessWidget {
           );
         },
         child: Container(
-          padding: EdgeInsets.symmetric(vertical: 10.h),
+          padding: EdgeInsets.symmetric(vertical: 11.h),
           decoration: BoxDecoration(
             color: AppColors.primaryColor,
-            borderRadius: BorderRadius.circular(12.r),
+            borderRadius: BorderRadius.circular(14.r),
           ),
           child: Center(
             child: InterText(

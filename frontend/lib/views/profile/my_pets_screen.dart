@@ -11,6 +11,7 @@ import 'package:hopetsit/utils/pet_species_color.dart';
 import 'package:hopetsit/views/pet_owner/pet_profile/pet_profile_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -73,83 +74,51 @@ class MyPetsScreen extends StatelessWidget {
       body: SafeArea(
         child: Obx(() {
           if (controller.isLoading.value) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (controller.errorMessage.value.isNotEmpty &&
-              controller.pets.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  PoppinsText(
-                    text: 'my_pets_error_loading'.tr,
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.errorColor,
-                  ),
-                  SizedBox(height: 8.h),
-                  ElevatedButton(
-                    onPressed: () => controller.refreshPets(),
-                    child: Text('my_pets_retry'.tr),
-                  ),
-                ],
+            return const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
               ),
             );
           }
 
+          if (controller.errorMessage.value.isNotEmpty &&
+              controller.pets.isEmpty) {
+            // v565 — point 39 : état d'erreur du kit + « Réessayer ».
+            return ProfileEmptyState(
+              icon: Icons.cloud_off_rounded,
+              title: 'my_pets_error_loading'.tr,
+              message: controller.errorMessage.value,
+              accent: AppColors.primaryColor,
+              error: true,
+              actionLabel: 'my_pets_retry'.tr,
+              onAction: () => controller.refreshPets(),
+            );
+          }
+
           if (controller.pets.isEmpty) {
-            // v23.1.389 — état vide modernisé : icône + CTA direct.
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(22.w),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryColor.withValues(alpha: 0.08),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text('🐾', style: TextStyle(fontSize: 44.sp)),
-                  ),
-                  SizedBox(height: 14.h),
-                  PoppinsText(
-                    text: 'my_pets_empty'.tr,
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.greyColor,
-                  ),
-                  SizedBox(height: 16.h),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      // v428 — système unifié : création via EditPetScreen.
-                      final result =
-                          await Get.to(() => const EditPetScreen());
-                      if (result == true &&
-                          Get.isRegistered<MyPetsController>()) {
-                        await Get.find<MyPetsController>().refreshPets();
-                      }
-                    },
-                    icon: const Icon(Icons.add_rounded),
-                    label: Text('my_pets_add_pet'.tr),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(horizontal: 22.w, vertical: 12.h),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14.r),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            // v565 — point 39 : état vide du kit + CTA « Ajouter un animal ».
+            return ProfileEmptyState(
+              icon: Icons.pets_rounded,
+              title: 'my_pets_empty'.tr,
+              message: 'my_pets_empty_body'.tr,
+              accent: AppColors.primaryColor,
+              actionLabel: 'my_pets_add_pet'.tr,
+              onAction: () async {
+                // v428 — système unifié : création via EditPetScreen.
+                final result = await Get.to(() => const EditPetScreen());
+                if (result == true && Get.isRegistered<MyPetsController>()) {
+                  await Get.find<MyPetsController>().refreshPets();
+                }
+              },
             );
           }
 
           return RefreshIndicator(
             onRefresh: () => controller.refreshPets(),
+            color: AppColors.primaryColor,
             child: ListView.builder(
-              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 28.h),
               itemCount: controller.pets.length,
               itemBuilder: (context, index) {
                 final pet = controller.pets[index];
@@ -179,19 +148,13 @@ class MyPetsScreen extends StatelessWidget {
             onDelete: () => _confirmAndDeletePet(context, pet.id),
           )),
       child: Container(
-        margin: EdgeInsets.only(bottom: 16.h),
+        margin: EdgeInsets.only(bottom: 12.h),
         padding: EdgeInsets.all(12.w),
+        // v565 — point 39 : carte Apple (coins 20, ombre douce, sans bordure).
         decoration: BoxDecoration(
           color: AppColors.card(context),
           borderRadius: BorderRadius.circular(20.r),
-          border: Border.all(color: accent.withValues(alpha: 0.5), width: 1.6),
-          boxShadow: [
-            BoxShadow(
-              color: accent.withValues(alpha: 0.12),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: AppColors.cardShadow(context),
         ),
         child: Row(
           children: [
@@ -399,6 +362,8 @@ Future<void> _confirmAndDeletePet(BuildContext context, String petId) async {
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
+      backgroundColor: AppColors.card(ctx),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
       title: Text('pet_delete_dialog_title'.tr),
       content: Text('pet_delete_dialog_message'.tr),
       actions: [

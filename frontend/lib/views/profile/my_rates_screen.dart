@@ -2,6 +2,10 @@
 // form so sitters/walkers can tweak rates without scrolling through the full
 // profile form. Reuses the existing edit controllers to keep backend wiring
 // unchanged.
+//
+// v565 — point 39 : modernisé avec le kit Profil (cartes groupées Devise /
+// Tarifs / Options, champs ProfileInput avec suffixe devise, bouton
+// « Enregistrer » collant, états chargement / erreur « Réessayer »).
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,11 +13,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/edit_sitter_profile_controller.dart';
 import 'package:hopetsit/controllers/edit_walker_profile_controller.dart';
-import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
-import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/custom_text_field.dart';
-import 'package:hopetsit/widgets/rounded_text_button.dart' show CustomButton;
+import 'package:hopetsit/views/profile/widgets/edit_profile_widgets.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 
 class MyRatesScreen extends StatelessWidget {
   final String role; // 'sitter' | 'walker'
@@ -33,6 +35,83 @@ class MyRatesScreen extends StatelessWidget {
   }
 }
 
+/// Coquille commune : scaffold + états + bouton collant.
+class _RatesShell extends StatelessWidget {
+  final Color accent;
+  final RxBool isFetching;
+  final RxString loadError;
+  final RxBool isLoading;
+  final VoidCallback onRetry;
+  final VoidCallback onSave;
+  final List<Widget> children;
+
+  const _RatesShell({
+    required this.accent,
+    required this.isFetching,
+    required this.loadError,
+    required this.isLoading,
+    required this.onRetry,
+    required this.onSave,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ProfileSubPageScaffold(
+      title: 'my_rates_section_title'.tr,
+      accent: accent,
+      scroll: false,
+      padding: EdgeInsets.zero,
+      body: Obx(() {
+        if (isFetching.value) {
+          return Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(accent),
+            ),
+          );
+        }
+        if (loadError.value.isNotEmpty) {
+          return ProfileEmptyState(
+            icon: Icons.cloud_off_rounded,
+            title: 'my_rates_load_error_title'.tr,
+            message: loadError.value,
+            accent: accent,
+            error: true,
+            actionLabel: 'common_retry'.tr,
+            onAction: onRetry,
+          );
+        }
+        return Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 24.h),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: children,
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 12.h),
+              child: Obx(() => ProfileSaveBar(
+                    label: isLoading.value
+                        ? 'edit_profile_button_updating'.tr
+                        : 'edit_profile_button'.tr,
+                    accent: accent,
+                    loading: isLoading.value,
+                    icon: Icons.check_rounded,
+                    onTap: isLoading.value ? null : onSave,
+                  )),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+}
+
 class _WalkerRates extends StatelessWidget {
   final Color accent;
   const _WalkerRates({required this.accent});
@@ -40,173 +119,80 @@ class _WalkerRates extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(EditWalkerProfileController());
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: accent),
-        leading: const BackButton(),
-        title: PoppinsText(
-          text: 'my_rates_section_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
+    return _RatesShell(
+      accent: accent,
+      isFetching: controller.isFetching,
+      loadError: controller.loadError,
+      isLoading: controller.isLoading,
+      onRetry: () => controller.loadProfileData(),
+      onSave: () => controller.updateRatesOnly(),
+      children: [
+        SizedBox(height: 4.h),
+        ProfileInfoBanner(
+          icon: Icons.payments_rounded,
+          text: 'my_rates_walker_hint'.tr,
+          accent: accent,
         ),
-      ),
-      body: Obx(() {
-        if (controller.isFetching.value) {
-          return Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(accent),
-            ),
-          );
-        }
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _HeaderCard(
-                  accent: accent,
-                  subtitle: 'my_rates_walker_hint'.tr,
-                ),
-                SizedBox(height: 20.h),
-                // v20 — Simple currency dropdown (walker has no per-rate currency,
-                // so we just display EUR by default). Info text for user.
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.payments_rounded, color: accent, size: 18.sp),
-                      SizedBox(width: 8.w),
-                      // v445 — Daniel : « la phrase déborde ». Sans Expanded le
-                      // texte sortait du cadre (Row non borné). Expanded +
-                      // maxLines → le texte s'enroule proprement.
-                      Expanded(
-                        child: InterText(
-                          text: 'walker_currency_info'.tr,
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textSecondary(context),
-                          maxLines: 3,
-                          overflow: TextOverflow.visible,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // v540 — sélecteur de devise pour le PROMENEUR aussi (won,
-                // yen, etc.) — avant : EUR forcé, aucun choix possible.
-                InterText(
-                  text: 'currency_label'.tr,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary(context),
-                ),
-                SizedBox(height: 6.h),
-                Obx(() {
-                  final current = controller.selectedCurrency.value;
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.inputFill(context),
-                      borderRadius: BorderRadius.circular(12.r),
-                      border: Border.all(color: accent.withValues(alpha: 0.25)),
-                    ),
-                    padding: EdgeInsets.symmetric(horizontal: 14.w),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        value: CurrencyHelper.supportedCurrencies
-                                .contains(current)
-                            ? current
-                            : 'EUR',
-                        items: CurrencyHelper.supportedCurrencies
-                            .map((c) => DropdownMenuItem(
-                                value: c,
-                                child: Text(CurrencyHelper.label(c))))
-                            .toList(),
-                        onChanged: (v) {
-                          if (v != null) controller.updateCurrency(v);
-                        },
-                      ),
-                    ),
-                  );
-                }),
-                SizedBox(height: 12.h),
-
-                SizedBox(height: 16.h),
-                // v23.1.153 — Daniel : "Faltarían las tarifas para 90 y 120
-                // minutos". Walker rate form etend de 2 a 4 durees (30/60/90/120).
-                // Backend Walker.walkRates accepte deja n'importe quel multiple
-                // de 15min entre 15 et 300 — pas besoin de changement schema.
-                _RateField(
+        // v540 — sélecteur de devise pour le PROMENEUR aussi (won, yen…).
+        _CurrencyCard(
+          accent: accent,
+          selected: controller.selectedCurrency,
+          onChanged: controller.updateCurrency,
+          hint: 'walker_currency_info'.tr,
+        ),
+        // v23.1.153 / v445 — 30 min / 1 h / 2 h (le 90 min est retiré ; le
+        // contrôleur garde le champ pour compat données).
+        ProfileFormCard(
+          title: 'my_rates_section_amounts'.tr,
+          icon: Icons.directions_walk_rounded,
+          accent: accent,
+          children: [
+            Obx(() => _RateField(
                   label: 'walker_rate_30min_label'.tr,
                   hint: 'walker_rate_hint_8'.tr,
                   controller: controller.halfHourRateController,
                   accent: accent,
+                  suffix: CurrencyHelper.symbol(controller.selectedCurrency.value),
                   errorText: 'walker_rate_invalid'.tr,
-                ),
-                SizedBox(height: 16.h),
-                _RateField(
+                )),
+            Obx(() => _RateField(
                   label: 'walker_rate_60min_label'.tr,
                   hint: 'walker_rate_hint_15'.tr,
                   controller: controller.hourlyRateController,
                   accent: accent,
+                  suffix: CurrencyHelper.symbol(controller.selectedCurrency.value),
                   errorText: 'walker_rate_invalid'.tr,
-                ),
-                // v445 — Daniel : tarifs walker = 30 min / 1 h / 2 h (le 90 min
-                // est retiré ; le contrôleur garde le champ pour compat données).
-                SizedBox(height: 16.h),
-                _RateField(
+                )),
+            Obx(() => _RateField(
                   label: 'walker_rate_120min_label'.tr,
                   hint: 'walker_rate_hint_30'.tr,
                   controller: controller.twoHourRateController,
                   accent: accent,
+                  suffix: CurrencyHelper.symbol(controller.selectedCurrency.value),
                   errorText: 'walker_rate_invalid'.tr,
-                ),
-                SizedBox(height: 16.h),
-                // Additif — surcharge par animal supplémentaire.
-                _RateField(
+                )),
+          ],
+        ),
+        ProfileFormCard(
+          title: 'my_rates_section_extras'.tr,
+          icon: Icons.tune_rounded,
+          accent: accent,
+          children: [
+            Obx(() => _RateField(
                   label: 'rates_extra_pet_label'.tr,
                   hint: '0',
                   controller: controller.extraPetRateController,
                   accent: accent,
+                  suffix: CurrencyHelper.symbol(controller.selectedCurrency.value),
                   errorText: 'walker_rate_invalid'.tr,
-                ),
-                SizedBox(height: 16.h),
-                // Additif — temps de réponse type (minutes).
-                _ResponseTimeField(
-                  controller: controller.responseTimeController,
-                  accent: accent,
-                ),
-                SizedBox(height: 32.h),
-                Obx(
-                  () => CustomButton(
-                    title: controller.isLoading.value
-                        ? 'edit_profile_button_updating'.tr
-                        : 'edit_profile_button'.tr,
-                    onTap: controller.isLoading.value
-                        ? null
-                        : () => controller.updateRatesOnly(),
-                    bgColor: accent,
-                    textColor: AppColors.whiteColor,
-                    height: 48.h,
-                    radius: 48.r,
-                  ),
-                ),
-              ],
+                )),
+            _ResponseTimeField(
+              controller: controller.responseTimeController,
+              accent: accent,
             ),
-          ),
-        );
-      }),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -218,187 +204,133 @@ class _SitterRates extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(EditSitterProfileController());
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: accent),
-        leading: const BackButton(),
-        title: PoppinsText(
-          text: 'my_rates_section_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
+    return _RatesShell(
+      accent: accent,
+      isFetching: controller.isFetching,
+      loadError: controller.loadError,
+      isLoading: controller.isLoading,
+      onRetry: () => controller.loadProfileData(),
+      onSave: () => controller.updateRatesOnly(),
+      children: [
+        SizedBox(height: 4.h),
+        ProfileInfoBanner(
+          icon: Icons.payments_rounded,
+          text: 'my_rates_sitter_hint'.tr,
+          accent: accent,
         ),
-      ),
-      body: Obx(() {
-        if (controller.isFetching.value) {
-          return Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(accent),
-            ),
-          );
-        }
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _HeaderCard(
-                  accent: accent,
-                  subtitle: 'my_rates_sitter_hint'.tr,
-                ),
-                SizedBox(height: 20.h),
-                // v20 — Currency picker (EUR / USD). Mandatory BEFORE rates so
-                // the user picks the currency then fills amounts.
-                InterText(
-                  text: 'currency_label'.tr,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary(context),
-                ),
-                SizedBox(height: 6.h),
-                Obx(() {
-                  final current = controller.selectedCurrency.value;
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.inputFill(context),
-                      borderRadius: BorderRadius.circular(12.r),
-                      border: Border.all(color: accent.withValues(alpha: 0.25)),
-                    ),
-                    padding: EdgeInsets.symmetric(horizontal: 14.w),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        // v540 — liste CENTRALE (won ₩ et yen ¥ inclus) au
-                        // lieu des 4 devises codées en dur.
-                        value: CurrencyHelper.supportedCurrencies
-                                .contains(current)
-                            ? current
-                            : 'EUR',
-                        items: CurrencyHelper.supportedCurrencies
-                            .map((c) => DropdownMenuItem(
-                                value: c,
-                                child: Text(CurrencyHelper.label(c))))
-                            .toList(),
-                        onChanged: (v) {
-                          if (v != null) controller.updateCurrency(v);
-                        },
-                      ),
-                    ),
-                  );
-                }),
-                SizedBox(height: 16.h),
-                CustomTextField(
-                  labelText: 'sitter_detail_daily_rate_label'.tr,
-                  hintText: '0.00',
+        // v20 — devise AVANT les montants.
+        _CurrencyCard(
+          accent: accent,
+          selected: controller.selectedCurrency,
+          onChanged: controller.updateCurrency,
+        ),
+        ProfileFormCard(
+          title: 'my_rates_section_amounts'.tr,
+          icon: Icons.home_rounded,
+          accent: accent,
+          children: [
+            Obx(() => _RateField(
+                  label: 'sitter_detail_daily_rate_label'.tr,
+                  hint: '0.00',
                   controller: controller.dailyRateController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  textInputAction: TextInputAction.next,
-                ),
-                SizedBox(height: 16.h),
-                CustomTextField(
-                  labelText: 'sitter_detail_weekly_rate_label'.tr,
-                  hintText: '0.00',
-                  controller: controller.weeklyRateController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  textInputAction: TextInputAction.next,
-                ),
-                SizedBox(height: 16.h),
-                CustomTextField(
-                  labelText: 'sitter_detail_monthly_rate_label'.tr,
-                  hintText: '0.00',
-                  controller: controller.monthlyRateController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  textInputAction: TextInputAction.next,
-                ),
-                SizedBox(height: 16.h),
-                // Additif — surcharge par animal supplémentaire.
-                CustomTextField(
-                  labelText: 'rates_extra_pet_label'.tr,
-                  hintText: '0.00',
-                  controller: controller.extraPetRateController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  textInputAction: TextInputAction.next,
-                ),
-                SizedBox(height: 16.h),
-                // Additif — temps de réponse type (minutes).
-                _ResponseTimeField(
-                  controller: controller.responseTimeController,
                   accent: accent,
-                ),
-                SizedBox(height: 32.h),
-                Obx(
-                  () => CustomButton(
-                    title: controller.isLoading.value
-                        ? 'edit_profile_button_updating'.tr
-                        : 'edit_profile_button'.tr,
-                    onTap: controller.isLoading.value
-                        ? null
-                        : () => controller.updateRatesOnly(),
-                    bgColor: accent,
-                    textColor: AppColors.whiteColor,
-                    height: 48.h,
-                    radius: 48.r,
-                  ),
-                ),
-              ],
+                  suffix: CurrencyHelper.symbol(controller.selectedCurrency.value),
+                  errorText: 'walker_rate_invalid'.tr,
+                )),
+            Obx(() => _RateField(
+                  label: 'sitter_detail_weekly_rate_label'.tr,
+                  hint: '0.00',
+                  controller: controller.weeklyRateController,
+                  accent: accent,
+                  suffix: CurrencyHelper.symbol(controller.selectedCurrency.value),
+                  errorText: 'walker_rate_invalid'.tr,
+                )),
+            Obx(() => _RateField(
+                  label: 'sitter_detail_monthly_rate_label'.tr,
+                  hint: '0.00',
+                  controller: controller.monthlyRateController,
+                  accent: accent,
+                  suffix: CurrencyHelper.symbol(controller.selectedCurrency.value),
+                  errorText: 'walker_rate_invalid'.tr,
+                )),
+          ],
+        ),
+        ProfileFormCard(
+          title: 'my_rates_section_extras'.tr,
+          icon: Icons.tune_rounded,
+          accent: accent,
+          children: [
+            Obx(() => _RateField(
+                  label: 'rates_extra_pet_label'.tr,
+                  hint: '0.00',
+                  controller: controller.extraPetRateController,
+                  accent: accent,
+                  suffix: CurrencyHelper.symbol(controller.selectedCurrency.value),
+                  errorText: 'walker_rate_invalid'.tr,
+                )),
+            _ResponseTimeField(
+              controller: controller.responseTimeController,
+              accent: accent,
             ),
-          ),
-        );
-      }),
+          ],
+        ),
+      ],
     );
   }
 }
 
-// Shared helpers
-class _HeaderCard extends StatelessWidget {
+// ── Shared helpers ─────────────────────────────────────────────────────────
+
+/// Carte « Devise » : liste centrale (won ₩ et yen ¥ inclus).
+class _CurrencyCard extends StatelessWidget {
   final Color accent;
-  final String subtitle;
-  const _HeaderCard({required this.accent, required this.subtitle});
+  final RxString selected;
+  final void Function(String?) onChanged;
+  final String? hint;
+  const _CurrencyCard({
+    required this.accent,
+    required this.selected,
+    required this.onChanged,
+    this.hint,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            accent.withValues(alpha: 0.12),
-            accent.withValues(alpha: 0.03),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: accent.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(top: 2.h),
-            child: Icon(Icons.payments_rounded, size: 22.sp, color: accent),
+    return ProfileFormCard(
+      title: 'my_rates_section_currency'.tr,
+      icon: Icons.currency_exchange_rounded,
+      accent: accent,
+      children: [
+        Obx(() {
+          final current = selected.value;
+          final value = CurrencyHelper.supportedCurrencies.contains(current)
+              ? current
+              : CurrencyHelper.defaultCurrency;
+          return ProfileDropdownField<String>(
+            key: ValueKey('currency_$value'),
+            label: 'currency_label'.tr,
+            value: value,
+            accent: accent,
+            prefix: Icon(Icons.payments_outlined, color: accent, size: 20.sp),
+            items: CurrencyHelper.supportedCurrencies
+                .map((c) => DropdownMenuItem(
+                      value: c,
+                      child: Text(CurrencyHelper.label(c),
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ))
+                .toList(),
+            onChanged: (v) {
+              if (v != null) onChanged(v);
+            },
+          );
+        }),
+        if (hint != null && hint!.isNotEmpty)
+          ProfileInfoBanner(
+            icon: Icons.info_outline_rounded,
+            text: hint!,
+            accent: accent,
           ),
-          SizedBox(width: 10.w),
-          // v20.0.10 — explicit maxLines + softWrap so long translations
-          // (DE / IT multi-word phrases) ne depassent plus du cadre.
-          Expanded(
-            child: InterText(
-              text: subtitle,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textPrimary(context),
-              maxLines: 5,
-              overflow: TextOverflow.visible,
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -409,6 +341,7 @@ class _RateField extends StatelessWidget {
   final TextEditingController controller;
   final Color accent;
   final String errorText;
+  final String suffix;
 
   const _RateField({
     required this.label,
@@ -416,65 +349,44 @@ class _RateField extends StatelessWidget {
     required this.controller,
     required this.accent,
     required this.errorText,
+    required this.suffix,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InterText(
-          text: label,
-          fontSize: 14.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary(context),
-        ),
-        SizedBox(height: 8.h),
-        TextFormField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9\.,]')),
-          ],
-          textInputAction: TextInputAction.next,
-          decoration: InputDecoration(
-            hintText: hint,
-            suffixText: '€',
-            suffixStyle: TextStyle(
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w600,
-              color: accent,
-            ),
-            filled: true,
-            fillColor: AppColors.inputFill(context),
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 20.w,
-              vertical: 14.h,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(30.r),
-              borderSide: BorderSide.none,
-            ),
-          ),
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textPrimary(context),
-          ),
-          validator: (value) {
-            final v = (value ?? '').trim().replaceAll(',', '.');
-            if (v.isEmpty) return null;
-            final parsed = double.tryParse(v);
-            if (parsed == null || parsed < 0) return errorText;
-            return null;
-          },
-        ),
+    return ProfileInput(
+      label: label,
+      hint: hint,
+      controller: controller,
+      accent: accent,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[0-9\.,]')),
       ],
+      textInputAction: TextInputAction.next,
+      suffix: Padding(
+        padding: EdgeInsets.only(right: 14.w, top: 14.h),
+        child: Text(
+          suffix,
+          style: TextStyle(
+            fontSize: 15.sp,
+            fontWeight: FontWeight.w700,
+            color: accent,
+          ),
+        ),
+      ),
+      validator: (value) {
+        final v = (value ?? '').trim().replaceAll(',', '.');
+        if (v.isEmpty) return null;
+        final parsed = double.tryParse(v);
+        if (parsed == null || parsed < 0) return errorText;
+        return null;
+      },
     );
   }
 }
 
-/// Additif — temps de réponse type (minutes). Suffixe "min" au lieu de "€".
+/// Additif — temps de réponse type (minutes). Suffixe "min".
 class _ResponseTimeField extends StatelessWidget {
   final TextEditingController controller;
   final Color accent;
@@ -486,49 +398,25 @@ class _ResponseTimeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InterText(
-          text: 'rates_response_time_label'.tr,
-          fontSize: 14.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary(context),
-        ),
-        SizedBox(height: 8.h),
-        TextFormField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
-          ],
-          textInputAction: TextInputAction.done,
-          decoration: InputDecoration(
-            hintText: '0',
-            suffixText: 'min',
-            suffixStyle: TextStyle(
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w600,
-              color: accent,
-            ),
-            filled: true,
-            fillColor: AppColors.inputFill(context),
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 20.w,
-              vertical: 14.h,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(30.r),
-              borderSide: BorderSide.none,
-            ),
-          ),
+    return ProfileInput(
+      label: 'rates_response_time_label'.tr,
+      hint: '0',
+      controller: controller,
+      accent: accent,
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      textInputAction: TextInputAction.done,
+      suffix: Padding(
+        padding: EdgeInsets.only(right: 14.w, top: 14.h),
+        child: Text(
+          'min',
           style: TextStyle(
             fontSize: 14.sp,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textPrimary(context),
+            fontWeight: FontWeight.w700,
+            color: accent,
           ),
         ),
-      ],
+      ),
     );
   }
 }

@@ -11,10 +11,12 @@ type Props = {
    *  platform — backend creates the account under that role. Existing users
    *  keep their original role (the value is ignored server-side). */
   defaultRole?: AuthRole;
+  /** v565 — ville saisie sur la page d'inscription (nouveau compte Google). */
+  city?: string;
 };
 
-export function SocialButtons({ defaultRole = "owner" }: Props) {
-  const { t } = useT();
+export function SocialButtons({ defaultRole = "owner", city }: Props) {
+  const { t, lang } = useT();
   const router = useRouter();
   const [busy, setBusy] = useState<"" | "google" | "apple">("");
   const [err, setErr]   = useState("");
@@ -30,7 +32,7 @@ export function SocialButtons({ defaultRole = "owner" }: Props) {
     setErr("");
     try {
       const idToken = await signInWithGooglePopup();
-      await googleSignIn(idToken, defaultRole);
+      await googleSignIn(idToken, defaultRole, { city: city?.trim() || undefined, lang });
       router.push("/dashboard");
     } catch (e) {
       // Firebase popup-cancellation: stay silent, the user just closed the window.

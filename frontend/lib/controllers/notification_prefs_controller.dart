@@ -37,9 +37,10 @@ class NotificationPrefsController extends GetxController {
   /// Sons disponibles — valeurs FIGÉES par le contrat §2.
   static const List<String> sounds = <String>[
     'default',
+    'frog', // v565 — Daniel : grenouille (son par défaut)
     'bark',
     'meow',
-    'tweet',
+    'tweet', // = hibou depuis le 18/09 (id conservé pour les canaux/serveur)
     'vibrate',
     'silent',
   ];
@@ -51,7 +52,7 @@ class NotificationPrefsController extends GetxController {
   final RxBool loading = false.obs;
   final RxBool saving = false.obs;
   final RxString error = ''.obs;
-  final RxString sound = 'default'.obs;
+  final RxString sound = 'frog'.obs;
   final RxMap<String, bool> categories = <String, bool>{
     for (final k in categoryKeys) k: true,
   }.obs;
@@ -153,6 +154,7 @@ class NotificationPrefsController extends GetxController {
     previewing.value = value;
     try {
       switch (value) {
+        case 'frog':
         case 'bark':
         case 'meow':
         case 'tweet':

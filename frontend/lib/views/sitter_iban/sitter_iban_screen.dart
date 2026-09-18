@@ -8,6 +8,9 @@ import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_config.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/profile/widgets/edit_profile_widgets.dart';
+import 'package:hopetsit/views/profile/widgets/pet_form_widgets.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -55,7 +58,7 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
     } catch (_) {
       // No IBAN set yet
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -107,224 +110,194 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        title: InterText(text: 'payout_iban_title'.tr, fontSize: 18.sp, fontWeight: FontWeight.w700, color: AppColors.textPrimary(context)),
-      ),
+    final accent = currentRoleAccent();
+    final current = _currentIban;
+    final hasIban = current != null &&
+        (current['ibanNumberMasked'] as String? ?? '').isNotEmpty;
+    final verified = current?['ibanVerified'] == true;
+    // v565 — point 39 : kit Profil (bandeau, carte d'état, méthode de
+    // versement en pilules, formulaire ProfileInput, bouton collant).
+    return ProfileSubPageScaffold(
+      title: 'payout_iban_title'.tr,
+      accent: accent,
+      scroll: false,
+      padding: EdgeInsets.zero,
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: EdgeInsets.all(20.w),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ─ Info banner ─
-                  Container(
-                    padding: EdgeInsets.all(16.w),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(12.r),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Row(
+          ? Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(accent),
+              ),
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 24.h),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.info_outline, color: Colors.blue, size: 24.sp),
-                        SizedBox(width: 12.w),
-                        Expanded(
-                          child: InterText(
-                            text: 'payout_iban_info'.tr,
-                            fontSize: 12.sp,
-                            color: Colors.blue.shade800,
-                          ),
+                        ProfileInfoBanner(
+                          icon: Icons.info_outline_rounded,
+                          text: 'payout_iban_info'.tr,
+                          accent: accent,
                         ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 20.h),
 
-                  // ─ Current IBAN status ─
-                  if (_currentIban != null && (_currentIban!['ibanNumberMasked'] as String? ?? '').isNotEmpty) ...[
-                    Container(
-                      padding: EdgeInsets.all(16.w),
-                      decoration: BoxDecoration(
-                        color: AppColors.card(context),
-                        borderRadius: BorderRadius.circular(12.r),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 2))],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        // ─ Current IBAN status ─
+                        if (hasIban)
+                          ProfileFormCard(
+                            title: 'payout_current_iban'.tr,
+                            icon: Icons.account_balance_rounded,
+                            accent: accent,
+                            gap: 8,
                             children: [
-                              InterText(text: 'payout_current_iban'.tr, fontSize: 14.sp, fontWeight: FontWeight.w600),
-                              Container(
-                                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-                                decoration: BoxDecoration(
-                                  color: (_currentIban!['ibanVerified'] == true ? Colors.green : Colors.orange).withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(20.r),
-                                ),
-                                child: InterText(
-                                  text: _currentIban!['ibanVerified'] == true ? 'payout_iban_verified'.tr : 'payout_iban_pending'.tr,
-                                  fontSize: 11.sp,
-                                  color: _currentIban!['ibanVerified'] == true ? Colors.green : Colors.orange,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              ProfileStatusPill(
+                                icon: verified
+                                    ? Icons.check_circle_rounded
+                                    : Icons.schedule_rounded,
+                                text: verified
+                                    ? 'payout_iban_verified'.tr
+                                    : 'payout_iban_pending'.tr,
+                                color: verified
+                                    ? const Color(0xFF16A34A)
+                                    : const Color(0xFFE8920A),
+                              ),
+                              _infoRow(context, Icons.person_outline_rounded,
+                                  'payout_label_holder'.tr, '${current['ibanHolder'] ?? ''}'),
+                              _infoRow(context, Icons.account_balance_outlined, 'IBAN',
+                                  '${current['ibanNumberMasked'] ?? ''}'),
+                              if ((current['ibanBic'] as String? ?? '').isNotEmpty)
+                                _infoRow(context, Icons.qr_code_2_rounded,
+                                    'payout_label_bic'.tr, '${current['ibanBic']}'),
+                            ],
+                          ),
+
+                        // ─ Payout method selector ─
+                        ProfileFormCard(
+                          title: 'payout_method_label'.tr,
+                          icon: Icons.payments_rounded,
+                          accent: accent,
+                          children: [
+                            Wrap(
+                              spacing: 8.w,
+                              runSpacing: 10.h,
+                              children: [
+                                _methodChip(accent, 'stripe', 'payout_chip_card'.tr,
+                                    Icons.credit_card_rounded),
+                                _methodChip(accent, 'paypal', 'PayPal', Icons.paypal),
+                                _methodChip(accent, 'iban', 'payout_chip_iban'.tr,
+                                    Icons.account_balance_rounded),
+                              ],
+                            ),
+                          ],
+                        ),
+
+                        // ─ IBAN Form ─
+                        Form(
+                          key: _formKey,
+                          child: ProfileFormCard(
+                            title: 'payout_add_iban'.tr,
+                            icon: Icons.edit_outlined,
+                            accent: accent,
+                            children: [
+                              ProfileInput(
+                                label: 'payout_iban_holder'.tr,
+                                controller: _holderCtrl,
+                                accent: accent,
+                                textCapitalization: TextCapitalization.words,
+                                textInputAction: TextInputAction.next,
+                                prefix: Icon(Icons.person_outline_rounded,
+                                    size: 20.sp, color: accent),
+                                validator: (v) => v == null || v.isEmpty
+                                    ? 'payout_iban_holder_required'.tr
+                                    : null,
+                              ),
+                              ProfileInput(
+                                label: 'IBAN',
+                                hint: 'payout_iban_hint'.tr,
+                                controller: _ibanCtrl,
+                                accent: accent,
+                                textCapitalization: TextCapitalization.characters,
+                                textInputAction: TextInputAction.next,
+                                prefix: Icon(Icons.account_balance_outlined,
+                                    size: 20.sp, color: accent),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 ]')),
+                                  _IbanFormatter(),
+                                ],
+                                validator: (v) {
+                                  if (v == null || v.isEmpty) return 'payout_iban_required'.tr;
+                                  final clean = v.replaceAll(' ', '');
+                                  if (clean.length < 15 || clean.length > 34) {
+                                    return 'payout_iban_invalid'.tr;
+                                  }
+                                  return null;
+                                },
+                              ),
+                              ProfileInput(
+                                label: 'payout_bic_label'.tr,
+                                controller: _bicCtrl,
+                                accent: accent,
+                                textCapitalization: TextCapitalization.characters,
+                                textInputAction: TextInputAction.done,
+                                prefix: Icon(Icons.qr_code_2_rounded,
+                                    size: 20.sp, color: accent),
                               ),
                             ],
                           ),
-                          SizedBox(height: 10.h),
-                          _infoRow(Icons.person_outline, 'payout_label_holder'.tr, _currentIban!['ibanHolder'] ?? ''),
-                          _infoRow(Icons.account_balance, 'IBAN', _currentIban!['ibanNumberMasked'] ?? ''),
-                          if ((_currentIban!['ibanBic'] as String? ?? '').isNotEmpty)
-                            _infoRow(Icons.code, 'payout_label_bic'.tr, _currentIban!['ibanBic']),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 20.h),
-                  ],
-
-                  // ─ Payout method selector ─
-                  InterText(text: 'payout_method_label'.tr, fontSize: 15.sp, fontWeight: FontWeight.w600),
-                  SizedBox(height: 8.h),
-                  Row(
-                    children: [
-                      _methodChip('stripe', 'payout_chip_card'.tr, Icons.credit_card),
-                      SizedBox(width: 8.w),
-                      _methodChip('paypal', 'PayPal', Icons.paypal),
-                      SizedBox(width: 8.w),
-                      _methodChip('iban', 'payout_chip_iban'.tr, Icons.account_balance),
-                    ],
-                  ),
-                  SizedBox(height: 24.h),
-
-                  // ─ IBAN Form ─
-                  InterText(text: 'payout_add_iban'.tr, fontSize: 15.sp, fontWeight: FontWeight.w600),
-                  SizedBox(height: 12.h),
-                  Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        _textField(
-                          controller: _holderCtrl,
-                          label: 'payout_iban_holder'.tr,
-                          icon: Icons.person_outline,
-                          validator: (v) => v == null || v.isEmpty ? 'payout_iban_holder_required'.tr : null,
-                        ),
-                        SizedBox(height: 14.h),
-                        _textField(
-                          controller: _ibanCtrl,
-                          label: 'IBAN',
-                          icon: Icons.account_balance,
-                          hint: 'payout_iban_hint'.tr,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 ]')),
-                            _IbanFormatter(),
-                          ],
-                          validator: (v) {
-                            if (v == null || v.isEmpty) return 'payout_iban_required'.tr;
-                            final clean = v.replaceAll(' ', '');
-                            if (clean.length < 15 || clean.length > 34) return 'payout_iban_invalid'.tr;
-                            return null;
-                          },
-                        ),
-                        SizedBox(height: 14.h),
-                        _textField(
-                          controller: _bicCtrl,
-                          label: 'payout_bic_label'.tr,
-                          icon: Icons.code,
-                        ),
-                        SizedBox(height: 24.h),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primaryColor,
-                              padding: EdgeInsets.symmetric(vertical: 14.h),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
-                            ),
-                            icon: _saving
-                                ? SizedBox(width: 18.w, height: 18.h, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : Icon(Icons.save, color: Colors.white),
-                            label: InterText(text: 'payout_save_iban'.tr, fontSize: 15.sp, fontWeight: FontWeight.w600, color: Colors.white),
-                            onPressed: _saving ? null : _saveIban,
-                          ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 12.h),
+                  child: ProfileSaveBar(
+                    label: 'payout_save_iban'.tr,
+                    accent: accent,
+                    loading: _saving,
+                    icon: Icons.check_rounded,
+                    onTap: _saving ? null : _saveIban,
+                  ),
+                ),
+              ],
             ),
     );
   }
 
-  Widget _infoRow(IconData icon, String label, String value) => Padding(
-    padding: EdgeInsets.only(bottom: 6.h),
-    child: Row(
-      children: [
-        Icon(icon, size: 16.sp, color: AppColors.greyText),
-        SizedBox(width: 8.w),
-        InterText(text: '$label: ', fontSize: 12.sp, color: AppColors.greyText),
-        InterText(text: value, fontSize: 12.sp, fontWeight: FontWeight.w600),
-      ],
-    ),
-  );
+  Widget _infoRow(BuildContext context, IconData icon, String label, String value) => Row(
+        children: [
+          Icon(icon, size: 16.sp, color: AppColors.textSecondary(context)),
+          SizedBox(width: 8.w),
+          InterText(
+            text: '$label: ',
+            fontSize: 12.5.sp,
+            color: AppColors.textSecondary(context),
+            maxLines: 1,
+          ),
+          Expanded(
+            child: InterText(
+              text: value,
+              fontSize: 12.5.sp,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary(context),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      );
 
-  Widget _methodChip(String method, String label, IconData icon) {
+  Widget _methodChip(Color accent, String method, String label, IconData icon) {
     final selected = _payoutMethod == method;
-    return GestureDetector(
+    return PetPill(
+      label: label,
+      selected: selected,
+      accent: accent,
+      icon: icon,
       onTap: () => _setPayoutMethod(method),
-      child: Builder(
-        builder: (context) => Container(
-          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primaryColor : AppColors.card(context),
-            borderRadius: BorderRadius.circular(10.r),
-            border: Border.all(color: selected ? AppColors.primaryColor : Colors.transparent),
-            boxShadow: selected ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 2))],
-          ),
-          child: Column(
-            children: [
-              Icon(icon, size: 18.sp, color: selected ? Colors.white : AppColors.textSecondary(context)),
-              SizedBox(height: 4.h),
-              InterText(text: label, fontSize: 10.sp, color: selected ? Colors.white : AppColors.textSecondary(context), fontWeight: FontWeight.w500),
-            ],
-          ),
-        ),
-      ),
     );
   }
-
-  Widget _textField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    String? hint,
-    String? Function(String?)? validator,
-    List<TextInputFormatter>? inputFormatters,
-  }) => TextFormField(
-    controller: controller,
-    inputFormatters: inputFormatters,
-    validator: validator,
-    decoration: InputDecoration(
-      labelText: label,
-      hintText: hint,
-      prefixIcon: Icon(icon, color: AppColors.primaryColor),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r)),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.r),
-        borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
-      ),
-      filled: true,
-      fillColor: AppColors.inputFill(context),
-    ),
-  );
 }
 
 /// Auto-formats IBAN input with spaces every 4 chars

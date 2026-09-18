@@ -1,22 +1,32 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
-import 'package:animated_custom_dropdown/custom_dropdown.dart';
 import 'package:hopetsit/controllers/edit_pet_controller.dart';
+import 'package:hopetsit/controllers/enriched_pet_form_state.dart';
 import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/date_slash_formatter.dart' show ageInYears;
+import 'package:hopetsit/utils/pet_species_color.dart';
+import 'package:hopetsit/views/profile/widgets/edit_profile_widgets.dart';
+import 'package:hopetsit/views/profile/widgets/pet_form_widgets.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/custom_text_field.dart';
-import 'package:hopetsit/widgets/pet_extra_fields.dart';
-import 'package:hopetsit/widgets/rounded_text_button.dart' show CustomButton;
 
 /// v428 — écran UNIFIÉ « Modifier l'animal » (create + edit). Quand [petId] est
 /// vide → mode CRÉATION (POST), titre « Ajouter un animal » + bouton « Créer le
 /// profil ». Sinon → mode ÉDITION (PUT), titre « Modifier {nom} ».
+///
+/// v565 — point 39 (retour Daniel sur la capture « Modifier l'animal Rex ») :
+/// page rangée en cartes groupées claires, dans cet ordre — Photo · Identité ·
+/// Santé · Caractère & habitudes · Bio · Documents. Plus aucune section
+/// repliable : tout est visible, titres en petites capitales, champs
+/// `ProfileInput` du kit (fond blanc, bord fin, libellé au-dessus), pilules
+/// modernes (contour gris / plein orange + coche blanche, retour haptique),
+/// sexe = deux pilules ♂ ♀, bouton « Enregistrer » collant en bas avec état de
+/// chargement, validation lisible (champ manquant surligné + message).
+/// TOUS les champs historiques restent envoyés au serveur
+/// (cf. EditPetController.validateAndUpdateProfile + EnrichedPetFormState).
 class EditPetScreen extends StatelessWidget {
   final String petId;
   final PetModel? petData;
@@ -37,389 +47,264 @@ class EditPetScreen extends StatelessWidget {
         : 'edit_pet_profile_title'.tr;
   }
 
+  // Espèces : tokens canoniques ↔ valeur du contrôleur ('Dog', 'Cat', …).
+  // v565 — corrige le piège historique où le libellé TRADUIT (« Chien ») était
+  // envoyé au serveur comme catégorie : on ne manipule plus que le token.
+  static const List<MapEntry<String, String>> _species = [
+    MapEntry('Dog', 'create_pet_category_dog'),
+    MapEntry('Cat', 'create_pet_category_cat'),
+    MapEntry('Bird', 'create_pet_category_bird'),
+    MapEntry('Rabbit', 'create_pet_category_rabbit'),
+    MapEntry('Other', 'create_pet_category_other'),
+  ];
+
+  String _speciesEmoji(String token) => petSpeciesEmoji(token.toLowerCase());
+
+  Future<void> _confirmRemovePhoto(
+      BuildContext context, EditPetController controller) async {
+    final hasLocal = controller.petProfileImage.value != null;
+    final hasRemote = controller.currentAvatarUrl.value.isNotEmpty;
+    if (!hasLocal && !hasRemote) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card(ctx),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+        title: PoppinsText(
+          text: 'pet_photo_delete_title'.tr,
+          fontSize: 16.sp,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(ctx),
+        ),
+        content: InterText(
+          text: 'pet_photo_delete_confirm'.tr,
+          fontSize: 14.sp,
+          color: AppColors.textSecondary(ctx),
+          maxLines: 4,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('common_cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              'post_action_delete'.tr,
+              style: const TextStyle(color: AppColors.errorColor),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      if (hasLocal) controller.petProfileImage.value = null;
+      if (hasRemote) await controller.deletePetAvatar();
+    }
+  }
+
+  Future<void> _pickDob(BuildContext context, EditPetController controller) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      // v527 — retour Jose (R3-7) : JJ/MM/AAAA + âge (années révolues) prérempli.
+      final dd = picked.day.toString().padLeft(2, '0');
+      final mm = picked.month.toString().padLeft(2, '0');
+      controller.dateOfBirthController.text = '$dd/$mm/${picked.year}';
+      final years = ageInYears(picked);
+      if (years >= 0) controller.ageController.text = years.toString();
+    }
+  }
+
+  List<MapEntry<String, String>> _opts(List<List<String>> raw) =>
+      raw.map((e) => MapEntry(e[0], e[1].tr)).toList();
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(
       EditPetController(petId: petId, petData: petData),
     );
+    // Couleur du rôle (owner orange) — AppColors.scaffold() gère déjà le rôle
+    // + le mode sombre.
+    final accent = AppColors.activeRoleAccent();
+    final enriched = controller.enriched;
 
-    return Scaffold(
-      // v449 — fond pâle teinté par RÔLE (au lieu du jaune v448).
-      // AppColors.scaffold() gère déjà le rôle + le mode sombre.
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: AppColors.primaryColor),
-        leading: BackButton(),
-        title: PoppinsText(
-          text: _buildTitle(controller),
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
-        ),
-      ),
+    return ProfileSubPageScaffold(
+      title: _buildTitle(controller),
+      accent: accent,
+      scroll: false,
+      padding: EdgeInsets.zero,
       body: Obx(() {
         if (controller.isFetching.value) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(accent),
+            ),
+          );
+        }
+        if (controller.loadError.value.isNotEmpty) {
+          return ProfileEmptyState(
+            icon: Icons.cloud_off_rounded,
+            title: 'edit_pet_load_error_title'.tr,
+            message: controller.loadError.value,
+            accent: accent,
+            error: true,
+            actionLabel: 'common_retry'.tr,
+            onAction: () => controller.loadPetData(),
+          );
         }
 
-        return SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24.w),
-              child: Form(
-                key: controller.formKey,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(height: 32.h),
-
-                    // Pet Profile Image
-                    Center(
-                      child: Stack(
-                        children: [
-                          // v445 — Daniel : cliquer sur la PHOTO (pas seulement
-                          // le petit stylo orange) permet aussi de la changer.
-                          GestureDetector(
-                            onTap: () => controller.pickPetProfileImage(),
-                            child: Obx(() {
-                            final imageFile = controller.petProfileImage.value;
-                            final imageUrl = controller.currentAvatarUrl.value;
-
-                            // v449 — avatar placeholder teinté par RÔLE (au lieu
-                            // du jaune v444) : fond pâle + patte à l'accent du rôle.
-                            final Color petPlaceholderBg =
-                                AppColors.inputFillLightForRole();
-                            final Color petPlaceholderIcon =
-                                AppColors.activeRoleAccent();
-                            if (imageFile != null) {
-                              return ClipOval(
-                                child: Container(
-                                  width: 120.r,
-                                  height: 120.r,
-                                  color: petPlaceholderBg,
-                                  child: Image.file(
-                                    imageFile,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        color: petPlaceholderBg,
-                                        child: Icon(
-                                          Icons.pets,
-                                          size: 40.sp,
-                                          color: petPlaceholderIcon,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              );
-                            }
-
-                            if (imageUrl.isNotEmpty) {
-                              return CircleAvatar(
-                                radius: 60.r,
-                                backgroundColor: petPlaceholderBg,
-                                backgroundImage: CachedNetworkImageProvider(
-                                  imageUrl,
-                                ),
-                                child: null,
-                              );
-                            }
-
-                            return CircleAvatar(
-                              radius: 60.r,
-                              backgroundColor: petPlaceholderBg,
-                              child: Icon(
-                                Icons.pets,
-                                size: 40.sp,
-                                color: petPlaceholderIcon,
-                              ),
-                            );
-                          })),
-                          Positioned(
-                            bottom: 0,
-                            right: 2,
-                            child: Obx(
-                              () => GestureDetector(
-                                onTap: controller.isUploadingImage.value
-                                    ? null
-                                    : () => controller.pickPetProfileImage(),
-                                child: controller.isUploadingImage.value
-                                    ? Container(
-                                        width: 28.w,
-                                        height: 28.h,
-                                        padding: EdgeInsets.all(4.w),
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                AppColors.primaryColor,
-                                              ),
-                                        ),
-                                      )
-                                    : SvgPicture.asset(
-                                        AppImages.editIcon,
-                                        height: 28.h,
-                                        width: 28.w,
-                                      ),
-                              ),
-                            ),
-                          ),
-                          // Delete avatar button
-                          Positioned(
-                            top: 0,
-                            right: 2,
-                            child: Obx(() {
-                              final hasLocal =
-                                  controller.petProfileImage.value != null;
-                              final hasRemote = controller
-                                  .currentAvatarUrl
-                                  .value
-                                  .isNotEmpty;
-                              if (!hasLocal && !hasRemote) {
-                                return const SizedBox.shrink();
-                              }
-                              return GestureDetector(
-                                onTap: controller.isUploadingImage.value
-                                    ? null
-                                    : () async {
-                                        final confirmed =
-                                            await showDialog<bool>(
-                                          context: context,
-                                          builder: (ctx) => AlertDialog(
-                                            title: Text(
-                                              'pet_photo_delete_title'.tr,
-                                            ),
-                                            content: Text(
-                                              'pet_photo_delete_confirm'.tr,
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () =>
-                                                    Navigator.of(ctx).pop(false),
-                                                child:
-                                                    Text('common_cancel'.tr),
-                                              ),
-                                              TextButton(
-                                                onPressed: () =>
-                                                    Navigator.of(ctx).pop(true),
-                                                child: Text(
-                                                  'post_action_delete'.tr,
-                                                  style: TextStyle(
-                                                    color:
-                                                        AppColors.errorColor,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                        if (confirmed == true) {
-                                          if (hasLocal) {
-                                            controller.petProfileImage.value =
-                                                null;
-                                          }
-                                          if (hasRemote) {
-                                            await controller.deletePetAvatar();
-                                          }
-                                        }
-                                      },
-                                child: Container(
-                                  width: 28.w,
-                                  height: 28.h,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.errorColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                    size: 18.sp,
-                                  ),
-                                ),
-                              );
-                            }),
-                          ),
-                        ],
+        return Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 24.h),
+                child: Form(
+                  key: controller.formKey,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── PHOTO ──
+                      SizedBox(height: 8.h),
+                      Center(
+                        child: Obx(() => EditProfileAvatar(
+                              imageFile: controller.petProfileImage.value,
+                              imageUrl: controller.currentAvatarUrl.value,
+                              uploading: controller.isUploadingImage.value,
+                              accent: accent,
+                              placeholderIcon: Icons.pets_rounded,
+                              radius: 60,
+                              hint: 'edit_pet_photo_hint'.tr,
+                              // v445 — Daniel : cliquer sur la PHOTO permet
+                              // aussi de la changer.
+                              onTap: () => controller.pickPetProfileImage(),
+                              onRemove: () => _confirmRemovePhoto(context, controller),
+                            )),
                       ),
-                    ),
 
-                    SizedBox(height: 24.h),
-
-                    // v444 — Daniel : « Ajouter un animal = garde QUE la photo,
-                    // tout repart en sections dépliables (comme À propos) ».
-                    // Les anciennes sections inline en texte brut (Apparence /
-                    // Identité / Santé) sont SUPPRIMÉES : il n'y a plus qu'une
-                    // suite cohérente d'ExpansionTile. « Informations
-                    // principales » regroupe l'identité de base + les champs
-                    // qui n'existent pas dans le nouveau bloc (couleur,
-                    // passeport, n° de puce, médicaments, bio) pour ne RIEN
-                    // perdre — tous restent envoyés au backend
-                    // (cf. EditPetController.validateAndUpdateProfile).
-                    Theme(
-                      data: Theme.of(context)
-                          .copyWith(dividerColor: AppColors.grey300Color),
-                      child: ExpansionTile(
-                        title: Text(
-                          'edit_pet_section_basics'.tr,
-                          style: TextStyle(
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary(context),
-                          ),
-                        ),
-                        initiallyExpanded: true,
-                        tilePadding: EdgeInsets.zero,
-                        childrenPadding: EdgeInsets.symmetric(vertical: 8.h),
+                      // ── IDENTITÉ ──
+                      ProfileFormCard(
+                        title: 'edit_pet_section_identity'.tr,
+                        icon: Icons.badge_outlined,
+                        accent: accent,
                         children: [
-                          CustomTextField(
-                            labelText: 'edit_pet_name_label'.tr,
-                            hintText: 'edit_pet_name_hint'.tr,
+                          ProfileInput(
+                            label: 'edit_pet_name_label'.tr,
+                            hint: 'edit_pet_name_hint'.tr,
                             controller: controller.petNameController,
+                            accent: accent,
                             textInputAction: TextInputAction.next,
+                            textCapitalization: TextCapitalization.words,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'edit_pet_name_required'.tr
+                                : null,
                           ),
-                          SizedBox(height: 16.h),
-                          CustomTextField(
-                            labelText: 'edit_pet_breed_label'.tr,
-                            hintText: 'edit_pet_breed_hint'.tr,
+                          // Espèce — pilules à tokens canoniques.
+                          PetFieldLabel('create_pet_category_label'.tr),
+                          Obx(() {
+                            final current = controller.selectedCategory.value ?? '';
+                            return Wrap(
+                              spacing: 8.w,
+                              runSpacing: 10.h,
+                              children: _species
+                                  .map((s) => PetPill(
+                                        label: s.value.tr,
+                                        selected: current.toLowerCase() ==
+                                            s.key.toLowerCase(),
+                                        accent: accent,
+                                        emoji: _speciesEmoji(s.key),
+                                        onTap: () => controller.setCategory(s.key),
+                                      ))
+                                  .toList(),
+                            );
+                          }),
+                          ProfileInput(
+                            label: 'edit_pet_breed_label'.tr,
+                            hint: 'edit_pet_breed_hint'.tr,
                             controller: controller.breedController,
+                            accent: accent,
                             textInputAction: TextInputAction.next,
+                            textCapitalization: TextCapitalization.words,
                           ),
-                          SizedBox(height: 16.h),
-                          // Catégorie (espèce) — déplacée ici depuis l'ancienne
-                          // section Santé pour rester saisissable.
-                          InterText(
-                            text: 'create_pet_category_label'.tr,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.grey700Color,
-                          ),
-                          SizedBox(height: 8.h),
-                          Obx(
-                            () => CustomDropdown(
-                              items: [
-                                'create_pet_category_dog'.tr,
-                                'create_pet_category_cat'.tr,
-                                'create_pet_category_bird'.tr,
-                                'create_pet_category_rabbit'.tr,
-                                'create_pet_category_other'.tr,
-                              ],
-                              initialItem:
-                                  controller.selectedCategory.value != null &&
-                                          [
-                                            'create_pet_category_dog'.tr,
-                                            'create_pet_category_cat'.tr,
-                                            'create_pet_category_bird'.tr,
-                                            'create_pet_category_rabbit'.tr,
-                                            'create_pet_category_other'.tr,
-                                          ].contains(
-                                              controller.selectedCategory.value)
-                                      ? controller.selectedCategory.value
-                                      : null,
-                              onChanged: controller.setCategory,
-                              closedHeaderPadding: EdgeInsets.symmetric(
-                                horizontal: 16.w,
-                                vertical: 12.h,
-                              ),
-                              hintText: 'common_select_value'.tr,
-                              decoration: CustomDropdownDecoration(
-                                closedBorder: Border.all(
-                                  color: AppColors.grey300Color,
-                                ),
-                                closedBorderRadius: BorderRadius.circular(30.r),
-                                headerStyle: TextStyle(
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w400,
-                                  color: AppColors.blackColor,
-                                ),
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 16.h),
-                          CustomTextField(
-                            labelText: 'edit_pet_dob_label'.tr,
-                            hintText: 'edit_pet_dob_hint'.tr,
-                            controller: controller.dateOfBirthController,
-                            textInputAction: TextInputAction.next,
-                            readOnly: true,
-                            onTap: () async {
-                              final DateTime? picked = await showDatePicker(
-                                context: context,
-                                initialDate: DateTime.now(),
-                                firstDate: DateTime(2000),
-                                lastDate: DateTime.now(),
-                              );
-                              if (picked != null) {
-                                // v527 — retour Jose (R3-7) : la date
-                                // s'affichait en ISO « 2021-11-01 ». On écrit
-                                // JJ/MM/AAAA (format local) et on préremplit
-                                // le champ Âge (années révolues) calculé
-                                // depuis la date choisie.
-                                final dd =
-                                    picked.day.toString().padLeft(2, '0');
-                                final mm =
-                                    picked.month.toString().padLeft(2, '0');
-                                controller.dateOfBirthController.text =
-                                    '$dd/$mm/${picked.year}';
-                                final years = ageInYears(picked);
-                                if (years >= 0) {
-                                  controller.ageController.text =
-                                      years.toString();
-                                }
-                              }
-                            },
-                          ),
-                          SizedBox(height: 16.h),
-                          // v471 — Daniel : « l'âge du chien n'apparaît nulle part ».
-                          // RACINE : il n'y avait AUCUN champ Âge dans le formulaire
-                          // (seulement la date de naissance, souvent non remplie) →
-                          // l'âge restait vide partout. Champ Âge (années) direct,
-                          // sauvegardé tel quel (priorité sur la date de naissance).
-                          CustomTextField(
-                            labelText: 'edit_pet_age_years'.tr,
-                            hintText: 'edit_pet_age_years'.tr,
-                            controller: controller.ageController,
-                            keyboardType: TextInputType.number,
-                            textInputAction: TextInputAction.next,
-                          ),
-                          SizedBox(height: 16.h),
+                          // Sexe — deux pilules ♂ ♀.
+                          PetFieldLabel('pet_gender'.tr),
+                          PetGenderPills(gender: enriched.gender, accent: accent),
+                          // Date de naissance (tap → calendrier) + âge.
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
-                                child: CustomTextField(
-                                  labelText: 'edit_pet_weight_label'.tr,
-                                  hintText: 'edit_pet_weight_hint'.tr,
-                                  controller: controller.weightController,
+                                flex: 3,
+                                child: ProfileInput(
+                                  label: 'edit_pet_dob_label'.tr,
+                                  hint: 'edit_pet_dob_hint'.tr,
+                                  controller: controller.dateOfBirthController,
+                                  accent: accent,
+                                  readOnly: true,
+                                  onTap: () => _pickDob(context, controller),
+                                  suffix: Icon(Icons.calendar_month_rounded,
+                                      size: 20.sp, color: accent),
+                                ),
+                              ),
+                              SizedBox(width: 12.w),
+                              Expanded(
+                                flex: 2,
+                                child: ProfileInput(
+                                  // v471 — champ Âge (années) direct.
+                                  label: 'edit_pet_age_years'.tr,
+                                  hint: '0',
+                                  controller: controller.ageController,
+                                  accent: accent,
                                   keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(2),
+                                  ],
                                   textInputAction: TextInputAction.next,
                                 ),
                               ),
-                              SizedBox(width: 16.w),
+                            ],
+                          ),
+                          // Poids + taille.
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Expanded(
-                                child: CustomTextField(
-                                  labelText: 'edit_pet_height_label'.tr,
-                                  hintText: 'edit_pet_height_hint'.tr,
+                                child: ProfileInput(
+                                  label: 'edit_pet_weight_label'.tr,
+                                  hint: 'edit_pet_weight_hint'.tr,
+                                  controller: controller.weightController,
+                                  accent: accent,
+                                  keyboardType: const TextInputType.numberWithOptions(
+                                      decimal: true),
+                                  textInputAction: TextInputAction.next,
+                                ),
+                              ),
+                              SizedBox(width: 12.w),
+                              Expanded(
+                                child: ProfileInput(
+                                  label: 'edit_pet_height_label'.tr,
+                                  hint: 'edit_pet_height_hint'.tr,
                                   controller: controller.heightController,
-                                  keyboardType: TextInputType.number,
+                                  accent: accent,
+                                  keyboardType: const TextInputType.numberWithOptions(
+                                      decimal: true),
                                   textInputAction: TextInputAction.next,
                                   validator: (value) {
                                     final text = (value ?? '').trim();
                                     if (text.isEmpty) return null;
-                                    final cleaned = text.replaceAll(
-                                      RegExp(r'[^\d.]'),
-                                      '',
-                                    );
-                                    if (cleaned.isEmpty) {
-                                      return 'Height must be a valid number.';
-                                    }
+                                    final cleaned = text
+                                        .replaceAll(',', '.')
+                                        .replaceAll(RegExp(r'[^\d.]'), '');
                                     final parsed = double.tryParse(cleaned);
                                     if (parsed == null || parsed <= 0) {
-                                      return 'Height must be greater than 0.';
+                                      return 'edit_pet_height_invalid'.tr;
                                     }
                                     return null;
                                   },
@@ -427,80 +312,356 @@ class EditPetScreen extends StatelessWidget {
                               ),
                             ],
                           ),
-                          SizedBox(height: 16.h),
-                          CustomTextField(
-                            labelText: 'edit_pet_color_label'.tr,
-                            hintText: 'edit_pet_color_hint'.tr,
+                          ProfileInput(
+                            label: 'edit_pet_color_label'.tr,
+                            hint: 'edit_pet_color_hint'.tr,
                             controller: controller.colourController,
+                            accent: accent,
                             textInputAction: TextInputAction.next,
-                          ),
-                          SizedBox(height: 16.h),
-                          CustomTextField(
-                            labelText: 'edit_pet_passport_label'.tr,
-                            hintText: 'edit_pet_passport_hint'.tr,
-                            controller: controller.passportNumberController,
-                            textInputAction: TextInputAction.next,
-                          ),
-                          SizedBox(height: 16.h),
-                          CustomTextField(
-                            labelText: 'edit_pet_chip_label'.tr,
-                            hintText: 'edit_pet_chip_hint'.tr,
-                            controller: controller.chipNumberController,
-                            textInputAction: TextInputAction.next,
-                          ),
-                          SizedBox(height: 16.h),
-                          CustomTextField(
-                            labelText: 'edit_pet_medication_label'.tr,
-                            hintText: 'edit_pet_medication_hint'.tr,
-                            controller: controller.medicationAllergiesController,
-                            textInputAction: TextInputAction.next,
-                          ),
-                          SizedBox(height: 16.h),
-                          CustomTextField(
-                            labelText: 'edit_pet_bio_label'.tr,
-                            hintText: 'edit_pet_bio_hint'.tr,
-                            controller: controller.bioController,
-                            textInputAction: TextInputAction.next,
-                            maxLines: 3,
                           ),
                         ],
                       ),
-                    ),
 
-                    SizedBox(height: 8.h),
-
-                    // Sections enrichies (À propos / Santé / Habitudes /
-                    // Documents) — le « nouveau bloc » demandé par Daniel.
-                    PetExtraFields(
-                      state: controller.enriched,
-                      accent: AppColors.primaryColor,
-                      showGender: true,
-                    ),
-
-                    SizedBox(height: 40.h),
-
-                    Obx(
-                      () => CustomButton(
-                        title: controller.isLoading.value
-                            ? 'edit_pet_updating_profile'.tr
-                            : (_isCreate
-                                ? 'pet_create_button'.tr
-                                : 'edit_pet_update_profile_button'.tr),
-                        onTap: controller.isLoading.value
-                            ? null
-                            : () => controller
-                                .handleUpdateProfileWithNavigation(),
+                      // ── SANTÉ ──
+                      ProfileFormCard(
+                        title: 'edit_pet_section_health'.tr,
+                        icon: Icons.favorite_border_rounded,
+                        accent: accent,
+                        children: [
+                          ProfileInput(
+                            label: 'edit_pet_passport_label'.tr,
+                            hint: 'edit_pet_passport_hint'.tr,
+                            controller: controller.passportNumberController,
+                            accent: accent,
+                            textInputAction: TextInputAction.next,
+                            textCapitalization: TextCapitalization.characters,
+                          ),
+                          ProfileInput(
+                            label: 'edit_pet_chip_label'.tr,
+                            hint: 'edit_pet_chip_hint'.tr,
+                            controller: controller.chipNumberController,
+                            accent: accent,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.next,
+                          ),
+                          PetFieldLabel('pet_vaccination_status'.tr),
+                          PetSinglePills(
+                            accent: accent,
+                            value: enriched.vaccinationStatus,
+                            options: _opts(const [
+                              ['up_to_date', 'pet_vax_up_to_date'],
+                              ['partial', 'pet_vax_partial'],
+                              ['late', 'pet_vax_late'],
+                              ['unknown', 'pet_vax_unknown'],
+                            ]),
+                          ),
+                          ProfileInput(
+                            label: 'edit_pet_medication_label'.tr,
+                            hint: 'edit_pet_medication_hint'.tr,
+                            controller: controller.medicationAllergiesController,
+                            accent: accent,
+                            textInputAction: TextInputAction.next,
+                            maxLines: 2,
+                          ),
+                          PetToggleRow(
+                            icon: Icons.content_cut_rounded,
+                            label: 'pet_sterilized'.tr,
+                            value: enriched.sterilized,
+                            accent: accent,
+                          ),
+                          PetToggleRow(
+                            icon: Icons.memory_rounded,
+                            label: 'pet_microchipped'.tr,
+                            value: enriched.microchipped,
+                            accent: accent,
+                          ),
+                          // v444 — traitement en cours : Oui/Non + détail si Oui.
+                          PetFieldLabel('pet_treatment_ongoing'.tr),
+                          PetSinglePills(
+                            accent: accent,
+                            value: enriched.treatmentOngoing,
+                            allowEmpty: false,
+                            options: _opts(const [
+                              ['yes', 'pet_yes'],
+                              ['no', 'pet_no'],
+                            ]),
+                          ),
+                          Obx(() => enriched.treatmentOngoing.value == 'yes'
+                              ? ProfileInput(
+                                  label: 'pet_current_treatments'.tr,
+                                  controller: enriched.currentTreatmentsController,
+                                  accent: accent,
+                                  maxLines: 2,
+                                  textInputAction: TextInputAction.next,
+                                )
+                              : const SizedBox.shrink()),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: ProfileInput(
+                                  label: 'pet_deworming_last_date'.tr,
+                                  hint: 'date_hint_dmy'.tr,
+                                  controller: enriched.dewormingLastDateController,
+                                  accent: accent,
+                                  textInputAction: TextInputAction.next,
+                                ),
+                              ),
+                              SizedBox(width: 12.w),
+                              Expanded(
+                                child: ProfileInput(
+                                  label: 'pet_deworming_frequency'.tr,
+                                  controller: enriched.dewormingFrequencyController,
+                                  accent: accent,
+                                  textInputAction: TextInputAction.next,
+                                ),
+                              ),
+                            ],
+                          ),
+                          ProfileInput(
+                            label: 'pet_food_restrictions'.tr,
+                            controller: enriched.foodRestrictionsController,
+                            accent: accent,
+                            maxLines: 2,
+                            textInputAction: TextInputAction.next,
+                          ),
+                          ProfileInput(
+                            label: 'pet_blood_group'.tr,
+                            controller: enriched.bloodGroupController,
+                            accent: accent,
+                            textInputAction: TextInputAction.next,
+                          ),
+                          PetFieldLabel('pet_health_insurance'.tr),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: ProfileInput(
+                                  label: 'pet_insurance_name'.tr,
+                                  controller: enriched.insuranceNameController,
+                                  accent: accent,
+                                  textInputAction: TextInputAction.next,
+                                ),
+                              ),
+                              SizedBox(width: 12.w),
+                              Expanded(
+                                child: ProfileInput(
+                                  label: 'pet_insurance_number'.tr,
+                                  controller: enriched.insuranceNumberController,
+                                  accent: accent,
+                                  textInputAction: TextInputAction.next,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ),
 
-                    SizedBox(height: 40.h),
-                  ],
+                      // ── CARACTÈRE & HABITUDES ──
+                      ProfileFormCard(
+                        title: 'edit_pet_section_character'.tr,
+                        icon: Icons.auto_awesome_rounded,
+                        accent: accent,
+                        children: [
+                          PetFieldLabel('pet_character_traits'.tr),
+                          PetMultiPills(
+                            accent: accent,
+                            selected: enriched.characterTraits,
+                            onToggle: enriched.toggleTrait,
+                            options: EnrichedPetFormState.characterPresets
+                                .map((t) => MapEntry(t, 'pet_trait_$t'.tr))
+                                .toList(),
+                          ),
+                          PetFieldLabel('pet_habits_quick'.tr),
+                          PetMultiPills(
+                            accent: accent,
+                            selected: enriched.habitTags,
+                            onToggle: enriched.toggleHabit,
+                            options: EnrichedPetFormState.habitPresets
+                                .map((t) => MapEntry(t, 'pet_habit_$t'.tr))
+                                .toList(),
+                          ),
+                          PetFieldLabel('pet_compatibilities'.tr),
+                          _compatRow(context, 'pet_compat_children'.tr,
+                              enriched.compatChildren, accent),
+                          _compatRow(context, 'pet_compat_dogs'.tr,
+                              enriched.compatDogs, accent),
+                          _compatRow(context, 'pet_compat_cats'.tr,
+                              enriched.compatCats, accent),
+                          _compatRow(context, 'pet_compat_nac'.tr,
+                              enriched.compatNac, accent),
+                          PetFieldLabel('pet_energy_level'.tr),
+                          PetSinglePills(
+                            accent: accent,
+                            value: enriched.energyLevel,
+                            options: _opts(const [
+                              ['low', 'pet_energy_low'],
+                              ['medium', 'pet_energy_medium'],
+                              ['high', 'pet_energy_high'],
+                            ]),
+                          ),
+                          PetFieldLabel('pet_sleep'.tr),
+                          PetSinglePills(
+                            accent: accent,
+                            value: enriched.sleep,
+                            options: _opts(const [
+                              ['indoor', 'pet_sleep_indoor'],
+                              ['outdoor', 'pet_sleep_outdoor'],
+                              ['crate', 'pet_sleep_crate'],
+                            ]),
+                          ),
+                          PetFieldLabel('pet_housetrained'.tr),
+                          PetSinglePills(
+                            accent: accent,
+                            value: enriched.housetrained,
+                            options: _opts(const [
+                              ['yes', 'pet_housetrained_yes'],
+                              ['learning', 'pet_housetrained_learning'],
+                            ]),
+                          ),
+                          PetFieldLabel('pet_leash'.tr),
+                          PetSinglePills(
+                            accent: accent,
+                            value: enriched.leashBehaviour,
+                            options: _opts(const [
+                              ['off_leash', 'pet_leash_off'],
+                              ['on_leash', 'pet_leash_on'],
+                              ['reliable_recall', 'pet_leash_recall'],
+                            ]),
+                          ),
+                        ],
+                      ),
+
+                      // ── DÉTAILS DU QUOTIDIEN (textes libres des habitudes) ──
+                      ProfileFormCard(
+                        title: 'edit_pet_section_details'.tr,
+                        icon: Icons.notes_rounded,
+                        accent: accent,
+                        gap: 12,
+                        children: [
+                          _tf(enriched.fearsController, 'pet_fears'.tr, accent, maxLines: 2),
+                          _tf(enriched.preferredActivityController, 'pet_preferred_activity'.tr, accent),
+                          _tf(enriched.educationController, 'pet_education'.tr, accent),
+                          _tf(enriched.aloneToleranceController, 'pet_alone_tolerance'.tr, accent),
+                          _tf(enriched.barkingController, 'pet_barking'.tr, accent),
+                          _tf(enriched.likesController, 'pet_likes'.tr, accent),
+                          _tf(enriched.dislikesController, 'pet_dislikes'.tr, accent),
+                          _tf(enriched.transportController, 'pet_transport'.tr, accent),
+                          _tf(enriched.brushingController, 'pet_brushing'.tr, accent),
+                          _tf(enriched.foodController, 'pet_food'.tr, accent),
+                          _tf(enriched.allowedTreatsController, 'pet_allowed_treats'.tr, accent),
+                          _tf(enriched.favoriteObjectsController, 'pet_favorite_objects'.tr, accent),
+                          _tf(enriched.favoritePlacesController, 'pet_favorite_places'.tr, accent),
+                          _tf(enriched.remarksController, 'pet_remarks'.tr, accent, maxLines: 2),
+                        ],
+                      ),
+
+                      // ── BIO ──
+                      ProfileFormCard(
+                        title: 'edit_pet_section_bio'.tr,
+                        icon: Icons.edit_note_rounded,
+                        accent: accent,
+                        children: [
+                          ProfileInput(
+                            label: 'edit_pet_bio_label'.tr,
+                            hint: 'edit_pet_bio_hint'.tr,
+                            controller: controller.bioController,
+                            accent: accent,
+                            keyboardType: TextInputType.multiline,
+                            textInputAction: TextInputAction.newline,
+                            maxLines: 4,
+                          ),
+                          _tf(enriched.historyController, 'pet_history'.tr, accent, maxLines: 3),
+                          PetFieldLabel('pet_particularities'.tr),
+                          PetParticularityInput(state: enriched, accent: accent),
+                          _tf(enriched.notesController, 'pet_notes'.tr, accent, maxLines: 3),
+                        ],
+                      ),
+
+                      // ── DOCUMENTS (v443) ──
+                      ProfileFormCard(
+                        title: 'pet_documents'.tr,
+                        icon: Icons.folder_outlined,
+                        accent: accent,
+                        children: [
+                          PetFieldLabel('pet_documents_pick_hint'.tr),
+                          PetMultiPills(
+                            accent: accent,
+                            selected: enriched.documentTypes,
+                            onToggle: enriched.toggleDocument,
+                            options: EnrichedPetFormState.documentPresets
+                                .map((t) => MapEntry(t, 'pet_doc_$t'.tr))
+                                .toList(),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
+
+            // ── Bouton collant ──
+            Padding(
+              padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 12.h),
+              child: Obx(
+                () => ProfileSaveBar(
+                  label: controller.isLoading.value
+                      ? 'edit_pet_updating_profile'.tr
+                      : (_isCreate
+                          ? 'pet_create_button'.tr
+                          : 'edit_pet_update_profile_button'.tr),
+                  accent: accent,
+                  loading: controller.isLoading.value,
+                  icon: Icons.check_rounded,
+                  onTap: controller.isLoading.value
+                      ? null
+                      : () => controller.handleUpdateProfileWithNavigation(),
+                ),
+              ),
+            ),
+          ],
         );
       }),
+    );
+  }
+
+  Widget _tf(TextEditingController c, String label, Color accent,
+          {int maxLines = 1}) =>
+      ProfileInput(
+        label: label,
+        controller: c,
+        accent: accent,
+        maxLines: maxLines,
+        textInputAction:
+            maxLines > 1 ? TextInputAction.newline : TextInputAction.next,
+        keyboardType: maxLines > 1 ? TextInputType.multiline : null,
+        textCapitalization: TextCapitalization.sentences,
+      );
+
+  Widget _compatRow(
+      BuildContext context, String label, RxString value, Color accent) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InterText(
+          text: label,
+          fontSize: 13.sp,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary(context),
+          maxLines: 2,
+        ),
+        SizedBox(height: 6.h),
+        PetSinglePills(
+          accent: accent,
+          value: value,
+          options: _opts(const [
+            ['compatible', 'pet_compat_yes'],
+            ['supervised', 'pet_compat_supervised'],
+            ['no', 'pet_compat_no'],
+          ]),
+        ),
+      ],
     );
   }
 }

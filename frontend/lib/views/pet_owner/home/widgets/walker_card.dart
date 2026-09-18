@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/models/walker_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/reviews/widgets/rating_stars.dart';
 import 'package:hopetsit/widgets/boost_badge.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
 
@@ -236,25 +237,15 @@ class WalkerCard extends StatelessWidget {
               SizedBox(height: 4.h),
               _roleChip(),
               SizedBox(height: 5.h),
+              // v565 (point 38) — étoiles modernes, « Nouveau » sans avis.
               Row(
                 children: [
-                  Icon(Icons.star_rounded,
-                      size: 15.sp, color: const Color(0xFFFFB300)),
-                  SizedBox(width: 3.w),
-                  InterText(
-                    text: rating.toStringAsFixed(1),
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary(context),
-                  ),
-                  SizedBox(width: 3.w),
                   Flexible(
-                    child: InterText(
-                      text: 'reviews_count_short'.trParams({'count': '${walker.reviewsCount}'}),
-                      fontSize: 11.5,
-                      color: AppColors.textSecondary(context),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: RatingStars(
+                      rating: rating,
+                      reviewsCount: walker.reviewsCount,
+                      size: 14,
+                      compact: true,
                     ),
                   ),
                 ],

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/views/auth/login_screen.dart';
 import 'package:hopetsit/views/auth/signup_wizard_screen.dart';
+import 'package:hopetsit/views/auth/social_city_screen.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/views/guest/guest_landing_screen.dart';
@@ -20,6 +22,21 @@ import 'package:hopetsit/widgets/app_text.dart';
 /// feel visually distinct even if they share base illustrations.
 class SignUpAsScreen extends StatelessWidget {
   const SignUpAsScreen({super.key});
+
+  /// v565 audit-inscription — si on arrive ici après un 400 ROLE_REQUIRED de
+  /// Google/Apple, le rôle choisi doit relancer CE fournisseur (avec la ville,
+  /// obligatoire) et non ouvrir le wizard e-mail + mot de passe.
+  void _openRole(String userType) {
+    String? provider;
+    if (Get.isRegistered<AuthController>()) {
+      provider = Get.find<AuthController>().pendingSocialProvider;
+    }
+    if (provider == 'google' || provider == 'apple') {
+      Get.to(() => SocialCityScreen(provider: provider!, userType: userType));
+      return;
+    }
+    Get.to(() => SignupWizardScreen(userType: userType));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +113,7 @@ class SignUpAsScreen extends StatelessWidget {
                   subtitleKey: 'role_pet_owner_desc',
                   iconEmoji: '🏠',
                   accentColor: AppColors.primaryColor,
-                  onTap: () => Get.to(() => SignupWizardScreen(userType: 'pet_owner')),
+                  onTap: () => _openRole('pet_owner'),
                 ),
                 SizedBox(height: 16.h),
                 _RoleCard(
@@ -105,7 +122,7 @@ class SignUpAsScreen extends StatelessWidget {
                   subtitleKey: 'role_pet_sitter_desc',
                   iconEmoji: '🛏️',
                   accentColor: AppColors.sitterAccent,
-                  onTap: () => Get.to(() => SignupWizardScreen(userType: 'pet_sitter')),
+                  onTap: () => _openRole('pet_sitter'),
                 ),
                 SizedBox(height: 16.h),
                 _RoleCard(
@@ -114,7 +131,7 @@ class SignUpAsScreen extends StatelessWidget {
                   subtitleKey: 'role_pet_walker_desc',
                   iconEmoji: '🐕‍🦺',
                   accentColor: AppColors.greenColor,
-                  onTap: () => Get.to(() => SignupWizardScreen(userType: 'pet_walker')),
+                  onTap: () => _openRole('pet_walker'),
                 ),
                 SizedBox(height: 24.h),
                 // v23.1 part 138 — lien vers login si l'utilisateur arrive

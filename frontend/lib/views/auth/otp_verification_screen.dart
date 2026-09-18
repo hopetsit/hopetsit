@@ -150,6 +150,23 @@ class OtpVerificationScreen extends StatelessWidget {
                             keyboardType: TextInputType.number,
                           ),
                           SizedBox(height: 22.h),
+                          // v565 — validation faite depuis le bouton de
+                          // l'e-mail : l'utilisateur entre sans ressaisir.
+                          Obx(
+                            () => TextButton(
+                              onPressed: controller.isLoading.value
+                                  ? null
+                                  : () => controller.checkAlreadyVerified(),
+                              child: InterText(
+                                text: 'otp_already_verified_btn'.tr,
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w700,
+                                color: accent,
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 6.h),
                           Obx(
                             () => Row(
                               mainAxisAlignment: MainAxisAlignment.center,

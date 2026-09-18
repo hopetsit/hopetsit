@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 // ignore: depend_on_referenced_packages
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'api_config.dart';
 import 'api_exception.dart';
@@ -18,7 +19,30 @@ import '../../utils/storage_keys.dart';
 class ApiClient {
   ApiClient({http.Client? httpClient, GetStorage? storage})
     : _httpClient = httpClient ?? http.Client(),
-      _storage = storage ?? GetStorage();
+      _storage = storage ?? GetStorage() {
+    _loadAppVersion();
+  }
+
+  // v565 audit-inscription — en-têtes `X-App-Version` (« 23.1.562+565 », lu
+  // depuis package_info_plus, sinon constante) et `X-App-Platform` : le
+  // serveur s'en sert pour exiger la ville à l'inscription (build ≥ 565)
+  // sans casser les anciennes apps.
+  static const String _fallbackAppVersion = '23.1.562+565';
+  static String _appVersion = _fallbackAppVersion;
+  static bool _versionLoading = false;
+  static String get appVersion => _appVersion;
+  static String get appPlatform =>
+      Platform.isIOS ? 'ios' : (Platform.isAndroid ? 'android' : 'other');
+
+  static void _loadAppVersion() {
+    if (_versionLoading || _appVersion != _fallbackAppVersion) return;
+    _versionLoading = true;
+    PackageInfo.fromPlatform().then((info) {
+      final v = info.version.trim();
+      final b = info.buildNumber.trim();
+      if (v.isNotEmpty) _appVersion = b.isNotEmpty ? '$v+$b' : v;
+    }).catchError((_) {/* constante conservée */});
+  }
 
   final http.Client _httpClient;
   final GetStorage _storage;
@@ -32,9 +56,11 @@ class ApiClient {
       SecureTokenStore.instance.tokenSync ??
       _storage.read<String>(StorageKeys.authToken);
 
-  Map<String, String> get _defaultHeaders => const {
+  Map<String, String> get _defaultHeaders => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    'X-App-Version': _appVersion,
+    'X-App-Platform': appPlatform,
   };
 
   /// v23.1 part 125 — Phase 2 audit C3.

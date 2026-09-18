@@ -70,6 +70,8 @@ class EditSitterProfileController extends GetxController {
   final Rx<File?> profileImage = Rx<File?>(null);
   final RxBool isLoading = false.obs;
   final RxBool isFetching = false.obs;
+  // v565 — point 39 : message d'erreur de chargement (état « Réessayer »).
+  final RxString loadError = ''.obs;
   final RxBool isUploadingImage = false.obs;
   final RxString currentAvatarUrl = ''.obs;
   final RxString selectedCountryCode = '+1'.obs;
@@ -137,6 +139,7 @@ class EditSitterProfileController extends GetxController {
   /// Uses GET /sitters/{id} to fetch the logged-in sitter's profile.
   Future<void> loadProfileData() async {
     isFetching.value = true;
+    loadError.value = '';
 
     try {
       // Get sitter ID from storage
@@ -342,6 +345,8 @@ class EditSitterProfileController extends GetxController {
         await AuthController.handleLoginRequiredError();
         return;
       }
+      loadError.value =
+          error.message.isNotEmpty ? error.message : 'profile_load_error'.tr;
       CustomSnackbar.showError(
         title: 'common_error'.tr,
         message: 'profile_load_error'.tr,
@@ -353,6 +358,7 @@ class EditSitterProfileController extends GetxController {
         await AuthController.handleLoginRequiredError();
         return;
       }
+      loadError.value = 'profile_load_error'.tr;
       CustomSnackbar.showError(
         title: 'common_error'.tr,
         message: 'profile_load_error'.tr,

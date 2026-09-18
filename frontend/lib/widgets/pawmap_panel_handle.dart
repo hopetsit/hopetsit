@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../utils/pawmap_theme.dart';
+import '../views/map/widgets/paw_rail_button.dart';
 
 /// v555 — poignée de repli du panneau PawMap.
 ///
@@ -22,10 +23,14 @@ class PawMapPanelHandle extends StatefulWidget {
     required this.collapsed,
     required this.onTap,
     this.fill = false,
+    this.badge = 0,
   });
 
   final bool collapsed;
   final VoidCallback onTap;
+
+  /// v565 (18/09) — nombre de filtres actifs (badge sur la pilule repliée).
+  final int badge;
 
   /// v558 — replié dans la rangée à trois cases : la pilule remplit sa case
   /// (même largeur et même hauteur que « Partager en direct » et « Agrandir »),
@@ -56,6 +61,63 @@ class _PawMapPanelHandleState extends State<PawMapPanelHandle>
   Widget build(BuildContext context) {
     final collapsed = widget.collapsed;
     final fill = widget.fill && collapsed;
+    // v565 (18/09) — Daniel : pilule repliée modernisée, mêmes couleurs :
+    // verre blanc translucide, liseré orange fin, icône filtres + ▾ orange,
+    // badge du nombre de filtres actifs, appui scale 0,96 + haptique.
+    if (collapsed) {
+      return Center(
+        child: PawPressable(
+          onTap: widget.onTap,
+          child: PawGlassPill(
+            color: PawMapTheme.accent,
+            height: fill ? double.infinity : 44.h,
+            width: fill ? double.infinity : 104.w,
+            padding: EdgeInsets.symmetric(horizontal: 10.w),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(Icons.tune_rounded,
+                        size: 19.sp, color: PawMapTheme.accent),
+                    if (widget.badge > 0)
+                      Positioned(
+                        top: -6.h,
+                        right: -8.w,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 4.w, vertical: 1.h),
+                          constraints: BoxConstraints(minWidth: 15.w),
+                          decoration: BoxDecoration(
+                            color: PawMapTheme.accent,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: Colors.white, width: 1.5),
+                          ),
+                          child: Text(
+                            widget.badge > 9 ? '9+' : '${widget.badge}',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 8.5.sp,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              height: 1.1,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                SizedBox(width: 6.w),
+                Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 20.sp, color: PawMapTheme.accent),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Center(
       child: GestureDetector(
         onTap: widget.onTap,
@@ -63,34 +125,22 @@ class _PawMapPanelHandleState extends State<PawMapPanelHandle>
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOut,
-          width: fill ? double.infinity : (collapsed ? 96.w : 120.w),
-          height: fill ? double.infinity : (collapsed ? 34.h : 24.h),
+          width: 120.w,
+          height: 24.h,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: collapsed ? PawMapTheme.accent : PawMapTheme.pastelPeach,
-            borderRadius: BorderRadius.circular(fill ? 16.r : 999),
-            boxShadow: collapsed ? PawMapTheme.pillShadow : null,
+            color: PawMapTheme.pastelPeach,
+            borderRadius: BorderRadius.circular(999),
           ),
-          child: collapsed
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.tune_rounded,
-                        size: fill ? 18.sp : 15.sp, color: Colors.white),
-                    SizedBox(width: 5.w),
-                    Icon(Icons.keyboard_arrow_down_rounded,
-                        size: fill ? 20.sp : 18.sp, color: Colors.white),
-                  ],
-                )
-              : AnimatedBuilder(
-                  animation: _bob,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(0, -2.h * _bob.value),
-                    child: child,
-                  ),
-                  child: Icon(Icons.keyboard_arrow_up_rounded,
-                      size: 20.sp, color: PawMapTheme.accent),
-                ),
+          child: AnimatedBuilder(
+            animation: _bob,
+            builder: (_, child) => Transform.translate(
+              offset: Offset(0, -2.h * _bob.value),
+              child: child,
+            ),
+            child: Icon(Icons.keyboard_arrow_up_rounded,
+                size: 20.sp, color: PawMapTheme.accent),
+          ),
         ),
       ),
     );

@@ -7,6 +7,7 @@ import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/views/booking/booking_agreement_screen.dart';
 import 'package:hopetsit/views/reviews/reviews_screen.dart';
@@ -129,43 +130,34 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
           // Bookings List
           Expanded(
             child: Obx(() {
-              if (_bookingsController.isLoading.value) {
-                return const Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      AppColors.primaryColor,
-                    ),
-                  ),
+              if (_bookingsController.isLoading.value &&
+                  _bookingsController.bookings.isEmpty) {
+                return BookingLoadingList(accent: AppColors.primaryColor);
+              }
+              // v565 — état d'erreur lisible (liste vide + erreur réseau).
+              if (_bookingsController.lastError.value.isNotEmpty &&
+                  _bookingsController.bookings.isEmpty) {
+                return BookingErrorState(
+                  message: _bookingsController.lastError.value,
+                  onRetry: () => _bookingsController.loadBookings(),
                 );
               }
 
               final filteredBookings = _filteredBookings;
 
               if (filteredBookings.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20.w),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.event_busy,
-                          size: 64.sp,
-                          color: AppColors.greyColor,
-                        ),
-                        SizedBox(height: 16.h),
-                        InterText(
-                          text: _selectedStatus == 'all'
-                              ? 'bookings_history_empty_all'.tr
-                              : 'bookings_history_empty_filtered'.trParams({
-                                  'status': _getStatusLabel(_selectedStatus!),
-                                }),
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.greyColor,
-                        ),
-                      ],
-                    ),
+                return RefreshIndicator(
+                  color: AppColors.primaryColor,
+                  onRefresh: () => _bookingsController.loadBookings(),
+                  child: BookingEmptyState(
+                    icon: Icons.event_note_rounded,
+                    accent: AppColors.primaryColor,
+                    title: _selectedStatus == 'all'
+                        ? 'bookings_history_empty_all'.tr
+                        : 'bookings_history_empty_filtered'.trParams({
+                            'status': _getStatusLabel(_selectedStatus!),
+                          }),
+                    subtitle: 'v565_bk_empty_hint'.tr,
                   ),
                 );
               }
@@ -190,52 +182,17 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
   }
 
   Widget _buildStatusFilter() {
-    return Container(
-      height: 50.h,
-      padding: EdgeInsets.symmetric(vertical: 8.h),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: 20.w),
-        itemCount: _statuses.length,
-        itemBuilder: (context, index) {
-          final status = _statuses[index];
-          final isSelected = _selectedStatus == status;
-
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedStatus = status;
-              });
-            },
-            child: Container(
-              margin: EdgeInsets.only(right: 12.w),
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.primaryColor
-                    : AppColors.whiteColor,
-                borderRadius: BorderRadius.circular(20.r),
-                border: Border.all(
-                  color: isSelected
-                      ? AppColors.primaryColor
-                      : AppColors.grey300Color,
-                  width: 1,
-                ),
-              ),
-              child: Center(
-                child: InterText(
-                  text: _getStatusLabel(status),
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  color: isSelected
-                      ? AppColors.whiteColor
-                      : AppColors.grey700Color,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
+    // v565 — filtres en pilules (kit Réservations).
+    return BookingFilterBar(
+      values: _statuses,
+      selected: _selectedStatus ?? 'all',
+      label: _getStatusLabel,
+      accent: AppColors.primaryColor,
+      onSelected: (status) {
+        setState(() {
+          _selectedStatus = status;
+        });
+      },
     );
   }
 
@@ -418,101 +375,11 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
   }
 
   Widget _buildStatusBadge(BookingModel booking) {
-    final statusLower = booking.status.toLowerCase();
-    final paymentStatusLower = booking.paymentStatus?.toLowerCase();
-    Color backgroundColor;
-    Color textColor;
-    IconData icon;
-    String displayText;
-
-    // Determine the primary status to display
-    String primaryStatus;
-    if (paymentStatusLower == 'paid') {
-      primaryStatus = 'paid';
-    } else if (paymentStatusLower == 'pending' && statusLower == 'agreed') {
-      primaryStatus = 'payment_pending';
-    } else if (paymentStatusLower == 'failed') {
-      primaryStatus = 'payment_failed';
-    } else {
-      primaryStatus = statusLower;
-    }
-
-    switch (primaryStatus) {
-      case 'pending':
-        backgroundColor = Colors.orange.withValues(alpha: 0.1);
-        textColor = Colors.orange;
-        icon = Icons.pending;
-        displayText = 'status_pending_label'.tr;
-        break;
-      case 'agreed':
-        backgroundColor = AppColors.primaryColor.withValues(alpha: 0.1);
-        textColor = AppColors.primaryColor;
-        icon = Icons.check_circle;
-        displayText = 'status_agreed_label'.tr;
-        break;
-      case 'paid':
-        backgroundColor = Colors.green.withValues(alpha: 0.1);
-        textColor = Colors.green;
-        icon = Icons.check_circle_outline;
-        displayText = 'status_paid_label'.tr;
-        break;
-      case 'payment_pending':
-        backgroundColor = Colors.orange.withValues(alpha: 0.1);
-        textColor = Colors.orange;
-        icon = Icons.hourglass_empty;
-        displayText = 'status_payment_pending_label'.tr;
-        break;
-      case 'payment_failed':
-        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
-        textColor = AppColors.errorColor;
-        icon = Icons.error_outline;
-        displayText = 'status_payment_failed_label'.tr;
-        break;
-      case 'failed':
-        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
-        textColor = AppColors.errorColor;
-        icon = Icons.error;
-        displayText = 'status_failed_label'.tr;
-        break;
-      case 'cancelled':
-        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
-        textColor = AppColors.errorColor;
-        icon = Icons.cancel;
-        displayText = 'status_cancelled_label'.tr;
-        break;
-      case 'refunded':
-        backgroundColor = Colors.blue.withValues(alpha: 0.1);
-        textColor = Colors.blue;
-        icon = Icons.undo;
-        displayText = 'status_refunded_label'.tr;
-        break;
-      default:
-        backgroundColor = AppColors.greyColor.withValues(alpha: 0.1);
-        textColor = AppColors.greyColor;
-        icon = Icons.info;
-        displayText = statusLower.tr;
-    }
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: textColor, width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14.sp, color: textColor),
-          SizedBox(width: 6.w),
-          InterText(
-            text: displayText,
-            fontSize: 11.sp,
-            fontWeight: FontWeight.w600,
-            color: textColor,
-          ),
-        ],
-      ),
+    // v565 — pastille de statut du kit Réservations (statut + paiement).
+    return BookingStatusChip(
+      status: booking.status,
+      paymentStatus: booking.paymentStatus,
+      accent: AppColors.primaryColor,
     );
   }
 

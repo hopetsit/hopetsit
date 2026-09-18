@@ -8,11 +8,15 @@ import { ApiError, AuthRole, signup } from "@/lib/api";
 import { SocialButtons } from "@/components/SocialButtons";
 
 export default function SignupPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const router = useRouter();
 
   const [role, setRole]         = useState<AuthRole>("owner");
   const [name, setName]         = useState("");
+  // v565 audit-inscription — ville obligatoire (décision point 25 : ville
+  // OBLIGATOIRE, téléphone/adresse facultatifs). Avant : jamais demandée sur
+  // le site → comptes « ville ? » dans l'admin.
+  const [city, setCity]         = useState("");
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy]         = useState(false);
@@ -24,6 +28,10 @@ export default function SignupPage() {
     e.preventDefault();
     if (!acceptTerms) {
       setErr(t("signup_terms_required"));
+      return;
+    }
+    if (!city.trim()) {
+      setErr(t("signup_city_required"));
       return;
     }
     // v532 — le site validait 6 caractères alors que les 3 modèles Mongoose
@@ -50,6 +58,8 @@ export default function SignupPage() {
         email: cleanEmail,
         password,
         role,
+        city: city.trim(),
+        lang,
       });
       // v402 — l'inscription web exige désormais la vérif email (le backend
       // envoie un code par mail). On envoie l'utilisateur sur /verify-email.
@@ -88,7 +98,7 @@ export default function SignupPage() {
         onSubmit={onSubmit}
         className="mt-10 space-y-4 rounded-3xl border border-ink/5 bg-white p-7 shadow-card"
       >
-        <SocialButtons defaultRole={role} />
+        <SocialButtons defaultRole={role} city={city} />
         <div className="space-y-2">
           {roles.map((r) => (
             <label
@@ -116,6 +126,7 @@ export default function SignupPage() {
 
         <Field label={t("signup_name")}     value={name}     onChange={setName}     required autoComplete="name" />
         <Field label={t("signup_email")}    value={email}    onChange={setEmail}    type="email"    required autoComplete="email" />
+        <Field label={t("signup_city")}     value={city}     onChange={setCity}     required autoComplete="address-level2" />
         <Field label={t("signup_password")} value={password} onChange={setPassword} type="password" required autoComplete="new-password" />
 
         {/* v532 — les CGU étaient envoyées avec acceptedTerms: true CODÉ EN DUR

@@ -34,8 +34,9 @@ const sitterSchema = new mongoose.Schema(
     notificationPrefs: {
       sound: {
         type: String,
-        enum: ['default', 'bark', 'meow', 'tweet', 'vibrate', 'silent'],
-        default: 'default',
+        // v565 — Daniel : grenouille par défaut ; 'tweet' = hibou depuis le 18/09.
+        enum: ['default', 'frog', 'bark', 'meow', 'tweet', 'vibrate', 'silent'],
+        default: 'frog',
       },
       categories: {
         messages: { type: Boolean, default: true },

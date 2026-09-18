@@ -9,6 +9,7 @@ import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/reviews/widgets/rating_stars.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
 
 /// v23.1 part 37 — WalkerDetailScreen équivalent de ServiceProviderDetailScreen
@@ -185,18 +186,15 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
                       ),
                     ),
                     SizedBox(height: 8.h),
+                    // v565 (point 38) — étoiles modernes, « Nouveau » sans avis.
                     Row(
                       children: [
-                        Icon(Icons.star_rounded,
-                            color: const Color(0xFFFFB400), size: 18.sp),
-                        SizedBox(width: 4.w),
-                        InterText(
-                          // v471 — i18n : « Pas encore d'avis » était en dur FR.
-                          text: w.rating > 0
-                              ? '${w.rating.toStringAsFixed(1)} (${w.reviewsCount})'
-                              : 'candidates_no_reviews'.tr,
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w600,
+                        Flexible(
+                          child: RatingStars(
+                            rating: w.rating,
+                            reviewsCount: w.reviewsCount,
+                            size: 16,
+                          ),
                         ),
                       ],
                     ),

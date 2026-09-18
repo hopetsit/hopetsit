@@ -9,9 +9,14 @@ import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
+import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 /// Sprint 6 step 2 — owner watches a live walk on a map.
+///
+/// v565 — carte + bandeau d'état (en direct / dernière position / aucune
+/// balade / erreur avec « Réessayer »), boutons Recentrer / Itinéraire.
 class LiveWalkMapScreen extends StatefulWidget {
   final String bookingId;
   // v23.1 part 209 — Daniel : "le bouton suivre mon animal apparait mais
@@ -50,6 +55,9 @@ class _LiveWalkMapScreenState extends State<LiveWalkMapScreen> {
   LatLng? _current;
   String? _walkId;
   String _status = 'loading';
+  // v565 — état machine lisible pour le bandeau : loading | live |
+  // last_known | none | error (le texte reste dans `_status`).
+  String _state = 'loading';
 
   @override
   void initState() {
@@ -58,6 +66,12 @@ class _LiveWalkMapScreenState extends State<LiveWalkMapScreen> {
   }
 
   Future<void> _loadActive() async {
+    if (mounted) {
+      setState(() {
+        _state = 'loading';
+        _status = 'loading';
+      });
+    }
     try {
       final r = await _api.get(
         '${ApiEndpoints.walksActive}?bookingId=${widget.bookingId}',
@@ -75,7 +89,10 @@ class _LiveWalkMapScreenState extends State<LiveWalkMapScreen> {
         final rawId = walk['_id'] ?? walk['id'];
         if (rawId == null) {
           if (!mounted) return;
-          setState(() => _status = 'live_walk_no_active'.tr);
+          setState(() {
+            _status = 'live_walk_no_active'.tr;
+            _state = 'none';
+          });
           return;
         }
         _walkId = rawId.toString();
@@ -94,7 +111,10 @@ class _LiveWalkMapScreenState extends State<LiveWalkMapScreen> {
         }
         _subscribeSocket();
         if (!mounted) return;
-        setState(() => _status = 'live');
+        setState(() {
+          _status = 'live';
+          _state = 'live';
+        });
       } else {
         // v23.1 part 209 — Daniel : "page blanche pas de balade" quand
         // la demande PawFollow est acceptée mais que le walker n'a pas
@@ -107,18 +127,27 @@ class _LiveWalkMapScreenState extends State<LiveWalkMapScreen> {
           // updates si le walker démarre à broadcast après-coup.
           _subscribeProviderBroadcastSocket();
           if (!mounted) return;
-          setState(() => _status = 'live_walk_last_known'.tr);
+          setState(() {
+            _status = 'live_walk_last_known'.tr;
+            _state = 'last_known';
+          });
           return;
         }
         // v23.1.162 — Daniel : 'no-active-walk' apparaissait brut. Cle i18n
         // 'live_walk_no_active' resolue via .tr (FR: 'Aucune balade en cours',
         // ES: 'Sin paseo activo', etc.).
         if (!mounted) return;
-        setState(() => _status = 'live_walk_no_active'.tr);
+        setState(() {
+          _status = 'live_walk_no_active'.tr;
+          _state = 'none';
+        });
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _status = '${'live_walk_error'.tr}: $e');
+      setState(() {
+        _status = '${'live_walk_error'.tr}: $e';
+        _state = 'error';
+      });
     }
   }
 
@@ -140,7 +169,10 @@ class _LiveWalkMapScreenState extends State<LiveWalkMapScreen> {
           (data['lng'] as num).toDouble(),
         );
         if (!mounted) return;
-        setState(() => _current = next);
+        setState(() {
+          _current = next;
+          _state = 'live';
+        });
         _mapController?.animateCamera(CameraUpdate.newLatLng(next));
       }
     });
@@ -172,56 +204,161 @@ class _LiveWalkMapScreenState extends State<LiveWalkMapScreen> {
     });
   }
 
+  void _recenter() {
+    final c = _current;
+    if (c == null) return;
+    _mapController?.animateCamera(CameraUpdate.newLatLngZoom(c, 16));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: PoppinsText(
-          // v23.1.162 — la cle live_walk_title est maintenant definie dans
-          // les 6 fichiers de traduction. Le fallback FR 'Balade en direct'
-          // n'est plus necessaire — .tr retourne toujours la bonne valeur.
-          text: 'live_walk_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
-        ),
+    // v565 — carte + bandeau d'état (chargement / en direct / dernière
+    // position / aucune balade / erreur avec « Réessayer »), boutons clairs
+    // (recentrer, itinéraire PawMap), barre claire couleur du rôle.
+    final accent = currentRoleAccent();
+    const live = Color(0xFF16A34A);
+    final walkerGreen = AppColors.walkerAccent;
+    return ProfileSubPageScaffold(
+      title: 'live_walk_title'.tr,
+      accent: accent,
+      scroll: false,
+      padding: EdgeInsets.zero,
+      actions: [
         // v559 — Daniel : rejoindre le promeneur avec l'itinéraire de la
         // PawMap (à pied / vélo / voiture, indications de virage).
-        actions: [
-          if (_current != null)
-            IconButton(
-              tooltip: 'pawmap_btn_directions'.tr,
-              icon: const Icon(Icons.directions_rounded, color: Color(0xFF16A34A)),
-              onPressed: () => openPawMapWithRoute(
-                  _current!.latitude, _current!.longitude),
+        if (_current != null)
+          IconButton(
+            tooltip: 'pawmap_btn_directions'.tr,
+            icon: Icon(Icons.directions_rounded, color: walkerGreen),
+            onPressed: () => openPawMapWithRoute(
+                _current!.latitude, _current!.longitude),
+          ),
+      ],
+      body: _current == null
+          ? (_state == 'loading'
+              ? BookingLoadingList(accent: accent)
+              : _state == 'error'
+                  ? BookingErrorState(message: _status, onRetry: _loadActive)
+                  : BookingEmptyState(
+                      icon: Icons.directions_walk_rounded,
+                      title: _status,
+                      subtitle: widget.contactName,
+                      accent: accent,
+                      ctaLabel: 'common_retry'.tr,
+                      onCta: _loadActive,
+                    ))
+          : Stack(
+              children: [
+                GoogleMap(
+                  initialCameraPosition: CameraPosition(target: _current!, zoom: 16),
+                  onMapCreated: (c) => _mapController = c,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  markers: {
+                    Marker(
+                      markerId: const MarkerId('sitter'),
+                      position: _current!,
+                      infoWindow: widget.contactName != null
+                          ? InfoWindow(title: widget.contactName)
+                          : InfoWindow.noText,
+                      icon: BitmapDescriptor.defaultMarkerWithHue(
+                          BitmapDescriptor.hueAzure),
+                    ),
+                  },
+                ),
+                // Bandeau d'état en haut de la carte.
+                Positioned(
+                  top: 12.h,
+                  left: 16.w,
+                  right: 16.w,
+                  child: _statusBanner(context, live, accent),
+                ),
+                // Boutons bas : recentrer + itinéraire.
+                Positioned(
+                  left: 16.w,
+                  right: 16.w,
+                  bottom: 16.h,
+                  child: SafeArea(
+                    top: false,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ProfileSecondaryButton(
+                            label: 'v565_pay_walk_recenter'.tr,
+                            accent: accent,
+                            icon: Icons.my_location_rounded,
+                            onTap: _recenter,
+                          ),
+                        ),
+                        SizedBox(width: 10.w),
+                        Expanded(
+                          child: ProfilePrimaryButton(
+                            label: 'pawmap_btn_directions'.tr,
+                            accent: walkerGreen,
+                            icon: Icons.directions_rounded,
+                            onTap: () => openPawMapWithRoute(
+                                _current!.latitude, _current!.longitude),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
+    );
+  }
+
+  Widget _statusBanner(BuildContext context, Color live, Color accent) {
+    final isLive = _state == 'live';
+    final c = isLive ? live : const Color(0xFFF59E0B);
+    final label = isLive ? 'v565_pay_walk_live'.tr : _status;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 10.w,
+            height: 10.w,
+            decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+          ),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                PoppinsText(
+                  text: label,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (widget.contactName != null && widget.contactName!.isNotEmpty)
+                  InterText(
+                    text: widget.contactName!,
+                    fontSize: 11.sp,
+                    color: AppColors.textSecondary(context),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'common_retry'.tr,
+            icon: Icon(Icons.refresh_rounded, color: accent, size: 20.sp),
+            onPressed: _loadActive,
+          ),
         ],
       ),
-      body: _current == null
-          ? Center(
-              child: InterText(
-                text: _status,
-                fontSize: 14.sp,
-                color: AppColors.textSecondary(context),
-              ),
-            )
-          : GoogleMap(
-              initialCameraPosition: CameraPosition(target: _current!, zoom: 16),
-              onMapCreated: (c) => _mapController = c,
-              markers: {
-                Marker(
-                  markerId: const MarkerId('sitter'),
-                  position: _current!,
-                  icon: BitmapDescriptor.defaultMarkerWithHue(
-                      BitmapDescriptor.hueAzure),
-                ),
-              },
-            ),
     );
   }
 }

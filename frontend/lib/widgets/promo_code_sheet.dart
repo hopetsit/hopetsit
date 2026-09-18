@@ -451,6 +451,9 @@ class _PromoPopupState extends State<PromoPopup> with SingleTickerProviderStateM
   static const String _fallbackCode = 'HOPDALIOS';
   String _code = _fallbackCode;
   String _message = '';
+  // v565 — Daniel : « précise 1 mois de PawPremium gratuit » : la récompense
+  // réelle du code (lue via /promo/check, sans le consommer) est affichée.
+  String _reward = '';
   late final AnimationController _anim = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 420),
@@ -497,11 +500,59 @@ class _PromoPopupState extends State<PromoPopup> with SingleTickerProviderStateM
       // Serveur injoignable ou route pas encore déployée : code par défaut.
     }
     if (!enabled || !mounted) return;
+    try {
+      final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : ApiClient();
+      final res = await api.post('/promo/check', body: {'code': _code}, requiresAuth: true);
+      _reward = _rewardLabel(PromoResult.fromCheck(res));
+    } catch (_) {
+      _reward = '';
+    }
+    if (!mounted) return;
     Future.delayed(const Duration(seconds: 6), () {
       if (!mounted) return;
       setState(() => _visible = true);
       _anim.forward();
     });
+  }
+
+  /// « 1 mois de Paw Premium offert », « -10 % en boutique »… ('' si inconnu).
+  static String _rewardLabel(PromoResult r) {
+    if (!r.valid) return '';
+    if (r.isPercentDiscount && r.discountPercent > 0) {
+      return 'promo_popup_reward_pct'.trParams({'pct': '${r.discountPercent}'});
+    }
+    if (r.isFreeSubscription) {
+      final months = r.intervalDays >= 28 ? (r.intervalDays / 30).round().clamp(1, 24) : 0;
+      final duration = months >= 12
+          ? 'promo_popup_years'.trParams({'n': '${(months / 12).round()}'})
+          : months >= 1
+              ? 'promo_popup_months'.trParams({'n': '$months'})
+              : 'promo_popup_days'.trParams({'n': '${r.intervalDays}'});
+      return 'promo_popup_reward_sub'.trParams({'duration': duration, 'plan': _planLabel(r.plan)});
+    }
+    return '';
+  }
+
+  static String _planLabel(String plan) {
+    switch (plan) {
+      case 'premium_monthly':
+      case 'premium_yearly':
+      case 'premium':
+        return 'promo_plan_premium'.tr;
+      case 'monthly':
+      case 'yearly':
+        return 'promo_plan_pawfollow'.tr;
+      case 'family':
+      case 'famille':
+      case 'family_yearly':
+        return 'promo_plan_pawfamily'.tr;
+      case 'pawspot':
+        return 'promo_plan_pawspot'.tr;
+      case 'pawboost':
+        return 'promo_plan_pawboost'.tr;
+      default:
+        return plan;
+    }
   }
 
   void _markShown() {
@@ -593,7 +644,10 @@ class _PromoPopupState extends State<PromoPopup> with SingleTickerProviderStateM
                       InterText(
                         text: _message.isNotEmpty
                             ? _message
-                            : 'promo_popup_code_body'.trParams({'code': _code}),
+                            : _reward.isNotEmpty
+                                ? 'promo_popup_code_body_reward'
+                                    .trParams({'code': _code, 'reward': _reward})
+                                : 'promo_popup_code_body'.trParams({'code': _code}),
                         fontSize: 11.5.sp,
                         color: AppColors.textSecondary(context),
                         maxLines: 2,

@@ -7,11 +7,19 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// v23.1 — Mes cartes (saved Airwallex payment_consents).
 /// Owner can see all cards saved on Airwallex side and detach any of them.
+///
+/// v565 (point 28) — modernisation : kit Profil (scaffold, cartes groupées,
+/// feuilles de confirmation), états chargement / vide / erreur avec
+/// « Réessayer », chip « Par défaut » sur la première carte (c'est elle
+/// que l'écran de paiement présélectionne), flux d'ajout extrait dans
+/// [runAddCardVerificationFlow] pour être partagé avec « Mes paiements ».
 class SavedCardsScreen extends StatefulWidget {
   const SavedCardsScreen({super.key});
 
@@ -19,11 +27,197 @@ class SavedCardsScreen extends StatefulWidget {
   State<SavedCardsScreen> createState() => _SavedCardsScreenState();
 }
 
+/// Libellé « VISA •••• 1234 » d'une carte renvoyée par
+/// GET /owner/payments/methods.
+String savedCardLabel(Map<String, dynamic> c) {
+  final brand = (c['brand']?.toString() ?? '').toUpperCase();
+  final last4 = c['last4']?.toString() ?? '';
+  final b = brand.isNotEmpty ? brand : 'CARD';
+  return last4.isNotEmpty ? '$b •••• $last4' : b;
+}
+
+/// Sous-titre « Expire 04/27 · Titulaire » d'une carte.
+String savedCardSubtitle(Map<String, dynamic> c) {
+  final mm = c['expiryMonth']?.toString();
+  final yy = c['expiryYear']?.toString();
+  final holder = c['cardholder']?.toString() ?? '';
+  final parts = <String>[];
+  if (mm != null && mm.isNotEmpty && yy != null && yy.isNotEmpty) {
+    parts.add('v565_pay_expires'.trParams({
+      'mm': mm.padLeft(2, '0'),
+      'yy': yy.length > 2 ? yy.substring(yy.length - 2) : yy,
+    }));
+  }
+  if (holder.isNotEmpty) parts.add(holder);
+  return parts.join(' · ');
+}
+
+/// Feuille de confirmation « Apple » : titre, message, bouton principal
+/// (danger ou accent) + Annuler. Renvoie true si confirmé.
+Future<bool> showPaymentConfirmSheet(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String confirmLabel,
+  required Color accent,
+  IconData icon = Icons.help_outline_rounded,
+  bool danger = false,
+}) async {
+  final c = danger ? AppColors.errorColor : accent;
+  final ok = await showProfileSheet<bool>(
+    context,
+    builder: (ctx) => Padding(
+      padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 16.h),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ProfileSheetHandle(),
+          Row(
+            children: [
+              Container(
+                width: 44.w,
+                height: 44.w,
+                decoration: BoxDecoration(
+                  color: c.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14.r),
+                ),
+                child: Icon(icon, color: c, size: 22.sp),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: PoppinsText(
+                  text: title,
+                  fontSize: 17.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(ctx),
+                  maxLines: 2,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          InterText(
+            text: message,
+            fontSize: 13.5.sp,
+            color: AppColors.textSecondary(ctx),
+            height: 1.45,
+            maxLines: 8,
+          ),
+          SizedBox(height: 20.h),
+          ProfilePrimaryButton(
+            label: confirmLabel,
+            accent: c,
+            onTap: () => Navigator.of(ctx).pop(true),
+          ),
+          SizedBox(height: 8.h),
+          ProfileSecondaryButton(
+            label: 'common_cancel'.tr,
+            accent: AppColors.greyText,
+            onTap: () => Navigator.of(ctx).pop(false),
+          ),
+        ],
+      ),
+    ),
+  );
+  return ok == true;
+}
+
+/// Flux « Ajouter une carte » sans réservation : confirmation (0,50 €
+/// remboursé automatiquement), création du PaymentIntent de vérification
+/// côté backend, page sécurisée Airwallex, puis rechargement par
+/// l'appelant. Renvoie true si une carte a bien été enregistrée.
+Future<bool> runAddCardVerificationFlow(
+  BuildContext context, {
+  required OwnerRepository repo,
+  required Color accent,
+}) async {
+  // 1. Confirmation : explique la charge 0,50 € + remboursement auto.
+  final ok = await showPaymentConfirmSheet(
+    context,
+    title: 'saved_cards_verify_title'.tr,
+    message: 'saved_cards_verify_message'.tr,
+    confirmLabel: 'saved_cards_verify_confirm'.tr,
+    accent: accent,
+    icon: Icons.add_card_rounded,
+  );
+  if (!ok) return false;
+
+  try {
+    // 2. Backend creates the verification PI.
+    final intent = await repo.verifyCard();
+    final piId = intent['paymentIntentId'] as String? ?? '';
+    final secret = intent['clientSecret'] as String? ?? '';
+    final amount = (intent['amount'] as num?)?.toDouble() ?? 0.50;
+    final currency = (intent['currency'] as String?) ?? 'EUR';
+
+    if (piId.isEmpty || secret.isEmpty) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'saved_cards_verify_failed'.tr,
+      );
+      return false;
+    }
+
+    // 3. Open the Airwallex WebView for the user to enter card details.
+    final result = await AirwallexPaymentService.confirmPaymentIntent(
+      intentId: piId,
+      clientSecret: secret,
+      amount: amount,
+      currency: currency,
+    );
+
+    if (!result.isSuccess) {
+      if (result.outcome != AirwallexPaymentOutcome.cancelled) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: result.errorMessage ?? 'saved_cards_verify_failed'.tr,
+        );
+      }
+      return false;
+    }
+
+    // 4. Success — refund is triggered by the webhook server-side.
+    CustomSnackbar.showSuccess(
+      title: 'common_success'.tr,
+      message: 'saved_cards_verify_success'.tr,
+    );
+    // Small delay so Airwallex has time to register the consent before reload.
+    await Future.delayed(const Duration(seconds: 2));
+    return true;
+  } on ApiException catch (e) {
+    CustomSnackbar.showError(title: 'common_error'.tr, message: e.message);
+    return false;
+  } catch (e) {
+    CustomSnackbar.showError(title: 'common_error'.tr, message: e.toString());
+    return false;
+  }
+}
+
+/// Message d'erreur lisible d'une exception API (details.details > message).
+String paymentErrorMessage(Object e) {
+  if (e is ApiException) {
+    if (e.details is Map) {
+      final d = (e.details as Map)['details'];
+      if (d is String && d.isNotEmpty) return d;
+      final err = (e.details as Map)['error'];
+      if (err is String && err.isNotEmpty) return err;
+    }
+    if (e.message.isNotEmpty) return e.message;
+  }
+  return e.toString();
+}
+
 class _SavedCardsScreenState extends State<SavedCardsScreen> {
   late final OwnerRepository _repo;
   final RxList<Map<String, dynamic>> cards = <Map<String, dynamic>>[].obs;
   final RxBool isLoading = false.obs;
   final RxnString errorMessage = RxnString();
+
+  // v23.1 — busy flag pour éviter double-tap pendant la vérification.
+  final RxBool _verifying = false.obs;
+
+  Color get _accent => currentRoleAccent();
 
   @override
   void initState() {
@@ -41,7 +235,7 @@ class _SavedCardsScreenState extends State<SavedCardsScreen> {
       final list = await _repo.getOwnerPaymentMethods();
       cards.assignAll(list);
     } on ApiException catch (e) {
-      errorMessage.value = e.message;
+      errorMessage.value = paymentErrorMessage(e);
     } catch (e) {
       errorMessage.value = e.toString();
     } finally {
@@ -52,27 +246,16 @@ class _SavedCardsScreenState extends State<SavedCardsScreen> {
   Future<void> _confirmAndDelete(Map<String, dynamic> card) async {
     final id = card['id']?.toString() ?? '';
     if (id.isEmpty) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('saved_cards_delete_title'.tr),
-        content: Text('saved_cards_delete_message'.tr),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('common_cancel'.tr),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              'common_delete'.tr,
-              style: const TextStyle(color: Color(0xFFE53935)),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await showPaymentConfirmSheet(
+      context,
+      title: 'saved_cards_delete_title'.tr,
+      message: '${savedCardLabel(card)}\n${'saved_cards_delete_message'.tr}',
+      confirmLabel: 'common_delete'.tr,
+      accent: _accent,
+      icon: Icons.delete_outline_rounded,
+      danger: true,
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     try {
       await _repo.deleteOwnerPaymentMethod(id);
       cards.removeWhere((c) => c['id']?.toString() == id);
@@ -81,103 +264,23 @@ class _SavedCardsScreenState extends State<SavedCardsScreen> {
         message: 'saved_cards_delete_success'.tr,
       );
     } catch (e) {
-      String msg = e.toString();
-      if (e is ApiException && e.details is Map) {
-        final d = (e.details as Map)['details'];
-        if (d is String && d.isNotEmpty) msg = d;
-      }
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: msg,
+        message: paymentErrorMessage(e),
       );
     }
   }
 
-  // v23.1 — busy flag pour éviter double-tap pendant la vérification.
-  final RxBool _verifying = false.obs;
-
   Future<void> _onAddCardTap() async {
     if (_verifying.value) return;
-
-    // 1. Confirm dialog : explique la charge €0.50 + refund auto.
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('saved_cards_verify_title'.tr),
-        content: Text('saved_cards_verify_message'.tr),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('common_cancel'.tr),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              'saved_cards_verify_confirm'.tr,
-              style: TextStyle(
-                color: AppColors.primaryColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-
     _verifying.value = true;
     try {
-      // 2. Backend creates the verification PI.
-      final intent = await _repo.verifyCard();
-      final piId = intent['paymentIntentId'] as String? ?? '';
-      final secret = intent['clientSecret'] as String? ?? '';
-      final amount = (intent['amount'] as num?)?.toDouble() ?? 0.50;
-      final currency = (intent['currency'] as String?) ?? 'EUR';
-
-      if (piId.isEmpty || secret.isEmpty) {
-        CustomSnackbar.showError(
-          title: 'common_error'.tr,
-          message: 'saved_cards_verify_failed'.tr,
-        );
-        return;
-      }
-
-      // 3. Open the Airwallex WebView for the user to enter card details.
-      final result = await AirwallexPaymentService.confirmPaymentIntent(
-        intentId: piId,
-        clientSecret: secret,
-        amount: amount,
-        currency: currency,
+      final added = await runAddCardVerificationFlow(
+        context,
+        repo: _repo,
+        accent: _accent,
       );
-
-      if (!result.isSuccess) {
-        if (result.outcome != AirwallexPaymentOutcome.cancelled) {
-          CustomSnackbar.showError(
-            title: 'common_error'.tr,
-            message: result.errorMessage ?? 'saved_cards_verify_failed'.tr,
-          );
-        }
-        return;
-      }
-
-      // 4. Success — refund is triggered by the webhook server-side.
-      CustomSnackbar.showSuccess(
-        title: 'common_success'.tr,
-        message: 'saved_cards_verify_success'.tr,
-      );
-      // Small delay so Airwallex has time to register the consent before reload.
-      await Future.delayed(const Duration(seconds: 2));
-      await _load();
-    } on ApiException catch (e) {
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: e.message,
-      );
-    } catch (e) {
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: e.toString(),
-      );
+      if (added) await _load();
     } finally {
       _verifying.value = false;
     }
@@ -185,170 +288,123 @@ class _SavedCardsScreenState extends State<SavedCardsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // v23.1 — affichage : SafeArea sur le body + FAB endFloat pour ne pas
-    // chevaucher la gesture bar Android (Daniel screenshot bug).
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        title: PoppinsText(
-          text: 'saved_cards_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
-        ),
-      ),
-      // v23.1 — FAB en bas-droite, position fixe avec marge sécurisée pour
-      // ne pas être derrière la barre de gestes Android.
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      // v23.1 — FAB "Ajouter une carte" : flux de vérification réel.
+    final accent = _accent;
+    return ProfileSubPageScaffold(
+      title: 'saved_cards_title'.tr,
+      accent: accent,
+      scroll: false,
+      padding: EdgeInsets.zero,
+      // v23.1 — bouton « Ajouter une carte » : flux de vérification réel.
       // Charge €0.50 (auto-remboursé par webhook) pour enregistrer la carte
       // sans qu'il y ait besoin d'une vraie réservation.
-      floatingActionButton: Obx(() => FloatingActionButton.extended(
-            backgroundColor: _verifying.value
-                ? AppColors.primaryColor.withValues(alpha: 0.5)
-                : AppColors.primaryColor,
-            foregroundColor: Colors.white,
-            icon: _verifying.value
-                ? SizedBox(
-                    width: 16.w,
-                    height: 16.w,
-                    child: const CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.add_card_rounded),
-            label: Text(
-              _verifying.value
-                  ? 'saved_cards_verifying'.tr
-                  : 'saved_cards_add_button'.tr,
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.sp),
-            ),
-            onPressed: _verifying.value ? null : _onAddCardTap,
+      bottom: Obx(() => ProfilePrimaryButton(
+            label: _verifying.value
+                ? 'saved_cards_verifying'.tr
+                : 'saved_cards_add_button'.tr,
+            accent: accent,
+            icon: Icons.add_card_rounded,
+            loading: _verifying.value,
+            onTap: _verifying.value ? null : _onAddCardTap,
           )),
-      body: SafeArea(
-        child: RefreshIndicator(
+      body: RefreshIndicator(
+        color: accent,
         onRefresh: _load,
         child: Obx(() {
-          if (isLoading.value) {
-            return const Center(child: CircularProgressIndicator());
+          if (isLoading.value && cards.isEmpty) {
+            return BookingLoadingList(accent: accent);
           }
-          if (errorMessage.value != null) {
-            return Center(
-              child: Padding(
-                padding: EdgeInsets.all(20.w),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline,
-                        color: const Color(0xFFE53935), size: 48.sp),
-                    SizedBox(height: 12.h),
-                    InterText(
-                      text: errorMessage.value!,
-                      fontSize: 14.sp,
-                      maxLines: 5,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 16.h),
-                    ElevatedButton(
-                      onPressed: _load,
-                      child: Text('common_retry'.tr),
-                    ),
-                  ],
-                ),
-              ),
+          if (errorMessage.value != null && cards.isEmpty) {
+            return BookingErrorState(
+              message: errorMessage.value!,
+              onRetry: _load,
             );
           }
           if (cards.isEmpty) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                SizedBox(height: 80.h),
-                Icon(Icons.credit_card_off,
-                    size: 56.sp, color: Colors.grey),
-                SizedBox(height: 16.h),
-                Center(
-                  child: PoppinsText(
-                    text: 'saved_cards_empty_title'.tr,
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                SizedBox(height: 8.h),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24.w),
-                  child: InterText(
-                    text: 'saved_cards_empty_message'.tr,
-                    fontSize: 13.sp,
-                    color: Colors.grey,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
+            return BookingEmptyState(
+              icon: Icons.credit_card_off_rounded,
+              title: 'saved_cards_empty_title'.tr,
+              subtitle: 'saved_cards_empty_message'.tr,
+              accent: accent,
             );
           }
-          return ListView.separated(
-            padding: EdgeInsets.all(16.w),
-            itemCount: cards.length,
-            separatorBuilder: (_, __) => SizedBox(height: 10.h),
-            itemBuilder: (_, i) {
-              final c = cards[i];
-              final brand = (c['brand']?.toString() ?? '').toUpperCase();
-              final last4 = c['last4']?.toString() ?? '••••';
-              final mm = c['expiryMonth']?.toString() ?? '••';
-              final yy = c['expiryYear']?.toString() ?? '••';
-              final holder = c['cardholder']?.toString() ?? '';
-              return Container(
-                padding: EdgeInsets.all(14.w),
-                decoration: BoxDecoration(
-                  color: AppColors.card(context),
-                  borderRadius: BorderRadius.circular(14.r),
-                  boxShadow: AppColors.cardShadow(context),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.credit_card,
-                        size: 28.sp, color: AppColors.primaryColor),
-                    SizedBox(width: 12.w),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          PoppinsText(
-                            text: '$brand •••• $last4',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          SizedBox(height: 4.h),
-                          InterText(
-                            text: holder.isNotEmpty
-                                ? '$holder · $mm/$yy'
-                                : '$mm/$yy',
-                            fontSize: 12.sp,
-                            color: Colors.grey,
-                          ),
-                        ],
-                      ),
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 24.h),
+            children: [
+              ProfileGroupCard(
+                children: [
+                  for (var i = 0; i < cards.length; i++)
+                    SavedCardRow(
+                      card: cards[i],
+                      accent: accent,
+                      isDefault: i == 0,
+                      onDelete: () => _confirmAndDelete(cards[i]),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline,
-                          color: Color(0xFFE53935)),
-                      tooltip: 'common_delete'.tr,
-                      onPressed: () => _confirmAndDelete(c),
-                    ),
-                  ],
-                ),
-              );
-            },
+                ],
+              ),
+              SizedBox(height: 10.h),
+              ProfileInfoBanner(
+                icon: Icons.verified_user_outlined,
+                text:
+                    '${'v565_pay_default_hint'.tr}\n${'v565_pay_cards_hint'.tr}',
+                accent: accent,
+              ),
+            ],
           );
         }),
       ),
+    );
+  }
+}
+
+/// Rangée d'une carte enregistrée : marque + 4 derniers chiffres, expiration
+/// / titulaire, chip « Par défaut » (1re carte), corbeille.
+class SavedCardRow extends StatelessWidget {
+  final Map<String, dynamic> card;
+  final Color accent;
+  final bool isDefault;
+  final VoidCallback onDelete;
+  const SavedCardRow({
+    super.key,
+    required this.card,
+    required this.accent,
+    required this.isDefault,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ProfileRow(
+      icon: Icons.credit_card_rounded,
+      color: accent,
+      title: savedCardLabel(card),
+      subtitle: savedCardSubtitle(card),
+      showChevron: false,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isDefault)
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: InterText(
+                text: 'v565_pay_default_card'.tr,
+                fontSize: 10.5.sp,
+                fontWeight: FontWeight.w700,
+                color: accent,
+                maxLines: 1,
+              ),
+            ),
+          IconButton(
+            tooltip: 'common_delete'.tr,
+            icon: Icon(Icons.delete_outline_rounded,
+                color: AppColors.errorColor, size: 22.sp),
+            onPressed: onDelete,
+          ),
+        ],
       ),
     );
   }

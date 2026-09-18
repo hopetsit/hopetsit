@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 
 /// v21.1.1 — Stripe purgé. Cet écran était l'ancien CardFormField Stripe
 /// pour saisir une carte sans saved-card. Avec Airwallex tout passe par
@@ -31,51 +29,23 @@ class ModernCardPaymentScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        title: PoppinsText(
-          text: 'payment_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
-        ),
+    // v565 — stub modernisé (kit Profil), « Retour » en clé traduite.
+    final accent = currentRoleAccent();
+    return ProfileSubPageScaffold(
+      title: 'payment_title'.tr,
+      accent: accent,
+      scroll: false,
+      bottom: ProfilePrimaryButton(
+        label: 'v565_pay_back'.tr,
+        accent: accent,
+        icon: Icons.arrow_back_ios_new_rounded,
+        onTap: () => Get.back(result: false),
       ),
-      body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.w),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.info_outline,
-                  size: 48.sp, color: AppColors.textSecondary(context)),
-              SizedBox(height: 16.h),
-              PoppinsText(
-                text: 'payment_airwallex_title'.tr,
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary(context),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 8.h),
-              InterText(
-                text:
-                    'payment_airwallex_hint'.tr,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w400,
-                color: AppColors.textSecondary(context),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 24.h),
-              TextButton(
-                onPressed: () => Get.back(result: false),
-                child: const Text('Retour'),
-              ),
-            ],
-          ),
-        ),
+      body: ProfileEmptyState(
+        icon: Icons.info_outline_rounded,
+        title: 'payment_airwallex_title'.tr,
+        message: 'payment_airwallex_hint'.tr,
+        accent: accent,
       ),
     );
   }

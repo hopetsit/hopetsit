@@ -62,7 +62,19 @@ class SignupWizardScreen extends StatelessWidget {
       );
     }
 
-    return Scaffold(
+    // v565 audit-inscription — retour arrière SYSTÈME (bouton Android, geste
+    // iOS) : AVANT, il quittait tout le wizard depuis n'importe quelle étape
+    // et perdait la saisie ; désormais il revient d'une étape, comme la flèche.
+    return Obx(() => PopScope(
+      canPop: c.currentStep.value == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (c.currentStep.value > 0) {
+          c.currentStep.value -= 1;
+          c.onStepEntered(c.currentStep.value);
+        }
+      },
+      child: Scaffold(
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
         elevation: 0,
@@ -111,7 +123,8 @@ class SignupWizardScreen extends StatelessWidget {
           );
         }),
       ),
-    );
+    ),
+    ));
   }
 
   // ── header (logo patte + titre + sous-titre) ──────────────────────────────

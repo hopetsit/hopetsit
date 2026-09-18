@@ -20,6 +20,7 @@ import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 // v23.1 — onglet Factures auto-générées.
 import 'package:hopetsit/views/invoices/invoices_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
 
 /// v18.9 — "Mes réservations" côté Owner, clone du design walker/sitter
 /// (cartes compactes + filter chips) avec l'accent ORANGE du rôle owner.
@@ -139,13 +140,18 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
     // PAS status. Sans cette correction, les chips ne filtrer que les
     // bookings dont le workflow status matche, ce qui rate les bookings
     // payées (status='agreed' + paymentStatus='paid') et remboursées.
-    return _bookingsController.bookings.where((b) {
-      final s = (b.status).toLowerCase();
-      final p = (b.paymentStatus ?? '').toLowerCase();
-      if (_selectedStatus == 'paid') return p == 'paid';
-      if (_selectedStatus == 'refunded') return p == 'refunded' || s == 'refunded';
-      return s == _selectedStatus;
-    }).toList();
+    return _bookingsController.bookings
+        .where((b) => _matchesStatus(b, _selectedStatus))
+        .toList();
+  }
+
+  /// v565 — même règle de filtre, réutilisée pour les compteurs des pilules.
+  static bool _matchesStatus(BookingModel b, String status) {
+    final s = (b.status).toLowerCase();
+    final p = (b.paymentStatus ?? '').toLowerCase();
+    if (status == 'paid') return p == 'paid';
+    if (status == 'refunded') return p == 'refunded' || s == 'refunded';
+    return s == status;
   }
 
   @override
@@ -174,39 +180,33 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
           _buildStatusFilter(),
           Expanded(
             child: Obx(() {
-              if (_bookingsController.isLoading.value) {
-                return const Center(
-                  child: CircularProgressIndicator(
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(_ownerAccent),
-                  ),
+              if (_bookingsController.isLoading.value &&
+                  _bookingsController.bookings.isEmpty) {
+                return BookingLoadingList(accent: _ownerAccent);
+              }
+              // v565 — état d'erreur lisible (liste vide + erreur réseau).
+              if (_bookingsController.lastError.value.isNotEmpty &&
+                  _bookingsController.bookings.isEmpty) {
+                return BookingErrorState(
+                  message: _bookingsController.lastError.value,
+                  onRetry: () => _bookingsController.loadBookings(),
                 );
               }
 
               final list = _filteredBookings;
               if (list.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20.w),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.event_busy,
-                            size: 64.sp, color: AppColors.greyColor),
-                        SizedBox(height: 16.h),
-                        InterText(
-                          text: _selectedStatus == 'all'
-                              ? 'sitter_bookings_empty_all'.tr
-                              : 'sitter_bookings_empty_filtered'.trParams({
-                                  'status': _label(_selectedStatus),
-                                }),
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.greyColor,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
+                return RefreshIndicator(
+                  color: _ownerAccent,
+                  onRefresh: () => _bookingsController.loadBookings(),
+                  child: BookingEmptyState(
+                    icon: Icons.event_note_rounded,
+                    accent: _ownerAccent,
+                    title: _selectedStatus == 'all'
+                        ? 'sitter_bookings_empty_all'.tr
+                        : 'sitter_bookings_empty_filtered'.trParams({
+                            'status': _label(_selectedStatus),
+                          }),
+                    subtitle: 'v565_bk_empty_hint'.tr,
                   ),
                 );
               }
@@ -232,53 +232,31 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
   }
 
   Widget _buildStatusFilter() {
-    return Container(
-      height: 50.h,
-      padding: EdgeInsets.symmetric(vertical: 8.h),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: 20.w),
-        itemCount: _statuses.length,
-        itemBuilder: (context, index) {
-          final status = _statuses[index];
-          final isSelected = _selectedStatus == status;
-          return GestureDetector(
-            onTap: () {
-              // v23.1 — chip "Factures" navigue vers InvoicesScreen.
-              if (status == 'factures') {
-                Get.to(() => const InvoicesScreen());
-                return;
-              }
-              setState(() => _selectedStatus = status);
-            },
-            child: Container(
-              margin: EdgeInsets.only(right: 12.w),
-              padding:
-                  EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-              decoration: BoxDecoration(
-                color: isSelected ? _ownerAccent : AppColors.whiteColor,
-                borderRadius: BorderRadius.circular(20.r),
-                border: Border.all(
-                  color: isSelected
-                      ? _ownerAccent
-                      : AppColors.grey300Color,
-                ),
-              ),
-              child: Center(
-                child: InterText(
-                  text: _label(status),
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  color: isSelected
-                      ? AppColors.whiteColor
-                      : AppColors.grey700Color,
-                ),
-              ),
-            ),
-          );
+    // v565 — filtres en pilules (kit Réservations) + compteurs par statut.
+    return Obx(() {
+      final all = _bookingsController.bookings;
+      final counts = <String, int>{
+        for (final st in _statuses)
+          if (st != 'all' && st != 'factures')
+            st: all.where((b) => _matchesStatus(b, st)).length,
+      };
+      return BookingFilterBar(
+        values: _statuses,
+        selected: _selectedStatus,
+        label: _label,
+        accent: _ownerAccent,
+        linkValues: const {'factures'},
+        counts: counts,
+        onSelected: (status) {
+          // v23.1 — chip "Factures" navigue vers InvoicesScreen.
+          if (status == 'factures') {
+            Get.to(() => const InvoicesScreen());
+            return;
+          }
+          setState(() => _selectedStatus = status);
         },
-      ),
-    );
+      );
+    });
   }
 
   String _label(String status) {
@@ -631,51 +609,11 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
   }
 
   Widget _statusBadge(String status, String? paymentStatus) {
-    final statusLower = status.toLowerCase();
-    final paymentLower = paymentStatus?.toLowerCase();
-    String primary;
-    if (paymentLower == 'paid') {
-      primary = 'paid';
-    } else if (paymentLower == 'failed') {
-      primary = 'failed';
-    } else {
-      primary = statusLower;
-    }
-
-    Color color;
-    switch (primary) {
-      case 'paid':
-        color = const Color(0xFF16A34A);
-        break;
-      case 'pending':
-        color = const Color(0xFFF59E0B);
-        break;
-      case 'agreed':
-      case 'accepted':
-        color = _ownerAccent;
-        break;
-      case 'cancelled':
-      case 'rejected':
-      case 'refunded':
-      case 'failed':
-      case 'payment_failed':
-        color = const Color(0xFFEF4444);
-        break;
-      default:
-        color = AppColors.greyColor;
-    }
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12.r),
-      ),
-      child: InterText(
-        text: _label(primary),
-        fontSize: 11.sp,
-        fontWeight: FontWeight.w600,
-        color: color,
-      ),
+    // v565 — pastille de statut du kit Réservations.
+    return BookingStatusChip(
+      status: status,
+      paymentStatus: paymentStatus,
+      accent: _ownerAccent,
     );
   }
 

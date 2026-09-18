@@ -50,6 +50,9 @@ class EditOwnerProfileController extends GetxController {
   final Rx<File?> profileImage = Rx<File?>(null);
   final RxBool isLoading = false.obs;
   final RxBool isFetching = false.obs;
+  // v565 — point 39 : message d'erreur de chargement (état « Réessayer »
+  // de l'écran) ; vide = chargement OK.
+  final RxString loadError = ''.obs;
   final RxBool isUploadingImage = false.obs;
   final RxString currentAvatarUrl = ''.obs;
   final RxString selectedCountryCode = ''.obs;
@@ -87,6 +90,7 @@ class EditOwnerProfileController extends GetxController {
   /// Uses GET /sitters/{id} to fetch the logged-in sitter's profile.
   Future<void> loadProfileData() async {
     isFetching.value = true;
+    loadError.value = '';
 
     try {
       final userProfile = _storage.read<Map<String, dynamic>>(
@@ -199,6 +203,8 @@ class EditOwnerProfileController extends GetxController {
         await AuthController.handleLoginRequiredError();
         return;
       }
+      loadError.value =
+          error.message.isNotEmpty ? error.message : 'profile_load_error'.tr;
       CustomSnackbar.showError(
         title: 'common_error'.tr,
         message: error.message.isNotEmpty
@@ -207,6 +213,7 @@ class EditOwnerProfileController extends GetxController {
       );
     } catch (error) {
       AppLogger.logError('Failed to load profile', error: error);
+      loadError.value = 'profile_load_error'.tr;
       final currentRole = Get.isRegistered<AuthController>()
           ? (Get.find<AuthController>().userRole.value ?? '')
           : '';

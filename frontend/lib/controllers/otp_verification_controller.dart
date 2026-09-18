@@ -8,6 +8,7 @@ import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/pending_signup_photo.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
@@ -16,7 +17,8 @@ import 'package:hopetsit/views/pet_walker/bottom_wrapper/walker_nav_wrapper.dart
 
 enum VerificationType { signup, login }
 
-class OtpVerificationController extends GetxController {
+class OtpVerificationController extends GetxController
+    with WidgetsBindingObserver {
   final String email;
   final VerificationType verificationType;
   final String? userType; // Only needed for signup
@@ -51,10 +53,110 @@ class OtpVerificationController extends GetxController {
   void onInit() {
     super.onInit();
     startCountdown();
+    // v565 — l'utilisateur peut valider par le bouton « Activer mon compte »
+    // de l'e-mail (GET /auth/verify-link) puis revenir dans l'app : au retour
+    // au premier plan, on vérifie silencieusement et l'écran se ferme seul.
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      checkAlreadyVerified(silent: true);
+    }
+  }
+
+  /// Rôle API du compte en cours de vérification (signup) — null au login.
+  String? get _signupRole => userType == 'pet_walker'
+      ? 'walker'
+      : userType == 'pet_sitter'
+          ? 'sitter'
+          : userType == 'pet_owner'
+              ? 'owner'
+              : null;
+
+  /// v565 — « J'ai déjà validé par e-mail » : le lien de l'e-mail a posé
+  /// verified:true côté serveur ; on se reconnecte avec les identifiants déjà
+  /// en mémoire (pré-remplis par le wizard ou l'écran de connexion). Si le
+  /// serveur répond emailVerified:false, on reste ici (code à saisir).
+  Future<void> checkAlreadyVerified({bool silent = false}) async {
+    if (isLoading.value || _checkingLink) return;
+    if (!Get.isRegistered<AuthController>()) return;
+    final auth = Get.find<AuthController>();
+    if (auth.emailController.text.trim().isEmpty ||
+        auth.passwordController.text.isEmpty) {
+      if (!silent) {
+        CustomSnackbar.showInfo(
+          title: 'otp_title'.tr,
+          message: 'otp_login_again'.tr,
+        );
+      }
+      return;
+    }
+    _checkingLink = true;
+    if (!silent) isLoading.value = true;
+    try {
+      final ok = await auth.login(
+        preferredRole: _signupRole,
+        skipFormValidation: true,
+      );
+      if (ok && auth.lastLoginEmailVerified) {
+        resetVerificationState();
+        await uploadPendingSignupPhotoIfAny();
+        final role = auth.userRole.value;
+        if (role == 'owner') {
+          Get.offAll(() => const BottomNavWrapper());
+        } else if (role == 'sitter') {
+          Get.offAll(() => const SitterNavWrapper());
+        } else if (role == 'walker') {
+          Get.offAll(() => const WalkerNavWrapper());
+        } else {
+          return;
+        }
+        CustomSnackbar.showSuccess(
+          title: 'common_success'.tr,
+          message: 'email_verification_success'.tr,
+        );
+      } else if (!silent) {
+        CustomSnackbar.showInfo(
+          title: 'otp_title'.tr,
+          message: 'otp_not_verified_yet'.tr,
+        );
+      }
+    } catch (_) {
+      if (!silent) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'common_error_generic'.tr,
+        );
+      }
+    } finally {
+      _checkingLink = false;
+      if (!silent) isLoading.value = false;
+    }
+  }
+
+  bool _checkingLink = false;
+
+  /// v565 — messages d'erreur traduits (avant : texte brut anglais du serveur).
+  String _verifyErrorMessage(ApiException error) {
+    switch (error.statusCode) {
+      case 400:
+        return 'otp_error_invalid'.tr;
+      case 410:
+        return 'otp_error_expired'.tr;
+      case 429:
+        return 'otp_error_too_many'.tr;
+      case 404:
+        return 'otp_login_again'.tr;
+      default:
+        return 'common_error_generic'.tr;
+    }
   }
 
   @override
   void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
     // Dispose individual controllers and focus nodes
     for (final controller in digitControllers) {
       controller.dispose();
@@ -165,7 +267,9 @@ class OtpVerificationController extends GetxController {
     } on ApiException catch (error) {
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: error.message,
+        message: error.statusCode == 429
+            ? 'otp_resend_too_soon'.tr
+            : 'common_error_generic'.tr,
       );
     } catch (error) {
       CustomSnackbar.showError(
@@ -192,6 +296,7 @@ class OtpVerificationController extends GetxController {
       final response = await _authRepository.verifyCode(
         email: email,
         code: pinController.text,
+        role: _signupRole, // v565 — jeton émis pour le rôle inscrit
       );
 
       // Persist token returned by /auth/verify so subsequent
@@ -242,7 +347,7 @@ class OtpVerificationController extends GetxController {
     } on ApiException catch (error) {
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: error.message,
+        message: _verifyErrorMessage(error),
       );
       _clearCodeAfterFailure();
       return false;
@@ -273,6 +378,14 @@ class OtpVerificationController extends GetxController {
   /// /auth/verify has returned an auth token. Best-effort : never throws,
   /// only logs failures so the OTP flow continues uninterrupted.
   Future<void> _uploadPendingSignupPhotoIfAny() async {
+    // v565 — logique partagée avec l'entrée directe (utils/pending_signup_photo).
+    await uploadPendingSignupPhotoIfAny();
+    if ((_storage.read(StorageKeys.pendingSignupPhotoPath) ?? '')
+        .toString()
+        .trim()
+        .isEmpty) {
+      return;
+    }
     try {
       final path = (_storage.read(StorageKeys.pendingSignupPhotoPath) ?? '')
           .toString()

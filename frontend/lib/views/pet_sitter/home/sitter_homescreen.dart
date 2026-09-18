@@ -17,6 +17,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/post_price_estimator.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
 import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_detail_screen.dart';
@@ -837,7 +838,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                     // inbox + bouton refresh), juste sous les filtres.
                     if (postsController.isLoading.value &&
                         combinedPosts.isEmpty) {
-                      return const Center(child: CircularProgressIndicator());
+                      // v565 — squelette de chargement (kit Réservations).
+                      return BookingLoadingList(accent: _accent);
                     }
                     // Note : pas de early-return empty ici. Le flow continue
                     // avec uniquePosts/rolePrefiltered/feedPosts/sortedFeed
