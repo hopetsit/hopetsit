@@ -91,7 +91,7 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 569** (568 = v565 publiée le 19/09 ~04 h 20 : Play 568 par API, iOS 1.18 build 568 resoumis ; 567 = v564 publiée le 19/09 ~02 h : Play 567 par API, iOS 1.18 build 567 resoumis à la place du 566 ; 566 = v563 publiée le 18/09 à 13 h 30 : Play release 566 par API, iOS 1.18 build 566 resoumis à la place du 565 ; 565 = v562 publiée le 18/09 : Play release 565 par API, iOS 1.18 build 565 soumis ; 564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 570** (569 = v566 publiée le 19/09 ~10 h 35 : Play 569 par API, iOS 1.18 build 569 resoumis ; 568 = v565 publiée le 19/09 ~04 h 20 : Play 568 par API, iOS 1.18 build 568 resoumis ; 567 = v564 publiée le 19/09 ~02 h : Play 567 par API, iOS 1.18 build 567 resoumis à la place du 566 ; 566 = v563 publiée le 18/09 à 13 h 30 : Play release 566 par API, iOS 1.18 build 566 resoumis à la place du 565 ; 565 = v562 publiée le 18/09 : Play release 565 par API, iOS 1.18 build 565 soumis ; 564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
 **18/09 (nuit) — BUILD 565 (v562 app) : la grande passe des 37 points, EN COURS.** Méthode : 8 lots
 en parallèle (contrats figés dans `docs/v565_contracts.md`, clés i18n par lot dans
@@ -359,6 +359,17 @@ lot depuis la 565 : ~12 agents Opus par vagues de 4 max, périmètres exclusifs,
   `translate_message_button`, `fullscreen_map_screen`, `report_category_grid_screen`, `pet_bottom_sheet`,
   `notification_badge`, `custom_navigation_bar`, `modern_toast`, `stripe_connect_*`, stubs
   `identity_verification_screen` ×2, `connect_payment_screen`.
+- **PUBLICATION 19/09 ~10 h 35** : `~/Downloads/HoPetSit_v23.1.566_build569.{ipa,aab,apk}`. Serveur v569 déployé (push
+  Daniel `publier_569.sh`, commit 7dff86d ; alias DELETE self-cancel vérifié : 401 au lieu de 404). **Play : release
+  569 en production par l'API** (commit 200, `notes_569.json`). **iOS** : ⚠️ `flutter build ipa` a archivé mais
+  l'EXPORT a échoué (`exportArchive No Accounts` : Xcode s'était déconnecté du compte Apple — liste
+  `DVTDeveloperAccountManagerAppleIDLists` vide ; se reconnecter ailleurs, site/Transporter, ne sert à rien) →
+  Daniel a rajouté le compte dans Xcode › Settings › Accounts, puis export SEUL sans rebuild :
+  `xcodebuild -exportArchive -archivePath build/ios/archive/Runner.xcarchive -exportOptionsPlist … -exportPath
+  build/ios/ipa -allowProvisioningUpdates`. Transporter, build 569 VALID (`a28fd54c-…`, ~20 min), soumission 568
+  `bfdf2321` annulée, 569 attaché à la 1.18 (204 au 5e essai), whatsNew 8 locales, reviewSubmission
+  `1a7a0435-5510-4c7b-be0f-b0e7900c54bc` submit 200 → **1.18/569 en attente de vérification**. Admin « Versions
+  de l'app » → 569/569 après validation Play + Apple. **Prochain build = 570.**
 - i18n : paquets `chatdel569`, `shop569`, `agreement569`, `pay569`, `post569`, `misc569`, `auth569`, `lists569`
   branchés → 4 168 clés, 0 inconnue. jest 202/202, `tsc` 0, `dart analyze lib` 0 erreur / 0 warning.
   ⚠️ `dart format` lancé par erreur sur les 3 accueils (gros diff purement cosmétique).

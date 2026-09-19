@@ -31,6 +31,7 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { evaluateOpeningHours } from "@/lib/openingHours";
 import type { RouteMode } from "@/lib/api";
 import BackLink from "@/components/BackLink";
+import { PawMapLogo } from "@/components/PawMapLogo";
 import {
   ApiError,
   FriendItem,
@@ -1107,7 +1108,9 @@ export default function MapPage() {
           recentre la carte, même géocodeur que l'app). */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="font-display text-3xl font-bold tracking-[-0.02em] text-[#1D1D1F] md:text-5xl">
+          {/* v567 — logo PawMap « patte-pin » en tête de la carte. */}
+          <h1 className="flex items-center gap-3 font-display text-3xl font-bold tracking-[-0.02em] text-[#1D1D1F] md:text-5xl">
+            <PawMapLogo size={44} title={null} className="shrink-0" />
             {t("map_title")}
           </h1>
           <p className="mt-2 text-[#6E6E73]">

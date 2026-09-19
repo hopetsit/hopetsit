@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
+import { PawMapLogo } from "./PawMapLogo";
 
 /**
  * v23.1.452 — Daniel : "la PawMap est LA fonctionnalité phare du site".
@@ -35,7 +36,9 @@ export function PawMapCTA({
       ? "px-5 py-2.5 text-sm gap-1.5"
       : "px-8 py-4 text-base md:text-lg gap-2";
 
-  const glyphSize = size === "compact" ? 18 : 22;
+  // v567 — le glyphe devient le nouveau logo PawMap (patte-pin). Quelques
+  // pixels de plus que l'ancien trait blanc (18/22) pour qu'il reste lisible.
+  const glyphSize = size === "compact" ? 22 : 26;
 
   return (
     <Link
@@ -49,30 +52,8 @@ export function PawMapCTA({
         (className ? " " + className : "")
       }
     >
-      {/* Glyphe carte + patte (blanc) — lisible sur l'orange. */}
-      <svg
-        width={glyphSize}
-        height={glyphSize}
-        viewBox="0 0 24 24"
-        fill="none"
-        aria-hidden="true"
-        className="shrink-0"
-      >
-        {/* carte pliée */}
-        <path
-          d="M9 4 3 6.2v13.6L9 17.6l6 2.2 6-2.2V4l-6 2.2L9 4Z"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinejoin="round"
-          fill="rgba(255,255,255,0.18)"
-        />
-        {/* empreinte de patte */}
-        <circle cx="12" cy="12.4" r="1.7" fill="currentColor" />
-        <circle cx="9.6" cy="10.4" r="0.85" fill="currentColor" />
-        <circle cx="14.4" cy="10.4" r="0.85" fill="currentColor" />
-        <circle cx="11" cy="9.4" r="0.8" fill="currentColor" />
-        <circle cx="13" cy="9.4" r="0.8" fill="currentColor" />
-      </svg>
+      {/* Logo PawMap (patte-pin) — le bord blanc le détache de l'orange. */}
+      <PawMapLogo size={glyphSize} title={null} className="shrink-0" />
       <span>{t("cta_open_pawmap")}</span>
       <span aria-hidden="true">→</span>
     </Link>

@@ -5,7 +5,6 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -50,6 +49,7 @@ import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/views/map/widgets/paw_rail_button.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/paw_tab_bar.dart' show PawMapLogo;
 
 /// PawMap — Phase 2 Couche 1 (POIs) + Phase 3 Couche 2 (reports 48h).
 ///
@@ -4674,11 +4674,9 @@ class _PawMapScreenState extends State<PawMapScreen>
             // colorFilter srcIn écrasait TOUT le logo (disque+pin+pattes) en un
             // aplat orange = un simple point. On utilise désormais le VRAI logo
             // orange (disque orange + pin blanc + pattes), SANS colorFilter.
-            SvgPicture.asset(
-              'assets/images/pawmap_logo_orange.svg',
-              width: 28.w,
-              height: 28.w,
-            ),
+            // v570 — le logo PawMap est désormais la PATTE-ÉPINGLE du handoff
+            // (même dessin que le bouton central de la barre, doigts sortis).
+            PawMapLogo(size: 28.w),
             SizedBox(width: 8.w),
             InterText(
               text: 'PawMap',
@@ -5008,7 +5006,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // grand ». On relève la carte au-dessus du menu pleine
                     // largeur (116) + inset ; la taille est réduite dans
                     // _buildAroundYouCard (police + paddings + max 2 lignes).
-                    bottom: 116.h - _tabBarLift(context) + MediaQuery.of(context).viewPadding.bottom,
+                    // v570 — nouveau menu « patte » : doigts déployés jusqu'à 124 px
+                    // au centre quand PawMap est actif → la carte passe à 132 pour
+                    // ne plus glisser de 8 px sous la patte (taps interceptés).
+                    bottom: 132.h - _tabBarLift(context) + MediaQuery.of(context).viewPadding.bottom,
                     child: _buildAroundYouCard(),
                   )
                 else if (!_pickingSpotPos.value &&

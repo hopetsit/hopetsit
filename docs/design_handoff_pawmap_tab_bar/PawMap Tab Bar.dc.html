@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#E9E4D8;font-family:Manrope,system-ui,sans-serif;color:#1E1B18;display:flex;justify-content:center;padding:40px 0}
+a{color:#D83C28}a:hover{color:#B92425}
+</style>
+</helmet>
+<div data-screen-label="Tab bar 12d" style="position:relative;width:390px;height:300px;border-radius:32px;overflow:hidden;background:#F2EEE4;box-shadow:0 20px 50px rgba(30,27,24,.12)">
+  <div style="position:absolute;left:16px;right:16px;bottom:24px;height:70px;border-radius:35px;background:linear-gradient(180deg,#D83C28,#B92425);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 18px 40px rgba(216,60,40,.4);display:flex;align-items:center;padding:0 8px">
+    <div style="position:absolute;bottom:6px;width:6px;height:6px;border-radius:3px;background:#fff;box-shadow:0 0 8px rgba(255,255,255,.8);transition:left .45s cubic-bezier(.3,1.4,.4,1),opacity .25s;left: {{ ind }};opacity: {{ indOp }}"></div>
+    <sc-for list="{{ tabsL }}" as="t" hint-placeholder-count="2">
+      <button onClick="{{ t.onClick }}" aria-label="{{ t.label }}" style="flex:1;min-width:0;height:60px;border:0;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-family:inherit;transition:color .3s;color: {{ t.color }}">
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{ t.sw }}" stroke-linecap="round" stroke-linejoin="round"><path d="{{ t.d }}"></path></svg>
+        <span style="font-size:8.5px;font-weight:800;white-space:nowrap;text-transform:uppercase">{{ t.label }}</span>
+      </button>
+    </sc-for>
+    <div style="width:84px;flex:none;display:flex;align-items:flex-end;justify-content:center;height:60px;padding-bottom:11px"><span style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;padding:4px 9px;border-radius:10px;white-space:nowrap;transition:background .35s,color .35s,box-shadow .35s,transform .45s cubic-bezier(.3,1.5,.4,1);background: {{ chip.bg }};color: {{ chip.color }};box-shadow: {{ chip.shadow }};transform: {{ chip.tf }}">PawMap</span></div>
+    <sc-for list="{{ tabsR }}" as="t" hint-placeholder-count="2">
+      <button onClick="{{ t.onClick }}" aria-label="{{ t.label }}" style="flex:1;min-width:0;height:60px;border:0;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-family:inherit;transition:color .3s;color: {{ t.color }}">
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{ t.sw }}" stroke-linecap="round" stroke-linejoin="round"><path d="{{ t.d }}"></path></svg>
+        <span style="font-size:8.5px;font-weight:800;white-space:nowrap;text-transform:uppercase">{{ t.label }}</span>
+      </button>
+    </sc-for>
+  </div>
+  <button onClick="{{ fab.onClick }}" aria-label="PawMap" style="position:absolute;left:50%;bottom:68px;width:84px;height:84px;margin-left:-42px;border:0;padding:0;cursor:pointer;background:transparent;transition:transform .45s cubic-bezier(.3,1.5,.4,1);transform: {{ fab.tf }}">
+    <span style="position:absolute;left:4.1px;top:33.9px;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#FF7A66,#D83C28);border:2.5px solid #fff;box-shadow:0 4px 10px rgba(23,21,26,.4);transition:transform .5s cubic-bezier(.3,1.5,.4,1) 0ms,opacity .3s;transform: {{ fab.t1 }};opacity: {{ fab.toeOp }}"></span>
+    <span style="position:absolute;left:22px;top:17px;width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#6FA0FF,#2F6FD6);border:2.5px solid #fff;box-shadow:0 4px 10px rgba(23,21,26,.4);transition:transform .5s cubic-bezier(.3,1.5,.4,1) 40ms,opacity .3s;transform: {{ fab.t2 }};opacity: {{ fab.toeOp }}"></span>
+    <span style="position:absolute;left:46px;top:17px;width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#7FD66F,#3FA33A);border:2.5px solid #fff;box-shadow:0 4px 10px rgba(23,21,26,.4);transition:transform .5s cubic-bezier(.3,1.5,.4,1) 80ms,opacity .3s;transform: {{ fab.t3 }};opacity: {{ fab.toeOp }}"></span>
+    <span style="position:absolute;left:66.9px;top:33.9px;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#B57FE6,#7A3FB0);border:2.5px solid #fff;box-shadow:0 4px 10px rgba(23,21,26,.4);transition:transform .5s cubic-bezier(.3,1.5,.4,1) 120ms,opacity .3s;transform: {{ fab.t4 }};opacity: {{ fab.toeOp }}"></span>
+    <div style="position:absolute;left:50%;bottom:0;width:48px;height:48px;margin-left:-24px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:linear-gradient(135deg,#3A363F,#17151A);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 14px 30px rgba(23,21,26,.5);border:3px solid #fff;display:flex;align-items:center;justify-content:center;overflow:hidden">
+      <div style="width:32px;height:32px;border-radius:16px;overflow:hidden;transform:rotate(45deg);box-shadow:0 2px 6px rgba(0,0,0,.35);background:#17151A"><img src="HoPetSit_logo.png" alt="" style="width:80px;height:80px;object-fit:cover;margin:-24px 0 0 -24px"></div>
+    </div>
+  </button>
+  <div style="position:absolute;left:50%;bottom:8px;width:120px;height:5px;margin-left:-60px;border-radius:3px;background:#1E1B18;opacity:.85"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:470,&quot;height&quot;:380}}">
+const ICONS = {
+  paw: "M12 20.5c-2.9 0-5-1.5-5-3.5 0-1.4 1.1-2.4 2.1-3.4.9-1 1.8-1.9 2.9-1.9s2 .9 2.9 1.9c1 1 2.1 2 2.1 3.4 0 2-2.1 3.5-5 3.5zM4.8 10.5a1.8 1.8 0 1 0 3.6 0 1.8 1.8 0 1 0-3.6 0zM15.6 10.5a1.8 1.8 0 1 0 3.6 0 1.8 1.8 0 1 0-3.6 0zM7.7 6a1.8 1.8 0 1 0 3.6 0 1.8 1.8 0 1 0-3.6 0zM12.7 6a1.8 1.8 0 1 0 3.6 0 1.8 1.8 0 1 0-3.6 0z",
+  chat: "M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.4A8 8 0 1 1 21 12zM8.5 12h.01M12 12h.01M15.5 12h.01",
+  cal: "M4 7h16v13H4zM4 11h16M8 4v4M16 4v4M8 15h.01M12 15h.01M16 15h.01",
+  user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0"
+};
+const TABS = [["Accueil","paw"],["Chat","chat"],["PawMap",null],["Réservations","cal"],["Profil","user"]];
+// toes: angles ±19° / ±58°, radius 37px around pad centre (42,60); "out" = +4px radial, "tuck" = collapse to pad centre
+const TOES = [
+  { out: "translate(-3.4px,-2.1px)", tuck: "translate(31.4px,19.6px) scale(.25)" },
+  { out: "translate(-1.3px,-3.8px)", tuck: "translate(12px,35px) scale(.25)" },
+  { out: "translate(1.3px,-3.8px)",  tuck: "translate(-12px,35px) scale(.25)" },
+  { out: "translate(3.4px,-2.1px)",  tuck: "translate(-31.4px,19.6px) scale(.25)" }
+];
+class Component extends DCLogic {
+  state = { active: 2 };
+  renderVals() {
+    const active = this.state.active;
+    const on = active === 2, W = "rgba(255,255,255,.7)";
+    const all = TABS.map(([label, icon], i) => {
+      const a = active === i;
+      return { label, d: ICONS[icon], sw: a ? 2.2 : 1.8, color: a ? "#fff" : W, onClick: () => this.setState({ active: i }) };
+    });
+    const idx = [0, 1, 3, 4].indexOf(active);
+    const fab = { onClick: () => this.setState({ active: 2 }), tf: on ? "translateY(-7px)" : "none", toeOp: on ? 1 : 0 };
+    TOES.forEach((t, i) => { fab["t" + (i + 1)] = on ? t.out : t.tuck; });
+    return {
+      tabsL: [all[0], all[1]], tabsR: [all[3], all[4]],
+      ind: idx < 0 ? "calc(50% - 3px)" : `calc(8px + ${idx} * (100% - 16px - 84px) / 4 + ${idx >= 2 ? 84 : 0}px + (100% - 16px - 84px) / 8 - 3px)`,
+      indOp: on ? 0 : 1,
+      chip: on ? { bg: "#17151A", color: "#fff", shadow: "0 4px 12px rgba(0,0,0,.35)", tf: "translateY(-2px)" } : { bg: "transparent", color: W, shadow: "none", tf: "none" },
+      fab
+    };
+  }
+}
+</script>
+</body>
+</html>

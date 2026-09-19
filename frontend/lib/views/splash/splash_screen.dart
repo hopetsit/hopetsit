@@ -1,20 +1,28 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hopetsit/views/guest/guest_landing_screen.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/services/deep_link_service.dart';
-import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_walker/bottom_wrapper/walker_nav_wrapper.dart';
-import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_tab_bar.dart';
 
+/// v570 — ÉCRAN DE LANCEMENT (handoff hi-fi « Splash Screen.dc.html »).
+///
+/// ⚠️ Cet écran porte AUSSI la logique de redirection (session, rôle, liens en
+/// attente) et sert de page « route inconnue » (`unknownRoute` dans main.dart).
+/// Seul le RENDU a changé ; `_checkAuthentication()` est inchangée, on ajoute
+/// uniquement une durée d'affichage minimale (~1,6 s) pour que l'animation
+/// d'ouverture ne soit pas coupée au milieu.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -23,44 +31,74 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeIn;
-  late Animation<double> _scale;
-  late Animation<Offset> _slideUp;
+    with TickerProviderStateMixin {
+  // ── Séquence du handoff (ms) ────────────────────────────────────────────
+  static const int _introMs = 2000; // couvre coussinet → doigts → titre → loader
+  static const int _padDur = 700;
+  static const int _toeDur = 650;
+  static const List<int> _toeDelays = <int>[550, 650, 750, 850];
+  static const int _titleStart = 1100;
+  static const int _titleDur = 600;
+  static const int _loaderStart = 1500;
+  static const int _loaderDur = 500;
+  static const int _floatStart = 1600;
+  static const int _minDisplayMs = 1600;
+
+  late final AnimationController _intro;
+  late final AnimationController _float;
+  late final AnimationController _spin;
+  late final DateTime _openedAt;
 
   @override
   void initState() {
     super.initState();
+    _openedAt = DateTime.now();
 
-    // Immersive status bar
+    // Immersive status bar (fond rouge-orangé → icônes claires).
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
     ));
 
-    _controller = AnimationController(
+    _intro = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: _introMs),
+    )..forward();
+    // Flottement : 0 → −8 → 0 en 3,2 s (1,6 s aller + 1,6 s retour).
+    _float = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
     );
+    _spin = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
 
-    _fadeIn = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
-    _scale = Tween<double>(begin: 0.7, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
-    );
-    _slideUp = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+    Future<void>.delayed(const Duration(milliseconds: _floatStart), () {
+      if (mounted) _float.repeat(reverse: true);
+    });
 
-    _controller.forward();
     _checkAuthentication();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _intro.dispose();
+    _float.dispose();
+    _spin.dispose();
     super.dispose();
+  }
+
+  /// Laisse l'animation d'ouverture se terminer (≈1,6 s) avant la redirection.
+  /// Si le check a pris plus longtemps, on part immédiatement.
+  Future<void> _holdForIntro() async {
+    final int elapsed = DateTime.now().difference(_openedAt).inMilliseconds;
+    if (elapsed < _minDisplayMs) {
+      await Future<void>.delayed(
+        Duration(milliseconds: _minDisplayMs - elapsed),
+      );
+    }
   }
 
   /// v23.1 part 44 — fix Bug H "login as owner opens walker".
@@ -166,6 +204,7 @@ class _SplashScreenState extends State<SplashScreen>
       // (contacter, réserver) — cf. SignupWallSheet. C'est LE correctif de
       // l'entonnoir à ~2 % d'inscriptions.
       debugPrint('[HOPETSIT] No token found, navigating to GuestLanding');
+      await _holdForIntro();
       Get.offAll(() => const GuestLandingScreen());
       return;
     }
@@ -178,6 +217,7 @@ class _SplashScreenState extends State<SplashScreen>
       );
       storage.remove(StorageKeys.authToken);
       storage.remove(StorageKeys.userRole);
+      await _holdForIntro();
       Get.offAll(() => const GuestLandingScreen());
       return;
     }
@@ -190,6 +230,8 @@ class _SplashScreenState extends State<SplashScreen>
       );
       storage.write(StorageKeys.userRole, jwtRole);
     }
+
+    await _holdForIntro();
 
     switch (jwtRole) {
       case 'owner':
@@ -226,6 +268,10 @@ class _SplashScreenState extends State<SplashScreen>
     });
   }
 
+  /// Progression d'une phase de la séquence, en ms depuis l'affichage.
+  double _phase(double ms, int start, int dur, Curve curve) =>
+      curve.transform(((ms - start) / dur).clamp(0.0, 1.0));
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -233,106 +279,173 @@ class _SplashScreenState extends State<SplashScreen>
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
+          // linear-gradient(165deg,#F26A46 0%,#DD4430 45%,#C7311F 100%)
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFC92A12), // primaryColor
-              Color(0xFFFF6B4A), // lighter accent
-              Color(0xFFC92A12),
+            begin: Alignment(-0.26, -0.97),
+            end: Alignment(0.26, 0.97),
+            colors: <Color>[
+              Color(0xFFF26A46),
+              Color(0xFFDD4430),
+              Color(0xFFC7311F),
             ],
-            stops: [0.0, 0.5, 1.0],
+            stops: <double>[0.0, 0.45, 1.0],
           ),
         ),
-        child: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeIn,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Spacer(flex: 3),
-
-                // Logo with scale animation
-                ScaleTransition(
-                  scale: _scale,
-                  child: Container(
-                    width: 130.w,
-                    height: 130.w,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(32.r),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 30,
-                          offset: const Offset(0, 10),
+        child: Stack(
+          children: <Widget>[
+            // ── Patte 210×210, centre vertical ≈ 355 ──────────────────────
+            Positioned(
+              top: 250.h,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: AnimatedBuilder(
+                  animation: Listenable.merge(<Listenable>[_intro, _float]),
+                  builder: (BuildContext context, Widget? _) {
+                    final double ms = _intro.value * _introMs;
+                    final double pad = _phase(ms, 0, _padDur, kPawBounce);
+                    final double padOpacity =
+                        ((ms / _padDur).clamp(0.0, 1.0)).toDouble();
+                    final double floatDy =
+                        -8 * Curves.easeInOut.transform(_float.value);
+                    final List<double> toeP = <double>[];
+                    final List<double> toeO = <double>[];
+                    for (int i = 0; i < 4; i++) {
+                      toeP.add(_phase(ms, _toeDelays[i], _toeDur, kPawBounce));
+                      toeO.add(
+                        ((ms - _toeDelays[i]) / _toeDur).clamp(0.0, 1.0),
+                      );
+                    }
+                    return Opacity(
+                      opacity: padOpacity,
+                      child: Transform.scale(
+                        scale: 0.5 + 0.5 * pad,
+                        child: Transform.translate(
+                          offset: Offset(0, floatDy),
+                          child: PawGlyph(
+                            spec: kPawGlyphSplash,
+                            size: 210.w,
+                            toeProgress: toeP,
+                            toeOpacity: toeO,
+                          ),
                         ),
-                      ],
-                    ),
-                    padding: EdgeInsets.all(18.w),
-                    // v532 — logo HOPE26. Le nouveau logo est un rendu
-                    // raster (dégradés + halo lumineux) : pas de SVG
-                    // fidèle possible, on affiche la version détourée.
-                    child: Image.asset(
-                      'assets/brand/png/logo-mark.png',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-
-                SizedBox(height: 28.h),
-
-                // App name with slide animation
-                SlideTransition(
-                  position: _slideUp,
-                  child: Column(
-                    children: [
-                      PoppinsText(
-                        text: 'HoPetSit',
-                        fontSize: 32.sp,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: 1.2,
                       ),
-                      SizedBox(height: 6.h),
-                      InterText(
-                        text: 'Home Pets Sitting',
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white.withValues(alpha: 0.85),
-                        letterSpacing: 1.4,
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
-
-                const Spacer(flex: 3),
-
-                // v569 — indicateur plus fin et plus discret (un gros anneau
-                // au milieu d'un écran de marque fait « chargement lent »).
-                SizedBox(
-                  width: 120.w,
-                  height: 3.h,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(99.r),
-                    child: LinearProgressIndicator(
-                      minHeight: 3.h,
-                      backgroundColor: Colors.white.withValues(alpha: 0.22),
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Colors.white.withValues(alpha: 0.95),
-                      ),
-                    ),
-                  ),
-                ),
-
-                SizedBox(
-                  height: 40.h + appBottomInsetInsideSafeArea(context),
-                ),
-              ],
+              ),
             ),
-          ),
+
+            // ── Titre + sous-titre ────────────────────────────────────────
+            Positioned(
+              top: 500.h,
+              left: 0,
+              right: 0,
+              child: AnimatedBuilder(
+                animation: _intro,
+                builder: (BuildContext context, Widget? child) {
+                  final double t = _phase(
+                    _intro.value * _introMs,
+                    _titleStart,
+                    _titleDur,
+                    Curves.easeOut,
+                  );
+                  return Opacity(
+                    opacity: t,
+                    child: Transform.translate(
+                      offset: Offset(0, 14 * (1 - t)),
+                      child: child,
+                    ),
+                  );
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      // Marque : jamais traduite.
+                      'HoPetSit',
+                      style: GoogleFonts.manrope(
+                        fontSize: 44.sp,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.88, // -.02em
+                        color: Colors.white,
+                        height: 1.0,
+                      ),
+                    ),
+                    SizedBox(height: 10.h),
+                    Text(
+                      'Home Pets Sitting',
+                      style: GoogleFonts.manrope(
+                        fontSize: 17.sp,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 1.02, // .06em
+                        color: Colors.white.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Anneau de chargement ──────────────────────────────────────
+            Positioned(
+              bottom: 110.h,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: AnimatedBuilder(
+                  animation: _intro,
+                  builder: (BuildContext context, Widget? child) {
+                    final double t = _phase(
+                      _intro.value * _introMs,
+                      _loaderStart,
+                      _loaderDur,
+                      Curves.easeOut,
+                    );
+                    return Opacity(
+                      opacity: t,
+                      child: Transform.translate(
+                        offset: Offset(0, 14 * (1 - t)),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: RotationTransition(
+                    turns: _spin,
+                    child: CustomPaint(
+                      size: const Size(34, 34),
+                      painter: _RingPainter(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+/// Anneau 34 px : bordure 3 px blanche à 30 %, segment haut blanc plein.
+class _RingPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect rect = Offset.zero & size;
+    final Rect inner = rect.deflate(1.5);
+    final Paint base = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..color = Colors.white.withValues(alpha: 0.3);
+    canvas.drawArc(inner, 0, math.pi * 2, false, base);
+    final Paint head = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
+      ..color = Colors.white;
+    canvas.drawArc(inner, -math.pi * 3 / 4, math.pi / 2, false, head);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RingPainter oldDelegate) => false;
 }

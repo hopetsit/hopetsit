@@ -5,4 +5,8 @@
     <color name="ic_launcher_background">#E33D26</color>
     <!-- v23.1 part 25 — couleur du windowBackground en dark mode (Material You / dark style). -->
     <color name="dark_window_bg">#FF121212</color>
+    <!-- v570 — splash natif : aplat de la couleur MÉDIANE du dégradé du
+         splash Flutter (#DD4430) pour que le passage natif → Flutter soit
+         continu, sans flash blanc ni tuile-icône. -->
+    <color name="splash_bg">#DD4430</color>
 </resources>

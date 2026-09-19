@@ -8,6 +8,7 @@ import { ApiError, AuthUser, AuthRole, clearAuth, getConversations, getStoredUse
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
 import { disconnectSocket } from "@/lib/socket";
 import NotificationBanner from "@/components/NotificationBanner";
+import { PawMapLogo } from "@/components/PawMapLogo";
 
 export default function DashboardPage() {
   const { t } = useT();
@@ -416,7 +417,8 @@ export default function DashboardPage() {
               🗺️
             </span>
             <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-white text-2xl">
-              🗺️
+              {/* v567 — logo PawMap « patte-pin » à la place de l'emoji. */}
+              <PawMapLogo size={38} title={null} />
             </span>
             <span className="flex-1">
               <span className="block text-base font-semibold">{t("dash_card_map_title")}</span>

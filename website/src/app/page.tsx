@@ -3,6 +3,7 @@
 import { SubscriptionsExplainer } from "@/components/SubscriptionsExplainer";
 import Link from "next/link";
 import { PawMapCTA } from "@/components/PawMapCTA";
+import { PawMapLogo } from "@/components/PawMapLogo";
 import StoreBadges from "@/components/StoreBadges";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { screensFor, pawmapShotFor, PhoneFrame } from "@/lib/screens";
@@ -221,8 +222,9 @@ export default function HomePage() {
       <section className="mx-auto max-w-6xl px-4 py-24">
         <div className="grid items-center gap-14 md:grid-cols-2">
           <div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/pawmap_logo_orange.svg" alt="PawMap" width={56} height={56} />
+            {/* v567 — nouveau logo PawMap « patte-pin » (handoff Daniel),
+                animé au montage dans la bande PawMap de l'accueil. */}
+            <PawMapLogo size={56} animated />
             <h2 className="mt-6 font-display text-3xl font-bold tracking-[-0.02em] text-[#1D1D1F] md:text-5xl">
               {t("pawmap_title")}
             </h2>
