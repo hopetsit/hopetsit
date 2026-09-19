@@ -331,6 +331,11 @@ class SubscriptionController extends GetxController {
         clientSecret: clientSecret,
         amount: displayAmount,
         currency: currency.value,
+        // v568 — sans le client Airwallex, la page redemande la carte à
+        // chaque abonnement même si une carte est enregistrée.
+        customerId: (piData['customerId'] as String?)?.trim().isEmpty ?? true
+            ? null
+            : piData['customerId'] as String?,
       );
       if (result.isSuccess) {
         await api.post(

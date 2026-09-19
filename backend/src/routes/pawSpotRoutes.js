@@ -19,6 +19,13 @@ const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const airwallex = require('../services/airwallexService');
+// v568 — cartes enregistrées : UN client Airwallex par personne (partagé par
+// les profils owner / sitter / walker) + branchement unique du client sur
+// l'intention de paiement. Cf. utils/airwallexCustomer.js.
+const {
+  ensureAirwallexCustomer,
+  intentCustomerFields,
+} = require('../utils/airwallexCustomer');
 const { normalizeCurrency } = require('../utils/currency');
 const pricingService = require('../services/pricingService');
 const pawPoints = require('../services/pawPointsService');
@@ -1271,19 +1278,17 @@ router.post('/subscribe', requireAuth, async (req, res) => {
     // Airwallex (HPP).
     if (PROVIDER === 'airwallex') {
       try {
+        // v568 — utilitaire partagé (client commun aux 3 profils).
         let airwallexCustomerId = null;
+        let defaultConsentId = null;
         try {
-          const Model = modelForRole(role);
-          const userDoc = await Model.findById(userId).select('email name').lean();
-          if (userDoc && userDoc.email) {
-            const customer = await airwallex.findOrCreateCustomer({
-              userId: String(userId),
-              email: userDoc.email,
-              firstName: (userDoc.name || '').split(' ')[0] || userDoc.name || '',
-              lastName: (userDoc.name || '').split(' ').slice(1).join(' ') || '',
-            });
-            airwallexCustomerId = customer?.id || null;
-          }
+          const ensured = await ensureAirwallexCustomer({
+            userId: String(userId),
+            role,
+            logTag: 'pawspots',
+          });
+          airwallexCustomerId = ensured.customerId;
+          defaultConsentId = ensured.defaultConsentId;
         } catch (custErr) {
           logger.warn(`[pawspots] customer ensure failed: ${custErr?.message || custErr}`);
         }
@@ -1291,7 +1296,7 @@ router.post('/subscribe', requireAuth, async (req, res) => {
         const intent = await airwallex.createPlatformPaymentIntent({
           amount: amountCents,
           currency: pricing.currency,
-          ...(airwallexCustomerId ? { customer_id: airwallexCustomerId } : {}),
+          ...intentCustomerFields({ customerId: airwallexCustomerId }),
           metadata: {
             type: 'pawspot_purchase',
             kind: 'pawspot',
@@ -1317,6 +1322,9 @@ router.post('/subscribe', requireAuth, async (req, res) => {
           plan,
           amount: pricing.amount,
           currency: pricing.currency,
+          // v568 — requis pour que la page Airwallex liste les cartes.
+          customerId: airwallexCustomerId,
+          defaultConsentId,
         });
       } catch (e) {
         logger.error('[pawspots] airwallex create-intent failed', e);

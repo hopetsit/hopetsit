@@ -63,6 +63,13 @@ const SHARED_FIELDS = [
   'skills',
   // Paiement / carte (peut évoluer côté compte)
   'card',
+  // v568 — cartes enregistrées Airwallex : l'identifiant du client et la
+  // carte par défaut appartiennent à la PERSONNE, pas au rôle. Sans cette
+  // propagation, la carte ajoutée en propriétaire « disparaissait » après
+  // un passage en gardien ou promeneur. Aucun numéro de carte n'est
+  // concerné : ce sont des jetons Airwallex.
+  'airwallexCustomerId',
+  'defaultCardConsentId',
   // v22.5 — stripeCustomerId removed (Stripe account closed)
   // IBAN — partagé car c'est le compte bancaire du user, peu importe le
   // rôle qui est payé (walker OU sitter utilisent le même IBAN). On ne

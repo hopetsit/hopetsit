@@ -20,6 +20,13 @@ const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const airwallex = require('../services/airwallexService');
+// v568 — cartes enregistrées : UN client Airwallex par personne (partagé par
+// les profils owner / sitter / walker) + branchement unique du client sur
+// l'intention de paiement. Cf. utils/airwallexCustomer.js.
+const {
+  ensureAirwallexCustomer,
+  intentCustomerFields,
+} = require('../utils/airwallexCustomer');
 const { normalizeCurrency } = require('../utils/currency');
 const logger = require('../utils/logger');
 // v532 — verification du paiement avant toute activation boutique.
@@ -174,19 +181,17 @@ router.post('/subscribe', requireAuth, async (req, res) => {
       try {
         // v23.1 part 62 — attach customer_id so the HPP auto-displays
         // the user's saved cards (no manual CB re-entry).
+        // v568 — utilitaire partagé (client commun aux 3 profils).
         let airwallexCustomerId = null;
+        let defaultConsentId = null;
         try {
-          const Model = role === 'walker' ? Walker : role === 'sitter' ? Sitter : Owner;
-          const userDoc = await Model.findById(userId).select('email name').lean();
-          if (userDoc && userDoc.email) {
-            const customer = await airwallex.findOrCreateCustomer({
-              userId: String(userId),
-              email: userDoc.email,
-              firstName: (userDoc.name || '').split(' ')[0] || userDoc.name || '',
-              lastName: (userDoc.name || '').split(' ').slice(1).join(' ') || '',
-            });
-            airwallexCustomerId = customer?.id || null;
-          }
+          const ensured = await ensureAirwallexCustomer({
+            userId: String(userId),
+            role,
+            logTag: 'chatAddon',
+          });
+          airwallexCustomerId = ensured.customerId;
+          defaultConsentId = ensured.defaultConsentId;
         } catch (custErr) {
           logger.warn(`[chatAddon] customer ensure failed: ${custErr?.message || custErr}`);
         }
@@ -194,7 +199,7 @@ router.post('/subscribe', requireAuth, async (req, res) => {
         const intent = await airwallex.createPlatformPaymentIntent({
           amount: amountCents,
           currency: pricing.currency,
-          ...(airwallexCustomerId ? { customer_id: airwallexCustomerId } : {}),
+          ...intentCustomerFields({ customerId: airwallexCustomerId }),
           metadata: {
             type: 'chat_addon_purchase',
             userId: String(userId),
@@ -216,6 +221,9 @@ router.post('/subscribe', requireAuth, async (req, res) => {
           amount: pricing.amount,
           currency: pricing.currency,
           intervalDays: pricing.intervalDays,
+          // v568 — requis pour que la page Airwallex liste les cartes.
+          customerId: airwallexCustomerId,
+          defaultConsentId,
         });
       } catch (e) {
         logger.error('[chatAddon] airwallex create-intent failed', e);

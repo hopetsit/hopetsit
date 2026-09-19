@@ -18,6 +18,13 @@ const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const airwallex = require('../services/airwallexService');
+// v568 — cartes enregistrées : UN client Airwallex par personne (partagé par
+// les profils owner / sitter / walker) + branchement unique du client sur
+// l'intention de paiement. Cf. utils/airwallexCustomer.js.
+const {
+  ensureAirwallexCustomer,
+  intentCustomerFields,
+} = require('../utils/airwallexCustomer');
 const logger = require('../utils/logger');
 
 const _modelForRole = (role) =>
@@ -64,9 +71,30 @@ const createDonationIntent = async (req, res) => {
     // ─── Airwallex flow ────────────────────────────────────────────────────
     if (PROVIDER === 'airwallex') {
       try {
+        // v568 — CAUSE RACINE du « le don ne propose pas ma carte » : le don
+        // était le SEUL flux à créer son intention SANS client Airwallex.
+        // Sans `customer_id`, la page de paiement ne peut ni afficher les
+        // cartes enregistrées, ni en enregistrer une. Même utilitaire
+        // partagé que les autres flux.
+        let airwallexCustomerId = null;
+        let defaultConsentId = null;
+        try {
+          const ensured = await ensureAirwallexCustomer({
+            userId: doc._id.toString(),
+            role,
+            userDoc: doc,
+            logTag: 'donations',
+          });
+          airwallexCustomerId = ensured.customerId;
+          defaultConsentId = ensured.defaultConsentId;
+        } catch (custErr) {
+          logger.warn(`[donations] customer ensure failed: ${custErr?.message || custErr}`);
+        }
+
         const intent = await airwallex.createPlatformPaymentIntent({
           amount: amountCents,
           currency,
+          ...intentCustomerFields({ customerId: airwallexCustomerId }),
           metadata: {
             type:      'donation',
             userId:    doc._id.toString(),
@@ -90,6 +118,10 @@ const createDonationIntent = async (req, res) => {
           provider:        'airwallex',
           amount:          rawAmount,
           currency,
+          // v568 — l'app le transmet à la page Airwallex : sans lui, aucune
+          // carte enregistrée n'est proposée pour le don.
+          customerId:      airwallexCustomerId,
+          defaultConsentId,
         });
       } catch (e) {
         logger.error('[donations] airwallex create-intent failed', e);

@@ -361,6 +361,11 @@ const walkerSchema = new mongoose.Schema(
       updatedAt: { type: Date, default: null },
     },
 
+    // v568 — cartes enregistrées Airwallex (jetons uniquement, jamais de PAN).
+    // Partagé avec les profils owner / sitter du même humain.
+    airwallexCustomerId: { type: String, default: '' },
+    defaultCardConsentId: { type: String, default: '' },
+
     // Location for geospatial queries (GeoJSON Point format). Optional.
     // Only store when valid [lng, lat] coordinates exist; field is omitted otherwise
     // so the 2dsphere index never sees coordinates: null.

@@ -66,6 +66,9 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- v569 — les liens sont gérés par app_links (DeepLinkService) : on coupe le
+                 deep linking natif de Flutter, qui poussait une route inconnue de GetX. -->
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

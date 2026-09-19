@@ -61,6 +61,10 @@ class AirwallexPaymentService {
   /// [intentId] / [clientSecret] proviennent de la réponse backend create-intent.
   /// [amount] est en unités majeures (EUR pas cents). [currency] en ISO upper.
   ///
+  /// [customerId] — identifiant du client Airwallex renvoyé par le backend.
+  /// Indispensable pour que la page affiche les cartes enregistrées : on le
+  /// passe au pont, qui le transmet à `redirectToCheckout`.
+  ///
   /// Retourne [AirwallexPaymentOutcome.success] si le paiement est confirmé,
   /// `cancelled` si l'user ferme la WebView, `failed` sinon.
   static Future<AirwallexPaymentResult> confirmPaymentIntent({
@@ -107,6 +111,14 @@ class AirwallexPaymentService {
           'currency': currency.toUpperCase(),
           'country':  countryCode.toUpperCase(),
           'env':      env,
+          // v568 — CAUSE RACINE de « ma carte n'est pas proposée au
+          // paiement » : sans `customer`, la page Airwallex ouvre un
+          // formulaire vierge. Avec lui, elle liste les cartes déjà
+          // enregistrées (CVC seulement) et pré-coche « enregistrer ma
+          // carte ». Chaque flux (réservation, abonnement, boutique, don,
+          // KYC) renvoie désormais `customerId` à la création de
+          // l'intention — on le relaie ici.
+          if (customerId != null && customerId.isNotEmpty) 'customer': customerId,
         },
       );
       AppLogger.logInfo('[airwallex] opening HPP webview → ${uri.toString()}');

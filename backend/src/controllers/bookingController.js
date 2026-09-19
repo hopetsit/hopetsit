@@ -25,6 +25,13 @@ const {
 // in the meantime funds accumulate on the HoPetSit Airwallex wallet and
 // payout-scheduler manually releases the 80% to the provider's IBAN.
 const airwallex = require('../services/airwallexService');
+// v568 — cartes enregistrées : UN client Airwallex par personne (partagé par
+// les profils owner / sitter / walker) et une seule façon de brancher le
+// client sur une intention de paiement. Cf. utils/airwallexCustomer.js.
+const {
+  ensureAirwallexCustomer,
+  intentCustomerFields,
+} = require('../utils/airwallexCustomer');
 // v21.1.1 — Stripe purgé. Le default passe à 'airwallex' : si PAYMENT_PROVIDER
 // n'est pas configuré côté Render, on tombe sur Airwallex et pas Stripe (qui
 // est mort, compte fermé). Variable env optionnelle conservée pour rollback
@@ -2706,19 +2713,19 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
   // — la HPP n'avait donc rien à afficher comme moyens de paiement.
   // Fix : attacher customer_id ici aussi (idempotent, mêmes args que
   // /create-payment-intent).
+  // v568 — utilitaire partagé (utils/airwallexCustomer.js) : UN client
+  // Airwallex par personne, commun aux 3 profils, au lieu d'un client par
+  // document de rôle. Les cartes enregistrées suivent donc l'utilisateur.
   let airwallexCustomerId = null;
   try {
     const ownerDoc = booking.ownerId;
-    const customer = await airwallex.findOrCreateCustomer({
+    const ensured = await ensureAirwallexCustomer({
       userId: ownerDoc._id.toString(),
-      email: ownerDoc.email,
-      firstName: (ownerDoc.name || '').split(' ')[0] || ownerDoc.name || '',
-      lastName: (ownerDoc.name || '').split(' ').slice(1).join(' ') || '',
+      role: 'owner',
+      userDoc: ownerDoc,
+      logTag: 'booking._prepare',
     });
-    airwallexCustomerId = customer?.id || null;
-    logger.info(
-      `[booking._prepare] customer ensured ${airwallexCustomerId} for owner ${ownerDoc._id}`,
-    );
+    airwallexCustomerId = ensured.customerId;
   } catch (custErr) {
     logger.warn(
       `[booking._prepare] customer ensure failed (continuing without) : ${custErr?.message || custErr}`,
@@ -2730,7 +2737,7 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
   paymentIntent = await airwallex.createPlatformPaymentIntent({
     amount: amountInCents,
     currency: bookingCurrency.toUpperCase(),
-    ...(airwallexCustomerId ? { customer_id: airwallexCustomerId } : {}),
+    ...intentCustomerFields({ customerId: airwallexCustomerId }),
     metadata: {
       type: 'booking',
       bookingId: booking._id.toString(),
@@ -2776,6 +2783,9 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
     currency: bookingCurrency,
     commissionAmount: applicationFee,
     netSitterAmount: netSitter,
+    // v568 — indispensable à l'app : sans `customerId` transmis à la page
+    // Airwallex, celle-ci n'affiche PAS les cartes enregistrées.
+    customerId: airwallexCustomerId,
     loyaltyDiscountApplied: loyaltyDiscountApplied
       ? { amount: loyaltyDiscountApplied.discountAmount, creditId: loyaltyDiscountApplied.creditId }
       : null,
@@ -3015,19 +3025,23 @@ const createBookingPaymentIntent = async (req, res) => {
     const wantsSaveCard = req.body?.saveCard === true;
     const selectedConsentId = (req.body?.paymentConsentId || '').toString().trim();
     let airwallexCustomerId = null;
+    let defaultConsentId = null;
     try {
       const ownerDoc = booking.ownerId;
-      const customer = await airwallex.findOrCreateCustomer({
+      // v568 — client Airwallex partagé par les 3 profils (utilitaire
+      // commun) + carte par défaut de l'utilisateur.
+      const ensured = await ensureAirwallexCustomer({
         userId: ownerDoc._id.toString(),
-        email: ownerDoc.email,
-        firstName: (ownerDoc.name || '').split(' ')[0] || ownerDoc.name,
-        lastName: (ownerDoc.name || '').split(' ').slice(1).join(' ') || '',
+        role: 'owner',
+        userDoc: ownerDoc,
+        logTag: 'createPaymentIntent',
       });
-      airwallexCustomerId = customer?.id || null;
+      airwallexCustomerId = ensured.customerId;
+      defaultConsentId = ensured.defaultConsentId;
       logger.info(
         `[createPaymentIntent] customer ensured ${airwallexCustomerId} ` +
         `(merchant=${ownerDoc._id.toString()}) wantsSave=${wantsSaveCard} ` +
-        `selectedConsent=${selectedConsentId || 'none'}`,
+        `selectedConsent=${selectedConsentId || 'none'} default=${defaultConsentId || 'none'}`,
       );
     } catch (custErr) {
       logger.warn(`[createPaymentIntent] customer ensure failed: ${custErr?.message || custErr}`);
@@ -3112,16 +3126,12 @@ const createBookingPaymentIntent = async (req, res) => {
       //     sauvegardees + permet d'en ajouter une nouvelle.
       //   - payment_consent UNIQUEMENT si l'user tique "save card" sur
       //     un nouveau paiement (jamais sur un saved card reuse).
-      ...(airwallexCustomerId ? {
-        customer_id: airwallexCustomerId,
-        ...(wantsSaveCard && !selectedConsentId ? {
-          payment_consent: {
-            type: 'recurring',
-            next_triggered_by: 'customer',
-            merchant_trigger_reason: 'unscheduled',
-          },
-        } : {}),
-      } : {}),
+      // v568 — même construction pour TOUS les flux (utilitaire partagé).
+      ...intentCustomerFields({
+        customerId: airwallexCustomerId,
+        saveCard: wantsSaveCard,
+        consentId: selectedConsentId,
+      }),
       metadata: {
         type: 'booking',
         bookingId: booking._id.toString(),
@@ -3257,6 +3267,11 @@ const createBookingPaymentIntent = async (req, res) => {
           }
         : null,
       booking: sanitizeBooking(booking),
+      // v568 — la page Airwallex n'affiche les cartes enregistrées que si
+      // l'app lui transmet `customer_id` ; `defaultConsentId` sert à l'app
+      // pour annoncer « Payer avec •••• 4242 » avant l'ouverture.
+      customerId: airwallexCustomerId,
+      defaultConsentId,
       // v23.1 part 47/49 — saved-card fast path signals.
       //   serverConfirmed=true → frontend skips HPP, calls /confirm-payment.
       //   nextActionUrl → 3DS challenge URL, frontend opens that in

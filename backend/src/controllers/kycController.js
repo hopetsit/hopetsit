@@ -27,6 +27,13 @@
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const airwallex = require('../services/airwallexService');
+// v568 — cartes enregistrées : UN client Airwallex par personne (partagé par
+// les profils owner / sitter / walker) + branchement unique du client sur
+// l'intention de paiement. Cf. utils/airwallexCustomer.js.
+const {
+  ensureAirwallexCustomer,
+  intentCustomerFields,
+} = require('../utils/airwallexCustomer');
 const persona = require('../services/personaService');
 // v510 — Daniel : « remplacer Persona par Didit, sans rebuild l'app ».
 // Bascule automatique : dès que DIDIT_API_KEY + DIDIT_WORKFLOW_ID sont
@@ -169,15 +176,16 @@ const initiatePayment = async (req, res) => {
     // v23.1 part 67 — Daniel : "verification identite ne marche pas" /
     // "page Airwallex vide". Same fix as boutique : ALWAYS attach
     // customer_id so the HPP renders the payment-method picker.
+    // v568 — utilitaire partagé : client Airwallex commun aux 3 profils.
     let airwallexCustomerId = null;
     try {
-      const customer = await airwallex.findOrCreateCustomer({
+      const ensured = await ensureAirwallexCustomer({
         userId: user._id.toString(),
-        email: user.email,
-        firstName: (user.name || '').split(' ')[0] || user.name || '',
-        lastName: (user.name || '').split(' ').slice(1).join(' ') || '',
+        role,
+        userDoc: user,
+        logTag: 'kyc.initiatePayment',
       });
-      airwallexCustomerId = customer?.id || null;
+      airwallexCustomerId = ensured.customerId;
     } catch (custErr) {
       logger.warn(`[kyc.initiatePayment] customer ensure failed : ${custErr?.message || custErr}`);
     }
@@ -187,7 +195,7 @@ const initiatePayment = async (req, res) => {
     const paymentIntent = await airwallex.createPlatformPaymentIntent({
       amount: amountInCents,
       currency: 'EUR',
-      ...(airwallexCustomerId ? { customer_id: airwallexCustomerId } : {}),
+      ...intentCustomerFields({ customerId: airwallexCustomerId }),
       metadata: {
         type: 'kyc',
         userId: user._id.toString(),
@@ -218,6 +226,9 @@ const initiatePayment = async (req, res) => {
       },
       amount: KYC_PRICE_EUR,
       currency: 'EUR',
+      // v568 — transmis à la page Airwallex pour proposer la carte déjà
+      // enregistrée au lieu d'une nouvelle saisie.
+      customerId: airwallexCustomerId,
     });
   } catch (err) {
     logger.error('[kyc.initiatePayment]', err);

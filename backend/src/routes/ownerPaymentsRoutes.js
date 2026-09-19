@@ -8,6 +8,7 @@ const {
   getPaymentMethods,
   createSetupIntent,
   deletePaymentMethod,
+  setDefaultPaymentMethod,
   getPaymentHistory,
   attachPaymentMethod,
   verifyCard,
@@ -25,6 +26,10 @@ router.get('/methods', getPaymentMethods);
 router.post('/methods/attach', attachPaymentMethod); // v20.0.3
 router.post('/methods/verify-card', verifyCard); // v23.1 — Add card flow without booking
 router.post('/setup-intent', createSetupIntent);
+// v568 — carte par défaut (présentée en premier au paiement). Déclarée AVANT
+// la route DELETE générique pour rester lisible ; Express distingue de toute
+// façon les méthodes.
+router.post('/methods/:id/default', setDefaultPaymentMethod);
 router.delete('/methods/:id', deletePaymentMethod);
 router.get('/history', getPaymentHistory);
 

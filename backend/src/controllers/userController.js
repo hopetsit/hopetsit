@@ -14,7 +14,9 @@ const Review = require('../models/Review');
 const Task = require('../models/Task');
 const Block = require('../models/Block');
 const { sanitizeUser, sanitizeDoc, sanitizePet, sanitizePost, sanitizeBooking, sanitizeReview } = require('../utils/sanitize');
-const { encrypt } = require('../utils/encryption');
+// v568 — `encrypt` n'est plus importé ici : il ne servait qu'à chiffrer le
+// numéro de carte et le CVC de l'ancien formulaire (routes supprimées).
+// `decrypt` reste chargé à la demande là où il sert (emails historiques).
 const { getOwnerStats } = require('../services/loyaltyService');
 const { getMyReferrals } = require('../services/referralService');
 const { uploadMedia } = require('../services/cloudinary');
@@ -79,67 +81,11 @@ const normalizeCountryCode = (v) => {
 const OWNER_SERVICES = ['Pet Sitting', 'House Sitting', 'Day Care', 'Long Stay'];
 const SITTER_SERVICES = [...OWNER_SERVICES, 'Dog Walking'];
 
-const detectCardBrand = (digits) => {
-  if (/^4/.test(digits)) return 'Visa';
-  if (/^5[1-5]/.test(digits)) return 'Mastercard';
-  if (/^3[47]/.test(digits)) return 'American Express';
-  if (/^6(?:011|5|4[4-9]\d)/.test(digits)) return 'Discover';
-  if (/^3(?:0[0-5]|[68])/.test(digits)) return 'Diners Club';
-  if (/^35/.test(digits)) return 'JCB';
-  return 'Card';
-};
-
-const buildCardPayload = ({ holderName, cardNumber, expDate, cvc }) => {
-  if (!holderName || !holderName.trim()) {
-    throw new Error('Card holder name is required.');
-  }
-
-  const digits = String(cardNumber || '').replace(/\D/g, '');
-  if (!digits || digits.length < 13 || digits.length > 19) {
-    throw new Error('Please enter a valid card number.');
-  }
-
-  const cleanedCvc = String(cvc || '').replace(/\s/g, '');
-  if (!/^\d{3,4}$/.test(cleanedCvc)) {
-    throw new Error('Please enter a valid CVC.');
-  }
-
-  const exp = String(expDate || '').replace(/\s/g, '');
-  const match = /^(\d{2})\/(\d{2})$/.exec(exp);
-  if (!match) {
-    throw new Error('Expiration date must be in MM/YY format.');
-  }
-
-  const expMonth = parseInt(match[1], 10);
-  const expYear = 2000 + parseInt(match[2], 10);
-  if (Number.isNaN(expMonth) || Number.isNaN(expYear) || expMonth < 1 || expMonth > 12) {
-    throw new Error('Expiration date is invalid.');
-  }
-
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-  if (expYear < currentYear || (expYear === currentYear && expMonth < currentMonth)) {
-    throw new Error('This card appears to be expired.');
-  }
-
-  const maskedNumber = `${'*'.repeat(Math.max(0, digits.length - 4))}${digits.slice(-4)}`
-    .replace(/(.{4})/g, '$1 ')
-    .trim();
-
-  return {
-    holderName: holderName.trim(),
-    number: encrypt(digits),
-    maskedNumber,
-    last4: digits.slice(-4),
-    brand: detectCardBrand(digits),
-    expMonth,
-    expYear,
-    expDate: `${match[1]}/${match[2]}`,
-    cvc: encrypt(cleanedCvc),
-    updatedAt: new Date(),
-  };
-};
+// v568 — SÉCURITÉ : `detectCardBrand` / `buildCardPayload` (chiffrement du
+// numéro de carte ET du CVC pour stockage en base) ont été SUPPRIMÉS avec
+// les routes qui les utilisaient. Les données carte sont collectées par
+// Airwallex seul ; nous ne conservons que marque, 4 derniers chiffres et
+// expiration, renvoyés par l'API Airwallex.
 
 const buildProfileUpdate = ({ name, mobile, countryCode, language, address, avatar, bio, skills, currency, country, city }) => {
   const update = {};
@@ -411,88 +357,32 @@ const updateProfile = async (req, res) => {
   }
 };
 
+// v568 — SÉCURITÉ : ces deux routes acceptaient un numéro de carte et un CVC
+// en clair, puis les stockaient (chiffrés) dans Mongo. Rien n'était envoyé à
+// Airwallex : l'utilisateur croyait sa carte « enregistrée » alors qu'aucun
+// moyen de paiement n'existait côté banque — d'où « elle ne reste pas
+// enregistrée quand je veux payer ». Stocker un CVC est par ailleurs
+// interdit (PCI-DSS). Les routes sont neutralisées et renvoient le chemin
+// correct : POST /owner/payments/methods/verify-card (page Airwallex).
+const CARD_FORM_REMOVED = {
+  error: 'Card details are collected by Airwallex only.',
+  code: 'CARD_FORM_REMOVED',
+  use: 'POST /owner/payments/methods/verify-card',
+};
+
 const updateCard = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { holderName, cardNumber, expDate, cvc } = req.body || {};
-
-    let cardData;
-    try {
-      cardData = buildCardPayload({ holderName, cardNumber, expDate, cvc });
-    } catch (validationError) {
-      return res.status(400).json({ error: validationError.message });
-    }
-
-    let account = await Owner.findByIdAndUpdate(id, { card: cardData }, { new: true });
-    let role = 'owner';
-
-    if (!account) {
-      account = await Sitter.findByIdAndUpdate(id, { card: cardData }, { new: true });
-      role = 'sitter';
-    }
-
-    if (!account) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    res.json({ role, user: sanitizeUser(account, { includeCard: true, includeEmail: true }) });
-  } catch (error) {
-    logger.error('Update card error', error);
-    if (error.name === 'CastError') {
-      return res.status(400).json({ error: 'Invalid user id.' });
-    }
-    res.status(500).json({ error: 'Unable to update card. Please try again later.' });
-  }
+  logger.warn('[updateCard] route PAN supprimée (v568) — appel refusé');
+  return res.status(410).json(CARD_FORM_REMOVED);
 };
 
 // v18.9.3 — role-aware : owner / sitter / walker peuvent tous enregistrer
 // leur carte via PUT /users/me/card. Le Sitter.card et Walker.card schemas
 // existent déjà (même shape que Owner.card).
 const updateOwnerCardFromToken = async (req, res) => {
-  try {
-    const userId = req.user?.id;
-    const role = req.user?.role;
-    if (!userId) {
-      return res.status(403).json({ error: 'Authentication context missing.' });
-    }
-
-    let cardData;
-    try {
-      cardData = buildCardPayload(req.body || {});
-    } catch (validationError) {
-      return res.status(400).json({ error: validationError.message });
-    }
-
-    const Model =
-      role === 'walker' ? Walker : role === 'sitter' ? Sitter : Owner;
-    const doc = await Model.findByIdAndUpdate(
-      userId,
-      { card: cardData },
-      { new: true },
-    );
-    if (!doc) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    // v18.9.8 — sync de la carte vers les autres rôles du même user. Si
-    // Daniel enregistre sa CB sur le profil owner, la même carte apparaîtra
-    // automatiquement quand il switche vers sitter ou walker.
-    try {
-      const { syncSharedFields } = require('../utils/userSyncService');
-      await syncSharedFields({
-        email: doc.email,
-        update: { card: cardData },
-        excludeRole: role,
-      });
-    } catch (syncErr) {
-      logger.warn('[updateOwnerCardFromToken] cross-role sync failed', syncErr?.message || syncErr);
-    }
-
-    res.json({ user: sanitizeUser(doc, { includeCard: true, includeEmail: true }) });
-  } catch (error) {
-    logger.error('Update user card (token) error', error);
-    res.status(500).json({ error: 'Unable to update card. Please try again later.' });
-  }
+  // v568 — cf. CARD_FORM_REMOVED : plus aucun numéro de carte ne transite
+  // par notre serveur. L'enregistrement passe par la page Airwallex.
+  logger.warn('[updateOwnerCardFromToken] route PAN supprimée (v568) — appel refusé');
+  return res.status(410).json(CARD_FORM_REMOVED);
 };
 
 const deleteAccount = async (req, res) => {

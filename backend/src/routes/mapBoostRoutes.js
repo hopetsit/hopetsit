@@ -19,6 +19,13 @@ const { requireAuth } = require('../middleware/auth');
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const airwallex = require('../services/airwallexService');
+// v568 — cartes enregistrées : UN client Airwallex par personne (partagé par
+// les profils owner / sitter / walker) + branchement unique du client sur
+// l'intention de paiement. Cf. utils/airwallexCustomer.js.
+const {
+  ensureAirwallexCustomer,
+  intentCustomerFields,
+} = require('../utils/airwallexCustomer');
 const UserSubscription = require('../models/UserSubscription');
 const { normalizeCurrency } = require('../utils/currency');
 const logger = require('../utils/logger');
@@ -250,17 +257,18 @@ router.post('/purchase', requireAuth, async (req, res) => {
         // v23.1 part 62 — attach customer_id so the HPP auto-displays the
         // user's saved cards on PawMap boost purchases (no manual CB
         // re-entry). userDoc was loaded above for the staff path.
+        // v568 — utilitaire partagé (client commun aux 3 profils).
         let airwallexCustomerId = null;
+        let defaultConsentId = null;
         try {
-          if (userDoc && userDoc.email) {
-            const customer = await airwallex.findOrCreateCustomer({
-              userId: String(req.user.id),
-              email: userDoc.email,
-              firstName: (userDoc.name || '').split(' ')[0] || userDoc.name || '',
-              lastName: (userDoc.name || '').split(' ').slice(1).join(' ') || '',
-            });
-            airwallexCustomerId = customer?.id || null;
-          }
+          const ensured = await ensureAirwallexCustomer({
+            userId: String(req.user.id),
+            role: req.user.role,
+            userDoc: userDoc || null,
+            logTag: 'mapBoost',
+          });
+          airwallexCustomerId = ensured.customerId;
+          defaultConsentId = ensured.defaultConsentId;
         } catch (custErr) {
           logger.warn(`[mapBoost] customer ensure failed: ${custErr?.message || custErr}`);
         }
@@ -271,7 +279,7 @@ router.post('/purchase', requireAuth, async (req, res) => {
         const intent = await airwallex.createPlatformPaymentIntent({
           amount: amountCents,
           currency: pricing.currency,
-          ...(airwallexCustomerId ? { customer_id: airwallexCustomerId } : {}),
+          ...intentCustomerFields({ customerId: airwallexCustomerId }),
           metadata: {
             type: 'map_boost_purchase',
             userId: String(req.user.id),
@@ -295,6 +303,10 @@ router.post('/purchase', requireAuth, async (req, res) => {
           amount: pricing.amount,
           currency: pricing.currency,
           days: pricing.days,
+          // v568 — la page Airwallex ne liste les cartes enregistrées que si
+          // l'app lui transmet ce customer_id.
+          customerId: airwallexCustomerId,
+          defaultConsentId,
         });
       } catch (e) {
         logger.error('[mapBoost] airwallex create-intent failed', e);

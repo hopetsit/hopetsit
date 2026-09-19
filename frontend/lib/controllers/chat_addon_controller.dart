@@ -140,6 +140,10 @@ class ChatAddonController extends GetxController {
         clientSecret: clientSecret,
         amount: displayAmount,
         currency: currency.value,
+        // v568 — carte enregistrée proposée sur l'option chat.
+        customerId: (piData['customerId'] as String?)?.trim().isEmpty ?? true
+            ? null
+            : piData['customerId'] as String?,
       );
       if (result.isSuccess) {
         await api.post(

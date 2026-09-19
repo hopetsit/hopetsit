@@ -204,6 +204,14 @@ const ownerSchema = new mongoose.Schema(
       cvc: { type: String, default: '' },
       updatedAt: { type: Date, default: null },
     },
+    // v568 — cartes enregistrées Airwallex. Le NUMÉRO de carte ne vit JAMAIS
+    // ici : Airwallex détient le jeton (payment_consent), nous ne gardons que
+    // des identifiants. `airwallexCustomerId` est PARTAGÉ par les 3 profils
+    // (owner / sitter / walker) du même humain — c'est ce qui fait que la
+    // carte suit la personne et pas le rôle (cf. utils/airwallexCustomer.js).
+    airwallexCustomerId: { type: String, default: '' },
+    // Consentement (carte) choisi par défaut au paiement.
+    defaultCardConsentId: { type: String, default: '' },
     // Location for geospatial queries (GeoJSON Point format). Optional.
     // Only store when valid [lng, lat] coordinates exist; otherwise field is omitted (2dsphere index).
     location: {

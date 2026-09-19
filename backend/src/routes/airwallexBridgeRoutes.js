@@ -17,6 +17,8 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
 const airwallex = require('../services/airwallexService');
+// v568 — client Airwallex partagé par les 3 profils.
+const { ensureAirwallexCustomer } = require('../utils/airwallexCustomer');
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
@@ -52,6 +54,21 @@ router.get('/checkout', (req, res) => {
   const currency = String(req.query.currency || 'EUR').toUpperCase();
   const country = String(req.query.country || 'FR').toUpperCase();
   const env = String(req.query.env || 'prod').toLowerCase() === 'demo' ? 'demo' : 'prod';
+  // v568 — CAUSE RACINE de « ma carte n'est pas proposée au paiement ».
+  // La page appelait redirectToCheckout SANS `customer_id`, en supposant
+  // qu'Airwallex le déduirait du PaymentIntent. C'est FAUX : le mode
+  // « registered user checkout » (liste des cartes enregistrées + CVC)
+  // n'est activé que si `customer_id` est passé à redirectToCheckout.
+  // Résultat : l'utilisateur ressaisissait sa carte à CHAQUE paiement,
+  // quel que soit le flux. L'app transmet désormais ce paramètre ; il est
+  // facultatif (un invité / un ancien client reste sur l'ancien parcours).
+  // `client_secret` reste celui du PaymentIntent (règle Airwallex).
+  // v568 — coupe-circuit SANS rebuild : AIRWALLEX_HPP_CUSTOMER=off (Render)
+  // désactive le mode « carte enregistrée » de la page de paiement si
+  // Airwallex le refusait en production ; le paiement classique reste.
+  const customerId = String(process.env.AIRWALLEX_HPP_CUSTOMER || '').toLowerCase() === 'off'
+    ? ''
+    : String(req.query.customer || '').trim();
 
   if (!intent || !secret) {
     return res.status(400).type('html').send(
@@ -65,7 +82,7 @@ router.get('/checkout', (req, res) => {
 
   logger.info(
     `[airwallex.bridge] checkout requested intent=${intent} env=${env} ` +
-    `currency=${currency} country=${country}`,
+    `currency=${currency} country=${country} customer=${customerId || 'none'}`,
   );
 
   const successUrl = `${req.protocol}://${req.get('host')}/api/v1/airwallex/checkout/done?status=success`;
@@ -145,6 +162,9 @@ router.get('/checkout', (req, res) => {
     var SUCCESS  = ${JSON.stringify(successUrl)};
     var CANCEL   = ${JSON.stringify(cancelUrl)};
     var FAILU    = ${JSON.stringify(failUrl)};
+    // v568 — id du client Airwallex : active l'affichage des cartes
+    // enregistrées (+ case « enregistrer ma carte » pré-cochée).
+    var CUSTOMER = ${JSON.stringify(customerId)};
 
     var statusEl = document.getElementById('status');
     var errorEl  = document.getElementById('error');
@@ -204,7 +224,7 @@ router.get('/checkout', (req, res) => {
           return;
         }
         setStatus('Redirection vers la page sécurisée Airwallex…');
-        await payments.redirectToCheckout({
+        var opts = {
           env: ENV,
           mode: 'payment',
           currency: CURRENCY,
@@ -213,9 +233,25 @@ router.get('/checkout', (req, res) => {
           client_secret: SECRET,
           successUrl: SUCCESS,
           failUrl:    FAILU,
-          // We don't pass customer_id here — Airwallex auto-discovers it
-          // from the customer_id attached on the PaymentIntent server-side.
-        });
+          cancelUrl:  CANCEL,
+        };
+        // v568 — « registered user checkout » : avec customer_id, Airwallex
+        // affiche les cartes déjà enregistrées (saisie du seul CVC) et
+        // propose d'enregistrer la nouvelle carte, case pré-cochée.
+        if (CUSTOMER) {
+          opts.customer_id = CUSTOMER;
+          opts.autoSaveCardForFuturePayments = true;
+        }
+        try {
+          await payments.redirectToCheckout(opts);
+        } catch (first) {
+          // v568 — filet : si le mode « client connu » est refusé, on retombe
+          // sur le paiement classique (carte à saisir) plutôt que de bloquer.
+          if (!CUSTOMER) throw first;
+          delete opts.customer_id;
+          delete opts.autoSaveCardForFuturePayments;
+          await payments.redirectToCheckout(opts);
+        }
         // If after 4s we're still on this page, something went wrong.
         setTimeout(function() {
           if (document.visibilityState === 'visible') {
@@ -322,39 +358,47 @@ router.get('/customer-debug', requireAuth, async (req, res) => {
     const user = await Model.findById(userId).lean();
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
-    // Resolve the customer by merchant_customer_id (idempotent).
-    let customer = null;
+    // v568 — client PARTAGÉ par les 3 profils (utilitaire commun).
+    let customerId = null;
+    let defaultConsentId = null;
     try {
-      const list = await airwallex
-        .findOrCreateCustomer({
-          userId: user._id.toString(),
-          email: user.email,
-          firstName: (user.name || '').split(' ')[0] || user.name || '',
-          lastName: (user.name || '').split(' ').slice(1).join(' ') || '',
-        });
-      customer = list;
+      const ensured = await ensureAirwallexCustomer({
+        userId: user._id.toString(),
+        role,
+        userDoc: user,
+        logTag: 'airwallex.customer-debug',
+      });
+      customerId = ensured.customerId;
+      defaultConsentId = ensured.defaultConsentId;
     } catch (e) {
       return res.status(502).json({
         error: 'Unable to resolve Airwallex customer.',
         details: e?.message || String(e),
       });
     }
+    if (!customerId) {
+      return res.status(502).json({ error: 'No Airwallex customer for this user.' });
+    }
 
     // List ALL consents (any status) so we can see what's happening — note this
     // bypasses the VERIFIED filter that listPaymentMethods() applies.
+    // v568 — `__rawAwxFetch` n'a JAMAIS existé : cette liste était donc
+    // toujours nulle et le diagnostic mentait. Vrai appel désormais.
     let allConsents = null;
     try {
-      const r = await airwallex
-        .__rawAwxFetch?.(
-          `/api/v1/pa/payment_consents?customer_id=${encodeURIComponent(customer.id)}&page_size=50`,
-        );
-      allConsents = r;
+      const r = await airwallex.listAllPaymentConsents(customerId);
+      allConsents = (r?.items || []).map((c) => ({
+        id: c.id,
+        status: c.status,
+        last4: c?.payment_method?.card?.last4,
+        brand: c?.payment_method?.card?.brand,
+      }));
     } catch (_) { /* fall through */ }
 
     // Fallback: use the public listPaymentMethods (which filters to VERIFIED).
     let verifiedConsents = null;
     try {
-      verifiedConsents = await airwallex.listPaymentMethods(customer.id);
+      verifiedConsents = await airwallex.listPaymentMethods(customerId);
     } catch (e) {
       verifiedConsents = { error: e?.message || String(e) };
     }
@@ -366,10 +410,9 @@ router.get('/customer-debug', requireAuth, async (req, res) => {
         role,
       },
       airwallexCustomer: {
-        id: customer.id,
-        merchant_customer_id: customer.merchant_customer_id,
-        email: customer.email,
-        request_id: customer.request_id,
+        id: customerId,
+        defaultConsentId,
+        allConsents,
       },
       verifiedConsents: {
         count: (verifiedConsents?.items || []).length,

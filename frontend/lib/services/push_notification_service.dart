@@ -4,7 +4,7 @@ import 'dart:io' show Platform;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/painting.dart' show Color;
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
@@ -412,6 +412,14 @@ class PushNotificationService extends GetxService {
     // deuxième. Sur iOS on ne montre donc PAS de notification locale quand le
     // push a un bloc notification (les badges sont déjà mis à jour ci-dessus) ;
     // un push « data-only » reste affiché localement.
+    // v568 — Daniel : « mon téléphone ne vibre pas ». App OUVERTE : on vibre
+    // nous-mêmes (en plus du canal), sauf si l'utilisateur a choisi
+    // « silencieux ». App fermée : c'est le canal Android v2 qui vibre.
+    try {
+      final fgSound = (message.data['sound'] ?? '').toString().trim().toLowerCase();
+      if (fgSound != 'silent') unawaited(HapticFeedback.vibrate());
+    } catch (_) {}
+
     if (!kIsWeb && Platform.isIOS && notification != null) {
       return;
     }

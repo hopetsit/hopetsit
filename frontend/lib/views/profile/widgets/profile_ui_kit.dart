@@ -733,7 +733,6 @@ Future<T?> showProfileSheet<T>(
           minimum: EdgeInsets.only(
             bottom: (!kIsWeb &&
                     defaultTargetPlatform == TargetPlatform.android &&
-                    MediaQuery.of(ctx).viewPadding.bottom == 0 &&
                     MediaQuery.of(ctx).viewInsets.bottom == 0)
                 ? 48
                 : 0,

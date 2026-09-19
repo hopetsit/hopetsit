@@ -127,6 +127,25 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
     }
   }
 
+  /// v568 — carte par défaut (celle proposée au paiement, sur les 3 profils).
+  Future<void> _setDefault(Map<String, dynamic> method) async {
+    final id = method['id']?.toString();
+    if (id == null || id.isEmpty) return;
+    try {
+      await _repo.setDefaultOwnerPaymentMethod(id);
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'cards568_set_default_done'.tr,
+      );
+      await _load();
+    } catch (e) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: paymentErrorMessage(e),
+      );
+    }
+  }
+
   String _methodLabel(Map<String, dynamic> m) {
     final brand = (m['brand']?.toString() ?? 'card').toUpperCase();
     final last4 = m['last4']?.toString() ?? '••••';
@@ -180,12 +199,19 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
                       else
                         ProfileGroupCard(
                           children: [
+                            // v568 — « par défaut » = le choix de
+                            // l'utilisateur (renvoyé par le serveur), plus
+                            // « la première de la liste ».
                             for (var i = 0; i < _methods.length; i++)
                               SavedCardRow(
                                 card: _methods[i],
                                 accent: accent,
-                                isDefault: i == 0,
+                                isDefault: _methods[i]['isDefault'] == true ||
+                                    (i == 0 &&
+                                        !_methods.any(
+                                            (c) => c['isDefault'] == true)),
                                 onDelete: () => _confirmDelete(_methods[i]),
+                                onSetDefault: () => _setDefault(_methods[i]),
                               ),
                           ],
                         ),

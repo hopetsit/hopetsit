@@ -41,7 +41,8 @@ const String kAppleManageSubscriptionsUrl =
 double shopBottomInset(BuildContext context) {
   final mq = MediaQuery.of(context);
   final raw = math.max(mq.viewPadding.bottom, mq.padding.bottom);
-  return raw > 0 ? raw : (Platform.isAndroid ? 48.0 : 0.0);
+  // v568 — sur Android, jamais moins de 48 px (barre à 3 boutons Samsung).
+  return Platform.isAndroid ? math.max(raw, 48.0) : raw;
 }
 
 /// Dégagement SUPPLÉMENTAIRE dans une zone déjà protégée par un `SafeArea`
@@ -51,7 +52,11 @@ double shopBottomInset(BuildContext context) {
 double shopSafeAreaExtraInset(BuildContext context) {
   final mq = MediaQuery.of(context);
   final raw = math.max(mq.viewPadding.bottom, mq.padding.bottom);
-  return raw > 0 ? 0.0 : (Platform.isAndroid ? 48.0 : 0.0);
+  // v568 — Samsung : l'inset annoncé peut valoir 0 OU une petite valeur
+  // (barre de gestes) alors que la barre à 3 boutons en couvre 48. Sur
+  // Android on garantit donc 48 px au total, SafeArea compris.
+  if (Platform.isAndroid) return math.max(0.0, 48.0 - raw);
+  return 0.0;
 }
 
 /// Rembourrage bas du contenu défilant d'un onglet de la boutique : la

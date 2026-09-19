@@ -103,7 +103,10 @@ const sanitizeUser = (userDoc, { includeCard = false, includeEmail = false, incl
       'address', 'postalCode', 'dateOfBirth', 'dob',
       'ibanNumber', 'ibanBic', 'ibanHolder', 'ibanVerified', 'payoutMethod',
       'paypalEmail', 'paypalConnectedAt',
-      'airwallexBeneficiaryId', 'airwallexCustomerId',
+      // v568 — `defaultCardConsentId` est un identifiant de moyen de
+      // paiement : réservé au profil propre / admin, comme le client
+      // Airwallex juste à côté.
+      'airwallexBeneficiaryId', 'airwallexCustomerId', 'defaultCardConsentId',
       'fcmTokens', 'fcmToken',
       'walletBalance', 'walletCurrency',
       'kycApplicantId', 'kycCheckId', 'kycPaymentIntentId',

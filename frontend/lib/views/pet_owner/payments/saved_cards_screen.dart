@@ -131,25 +131,35 @@ Future<bool> runAddCardVerificationFlow(
   BuildContext context, {
   required OwnerRepository repo,
   required Color accent,
+  // v568 — remplacement d'une carte : Airwallex ne permet pas de modifier
+  // un numéro. On enregistre la nouvelle, on la passe par défaut, puis on
+  // désactive l'ancienne (fait par l'appelant après un retour `true`).
+  String? replaceConsentId,
+  bool skipConfirm = false,
 }) async {
   // 1. Confirmation : explique la charge 0,50 € + remboursement auto.
-  final ok = await showPaymentConfirmSheet(
-    context,
-    title: 'saved_cards_verify_title'.tr,
-    message: 'saved_cards_verify_message'.tr,
-    confirmLabel: 'saved_cards_verify_confirm'.tr,
-    accent: accent,
-    icon: Icons.add_card_rounded,
-  );
-  if (!ok) return false;
+  if (!skipConfirm) {
+    final ok = await showPaymentConfirmSheet(
+      context,
+      title: 'saved_cards_verify_title'.tr,
+      message: 'saved_cards_verify_message'.tr,
+      confirmLabel: 'saved_cards_verify_confirm'.tr,
+      accent: accent,
+      icon: Icons.add_card_rounded,
+    );
+    if (!ok) return false;
+  }
 
   try {
     // 2. Backend creates the verification PI.
-    final intent = await repo.verifyCard();
+    final intent = await repo.verifyCard(replaceConsentId: replaceConsentId);
     final piId = intent['paymentIntentId'] as String? ?? '';
     final secret = intent['clientSecret'] as String? ?? '';
     final amount = (intent['amount'] as num?)?.toDouble() ?? 0.50;
     final currency = (intent['currency'] as String?) ?? 'EUR';
+    // v568 — sans customerId, la page Airwallex n'enregistre pas la carte
+    // sur le client : elle était « vérifiée » puis perdue.
+    final customerId = (intent['customerId'] as String?) ?? '';
 
     if (piId.isEmpty || secret.isEmpty) {
       CustomSnackbar.showError(
@@ -165,6 +175,7 @@ Future<bool> runAddCardVerificationFlow(
       clientSecret: secret,
       amount: amount,
       currency: currency,
+      customerId: customerId.isEmpty ? null : customerId,
     );
 
     if (!result.isSuccess) {
@@ -286,6 +297,82 @@ class _SavedCardsScreenState extends State<SavedCardsScreen> {
     }
   }
 
+  /// v568 — carte par défaut : c'est elle qui sera proposée au paiement
+  /// (réservation, abonnement, boutique, don), sur les 3 profils.
+  Future<void> _setDefault(Map<String, dynamic> card) async {
+    final id = card['id']?.toString() ?? '';
+    if (id.isEmpty) return;
+    try {
+      await _repo.setDefaultOwnerPaymentMethod(id);
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'cards568_set_default_done'.tr,
+      );
+      await _load();
+    } catch (e) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: paymentErrorMessage(e),
+      );
+    }
+  }
+
+  /// v568 — « Modifier » une carte. Airwallex ne permet PAS de changer le
+  /// numéro d'une carte enregistrée : on enregistre la nouvelle, on la passe
+  /// par défaut, puis on retire l'ancienne. Le message l'explique.
+  Future<void> _replace(Map<String, dynamic> card) async {
+    final oldId = card['id']?.toString() ?? '';
+    if (oldId.isEmpty || _verifying.value) return;
+    final confirmed = await showPaymentConfirmSheet(
+      context,
+      title: 'cards568_replace_title'.tr,
+      message: '${savedCardLabel(card)}\n\n${'cards568_replace_message'.tr}',
+      confirmLabel: 'cards568_replace_confirm'.tr,
+      accent: _accent,
+      icon: Icons.published_with_changes_rounded,
+    );
+    if (!confirmed || !mounted) return;
+
+    _verifying.value = true;
+    try {
+      final added = await runAddCardVerificationFlow(
+        context,
+        repo: _repo,
+        accent: _accent,
+        replaceConsentId: oldId,
+        skipConfirm: true,
+      );
+      if (!added) return;
+
+      // La nouvelle carte est la plus récente du client Airwallex.
+      final refreshed = await _repo.getOwnerPaymentMethods();
+      final fresh = refreshed.firstWhereOrNull(
+        (c) => c['id']?.toString() != oldId,
+      );
+      var oldRemoved = false;
+      try {
+        if (fresh != null) {
+          await _repo.setDefaultOwnerPaymentMethod(fresh['id'].toString());
+        }
+        await _repo.deleteOwnerPaymentMethod(oldId);
+        oldRemoved = true;
+      } catch (_) {
+        // L'ancienne carte a survécu : on le dit au lieu de laisser croire
+        // que le remplacement est complet.
+        oldRemoved = false;
+      }
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: oldRemoved
+            ? 'cards568_replace_done'.tr
+            : 'cards568_replace_old_kept'.tr,
+      );
+      await _load();
+    } finally {
+      _verifying.value = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final accent = _accent;
@@ -333,12 +420,18 @@ class _SavedCardsScreenState extends State<SavedCardsScreen> {
             children: [
               ProfileGroupCard(
                 children: [
+                  // v568 — « par défaut » n'est plus « la première de la
+                  // liste » : c'est le choix de l'utilisateur, renvoyé par
+                  // le serveur (isDefault).
                   for (var i = 0; i < cards.length; i++)
                     SavedCardRow(
                       card: cards[i],
                       accent: accent,
-                      isDefault: i == 0,
+                      isDefault: cards[i]['isDefault'] == true || (i == 0 &&
+                          !cards.any((c) => c['isDefault'] == true)),
                       onDelete: () => _confirmAndDelete(cards[i]),
+                      onSetDefault: () => _setDefault(cards[i]),
+                      onReplace: () => _replace(cards[i]),
                     ),
                 ],
               ),
@@ -364,46 +457,137 @@ class SavedCardRow extends StatelessWidget {
   final Color accent;
   final bool isDefault;
   final VoidCallback onDelete;
+  // v568 — gestion complète d'une carte : par défaut / remplacer / supprimer.
+  // Optionnels pour ne casser aucun appelant existant.
+  final VoidCallback? onSetDefault;
+  final VoidCallback? onReplace;
   const SavedCardRow({
     super.key,
     required this.card,
     required this.accent,
     required this.isDefault,
     required this.onDelete,
+    this.onSetDefault,
+    this.onReplace,
   });
+
+  bool get _isExpired => card['isExpired'] == true;
+
+  /// Feuille d'actions « Cette carte » : par défaut, remplacer, supprimer.
+  Future<void> _openActions(BuildContext context) async {
+    await showProfileSheet<void>(
+      context,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ProfileSheetHandle(),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 6.h),
+              child: PoppinsText(
+                text: '${'cards568_actions_title'.tr} · ${savedCardLabel(card)}',
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(ctx),
+                maxLines: 2,
+              ),
+            ),
+            ProfileGroupCard(
+              children: [
+                if (onSetDefault != null && !isDefault && !_isExpired)
+                  ProfileRow(
+                    icon: Icons.star_rounded,
+                    color: accent,
+                    title: 'cards568_set_default'.tr,
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      onSetDefault!();
+                    },
+                  ),
+                if (onReplace != null)
+                  ProfileRow(
+                    icon: Icons.published_with_changes_rounded,
+                    color: accent,
+                    title: 'cards568_replace'.tr,
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      onReplace!();
+                    },
+                  ),
+                ProfileRow(
+                  icon: Icons.delete_outline_rounded,
+                  color: AppColors.errorColor,
+                  title: 'cards568_delete'.tr,
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    onDelete();
+                  },
+                ),
+              ],
+            ),
+            SizedBox(height: 10.h),
+            InterText(
+              text: 'cards568_security_note'.tr,
+              fontSize: 12.sp,
+              color: AppColors.textSecondary(ctx),
+              height: 1.4,
+              maxLines: 4,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(String label, Color color) => Container(
+        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: InterText(
+          text: label,
+          fontSize: 10.5.sp,
+          fontWeight: FontWeight.w700,
+          color: color,
+          maxLines: 1,
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
+    final subtitle = _isExpired
+        ? '${savedCardSubtitle(card)}\n${'cards568_expired_hint'.tr}'
+        : savedCardSubtitle(card);
+    final hasMenu = onSetDefault != null || onReplace != null;
     return ProfileRow(
       icon: Icons.credit_card_rounded,
-      color: accent,
+      color: _isExpired ? AppColors.errorColor : accent,
       title: savedCardLabel(card),
-      subtitle: savedCardSubtitle(card),
+      subtitle: subtitle,
       showChevron: false,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (isDefault)
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: InterText(
-                text: 'v565_pay_default_card'.tr,
-                fontSize: 10.5.sp,
-                fontWeight: FontWeight.w700,
-                color: accent,
-                maxLines: 1,
-              ),
+          if (_isExpired) _chip('cards568_expired'.tr, AppColors.errorColor),
+          if (isDefault && !_isExpired)
+            _chip('v565_pay_default_card'.tr, accent),
+          if (hasMenu)
+            IconButton(
+              tooltip: 'cards568_manage'.tr,
+              icon: Icon(Icons.more_horiz_rounded,
+                  color: AppColors.textSecondary(context), size: 22.sp),
+              onPressed: () => _openActions(context),
+            )
+          else
+            IconButton(
+              tooltip: 'common_delete'.tr,
+              icon: Icon(Icons.delete_outline_rounded,
+                  color: AppColors.errorColor, size: 22.sp),
+              onPressed: onDelete,
             ),
-          IconButton(
-            tooltip: 'common_delete'.tr,
-            icon: Icon(Icons.delete_outline_rounded,
-                color: AppColors.errorColor, size: 22.sp),
-            onPressed: onDelete,
-          ),
         ],
       ),
     );

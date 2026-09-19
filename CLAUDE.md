@@ -91,7 +91,7 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 567** (566 = v563 publiée le 18/09 à 13 h 30 : Play release 566 par API, iOS 1.18 build 566 resoumis à la place du 565 ; 565 = v562 publiée le 18/09 : Play release 565 par API, iOS 1.18 build 565 soumis ; 564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 569** (568 = v565 publiée le 19/09 ~04 h 20 : Play 568 par API, iOS 1.18 build 568 resoumis ; 567 = v564 publiée le 19/09 ~02 h : Play 567 par API, iOS 1.18 build 567 resoumis à la place du 566 ; 566 = v563 publiée le 18/09 à 13 h 30 : Play release 566 par API, iOS 1.18 build 566 resoumis à la place du 565 ; 565 = v562 publiée le 18/09 : Play release 565 par API, iOS 1.18 build 565 soumis ; 564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
 **18/09 (nuit) — BUILD 565 (v562 app) : la grande passe des 37 points, EN COURS.** Méthode : 8 lots
 en parallèle (contrats figés dans `docs/v565_contracts.md`, clés i18n par lot dans
@@ -275,10 +275,44 @@ Livré et poussé (commit 9b337e5, déploiement Render + Vercel lancé par Danie
   2 notifications auteur (`pawspot_validated`, `pawspot_popular`, catégorie pawmap, 9 langues), compteur de tags
   gratuits. **Voir les spots = gratuit** (verrou d'abonnement retiré de `_togglePawSpotLayer`). **Nouveau repère
   carte** `_buildSpotPinBitmap` (goutte couleur du type + emoji, noir/or pour les dorés, ancre 0.5/1.0) — vérifié
-  au simulateur avec 4 spots de test en zone fictive (−35/−30), supprimés ensuite. Reste : le texte « 20
-  signalements premium » de la boutique ne correspond à aucun quota serveur (illimité en réalité).
+  au simulateur avec 4 spots de test en zone fictive (−35/−30), supprimés ensuite. (« 20 signalements premium » = les 20 TYPES premium : 27 types − 7 gratuits, texte exact.)
+- **PUBLICATION 19/09 ~02 h 15** : `~/Downloads/HoPetSit_v23.1.564_build567.{ipa,aab,apk}` (5 sons vérifiés dans l'AAB et
+  l'IPA). Serveur v567 déployé (push Daniel, `publier_567.sh`, commit fae6a48). **Play : release 567 en production
+  par l'API** (commit 200, `notes_567.json`). **iOS** : Transporter (DISTRIBUER = `app_click` computer-use à
+  (646,180) ; le clic osascript n'a pas pris), build 567 VALID (`dc947379-…`), soumission 566 `8852b59c` annulée,
+  567 attaché à la 1.18, whatsNew 8 locales, reviewSubmission `797547d8-2822-4136-b048-829b3291cba1` →
+  **1.18/567 WAITING_FOR_REVIEW**. ⚠️ Admin « Versions de l'app » → 567/567 quand Play ET Apple ont approuvé.
+  **Prochain build = 568.**
 - i18n : paquets `shop567`, `ui567`, `delete567`, `pawspot567` branchés (3 996 clés, 0 inconnue). jest 169/169.
   Agents lancés en modèle Opus (forfait « tous modèles ») pour économiser le quota Fable.
+
+**19/09 (03 h) — BUILD 568 (v565 app) : « la CB enregistrée ne reste pas » (Daniel, deep work).**
+- **Causes racines** : (1) la page de paiement `airwallexBridgeRoutes.js` appelait `redirectToCheckout` SANS
+  `customer_id` → Airwallex ouvrait toujours un formulaire vierge ; (2) le DON créait son intention sans client ;
+  (3) Profil › « Ajouter une carte » envoyait numéro + CVC à NOTRE serveur (interdit PCI) et rien à Airwallex ;
+  (4) un client Airwallex par RÔLE (jusqu'à 3 par personne) → la carte ne suivait pas la personne ; (5) la case
+  « enregistrer ma carte » vivait dans un écran désactivé.
+- **Corrigé** : `backend/src/utils/airwallexCustomer.js` = UN client par personne (récupère les anciens, mémorisé
+  sur les 3 profils) branché sur réservation, abonnement, boosts, PawSpot, chat, KYC, don ; page de paiement avec
+  `customer_id` + `autoSaveCardForFuturePayments` (repli automatique sans client si refus ; **coupe-circuit sans
+  rebuild : `AIRWALLEX_HPP_CUSTOMER=off` sur Render**) ; Mes cartes : par défaut, remplacer (= ajouter + défaut +
+  désactiver l'ancienne, Airwallex ne permet pas d'éditer un numéro), supprimer, badge « Expirée » ;
+  `PUT /users/me/card` → 410, plus aucun PAN/CVC écrit. jest 186/186, i18n 4 014 clés (`cards568I18n`).
+- ⚠️ **NON FAIT (refusé par le garde-fou de Claude : modification de données de production)** : purge des
+  `card.number` / `card.cvc` déjà présents en base (owners/sitters/walkers). À faire par Daniel ou avec son accord
+  explicite : migration au démarrage `v568_purge_card_pan_cvc` (`$set` à '' des deux champs).
+- **PUBLICATION 19/09 ~04 h 20** : `~/Downloads/HoPetSit_v23.1.565_build568.{ipa,aab,apk}`. **Play : release 568 en
+  production par l'API** (commit 200, `notes_568.json`). **iOS** : Transporter (`app_click` (646,180)), build 568 VALID
+  (`99e90b1a-…`), soumission 567 `797547d8` annulée, 568 attaché à la 1.18 (204 au 4e essai), whatsNew 8 locales,
+  reviewSubmission `bfdf2321-0eea-4f4e-ac5c-55d54fa627af` submit 200 → **1.18/568 en attente de vérification**.
+  ⚠️ Un script iris avec `setTimeout` se FIGE quand Chrome met l'onglet en veille : pas de minuterie, enchaîner
+  des requêtes. Serveur v568 = push Daniel (`publier_568.sh`). Admin « Versions de l'app » → 568/568 après
+  validation Play + Apple. **Prochain build = 569.**
+- Aussi : feuilles boutique = 48 px garantis en bas sur Android (`shopSafeAreaExtraInset` = `max(0, 48 − raw)`),
+  vibration `HapticFeedback.vibrate()` à la réception app ouverte, produits Apple vérifiés (11/11 APPROVED, ids
+  identiques à `apple_iap_service.dart`), feuille « Payer / Annuler » contrôlée au simulateur iPhone.
+  À prouver par un vrai paiement : Mes cartes › Ajouter (0,50 € remboursés) → carte listée « Par défaut » →
+  réservation puis don : Airwallex doit montrer « •••• 4242 » et ne demander que le cryptogramme.
 
 **18/09 — Pliables / tablettes / iPad : REPORTÉ (décision Daniel).** « Quand on sera beaucoup plus connus. » L'app tourne déjà (gonflée : `designSize` 393 px ; iPad = mode compatibilité, `TARGETED_DEVICE_FAMILY = 1`). Le jour venu : plafonner l'échelle + colonne centrée ≥ 600 px, portrait bloqué sur grand écran ; iPad natif = irréversible + captures 13" en 8 langues. **Priorité unique : plus d'utilisateurs et les premières réservations payées.**
 

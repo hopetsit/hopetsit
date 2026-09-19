@@ -100,6 +100,13 @@ class AirwallexPaymentController extends GetxController {
       _paymentIntentId =
           paymentIntentResponse['paymentIntentId'] as String? ??
           paymentIntentResponse['payment_intent_id'] as String?;
+      // v568 — client Airwallex : sans lui, la page de paiement n'affiche
+      // AUCUNE carte enregistrée (c'est la cause de « elle ne reste pas
+      // enregistrée quand je veux payer »).
+      final String? customerId =
+          (paymentIntentResponse['customerId'] as String?)?.trim().isEmpty ?? true
+              ? null
+              : paymentIntentResponse['customerId'] as String?;
 
       if (_clientSecret == null || _clientSecret!.isEmpty) {
         throw ApiException('payment_error_client_secret_missing'.tr);
@@ -161,6 +168,7 @@ class AirwallexPaymentController extends GetxController {
           clientSecret: _clientSecret!,
           amount: totalAmount,
           currency: currency,
+          customerId: customerId,
           directUrl: nextActionUrl,
         );
         if (result3ds.isSuccess && _paymentIntentId != null) {
@@ -182,6 +190,7 @@ class AirwallexPaymentController extends GetxController {
         clientSecret: _clientSecret!,
         amount: totalAmount,
         currency: currency,
+        customerId: customerId,
       );
       if (result.isSuccess) {
         AppLogger.logUserAction(

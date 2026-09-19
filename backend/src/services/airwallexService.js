@@ -359,13 +359,8 @@ async function createRefund({ paymentIntentId, amount, reason }) {
  */
 async function findOrCreateCustomer({ userId, email, firstName, lastName }) {
   if (!userId) throw new Error('userId is required');
-  // List customers filtered by merchant_customer_id (idempotent lookup).
-  const list = await awxFetch('/api/v1/pa/customers', {
-    query: { merchant_customer_id: userId, page_num: 0, page_size: 1 },
-  }).catch(() => null);
-  if (list && Array.isArray(list.items) && list.items[0]) {
-    return list.items[0];
-  }
+  const found = await findCustomerByMerchantId(userId);
+  if (found) return found;
   // Create.
   return awxFetch('/api/v1/pa/customers/create', {
     method: 'POST',
@@ -376,6 +371,46 @@ async function findOrCreateCustomer({ userId, email, firstName, lastName }) {
       first_name: firstName || undefined,
       last_name:  lastName  || undefined,
     },
+  });
+}
+
+/**
+ * v568 — lookup only (no creation). Used by utils/airwallexCustomer.js to
+ * find the customer that may already exist under ANY of the three profile
+ * ids of the same human (owner / sitter / walker) before creating a new one.
+ *
+ * @param {string} merchantCustomerId
+ * @returns {Promise<Object|null>} the Airwallex customer or null.
+ */
+async function findCustomerByMerchantId(merchantCustomerId) {
+  if (!merchantCustomerId) return null;
+  const list = await awxFetch('/api/v1/pa/customers', {
+    query: { merchant_customer_id: merchantCustomerId, page_num: 0, page_size: 1 },
+  }).catch(() => null);
+  if (list && Array.isArray(list.items) && list.items[0]) return list.items[0];
+  return null;
+}
+
+/**
+ * v568 — retrieve an Airwallex customer by its own id (cus_xxx). Lets us
+ * confirm that a customer id persisted in Mongo still exists before reusing
+ * it (a wiped demo account, a customer deleted by hand, …).
+ */
+async function retrieveCustomer(customerId) {
+  if (!customerId) throw new Error('customerId is required');
+  return awxFetch(`/api/v1/pa/customers/${encodeURIComponent(customerId)}`);
+}
+
+/**
+ * v568 — every payment_consent of a customer, WITHOUT the VERIFIED filter
+ * applied by listPaymentMethods(). Used by the diagnostic route (which used
+ * to call a non-existent `__rawAwxFetch` and therefore always reported
+ * "no consent").
+ */
+async function listAllPaymentConsents(customerId) {
+  if (!customerId) throw new Error('customerId is required');
+  return awxFetch('/api/v1/pa/payment_consents', {
+    query: { customer_id: customerId, page_size: 50 },
   });
 }
 
@@ -1185,7 +1220,10 @@ module.exports = {
   createRefund,
   // Customers / saved cards
   findOrCreateCustomer,
+  findCustomerByMerchantId,
+  retrieveCustomer,
   listPaymentMethods,
+  listAllPaymentConsents,
   detachPaymentMethod,
   // Webhooks
   constructWebhookEvent,

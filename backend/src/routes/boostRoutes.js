@@ -16,6 +16,13 @@ const { requireAuth } = require('../middleware/auth');
 const Sitter = require('../models/Sitter');
 const Owner = require('../models/Owner');
 const airwallex = require('../services/airwallexService');
+// v568 — cartes enregistrées : UN client Airwallex par personne (partagé par
+// les profils owner / sitter / walker) + branchement unique du client sur
+// l'intention de paiement. Cf. utils/airwallexCustomer.js.
+const {
+  ensureAirwallexCustomer,
+  intentCustomerFields,
+} = require('../utils/airwallexCustomer');
 const { normalizeCurrency } = require('../utils/currency');
 const logger = require('../utils/logger');
 const pricingService = require('../services/pricingService');
@@ -231,23 +238,19 @@ router.post('/purchase', requireAuth, async (req, res) => {
         // part 58). Without this the user has to re-enter the card on
         // every boost / coin / shop purchase.
         let airwallexCustomerId = null;
+        let defaultConsentId = null;
         try {
-          // staffUser was loaded above (line ~138). It can be null if
-          // the user lookup failed — in that case skip the customer
-          // ensure and let the PI be created without it. The user
-          // would just have to enter the card manually.
-          if (staffUser && staffUser.email) {
-            const customer = await airwallex.findOrCreateCustomer({
-              userId: staffUser._id.toString(),
-              email: staffUser.email,
-              firstName: (staffUser.name || '').split(' ')[0] || staffUser.name || '',
-              lastName: (staffUser.name || '').split(' ').slice(1).join(' ') || '',
-            });
-            airwallexCustomerId = customer?.id || null;
-            logger.info(
-              `[boost] customer ensured ${airwallexCustomerId} for ${role} ${userId}`,
-            );
-          }
+          // v568 — utilitaire partagé : le client Airwallex est le MÊME
+          // pour les 3 profils de la personne, donc la carte enregistrée
+          // en réservation est proposée ici. Ne lève jamais.
+          const ensured = await ensureAirwallexCustomer({
+            userId: String(userId),
+            role,
+            userDoc: staffUser || null,
+            logTag: 'boost',
+          });
+          airwallexCustomerId = ensured.customerId;
+          defaultConsentId = ensured.defaultConsentId;
         } catch (custErr) {
           logger.warn(
             `[boost] customer ensure failed (continuing without): ${custErr?.message || custErr}`,
@@ -260,7 +263,7 @@ router.post('/purchase', requireAuth, async (req, res) => {
         const intent = await airwallex.createPlatformPaymentIntent({
           amount: amountCents,
           currency: pricing.currency,
-          ...(airwallexCustomerId ? { customer_id: airwallexCustomerId } : {}),
+          ...intentCustomerFields({ customerId: airwallexCustomerId }),
           metadata: {
             type: 'boost_purchase',
             userId,
@@ -284,6 +287,10 @@ router.post('/purchase', requireAuth, async (req, res) => {
           currency: pricing.currency,
           tier,
           days: pricing.days,
+          // v568 — requis par la page Airwallex pour lister les cartes
+          // enregistrées de l'utilisateur.
+          customerId: airwallexCustomerId,
+          defaultConsentId,
         });
       } catch (e) {
         logger.error('[boost] airwallex create-intent failed', e);

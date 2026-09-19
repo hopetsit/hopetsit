@@ -309,6 +309,10 @@ const sitterSchema = new mongoose.Schema(
       cvc: { type: String, default: '' },
       updatedAt: { type: Date, default: null },
     },
+    // v568 — cartes enregistrées Airwallex (jetons uniquement, jamais de PAN).
+    // Partagé avec les profils owner / walker du même humain.
+    airwallexCustomerId: { type: String, default: '' },
+    defaultCardConsentId: { type: String, default: '' },
     // ─── v405 refonte — champs additifs (maquettes). 100% ADDITIF.
     dateOfBirth: { type: String, default: '' },
     experienceTags: [{ type: String, trim: true }], // passionate, owner, former_pro, training, educator, volunteer

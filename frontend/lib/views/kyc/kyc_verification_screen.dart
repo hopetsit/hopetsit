@@ -115,6 +115,11 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
         amount: 3.0,
         currency: 'EUR',
         live: true,
+        // v568 — client Airwallex : la page propose la carte enregistrée
+        // au lieu d'une nouvelle saisie.
+        customerId: (initResp['customerId'] as String?)?.trim().isEmpty ?? true
+            ? null
+            : initResp['customerId'] as String?,
       );
       if (result.outcome == AirwallexPaymentOutcome.success) {
         CustomSnackbar.showSuccess(

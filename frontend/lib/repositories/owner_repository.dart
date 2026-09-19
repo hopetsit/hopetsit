@@ -963,15 +963,31 @@ class OwnerRepository {
     );
   }
 
+  /// v568 — choisit la carte par défaut (celle proposée au paiement). Le
+  /// choix est mémorisé sur les 3 profils de la personne.
+  Future<void> setDefaultOwnerPaymentMethod(String paymentMethodId) async {
+    await _apiClient.post(
+      '${ApiEndpoints.ownerPaymentMethods}/$paymentMethodId/default',
+      body: const {},
+      requiresAuth: true,
+    );
+  }
+
   /// v23.1 — start a card-verification flow ("Add card without booking").
   /// Returns { paymentIntentId, clientSecret, amount, currency, customerId }.
   /// The frontend opens AirwallexPaymentService.confirmPaymentIntent with
   /// these values ; on success the card is saved as a payment_consent and
   /// the €0.50 charge is auto-refunded by the webhook.
-  Future<Map<String, dynamic>> verifyCard() async {
+  ///
+  /// v568 — [replaceConsentId] : « modifier » une carte. Airwallex ne permet
+  /// pas de changer le numéro d'une carte enregistrée ; remplacer = ajouter
+  /// la nouvelle, la passer par défaut, supprimer l'ancienne.
+  Future<Map<String, dynamic>> verifyCard({String? replaceConsentId}) async {
     final response = await _apiClient.post(
       '${ApiEndpoints.ownerPaymentMethods}/verify-card',
-      body: const {},
+      body: (replaceConsentId != null && replaceConsentId.isNotEmpty)
+          ? {'replaceConsentId': replaceConsentId}
+          : const {},
       requiresAuth: true,
     );
     if (response is Map<String, dynamic>) return response;

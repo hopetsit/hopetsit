@@ -23,6 +23,7 @@ import 'package:hopetsit/services/push_notification_service.dart'
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/routes/app_routes.dart';
 import 'package:hopetsit/routes/app_pages.dart';
+import 'package:hopetsit/views/splash/splash_screen.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -60,7 +61,10 @@ bool _isNetworkError(Object error) {
       text.contains('Connection reset') ||
       text.contains('Connection refused') ||
       text.contains('Network is unreachable') ||
-      text.contains('Software caused connection abort');
+      text.contains('Software caused connection abort') ||
+      // v569 — google_fonts sans réseau : la police de repli s'affiche, ce
+      // n'est pas un plantage (Crashlytics le comptait comme fatal).
+      text.contains('Failed to load font');
 }
 
 void main() async {
@@ -480,6 +484,14 @@ class MyApp extends StatelessWidget {
             // calls remain functional; new code should use Get.toNamed(AppRoutes.xxx).
             initialRoute: AppRoutes.splash,
             getPages: AppPages.pages,
+            // v569 — Crashlytics « PageRedirect.page : Null check » (8 utilisateurs) :
+            // un lien universel / hopetsit:// ouvrait l'app avec une route
+            // inconnue de GetX (ex. /bookings/123) → plantage. Route inconnue =
+            // écran de démarrage ; DeepLinkService ouvre ensuite le bon écran.
+            unknownRoute: GetPage(
+              name: '/not-found',
+              page: () => const SplashScreen(),
+            ),
           ),
           ),
         );

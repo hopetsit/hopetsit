@@ -6,6 +6,9 @@ import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+// v568 — libellé partagé « VISA •••• 4242 » (écran Mes cartes).
+import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart'
+    show savedCardLabel;
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:intl/intl.dart';
@@ -49,6 +52,10 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
   final RxList<Map<String, dynamic>> _savedCards = <Map<String, dynamic>>[].obs;
   final RxnString _selectedCardId = RxnString();
   final RxBool _loadingCards = false.obs;
+  // v568 — libellé de la carte présélectionnée (« VISA •••• 4242 »), affiché
+  // avant l'ouverture de la page sécurisée pour que l'utilisateur voie que
+  // sa carte est bien connue.
+  final RxString _savedCardLabel = ''.obs;
 
   // v23.1 part 62 — Auto-launch the Airwallex HPP as soon as the screen
   // mounts so the user goes : tap "Payer" → branded loader → HPP →
@@ -109,10 +116,18 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
       // saved card as soon as the list loads, so the user just taps
       // "Payer" and gets the fast path. They can still switch to "new
       // card" by tapping that radio.
+      // v568 — la liste arrive déjà triée par le serveur, carte PAR DÉFAUT en
+      // tête (choix de l'utilisateur dans « Mes cartes »), ce qui remplace
+      // l'ancien « première de la liste » arbitraire.
       if (cards.isNotEmpty) {
-        final firstId = (cards.first['id'] ?? '').toString();
+        final preferred = cards.firstWhere(
+          (c) => c['isDefault'] == true,
+          orElse: () => cards.first,
+        );
+        final firstId = (preferred['id'] ?? '').toString();
         if (firstId.isNotEmpty) {
           _selectedCardId.value = firstId;
+          _savedCardLabel.value = savedCardLabel(preferred);
         }
       }
     } catch (_) {
@@ -380,12 +395,18 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
                       ),
                       child: Column(
                         children: [
-                          _summaryRow(
-                            context,
-                            icon: Icons.credit_card_rounded,
-                            label: 'v565_pay_method_label'.tr,
-                            value: 'v565_pay_method_card'.tr,
-                          ),
+                          // v568 — quand une carte est enregistrée, on
+                          // l'annonce ici (« VISA •••• 4242 ») : la page
+                          // Airwallex la présentera, il n'y aura que le
+                          // cryptogramme à saisir.
+                          Obx(() => _summaryRow(
+                                context,
+                                icon: Icons.credit_card_rounded,
+                                label: 'v565_pay_method_label'.tr,
+                                value: _savedCardLabel.value.isNotEmpty
+                                    ? _savedCardLabel.value
+                                    : 'v565_pay_method_card'.tr,
+                              )),
                           SizedBox(height: 12.h),
                           Row(
                             children: [

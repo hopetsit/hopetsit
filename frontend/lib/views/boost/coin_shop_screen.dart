@@ -930,6 +930,10 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
         clientSecret: clientSecret,
         amount: displayAmount,
         currency: currency,
+        // v568 — client Airwallex : la page propose la carte enregistrée.
+        customerId: (map['customerId'] as String?)?.trim().isEmpty ?? true
+            ? null
+            : map['customerId'] as String?,
       );
       // v566 — avant : `if (!mounted) { setState(...) }` → setState sur un
       // State démonté = exception « setState() called after dispose() ». On
@@ -2587,6 +2591,10 @@ class _PawSpotTabState extends State<_PawSpotTab>
         clientSecret: clientSecret,
         amount: displayAmount,
         currency: displayCurrency,
+        // v568 — client Airwallex : la page propose la carte enregistrée.
+        customerId: (map['customerId'] as String?)?.trim().isEmpty ?? true
+            ? null
+            : map['customerId'] as String?,
       );
       if (!mounted) return;
       if (result.isSuccess) {
@@ -3635,6 +3643,10 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
         clientSecret: clientSecret,
         amount: displayAmount,
         currency: displayCurrency,
+        // v568 — client Airwallex : la page propose la carte enregistrée.
+        customerId: (map['customerId'] as String?)?.trim().isEmpty ?? true
+            ? null
+            : map['customerId'] as String?,
       );
       if (!mounted) return;
       if (result.isSuccess) {

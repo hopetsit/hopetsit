@@ -24,6 +24,13 @@ const _roleModel = (role) =>
   role === 'owner' ? Owner : role === 'walker' ? Walker : Sitter;
 const { sanitizeBooking } = require('../utils/sanitize');
 const logger = require('../utils/logger');
+// v568 — utilitaire partagé : un seul client Airwallex par PERSONNE, cartes
+// normalisées, carte par défaut. Utilisé aussi par tous les flux de paiement.
+const {
+  ensureAirwallexCustomer,
+  listSavedCards,
+  setDefaultConsentId,
+} = require('../utils/airwallexCustomer');
 
 // v18.9 — accepte désormais owner / sitter / walker (les 3 peuvent avoir
 // des cartes enregistrées Stripe Customer).
@@ -48,10 +55,9 @@ const getPaymentMethods = async (req, res) => {
   if (guard) return res.status(guard.status).json({ error: guard.error });
 
   try {
-    const airwallex = require('../services/airwallexService');
-    // v23.1 — role-aware lookup. Sitters and walkers can also have saved
-    // cards (e.g. for paying premium subscriptions). Forcing Owner.findById
-    // returned 404 "Owner not found" for them. Use the right model.
+    // v568 — client Airwallex PARTAGÉ par les 3 profils (cf.
+    // utils/airwallexCustomer.js) : la carte enregistrée en propriétaire
+    // reste visible en gardien et en promeneur.
     const Model = _roleModel(req.user.role);
     const user = await Model.findById(req.user.id).lean();
     if (!user) {
@@ -60,27 +66,22 @@ const getPaymentMethods = async (req, res) => {
         details: `No ${req.user.role} document with id ${req.user.id}`,
       });
     }
-    const customer = await airwallex.findOrCreateCustomer({
-      userId: user._id.toString(),
-      email: user.email,
-      firstName: (user.name || '').split(' ')[0] || user.name,
-      lastName: (user.name || '').split(' ').slice(1).join(' ') || '',
+    const { customerId, defaultConsentId } = await ensureAirwallexCustomer({
+      userId: req.user.id,
+      role: req.user.role,
+      userDoc: user,
+      logTag: 'ownerPayments',
     });
-    const customerId = customer?.id;
     if (!customerId) {
-      return res.json({ paymentMethods: [], count: 0, customerId: null });
+      return res.json({ paymentMethods: [], count: 0, customerId: null, defaultId: null });
     }
-    const consents = await airwallex.listPaymentMethods(customerId);
-    const items = (consents?.items || []).map((c) => ({
-      id: c.id,
-      brand: c.payment_method?.card?.brand || '',
-      last4: c.payment_method?.card?.last4 || '',
-      expiryMonth: c.payment_method?.card?.expiry_month || null,
-      expiryYear: c.payment_method?.card?.expiry_year || null,
-      cardholder: c.payment_method?.card?.name || '',
-      createdAt: c.created_at || null,
-    }));
-    return res.json({ paymentMethods: items, count: items.length, customerId });
+    const { cards, defaultId } = await listSavedCards({ customerId, defaultConsentId });
+    return res.json({
+      paymentMethods: cards,
+      count: cards.length,
+      customerId,
+      defaultId,
+    });
   } catch (err) {
     logger.error('[ownerPayments] getPaymentMethods Airwallex failed', err);
     return res.status(500).json({
@@ -133,18 +134,26 @@ const verifyCard = async (req, res) => {
       });
     }
 
-    // 1. Get or create the Airwallex customer for this user.
-    const customer = await airwallex.findOrCreateCustomer({
-      userId: user._id.toString(),
-      email: user.email,
-      firstName: (user.name || '').split(' ')[0] || user.name || 'Customer',
-      lastName: (user.name || '').split(' ').slice(1).join(' ') || '',
+    // 1. Get or create the Airwallex customer for this user (shared by the
+    //    owner / sitter / walker profiles of the same person).
+    const { customerId } = await ensureAirwallexCustomer({
+      userId: req.user.id,
+      role: req.user.role,
+      userDoc: user,
+      logTag: 'ownerPayments.verifyCard',
     });
-    if (!customer?.id) {
+    if (!customerId) {
       return res.status(502).json({
         error: 'Unable to create Airwallex customer for verification.',
       });
     }
+
+    // v568 — « Modifier ma carte » : Airwallex ne permet PAS de changer le
+    // numéro d'une carte enregistrée. Remplacer = enregistrer la nouvelle,
+    // la passer par défaut, puis désactiver l'ancien consentement. L'id de
+    // l'ancienne carte est transporté en métadonnée pour la traçabilité ;
+    // la désactivation se fait à la confirmation côté app (DELETE).
+    const replaceConsentId = String(req.body?.replaceConsentId || '').trim();
 
     // 2. Create a €0.50 verification PaymentIntent.
     const VERIFY_AMOUNT_CENTS = 50;
@@ -152,7 +161,7 @@ const verifyCard = async (req, res) => {
     const intent = await airwallex.createPlatformPaymentIntent({
       amount: VERIFY_AMOUNT_CENTS,
       currency: VERIFY_CURRENCY,
-      customer_id: customer.id,
+      customer_id: customerId,
       // v23.1 part 44 — same fix as bookingController.createPaymentIntent.
       // `type: 'one_off'` produced a single-use consent that disappeared
       // after the verification charge, so the "Add card" flow ended with
@@ -169,12 +178,14 @@ const verifyCard = async (req, res) => {
         verifyCardAutoRefund: 'true',
         userId: String(req.user.id),
         role: req.user.role,
+        ...(replaceConsentId ? { replaceConsentId } : {}),
       },
     });
 
     logger.info(
       `[ownerPayments.verifyCard] PI ${intent.id} created (€0.50 verify) ` +
-      `for ${req.user.role} ${req.user.id}, customer ${customer.id}`,
+      `for ${req.user.role} ${req.user.id}, customer ${customerId}` +
+      (replaceConsentId ? ` (remplace ${replaceConsentId})` : ''),
     );
 
     return res.json({
@@ -182,7 +193,7 @@ const verifyCard = async (req, res) => {
       clientSecret: intent.client_secret,
       amount: VERIFY_AMOUNT_CENTS / 100,
       currency: VERIFY_CURRENCY,
-      customerId: customer.id,
+      customerId,
     });
   } catch (err) {
     logger.error('[ownerPayments.verifyCard] failed', err);
@@ -227,14 +238,16 @@ const deletePaymentMethod = async (req, res) => {
     const Model = _roleModel(req.user.role);
     const me = await Model.findById(req.user.id).lean();
     if (!me) return res.status(404).json({ error: 'User not found.' });
-    const customer = await airwallex.findOrCreateCustomer({
-      userId: me._id.toString(),
-      email: me.email,
-      firstName: (me.name || '').split(' ')[0] || me.name || 'Customer',
-      lastName: (me.name || '').split(' ').slice(1).join(' ') || '',
+    const { customerId, defaultConsentId } = await ensureAirwallexCustomer({
+      userId: req.user.id,
+      role: req.user.role,
+      userDoc: me,
+      logTag: 'ownerPayments.delete',
     });
-    const consents = customer?.id ? await airwallex.listPaymentMethods(customer.id) : null;
-    const owned = (consents?.items || []).some((c) => String(c.id) === String(consentId));
+    const { cards } = customerId
+      ? await listSavedCards({ customerId, defaultConsentId })
+      : { cards: [] };
+    const owned = cards.some((c) => String(c.id) === String(consentId));
     if (!owned) {
       logger.warn(
         `[ownerPayments] suppression de carte refusée : consent ${consentId} n'appartient pas à ${req.user.role} ${req.user.id}`,
@@ -242,11 +255,63 @@ const deletePaymentMethod = async (req, res) => {
       return res.status(404).json({ error: 'Payment method not found.' });
     }
     await airwallex.detachPaymentMethod(consentId);
-    return res.json({ ok: true, deletedId: consentId });
+    // v568 — la carte par défaut ne doit pas rester pointée sur une carte
+    // supprimée : on bascule sur la suivante (ou on efface le choix).
+    let newDefaultId = null;
+    if (String(defaultConsentId || '') === String(consentId)) {
+      const remaining = cards.filter((c) => String(c.id) !== String(consentId));
+      newDefaultId = (remaining.find((c) => !c.isExpired) || remaining[0])?.id || '';
+      await setDefaultConsentId({ userId: req.user.id, consentId: newDefaultId });
+    }
+    return res.json({ ok: true, deletedId: consentId, defaultId: newDefaultId || null });
   } catch (err) {
     logger.error('[ownerPayments] deletePaymentMethod Airwallex failed', err);
     return res.status(500).json({
       error: 'Unable to delete saved card.',
+      details: err?.message || String(err),
+    });
+  }
+};
+
+/**
+ * POST /owner/payments/methods/:id/default
+ * v568 — choisit la carte par défaut. Elle est présentée en premier au
+ * paiement (réservation, abonnement, boutique, don) et mémorisée sur les
+ * 3 profils de la personne.
+ */
+const setDefaultPaymentMethod = async (req, res) => {
+  const guard = assertOwner(req);
+  if (guard) return res.status(guard.status).json({ error: guard.error });
+
+  try {
+    const consentId = String(req.params.id || '').trim();
+    if (!consentId) {
+      return res.status(400).json({ error: 'Payment method id is required.' });
+    }
+    const Model = _roleModel(req.user.role);
+    const me = await Model.findById(req.user.id).lean();
+    if (!me) return res.status(404).json({ error: 'User not found.' });
+
+    const { customerId, defaultConsentId } = await ensureAirwallexCustomer({
+      userId: req.user.id,
+      role: req.user.role,
+      userDoc: me,
+      logTag: 'ownerPayments.default',
+    });
+    const { cards } = customerId
+      ? await listSavedCards({ customerId, defaultConsentId })
+      : { cards: [] };
+    // Même garde-fou que la suppression : on n'accepte qu'un consentement
+    // appartenant à l'appelant.
+    if (!cards.some((c) => String(c.id) === String(consentId))) {
+      return res.status(404).json({ error: 'Payment method not found.' });
+    }
+    await setDefaultConsentId({ userId: req.user.id, consentId });
+    return res.json({ ok: true, defaultId: consentId });
+  } catch (err) {
+    logger.error('[ownerPayments] setDefaultPaymentMethod failed', err);
+    return res.status(500).json({
+      error: 'Unable to set the default card.',
       details: err?.message || String(err),
     });
   }
@@ -312,6 +377,7 @@ module.exports = {
   getPaymentMethods,
   createSetupIntent,
   deletePaymentMethod,
+  setDefaultPaymentMethod,
   getPaymentHistory,
   attachPaymentMethod,
   verifyCard,

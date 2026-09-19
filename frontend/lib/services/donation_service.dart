@@ -29,6 +29,10 @@ class DonationService {
 
       final clientSecret    = map['clientSecret']?.toString() ?? '';
       final paymentIntentId = map['paymentIntentId']?.toString() ?? '';
+      // v568 — le don était le seul flux sans client Airwallex : la carte
+      // enregistrée n'était donc jamais proposée. Le backend le renvoie
+      // désormais, on le transmet à la page de paiement.
+      final customerId      = map['customerId']?.toString() ?? '';
 
       if (clientSecret.isEmpty) {
         throw Exception('Missing clientSecret in donation response.');
@@ -40,6 +44,7 @@ class DonationService {
         clientSecret: clientSecret,
         amount:       amount,
         currency:     currency,
+        customerId:   customerId.isEmpty ? null : customerId,
       );
       // ignore: use_build_context_synchronously
       if (!context.mounted) return;
