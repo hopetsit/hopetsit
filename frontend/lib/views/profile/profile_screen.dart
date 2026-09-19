@@ -11,6 +11,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/profile/widgets/my_profiles_card.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/boost_profile_card.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 // v23.1 part 124 — Daniel : "Enlever admin de lapp ; car jai admin
 // navigateur". Le panel admin est désormais accessible UNIQUEMENT via
 // le navigateur (https://hopetsit-backend.onrender.com/admin). Le
@@ -66,7 +67,7 @@ class ProfileScreen extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(
                   // v488 — Daniel : « Se déconnecter toujours trop bas » → on
                   // dégage davantage le bas pour passer au-dessus du menu.
-                  16.w, 0, 16.w, 140.h + MediaQuery.of(context).viewPadding.bottom),
+                  16.w, 0, 16.w, 140.h + appBottomInset(context)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

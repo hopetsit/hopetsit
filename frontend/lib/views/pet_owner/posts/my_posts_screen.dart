@@ -20,6 +20,7 @@ import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation
 // v23.1 — B3+B5 : multi-candidatures banner above each owner's post card.
 import 'package:hopetsit/controllers/applications_controller.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/post_candidates_banner.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
@@ -150,10 +151,16 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
         post.postType.toLowerCase() == 'media';
   }
 
-  Widget _buildSortBar(BuildContext context) {
+  /// v569 — en-tête clair : nombre d'annonces publiées + tri en DEUX pilules
+  /// sélectionnables (le menu déroulant cachait l'option courante derrière un
+  /// tap). Même état `_sortOrder`, même tri, aucune requête en plus.
+  Widget _buildHeader(BuildContext context, int count) {
+    final label = count == 1
+        ? 'lists569_posts_count_one'.tr
+        : 'lists569_posts_count'.tr.replaceAll('{n}', '$count');
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+      padding: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 12.h),
       decoration: BoxDecoration(
         color: AppColors.scaffold(context),
         border: Border(
@@ -162,54 +169,155 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
           ),
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.sort_rounded, size: 20.sp, color: AppColors.grey700Color),
-          SizedBox(width: 8.w),
-          Expanded(
-            child: InterText(
-              text: 'my_posts_sort_label'.tr,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textPrimary(context),
-            ),
-          ),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<MyPostsSortOrder>(
-              value: _sortOrder,
-              icon: Icon(
-                Icons.keyboard_arrow_down_rounded,
+          Row(
+            children: [
+              Icon(
+                Icons.campaign_rounded,
+                size: 18.sp,
                 color: AppColors.primaryColor,
-                size: 22.sp,
               ),
-              style: TextStyle(
-                fontSize: 14.sp,
-                color: AppColors.textPrimary(context),
-                fontWeight: FontWeight.w500,
+              SizedBox(width: 8.w),
+              Expanded(
+                child: InterText(
+                  text: label,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              items: [
-                DropdownMenuItem(
-                  value: MyPostsSortOrder.newestFirst,
-                  child: InterText(
-                    text: 'my_posts_sort_newest'.tr,
-                    fontSize: 14.sp,
-                    color: AppColors.textPrimary(context),
-                  ),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          Row(
+            children: [
+              Icon(
+                Icons.swap_vert_rounded,
+                size: 16.sp,
+                color: AppColors.textSecondary(context),
+              ),
+              SizedBox(width: 6.w),
+              Flexible(
+                child: _sortPill(
+                  context,
+                  MyPostsSortOrder.newestFirst,
+                  'my_posts_sort_newest'.tr,
                 ),
-                DropdownMenuItem(
-                  value: MyPostsSortOrder.oldestFirst,
-                  child: InterText(
-                    text: 'my_posts_sort_oldest'.tr,
-                    fontSize: 14.sp,
-                    color: AppColors.textPrimary(context),
-                  ),
+              ),
+              SizedBox(width: 8.w),
+              Flexible(
+                child: _sortPill(
+                  context,
+                  MyPostsSortOrder.oldestFirst,
+                  'my_posts_sort_oldest'.tr,
                 ),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => _sortOrder = v);
-              },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sortPill(
+    BuildContext context,
+    MyPostsSortOrder value,
+    String label,
+  ) {
+    final selected = _sortOrder == value;
+    return Material(
+      color: selected
+          ? AppColors.primaryColor.withValues(alpha: 0.12)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(20.r),
+      child: InkWell(
+        onTap: () => setState(() => _sortOrder = value),
+        borderRadius: BorderRadius.circular(20.r),
+        child: Container(
+          constraints: BoxConstraints(minHeight: 34.h),
+          alignment: Alignment.center,
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20.r),
+            border: Border.all(
+              color: selected
+                  ? AppColors.primaryColor.withValues(alpha: 0.45)
+                  : AppColors.divider(context),
             ),
           ),
+          child: InterText(
+            text: label,
+            fontSize: 12.sp,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected
+                ? AppColors.primaryColor
+                : AppColors.textSecondary(context),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// État vide / erreur, toujours tirable vers le bas pour réessayer.
+  Widget _buildMessageState(
+    BuildContext context, {
+    required IconData icon,
+    required Color accent,
+    required String title,
+    required String message,
+    required Future<void> Function() onRefresh,
+    bool showRetryButton = false,
+  }) {
+    return RefreshIndicator(
+      color: AppColors.primaryColor,
+      onRefresh: onRefresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(32.w, 60.h, 32.w, 32.h),
+        children: [
+          Center(
+            child: Container(
+              width: 88.w,
+              height: 88.w,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.10),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 42.sp, color: accent),
+            ),
+          ),
+          SizedBox(height: 18.h),
+          PoppinsText(
+            text: title,
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 6.h),
+          InterText(
+            text: message,
+            fontSize: 13.sp,
+            color: AppColors.textSecondary(context),
+            textAlign: TextAlign.center,
+          ),
+          if (showRetryButton) ...[
+            SizedBox(height: 20.h),
+            Center(
+              child: ActionPillButton(
+                label: 'common_retry'.tr,
+                icon: Icons.refresh_rounded,
+                tone: AppColors.primaryColor,
+                onPressed: onRefresh,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -238,7 +346,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
       return Padding(
         padding: EdgeInsets.only(bottom: 16.h),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             PostCandidatesBanner(postId: post.id),
             PetPostCard(
@@ -319,7 +427,7 @@ isOwnerBoosted: post.isOwnerBoosted ||
     return Padding(
       padding: EdgeInsets.only(bottom: 16.h),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PostCandidatesBanner(postId: post.id),
           PetPostCard(
@@ -462,6 +570,10 @@ isOwnerBoosted: post.isOwnerBoosted ||
       body: SafeArea(
         child: Obx(() {
           final isLoading = postsController.isLoading.value;
+          // v569 — l'écran ne montrait JAMAIS l'erreur du contrôleur : une
+          // coupure réseau se lisait « aucune annonce ». On distingue
+          // désormais vide / chargement / erreur + « Réessayer ».
+          final errorMessage = postsController.errorMessage.value;
 
           final sortedMine = userId == null
               ? <PostModel>[]
@@ -475,69 +587,47 @@ isOwnerBoosted: post.isOwnerBoosted ||
             return const Center(child: CircularProgressIndicator());
           }
 
+          if (sortedMine.isEmpty && errorMessage.isNotEmpty) {
+            return _buildMessageState(
+              context,
+              icon: Icons.wifi_off_rounded,
+              accent: AppColors.errorColor,
+              title: 'lists569_load_error_title'.tr,
+              message: 'lists569_load_error_msg'.tr,
+              onRefresh: () => postsController.refreshPosts(),
+              showRetryButton: true,
+            );
+          }
+
           if (sortedMine.isEmpty) {
             // v23.1 part 253 — empty state modernise (icone + titre + sous-
             // texte) pour un rendu plus pro, coherent avec les autres
             // empty states de l'app (amis, etc.).
-            return Center(
-              child: Padding(
-                padding: EdgeInsets.all(32.w),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 88.w,
-                      height: 88.w,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withValues(alpha: 0.10),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.post_add_rounded,
-                        size: 44.sp,
-                        color: AppColors.primaryColor,
-                      ),
-                    ),
-                    SizedBox(height: 18.h),
-                    PoppinsText(
-                      text: 'my_posts_no_posts'.tr,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary(context),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 6.h),
-                    InterText(
-                      text: 'my_posts_empty_subtitle'.tr,
-                      fontSize: 13.sp,
-                      color: AppColors.textSecondary(context),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
+            return _buildMessageState(
+              context,
+              icon: Icons.post_add_rounded,
+              accent: AppColors.primaryColor,
+              title: 'my_posts_no_posts'.tr,
+              message: 'my_posts_empty_subtitle'.tr,
+              onRefresh: () => postsController.refreshPosts(),
             );
           }
 
           return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildSortBar(context),
+              _buildHeader(context, sortedMine.length),
               Expanded(
                 child: RefreshIndicator(
                   color: AppColors.primaryColor,
                   onRefresh: () => postsController.refreshPosts(),
-                  child: SingleChildScrollView(
+                  child: ListView.builder(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.all(16.w),
-                    child: Column(
-                      children: [
-                        ...sortedMine.map(
-                          (post) =>
-                              _buildPostCard(context, post, postsController),
-                        ),
-                        SizedBox(height: 50.h),
-                      ],
+                    padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 66.h),
+                    itemCount: sortedMine.length,
+                    itemBuilder: (context, index) => _buildPostCard(
+                      context,
+                      sortedMine[index],
+                      postsController,
                     ),
                   ),
                 ),

@@ -7,7 +7,9 @@ import 'package:hopetsit/controllers/applications_controller.dart';
 import 'package:hopetsit/models/application_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v23.1 — B5 : bottom sheet listing every pending candidate for one of the
 /// owner's posts. The owner can choose one (auto-rejects the others on the
@@ -165,7 +167,8 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
         16.w,
         12.h,
         16.w,
-        20.h + mq.padding.bottom,
+        // v569 — `padding.bottom` = 0 sur le Samsung de Daniel.
+        20.h + appBottomInset(context),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -445,44 +448,35 @@ class _CandidateCard extends StatelessWidget {
             ),
           ],
           SizedBox(height: 12.h),
+          // v569 — même langage visuel que les feuilles d'action du bandeau :
+          // choisir = pilule pleine, refuser = rouge texte, indicateur « en
+          // cours » (busy) qui neutralise le double tap. Mêmes callbacks.
           Obx(
             () => Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: busy.value ? null : onReject,
-                    icon: const Icon(Icons.close_rounded,
-                        color: Color(0xFFE53935), size: 18),
-                    label: Text(
-                      'common_reject'.tr,
-                      style: const TextStyle(color: Color(0xFFE53935)),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFE53935)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10.r),
-                      ),
-                      padding: EdgeInsets.symmetric(vertical: 10.h),
-                    ),
+                  child: ActionPillButton(
+                    label: 'common_reject'.tr,
+                    icon: Icons.close_rounded,
+                    tone: ActionTone.danger,
+                    kind: ActionPillKind.danger,
+                    expand: true,
+                    haptic: true,
+                    busy: busy.value,
+                    onPressed: onReject,
                   ),
                 ),
                 SizedBox(width: 8.w),
                 Expanded(
                   flex: 2,
-                  child: ElevatedButton.icon(
-                    onPressed: busy.value ? null : onAccept,
-                    icon: const Icon(Icons.check_circle_rounded, size: 18),
-                    label: Text('candidates_choose_button'.tr),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10.r),
-                      ),
-                      padding: EdgeInsets.symmetric(vertical: 10.h),
-                      textStyle:
-                          TextStyle(fontWeight: FontWeight.w700, fontSize: 13.sp),
-                    ),
+                  child: ActionPillButton(
+                    label: 'candidates_choose_button'.tr,
+                    icon: Icons.check_circle_rounded,
+                    tone: AppColors.primaryColor,
+                    expand: true,
+                    haptic: true,
+                    busy: busy.value,
+                    onPressed: onAccept,
                   ),
                 ),
               ],

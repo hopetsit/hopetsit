@@ -314,6 +314,55 @@ Livré et poussé (commit 9b337e5, déploiement Render + Vercel lancé par Danie
   À prouver par un vrai paiement : Mes cartes › Ajouter (0,50 € remboursés) → carte listée « Par défaut » →
   réservation puis don : Airwallex doit montrer « •••• 4242 » et ne demander que le cryptogramme.
 
+**19/09 (journée) — BUILD 569 (v566 app) : « que l'app soit complètement mise à jour » (Daniel).** Le plus gros
+lot depuis la 565 : ~12 agents Opus par vagues de 4 max, périmètres exclusifs, un paquet i18n par lot.
+- **Crashlytics** : `PageRedirect.page Null check` (8 utilisateurs) = un lien universel / `hopetsit://` ouvrait
+  l'app avec une route inconnue de GetX (deep linking natif de Flutter actif par défaut) → `unknownRoute`
+  (Splash) + `flutter_deeplinking_enabled=false` (manifeste) + `FlutterDeepLinkingEnabled=false` (Info.plist,
+  local au Mac) ; « Failed to load font » (google_fonts hors réseau) reclassé non fatal ; `invalid_sound` = 565,
+  déjà corrigé.
+- **⚠️ CAUSE RACINE des boutons sous la barre Samsung** : `showModalBottomSheet(useSafeArea: true)` enveloppe
+  la feuille dans `SafeArea(bottom: FALSE)` — Flutter ne protège JAMAIS le bas d'une feuille (idem
+  `Get.bottomSheet`). Les correctifs 567/568 supposaient l'inverse et n'ajoutaient rien. → utilitaire UNIQUE
+  `lib/utils/bottom_inset.dart` : `appBottomInset(context)` (iOS = inset réel, Android = max(inset, 48)) et
+  `appBottomInsetInsideSafeArea(context)` (complément quand un SafeArea(bottom:true) entoure déjà ; prendre un
+  context AU-DESSUS du SafeArea). Audit : 51 feuilles + ~60 écrans, 74 fichiers corrigés ;
+  `ProfileSubPageScaffold` (42 sous-pages) porte le dégagement. RÈGLE : tout nouveau bouton/feuille du bas passe
+  par cet utilitaire.
+- **Annulation sous 72 h** : ne marchait PAS pour les PROMENEURS (l'app appelait `DELETE …/self-cancel`, la route
+  est un POST → 404) → app corrigée + alias `router.delete` (répare les apps installées) ; remboursement échoué
+  ≠ « refunded » : `paymentStatus='refund'` + `refundError` ; `refundId`/`refundedAt` étaient écrits mais ABSENTS
+  du schéma Booking (ajoutés) ; pop-up remplacé par `widgets/cancel_72h_sheet.dart` (3 rôles). Le site ne propose
+  pas cette annulation (à faire).
+- **Accord de réservation** : `GET /bookings/:id/agreement` renvoyait **500 sur toutes les promenades**
+  (`sitterId` null) → corrigé + test ; date en anglais (table de mois codée en dur), « hourly » brut, « 0.0
+  heures », bouton Payer visible côté prestataire, net prestataire jamais lu (`netToSitter`), aucun
+  rafraîchissement (pull-to-refresh + socket `booking:*` + retour au premier plan).
+- **Chat** : tap sur la photo/le nom → `chat_peer_sheet.dart` (ajouter en ami si pas déjà ami / demande en
+  attente, bloquer) ; suppression de conversation : glisser / appui long → feuille moderne, optimiste, et
+  **synchronisée** (`conversation:deleted` émis à MES rooms, app + web). Côté serveur la suppression ne masque
+  que pour MOI (`clearedFor`) ; la conversation revient avec son historique si l'autre réécrit — le texte le dit.
+- **Design** : `CustomButton` refait (19 écrans), thèmes globaux Elevated/Outlined/Filled/TextButton + dialogues
+  coins 22 (`main.dart`), `widgets/role_chip.dart` (accueils des 3 rôles + chat), boutons d'en-tête « Paw
+  Buttons » + cloche avec compteur (`custom_app_bar.dart`), boutique 4 onglets (`ShopHero`, `ShopBenefitList`,
+  `ShopPlanTile`, `ShopTrustRow`, `ShopHelpCard`, squelette), pages de paiement (habillage SEUL, logique relue
+  ligne à ligne : inchangée) + `payment_ui_kit.dart`, bandeaux d'accueil et boutons accepter/refuser
+  (`widgets/action_banner_kit.dart` : `ActionBanner`, `ActionPillButton`, `ActionTone`), carte d'annonce vue
+  prestataire (`post_card_kit.dart` ; l'offre de service part en UN tap, aucune feuille — inchangé), lots « jamais
+  retouchés » : entrée dans l'app (`CustomTextField` API identique, connexion, mot de passe oublié, onboarding,
+  invité), annonces/candidatures/notifications, dialogues/KYC/fidélité/badges/profil. Dialogue « Bloquer ce
+  gardien » de l'accueil remis dans le bon sens (clés `…_yes`=Annuler / `…_no`=Bloquer nommées à l'envers).
+- **Code mort repéré (non touché)** : `SignUpScreen`, `EmailVerificationScreen` (le tunnel vivant =
+  `signup_wizard_screen`, `otp_verification_screen`, `sign_up_as`), `ApplicationScreen` + route
+  `AppRoutes.application`, `notification_application_view_screen`, `sitter_notifications_screen`,
+  `pet_sitter_request_card`, `pawpass_required_dialog`, `pet_enriched_fields`, `pet_extra_fields`,
+  `translate_message_button`, `fullscreen_map_screen`, `report_category_grid_screen`, `pet_bottom_sheet`,
+  `notification_badge`, `custom_navigation_bar`, `modern_toast`, `stripe_connect_*`, stubs
+  `identity_verification_screen` ×2, `connect_payment_screen`.
+- i18n : paquets `chatdel569`, `shop569`, `agreement569`, `pay569`, `post569`, `misc569`, `auth569`, `lists569`
+  branchés → 4 168 clés, 0 inconnue. jest 202/202, `tsc` 0, `dart analyze lib` 0 erreur / 0 warning.
+  ⚠️ `dart format` lancé par erreur sur les 3 accueils (gros diff purement cosmétique).
+
 **18/09 — Pliables / tablettes / iPad : REPORTÉ (décision Daniel).** « Quand on sera beaucoup plus connus. » L'app tourne déjà (gonflée : `designSize` 393 px ; iPad = mode compatibilité, `TARGETED_DEVICE_FAMILY = 1`). Le jour venu : plafonner l'échelle + colonne centrée ≥ 600 px, portrait bloqué sur grand écran ; iPad natif = irréversible + captures 13" en 8 langues. **Priorité unique : plus d'utilisateurs et les premières réservations payées.**
 
 **13/09 — v562 SITE « minimaliste, pro, façon Apple » (Daniel).** Design uniquement, mêmes

@@ -14,6 +14,7 @@ import 'package:hopetsit/views/friends/tabs/requests_tab.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 const int _kFamilyMax = 5;
 
@@ -73,7 +74,7 @@ class FamilyTab extends StatelessWidget {
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w,
-              24.h + MediaQuery.of(context).viewPadding.bottom),
+              24.h + appBottomInset(context)),
           children: [
             if (!hasPlan)
               _PlanRequiredCard(onTap: _openShop)

@@ -10,6 +10,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/pawspot_controller.dart' show pawSpotTr;
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 class PawspotLeaderboardScreen extends StatefulWidget {
@@ -563,7 +564,10 @@ class _RewardsSheetState extends State<_RewardsSheet> {
     }
     return ListView(
       controller: scroll,
-      padding: EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 28.h),
+      // v569 — en feuille modale, Flutter ne protège jamais le bas : la
+      // dernière ligne du barème finissait sous la barre système.
+      padding: EdgeInsets.fromLTRB(
+          16.w, 4.h, 16.w, 28.h + (widget.inTab ? 0 : appBottomInset(context))),
       children: children,
     );
   }
@@ -1265,7 +1269,9 @@ class _LeaderboardListState extends State<_LeaderboardList>
       onRefresh: _load,
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 24.h),
+        // v569 — dernière ligne du classement au-dessus de la barre système.
+        padding:
+            EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 24.h + appBottomInset(context)),
         itemCount: _rows.length,
         itemBuilder: (context, index) => _buildRow(context, index, _rows[index]),
       ),

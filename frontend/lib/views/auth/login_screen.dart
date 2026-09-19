@@ -10,9 +10,11 @@ import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/guest/guest_landing_screen.dart';
 import 'package:hopetsit/utils/app_images.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/micro_anims.dart';
+import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/views/auth/forgot_flow/forgot_password_email_screen.dart';
 import 'package:hopetsit/views/auth/sign_up_as.dart';
 
@@ -114,7 +116,15 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 24.w),
+            // v569 — le bouton principal ne doit jamais rester sous la barre
+            // système Android (viewPadding = 0 sur les Samsung edge-to-edge).
+            // Le SafeArea entoure déjà : on n'ajoute que le complément.
+            padding: EdgeInsets.fromLTRB(
+              24.w,
+              0,
+              24.w,
+              appBottomInsetInsideSafeArea(context),
+            ),
             child: Form(
               key: controller.formKey,
               child: Column(
@@ -242,187 +252,219 @@ class _LoginScreenState extends State<LoginScreen> {
                     SizedBox(height: 18.h),
                   ],
 
-                  // ── E-mail ──
-                  CustomTextField(
-                    labelText: 'label_email'.tr,
-                    hintText: 'hint_email'.tr,
-                    controller: controller.emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    validator: controller.validateEmail,
-                    prefixIcon: Icon(
-                      Icons.mail_outline_rounded,
-                      size: 20.sp,
-                      color: mutedColor,
+                  // ── Carte de formulaire ────────────────────────────
+                  // v569 — les champs, la case « Se souvenir » et le bouton
+                  // principal sont réunis dans une seule carte : le regard
+                  // n'a plus qu'un bloc à traiter. Aucun câblage ne change.
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 16.h),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.surfaceDark : Colors.white,
+                      borderRadius: BorderRadius.circular(24.r),
+                      border: Border.all(
+                        color: isDark
+                            ? AppColors.dividerDark
+                            : const Color(0xFFF1E8E0),
+                      ),
+                      boxShadow: isDark
+                          ? null
+                          : [
+                              BoxShadow(
+                                color: const Color(0xFFC92A12)
+                                    .withValues(alpha: 0.05),
+                                blurRadius: 24,
+                                offset: const Offset(0, 12),
+                              ),
+                            ],
                     ),
-                    radius: 16.r,
-                  ),
-                  SizedBox(height: 14.h),
+                    child: Column(
+                      children: [
+                        // ── E-mail ──
+                        CustomTextField(
+                          labelText: 'label_email'.tr,
+                          hintText: 'hint_email'.tr,
+                          controller: controller.emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          validator: controller.validateEmail,
+                          prefixIcon: Icon(
+                            Icons.mail_outline_rounded,
+                            size: 20.sp,
+                            color: mutedColor,
+                          ),
+                          radius: 16.r,
+                        ),
+                        SizedBox(height: 14.h),
 
-                  // ── Mot de passe ──
-                  CustomTextField(
-                    labelText: 'label_password'.tr,
-                    hintText: 'hint_password_login'.tr,
-                    focusNode: _passwordFocus,
-                    controller: controller.passwordController,
-                    obscureText: true,
-                    showPasswordToggle: true,
-                    textInputAction: TextInputAction.done,
-                    validator: controller.validatePassword,
-                    prefixIcon: Icon(
-                      Icons.lock_outline_rounded,
-                      size: 20.sp,
-                      color: mutedColor,
-                    ),
-                    radius: 16.r,
-                  ),
-                  SizedBox(height: 8.h),
+                        // ── Mot de passe ──
+                        CustomTextField(
+                          labelText: 'label_password'.tr,
+                          hintText: 'hint_password_login'.tr,
+                          focusNode: _passwordFocus,
+                          controller: controller.passwordController,
+                          obscureText: true,
+                          showPasswordToggle: true,
+                          textInputAction: TextInputAction.done,
+                          validator: controller.validatePassword,
+                          prefixIcon: Icon(
+                            Icons.lock_outline_rounded,
+                            size: 20.sp,
+                            color: mutedColor,
+                          ),
+                          radius: 16.r,
+                        ),
+                        SizedBox(height: 10.h),
 
-                  // ── « Se souvenir de moi » + « Mot de passe oublié ? » ──
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => setState(() => _remember = !_remember),
-                        behavior: HitTestBehavior.opaque,
-                        child: Row(
+                        // ── « Se souvenir de moi » + « Mot de passe oublié ? » ──
+                        Row(
                           children: [
-                            SizedBox(
-                              width: 22.w,
-                              height: 22.w,
-                              child: Checkbox(
-                                value: _remember,
-                                onChanged: (v) =>
-                                    setState(() => _remember = v ?? false),
-                                activeColor: const Color(0xFFC92A12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(6.r),
-                                ),
-                                side: BorderSide(
-                                  color: isDark
-                                      ? AppColors.dividerDark
-                                      : const Color(0xFFD8CFC6),
-                                  width: 1.6,
-                                ),
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
+                            GestureDetector(
+                              onTap: () =>
+                                  setState(() => _remember = !_remember),
+                              behavior: HitTestBehavior.opaque,
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 22.w,
+                                    height: 22.w,
+                                    child: Checkbox(
+                                      value: _remember,
+                                      onChanged: (v) => setState(
+                                          () => _remember = v ?? false),
+                                      activeColor: const Color(0xFFC92A12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(6.r),
+                                      ),
+                                      side: BorderSide(
+                                        color: isDark
+                                            ? AppColors.dividerDark
+                                            : const Color(0xFFD8CFC6),
+                                        width: 1.6,
+                                      ),
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8.w),
+                                  InterText(
+                                    text: 'login_remember'.tr,
+                                    fontSize: 12.5.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: mutedColor,
+                                  ),
+                                ],
                               ),
                             ),
-                            SizedBox(width: 8.w),
-                            InterText(
-                              text: 'login_remember'.tr,
-                              fontSize: 12.5.sp,
-                              fontWeight: FontWeight.w600,
-                              color: mutedColor,
+                            const Spacer(),
+                            GestureDetector(
+                              onTap: () => Get.to(
+                                () => const ForgotPasswordEmailScreen(),
+                                transition: Transition.rightToLeft,
+                              ),
+                              behavior: HitTestBehavior.opaque,
+                              child: InterText(
+                                text: 'forgot_password'.tr,
+                                fontSize: 12.5.sp,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFFC92A12),
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () => Get.to(
-                          () => const ForgotPasswordEmailScreen(),
-                          transition: Transition.rightToLeft,
+                        SizedBox(height: 18.h),
+
+                        // ── Se connecter (CustomButton commun v569) ──
+                        Obx(
+                          () => CustomButton(
+                            height: 54.h,
+                            radius: 18.r,
+                            bgColor: const Color(0xFFC92A12),
+                            onTap: controller.isLoading.value ? null : _login,
+                            child: controller.isLoading.value
+                                ? SizedBox(
+                                    width: 22.sp,
+                                    height: 22.sp,
+                                    child: const CircularProgressIndicator(
+                                      strokeWidth: 2.4,
+                                      valueColor:
+                                          AlwaysStoppedAnimation<Color>(
+                                              Colors.white),
+                                    ),
+                                  )
+                                : PoppinsText(
+                                    text: 'title_login'.tr,
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                          ),
                         ),
-                        behavior: HitTestBehavior.opaque,
-                        child: InterText(
-                          text: 'forgot_password'.tr,
-                          fontSize: 12.5.sp,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFFC92A12),
-                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 10.h),
+
+                  // ── Rappel discret : la connexion est chiffrée ──
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.lock_rounded,
+                          size: 12.sp, color: mutedColor.withValues(alpha: 0.8)),
+                      SizedBox(width: 5.w),
+                      InterText(
+                        text: 'auth569_secure_login'.tr,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: mutedColor.withValues(alpha: 0.8),
                       ),
                     ],
                   ),
-                  SizedBox(height: 20.h),
-
-                  // ── Se connecter (dégradé marque) ──
-                  Obx(
-                    () => GestureDetector(
-                      onTap: controller.isLoading.value ? null : _login,
-                      child: Container(
-                        width: double.infinity,
-                        height: 52.h,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFE25822), Color(0xFFC92A12)],
-                          ),
-                          borderRadius: BorderRadius.circular(18.r),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFC92A12)
-                                  .withValues(alpha: 0.30),
-                              blurRadius: 18,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: controller.isLoading.value
-                              ? SizedBox(
-                                  width: 22.sp,
-                                  height: 22.sp,
-                                  child: const CircularProgressIndicator(
-                                    strokeWidth: 2.4,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white),
-                                  ),
-                                )
-                              : PoppinsText(
-                                  text: 'title_login'.tr,
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 20.h),
+                  SizedBox(height: 18.h),
 
                   _labelDivider(
                       context, 'or_continue_with'.tr, isDark, mutedColor),
-                  SizedBox(height: 18.h),
+                  SizedBox(height: 16.h),
 
-                  // ── Google + Apple côte à côte ──
-                  // v540 — Row enveloppée dans Obx : avant, les .value
-                  // étaient lus HORS Obx → les spinners ne s'affichaient
-                  // jamais et les boutons ne se désactivaient pas.
+                  // ── Google + Apple, pleine largeur, empilés ──
+                  // v540 — bloc enveloppé dans Obx : avant, les .value étaient
+                  // lus HORS Obx → les spinners ne s'affichaient jamais et les
+                  // boutons ne se désactivaient pas. Les handlers ne changent
+                  // pas ; seul le gabarit passe en pleine largeur (coins 14),
+                  // ce qui laisse la place au libellé Apple officiel.
                   Obx(
-                    () => Row(
-                      children: [
-                        Expanded(
-                          child: _SocialLoginButton(
-                            onTap: controller.isLoading.value ||
-                                    controller.isGoogleLoginLoading.value ||
-                                    controller.isAppleLoginLoading.value
+                    () {
+                      final bool busy = controller.isLoading.value ||
+                          controller.isGoogleLoginLoading.value ||
+                          controller.isAppleLoginLoading.value;
+                      return Column(
+                        children: [
+                          _SocialLoginButton(
+                            onTap: busy
                                 ? null
                                 : () => controller.loginWithGoogle(),
                             imagePath: AppImages.googleIcon,
-                            label: 'button_google'.tr,
+                            label: 'auth569_google_continue'.tr,
                             isDark: isDark,
-                            isLoading:
-                                controller.isGoogleLoginLoading.value,
+                            isLoading: controller.isGoogleLoginLoading.value,
                           ),
-                        ),
-                        if (Platform.isIOS) ...[
-                          SizedBox(width: 12.w),
-                          Expanded(
-                            child: _SocialLoginButton(
-                              onTap: controller.isLoading.value ||
-                                      controller.isGoogleLoginLoading.value ||
-                                      controller.isAppleLoginLoading.value
+                          if (Platform.isIOS) ...[
+                            SizedBox(height: 10.h),
+                            _SocialLoginButton(
+                              onTap: busy
                                   ? null
                                   : () => controller.loginWithApple(),
                               icon: Icons.apple,
-                              label: 'button_apple'.tr,
+                              label: 'auth569_apple_continue'.tr,
                               isDark: isDark,
                               isLoading:
                                   controller.isAppleLoginLoading.value,
                             ),
-                          ),
+                          ],
                         ],
-                      ],
-                    ),
+                      );
+                    },
                   ),
                   SizedBox(height: 18.h),
 
@@ -755,78 +797,88 @@ class _SocialLoginButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isAppleButton = _isApple;
+    // v569 — Apple impose un bouton NOIR (ou blanc) avec son logo officiel et
+    // le libellé « Se connecter avec Apple » traduit : on ne le colore pas.
+    final Color fg =
+        isAppleButton ? Colors.white : AppColors.textPrimary(context);
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16.r),
-      child: Container(
-        height: 50.h,
-        decoration: BoxDecoration(
-          color: isAppleButton
-              ? const Color(0xFF101319)
-              : (isDark ? AppColors.surfaceDark : Colors.white),
-          borderRadius: BorderRadius.circular(16.r),
-          border: isAppleButton
-              ? null
-              : Border.all(
-                  color: isDark
-                      ? AppColors.dividerDark
-                      : const Color(0xFFECE5DE),
-                  width: 1.4,
-                ),
-          boxShadow: isAppleButton
-              ? null
-              : [
-                  BoxShadow(
-                    color: AppColors.blackColor.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-        ),
-        child: Center(
-          child: isLoading
-              // v23.1 part 200 — spinner inline (remplace icon+label) sur
-              // CE bouton uniquement quand son provider est en cours
-              ? SizedBox(
-                  width: 20.sp,
-                  height: 20.sp,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      isAppleButton ? Colors.white : AppColors.primaryColor,
+    return Opacity(
+      opacity: onTap == null && !isLoading ? 0.5 : 1,
+      child: Material(
+        color: isAppleButton
+            ? const Color(0xFF101319)
+            : (isDark ? AppColors.surfaceDark : Colors.white),
+        borderRadius: BorderRadius.circular(14.r),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          splashColor: fg.withValues(alpha: 0.10),
+          highlightColor: fg.withValues(alpha: 0.05),
+          child: Container(
+            width: double.infinity,
+            height: 52.h,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14.r),
+              border: isAppleButton
+                  ? null
+                  : Border.all(
+                      color: isDark
+                          ? AppColors.dividerDark
+                          : const Color(0xFFE6DFD8),
+                      width: 1.2,
                     ),
-                  ),
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (imagePath != null)
-                      Image.asset(
-                        imagePath!,
-                        height: 20.sp,
-                        width: 20.sp,
-                        fit: BoxFit.cover,
-                      )
-                    else if (icon != null)
-                      Icon(
-                        icon,
-                        size: 20.sp,
-                        color: isAppleButton
-                            ? Colors.white
-                            : AppColors.textPrimary(context),
+            ),
+            child: Center(
+              child: isLoading
+                  // v23.1 part 200 — spinner inline (remplace icon+label) sur
+                  // CE bouton uniquement quand son provider est en cours
+                  ? SizedBox(
+                      width: 20.sp,
+                      height: 20.sp,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          isAppleButton
+                              ? Colors.white
+                              : AppColors.primaryColor,
+                        ),
                       ),
-                    SizedBox(width: 8.w),
-                    InterText(
-                      text: label,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                      color: isAppleButton
-                          ? Colors.white
-                          : AppColors.textPrimary(context),
+                    )
+                  : Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 14.w),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (imagePath != null)
+                            Image.asset(
+                              imagePath!,
+                              height: 20.sp,
+                              width: 20.sp,
+                              fit: BoxFit.contain,
+                            )
+                          else if (icon != null)
+                            Icon(icon, size: 21.sp, color: fg),
+                          SizedBox(width: 10.w),
+                          // Allemand / polonais : libellés longs → on réduit
+                          // plutôt que de couper.
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: InterText(
+                                text: label,
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w600,
+                                color: fg,
+                                maxLines: 1,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
+            ),
+          ),
         ),
       ),
     );

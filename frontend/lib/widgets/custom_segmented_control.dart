@@ -119,161 +119,124 @@ class _CustomSegmentedControlState extends State<CustomSegmentedControl>
     widget.onRightTap?.call();
   }
 
+  /// v569 — un seul segment de texte (même taille de police sur les 3, cf.
+  /// v23.1.147 : « El tamaño del texto debe de ser igual »).
+  Widget _segment({
+    required String text,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 6.w),
+            child: InterText(
+              text: text,
+              textAlign: TextAlign.center,
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w700,
+              color: selected ? AppColors.whiteColor : AppColors.grey500Color,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // v569 — RENDU SEULEMENT : les index, les rappels (onLeftTap /
+    // onMiddleTap / onRightTap), le retour haptique et `didUpdateWidget`
+    // sont inchangés. La bascule se fait désormais avec UNE pilule qui
+    // GLISSE (au lieu de trois fonds qui s'allument/s'éteignent) et le
+    // cadre suit le thème sombre.
     final hasMiddle = widget.middleText != null;
     final leftActive = widget.activeColorLeft ?? AppColors.primaryColor;
-    final middleActive =
-        widget.activeColorMiddle ?? AppColors.primaryColor;
+    final middleActive = widget.activeColorMiddle ?? AppColors.primaryColor;
     final rightActive = widget.activeColorRight ?? AppColors.primaryColor;
+
+    final int count = hasMiddle ? 3 : 2;
+    final int rightIndex = hasMiddle ? 2 : 1;
+    final Color pillColor = _selectedIndex == 0
+        ? leftActive
+        : (_selectedIndex == 1 && hasMiddle ? middleActive : rightActive);
+    // -1 (gauche) → +1 (droite) : position de la pilule.
+    final double alignX = (_selectedIndex / (count - 1)) * 2 - 1;
 
     return SizedBox(
       width: widget.width,
       child: Container(
         height: widget.height ?? 50.h,
-        padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 6.h),
+        padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 5.h),
         decoration: BoxDecoration(
-          color: AppColors.whiteColor,
+          color: AppColors.card(context),
           borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(color: AppColors.grey300Color, width: 1.w),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 10,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          border: Border.all(color: AppColors.divider(context), width: 1.w),
+          boxShadow: AppColors.cardShadow(context),
         ),
-        child: Center(
-          child: AnimatedBuilder(
-            animation: _scaleAnimation,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: _scaleAnimation.value,
-                child: Row(
-                  children: [
-                    // Left section (index 0)
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: _onLeftTap,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeInOut,
-                          height: double.infinity,
-                          decoration: BoxDecoration(
-                            color: _selectedIndex == 0
-                                ? leftActive
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(12.r),
-                          ),
-                          child: Center(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 6.w),
-                              // v23.1.147 — Daniel : "El tamaño del texto debe
-                              // de ser igual". Avant : FittedBox(scaleDown)
-                              // réduisait chaque segment indépendamment selon
-                              // la longueur du texte → tailles inégales.
-                              // Maintenant : fontSize fixe + ellipsis si trop
-                              // long → les 3 segments ont visuellement la
-                              // même taille de police.
-                              child: InterText(
-                                text: widget.leftText,
-                                textAlign: TextAlign.center,
-                                fontSize: 11.sp,
-                                fontWeight: FontWeight.w700,
-                                color: _selectedIndex == 0
-                                    ? AppColors.whiteColor
-                                    : AppColors.grey500Color,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+        child: AnimatedBuilder(
+          animation: _scaleAnimation,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _scaleAnimation.value,
+              child: Stack(
+                children: [
+                  // Pilule glissante.
+                  AnimatedAlign(
+                    alignment: Alignment(alignX, 0),
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutCubic,
+                    child: FractionallySizedBox(
+                      widthFactor: 1 / count,
+                      heightFactor: 1,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        decoration: BoxDecoration(
+                          color: pillColor,
+                          borderRadius: BorderRadius.circular(11.r),
+                          boxShadow: [
+                            BoxShadow(
+                              color: pillColor.withValues(alpha: 0.28),
+                              blurRadius: 10,
+                              spreadRadius: -2,
+                              offset: const Offset(0, 4),
                             ),
-                          ),
+                          ],
                         ),
                       ),
                     ),
-
-                    if (hasMiddle) ...[
-                      SizedBox(width: 8.w),
-                      // Middle section (index 1)
-                      Expanded(
-                        child: GestureDetector(
+                  ),
+                  // Libellés + zones tactiles.
+                  Row(
+                    children: [
+                      _segment(
+                        text: widget.leftText,
+                        selected: _selectedIndex == 0,
+                        onTap: _onLeftTap,
+                      ),
+                      if (hasMiddle)
+                        _segment(
+                          text: widget.middleText!,
+                          selected: _selectedIndex == 1,
                           onTap: _onMiddleTap,
-                          child: AnimatedContainer(
-                            duration:
-                                const Duration(milliseconds: 250),
-                            curve: Curves.easeInOut,
-                            height: double.infinity,
-                            decoration: BoxDecoration(
-                              color: _selectedIndex == 1
-                                  ? middleActive
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12.r),
-                            ),
-                            child: Center(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 6.w),
-                                // v23.1.147 — cohérent avec leftText.
-                                child: InterText(
-                                  text: widget.middleText!,
-                                  textAlign: TextAlign.center,
-                                  fontSize: 11.sp,
-                                  fontWeight: FontWeight.w700,
-                                  color: _selectedIndex == 1
-                                      ? AppColors.whiteColor
-                                      : AppColors.grey500Color,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ),
-                          ),
                         ),
+                      _segment(
+                        text: widget.rightText,
+                        selected: _selectedIndex == rightIndex,
+                        onTap: _onRightTap,
                       ),
                     ],
-
-                    SizedBox(width: 8.w),
-                    // Right section (index 1 or 2 depending on middle)
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: _onRightTap,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeInOut,
-                          height: double.infinity,
-                          decoration: BoxDecoration(
-                            color: _selectedIndex ==
-                                    (hasMiddle ? 2 : 1)
-                                ? rightActive
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(12.r),
-                          ),
-                          child: Center(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 6.w),
-                              // v23.1.147 — cohérent avec leftText/middleText.
-                              child: InterText(
-                                text: widget.rightText,
-                                textAlign: TextAlign.center,
-                                fontSize: 11.sp,
-                                fontWeight: FontWeight.w700,
-                                color: _selectedIndex ==
-                                        (hasMiddle ? 2 : 1)
-                                    ? AppColors.whiteColor
-                                    : AppColors.grey500Color,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );

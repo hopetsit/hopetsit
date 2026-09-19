@@ -20,6 +20,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 class HandoverActionResult {
@@ -151,7 +152,10 @@ class _HandoverActionSheetState extends State<HandoverActionSheet> {
           color: Theme.of(context).scaffoldBackgroundColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
         ),
-        padding: EdgeInsets.fromLTRB(20.w, 10.h, 20.w, 16.h),
+        // v569 — le bas d'une feuille modale n'est jamais protégé par Flutter :
+        // on complète ce que le SafeArea applique (0 sur le Samsung de Daniel).
+        padding: EdgeInsets.fromLTRB(20.w, 10.h, 20.w,
+            16.h + (bottom > 0 ? 0 : appBottomInsetInsideSafeArea(context))),
         child: SafeArea(
           top: false,
           child: SingleChildScrollView(

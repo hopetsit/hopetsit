@@ -226,25 +226,29 @@ class _NotificationPostViewScreenState
     showDialog(
       context: context,
       barrierDismissible: false,
+      // v569 — même carte de chargement que le reste du lot (coins 18,
+      // ombre douce, surface du thème).
       builder: (context) => Center(
         child: Container(
-          padding: EdgeInsets.all(20.w),
+          padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 22.h),
           decoration: BoxDecoration(
             color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(12.r),
+            borderRadius: BorderRadius.circular(18.r),
+            boxShadow: AppColors.cardShadow(context),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               CircularProgressIndicator(
+                strokeWidth: 2.6,
                 valueColor:
                     AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
               ),
               SizedBox(height: 16.h),
               InterText(
                 text: 'pet_detail_loading'.tr,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w400,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary(context),
               ),
             ],

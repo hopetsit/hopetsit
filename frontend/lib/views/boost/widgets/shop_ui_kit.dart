@@ -12,6 +12,7 @@ import 'dart:io' show Platform;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -50,13 +51,11 @@ double shopBottomInset(BuildContext context) {
 /// annonce un inset (le SafeArea l'a déjà appliqué — sinon on doublerait le
 /// home indicator iOS), 48 px sur Android quand l'inset est menti à 0.
 double shopSafeAreaExtraInset(BuildContext context) {
-  final mq = MediaQuery.of(context);
-  final raw = math.max(mq.viewPadding.bottom, mq.padding.bottom);
-  // v568 — Samsung : l'inset annoncé peut valoir 0 OU une petite valeur
-  // (barre de gestes) alors que la barre à 3 boutons en couvre 48. Sur
-  // Android on garantit donc 48 px au total, SafeArea compris.
-  if (Platform.isAndroid) return math.max(0.0, 48.0 - raw);
-  return 0.0;
+  // v569 — `showModalBottomSheet(useSafeArea: true)` = SafeArea(bottom: FALSE) :
+  // le bas de la feuille n'est jamais protégé. Les versions 567/568 croyaient
+  // le contraire et n'ajoutaient rien → « Annuler » restait sous la barre
+  // Samsung. On ajoute donc l'inset COMPLET (48 px minimum sur Android).
+  return appBottomInset(context);
 }
 
 /// Rembourrage bas du contenu défilant d'un onglet de la boutique : la
@@ -95,10 +94,59 @@ String shopShortDate(DateTime d) {
   return '${two(d.day)}/${two(d.month)}/${d.year}';
 }
 
+/// v569 — MOTIF du bandeau produit : cercles et empreintes très transparents,
+/// peints au [CustomPainter] (aucune image, aucun asset, aucune dépendance).
+class _ShopHeroPattern extends CustomPainter {
+  const _ShopHeroPattern();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final ring = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..color = Colors.white.withValues(alpha: 0.10);
+    final fill = Paint()..color = Colors.white.withValues(alpha: 0.055);
+    canvas.drawCircle(Offset(size.width - 24, -18), 74, ring);
+    canvas.drawCircle(Offset(size.width + 6, size.height + 2), 56, ring);
+    canvas.drawCircle(Offset(size.width - 62, size.height * 0.34), 26, fill);
+    _paw(canvas, Offset(size.width - 34, size.height * 0.62), 9, fill);
+    _paw(canvas, Offset(size.width - 96, size.height * 0.86), 7, fill);
+  }
+
+  /// Empreinte : un coussinet + 4 orteils.
+  void _paw(Canvas canvas, Offset c, double r, Paint p) {
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: c.translate(0, r * 0.55),
+        width: r * 1.7,
+        height: r * 1.4,
+      ),
+      p,
+    );
+    for (var i = 0; i < 4; i++) {
+      final a = -2.55 + i * 0.5;
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: c.translate(math.cos(a) * r * 1.05, math.sin(a) * r * 1.05),
+          width: r * 0.72,
+          height: r * 0.92,
+        ),
+        p,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ShopHeroPattern oldDelegate) => false;
+}
+
 /// v567 — BANDEAU PRODUIT commun aux 4 onglets (PawBoost, PawFollow, PawSpot,
 /// Paw Premium) : disque blanc + icône du produit, nom, phrase courte, dégradé
 /// du produit. Avant, seuls PawSpot et Paw Premium en avaient un vrai ; les
 /// quatre onglets se lisent désormais pareil.
+///
+/// v569 — enrichi : motif discret au [CustomPainter], titre 22/800, et la
+/// pastille d'état ([status]) intégrée DANS le hero, en bas à gauche.
 class ShopHero extends StatelessWidget {
   const ShopHero({
     super.key,
@@ -108,6 +156,7 @@ class ShopHero extends StatelessWidget {
     required this.colors,
     this.titleColor = Colors.white,
     this.trailing,
+    this.status,
   });
 
   /// Icône posée sur le disque blanc (SVG « Paw Buttons », pièce dorée…).
@@ -119,8 +168,11 @@ class ShopHero extends StatelessWidget {
   final List<Color> colors;
   final Color titleColor;
 
-  /// Ligne posée sous la phrase (pastille d'état…).
+  /// Ligne posée sous la phrase (dans la colonne de droite).
   final Widget? trailing;
+
+  /// Pastille d'état du produit, posée en bas à gauche du bandeau.
+  final Widget? status;
 
   @override
   Widget build(BuildContext context) {
@@ -146,6 +198,10 @@ class ShopHero extends StatelessWidget {
       ),
       child: Stack(
         children: [
+          // Motif décoratif (cercles + pattes), sous le contenu.
+          const Positioned.fill(
+            child: CustomPaint(painter: _ShopHeroPattern()),
+          ),
           // Reflet haut (même langage visuel que les 4 cartes d'onglet).
           Positioned(
             left: 0,
@@ -155,67 +211,77 @@ class ShopHero extends StatelessWidget {
             child: ColoredBox(color: Colors.white.withValues(alpha: 0.45)),
           ),
           Padding(
-            padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 16.h),
-            child: Row(
+            padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 16.h),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.30),
-                        blurRadius: 14,
-                        spreadRadius: -6,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: icon,
-                ),
-                SizedBox(width: 14.w),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          title,
-                          maxLines: 1,
-                          style: TextStyle(
-                            fontSize: 19.sp,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.4,
-                            color: titleColor,
-                            height: 1.1,
+                Row(
+                  children: [
+                    Container(
+                      width: 58,
+                      height: 58,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.30),
+                            blurRadius: 14,
+                            spreadRadius: -6,
+                            offset: const Offset(0, 6),
                           ),
-                        ),
+                        ],
                       ),
-                      SizedBox(height: 5.h),
-                      Text(
-                        subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w500,
-                          height: 1.3,
-                          color: Colors.white.withValues(alpha: 0.90),
-                        ),
+                      child: icon,
+                    ),
+                    SizedBox(width: 14.w),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              style: TextStyle(
+                                fontSize: 22.sp,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                                color: titleColor,
+                                height: 1.1,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 6.h),
+                          Text(
+                            subtitle,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w500,
+                              height: 1.35,
+                              color: Colors.white.withValues(alpha: 0.92),
+                            ),
+                          ),
+                          if (trailing != null) ...[
+                            SizedBox(height: 10.h),
+                            trailing!,
+                          ],
+                        ],
                       ),
-                      if (trailing != null) ...[
-                        SizedBox(height: 10.h),
-                        trailing!,
-                      ],
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+                if (status != null) ...[
+                  SizedBox(height: 14.h),
+                  Align(alignment: Alignment.centerLeft, child: status!),
+                ],
               ],
             ),
           ),
@@ -449,6 +515,747 @@ class ShopSelectDot extends StatelessWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+//  v569 — BLOCS COMMUNS AUX 4 ONGLETS
+//  Les quatre onglets se lisent désormais EXACTEMENT pareil : hero, avantages,
+//  gratuit vs payant, forfaits, rangée de confiance, « Aide & infos », barre
+//  d'achat. Tout est ici pour qu'un changement de gabarit profite aux quatre.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Un avantage produit : icône ronde teintée + titre court + sous-texte.
+class ShopBenefit {
+  const ShopBenefit({
+    required this.title,
+    this.body,
+    this.icon,
+    this.iconWidget,
+    this.onTap,
+  });
+
+  /// Titre court (2-4 mots).
+  final String title;
+
+  /// Phrase d'explication (réutilise les clés existantes). `null` = le titre
+  /// se suffit à lui-même.
+  final String? body;
+
+  /// Icône Material ; ignorée si [iconWidget] est fourni.
+  final IconData? icon;
+
+  /// Visuel personnalisé (badge rose « membre Paw Map », pièce dorée…).
+  final Widget? iconWidget;
+
+  /// Ligne cliquable (raccourci vers un autre onglet) → chevron affiché.
+  final VoidCallback? onTap;
+}
+
+/// Liste verticale d'avantages (3 à 6 lignes), dans une carte régulière.
+class ShopBenefitList extends StatelessWidget {
+  const ShopBenefitList({
+    super.key,
+    required this.items,
+    required this.accent,
+    this.onDark = false,
+  });
+
+  final List<ShopBenefit> items;
+  final Color accent;
+  final bool onDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleColor =
+        onDark ? Colors.white : AppColors.textPrimary(context);
+    final bodyColor = onDark
+        ? Colors.white.withValues(alpha: 0.70)
+        : AppColors.textSecondary(context);
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 6.h),
+      decoration: BoxDecoration(
+        color: onDark
+            ? Colors.white.withValues(alpha: 0.06)
+            : AppColors.card(context),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: onDark
+              ? Colors.white.withValues(alpha: 0.12)
+              : AppColors.divider(context),
+        ),
+        boxShadow: onDark ? const <BoxShadow>[] : AppColors.cardShadow(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final b in items)
+            _ShopBenefitRow(
+              benefit: b,
+              accent: accent,
+              titleColor: titleColor,
+              bodyColor: bodyColor,
+              onDark: onDark,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShopBenefitRow extends StatelessWidget {
+  const _ShopBenefitRow({
+    required this.benefit,
+    required this.accent,
+    required this.titleColor,
+    required this.bodyColor,
+    required this.onDark,
+  });
+
+  final ShopBenefit benefit;
+  final Color accent;
+  final Color titleColor;
+  final Color bodyColor;
+  final bool onDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final row = Padding(
+      padding: EdgeInsets.only(bottom: 12.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 36,
+            height: 36,
+            child: benefit.iconWidget == null
+                ? DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: onDark ? 0.22 : 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      benefit.icon ?? Icons.check_rounded,
+                      size: 18.sp,
+                      color: onDark ? Colors.white : accent,
+                    ),
+                  )
+                : Center(child: benefit.iconWidget),
+          ),
+          SizedBox(width: 12.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  benefit.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.5.sp,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                    height: 1.2,
+                    color: titleColor,
+                  ),
+                ),
+                if (benefit.body != null && benefit.body!.isNotEmpty) ...[
+                  SizedBox(height: 2.h),
+                  Text(
+                    benefit.body!,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.5.sp,
+                      fontWeight: FontWeight.w500,
+                      height: 1.35,
+                      color: bodyColor,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (benefit.onTap != null) ...[
+            SizedBox(width: 6.w),
+            Icon(Icons.chevron_right_rounded, size: 20.sp, color: accent),
+          ],
+        ],
+      ),
+    );
+    if (benefit.onTap == null) return row;
+    return InkWell(
+      onTap: benefit.onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: row,
+    );
+  }
+}
+
+/// Rangée de confiance : 3 petites pastilles HONNÊTES selon la plateforme.
+/// Android / carte (et tout achat ponctuel) : paiement unique → « sans
+/// engagement » ; abonnement iOS (StoreKit) : « annulable à tout moment ».
+class ShopTrustRow extends StatelessWidget {
+  const ShopTrustRow({
+    super.key,
+    required this.accent,
+    this.oneTime = false,
+    this.onDark = false,
+  });
+
+  final Color accent;
+
+  /// Achat ponctuel (PawBoost) : jamais de renouvellement, rien à annuler.
+  final bool oneTime;
+  final bool onDark;
+
+  @override
+  Widget build(BuildContext context) {
+    // Sur iOS un ABONNEMENT se résilie dans les réglages App Store ; un achat
+    // ponctuel (ou un paiement carte unique) n'a rien à résilier.
+    final renewable = Platform.isIOS && !oneTime;
+    final items = <List<Object>>[
+      [Icons.lock_outline_rounded, 'shop569_trust_secure'.tr],
+      [
+        renewable ? Icons.event_repeat_rounded : Icons.handshake_outlined,
+        (renewable ? 'shop569_trust_cancel' : 'shop569_trust_nocommit').tr,
+      ],
+      [Icons.bolt_rounded, 'shop569_trust_instant'.tr],
+    ];
+    Widget chip(IconData ic, String label) => Expanded(
+          child: Container(
+            constraints: BoxConstraints(minHeight: 64.h),
+            padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 10.h),
+            decoration: BoxDecoration(
+              color: onDark
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : accent.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: onDark
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : accent.withValues(alpha: 0.18),
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(ic,
+                    size: 17.sp, color: onDark ? Colors.white : accent),
+                SizedBox(height: 5.h),
+                Text(
+                  label,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 9.5.sp,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                    color: onDark
+                        ? Colors.white.withValues(alpha: 0.85)
+                        : AppColors.textSecondary(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        chip(items[0][0] as IconData, items[0][1] as String),
+        SizedBox(width: 8.w),
+        chip(items[1][0] as IconData, items[1][1] as String),
+        SizedBox(width: 8.w),
+        chip(items[2][0] as IconData, items[2][1] as String),
+      ],
+    );
+  }
+}
+
+/// Ligne du bloc « Aide & infos » : icône, libellé, (valeur), chevron.
+class ShopInfoRow extends StatelessWidget {
+  const ShopInfoRow({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.onTap,
+    this.trailing,
+    this.showChevron = true,
+    this.loading = false,
+    this.accent,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  /// Widget posé avant le chevron (menu de devise, prix…).
+  final Widget? trailing;
+  final bool showChevron;
+  final bool loading;
+  final Color? accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = accent ?? AppColors.textPrimary(context);
+    return InkWell(
+      onTap: loading ? null : onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        // Cible tactile confortable (≥ 52 px).
+        constraints: const BoxConstraints(minHeight: 52),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+        child: Row(
+          children: [
+            loading
+                ? SizedBox(
+                    width: 18.sp,
+                    height: 18.sp,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: tint),
+                  )
+                : Icon(icon, size: 18.sp, color: tint),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                ),
+              ),
+            ),
+            if (trailing != null) ...[SizedBox(width: 8.w), trailing!],
+            if (showChevron && onTap != null) ...[
+              SizedBox(width: 4.w),
+              Icon(Icons.chevron_right_rounded,
+                  size: 20.sp, color: AppColors.greyText),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Carte « Aide & infos » : titre + lignes séparées par un filet.
+class ShopHelpCard extends StatelessWidget {
+  const ShopHelpCard({super.key, required this.rows, this.footer});
+
+  final List<Widget> rows;
+
+  /// Mentions légales + liens CGU / confidentialité.
+  final Widget? footer;
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+    for (var i = 0; i < rows.length; i++) {
+      if (i > 0) {
+        children.add(Divider(
+          height: 1,
+          indent: 12.w,
+          endIndent: 12.w,
+          color: AppColors.divider(context),
+        ));
+      }
+      children.add(rows[i]);
+    }
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(4.w, 12.h, 4.w, 8.h),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12.w),
+            child: Text(
+              'shop569_help_title'.tr,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.2,
+                color: AppColors.greyText,
+              ),
+            ),
+          ),
+          SizedBox(height: 4.h),
+          ...children,
+          if (footer != null) ...[
+            SizedBox(height: 6.h),
+            Padding(
+              padding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 6.h),
+              child: footer!,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// v569 — TUILE DE FORFAIT, identique sur les 4 onglets.
+///
+/// Grande, lisible, cible tactile ≥ 56 px : ruban optionnel (« Le plus
+/// choisi »), icône, nom + description, prix en gros à droite avec le prix
+/// barré et le badge « −X % » alignés en haut, équivalent mensuel / prix par
+/// jour en petit, et la coche animée de sélection.
+class ShopPlanTile extends StatelessWidget {
+  const ShopPlanTile({
+    super.key,
+    required this.title,
+    required this.priceLabel,
+    required this.selected,
+    required this.accent,
+    required this.onTap,
+    this.subtitle,
+    this.footnote,
+    this.leading,
+    this.strikeLabel,
+    this.savePct = 0,
+    this.ribbon,
+    this.badges = const <Widget>[],
+    this.loading = false,
+    this.onLongPress,
+    this.onDark = false,
+    this.checkColor = Colors.white,
+  });
+
+  final String title;
+  final String priceLabel;
+  final bool selected;
+  final Color accent;
+  final VoidCallback? onTap;
+
+  /// Phrase courte sous le nom du forfait.
+  final String? subtitle;
+
+  /// Petite ligne sous le prix (« soit 4,17 €/mois », « 0,57 €/jour »).
+  final String? footnote;
+
+  /// Visuel à gauche (emoji, médaille, icône du produit).
+  final Widget? leading;
+
+  /// Prix barré (promo, ou prix des deux abonnements séparés).
+  final String? strikeLabel;
+
+  /// Économie affichée en badge vert (« −33 % »). 0 = masqué.
+  final int savePct;
+
+  /// Ruban posé en haut de la tuile (« Le plus choisi »).
+  final String? ribbon;
+
+  /// Pastilles additionnelles (« Meilleur prix », « Actif »…).
+  final List<Widget> badges;
+  final bool loading;
+
+  /// Appui long = payer avec le portefeuille (sitter / walker).
+  final VoidCallback? onLongPress;
+  final bool onDark;
+  final Color checkColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color titleColor =
+        onDark ? Colors.white : AppColors.textPrimary(context);
+    final Color subColor = onDark
+        ? Colors.white.withValues(alpha: 0.65)
+        : AppColors.greyText;
+    final Color bg = onDark
+        ? Colors.white.withValues(alpha: selected ? 0.12 : 0.05)
+        : (selected
+            ? Color.alphaBlend(
+                accent.withValues(alpha: 0.05), AppColors.card(context))
+            : AppColors.card(context));
+    final Color borderColor = selected
+        ? accent
+        : (onDark
+            ? Colors.white.withValues(alpha: 0.16)
+            : AppColors.divider(context));
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12.h),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          constraints: const BoxConstraints(minHeight: 76),
+          padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 14.h),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: borderColor, width: selected ? 2 : 1),
+            boxShadow: onDark
+                ? const <BoxShadow>[]
+                : [
+                    BoxShadow(
+                      color: selected
+                          ? accent.withValues(alpha: 0.18)
+                          : Colors.black.withValues(alpha: 0.04),
+                      blurRadius: selected ? 18 : 10,
+                      spreadRadius: -6,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (ribbon != null && ribbon!.isNotEmpty) ...[
+                ShopPill(label: ribbon!, background: accent),
+                SizedBox(height: 10.h),
+              ],
+              Row(
+                children: [
+                  if (leading != null) ...[
+                    Container(
+                      width: 40,
+                      height: 40,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: onDark ? 0.22 : 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: leading,
+                    ),
+                    SizedBox(width: 10.w),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15.5.sp,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
+                            color: titleColor,
+                          ),
+                        ),
+                        if (subtitle != null && subtitle!.isNotEmpty) ...[
+                          SizedBox(height: 3.h),
+                          Text(
+                            subtitle!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11.5.sp,
+                              height: 1.3,
+                              color: subColor,
+                            ),
+                          ),
+                        ],
+                        if (badges.isNotEmpty) ...[
+                          SizedBox(height: 6.h),
+                          Wrap(spacing: 6.w, runSpacing: 4.h, children: badges),
+                        ],
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 6.w),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: 118.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if ((strikeLabel != null && strikeLabel!.isNotEmpty) ||
+                            savePct > 0) ...[
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              if (strikeLabel != null &&
+                                  strikeLabel!.isNotEmpty)
+                                Flexible(
+                                  child: Text(
+                                    strikeLabel!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 11.sp,
+                                      color: subColor,
+                                      decoration: TextDecoration.lineThrough,
+                                      decorationColor: subColor,
+                                    ),
+                                  ),
+                                ),
+                              if (savePct > 0) ...[
+                                SizedBox(width: 5.w),
+                                // Flexible : le badge ne doit jamais pousser
+                                // la ligne hors de la tuile (libellés longs
+                                // en allemand / polonais).
+                                Flexible(
+                                  child: ShopPill(
+                                    label: 'v566_shop_save_pct'
+                                        .tr
+                                        .replaceAll('{pct}', '$savePct'),
+                                    background: const Color(0xFF16A34A),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          SizedBox(height: 2.h),
+                        ],
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            priceLabel,
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontSize: 21.sp,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                              height: 1.1,
+                              color: accent,
+                            ),
+                          ),
+                        ),
+                        if (footnote != null && footnote!.isNotEmpty)
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              footnote!,
+                              maxLines: 1,
+                              style: TextStyle(
+                                fontSize: 10.sp,
+                                fontWeight: FontWeight.w600,
+                                color: subColor,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  loading
+                      ? SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: accent),
+                        )
+                      : ShopSelectDot(
+                          selected: selected,
+                          color: accent,
+                          checkColor: checkColor,
+                          idleColor: onDark
+                              ? Colors.white.withValues(alpha: 0.35)
+                              : null,
+                        ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// v569 — SQUELETTE DE CHARGEMENT (shimmer maison : un dégradé qui glisse,
+/// aucune dépendance ajoutée). Remplace le rond de progression pendant le
+/// chargement des prix et des avantages.
+class ShopSkeleton extends StatefulWidget {
+  const ShopSkeleton({super.key, this.tiles = 3});
+
+  /// Nombre de tuiles de forfait esquissées.
+  final int tiles;
+
+  @override
+  State<ShopSkeleton> createState() => _ShopSkeletonState();
+}
+
+class _ShopSkeletonState extends State<ShopSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final base = AppColors.divider(context).withValues(alpha: 0.55);
+    final hi = AppColors.divider(context).withValues(alpha: 0.20);
+    Widget box(double h, {double? w, double r = 16}) => Container(
+          height: h,
+          width: w ?? double.infinity,
+          decoration: BoxDecoration(
+            color: base,
+            borderRadius: BorderRadius.circular(r),
+          ),
+        );
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, child) {
+        final t = _c.value * 2 - 0.5;
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (rect) => LinearGradient(
+            begin: Alignment(-1 + t * 2, -0.4),
+            end: Alignment(t * 2, 0.4),
+            colors: [base, hi, base],
+          ).createShader(rect),
+          child: child,
+        );
+      },
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 16.h),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            box(132.h, r: 24),
+            SizedBox(height: 24.h),
+            box(16.h, w: 150.w, r: 8),
+            SizedBox(height: 12.h),
+            box(168.h, r: 20),
+            SizedBox(height: 24.h),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: box(150.h, r: 20)),
+                SizedBox(width: 10.w),
+                Expanded(child: box(150.h, r: 20)),
+              ],
+            ),
+            SizedBox(height: 24.h),
+            for (var i = 0; i < widget.tiles; i++) ...[
+              box(84.h, r: 22),
+              SizedBox(height: 12.h),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Bouton d'achat COLLANT en bas d'un onglet de la boutique.
 class ShopStickyBar extends StatelessWidget {
   const ShopStickyBar({
@@ -564,32 +1371,57 @@ class ShopStickyBar extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: 2.h),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      priceLabel,
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontSize: 19.sp,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.4,
-                        color: priceColor,
-                        height: 1.1,
+                  // v569 — micro-animation quand le forfait sélectionné
+                  // change : le prix (et son équivalent mensuel) fondent et
+                  // glissent au lieu de sauter d'un coup.
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.25),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
                       ),
+                    ),
+                    child: Column(
+                      key: ValueKey<String>('$priceLabel|${subLabel ?? ''}'),
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            priceLabel,
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontSize: 19.sp,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.4,
+                              color: priceColor,
+                              height: 1.1,
+                            ),
+                          ),
+                        ),
+                        if (subLabel != null && subLabel!.isNotEmpty)
+                          Text(
+                            subLabel!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10.sp,
+                              fontWeight: FontWeight.w500,
+                              color: titleColor,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                  if (subLabel != null && subLabel!.isNotEmpty)
-                    Text(
-                      subLabel!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 10.sp,
-                        fontWeight: FontWeight.w500,
-                        color: titleColor,
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -641,15 +1473,29 @@ class ShopStickyBar extends StatelessWidget {
                             )
                           : FittedBox(
                               fit: BoxFit.scaleDown,
-                              child: Text(
-                                buttonLabel,
-                                maxLines: 1,
-                                style: TextStyle(
-                                  fontSize: 15.sp,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.2,
-                                  color: buttonTextColor,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // v569 — cadenas discret : le paiement est
+                                  // sécurisé (Apple / Airwallex).
+                                  Icon(
+                                    Icons.lock_rounded,
+                                    size: 13.sp,
+                                    color: buttonTextColor.withValues(
+                                        alpha: 0.75),
+                                  ),
+                                  SizedBox(width: 6.w),
+                                  Text(
+                                    buttonLabel,
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontSize: 15.sp,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.2,
+                                      color: buttonTextColor,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                     ),
@@ -745,6 +1591,15 @@ class ShopManageRow extends StatelessWidget {
   final Color accent;
   final DateTime? activeUntil;
   final bool onDark;
+
+  /// v569 — ouvert aussi depuis la ligne « Gérer mon abonnement » du bloc
+  /// « Aide & infos » (même comportement, même feuille).
+  static Future<void> open(
+    BuildContext context, {
+    required Color accent,
+    DateTime? activeUntil,
+  }) =>
+      ShopManageRow(accent: accent, activeUntil: activeUntil)._open(context);
 
   Future<void> _open(BuildContext context) async {
     if (Platform.isIOS) {

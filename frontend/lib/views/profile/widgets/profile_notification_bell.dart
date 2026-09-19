@@ -38,14 +38,22 @@ class ProfileNotificationBell extends StatelessWidget {
     return GestureDetector(
       onTap: _open,
       behavior: HitTestBehavior.opaque,
+      // v569 — DESIGN UNIQUEMENT : même destination, même compteur. Pastille
+      // détachée du bord (liseré blanc 1,5 lisible sur l'en-tête coloré) et
+      // bouton en carré arrondi 14 façon iOS.
       child: Container(
-        width: 40.w,
-        height: 40.w,
+        width: 42.w,
+        height: 42.w,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(12.r),
+          color: Colors.white.withValues(alpha: 0.20),
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.28),
+            width: 1,
+          ),
         ),
         child: Stack(
+          clipBehavior: Clip.none,
           alignment: Alignment.center,
           children: [
             // v480 — maquette « Header v2 » : cloche en JAUNE doré (#FFCB2E)
@@ -53,27 +61,28 @@ class ProfileNotificationBell extends StatelessWidget {
             Icon(Icons.notifications_rounded,
                 color: const Color(0xFFFFCB2E), size: 22.sp),
             Positioned(
-              top: 6.h,
-              right: 8.w,
+              top: 4.h,
+              right: 4.w,
               child: Obx(() {
                 final count = ctrl.unreadCount.value;
                 if (count <= 0) return const SizedBox.shrink();
                 return Container(
-                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-                  constraints: BoxConstraints(minWidth: 14.w),
+                  padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.h),
+                  constraints: BoxConstraints(minWidth: 16.w),
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: AppColors.errorColor,
-                    borderRadius: BorderRadius.circular(8.r),
-                    border: Border.all(color: Colors.white, width: 1),
+                    borderRadius: BorderRadius.circular(999.r),
+                    border: Border.all(color: Colors.white, width: 1.5),
                   ),
                   child: Text(
                     count > 99 ? '99+' : '$count',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 8.sp,
-                      fontWeight: FontWeight.w700,
-                      height: 1.2,
+                      fontSize: 9.sp,
+                      fontWeight: FontWeight.w800,
+                      height: 1.15,
                     ),
                   ),
                 );

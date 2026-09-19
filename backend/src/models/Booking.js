@@ -248,6 +248,13 @@ const bookingSchema = new mongoose.Schema(
     // quand un promeneur annule (sinon ValidationError sur save() → 500).
     cancelledBy: { type: String, enum: ['owner', 'sitter', 'walker', null], default: null },
     cancellationReason: { type: String, default: null },
+    // v569 — suivi du remboursement. `refundId` / `refundedAt` étaient écrits par
+    // refundBookingPayment mais ABSENTS du schéma (donc jamais enregistrés) ;
+    // `refundError` = cause du dernier remboursement échoué (paymentStatus =
+    // 'refund' → à traiter par le support).
+    refundId: { type: String, default: null },
+    refundedAt: { type: Date, default: null },
+    refundError: { type: String, default: null },
     // Cancellation tracking (for mutual agreement requirement)
     cancellation: {
       ownerRequested: { type: Boolean, default: false },

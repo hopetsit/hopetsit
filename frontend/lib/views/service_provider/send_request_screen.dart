@@ -9,6 +9,7 @@ import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/views/profile/my_pets_screen.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class SendRequestScreen extends StatefulWidget {
   final String serviceProviderName;
@@ -90,7 +91,10 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 16.h),
+          // v569 — le SafeArea n'applique rien sur le Samsung de Daniel : le
+          // bouton « Envoyer la demande » finissait sous la barre système.
+          padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w,
+              16.h + appBottomInsetInsideSafeArea(context)),
           child: Form(
             key: controller.formKey,
             child: Column(

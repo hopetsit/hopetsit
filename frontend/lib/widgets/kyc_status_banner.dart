@@ -96,6 +96,7 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
         icon: Icons.verified_rounded,
         label: 'kyc_banner_verified'.tr,
         sublabel: 'kyc_banner_verified_sub'.tr,
+        statusLabel: 'misc569_kyc_state_verified'.tr,
         onTap: null,
       );
     }
@@ -105,6 +106,7 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
         icon: Icons.cancel_outlined,
         label: 'kyc_banner_rejected'.tr,
         sublabel: 'kyc_banner_rejected_sub'.tr,
+        ctaLabel: 'misc569_kyc_cta_retry'.tr,
         onTap: _openKyc,
       );
     }
@@ -114,6 +116,7 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
         icon: Icons.hourglass_top_rounded,
         label: 'kyc_banner_pending'.tr,
         sublabel: 'kyc_banner_pending_sub'.tr,
+        statusLabel: 'misc569_kyc_state_pending'.tr,
         onTap: _openKyc,
       );
     }
@@ -123,6 +126,7 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
       icon: Icons.assignment_ind_rounded,
       label: 'kyc_banner_none'.tr,
       sublabel: 'kyc_banner_none_sub'.tr,
+      ctaLabel: 'misc569_kyc_cta_start'.tr,
       onTap: _openKyc,
     );
   }
@@ -133,12 +137,18 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
     _load();
   }
 
+  /// v569 — refonte visuelle : carte coins 18 sur fond de carte (plus de bloc
+  /// entièrement teinté), disque d'état 40 px, pastille d'état colorée quand
+  /// il n'y a rien à faire (validé / en cours) et bouton d'action en pilule
+  /// quand il y a une action. Aucun changement de logique ni de navigation.
   Widget _banner({
     required Color color,
     required IconData icon,
     required String label,
     required String sublabel,
     required VoidCallback? onTap,
+    String? ctaLabel,
+    String? statusLabel,
   }) {
     final clickable = onTap != null;
     return Padding(
@@ -147,26 +157,29 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12.r),
+          borderRadius: BorderRadius.circular(18.r),
           child: Container(
-            padding: EdgeInsets.all(12.w),
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12.r),
+              color: AppColors.card(context),
+              borderRadius: BorderRadius.circular(18.r),
               border: Border.all(
-                color: color.withValues(alpha: 0.3),
+                color: color.withValues(alpha: 0.35),
                 width: 1,
               ),
+              boxShadow: AppColors.cardShadow(context),
             ),
             child: Row(
               children: [
                 Container(
-                  padding: EdgeInsets.all(8.w),
+                  width: 40.w,
+                  height: 40.w,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.18),
+                    color: color.withValues(alpha: 0.14),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, color: color, size: 18.sp),
+                  child: Icon(icon, color: color, size: 20.sp),
                 ),
                 SizedBox(width: 10.w),
                 Expanded(
@@ -177,27 +190,94 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
                         text: label,
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w700,
-                        color: color,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        color: AppColors.textPrimary(context),
                       ),
                       SizedBox(height: 2.h),
                       InterText(
                         text: sublabel,
                         fontSize: 11.sp,
+                        height: 1.3,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         color: AppColors.textSecondary(context),
                       ),
                     ],
                   ),
                 ),
-                if (clickable)
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: color,
-                    size: 20.sp,
-                  ),
+                SizedBox(width: 8.w),
+                if (clickable && (ctaLabel ?? '').isNotEmpty)
+                  _pillButton(ctaLabel!, color)
+                else if ((statusLabel ?? '').isNotEmpty)
+                  _statusDot(statusLabel!, color)
+                else if (clickable)
+                  Icon(Icons.chevron_right_rounded, color: color, size: 20.sp),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Bouton d'action en pilule (le tap réel reste celui de l'InkWell parent).
+  Widget _pillButton(String label, Color color) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+      constraints: BoxConstraints(maxWidth: 120.w),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(999.r),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.28),
+            blurRadius: 8,
+            spreadRadius: -3,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: InterText(
+        text: label,
+        fontSize: 12.sp,
+        fontWeight: FontWeight.w700,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        color: Colors.white,
+      ),
+    );
+  }
+
+  /// Pastille d'état (validé / en cours) : point coloré + libellé court.
+  Widget _statusDot(String label, Color color) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+      constraints: BoxConstraints(maxWidth: 120.w),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999.r),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7.w,
+            height: 7.w,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          SizedBox(width: 6.w),
+          Flexible(
+            child: InterText(
+              text: label,
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w700,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }

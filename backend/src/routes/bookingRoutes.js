@@ -871,6 +871,9 @@ router.delete('/:id/cancel', requireAuth, requireRole('owner'), cancelBooking);
 
 // Self-cancel (owner OR sitter) with automatic refund if >72h before start date
 router.post('/:id/self-cancel', requireAuth, selfCancelWithRefund);
+// v569 — les apps ≤ 568 appelaient cette route en DELETE côté PROMENEUR (404 →
+// annulation sous 72 h impossible). Alias pour les réparer sans mise à jour.
+router.delete('/:id/self-cancel', requireAuth, selfCancelWithRefund);
 
 /**
  * @swagger

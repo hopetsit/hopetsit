@@ -90,11 +90,14 @@ class ProfilePreferencesTab extends StatelessWidget {
   }
 
   Widget _header(String label) => Padding(
-        padding: EdgeInsets.only(top: 8.h, bottom: 8.h, left: 4.w),
+        padding: EdgeInsets.only(top: 10.h, bottom: 8.h, left: 6.w),
         child: PoppinsText(
           text: label.toUpperCase(),
           fontSize: 11.sp,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.5,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           color: AppColors.greyText,
         ),
       );
@@ -112,7 +115,7 @@ class ProfilePreferencesTab extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(14.r),
+        borderRadius: BorderRadius.circular(16.r),
         boxShadow: AppColors.cardShadow(context),
       ),
       child: Row(
@@ -122,7 +125,7 @@ class ProfilePreferencesTab extends StatelessWidget {
             height: 38.w,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10.r),
+              borderRadius: BorderRadius.circular(12.r),
             ),
             child: Icon(icon, size: 18.sp, color: accent),
           ),
@@ -171,7 +174,7 @@ class ProfilePreferencesTab extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
         decoration: BoxDecoration(
           color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(14.r),
+          borderRadius: BorderRadius.circular(16.r),
           boxShadow: AppColors.cardShadow(context),
         ),
         child: Row(
@@ -181,7 +184,7 @@ class ProfilePreferencesTab extends StatelessWidget {
               height: 38.w,
               decoration: BoxDecoration(
                 color: accent.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10.r),
+                borderRadius: BorderRadius.circular(12.r),
               ),
               child: Icon(icon, size: 18.sp, color: accent),
             ),
@@ -194,8 +197,8 @@ class ProfilePreferencesTab extends StatelessWidget {
                 color: AppColors.textPrimary(context),
               ),
             ),
-            Icon(Icons.arrow_forward_ios,
-                size: 14.sp, color: AppColors.textSecondary(context)),
+            Icon(Icons.chevron_right_rounded,
+                size: 20.sp, color: AppColors.textSecondary(context)),
           ],
         ),
       ),
@@ -246,7 +249,7 @@ class ProfileSecurityTab extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
           decoration: BoxDecoration(
             color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(14.r),
+            borderRadius: BorderRadius.circular(16.r),
             boxShadow: AppColors.cardShadow(context),
           ),
           child: Row(
@@ -256,7 +259,7 @@ class ProfileSecurityTab extends StatelessWidget {
                 height: 38.w,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10.r),
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Icon(Icons.verified_user_rounded,
                     size: 18.sp, color: accent),
@@ -308,7 +311,7 @@ class ProfileSecurityTab extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
             decoration: BoxDecoration(
               color: AppColors.card(context),
-              borderRadius: BorderRadius.circular(14.r),
+              borderRadius: BorderRadius.circular(16.r),
               border: Border.all(
                   color: AppColors.errorColor.withValues(alpha: 0.4), width: 1),
             ),
@@ -334,22 +337,27 @@ class ProfileSecurityTab extends StatelessWidget {
   }
 
   Widget _header(String label) => Padding(
-        padding: EdgeInsets.only(top: 8.h, bottom: 8.h, left: 4.w),
+        padding: EdgeInsets.only(top: 10.h, bottom: 8.h, left: 6.w),
         child: PoppinsText(
           text: label.toUpperCase(),
           fontSize: 11.sp,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.5,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           color: AppColors.greyText,
         ),
       );
 
   Widget _verifRow(BuildContext context, String label, bool verified) {
+    final Color stateColor =
+        verified ? const Color(0xFF16A34A) : AppColors.greyColor;
     return Container(
       margin: EdgeInsets.only(bottom: 8.h),
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(14.r),
+        borderRadius: BorderRadius.circular(16.r),
         boxShadow: AppColors.cardShadow(context),
       ),
       child: Row(
@@ -359,20 +367,45 @@ class ProfileSecurityTab extends StatelessWidget {
               text: label,
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               color: AppColors.textPrimary(context),
             ),
           ),
-          Icon(
-            verified ? Icons.verified_rounded : Icons.error_outline_rounded,
-            size: 18.sp,
-            color: verified ? const Color(0xFF16A34A) : AppColors.greyColor,
-          ),
-          SizedBox(width: 6.w),
-          InterText(
-            text: verified ? 'profile_verified'.tr : 'profile_not_verified'.tr,
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w600,
-            color: verified ? const Color(0xFF16A34A) : AppColors.greyColor,
+          SizedBox(width: 8.w),
+          // v569 — pastille d'état colorée (au lieu d'une icône + texte nus).
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+            constraints: BoxConstraints(maxWidth: 150.w),
+            decoration: BoxDecoration(
+              color: stateColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999.r),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  verified
+                      ? Icons.verified_rounded
+                      : Icons.error_outline_rounded,
+                  size: 14.sp,
+                  color: stateColor,
+                ),
+                SizedBox(width: 5.w),
+                Flexible(
+                  child: InterText(
+                    text: verified
+                        ? 'profile_verified'.tr
+                        : 'profile_not_verified'.tr,
+                    fontSize: 11.5.sp,
+                    fontWeight: FontWeight.w700,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    color: stateColor,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -394,7 +427,7 @@ class ProfileSecurityTab extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
         decoration: BoxDecoration(
           color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(14.r),
+          borderRadius: BorderRadius.circular(16.r),
           boxShadow: AppColors.cardShadow(context),
         ),
         child: Row(
@@ -404,7 +437,7 @@ class ProfileSecurityTab extends StatelessWidget {
               height: 38.w,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10.r),
+                borderRadius: BorderRadius.circular(12.r),
               ),
               child: Icon(icon, size: 18.sp, color: color),
             ),
@@ -428,8 +461,8 @@ class ProfileSecurityTab extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios,
-                size: 14.sp, color: AppColors.textSecondary(context)),
+            Icon(Icons.chevron_right_rounded,
+                size: 20.sp, color: AppColors.textSecondary(context)),
           ],
         ),
       ),
@@ -457,14 +490,16 @@ class ProfileTabBar extends StatelessWidget {
       'profile_tab_preferences'.tr,
       'profile_tab_security'.tr,
     ];
+    // v569 — DESIGN UNIQUEMENT : même `index`, même `onChanged`. Le
+    // soulignement devient un sélecteur en pilules (façon iOS) : plus lisible
+    // et les libellés longs (allemand / polonais) s'ellipsent au lieu de
+    // déborder.
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
+      padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: AppColors.greyColor.withValues(alpha: 0.2),
-            width: 1,
-          ),
-        ),
+        color: dark ? const Color(0xFF232323) : const Color(0xFFF1F2F4),
+        borderRadius: BorderRadius.circular(999.r),
       ),
       child: Row(
         children: List.generate(labels.length, (i) {
@@ -473,28 +508,24 @@ class ProfileTabBar extends StatelessWidget {
             child: GestureDetector(
               onTap: () => onChanged(i),
               behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 12.h),
-                child: Column(
-                  children: [
-                    PoppinsText(
-                      text: labels[i],
-                      fontSize: 14.sp,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected
-                          ? accent
-                          : AppColors.textSecondary(context),
-                    ),
-                    SizedBox(height: 8.h),
-                    Container(
-                      height: 2.5.h,
-                      width: 40.w,
-                      decoration: BoxDecoration(
-                        color: selected ? accent : Colors.transparent,
-                        borderRadius: BorderRadius.circular(2.r),
-                      ),
-                    ),
-                  ],
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                curve: Curves.easeOut,
+                padding: EdgeInsets.symmetric(vertical: 9.h, horizontal: 6.w),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.card(context) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(999.r),
+                  boxShadow: selected ? AppColors.cardShadow(context) : null,
+                ),
+                child: PoppinsText(
+                  text: labels[i],
+                  fontSize: 13.sp,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color:
+                      selected ? accent : AppColors.textSecondary(context),
                 ),
               ),
             ),

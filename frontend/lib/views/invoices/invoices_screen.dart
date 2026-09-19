@@ -16,6 +16,7 @@ import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:intl/intl.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v23.1 — Mes factures (auto-générées au paiement de chaque réservation).
 /// Accessible depuis l'onglet "Factures" de Mes Réservations sur les 3
@@ -126,7 +127,9 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           }
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 28.h),
+            // v569 — dernière facture au-dessus de la barre système.
+            padding: EdgeInsets.fromLTRB(
+                16.w, 8.h, 16.w, 28.h + appBottomInsetInsideSafeArea(context)),
             children: [
               ProfileInfoBanner(
                 icon: Icons.picture_as_pdf_rounded,

@@ -1,12 +1,97 @@
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/role_chip.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+
+/// v569 — Daniel : « sur l'accueil, en haut à droite, les petits boutons,
+/// modernise ». Coque commune (style « Paw Buttons ») : dégradé 165° de la
+/// couleur du rôle, liseré blanc, reflet, ombre colorée douce, 40 px.
+class _HeaderActionShell extends StatelessWidget {
+  const _HeaderActionShell({
+    required this.color,
+    required this.onTap,
+    required this.child,
+  });
+
+  final Color color;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final br = BorderRadius.circular(14);
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        borderRadius: br,
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.30),
+            blurRadius: 10,
+            spreadRadius: -2,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: br,
+        clipBehavior: Clip.antiAlias,
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: br,
+            border: Border.all(
+                color: Colors.white.withValues(alpha: 0.65), width: 1.2),
+            gradient: LinearGradient(
+              begin: const Alignment(-0.6, -1),
+              end: const Alignment(0.6, 1),
+              colors: [
+                Color.lerp(color, Colors.white, 0.22)!,
+                Color.lerp(color, Colors.black, 0.08)!,
+              ],
+            ),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: br,
+            splashColor: Colors.white.withValues(alpha: 0.18),
+            child: Stack(
+              children: [
+                // Reflet doux en haut.
+                Positioned(
+                  left: 4,
+                  right: 4,
+                  top: 3,
+                  height: 14,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.28),
+                          Colors.white.withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Center(child: child),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Bell + optional count badge for AppBar [actions] (avoids title-area clipping).
 class NotificationBellAction extends StatelessWidget {
@@ -41,25 +126,13 @@ class NotificationBellAction extends StatelessWidget {
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          Material(
+          _HeaderActionShell(
             color: _bellBg,
-            borderRadius: BorderRadius.circular(12),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                width: 38.w,
-                height: 38.h,
-                child: Center(
-                  child: Image.asset(
-                    AppImages.bellIcon,
-                    width: 18.w,
-                    height: 18.h,
-                    color: AppColors.whiteColor,
-                  ),
-                ),
-              ),
+            onTap: onTap,
+            child: Icon(
+              Icons.notifications_rounded,
+              size: 21,
+              color: AppColors.whiteColor,
             ),
           ),
           if (count > 0)
@@ -72,9 +145,10 @@ class NotificationBellAction extends StatelessWidget {
                   vertical: 2.h,
                 ),
                 constraints: BoxConstraints(minWidth: 18.w, minHeight: 18.w),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE53935),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE53935),
                   shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -116,24 +190,13 @@ class BoostQuickAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(left: 4.w, right: 4.w),
-      child: Material(
+      child: _HeaderActionShell(
         color: _bg,
-        borderRadius: BorderRadius.circular(12),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => Get.to(() => const CoinShopScreen()),
-          borderRadius: BorderRadius.circular(12),
-          child: SizedBox(
-            width: 38.w,
-            height: 38.h,
-            child: Center(
-              child: Icon(
-                Icons.rocket_launch_rounded,
-                size: 20.sp,
-                color: AppColors.whiteColor,
-              ),
-            ),
-          ),
+        onTap: () => Get.to(() => const CoinShopScreen()),
+        child: Icon(
+          Icons.rocket_launch_rounded,
+          size: 20,
+          color: AppColors.whiteColor,
         ),
       ),
     );
@@ -306,50 +369,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   Widget _buildRoleBadge() {
+    // v569 — pastille de rôle unique (widgets/role_chip.dart).
     try {
-      final authController = Get.find<AuthController>();
-      final role = authController.userRole.value;
-      if (role == null || role.isEmpty) return const SizedBox.shrink();
-
-      final lower = role.toLowerCase();
-      // Color + translation key by role (3 roles supported).
-      Color badgeColor;
-      String badgeKey;
-      switch (lower) {
-        case 'walker':
-          // v23.1.346 — audit codes couleur : canon walker 0xFF16A34A /
-          // sitter 0xFF2563EB (le badge utilisait vert foncé + bleu Material).
-          badgeColor = AppColors.walkerAccent;
-          badgeKey = 'role_pet_walker';
-          break;
-        case 'sitter':
-          badgeColor = AppColors.sitterAccent; // bleu canon 0xFF2563EB
-          badgeKey = 'role_pet_sitter';
-          break;
-        case 'owner':
-        default:
-          badgeColor = AppColors.primaryColor; // orange
-          badgeKey = 'role_pet_owner';
-          break;
-      }
-      final badgeLabel = badgeKey.tr;
-
-      return Container(
-        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-        decoration: BoxDecoration(
-          color: badgeColor,
-          borderRadius: BorderRadius.circular(8.r),
-        ),
-        child: Text(
-          badgeLabel,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 10.sp,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.3,
-          ),
-        ),
-      );
+      final r = Get.find<AuthController>().userRole.value;
+      if (r == null || r.isEmpty) return const SizedBox.shrink();
+      return RoleChip(role: r, compact: true);
     } catch (_) {
       return const SizedBox.shrink();
     }

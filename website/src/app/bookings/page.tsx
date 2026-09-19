@@ -25,6 +25,54 @@ import {
 import { ServiceConfirmationCard } from "@/components/ServiceConfirmation";
 import { useSocketEvent } from "@/lib/useSocket";
 
+// v569 — la carte affichait la valeur TECHNIQUE du backend (« house_sitting »),
+// une date formatée dans la locale du NAVIGATEUR (et non celle du site) et un
+// prix brut « 12 EUR ». Les trois sont corrigés ci-dessous.
+const SERVICE_TYPE_KEYS: Record<string, string> = {
+  house_sitting: "posts_svc_house_sitting",
+  day_care: "posts_svc_day_care",
+  dog_walking: "posts_svc_dog_walking",
+  pet_sitting: "bk569_svc_pet_sitting",
+  long_term_care: "bk569_svc_long_term_care",
+  long_stay: "bk569_svc_long_stay",
+  overnight_stay: "bk569_svc_overnight_stay",
+  home_visit: "bk569_svc_home_visit",
+};
+
+function serviceTypeLabel(raw: string | undefined, t: (k: string) => string): string {
+  const key = (raw || "").trim().toLowerCase();
+  if (!key) return t("bookings_pet_care");
+  const mapped = SERVICE_TYPE_KEYS[key];
+  if (mapped) return t(mapped);
+  // Repli lisible : jamais de « long_term_care » brut à l'écran.
+  return key
+    .split("_")
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/** Montant + devise de la réservation (jamais « € » codé en dur). */
+function money(amount: number, currency: string, lang: string): string {
+  try {
+    return new Intl.NumberFormat(lang, { style: "currency", currency }).format(amount);
+  } catch {
+    return `${amount.toFixed(2)} ${currency}`;
+  }
+}
+
+function localDate(value: string, lang: string, withYear = true): string {
+  try {
+    return new Date(value).toLocaleDateString(lang, {
+      day: "numeric",
+      month: "short",
+      ...(withYear ? { year: "numeric" } : {}),
+    });
+  } catch {
+    return value;
+  }
+}
+
 const STATUS_META: Record<BookingStatus, { key: string; color: string }> = {
   pending: { key: "booking_status_pending", color: "bg-amber-100 text-amber-800" },
   accepted: { key: "booking_status_accepted", color: "bg-blue-100 text-blue-800" },
@@ -229,7 +277,7 @@ function BookingCard({
   onPay: () => void;
   onServiceChanged: () => void;
 }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const meta = STATUS_META[booking.status];
   const statusInfo = {
     label: meta ? t(meta.key) : booking.status,
@@ -269,15 +317,11 @@ function BookingCard({
             </span>
           </div>
           <div className="mt-1 text-xs text-ink-muted">
-            {booking.serviceType || t("bookings_pet_care")}
+            {serviceTypeLabel(booking.serviceType, t)}
             {serviceDate && (
               <>
                 {" · "}
-                {new Date(serviceDate).toLocaleDateString(undefined, {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
+                {localDate(serviceDate, lang)}
               </>
             )}
             {booking.timeSlot && (
@@ -290,7 +334,7 @@ function BookingCard({
               <>
                 {" · "}
                 <span className="font-semibold text-ink">
-                  {price} {currency}
+                  {money(price, currency, lang)}
                 </span>
               </>
             )}
@@ -344,7 +388,7 @@ function BookingCard({
           >
             {paying
               ? "…"
-              : `💳 ${t("bookings_pay")}${price > 0 ? ` · ${price} ${currency}` : ""}`}
+              : `💳 ${t("bookings_pay")}${price > 0 ? ` · ${money(price, currency, lang)}` : ""}`}
           </button>
           <p className="mt-1.5 text-center text-[11px] text-ink-soft">
             {t("bookings_pay_secure")}
@@ -356,8 +400,7 @@ function BookingCard({
         <div className="mt-3 flex items-center justify-between rounded-xl bg-green-50 px-3 py-2 text-xs text-green-800">
           <span>
             ✓ {t("bookings_payment_received")}{" "}
-            {booking.paidAt &&
-              new Date(booking.paidAt).toLocaleDateString(undefined)}
+            {booking.paidAt && localDate(booking.paidAt, lang)}
           </span>
           {/* v23.1 part 146 — bouton suivi live (owner + services walking). */}
           {isOwner &&

@@ -15,14 +15,31 @@
 //   - Banner "Transparence & confiance"
 //   - Le back AppBar suffit pour annuler
 
+// v569 — remise au format du lot « listes ».
+//
+// ⚠️ DESIGN UNIQUEMENT pour la mise en page : mêmes paramètres, même
+// `onConfirm()` puis `pop(true)`, même contenu.
+//
+// Deux VRAIS bugs corrigés et signalés :
+//   1. les 3 cartes étaient en `Colors.white` EN DUR alors que leur texte
+//      suit le thème → en mode sombre, texte quasi blanc sur carte blanche
+//      (illisible). Elles passent sur `AppColors.card(context)`, et l'encart
+//      orange pâle est teinté à partir de la surface du thème ;
+//   2. les boutons « Appeler » et « Ouvrir la carte » étaient des TODO vides
+//      → taps morts. Ils composent maintenant `tel:` / `geo:` (url_launcher,
+//      déjà dans les dépendances) et sont désactivés quand la donnée manque.
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:hopetsit/models/booking_model.dart' show BookingModel;
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 class TrackingRequestSheet extends StatelessWidget {
   const TrackingRequestSheet({
@@ -46,7 +63,38 @@ class TrackingRequestSheet extends StatelessWidget {
   final Future<void> Function() onConfirm;
 
   static const _orange = Color(0xFFC92A12);
-  static const _orangeBg = Color(0xFFFFF1ED);
+
+  /// Encart orange PÂLE construit à partir de la surface du thème : reste
+  /// lisible en mode sombre (avant : `#FFF1ED` en dur).
+  static Color _orangeBg(BuildContext context) => Color.alphaBlend(
+        _orange.withValues(
+          alpha: Theme.of(context).brightness == Brightness.dark ? 0.22 : 0.08,
+        ),
+        AppColors.card(context),
+      );
+
+  /// Décoration commune des 3 cartes — surface du thème, jamais du blanc dur.
+  static BoxDecoration _cardDecoration(BuildContext context) => BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: AppColors.divider(context)),
+        boxShadow: AppColors.cardShadow(context),
+      );
+
+  /// Ouvre une URL externe ; prévient l'utilisateur si le téléphone ne sait
+  /// pas la traiter, au lieu de ne rien faire.
+  static Future<void> _launch(Uri uri) async {
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (ok) return;
+    } catch (_) {
+      // on tombe dans le message ci-dessous
+    }
+    CustomSnackbar.showError(
+      title: 'common_error'.tr,
+      message: 'lists569_action_unavailable'.tr,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +136,14 @@ class TrackingRequestSheet extends StatelessWidget {
       ),
       body: SafeArea(
         child: ListView(
-          padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
+          // Le SafeArea ne suffit pas sur les Samsung edge-to-edge (inset
+          // annoncé à 0) : on ajoute le complément manquant.
+          padding: EdgeInsets.fromLTRB(
+            16.w,
+            16.h,
+            16.w,
+            24.h + appBottomInsetInsideSafeArea(context),
+          ),
           children: [
             // ── Pet card (mockup) ─────────────────────────────────────
             if (b != null)
@@ -130,18 +185,7 @@ class TrackingRequestSheet extends StatelessWidget {
   }) {
     return Container(
       padding: EdgeInsets.all(14.w),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18.r),
-        border: Border.all(color: AppColors.divider(context)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: _cardDecoration(context),
       child: Column(
         children: [
           Row(
@@ -193,20 +237,9 @@ class TrackingRequestSheet extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(
-                padding: EdgeInsets.symmetric(
-                    horizontal: 10.w, vertical: 5.h),
-                decoration: BoxDecoration(
-                  color: _orangeBg,
-                  borderRadius: BorderRadius.circular(12.r),
-                  border: Border.all(color: _orange.withValues(alpha: 0.3)),
-                ),
-                child: InterText(
-                  text: 'tracking_sheet_in_care_badge'.tr,
-                  fontSize: 11.sp,
-                  fontWeight: FontWeight.w800,
-                  color: _orange,
-                ),
+              ActionStatusPill(
+                label: 'tracking_sheet_in_care_badge'.tr,
+                tone: _orange,
               ),
             ],
           ),
@@ -216,7 +249,7 @@ class TrackingRequestSheet extends StatelessWidget {
               width: double.infinity,
               padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
               decoration: BoxDecoration(
-                color: _orangeBg,
+                color: _orangeBg(context),
                 borderRadius: BorderRadius.circular(10.r),
               ),
               child: Row(
@@ -244,18 +277,7 @@ class TrackingRequestSheet extends StatelessWidget {
   Widget _buildLiveTrackingPanel(BuildContext context) {
     return Container(
       padding: EdgeInsets.all(14.w),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18.r),
-        border: Border.all(color: AppColors.divider(context)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: _cardDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -270,34 +292,10 @@ class TrackingRequestSheet extends StatelessWidget {
                 ),
               ),
               // Pill verte "Disponible" (mockup).
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF16A34A).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12.r),
-                  border: Border.all(
-                      color: const Color(0xFF16A34A).withValues(alpha: 0.4)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6.w,
-                      height: 6.w,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF16A34A),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    SizedBox(width: 4.w),
-                    InterText(
-                      text: 'tracking_sheet_available'.tr,
-                      fontSize: 10.sp,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF16A34A),
-                    ),
-                  ],
-                ),
+              ActionStatusPill(
+                label: 'tracking_sheet_available'.tr,
+                icon: Icons.circle,
+                tone: ActionTone.success,
               ),
             ],
           ),
@@ -310,34 +308,16 @@ class TrackingRequestSheet extends StatelessWidget {
           SizedBox(height: 14.h),
           // v23.1.194 — mockup owner side : GROS bouton seul, PAS de
           // "Plus tard". Le back arrow AppBar suffit pour annuler.
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                await onConfirm();
-                if (context.mounted) Navigator.of(context).pop(true);
-              },
-              icon: const Icon(Icons.location_on_rounded, color: Colors.white),
-              label: Padding(
-                padding: EdgeInsets.symmetric(vertical: 4.h),
-                child: InterText(
-                  text: 'tracking_sheet_follow_btn'.tr,
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _orange,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 14.h),
-                elevation: 3,
-                shadowColor: _orange.withValues(alpha: 0.5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14.r),
-                ),
-              ),
-            ),
+          ActionPillButton(
+            label: 'tracking_sheet_follow_btn'.tr,
+            icon: Icons.location_on_rounded,
+            tone: _orange,
+            expand: true,
+            haptic: true,
+            onPressed: () async {
+              await onConfirm();
+              if (context.mounted) Navigator.of(context).pop(true);
+            },
           ),
         ],
       ),
@@ -353,18 +333,7 @@ class TrackingRequestSheet extends StatelessWidget {
   }) {
     return Container(
       padding: EdgeInsets.all(14.w),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18.r),
-        border: Border.all(color: AppColors.divider(context)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: _cardDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -417,11 +386,19 @@ class TrackingRequestSheet extends StatelessWidget {
             labelKey: 'tracking_sheet_phone',
             value: phone.isEmpty ? '—' : phone,
             trailingIcon: Icons.call_rounded,
+            trailingTooltip: 'lists569_call'.tr,
             trailingBg: _orange.withValues(alpha: 0.10),
             trailingColor: _orange,
-            onTrailingTap: () {
-              // TODO : url_launcher tel: scheme quand phone dispo.
-            },
+            // v569 — bouton mort réparé : composition du numéro. Désactivé
+            // (grisé) quand le prestataire n'a pas renseigné de téléphone.
+            onTrailingTap: phone.isEmpty
+                ? null
+                : () => _launch(
+                      Uri(
+                        scheme: 'tel',
+                        path: phone.replaceAll(RegExp(r'[^\d+]'), ''),
+                      ),
+                    ),
           ),
 
           SizedBox(height: 14.h),
@@ -432,11 +409,19 @@ class TrackingRequestSheet extends StatelessWidget {
             labelKey: 'tracking_sheet_address',
             value: address.isEmpty ? '—' : address,
             trailingIcon: Icons.map_rounded,
+            trailingTooltip: 'lists569_open_map'.tr,
             trailingBg: _orange.withValues(alpha: 0.10),
             trailingColor: _orange,
-            onTrailingTap: () {
-              // TODO : url_launcher geo: scheme quand adresse dispo.
-            },
+            // v569 — bouton mort réparé : ouverture de l'adresse dans
+            // l'application de cartes du téléphone.
+            onTrailingTap: address.isEmpty
+                ? null
+                : () => _launch(
+                      Uri.parse(
+                        'https://www.google.com/maps/search/?api=1&query='
+                        '${Uri.encodeComponent(address)}',
+                      ),
+                    ),
           ),
         ],
       ),
@@ -451,11 +436,13 @@ class TrackingRequestSheet extends StatelessWidget {
     required IconData trailingIcon,
     required Color trailingBg,
     required Color trailingColor,
-    required VoidCallback onTrailingTap,
+    required VoidCallback? onTrailingTap,
+    String? trailingTooltip,
   }) {
+    final enabled = onTrailingTap != null;
     return Row(
       children: [
-        SizedBox(width: 38.w, height: 38.w, child: Center(child: leading)),
+        SizedBox(width: 44.w, height: 44.w, child: Center(child: leading)),
         SizedBox(width: 10.w),
         Expanded(
           child: Column(
@@ -464,7 +451,9 @@ class TrackingRequestSheet extends StatelessWidget {
               InterText(
                 text: labelKey.tr,
                 fontSize: 11.sp,
-                color: AppColors.greyText,
+                color: AppColors.textSecondary(context),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               SizedBox(height: 2.h),
               InterText(
@@ -477,19 +466,24 @@ class TrackingRequestSheet extends StatelessWidget {
             ],
           ),
         ),
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(20.r),
-            onTap: onTrailingTap,
-            child: Container(
-              width: 38.w,
-              height: 38.w,
-              decoration: BoxDecoration(
-                color: trailingBg,
-                shape: BoxShape.circle,
+        SizedBox(width: 8.w),
+        Tooltip(
+          message: trailingTooltip ?? '',
+          child: Material(
+            color: enabled ? trailingBg : AppColors.divider(context),
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onTrailingTap,
+              child: SizedBox(
+                width: 44.w,
+                height: 44.w,
+                child: Icon(
+                  trailingIcon,
+                  color: enabled ? trailingColor : AppColors.grey500Color,
+                  size: 19.sp,
+                ),
               ),
-              child: Icon(trailingIcon, color: trailingColor, size: 18.sp),
             ),
           ),
         ),
@@ -501,7 +495,7 @@ class TrackingRequestSheet extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
-        color: _orangeBg,
+        color: _orangeBg(context),
         borderRadius: BorderRadius.circular(14.r),
       ),
       child: Row(

@@ -14,6 +14,7 @@ import 'package:hopetsit/controllers/sign_up_controller.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
@@ -108,38 +109,48 @@ class SignUpScreen extends StatelessWidget {
                       Container(
                         padding: EdgeInsets.symmetric(
                           horizontal: 14.w,
-                          vertical: 12.h,
+                          vertical: 13.h,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1A73E8).withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(14.r),
+                          color: const Color(0xFF1A73E8).withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(16.r),
                           border: Border.all(
-                            color: const Color(0xFF1A73E8).withValues(alpha: 0.25),
+                            color: const Color(0xFF1A73E8).withValues(alpha: 0.18),
                             width: 1,
                           ),
                         ),
                         child: Row(
                           children: [
-                            Icon(
-                              Icons.credit_card_rounded,
-                              color: const Color(0xFF1A73E8),
-                              size: 20.sp,
+                            Container(
+                              width: 30.w,
+                              height: 30.w,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1A73E8)
+                                    .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10.r),
+                              ),
+                              child: Icon(
+                                Icons.credit_card_rounded,
+                                color: const Color(0xFF1A73E8),
+                                size: 17.sp,
+                              ),
                             ),
                             SizedBox(width: 10.w),
                             Expanded(
-                              child: Text(
-                                'signup_cb_later_hint'.tr,
-                                style: TextStyle(
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w500,
-                                  color: const Color(0xFF1A73E8),
-                                ),
+                              child: InterText(
+                                text: 'signup_cb_later_hint'.tr,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: const Color(0xFF1A73E8),
+                                maxLines: 3,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      SizedBox(height: 16.h),
+                      SizedBox(height: 24.h),
+                      _sectionTitle(context, 'auth569_section_profile'.tr),
+                      SizedBox(height: 14.h),
                       // Full Name
                       CustomTextField(
                         labelText: 'label_name'.tr,
@@ -159,18 +170,19 @@ class SignUpScreen extends StatelessWidget {
                         textInputAction: TextInputAction.next,
                         validator: controller.validateEmail,
                       ),
-                      SizedBox(height: 20.h),
+                      SizedBox(height: 24.h),
+                      _sectionTitle(context, 'auth569_section_contact'.tr),
+                      SizedBox(height: 14.h),
                       // Phone Number (Optional)
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          InterText(
-                            text: 'label_mobile_number'.tr,
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textPrimary(context),
+                          _fieldLabel(
+                            context,
+                            'label_mobile_number'.tr,
+                            trailing: 'auth569_optional'.tr,
                           ),
-                          SizedBox(height: 8.h),
+                          SizedBox(height: 7.h),
                           FormField<String>(
                             validator: (_) => controller.validatePhone(
                               controller.phoneController.text,
@@ -182,16 +194,10 @@ class SignUpScreen extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Container(
-                                    height: 50.h,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.card(context),
-                                      border: Border.all(
-                                        color: hasError
-                                            ? AppColors.errorColor
-                                            : AppColors.textSecondary(context).withValues(alpha: 0.2),
-                                        width: 1,
-                                      ),
-                                      borderRadius: BorderRadius.circular(30.r),
+                                    height: 52.h,
+                                    decoration: _fieldBox(
+                                      context,
+                                      error: hasError,
                                     ),
                                     child: Row(
                                       children: [
@@ -266,16 +272,31 @@ class SignUpScreen extends StatelessWidget {
                                   if (hasError && field.errorText != null)
                                     Padding(
                                       padding: EdgeInsets.only(
-                                        left: 12.w,
-                                        top: 4.h,
+                                        left: 4.w,
+                                        top: 6.h,
                                       ),
-                                      child: Text(
-                                        field.errorText!,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12.sp,
-                                          fontWeight: FontWeight.w400,
-                                          color: AppColors.errorColor,
-                                        ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Icon(
+                                            Icons.error_outline_rounded,
+                                            size: 14.sp,
+                                            color: AppColors.errorColor,
+                                          ),
+                                          SizedBox(width: 5.w),
+                                          Expanded(
+                                            child: Text(
+                                              field.errorText!,
+                                              style: GoogleFonts.inter(
+                                                fontSize: 12.sp,
+                                                fontWeight: FontWeight.w500,
+                                                color: AppColors.errorColor,
+                                                height: 1.35,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                 ],
@@ -284,7 +305,9 @@ class SignUpScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      SizedBox(height: 20.h),
+                      SizedBox(height: 24.h),
+                      _sectionTitle(context, 'auth569_section_security'.tr),
+                      SizedBox(height: 14.h),
                       // Password
                       CustomTextField(
                         labelText: 'label_password'.tr,
@@ -295,16 +318,30 @@ class SignUpScreen extends StatelessWidget {
                         textInputAction: TextInputAction.next,
                         validator: controller.validatePassword,
                       ),
-                      SizedBox(height: 10.h),
-                      InterText(text: 'password_requirement'.tr),
-                      SizedBox(height: 20.h),
-                      InterText(
-                        text: 'label_language'.tr,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.grey700Color,
-                      ),
                       SizedBox(height: 8.h),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.info_outline_rounded,
+                            size: 14.sp,
+                            color: AppColors.textSecondary(context),
+                          ),
+                          SizedBox(width: 6.w),
+                          Expanded(
+                            child: InterText(
+                              text: 'password_requirement'.tr,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textSecondary(context),
+                              maxLines: 3,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 22.h),
+                      _fieldLabel(context, 'label_language'.tr),
+                      SizedBox(height: 7.h),
                       GestureDetector(
                         onTap: () {
                           // Track the selected language inside the dialog so
@@ -372,15 +409,12 @@ class SignUpScreen extends StatelessWidget {
                           );
                         },
                         child: Container(
-                          height: 50.h,
+                          height: 52.h,
                           padding: EdgeInsets.symmetric(
                             horizontal: 16.w,
                             vertical: 12.h,
                           ),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColors.textSecondary(context).withValues(alpha: 0.2)),
-                            borderRadius: BorderRadius.circular(30.r),
-                          ),
+                          decoration: _fieldBox(context),
                           child: Builder(
                             builder: (context) {
                               final currentCode =
@@ -409,7 +443,9 @@ class SignUpScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-                      SizedBox(height: 20.h),
+                      SizedBox(height: 24.h),
+                      _sectionTitle(context, 'auth569_section_location'.tr),
+                      SizedBox(height: 14.h),
                       Obx(
                         () => CityLocationPicker(
                           cityController: controller.cityController,
@@ -453,9 +489,9 @@ class SignUpScreen extends StatelessWidget {
                             ),
                             decoration: CustomDropdownDecoration(
                               closedBorder: Border.all(
-                                color: AppColors.grey300Color,
+                                color: AppColors.divider(context),
                               ),
-                              closedBorderRadius: BorderRadius.circular(30.r),
+                              closedBorderRadius: BorderRadius.circular(14.r),
                               headerStyle: GoogleFonts.inter(
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.w400,
@@ -465,7 +501,7 @@ class SignUpScreen extends StatelessWidget {
                             disabledDecoration:
                                 CustomDropdownDisabledDecoration(
                                   border: Border.all(
-                                    color: AppColors.grey300Color,
+                                    color: AppColors.divider(context),
                                   ),
                                 ),
                           ),
@@ -476,7 +512,9 @@ class SignUpScreen extends StatelessWidget {
                       // Previously walker had NO rate field at signup which
                       // confused users. Displayed right under the currency.
                       if (userType == 'pet_walker') ...[
-                        SizedBox(height: 20.h),
+                        SizedBox(height: 24.h),
+                        _sectionTitle(context, 'auth569_section_rates'.tr),
+                        SizedBox(height: 14.h),
                         Row(
                           children: [
                             Expanded(
@@ -510,7 +548,9 @@ class SignUpScreen extends StatelessWidget {
                       // dropdown moved ABOVE rates so user picks currency
                       // first, then fills the 3 rates.
                       if (userType == 'pet_sitter') ...[
-                        SizedBox(height: 20.h),
+                        SizedBox(height: 24.h),
+                        _sectionTitle(context, 'auth569_section_rates'.tr),
+                        SizedBox(height: 14.h),
                         // Currency selector — placed with the rates group so
                         // the user picks currency first, then fills the 3 rates.
                         Obx(
@@ -526,9 +566,9 @@ class SignUpScreen extends StatelessWidget {
                             ),
                             decoration: CustomDropdownDecoration(
                               closedBorder: Border.all(
-                                color: AppColors.grey300Color,
+                                color: AppColors.divider(context),
                               ),
-                              closedBorderRadius: BorderRadius.circular(30.r),
+                              closedBorderRadius: BorderRadius.circular(14.r),
                               headerStyle: GoogleFonts.inter(
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.w400,
@@ -538,7 +578,7 @@ class SignUpScreen extends StatelessWidget {
                             disabledDecoration:
                                 CustomDropdownDisabledDecoration(
                                   border: Border.all(
-                                    color: AppColors.grey300Color,
+                                    color: AppColors.divider(context),
                                   ),
                                 ),
                           ),
@@ -580,7 +620,9 @@ class SignUpScreen extends StatelessWidget {
                         ),
                       ],
 
-                      SizedBox(height: 20.h),
+                      SizedBox(height: 24.h),
+                      _sectionTitle(context, 'auth569_section_finish'.tr),
+                      SizedBox(height: 14.h),
                       // Sprint 7 step 3 — referral code (optional).
                       CustomTextField(
                         labelText: 'signup_referral_code_label'.tr,
@@ -670,114 +712,66 @@ class SignUpScreen extends StatelessWidget {
                       SizedBox(height: 24.h),
 
                       // Social Sign In Buttons (Apple only on iOS)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed:
-                                  authController.isLoading.value ||
-                                      authController.isSocialLoginLoading.value
+                      // v569 — pleine largeur, coins 14, empilés : les
+                      // libellés complets (« Se connecter avec Apple ») ne
+                      // débordent plus en allemand / polonais. Les handlers
+                      // et le mapping de rôle sont inchangés.
+                      _signupSocialButton(
+                        context,
+                        label: 'auth569_google_continue'.tr,
+                        imagePath: AppImages.googleIcon,
+                        onTap:
+                            authController.isLoading.value ||
+                                    authController.isSocialLoginLoading.value
+                                ? null
+                                : () {
+                                    // Map userType to API role format.
+                                    // 'pet_owner'  -> 'owner'
+                                    // 'pet_sitter' -> 'sitter'
+                                    // 'pet_walker' -> 'walker'
+                                    final role = userType == 'pet_owner'
+                                        ? 'owner'
+                                        : userType == 'pet_walker'
+                                            ? 'walker'
+                                            : 'sitter';
+                                    authController.loginWithGoogle(
+                                      role: role,
+                                    );
+                                  },
+                      ),
+                      if (Platform.isIOS) ...[
+                        SizedBox(height: 10.h),
+                        _signupSocialButton(
+                          context,
+                          label: 'auth569_apple_continue'.tr,
+                          icon: Icons.apple,
+                          isApple: true,
+                          onTap:
+                              authController.isLoading.value ||
+                                      authController
+                                          .isSocialLoginLoading
+                                          .value
                                   ? null
                                   : () {
-                                      // Map userType to API role format.
-                                      // 'pet_owner'  -> 'owner'
-                                      // 'pet_sitter' -> 'sitter'
-                                      // 'pet_walker' -> 'walker'
                                       final role = userType == 'pet_owner'
                                           ? 'owner'
                                           : userType == 'pet_walker'
                                               ? 'walker'
                                               : 'sitter';
-                                      authController.loginWithGoogle(
-                                        role: role,
-                                      );
+                                      Get.find<AuthController>()
+                                          .loginWithApple(role: role);
                                     },
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: AppColors.textSecondary(context).withValues(alpha: 0.2)),
-                                padding: EdgeInsets.symmetric(vertical: 12.h),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8.r),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Image.asset(
-                                    AppImages.googleIcon,
-                                    height: 20.sp,
-                                    width: 20.sp,
-                                    fit: BoxFit.cover,
-                                  ),
+                        ),
+                      ],
 
-                                  SizedBox(width: 8.w),
-                                  InterText(
-                                    text: 'button_google'.tr,
-                                    fontSize: 14.sp,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.textPrimary(context),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          if (Platform.isIOS) ...[
-                            SizedBox(width: 12.w),
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed:
-                                    authController.isLoading.value ||
-                                        authController
-                                            .isSocialLoginLoading
-                                            .value
-                                    ? null
-                                    : () {
-                                        final role = userType == 'pet_owner'
-                                            ? 'owner'
-                                            : userType == 'pet_walker'
-                                                ? 'walker'
-                                                : 'sitter';
-                                        Get.find<AuthController>()
-                                            .loginWithApple(role: role);
-                                      },
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(
-                                    color: AppColors.textSecondary(context).withValues(alpha: 0.2),
-                                  ),
-                                  padding: EdgeInsets.symmetric(vertical: 12.h),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8.r),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.apple,
-                                      size: 20.sp,
-                                      color: AppColors.textPrimary(context),
-                                    ),
-                                    SizedBox(width: 8.w),
-                                    InterText(
-                                      text: 'button_apple'.tr,
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.textPrimary(context),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      SizedBox(height: 24.h),
-
-                      SizedBox(height: 45.h),
+                      SizedBox(height: 32.h),
                       // Sign Up Button — v21 : role-coloured (orange owner /
                       // bleu sitter / vert walker) pour qu'on identifie d'un
                       // coup d'œil quel rôle est en cours d'inscription.
                       Obx(
                         () => CustomButton(
+                          height: 54.h,
+                          radius: 18.r,
                           title: controller.isLoading.value
                               ? 'button_creating_account'.tr
                               : 'button_create_account'.tr,
@@ -789,7 +783,12 @@ class SignUpScreen extends StatelessWidget {
                                 ),
                         ),
                       ),
-                      SizedBox(height: 60.h),
+                      // v569 — dégagement bas unique (Samsung edge-to-edge :
+                      // viewPadding = 0 alors que la barre à 3 boutons
+                      // recouvre). Le SafeArea entoure déjà le contenu.
+                      SizedBox(
+                        height: 36.h + appBottomInsetInsideSafeArea(context),
+                      ),
                     ],
                   ),
                 ),
@@ -818,6 +817,173 @@ class SignUpScreen extends StatelessWidget {
   }
 }
 
+
+/// v569 — titre de section (« Ton profil », « Sécurité »…). Il découpe le
+/// formulaire visuellement SANS changer l'ordre des champs ni la logique :
+/// pastille de marque + libellé 13/800 + filet fin.
+Widget _sectionTitle(BuildContext context, String text) {
+  return Row(
+    children: [
+      Container(
+        width: 4.w,
+        height: 15.h,
+        decoration: BoxDecoration(
+          color: AppColors.primaryColor,
+          borderRadius: BorderRadius.circular(2.r),
+        ),
+      ),
+      SizedBox(width: 9.w),
+      Flexible(
+        child: InterText(
+          text: text,
+          fontSize: 13.5,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary(context),
+          letterSpacing: 0.2,
+          maxLines: 2,
+        ),
+      ),
+      SizedBox(width: 12.w),
+      Expanded(
+        child: Divider(
+          color: AppColors.divider(context).withValues(alpha: 0.7),
+          thickness: 1,
+          height: 1,
+        ),
+      ),
+    ],
+  );
+}
+
+/// v569 — libellé de champ au même langage que `CustomTextField` (13/600),
+/// avec une mention « Facultatif » discrète quand le champ n'est pas requis.
+Widget _fieldLabel(BuildContext context, String text, {String? trailing}) {
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Flexible(
+        child: InterText(
+          text: text,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textSecondary(context),
+          letterSpacing: 0.1,
+          maxLines: 2,
+        ),
+      ),
+      if (trailing != null) ...[
+        SizedBox(width: 8.w),
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
+          decoration: BoxDecoration(
+            color: AppColors.divider(context).withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(99.r),
+          ),
+          child: InterText(
+            text: trailing,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary(context),
+          ),
+        ),
+      ],
+    ],
+  );
+}
+
+/// v569 — cadre commun des champs « maison » (téléphone, sélecteur de langue)
+/// pour qu'ils aient EXACTEMENT la surface, le rayon et la bordure de
+/// `CustomTextField`.
+BoxDecoration _fieldBox(BuildContext context, {bool error = false}) {
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+  return BoxDecoration(
+    color: isDark ? AppColors.inputFill(context) : Colors.white,
+    border: Border.all(
+      color: error
+          ? AppColors.errorColor
+          : (isDark ? AppColors.dividerDark : const Color(0xFFE2E5EA)),
+      width: error ? 1.2 : 1,
+    ),
+    borderRadius: BorderRadius.circular(14.r),
+  );
+}
+
+/// v569 — bouton social pleine largeur de l'inscription (même gabarit que
+/// l'écran de connexion). Apple reste NOIR avec son logo officiel.
+Widget _signupSocialButton(
+  BuildContext context, {
+  required String label,
+  required VoidCallback? onTap,
+  String? imagePath,
+  IconData? icon,
+  bool isApple = false,
+}) {
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+  final Color fg = isApple ? Colors.white : AppColors.textPrimary(context);
+  return Opacity(
+    opacity: onTap == null ? 0.5 : 1,
+    child: Material(
+      color: isApple
+          ? const Color(0xFF101319)
+          : (isDark ? AppColors.surfaceDark : Colors.white),
+      borderRadius: BorderRadius.circular(14.r),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: fg.withValues(alpha: 0.10),
+        highlightColor: fg.withValues(alpha: 0.05),
+        child: Container(
+          width: double.infinity,
+          height: 52.h,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14.r),
+            border: isApple
+                ? null
+                : Border.all(
+                    color: isDark
+                        ? AppColors.dividerDark
+                        : const Color(0xFFE2E5EA),
+                    width: 1.2,
+                  ),
+          ),
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 14.w),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (imagePath != null)
+                    Image.asset(
+                      imagePath,
+                      height: 20.sp,
+                      width: 20.sp,
+                      fit: BoxFit.contain,
+                    )
+                  else if (icon != null)
+                    Icon(icon, size: 21.sp, color: fg),
+                  SizedBox(width: 10.w),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: InterText(
+                        text: label,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                        color: fg,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
 
 /// v20 — Sélecteur photo de profil pour l'inscription (3 rôles).
 /// Encapsule l'état local ImagePicker sans toucher au SignUpController.

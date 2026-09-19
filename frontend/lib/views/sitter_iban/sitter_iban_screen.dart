@@ -13,6 +13,7 @@ import 'package:hopetsit/views/profile/widgets/pet_form_widgets.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class SitterIbanScreen extends StatefulWidget {
   const SitterIbanScreen({super.key});
@@ -251,7 +252,11 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
                   ),
                 ),
                 Padding(
-                  padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 12.h),
+                  // v569 — barre d'action collée en bas : le SafeArea de
+              // ProfileSubPageScaffold n'applique rien sur le Samsung de
+              // Daniel → le bouton passait sous la barre système.
+              padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w,
+                  12.h + appBottomInsetInsideSafeArea(context)),
                   child: ProfileSaveBar(
                     label: 'payout_save_iban'.tr,
                     accent: accent,

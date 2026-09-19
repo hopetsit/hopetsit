@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/cancel_72h_sheet.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/services/service_tracking_helper.dart';
@@ -8,6 +9,7 @@ import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/string_utils.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/widgets/service_confirmation_card.dart';
@@ -488,47 +490,17 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
               SizedBox(height: 24.h),
 
               // Chat with Owner – same as card: show when paid
+              // v569 — habillage du kit commun (ActionPillButton) : même
+              // callback, même condition, coins 14 et hauteur tactile 48.
               if (widget.onStartChat != null)
                 Padding(
                   padding: EdgeInsets.only(bottom: 20.h),
-                  child: Center(
-                    child: GestureDetector(
-                      onTap: widget.onStartChat,
-                      child: Container(
-                        width: double.infinity,
-                        height: 50.h,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [AppColors.primaryColor, AppColors.primaryColor.withValues(alpha: 0.85)],
-                          ),
-                          borderRadius: BorderRadius.circular(16.r),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primaryColor.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.chat_outlined,
-                              color: AppColors.whiteColor,
-                              size: 20.sp,
-                            ),
-                            SizedBox(width: 8.w),
-                            InterText(
-                              text: 'sitter_chat_with_owner'.tr,
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.whiteColor,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  child: ActionPillButton(
+                    label: 'sitter_chat_with_owner'.tr,
+                    icon: Icons.chat_outlined,
+                    tone: _providerAccent,
+                    expand: true,
+                    onPressed: widget.onStartChat,
                   ),
                 ),
 
@@ -539,78 +511,38 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: GestureDetector(
-                        onTap: _isAccepting
-                            ? null
-                            : () async {
-                                if (widget.onAccept == null) return;
-                                setState(() => _isAccepting = true);
-                                try {
-                                  await widget.onAccept!();
-                                } finally {
-                                  if (mounted) {
-                                    setState(() => _isAccepting = false);
-                                  }
-                                }
-                              },
-                        child: Container(
-                          height: 50.h,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: _isAccepting
-                                  ? [AppColors.primaryColor.withValues(alpha: 0.7), AppColors.primaryColor.withValues(alpha: 0.5)]
-                                  : [AppColors.primaryColor, AppColors.primaryColor.withValues(alpha: 0.85)],
-                            ),
-                            borderRadius: BorderRadius.circular(16.r),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primaryColor.withValues(alpha: 0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          alignment: Alignment.center,
-                          child: _isAccepting
-                              ? SizedBox(
-                                  width: 24.w,
-                                  height: 24.h,
-                                  child: const CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      AppColors.whiteColor,
-                                    ),
-                                  ),
-                                )
-                              : InterText(
-                                  text: 'sitter_accept'.tr,
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.whiteColor,
-                                ),
-                        ),
+                      child: ActionPillButton(
+                        label: 'sitter_accept'.tr,
+                        icon: Icons.check_rounded,
+                        tone: _providerAccent,
+                        expand: true,
+                        haptic: true,
+                        busy: _isAccepting,
+                        onPressed: () async {
+                          if (widget.onAccept == null) return;
+                          setState(() => _isAccepting = true);
+                          try {
+                            await widget.onAccept!();
+                          } finally {
+                            if (mounted) {
+                              setState(() => _isAccepting = false);
+                            }
+                          }
+                        },
                       ),
                     ),
                     // Decline: same as card – show only when not pending (API allows cancellation only for paid)
                     if (booking.status != 'pending') ...[
-                      SizedBox(width: 16.w),
+                      SizedBox(width: 12.w),
                       Expanded(
-                        child: GestureDetector(
-                          onTap: widget.onReject,
-                          child: Container(
-                            height: 50.h,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF0F0F2),
-                              borderRadius: BorderRadius.circular(16.r),
-                            ),
-                            alignment: Alignment.center,
-                            child: InterText(
-                              text: 'sitter_decline'.tr,
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.grey700Color,
-                            ),
-                          ),
+                        child: ActionPillButton(
+                          label: 'sitter_decline'.tr,
+                          icon: Icons.close_rounded,
+                          tone: ActionTone.danger,
+                          kind: ActionPillKind.danger,
+                          expand: true,
+                          haptic: true,
+                          onPressed: widget.onReject,
                         ),
                       ),
                     ],
@@ -656,141 +588,27 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
     // v462 — éligibilité 72h AUTORITAIRE (backend), avec filet local robuste.
     // Évite l'ancien DateTime.parse fragile (échouait sur « dd/MM/yyyy »).
     final canFreeCancel = booking.isSelfCancelEligible;
-    final hoursUntilStart = booking.hoursUntilStartResolved;
 
     return Column(
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: GestureDetector(
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16.r),
-                  ),
-                  title: Row(
-                    children: [
-                      Icon(
-                        canFreeCancel ? Icons.cancel_outlined : Icons.warning_amber_rounded,
-                        color: canFreeCancel ? Colors.red : Colors.orange,
-                        size: 24.sp,
-                      ),
-                      SizedBox(width: 8.w),
-                      Expanded(
-                        child: InterText(
-                          text: 'cancel_72h_title'.tr,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      InterText(
-                        text: canFreeCancel
-                            ? 'cancel_72h_sitter_free_message'.tr
-                            : 'cancel_72h_closed_message'.tr,
-                        fontSize: 14.sp,
-                        color: AppColors.greyText,
-                      ),
-                      SizedBox(height: 12.h),
-                      Container(
-                        padding: EdgeInsets.all(12.w),
-                        decoration: BoxDecoration(
-                          color: canFreeCancel
-                              ? Colors.green.shade50
-                              : Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(8.r),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.schedule,
-                              size: 16.sp,
-                              color: canFreeCancel ? Colors.green : Colors.orange,
-                            ),
-                            SizedBox(width: 8.w),
-                            Expanded(
-                              child: InterText(
-                                text: 'cancel_72h_hours_left'.tr.replaceAll(
-                                  '@hours',
-                                  hoursUntilStart.toString(),
-                                ),
-                                fontSize: 12.sp,
-                                color: canFreeCancel
-                                    ? Colors.green.shade800
-                                    : Colors.orange.shade800,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: InterText(
-                        text: 'common_cancel'.tr,
-                        fontSize: 14.sp,
-                        color: AppColors.greyText,
-                      ),
-                    ),
-                    if (canFreeCancel)
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8.r),
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          final controller = Get.find<SitterBookingsController>();
-                          controller.selfCancelBooking(bookingId: booking.id);
-                        },
-                        child: InterText(
-                          text: 'cancel_72h_confirm'.tr,
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            },
-            child: Container(
-              height: 48.h,
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(24.r),
-                border: Border.all(color: Colors.red.shade200),
-              ),
-              alignment: Alignment.center,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.cancel_outlined, color: Colors.red, size: 18.sp),
-                  SizedBox(width: 8.w),
-                  InterText(
-                    text: canFreeCancel
-                        ? 'cancel_72h_free_button'.tr
-                        : 'cancel_72h_not_free_button'.tr,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.red,
-                  ),
-                ],
-              ),
-            ),
-          ),
+        // v569 — bouton destructif du kit commun : rouge texte, coins 14.
+        ActionPillButton(
+          label: canFreeCancel
+              ? 'cancel_72h_free_button'.tr
+              : 'cancel_72h_not_free_button'.tr,
+          icon: Icons.event_busy_rounded,
+          tone: ActionTone.danger,
+          kind: ActionPillKind.danger,
+          expand: true,
+          onPressed: () {
+            // v569 — feuille moderne commune (widgets/cancel_72h_sheet.dart).
+            showCancel72hSheet(canFree: canFreeCancel).then((ok) {
+              if (ok && canFreeCancel) {
+                Get.find<SitterBookingsController>()
+                    .selfCancelBooking(bookingId: booking.id);
+              }
+            });
+          },
         ),
         SizedBox(height: 6.h),
         InterText(

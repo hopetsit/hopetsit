@@ -10,8 +10,16 @@ import 'ui567_i18n.dart';
 import 'delete567_i18n.dart';
 import 'pawspot567_i18n.dart';
 import 'cards568_i18n.dart';
+import 'chatdel569_i18n.dart';
+import 'shop569_i18n.dart';
+import 'agreement569_i18n.dart';
+import 'pay569_i18n.dart';
+import 'post569_i18n.dart';
+import 'misc569_i18n.dart';
+import 'auth569_i18n.dart';
+import 'lists569_i18n.dart';
 
-const List<Map<String, Map<String, String>>> v565Packs = <Map<String, Map<String, String>>>[chatI18n, mapI18n, profileI18n, homeI18n, coreI18n, friendsI18n, shop567I18n, ui567I18n, delete567I18n, pawspot567I18n, cards568I18n];
+const List<Map<String, Map<String, String>>> v565Packs = <Map<String, Map<String, String>>>[chatI18n, mapI18n, profileI18n, homeI18n, coreI18n, friendsI18n, shop567I18n, ui567I18n, delete567I18n, pawspot567I18n, cards568I18n, chatdel569I18n, shop569I18n, agreement569I18n, pay569I18n, post569I18n, misc569I18n, auth569I18n, lists569I18n];
 
 /// Fusionne toutes les clés v565 pour une langue (code court : fr, en, es…).
 Map<String, String> v565For(String lang) {

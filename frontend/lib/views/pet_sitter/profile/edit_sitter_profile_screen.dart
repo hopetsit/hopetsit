@@ -11,6 +11,7 @@ import 'package:hopetsit/views/profile/widgets/email_change_field.dart';
 import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/views/profile/widgets/edit_profile_widgets.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class EditSitterProfileScreen extends StatelessWidget {
   const EditSitterProfileScreen({super.key});
@@ -267,7 +268,11 @@ class EditSitterProfileScreen extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 12.h),
+              // v569 — barre d'action collée en bas : le SafeArea de
+              // ProfileSubPageScaffold n'applique rien sur le Samsung de
+              // Daniel → le bouton passait sous la barre système.
+              padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w,
+                  12.h + appBottomInsetInsideSafeArea(context)),
               child: Obx(
                 () => ProfileSaveBar(
                   label: controller.isLoading.value

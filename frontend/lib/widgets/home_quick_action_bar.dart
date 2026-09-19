@@ -25,7 +25,6 @@
 
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -43,6 +42,7 @@ import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart' as snack;
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
@@ -62,7 +62,7 @@ import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/post_candidates_sheet.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
-import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/service_confirmation_card.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
 import 'package:hopetsit/widgets/submit_review_dialog.dart';
@@ -94,6 +94,8 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   // both fire respondToBooking → second call hits 'Booking already X'
   // / a 500 (race on save), and the user sees a confusing red toast.
   bool _isResponding = false;
+  // v569 — état voulu du point pulsé (cf. _syncPulse).
+  bool _pulseWanted = false;
 
   @override
   void initState() {
@@ -112,10 +114,13 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       }
     } catch (_) {}
 
+    // v569 — UN SEUL AnimationController pour toute la bande (le point
+    // d'urgence). Il ne tourne QUE si un état attend une action et il est
+    // coupé dès que la bande est neutre ou que l'app passe en arrière-plan.
     _pulse = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1100),
-    )..repeat(reverse: true);
+    );
 
     // v22.1 — Bug 14a : refresh proactif de la liste de bookings.
     //   1. Force reload AU MOUNT (le user a peut-être manqué des updates
@@ -192,11 +197,32 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       // Refresh immediat au retour + relance le timer.
       _refreshBookings();
       _startPeriodicRefresh();
+      // v569 — relance le point pulsé seulement s'il est encore attendu.
+      if (_pulseWanted && !_pulse.isAnimating) _pulse.repeat(reverse: true);
     } else {
       // paused / inactive / detached / hidden → coupe le timer.
       _periodicRefresh?.cancel();
       _periodicRefresh = null;
+      // v569 — aucune animation ne tourne en arrière-plan.
+      if (_pulse.isAnimating) _pulse.stop();
     }
+  }
+
+  /// v569 — démarre / arrête l'unique animation du point d'urgence. Appelé
+  /// depuis `build` : on repousse l'action APRÈS la frame pour ne jamais
+  /// notifier un listener pendant la construction de l'arbre.
+  void _syncPulse(bool wanted) {
+    if (_pulseWanted == wanted) return;
+    _pulseWanted = wanted;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_pulseWanted) {
+        if (!_pulse.isAnimating) _pulse.repeat(reverse: true);
+      } else if (_pulse.isAnimating) {
+        _pulse.stop();
+        _pulse.value = 0;
+      }
+    });
   }
 
   void _refreshBookings() {
@@ -352,6 +378,10 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         return _QuickAction(
           kind: _Kind.ownerPay,
           color: isWalker ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+          // v569 — « à payer » : orange du rôle propriétaire, quel que soit
+          // le prestataire (le nombre d'autres paiements est déjà dans le
+          // titre, donc pas de pastille « +N » en plus).
+          tone: ActionTone.pay,
           icon: Icons.celebration_rounded,
           title: title,
           subtitle: '${_serviceLabel(b.serviceType)} ${b.petName} — '
@@ -393,6 +423,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         return _QuickAction(
           kind: _Kind.serviceAction,
           color: const Color(0xFFC92A12), // orange owner
+          tone: ActionTone.live, // remise / rendu de l'animal
           icon: Icons.task_alt_rounded,
           title: 'band_owner_confirm_title'.tr,
           subtitle:
@@ -436,6 +467,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         return _QuickAction(
           kind: _Kind.providerPaid,
           color: const Color(0xFF16A34A), // green = success
+          tone: ActionTone.success,
           icon: Icons.verified_rounded,
           title: title,
           subtitle: '${CurrencyHelper.format(
@@ -456,7 +488,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           return _QuickAction(
             kind: _Kind.ownerPay,
             color: const Color(0xFFFF9800),
-            icon: Icons.timer_rounded,
+            // Paiement en retard = problème → rouge.
+            tone: ActionTone.danger,
+            icon: Icons.schedule_rounded,
             // v23.1.346 — audit traductions : FR codé en dur → clés 6 langues.
             title: 'band_payment_pending_title'.tr,
             subtitle: 'band_payment_pending_subtitle'.tr,
@@ -479,6 +513,8 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         return _QuickAction(
           kind: _Kind.providerAccept,
           color: isWalker ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+          // Demande reçue, à traiter → ambre (identique sitter/walker).
+          tone: ActionTone.pending,
           icon: Icons.notifications_active_rounded,
           // v23.1.346 — audit traductions : FR codé en dur → clés 6 langues.
           title: 'band_new_request_title'.tr,
@@ -521,6 +557,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         return _QuickAction(
           kind: _Kind.serviceAction,
           color: svcAccent,
+          tone: ActionTone.live, // remise de l'animal
           icon: Icons.pets_rounded,
           title: 'band_service_start_title'.tr,
           subtitle: 'band_service_start_subtitle'
@@ -554,6 +591,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         return _QuickAction(
           kind: _Kind.serviceAction,
           color: svcAccent,
+          tone: ActionTone.live, // rendu de l'animal
           icon: Icons.flag_circle_rounded,
           title: 'band_service_end_title'.tr,
           subtitle: 'band_service_end_subtitle'
@@ -587,6 +625,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         return _QuickAction(
           kind: _Kind.ownerReview,
           color: const Color(0xFFFFB300),
+          // Avis à laisser = action à traiter → ambre.
+          tone: ActionTone.pending,
+          extraCount: toReview.length - 1,
           icon: Icons.star_rounded,
           title: 'v565_review_banner_title'.tr,
           subtitle:
@@ -630,6 +671,8 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         return _QuickAction(
           kind: _Kind.providerReleased,
           color: isWalkerRole ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+          tone: ActionTone.success,
+          extraCount: released.length - 1,
           icon: Icons.account_balance_wallet_rounded,
           title: 'band_payment_released_title'.tr,
           subtitle: 'band_payment_released_subtitle'.trParams({
@@ -680,6 +723,8 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       return _QuickAction(
         kind: _Kind.providerPaid,
         color: isWalker ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+        // Paiement reçu → vert (le « +N » est déjà dans le titre).
+        tone: ActionTone.success,
         icon: Icons.check_circle_rounded,
         title: title,
         // v23.1.162 — subtitle hardcoded FR avant ('$ownerName a payé X').
@@ -754,27 +799,63 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       // dans la bande (violet), même logique que la demande d'ami : tap →
       // sheet profil du titulaire + Accepter / Refuser.
       action ??= _pickFamilyInvitationAction();
-      // Neutral fallback : rien d'urgent → barre soft "tout est à jour".
+
+      // v569 — même gabarit pour tous les états, transition douce d'un état à
+      // l'autre (fondu + léger glissement, 200 ms) et hauteur stable.
+      final Widget child;
       if (action == null) {
-        return _NeutralBar(role: widget.role, onTap: _onNeutralTap);
+        // Neutral fallback : rien d'urgent → barre soft "tout est à jour".
+        _syncPulse(false);
+        child = _NeutralBar(
+          key: const ValueKey<String>('band-neutral'),
+          role: widget.role,
+          onTap: _onNeutralTap,
+        );
+      } else {
+        final a = action;
+        _syncPulse(a.pulse);
+        child = _ActionBanner(
+          key: ValueKey<String>('band-${a.kind.name}-${a.booking.id}'),
+          action: a,
+          pulse: _pulse,
+          onTap: () => _onActionTap(a),
+          onAccept: () => _onAccept(a),
+          onRefuse: () => _onRefuse(a),
+          // v23.1 — PART 2 : X dismiss callback. Owner-pay AND provider-paid
+          // banners (sitter/walker side after payment received).
+          onDismiss: (a.kind == _Kind.ownerPay ||
+                  a.kind == _Kind.providerPaid ||
+                  a.kind == _Kind.providerReleased)
+              ? () => _dismissBannerMulti(
+                    a.allBookingIds.isNotEmpty
+                        ? a.allBookingIds
+                        : <String>[a.booking.id],
+                  )
+              : null,
+        );
       }
-      return _ActionBanner(
-        action: action,
-        pulse: _pulse,
-        onTap: () => _onActionTap(action!),
-        onAccept: () => _onAccept(action!),
-        onRefuse: () => _onRefuse(action!),
-        // v23.1 — PART 2 : X dismiss callback. Owner-pay AND provider-paid
-        // banners (sitter/walker side after payment received).
-        onDismiss: (action.kind == _Kind.ownerPay ||
-                action.kind == _Kind.providerPaid ||
-                action.kind == _Kind.providerReleased)
-            ? () => _dismissBannerMulti(
-                  action!.allBookingIds.isNotEmpty
-                      ? action.allBookingIds
-                      : <String>[action.booking.id],
-                )
-            : null,
+      return AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        layoutBuilder: (current, previous) => Stack(
+          alignment: Alignment.topCenter,
+          children: <Widget>[
+            ...previous,
+            if (current != null) current,
+          ],
+        ),
+        transitionBuilder: (widgetChild, animation) => FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.08),
+              end: Offset.zero,
+            ).animate(animation),
+            child: widgetChild,
+          ),
+        ),
+        child: child,
       );
     });
   }
@@ -803,9 +884,10 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     final color = isWalker
         ? const Color(0xFF16A34A)
         : const Color(0xFF2563EB);
-    final title = extra > 0
-        ? '${'notif_title_new_application'.tr} (+$extra)'
-        : '${'notif_title_new_application'.tr} — $providerName';
+    // v569 — le « (+N) » collé au titre partait à la ligne / rognait le nom :
+    // il devient une pastille compteur à droite du titre, et le nom du
+    // candidat reste toujours visible.
+    final title = '${'notif_title_new_application'.tr} — $providerName';
     final petLbl = first.petName.isNotEmpty ? first.petName : '';
     final dateLbl = (first.serviceDate ?? '').split('T').first;
     final subtitle = [petLbl, dateLbl, providerName]
@@ -814,7 +896,10 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     return _QuickAction(
       kind: _Kind.ownerCandidate,
       color: color,
-      icon: Icons.notifications_active_rounded,
+      // Candidature reçue = à traiter → ambre.
+      tone: ActionTone.pending,
+      extraCount: extra,
+      icon: Icons.how_to_reg_rounded,
       title: title,
       subtitle: subtitle,
       ctaLabel: 'bookings_action_view_details'.tr,
@@ -858,10 +943,13 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     final reqs = fc.incomingRequests; // lecture réactive → Obx rebuild
     if (reqs.isEmpty) return null;
     Friendship? pick;
+    // v569 — on compte les demandes en attente pour la pastille « +N ». Aucune
+    // donnée inventée : c'est la liste déjà chargée par FriendController.
+    var pendingCount = 0;
     for (final f in reqs) {
       if (f.status == 'pending' && (f.other?.id ?? '').isNotEmpty) {
-        pick = f;
-        break;
+        pendingCount++;
+        pick ??= f;
       }
     }
     if (pick == null) return null;
@@ -873,8 +961,11 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     return _QuickAction(
       kind: _Kind.friendRequest,
       // Couleur par rôle du DEMANDEUR (owner orange · sitter bleu · walker
-      // vert) — cohérent avec le code couleur de l'app.
+      // vert) — conservée comme accent DANS la feuille (avatar, pastille rôle).
       color: _friendRoleAccent(role),
+      // v569 — le BANDEAU, lui, parle par nature d'état : ami / social = rose.
+      tone: ActionTone.social,
+      extraCount: pendingCount - 1,
       icon: Icons.person_add_alt_1_rounded,
       title: 'friend_request_banner_title'.tr,
       subtitle: 'friend_request_banner_subtitle'.trParams({'name': name}),
@@ -936,11 +1027,12 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     final invs = fc.incomingFamilyInvitations; // lecture réactive → Obx rebuild
     if (invs.isEmpty) return null;
     Map<String, dynamic>? pick;
+    var pendingCount = 0;
     for (final i in invs) {
       final id = (i['invitationId'] ?? i['id'] ?? '').toString();
       if (id.isNotEmpty) {
-        pick = i;
-        break;
+        pendingCount++;
+        pick ??= i;
       }
     }
     if (pick == null) return null;
@@ -950,6 +1042,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     return _QuickAction(
       kind: _Kind.familyInvitation,
       color: const Color(0xFF8B5CF6), // violet Famille PawFollow
+      // Famille PawFollow = suivi en direct → violet de la charte.
+      tone: ActionTone.live,
+      extraCount: pendingCount - 1,
       icon: Icons.diversity_3_rounded,
       title: 'family_invitation_received_title'.tr,
       subtitle:
@@ -1118,46 +1213,42 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     final cpName = isOwner
         ? (b.sitter.name.trim().isNotEmpty ? b.sitter.name : '—')
         : (b.owner.name.trim().isNotEmpty ? b.owner.name : '—');
+    final cpAvatar =
+        isOwner ? b.sitter.avatar.url : b.owner.avatar.url;
+    final cpRole = isOwner
+        ? ((b.serviceType ?? '').toLowerCase().contains('walking')
+            ? 'role_walker'.tr
+            : 'role_sitter'.tr)
+        : 'role_pet_owner'.tr;
+    final tone = a.bannerTone;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
       builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(ctx).cardColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        ),
+        decoration: actionSheetDecoration(ctx),
         padding: EdgeInsets.fromLTRB(
-          20.w, 12.h, 20.w, 24.h + MediaQuery.of(ctx).padding.bottom,
+          20.w, 12.h, 20.w, 24.h + appBottomInset(ctx),
         ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 36.w,
-                  height: 4.h,
-                  margin: EdgeInsets.only(bottom: 12.h),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(2.r),
-                  ),
-                ),
+              ActionSheetHandle(onClose: () => Navigator.of(ctx).pop()),
+              ActionSheetHeader(
+                name: cpName,
+                avatarUrl: cpAvatar,
+                roleLabel: cpRole,
+                tone: tone,
+                statusLabel: a.title,
+                statusIcon: a.icon,
               ),
-              Center(
-                child: PoppinsText(
-                  text: a.title,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w800,
-                  color: accent,
-                ),
-              ),
-              SizedBox(height: 12.h),
+              SizedBox(height: 14.h),
               if (b.petName.isNotEmpty) _sheetRow(Icons.pets, b.petName),
-              _sheetRow(Icons.person_outline, cpName),
+              if (_serviceLabel(b.serviceType).isNotEmpty)
+                _sheetRow(Icons.work_outline, _serviceLabel(b.serviceType)),
               if (_dateLabel(b).isNotEmpty)
                 _sheetRow(Icons.event_outlined, _dateLabel(b)),
               SizedBox(height: 8.h),
@@ -1440,7 +1531,8 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     final dateLbl = _dateLabel(b);
     final amount = (b.pricing?.totalPrice ?? b.totalAmount ?? 0).toDouble();
     final currency = b.pricing?.currency ?? b.sitter.currency;
-    final accent = a.color;
+    // v569 — un paiement est VERT chez les 3 rôles (couleur de l'état).
+    final tone = a.bannerTone;
     // v23.1.327 — Daniel : ce sheet est partagé owner ↔ prestataire. On l'adapte
     // au PROFIL qui le regarde : le prestataire voit l'OWNER ("Paiement reçu"),
     // l'owner voit le PRESTATAIRE ("Paiement effectué"). Le bouton "Discuter"
@@ -1468,184 +1560,69 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       backgroundColor: Colors.transparent,
       useSafeArea: true,
       builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(ctx).cardColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        ),
+        decoration: actionSheetDecoration(ctx),
         padding: EdgeInsets.fromLTRB(
-          20.w, 12.h, 20.w, 24.h + MediaQuery.of(ctx).padding.bottom,
+          20.w, 12.h, 20.w, 24.h + appBottomInset(ctx),
         ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // v23.1 part 66 — Bug 3 : Daniel wanted a small close X
-              // next to the "Voir mes factures" button so he can dismiss
-              // the sheet without swiping. We expose it at the top-right
-              // (visually next to the drag handle), which is the
-              // conventional location and lets us add the same to the
-              // other action sheets without bloating the action row.
-              Stack(
-                // v23.1.327 — Daniel : "le X de fermeture est coupé". Le Stack
-                // clippe par défaut (Clip.hardEdge) → l'icône positionnée
-                // débordait et se faisait rogner. Clip.none la rend entière.
-                clipBehavior: Clip.none,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36.w, height: 4.h,
-                      margin: EdgeInsets.only(bottom: 12.h),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(2.r),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    right: 0,
-                    top: -2,
-                    child: GestureDetector(
-                      onTap: () => Navigator.of(ctx).pop(),
-                      behavior: HitTestBehavior.opaque,
-                      child: Padding(
-                        padding: EdgeInsets.all(6.w),
-                        child: Icon(
-                          Icons.close_rounded,
-                          color: const Color(0xFF707070),
-                          size: 22.sp,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              // v23.1 part 66 — Bug 3 : Daniel voulait une petite croix pour
+              // fermer sans balayer. Elle vit maintenant dans la poignée
+              // commune (ActionSheetHandle), au même endroit qu'avant.
+              ActionSheetHandle(onClose: () => Navigator.of(ctx).pop()),
+              ActionSheetTitle(
+                icon: Icons.check_circle_rounded,
+                title: titleKey.tr,
+                subtitle: CurrencyHelper.format(currency, amount),
+                tone: tone,
               ),
-              Center(
-                child: Container(
-                  padding: EdgeInsets.all(12.w),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.check_circle_rounded,
-                      color: accent, size: 36.sp),
-                ),
-              ),
-              SizedBox(height: 12.h),
-              Center(
-                child: PoppinsText(
-                  text: titleKey.tr,
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w800,
-                  color: accent,
-                ),
-              ),
-              SizedBox(height: 4.h),
-              Center(
-                child: InterText(
-                  text: CurrencyHelper.format(currency, amount),
-                  fontSize: 24.sp,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              SizedBox(height: 20.h),
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 22.r,
-                    backgroundColor: accent.withValues(alpha: 0.15),
-                    // v23.1 part 231 — perf : CachedNetworkImageProvider 150.
-                    backgroundImage: cpAvatar.isNotEmpty
-                        ? CachedNetworkImageProvider(cpAvatar, maxWidth: 150)
-                        : null,
-                    child: cpAvatar.isEmpty
-                        ? Icon(Icons.person, color: accent, size: 22.sp)
-                        : null,
-                  ),
-                  SizedBox(width: 12.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        PoppinsText(
-                          text: cpName,
-                          fontSize: 14.sp, fontWeight: FontWeight.w700,
-                        ),
-                        SizedBox(height: 2.h),
-                        InterText(
-                          text: cpRoleKey.tr,
-                          fontSize: 11.sp,
-                          color: Colors.grey,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              SizedBox(height: 18.h),
+              ActionSheetHeader(
+                name: cpName,
+                avatarUrl: cpAvatar,
+                roleLabel: cpRoleKey.tr,
+                tone: tone,
+                statusLabel: CurrencyHelper.format(currency, amount),
+                statusIcon: Icons.payments_rounded,
               ),
               SizedBox(height: 12.h),
               if (petLbl.isNotEmpty) _sheetRow(Icons.pets, petLbl),
               if (dateLbl.isNotEmpty) _sheetRow(Icons.event_outlined, dateLbl),
-              SizedBox(height: 16.h),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    Get.to(() => const InvoicesScreen());
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accent,
-                    padding: EdgeInsets.symmetric(vertical: 12.h),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10.r),
-                    ),
-                  ),
-                  icon: Icon(Icons.receipt_long_rounded,
-                      color: Colors.white, size: 20.sp),
-                  label: Text(
-                    'view_my_invoices_button'.tr,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14.sp, fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+              SizedBox(height: 18.h),
+              ActionPillButton(
+                label: 'view_my_invoices_button'.tr,
+                icon: Icons.receipt_long_rounded,
+                tone: tone,
+                expand: true,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Get.to(() => const InvoicesScreen());
+                },
               ),
               SizedBox(height: 10.h),
               // v23.1.327 — Daniel : 2e action "Discuter avec [contrepartie]".
               // Ouvre le chat du bon profil (owner -> ChatScreen ;
               // sitter/walker -> SitterChatScreen). La conversation avec la
               // contrepartie y est en tête (chat débloqué au paiement).
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    // v23.1.339 — Daniel : "le message auto sort après au lieu
-                    // de de suite". Avant, ce bouton ouvrait la LISTE des chats
-                    // → il fallait encore taper la conversation pour voir le
-                    // message auto (paiement confirmé). Maintenant on ouvre
-                    // DIRECTEMENT la conversation de la réservation → le message
-                    // auto est visible de suite.
-                    _openBookingChat(b, isOwnerView);
-                  },
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: accent, width: 1.5),
-                    padding: EdgeInsets.symmetric(vertical: 12.h),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10.r),
-                    ),
-                  ),
-                  icon: Icon(Icons.chat_bubble_outline_rounded,
-                      color: accent, size: 20.sp),
-                  label: Text(
-                    chatBtnKey.tr,
-                    style: TextStyle(
-                      color: accent,
-                      fontSize: 14.sp, fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+              ActionPillButton(
+                label: chatBtnKey.tr,
+                icon: Icons.chat_bubble_outline_rounded,
+                tone: tone,
+                kind: ActionPillKind.outlined,
+                expand: true,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  // v23.1.339 — Daniel : "le message auto sort après au lieu
+                  // de de suite". Avant, ce bouton ouvrait la LISTE des chats
+                  // → il fallait encore taper la conversation pour voir le
+                  // message auto (paiement confirmé). Maintenant on ouvre
+                  // DIRECTEMENT la conversation de la réservation → le message
+                  // auto est visible de suite.
+                  _openBookingChat(b, isOwnerView);
+                },
               ),
             ],
           ),
@@ -1664,7 +1641,12 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     final svcLbl = _serviceLabel(b.serviceType);
     // BookingModel has no locationType getter; we just use owner.address.
     final addressLbl = b.owner.address.isNotEmpty ? b.owner.address : '';
-    final accent = a.color;
+    // v569 — « nouvelle demande » = état à traiter → ambre, pour les 2 rôles.
+    final tone = a.bannerTone;
+    final amountLbl = CurrencyHelper.format(
+      b.pricing?.currency ?? 'EUR',
+      (b.pricing?.netAmount ?? b.pricing?.basePrice ?? 0).toDouble(),
+    );
 
     showModalBottomSheet(
       context: context,
@@ -1675,67 +1657,28 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       // were cropped by the OS handle on Android Q+ / iOS.
       useSafeArea: true,
       builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(ctx).cardColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        ),
+        decoration: actionSheetDecoration(ctx),
         padding: EdgeInsets.fromLTRB(
           20.w,
           12.h,
           20.w,
-          24.h + MediaQuery.of(ctx).padding.bottom,
+          24.h + appBottomInset(ctx),
         ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 36.w,
-                  height: 4.h,
-                  margin: EdgeInsets.only(bottom: 12.h),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(2.r),
-                  ),
-                ),
+              ActionSheetHandle(onClose: () => Navigator.of(ctx).pop()),
+              ActionSheetHeader(
+                name: ownerName,
+                avatarUrl: ownerAvatar,
+                roleLabel: 'role_pet_owner'.tr,
+                tone: tone,
+                statusLabel: a.title,
+                statusIcon: a.icon,
               ),
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 26.r,
-                    backgroundColor: accent.withValues(alpha: 0.15),
-                    // v23.1 part 231 — perf cache + maxWidth.
-                    backgroundImage: ownerAvatar.isNotEmpty
-                        ? CachedNetworkImageProvider(ownerAvatar, maxWidth: 150)
-                        : null,
-                    child: ownerAvatar.isEmpty
-                        ? Icon(Icons.person, color: accent, size: 26.sp)
-                        : null,
-                  ),
-                  SizedBox(width: 12.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        PoppinsText(
-                          text: ownerName,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        SizedBox(height: 2.h),
-                        InterText(
-                          text: 'role_pet_owner'.tr,
-                          fontSize: 12.sp,
-                          color: Colors.grey,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16.h),
+              SizedBox(height: 14.h),
               _sheetRow(Icons.pets, petLabel),
               if (svcLbl.isNotEmpty) _sheetRow(Icons.work_outline, svcLbl),
               if (dateLbl.isNotEmpty) _sheetRow(Icons.event_outlined, dateLbl),
@@ -1743,57 +1686,34 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                 _sheetRow(Icons.access_time, timeLbl),
               if (addressLbl.isNotEmpty)
                 _sheetRow(Icons.location_on_outlined, addressLbl),
+              _sheetRow(Icons.payments_outlined, amountLbl,
+                  tone: tone, strong: true),
               SizedBox(height: 20.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _onAccept(a);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accent,
-                        padding: EdgeInsets.symmetric(vertical: 12.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.r),
-                        ),
-                      ),
-                      child: Text(
-                        'snackbar_text_request_accepted'.tr,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 10.w),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _onRefuse(a);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: const Color(0xFFE53935)),
-                        padding: EdgeInsets.symmetric(vertical: 12.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.r),
-                        ),
-                      ),
-                      child: Text(
-                        'snackbar_text_request_refused'.tr,
-                        style: TextStyle(
-                          color: const Color(0xFFE53935),
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              // v569 — boutons pleine largeur : principale pleine, destructive
+              // en rouge texte. Mêmes appels qu'avant.
+              ActionPillButton(
+                label: 'snackbar_text_request_accepted'.tr,
+                icon: Icons.check_rounded,
+                tone: tone,
+                expand: true,
+                haptic: true,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _onAccept(a);
+                },
+              ),
+              SizedBox(height: 8.h),
+              ActionPillButton(
+                label: 'snackbar_text_request_refused'.tr,
+                icon: Icons.close_rounded,
+                tone: ActionTone.danger,
+                kind: ActionPillKind.danger,
+                expand: true,
+                haptic: true,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _onRefuse(a);
+                },
               ),
             ],
           ),
@@ -1802,24 +1722,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     );
   }
 
-  Widget _sheetRow(IconData icon, String text) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 6.h),
-      child: Row(
-        children: [
-          Icon(icon, size: 18.sp, color: Colors.grey),
-          SizedBox(width: 10.w),
-          Expanded(
-            child: InterText(
-              text: text,
-              fontSize: 13.sp,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
+  // v569 — une seule ligne de récapitulatif pour les 6 feuilles (kit commun).
+  Widget _sheetRow(IconData icon, String text, {Color? tone, bool strong = false}) {
+    return ActionSheetRow(icon: icon, text: text, tone: tone, strong: strong);
   }
 
   /// v23.1 part 21 — bottom sheet riche pour la candidature owner.
@@ -1857,9 +1762,8 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     }
 
     final isWalker = app.providerRole == 'walker';
-    final accent = isWalker
-        ? const Color(0xFF16A34A)
-        : const Color(0xFF2563EB);
+    // v569 — candidature reçue = état « à traiter » → ambre, owner ou pas.
+    final tone = a.bannerTone;
     final providerName = app.sitter.name.trim().isNotEmpty
         ? app.sitter.name
         : (isWalker ? 'role_walker'.tr : 'role_sitter'.tr);
@@ -1883,116 +1787,40 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       backgroundColor: Colors.transparent,
       useSafeArea: true,
       builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(ctx).cardColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        ),
+        decoration: actionSheetDecoration(ctx),
         padding: EdgeInsets.fromLTRB(
           20.w,
           12.h,
           20.w,
-          24.h + MediaQuery.of(ctx).padding.bottom,
+          24.h + appBottomInset(ctx),
         ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 36.w,
-                  height: 4.h,
-                  margin: EdgeInsets.only(bottom: 12.h),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(2.r),
-                  ),
-                ),
+              ActionSheetHandle(onClose: () => Navigator.of(ctx).pop()),
+              ActionSheetHeader(
+                name: providerName,
+                avatarUrl: providerAvatar,
+                roleLabel: isWalker ? 'role_walker'.tr : 'role_sitter'.tr,
+                tone: tone,
+                statusLabel: 'notif_title_new_application'.tr,
+                statusIcon: Icons.how_to_reg_rounded,
+                // v23.1 part 38 — VerifiedBadge conservé dans la feuille.
+                trailing: localApp.sitter.verified
+                    ? const VerifiedBadge(isVerified: true)
+                    : null,
               ),
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 28.r,
-                    backgroundColor: accent.withValues(alpha: 0.15),
-                    // v23.1 part 231 — perf.
-                    backgroundImage: providerAvatar.isNotEmpty
-                        ? CachedNetworkImageProvider(providerAvatar, maxWidth: 200)
-                        : null,
-                    child: providerAvatar.isEmpty
-                        ? Icon(Icons.person, color: accent, size: 28.sp)
-                        : null,
-                  ),
-                  SizedBox(width: 12.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: PoppinsText(
-                                text: providerName,
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            // v23.1 part 38 — VerifiedBadge dans le sheet candidature
-                            if (localApp.sitter.verified) ...[
-                              SizedBox(width: 6.w),
-                              VerifiedBadge(isVerified: true),
-                            ],
-                            SizedBox(width: 6.w),
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 6.w, vertical: 2.h),
-                              decoration: BoxDecoration(
-                                color: accent.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6.r),
-                              ),
-                              child: InterText(
-                                text: isWalker
-                                    ? 'role_walker'.tr
-                                    : 'role_sitter'.tr,
-                                fontSize: 10.sp,
-                                fontWeight: FontWeight.w700,
-                                color: accent,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 4.h),
-                        Row(
-                          children: [
-                            Icon(Icons.star_rounded,
-                                color: const Color(0xFFFFB400), size: 16.sp),
-                            SizedBox(width: 4.w),
-                            InterText(
-                              text: rating > 0
-                                  ? rating.toStringAsFixed(1)
-                                  : '—',
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            if (priceLbl.isNotEmpty) ...[
-                              SizedBox(width: 10.w),
-                              Icon(Icons.payments_outlined,
-                                  size: 14.sp, color: accent),
-                              SizedBox(width: 3.w),
-                              InterText(
-                                text: priceLbl,
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w600,
-                                color: accent,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              SizedBox(height: 12.h),
+              _sheetRow(
+                Icons.star_rounded,
+                rating > 0 ? rating.toStringAsFixed(1) : '—',
+                tone: const Color(0xFFFFB400),
               ),
-              SizedBox(height: 16.h),
+              if (priceLbl.isNotEmpty)
+                _sheetRow(Icons.payments_outlined, priceLbl,
+                    tone: tone, strong: true),
               if (petLabel.isNotEmpty) _sheetRow(Icons.pets, petLabel),
               if (dateLbl.isNotEmpty)
                 _sheetRow(Icons.event_outlined, dateLbl),
@@ -2000,94 +1828,55 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
               if (addrLbl.isNotEmpty)
                 _sheetRow(Icons.location_on_outlined, addrLbl),
               SizedBox(height: 20.h),
-              // 3 actions : Accept / Refuse / Voir profil
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _ownerAcceptCandidate(localApp);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accent,
-                        padding: EdgeInsets.symmetric(vertical: 12.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.r),
-                        ),
-                      ),
-                      icon: Icon(Icons.check_rounded,
-                          color: Colors.white, size: 18.sp),
-                      label: Text(
-                        'snackbar_text_request_accepted'.tr,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _ownerRejectCandidate(localApp);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFE53935)),
-                        padding: EdgeInsets.symmetric(vertical: 12.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.r),
-                        ),
-                      ),
-                      icon: Icon(Icons.close_rounded,
-                          color: const Color(0xFFE53935), size: 18.sp),
-                      label: Text(
-                        'snackbar_text_request_refused'.tr,
-                        style: TextStyle(
-                          color: const Color(0xFFE53935),
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              // 3 actions, inchangées : Accepter / Voir profil / Refuser.
+              ActionPillButton(
+                label: 'snackbar_text_request_accepted'.tr,
+                icon: Icons.check_rounded,
+                tone: tone,
+                expand: true,
+                haptic: true,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _ownerAcceptCandidate(localApp);
+                },
               ),
               SizedBox(height: 8.h),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    // v23.1 part 37 — fix Daniel : navigue vers la screen
-                    // complète (sitter ou walker) au lieu d'un dialog minimal.
-                    if (isWalker) {
-                      Get.to(() => WalkerDetailScreen(
-                            walkerId: localApp.sitter.id,
-                          ));
-                    } else {
-                      Get.to(() => ServiceProviderDetailScreen(
-                            sitterId: localApp.sitter.id,
-                            status: 'pending',
-                          ));
-                    }
-                  },
-                  icon: Icon(Icons.person_outline,
-                      color: accent, size: 18.sp),
-                  label: Text(
-                    isWalker
-                        ? 'view_walker_profile'.tr
-                        : 'view_sitter_profile'.tr,
-                    style: TextStyle(
-                      color: accent,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+              ActionPillButton(
+                label: isWalker
+                    ? 'view_walker_profile'.tr
+                    : 'view_sitter_profile'.tr,
+                icon: Icons.person_outline,
+                tone: tone,
+                kind: ActionPillKind.outlined,
+                expand: true,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  // v23.1 part 37 — fix Daniel : navigue vers la screen
+                  // complète (sitter ou walker) au lieu d'un dialog minimal.
+                  if (isWalker) {
+                    Get.to(() => WalkerDetailScreen(
+                          walkerId: localApp.sitter.id,
+                        ));
+                  } else {
+                    Get.to(() => ServiceProviderDetailScreen(
+                          sitterId: localApp.sitter.id,
+                          status: 'pending',
+                        ));
+                  }
+                },
+              ),
+              SizedBox(height: 8.h),
+              ActionPillButton(
+                label: 'snackbar_text_request_refused'.tr,
+                icon: Icons.close_rounded,
+                tone: ActionTone.danger,
+                kind: ActionPillKind.danger,
+                expand: true,
+                haptic: true,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _ownerRejectCandidate(localApp);
+                },
               ),
             ],
           ),
@@ -2108,7 +1897,10 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     if (f == null || f.other == null) return;
     final other = f.other!;
     final role = other.roleLowercase; // owner | sitter | walker
+    // Accent RÔLE du demandeur dans la feuille (avatar, pastille) ; le
+    // bandeau, lui, utilise le rose « social ».
     final accent = a.color;
+    final tone = a.bannerTone;
     final name = other.name.trim().isNotEmpty
         ? other.name
         : _friendRoleLabel(role);
@@ -2126,177 +1918,80 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       backgroundColor: Colors.transparent,
       useSafeArea: true,
       builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(ctx).cardColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        ),
+        decoration: actionSheetDecoration(ctx),
         padding: EdgeInsets.fromLTRB(
           20.w,
           12.h,
           20.w,
-          24.h + MediaQuery.of(ctx).padding.bottom,
+          24.h + appBottomInset(ctx),
         ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 36.w,
-                  height: 4.h,
-                  margin: EdgeInsets.only(bottom: 12.h),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(2.r),
-                  ),
-                ),
-              ),
-              // En-tête : "Nouvelle demande d'ami".
-              Center(
-                child: PoppinsText(
-                  text: 'friend_request_banner_title'.tr,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w800,
-                  color: accent,
-                ),
-              ),
-              SizedBox(height: 16.h),
-              // Carte profil du demandeur.
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 28.r,
-                    backgroundColor: accent.withValues(alpha: 0.15),
-                    backgroundImage: avatar.isNotEmpty
-                        ? CachedNetworkImageProvider(avatar, maxWidth: 200)
-                        : null,
-                    child: avatar.isEmpty
-                        ? Icon(Icons.person, color: accent, size: 28.sp)
-                        : null,
-                  ),
-                  SizedBox(width: 12.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        PoppinsText(
-                          text: name,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        SizedBox(height: 6.h),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 8.w, vertical: 3.h),
-                          decoration: BoxDecoration(
-                            color: accent.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6.r),
-                          ),
-                          child: InterText(
-                            text: roleLabel,
-                            fontSize: 10.sp,
-                            fontWeight: FontWeight.w700,
-                            color: accent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              ActionSheetHandle(onClose: () => Navigator.of(ctx).pop()),
+              // En-tête : profil du demandeur + pastille "Nouvelle demande".
+              ActionSheetHeader(
+                name: name,
+                avatarUrl: avatar,
+                roleLabel: roleLabel,
+                tone: accent,
+                statusLabel: 'friend_request_banner_title'.tr,
+                statusIcon: Icons.person_add_alt_1_rounded,
               ),
               SizedBox(height: 12.h),
               if (city.trim().isNotEmpty)
                 _sheetRow(Icons.location_on_outlined, city),
-              SizedBox(height: 16.h),
-              // Accepter / Refuser.
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _acceptFriendRequest(a);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accent,
-                        padding: EdgeInsets.symmetric(vertical: 12.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.r),
-                        ),
-                      ),
-                      icon: Icon(Icons.check_rounded,
-                          color: Colors.white, size: 18.sp),
-                      label: Text(
-                        'pawfollow_accept'.tr,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _declineFriendRequest(a);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFE53935)),
-                        padding: EdgeInsets.symmetric(vertical: 12.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.r),
-                        ),
-                      ),
-                      icon: Icon(Icons.close_rounded,
-                          color: const Color(0xFFE53935), size: 18.sp),
-                      label: Text(
-                        'pawfollow_refuse'.tr,
-                        style: TextStyle(
-                          color: const Color(0xFFE53935),
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              SizedBox(height: 18.h),
+              ActionPillButton(
+                label: 'pawfollow_accept'.tr,
+                icon: Icons.check_rounded,
+                tone: tone,
+                expand: true,
+                haptic: true,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _acceptFriendRequest(a);
+                },
               ),
               // Pour un prestataire : "Voir le profil complet" → écran détail.
               if (isProvider && otherId.isNotEmpty) ...[
                 SizedBox(height: 8.h),
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton.icon(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      if (isWalker) {
-                        Get.to(() => WalkerDetailScreen(walkerId: otherId));
-                      } else {
-                        Get.to(() => ServiceProviderDetailScreen(
-                              sitterId: otherId,
-                              status: 'pending',
-                            ));
-                      }
-                    },
-                    icon: Icon(Icons.person_outline,
-                        color: accent, size: 18.sp),
-                    label: Text(
-                      isWalker
-                          ? 'view_walker_profile'.tr
-                          : 'view_sitter_profile'.tr,
-                      style: TextStyle(
-                        color: accent,
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
+                ActionPillButton(
+                  label: isWalker
+                      ? 'view_walker_profile'.tr
+                      : 'view_sitter_profile'.tr,
+                  icon: Icons.person_outline,
+                  tone: accent,
+                  kind: ActionPillKind.outlined,
+                  expand: true,
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    if (isWalker) {
+                      Get.to(() => WalkerDetailScreen(walkerId: otherId));
+                    } else {
+                      Get.to(() => ServiceProviderDetailScreen(
+                            sitterId: otherId,
+                            status: 'pending',
+                          ));
+                    }
+                  },
                 ),
               ],
+              SizedBox(height: 8.h),
+              ActionPillButton(
+                label: 'pawfollow_refuse'.tr,
+                icon: Icons.close_rounded,
+                tone: ActionTone.danger,
+                kind: ActionPillKind.danger,
+                expand: true,
+                haptic: true,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _declineFriendRequest(a);
+                },
+              ),
             ],
           ),
         ),
@@ -2328,180 +2023,83 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       backgroundColor: Colors.transparent,
       useSafeArea: true,
       builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(ctx).cardColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        ),
+        decoration: actionSheetDecoration(ctx),
         padding: EdgeInsets.fromLTRB(
           20.w,
           12.h,
           20.w,
-          24.h + MediaQuery.of(ctx).padding.bottom,
+          24.h + appBottomInset(ctx),
         ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 36.w,
-                  height: 4.h,
-                  margin: EdgeInsets.only(bottom: 12.h),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(2.r),
-                  ),
-                ),
+              ActionSheetHandle(onClose: () => Navigator.of(ctx).pop()),
+              ActionSheetTitle(
+                icon: Icons.diversity_3_rounded,
+                title: 'family_invitation_received_title'.tr,
+                subtitle:
+                    'family_invitation_banner_subtitle'.trParams({'name': name}),
+                tone: accent,
               ),
-              Center(
-                child: PoppinsText(
-                  text: 'family_invitation_received_title'.tr,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w800,
-                  color: accent,
-                ),
+              SizedBox(height: 18.h),
+              ActionSheetHeader(
+                name: name,
+                avatarUrl: avatar,
+                roleLabel: roleLabel,
+                tone: accent,
+                statusLabel: 'family_invitation_received_title'.tr,
+                statusIcon: Icons.diversity_3_rounded,
               ),
-              SizedBox(height: 6.h),
-              Center(
-                child: InterText(
-                  text: 'family_invitation_banner_subtitle'
-                      .trParams({'name': name}),
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              SizedBox(height: 16.h),
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 28.r,
-                    backgroundColor: accent.withValues(alpha: 0.15),
-                    backgroundImage: avatar.isNotEmpty
-                        ? CachedNetworkImageProvider(avatar, maxWidth: 200)
-                        : null,
-                    child: avatar.isEmpty
-                        ? Icon(Icons.person, color: accent, size: 28.sp)
-                        : null,
-                  ),
-                  SizedBox(width: 12.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        PoppinsText(
-                          text: name,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        SizedBox(height: 6.h),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 8.w, vertical: 3.h),
-                          decoration: BoxDecoration(
-                            color: accent.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6.r),
-                          ),
-                          child: InterText(
-                            text: roleLabel,
-                            fontSize: 10.sp,
-                            fontWeight: FontWeight.w700,
-                            color: accent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _acceptFamilyInvitation(a);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accent,
-                        padding: EdgeInsets.symmetric(vertical: 12.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.r),
-                        ),
-                      ),
-                      icon: Icon(Icons.check_rounded,
-                          color: Colors.white, size: 18.sp),
-                      label: Text(
-                        'pawfollow_accept'.tr,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _refuseFamilyInvitation(a);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFE53935)),
-                        padding: EdgeInsets.symmetric(vertical: 12.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.r),
-                        ),
-                      ),
-                      icon: Icon(Icons.close_rounded,
-                          color: const Color(0xFFE53935), size: 18.sp),
-                      label: Text(
-                        'pawfollow_refuse'.tr,
-                        style: TextStyle(
-                          color: const Color(0xFFE53935),
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              SizedBox(height: 18.h),
+              ActionPillButton(
+                label: 'pawfollow_accept'.tr,
+                icon: Icons.check_rounded,
+                tone: accent,
+                expand: true,
+                haptic: true,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _acceptFamilyInvitation(a);
+                },
               ),
               if (isProvider && ownerId.isNotEmpty) ...[
                 SizedBox(height: 8.h),
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton.icon(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      if (isWalker) {
-                        Get.to(() => WalkerDetailScreen(walkerId: ownerId));
-                      } else {
-                        Get.to(() => ServiceProviderDetailScreen(
-                              sitterId: ownerId,
-                              status: 'pending',
-                            ));
-                      }
-                    },
-                    icon: Icon(Icons.person_outline,
-                        color: accent, size: 18.sp),
-                    label: Text(
-                      isWalker
-                          ? 'view_walker_profile'.tr
-                          : 'view_sitter_profile'.tr,
-                      style: TextStyle(
-                        color: accent,
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
+                ActionPillButton(
+                  label: isWalker
+                      ? 'view_walker_profile'.tr
+                      : 'view_sitter_profile'.tr,
+                  icon: Icons.person_outline,
+                  tone: accent,
+                  kind: ActionPillKind.outlined,
+                  expand: true,
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    if (isWalker) {
+                      Get.to(() => WalkerDetailScreen(walkerId: ownerId));
+                    } else {
+                      Get.to(() => ServiceProviderDetailScreen(
+                            sitterId: ownerId,
+                            status: 'pending',
+                          ));
+                    }
+                  },
                 ),
               ],
+              SizedBox(height: 8.h),
+              ActionPillButton(
+                label: 'pawfollow_refuse'.tr,
+                icon: Icons.close_rounded,
+                tone: ActionTone.danger,
+                kind: ActionPillKind.danger,
+                expand: true,
+                haptic: true,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _refuseFamilyInvitation(a);
+                },
+              ),
             ],
           ),
         ),
@@ -2750,6 +2348,11 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
 
 // ─── Banner widget ──────────────────────────────────────────────────────────
 
+// v569 — le bandeau n'est plus qu'un habillage d'`ActionBanner`
+// (widgets/action_banner_kit.dart) : carte claire teintée + liseré de la
+// couleur de l'ÉTAT, pastille ronde, titre/sous-titre lisibles, et à droite
+// soit ✓/✗ (nouvelle demande), soit UN bouton compact, soit un chevron.
+// Aucune action n'a changé : mêmes callbacks, mêmes conditions, même tap.
 class _ActionBanner extends StatelessWidget {
   final _QuickAction action;
   final AnimationController pulse;
@@ -2760,6 +2363,7 @@ class _ActionBanner extends StatelessWidget {
   final VoidCallback? onDismiss;
 
   const _ActionBanner({
+    super.key,
     required this.action,
     required this.pulse,
     required this.onTap,
@@ -2770,179 +2374,52 @@ class _ActionBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 4.h),
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedBuilder(
-          animation: pulse,
-          builder: (context, _) {
-            final scale = action.pulse ? 1.0 + 0.012 * pulse.value : 1.0;
-            return Transform.scale(
-              scale: scale,
-              child: Container(
-                padding: EdgeInsets.all(12.w),
-                decoration: BoxDecoration(
-                  color: action.color,
-                  borderRadius: BorderRadius.circular(12.r),
-                  boxShadow: [
-                    BoxShadow(
-                      color: action.color.withValues(alpha: 0.25),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 36.w,
-                      height: 36.w,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(10.r),
-                      ),
-                      child: Icon(action.icon, color: Colors.white, size: 20.sp),
-                    ),
-                    SizedBox(width: 10.w),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          PoppinsText(
-                            text: action.title,
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                          if (action.subtitle.isNotEmpty) ...[
-                            SizedBox(height: 2.h),
-                            InterText(
-                              text: action.subtitle,
-                              fontSize: 11.5.sp,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white.withValues(alpha: 0.95),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    SizedBox(width: 8.w),
-                    if (action.kind == _Kind.providerAccept) ...[
-                      _BannerSmallButton(
-                        label: '✓',
-                        bg: Colors.white,
-                        fg: action.color,
-                        onTap: onAccept,
-                      ),
-                      SizedBox(width: 6.w),
-                      _BannerSmallButton(
-                        label: '✗',
-                        bg: const Color(0xFFE53935),
-                        fg: Colors.white,
-                        onTap: onRefuse,
-                      ),
-                    ] else if (action.ctaLabel.isNotEmpty)
-                      _BannerCtaButton(
-                        label: action.ctaLabel,
-                        bg: Colors.white,
-                        fg: action.color,
-                        onTap: onTap,
-                      ),
-                    // v23.1 — PART 2 : X dismiss button (owner-pay only).
-                    if (onDismiss != null) ...[
-                      SizedBox(width: 6.w),
-                      GestureDetector(
-                        onTap: onDismiss,
-                        behavior: HitTestBehavior.opaque,
-                        child: Padding(
-                          padding: EdgeInsets.all(4.w),
-                          child: Icon(
-                            Icons.close_rounded,
-                            color: Colors.white.withValues(alpha: 0.85),
-                            size: 18.sp,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
+    final tone = action.bannerTone;
 
-class _BannerCtaButton extends StatelessWidget {
-  final String label;
-  final Color bg;
-  final Color fg;
-  final VoidCallback onTap;
-  const _BannerCtaButton({
-    required this.label,
-    required this.bg,
-    required this.fg,
-    required this.onTap,
-  });
+    Widget? trailing;
+    if (action.kind == _Kind.providerAccept) {
+      // Les deux gestes restent accessibles d'un tap depuis l'accueil.
+      trailing = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ActionRoundButton(
+            icon: Icons.check_rounded,
+            tone: tone,
+            haptic: true,
+            onPressed: onAccept,
+            semanticLabel: 'pawfollow_accept'.tr,
+          ),
+          SizedBox(width: 6.w),
+          ActionRoundButton(
+            icon: Icons.close_rounded,
+            tone: ActionTone.danger,
+            filled: false,
+            haptic: true,
+            onPressed: onRefuse,
+            semanticLabel: 'pawfollow_refuse'.tr,
+          ),
+        ],
+      );
+    } else if (action.ctaLabel.isNotEmpty) {
+      trailing = ActionPillButton(
+        label: action.ctaLabel,
+        tone: tone,
+        compact: true,
+        maxWidth: 124.w,
+        onPressed: onTap,
+      );
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
+    return ActionBanner(
+      tone: tone,
+      icon: action.icon,
+      title: action.title,
+      subtitle: action.subtitle,
       onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(20.r),
-        ),
-        child: PoppinsText(
-          text: label,
-          fontSize: 12.sp,
-          fontWeight: FontWeight.w700,
-          color: fg,
-        ),
-      ),
-    );
-  }
-}
-
-class _BannerSmallButton extends StatelessWidget {
-  final String label;
-  final Color bg;
-  final Color fg;
-  final VoidCallback onTap;
-  const _BannerSmallButton({
-    required this.label,
-    required this.bg,
-    required this.fg,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32.w,
-        height: 32.w,
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(10.r),
-        ),
-        alignment: Alignment.center,
-        child: PoppinsText(
-          text: label,
-          fontSize: 16.sp,
-          fontWeight: FontWeight.w800,
-          color: fg,
-        ),
-      ),
+      trailing: trailing,
+      pulse: action.pulse ? pulse : null,
+      extraCount: action.extraCount,
+      onDismiss: onDismiss,
     );
   }
 }
@@ -2955,19 +2432,9 @@ class _BannerSmallButton extends StatelessWidget {
 class _NeutralBar extends StatelessWidget {
   final String role; // 'owner' | 'sitter' | 'walker'
   final VoidCallback onTap;
-  const _NeutralBar({required this.role, required this.onTap});
+  const _NeutralBar({super.key, required this.role, required this.onTap});
 
-  Color _accent() {
-    switch (role) {
-      case 'walker':
-        return const Color(0xFF16A34A);
-      case 'sitter':
-        return const Color(0xFF2563EB);
-      case 'owner':
-      default:
-        return const Color(0xFFC92A12);
-    }
-  }
+  Color _accent() => ActionTone.forRole(role);
 
   String _title() {
     switch (role) {
@@ -2994,68 +2461,15 @@ class _NeutralBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = _accent();
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 4.h),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: EdgeInsets.all(12.w),
-          decoration: BoxDecoration(
-            color: accent.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(
-              color: accent.withValues(alpha: 0.20),
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 36.w,
-                height: 36.w,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                child: Icon(
-                  Icons.check_circle_outline_rounded,
-                  color: accent,
-                  size: 20.sp,
-                ),
-              ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    PoppinsText(
-                      text: _title(),
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w700,
-                      color: accent,
-                    ),
-                    SizedBox(height: 2.h),
-                    InterText(
-                      text: _subtitle(),
-                      fontSize: 11.5.sp,
-                      fontWeight: FontWeight.w500,
-                      color: accent.withValues(alpha: 0.85),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: 8.w),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: accent.withValues(alpha: 0.6),
-                size: 20.sp,
-              ),
-            ],
-          ),
-        ),
-      ),
+    // v569 — même gabarit que les états actifs, en version « rôle très pâle » :
+    // pas de point d'urgence, pas de bouton, juste un chevron. Le tap ouvre
+    // TOUJOURS l'onglet PawMap (comportement inchangé).
+    return ActionBanner(
+      tone: _accent(),
+      icon: Icons.check_circle_rounded,
+      title: _title(),
+      subtitle: _subtitle(),
+      onTap: onTap,
     );
   }
 }
@@ -3083,7 +2497,15 @@ enum _Kind {
 
 class _QuickAction {
   final _Kind kind;
+  /// Couleur « métier » historique (rôle du prestataire / du demandeur). Elle
+  /// sert encore d'accent dans les feuilles d'action (avatar, pastille rôle).
   final Color color;
+  /// v569 — couleur de l'ÉTAT pour le bandeau (cf. ActionTone) : identique
+  /// pour les 3 rôles. `null` → on retombe sur [color].
+  final Color? tone;
+  /// v569 — nombre d'autres actions du même type en attente (« +2 »). On ne
+  /// le renseigne QUE quand ce fichier connaît déjà ce nombre.
+  final int extraCount;
   final IconData icon;
   final String title;
   final String subtitle;
@@ -3107,9 +2529,15 @@ class _QuickAction {
   // pending (Map renvoyée par /friends/family/invitations) pour la sheet +
   // accept/refuse.
   final Map<String, dynamic>? familyInvitation;
+
+  /// Couleur effectivement peinte par le bandeau.
+  Color get bannerTone => tone ?? color;
+
   const _QuickAction({
     required this.kind,
     required this.color,
+    this.tone,
+    this.extraCount = 0,
     required this.icon,
     required this.title,
     required this.subtitle,

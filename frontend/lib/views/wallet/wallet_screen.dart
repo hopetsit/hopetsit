@@ -17,6 +17,7 @@ import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 import 'package:intl/intl.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// Mon portefeuille — v19.0.
 ///
@@ -137,7 +138,9 @@ class _WalletScreenState extends State<WalletScreen> {
                 ? BookingErrorState(message: _error!, onRetry: _load)
                 : ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 32.h),
+                    // v569 — dernière carte au-dessus de la barre système.
+                    padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w,
+                        32.h + appBottomInsetInsideSafeArea(context)),
                     children: [
                       _balanceCard(),
                       SizedBox(height: 12.h),

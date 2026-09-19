@@ -67,12 +67,18 @@ class AroundMeSearchBar extends StatelessWidget {
     final current = radiusKm.clamp(minRadiusKm, maxRadiusKm).toDouble();
     // Tick médian indicatif : valeur fournie ou milieu mathématique.
     final midTick = midTickKm ?? ((minRadiusKm + maxRadiusKm) / 2).round();
+    // v569 — DESIGN UNIQUEMENT : mêmes callbacks, mêmes bornes, même slider.
+    // Carte coins 20 + ombre douce, et la ville devient une pilule teintée
+    // avec un petit disque d'icône — on voit tout de suite que c'est cliquable.
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(18.r),
-        border: Border.all(color: AppColors.divider(context), width: 1),
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(
+          color: AppColors.divider(context).withValues(alpha: 0.7),
+          width: 1,
+        ),
         boxShadow: AppColors.cardShadow(context),
       ),
       child: Row(
@@ -81,49 +87,77 @@ class AroundMeSearchBar extends StatelessWidget {
           // ── Gauche : chip localisation (tappable → picker ville) ──
           Expanded(
             flex: 5,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12.r),
-              onTap: onTapCity,
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 4.h),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.location_on_rounded,
-                            size: 16.sp, color: accent),
-                        SizedBox(width: 4.w),
-                        Flexible(
-                          child: PoppinsText(
-                            text: 'home_around_me'.tr,
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary(context),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14.r),
+                onTap: onTapCity,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4.h),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 24.w,
+                            height: 24.w,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: accent.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.location_on_rounded,
+                                size: 14.sp, color: accent),
+                          ),
+                          SizedBox(width: 6.w),
+                          Flexible(
+                            child: PoppinsText(
+                              text: 'home_around_me'.tr,
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary(context),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 6.h),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 9.w,
+                          vertical: 5.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(999.r),
+                          border: Border.all(
+                            color: accent.withValues(alpha: 0.18),
+                            width: 1,
                           ),
                         ),
-                      ],
-                    ),
-                    SizedBox(height: 2.h),
-                    Row(
-                      children: [
-                        Flexible(
-                          child: InterText(
-                            text: cityLabel,
-                            fontSize: 11.sp,
-                            color: AppColors.textSecondary(context),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: InterText(
+                                text: cityLabel,
+                                fontSize: 11.sp,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary(context),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            SizedBox(width: 2.w),
+                            Icon(Icons.keyboard_arrow_down_rounded,
+                                size: 15.sp, color: accent),
+                          ],
                         ),
-                        Icon(Icons.keyboard_arrow_down_rounded,
-                            size: 16.sp,
-                            color: AppColors.textSecondary(context)),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

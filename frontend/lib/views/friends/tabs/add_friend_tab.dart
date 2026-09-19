@@ -15,6 +15,7 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class AddFriendTab extends StatefulWidget {
   const AddFriendTab({
@@ -176,7 +177,7 @@ class _AddFriendTabState extends State<AddFriendTab>
     return ListView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w,
-          24.h + MediaQuery.of(context).viewPadding.bottom),
+          24.h + appBottomInset(context)),
       children: [
         FriendsSearchField(
           controller: _searchCtrl,

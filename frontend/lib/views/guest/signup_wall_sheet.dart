@@ -10,6 +10,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/auth/login_screen.dart';
 import 'package:hopetsit/views/auth/signup_wizard_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v535 — SPEC ONBOARDING P1.2 : le MUR D'INSCRIPTION CONTEXTUEL.
 ///
@@ -132,7 +133,11 @@ class SignupWallSheet extends StatelessWidget {
         color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
       ),
-      padding: EdgeInsets.fromLTRB(20.w, 14.h, 20.w, 20.h),
+      // v569 — `Get.bottomSheet` ne protège pas le bas : sur le Samsung de
+      // Daniel le SafeArea n'applique rien, les 3 tuiles de rôle et le bouton
+      // finissaient sous la barre système.
+      padding: EdgeInsets.fromLTRB(
+          20.w, 14.h, 20.w, 20.h + appBottomInsetInsideSafeArea(context)),
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(

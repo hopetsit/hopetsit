@@ -16,6 +16,7 @@ import 'package:hopetsit/views/shared/provider_quick_actions.dart';
 import 'package:hopetsit/views/pet_walker/profile/edit_walker_profile_screen.dart';
 // v23.1.332 — parrainage RÉACTIVÉ pour walker (récompense -10% PawFollow/Family).
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// Walker profile screen — full redesign (session avril 2026).
 ///
@@ -73,7 +74,7 @@ class WalkerProfileScreen extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(
                   // v488 — Daniel : « Se déconnecter toujours trop bas » → on
                   // dégage davantage le bas pour passer au-dessus du menu.
-                  16.w, 0, 16.w, 140.h + MediaQuery.of(context).viewPadding.bottom),
+                  16.w, 0, 16.w, 140.h + appBottomInset(context)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

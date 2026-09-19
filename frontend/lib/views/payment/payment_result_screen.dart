@@ -6,7 +6,9 @@ import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/views/payment/widgets/payment_ui_kit.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -41,91 +43,39 @@ class PaymentResultScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = isSuccess ? _resolveAccentColor() : AppColors.primaryColor;
+    final resultMessage = message ??
+        (isSuccess ? null : 'pay569_failed_generic'.tr);
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(20.w),
+          // v569 — dégagement bas unique de l'app (aucun autre inset n'est
+          // appliqué sur cet écran : le SafeArea ne couvre pas le Samsung).
+          padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w,
+              20.h + appBottomInsetInsideSafeArea(context)),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SizedBox(height: 40.h),
-
-              // v18.5 — #6 fix : HopeTSIT logo + success/error badge overlay.
-              // Replaces the generic check_circle icon. The logo anchors the
-              // page and feels on-brand. On failure we show the logo dimmed
-              // with a red error badge instead of a green check.
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    width: 140.w,
-                    height: 140.h,
-                    decoration: BoxDecoration(
-                      color: isSuccess
-                          ? Colors.green.withValues(alpha: 0.08)
-                          : AppColors.errorColor.withValues(alpha: 0.08),
-                      shape: BoxShape.circle,
-                    ),
-                    padding: EdgeInsets.all(20.w),
-                    child: ColorFiltered(
-                      colorFilter: isSuccess
-                          ? const ColorFilter.mode(
-                              Colors.transparent,
-                              BlendMode.multiply,
-                            )
-                          : ColorFilter.matrix(const <double>[
-                              0.2126, 0.7152, 0.0722, 0, 0,
-                              0.2126, 0.7152, 0.0722, 0, 0,
-                              0.2126, 0.7152, 0.0722, 0, 0,
-                              0, 0, 0, 1, 0,
-                            ]),
-                      // v532 — logo HOPE26 (raster détouré, cf. splash).
-                      child: Image.asset(
-                        'assets/brand/png/logo-mark.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 42.w,
-                      height: 42.w,
-                      decoration: BoxDecoration(
-                        color: isSuccess
-                            ? const Color(0xFF16A34A)
-                            : AppColors.errorColor,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.scaffold(context),
-                          width: 3,
-                        ),
-                      ),
-                      child: Icon(
-                        isSuccess ? Icons.check_rounded : Icons.close_rounded,
-                        size: 24.sp,
-                        color: AppColors.whiteColor,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
               SizedBox(height: 24.h),
 
-              // v18.5 — product name right under the logo so the success
-              // feels like a branded confirmation, not a generic toast.
-              PoppinsText(
+              // v569 — grand disque animé : le cercle grandit puis la coche
+              // (ou la croix) se dessine ; retour haptique au montage.
+              PayResultBadge(success: isSuccess),
+
+              SizedBox(height: 18.h),
+
+              // v18.5 — la marque sous le disque : la confirmation reste
+              // « HoPetSit », pas un toast générique.
+              InterText(
                 text: 'HoPetSit',
-                fontSize: 20.sp,
+                fontSize: 13.sp,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primaryColor,
+                letterSpacing: 0.4,
+                color: AppColors.textSecondary(context),
                 textAlign: TextAlign.center,
               ),
 
-              SizedBox(height: 20.h),
+              SizedBox(height: 14.h),
 
               // Title
               PoppinsText(
@@ -137,43 +87,75 @@ class PaymentResultScreen extends StatelessWidget {
               ),
 
               SizedBox(height: 10.h),
-              _statusChip(),
+              PayStatusChip(
+                label: isSuccess
+                    ? 'status_paid_label'.tr
+                    : 'status_payment_failed_label'.tr,
+                color: isSuccess ? const Color(0xFF16A34A) : AppColors.errorColor,
+              ),
               if (isSuccess && amount != null) ...[
-                SizedBox(height: 10.h),
-                PoppinsText(
-                  text: _formatPrice(
-                    amount!,
-                    currency ??
-                        booking?.pricing?.currency ??
-                        booking?.sitter.currency ??
-                        CurrencyHelper.eur,
-                  ),
-                  fontSize: 30.sp,
-                  fontWeight: FontWeight.w800,
-                  color: accent,
+                SizedBox(height: 14.h),
+                InterText(
+                  text: 'pay569_amount_paid'.tr,
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary(context),
                   textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 2.h),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: PoppinsText(
+                    text: _formatPrice(
+                      amount!,
+                      currency ??
+                          booking?.pricing?.currency ??
+                          booking?.sitter.currency ??
+                          CurrencyHelper.eur,
+                    ),
+                    fontSize: 32.sp,
+                    fontWeight: FontWeight.w800,
+                    color: accent,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                  ),
                 ),
               ],
 
               SizedBox(height: 16.h),
 
               // Message
-              if (message != null) ...[
+              if (resultMessage != null) ...[
                 InterText(
-                  text: message!,
+                  text: resultMessage,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
                   color: AppColors.textSecondary(context),
                   textAlign: TextAlign.center,
+                  height: 1.4,
+                  maxLines: 5,
                 ),
-                SizedBox(height: 32.h),
+                SizedBox(height: 24.h),
+              ],
+
+              // v569 — « Et maintenant ? » : uniquement ce qui est vrai du
+              // flux existant (le prestataire reçoit la notification de
+              // paiement, la conversation est ouverte par le webhook, puis
+              // la remise de l'animal à la date de la réservation).
+              if (isSuccess) ...[
+                PayNextSteps(
+                  title: 'pay569_next_steps_title'.tr,
+                  accent: accent,
+                  steps: _nextSteps(),
+                ),
+                SizedBox(height: 16.h),
               ],
 
               // Transaction Details Card
               if (isSuccess && (transactionId != null || amount != null))
                 _buildTransactionDetailsCard(context),
 
-              if (!isSuccess) SizedBox(height: 32.h),
+              if (!isSuccess) SizedBox(height: 24.h),
 
               // v20.1 — #P3 fix : auto-open chat avec le sitter/walker dès
               // que le paiement passe (le backend a déjà unlock la
@@ -208,12 +190,47 @@ class PaymentResultScreen extends StatelessWidget {
                 ),
               ),
 
-              SizedBox(height: 40.h),
+              SizedBox(height: 24.h),
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// v569 — les 2-3 étapes qui suivent réellement un paiement réussi.
+  List<PayStep> _nextSteps() {
+    final steps = <PayStep>[
+      PayStep(
+        icon: Icons.notifications_active_rounded,
+        text: 'pay569_step_provider'.tr,
+      ),
+      PayStep(
+        icon: Icons.chat_bubble_rounded,
+        text: 'pay569_step_chat'.tr,
+      ),
+    ];
+    final date = _handoverDate();
+    steps.add(PayStep(
+      icon: Icons.pets_rounded,
+      text: date.isEmpty
+          ? 'pay569_step_handover_generic'.tr
+          : 'pay569_step_handover'.tr.replaceAll('@date', date),
+    ));
+    return steps;
+  }
+
+  /// Date de la réservation, formatée dans la langue de l'app. Vide si la
+  /// réservation n'en porte pas (on affiche alors la version générique).
+  String _handoverDate() {
+    final raw = (booking?.date ?? '').trim();
+    if (raw.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(raw).toLocal();
+      return DateFormat.yMMMd(Get.locale?.languageCode).format(dt);
+    } catch (_) {
+      return raw;
+    }
   }
 
   Widget _buildTransactionDetailsCard(BuildContext context) {
@@ -300,37 +317,6 @@ class PaymentResultScreen extends StatelessWidget {
   // v565 — date localisée (avant : mois anglais en dur).
   String _formatDate(DateTime date) {
     return DateFormat.yMMMd(Get.locale?.languageCode).format(date);
-  }
-
-  /// v565 — pastille de statut (payé / échec) sous le titre.
-  Widget _statusChip() {
-    final c = isSuccess ? const Color(0xFF16A34A) : AppColors.errorColor;
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7.w,
-            height: 7.w,
-            decoration: BoxDecoration(color: c, shape: BoxShape.circle),
-          ),
-          SizedBox(width: 6.w),
-          InterText(
-            text: isSuccess
-                ? 'status_paid_label'.tr
-                : 'status_payment_failed_label'.tr,
-            fontSize: 11.5.sp,
-            fontWeight: FontWeight.w700,
-            color: c,
-          ),
-        ],
-      ),
-    );
   }
 
   /// v18.5 — #17 : resolve the role accent color (green for walker,

@@ -12,6 +12,7 @@ import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// Sprint 6 step 2 — owner watches a live walk on a map.
 ///
@@ -277,7 +278,9 @@ class _LiveWalkMapScreenState extends State<LiveWalkMapScreen> {
                 Positioned(
                   left: 16.w,
                   right: 16.w,
-                  bottom: 16.h,
+                  // v569 — le SafeArea n'applique rien sur le Samsung de
+                  // Daniel : « Recentrer » / « Itinéraire » sous la barre.
+                  bottom: 16.h + appBottomInsetInsideSafeArea(context),
                   child: SafeArea(
                     top: false,
                     child: Row(

@@ -15,6 +15,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/chat_shared/chat_avatar.dart';
 import 'package:hopetsit/views/chat_shared/chat_models.dart';
@@ -454,7 +455,12 @@ class _PawFollowRequestSheetState extends State<_PawFollowRequestSheet> {
         20.w,
         10.h,
         20.w,
-        18.h + MediaQuery.of(context).viewInsets.bottom,
+        // v569 — clavier ouvert : son inset remplace celui de la barre
+        // système ; sinon on ajoute le dégagement bas de l'app.
+        18.h +
+            (MediaQuery.of(context).viewInsets.bottom > 0
+                ? MediaQuery.of(context).viewInsets.bottom
+                : appBottomInset(context)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

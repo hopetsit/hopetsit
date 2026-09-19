@@ -23,6 +23,7 @@ import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/dotted_invite_card.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 const Color _liveGreen = Color(0xFF16A34A);
 const Color _liveAmber = Color(0xFFE8920A);
@@ -114,7 +115,7 @@ class PeopleLiveScreen extends StatelessWidget {
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w,
-                24.h + MediaQuery.of(context).viewPadding.bottom),
+                24.h + appBottomInsetInsideSafeArea(context)),
             children: [
               FriendsSectionHeader(
                 title: 'pawmap_quick_people_live'.tr,

@@ -222,7 +222,7 @@ class WalkerRepository {
     throw ApiException('Unexpected get bookings response.', details: response);
   }
 
-  /// DELETE /bookings/:id/self-cancel — 72h self-cancellation window.
+  /// POST /bookings/:id/self-cancel — 72h self-cancellation window.
   /// v565 (point 24) — `GET /bookings/:id` : même forme qu'un élément de la
   /// liste + `handover` + `timeline`. Renvoie null si le backend ne connaît
   /// pas encore la route (404) : l'écran garde alors la réservation reçue.
@@ -311,9 +311,11 @@ class WalkerRepository {
     String? reason,
   }) async {
     try {
-      final response = await _apiClient.delete(
+      // v569 — BUG : la route serveur est un POST ; ce DELETE renvoyait 404 →
+      // l'annulation sous 72 h n'a jamais marché pour les PROMENEURS.
+      final response = await _apiClient.post(
         '${ApiEndpoints.bookings}/$bookingId/self-cancel',
-        body: reason != null && reason.isNotEmpty ? {'reason': reason} : null,
+        body: reason != null && reason.isNotEmpty ? {'reason': reason} : {},
         requiresAuth: true,
       );
       return _asMap(response);

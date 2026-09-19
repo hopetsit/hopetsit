@@ -10,6 +10,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
 import 'package:intl/intl.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class PostCommentSheet extends StatefulWidget {
   final PostModel post;
@@ -195,7 +196,11 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
                 left: 16.w,
                 right: 16.w,
                 top: 8.h,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 25.h,
+                // v569 — clavier fermé : le SafeArea n'applique rien sur le
+                // Samsung de Daniel, le champ finissait sous la barre système.
+                bottom: MediaQuery.of(context).viewInsets.bottom > 0
+                    ? MediaQuery.of(context).viewInsets.bottom + 25.h
+                    : 25.h + appBottomInsetInsideSafeArea(context),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,

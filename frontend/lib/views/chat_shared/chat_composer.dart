@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/views/chat_shared/chat_models.dart';
 import 'package:hopetsit/views/chat_shared/chat_session.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
@@ -140,7 +141,9 @@ class _ChatComposerState extends State<ChatComposer> {
         return SafeArea(
           top: false,
           child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 12.h),
+            // v569 — dernière action du menu au-dessus de la barre système.
+            padding: EdgeInsets.fromLTRB(16.w, 10.h, 16.w,
+                12.h + appBottomInsetInsideSafeArea(sheet)),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,

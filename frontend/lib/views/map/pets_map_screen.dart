@@ -14,6 +14,7 @@ import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class PetsMapScreen extends StatefulWidget {
   const PetsMapScreen({super.key});
@@ -292,10 +293,13 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                           ),
                         ),
                         Padding(
+                          // v569 — le SafeArea n'applique rien sur le Samsung
+                          // de Daniel : les cartes finissaient sous la barre.
                           padding: EdgeInsets.only(
                             left: 16.w,
                             right: 16.w,
-                            bottom: 16.h,
+                            bottom: 16.h +
+                                appBottomInsetInsideSafeArea(context),
                             top: 4.h,
                           ),
                           child: SizedBox(

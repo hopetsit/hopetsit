@@ -316,6 +316,9 @@ class ChatController extends GetxController
         _socketService.addPresenceListener(handlePresenceUpdate);
         // v566 — `message:read` / `message:delivered` → coches sans recharger.
         _socketService.addReceiptListener(handleReceiptEvent);
+        // v569 — une conversation supprimée sur un AUTRE de mes appareils
+        // (Android / iOS / site) disparaît ici aussi, sans recharger.
+        _socketService.addConversationDeletedListener(handleConversationDeleted);
         _socketService.onMessageDeleted((payload) {
           _handleMessageDeleted(payload);
         });
@@ -354,6 +357,7 @@ class ChatController extends GetxController
     _socketService.removeMessageNewListener(_handleNewMessage);
     _socketService.removePresenceListener(handlePresenceUpdate);
     _socketService.removeReceiptListener(handleReceiptEvent);
+    _socketService.removeConversationDeletedListener(handleConversationDeleted);
     _socketService.removeListener('message:deleted');
   }
 
@@ -1209,33 +1213,61 @@ class ChatController extends GetxController
   /// the old code silently blocked the delete → Daniel saw "effacer marche
   /// pas". Now we always try; backend 403/404/500 surfaces a real error.
   /// v23.1.195 — Daniel : "ajouter effacer pour effacer la conversation
-  /// en entier". Supprime hard la conversation + tous ses messages via
-  /// le backend, puis retire de la liste locale. Optimistic update :
-  /// retrait immediat, rollback en cas d'echec.
+  /// en entier".
+  /// v23.1.255 — côté serveur ce n'est PAS une suppression pour les deux : la
+  /// conversation est masquée pour MOI (clearedFor) ; l'autre garde la sienne
+  /// et si elle m'écrit de nouveau la conversation revient avec son historique.
+  /// v569 — suppression OPTIMISTE : la ligne part tout de suite (et le badge
+  /// chat perd ses non-lus) ; en cas d'échec réseau elle REVIENT à sa place
+  /// avec une bannière d'erreur. Le serveur prévient ensuite mes AUTRES
+  /// appareils (`conversation:deleted`, cf. handleConversationDeleted).
   @override
   Future<bool> deleteConversation(String conversationId) async {
     final idx = conversations.indexWhere((c) => c.id == conversationId);
     if (idx < 0) return false;
     final removed = conversations[idx];
     conversations.removeAt(idx);
+    decreaseChatBadge(removed.unreadCount);
     try {
       final ok = await _chatRepository.deleteConversation(
         conversationId: conversationId,
       );
       if (!ok) {
-        conversations.insert(idx, removed);
-        Get.snackbar('common_error'.tr, 'common_try_again'.tr);
+        _restoreConversation(idx, removed);
+        CustomSnackbar.showError(
+          title: 'chatdel569_failed_title'.tr,
+          message: 'chatdel569_failed_body'.tr,
+        );
         return false;
       }
+      // Confirmé par le serveur : on purge les messages en mémoire et on
+      // ferme l'écran de discussion s'il est ouvert sur cette conversation.
+      if (currentChatId.value == conversationId) {
+        currentChatMessages.clear();
+        translations.clear();
+        translating.clear();
+        replyTarget.value = null;
+      }
+      deletedConversationId.value = conversationId;
       return true;
     } catch (e) {
-      conversations.insert(idx, removed);
-      Get.snackbar(
-        'common_error'.tr,
-        e.toString().replaceAll('ApiException:', '').trim(),
+      AppLogger.logError('deleteConversation failed', error: e);
+      _restoreConversation(idx, removed);
+      CustomSnackbar.showError(
+        title: 'chatdel569_failed_title'.tr,
+        message: 'chatdel569_failed_body'.tr,
       );
       return false;
     }
+  }
+
+  /// Remet la conversation à sa place après un échec (la liste a pu bouger
+  /// entre-temps : on borne l'index et on ne duplique jamais).
+  void _restoreConversation(int idx, ChatConversation removed) {
+    if (conversations.any((c) => c.id == removed.id)) return;
+    final at = idx.clamp(0, conversations.length);
+    conversations.insert(at, removed);
+    decreaseChatBadge(0); // recale le badge sur la vérité serveur
   }
 
   @override

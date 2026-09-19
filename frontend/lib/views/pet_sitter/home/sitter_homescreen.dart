@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/role_chip.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -14,6 +15,7 @@ import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/post_price_estimator.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -137,7 +139,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         for (final r in rates) {
           if (!r.enabled || r.basePrice <= 0) continue;
           if (r.durationMinutes == 60 && hourly == 0.0) hourly = r.basePrice;
-          if (r.durationMinutes == 30 && halfHour == 0.0) halfHour = r.basePrice;
+          if (r.durationMinutes == 30 && halfHour == 0.0)
+            halfHour = r.basePrice;
         }
         // Prefer hourly; if only half-hour exists, extrapolate x2 so the
         // estimator still has a value for jobs of 1h+.
@@ -174,15 +177,17 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         final sitterPayload = (profile['sitter'] is Map)
             ? Map<String, dynamic>.from(profile['sitter'] as Map)
             : profile;
-        double n(dynamic v) =>
-            v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0.0;
+        double n(dynamic v) => v is num
+            ? v.toDouble()
+            : double.tryParse(v?.toString() ?? '') ?? 0.0;
         if (!mounted) return;
         setState(() {
           _providerHourlyRate = n(sitterPayload['hourlyRate']);
           _providerDailyRate = n(sitterPayload['dailyRate']);
           _providerWeeklyRate = n(sitterPayload['weeklyRate']);
           _providerMonthlyRate = n(sitterPayload['monthlyRate']);
-          final cur = sitterPayload['currency']?.toString() ??
+          final cur =
+              sitterPayload['currency']?.toString() ??
               sitterPayload['hourlyRateCurrency']?.toString();
           if (cur != null && cur.isNotEmpty) {
             _providerCurrency = cur.toUpperCase();
@@ -204,8 +209,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     final role = Get.isRegistered<AuthController>()
         ? (Get.find<AuthController>().userRole.value ?? '').toLowerCase()
         : (GetStorage().read(StorageKeys.userRole) ?? '')
-            .toString()
-            .toLowerCase();
+              .toString()
+              .toLowerCase();
     return role == 'walker';
   }
 
@@ -228,18 +233,22 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       if (loc is Map) {
         city = (loc['city'] as String?)?.trim() ?? '';
         country = (loc['country'] as String?)?.trim() ?? '';
-        lat = (loc['lat'] as num?)?.toDouble() ??
+        lat =
+            (loc['lat'] as num?)?.toDouble() ??
             (loc['latitude'] as num?)?.toDouble();
-        lng = (loc['lng'] as num?)?.toDouble() ??
+        lng =
+            (loc['lng'] as num?)?.toDouble() ??
             (loc['longitude'] as num?)?.toDouble();
       }
       if (city.isEmpty) city = (profile['city'] as String?)?.trim() ?? '';
       if (country.isEmpty) {
         country = (profile['country'] as String?)?.trim() ?? '';
       }
-      lat ??= (profile['lat'] as num?)?.toDouble() ??
+      lat ??=
+          (profile['lat'] as num?)?.toDouble() ??
           (profile['latitude'] as num?)?.toDouble();
-      lng ??= (profile['lng'] as num?)?.toDouble() ??
+      lng ??=
+          (profile['lng'] as num?)?.toDouble() ??
           (profile['longitude'] as num?)?.toDouble();
       if (lat != null && lng != null) {
         _anchorLat = lat;
@@ -247,7 +256,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       }
       final parts = [city, country].where((s) => s.isNotEmpty).toList();
       if (parts.isNotEmpty) _searchCityLabel = parts.join(', ');
-    } catch (_) {/* noop */}
+    } catch (_) {
+      /* noop */
+    }
   }
 
   /// Libellé de la carte « Autour de moi » : ville choisie/profil sinon GPS.
@@ -358,7 +369,16 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
           ),
           padding: EdgeInsets.fromLTRB(
-              20.w, 14.h, 20.w, 20.h + MediaQuery.of(ctx).padding.bottom),
+            20.w,
+            14.h,
+            20.w,
+            // v569 — clavier ouvert : l'inset système est déjà couvert par
+            // le `viewInsets.bottom` du Padding parent.
+            20.h +
+                (MediaQuery.of(ctx).viewInsets.bottom > 0
+                    ? 0
+                    : appBottomInset(ctx)),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,7 +515,6 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     return '${d.day} ${months.substring(i, i + 3)}';
   }
 
-
   // v443 — Daniel : la cellule « Dates » n'affiche plus que la DATE ; l'heure
   // part dans une horloge sous « Service » (cf _postTimeLabel + serviceTime).
   static String? _postDateRangeLabel(PostModel post) {
@@ -504,7 +523,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     if (s != null && e != null) {
       final sl = s.toLocal();
       final el = e.toLocal();
-      final sameDay = sl.year == el.year && sl.month == el.month && sl.day == el.day;
+      final sameDay =
+          sl.year == el.year && sl.month == el.month && sl.day == el.day;
       if (sameDay) return _formatDateShort(sl);
       return '${_formatDateShort(sl)} → ${_formatDateShort(el)}';
     }
@@ -592,7 +612,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
           : '';
       if (role != 'sitter' && role != 'walker') return null;
       // If rates haven't loaded yet, we simply skip — the block stays hidden.
-      final hasAnyRate = _providerHourlyRate > 0 ||
+      final hasAnyRate =
+          _providerHourlyRate > 0 ||
           _providerDailyRate > 0 ||
           _providerWeeklyRate > 0 ||
           _providerMonthlyRate > 0;
@@ -741,13 +762,28 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
           elevation: 0,
           backgroundColor: AppColors.appBar(context),
           surfaceTintColor: Colors.transparent,
-          title: PoppinsText(
-            text: profileController.userName.value.isNotEmpty
-                ? profileController.userName.value
-                : 'common_user'.tr,
-            fontSize: 18.sp,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary(context),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: PoppinsText(
+                  text: profileController.userName.value.isNotEmpty
+                      ? profileController.userName.value
+                      : 'common_user'.tr,
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                ),
+              ),
+              SizedBox(width: 8.w),
+              // v569 — pastille de rôle à côté du nom (Daniel).
+              RoleChip(
+                role: Get.isRegistered<AuthController>()
+                    ? (Get.find<AuthController>().userRole.value ?? 'sitter')
+                    : 'sitter',
+                compact: true,
+              ),
+            ],
           ),
           actions: [
             Obx(() {
@@ -757,21 +793,16 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               return BoostQuickAction(role: role);
             }),
             SizedBox(width: 4.w),
-            IconButton(
-              icon: Icon(Icons.notifications_rounded,
-                  color: AppColors.primaryColor, size: 22.sp),
-              onPressed: () {
-                // v532 — on ouvre l'écran COMPLET, pas l'écran filtré.
-                // SitterNotificationsScreen ne gardait que 2 types sur 56
-                // (application_accepted et booking_new) : paiements, service,
-                // portefeuille, amis, avis… étaient invisibles pour les
-                // sitters et les promeneurs. NotificationsScreen est déjà
-                // multi-rôles et route correctement les 3 profils.
-                Get.to(() => const NotificationsScreen())?.then((_) {
-                  notificationsController.refreshUnreadCount();
-                });
-              },
-            ),
+            // v569 — cloche modernisée + nombre de non-lus.
+            Obx(() => NotificationBellAction(
+                  count: notificationsController.unreadCount.value,
+                  role: Get.isRegistered<AuthController>() ? (Get.find<AuthController>().userRole.value ?? 'sitter') : 'sitter',
+                  onTap: () {
+                    Get.to(() => const NotificationsScreen())?.then((_) {
+                      notificationsController.refreshUnreadCount();
+                    });
+                  },
+                )),
             SizedBox(width: 8.w),
           ],
         ),
@@ -796,7 +827,11 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               // v468 — dégage le bas au-dessus du menu pleine largeur
               padding: EdgeInsets.fromLTRB(
-                  16.w, 16.w, 16.w, 110.h + MediaQuery.of(context).viewPadding.bottom),
+                16.w,
+                16.w,
+                16.w,
+                110.h + appBottomInset(context),
+              ),
               child: Column(
                 children: [
                   // v21.1.1 — Quick action bar. Le rôle EST détecté au
@@ -867,9 +902,12 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                         : '';
                     List<PostModel> rolePrefiltered;
                     if (currentRole == 'walker') {
-                      rolePrefiltered = uniquePosts.where((p) => p.serviceTypes
-                              .map((t) => t.toLowerCase())
-                              .contains('dog_walking'))
+                      rolePrefiltered = uniquePosts
+                          .where(
+                            (p) => p.serviceTypes
+                                .map((t) => t.toLowerCase())
+                                .contains('dog_walking'),
+                          )
                           .toList();
                     } else if (currentRole == 'sitter') {
                       const sitterServices = <String>{
@@ -1057,7 +1095,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                               // the owner has already accepted someone for
                               // this post.
                               isReserved: post.isReserved,
-                              reservedProviderRole: post.reservedBy?.providerRole,
+                              reservedProviderRole:
+                                  post.reservedBy?.providerRole,
                               // v23.1 part 116 — annonce boostée (owner a un
                               // Boost actif). Affiche le ruban "🚀 URGENT".
                               isOwnerBoosted: post.isOwnerBoosted,
@@ -1069,24 +1108,24 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                                   ? () async => _handleCardTap(petId)
                                   : null,
                               // v23.1.153 — Daniel : "le bouton demande
-                                  // direct n'apparait pas". Avant : si
-                                  // ownerId/petId/serviceTypes manquaient
-                                  // dans le post (cas owner sans pet, ou
-                                  // post sans serviceType), le callback
-                                  // etait null → bouton invisible →
-                                  // sitter/walker ne pouvait plus envoyer
-                                  // de demande. Maintenant : on TOUJOURS
-                                  // passe un callback (le bouton est visible)
-                                  // et on valide les donnees a l'interieur,
-                                  // avec snackbar explicite si quelque
-                                  // chose manque.
-                                  onSendRequest: () async {
+                              // direct n'apparait pas". Avant : si
+                              // ownerId/petId/serviceTypes manquaient
+                              // dans le post (cas owner sans pet, ou
+                              // post sans serviceType), le callback
+                              // etait null → bouton invisible →
+                              // sitter/walker ne pouvait plus envoyer
+                              // de demande. Maintenant : on TOUJOURS
+                              // passe un callback (le bouton est visible)
+                              // et on valide les donnees a l'interieur,
+                              // avec snackbar explicite si quelque
+                              // chose manque.
+                              onSendRequest: () async {
                                 // v565 (point 25) — coordonnées obligatoires
                                 // avant de postuler à une annonce.
-                                if (!await ensureContactInfo(context,
-                                    role: _isWalkerViewer
-                                        ? 'walker'
-                                        : 'sitter')) {
+                                if (!await ensureContactInfo(
+                                  context,
+                                  role: _isWalkerViewer ? 'walker' : 'sitter',
+                                )) {
                                   return;
                                 }
                                 if (ownerId.isEmpty ||
@@ -1112,10 +1151,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                                     serviceDate: _serviceDateForPost(post),
                                     startDate: _startDateForPost(post),
                                     endDate: _endDateForPost(post),
-                                    timeSlot:
-                                        _defaultTimeSlotForPost(post),
-                                    houseSittingVenue:
-                                        post.houseSittingVenue,
+                                    timeSlot: _defaultTimeSlotForPost(post),
+                                    houseSittingVenue: post.houseSittingVenue,
                                     duration: _durationForPostService(
                                       post,
                                       post.serviceTypes.first,
@@ -1144,9 +1181,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                                       ownerName: post.owner.name,
                                     )
                                   : null,
-                              onReportPost: () => _handleReportPost(
-                                postId: post.id,
-                              ),
+                              onReportPost: () =>
+                                  _handleReportPost(postId: post.id),
                               // v23.1.170 — Daniel : "quand je partage la
                               // demande dune publication sa menvoi lannonce
                               // de la photo corrige sur les 3 profile".
@@ -1168,10 +1204,10 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                                         'https://hopetsit.com/post/${post.id}';
                                     final subject = 'share_post_subject'
                                         .trParams({
-                                      'petName': petName.isEmpty
-                                          ? 'HoPetSit'
-                                          : petName,
-                                    });
+                                          'petName': petName.isEmpty
+                                              ? 'HoPetSit'
+                                              : petName,
+                                        });
                                     final shareText = 'share_post_body'
                                         .trParams({'link': link});
 
@@ -1468,7 +1504,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
           // in the postId map. The card rendering code checks this first
           // before falling back to the fragile fingerprint map.
           final postIdValue = app['postId']?.toString();
-          if (postIdValue != null && postIdValue.isNotEmpty && postIdValue != 'null') {
+          if (postIdValue != null &&
+              postIdValue.isNotEmpty &&
+              postIdValue != 'null') {
             _pendingApplicationIdsByPostId[postIdValue] = appId;
           }
 
@@ -1538,13 +1576,10 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         // every entry is disabled — just return 0 and let the UI ask the
         // walker to set a rate in the profile first.
         final walkerRepository = Get.find<WalkerRepository>();
-        final walker =
-            await walkerRepository.getWalkerProfile(providerId);
+        final walker = await walkerRepository.getWalkerProfile(providerId);
         double? findRate(int minutes) {
           for (final r in walker.walkRates) {
-            if (r.durationMinutes == minutes &&
-                r.enabled &&
-                r.basePrice > 0) {
+            if (r.durationMinutes == minutes && r.enabled && r.basePrice > 0) {
               return r.basePrice;
             }
           }
@@ -1586,16 +1621,12 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       if (fromMonthly != null && fromMonthly > 0) {
         return fromMonthly;
       }
-      final fromRateString =
-          double.tryParse(data['rate']?.toString() ?? '');
+      final fromRateString = double.tryParse(data['rate']?.toString() ?? '');
       if (fromRateString != null && fromRateString > 0) {
         return fromRateString;
       }
     } catch (error) {
-      AppLogger.logError(
-        'Failed to resolve provider base price',
-        error: error,
-      );
+      AppLogger.logError('Failed to resolve provider base price', error: error);
     }
 
     // Do not send fallback for invalid/unknown provider pricing.
@@ -1614,8 +1645,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         builder: (_) => OwnerProfileViewScreen(
           ownerId: ownerId,
           ownerName: post.owner.name,
-          ownerAvatar:
-              post.owner.avatar.isNotEmpty ? post.owner.avatar : null,
+          ownerAvatar: post.owner.avatar.isNotEmpty ? post.owner.avatar : null,
           ownerBio: post.owner.bio,
           ownerCity: (rawCity != null && rawCity.isNotEmpty) ? rawCity : null,
           pets: post.pets,

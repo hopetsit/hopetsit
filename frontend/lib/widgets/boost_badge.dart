@@ -19,20 +19,27 @@ class BoostBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // v569 — liseré blanc pour rester lisible posé sur une photo, pilule
+    // complète (999) et ombre un peu plus diffuse. Aucun changement d'API.
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+      padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 4.5.h),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFFFFA000), Color(0xFFEF4444)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(999.r),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.9),
+          width: 1.2,
+        ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFEF4444).withValues(alpha: 0.30),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
+            color: const Color(0xFFEF4444).withValues(alpha: 0.32),
+            blurRadius: 8,
+            spreadRadius: -2,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -40,11 +47,14 @@ class BoostBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text('🔥', style: TextStyle(fontSize: 10.sp)),
-          SizedBox(width: 3.w),
+          SizedBox(width: 4.w),
           InterText(
             text: 'boost_badge'.tr,
             fontSize: 10.sp,
             fontWeight: FontWeight.w800,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            letterSpacing: 0.1,
             color: Colors.white,
           ),
         ],
@@ -60,24 +70,44 @@ class TopProviderBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // v569 — mêmes dimensions que BoostBadge (pilule 999, liseré blanc) pour
+    // que les deux badges s'alignent parfaitement côte à côte.
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+      padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 4.5.h),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFD700).withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: const Color(0xFFB8860B), width: 0.5),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFE9A8), Color(0xFFF6D169)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(999.r),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.9),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFB8860B).withValues(alpha: 0.26),
+            blurRadius: 8,
+            spreadRadius: -2,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.workspace_premium_rounded,
-              size: 12.sp, color: const Color(0xFFB8860B)),
-          SizedBox(width: 3.w),
+              size: 12.sp, color: const Color(0xFF8A6508)),
+          SizedBox(width: 4.w),
           InterText(
             text: 'top_badge'.tr,
             fontSize: 10.sp,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFFB8860B),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            letterSpacing: 0.1,
+            color: const Color(0xFF8A6508),
           ),
         ],
       ),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/cancel_72h_sheet.dart';
 // v532 — copie du code de remise en pression longue.
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -10,6 +11,7 @@ import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/views/reviews/reviews_screen.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/service_confirmation_card.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -21,6 +23,7 @@ import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/views/invoices/invoices_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v18.9 — "Mes réservations" côté Owner, clone du design walker/sitter
 /// (cartes compactes + filter chips) avec l'accent ORANGE du rôle owner.
@@ -218,7 +221,7 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
                   // v468 — dégager le bas pour passer AU-DESSUS de la barre de
                   // menu pleine largeur (~80) + l'inset Samsung.
                   padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w,
-                      110.h + MediaQuery.of(context).viewPadding.bottom),
+                      110.h + appBottomInset(context)),
                   itemCount: list.length,
                   itemBuilder: (context, index) =>
                       _buildBookingCard(list[index]),
@@ -463,31 +466,8 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
     // dans les 72h, on affiche le message "fenêtre fermée" SANS bouton
     // confirmer (le backend rejetterait de toute façon un self-cancel <72h).
     final canFree = _isWithinSelfCancelWindow(booking);
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        title: Text('cancel_72h_dialog_title'.tr),
-        content: Text(
-          canFree
-              ? 'cancel_72h_dialog_message'.tr
-              : 'cancel_72h_closed_message'.tr,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: Text(canFree ? 'common_cancel'.tr : 'common_ok'.tr),
-          ),
-          if (canFree)
-            ElevatedButton(
-              onPressed: () => Get.back(result: true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-                foregroundColor: Colors.white,
-              ),
-              child: Text('cancel_72h_dialog_confirm'.tr),
-            ),
-        ],
-      ),
-    );
+    // v569 — feuille moderne commune (widgets/cancel_72h_sheet.dart).
+    final confirmed = await showCancel72hSheet(canFree: canFree);
     if (confirmed == true && canFree) {
       await _bookingsController.selfCancelBooking(bookingId: booking.id);
     }
@@ -517,91 +497,74 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
         statusLower != 'completed' &&
         statusLower != 'refunded';
 
-    return Row(
+    // v569 — mêmes conditions, mêmes appels, mêmes navigations : seul
+    // l'habillage change. « Payer » devient l'action PRINCIPALE (pilule
+    // pleine), « Voir détails » passe en contour, « Annuler » en rouge texte
+    // et sur sa propre ligne — trois boutons côte à côte tronquaient les
+    // libellés allemands et polonais.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: OutlinedButton(
-            onPressed: () {
-              Get.to(() => BookingAgreementScreen(booking: booking));
-            },
-            style: OutlinedButton.styleFrom(
-              padding: EdgeInsets.symmetric(vertical: 10.h),
-              side: const BorderSide(color: _ownerAccent, width: 1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.r),
+        Row(
+          children: [
+            Expanded(
+              child: ActionPillButton(
+                label: 'bookings_action_view_details'.tr,
+                icon: Icons.receipt_long_outlined,
+                tone: _ownerAccent,
+                kind: ActionPillKind.outlined,
+                expand: true,
+                onPressed: () {
+                  Get.to(() => BookingAgreementScreen(booking: booking));
+                },
               ),
             ),
-            child: InterText(
-              text: 'bookings_action_view_details'.tr,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w500,
-              color: _ownerAccent,
-            ),
-          ),
-        ),
-        if (isEligibleForPayment) ...[
-          SizedBox(width: 12.w),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () async {
-                final pricing = booking.pricing;
-                final base = (pricing?.totalPrice ??
-                        pricing?.resolvedBaseAmount ??
-                        booking.totalAmount ??
-                        booking.basePrice) ??
-                    0.0;
-                final serviceLower =
-                    (booking.serviceType ?? '').toLowerCase();
-                final providerType = serviceLower.contains('walking') ||
-                        serviceLower.contains('dog_walking')
-                    ? 'walker'
-                    : 'sitter';
-                await Get.to(
-                  () => AirwallexPaymentScreen(
-                    booking: booking,
-                    totalAmount: base,
-                    currency:
-                        pricing?.currency ?? booking.sitter.currency,
-                    providerType: providerType,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _ownerAccent,
-                padding: EdgeInsets.symmetric(vertical: 10.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.r),
+            if (isEligibleForPayment) ...[
+              SizedBox(width: 10.w),
+              Expanded(
+                child: ActionPillButton(
+                  label: 'service_card_pay_now'.tr,
+                  icon: Icons.credit_card_rounded,
+                  tone: _ownerAccent,
+                  expand: true,
+                  onPressed: () async {
+                    final pricing = booking.pricing;
+                    final base = (pricing?.totalPrice ??
+                            pricing?.resolvedBaseAmount ??
+                            booking.totalAmount ??
+                            booking.basePrice) ??
+                        0.0;
+                    final serviceLower =
+                        (booking.serviceType ?? '').toLowerCase();
+                    final providerType = serviceLower.contains('walking') ||
+                            serviceLower.contains('dog_walking')
+                        ? 'walker'
+                        : 'sitter';
+                    await Get.to(
+                      () => AirwallexPaymentScreen(
+                        booking: booking,
+                        totalAmount: base,
+                        currency:
+                            pricing?.currency ?? booking.sitter.currency,
+                        providerType: providerType,
+                      ),
+                    );
+                  },
                 ),
               ),
-              child: InterText(
-                text: 'service_card_pay_now'.tr,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: AppColors.whiteColor,
-              ),
-            ),
-          ),
-        ],
+            ],
+          ],
+        ),
         // v23.1.161 — Bouton "Annuler" pour reservations payees a >72h.
         if (isCancellable) ...[
-          SizedBox(width: 12.w),
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () => _confirmSelfCancel(booking),
-              style: OutlinedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: 10.h),
-                side: const BorderSide(color: Color(0xFFDC2626), width: 1),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-              ),
-              child: InterText(
-                text: 'cancel_72h_button'.tr,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFFDC2626),
-              ),
-            ),
+          SizedBox(height: 8.h),
+          ActionPillButton(
+            label: 'cancel_72h_button'.tr,
+            icon: Icons.event_busy_rounded,
+            tone: ActionTone.danger,
+            kind: ActionPillKind.danger,
+            expand: true,
+            onPressed: () => _confirmSelfCancel(booking),
           ),
         ],
       ],

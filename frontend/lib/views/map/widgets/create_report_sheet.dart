@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/controllers/map_report_controller.dart';
 import 'package:hopetsit/models/map_report_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/report_premium_helper.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -133,9 +134,8 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
     // v556 — sur le Samsung de Daniel `viewPadding.bottom` vaut 0 (app
     // edge-to-edge) → le bouton passait sous la barre système. Même règle que
     // la carte : marge réelle, ou 48 si le système annonce 0.
-    final safeBottom = MediaQuery.of(context).viewPadding.bottom > 0
-        ? MediaQuery.of(context).viewPadding.bottom
-        : 48.h;
+    // v569 — utilitaire unique de l'app (iOS = inset réel, Android = 48 mini).
+    final safeBottom = appBottomInset(context);
     // Session v15-4 — refonte compacte pour tenir sur 1 écran :
     //   • section "Gratuits" en tête avec les 4 types libres
     //   • section "Premium" en grille 3 colonnes pour les 15 Premium

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/cancel_72h_sheet.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/services/service_tracking_helper.dart';
@@ -9,6 +10,7 @@ import 'package:hopetsit/views/booking/handover/handover_action_sheet.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/service_confirmation_card.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -19,6 +21,7 @@ import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 // v23.1 — onglet Factures.
 import 'package:hopetsit/views/invoices/invoices_screen.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class SitterBookingsScreen extends StatefulWidget {
   const SitterBookingsScreen({super.key});
@@ -208,7 +211,7 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
                 child: ListView.builder(
                   // v468 — dégage le bas au-dessus du menu pleine largeur
                   padding: EdgeInsets.fromLTRB(
-                      20.w, 16.h, 20.w, 110.h + MediaQuery.of(context).viewPadding.bottom),
+                      20.w, 16.h, 20.w, 110.h + appBottomInset(context)),
                   itemCount: filteredBookings.length,
                   itemBuilder: (context, index) {
                     final booking = filteredBookings[index];
@@ -535,31 +538,8 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
     // v23.1.256 — annulation gratuite seulement si >72h (règle backend) ;
     // sinon message "fenêtre fermée" sans bouton confirmer.
     final canFree = _isWithinSelfCancelWindow(booking);
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        title: Text('cancel_72h_dialog_title'.tr),
-        content: Text(
-          canFree
-              ? 'cancel_72h_dialog_message'.tr
-              : 'cancel_72h_closed_message'.tr,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: Text(canFree ? 'common_cancel'.tr : 'common_ok'.tr),
-          ),
-          if (canFree)
-            ElevatedButton(
-              onPressed: () => Get.back(result: true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-                foregroundColor: Colors.white,
-              ),
-              child: Text('cancel_72h_dialog_confirm'.tr),
-            ),
-        ],
-      ),
-    );
+    // v569 — feuille moderne commune (widgets/cancel_72h_sheet.dart).
+    final confirmed = await showCancel72hSheet(canFree: canFree);
     if (confirmed == true && canFree) {
       await _bookingsController.selfCancelBooking(bookingId: booking.id);
     }
@@ -577,50 +557,38 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
         statusLower != 'completed' &&
         statusLower != 'refunded';
 
+    // v569 — mêmes conditions, même appel : seul l'habillage change (kit
+    // commun ActionPillButton, destructive = rouge texte, coins 14, ≥ 44 px).
     return Row(
       children: [
         // Cancel Button (for pending and agreed statuses) — calls requestCancellation
         if (statusLower == 'pending' || statusLower == 'agreed') ...[
           Expanded(
-            child: OutlinedButton(
+            child: ActionPillButton(
+              label: 'sitter_bookings_cancel_button'.tr,
+              icon: Icons.close_rounded,
+              tone: ActionTone.danger,
+              kind: ActionPillKind.danger,
+              expand: true,
               onPressed: () {
                 _showCancelBookingDialog(context, booking);
               },
-              style: OutlinedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: 10.h),
-                side: BorderSide(color: AppColors.errorColor, width: 1),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-              ),
-              child: InterText(
-                text: 'sitter_bookings_cancel_button'.tr,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: AppColors.errorColor,
-              ),
             ),
           ),
         ],
         // v23.1.161 — self-cancel for PAID bookings >72h (different from
         // requestCancellation which is for pending/agreed). Refund integral.
         if (isCancellable) ...[
+          if (statusLower == 'pending' || statusLower == 'agreed')
+            SizedBox(width: 10.w),
           Expanded(
-            child: OutlinedButton(
+            child: ActionPillButton(
+              label: 'cancel_72h_button'.tr,
+              icon: Icons.event_busy_rounded,
+              tone: ActionTone.danger,
+              kind: ActionPillKind.danger,
+              expand: true,
               onPressed: () => _confirmSelfCancel(booking),
-              style: OutlinedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: 10.h),
-                side: const BorderSide(color: Color(0xFFDC2626), width: 1),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-              ),
-              child: InterText(
-                text: 'cancel_72h_button'.tr,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFFDC2626),
-              ),
             ),
           ),
         ],

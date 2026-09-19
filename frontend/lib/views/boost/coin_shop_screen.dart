@@ -214,6 +214,17 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
     AppleIapService.init();
   }
 
+  /// v569 — « J'ai un code » vit désormais dans le bloc « Aide & infos » en bas
+  /// de CHAQUE onglet (au lieu d'un bouton isolé dans la barre du haut). La
+  /// feuille consomme le code puis écrit StorageKeys.redeemedPromoDiscount ;
+  /// on relance le build des onglets (clé) pour que _PromoDiscount.read()
+  /// s'applique aux prix.
+  Future<void> _openPromoSheet() async {
+    final ok =
+        await showPromoCodeSheet(context, accent: AppColors.primaryColor);
+    if (ok && mounted) setState(() => _promoEpoch++);
+  }
+
   /// Bouton « Restaurer mes achats » — OBLIGATOIRE Apple. Les transactions
   /// restaurées repassent par /apple-iap/validate (idempotent).
   Future<void> _restorePurchases() async {
@@ -425,35 +436,10 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
               ),
             ],
           ),
-          // v565 (point 27) — « J'ai un code » dans la boutique. La feuille
-          // (lot profil) consomme le code et écrit
-          // StorageKeys.redeemedPromoDiscount ; on relance le build des
-          // onglets (clé) pour que _PromoDiscount.read() s'applique aux prix.
-          actions: [
-            Padding(
-              padding: EdgeInsets.only(right: 8.w),
-              child: TextButton.icon(
-                onPressed: () async {
-                  final ok = await showPromoCodeSheet(context,
-                      accent: AppColors.primaryColor);
-                  if (ok && mounted) setState(() => _promoEpoch++);
-                },
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.primaryColor,
-                  padding: EdgeInsets.symmetric(horizontal: 10.w),
-                ),
-                icon: Icon(Icons.confirmation_number_outlined, size: 18.sp),
-                label: InterText(
-                  text: 'v565_promo_have_code'.tr,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primaryColor,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-          ],
+          // v569 — la barre du haut ne porte plus que le titre : « J'ai un
+          // code » a rejoint le bloc « Aide & infos » en bas de chaque onglet
+          // (avec « Gérer mon abonnement », la devise, « Restaurer mes
+          // achats » et les liens légaux), au lieu d'être dispersé.
           // v561 — Daniel (maquette 12/09) : onglets = 4 CARTES colorées
           // (PawBoost orange, PawFollow violet, PawSpot or, PawPremium noir)
           // avec logo, nom et sous-titre ; la carte active est plus vive.
@@ -523,11 +509,27 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
           builder: (ctx) {
             final body = TabBarView(
               key: ValueKey<int>(_promoEpoch),
-              children: const [
-                _BoostTab(),
-                _PremiumTab(),
-                _PawSpotTab(),
-                _PawPremiumTab(),
+              children: [
+                _BoostTab(
+                  onPromo: _openPromoSheet,
+                  onRestore: _restorePurchases,
+                  restoring: _restoring,
+                ),
+                _PremiumTab(
+                  onPromo: _openPromoSheet,
+                  onRestore: _restorePurchases,
+                  restoring: _restoring,
+                ),
+                _PawSpotTab(
+                  onPromo: _openPromoSheet,
+                  onRestore: _restorePurchases,
+                  restoring: _restoring,
+                ),
+                _PawPremiumTab(
+                  onPromo: _openPromoSheet,
+                  onRestore: _restorePurchases,
+                  restoring: _restoring,
+                ),
               ],
             );
             if (!Platform.isIOS) return body;
@@ -605,7 +607,16 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
 //  TAB 1 — BOOST (existing boost packages)
 // ═══════════════════════════════════════════════════════════════════════════
 class _BoostTab extends StatefulWidget {
-  const _BoostTab();
+  const _BoostTab({
+    required this.onPromo,
+    required this.onRestore,
+    required this.restoring,
+  });
+
+  /// v569 — lignes du bloc « Aide & infos » (pilotées par l'écran parent).
+  final VoidCallback onPromo;
+  final VoidCallback onRestore;
+  final bool restoring;
 
   @override
   State<_BoostTab> createState() => _BoostTabState();
@@ -985,8 +996,9 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    // v569 — squelette animé (shimmer maison) au lieu d'un rond de progression.
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const ShopSkeleton(tiles: 4);
     }
     final visible = _visiblePackages;
     final picked = visible.firstWhereOrNull((p) => p['tier'] == _pickedTier) ??
@@ -1007,23 +1019,78 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // v567 — bandeau produit commun aux 4 onglets.
+                  // ── 1. Hero produit (état intégré en bas à gauche) ────────
                   ShopHero(
                     icon: SvgPicture.string(PawCardIcons.boost,
-                        width: 26, height: 26),
+                        width: 28, height: 28),
                     title: 'shop_tab_boost'.tr,
                     subtitle: 'shop_card_boost_sub'.tr,
                     colors: _boostGradient,
+                    status: ShopStatusPill(
+                      label: 'shop_tab_boost'.tr,
+                      active: _boostActive,
+                      accent: Colors.white,
+                      days: _remainingDays,
+                      onDark: true,
+                    ),
                   ),
-                  SizedBox(height: 12.h),
-                  _buildBoostStatus(),
+                  if (_boostActive && _currentTier != null) ...[
+                    SizedBox(height: 12.h),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: ShopPill(
+                        label: _tierName(_currentTier!),
+                        background: AppColors.primaryColor,
+                      ),
+                    ),
+                  ],
+                  if (!_boostActive) ...[
+                    SizedBox(height: 10.h),
+                    InterText(
+                      text: 'boost_inactive_hint'.tr,
+                      fontSize: 12.sp,
+                      color: AppColors.greyText,
+                      maxLines: 2,
+                    ),
+                  ],
                   if (_boostActive &&
                       ShopExpiryNotice.shouldShow(_remainingDays)) ...[
                     SizedBox(height: 12.h),
                     ShopExpiryNotice(days: _remainingDays),
                   ],
-                  SizedBox(height: 16.h),
-                  // v556 — gratuit vs boost, comme sur les autres onglets.
+                  SizedBox(height: 24.h),
+                  // ── 2. Avantages ─────────────────────────────────────────
+                  ShopSectionTitle(title: 'shop569_benefits_title'.tr),
+                  SizedBox(height: 12.h),
+                  ShopBenefitList(
+                    accent: AppColors.primaryColor,
+                    items: [
+                      ShopBenefit(
+                        icon: Icons.vertical_align_top_rounded,
+                        title: 'shop569_boost_b1_title'.tr,
+                        body: 'boost_step_3'.tr,
+                      ),
+                      ShopBenefit(
+                        icon: Icons.visibility_rounded,
+                        title: 'shop569_boost_b2_title'.tr,
+                        body: 'boost_step_4'.tr,
+                      ),
+                      ShopBenefit(
+                        icon: Icons.schedule_rounded,
+                        title: 'shop569_boost_b3_title'.tr,
+                        body: 'boost_step_1'.tr,
+                      ),
+                      ShopBenefit(
+                        icon: Icons.local_fire_department_rounded,
+                        title: 'shop569_boost_b4_title'.tr,
+                        body: 'shop_pb_plus_body'.tr,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 24.h),
+                  // ── 3. Gratuit vs payant ─────────────────────────────────
+                  ShopSectionTitle(title: 'shop569_compare_title'.tr),
+                  SizedBox(height: 12.h),
                   shopValueCard(
                     context,
                     color: const Color(0xFFC92A12),
@@ -1033,6 +1100,7 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                     plusBody: 'shop_pb_plus_body'.tr,
                   ),
                   SizedBox(height: 24.h),
+                  // ── 4. Forfaits ──────────────────────────────────────────
                   ShopSectionTitle(
                     title: 'boost_choose_package'.tr,
                     subtitle: 'boost_choose_subtitle'.tr,
@@ -1048,14 +1116,29 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                       maxLines: 2,
                     ),
                   ],
-                  SizedBox(height: 16.h),
-                  const ShopLegalNote(oneTime: true),
-                  SizedBox(height: 24.h),
-                  _buildHowItWorks(),
+                  SizedBox(height: 20.h),
+                  // ── 5. Rangée de confiance ───────────────────────────────
+                  ShopTrustRow(
+                      accent: AppColors.primaryColor, oneTime: true),
+                  // v569 — l'ancienne carte « Comment ça marche ? » disait
+                  // exactement les 4 mêmes phrases (boost_step_1…4) que le
+                  // bloc « Avantages » ci-dessus : le doublon est supprimé,
+                  // aucun texte n'est perdu.
                   if (_history.isNotEmpty) ...[
                     SizedBox(height: 24.h),
                     _buildPurchaseHistory(),
                   ],
+                  SizedBox(height: 24.h),
+                  // ── 6. Aide & infos (+ mentions légales, CGU, privacy) ───
+                  shopHelpCard(
+                    context,
+                    accent: AppColors.primaryColor,
+                    oneTime: true,
+                    showManage: false,
+                    onPromo: widget.onPromo,
+                    onRestore: widget.onRestore,
+                    restoring: widget.restoring,
+                  ),
                 ],
               ),
             ),
@@ -1080,44 +1163,10 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
     );
   }
 
-  /// v567 — état d'abonnement dans la MÊME pastille que les 3 autres onglets
-  /// (« PawBoost · Actif · 12 j restants » / « PawBoost · Inactif »), suivie
-  /// du palier en cours et de la phrase d'aide quand rien n'est actif.
-  Widget _buildBoostStatus() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8.w,
-          runSpacing: 8.h,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            ShopStatusPill(
-              label: 'shop_tab_boost'.tr,
-              active: _boostActive,
-              accent: AppColors.primaryColor,
-              days: _remainingDays,
-            ),
-            if (_boostActive && _currentTier != null)
-              ShopPill(
-                label: _tierName(_currentTier!),
-                background: AppColors.primaryColor,
-              ),
-          ],
-        ),
-        if (!_boostActive) ...[
-          SizedBox(height: 8.h),
-          InterText(
-            text: 'boost_inactive_hint'.tr,
-            fontSize: 12.sp,
-            color: AppColors.greyText,
-            maxLines: 2,
-          ),
-        ],
-      ],
-    );
-  }
-
+  /// v569 — tuile de forfait commune aux 4 onglets ([ShopPlanTile]) : prix en
+  /// gros, prix par jour en petit, ruban « Le plus choisi » sur le palier mis
+  /// en avant, sélection = bord 2 px + coche animée. Tap = SÉLECTION (l'achat
+  /// part du bouton collant), appui long = payer avec le portefeuille.
   Widget _buildPackageCard(BuildContext context, Map<String, dynamic> pkg) {
     final tier = pkg['tier'] as String;
     // Backend can return amount as double (e.g. 4.99) or int — coerce via num.
@@ -1126,7 +1175,6 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
     final icon = pkg['icon'] as String;
     // v18.9.8 — label localisé via _durationLabel(days), plus de label EN.
     final label = _durationLabel(days);
-    final color = pkg['color'] as Color;
     final isBuying = _selectedTier == tier && _purchasing;
     final isPicked = _pickedTier == tier;
     // iOS : gold n'existe pas → le palier mis en avant est silver.
@@ -1136,190 +1184,25 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
         ? AppleIapService.priceLabel(AppleIapService.productForBoostTier(tier))
         : null;
 
-    // v566 — tap = SÉLECTION (l'achat part du bouton collant), appui long =
-    // payer avec le portefeuille (sitter / walker). Carte coins 22, contour
-    // orange quand elle est choisie.
-    return Padding(
-      padding: EdgeInsets.only(bottom: 12.h),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onLongPress: _purchasing ? null : () => _confirmPayWithWallet(tier),
-        onTap: _purchasing ? null : () => setState(() => _pickedTier = tier),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: EdgeInsets.all(14.w),
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: isPicked
-                  ? AppColors.primaryColor
-                  : AppColors.divider(context),
-              width: isPicked ? 2 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: isPicked
-                    ? AppColors.primaryColor.withValues(alpha: 0.16)
-                    : Colors.black.withValues(alpha: 0.04),
-                blurRadius: isPicked ? 16 : 10,
-                spreadRadius: -4,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 48.w,
-                height: 48.w,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Center(
-                  child: Text(icon, style: TextStyle(fontSize: 24.sp)),
-                ),
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: InterText(
-                            text: _tierName(tier),
-                            fontSize: 15.5.sp,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary(context),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (isPopular) ...[
-                          SizedBox(width: 6.w),
-                          ShopPill(
-                            label: 'boost_popular'.tr,
-                            background: AppColors.primaryColor,
-                          ),
-                        ],
-                      ],
-                    ),
-                    SizedBox(height: 3.h),
-                    InterText(
-                      text: 'boost_package_desc'.tr.replaceAll('@days', label),
-                      fontSize: 12.sp,
-                      color: AppColors.greyText,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: 8.w),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  // v567 — FittedBox : prix long (« 11,99 CHF ») en de / pl.
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerRight,
-                    child: PoppinsText(
-                      text: _tierPriceLabel(pkg),
-                      fontSize: 19.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primaryColor,
-                    ),
-                  ),
-                  // Sous-prix « /jour » : masqué sur iOS (calculé sur le prix
-                  // carte, pas forcément aligné sur le prix Apple).
-                  if (applePrice == null && days > 0)
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerRight,
-                      child: InterText(
-                        text:
-                            '${CurrencyHelper.format(currency, amount / days)}/${'boost_per_day'.tr}',
-                        fontSize: 10.sp,
-                        color: AppColors.greyText,
-                      ),
-                    ),
-                ],
-              ),
-              SizedBox(width: 10.w),
-              isBuying
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.primaryColor,
-                      ),
-                    )
-                  : ShopSelectDot(
-                      selected: isPicked,
-                      color: AppColors.primaryColor,
-                    ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHowItWorks() {
-    final steps = [
-      {'icon': Icons.shopping_cart, 'text': 'boost_step_1'.tr},
-      {'icon': Icons.payment, 'text': 'boost_step_2'.tr},
-      {'icon': Icons.trending_up, 'text': 'boost_step_3'.tr},
-      {'icon': Icons.visibility, 'text': 'boost_step_4'.tr},
-    ];
-
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: AppColors.cardShadow(context),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InterText(
-            text: 'boost_how_title'.tr,
-            fontSize: 15.sp,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary(context),
-          ),
-          SizedBox(height: 12.h),
-          ...steps.map((step) => Padding(
-                padding: EdgeInsets.only(bottom: 10.h),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 32.w,
-                      height: 32.w,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: Icon(step['icon'] as IconData, size: 16.sp, color: AppColors.primaryColor),
-                    ),
-                    SizedBox(width: 12.w),
-                    Expanded(
-                      child: InterText(
-                        text: step['text'] as String,
-                        fontSize: 13.sp,
-                        color: AppColors.blackColor,
-                      ),
-                    ),
-                  ],
-                ),
-              )),
-        ],
-      ),
+    return ShopPlanTile(
+      title: _tierName(tier),
+      subtitle: 'boost_package_desc'.tr.replaceAll('@days', label),
+      priceLabel: _tierPriceLabel(pkg),
+      // Prix par jour : masqué sur iOS (calculé sur le prix carte, pas
+      // forcément aligné sur le prix Apple).
+      footnote: (applePrice == null && days > 0)
+          ? '${CurrencyHelper.format(currency, amount / days)}/${'boost_per_day'.tr}'
+          : null,
+      leading: Text(icon, style: TextStyle(fontSize: 22.sp)),
+      // Ruban du palier mis en avant : on réutilise la clé existante
+      // `boost_popular` (« Populaire ») plutôt que d'empiler deux pastilles
+      // qui disent la même chose.
+      ribbon: isPopular ? 'boost_popular'.tr : null,
+      selected: isPicked,
+      accent: AppColors.primaryColor,
+      loading: isBuying,
+      onTap: _purchasing ? null : () => setState(() => _pickedTier = tier),
+      onLongPress: _purchasing ? null : () => _confirmPayWithWallet(tier),
     );
   }
 
@@ -1389,7 +1272,16 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
 //  TAB 2 — PREMIUM (PawMap subscription €3.90/mo or €30/yr)
 // ═══════════════════════════════════════════════════════════════════════════
 class _PremiumTab extends StatefulWidget {
-  const _PremiumTab();
+  const _PremiumTab({
+    required this.onPromo,
+    required this.onRestore,
+    required this.restoring,
+  });
+
+  /// v569 — lignes du bloc « Aide & infos » (pilotées par l'écran parent).
+  final VoidCallback onPromo;
+  final VoidCallback onRestore;
+  final bool restoring;
 
   @override
   State<_PremiumTab> createState() => _PremiumTabState();
@@ -1452,7 +1344,8 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
 
     return Obx(() {
       if (controller.isLoading.value && controller.status.value == null) {
-        return const Center(child: CircularProgressIndicator());
+        // v569 — squelette animé au lieu d'un rond de progression.
+        return const ShopSkeleton(tiles: 3);
       }
       // v566 — état d'erreur : /subscriptions/plans n'a rien renvoyé (réseau).
       // Avant : page sans aucune offre et sans explication.
@@ -1484,30 +1377,29 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // v567 — bandeau produit commun aux 4 onglets.
+                    // ── 1. Hero produit (état intégré en bas à gauche) ──────
                     ShopHero(
                       icon: SvgPicture.string(PawCardIcons.follow,
-                          width: 26, height: 26),
+                          width: 28, height: 28),
                       title: 'shop_tab_pawpass'.tr,
                       subtitle: 'shop_card_follow_sub'.tr,
                       colors: _violetGradient,
+                      status: _buildStatusCard(context, controller),
                     ),
-                    SizedBox(height: 12.h),
-                    _buildStatusCard(context, controller),
                     ..._buildStatusExtras(context, controller),
-                    SizedBox(height: 16.h),
-                    // v556 — « gratuit / avec PawFollow » avant les prix.
-                    _pawFollowValueCard(context),
-                    // v503 — iOS : devise/prix imposés par Apple (StoreKit) →
-                    // le sélecteur de devise Airwallex n'a plus de sens.
-                    // v567 — aligné sur toute la largeur, comme « Gérer mon
-                    // abonnement » (avant : collé à droite, en décalage).
-                    if (!Platform.isIOS) ...[
-                      SizedBox(height: 16.h),
-                      _buildCurrencyPicker(context, controller),
-                    ],
                     SizedBox(height: 24.h),
-                    // ── Section 1 : Suis ton animal (PawFollow individuel) ──
+                    // ── 2. Avantages ────────────────────────────────────────
+                    ShopSectionTitle(title: 'shop569_benefits_title'.tr),
+                    SizedBox(height: 12.h),
+                    _buildFeaturesList(context),
+                    SizedBox(height: 24.h),
+                    // ── 3. Gratuit vs payant ────────────────────────────────
+                    ShopSectionTitle(title: 'shop569_compare_title'.tr),
+                    SizedBox(height: 12.h),
+                    _pawFollowValueCard(context),
+                    SizedBox(height: 24.h),
+                    // ── 4. Forfaits ─────────────────────────────────────────
+                    // Section 1 : Suis ton animal (PawFollow individuel).
                     _planSectionHeader(
                       context,
                       emoji: '🐾',
@@ -1518,8 +1410,8 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                     SizedBox(height: 12.h),
                     ...soloPlans.map((p) => _buildPlanCard(
                         context, controller, p, picked?.plan == p.plan)),
-                    SizedBox(height: 24.h),
-                    // ── Section 2 : PawFamily (suivi en famille) ────────────
+                    SizedBox(height: 16.h),
+                    // Section 2 : PawFamily (suivi en famille).
                     _planSectionHeader(
                       context,
                       emoji: '👨‍👩‍👧',
@@ -1534,9 +1426,24 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                     ...familyPlans.map((p) => _buildPlanCard(
                         context, controller, p, picked?.plan == p.plan)),
                     SizedBox(height: 8.h),
-                    const ShopLegalNote(),
+                    // ── 5. Rangée de confiance ──────────────────────────────
+                    ShopTrustRow(accent: _violet),
                     SizedBox(height: 24.h),
-                    _buildFeaturesList(context),
+                    // ── 6. Aide & infos (devise, code, légal, CGU) ──────────
+                    // v503 — iOS : devise/prix imposés par Apple (StoreKit) →
+                    // le sélecteur de devise Airwallex n'a plus de sens.
+                    shopHelpCard(
+                      context,
+                      accent: _violet,
+                      oneTime: false,
+                      activeUntil: controller.status.value?.currentPeriodEnd,
+                      onPromo: widget.onPromo,
+                      onRestore: widget.onRestore,
+                      restoring: widget.restoring,
+                      currencyRow: Platform.isIOS
+                          ? null
+                          : _buildCurrencyPicker(context, controller),
+                    ),
                   ],
                 ),
               ),
@@ -1577,7 +1484,8 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     return same && controller.isPremium;
   }
 
-  /// v566 — bandeau « expire bientôt » + « Gérer mon abonnement ».
+  /// v566 — bandeau « expire bientôt ».
+  /// v569 — « Gérer mon abonnement » a rejoint le bloc « Aide & infos ».
   List<Widget> _buildStatusExtras(
       BuildContext context, SubscriptionController controller) {
     final status = controller.status.value;
@@ -1588,11 +1496,9 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     final days = status?.remainingDays ?? 0;
     return <Widget>[
       if (ShopExpiryNotice.shouldShow(days)) ...[
-        SizedBox(height: 10.h),
+        SizedBox(height: 12.h),
         ShopExpiryNotice(days: days),
       ],
-      SizedBox(height: 10.h),
-      ShopManageRow(accent: _violet, activeUntil: status?.currentPeriodEnd),
     ];
   }
 
@@ -1624,81 +1530,61 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     );
   }
 
-  /// v567 — sélecteur de devise sur toute la largeur : libellé à gauche,
-  /// menu à droite, même gabarit (48 px, coins 16) que « Gérer mon
-  /// abonnement » — les deux lignes s'alignent enfin.
-  Widget _buildCurrencyPicker(BuildContext context, SubscriptionController controller) {
-    return Container(
-      width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 48),
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider(context)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.public_rounded, size: 18.sp, color: AppColors.greyText),
-          SizedBox(width: 8.w),
-          Expanded(
-            child: InterText(
-              text: 'shop567_currency'.tr,
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          SizedBox(width: 8.w),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              // v566 — garde : une valeur absente de `items` fait planter le
-              // DropdownButton (assert) → repli sur la 1re devise proposée.
-              value: controller.supportedCurrencies
-                      .contains(controller.currency.value)
+  /// v569 — sélecteur de devise = une LIGNE du bloc « Aide & infos » (même
+  /// gabarit que « Gérer mon abonnement » / « J'ai un code »), le menu servant
+  /// de contenu à droite. Mêmes devises, même `setCurrency`.
+  Widget _buildCurrencyPicker(
+      BuildContext context, SubscriptionController controller) {
+    return ShopInfoRow(
+      icon: Icons.public_rounded,
+      label: 'shop567_currency'.tr,
+      accent: _violet,
+      showChevron: false,
+      trailing: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          // v566 — garde : une valeur absente de `items` fait planter le
+          // DropdownButton (assert) → repli sur la 1re devise proposée.
+          value:
+              controller.supportedCurrencies.contains(controller.currency.value)
                   ? controller.currency.value
                   : (controller.supportedCurrencies.isNotEmpty
                       ? controller.supportedCurrencies.first
                       : null),
-              isDense: true,
-              borderRadius: BorderRadius.circular(16),
-              icon: Icon(Icons.expand_more_rounded,
-                  size: 18.sp, color: AppColors.greyText),
-              items: controller.supportedCurrencies
-                  .map((c) => DropdownMenuItem<String>(
-                        value: c,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              CurrencyHelper.symbol(c).trim(),
-                              style: TextStyle(
-                                fontSize: 13.sp,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primaryColor,
-                              ),
-                            ),
-                            SizedBox(width: 4.w),
-                            Text(
-                              c,
-                              style: TextStyle(
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary(context),
-                              ),
-                            ),
-                          ],
+          isDense: true,
+          borderRadius: BorderRadius.circular(16),
+          icon: Icon(Icons.expand_more_rounded,
+              size: 18.sp, color: AppColors.greyText),
+          items: controller.supportedCurrencies
+              .map((c) => DropdownMenuItem<String>(
+                    value: c,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          CurrencyHelper.symbol(c).trim(),
+                          style: TextStyle(
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primaryColor,
+                          ),
                         ),
-                      ))
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) controller.setCurrency(v);
-              },
-            ),
-          ),
-        ],
+                        SizedBox(width: 4.w),
+                        Text(
+                          c,
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ))
+              .toList(),
+          onChanged: (v) {
+            if (v != null) controller.setCurrency(v);
+          },
+        ),
       ),
     );
   }
@@ -1749,6 +1635,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     // v567 — les 2 moitiés deviennent les MÊMES pastilles d'état que les
     // 3 autres onglets : un `Wrap` (jamais d'Expanded, jamais de hauteur à
     // égaliser) qui passe à la ligne en allemand / polonais.
+    // v569 — posées DANS le bandeau produit (fond violet) → `onDark`.
     return Wrap(
       spacing: 8.w,
       runSpacing: 8.h,
@@ -1756,14 +1643,16 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
         ShopStatusPill(
           label: 'PawFollow',
           active: pawFollowActive,
-          accent: _violet,
+          accent: Colors.white,
           days: pawFollowDays,
+          onDark: true,
         ),
         ShopStatusPill(
           label: 'PawFamily',
           active: familyActive,
-          accent: _violet,
+          accent: Colors.white,
           days: familyDays,
+          onDark: true,
         ),
       ],
     );
@@ -1845,183 +1734,54 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
           : 'v566_shop_sub_month_once'.tr;
     }
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: 12.h),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: controller.isPurchasing.value
-            ? null
-            : () => setState(() => _picked = plan.plan),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: EdgeInsets.all(14.w),
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: isPicked ? _violet : AppColors.divider(context),
-              width: isPicked ? 2 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: isPicked
-                    ? _violet.withValues(alpha: 0.18)
-                    : Colors.black.withValues(alpha: 0.04),
-                blurRadius: isPicked ? 16 : 10,
-                spreadRadius: -4,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 46.w,
-                height: 46.w,
-                decoration: BoxDecoration(
-                  color: _violet.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Center(
-                  child: Text(
-                    isFamily
-                        ? '👨‍👩‍👧'
-                        : isYearly
-                            ? '🏆'
-                            : '⭐',
-                    style: TextStyle(fontSize: 23.sp),
-                  ),
-                ),
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    InterText(
-                      text: _planName(plan),
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w800,
-                      color: isFamily
-                          ? _violet
-                          : AppColors.textPrimary(context),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 3.h),
-                    InterText(
-                      text: subtitle,
-                      fontSize: 11.5.sp,
-                      color: AppColors.greyText,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (isYearly || isCurrent) ...[
-                      SizedBox(height: 6.h),
-                      Wrap(
-                        spacing: 6.w,
-                        runSpacing: 4.h,
-                        children: [
-                          if (isYearly)
-                            ShopPill(
-                              label: 'v565_shop_best_price'.tr,
-                              background: _violet,
-                            ),
-                          if (savingsPct > 0)
-                            ShopPill(
-                              label: 'v566_shop_save_pct'
-                                  .tr
-                                  .replaceAll('{pct}', '$savingsPct'),
-                              background: const Color(0xFF16A34A),
-                            ),
-                          if (isCurrent)
-                            ShopPill(
-                              label: 'premium_active'.tr,
-                              background: const Color(0xFF16A34A),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              SizedBox(width: 8.w),
-              // v567 — colonne de prix alignée à droite, chaque ligne bornée
-              // par un FittedBox (allemand / polonais : « 49,99 CHF »,
-              // « czyli 4,17 zł/mies. »).
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  // v444 — prix d'origine barré quand un code promo % s'applique.
-                  if (promoApplies)
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        CurrencyHelper.format(plan.currency, plan.amount),
-                        maxLines: 1,
-                        style: TextStyle(
-                          fontSize: 11.5.sp,
-                          color: AppColors.greyText,
-                          decoration: TextDecoration.lineThrough,
-                          decorationColor: AppColors.greyText,
-                        ),
-                      ),
-                    ),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerRight,
-                    child: PoppinsText(
-                      text: _planPriceLabel(plan),
-                      fontSize: 19.sp,
-                      fontWeight: FontWeight.w700,
-                      color: _violet,
-                    ),
-                  ),
-                  InterText(
-                    text: isYearly
-                        ? 'v566_shop_per_year'.tr
-                        : 'v566_shop_per_month'.tr,
-                    fontSize: 10.sp,
-                    color: AppColors.greyText,
-                  ),
-                  if (applePrice == null && isYearly)
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerRight,
-                      child: InterText(
-                        text: 'v566_shop_equiv_month'.tr.replaceAll(
-                            '{price}',
-                            CurrencyHelper.format(
-                                plan.currency, plan.amount / 12)),
-                        fontSize: 10.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.greyText,
-                      ),
-                    ),
-                  if (promoApplies) ...[
-                    SizedBox(height: 4.h),
-                    _PromoBadge(percent: promo.percent, accent: _violet),
-                  ],
-                ],
-              ),
-              SizedBox(width: 10.w),
-              // v23.1 part 63 — seul le forfait en cours d'achat tourne.
-              (controller.isPurchasing.value &&
-                      controller.purchasingPlan.value == plan.plan)
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: _violet,
-                      ),
-                    )
-                  : ShopSelectDot(selected: isPicked, color: _violet),
-            ],
-          ),
-        ),
+    // v569 — même tuile que les 3 autres onglets ([ShopPlanTile]) : prix en
+    // gros, « soit X/mois » en petit, prix barré + « −X % » en haut à droite,
+    // ruban « Le plus choisi » sur l'annuel, sélection = bord 2 px + coche.
+    return ShopPlanTile(
+      title: _planName(plan),
+      subtitle: subtitle,
+      priceLabel: _planPriceLabel(plan),
+      // Équivalent mensuel de l'annuel (masqué sur iOS : prix Apple) ; sinon
+      // la période facturée.
+      footnote: (applePrice == null && isYearly)
+          ? 'v566_shop_equiv_month'.tr.replaceAll('{price}',
+              CurrencyHelper.format(plan.currency, plan.amount / 12))
+          : (isYearly
+              ? 'v566_shop_per_year'.tr
+              : 'v566_shop_per_month'.tr),
+      // v444 — prix d'origine barré quand un code promo % s'applique.
+      strikeLabel: promoApplies
+          ? CurrencyHelper.format(plan.currency, plan.amount)
+          : null,
+      savePct: savingsPct,
+      ribbon: isYearly ? 'shop569_most_chosen'.tr : null,
+      leading: Text(
+        isFamily
+            ? '👨‍👩‍👧'
+            : isYearly
+                ? '🏆'
+                : '⭐',
+        style: TextStyle(fontSize: 21.sp),
       ),
+      badges: [
+        if (isYearly)
+          ShopPill(label: 'v565_shop_best_price'.tr, background: _violet),
+        if (isCurrent)
+          ShopPill(
+            label: 'premium_active'.tr,
+            background: const Color(0xFF16A34A),
+          ),
+        if (promoApplies)
+          _PromoBadge(percent: promo.percent, accent: _violet),
+      ],
+      selected: isPicked,
+      accent: _violet,
+      // v23.1 part 63 — seul le forfait en cours d'achat tourne.
+      loading: controller.isPurchasing.value &&
+          controller.purchasingPlan.value == plan.plan,
+      onTap: controller.isPurchasing.value
+          ? null
+          : () => setState(() => _picked = plan.plan),
     );
   }
 
@@ -2054,154 +1814,72 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     );
   }
 
+  /// v569 — avantages en LIGNES « icône ronde teintée + titre court +
+  /// sous-texte » (au lieu d'une liste de paragraphes). Les sous-textes
+  /// reprennent les clés existantes, aucune fonctionnalité n'est retirée :
+  /// le raccourci vers l'onglet PawSpot (boost offert) garde son chevron.
   Widget _buildFeaturesList(BuildContext context) {
-    // Session v15 — "PawMap complète" ligne retirée (les POIs vétos/parcs/
-    // animaleries/points d'eau sont gratuits et publics). Les signalements
-    // passent en tête pour valoriser la feature phare.
-    // Session v15-4 — the "1 boost map offert" row becomes a shortcut
-    // to the Map Boost tab (where the user can claim the credit). The
-    // other features stay static since they're already unlocked by
-    // Premium itself.
-    // v19.1.5 — i18n : all Premium features are pulled from translation keys
-    // so the list follows the current locale instead of staying in French.
-    final features = <Map<String, dynamic>>[
-      // #106 — la ligne « 18 types d'alertes » (premium_feature_alerts) est
-      // retirée : elle faisait doublon / contradiction avec la ligne
-      // « 20 signalements premium utilisables » (shop_premium_reports_included)
-      // ajoutée plus bas dans cette même liste.
-      {
-        'icon': Icons.notifications_active_outlined,
-        'text': 'premium_feature_notifications'.tr,
-      },
-      {
-        'icon': Icons.chat_bubble_outline,
-        'text': 'premium_feature_chat'.tr,
-      },
-      {
-        'icon': Icons.people_outline,
-        'text': 'premium_feature_friends_tracking'.tr,
-      },
-      // v496 — Daniel : « rajoute la phrase de suivi dans l'onglet PawFollow ».
-      // Bouton « Suivre en direct » on/off mutuel (tu me suis, je te suis).
-      {
-        'icon': Icons.share_location_rounded,
-        'text': 'pawfollow_feature_live_toggle'.tr,
-      },
-      // v23.1.357 — Daniel : "précise qu'avec PawFollow/PawFamily tu as les
-      // itinéraires vers les lieux GRATUITS de la PawMap (eau, parcs, restos)".
-      {
-        'icon': Icons.directions_walk_rounded,
-        'text': 'pawfollow_feature_directions'.tr,
-      },
-      // v556 — option C : l'historique de balade est un avantage PawFollow.
-      {
-        'icon': Icons.history_rounded,
-        'text': 'pawfollow_feature_history'.tr,
-      },
-      // v21.1.1 — Forfait Famille mis en évidence (jusqu'à 5 personnes).
-      {
-        'icon': Icons.family_restroom,
-        'text': 'premium_feature_family_plan'.tr,
-      },
-      {
-        'icon': Icons.push_pin_rounded,
-        'text': 'premium_feature_monthly_boost'.tr,
-        'goToMapBoost': true,
-      },
-      {
-        'icon': Icons.verified_rounded,
-        'text': 'premium_feature_badge'.tr,
-      },
-      // #106 — chaque abonnement inclut 20 signalements premium utilisables.
-      {
-        'icon': Icons.shield_outlined,
-        'text': 'shop_premium_reports_included'.tr,
-      },
-      // v489/v491 — Daniel : option « membres Paw Map proches » avec le VRAI
-      // logo rose utilisateur (pas une icône générique). `pawBadge:true` → rendu
-      // par _pawBadgeMini() dans _buildFeaturesList.
-      {
-        'pawBadge': true,
-        'text': 'shop_nearby_members'.tr,
-      },
-    ];
-
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: AppColors.cardShadow(context),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InterText(
-            text: 'premium_what_unlocks_title'.tr,
-            fontSize: 15.sp,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary(context),
-          ),
-          SizedBox(height: 12.h),
-          ...features.map((f) {
-            final isShortcut = f['goToMapBoost'] == true;
-            // Shortcut rows use the Map Boost blue accent + chevron to signal
-            // tap affordance. Other rows stay flat with Premium orange.
-            final accent = isShortcut
-                ? AppColors.mapBoostBlue
-                : const Color(0xFF7C3AED);
-            final row = Padding(
-              padding: EdgeInsets.only(bottom: 10.h),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (f['pawBadge'] == true)
-                    _pawBadgeMini()
-                  else
-                    Container(
-                      width: 32.w,
-                      height: 32.w,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: Icon(
-                        f['icon'] as IconData,
-                        size: 16.sp,
-                        color: accent,
-                      ),
-                    ),
-                  SizedBox(width: 12.w),
-                  Expanded(
-                    child: InterText(
-                      text: f['text'] as String,
-                      fontSize: 13.sp,
-                      // v21.1.1 — fix dark mode (texte noir invisible).
-                      color: AppColors.textPrimary(context),
-                    ),
-                  ),
-                  if (isShortcut) ...[
-                    SizedBox(width: 6.w),
-                    Icon(Icons.arrow_forward_ios_rounded,
-                        size: 14.sp, color: accent),
-                  ],
-                ],
-              ),
-            );
-            if (!isShortcut) return row;
-            return InkWell(
-              onTap: () {
-                final ctl = DefaultTabController.maybeOf(context);
-                if (ctl != null) {
-                  ctl.animateTo(2);
-                }
-              },
-              borderRadius: BorderRadius.circular(8.r),
-              child: row,
-            );
-          }),
-        ],
-      ),
+    return ShopBenefitList(
+      accent: _violet,
+      items: [
+        // v496 — Daniel : « rajoute la phrase de suivi dans l'onglet
+        // PawFollow ». Suivi en direct longue durée, app fermée.
+        ShopBenefit(
+          icon: Icons.share_location_rounded,
+          title: 'shop569_follow_b1_title'.tr,
+          body: 'pawfollow_feature_live_toggle'.tr,
+        ),
+        // v23.1.357 — itinéraires vers les lieux GRATUITS de la PawMap.
+        ShopBenefit(
+          icon: Icons.directions_walk_rounded,
+          title: 'shop569_follow_b2_title'.tr,
+          body: 'pawfollow_feature_directions'.tr,
+        ),
+        // v556 — option C : l'historique de balade est un avantage PawFollow.
+        ShopBenefit(
+          icon: Icons.history_rounded,
+          title: 'shop569_follow_b3_title'.tr,
+          body: 'pawfollow_feature_history'.tr,
+        ),
+        // v21.1.1 — Forfait Famille mis en évidence (jusqu'à 5 personnes).
+        ShopBenefit(
+          icon: Icons.family_restroom,
+          title: 'shop569_follow_b4_title'.tr,
+          body: 'premium_feature_family_plan'.tr,
+        ),
+        ShopBenefit(
+          icon: Icons.notifications_active_outlined,
+          title: 'shop569_follow_b5_title'.tr,
+          body:
+              '${'premium_feature_notifications'.tr} · ${'premium_feature_chat'.tr}',
+        ),
+        // #106 — chaque abonnement inclut 20 signalements premium utilisables.
+        ShopBenefit(
+          icon: Icons.shield_outlined,
+          title: 'shop569_follow_b6_title'.tr,
+          body:
+              '${'shop_premium_reports_included'.tr} · ${'premium_feature_badge'.tr}',
+        ),
+        // v489/v491 — Daniel : option « membres Paw Map proches » avec le VRAI
+        // logo rose utilisateur (pas une icône générique).
+        ShopBenefit(
+          iconWidget: _pawBadgeMini(),
+          title: 'shop_nearby_members'.tr,
+          body: 'premium_feature_friends_tracking'.tr,
+        ),
+        // Session v15-4 — raccourci vers l'onglet PawSpot pour récupérer le
+        // boost offert : chevron conservé, même action qu'avant.
+        ShopBenefit(
+          icon: Icons.push_pin_rounded,
+          title: 'premium_feature_monthly_boost'.tr,
+          onTap: () {
+            final ctl = DefaultTabController.maybeOf(context);
+            if (ctl != null) {
+              ctl.animateTo(2);
+            }
+          },
+        ),
+      ],
     );
   }
 
@@ -2272,7 +1950,16 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
 //  récompenses. 4,99 €/mois · 39,99 €/an · essai gratuit 7 jours.
 // ═══════════════════════════════════════════════════════════════════════════
 class _PawSpotTab extends StatefulWidget {
-  const _PawSpotTab();
+  const _PawSpotTab({
+    required this.onPromo,
+    required this.onRestore,
+    required this.restoring,
+  });
+
+  /// v569 — lignes du bloc « Aide & infos » (pilotées par l'écran parent).
+  final VoidCallback onPromo;
+  final VoidCallback onRestore;
+  final bool restoring;
 
   @override
   State<_PawSpotTab> createState() => _PawSpotTabState();
@@ -2653,8 +2340,9 @@ class _PawSpotTabState extends State<_PawSpotTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    // v569 — squelette animé au lieu d'un rond de progression.
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const ShopSkeleton(tiles: 2);
     }
     if (_loadFailed) {
       return ShopErrorState(
@@ -2682,23 +2370,19 @@ class _PawSpotTabState extends State<_PawSpotTab>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── 1. Hero produit (état intégré en bas à gauche) ────────
                   _buildHeader(context),
+                  // Essai gratuit / rappel d'expiration juste sous le hero.
+                  ..._buildStatusExtras(context),
+                  SizedBox(height: 24.h),
+                  // ── 2. Avantages ─────────────────────────────────────────
+                  ShopSectionTitle(title: 'shop569_benefits_title'.tr),
                   SizedBox(height: 12.h),
-                  _buildStatusCard(context),
-                  if (_subscribed) ...[
-                    if (ShopExpiryNotice.shouldShow(_remainingDays)) ...[
-                      SizedBox(height: 12.h),
-                      ShopExpiryNotice(days: _remainingDays),
-                    ],
-                    SizedBox(height: 12.h),
-                    ShopManageRow(
-                      accent: const Color(0xFFB45309),
-                      activeUntil: DateTime.tryParse(
-                          (_me['pawspotExpiry'] ?? '').toString()),
-                    ),
-                  ],
-                  SizedBox(height: 16.h),
-                  // v556 — gratuit vs abonnement, comme sur les autres onglets.
+                  _buildPlanFeatures(context),
+                  SizedBox(height: 24.h),
+                  // ── 3. Gratuit vs payant ─────────────────────────────────
+                  ShopSectionTitle(title: 'shop569_compare_title'.tr),
+                  SizedBox(height: 12.h),
                   shopValueCard(
                     context,
                     color: const Color(0xFFE8920A),
@@ -2708,13 +2392,13 @@ class _PawSpotTabState extends State<_PawSpotTab>
                     plusBody: 'shop_ps_plus_body'.tr,
                   ),
                   SizedBox(height: 24.h),
+                  // ── 4. Forfaits ──────────────────────────────────────────
                   ShopSectionTitle(title: 'shop567_choose_plan'.tr),
-                  SizedBox(height: 20.h),
-                  _buildPlanCards(context),
-                  SizedBox(height: 12.h),
-                  const ShopLegalNote(),
                   SizedBox(height: 16.h),
-                  _buildPlanFeatures(context),
+                  _buildPlanCards(context),
+                  SizedBox(height: 8.h),
+                  // ── 5. Rangée de confiance ───────────────────────────────
+                  ShopTrustRow(accent: _gold),
                   SizedBox(height: 24.h),
                   _buildPointsCard(context),
                   // v440/v443 — catalogue de récompenses PawPoints OUVERT
@@ -2727,6 +2411,18 @@ class _PawSpotTabState extends State<_PawSpotTab>
                   SizedBox(height: 20.h),
                   // v488 — légende des types de spots, en bas de l'onglet.
                   _buildSpotTypesLegend(context),
+                  SizedBox(height: 24.h),
+                  // ── 6. Aide & infos (+ mentions légales, CGU, privacy) ───
+                  shopHelpCard(
+                    context,
+                    accent: const Color(0xFFB45309),
+                    oneTime: false,
+                    activeUntil: DateTime.tryParse(
+                        (_me['pawspotExpiry'] ?? '').toString()),
+                    onPromo: widget.onPromo,
+                    onRestore: widget.onRestore,
+                    restoring: widget.restoring,
+                  ),
                 ],
               ),
             ),
@@ -2822,121 +2518,107 @@ class _PawSpotTabState extends State<_PawSpotTab>
       title: 'PawSpot',
       subtitle: 'pawspot_shop_subtitle'.tr,
       colors: _spotGradient,
+      // v569 — la pastille d'état vit DANS le hero, en bas à gauche.
+      status: ShopStatusPill(
+        label: 'PawSpot',
+        active: _subscribed,
+        accent: Colors.white,
+        days: _remainingDays,
+        onDark: true,
+      ),
     );
   }
 
-  /// b. État PawSpot — v567 : la MÊME pastille que les 3 autres onglets
-  /// (« PawSpot · Actif · 30 j restants », « Illimité ∞ » au-delà de 10 ans),
-  /// puis l'essai gratuit quand rien n'est actif.
-  Widget _buildStatusCard(BuildContext context) {
+  /// b. Sous le hero : rappel d'expiration (abonné) ou essai gratuit.
+  /// v567 — la pastille d'état est commune aux 4 onglets ; v569 — elle est
+  /// remontée dans le hero et « Gérer mon abonnement » a rejoint « Aide &
+  /// infos ». L'essai gratuit garde exactement le même flux.
+  List<Widget> _buildStatusExtras(BuildContext context) {
     if (_subscribed) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: ShopStatusPill(
-          label: 'PawSpot',
-          active: true,
-          accent: _gold,
-          days: _remainingDays,
-        ),
-      );
+      return <Widget>[
+        if (ShopExpiryNotice.shouldShow(_remainingDays)) ...[
+          SizedBox(height: 12.h),
+          ShopExpiryNotice(days: _remainingDays),
+        ],
+      ];
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ShopStatusPill(
-          label: 'PawSpot',
-          active: false,
-          accent: _gold,
-        ),
-        SizedBox(height: 12.h),
-        if (_trialUsed)
-          // 409 TRIAL_USED (ou flag du payload) → texte grisé non cliquable.
-          Container(
-            width: double.infinity,
-            constraints: const BoxConstraints(minHeight: 48),
-            alignment: Alignment.center,
-            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-            decoration: BoxDecoration(
-              color: AppColors.divider(context).withValues(alpha: 0.45),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: InterText(
-              text: 'pawspot_trial_used'.tr,
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w600,
-              color: AppColors.greyText,
-              maxLines: 2,
-            ),
-          )
-        else
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _trialLoading ? null : _startTrial,
-              icon: _trialLoading
-                  ? SizedBox(
-                      width: 16.w,
-                      height: 16.w,
-                      child: const CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Icon(Icons.card_giftcard_rounded, size: 18.sp),
-              label: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  'pawspot_trial_btn'.tr,
-                  maxLines: 1,
-                  style:
-                      TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700),
-                ),
+    return <Widget>[
+      SizedBox(height: 14.h),
+      if (_trialUsed)
+        // 409 TRIAL_USED (ou flag du payload) → texte grisé non cliquable.
+        Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 48),
+          alignment: Alignment.center,
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+          decoration: BoxDecoration(
+            color: AppColors.divider(context).withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: InterText(
+            text: 'pawspot_trial_used'.tr,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w600,
+            color: AppColors.greyText,
+            maxLines: 2,
+          ),
+        )
+      else
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _trialLoading ? null : _startTrial,
+            icon: _trialLoading
+                ? SizedBox(
+                    width: 16.w,
+                    height: 16.w,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Icon(Icons.card_giftcard_rounded, size: 18.sp),
+            label: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'pawspot_trial_btn'.tr,
+                maxLines: 1,
+                style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700),
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _gold,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                minimumSize: const Size.fromHeight(48),
-                padding: EdgeInsets.symmetric(vertical: 12.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _gold,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              minimumSize: const Size.fromHeight(52),
+              padding: EdgeInsets.symmetric(vertical: 12.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
               ),
             ),
           ),
-      ],
-    );
+        ),
+    ];
   }
 
-  /// c. 2 cartes plans côte à côte (Mensuel / Annuel).
+  /// c. Les 2 forfaits (Mensuel / Annuel) en tuiles pleine largeur —
+  /// v569 : même gabarit que les 3 autres onglets ([ShopPlanTile]).
   /// v566 — plus de `IntrinsicHeight` + `stretch` + `Expanded` (règle release
-  /// de CLAUDE.md) : hauteur minimale commune dans [_planCard].
+  /// de CLAUDE.md).
   Widget _buildPlanCards(BuildContext context) {
     final pct = shopYearlySavingsPct(
       monthly: _amountFor('monthly'),
       yearly: _amountFor('yearly'),
     );
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
       children: [
-        Expanded(
-          child: _planCard(
-            context,
-            plan: 'monthly',
-            title: 'pawspot_plan_monthly'.tr,
-          ),
-        ),
-        SizedBox(width: 10.w),
-        Expanded(
-          child: _planCard(
-            context,
-            plan: 'yearly',
-            title: 'pawspot_plan_yearly'.tr,
-            // Économie calculée sur les prix réels (avant : « 33 % » figé).
-            saveBadge: pct > 0
-                ? 'v566_shop_save_pct'.tr.replaceAll('{pct}', '$pct')
-                : null,
-          ),
+        _planCard(context, plan: 'monthly', title: 'pawspot_plan_monthly'.tr),
+        // Économie calculée sur les prix réels (avant : « 33 % » figé).
+        _planCard(
+          context,
+          plan: 'yearly',
+          title: 'pawspot_plan_yearly'.tr,
+          savePct: pct,
         ),
       ],
     );
@@ -2946,7 +2628,7 @@ class _PawSpotTabState extends State<_PawSpotTab>
     BuildContext context, {
     required String plan,
     required String title,
-    String? saveBadge,
+    int savePct = 0,
   }) {
     final isPurchasing = _purchasingPlan != null;
     final isThisPlan = _purchasingPlan == plan;
@@ -2956,153 +2638,78 @@ class _PawSpotTabState extends State<_PawSpotTab>
     // PAS les codes promo % à /pawspots/subscribe (seulement aux forfaits de
     // /subscriptions/subscribe) → l'affichage promettait une réduction jamais
     // accordée.
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return ShopPlanTile(
+      title: title,
+      priceLabel: _priceLabel(plan),
+      // Équivalent mensuel de l'annuel (masqué sur iOS : prix Apple).
+      footnote: (isYearly && !Platform.isIOS)
+          ? 'v566_shop_equiv_month'.tr.replaceAll('{price}',
+              CurrencyHelper.format(_chargeCurrency, _amountFor('yearly') / 12))
+          : (isYearly
+              ? 'v566_shop_per_year'.tr
+              : 'v566_shop_per_month'.tr),
+      savePct: isYearly ? savePct : 0,
+      ribbon: isYearly ? 'shop569_most_chosen'.tr : null,
+      leading: GoldenPawCoin(size: 24.w),
+      badges: [
+        if (isYearly)
+          ShopPill(
+            label: 'v565_shop_best_price'.tr,
+            background: _gold,
+            gradient: const [_gold, Color(0xFFF0900A)],
+          ),
+      ],
+      selected: isPicked,
+      accent: _gold,
+      loading: isThisPlan,
       onTap: isPurchasing ? null : () => setState(() => _picked = plan),
       // Wallet (sitter/walker) — même raccourci long-press que le Boost tab.
       onLongPress: isPurchasing ? null : () => _confirmPayWithWallet(plan),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            width: double.infinity,
-            constraints: BoxConstraints(minHeight: 128.h),
-            padding: EdgeInsets.fromLTRB(12.w, 20.h, 12.w, 14.h),
-            decoration: BoxDecoration(
-              color: AppColors.card(context),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: isPicked ? _gold : AppColors.divider(context),
-                width: isPicked ? 2 : 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isPicked
-                      ? _gold.withValues(alpha: 0.20)
-                      : Colors.black.withValues(alpha: 0.04),
-                  blurRadius: isPicked ? 16 : 10,
-                  spreadRadius: -4,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                InterText(
-                  text: title,
-                  fontSize: 13.5.sp,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary(context),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 6.h),
-                isThisPlan
-                    ? SizedBox(
-                        width: 22.w,
-                        height: 22.w,
-                        child: const CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: _gold,
-                        ),
-                      )
-                    : FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: PoppinsText(
-                          text: _priceLabel(plan),
-                          fontSize: 22.sp,
-                          fontWeight: FontWeight.w800,
-                          color: _gold,
-                        ),
-                      ),
-                SizedBox(height: 2.h),
-                InterText(
-                  text: isYearly
-                      ? 'v566_shop_per_year'.tr
-                      : 'v566_shop_per_month'.tr,
-                  fontSize: 11.sp,
-                  color: AppColors.greyText,
-                ),
-                SizedBox(height: 8.h),
-                ShopSelectDot(selected: isPicked, color: _gold),
-              ],
-            ),
-          ),
-          if (isYearly)
-            Positioned(
-              top: -9.h,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: ShopPill(
-                  label: saveBadge ?? 'v565_shop_best_price'.tr,
-                  background: _gold,
-                  gradient: const [_gold, Color(0xFFF0900A)],
-                ),
-              ),
-            ),
-        ],
-      ),
     );
   }
 
-  /// c (suite). Les 4 features incluses, check doré.
+  /// c (suite). Les avantages inclus — v569 : lignes « icône ronde teintée +
+  /// titre court + sous-texte », mêmes clés qu'avant, aucun avantage retiré.
   Widget _buildPlanFeatures(BuildContext context) {
-    final features = <String>[
-      // v556 — Daniel : « précise combien de tags gratuits ». Limite serveur
-      // FREE_SPOT_LIMIT = 3.
-      'pawspot_free_tags_note'.tr,
-      'pawspot_feature_unlimited'.tr,
-      'pawspot_feature_all'.tr,
-      'pawspot_feature_top'.tr,
-      // v444 — la communauté PawSpot tourne autour des PawPoints + badges :
-      // on l'expose explicitement dans la liste des avantages de l'abo.
-      'pawspot_feature_points_badges'.tr,
-      'pawspot_feature_rewards'.tr,
-      // v556 — les itinéraires sont inclus dans PawSpot (règle serveur), on
-      // le dit enfin dans la liste.
-      'pawfollow_feature_directions'.tr,
-      // #106 — 20 signalements premium utilisables inclus dans l'abo PawSpot.
-      'shop_premium_reports_included'.tr,
-    ];
-    return Column(
-      children: [
-        ...features.map(
-          (f) => Padding(
-            padding: EdgeInsets.only(bottom: 6.h),
-            child: Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: _gold, size: 16.sp),
-                SizedBox(width: 8.w),
-                Expanded(
-                  child: InterText(
-                    text: f,
-                    fontSize: 13.sp,
-                    color: AppColors.textPrimary(context),
-                  ),
-                ),
-              ],
-            ),
-          ),
+    return ShopBenefitList(
+      accent: _gold,
+      items: [
+        ShopBenefit(
+          icon: Icons.push_pin_rounded,
+          title: 'shop569_spot_b1_title'.tr,
+          // v556 — Daniel : « précise combien de tags gratuits ». Limite
+          // serveur FREE_SPOT_LIMIT = 3.
+          body:
+              '${'pawspot_feature_unlimited'.tr} · ${'pawspot_free_tags_note'.tr}',
         ),
-        // v491 — Daniel : montrer le VRAI logo rose « membre Paw Map » + phrase.
-        Padding(
-          padding: EdgeInsets.only(bottom: 6.h),
-          child: Row(
-            children: [
-              _pawBadgeMini(),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: InterText(
-                  text: 'shop_nearby_members'.tr,
-                  fontSize: 13.sp,
-                  color: AppColors.textPrimary(context),
-                ),
-              ),
-            ],
-          ),
+        ShopBenefit(
+          icon: Icons.local_fire_department_rounded,
+          title: 'shop569_spot_b2_title'.tr,
+          body: '${'pawspot_feature_top'.tr} · ${'pawspot_feature_all'.tr}',
+        ),
+        // v444 — la communauté PawSpot tourne autour des PawPoints + badges.
+        ShopBenefit(
+          icon: Icons.military_tech_rounded,
+          title: 'shop569_spot_b3_title'.tr,
+          body: 'pawspot_feature_points_badges'.tr,
+        ),
+        ShopBenefit(
+          icon: Icons.card_giftcard_rounded,
+          title: 'shop569_spot_b4_title'.tr,
+          body: 'pawspot_feature_rewards'.tr,
+        ),
+        // v556 — les itinéraires sont inclus dans PawSpot (règle serveur).
+        ShopBenefit(
+          icon: Icons.directions_walk_rounded,
+          title: 'shop569_spot_b5_title'.tr,
+          // #106 — 20 signalements premium utilisables inclus dans l'abo.
+          body:
+              '${'pawfollow_feature_directions'.tr} · ${'shop_premium_reports_included'.tr}',
+        ),
+        // v491 — Daniel : montrer le VRAI logo rose « membre Paw Map ».
+        ShopBenefit(
+          iconWidget: _pawBadgeMini(),
+          title: 'shop_nearby_members'.tr,
         ),
       ],
     );
@@ -3347,7 +2954,16 @@ class _PawSpotTabState extends State<_PawSpotTab>
 //  → le backend étend les 3 timers (tracking + pawspot + premium) d'un coup.
 // ═══════════════════════════════════════════════════════════════════════════
 class _PawPremiumTab extends StatefulWidget {
-  const _PawPremiumTab();
+  const _PawPremiumTab({
+    required this.onPromo,
+    required this.onRestore,
+    required this.restoring,
+  });
+
+  /// v569 — lignes du bloc « Aide & infos » (pilotées par l'écran parent).
+  final VoidCallback onPromo;
+  final VoidCallback onRestore;
+  final bool restoring;
 
   @override
   State<_PawPremiumTab> createState() => _PawPremiumTabState();
@@ -3683,8 +3299,9 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    // v569 — squelette animé au lieu d'un rond de progression.
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const ShopSkeleton(tiles: 2);
     }
     final buying = _purchasingPlan != null;
     final pickedYearly = _picked == 'premium_yearly';
@@ -3707,31 +3324,30 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // v567 — bandeau produit commun aux 4 onglets (noir/or).
+                  // ── 1. Hero produit (état intégré en bas à gauche) ────────
                   ShopHero(
                     icon: Image.asset('assets/images/pawpremium_logo.png',
-                        width: 34, height: 34),
+                        width: 36, height: 36),
                     title: 'Paw Premium',
                     subtitle: 'premium_bundle_subtitle'.tr,
                     colors: const [Color(0xFF3A3028), Color(0xFF0F0B08)],
                     titleColor: const Color(0xFFFFD34D),
+                    status: _buildActiveCard(context),
                   ),
-                  SizedBox(height: 12.h),
-                  _buildActiveCard(context),
-                  if (_active) ...[
-                    if (ShopExpiryNotice.shouldShow(_remainingDays)) ...[
-                      SizedBox(height: 12.h),
-                      ShopExpiryNotice(days: _remainingDays),
-                    ],
+                  if (_active &&
+                      ShopExpiryNotice.shouldShow(_remainingDays)) ...[
                     SizedBox(height: 12.h),
-                    ShopManageRow(
-                      accent: const Color(0xFFB45309),
-                      activeUntil: DateTime.tryParse(
-                          (_benefits['premiumExpiry'] ?? '').toString()),
-                    ),
+                    ShopExpiryNotice(days: _remainingDays),
                   ],
-                  SizedBox(height: 16.h),
-                  // v556 — gratuit vs abonnement, comme sur les autres onglets.
+                  SizedBox(height: 24.h),
+                  // ── 2. Avantages (carte noir/or « LE PLUS COMPLET ») ─────
+                  ShopSectionTitle(title: 'shop569_benefits_title'.tr),
+                  SizedBox(height: 12.h),
+                  _buildShowcaseCard(context),
+                  SizedBox(height: 24.h),
+                  // ── 3. Gratuit vs payant ─────────────────────────────────
+                  ShopSectionTitle(title: 'shop569_compare_title'.tr),
+                  SizedBox(height: 12.h),
                   shopValueCard(
                     context,
                     color: const Color(0xFF15120D),
@@ -3741,7 +3357,50 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
                     plusBody: 'shop_pp_plus_body'.tr,
                   ),
                   SizedBox(height: 24.h),
-                  _buildShowcaseCard(context),
+                  // ── 4. Forfaits ──────────────────────────────────────────
+                  ShopSectionTitle(title: 'shop567_choose_plan'.tr),
+                  SizedBox(height: 16.h),
+                  _planCard(
+                    context,
+                    plan: 'premium_monthly',
+                    title: 'premium_bundle_plan_monthly'.tr,
+                  ),
+                  _planCard(
+                    context,
+                    plan: 'premium_yearly',
+                    title: 'premium_bundle_plan_yearly'.tr,
+                    highlight: true,
+                  ),
+                  // Économie vs les deux abonnements séparés : la phrase
+                  // traduite annonce « 33 % » → affichée seulement quand c'est
+                  // le chiffre réel ; sinon le pourcentage exact est sur les
+                  // tuiles.
+                  if (_separateFor('premium_yearly') == null ||
+                      _bundlePct('premium_yearly') == 33) ...[
+                    SizedBox(height: 4.h),
+                    InterText(
+                      text: 'premium_bundle_savings'.tr,
+                      fontSize: 11.5.sp,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFFB45309),
+                      maxLines: 3,
+                    ),
+                  ],
+                  SizedBox(height: 16.h),
+                  // ── 5. Rangée de confiance ───────────────────────────────
+                  ShopTrustRow(accent: _gold),
+                  SizedBox(height: 24.h),
+                  // ── 6. Aide & infos (+ mentions légales, CGU, privacy) ───
+                  shopHelpCard(
+                    context,
+                    accent: const Color(0xFFB45309),
+                    oneTime: false,
+                    activeUntil: DateTime.tryParse(
+                        (_benefits['premiumExpiry'] ?? '').toString()),
+                    onPromo: widget.onPromo,
+                    onRestore: widget.onRestore,
+                    restoring: widget.restoring,
+                  ),
                 ],
               ),
             ),
@@ -3774,18 +3433,21 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
   /// (« Paw Premium · Actif · 30 j restants », « Illimité ∞ » au-delà de
   /// 10 ans au lieu de « Il vous reste 26766 jours »).
   Widget _buildActiveCard(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ShopStatusPill(
-        label: 'Paw Premium',
-        active: _active,
-        accent: _gold,
-        days: _remainingDays,
-      ),
+    // v569 — posée DANS le bandeau produit (fond noir) → `onDark`.
+    return ShopStatusPill(
+      label: 'Paw Premium',
+      active: _active,
+      accent: _goldLight,
+      days: _remainingDays,
+      onDark: true,
     );
   }
 
-  /// La grande carte noir/or « LE PLUS COMPLET » (mockup Daniel).
+  /// La carte noir/or « LE PLUS COMPLET » (mockup Daniel) — v569 : elle porte
+  /// désormais le BLOC AVANTAGES de l'onglet (même gabarit de lignes que les
+  /// 3 autres onglets, en version sombre). Le ruban, le logo et la pastille
+  /// « INCLUT PAWFOLLOW + PAWSPOT » sont conservés ; les forfaits et les
+  /// mentions légales sont remontés au niveau de la page, comme ailleurs.
   Widget _buildShowcaseCard(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -3801,11 +3463,12 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
           BoxShadow(
             color: _gold.withValues(alpha: 0.25),
             blurRadius: 18,
-            offset: const Offset(0, 6),
+            spreadRadius: -6,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      padding: EdgeInsets.fromLTRB(18.w, 22.h, 18.w, 20.h),
+      padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 18.h),
       child: Column(
         children: [
           // Ruban « LE PLUS COMPLET 👑 »
@@ -3822,13 +3485,12 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
               color: _black,
             ),
           ),
-          SizedBox(height: 16.h),
-          // v567 — le logo, le nom et la phrase sont désormais portés par le
-          // bandeau produit ([ShopHero]) en haut de l'onglet : plus de doublon
-          // dans la carte vitrine, qui garde le ruban, les avantages et les
-          // forfaits.
+          SizedBox(height: 14.h),
+          // v567 — le nom et la phrase sont portés par le bandeau produit
+          // ([ShopHero]) en haut de l'onglet : la carte garde le ruban, le
+          // logo, la pastille « inclut » et les avantages.
           Image.asset('assets/images/pawpremium_logo.png',
-              width: 64.w, height: 64.w),
+              width: 56.w, height: 56.w),
           SizedBox(height: 12.h),
           // Pill « INCLUT PAWFOLLOW + PAWSPOT »
           Container(
@@ -3842,127 +3504,84 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
             child: FittedBox(
               fit: BoxFit.scaleDown,
               child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                InterText(
-                  text: '${'premium_bundle_includes'.tr} ',
-                  fontSize: 11.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white.withValues(alpha: 0.9),
-                ),
-                InterText(
-                  text: 'PAWFOLLOW',
-                  fontSize: 11.sp,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFFA78BFA),
-                ),
-                InterText(
-                  text: ' + ',
-                  fontSize: 11.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white.withValues(alpha: 0.9),
-                ),
-                InterText(
-                  text: 'PAWSPOT',
-                  fontSize: 11.sp,
-                  fontWeight: FontWeight.w800,
-                  color: _goldLight,
-                ),
-              ],
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InterText(
+                    text: '${'premium_bundle_includes'.tr} ',
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                  InterText(
+                    text: 'PAWFOLLOW',
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFFA78BFA),
+                  ),
+                  InterText(
+                    text: ' + ',
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                  InterText(
+                    text: 'PAWSPOT',
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w800,
+                    color: _goldLight,
+                  ),
+                ],
               ),
             ),
           ),
           SizedBox(height: 16.h),
-          // 6 avantages avec checks dorés
-          ..._features(context),
-          SizedBox(height: 20.h),
-          // v567 — titre de section, comme sur les 3 autres onglets.
-          Align(
-            alignment: Alignment.centerLeft,
-            child: ShopSectionTitle(
-              title: 'shop567_choose_plan'.tr,
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(height: 20.h),
-          // 2 cartes prix (mensuel / annuel).
-          // v566 — plus de `IntrinsicHeight` + `stretch` + `Expanded` (règle
-          // release de CLAUDE.md) : hauteur minimale commune dans _planCard.
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _planCard(
-                  context,
-                  plan: 'premium_monthly',
-                  title: 'premium_bundle_plan_monthly'.tr,
-                ),
-              ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: _planCard(
-                  context,
-                  plan: 'premium_yearly',
-                  title: 'premium_bundle_plan_yearly'.tr,
-                  highlight: true,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          // Économie vs les deux abonnements séparés : la phrase traduite
-          // annonce « 33 % » → affichée seulement quand c'est le chiffre réel
-          // (prix par défaut) ; sinon le pourcentage exact est sur les cartes.
-          if (_separateFor('premium_yearly') == null ||
-              _bundlePct('premium_yearly') == 33)
-            InterText(
-              text: 'premium_bundle_savings'.tr,
-              fontSize: 11.5.sp,
-              fontWeight: FontWeight.w600,
-              color: _goldLight,
-              textAlign: TextAlign.center,
-              maxLines: 3,
-            ),
-          SizedBox(height: 12.h),
-          const ShopLegalNote(onDark: true),
+          // Les avantages, en lignes « icône + titre court + sous-texte ».
+          _features(context),
         ],
       ),
     );
   }
 
-  List<Widget> _features(BuildContext context) {
-    final items = <String>[
-      'premium_bundle_feat_pawfollow'.tr,
-      'premium_bundle_feat_pawspot'.tr,
-      'premium_bundle_feat_exclusive'.tr,
-      'premium_bundle_feat_badge'.tr,
-      'premium_bundle_feat_points'.tr,
-      'premium_bundle_feat_priority'.tr,
-      // #106 — 20 signalements premium utilisables inclus dans Paw Premium.
-      'shop_premium_reports_included'.tr,
-    ];
-    return items
-        .map(
-          (t) => Padding(
-            padding: EdgeInsets.symmetric(vertical: 4.h),
-            child: Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: _gold, size: 18.sp),
-                SizedBox(width: 10.w),
-                Expanded(
-                  child: InterText(
-                    text: t,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white.withValues(alpha: 0.92),
-                    maxLines: 2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        )
-        .toList();
+  /// v569 — mêmes avantages qu'avant (mêmes clés), rendus dans le gabarit
+  /// commun aux 4 onglets, version sombre.
+  Widget _features(BuildContext context) {
+    return ShopBenefitList(
+      onDark: true,
+      accent: _goldLight,
+      items: [
+        ShopBenefit(
+          icon: Icons.share_location_rounded,
+          title: 'shop569_prem_b1_title'.tr,
+          body: 'premium_bundle_feat_pawfollow'.tr,
+        ),
+        ShopBenefit(
+          icon: Icons.push_pin_rounded,
+          title: 'shop569_prem_b2_title'.tr,
+          body: 'premium_bundle_feat_pawspot'.tr,
+        ),
+        ShopBenefit(
+          icon: Icons.workspace_premium_rounded,
+          title: 'shop569_prem_b3_title'.tr,
+          body:
+              '${'premium_bundle_feat_badge'.tr} · ${'premium_bundle_feat_exclusive'.tr}',
+        ),
+        ShopBenefit(
+          icon: Icons.military_tech_rounded,
+          title: 'shop569_prem_b4_title'.tr,
+          body: 'premium_bundle_feat_points'.tr,
+        ),
+        ShopBenefit(
+          icon: Icons.rocket_launch_rounded,
+          title: 'shop569_prem_b5_title'.tr,
+          body: 'premium_bundle_feat_priority'.tr,
+        ),
+        // #106 — 20 signalements premium utilisables inclus dans Paw Premium.
+        ShopBenefit(
+          icon: Icons.shield_outlined,
+          title: 'shop_premium_reports_included'.tr,
+        ),
+      ],
+    );
   }
 
   /// % d'économie du bundle par rapport aux deux abonnements séparés.
@@ -4001,108 +3620,98 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
       if (separatePrice != null && applePrice == null)
         CurrencyHelper.format(_chargeCurrency, separatePrice),
     ];
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    final isYearly = plan == 'premium_yearly';
+    // v569 — même tuile que les 3 autres onglets ([ShopPlanTile]), en version
+    // claire (les forfaits sont sortis de la carte noire) : l'or reste la
+    // couleur d'accent de Paw Premium.
+    return ShopPlanTile(
+      title: title,
+      priceLabel: _priceLabel(plan),
+      // Équivalent mensuel de l'annuel (masqué sur iOS : prix Apple).
+      footnote: (isYearly && applePrice == null)
+          ? 'v566_shop_equiv_month'.tr.replaceAll('{price}',
+              CurrencyHelper.format(_chargeCurrency, price / 12))
+          : (isYearly
+              ? 'v566_shop_per_year'.tr
+              : 'v566_shop_per_month'.tr),
+      strikeLabel: strikes.isEmpty ? null : strikes.join(' · '),
+      savePct: pct,
+      ribbon: highlight ? 'shop569_most_chosen'.tr : null,
+      leading: Image.asset('assets/images/pawpremium_logo.png',
+          width: 26.w, height: 26.w),
+      badges: [
+        if (highlight)
+          ShopPill(
+            label: 'v565_shop_best_price'.tr,
+            background: _gold,
+            foreground: _black,
+            gradient: const [_gold, _goldLight],
+          ),
+        if (promoApplies) _PromoBadge(percent: promo.percent, accent: _gold),
+      ],
+      selected: isPicked,
+      accent: const Color(0xFFB45309),
+      checkColor: Colors.white,
+      loading: isThisPlan,
       onTap: isPurchasing ? null : () => setState(() => _picked = plan),
       // Wallet (sitter/walker) — même raccourci long-press que les autres tabs.
       onLongPress: isPurchasing ? null : () => _confirmPayWithWallet(plan),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            width: double.infinity,
-            constraints: BoxConstraints(minHeight: 132.h),
-            padding: EdgeInsets.fromLTRB(10.w, 18.h, 10.w, 12.h),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: isPicked ? 0.12 : 0.05),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isPicked ? _goldLight : _gold.withValues(alpha: 0.4),
-                width: isPicked ? 2 : 1,
-              ),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                InterText(
-                  text: title,
-                  fontSize: 12.5.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white.withValues(alpha: 0.9),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 6.h),
-                isThisPlan
-                    ? SizedBox(
-                        width: 22.w,
-                        height: 22.w,
-                        child: const CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: _gold,
-                        ),
-                      )
-                    : FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: PoppinsText(
-                          text: _priceLabel(plan),
-                          fontSize: 20.sp,
-                          fontWeight: FontWeight.w800,
-                          color: _goldLight,
-                        ),
-                      ),
-                SizedBox(height: 2.h),
-                if (strikes.isNotEmpty)
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      strikes.join(' · '),
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontSize: 11.sp,
-                        color: Colors.white.withValues(alpha: 0.5),
-                        decoration: TextDecoration.lineThrough,
-                        decorationColor: Colors.white.withValues(alpha: 0.5),
-                      ),
-                    ),
-                  ),
-                if (promoApplies) ...[
-                  SizedBox(height: 4.h),
-                  _PromoBadge(percent: promo.percent, accent: _goldLight),
-                ],
-                SizedBox(height: 8.h),
-                ShopSelectDot(
-                  selected: isPicked,
-                  color: _goldLight,
-                  idleColor: Colors.white.withValues(alpha: 0.35),
-                  checkColor: _black,
-                ),
-              ],
-            ),
-          ),
-          if (highlight || pct > 0)
-            Positioned(
-              top: -9.h,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: ShopPill(
-                  label: highlight
-                      ? (pct > 0
-                          ? '${'v565_shop_best_price'.tr} · -$pct%'
-                          : 'v565_shop_best_price'.tr)
-                      : '-$pct%',
-                  background: _gold,
-                  foreground: _black,
-                  gradient: const [_gold, _goldLight],
-                ),
-              ),
-            ),
-        ],
-      ),
     );
   }
+}
+
+/// v569 — bloc « Aide & infos » en bas des 4 onglets : « Gérer mon
+/// abonnement », le sélecteur de devise, « J'ai un code », « Restaurer mes
+/// achats » (iOS) puis les mentions légales et les liens CGU /
+/// confidentialité. Avant, ces entrées étaient dispersées (barre du haut,
+/// milieu de page, pied d'écran).
+///
+/// Les liens CGU / confidentialité et le texte légal de renouvellement
+/// restent donc présents sur CHAQUE onglet (exigence Apple 3.1.2), en plus de
+/// la rangée toujours visible du pied d'écran iOS.
+Widget shopHelpCard(
+  BuildContext context, {
+  required Color accent,
+  required bool oneTime,
+  required VoidCallback onPromo,
+  required VoidCallback onRestore,
+  required bool restoring,
+  DateTime? activeUntil,
+  bool showManage = true,
+  Widget? currencyRow,
+}) {
+  return ShopHelpCard(
+    rows: [
+      if (showManage)
+        ShopInfoRow(
+          icon: Icons.manage_accounts_outlined,
+          label: 'v566_shop_manage'.tr,
+          accent: accent,
+          onTap: () => ShopManageRow.open(
+            context,
+            accent: accent,
+            activeUntil: activeUntil,
+          ),
+        ),
+      if (currencyRow != null) currencyRow,
+      ShopInfoRow(
+        icon: Icons.confirmation_number_outlined,
+        label: 'v565_promo_have_code'.tr,
+        accent: accent,
+        onTap: onPromo,
+      ),
+      // v503 — « Restaurer mes achats » : exigence Apple, iOS uniquement.
+      if (Platform.isIOS)
+        ShopInfoRow(
+          icon: Icons.restore_rounded,
+          label: 'iap_restore_button'.tr,
+          accent: accent,
+          loading: restoring,
+          onTap: onRestore,
+        ),
+    ],
+    footer: ShopLegalNote(oneTime: oneTime),
+  );
 }
 
 /// v556 — Daniel : « explique mieux les abonnements dans la boutique ».
@@ -4132,13 +3741,17 @@ Widget shopValueCard(
         // Hauteur plancher COMMUNE aux deux colonnes, exprimée en `.sp` :
         // elle suit la même échelle que le texte, donc les deux cartes
         // finissent au même niveau sur petit comme sur grand écran.
-        constraints: BoxConstraints(minHeight: 200.sp),
+        constraints: BoxConstraints(minHeight: 216.sp),
         padding: EdgeInsets.all(14.w),
         decoration: BoxDecoration(
           color: filled ? color : color.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(20),
+          // v569 — la colonne payante porte un liseré 2 px de la couleur du
+          // produit : elle se distingue même en mode sombre.
           border: Border.all(
-              color: filled ? color : color.withValues(alpha: 0.25)),
+            color: filled ? color : color.withValues(alpha: 0.25),
+            width: filled ? 2 : 1,
+          ),
           boxShadow: filled
               ? [
                   BoxShadow(
@@ -4153,17 +3766,50 @@ Widget shopValueCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 32,
-              height: 32,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: filled
-                    ? Colors.white.withValues(alpha: 0.18)
-                    : tone.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, size: 18.sp, color: filled ? Colors.white : tone),
+            Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: filled
+                        ? Colors.white.withValues(alpha: 0.18)
+                        : tone.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon,
+                      size: 18.sp, color: filled ? Colors.white : tone),
+                ),
+                // v569 — petit ruban « Recommandé » sur la colonne payante.
+                if (filled) ...[
+                  SizedBox(width: 6.w),
+                  Flexible(
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 7.w, vertical: 3.h),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'shop569_recommended'.tr,
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontSize: 9.sp,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.2,
+                            color: Colors.white,
+                            height: 1.1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
             SizedBox(height: 8.h),
             InterText(

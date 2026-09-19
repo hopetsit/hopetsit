@@ -10,6 +10,7 @@ import 'package:hopetsit/views/profile/widgets/pet_form_widgets.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// Onboarding sitter en 3 étapes (Infos · Services · Vérification).
 ///
@@ -366,7 +367,10 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
 
   Widget _buildNavigationButtons() {
     return Padding(
-      padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 12.h),
+      // v569 — le SafeArea de ProfileSubPageScaffold n'applique rien sur le
+      // Samsung de Daniel : « Suivant » passait sous la barre système.
+      padding: EdgeInsets.fromLTRB(
+          16.w, 8.h, 16.w, 12.h + appBottomInsetInsideSafeArea(context)),
       child: Row(
         children: [
           if (_currentStep > 0) ...[

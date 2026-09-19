@@ -1,4 +1,11 @@
-
+// v569 — « Modifier mon annonce » remis au format du lot « listes » :
+// formulaire en BLOCS (Service · Dates · Description), champ commun de l'app
+// (`CustomTextField`), bouton « Enregistrer » collé en bas au-dessus de la
+// barre système (`appBottomInset`).
+//
+// ⚠️ DESIGN UNIQUEMENT : mêmes champs envoyés (`body`, `startDate`,
+// `endDate`, `houseSittingVenue`), même `PostRepository.updatePost`, même
+// rafraîchissement de `PostsController`, mêmes messages, même `pop(true)`.
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -7,8 +14,13 @@ import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/views/pet_sitter/widgets/post_card_kit.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/custom_text_field.dart';
+import 'package:intl/intl.dart';
 
 /// Edit post screen for the post owner.
 ///
@@ -113,6 +125,127 @@ class _EditPostScreenState extends State<EditPostScreen> {
     }
   }
 
+  /// v569 — la date s'affichait en `j/m/aaaa` brut (table maison). Elle suit
+  /// désormais la langue de l'app.
+  String _dateLabel(DateTime? d, String placeholderKey) {
+    if (d == null) return placeholderKey.tr;
+    return DateFormat.yMMMd(Get.locale?.toLanguageTag()).format(d);
+  }
+
+  Widget _dateTile({
+    required String label,
+    required DateTime? value,
+    required String placeholderKey,
+    required VoidCallback onTap,
+  }) {
+    final empty = value == null;
+    return Material(
+      color: AppColors.inputFill(context),
+      borderRadius: BorderRadius.circular(PostCardKit.blockRadius.r),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(PostCardKit.blockRadius.r),
+        child: Container(
+          constraints: BoxConstraints(minHeight: 56.h),
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(PostCardKit.blockRadius.r),
+            border: Border.all(color: AppColors.divider(context)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.calendar_today_rounded,
+                size: 16.sp,
+                color: AppColors.primaryColor,
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InterText(
+                      text: label,
+                      fontSize: 10.5.sp,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 2.h),
+                    InterText(
+                      text: _dateLabel(value, placeholderKey),
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w700,
+                      color: empty
+                          ? AppColors.textSecondary(context)
+                          : AppColors.textPrimary(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Option de lieu en PILULE sélectionnable (les `RadioListTile` empilés
+  /// débordaient en allemand et en polonais).
+  Widget _venueOption(String value, String labelKey, IconData icon) {
+    final selected = _houseSittingVenue == value;
+    return Material(
+      color: selected
+          ? AppColors.primaryColor.withValues(alpha: 0.10)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(PostCardKit.pillRadius.r),
+      child: InkWell(
+        onTap: () => setState(() => _houseSittingVenue = value),
+        borderRadius: BorderRadius.circular(PostCardKit.pillRadius.r),
+        child: Container(
+          constraints: BoxConstraints(minHeight: PostCardKit.tapTarget.w),
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(PostCardKit.pillRadius.r),
+            border: Border.all(
+              color: selected
+                  ? AppColors.primaryColor.withValues(alpha: 0.45)
+                  : AppColors.divider(context),
+              width: selected ? 1.4 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selected ? Icons.check_circle_rounded : icon,
+                size: 18.sp,
+                color: selected
+                    ? AppColors.primaryColor
+                    : AppColors.textSecondary(context),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: InterText(
+                  text: labelKey.tr,
+                  fontSize: 12.5.sp,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected
+                      ? AppColors.primaryColor
+                      : AppColors.textPrimary(context),
+                  maxLines: 2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -130,113 +263,122 @@ class _EditPostScreenState extends State<EditPostScreen> {
           color: AppColors.textPrimary(context),
         ),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(16.w),
-          child: ListView(
-            children: [
-              InterText(
-                text: 'edit_post_body_label'.tr,
-                fontSize: 13.sp,
-                color: AppColors.textSecondary(context),
-              ),
-              SizedBox(height: 8.h),
-              TextField(
-                controller: _bodyCtrl,
-                maxLines: 5,
-                maxLength: 2000,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
+              children: [
+                // ── Bloc Service ────────────────────────────────────────
+                PostBlock(
+                  accent: AppColors.primaryColor,
+                  title: 'lists569_section_service'.tr,
+                  titleIcon: Icons.home_work_rounded,
+                  background: AppColors.card(context),
+                  borderColor: AppColors.divider(context),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      InterText(
+                        text: 'house_sitting_venue_title'.tr,
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary(context),
+                      ),
+                      SizedBox(height: 10.h),
+                      _venueOption(
+                        'owners_home',
+                        'house_sitting_venue_owner_home',
+                        Icons.house_rounded,
+                      ),
+                      SizedBox(height: 8.h),
+                      _venueOption(
+                        'sitters_home',
+                        'house_sitting_venue_sitter_home',
+                        Icons.cottage_rounded,
+                      ),
+                    ],
                   ),
-                  hintText: 'edit_post_body_hint'.tr,
                 ),
-              ),
-              SizedBox(height: 16.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickStartDate,
-                      icon: const Icon(Icons.calendar_today),
-                      label: InterText(
-                        text: _startDate == null
-                            ? 'edit_post_start_date'.tr
-                            : '${_startDate!.day}/${_startDate!.month}/${_startDate!.year}',
-                        fontSize: 13.sp,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 12.w),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickEndDate,
-                      icon: const Icon(Icons.calendar_today),
-                      label: InterText(
-                        text: _endDate == null
-                            ? 'edit_post_end_date'.tr
-                            : '${_endDate!.day}/${_endDate!.month}/${_endDate!.year}',
-                        fontSize: 13.sp,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 20.h),
-              InterText(
-                text: 'house_sitting_venue_title'.tr,
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary(context),
-              ),
-              SizedBox(height: 8.h),
-              RadioGroup<String>(
-                groupValue: _houseSittingVenue,
-                onChanged: (v) => setState(() => _houseSittingVenue = v),
-                child: Column(
-                  children: [
-                    RadioListTile<String>(
-                      value: 'owners_home',
-                      title: InterText(
-                        text: 'house_sitting_venue_owner_home'.tr,
-                        fontSize: 13.sp,
-                      ),
-                    ),
-                    RadioListTile<String>(
-                      value: 'sitters_home',
-                      title: InterText(
-                        text: 'house_sitting_venue_sitter_home'.tr,
-                        fontSize: 13.sp,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 24.h),
-              SizedBox(
-                width: double.infinity,
-                height: 52.h,
-                child: ElevatedButton(
-                  onPressed: _isSaving ? null : _save,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                  ),
-                  child: _isSaving
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : InterText(
-                          text: 'edit_post_save_button'.tr,
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.whiteColor,
+                SizedBox(height: 14.h),
+
+                // ── Bloc Dates ──────────────────────────────────────────
+                PostBlock(
+                  accent: AppColors.primaryColor,
+                  title: 'lists569_section_dates'.tr,
+                  titleIcon: Icons.event_rounded,
+                  background: AppColors.card(context),
+                  borderColor: AppColors.divider(context),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _dateTile(
+                          label: 'edit_post_start_date'.tr,
+                          value: _startDate,
+                          placeholderKey: 'edit_post_start_date',
+                          onTap: _pickStartDate,
                         ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: _dateTile(
+                          label: 'edit_post_end_date'.tr,
+                          value: _endDate,
+                          placeholderKey: 'edit_post_end_date',
+                          onTap: _pickEndDate,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                SizedBox(height: 14.h),
+
+                // ── Bloc Description ────────────────────────────────────
+                PostBlock(
+                  accent: AppColors.primaryColor,
+                  title: 'lists569_section_description'.tr,
+                  titleIcon: Icons.notes_rounded,
+                  background: AppColors.card(context),
+                  borderColor: AppColors.divider(context),
+                  child: CustomTextField(
+                    controller: _bodyCtrl,
+                    labelText: 'edit_post_body_label'.tr,
+                    hintText: 'edit_post_body_hint'.tr,
+                    maxLines: 6,
+                    minLines: 4,
+                    maxLength: 2000,
+                    radius: 16,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+
+          // ── « Enregistrer » collé en bas, au-dessus de la barre système.
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.fromLTRB(
+              16.w,
+              10.h,
+              16.w,
+              10.h + appBottomInset(context),
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
+              border: Border(
+                top: BorderSide(color: AppColors.divider(context)),
+              ),
+            ),
+            child: ActionPillButton(
+              label: 'edit_post_save_button'.tr,
+              icon: Icons.check_rounded,
+              tone: AppColors.primaryColor,
+              expand: true,
+              busy: _isSaving,
+              onPressed: _isSaving ? null : _save,
+            ),
+          ),
+        ],
       ),
     );
   }

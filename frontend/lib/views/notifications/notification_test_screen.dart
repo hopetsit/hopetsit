@@ -17,6 +17,7 @@ import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class NotificationTestScreen extends StatefulWidget {
   const NotificationTestScreen({super.key});
@@ -173,7 +174,9 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 32.h),
+              // v569 — dernier bouton d'envoi au-dessus de la barre système.
+              padding: EdgeInsets.fromLTRB(
+                  16.w, 12.h, 16.w, 32.h + appBottomInset(context)),
               children: [
                 Container(
                   padding: EdgeInsets.all(14.w),

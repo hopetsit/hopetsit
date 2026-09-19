@@ -1,11 +1,32 @@
+// v569 — carte « demande reçue » du gardien / promeneur, remise au langage
+// visuel du lot (mêmes blocs et mêmes pilules que la carte d'annonce et que
+// les bandeaux d'action).
+//
+// ⚠️ DESIGN UNIQUEMENT : le modèle [PetSitterApplication], les paramètres du
+// constructeur, les callbacks (`onAccept`, `onReject`, `onStartChat`,
+// `onViewOwnerProfile`), les conditions d'affichage (téléphone visible
+// seulement si payé, « Voir profil » et actions seulement si `pending`) et
+// les états « en cours » sont inchangés.
+//
+// Corrections de branchement signalées :
+//   • les pastilles d'état affichaient la VALEUR TECHNIQUE en majuscules
+//     (« COMPLETED », « CANCELLED ») dès que le statut sortait des 3 cas
+//     prévus → libellés traduits pour tous les statuts connus ;
+//   • le montant perdait sa devise hors EUR / GBP / USD (symbole vide :
+//     « 45.00 » sans rien) → `NumberFormat.simpleCurrency` sur la devise de
+//     la donnée, repli « 45.00 CHF ». Plus aucun « € » codé en dur ;
+//   • les boîtes d'attributs défilaient horizontalement dans une carte déjà
+//     dans une liste verticale (et débordaient en allemand) → `Wrap`.
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/booking_date_format.dart';
+import 'package:hopetsit/views/pet_sitter/widgets/post_card_kit.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:intl/intl.dart';
 
 class PetSitterApplication {
   final String id;
@@ -96,10 +117,12 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
 
   PetSitterApplication get application => widget.application;
 
+  bool get _busy => _isAccepting || _isRejecting;
+
   // v18.5 — #20 : couleur du rôle pour cet écran.
   Color get _roleAccent => application.providerRole == 'walker'
-      ? const Color(0xFF16A34A)
-      : const Color(0xFF2563EB);
+      ? ActionTone.walker
+      : ActionTone.sitter;
 
   // v18.7 : pour cacher les boîtes d'attribut vides/non-définies.
   bool _hasValue(String s) {
@@ -111,312 +134,415 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
     return true;
   }
 
+  // ─── Libellés d'état ─────────────────────────────────────────────────────
+
+  /// Libellé TRADUIT d'un statut. Avant v569, tout statut sorti des trois cas
+  /// prévus s'affichait en brut et en majuscules (« COMPLETED »).
+  String _statusLabel(String raw) {
+    switch (raw.toLowerCase().trim()) {
+      case 'agreed':
+        return 'status_agreed_label'.tr;
+      case 'accepted':
+      case 'confirmed':
+        return 'status_accepted_label'.tr;
+      case 'pending':
+        return 'status_pending_label'.tr;
+      case 'rejected':
+        return 'status_rejected_label'.tr;
+      case 'cancelled':
+      case 'canceled':
+        return 'status_cancelled_label'.tr;
+      case 'paid':
+        return 'status_paid_label'.tr;
+      case 'completed':
+      case 'done':
+        return 'lists569_status_completed'.tr;
+      case 'failed':
+        return 'status_failed_label'.tr;
+      case 'refunded':
+        return 'status_refunded_label'.tr;
+      default:
+        // Statut inconnu du catalogue : lisible plutôt que « HOUSE_SITTING ».
+        final v = raw.trim().replaceAll('_', ' ');
+        if (v.isEmpty) return '';
+        return v[0].toUpperCase() + v.substring(1).toLowerCase();
+    }
+  }
+
+  Color _statusTone(String raw) {
+    switch (raw.toLowerCase().trim()) {
+      case 'agreed':
+      case 'accepted':
+      case 'confirmed':
+      case 'paid':
+      case 'completed':
+      case 'done':
+        return ActionTone.success;
+      case 'pending':
+        return ActionTone.pending;
+      case 'rejected':
+      case 'cancelled':
+      case 'canceled':
+      case 'failed':
+      case 'refunded':
+        return ActionTone.danger;
+      default:
+        return AppColors.grey500Color;
+    }
+  }
+
+  IconData _statusIcon(String raw) {
+    switch (raw.toLowerCase().trim()) {
+      case 'agreed':
+      case 'accepted':
+      case 'confirmed':
+      case 'paid':
+      case 'completed':
+      case 'done':
+        return Icons.check_circle_rounded;
+      case 'pending':
+        return Icons.schedule_rounded;
+      case 'rejected':
+      case 'cancelled':
+      case 'canceled':
+      case 'failed':
+      case 'refunded':
+        return Icons.cancel_rounded;
+      default:
+        return Icons.info_rounded;
+    }
+  }
+
+  /// Montant dans la devise de la DONNÉE (plus de symbole vide hors
+  /// EUR / GBP / USD), formaté selon la langue de l'app.
+  String _money(double v) {
+    final code = (application.currency ?? 'EUR').toUpperCase();
+    try {
+      return NumberFormat.simpleCurrency(
+        locale: Get.locale?.toLanguageTag(),
+        name: code,
+      ).format(v);
+    } catch (_) {
+      return '${v.toStringAsFixed(2)} $code';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final onStartChat = widget.onStartChat;
+    final isPending = application.status.toLowerCase().trim() == 'pending';
+
     return Container(
       margin: EdgeInsets.only(bottom: 16.h),
-      padding: EdgeInsets.fromLTRB(20.w, 20.w, 0, 20.w),
+      padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 16.h),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(17.r),
+        borderRadius: BorderRadius.circular(PostCardKit.cardRadius.r),
         boxShadow: AppColors.cardShadow(context),
+        border: Border.all(color: AppColors.divider(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // v527 — retour Jose (R3-6) : petite carte PROPRIÉTAIRE en haut
-          // (photo + nom + ville) — avant, le prestataire ne voyait pas qui
-          // envoyait la demande sans ouvrir le bouton « Voir profil ».
-          if (application.ownerName.trim().isNotEmpty) ...[
-            _buildOwnerCard(context),
+          // ── En-tête : propriétaire + pastille d'état ───────────────────
+          if (application.ownerName.trim().isNotEmpty ||
+              application.status != 'paid') ...[
+            _buildHeader(context),
             SizedBox(height: 12.h),
           ],
 
-          // Pet Profile Section
-          _buildPetProfileSection(),
-
+          // ── Bloc « L'animal » : nom + attributs ────────────────────────
+          _buildPetBlock(context),
           SizedBox(height: 10.h),
 
-          // Details Section
-          _buildDetailsSection(),
+          // ── Bloc détails : date, heure, téléphone, lieu ────────────────
+          _buildDetailsBlock(context),
 
           // v18.5 — #20 : carte prix mise en avant — le provider voit
           // combien l'owner paie ET combien il touchera net avant d'accepter.
-          if (application.totalPrice != null && application.totalPrice! > 0)
-            Padding(
-              padding: EdgeInsets.only(top: 14.h, right: 16.w),
-              child: _buildPriceBreakdownCard(),
+          if (application.totalPrice != null && application.totalPrice! > 0) ...[
+            SizedBox(height: 10.h),
+            _buildPriceBreakdownCard(context),
+          ],
+
+          SizedBox(height: 14.h),
+
+          // ── Actions secondaires ────────────────────────────────────────
+          if (onStartChat != null) ...[
+            PostSecondaryButton(
+              icon: Icons.chat_bubble_rounded,
+              label: 'sitter_chat_with_owner'.tr,
+              color: _roleAccent,
+              onTap: onStartChat,
             ),
+            SizedBox(height: 8.h),
+          ],
 
-          SizedBox(height: 20.h),
-
-          // Start Chat Button — v18.8 : couleur rôle (vert walker / bleu sitter).
-          if (onStartChat != null)
-            // v18.9.2 — largeur 'infinie' + padding adapté : avant, le bouton
-            // était fixé à width/2 et le texte 'Discuter avec le propriétaire'
-            // dépassait. Désormais il prend toute la largeur disponible et
-            // le texte ne tronque plus (auto-wrap + ellipsis fallback).
-            Padding(
-              padding: EdgeInsets.only(bottom: 12.h, right: 16.w),
-              child: GestureDetector(
-                onTap: onStartChat,
-                child: Container(
-                  width: double.infinity,
-                  height: 48.h,
-                  padding: EdgeInsets.symmetric(horizontal: 12.w),
-                  decoration: BoxDecoration(
-                    color: _roleAccent,
-                    borderRadius: BorderRadius.circular(24.r),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.chat_outlined,
-                        color: AppColors.whiteColor,
-                        size: 18.sp,
-                      ),
-                      SizedBox(width: 6.w),
-                      Flexible(
-                        child: InterText(
-                          text: 'sitter_chat_with_owner'.tr,
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.whiteColor,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-          // v23.1 part 58 — "Voir profil propriétaire" button : sitter / walker
-          // can preview the owner before tapping Accept / Reject.
-          if (application.status == 'pending' &&
-              widget.onViewOwnerProfile != null) ...[
-            Padding(
-              padding: EdgeInsets.only(right: 16.w),
-              child: GestureDetector(
-                onTap: widget.onViewOwnerProfile,
-                child: Container(
-                  height: 44.h,
-                  decoration: BoxDecoration(
-                    color: AppColors.card(context),
-                    border: Border.all(color: _roleAccent),
-                    borderRadius: BorderRadius.circular(22.r),
-                  ),
-                  child: Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.person_outline,
-                            size: 18.sp, color: _roleAccent),
-                        SizedBox(width: 8.w),
-                        InterText(
-                          text: 'sitter_view_owner_profile'.tr,
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w600,
-                          color: _roleAccent,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+          // v23.1 part 58 — "Voir profil propriétaire" : sitter / walker
+          // peut voir l'owner avant d'accepter / refuser.
+          if (isPending && widget.onViewOwnerProfile != null) ...[
+            PostSecondaryButton(
+              icon: Icons.person_rounded,
+              label: 'sitter_view_owner_profile'.tr,
+              color: _roleAccent,
+              onTap: widget.onViewOwnerProfile,
             ),
             SizedBox(height: 10.h),
           ],
 
-          // Action Buttons
-          if (application.status == 'pending') _buildActionButtons(context),
-          SizedBox(height: 10.h),
-          Padding(
-            padding: EdgeInsets.only(right: 16.w),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                if (application.status != 'paid')
-                  Flexible(child: _buildStatusChip(application.status)),
-                // else
-                //   Container(),
+          // ── Actions principales ────────────────────────────────────────
+          if (isPending) _buildActionButtons(context),
 
-                // if (application.paymentStatus == 'paid')
-                Flexible(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: _buildPaymentStatusChip(application.paymentStatus),
-                  ),
+          // ── Pastille de paiement (l'état de la demande est en en-tête) ──
+          if (application.paymentStatus.trim().isNotEmpty) ...[
+            SizedBox(height: 12.h),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ActionStatusPill(
+                label: 'sitter_payment_status_label'.tr.replaceAll(
+                  '@status',
+                  _statusLabel(application.paymentStatus),
                 ),
-              ],
+                icon: _statusIcon(application.paymentStatus),
+                tone: _statusTone(application.paymentStatus),
+              ),
             ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// v527 — retour Jose (R3-6) : propriétaire (photo + nom + ville) en haut,
+  /// avec la pastille d'état de la demande à droite.
+  Widget _buildHeader(BuildContext context) {
+    final avatarUrl = application.ownerAvatar.trim();
+    final city = application.ownerCity.trim();
+    final name = application.ownerName.trim();
+    // Condition d'origine conservée : l'état de la DEMANDE est masqué quand
+    // il vaut déjà « paid » (la pastille de paiement le dit mieux).
+    final showStatus = application.status != 'paid';
+    final statusPill = showStatus
+        ? ActionStatusPill(
+            label: _statusLabel(application.status),
+            icon: _statusIcon(application.status),
+            tone: _statusTone(application.status),
+          )
+        : null;
+
+    if (name.isEmpty) {
+      return statusPill == null
+          ? const SizedBox.shrink()
+          : Align(alignment: Alignment.centerLeft, child: statusPill);
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        CircleAvatar(
+          radius: 24.r,
+          backgroundColor: _roleAccent.withValues(alpha: 0.12),
+          backgroundImage: avatarUrl.isNotEmpty
+              ? CachedNetworkImageProvider(avatarUrl, maxWidth: 150)
+              : null,
+          child: avatarUrl.isEmpty
+              ? Icon(Icons.person, size: 24.sp, color: _roleAccent)
+              : null,
+        ),
+        SizedBox(width: 12.w),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              InterText(
+                text: name,
+                fontSize: 15.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(height: 3.h),
+              Row(
+                children: [
+                  Icon(
+                    Icons.location_on_rounded,
+                    size: 12.sp,
+                    color: AppColors.textSecondary(context),
+                  ),
+                  SizedBox(width: 3.w),
+                  Flexible(
+                    child: InterText(
+                      text: city.isNotEmpty
+                          ? city
+                          : 'lists569_owner_section'.tr,
+                      fontSize: 11.5.sp,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (statusPill != null) ...[
+          SizedBox(width: 8.w),
+          statusPill,
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPetBlock(BuildContext context) {
+    // v569 — `Wrap` au lieu d'un défilement horizontal dans une liste
+    // verticale : les 3 boîtes tiennent sur 2 lignes en allemand / polonais.
+    final chips = <Widget>[
+      if (_hasValue(application.weight))
+        _attributeChip(context, 'sitter_pet_weight'.tr, application.weight),
+      if (_hasValue(application.height))
+        _attributeChip(context, 'sitter_pet_height'.tr, application.height),
+      if (_hasValue(application.color))
+        _attributeChip(context, 'sitter_pet_color'.tr, application.color),
+    ];
+
+    return PostBlock(
+      accent: _roleAccent,
+      title: 'lists569_pet_section'.tr,
+      titleIcon: Icons.pets_rounded,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PoppinsText(
+            text: application.petName.trim().isNotEmpty
+                ? application.petName.trim()
+                : 'lists569_pet_fallback'.tr,
+            fontSize: 15.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (chips.isNotEmpty) ...[
+            SizedBox(height: 10.h),
+            Wrap(spacing: 8.w, runSpacing: 8.h, children: chips),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _attributeChip(BuildContext context, String title, String value) {
+    // v18.6 — fallback propre quand la valeur est vide.
+    final displayValue =
+        value.isEmpty || value.trim().toLowerCase() == 'pas encore défini'
+            ? 'application_card_color_unknown'.tr
+            : value;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 7.h),
+      decoration: BoxDecoration(
+        color: _roleAccent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: _roleAccent.withValues(alpha: 0.20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InterText(
+            text: title,
+            fontSize: 10.sp,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary(context),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          SizedBox(height: 2.h),
+          InterText(
+            text: displayValue,
+            fontSize: 12.5.sp,
+            fontWeight: FontWeight.w700,
+            color: _roleAccent,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
     );
   }
 
-  /// v527 — retour Jose (R3-6) : carte propriétaire (CircleAvatar avec photo,
-  /// fallback icône personne, nom + ville si dispo). Même style de carte que
-  /// le reste de l'écran (fond doux, coins arrondis).
-  Widget _buildOwnerCard(BuildContext context) {
-    final avatarUrl = application.ownerAvatar.trim();
-    final city = application.ownerCity.trim();
-    return Padding(
-      padding: EdgeInsets.only(right: 16.w),
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(12.w),
-        decoration: BoxDecoration(
-          color: AppColors.detailBoxColor,
-          borderRadius: BorderRadius.circular(14.r),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 24.r,
-              backgroundColor: _roleAccent.withValues(alpha: 0.12),
-              backgroundImage: avatarUrl.isNotEmpty
-                  ? CachedNetworkImageProvider(avatarUrl, maxWidth: 150)
-                  : null,
-              child: avatarUrl.isEmpty
-                  ? Icon(Icons.person, size: 24.sp, color: _roleAccent)
-                  : null,
+  Widget _buildDetailsBlock(BuildContext context) {
+    // v18.8 — on n'affiche le numéro du propriétaire que si la réservation
+    // est PAYÉE (paymentStatus=='paid'). Avant paiement, contact privé.
+    final showPhone = application.paymentStatus.toLowerCase() == 'paid' &&
+        application.phoneNumber.trim().isNotEmpty;
+
+    // Pas de titre : chaque puce porte déjà son libellé traduit (« Date »,
+    // « Heure », « Téléphone », « Lieu »), donc un intitulé de bloc unique
+    // serait faux dès qu'une ligne n'est pas une date.
+    return PostBlock(
+      accent: _roleAccent,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PostBullet(
+            icon: Icons.calendar_today_rounded,
+            accent: _roleAccent,
+            label: 'sitter_detail_date'.tr,
+            // v18.9.1 — date localisée : FR "mer. 23 avr. 2026".
+            value: _valueOrFallback(
+                BookingDateFormat.localizedDate(application.date)),
+          ),
+          PostBullet(
+            icon: Icons.schedule_rounded,
+            accent: _roleAccent,
+            label: 'sitter_detail_time'.tr,
+            // v18.9.1 — heure localisée : FR "13:14" au lieu de "1:14 PM".
+            value: _valueOrFallback(
+                BookingDateFormat.localizedTime(application.time)),
+          ),
+          if (showPhone)
+            PostBullet(
+              icon: Icons.call_rounded,
+              accent: _roleAccent,
+              label: 'sitter_detail_phone'.tr,
+              value: application.phoneNumber,
             ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InterText(
-                    text: application.ownerName.trim(),
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary(context),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (city.isNotEmpty) ...[
-                    SizedBox(height: 2.h),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on_outlined,
-                          size: 13.sp,
-                          color: AppColors.textSecondary(context),
-                        ),
-                        SizedBox(width: 3.w),
-                        Flexible(
-                          child: InterText(
-                            text: city,
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w400,
-                            color: AppColors.textSecondary(context),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
+          if (application.location.trim().isNotEmpty)
+            PostBullet(
+              icon: Icons.location_on_rounded,
+              accent: _roleAccent,
+              label: 'sitter_detail_location'.tr,
+              value: application.location,
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildPetProfileSection() {
-    return Row(
-      children: [
-        // Pet Profile Picture and Name
-        // Column(
-        //   crossAxisAlignment: CrossAxisAlignment.center,
-        //   children: [
-        //     CircleAvatar(
-        //       radius: 45.r,
-        //       backgroundColor: AppColors.greyColor.withValues(alpha: 0.3),
-        //       backgroundImage:
-        //           application.petImage.isNotEmpty &&
-        //               (application.petImage.startsWith('http://') ||
-        //                   application.petImage.startsWith('https://'))
-        //           ? CachedNetworkImageProvider(application.petImage)
-        //           : null,
-        //       child:
-        //           application.petImage.isEmpty ||
-        //               (!application.petImage.startsWith('http://') &&
-        //                   !application.petImage.startsWith('https://'))
-        //           ? Icon(Icons.person, size: 40.sp, color: AppColors.greyColor)
-        //           : null,
-        //     ),
-        //   ],
-        // ),
-        // SizedBox(width: 12.w),
-
-        // Attribute Boxes — v18.7 : si la valeur est vide/non défini,
-        // on n'affiche plus la boîte du tout (plus propre que "Non défini").
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                if (_hasValue(application.weight)) ...[
-                  _buildAttributeBox(
-                    'sitter_pet_weight'.tr,
-                    application.weight,
-                    _roleAccent,
-                  ),
-                  SizedBox(width: 8.w),
-                ],
-                if (_hasValue(application.height)) ...[
-                  _buildAttributeBox(
-                    'sitter_pet_height'.tr,
-                    application.height,
-                    _roleAccent,
-                  ),
-                  SizedBox(width: 8.w),
-                ],
-                if (_hasValue(application.color)) _buildAttributeBox(
-                  'sitter_pet_color'.tr,
-                  application.color,
-                  _roleAccent,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  String _valueOrFallback(String value) =>
+      value.trim().isEmpty ? 'sitter_not_available_yet'.tr : value;
 
   /// v411 refonte — carte « Votre gain estimé » (maquette Postuler).
   /// Total payé par l'owner → − Commission PawMap (taux RÉEL) → Vous recevez.
   /// La commission est déduite des vraies valeurs (total payé − net), donc le
-  /// taux affiché reflète 20 % (ou 15 % pour un prestataire Top). Affichée
-  /// SEULEMENT si totalPrice > 0.
-  Widget _buildPriceBreakdownCard() {
-    final currency = application.currency ?? 'EUR';
+  /// taux affiché reflète 20 % (ou 15 % pour un prestataire Top).
+  Widget _buildPriceBreakdownCard(BuildContext context) {
     final total = application.totalPrice ?? 0;
     final net = application.netPayout ?? (total * 0.8);
     final commission = (total - net).clamp(0, double.infinity).toDouble();
     // Taux réel = commission / net (≈ 20 % ou 15 % Top). Net = base prestataire.
     final ratePct = net > 0 ? (commission / net * 100).round() : 20;
-    final currencySymbol = currency.toUpperCase() == 'EUR'
-        ? '€'
-        : currency.toUpperCase() == 'GBP'
-            ? '£'
-            : currency.toUpperCase() == 'USD'
-                ? '\$'
-                : '';
-    String fmt(double v) => '$currencySymbol${v.toStringAsFixed(2)}';
 
-    Widget row(String label, String value, {Color? valueColor, bool bold = false}) {
+    Widget row(
+      String label,
+      String value, {
+      Color? valueColor,
+      bool bold = false,
+    }) {
       return Padding(
         padding: EdgeInsets.symmetric(vertical: 3.h),
         child: Row(
@@ -428,236 +554,98 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
                 fontSize: bold ? 13.sp : 12.sp,
                 fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
                 color: bold ? _roleAccent : AppColors.textSecondary(context),
+                maxLines: 2,
               ),
             ),
             SizedBox(width: 8.w),
             PoppinsText(
               text: value,
-              fontSize: bold ? 18.sp : 13.sp,
+              fontSize: bold ? 17.sp : 13.sp,
               fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
               color: valueColor ?? AppColors.textPrimary(context),
+              maxLines: 1,
             ),
           ],
         ),
       );
     }
 
-    return Container(
-      padding: EdgeInsets.all(14.w),
-      decoration: BoxDecoration(
-        color: _roleAccent.withValues(alpha: 0.08),
-        border: Border.all(color: _roleAccent.withValues(alpha: 0.35)),
-        borderRadius: BorderRadius.circular(14.r),
-      ),
+    return PostBlock(
+      accent: _roleAccent,
+      title: 'application_gain_title'.tr,
+      titleIcon: Icons.account_balance_wallet_rounded,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.account_balance_wallet_rounded,
-                  color: _roleAccent, size: 20.sp),
-              SizedBox(width: 8.w),
-              PoppinsText(
-                text: 'application_gain_title'.tr,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w700,
-                color: _roleAccent,
-              ),
-            ],
-          ),
-          SizedBox(height: 8.h),
-          row('application_gain_owner_total'.tr, fmt(total)),
+          row('application_gain_owner_total'.tr, _money(total)),
           row(
             '${'application_gain_commission'.tr} ($ratePct%)',
-            '-${fmt(commission)}',
+            '-${_money(commission)}',
             valueColor: AppColors.errorColor,
           ),
           Padding(
             padding: EdgeInsets.symmetric(vertical: 6.h),
-            child: Divider(height: 1, color: _roleAccent.withValues(alpha: 0.25)),
+            child: Divider(
+              height: 1,
+              color: _roleAccent.withValues(alpha: 0.25),
+            ),
           ),
-          row('application_gain_you_receive'.tr, fmt(net),
-              valueColor: _roleAccent, bold: true),
+          row(
+            'application_gain_you_receive'.tr,
+            _money(net),
+            valueColor: _roleAccent,
+            bold: true,
+          ),
           SizedBox(height: 6.h),
           InterText(
             text: 'application_gain_hint'.tr,
             fontSize: 10.sp,
             color: AppColors.textSecondary(context),
+            maxLines: 3,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAttributeBox(String title, String value, Color valueColor) {
-    // v18.6 — boîtes agrandies pour éviter "Pas encore d..." tronqué.
-    // Largeur 92.w (au lieu de 78), hauteur auto, padding plus généreux,
-    // et texte clean avec fallback "—" quand vide.
-    final displayValue = value.isEmpty || value.trim().toLowerCase() == 'pas encore défini'
-        ? 'application_card_color_unknown'.tr
-        : value;
-    return Container(
-      constraints: BoxConstraints(minHeight: 76.h, minWidth: 92.w),
-      padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 8.w),
-      decoration: BoxDecoration(
-        color: AppColors.detailBoxColor,
-        borderRadius: BorderRadius.circular(14.r),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          PoppinsText(
-            text: title,
-            fontSize: 10.sp,
-            fontWeight: FontWeight.w400,
-            color: AppColors.textSecondary(context),
-          ),
-          SizedBox(height: 4.h),
-          PoppinsText(
-            text: displayValue,
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w600,
-            color: valueColor,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailsSection() {
-    // v18.8 — on n'affiche le numéro du propriétaire que si la réservation
-    // est PAYÉE (paymentStatus=='paid'). Avant paiement, contact privé.
-    // Les icônes prennent désormais la couleur du rôle pour rester cohérent
-    // avec le bouton Accepter et la carte prix.
-    final showPhone =
-        application.paymentStatus.toLowerCase() == 'paid' &&
-            application.phoneNumber.trim().isNotEmpty;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PoppinsText(
-          text: application.petName,
-          fontSize: 16.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary(context),
-        ),
-        SizedBox(height: 12.h),
-        _buildDetailRow(
-          AppImages.calendarIcon,
-          'sitter_detail_date'.tr,
-          // v18.9.1 — date localisée : FR "mer. 23 avr. 2026" au lieu de "Apr 23, 2026".
-          BookingDateFormat.localizedDate(application.date),
-        ),
-        SizedBox(height: 12.h),
-        _buildDetailRow(
-          AppImages.timeIcon,
-          'sitter_detail_time'.tr,
-          // v18.9.1 — heure localisée : FR "13:14" au lieu de "1:14 PM".
-          BookingDateFormat.localizedTime(application.time),
-        ),
-        if (showPhone) ...[
-          SizedBox(height: 12.h),
-          _buildDetailRow(
-            AppImages.callIcon,
-            'sitter_detail_phone'.tr,
-            application.phoneNumber,
-          ),
-        ],
-        if (application.location.trim().isNotEmpty) ...[
-          SizedBox(height: 12.h),
-          _buildDetailRow(
-            AppImages.locationIcon,
-            'sitter_detail_location'.tr,
-            application.location,
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildDetailRow(String iconPath, String label, String value) {
-    final displayValue = value.isEmpty ? 'sitter_not_available_yet'.tr : value;
-    return Row(
-      children: [
-        Image.asset(
-          iconPath,
-          width: 22.w,
-          height: 22.h,
-          color: _roleAccent,
-        ),
-        SizedBox(width: 6.w),
-        Expanded(
-          child: InterText(
-            text: displayValue,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w400,
-            color: AppColors.textSecondary(context),
-          ),
-        ),
-      ],
-    );
-  }
-
+  /// Accepter / Refuser — kit commun : principale pleine couleur du rôle,
+  /// destructive en rouge texte, ≥ 44 px, anti double-tap.
   Widget _buildActionButtons(BuildContext context) {
-    final showReject = widget.application.status == 'pending';
     return Row(
       children: [
-        if (showReject) ...[
-          Expanded(
-            child: GestureDetector(
-              onTap: _isRejecting || _isAccepting || widget.onReject == null
-                  ? null
-                  : () async {
-                      setState(() => _isRejecting = true);
-                      try {
-                        widget.onReject!();
-                      } finally {
-                        if (mounted) setState(() => _isRejecting = false);
-                      }
-                    },
-              child: Container(
-                height: 48.h,
-                decoration: BoxDecoration(
-                  color: AppColors.card(context),
-                  // v18.5 — #20 : Rejeter reste rouge (contraste), accepter
-                  // utilise la couleur du rôle (vert walker / bleu sitter).
-                  border: Border.all(color: const Color(0xFFEF4444)),
-                  borderRadius: BorderRadius.circular(24.r),
-                ),
-                child: Center(
-                  child: _isRejecting
-                      ? SizedBox(
-                          width: 22.w,
-                          height: 22.h,
-                          child: const CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Color(0xFFEF4444),
-                            ),
-                          ),
-                        )
-                      : InterText(
-                          text: 'sitter_reject'.tr,
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFFEF4444),
-                        ),
-                ),
-              ),
-            ),
-          ),
-          SizedBox(width: 12.w),
-        ],
         Expanded(
-          child: GestureDetector(
-            onTap: _isAccepting || _isRejecting
+          child: ActionPillButton(
+            label: 'sitter_reject'.tr,
+            icon: Icons.close_rounded,
+            tone: ActionTone.danger,
+            kind: ActionPillKind.danger,
+            expand: true,
+            haptic: true,
+            busy: _isRejecting,
+            onPressed: (_busy || widget.onReject == null)
+                ? null
+                : () {
+                    setState(() => _isRejecting = true);
+                    try {
+                      widget.onReject!();
+                    } finally {
+                      if (mounted) setState(() => _isRejecting = false);
+                    }
+                  },
+          ),
+        ),
+        SizedBox(width: 12.w),
+        Expanded(
+          child: ActionPillButton(
+            label: 'sitter_accept'.tr,
+            icon: Icons.check_rounded,
+            tone: _roleAccent,
+            expand: true,
+            haptic: true,
+            busy: _isAccepting,
+            onPressed: (_busy || widget.onAccept == null)
                 ? null
                 : () async {
-                    if (widget.onAccept == null) return;
                     setState(() => _isAccepting = true);
                     try {
                       await widget.onAccept!();
@@ -665,170 +653,9 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
                       if (mounted) setState(() => _isAccepting = false);
                     }
                   },
-            child: Container(
-              height: 48.h,
-              decoration: BoxDecoration(
-                // v18.5 — #20 : Accepter utilise la couleur du rôle.
-                color: _isAccepting
-                    ? _roleAccent.withValues(alpha: 0.7)
-                    : _roleAccent,
-                borderRadius: BorderRadius.circular(24.r),
-              ),
-              child: Center(
-                child: _isAccepting
-                    ? SizedBox(
-                        width: 22.w,
-                        height: 22.h,
-                        child: const CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.whiteColor,
-                          ),
-                        ),
-                      )
-                    : InterText(
-                        text: 'sitter_accept'.tr,
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.whiteColor,
-                      ),
-              ),
-            ),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildStatusChip(String status) {
-    final statusLower = status.toLowerCase();
-    Color backgroundColor;
-    Color textColor;
-    IconData icon;
-    String displayText;
-
-    switch (statusLower) {
-      case 'agreed':
-        backgroundColor = AppColors.greenColor.withValues(alpha: 0.1);
-        textColor = AppColors.greenColor;
-        icon = Icons.check_circle;
-        displayText = 'status_agreed_label'.tr;
-        break;
-      case 'pending':
-        backgroundColor = Colors.orange.withValues(alpha: 0.1);
-        textColor = Colors.orange;
-        icon = Icons.timer;
-        displayText = 'status_pending_label'.tr;
-        break;
-      case 'rejected':
-        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
-        textColor = AppColors.errorColor;
-        icon = Icons.close_rounded;
-        displayText = 'status_rejected_label'.tr;
-        break;
-      default:
-        backgroundColor = AppColors.greyColor.withValues(alpha: 0.1);
-        textColor = AppColors.greyColor;
-        icon = Icons.info;
-        displayText = status.toUpperCase();
-    }
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(12.r),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14.sp, color: textColor),
-          SizedBox(width: 6.w),
-          Flexible(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: InterText(
-                text: 'sitter_status_label'.tr.replaceAll(
-                  '@status',
-                  displayText,
-                ),
-                fontSize: 11.sp,
-                fontWeight: FontWeight.w600,
-                color: textColor,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentStatusChip(String paymentStatus) {
-    final statusLower = paymentStatus.toLowerCase();
-    Color backgroundColor;
-    Color textColor;
-    IconData icon;
-    String displayText;
-
-    switch (statusLower) {
-      case 'paid':
-        backgroundColor = AppColors.greenColor.withValues(alpha: 0.1);
-        textColor = AppColors.greenColor;
-        icon = Icons.check_circle;
-        displayText = 'status_paid_label'.tr.toUpperCase();
-        break;
-      case 'pending':
-        backgroundColor = Colors.orange.withValues(alpha: 0.1);
-        textColor = Colors.orange;
-        icon = Icons.timer;
-        displayText = 'status_pending_label'.tr.toUpperCase();
-        break;
-      case 'rejected':
-        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
-        textColor = AppColors.errorColor;
-        icon = Icons.close_rounded;
-        displayText = 'status_rejected_label'.tr;
-        break;
-      default:
-        backgroundColor = AppColors.greyColor.withValues(alpha: 0.1);
-        textColor = AppColors.greyColor;
-        icon = Icons.info;
-        displayText = paymentStatus.toUpperCase();
-    }
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(12.r),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14.sp, color: textColor),
-          SizedBox(width: 6.w),
-          Flexible(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: InterText(
-                text: 'sitter_payment_status_label'.tr.replaceAll(
-                  '@status',
-                  displayText,
-                ),
-                fontSize: 11.sp,
-                fontWeight: FontWeight.w600,
-                color: textColor,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

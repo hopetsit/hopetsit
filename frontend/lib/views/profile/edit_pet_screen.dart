@@ -12,6 +12,7 @@ import 'package:hopetsit/views/profile/widgets/edit_profile_widgets.dart';
 import 'package:hopetsit/views/profile/widgets/pet_form_widgets.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v428 — écran UNIFIÉ « Modifier l'animal » (create + edit). Quand [petId] est
 /// vide → mode CRÉATION (POST), titre « Ajouter un animal » + bouton « Créer le
@@ -603,7 +604,10 @@ class EditPetScreen extends StatelessWidget {
 
             // ── Bouton collant ──
             Padding(
-              padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 12.h),
+              // v569 — le SafeArea de ProfileSubPageScaffold n'applique rien
+              // sur le Samsung de Daniel : le bouton passait sous la barre.
+              padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w,
+                  12.h + appBottomInsetInsideSafeArea(context)),
               child: Obx(
                 () => ProfileSaveBar(
                   label: controller.isLoading.value

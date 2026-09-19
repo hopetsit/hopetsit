@@ -30,9 +30,10 @@ class ModernCardPaymentScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // v565 — stub modernisé (kit Profil), « Retour » en clé traduite.
+    // v569 — même titre que les autres écrans de paiement.
     final accent = currentRoleAccent();
     return ProfileSubPageScaffold(
-      title: 'payment_title'.tr,
+      title: 'pay569_title'.tr,
       accent: accent,
       scroll: false,
       bottom: ProfilePrimaryButton(

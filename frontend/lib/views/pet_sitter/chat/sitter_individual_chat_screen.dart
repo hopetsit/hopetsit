@@ -13,6 +13,7 @@ import 'package:hopetsit/views/chat_shared/chat_composer.dart';
 import 'package:hopetsit/views/chat_shared/chat_conversation_body.dart';
 import 'package:hopetsit/views/chat_shared/chat_gates.dart';
 import 'package:hopetsit/views/chat_shared/chat_header.dart';
+import 'package:hopetsit/views/chat_shared/chat_peer_sheet.dart';
 import 'package:hopetsit/views/chat_shared/chat_models.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/views/chat_shared/contacts_locked_sheet.dart';
@@ -498,6 +499,15 @@ class _SitterIndividualChatScreenState
       appBar: ChatHeaderBar(
         session: chatController,
         theme: t,
+        // v569 — tap sur la photo / le nom : ajouter en ami ou bloquer.
+        onTitleTap: () => showChatPeerSheet(
+          context,
+          session: chatController,
+          conversationId: widget.conversationId,
+          contactName: widget.contactName,
+          contactImage: widget.contactImage,
+          theme: t,
+        ),
         contactName: widget.contactName,
         contactImage: widget.contactImage,
         actions: [

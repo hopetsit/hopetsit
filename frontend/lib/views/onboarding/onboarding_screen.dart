@@ -8,6 +8,7 @@ import 'package:hopetsit/views/auth/login_screen.dart';
 import 'package:hopetsit/views/auth/sign_up_as.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 class OnboardingScreen extends StatelessWidget {
@@ -73,7 +74,14 @@ class OnboardingScreen extends StatelessWidget {
           // disparaître la grille + les boutons en release). Aucun overlay
           // au-dessus des boutons.
           child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 20.w),
+            // v569 — le dernier bouton ne doit jamais passer sous la barre
+            // système Android (viewPadding = 0 en edge-to-edge).
+            padding: EdgeInsets.fromLTRB(
+              20.w,
+              0,
+              20.w,
+              appBottomInsetInsideSafeArea(context),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -251,7 +259,7 @@ class OnboardingScreen extends StatelessWidget {
                                 ),
                                 SizedBox(width: 8.w),
                                 Icon(Icons.arrow_forward_ios_rounded,
-                                    size: 14.sp,
+                                    size: 13.sp,
                                     color: (isDark
                                             ? Colors.white
                                             : AppColors.primaryColor)
@@ -290,7 +298,7 @@ class OnboardingScreen extends StatelessWidget {
                                 ? null
                                 : () => authController.loginWithApple(),
                             icon: Icons.apple,
-                            label: 'onboarding_continue_with_apple'.tr,
+                            label: 'auth569_apple_continue'.tr,
                             isOutlined: false,
                             isLoading:
                                 authController.isAppleLoginLoading.value,
@@ -453,7 +461,7 @@ class _SocialButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16.r),
+      borderRadius: BorderRadius.circular(14.r),
       child: Container(
         height: 52.h,
         width: double.infinity,
@@ -474,7 +482,7 @@ class _SocialButton extends StatelessWidget {
                   width: 1.5,
                 )
               : null,
-          borderRadius: BorderRadius.circular(16.r),
+          borderRadius: BorderRadius.circular(14.r),
         ),
         child: Center(
           child: isLoading
@@ -505,11 +513,18 @@ class _SocialButton extends StatelessWidget {
                         color: Colors.white,
                       ),
                     SizedBox(width: 10.w),
-                    InterText(
-                      text: label,
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: InterText(
+                          text: label,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          maxLines: 1,
+                        ),
+                      ),
                     ),
                   ],
                 ),

@@ -5,11 +5,18 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/reviews/widgets/rating_stars.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
+import 'package:hopetsit/widgets/app_text.dart';
 
 /// v20.0.7 — Top Walker status card for the walker's own profile.
 /// Mirrors TopSitterCard but uses walker-specific endpoint + counters.
+///
+/// v569 — même gabarit que [TopSitterCard] (pastille, étoiles, barre de
+/// progression, mode sombre). Aucun appel réseau ni compteur modifié.
 class TopWalkerCard extends StatefulWidget {
   const TopWalkerCard({super.key});
 
@@ -88,20 +95,25 @@ class _TopWalkerCardState extends State<TopWalkerCard>
     }
   }
 
+  static const int _goal = 20;
+  static const Color _gold = Color(0xFFF4C04A);
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const SizedBox.shrink();
-    final walkerGreen = const Color(0xFF16A34A);
+    final accent = _isTop ? _gold : ActionTone.walker;
+    final progress = (_completed / _goal).clamp(0.0, 1.0);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: 12.h),
+      padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18.r),
         boxShadow: AppColors.cardShadow(context),
         border: Border.all(
-          color: _isTop ? Colors.amber : walkerGreen.withValues(alpha: 0.25),
-          width: _isTop ? 2 : 1,
+          color: accent.withValues(alpha: _isTop ? 0.65 : 0.22),
+          width: _isTop ? 1.6 : 1,
         ),
       ),
       child: Column(
@@ -109,48 +121,88 @@ class _TopWalkerCardState extends State<TopWalkerCard>
         children: [
           Row(
             children: [
-              Icon(
-                _isTop ? Icons.emoji_events_rounded : Icons.trending_up_rounded,
-                color: _isTop ? Colors.amber : walkerGreen,
-                size: 22,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
+              Container(
+                width: 40.w,
+                height: 40.w,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Icon(
                   _isTop
+                      ? Icons.emoji_events_rounded
+                      : Icons.trending_up_rounded,
+                  color: accent,
+                  size: 21.sp,
+                ),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: PoppinsText(
+                  text: _isTop
                       ? 'top_walker_achieved'.tr
                       : 'top_walker_badge'.tr,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary(context),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text('top_walker_progress'.trParams({
-            'done': _completed.toString(),
-            'goal': '20',
-            'rating': _avg.toStringAsFixed(1),
-          })),
-          const SizedBox(height: 4),
-          Text(
-            _isTop
+          SizedBox(height: 12.h),
+          // `reviewsCount` n'est pas exposé par /walkers/:id : on n'invente
+          // aucun compteur — 0 affiche la pastille « Nouveau ».
+          RatingStars(
+            rating: _avg,
+            reviewsCount: _avg > 0 ? 1 : 0,
+            showCount: false,
+            newAccent: accent,
+          ),
+          SizedBox(height: 12.h),
+          InterText(
+            text: 'lists569_progress_goal'.tr
+                .replaceAll('{done}', '$_completed')
+                .replaceAll('{goal}', '$_goal'),
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary(context),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          SizedBox(height: 6.h),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 7.h,
+              backgroundColor: accent.withValues(alpha: 0.12),
+              valueColor: AlwaysStoppedAnimation<Color>(accent),
+            ),
+          ),
+          SizedBox(height: 10.h),
+          InterText(
+            text: _isTop
                 ? 'top_walker_commission_15'.tr
                 // v23.1.323 — Daniel : note déjà ≥ 4.5 → on n'affiche plus "+0.0★".
                 : (4.5 - _avg <= 0
                     ? 'top_walker_need_walks'.trParams({
-                        'walks': (20 - _completed).clamp(0, 20).toString(),
+                        'walks':
+                            (_goal - _completed).clamp(0, _goal).toString(),
                       })
                     : 'top_walker_need_more'.trParams({
-                        'walks': (20 - _completed).clamp(0, 20).toString(),
+                        'walks':
+                            (_goal - _completed).clamp(0, _goal).toString(),
                         'rating': (4.5 - _avg).toStringAsFixed(1),
                       })),
-            style: TextStyle(
-              color: _isTop ? Colors.green : Colors.grey[600],
-              fontWeight: FontWeight.w600,
-            ),
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w600,
+            color: _isTop
+                ? ActionTone.success
+                : AppColors.textSecondary(context),
+            maxLines: 3,
           ),
         ],
       ),

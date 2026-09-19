@@ -1,10 +1,20 @@
+// v569 — fiche animal vue par le prestataire, remise au format du lot :
+// en-tête photo arrondi, identité, puces d'infos à icônes (`PostBullet`) et
+// blocs encadrés (`PostBlock`), pilules de vaccination lisibles.
+//
+// ⚠️ DESIGN UNIQUEMENT : mêmes paramètres, mêmes données, aucune requête.
+// BUG corrigé : « Membre depuis » / « Mis à jour » s'affichaient en
+// `j/m/aaaa h:mm` construit à la main → date et heure dans la langue de
+// l'app (`Get.locale`), heure sur 2 chiffres.
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
+import 'package:hopetsit/views/pet_sitter/widgets/post_card_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:intl/intl.dart';
 
 class PetDetailScreen extends StatefulWidget {
   final String petName;
@@ -192,23 +202,26 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Image Slider or Single Image
-          Container(
-            width: double.infinity,
-            height: 300.h,
-            decoration: BoxDecoration(color: AppColors.lightGrey),
-            child: hasImages
-                ? (hasMultipleImages
-                      ? _buildImageSlider()
-                      : _buildSingleImage(widget.petImages.first))
-                : Center(
-                    child: Image.asset(
-                      AppImages.placeholderImage,
-                      width: 60.w,
-                      height: 60.h,
-                      fit: BoxFit.cover,
+          // Image Slider or Single Image — v569 : coins bas arrondis.
+          ClipRRect(
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(28.r)),
+            child: Container(
+              width: double.infinity,
+              height: 300.h,
+              decoration: BoxDecoration(color: AppColors.lightGrey),
+              child: hasImages
+                  ? (hasMultipleImages
+                        ? _buildImageSlider()
+                        : _buildSingleImage(widget.petImages.first))
+                  : Center(
+                      child: Image.asset(
+                        AppImages.placeholderImage,
+                        width: 60.w,
+                        height: 60.h,
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                  ),
+            ),
           ),
 
           // Page Indicators (only show if multiple images)
@@ -226,15 +239,18 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
             left: 8.w,
             right: 8.w,
             child: Container(
-              height: 110.h,
+              // v569 — hauteur FIXE supprimée : le nom + « race · âge »
+              // débordaient en allemand et en polonais.
+              constraints: BoxConstraints(minHeight: 92.h),
               decoration: BoxDecoration(
-                color: AppColors.card(context).withValues(alpha: 0.9),
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.all(Radius.circular(26.r)),
+                boxShadow: AppColors.cardShadow(context),
               ),
-              padding: EdgeInsets.all(26.w),
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 18.h),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Left Column - Pet Name and Details
                   // v22.1 — bugs 11b + 11d :
@@ -251,8 +267,10 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                         PoppinsText(
                           text: widget.petName,
                           fontSize: 16.sp,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                           color: AppColors.textPrimary(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         if (_buildBreedAgeLine().isNotEmpty) ...[
                           SizedBox(height: 4.h),
@@ -261,6 +279,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                             fontSize: 13.sp,
                             fontWeight: FontWeight.w400,
                             color: AppColors.textSecondary(context),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ],
@@ -275,97 +295,120 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     );
   }
 
-  Widget _buildAboutSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  /// Titre de section unifié : pastille ronde teintée + libellé 14/800.
+  Widget _sectionTitle(IconData icon, String label) {
+    return Row(
       children: [
-        Row(
-          children: [
-            Image.asset(
-              AppImages.pawIcon,
-              width: 20.w,
-              height: 20.h,
-              color: AppColors.textPrimary(context),
-            ),
-            SizedBox(width: 8.w),
-            PoppinsText(
-              text: 'pet_detail_about'.tr.replaceAll('@name', widget.petName),
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
-            ),
-          ],
+        Container(
+          width: 30.w,
+          height: 30.w,
+          decoration: BoxDecoration(
+            color: AppColors.primaryColor.withValues(alpha: 0.10),
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Icon(icon, size: 16.sp, color: AppColors.primaryColor),
         ),
-        SizedBox(height: 12.h),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildDetailBox('pet_detail_weight'.tr, widget.weight, AppColors.primaryColor),
-            _buildDetailBox(
-              'pet_detail_height'.tr,
-              _sanitizeHeight(widget.height),
-              AppColors.primaryColor,
-            ),
-          ],
+        SizedBox(width: 9.w),
+        Expanded(
+          child: PoppinsText(
+            text: label,
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary(context),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-        SizedBox(height: 16.h),
-        PoppinsText(
-          text: widget.description,
-          fontSize: 12.sp,
-          fontWeight: FontWeight.w400,
-          color: AppColors.textSecondary(context),
-        ),
-        // Additional pet details
-        if (widget.passportNumber != null &&
-            widget.passportNumber!.isNotEmpty) ...[
-          SizedBox(height: 12.h),
-          _buildDetailRow('pet_detail_passport_number'.tr, widget.passportNumber!),
-        ],
-        if (widget.chipNumber != null && widget.chipNumber!.isNotEmpty) ...[
-          SizedBox(height: 12.h),
-          _buildDetailRow('pet_detail_chip_number'.tr, widget.chipNumber!),
-        ],
-        if (widget.medicationAllergies != null &&
-            widget.medicationAllergies!.isNotEmpty) ...[
-          SizedBox(height: 12.h),
-          _buildDetailRow('pet_detail_medication_allergies'.tr, widget.medicationAllergies!),
-        ],
-        if (widget.dob != null && widget.dob!.isNotEmpty) ...[
-          SizedBox(height: 12.h),
-          _buildDetailRow('pet_detail_date_of_birth'.tr, widget.dob!),
-        ],
-        if (widget.category != null && widget.category!.isNotEmpty) ...[
-          SizedBox(height: 12.h),
-          _buildDetailRow('pet_detail_category'.tr, _localizedCategory(widget.category!)),
-        ],
       ],
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Row(
+  Widget _buildAboutSection() {
+    final extras = <Widget>[
+      if (widget.passportNumber != null && widget.passportNumber!.isNotEmpty)
+        PostBullet(
+          icon: Icons.badge_rounded,
+          accent: AppColors.primaryColor,
+          label: 'pet_detail_passport_number'.tr,
+          value: widget.passportNumber!,
+        ),
+      if (widget.chipNumber != null && widget.chipNumber!.isNotEmpty)
+        PostBullet(
+          icon: Icons.memory_rounded,
+          accent: AppColors.primaryColor,
+          label: 'pet_detail_chip_number'.tr,
+          value: widget.chipNumber!,
+        ),
+      if (widget.medicationAllergies != null &&
+          widget.medicationAllergies!.isNotEmpty)
+        PostBullet(
+          icon: Icons.medical_information_rounded,
+          accent: AppColors.primaryColor,
+          label: 'pet_detail_medication_allergies'.tr,
+          value: widget.medicationAllergies!,
+        ),
+      if (widget.dob != null && widget.dob!.isNotEmpty)
+        PostBullet(
+          icon: Icons.cake_rounded,
+          accent: AppColors.primaryColor,
+          label: 'pet_detail_date_of_birth'.tr,
+          value: widget.dob!,
+        ),
+      if (widget.category != null && widget.category!.isNotEmpty)
+        PostBullet(
+          icon: Icons.category_rounded,
+          accent: AppColors.primaryColor,
+          label: 'pet_detail_category'.tr,
+          value: _localizedCategory(widget.category!),
+        ),
+    ];
+
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          flex: 2,
-          child: PoppinsText(
-            text: '$label:',
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-            color: AppColors.greyText,
-          ),
+        _sectionTitle(
+          Icons.pets_rounded,
+          'pet_detail_about'.tr.replaceAll('@name', widget.petName),
         ),
-        Expanded(
-          flex: 3,
-          child: PoppinsText(
-            text: value,
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w400,
-            // v21.1 — fix dark mode : textPrimary(context) au lieu de blackColor
-            // (texte noir invisible sur fond sombre).
-            color: AppColors.textPrimary(context),
-          ),
+        SizedBox(height: 12.h),
+        Row(
+          children: [
+            _buildDetailBox('pet_detail_weight'.tr, widget.weight),
+            SizedBox(width: 10.w),
+            _buildDetailBox(
+              'pet_detail_height'.tr,
+              _sanitizeHeight(widget.height),
+            ),
+          ],
         ),
+        if (widget.description.trim().isNotEmpty) ...[
+          SizedBox(height: 14.h),
+          PostBlock(
+            accent: AppColors.primaryColor,
+            background: AppColors.card(context),
+            borderColor: AppColors.divider(context),
+            child: PostExpandableText(
+              text: widget.description,
+              moreLabel: 'post569_see_more'.tr,
+              lessLabel: 'post569_see_less'.tr,
+              accent: AppColors.primaryColor,
+              maxLines: 4,
+            ),
+          ),
+        ],
+        if (extras.isNotEmpty) ...[
+          SizedBox(height: 12.h),
+          PostBlock(
+            accent: AppColors.primaryColor,
+            background: AppColors.card(context),
+            borderColor: AppColors.divider(context),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: extras,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -374,18 +417,9 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Image.asset(AppImages.skillIcon, width: 26.w, height: 26.h),
-            SizedBox(width: 8.w),
-            PoppinsText(
-              text: 'pet_detail_vaccinations'.tr.replaceAll('@name', widget.petName),
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w700,
-              // v21.1 — fix dark mode (titre Vaccinations).
-              color: AppColors.textPrimary(context),
-            ),
-          ],
+        _sectionTitle(
+          Icons.vaccines_rounded,
+          'pet_detail_vaccinations'.tr.replaceAll('@name', widget.petName),
         ),
         SizedBox(height: 12.h),
         Wrap(
@@ -403,18 +437,9 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Image.asset(AppImages.skillIcon, width: 26.w, height: 26.h),
-            SizedBox(width: 8.w),
-            PoppinsText(
-              text: 'pet_detail_gallery'.tr.replaceAll('@name', widget.petName),
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w700,
-              // v21.1 — fix dark mode (titre Galerie).
-              color: AppColors.textPrimary(context),
-            ),
-          ],
+        _sectionTitle(
+          Icons.photo_library_rounded,
+          'pet_detail_gallery'.tr.replaceAll('@name', widget.petName),
         ),
         SizedBox(height: 12.h),
         if (widget.galleryImages.isEmpty)
@@ -447,7 +472,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                   imageUrl.startsWith('https://');
 
               return ClipRRect(
-                borderRadius: BorderRadius.circular(5.r),
+                borderRadius: BorderRadius.circular(14.r),
                 child: isNetworkImage
                     ? CachedNetworkImage(
                         imageUrl: imageUrl,
@@ -479,29 +504,37 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     );
   }
 
-  Widget _buildDetailBox(String title, String value, Color valueColor) {
+  Widget _buildDetailBox(String title, String value) {
     return Expanded(
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 4.w),
-        padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 8.w),
+        padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 10.w),
         decoration: BoxDecoration(
-          color: AppColors.detailBoxColor,
-          borderRadius: BorderRadius.circular(17.r),
+          color: AppColors.primaryColor.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(PostCardKit.blockRadius.r),
+          border: Border.all(
+            color: AppColors.primaryColor.withValues(alpha: 0.18),
+          ),
         ),
         child: Column(
           children: [
             PoppinsText(
               text: title,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w400,
-              color: AppColors.greyColor,
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary(context),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
             SizedBox(height: 4.h),
             PoppinsText(
               text: value,
               fontSize: 14.sp,
-              fontWeight: FontWeight.w600,
-              color: valueColor,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primaryColor,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -582,14 +615,18 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.primaryColor),
+        color: AppColors.primaryColor.withValues(alpha: 0.08),
+        border: Border.all(
+          color: AppColors.primaryColor.withValues(alpha: 0.30),
+        ),
         borderRadius: BorderRadius.circular(20.r),
       ),
       child: PoppinsText(
         text: text,
-        fontSize: 14.sp,
-        fontWeight: FontWeight.w500,
-        color: AppColors.greyColor,
+        // Avant : texte GRIS sur contour orange — illisible en mode sombre.
+        fontSize: 12.5.sp,
+        fontWeight: FontWeight.w600,
+        color: AppColors.primaryColor,
       ),
     );
   }
@@ -598,59 +635,49 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Image.asset(
-              AppImages.pawIcon,
-              width: 20.w,
-              height: 20.h,
-              color: AppColors.textPrimary(context),
-            ),
-            SizedBox(width: 8.w),
-            PoppinsText(
-              text: 'pet_detail_owner_information'.tr,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
-            ),
-          ],
+        _sectionTitle(
+          Icons.person_rounded,
+          'pet_detail_owner_information'.tr,
         ),
         SizedBox(height: 12.h),
-        Container(
-          padding: EdgeInsets.all(16.w),
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(12.r),
-            boxShadow: AppColors.cardShadow(context),
-          ),
+        PostBlock(
+          accent: AppColors.primaryColor,
+          background: AppColors.card(context),
+          borderColor: AppColors.divider(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (widget.ownerName != null && widget.ownerName!.isNotEmpty) ...[
-                _buildOwnerDetailRow(context, 'pet_detail_owner_name'.tr, widget.ownerName!),
-                SizedBox(height: 12.h),
-              ],
+              if (widget.ownerName != null && widget.ownerName!.isNotEmpty)
+                PostBullet(
+                  icon: Icons.person_rounded,
+                  accent: AppColors.primaryColor,
+                  label: 'pet_detail_owner_name'.tr,
+                  value: widget.ownerName!,
+                ),
               // v22.1 — Bug 11c : ville propriétaire affichée pour donner du
               // contexte au sitter (savoir d'où vient l'animal).
-              if (widget.ownerCity != null && widget.ownerCity!.isNotEmpty) ...[
-                _buildOwnerDetailRow(context, 'pet_detail_owner_city'.tr, widget.ownerCity!),
-                SizedBox(height: 12.h),
-              ],
-              if (widget.ownerCreatedAt != null &&
-                  widget.ownerCreatedAt!.isNotEmpty) ...[
-                _buildOwnerDetailRow(
-                  context,
-                  'pet_detail_owner_created_at'.tr,
-                  _formatDate(widget.ownerCreatedAt!),
+              if (widget.ownerCity != null && widget.ownerCity!.isNotEmpty)
+                PostBullet(
+                  icon: Icons.location_on_rounded,
+                  accent: AppColors.primaryColor,
+                  label: 'pet_detail_owner_city'.tr,
+                  value: widget.ownerCity!,
                 ),
-                SizedBox(height: 12.h),
-              ],
+              if (widget.ownerCreatedAt != null &&
+                  widget.ownerCreatedAt!.isNotEmpty)
+                PostBullet(
+                  icon: Icons.event_available_rounded,
+                  accent: AppColors.primaryColor,
+                  label: 'pet_detail_owner_created_at'.tr,
+                  value: _formatDate(widget.ownerCreatedAt!),
+                ),
               if (widget.ownerUpdatedAt != null &&
                   widget.ownerUpdatedAt!.isNotEmpty)
-                _buildOwnerDetailRow(
-                  context,
-                  'pet_detail_owner_updated_at'.tr,
-                  _formatDate(widget.ownerUpdatedAt!),
+                PostBullet(
+                  icon: Icons.update_rounded,
+                  accent: AppColors.primaryColor,
+                  label: 'pet_detail_owner_updated_at'.tr,
+                  value: _formatDate(widget.ownerUpdatedAt!),
                 ),
             ],
           ),
@@ -659,36 +686,13 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     );
   }
 
-  Widget _buildOwnerDetailRow(BuildContext context, String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 2,
-          child: PoppinsText(
-            text: '$label:',
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary(context),
-          ),
-        ),
-        Expanded(
-          flex: 3,
-          child: PoppinsText(
-            text: value,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w400,
-            color: AppColors.textPrimary(context),
-          ),
-        ),
-      ],
-    );
-  }
-
+  /// v569 — date + heure dans la langue de l'app (avant : « 4/9/2026 9:5 »).
   String _formatDate(String isoDate) {
     try {
-      final date = DateTime.parse(isoDate);
-      return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+      final date = DateTime.parse(isoDate).toLocal();
+      final lang = Get.locale?.toLanguageTag();
+      return '${DateFormat.yMMMd(lang).format(date)} '
+          '${DateFormat.Hm(lang).format(date)}';
     } catch (_) {
       return isoDate;
     }

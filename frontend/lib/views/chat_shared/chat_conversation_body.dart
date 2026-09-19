@@ -16,6 +16,7 @@ import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/views/chat_shared/chat_time.dart';
 import 'package:hopetsit/widgets/address_share_card.dart';
 import 'package:hopetsit/widgets/phone_share_card.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class ChatConversationBody extends StatefulWidget {
   const ChatConversationBody({
@@ -49,6 +50,10 @@ class _ChatConversationBodyState extends State<ChatConversationBody>
   final Map<String, GlobalKey> _keys = {};
   String? _highlightId;
 
+  /// v569 — la conversation affichée vient d'être supprimée (ici ou sur un
+  /// autre de mes appareils) → on ferme l'écran de discussion.
+  Worker? _deletedWatch;
+
   // v566 — « lu » façon WhatsApp : la conversation n'est LUE que tant que cet
   // écran est affiché et l'app au premier plan. (currentChatId du contrôleur
   // n'est jamais remis à zéro au retour à la liste : il ne suffit pas.)
@@ -57,6 +62,14 @@ class _ChatConversationBodyState extends State<ChatConversationBody>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     widget.session.setChatVisible(widget.conversationId, true);
+    _deletedWatch = ever<String>(widget.session.deletedConversationId, (id) {
+      if (!mounted || id != widget.conversationId) return;
+      // Après la frame : jamais de pop pendant un build / une notification.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).maybePop();
+      });
+    });
   }
 
   @override
@@ -75,6 +88,7 @@ class _ChatConversationBodyState extends State<ChatConversationBody>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     widget.session.setChatVisible(widget.conversationId, false);
+    _deletedWatch?.dispose();
     _scroll.dispose();
     super.dispose();
   }
@@ -223,6 +237,13 @@ class _ChatConversationBodyState extends State<ChatConversationBody>
     );
   }
 
+  /// Clavier visible ? `MediaQuery.viewInsets` est remis à 0 par le Scaffold
+  /// (`resizeToAvoidBottomInset`), on interroge donc la fenêtre elle-même.
+  bool _keyboardOpen(BuildContext context) {
+    final view = View.of(context);
+    return view.viewInsets.bottom > 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = widget.session;
@@ -300,7 +321,19 @@ class _ChatConversationBodyState extends State<ChatConversationBody>
                         },
                       ),
               ),
-              widget.bottomBuilder(),
+              // v569 — le SafeArea ne protège pas le bas sur le Samsung de
+              // Daniel (inset annoncé à 0) : la zone de saisie (micro, « + »,
+              // envoyer) finissait sous la barre système. Clavier ouvert, le
+              // Scaffold a déjà consommé `viewInsets` : on lit la fenêtre
+              // brute pour ne pas laisser un trou au-dessus du clavier.
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: _keyboardOpen(context)
+                      ? 0
+                      : appBottomInsetInsideSafeArea(context),
+                ),
+                child: widget.bottomBuilder(),
+              ),
             ],
           ),
         );

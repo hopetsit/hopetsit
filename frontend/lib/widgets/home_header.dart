@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/role_chip.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
@@ -147,39 +148,11 @@ class HomeHeader extends StatelessWidget implements PreferredSizeWidget {
 
   /// Petit badge coloré indiquant le rôle (Owner / Sitter / Walker).
   Widget _buildRoleBadge(BuildContext context) {
+    // v569 — pastille de rôle unique (widgets/role_chip.dart).
     try {
-      final authController = Get.find<AuthController>();
-      final r = authController.userRole.value;
+      final r = Get.find<AuthController>().userRole.value;
       if (r == null || r.isEmpty) return const SizedBox.shrink();
-      final lower = r.toLowerCase();
-      Color badgeColor;
-      String badgeKey;
-      switch (lower) {
-        case 'walker':
-          badgeColor = const Color(0xFF16A34A);
-          badgeKey = 'role_walker';
-          break;
-        case 'sitter':
-          badgeColor = const Color(0xFF2563EB);
-          badgeKey = 'role_sitter';
-          break;
-        default:
-          badgeColor = AppColors.primaryColor;
-          badgeKey = 'role_owner';
-      }
-      return Container(
-        padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
-        decoration: BoxDecoration(
-          color: badgeColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(6.r),
-        ),
-        child: InterText(
-          text: badgeKey.tr,
-          fontSize: 9.sp,
-          fontWeight: FontWeight.w700,
-          color: badgeColor,
-        ),
-      );
+      return RoleChip(role: r, compact: true);
     } catch (_) {
       return const SizedBox.shrink();
     }

@@ -388,9 +388,49 @@ class MyApp extends StatelessWidget {
               ),
               // Fixes the "Changer de rôle" dialog where title/body text was
               // nearly invisible (light grey on white).
+              // v569 — Daniel : « tous les boutons de l'ancien style modernisés ».
+              // Défauts GLOBAUX des boutons Material (65 ElevatedButton, 39
+              // OutlinedButton, TextButton, FilledButton) : coins 14, hauteur
+              // tactile 48, texte 15/700, plus d'ombre « Material » datée. Un
+              // style local (styleFrom) garde la priorité.
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  elevation: 0,
+                  minimumSize: const Size(64, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+              filledButtonTheme: FilledButtonThemeData(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(64, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+              outlinedButtonTheme: OutlinedButtonThemeData(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(64, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+              textButtonTheme: TextButtonThemeData(
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(44, 40),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
+                ),
+              ),
               dialogTheme: const DialogThemeData(
                 backgroundColor: AppColors.whiteColor,
                 surfaceTintColor: AppColors.whiteColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(22)),
+                ),
                 titleTextStyle: TextStyle(
                   color: AppColors.blackColor,
                   fontSize: 18,
@@ -453,9 +493,45 @@ class MyApp extends StatelessWidget {
                   borderSide: const BorderSide(color: AppColors.primaryColor, width: 1.5),
                 ),
               ),
+              // v569 — mêmes défauts de boutons qu'en thème clair.
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  elevation: 0,
+                  minimumSize: const Size(64, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+              filledButtonTheme: FilledButtonThemeData(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(64, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+              outlinedButtonTheme: OutlinedButtonThemeData(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(64, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+              textButtonTheme: TextButtonThemeData(
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(44, 40),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
+                ),
+              ),
               dialogTheme: const DialogThemeData(
                 backgroundColor: AppColors.cardDark,
                 surfaceTintColor: AppColors.cardDark,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(22)),
+                ),
                 titleTextStyle: TextStyle(
                   color: AppColors.textPrimaryDark,
                   fontSize: 18,

@@ -15,6 +15,7 @@ import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dar
 import 'package:hopetsit/views/pet_sitter/widgets/pet_sitter_application_card.dart';
 import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class NotificationSitterApplicationCardViewScreen extends StatefulWidget {
   const NotificationSitterApplicationCardViewScreen({
@@ -176,7 +177,9 @@ class _NotificationSitterApplicationCardViewScreenState
       builder: (sheetCtx) {
         return SafeArea(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 24.h),
+            // v569 — complément du SafeArea : 0 sur le Samsung de Daniel.
+            padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w,
+                24.h + appBottomInsetInsideSafeArea(sheetCtx)),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,

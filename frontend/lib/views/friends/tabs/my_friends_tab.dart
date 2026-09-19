@@ -11,6 +11,7 @@ import 'package:hopetsit/views/friends/tabs/friends_ui.dart';
 import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class MyFriendsTab extends StatefulWidget {
   const MyFriendsTab({
@@ -110,7 +111,7 @@ class _MyFriendsTabState extends State<MyFriendsTab>
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           // v465 — marge basse = inset système + 24 (barre Samsung).
           padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w,
-              24.h + MediaQuery.of(context).viewPadding.bottom),
+              24.h + appBottomInset(context)),
           children: [
             FriendsSearchField(
               controller: _searchCtrl,

@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/models/sitter_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 Widget sitterBottomSheet(
@@ -11,133 +12,139 @@ Widget sitterBottomSheet(
   VoidCallback? onViewProfile,
   VoidCallback? onSendRequest,
 }) {
-  return SafeArea(
-    child: Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColors.whiteColor,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 30.r,
-                backgroundColor: AppColors.greyColor.withValues(alpha: 0.2),
-                // v23.1 part 243 round 3 — perf : CachedNetworkImageProvider
-                // limite la decompression a 150px max (vs bitmap natif ~5MB).
-                backgroundImage: sitter.avatar.url.isNotEmpty
-                    ? CachedNetworkImageProvider(sitter.avatar.url, maxWidth: 150)
-                    : null,
-                child: sitter.avatar.url.isEmpty
-                    ? Icon(Icons.person, size: 30.sp, color: AppColors.greyText)
-                    : null,
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: PoppinsText(
-                            text: sitter.name,
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.blackColor,
+  // v569 — feuille ouverte par `Get.bottomSheet` : Flutter ne protège jamais
+  // le bas. Le `Builder` donne un contexte AU-DESSUS du SafeArea pour lire le
+  // vrai inset système (0 sur le Samsung de Daniel) sans le compter deux fois.
+  return Builder(
+    builder: (context) => SafeArea(
+      child: Container(
+        padding: EdgeInsets.fromLTRB(
+            16.w, 16.w, 16.w, 16.w + appBottomInsetInsideSafeArea(context)),
+        decoration: BoxDecoration(
+          color: AppColors.whiteColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 30.r,
+                  backgroundColor: AppColors.greyColor.withValues(alpha: 0.2),
+                  // v23.1 part 243 round 3 — perf : CachedNetworkImageProvider
+                  // limite la decompression a 150px max (vs bitmap natif ~5MB).
+                  backgroundImage: sitter.avatar.url.isNotEmpty
+                      ? CachedNetworkImageProvider(sitter.avatar.url, maxWidth: 150)
+                      : null,
+                  child: sitter.avatar.url.isEmpty
+                      ? Icon(Icons.person, size: 30.sp, color: AppColors.greyText)
+                      : null,
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: PoppinsText(
+                              text: sitter.name,
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.blackColor,
+                            ),
                           ),
-                        ),
-                        if (sitter.identityVerified) ...[
-                          SizedBox(width: 4.w),
-                          // v449 — vérifié = VERT + plus gros (gaté KYC payé).
-                          Icon(Icons.verified,
-                              color: const Color(0xFF16A34A), size: 20.sp),
+                          if (sitter.identityVerified) ...[
+                            SizedBox(width: 4.w),
+                            // v449 — vérifié = VERT + plus gros (gaté KYC payé).
+                            Icon(Icons.verified,
+                                color: const Color(0xFF16A34A), size: 20.sp),
+                          ],
                         ],
-                      ],
-                    ),
-                    SizedBox(height: 4.h),
-                    InterText(
-                      text: 'map_sitter_services_distance'.trParams({
-                        'services': sitter.service.isNotEmpty
-                            ? sitter.service.join(', ')
-                            : 'label_not_available'.tr,
-                        'distance': sitter.distanceKm != null
-                            ? sitter.distanceKm!.toStringAsFixed(2)
-                            : '—',
-                      }),
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.greyText,
-                    ),
-                    if (sitter.rating > 0) ...[
+                      ),
                       SizedBox(height: 4.h),
                       InterText(
-                        text: 'sitter_rating_with_count'.trParams({
-                          'rating': sitter.rating.toStringAsFixed(1),
-                          'count': sitter.reviewsCount.toString(),
+                        text: 'map_sitter_services_distance'.trParams({
+                          'services': sitter.service.isNotEmpty
+                              ? sitter.service.join(', ')
+                              : 'label_not_available'.tr,
+                          'distance': sitter.distanceKm != null
+                              ? sitter.distanceKm!.toStringAsFixed(2)
+                              : '—',
                         }),
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w400,
                         color: AppColors.greyText,
                       ),
+                      if (sitter.rating > 0) ...[
+                        SizedBox(height: 4.h),
+                        InterText(
+                          text: 'sitter_rating_with_count'.trParams({
+                            'rating': sitter.rating.toStringAsFixed(1),
+                            'count': sitter.reviewsCount.toString(),
+                          }),
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.greyText,
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: onViewProfile,
-                  child: Container(
-                    height: 44.h,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppColors.primaryColor),
-                      borderRadius: BorderRadius.circular(12.r),
+              ],
+            ),
+            SizedBox(height: 12.h),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: onViewProfile,
+                    child: Container(
+                      height: 44.h,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.primaryColor),
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Center(
+                        child: InterText(
+                          text: 'sitter_view_profile'.tr,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.primaryColor,
+                        ),
+                      ),
                     ),
-                    child: Center(
-                      child: InterText(
-                        text: 'sitter_view_profile'.tr,
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: onSendRequest,
+                    child: Container(
+                      height: 44.h,
+                      decoration: BoxDecoration(
                         color: AppColors.primaryColor,
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Center(
+                        child: InterText(
+                          text: 'service_card_send_request'.tr,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.whiteColor,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: GestureDetector(
-                  onTap: onSendRequest,
-                  child: Container(
-                    height: 44.h,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryColor,
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    child: Center(
-                      child: InterText(
-                        text: 'service_card_send_request'.tr,
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.whiteColor,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 8.h),
-        ],
+              ],
+            ),
+            SizedBox(height: 8.h),
+          ],
+        ),
       ),
     ),
   );

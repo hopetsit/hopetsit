@@ -9,9 +9,12 @@ import 'package:hopetsit/utils/currency_helper.dart';
 // v568 — libellé partagé « VISA •••• 4242 » (écran Mes cartes).
 import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart'
     show savedCardLabel;
+// v569 — kit d'habillage des écrans de paiement (design uniquement).
+import 'package:hopetsit/views/payment/widgets/payment_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:intl/intl.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v23.1 part 64 — Écran de paiement de réservation, pure Airwallex.
 ///
@@ -316,26 +319,15 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
       },
       child: Scaffold(
       backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.scaffold(context),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: accent),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20.sp, color: accent),
-          onPressed: () async {
-            await _voidIntentIfNeeded();
-            if (mounted) Get.back();
-          },
-        ),
-        centerTitle: true,
-        title: PoppinsText(
-          text: 'payment_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
-        ),
+      // v569 — barre du haut du kit de paiement : retour (même action), titre
+      // « Paiement sécurisé » avec un petit cadenas.
+      appBar: PaySecureAppBar(
+        accent: accent,
+        title: 'pay569_title'.tr,
+        onBack: () async {
+          await _voidIntentIfNeeded();
+          if (mounted) Get.back();
+        },
       ),
       // v23.1 part 62 — auto-launch UX : show a branded full-screen
       // loader on this screen instead of the old recap. The HPP opens
@@ -353,90 +345,80 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 12.h),
+                padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 12.h),
                 child: Column(
                   children: [
-                    SizedBox(height: 12.h),
-                    Container(
-                      width: 80.w,
-                      height: 80.w,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(Icons.lock_rounded, size: 36.sp, color: accent),
-                    ),
-                    SizedBox(height: 16.h),
-                    PoppinsText(
-                      text: 'v565_pay_secure_title'.tr,
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary(context),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 4.h),
-                    PoppinsText(
-                      text: CurrencyHelper.format(currency, widget.totalAmount),
-                      fontSize: 30.sp,
-                      fontWeight: FontWeight.w800,
-                      color: accent,
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 18.h),
-                    _buildSummaryCard(context, accent, currency),
-                    SizedBox(height: 12.h),
-                    Container(
-                      padding: EdgeInsets.all(14.w),
-                      decoration: BoxDecoration(
-                        color: AppColors.card(context),
-                        borderRadius: BorderRadius.circular(16.r),
-                        boxShadow: AppColors.cardShadow(context),
-                      ),
-                      child: Column(
-                        children: [
-                          // v568 — quand une carte est enregistrée, on
-                          // l'annonce ici (« VISA •••• 4242 ») : la page
-                          // Airwallex la présentera, il n'y aura que le
-                          // cryptogramme à saisir.
-                          Obx(() => _summaryRow(
-                                context,
-                                icon: Icons.credit_card_rounded,
-                                label: 'v565_pay_method_label'.tr,
-                                value: _savedCardLabel.value.isNotEmpty
-                                    ? _savedCardLabel.value
-                                    : 'v565_pay_method_card'.tr,
-                              )),
-                          SizedBox(height: 12.h),
-                          Row(
-                            children: [
-                              SizedBox(
-                                width: 18.w,
-                                height: 18.w,
-                                child: CircularProgressIndicator(
-                                    color: accent, strokeWidth: 2.4),
-                              ),
-                              SizedBox(width: 10.w),
-                              Expanded(
-                                child: InterText(
-                                  text: 'payment_connecting'.tr,
-                                  fontSize: 13.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary(context),
-                                  maxLines: 2,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 12.h),
-                    _buildInfoBanner(context, accent),
                     SizedBox(height: 8.h),
+                    // Ce qu'on paie, en gros, dans la devise reçue.
+                    PayAmountHero(
+                      label: 'pay569_amount_label'.tr,
+                      amount: CurrencyHelper.format(currency, widget.totalAmount),
+                      accent: accent,
+                    ),
+                    SizedBox(height: 20.h),
+                    // Récapitulatif compact et repliable (service, prestataire,
+                    // date, animal, moyen de paiement).
+                    Obx(() {
+                      // Règle GetX : le `.value` est lu DIRECTEMENT ici.
+                      final cardLabel = _savedCardLabel.value;
+                      return PayRecapCard(
+                        title: _providerName(),
+                        subtitle:
+                            _serviceLabel().isNotEmpty ? _serviceLabel() : null,
+                        avatarUrl: widget.booking.sitter.avatar.url,
+                        totalLabel: 'payment_total_label'.tr,
+                        totalValue:
+                            CurrencyHelper.format(currency, widget.totalAmount),
+                        accent: accent,
+                        expandLabel: 'pay569_details_show'.tr,
+                        collapseLabel: 'pay569_details_hide'.tr,
+                        lines: _recapLines(cardLabel),
+                      );
+                    }),
+                    // v568 — quand une carte est enregistrée, on l'annonce :
+                    // la page Airwallex la présentera et ne demandera que le
+                    // cryptogramme. Rien n'est affiché si on ne le sait pas.
+                    Obx(() => _savedCardLabel.value.isEmpty
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            padding: EdgeInsets.only(top: 10.h),
+                            child: Row(
+                              children: [
+                                Icon(Icons.check_circle_rounded,
+                                    size: 15.sp, color: accent),
+                                SizedBox(width: 8.w),
+                                Expanded(
+                                  child: InterText(
+                                    text: 'pay569_saved_card_hint'.tr,
+                                    fontSize: 11.5.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary(context),
+                                    height: 1.35,
+                                    maxLines: 3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )),
+                    SizedBox(height: 14.h),
+                    // Ouverture de la page sécurisée.
+                    PayLoadingCard(
+                      message: 'pay569_connecting'.tr,
+                      hint: 'pay569_dont_close'.tr,
+                      accent: accent,
+                    ),
+                    SizedBox(height: 14.h),
+                    PayTrustRow(
+                      accent: accent,
+                      assurances: [
+                        'pay569_trust_encrypted'.tr,
+                        'pay569_trust_escrow'.tr,
+                      ],
+                    ),
+                    SizedBox(height: 12.h),
                     InterText(
                       text: 'payment_secured_by_airwallex'.tr,
-                      fontSize: 11.5.sp,
+                      fontSize: 11.sp,
                       color: AppColors.textSecondary(context),
                       textAlign: TextAlign.center,
                       height: 1.4,
@@ -447,7 +429,10 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
               ),
             ),
             Padding(
-              padding: EdgeInsets.fromLTRB(20.w, 4.h, 20.w, 12.h),
+              // v569 — « Annuler le paiement » collé en bas : complément du
+              // SafeArea (0 sur le Samsung de Daniel).
+              padding: EdgeInsets.fromLTRB(20.w, 4.h, 20.w,
+                  12.h + appBottomInsetInsideSafeArea(context)),
               child: Obx(() => TextButton(
                     onPressed: _controller.isProcessing.value
                         ? null
@@ -595,6 +580,34 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
           ],
         ),
       );
+  }
+
+  /// v569 — lignes du récapitulatif repliable. Uniquement ce que l'écran sait
+  /// déjà : date/heure, animal, et le moyen de paiement (libellé de la carte
+  /// enregistrée quand il y en a une, sinon « Carte bancaire »).
+  List<PayRecapLine> _recapLines(String savedCard) {
+    final lines = <PayRecapLine>[];
+    final date = _dateLabel();
+    if (date.isNotEmpty) {
+      lines.add(PayRecapLine(
+        icon: Icons.event_outlined,
+        label: 'payment_date_label'.tr,
+        value: date,
+      ));
+    }
+    if (widget.booking.petName.isNotEmpty) {
+      lines.add(PayRecapLine(
+        icon: Icons.pets,
+        label: 'payment_pet_label'.tr,
+        value: widget.booking.petName,
+      ));
+    }
+    lines.add(PayRecapLine(
+      icon: Icons.credit_card_rounded,
+      label: 'v565_pay_method_label'.tr,
+      value: savedCard.isNotEmpty ? savedCard : 'v565_pay_method_card'.tr,
+    ));
+    return lines;
   }
 
   Widget _buildSummaryCard(BuildContext context, Color accent, String currency) {

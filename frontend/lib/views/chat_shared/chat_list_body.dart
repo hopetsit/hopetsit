@@ -5,10 +5,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/views/chat_shared/chat_avatar.dart';
+import 'package:hopetsit/views/chat_shared/chat_delete_sheet.dart';
 import 'package:hopetsit/views/chat_shared/chat_models.dart';
 import 'package:hopetsit/views/chat_shared/chat_receipt_ticks.dart';
 import 'package:hopetsit/views/chat_shared/chat_session.dart';
@@ -16,6 +19,7 @@ import 'package:hopetsit/views/chat_shared/chat_states.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/views/chat_shared/chat_time.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 class ChatListBody extends StatefulWidget {
   const ChatListBody({
@@ -82,32 +86,32 @@ class _ChatListBodyState extends State<ChatListBody> {
     super.dispose();
   }
 
+  // v569 — confirmation dans une FEUILLE DU BAS moderne (plus d'AlertDialog
+  // brut) : avatar + nom, titre, phrase honnête sur l'effet réel côté serveur.
+  // Retour haptique dès que le geste déclenche la feuille (glisser ou appui
+  // long), comme dans les apps de messagerie.
   Future<bool> _confirmDelete(
       BuildContext context, ChatConversationBase c) async {
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        backgroundColor: AppColors.card(context),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20.r),
-        ),
-        title: Text('chat_delete_conv_title'.tr),
-        content: Text('chat_delete_conv_msg'.trParams({'name': c.contactName})),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: Text('common_cancel'.tr),
-          ),
-          TextButton(
-            onPressed: () => Get.back(result: true),
-            child: Text(
-              'chat_delete_conv_confirm'.tr,
-              style: TextStyle(color: AppColors.errorColor),
-            ),
-          ),
-        ],
-      ),
+    HapticFeedback.mediumImpact();
+    return showChatDeleteSheet(
+      context,
+      contactName: c.contactName,
+      contactImage: c.contactImage,
+      theme: theme,
+      isOnline: c.isOnline,
     );
-    return confirmed == true;
+  }
+
+  /// Suppression OPTIMISTE : le contrôleur retire la ligne tout de suite puis
+  /// appelle le serveur ; en cas d'échec il la remet (et affiche l'erreur).
+  /// Ici on n'ajoute que la bannière de succès.
+  Future<void> _delete(ChatConversationBase c) async {
+    final ok = await session.deleteConversation(c.id);
+    if (!ok) return;
+    CustomSnackbar.showSuccess(
+      title: 'chatdel569_deleted_title'.tr,
+      message: 'chatdel569_deleted_body'.tr,
+    );
   }
 
   @override
@@ -152,7 +156,11 @@ class _ChatListBodyState extends State<ChatListBody> {
         onRefresh: session.reloadConversations,
         child: ListView.separated(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(16.w, 6.h, 16.w, 140.h),
+          // v569 — dégagement sous la pilule du menu : sur le Samsung de
+          // Daniel le SafeArea parent n'applique rien, la dernière
+          // conversation finissait sous le menu + la barre système.
+          padding: EdgeInsets.fromLTRB(
+              16.w, 6.h, 16.w, 140.h + appBottomInsetInsideSafeArea(context)),
           itemCount: items.length,
           separatorBuilder: (_, __) => SizedBox(height: 10.h),
           itemBuilder: (context, index) {
@@ -160,8 +168,10 @@ class _ChatListBodyState extends State<ChatListBody> {
             return Dismissible(
               key: ValueKey('conv_${c.id}'),
               direction: DismissDirection.endToStart,
+              // v569 — le geste doit être franc (pas de suppression au frôlement).
+              dismissThresholds: const {DismissDirection.endToStart: 0.35},
               confirmDismiss: (_) => _confirmDelete(context, c),
-              onDismissed: (_) => session.deleteConversation(c.id),
+              onDismissed: (_) => _delete(c),
               background: Container(
                 alignment: Alignment.centerRight,
                 padding: EdgeInsets.only(right: 22.w),
@@ -188,9 +198,10 @@ class _ChatListBodyState extends State<ChatListBody> {
                 conversation: c,
                 theme: theme,
                 onTap: () => onOpen(c),
+                // Appui long → EXACTEMENT la même feuille que le glissement.
                 onLongPress: () async {
                   if (await _confirmDelete(context, c)) {
-                    await session.deleteConversation(c.id);
+                    await _delete(c);
                   }
                 },
               ),

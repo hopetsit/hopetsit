@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/cancel_72h_sheet.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/services/service_tracking_helper.dart';
@@ -9,6 +10,7 @@ import 'package:hopetsit/views/booking/handover/handover_action_sheet.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/service_confirmation_card.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -17,6 +19,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
 // v23.1 — onglet Factures.
 import 'package:hopetsit/views/invoices/invoices_screen.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// Walker bookings history screen.
 ///
@@ -211,7 +214,7 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
                 child: ListView.builder(
                   // v468 — dégage le bas au-dessus du menu pleine largeur
                   padding: EdgeInsets.fromLTRB(
-                      20.w, 16.h, 20.w, 110.h + MediaQuery.of(context).viewPadding.bottom),
+                      20.w, 16.h, 20.w, 110.h + appBottomInset(context)),
                   itemCount: list.length,
                   itemBuilder: (context, index) => _buildBookingCard(list[index]),
                 ),
@@ -389,24 +392,14 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
               booking.status.toLowerCase() != 'completed' &&
               booking.status.toLowerCase() != 'refunded') ...[
             SizedBox(height: 12.h),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => _confirmSelfCancel(booking),
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 10.h),
-                  side: const BorderSide(color: Color(0xFFDC2626), width: 1),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.r),
-                  ),
-                ),
-                child: InterText(
-                  text: 'cancel_72h_button'.tr,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFFDC2626),
-                ),
-              ),
+            // v569 — même bouton, habillage du kit commun (rouge texte).
+            ActionPillButton(
+              label: 'cancel_72h_button'.tr,
+              icon: Icons.event_busy_rounded,
+              tone: ActionTone.danger,
+              kind: ActionPillKind.danger,
+              expand: true,
+              onPressed: () => _confirmSelfCancel(booking),
             ),
           ],
           // v23.1.260 — carte de confirmation de service dans la liste walker.
@@ -440,31 +433,8 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
     // v23.1.256 — annulation gratuite seulement si >72h (règle backend) ;
     // sinon message "fenêtre fermée" sans bouton confirmer.
     final canFree = _isWithinSelfCancelWindow(booking);
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        title: Text('cancel_72h_dialog_title'.tr),
-        content: Text(
-          canFree
-              ? 'cancel_72h_dialog_message'.tr
-              : 'cancel_72h_closed_message'.tr,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: Text(canFree ? 'common_cancel'.tr : 'common_ok'.tr),
-          ),
-          if (canFree)
-            ElevatedButton(
-              onPressed: () => Get.back(result: true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-                foregroundColor: Colors.white,
-              ),
-              child: Text('cancel_72h_dialog_confirm'.tr),
-            ),
-        ],
-      ),
-    );
+    // v569 — feuille moderne commune (widgets/cancel_72h_sheet.dart).
+    final confirmed = await showCancel72hSheet(canFree: canFree);
     if (confirmed == true && canFree) {
       await Get.find<WalkerBookingsController>()
           .selfCancelBooking(bookingId: booking.id);

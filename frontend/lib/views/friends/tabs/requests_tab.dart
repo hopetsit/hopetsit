@@ -11,6 +11,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/friends/tabs/friends_ui.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class RequestsTab extends StatelessWidget {
   const RequestsTab({
@@ -62,7 +63,7 @@ class RequestsTab extends StatelessWidget {
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w,
-              24.h + MediaQuery.of(context).viewPadding.bottom),
+              24.h + appBottomInset(context)),
           children: [
             if (incoming.isNotEmpty || familyInvites.isNotEmpty) ...[
               FriendsSectionHeader(

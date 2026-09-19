@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v532 — feuille de PREUVE DE REMISE de l'animal.
 ///
@@ -99,7 +100,10 @@ class _HandoverProofSheetState extends State<HandoverProofSheet> {
           color: Theme.of(context).scaffoldBackgroundColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(22.r)),
         ),
-        padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 20.h),
+        // v569 — complément du SafeArea (0 sur le Samsung de Daniel) : le
+        // bouton « Valider » passait sous la barre système.
+        padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w,
+            20.h + (bottom > 0 ? 0 : appBottomInsetInsideSafeArea(context))),
         child: SafeArea(
           top: false,
           child: Column(

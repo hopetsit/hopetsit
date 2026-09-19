@@ -15,6 +15,7 @@ import 'package:hopetsit/views/friends/tabs/friends_ui.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class BlockedUsersScreen extends StatefulWidget {
   const BlockedUsersScreen({super.key});
@@ -104,7 +105,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w,
-                24.h + MediaQuery.of(context).viewPadding.bottom),
+                24.h + appBottomInsetInsideSafeArea(context)),
             children: [
               ProfileInfoBanner(
                 icon: Icons.info_outline_rounded,

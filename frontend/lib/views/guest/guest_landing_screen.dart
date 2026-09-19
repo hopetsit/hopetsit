@@ -6,6 +6,8 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:hopetsit/controllers/auth_controller.dart';
+import 'package:hopetsit/utils/app_images.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/services/firebase_analytics_service.dart';
 import 'package:hopetsit/views/auth/login_screen.dart';
 import 'package:hopetsit/views/auth/signup_wizard_screen.dart';
@@ -45,8 +47,15 @@ class GuestLandingScreen extends StatelessWidget {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(18.w, 10.h, 18.w,
-                24.h + MediaQuery.viewPaddingOf(context).bottom),
+            // v569 — dégagement bas unique de l'app (Samsung edge-to-edge :
+            // `viewPadding.bottom` vaut 0 alors que la barre à 3 boutons
+            // recouvre 48 px). Le SafeArea entoure déjà le contenu.
+            padding: EdgeInsets.fromLTRB(
+              18.w,
+              10.h,
+              18.w,
+              24.h + appBottomInsetInsideSafeArea(context),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -330,7 +339,7 @@ class GuestLandingScreen extends StatelessWidget {
                           if (Platform.isIOS) ...[
                             Expanded(
                               child: _smallAuthBtn(
-                                label: 'Apple',
+                                label: 'auth569_apple_continue'.tr,
                                 icon: Icons.apple,
                                 bg: const Color(0xFF101319),
                                 fg: Colors.white,
@@ -342,7 +351,8 @@ class GuestLandingScreen extends StatelessWidget {
                           ],
                           Expanded(
                             child: _smallAuthBtn(
-                              label: 'Google',
+                              label: 'auth569_google_continue'.tr,
+                              imagePath: AppImages.googleIcon,
                               icon: Icons.g_mobiledata,
                               bg: Colors.white,
                               fg: _ink,
@@ -542,34 +552,58 @@ class GuestLandingScreen extends StatelessWidget {
     );
   }
 
+  /// v569 — le logo Google officiel remplace l'icône Material
+  /// `g_mobiledata` (un « G » générique qui ne respecte pas la marque), et
+  /// les deux libellés passent par `.tr` : ils étaient en dur. Comme ils sont
+  /// longs et que les deux boutons se partagent la largeur, le texte est
+  /// réduit plutôt que coupé.
   Widget _smallAuthBtn({
     required String label,
     required IconData icon,
     required Color bg,
     required Color fg,
+    String? imagePath,
     bool border = false,
     required VoidCallback onTap,
   }) {
     return SizedBox(
-      height: 44.h,
-      child: ElevatedButton.icon(
+      height: 46.h,
+      child: ElevatedButton(
         onPressed: onTap,
-        icon: Icon(icon, size: 18.sp, color: fg),
-        label: InterText(
-          text: label,
-          fontSize: 13.sp,
-          fontWeight: FontWeight.w800,
-          color: fg,
-        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: bg,
           elevation: 0,
+          padding: EdgeInsets.symmetric(horizontal: 10.w),
           side: border
               ? const BorderSide(color: Color(0xFFECE5DE))
               : BorderSide.none,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.r),
+            borderRadius: BorderRadius.circular(14.r),
           ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (imagePath != null)
+              Image.asset(imagePath,
+                  width: 18.sp, height: 18.sp, fit: BoxFit.contain)
+            else
+              Icon(icon, size: 19.sp, color: fg),
+            SizedBox(width: 7.w),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: InterText(
+                  text: label,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: fg,
+                  maxLines: 1,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

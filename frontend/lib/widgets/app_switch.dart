@@ -27,8 +27,14 @@ class AppSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color offTrack = Color(0xFFE2E5EA); // gris clair net
-    const Color offOutline = Color(0xFFC4C9D2);
+    // v569 — même langage que les champs : pilule animée, pouce blanc net.
+    // La piste OFF suit le thème (l'ancien gris clair FIXE disparaissait sur
+    // le fond sombre des cartes en mode nuit).
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color offTrack =
+        isDark ? const Color(0xFF3A3A3A) : const Color(0xFFE2E5EA);
+    final Color offOutline =
+        isDark ? const Color(0xFF4C4C4C) : const Color(0xFFC4C9D2);
     final bool enabled = onChanged != null;
 
     return Opacity(
@@ -45,6 +51,10 @@ class AppSwitch extends StatelessWidget {
           return states.contains(WidgetState.selected) ? accent : offOutline;
         }),
         trackOutlineWidth: const WidgetStatePropertyAll<double>(1),
+        // Halo de pression à la couleur d'accent (au lieu du violet Material).
+        overlayColor: WidgetStatePropertyAll<Color>(
+          accent.withValues(alpha: 0.12),
+        ),
         // Pas d'icône check dans le pouce (rend le blanc plus net).
         thumbIcon: const WidgetStatePropertyAll<Icon?>(null),
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,

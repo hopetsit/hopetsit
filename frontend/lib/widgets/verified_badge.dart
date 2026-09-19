@@ -47,6 +47,9 @@ class VerifiedBadge extends StatelessWidget {
     const c1 = Color(0xFF15803D); // Green 700
     const c2 = Color(0xFF22C55E); // Green 500
 
+    // v569 — liseré blanc : le badge se pose souvent sur une photo de profil,
+    // où un dégradé vert sans contour se perd. Pilule complète (999) pour
+    // s'aligner avec les badges Boost / Top. API inchangée.
     final widget = Container(
       padding: padding,
       decoration: BoxDecoration(
@@ -55,12 +58,17 @@ class VerifiedBadge extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20.r),
+        borderRadius: BorderRadius.circular(999.r),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.9),
+          width: large ? 1.4 : 1.2,
+        ),
         boxShadow: [
           BoxShadow(
             color: c1.withValues(alpha: 0.30),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            blurRadius: 8,
+            spreadRadius: -2,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -74,15 +82,22 @@ class VerifiedBadge extends StatelessWidget {
           ),
           if (large) ...[
             SizedBox(width: 5.w),
-            Text(
-              // v23.1 part 247 — i18n via cle dediee kyc_badge_verified.
-              // Existe en fr/en/es/de/it/pt.
-              'kyc_badge_verified'.tr,
-              style: TextStyle(
-                fontSize: 12.5.sp,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-                letterSpacing: 0.2,
+            // Garde-fou allemand / polonais : le libellé ne pousse jamais le
+            // badge au-delà de 120 px.
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 120.w),
+              child: Text(
+                // v23.1 part 247 — i18n via cle dediee kyc_badge_verified.
+                // Existe en fr/en/es/de/it/pt.
+                'kyc_badge_verified'.tr,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5.sp,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: 0.2,
+                ),
               ),
             ),
           ],

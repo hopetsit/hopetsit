@@ -3,11 +3,17 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/forgot_password_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/views/auth/forgot_flow/forgot_password_otp_screen.dart';
+import 'package:hopetsit/views/auth/forgot_flow/forgot_password_screen.dart';
 
+/// v569 — RENDU SEULEMENT : `Get.put(ForgotPasswordController(...))`, la
+/// `formKey` locale, `requestPasswordResetOTP`, `startCountdown()` et la
+/// navigation vers l'écran de code sont inchangés. Seul le gabarit change
+/// (pastille + titre 26/800 + carte + dégagement bas).
 class ForgotPasswordEmailScreen extends StatelessWidget {
   const ForgotPasswordEmailScreen({super.key});
 
@@ -17,79 +23,74 @@ class ForgotPasswordEmailScreen extends StatelessWidget {
     final formKey = GlobalKey<FormState>(); // Local form key for this screen
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        automaticallyImplyLeading: true,
-        title: PoppinsText(
-          text: 'forgot_password'.tr,
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
-        ),
-        centerTitle: true,
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-      ),
+      appBar: forgotFlowAppBar(context, 'forgot_password'.tr),
       body: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 32.h),
+        padding: EdgeInsets.fromLTRB(
+          22.w,
+          12.h,
+          22.w,
+          28.h + appBottomInset(context),
+        ),
         child: Form(
           key: formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
-              PoppinsText(
-                text: 'forgot_password_reset_title'.tr,
-                fontSize: 26.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary(context),
+              ForgotFlowHeader(
+                icon: Icons.lock_reset_rounded,
+                title: 'forgot_password_reset_title'.tr,
+                subtitle: 'forgot_password_reset_message'.tr,
               ),
-              SizedBox(height: 8.h),
-              InterText(
-                text: 'forgot_password_reset_message'.tr,
-                fontSize: 14.sp,
-                color: AppColors.textSecondary(context),
-              ),
-              SizedBox(height: 40.h),
+              SizedBox(height: 28.h),
 
-              // Email Input
-              CustomTextField(
-                labelText: 'forgot_password_email_label'.tr,
-                hintText: 'hint_email'.tr,
-                controller: controller.emailController,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.done,
-                validator: controller.validateEmail,
-                prefixIcon: Icon(
-                  Icons.email_outlined,
-                  color: AppColors.greyColor,
+              ForgotFlowCard(
+                child: Column(
+                  children: [
+                    // Email Input
+                    CustomTextField(
+                      labelText: 'forgot_password_email_label'.tr,
+                      hintText: 'hint_email'.tr,
+                      controller: controller.emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.done,
+                      validator: controller.validateEmail,
+                      radius: 16.r,
+                      prefixIcon: Icon(
+                        Icons.email_outlined,
+                        size: 20.sp,
+                        color: AppColors.textSecondary(context),
+                      ),
+                    ),
+                    SizedBox(height: 18.h),
+
+                    // Send Code Button
+                    Obx(
+                      () => CustomButton(
+                        height: 54.h,
+                        radius: 18.r,
+                        title: controller.isLoading.value
+                            ? 'forgot_password_sending_code'.tr
+                            : 'forgot_password_send_code'.tr,
+                        onTap: controller.isLoading.value
+                            ? null
+                            : () async {
+                                final success = await controller
+                                    .requestPasswordResetOTP(formKey: formKey);
+                                if (success) {
+                                  controller.startCountdown();
+                                  Get.to(
+                                    () => const ForgotPasswordOtpScreen(),
+                                    transition: Transition.rightToLeft,
+                                  );
+                                }
+                              },
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              SizedBox(height: 20.h),
-
-              // Send Code Button
-              Obx(
-                () => CustomButton(
-                  title: controller.isLoading.value
-                      ? 'forgot_password_sending_code'.tr
-                      : 'forgot_password_send_code'.tr,
-                  onTap: controller.isLoading.value
-                      ? null
-                      : () async {
-                          final success = await controller
-                              .requestPasswordResetOTP(formKey: formKey);
-                          if (success) {
-                            controller.startCountdown();
-                            Get.to(
-                              () => const ForgotPasswordOtpScreen(),
-                              transition: Transition.rightToLeft,
-                            );
-                          }
-                        },
-                ),
-              ),
-              SizedBox(height: 24.h),
+              SizedBox(height: 22.h),
 
               // Back to Login Link
               Center(
@@ -98,19 +99,20 @@ class ForgotPasswordEmailScreen extends StatelessWidget {
                   children: [
                     InterText(
                       text: 'forgot_password_remember'.tr,
-                      fontSize: 13.sp,
+                      fontSize: 13,
                       color: AppColors.textSecondary(context),
                     ),
                     TextButton(
                       onPressed: () => Get.back(),
                       style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
+                        padding: EdgeInsets.symmetric(horizontal: 6.w),
+                        minimumSize: Size(0, 36.h),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       child: PoppinsText(
                         text: 'title_login'.tr,
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
                         color: AppColors.primaryColor,
                       ),
                     ),

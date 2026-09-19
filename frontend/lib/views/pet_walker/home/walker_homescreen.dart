@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/role_chip.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/home_quick_action_bar.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// Walker home screen — Phase-1 placeholder.
 /// Presents a welcome state until the walker-specific widgets (today's walks,
@@ -20,11 +22,21 @@ class WalkerHomescreen extends StatelessWidget {
         elevation: 0,
         backgroundColor: AppColors.appBar(context),
         surfaceTintColor: Colors.transparent,
-        title: PoppinsText(
-          text: 'walker_home_title'.tr,
-          fontSize: 20.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: PoppinsText(
+                text: 'walker_home_title'.tr,
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
+              ),
+            ),
+            SizedBox(width: 8.w),
+            // v569 — pastille de rôle à côté du nom (Daniel).
+            const RoleChip(role: 'walker', compact: true),
+          ],
         ),
         // v18.6 — mini bouton Boost vert walker dans le header.
         actions: const [
@@ -41,7 +53,11 @@ class WalkerHomescreen extends StatelessWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           // v468 — dégage le bas au-dessus du menu pleine largeur
           padding: EdgeInsets.fromLTRB(
-              24.w, 16.h, 24.w, 110.h + MediaQuery.of(context).viewPadding.bottom),
+            24.w,
+            16.h,
+            24.w,
+            110.h + appBottomInset(context),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

@@ -5,9 +5,12 @@ import 'package:hopetsit/controllers/paypal_payment_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/service_type_translator.dart';
+import 'package:hopetsit/views/payment/widgets/payment_ui_kit.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/rounded_text_button.dart';
 
 class PayPalPaymentScreen extends StatelessWidget {
   const PayPalPaymentScreen({
@@ -37,122 +40,140 @@ class PayPalPaymentScreen extends StatelessWidget {
       tag: tag,
     );
 
-    // v565 (point 28) — en-tête clair : montant, prestataire, moyen de
-    // paiement (PayPal), état, bouton du rôle ; logique inchangée.
+    // v569 — même habillage que la carte : barre « Paiement sécurisé »,
+    // montant en gros, récapitulatif repliable, rangée de confiance, états de
+    // chargement. La logique PayPal (contrôleur, initiatePayPalPayment) est
+    // strictement inchangée.
     final accent = AppColors.roleAccent(booking.serviceType?.toLowerCase().contains('walk') == true ? 'walker' : 'sitter');
-    return ProfileSubPageScaffold(
-      title: 'payment_method_paypal'.tr,
-      accent: accent,
-      bottom: Obx(
-        () => ProfilePrimaryButton(
-          label: 'payment_pay_with_paypal'.tr.replaceAll(
-            '@amount',
-            CurrencyHelper.format(currency, totalAmount),
-          ),
-          accent: accent,
-          icon: Icons.paypal,
-          loading: controller.isProcessing.value,
-          onTap: controller.isProcessing.value
-              ? null
-              : () => controller.initiatePayPalPayment(),
-        ),
+    final amountText = CurrencyHelper.format(currency, totalAmount);
+    return Scaffold(
+      backgroundColor: AppColors.scaffold(context),
+      appBar: PaySecureAppBar(
+        accent: accent,
+        title: 'pay569_title'.tr,
+        subtitle: amountText,
+        onBack: () => Navigator.of(context).maybePop(),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(height: 8.h),
-          Center(
-            child: Container(
-              width: 72.w,
-              height: 72.w,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.10),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.paypal, size: 34.sp, color: accent),
-            ),
-          ),
-          SizedBox(height: 12.h),
-          PoppinsText(
-            text: 'v565_pay_secure_title'.tr,
-            fontSize: 18.sp,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary(context),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 4.h),
-          PoppinsText(
-            text: CurrencyHelper.format(currency, totalAmount),
-            fontSize: 30.sp,
-            fontWeight: FontWeight.w800,
-            color: accent,
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 18.h),
-          ProfileGroupCard(
-            children: [
-              ProfileRow(
-                icon: Icons.person_rounded,
-                color: accent,
-                title: booking.sitter.name.isNotEmpty
-                    ? booking.sitter.name
-                    : 'provider_unknown'.tr,
-                subtitle: translateServiceType(booking.serviceType),
-                showChevron: false,
-              ),
-              ProfileRow(
-                icon: Icons.paypal,
-                color: accent,
-                title: 'v565_pay_method_label'.tr,
-                subtitle: 'payment_method_paypal'.tr,
-                showChevron: false,
-              ),
-              ProfileRow(
-                icon: Icons.payments_rounded,
-                color: accent,
-                title: 'payment_amount_label'.tr,
-                showChevron: false,
-                trailing: PoppinsText(
-                  text: CurrencyHelper.format(currency, totalAmount),
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w700,
-                  color: accent,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          ProfileInfoBanner(
-            icon: Icons.info_outline_rounded,
-            text: 'payment_paypal_info'.tr,
-            accent: accent,
-          ),
-          SizedBox(height: 10.h),
-          Obx(() => controller.isProcessing.value
-              ? Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 12.h),
+                child: Column(
                   children: [
-                    SizedBox(
-                      width: 16.w,
-                      height: 16.w,
-                      child: CircularProgressIndicator(
-                          color: accent, strokeWidth: 2.2),
+                    SizedBox(height: 8.h),
+                    PayAmountHero(
+                      label: 'pay569_amount_label'.tr,
+                      amount: amountText,
+                      accent: accent,
+                      icon: Icons.paypal,
                     ),
-                    SizedBox(width: 8.w),
-                    Flexible(
-                      child: InterText(
-                        text: 'payment_connecting'.tr,
-                        fontSize: 12.5.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary(context),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    SizedBox(height: 20.h),
+                    PayRecapCard(
+                      title: booking.sitter.name.isNotEmpty
+                          ? booking.sitter.name
+                          : 'provider_unknown'.tr,
+                      subtitle: translateServiceType(booking.serviceType),
+                      avatarUrl: booking.sitter.avatar.url,
+                      totalLabel: 'payment_amount_label'.tr,
+                      totalValue: amountText,
+                      accent: accent,
+                      expandLabel: 'pay569_details_show'.tr,
+                      collapseLabel: 'pay569_details_hide'.tr,
+                      lines: [
+                        PayRecapLine(
+                          icon: Icons.paypal,
+                          label: 'v565_pay_method_label'.tr,
+                          value: 'payment_method_paypal'.tr,
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 14.h),
+                    Obx(() => controller.isProcessing.value
+                        ? PayLoadingCard(
+                            message: 'pay569_connecting'.tr,
+                            hint: 'pay569_dont_close'.tr,
+                            accent: accent,
+                          )
+                        : ProfileInfoBanner(
+                            icon: Icons.info_outline_rounded,
+                            text: 'payment_paypal_info'.tr,
+                            accent: accent,
+                          )),
+                    SizedBox(height: 14.h),
+                    PayTrustRow(
+                      accent: accent,
+                      brands: const <String>['PayPal'],
+                      assurances: [
+                        'pay569_trust_encrypted'.tr,
+                        'pay569_trust_escrow'.tr,
+                      ],
+                    ),
+                    SizedBox(height: 12.h),
+                    InterText(
+                      text: 'pay569_paypal_redirect'.tr,
+                      fontSize: 11.sp,
+                      color: AppColors.textSecondary(context),
+                      textAlign: TextAlign.center,
+                      height: 1.4,
+                      maxLines: 3,
                     ),
                   ],
-                )
-              : const SizedBox.shrink()),
-        ],
+                ),
+              ),
+            ),
+            Padding(
+              // v569 — dégagement bas unique de l'app (le SafeArea ci-dessus
+              // n'applique rien sur le Samsung de Daniel).
+              padding: EdgeInsets.fromLTRB(
+                  20.w, 8.h, 20.w, 12.h + appBottomInsetInsideSafeArea(context)),
+              child: Obx(() {
+                final busy = controller.isProcessing.value;
+                return CustomButton(
+                  bgColor: accent,
+                  onTap: busy ? null : () => controller.initiatePayPalPayment(),
+                  child: busy
+                      ? SizedBox(
+                          width: 22.w,
+                          height: 22.w,
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 14.w),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.paypal,
+                                  size: 18.sp, color: Colors.white),
+                              SizedBox(width: 8.w),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: InterText(
+                                    text: 'payment_pay_with_paypal'
+                                        .tr
+                                        .replaceAll('@amount', amountText),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                );
+              }),
+            ),
+          ],
+        ),
       ),
     );
   }

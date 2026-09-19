@@ -5,6 +5,7 @@ import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v441 — section partagée par les 3 écrans « Modifier le profil »
 /// (owner/sitter/walker) : sélecteur d'apparence (Clair / Sombre / Système) +
@@ -182,7 +183,10 @@ Future<void> showAppLanguagePicker(BuildContext context, Color accent) {
         color: AppColors.card(context),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
-      child: SafeArea(
+      // v569 — `Get.bottomSheet` ne protège pas le bas : le `Builder` donne un
+      // contexte AU-DESSUS du SafeArea pour n'ajouter que le complément.
+      child: Builder(
+        builder: (ctx) => SafeArea(
         top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -228,8 +232,9 @@ Future<void> showAppLanguagePicker(BuildContext context, Color accent) {
                 ),
               );
             }),
-            SizedBox(height: 12.h),
+            SizedBox(height: 12.h + appBottomInsetInsideSafeArea(ctx)),
           ],
+        ),
         ),
       ),
     ),

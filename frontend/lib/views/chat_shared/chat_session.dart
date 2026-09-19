@@ -9,6 +9,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/logger.dart';
@@ -62,6 +63,11 @@ abstract class ChatSession {
   /// v566 — bouton « Nouvelle conversation » : pilule (true) quand la liste
   /// est en haut ou à l'arrêt, rond (false) pendant le défilement.
   ValueNotifier<bool> get newChatExpanded;
+
+  /// v569 — id de la DERNIÈRE conversation supprimée, qu'elle l'ait été ici
+  /// ou sur un autre de mes appareils (socket `conversation:deleted`).
+  /// L'écran de discussion ouvert sur cette conversation se referme tout seul.
+  RxString get deletedConversationId;
 
   /// v566 — l'écran de discussion signale qu'il est affiché / masqué : une
   /// conversation À L'ÉCRAN marque les messages reçus comme LUS, sinon ils
@@ -135,6 +141,9 @@ mixin ChatSessionMixin<M extends ChatMessageBase,
 
   @override
   final ValueNotifier<bool> newChatExpanded = ValueNotifier<bool>(true);
+
+  @override
+  final RxString deletedConversationId = ''.obs;
 
   final ImagePicker _mediaPicker = ImagePicker();
 
@@ -528,6 +537,58 @@ mixin ChatSessionMixin<M extends ChatMessageBase,
       }
     } catch (e) {
       AppLogger.logError('receipt event handling failed', error: e);
+    }
+  }
+
+  // ── suppression d'une conversation (v569) ────────────────────────────────
+  // Daniel : « que tout soit bien synchronisé Android / iOS / web ».
+  // Le serveur émet `conversation:deleted { conversationId, at }` vers MES
+  // trois rooms de rôle (cf. services/conversationDeleteService.js) : tous mes
+  // appareils retirent la ligne SANS recharger — y compris celui d'où part la
+  // suppression, où l'événement ne fait alors rien (la ligne est déjà partie).
+  //
+  // Rappel de ce que fait vraiment le serveur : la conversation est masquée
+  // pour MOI seul. L'autre garde la sienne, et si elle m'écrit de nouveau la
+  // conversation revient (avec son historique) au prochain `message:new` /
+  // rechargement de la liste — c'est voulu, on ne la bloque pas ici.
+
+  /// Handler socket `conversation:deleted` (référence STABLE, idempotent).
+  void handleConversationDeleted(Map<String, dynamic> data) {
+    try {
+      final id = (data['conversationId'] ?? data['id'] ?? '').toString();
+      if (id.isEmpty) return;
+      final idx = conversations.indexWhere((c) => c.id == id);
+      if (idx >= 0) {
+        final removed = conversations.removeAt(idx);
+        decreaseChatBadge(removed.unreadCount);
+      }
+      if (currentChatId.value == id) {
+        currentChatMessages.clear();
+        translations.clear();
+        translating.clear();
+        replyTarget.value = null;
+      }
+      // Ferme l'écran de discussion s'il est ouvert sur cette conversation.
+      deletedConversationId.value = id;
+    } catch (e) {
+      AppLogger.logError('conversation:deleted handling failed', error: e);
+    }
+  }
+
+  /// Retire du badge chat les non-lus d'une conversation qui disparaît, puis
+  /// laisse la vérité serveur recaler le total. Best-effort : si le contrôleur
+  /// de notifications n'est pas enregistré, on ne fait rien.
+  void decreaseChatBadge(int unread) {
+    try {
+      if (!Get.isRegistered<NotificationsController>()) return;
+      final nc = Get.find<NotificationsController>();
+      if (unread > 0) {
+        final next = nc.unreadChat.value - unread;
+        nc.unreadChat.value = next < 0 ? 0 : next;
+      }
+      nc.scheduleChatBadgeResync();
+    } catch (e) {
+      AppLogger.logError('chat badge decrease failed', error: e);
     }
   }
 

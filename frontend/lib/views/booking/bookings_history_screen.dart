@@ -14,6 +14,7 @@ import 'package:hopetsit/views/reviews/reviews_screen.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:intl/intl.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 // v22.3 — Bug 17e : helpers de formatage pour eviter "2026-04-28T00:00:00.000Z"
 // brut affiche dans l'historique. Renvoie "lun. 28 avr. 2026" et "13:39".
@@ -166,7 +167,9 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
                 color: AppColors.primaryColor,
                 onRefresh: () => _bookingsController.loadBookings(),
                 child: ListView.builder(
-                  padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 20.h),
+                  // v569 — dernière réservation au-dessus de la barre.
+                  padding: EdgeInsets.fromLTRB(
+                      20.w, 16.h, 20.w, 20.h + appBottomInset(context)),
                   itemCount: filteredBookings.length,
                   itemBuilder: (context, index) {
                     final booking = filteredBookings[index];

@@ -18,6 +18,7 @@ import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/views/chat_shared/chat_delete_sheet.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -539,7 +540,7 @@ class _FriendsMessagesTabState extends State<FriendsMessagesTab> {
               tooltip: 'chat_delete_conv'.tr,
               padding: EdgeInsets.zero,
               constraints: BoxConstraints(minWidth: 28.w, minHeight: 28.w),
-              onPressed: () => _confirmDeleteConv(context, convId, name),
+              onPressed: () => _confirmDeleteConv(context, convId, name, avatar),
             ),
           ],
         ],
@@ -549,46 +550,39 @@ class _FriendsMessagesTabState extends State<FriendsMessagesTab> {
     ); // Material
   }
 
-  Future<void> _confirmDeleteConv(
-      BuildContext context, String convId, String contactName) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('chat_delete_conv_title'.tr),
-        // v23.1 part 209 — utilise les cles existantes :
-        //   chat_delete_conv_title  (titre)
-        //   chat_delete_conv_msg    (corps avec @name placeholder)
-        //   chat_delete_conv_confirm (label bouton "Supprimer")
-        //   common_cancel           (label bouton "Annuler")
-        content: Text('chat_delete_conv_msg'.tr
-            .replaceAll('@name', contactName.isEmpty ? '—' : contactName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('common_cancel'.tr),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('chat_delete_conv_confirm'.tr),
-          ),
-        ],
-      ),
+  // v569 — MÊME feuille de confirmation que la liste des conversations
+  // (views/chat_shared/chat_delete_sheet.dart) : l'ancienne AlertDialog
+  // annonçait une suppression « pour les deux parties », ce que le serveur ne
+  // fait pas (il masque la conversation pour moi seul). Un seul texte, honnête,
+  // partout.
+  Future<void> _confirmDeleteConv(BuildContext context, String convId,
+      String contactName, String contactImage) async {
+    final confirm = await showChatDeleteSheet(
+      context,
+      contactName: contactName,
+      contactImage: contactImage,
     );
-    if (confirm != true) return;
+    if (!confirm) return;
+    // Retrait optimiste : la ligne part tout de suite, elle revient si le
+    // serveur refuse.
+    final index = _chats.indexWhere(
+        (c) => (c['id'] ?? c['_id'] ?? '').toString() == convId);
+    final removed = index >= 0 ? _chats[index] : null;
+    if (index >= 0) _chats.removeAt(index);
     try {
       final api = Get.find<ApiClient>();
       await api.delete('/conversations/$convId', requiresAuth: true);
-      _chats.removeWhere((c) =>
-          (c['id'] ?? c['_id'] ?? '').toString() == convId);
       CustomSnackbar.showSuccess(
-        title: 'chat_delete_conv_done_title'.tr,
-        message: 'chat_delete_conv_done_msg'.tr,
+        title: 'chatdel569_deleted_title'.tr,
+        message: 'chatdel569_deleted_body'.tr,
       );
     } catch (e) {
+      if (removed != null) {
+        _chats.insert(index.clamp(0, _chats.length), removed);
+      }
       CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: e.toString().replaceAll('ApiException:', '').trim(),
+        title: 'chatdel569_failed_title'.tr,
+        message: 'chatdel569_failed_body'.tr,
       );
     }
   }

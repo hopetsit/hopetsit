@@ -10,6 +10,7 @@ import 'package:hopetsit/views/auth/login_screen.dart';
 import 'package:hopetsit/views/guest/guest_landing_screen.dart';
 import 'package:hopetsit/views/guest/signup_wall_sheet.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v535 — SPEC ONBOARDING P1.1 : l'ÉCRAN DÉCOUVERTE INVITÉ.
 /// v540 — maquette LAP écran 3 « Gardiens près de chez vous » : grille
@@ -331,7 +332,7 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
       bottomSheet: Container(
         color: isDark ? AppColors.backgroundDark : const Color(0xFFFFF3EA),
         padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w,
-            14.h + MediaQuery.viewPaddingOf(context).bottom),
+            14.h + appBottomInset(context)),
         child: SafeArea(
           top: false,
           bottom: false,
@@ -607,7 +608,7 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(28.r)),
         ),
         padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w,
-            16.h + MediaQuery.viewPaddingOf(context).bottom),
+            16.h + appBottomInset(context)),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,

@@ -470,69 +470,31 @@ router.post('/:id/delivered', requireAuth, async (req, res) => {
 });
 
 // v23.1.195 — Daniel : "dans le message chat ajouter effacer pour
-// effacer la conversation en entier". DELETE /conversations/:id supprime
-// la conversation et tous ses messages associes (hard delete). Verifie
-// que le user est bien participant avant.
+// effacer la conversation en entier". DELETE /conversations/:id.
+//
+// v23.1.255 — ce n'est PAS un hard delete : on masque la conversation pour
+// CET utilisateur (clearedFor) ; l'autre garde sa copie et peut continuer à
+// écrire (un nouveau message vide clearedFor → la conversation revient chez
+// moi). Purge réelle seulement quand tous les participants l'ont masquée.
+//
+// v569 — toute la logique vit dans `services/conversationDeleteService.js`
+// (testable, et c'est elle qui émet `conversation:deleted` vers MES autres
+// appareils). La route ne fait plus que traduire les erreurs en statuts HTTP.
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.user.id;
-    const conversation = await Conversation.findById(id);
-    if (!conversation) {
-      return res.status(404).json({ error: 'Conversation not found.' });
-    }
-    const idStr = (v) => v ? (v._id ? v._id.toString() : v.toString()) : null;
-    // v23.1 part 240 — Daniel screenshot : "impossible deffacer converasation
-    // message erreur" → 403 Not a conversation participant. Cause : ce
-    // handler ne testait l'appartenance que via ownerId/sitterId/walkerId.
-    // Les conversations friendChat (chat ami famille/amis) stockent les
-    // participants dans `conversation.participants[]` (cf le meme bug fix
-    // applique a GET /messages et /peer-position). On etend le check.
-    let isParticipant =
-      idStr(conversation.ownerId) === userId ||
-      idStr(conversation.sitterId) === userId ||
-      idStr(conversation.walkerId) === userId;
-    if (!isParticipant && conversation.friendChat === true && Array.isArray(conversation.participants)) {
-      isParticipant = conversation.participants.some(
-        (p) => idStr(p.userId) === userId
-      );
-    }
-    if (!isParticipant) {
-      return res.status(403).json({ error: 'Not a conversation participant.' });
-    }
-    // v23.1.255 — Daniel : "si j'efface une conversation et la personne me
-    // réécrit, ça [doit] rouvrir une conversation". AVANT : hard delete des
-    // messages + conv pour les 2 parties → quand l'autre réécrivait, son
-    // écran pointait sur une conv supprimée (404) et la conv ne revenait
-    // jamais. MAINTENANT : soft-delete PAR USER → on masque la conversation
-    // pour CET utilisateur seulement (clearedFor) ; l'autre la garde et peut
-    // continuer à écrire. Un nouveau message vide clearedFor (cf
-    // conversationController.sendMessage) → la conv réapparaît pour moi.
-    // Hard delete uniquement si les 2 parties l'ont masquée (cleanup DB).
-    const clearedStr = (conversation.clearedFor || []).map(String);
-    if (!clearedStr.includes(String(userId))) {
-      conversation.clearedFor = [...(conversation.clearedFor || []), userId];
-    }
-    const participantIds = conversation.friendChat === true
-      ? (conversation.participants || []).map((p) => idStr(p.userId)).filter(Boolean)
-      : [
-          idStr(conversation.ownerId),
-          idStr(conversation.sitterId),
-          idStr(conversation.walkerId),
-        ].filter(Boolean);
-    const clearedSet = new Set((conversation.clearedFor || []).map(String));
-    const allCleared = participantIds.length > 0 &&
-      participantIds.every((pid) => clearedSet.has(String(pid)));
-    if (allCleared) {
-      await Message.deleteMany({ conversationId: conversation._id });
-      await Conversation.findByIdAndDelete(conversation._id);
-      return res
-        .status(200)
-        .json({ deleted: true, hardDeleted: true, conversationId: id });
-    }
-    await conversation.save();
-    return res.status(200).json({ deleted: true, conversationId: id });
+    const { deleteConversationForUser } = require('../services/conversationDeleteService');
+    const result = await deleteConversationForUser({
+      conversationId: req.params.id,
+      userId: req.user.id,
+    });
+    return res.status(200).json(result);
   } catch (e) {
+    if (e && e.status) {
+      return res.status(e.status).json({ error: e.message });
+    }
+    if (e && e.name === 'CastError') {
+      return res.status(400).json({ error: 'Invalid id.' });
+    }
     logger.error('delete conversation error', e);
     return res.status(500).json({ error: 'Unable to delete conversation.' });
   }

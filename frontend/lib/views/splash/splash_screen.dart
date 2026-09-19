@@ -8,6 +8,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/views/guest/guest_landing_screen.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/services/deep_link_service.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart';
@@ -268,7 +269,7 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ],
                     ),
-                    padding: EdgeInsets.all(16.w),
+                    padding: EdgeInsets.all(18.w),
                     // v532 — logo HOPE26. Le nouveau logo est un rendu
                     // raster (dégradés + halo lumineux) : pas de SVG
                     // fidèle possible, on affiche la version détourée.
@@ -296,10 +297,10 @@ class _SplashScreenState extends State<SplashScreen>
                       SizedBox(height: 6.h),
                       InterText(
                         text: 'Home Pets Sitting',
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.white.withValues(alpha: 0.8),
-                        letterSpacing: 0.5,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withValues(alpha: 0.85),
+                        letterSpacing: 1.4,
                       ),
                     ],
                   ),
@@ -307,19 +308,26 @@ class _SplashScreenState extends State<SplashScreen>
 
                 const Spacer(flex: 3),
 
-                // Modern loading indicator
+                // v569 — indicateur plus fin et plus discret (un gros anneau
+                // au milieu d'un écran de marque fait « chargement lent »).
                 SizedBox(
-                  width: 28.w,
-                  height: 28.w,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.white.withValues(alpha: 0.9),
+                  width: 120.w,
+                  height: 3.h,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(99.r),
+                    child: LinearProgressIndicator(
+                      minHeight: 3.h,
+                      backgroundColor: Colors.white.withValues(alpha: 0.22),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.white.withValues(alpha: 0.95),
+                      ),
                     ),
                   ),
                 ),
 
-                SizedBox(height: 40.h),
+                SizedBox(
+                  height: 40.h + appBottomInsetInsideSafeArea(context),
+                ),
               ],
             ),
           ),

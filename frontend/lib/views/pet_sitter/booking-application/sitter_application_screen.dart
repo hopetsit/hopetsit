@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/sitter_application_controller.dart';
@@ -107,7 +109,8 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
       ),
       builder: (sheetCtx) => SafeArea(
         child: Padding(
-          padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 24.h),
+          padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w,
+              24.h + appBottomInsetInsideSafeArea(sheetCtx)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,25 +178,13 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
               if (booking.petName.isNotEmpty)
                 _ownerInfoRow(ctx, Icons.pets, booking.petName),
               SizedBox(height: 20.h),
-              SizedBox(
-                width: double.infinity,
-                height: 44.h,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(22.r),
-                    ),
-                  ),
-                  onPressed: () => Navigator.of(sheetCtx).pop(),
-                  child: InterText(
-                    text: 'common_close'.tr,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
+              // v569 — bouton du kit commun (même action : fermer la feuille).
+              ActionPillButton(
+                label: 'common_close'.tr,
+                tone: AppColors.primaryColor,
+                kind: ActionPillKind.outlined,
+                expand: true,
+                onPressed: () => Navigator.of(sheetCtx).pop(),
               ),
             ],
           ),

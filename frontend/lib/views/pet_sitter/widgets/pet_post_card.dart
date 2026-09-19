@@ -1,11 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/post_price_estimator.dart';
+import 'package:hopetsit/views/pet_sitter/widgets/post_card_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -186,6 +188,118 @@ class PetPostCard extends StatelessWidget {
   bool get _isSitterView => (viewerRole ?? '').toLowerCase() == 'sitter';
   bool get _isProviderView => _isWalkerView || _isSitterView;
 
+  // ── v569 — en-tête, pastille de type et bouton principal ─────────────────
+
+  /// Ligne de contexte sous le nom du propriétaire :
+  /// « Paris · 2 km de vous · il y a 3 h ». Les morceaux absents sautent ;
+  /// s'il n'en reste aucun on retombe sur le libellé de rôle.
+  String get _headerMetaLabel {
+    final parts = <String>[];
+    final loc = (location ?? '').trim();
+    final dist = (distanceLabel ?? '').trim();
+    final pub = (publishedLabel ?? '').trim();
+    if (loc.isNotEmpty) parts.add(loc);
+    if (dist.isNotEmpty) parts.add(dist);
+    if (pub.isNotEmpty) parts.add(pub);
+    if (parts.isEmpty) return 'role_pet_owner'.tr;
+    return parts.join(' · ');
+  }
+
+  /// Description libre de l'annonce, déjà localisée. Vide ⇒ bloc masqué.
+  String get _descriptionText => _localizePostBody((postBody ?? '').trim());
+
+  /// Pastille du TYPE de demande affichée à droite de l'en-tête (garde /
+  /// promenade / visite). Null quand l'annonce ne porte aucun service.
+  Widget? get _requestTypeChip {
+    final raw = (serviceTypes ?? '').toLowerCase().trim();
+    if (raw.isEmpty) return null;
+    if (raw.contains('visit') ||
+        raw.contains('visite') ||
+        raw.contains('drop_in') ||
+        raw.contains('visita') ||
+        raw.contains('besuch')) {
+      return PostTypeChip(
+        icon: Icons.door_front_door_outlined,
+        label: 'post569_type_visit'.tr,
+        color: const Color(0xFFE8920A),
+      );
+    }
+    final walkColor = const Color(0xFF16A34A);
+    final sitColor = const Color(0xFF2563EB);
+    final serviceColor = _serviceTextColor;
+    if (serviceColor == walkColor) {
+      return PostTypeChip(
+        icon: Icons.directions_walk_rounded,
+        label: 'post569_type_walk'.tr,
+        color: walkColor,
+      );
+    }
+    if (serviceColor == sitColor) {
+      return PostTypeChip(
+        icon: Icons.home_rounded,
+        label: 'post569_type_sitting'.tr,
+        color: sitColor,
+      );
+    }
+    return PostTypeChip(
+      icon: Icons.pets_rounded,
+      label: 'post569_type_generic'.tr,
+      color: _accent,
+    );
+  }
+
+  /// Retour haptique au moment où le prestataire propose son service. Le
+  /// callback métier [onSendRequest] n'est ni remplacé ni enveloppé d'une
+  /// condition : il est simplement appelé ensuite.
+  void _tapSendRequest() {
+    HapticFeedback.selectionClick();
+    onSendRequest?.call();
+  }
+
+  /// LE bouton principal du prestataire, et ses états :
+  ///   • disponible     → pilule pleine, couleur du rôle, « Proposer mon service »
+  ///   • envoi en cours → petit indicateur DANS la pilule, non cliquable
+  ///   • demande envoyée→ pilule en contour couleur du rôle (l'appui annule,
+  ///                      comme avant : le libellé reste celui de l'appelant)
+  ///   • déjà réservé   → pilule grise inerte
+  Widget _buildProviderCta() {
+    // v18.5 — #18 : annonce déjà prise ⇒ aucune candidature possible.
+    if (isReserved) {
+      return PostPill(
+        label: 'post569_already_taken'.tr,
+        color: AppColors.grey500Color,
+        icon: Icons.lock_rounded,
+        style: PostPillStyle.ghost,
+      );
+    }
+    if (isRequestLoading) {
+      return PostPill(
+        label: isCancelRequest
+            ? 'request_cancel_button_cancelling'.tr
+            : 'post569_sending'.tr,
+        color: _accent,
+        isLoading: true,
+      );
+    }
+    if (isCancelRequest) {
+      return PostPill(
+        label: requestButtonText ?? 'service_card_cancel'.tr,
+        color: _accent,
+        icon: Icons.check_circle_rounded,
+        style: PostPillStyle.outlined,
+        onTap: _tapSendRequest,
+      );
+    }
+    return PostPill(
+      label: _isProviderView
+          ? 'post569_offer_service'.tr
+          : (requestButtonText ?? 'send_request_button'.tr),
+      color: _accent,
+      icon: Icons.volunteer_activism_rounded,
+      onTap: _tapSendRequest,
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -194,6 +308,9 @@ class PetPostCard extends StatelessWidget {
     // (vert walker / bleu sitter) pour matcher le ruban « BOOST ACTIF ».
     final boostBorderColor =
         _isProviderView ? _accent : const Color(0xFFE8472A);
+    // v569 — pastille du type de demande construite UNE fois (évite deux
+    // constructions du même widget dans un feed qui défile).
+    final typeChip = _requestTypeChip;
     final boostBorder = isOwnerBoosted
         ? Border.all(
             color: boostBorderColor,
@@ -210,7 +327,7 @@ class PetPostCard extends StatelessWidget {
       child: Container(
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(19.r),
+        borderRadius: BorderRadius.circular(PostCardKit.cardRadius.r),
         border: boostBorder,
         // v23.1 part 232 — perf : blurRadius 16 → 5 pour scroll fluide
         // sur Oppo low-end GPU. Le ruban URGENT reste visuel mais le
@@ -234,17 +351,21 @@ class PetPostCard extends StatelessWidget {
           if (isOwnerBoosted) _buildUrgentBanner(),
           // Header with profile info
           Container(
-            padding: EdgeInsets.all(16.w),
+            padding: EdgeInsets.fromLTRB(14.w, 14.h, 10.w, 12.h),
             decoration: BoxDecoration(
-              // v449 — sur « Ma publication » (owner sur son propre post), le
-              // haut du cadre passe au ORANGE pâle (couleur du rôle owner) au
-              // lieu du jaune. Les autres vues gardent le fill neutre.
+              // v569 — en-tête sobre : la bande grise disparaît. Seule « Ma
+              // publication » (owner sur son propre post) garde un voile
+              // orange pâle pour se distinguer du feed.
               color: ownerViewOfOwnPost && !Get.isDarkMode
                   ? AppColors.scaffoldOwnerLight
-                  : AppColors.inputFill(context),
+                  : Colors.transparent,
               borderRadius: BorderRadius.only(
-                topLeft: isOwnerBoosted ? Radius.zero : Radius.circular(19.r),
-                topRight: isOwnerBoosted ? Radius.zero : Radius.circular(19.r),
+                topLeft: isOwnerBoosted
+                    ? Radius.zero
+                    : Radius.circular(PostCardKit.cardRadius.r),
+                topRight: isOwnerBoosted
+                    ? Radius.zero
+                    : Radius.circular(PostCardKit.cardRadius.r),
               ),
             ),
             child: Row(
@@ -265,11 +386,12 @@ class PetPostCard extends StatelessWidget {
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
+                    // v569 — avatar 40 px (anneau fin à la couleur du rôle).
                     CircleAvatar(
-                      radius: 25.r,
-                      backgroundColor: AppColors.primaryColor,
+                      radius: 20.r,
+                      backgroundColor: _accent.withValues(alpha: 0.22),
                       child: CircleAvatar(
-                        radius: 22.r,
+                        radius: 18.r,
                         // v23.1 part 243 round 3 — perf : NetworkImage brut
                         // decode le bitmap pleine resolution serveur (~5-10 MB
                         // pour un avatar 50px). CachedNetworkImageProvider + maxWidth
@@ -309,11 +431,11 @@ class PetPostCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Expanded(
+                          Flexible(
                             child: InterText(
                               text: userName,
                               fontSize: 15.sp,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               color: AppColors.textPrimary(context),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -325,63 +447,19 @@ class PetPostCard extends StatelessWidget {
                           ],
                         ],
                       ),
-                      SizedBox(height: 3.h),
-                      // v442 — détail prestataire : sous le nom on affiche la
-                      // localisation (+ distance) puis « Publié il y a … » au
-                      // lieu du simple libellé de rôle. L'owner / le feed
-                      // gardent le libellé « Propriétaire ».
-                      if (_isProviderView &&
-                          ((location ?? '').trim().isNotEmpty ||
-                              (publishedLabel ?? '').trim().isNotEmpty)) ...[
-                        if ((location ?? '').trim().isNotEmpty)
-                          Row(
-                            children: [
-                              Icon(Icons.location_on_rounded,
-                                  size: 12.sp,
-                                  color: AppColors.textSecondary(context)),
-                              SizedBox(width: 3.w),
-                              Flexible(
-                                child: InterText(
-                                  text: (distanceLabel ?? '').trim().isNotEmpty
-                                      ? '${location!.trim()} • ${distanceLabel!.trim()}'
-                                      : location!.trim(),
-                                  fontSize: 11.sp,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.textSecondary(context),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        if ((publishedLabel ?? '').trim().isNotEmpty) ...[
-                          SizedBox(height: 2.h),
-                          Row(
-                            children: [
-                              Icon(Icons.schedule_rounded,
-                                  size: 12.sp,
-                                  color: AppColors.textSecondary(context)),
-                              SizedBox(width: 3.w),
-                              Flexible(
-                                child: InterText(
-                                  text: publishedLabel!.trim(),
-                                  fontSize: 11.sp,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.textSecondary(context),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ] else
-                        InterText(
-                          text: 'role_pet_owner'.tr,
-                          fontSize: 11.sp,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textSecondary(context),
-                        ),
+                      SizedBox(height: 2.h),
+                      // v569 — une SEULE ligne de contexte sous le nom :
+                      // « ville · 2 km de vous · il y a 3 h ». Les morceaux
+                      // absents disparaissent ; s'il n'en reste aucun on
+                      // retombe sur le libellé de rôle « Propriétaire ».
+                      InterText(
+                        text: _headerMetaLabel,
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),
@@ -389,47 +467,14 @@ class PetPostCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                // v18.6 — stylo Modifier (désactivé si isReserved) + poubelle
-                // relookée (rond rouge pastel, icône blanche). Les 2 sont
-                // côte à côte dans un wrapper animé.
-                if (onEdit != null)
-                  Container(
-                    margin: EdgeInsets.only(right: 4.w),
-                    decoration: BoxDecoration(
-                      color: isReserved
-                          ? AppColors.grey300Color.withValues(alpha: 0.4)
-                          // v446 — Daniel : « Modifier » en ROSE sur Ma publication.
-                          : const Color(0xFFEC4899).withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      onPressed: isReserved ? null : onEdit,
-                      icon: Icon(
-                        Icons.edit_outlined,
-                        color: isReserved
-                            ? AppColors.grey500Color
-                            : const Color(0xFFEC4899),
-                        size: 20.sp,
-                      ),
-                      tooltip: 'post_action_edit'.tr,
-                    ),
-                  ),
-                if (onDelete != null)
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.errorColor.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      onPressed: onDelete,
-                      icon: Icon(
-                        Icons.delete_outline_rounded,
-                        color: AppColors.errorColor,
-                        size: 20.sp,
-                      ),
-                      tooltip: 'post_action_delete'.tr,
-                    ),
-                  ),
+                // v569 — la pastille du TYPE de demande (garde / promenade /
+                // visite) remplace les icônes d'action dans l'en-tête ;
+                // « Modifier » et « Supprimer » descendent dans la rangée
+                // basse, au même langage que le bouton principal.
+                if (typeChip != null) ...[
+                  SizedBox(width: 8.w),
+                  typeChip,
+                ],
                 if (onBlockUser != null || onReportPost != null)
                   PopupMenuButton<String>(
                     icon: Icon(Icons.more_vert, size: 20.sp, color: AppColors.textSecondary(context)),
@@ -508,55 +553,39 @@ class PetPostCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
-                    decoration: BoxDecoration(
-                      // v435 — Daniel : la grille "Demande de réservation"
-                      // paraissait grise. On la teinte de l'accent du rôle
-                      // (orange pâle côté owner, vert walker / bleu sitter)
-                      // pour qu'elle ne lise plus comme un bloc neutre.
-                      color: _accent.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(14.r),
-                      // v527 — retour Jose (R3-13) : le cadre « Demande de
-                      // réservation » était trop discret (1 px, alpha 0.20).
-                      // Bordure 2 px + couleur de rôle plus franche, sobre.
-                      border: Border.all(
-                        color: _accent.withValues(alpha: 0.45),
-                        width: 2.w,
+                  // v569 — « L'essentiel » : 2-3 puces à icônes (dates,
+                  // animaux, service…) au lieu d'une grille 3 colonnes qui
+                  // débordait en allemand et en polonais. Mêmes données,
+                  // mêmes libellés, lecture d'un coup d'œil.
+                  PostBlock(
+                    accent: _accent,
+                    title: 'post569_essentials'.tr,
+                    titleIcon: Icons.checklist_rounded,
+                    trailing: _buildRequestStatusBadge(context),
+                    borderColor: _accent.withValues(alpha: 0.28),
+                    child: _buildReservationGrid(context),
+                  ),
+                  // v569 — la description de l'annonce quitte la grille pour
+                  // un bloc propre, clampé à 3 lignes avec « Voir plus ».
+                  // Côté prestataire elle reste dans « Informations
+                  // importantes » (mise en page à puces existante).
+                  if (!_isProviderView && _descriptionText.isNotEmpty) ...[
+                    SizedBox(height: 10.h),
+                    PostBlock(
+                      accent: _accent,
+                      title: 'post569_description'.tr,
+                      titleIcon: Icons.notes_rounded,
+                      background: AppColors.inputFill(context),
+                      borderColor:
+                          AppColors.divider(context).withValues(alpha: 0.35),
+                      child: PostExpandableText(
+                        text: _descriptionText,
+                        moreLabel: 'post569_see_more'.tr,
+                        lessLabel: 'post569_see_less'.tr,
+                        accent: _accent,
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Section header — "Demande de réservation" + statut.
-                        Row(
-                          children: [
-                            Container(
-                              width: 4.w,
-                              height: 14.h,
-                              decoration: BoxDecoration(
-                                color: _accent,
-                                borderRadius: BorderRadius.circular(2.r),
-                              ),
-                            ),
-                            SizedBox(width: 8.w),
-                            Expanded(
-                              child: InterText(
-                                text: 'post_card_reservation_request'.tr,
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary(context),
-                              ),
-                            ),
-                            _buildRequestStatusBadge(context),
-                          ],
-                        ),
-                        SizedBox(height: 12.h),
-                        _buildReservationGrid(context),
-                      ],
-                    ),
-                  ),
+                  ],
                   // v442 — détail prestataire (maquettes) : la carte caractère
                   // (« À propos de la promenade » walker / « Caractère de vos
                   // animaux » sitter) vient APRÈS la grille, puis « 📋
@@ -578,193 +607,173 @@ class PetPostCard extends StatelessWidget {
                     SizedBox(height: 10.h),
                     _buildPriceBlock(context, priceEstimate!),
                   ],
-                  if (onViewPetDetails != null || onSendRequest != null) ...[
+                  // v569 — « Voir les animaux » devient un secondaire pleine
+                  // largeur ; LE bouton principal du prestataire vit
+                  // désormais dans la rangée d'actions, en bas de la carte.
+                  if (onViewPetDetails != null) ...[
                     SizedBox(height: 10.h),
+                    SizedBox(
+                      width: double.infinity,
+                      child: PostSecondaryButton(
+                        // v442 — maquettes : « 🐾 Voir les détails du chien »
+                        // (promenade 1 chien) / « 🐾 Voir les animaux »
+                        // (sitter) ; sinon libellé générique.
+                        icon: Icons.pets_rounded,
+                        label: _isWalkerView
+                            ? 'post_view_dog_details'.tr
+                            : _isSitterView
+                                ? 'post_view_pets'.tr
+                                : 'sitter_post_pet_details'.tr,
+                        color: _accent,
+                        onTap: onViewPetDetails,
+                      ),
+                    ),
+                  ],
+                  // v442 — note rassurante sous les CTA (maquettes) :
+                  // « 🛡️ Le propriétaire examinera votre profil… ».
+                  if (onSendRequest != null &&
+                      _isProviderView &&
+                      !isReserved &&
+                      !isCancelRequest) ...[
+                    SizedBox(height: 8.h),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (onViewPetDetails != null)
-                          Expanded(
-                            child: _buildSoftButton(
-                              // v442 — maquettes : « 🐾 Voir les détails du
-                              // chien » (promenade 1 chien) / « 🐾 Voir les
-                              // animaux » (sitter) ; sinon libellé générique.
-                              icon: Icons.pets_rounded,
-                              text: _isWalkerView
-                                  ? 'post_view_dog_details'.tr
-                                  : _isSitterView
-                                      ? 'post_view_pets'.tr
-                                      : 'sitter_post_pet_details'.tr,
-                              onTap: onViewPetDetails,
-                            ),
+                        Icon(Icons.shield_outlined,
+                            size: 13.sp,
+                            color: AppColors.textSecondary(context)),
+                        SizedBox(width: 6.w),
+                        Expanded(
+                          child: InterText(
+                            text: 'post_apply_review_note'.tr,
+                            fontSize: 11.sp,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textSecondary(context),
+                            maxLines: 3,
                           ),
-                        if (onViewPetDetails != null && onSendRequest != null)
-                          SizedBox(width: 8.w),
-                        if (onSendRequest != null)
-                          Expanded(
-                            // v18.5 — #18 : quand le post est réservé
-                            // (badge "Réservé"), on désactive le bouton
-                            // "Envoyer la demande" et on le remplace par
-                            // un label "Déjà réservé" grisé. Empêche
-                            // d'envoyer une candidature sur une annonce
-                            // déjà prise.
-                            child: _buildPrimaryButton(
-                              onTap: (isRequestLoading || isReserved)
-                                  ? null
-                                  : onSendRequest,
-                              isLoading: isRequestLoading,
-                              isCancelRequest: isCancelRequest,
-                              buttonText: isReserved
-                                  ? 'post_already_reserved_cta'.tr
-                                  // v442 — détail prestataire : CTA « Postuler
-                                  // à cette demande » (maquettes).
-                                  : (requestButtonText ??
-                                      (isCancelRequest
-                                          ? 'service_card_cancel'.tr
-                                          : (_isProviderView
-                                              ? 'post_apply_cta'.tr
-                                              : 'send_request_button'.tr))),
-                            ),
-                          ),
+                        ),
                       ],
                     ),
-                    // v442 — note rassurante sous les CTA (maquettes) :
-                    // « 🛡️ Le propriétaire examinera votre profil… ».
-                    if (_isProviderView && !isReserved && !isCancelRequest) ...[
-                      SizedBox(height: 8.h),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.shield_outlined,
-                              size: 13.sp,
-                              color: AppColors.textSecondary(context)),
-                          SizedBox(width: 6.w),
-                          Expanded(
-                            child: InterText(
-                              text: 'post_apply_review_note'.tr,
-                              fontSize: 11.sp,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textSecondary(context),
-                              maxLines: 3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
                   ],
                 ],
               ),
             ),
 
-          // v23.1 — like count redesign : compteur intégré dans une pill
-          // douce avec icône cœur rouge, taille discrète, n'apparaît que
-          // si > 0 (au lieu d'un "0" laid).
-          if (likeCount > 0)
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-              child: Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 10.w, vertical: 4.h),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(10.r),
-                      border: Border.all(
-                        color: const Color(0xFFEF4444).withValues(alpha: 0.18),
-                        width: 1,
-                      ),
-                    ),
+          // v569 — rangée d'actions unique, lisible d'un coup d'œil :
+          // à GAUCHE « j'aime » et « partager » en boutons-icônes discrets
+          // (44 px, compteur à côté), à DROITE LE bouton principal du
+          // prestataire (pilule pleine à la couleur de SON rôle).
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.w),
+            child: Divider(
+              height: 1,
+              color: AppColors.divider(context).withValues(alpha: 0.25),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(10.w, 4.h, 12.w, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // État « Demande envoyée ✓ » : le prestataire sait que sa
+                // candidature est partie ; la pilule à droite reste l'action
+                // (annuler), exactement comme avant.
+                if (onSendRequest != null &&
+                    isCancelRequest &&
+                    !isRequestLoading &&
+                    !isReserved)
+                  Padding(
+                    padding: EdgeInsets.only(left: 6.w, top: 6.h),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.favorite_rounded,
-                          size: 13.sp,
-                          color: const Color(0xFFEF4444),
-                        ),
+                        Icon(Icons.check_circle_rounded,
+                            size: 13.sp, color: _accent),
                         SizedBox(width: 5.w),
                         InterText(
-                          text: likeCount == 1
-                              ? '$likeCount ${'post_likes_singular'.tr}'
-                              : '$likeCount ${'post_likes_plural'.tr}',
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFFEF4444),
+                          text: 'post569_request_sent'.tr,
+                          fontSize: 11.sp,
+                          fontWeight: FontWeight.w700,
+                          color: _accent,
                         ),
                       ],
                     ),
                   ),
-                // GestureDetector(
-                //   onTap: onComment,
-                //   child: InterText(
-                //     text: commentCount == 1
-                //         ? 'post_comments_count_singular'.trParams({
-                //             'count': commentCount.toString(),
-                //           })
-                //         : 'post_comments_count_plural'.trParams({
-                //             'count': commentCount.toString(),
-                //           }),
-                //     fontSize: 12.sp,
-                //     fontWeight: FontWeight.w400,
-                //     color: AppColors.greyText,
-                //   ),
-                // ),
+                Row(
+                  children: [
+                    // v442 — côté prestataire « j'aime » sert de favori
+                    // (icône signet, libellé « Sauvegarder »).
+                    PostIconAction(
+                      icon: _isProviderView
+                          ? (isLiked
+                              ? Icons.bookmark_rounded
+                              : Icons.bookmark_border_rounded)
+                          : (isLiked
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded),
+                      color: _isProviderView
+                          ? _accent
+                          : const Color(0xFFEF4444),
+                      tooltip: _isProviderView
+                          ? 'post_action_save'.tr
+                          : 'post_action_like'.tr,
+                      count: _isProviderView ? null : likeCount,
+                      isActive: isLiked,
+                      onTap: onLike,
+                    ),
+                    SizedBox(width: 2.w),
+                    PostIconAction(
+                      icon: Icons.ios_share_rounded,
+                      // v446 — Daniel : « Partager » en ROSE sur Ma
+                      // publication ; couleur de rôle en vue prestataire.
+                      color: _isProviderView
+                          ? _accent
+                          : const Color(0xFFEC4899),
+                      tooltip: 'post_action_share'.tr,
+                      onTap: onShare,
+                    ),
+                    if (onSendRequest != null)
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: _buildProviderCta(),
+                        ),
+                      ),
+                  ],
+                ),
+                // v569 — côté propriétaire, « Modifier » et « Supprimer »
+                // quittent l'en-tête et parlent le même langage que le
+                // bouton principal : secondaire en contour, destructif en
+                // texte rouge. Les callbacks et la condition isReserved
+                // (annonce déjà prise ⇒ non modifiable) sont inchangés.
+                if (onEdit != null || onDelete != null) ...[
+                  SizedBox(height: 4.h),
+                  Row(
+                    children: [
+                      if (onEdit != null)
+                        Expanded(
+                          child: PostSecondaryButton(
+                            icon: Icons.edit_outlined,
+                            label: 'post_action_edit'.tr,
+                            color: const Color(0xFFEC4899),
+                            onTap: isReserved ? null : onEdit,
+                          ),
+                        ),
+                      if (onEdit != null && onDelete != null)
+                        SizedBox(width: 8.w),
+                      if (onDelete != null)
+                        PostDestructiveButton(
+                          icon: Icons.delete_outline_rounded,
+                          label: 'post_action_delete'.tr,
+                          onTap: onDelete,
+                        ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.w),
-            child: Divider(color: AppColors.divider(context).withValues(alpha: 0.2)),
-          ),
-
-          // v23.1 — Like + Share redesign moderne : gradient subtil, ombre
-          // douce, animation de scale au tap, icônes plus claires.
-          Padding(
-            padding: EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  // v442 — détail prestataire (maquettes) : « 🔖 Sauvegarder »
-                  // (réutilise le mécanisme « j'aime » comme favori) ; sinon
-                  // « J'aime » classique sur le feed / owner.
-                  child: _buildActionPill(
-                    context: context,
-                    icon: _isProviderView
-                        ? (isLiked
-                            ? Icons.bookmark_rounded
-                            : Icons.bookmark_border_rounded)
-                        : (isLiked
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded),
-                    label: _isProviderView
-                        ? 'post_action_save'.tr
-                        : (likeCount > 0
-                            ? '${'post_action_like'.tr} · $likeCount'
-                            : 'post_action_like'.tr),
-                    isActive: isLiked,
-                    accent: _isProviderView ? _accent : const Color(0xFFEF4444),
-                    onTap: onLike,
-                  ),
-                ),
-                SizedBox(width: 10.w),
-                Expanded(
-                  child: _buildActionPill(
-                    context: context,
-                    icon: Icons.ios_share_rounded,
-                    label: 'post_action_share'.tr,
-                    isActive: false,
-                    // v446 — Daniel : « Partager » en ROSE sur Ma publication
-                    // (vue owner) ; reste couleur de rôle en vue prestataire.
-                    accent: _isProviderView
-                        ? _accent
-                        : const Color(0xFFEC4899),
-                    onTap: onShare,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 16.h),
+          SizedBox(height: 12.h),
         ],
       ),
       ),
@@ -832,18 +841,21 @@ class PetPostCard extends StatelessWidget {
   /// garde la version compacte « Nom • N photos › ».
   Widget _buildPetsStrip(BuildContext context) {
     if (_isProviderView) {
+      // v569 — l'IntrinsicHeight qui enveloppait ces Expanded est retiré :
+      // règle projet (release Flutter) « jamais Expanded sous IntrinsicHeight ».
       return Padding(
         padding: EdgeInsets.symmetric(horizontal: 16.w),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (int i = 0; i < pets!.length; i++) ...[
-                if (i > 0) SizedBox(width: 12.w),
-                Expanded(child: _wrapPetTap(pets![i], _buildPetStripCard(context, pets![i]))),
-              ],
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (int i = 0; i < pets!.length; i++) ...[
+              if (i > 0) SizedBox(width: 12.w),
+              Expanded(
+                child: _wrapPetTap(
+                    pets![i], _buildPetStripCard(context, pets![i])),
+              ),
             ],
-          ),
+          ],
         ),
       );
     }
@@ -1014,12 +1026,32 @@ class PetPostCard extends StatelessWidget {
                   ? CachedNetworkImage(
                       imageUrl: first,
                       fit: BoxFit.cover,
+                      // v569 — chargement : aplat neutre (pas de spinner qui
+                      // clignote dans un feed qui défile).
                       placeholder: (c, _) =>
-                          Container(color: AppColors.lightGreyColor),
+                          Container(color: AppColors.lightGrey),
+                      // v569 — erreur : message explicite au lieu d'une icône
+                      // seule, cohérent avec le reste de l'app.
                       errorWidget: (c, _, __) => Container(
-                        color: AppColors.lightGreyColor,
-                        child: Icon(Icons.broken_image,
-                            color: AppColors.greyColor),
+                        color: AppColors.lightGrey,
+                        alignment: Alignment.center,
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.broken_image_outlined,
+                                size: 24.sp, color: AppColors.greyText),
+                            SizedBox(height: 6.h),
+                            InterText(
+                              text: 'post569_photo_failed'.tr,
+                              fontSize: 11.5.sp,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.greyText,
+                              maxLines: 2,
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                       ),
                     )
                   : Image.asset(first, fit: BoxFit.cover),
@@ -1104,19 +1136,15 @@ class PetPostCard extends StatelessWidget {
     final withChar = _petsWithCharacter;
     Widget body;
     if (withChar.length == 2) {
-      body = IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: _petCharacterBlock(context, withChar[0])),
-            Container(
-              width: 1,
-              margin: EdgeInsets.symmetric(horizontal: 12.w),
-              color: AppColors.divider(context).withValues(alpha: 0.5),
-            ),
-            Expanded(child: _petCharacterBlock(context, withChar[1])),
-          ],
-        ),
+      // v569 — plus d'IntrinsicHeight au-dessus d'Expanded (règle projet) :
+      // le trait séparateur devient une simple gouttière.
+      body = Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: _petCharacterBlock(context, withChar[0])),
+          SizedBox(width: 20.w),
+          Expanded(child: _petCharacterBlock(context, withChar[1])),
+        ],
       );
     } else {
       body = Column(
@@ -1553,8 +1581,8 @@ class PetPostCard extends StatelessWidget {
     if (svcLoc.isNotEmpty) {
       add(Icons.home_rounded, 'post_field_service_location'.tr, svcLoc);
     }
-    add(Icons.notes_rounded, 'post_field_details'.tr,
-        _localizePostBody((postBody ?? '').trim()));
+    // v569 — le corps de l'annonce a son propre bloc « La demande » (3 lignes
+    // + « Voir plus »), il ne remplit plus une case de la grille.
     if ((pets == null || pets!.isEmpty) && (petName ?? '').trim().isNotEmpty) {
       add(Icons.pets_rounded, 'post_field_animals'.tr, petName!.trim());
     }
@@ -1583,89 +1611,26 @@ class PetPostCard extends StatelessWidget {
     return _gridFromCells(withTime);
   }
 
-  /// v442 — agence une liste de cases en grille 3 colonnes (factorisé pour les
-  /// variantes walker / sitter / owner de la grille de réservation).
-  Widget _gridFromCells(List<Widget> cells) {
-    final rows = <Widget>[];
-    for (int i = 0; i < cells.length; i += 3) {
-      final end = (i + 3) > cells.length ? cells.length : (i + 3);
-      final chunk = cells.sublist(i, end);
-      rows.add(
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (int j = 0; j < 3; j++)
-                Expanded(
-                  child: j < chunk.length ? chunk[j] : const SizedBox(),
-                ),
-            ],
-          ),
-        ),
+  /// v569 — les cases deviennent des PUCES empilées (icône + libellé +
+  /// valeur). Plus d'IntrinsicHeight ni de colonnes de 100 px : les libellés
+  /// allemands et polonais ne débordent plus.
+  Widget _gridFromCells(List<Widget> cells) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: cells,
       );
-    }
-    return Column(children: rows);
-  }
 
+  /// v569 — une puce de « L'essentiel ».
   Widget _resCell(
       BuildContext context, IconData icon, String label, String value,
-      {Color? valueColor, String? timeLabel}) {
-    final hasTime = (timeLabel ?? '').trim().isNotEmpty;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(0, 6.h, 6.w, 6.h),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 30.w,
-            height: 30.w,
-            decoration: BoxDecoration(
-              color: _accent.withValues(alpha: 0.10),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 15.sp, color: _accent),
-          ),
-          SizedBox(height: 6.h),
-          InterText(
-            text: label,
-            fontSize: 10.5.sp,
-            color: AppColors.greyText,
-            maxLines: 2,
-          ),
-          SizedBox(height: 1.h),
-          InterText(
-            text: value,
-            fontSize: 11.5.sp,
-            fontWeight: FontWeight.w700,
-            // v443 — texte du Service coloré par type (bleu sitting / vert
-            // promenade) ; sinon couleur de texte par défaut.
-            color: valueColor ?? AppColors.textPrimary(context),
-            maxLines: 3,
-          ),
-          // v443 — Daniel : l'heure quitte la cellule « Dates » pour une petite
-          // horloge sous « Service ». Affichée uniquement si une heure réelle
-          // existe (pas minuit).
-          if (hasTime) ...[
-            SizedBox(height: 4.h),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.schedule_rounded, size: 12.sp, color: _accent),
-                SizedBox(width: 3.w),
-                Expanded(
-                  child: InterText(
-                    text: timeLabel!.trim(),
-                    fontSize: 10.5.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary(context),
-                    maxLines: 2,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
+      {Color? valueColor}) {
+    return PostBullet(
+      icon: icon,
+      label: label,
+      value: value,
+      accent: _accent,
+      // v443 — texte du Service coloré par type (bleu sitting / vert
+      // promenade) ; sinon couleur de texte par défaut.
+      valueColor: valueColor,
     );
   }
 
@@ -1691,74 +1656,6 @@ class PetPostCard extends StatelessWidget {
             color: const Color(0xFFB45309),
           ),
         ],
-      ),
-    );
-  }
-
-  /// v23.1 — bouton action moderne : gradient subtil, ombre douce, état
-  /// "actif" (liké/partagé) avec rempli plein couleur, "inactif" avec
-  /// fond très clair et bordure légère. Animation tactile via InkWell.
-  Widget _buildActionPill({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required bool isActive,
-    required Color accent,
-    VoidCallback? onTap,
-  }) {
-    final bg = isActive ? accent : accent.withValues(alpha: 0.06);
-    final fg = isActive ? Colors.white : accent;
-    final shadowColor = accent.withValues(alpha: isActive ? 0.32 : 0.0);
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14.r),
-        boxShadow: [
-          BoxShadow(
-            color: shadowColor,
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: bg,
-        borderRadius: BorderRadius.circular(14.r),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14.r),
-          splashColor: accent.withValues(alpha: 0.15),
-          highlightColor: accent.withValues(alpha: 0.05),
-          child: Container(
-            padding: EdgeInsets.symmetric(vertical: 11.h, horizontal: 14.w),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14.r),
-              border: Border.all(
-                color: isActive
-                    ? Colors.transparent
-                    : accent.withValues(alpha: 0.18),
-                width: 1.2,
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 18.sp, color: fg),
-                SizedBox(width: 8.w),
-                Flexible(
-                  child: InterText(
-                    text: label,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w700,
-                    color: fg,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -2120,119 +2017,6 @@ class PetPostCard extends StatelessWidget {
     }
   }
 
-  Widget _buildSoftButton({
-    required IconData icon,
-    required String text,
-    required VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18.r),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 9.h),
-        decoration: BoxDecoration(
-          // v442 — bouton secondaire teinté à l'accent du rôle (vert walker /
-          // bleu sitter / orange owner) au lieu d'orange fixe.
-          color: _accent.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(18.r),
-          border: Border.all(
-            color: _accent.withValues(alpha: 0.25),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 16.sp, color: _accent),
-            SizedBox(width: 6.w),
-            Flexible(
-              child: InterText(
-                text: text,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: _accent,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPrimaryButton({
-    required VoidCallback? onTap,
-    required bool isLoading,
-    required bool isCancelRequest,
-    required String buttonText,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18.r),
-      child: Builder(
-        builder: (context) => Container(
-          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 9.h),
-          decoration: BoxDecoration(
-            // v442 — bouton principal teinté à l'accent du rôle.
-            color: isCancelRequest ? AppColors.card(context) : _accent,
-            borderRadius: BorderRadius.circular(18.r),
-            border: Border.all(
-              color: isCancelRequest ? AppColors.errorColor : _accent,
-              width: 1.2,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (isLoading) ...[
-                SizedBox(
-                  width: 14.w,
-                  height: 14.h,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      isCancelRequest ? AppColors.errorColor : Colors.white,
-                    ),
-                  ),
-                ),
-                SizedBox(width: 6.w),
-              ] else ...[
-                Icon(
-                  // v442 — détail prestataire : « ✓ Postuler à cette demande ».
-                  isCancelRequest
-                      ? Icons.cancel_outlined
-                      : (_isProviderView
-                          ? Icons.check_rounded
-                          : Icons.send_outlined),
-                  size: 16.sp,
-                  color: isCancelRequest ? AppColors.errorColor : Colors.white,
-                ),
-                SizedBox(width: 6.w),
-              ],
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: InterText(
-                    text: isLoading
-                        ? (isCancelRequest
-                              ? 'request_cancel_button_cancelling'.tr
-                              : 'send_request_button_sending'.tr)
-                        : buttonText,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w600,
-                    color: isCancelRequest ? AppColors.errorColor : Colors.white,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   // v425 — remplacé par _buildHeroBanner (maquette 221). Conservé au cas où.
   // ignore: unused_element
   Widget _buildImagesGrid(BuildContext context) {
@@ -2466,7 +2250,16 @@ class PetPostCard extends StatelessWidget {
             size: 26.sp,
             color: AppColors.textSecondary(context),
           ),
-          SizedBox(height: 8.h),
+          SizedBox(height: 6.h),
+          InterText(
+            text: 'post569_photo_failed'.tr,
+            fontSize: 11.5.sp,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary(context),
+            maxLines: 2,
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 4.h),
           TextButton.icon(
             onPressed: () async {
               if (isNetwork && imageUrl != null && imageUrl.isNotEmpty) {

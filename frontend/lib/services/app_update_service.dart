@@ -10,6 +10,7 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:in_app_update/in_app_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v561 — Daniel : « que l'app se mette à jour seule sur iOS et Android ».
 ///
@@ -128,7 +129,9 @@ class AppUpdateService {
       builder: (sheetCtx) => PopScope(
         canPop: !forced,
         child: Container(
-          margin: const EdgeInsets.all(12),
+          // v569 — le bouton de mise à jour passait sous la barre système.
+          margin: EdgeInsets.fromLTRB(
+              12, 12, 12, 12 + appBottomInset(sheetCtx)),
           padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
           decoration: BoxDecoration(
             color: AppColors.card(sheetCtx),

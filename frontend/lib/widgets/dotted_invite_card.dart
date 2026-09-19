@@ -19,48 +19,72 @@ class DottedInviteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _DashedBorderPainter(color: color.withValues(alpha: 0.55)),
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 18.h, horizontal: 16.w),
-        child: Row(
-          children: [
-            Container(
-              width: 42.w,
-              height: 42.w,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(15.r),
+    // v569 — DESIGN UNIQUEMENT : même API (title / subtitle / color). Le
+    // pointillé posé sur un léger fond teinté (coins 20) se lit mieux, le
+    // disque d'icône devient rond et le chevron est mis dans une pastille.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(20.r),
+      ),
+      child: CustomPaint(
+        painter: _DashedBorderPainter(color: color.withValues(alpha: 0.55)),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 14.w),
+          child: Row(
+            children: [
+              Container(
+                width: 42.w,
+                height: 42.w,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.person_add_alt_1_rounded,
+                    color: color, size: 20.sp),
               ),
-              child: Icon(Icons.person_add_alt_1_rounded,
-                  color: color, size: 20.sp),
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: PawMapTheme.font(
-                        size: 13.5.sp, weight: FontWeight.w800),
-                  ),
-                  SizedBox(height: 3.h),
-                  Text(
-                    subtitle,
-                    style: PawMapTheme.font(
-                      size: 11.5.sp,
-                      weight: FontWeight.w500,
-                      color: PawMapTheme.sub,
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: PawMapTheme.font(
+                          size: 13.5.sp, weight: FontWeight.w800),
                     ),
-                  ),
-                ],
+                    SizedBox(height: 3.h),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: PawMapTheme.font(
+                        size: 11.5.sp,
+                        weight: FontWeight.w500,
+                        color: PawMapTheme.sub,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Icon(Icons.chevron_right_rounded,
-                color: PawMapTheme.sub, size: 20.sp),
-          ],
+              SizedBox(width: 8.w),
+              Container(
+                width: 26.w,
+                height: 26.w,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.chevron_right_rounded,
+                    color: color, size: 18.sp),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -79,7 +103,7 @@ class _DashedBorderPainter extends CustomPainter {
       ..strokeWidth = 1.6;
     final rect = RRect.fromRectAndRadius(
       Offset.zero & size,
-      const Radius.circular(18),
+      const Radius.circular(20),
     );
     final path = Path()..addRRect(rect);
     const dash = 7.0;

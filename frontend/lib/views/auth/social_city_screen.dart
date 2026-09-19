@@ -7,6 +7,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v565 audit-inscription — dernière étape d'une inscription Google / Apple.
 ///
@@ -197,7 +198,9 @@ class _SocialCityScreenState extends State<SocialCityScreen> {
               ),
             ),
             Padding(
-              padding: EdgeInsets.fromLTRB(24.w, 0, 24.w, 24.h),
+              // v569 — complément du SafeArea (0 sur le Samsung de Daniel).
+              padding: EdgeInsets.fromLTRB(24.w, 0, 24.w,
+                  24.h + appBottomInsetInsideSafeArea(context)),
               child: SizedBox(
                 width: double.infinity,
                 height: 52.h,

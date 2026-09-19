@@ -12,6 +12,7 @@ import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/views/chat_shared/chat_list_body.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/views/chat_shared/new_conversation_button.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class ChatScreen extends StatelessWidget {
   const ChatScreen({super.key});
@@ -72,7 +73,7 @@ class ChatScreen extends StatelessWidget {
               padding: EdgeInsets.only(
                   // v488 — Daniel : « nouvelle conversation toujours trop bas »
                   // → remonté nettement au-dessus du menu flottant.
-                  bottom: 120.h + MediaQuery.of(context).viewPadding.bottom),
+                  bottom: 120.h + appBottomInset(context)),
               // v565 — bouton modernisé (pilule à la couleur du rôle).
               // v566 — rond 56 qui s'étend en pilule à l'arrêt / en haut de
               // liste et se replie pendant le défilement.

@@ -11,6 +11,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
@@ -276,10 +277,19 @@ class ProfileSubPageScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // v569 — le `SafeArea(top: false)` du corps n'applique RIEN sur le Samsung
+    // de Daniel (`MediaQuery.padding.bottom` = 0 alors que la barre à 3 boutons
+    // recouvre 48 px). On complète donc ici, avec un `context` pris AU-DESSUS
+    // du SafeArea (celui de ce build) pour ne jamais compter l'inset deux fois.
+    // Quand il y a une barre `bottom`, c'est elle qui porte le dégagement : le
+    // contenu défilant n'a plus besoin de l'ajouter.
+    final extraBottom = appBottomInsetInsideSafeArea(context);
     final content = scroll
         ? SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: padding ?? EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 28.h),
+            padding: padding ??
+                EdgeInsets.fromLTRB(
+                    16.w, 8.h, 16.w, 28.h + (bottom == null ? extraBottom : 0)),
             child: body,
           )
         : Padding(padding: padding ?? EdgeInsets.zero, child: body);
@@ -317,7 +327,8 @@ class ProfileSubPageScaffold extends StatelessWidget {
                 children: [
                   Expanded(child: content),
                   Padding(
-                    padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 12.h),
+                    padding: EdgeInsets.fromLTRB(
+                        16.w, 8.h, 16.w, 12.h + extraBottom),
                     child: bottom,
                   ),
                 ],

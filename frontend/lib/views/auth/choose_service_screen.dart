@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/choose_service_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 
@@ -124,16 +125,28 @@ class ChooseServiceScreen extends StatelessWidget {
               child: GestureDetector(
                 onTap: controller.selectAllServices,
                 child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20.r),
+                    color: AppColors.primaryColor.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(99.r),
+                    border: Border.all(
+                      color: AppColors.primaryColor.withValues(alpha: 0.28),
+                    ),
                   ),
-                  child: PoppinsText(
-                    text: 'choose_service_choose_all'.tr,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primaryColor,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.done_all_rounded,
+                          size: 14.sp, color: AppColors.primaryColor),
+                      SizedBox(width: 6.w),
+                      InterText(
+                        text: 'choose_service_choose_all'.tr,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryColor,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -152,9 +165,10 @@ class ChooseServiceScreen extends StatelessWidget {
               // Subtitle
               InterText(
                 text: 'choose_service_subtitle'.tr,
-                fontSize: 14.sp,
+                fontSize: 14,
                 fontWeight: FontWeight.w400,
                 color: AppColors.textSecondary(context),
+                maxLines: 3,
               ),
 
               SizedBox(height: 20.h),
@@ -178,15 +192,17 @@ class ChooseServiceScreen extends StatelessWidget {
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               width: double.infinity,
-                              padding: EdgeInsets.all(16.w),
+                              padding: EdgeInsets.all(15.w),
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? color.withValues(alpha: 0.06)
                                     : AppColors.card(context),
-                                borderRadius: BorderRadius.circular(16.r),
+                                borderRadius: BorderRadius.circular(20.r),
                                 border: Border.all(
-                                  color: isSelected ? color : AppColors.divider(context),
-                                  width: isSelected ? 2 : 1,
+                                  color: isSelected
+                                      ? color
+                                      : AppColors.divider(context),
+                                  width: isSelected ? 1.8 : 1,
                                 ),
                                 boxShadow: isSelected
                                     ? [
@@ -281,11 +297,23 @@ class ChooseServiceScreen extends StatelessWidget {
                   return Padding(
                     padding: EdgeInsets.only(bottom: 8.h),
                     child: Center(
-                      child: InterText(
-                        text: '$count ${'choose_service_selected_count'.tr}',
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.primaryColor,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12.w,
+                          vertical: 6.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              AppColors.primaryColor.withValues(alpha: 0.09),
+                          borderRadius: BorderRadius.circular(99.r),
+                        ),
+                        child: InterText(
+                          text: '$count ${'choose_service_selected_count'.tr}',
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryColor,
+                          maxLines: 1,
+                        ),
                       ),
                     ),
                   );
@@ -296,6 +324,8 @@ class ChooseServiceScreen extends StatelessWidget {
               // Continue/Save Button
               Obx(
                 () => CustomButton(
+                  height: 54.h,
+                  radius: 18.r,
                   title: controller.isLoading.value
                       ? (isFromProfile
                           ? 'choose_service_saving'.tr
@@ -311,7 +341,10 @@ class ChooseServiceScreen extends StatelessWidget {
                 ),
               ),
 
-              SizedBox(height: 30.h),
+              // v569 — dégagement bas unique (Samsung edge-to-edge).
+              SizedBox(
+                height: 18.h + appBottomInsetInsideSafeArea(context),
+              ),
             ],
           ),
         ),

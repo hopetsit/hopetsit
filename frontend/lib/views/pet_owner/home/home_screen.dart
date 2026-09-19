@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/role_chip.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -15,6 +16,7 @@ import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/post_date_label.dart';
@@ -59,7 +61,8 @@ class _HomeScreenState extends State<HomeScreen> {
   // v443 — Daniel : « le tri Plus récent en premier sur l'accueil sert à
   // rien ». Sélecteur de tri RETIRÉ ; les publications restent en ordre
   // chronologique fixe (plus ancien d'abord).
-  final HomeMyPostsSortOrder _myPostsSortOrder = HomeMyPostsSortOrder.oldestFirst;
+  final HomeMyPostsSortOrder _myPostsSortOrder =
+      HomeMyPostsSortOrder.oldestFirst;
 
   // v426 — tri client-side de la liste de prestataires (bouton "Trier" du
   // bloc recherche premium). Defaut : par distance (plus proche d'abord).
@@ -240,67 +243,68 @@ class _HomeScreenState extends State<HomeScreen> {
         return SliverFillRemaining(
           hasScrollBody: false,
           child: Center(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 28.w),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 72.w,
-                  height: 72.w,
-                  decoration: BoxDecoration(
-                    color:
-                        AppColors.greenColor.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.directions_walk_rounded,
-                    size: 36.sp,
-                    color: AppColors.greenColor,
-                  ),
-                ),
-                SizedBox(height: 16.h),
-                // v23.1.147 — fix i18n : strings hardcodées FR remplacées par .tr.
-                PoppinsText(
-                  text: 'home_no_walkers_title'.tr,
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary(context),
-                ),
-                SizedBox(height: 6.h),
-                InterText(
-                  text: 'home_no_walkers_body'.tr,
-                  fontSize: 12.sp,
-                  color: AppColors.textSecondary(context),
-                  textAlign: TextAlign.center,
-                  maxLines: 4,
-                ),
-                SizedBox(height: 18.h),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Get.to(
-                      () => const PublishReservationRequestScreen(),
-                    )?.then((_) => _postsController.refreshPosts());
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.greenColor,
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 18.w, vertical: 10.h),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 28.w),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 72.w,
+                    height: 72.w,
+                    decoration: BoxDecoration(
+                      color: AppColors.greenColor.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.directions_walk_rounded,
+                      size: 36.sp,
+                      color: AppColors.greenColor,
                     ),
                   ),
-                  icon: const Icon(Icons.add_rounded, color: Colors.white),
-                  label: InterText(
-                    text: 'home_publish_walk'.tr,
-                    fontSize: 13.sp,
+                  SizedBox(height: 16.h),
+                  // v23.1.147 — fix i18n : strings hardcodées FR remplacées par .tr.
+                  PoppinsText(
+                    text: 'home_no_walkers_title'.tr,
+                    fontSize: 15.sp,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: AppColors.textPrimary(context),
                   ),
-                ),
-              ],
+                  SizedBox(height: 6.h),
+                  InterText(
+                    text: 'home_no_walkers_body'.tr,
+                    fontSize: 12.sp,
+                    color: AppColors.textSecondary(context),
+                    textAlign: TextAlign.center,
+                    maxLines: 4,
+                  ),
+                  SizedBox(height: 18.h),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Get.to(
+                        () => const PublishReservationRequestScreen(),
+                      )?.then((_) => _postsController.refreshPosts());
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.greenColor,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 18.w,
+                        vertical: 10.h,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                    ),
+                    icon: const Icon(Icons.add_rounded, color: Colors.white),
+                    label: InterText(
+                      text: 'home_publish_walk'.tr,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
           ),
         );
       }
@@ -394,7 +398,9 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       final parts = [city, country].where((s) => s.isNotEmpty).toList();
       if (parts.isNotEmpty) return parts.join(', ');
-    } catch (_) {/* noop */}
+    } catch (_) {
+      /* noop */
+    }
     return 'home_my_position'.tr;
   }
 
@@ -543,19 +549,22 @@ class _HomeScreenState extends State<HomeScreen> {
   /// bottomsheet placeholder léger ; "Trier" ouvre un sheet de tri fonctionnel.
   Widget _buildFilterRow(BuildContext context) {
     final accent = _accent;
-    final keptLabel =
-        _isWalkerTab ? 'home_filter_walks'.tr : 'home_filter_kept_pets'.tr;
-    final keptIcon =
-        _isWalkerTab ? Icons.directions_walk_rounded : Icons.pets_rounded;
+    final keptLabel = _isWalkerTab
+        ? 'home_filter_walks'.tr
+        : 'home_filter_kept_pets'.tr;
+    final keptIcon = _isWalkerTab
+        ? Icons.directions_walk_rounded
+        : Icons.pets_rounded;
     // v435 — la puce reflète si un filtre est actif (label dynamique + accent).
     final petActive = _petTypeFilter != null;
     final availActive = _availabilityFilter != null;
-    final keptDynamicLabel =
-        petActive ? '$keptLabel · ${_petTypeShortLabel(_petTypeFilter!)}' : keptLabel;
+    final keptDynamicLabel = petActive
+        ? '$keptLabel · ${_petTypeShortLabel(_petTypeFilter!)}'
+        : keptLabel;
     final availLabel = availActive
         ? (_availabilityFilter == 'today'
-            ? 'home_avail_today'.tr
-            : 'home_avail_week'.tr)
+              ? 'home_avail_today'.tr
+              : 'home_avail_week'.tr)
         : 'home_filter_availability'.tr;
     return Row(
       children: [
@@ -617,10 +626,11 @@ class _HomeScreenState extends State<HomeScreen> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12.r),
             border: Border.all(
-                color: accent != null
-                    ? accent.withValues(alpha: 0.4)
-                    : AppColors.divider(context),
-                width: 1),
+              color: accent != null
+                  ? accent.withValues(alpha: 0.4)
+                  : AppColors.divider(context),
+              width: 1,
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -638,8 +648,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               if (showChevron)
-                Icon(Icons.keyboard_arrow_down_rounded,
-                    size: 16.sp, color: AppColors.textSecondary(context)),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 16.sp,
+                  color: AppColors.textSecondary(context),
+                ),
             ],
           ),
         ),
@@ -694,8 +707,14 @@ class _HomeScreenState extends State<HomeScreen> {
           color: AppColors.card(ctx),
           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
         ),
+        // v569 — `padding.bottom` vaut 0 sur le Samsung de Daniel : la
+        // dernière option de la feuille passait sous la barre système.
         padding: EdgeInsets.fromLTRB(
-            20.w, 14.h, 20.w, 20.h + MediaQuery.of(ctx).padding.bottom),
+          20.w,
+          14.h,
+          20.w,
+          20.h + appBottomInset(ctx),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -759,7 +778,11 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 4.w),
         child: Row(
           children: [
-            Icon(icon, size: 20.sp, color: selected ? accent : AppColors.greyColor),
+            Icon(
+              icon,
+              size: 20.sp,
+              color: selected ? accent : AppColors.greyColor,
+            ),
             SizedBox(width: 12.w),
             Expanded(
               child: InterText(
@@ -769,8 +792,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppColors.textPrimary(context),
               ),
             ),
-            if (selected)
-              Icon(Icons.check_rounded, size: 18.sp, color: accent),
+            if (selected) Icon(Icons.check_rounded, size: 18.sp, color: accent),
           ],
         ),
       ),
@@ -889,7 +911,8 @@ class _HomeScreenState extends State<HomeScreen> {
       // Walker a acceptedPetTypes → filtre type réel ; availableDates +
       // availableTimeSlots → dispo.
       final filtered = _homeController.walkers.where((w) {
-        final typeOk = _petTypeFilter == null ||
+        final typeOk =
+            _petTypeFilter == null ||
             w.acceptedPetTypes
                 .map((e) => e.toLowerCase())
                 .contains(_petTypeFilter);
@@ -900,7 +923,8 @@ class _HomeScreenState extends State<HomeScreen> {
       // v440 — le sitter expose désormais acceptedPetTypes → le filtre type
       // s'applique vraiment ; la dispo via availableDates + availableTimeSlots.
       final filtered = _homeController.sitters.where((s) {
-        final typeOk = _petTypeFilter == null ||
+        final typeOk =
+            _petTypeFilter == null ||
             s.acceptedPetTypes
                 .map((e) => e.toLowerCase())
                 .contains(_petTypeFilter);
@@ -1005,8 +1029,13 @@ class _HomeScreenState extends State<HomeScreen> {
         color: AppColors.card(ctx),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
+      // v569 — idem : dernière ligne des filtres au-dessus de la barre.
       padding: EdgeInsets.fromLTRB(
-          20.w, 14.h, 20.w, 20.h + MediaQuery.of(ctx).padding.bottom),
+        20.w,
+        14.h,
+        20.w,
+        20.h + appBottomInset(ctx),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1053,7 +1082,16 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
           ),
           padding: EdgeInsets.fromLTRB(
-              20.w, 14.h, 20.w, 20.h + MediaQuery.of(ctx).padding.bottom),
+            20.w,
+            14.h,
+            20.w,
+            // v569 — clavier ouvert : son inset est déjà appliqué par le
+            // Padding parent, on n'ajoute pas l'inset système en double.
+            20.h +
+                (MediaQuery.of(ctx).viewInsets.bottom > 0
+                    ? 0
+                    : appBottomInset(ctx)),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1182,120 +1220,121 @@ class _HomeScreenState extends State<HomeScreen> {
           itemBuilder: (context, idx) {
             final index = idx;
             final post = sortedMine[index];
-                  final rawCity = post.location?.city.trim();
-                  final locationLabel = (rawCity != null && rawCity.isNotEmpty)
-                      ? rawCity
-                      : null;
-                  // v18.6 — ajout onEdit + isReserved + ownerViewOfOwnPost
-                  // + share subject deep-link (cohérence avec my_posts_screen).
-                  return PetPostCard(
-                    userName: post.owner.name,
-                    userEmail: post.owner.email,
-                    userAvatar: post.owner.avatar.isNotEmpty ? post.owner.avatar : null,
-                    petImages: post.images.map((img) => img.url).toList(),
-                    // v420 — maquette détail annonce : animaux + bio owner.
-                    pets: post.pets,
-                    ownerBio: post.owner.bio,
-                    // v435 — lieu de garde affiché dans la grille.
-                    serviceLocation: post.serviceLocation,
-                    postBody: post.body,
-                    serviceTypes: _serviceTypesDisplay(post.serviceTypes),
-                    dateRange: _postDateRangeLabel(post),
-                    serviceTime: PostDateLabel.timeLabel(post),
-                    location: locationLabel,
-                    isNetworkImage: post.images.isNotEmpty,
-                    likeCount: post.likesCount,
-                    // v444 — Daniel : « le like de la publication marche pas ».
-                    // Le like n'était pas câblé sur l'accueil owner (Mes
-                    // publications) → cœur inerte. On câble isLiked + onLike.
-                    isLiked: _postsController.isPostLiked(post.id),
-                    onLike: () => _postsController.toggleLike(post.id),
-                    commentCount: post.commentsCount,
-                    isReserved: post.reservedBy != null,
-                    reservedProviderRole: post.reservedBy?.providerRole,
-                    ownerViewOfOwnPost: true,
-                    // v23.1.152 — Daniel : "pour la 5eme fois ds owner le
-                    // cadre urgend sur ma publication naparait pa". CETTE
-                    // page (home owner tab "Mes publications") etait celle
-                    // qu'il regardait, pas MyPostsScreen. Fix : forwarder
-                    // les flags boost au PetPostCard ici aussi.
-                    //
-                    // v23.1.180 — Daniel : "le cadre urgent boost naparait
-                    // tjr pa". Fallback frontend : si MES propres posts ET
-                    // que MOI j'ai un boost/abo actif localement (lu via
-                    // ActiveBenefitsRow.boostActiveAccessor qui combine
-                    // boostExpiry + mapBoostExpiry + UserSubscription
-                    // active depuis v175), on force isOwnerBoosted=true
-                    // indépendamment du backend cache.
-                    isOwnerBoosted: post.isOwnerBoosted ||
-                        ActiveBenefitsRow.boostActiveAccessor.value,
-                    ownerBoostTier: post.ownerBoostTier,
-                    onDelete: () => _confirmAndDeletePost(context, post.id),
-                    onEdit: () {
-                      Get.to(() => EditPostScreen(post: post));
-                    },
-                    onShare: () async {
-                      try {
-                        final petName = post.pets.isNotEmpty
-                            ? post.pets.first.petName
-                            : '';
-                        // v23.1.170 — Daniel : "tout les boutons des email
-                        // ne marche pas". Audit a aussi révélé que les
-                        // share links pointaient sur hopetsit.app (un
-                        // domaine qui n'existe PAS) au lieu de hopetsit.com.
-                        // On unifie : tous les liens passent désormais par
-                        // hopetsit.com → intercepté par universal links
-                        // iOS/Android ou fallback web /post/:id.
-                        final link = 'https://hopetsit.com/post/${post.id}';
-                        final subject = 'share_post_subject'.trParams({
-                          'petName': petName.isEmpty ? 'HoPetSit' : petName,
-                        });
-                        final shareText =
-                            'share_post_body'.trParams({'link': link});
-                        final imageUrls = post.images
-                            .where((img) => img.url.isNotEmpty)
-                            .map((img) => img.url)
-                            .toList();
-                        if (imageUrls.isNotEmpty) {
-                          final tempDir = await getTemporaryDirectory();
-                          final List<XFile> xFiles = [];
-                          for (int i = 0; i < imageUrls.length; i++) {
-                            final url = imageUrls[i];
-                            // v23.1.175 — Daniel : fix crash _Uri.resolve
-                            // FormatException. tryParse + skip si invalid.
-                            final uri = Uri.tryParse(url);
-                            if (uri == null || !uri.hasScheme) {
-                              continue;
-                            }
-                            final response = await http.get(uri);
-                            final file = File(
-                                '${tempDir.path}/share_image_$i.jpg');
-                            await file.writeAsBytes(response.bodyBytes);
-                            xFiles.add(XFile(file.path));
-                          }
-                          await SharePlus.instance.share(ShareParams(
-                            files: xFiles,
-                            text: shareText,
-                            subject: subject,
-                          ));
-                        } else {
-                          await SharePlus.instance.share(ShareParams(
-                            text: shareText,
-                            subject: subject,
-                          ));
-                        }
-                      } catch (e) {
-                        AppLogger.logError('Failed to share post', error: e);
-                        await SharePlus.instance.share(ShareParams(text: post.body));
+            final rawCity = post.location?.city.trim();
+            final locationLabel = (rawCity != null && rawCity.isNotEmpty)
+                ? rawCity
+                : null;
+            // v18.6 — ajout onEdit + isReserved + ownerViewOfOwnPost
+            // + share subject deep-link (cohérence avec my_posts_screen).
+            return PetPostCard(
+              userName: post.owner.name,
+              userEmail: post.owner.email,
+              userAvatar: post.owner.avatar.isNotEmpty
+                  ? post.owner.avatar
+                  : null,
+              petImages: post.images.map((img) => img.url).toList(),
+              // v420 — maquette détail annonce : animaux + bio owner.
+              pets: post.pets,
+              ownerBio: post.owner.bio,
+              // v435 — lieu de garde affiché dans la grille.
+              serviceLocation: post.serviceLocation,
+              postBody: post.body,
+              serviceTypes: _serviceTypesDisplay(post.serviceTypes),
+              dateRange: _postDateRangeLabel(post),
+              serviceTime: PostDateLabel.timeLabel(post),
+              location: locationLabel,
+              isNetworkImage: post.images.isNotEmpty,
+              likeCount: post.likesCount,
+              // v444 — Daniel : « le like de la publication marche pas ».
+              // Le like n'était pas câblé sur l'accueil owner (Mes
+              // publications) → cœur inerte. On câble isLiked + onLike.
+              isLiked: _postsController.isPostLiked(post.id),
+              onLike: () => _postsController.toggleLike(post.id),
+              commentCount: post.commentsCount,
+              isReserved: post.reservedBy != null,
+              reservedProviderRole: post.reservedBy?.providerRole,
+              ownerViewOfOwnPost: true,
+              // v23.1.152 — Daniel : "pour la 5eme fois ds owner le
+              // cadre urgend sur ma publication naparait pa". CETTE
+              // page (home owner tab "Mes publications") etait celle
+              // qu'il regardait, pas MyPostsScreen. Fix : forwarder
+              // les flags boost au PetPostCard ici aussi.
+              //
+              // v23.1.180 — Daniel : "le cadre urgent boost naparait
+              // tjr pa". Fallback frontend : si MES propres posts ET
+              // que MOI j'ai un boost/abo actif localement (lu via
+              // ActiveBenefitsRow.boostActiveAccessor qui combine
+              // boostExpiry + mapBoostExpiry + UserSubscription
+              // active depuis v175), on force isOwnerBoosted=true
+              // indépendamment du backend cache.
+              isOwnerBoosted:
+                  post.isOwnerBoosted ||
+                  ActiveBenefitsRow.boostActiveAccessor.value,
+              ownerBoostTier: post.ownerBoostTier,
+              onDelete: () => _confirmAndDeletePost(context, post.id),
+              onEdit: () {
+                Get.to(() => EditPostScreen(post: post));
+              },
+              onShare: () async {
+                try {
+                  final petName = post.pets.isNotEmpty
+                      ? post.pets.first.petName
+                      : '';
+                  // v23.1.170 — Daniel : "tout les boutons des email
+                  // ne marche pas". Audit a aussi révélé que les
+                  // share links pointaient sur hopetsit.app (un
+                  // domaine qui n'existe PAS) au lieu de hopetsit.com.
+                  // On unifie : tous les liens passent désormais par
+                  // hopetsit.com → intercepté par universal links
+                  // iOS/Android ou fallback web /post/:id.
+                  final link = 'https://hopetsit.com/post/${post.id}';
+                  final subject = 'share_post_subject'.trParams({
+                    'petName': petName.isEmpty ? 'HoPetSit' : petName,
+                  });
+                  final shareText = 'share_post_body'.trParams({'link': link});
+                  final imageUrls = post.images
+                      .where((img) => img.url.isNotEmpty)
+                      .map((img) => img.url)
+                      .toList();
+                  if (imageUrls.isNotEmpty) {
+                    final tempDir = await getTemporaryDirectory();
+                    final List<XFile> xFiles = [];
+                    for (int i = 0; i < imageUrls.length; i++) {
+                      final url = imageUrls[i];
+                      // v23.1.175 — Daniel : fix crash _Uri.resolve
+                      // FormatException. tryParse + skip si invalid.
+                      final uri = Uri.tryParse(url);
+                      if (uri == null || !uri.hasScheme) {
+                        continue;
                       }
-                    },
-                  );
-                },
-              ),
+                      final response = await http.get(uri);
+                      final file = File('${tempDir.path}/share_image_$i.jpg');
+                      await file.writeAsBytes(response.bodyBytes);
+                      xFiles.add(XFile(file.path));
+                    }
+                    await SharePlus.instance.share(
+                      ShareParams(
+                        files: xFiles,
+                        text: shareText,
+                        subject: subject,
+                      ),
+                    );
+                  } else {
+                    await SharePlus.instance.share(
+                      ShareParams(text: shareText, subject: subject),
+                    );
+                  }
+                } catch (e) {
+                  AppLogger.logError('Failed to share post', error: e);
+                  await SharePlus.instance.share(ShareParams(text: post.body));
+                }
+              },
             );
+          },
+        ),
+      );
     });
   }
-
 
   // v23.1 part 240 — SITTERS tab simplifiee : retourne UN sliver, plus de
   // duplicata "Offers Near Me" button (le slider inline en haut de la home
@@ -1334,8 +1373,9 @@ class _HomeScreenState extends State<HomeScreen> {
             subtitle: 'home_posts_empty_hint'.tr,
             ctaLabel: 'publish_request_publish_button'.tr,
             onCta: () {
-              Get.to(() => const PublishReservationRequestScreen())
-                  ?.then((_) => _postsController.refreshPosts());
+              Get.to(
+                () => const PublishReservationRequestScreen(),
+              )?.then((_) => _postsController.refreshPosts());
             },
           ),
         );
@@ -1350,16 +1390,19 @@ class _HomeScreenState extends State<HomeScreen> {
       int? sharedEstDays;
       if (_userId != null) {
         final myPosts = _postsController.postsWithoutMedia
-            .where((p) =>
-                p.owner.id == _userId &&
-                p.startDate != null &&
-                p.endDate != null)
+            .where(
+              (p) =>
+                  p.owner.id == _userId &&
+                  p.startDate != null &&
+                  p.endDate != null,
+            )
             .toList();
         if (myPosts.isNotEmpty) {
           myPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           final latestPost = myPosts.first;
-          final rawDays =
-              latestPost.endDate!.difference(latestPost.startDate!).inDays;
+          final rawDays = latestPost.endDate!
+              .difference(latestPost.startDate!)
+              .inDays;
           // Treat same-day requests as 1 day (avoid hiding total).
           sharedEstDays = rawDays > 0 ? rawDays : 1;
         }
@@ -1368,94 +1411,95 @@ class _HomeScreenState extends State<HomeScreen> {
       return SliverPadding(
         padding: EdgeInsets.symmetric(horizontal: 20.w),
         sliver: SliverList.builder(
-                  itemCount: _homeController.sitters.length,
-                  itemBuilder: (context, index) {
-                    final sitter = _homeController.sitters[index];
+          itemCount: _homeController.sitters.length,
+          itemBuilder: (context, index) {
+            final sitter = _homeController.sitters[index];
 
-                    // Session v15-3 — the new SitterCard reads rates directly
-                    // from the SitterModel (including the hourly × 8 fallback),
-                    // so we only compute the "estimated cost" here from the
-                    // Owner's latest active reservation post and hand it in.
-                    // v23.1 part 250 — days hisse hors builder ; ici on ne
-                    // calcule plus que le cout par sitter (cheap).
-                    double? estCost;
-                    final int? estDays = sharedEstDays;
-                    if (estDays != null) {
-                      final days = estDays;
-                      if (sitter.dailyRate > 0) {
-                        estCost = sitter.dailyRate * days;
-                      } else if (sitter.hourlyRate > 0) {
-                        estCost = sitter.hourlyRate * 8 * days; // 8h/day
-                      } else if (sitter.weeklyRate > 0) {
-                        estCost = (sitter.weeklyRate / 7) * days;
-                      } else if (sitter.monthlyRate > 0) {
-                        estCost = (sitter.monthlyRate / 30) * days;
-                      }
-                    }
+            // Session v15-3 — the new SitterCard reads rates directly
+            // from the SitterModel (including the hourly × 8 fallback),
+            // so we only compute the "estimated cost" here from the
+            // Owner's latest active reservation post and hand it in.
+            // v23.1 part 250 — days hisse hors builder ; ici on ne
+            // calcule plus que le cout par sitter (cheap).
+            double? estCost;
+            final int? estDays = sharedEstDays;
+            if (estDays != null) {
+              final days = estDays;
+              if (sitter.dailyRate > 0) {
+                estCost = sitter.dailyRate * days;
+              } else if (sitter.hourlyRate > 0) {
+                estCost = sitter.hourlyRate * 8 * days; // 8h/day
+              } else if (sitter.weeklyRate > 0) {
+                estCost = (sitter.weeklyRate / 7) * days;
+              } else if (sitter.monthlyRate > 0) {
+                estCost = (sitter.monthlyRate / 30) * days;
+              }
+            }
 
-                    // v444 — Obx pour que le cœur favori reflète l'état
-                    // réactif du FavoritesController (toggle optimiste).
-                    return Obx(
-                      () => SitterCard(
-                        sitter: sitter,
-                        estimatedCost: estCost,
-                        estimatedDays: estDays,
-                        isFavorite: _favoritesController.isFavorite(sitter.id),
-                        onToggleFavorite: () =>
-                            _favoritesController.toggle(sitter.id, 'sitter'),
-                        onTap: () {
-                          Get.to(
-                            () => ServiceProviderDetailScreen(
-                              sitterId: sitter.id,
-                              status: 'status_available'.tr,
-                            ),
-                          );
-                        },
-                        onSendRequest: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => SendRequestScreen(
-                                serviceProviderName: sitter.name,
-                                serviceProviderId: sitter.id,
-                                serviceProviderRole: 'sitter',
-                                // Session v15 — pass rates so the Total row
-                                // on the request screen can compute live.
-                                sitterDailyRate: sitter.dailyRate > 0
-                                    ? sitter.dailyRate
-                                    : null,
-                                sitterWeeklyRate: sitter.weeklyRate > 0
-                                    ? sitter.weeklyRate
-                                    : null,
-                                sitterMonthlyRate: sitter.monthlyRate > 0
-                                    ? sitter.monthlyRate
-                                    : null,
-                                currencyCode: sitter.currency,
-                              ),
-                            ),
-                          );
-                        },
-                        onBlock: () {
-                          CustomConfirmationDialog.show(
-                            context: context,
-                            message: 'home_block_sitter_message'.trParams({
-                              'name': sitter.name,
-                            }),
-                            yesText: 'home_block_sitter_yes'.tr,
-                            cancelText: 'home_block_sitter_no'.tr,
-                            yesButtonColor: AppColors.whiteColor,
-                            cancelButtonColor: AppColors.primaryColor,
-                            onYes: () {},
-                            onCancel: () {
-                              _homeController.blockSitter(sitter.id);
-                            },
-                          );
-                        },
+            // v444 — Obx pour que le cœur favori reflète l'état
+            // réactif du FavoritesController (toggle optimiste).
+            return Obx(
+              () => SitterCard(
+                sitter: sitter,
+                estimatedCost: estCost,
+                estimatedDays: estDays,
+                isFavorite: _favoritesController.isFavorite(sitter.id),
+                onToggleFavorite: () =>
+                    _favoritesController.toggle(sitter.id, 'sitter'),
+                onTap: () {
+                  Get.to(
+                    () => ServiceProviderDetailScreen(
+                      sitterId: sitter.id,
+                      status: 'status_available'.tr,
+                    ),
+                  );
+                },
+                onSendRequest: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SendRequestScreen(
+                        serviceProviderName: sitter.name,
+                        serviceProviderId: sitter.id,
+                        serviceProviderRole: 'sitter',
+                        // Session v15 — pass rates so the Total row
+                        // on the request screen can compute live.
+                        sitterDailyRate: sitter.dailyRate > 0
+                            ? sitter.dailyRate
+                            : null,
+                        sitterWeeklyRate: sitter.weeklyRate > 0
+                            ? sitter.weeklyRate
+                            : null,
+                        sitterMonthlyRate: sitter.monthlyRate > 0
+                            ? sitter.monthlyRate
+                            : null,
+                        currencyCode: sitter.currency,
                       ),
-                    );
-                  },
-                ),
-              );
+                    ),
+                  );
+                },
+                onBlock: () {
+                  CustomConfirmationDialog.show(
+                    context: context,
+                    message: 'home_block_sitter_message'.trParams({
+                      'name': sitter.name,
+                    }),
+                    // v569 — les clés sont nommées à l'envers (…_yes = « Annuler »,
+                    // …_no = « Bloquer ») : on met l'action destructive sur le
+                    // bouton principal rouge, l'annulation en secondaire.
+                    yesText: 'home_block_sitter_no'.tr,
+                    cancelText: 'home_block_sitter_yes'.tr,
+                    yesButtonColor: const Color(0xFFDC2626),
+                    onYes: () {
+                      _homeController.blockSitter(sitter.id);
+                    },
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      );
     });
   }
 
@@ -1483,26 +1527,37 @@ class _HomeScreenState extends State<HomeScreen> {
           elevation: 0,
           backgroundColor: AppColors.appBar(context),
           surfaceTintColor: Colors.transparent,
-          title: PoppinsText(
-            text: _profileController.userName.value.isNotEmpty
-                ? _profileController.userName.value
-                : 'home_default_user_name'.tr,
-            fontSize: 18.sp,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary(context),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: PoppinsText(
+                  text: _profileController.userName.value.isNotEmpty
+                      ? _profileController.userName.value
+                      : 'home_default_user_name'.tr,
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                ),
+              ),
+              SizedBox(width: 8.w),
+              // v569 — pastille de rôle à côté du nom (Daniel).
+              const RoleChip(role: 'owner', compact: true),
+            ],
           ),
           actions: [
             const BoostQuickAction(role: 'owner'),
             SizedBox(width: 4.w),
-            IconButton(
-              icon: Icon(Icons.notifications_rounded,
-                  color: AppColors.primaryColor, size: 22.sp),
-              onPressed: () {
-                Get.to(() => const NotificationsScreen())?.then((_) {
-                  _notificationsController.refreshUnreadCount();
-                });
-              },
-            ),
+            // v569 — cloche modernisée + nombre de non-lus.
+            Obx(() => NotificationBellAction(
+                  count: _notificationsController.unreadCount.value,
+                  role: 'owner',
+                  onTap: () {
+                    Get.to(() => const NotificationsScreen())?.then((_) {
+                      _notificationsController.refreshUnreadCount();
+                    });
+                  },
+                )),
             SizedBox(width: 8.w),
           ],
         ),
@@ -1542,9 +1597,7 @@ class _HomeScreenState extends State<HomeScreen> {
               // v426 — le composer "Publication" n'apparaît que sur l'onglet
               // "Mes publications" (absent des maquettes 50/51 prestataires).
               if (_selectedTabIndex == 0) ...[
-                const SliverToBoxAdapter(
-                  child: ExpandablePostInput(),
-                ),
+                const SliverToBoxAdapter(child: ExpandablePostInput()),
                 SliverToBoxAdapter(child: SizedBox(height: 12.h)),
               ] else
                 SliverToBoxAdapter(child: SizedBox(height: 12.h)),
@@ -1596,9 +1649,11 @@ class _HomeScreenState extends State<HomeScreen> {
               // Bottom padding pour eviter que le dernier item soit cache
               // par la pill flottante du bottom nav.
               // v468 — dégage le bas au-dessus du menu pleine largeur
+              // v569 — `viewPadding.bottom` = 0 sur le Samsung de Daniel : le
+              // dernier élément finissait sous la pilule + la barre système.
               SliverToBoxAdapter(
-                  child: SizedBox(
-                      height: 110.h + MediaQuery.of(context).viewPadding.bottom)),
+                child: SizedBox(height: 110.h + appBottomInset(context)),
+              ),
             ],
           ),
         ),
@@ -1607,41 +1662,42 @@ class _HomeScreenState extends State<HomeScreen> {
         // v471 — Daniel : « remonter encore un peu » le bouton + de l'accueil
         // owner. On le relève davantage (120) + l'inset Samsung.
         floatingActionButton: Padding(
-          padding: EdgeInsets.only(
-              bottom: 120.h + MediaQuery.of(context).viewPadding.bottom),
+          padding: EdgeInsets.only(bottom: 120.h + appBottomInset(context)),
           child: Container(
-          width: 52.w,
-          height: 52.w,
-          decoration: BoxDecoration(
-            gradient: AppColors.linearGradient,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primaryColor.withValues(alpha: 0.35),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            shape: const CircleBorder(),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: () {
-                Get.to(() => const PublishReservationRequestScreen())?.then((_) {
-                  _postsController.refreshPosts();
-                });
-              },
-              child: Center(
-                child: Icon(
-                  Icons.add_rounded,
-                  size: 26.sp,
-                  color: AppColors.whiteColor,
+            width: 52.w,
+            height: 52.w,
+            decoration: BoxDecoration(
+              gradient: AppColors.linearGradient,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryColor.withValues(alpha: 0.35),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () {
+                  Get.to(() => const PublishReservationRequestScreen())?.then((
+                    _,
+                  ) {
+                    _postsController.refreshPosts();
+                  });
+                },
+                child: Center(
+                  child: Icon(
+                    Icons.add_rounded,
+                    size: 26.sp,
+                    color: AppColors.whiteColor,
+                  ),
                 ),
               ),
             ),
-          ),
           ),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,

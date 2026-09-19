@@ -17,6 +17,7 @@ import 'package:hopetsit/views/profile/edit_pet_screen.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v420 — refonte fiche animal À LA LETTRE (maquette « Profil de Helios ») :
 /// design CLAIR (fond blanc), bannière photo + avatar superposé + crayon +
@@ -491,7 +492,10 @@ class PetProfileScreen extends StatelessWidget {
     final hasChar = pet.characterTraits.isNotEmpty;
     final hasCompat = !pet.compatibilities.isEmpty;
     return ListView(
-      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 24.h), // v448: plus de FAB (bouton Modifier en haut)
+      // v448 : plus de FAB (bouton Modifier en haut).
+      // v569 : + dégagement bas (barre système Android).
+      padding: EdgeInsets.fromLTRB(
+          16.w, 16.w, 16.w, 24.h + appBottomInset(context)),
       children: [
         // ❤️ Présentation (bio libre).
         if (pet.bio.isNotEmpty)
@@ -538,7 +542,10 @@ class PetProfileScreen extends StatelessWidget {
   // ── HEALTH ──────────────────────────────────────────────────────────────
   Widget _healthTab(BuildContext context) {
     return ListView(
-      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 24.h), // v448: plus de FAB (bouton Modifier en haut)
+      // v448 : plus de FAB (bouton Modifier en haut).
+      // v569 : + dégagement bas (barre système Android).
+      padding: EdgeInsets.fromLTRB(
+          16.w, 16.w, 16.w, 24.h + appBottomInset(context)),
       children: [
         // 🏥 Vaccins + Puce + Stérilisé regroupés.
         _section('pet_section_health'.tr,
@@ -709,7 +716,10 @@ class PetProfileScreen extends StatelessWidget {
     final tags = pet.habits.tags;
     if (rows.isEmpty && tags.isEmpty) return _empty('pet_no_info'.tr);
     return ListView(
-      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 24.h), // v448: plus de FAB (bouton Modifier en haut)
+      // v448 : plus de FAB (bouton Modifier en haut).
+      // v569 : + dégagement bas (barre système Android).
+      padding: EdgeInsets.fromLTRB(
+          16.w, 16.w, 16.w, 24.h + appBottomInset(context)),
       children: [
         // v443 — habitudes COCHABLES affichées en chips en tête de l'onglet.
         if (tags.isNotEmpty)
@@ -739,7 +749,10 @@ class PetProfileScreen extends StatelessWidget {
       }
     }
     return ListView(
-      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 24.h), // v448: plus de FAB (bouton Modifier en haut)
+      // v448 : plus de FAB (bouton Modifier en haut).
+      // v569 : + dégagement bas (barre système Android).
+      padding: EdgeInsets.fromLTRB(
+          16.w, 16.w, 16.w, 24.h + appBottomInset(context)),
       children: [
         InterText(
           text: 'pet_gallery_title'.tr,

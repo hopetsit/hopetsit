@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/widgets/paw_card_icons.dart';
 
@@ -20,11 +21,23 @@ class BoostProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // v569 — le plateau des 4 cartes suit le mode sombre (avant : beige en dur
+    // #F1E9E2, illisible de nuit) et gagne un liseré + une ombre douce. Les 4
+    // cartes elles-mêmes (design « Paw Buttons » validé par Daniel) et les
+    // destinations sont inchangées.
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: EdgeInsets.all(6.w),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1E9E2),
+        color: dark ? const Color(0xFF221E1B) : const Color(0xFFF4EDE7),
         borderRadius: BorderRadius.circular(24.r),
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.06)
+              : Colors.black.withValues(alpha: 0.04),
+          width: 1,
+        ),
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

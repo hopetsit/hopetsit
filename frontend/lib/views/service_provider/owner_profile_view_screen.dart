@@ -9,6 +9,8 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_detail_screen.dart';
+import 'package:hopetsit/views/pet_sitter/widgets/post_card_kit.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -139,12 +141,11 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
             color: AppColors.textPrimary(context),
             maxLines: 2,
           ),
-          SizedBox(height: 4.h),
-          InterText(
-            text: 'role_pet_owner'.tr,
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w600,
-            color: AppColors.primaryColor,
+          SizedBox(height: 6.h),
+          ActionStatusPill(
+            label: 'role_pet_owner'.tr,
+            icon: Icons.pets_rounded,
+            tone: AppColors.ownerAccent,
           ),
           if (city.isNotEmpty) ...[
             SizedBox(height: 8.h),
@@ -193,43 +194,22 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
     );
   }
 
+  /// v569 — BUG mode sombre : le fond était `AppColors.scaffoldOwnerLight`
+  /// (orange TRÈS pâle, en dur) alors que le texte suit le thème → bio
+  /// quasi invisible en sombre. On passe par `PostBlock` sur la surface du
+  /// thème. L'icône dorée `#B8860B` (reste de l'ancien jaune) devient la
+  /// couleur du rôle propriétaire.
   Widget _buildAboutCard(BuildContext context, String bio) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 14.h),
-      decoration: BoxDecoration(
-        // v449 — carte « À propos » de l'OWNER : orange pâle (couleur du rôle
-        // owner) au lieu du jaune.
-        color: AppColors.scaffoldOwnerLight,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(
-          color: AppColors.ownerAccent.withValues(alpha: 0.35),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.person_rounded,
-                  size: 16.sp, color: const Color(0xFFB8860B)),
-              SizedBox(width: 8.w),
-              InterText(
-                text: 'owner_profile_about'.tr,
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary(context),
-              ),
-            ],
-          ),
-          SizedBox(height: 8.h),
-          InterText(
-            text: bio,
-            fontSize: 12.5.sp,
-            color: AppColors.textSecondary(context),
-            maxLines: 12,
-          ),
-        ],
+    return PostBlock(
+      accent: AppColors.ownerAccent,
+      title: 'owner_profile_about'.tr,
+      titleIcon: Icons.person_rounded,
+      child: PostExpandableText(
+        text: bio,
+        moreLabel: 'post569_see_more'.tr,
+        lessLabel: 'post569_see_less'.tr,
+        accent: AppColors.ownerAccent,
+        maxLines: 6,
       ),
     );
   }
@@ -242,13 +222,15 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
     ];
     return InkWell(
       onTap: pet.id.isNotEmpty ? () => _openPetDetails(pet.id) : null,
-      borderRadius: BorderRadius.circular(16.r),
+      borderRadius: BorderRadius.circular(PostCardKit.blockRadius.r),
       child: Container(
+        constraints: BoxConstraints(minHeight: PostCardKit.tapTarget.w),
         padding: EdgeInsets.all(12.w),
         decoration: BoxDecoration(
           color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(16.r),
+          borderRadius: BorderRadius.circular(PostCardKit.blockRadius.r),
           boxShadow: AppColors.cardShadow(context),
+          border: Border.all(color: AppColors.divider(context)),
         ),
         child: Row(
           children: [
@@ -276,9 +258,11 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
                       SizedBox(width: 5.w),
                       Flexible(
                         child: InterText(
+                          // v569 — le repli affichait le titre de section
+                          // (« Ses animaux ») comme NOM d'animal.
                           text: pet.petName.trim().isNotEmpty
                               ? pet.petName.trim()
-                              : 'owner_profile_pets'.tr,
+                              : 'lists569_pet_fallback'.tr,
                           fontSize: 15.sp,
                           fontWeight: FontWeight.w800,
                           color: AppColors.textPrimary(context),
@@ -346,25 +330,28 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
+      // v569 — même carte de chargement que le reste du lot.
       builder: (context) => Center(
         child: Container(
-          padding: EdgeInsets.all(20.w),
+          padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 22.h),
           decoration: BoxDecoration(
             color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(12.r),
+            borderRadius: BorderRadius.circular(18.r),
+            boxShadow: AppColors.cardShadow(context),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               CircularProgressIndicator(
+                strokeWidth: 2.6,
                 valueColor:
                     AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
               ),
               SizedBox(height: 16.h),
               InterText(
                 text: 'pet_detail_loading'.tr,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w400,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary(context),
               ),
             ],

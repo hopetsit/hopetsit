@@ -13,6 +13,7 @@ import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v409 refonte — inscription en wizard 5 étapes (maquette « S'INSCRIRE COMME …
 /// »). Réutilise SignUpController (tag: userType) → l'auth/OTP existante n'est
@@ -1116,7 +1117,10 @@ class SignupWizardScreen extends StatelessWidget {
   Widget _bottomBar(BuildContext context, SignUpController c, int step) {
     final isLast = step == _steps - 1;
     return Container(
-      padding: EdgeInsets.fromLTRB(20.w, 10.h, 20.w, 16.h),
+      // v569 — le SafeArea du corps n'applique rien sur le Samsung de Daniel :
+      // le bouton « Suivant / Créer mon compte » passait sous la barre.
+      padding: EdgeInsets.fromLTRB(20.w, 10.h, 20.w,
+          16.h + appBottomInsetInsideSafeArea(context)),
       // v480 — maquette « Inscription Flow » : bouton d'action en dégradé de
       // la couleur du rôle, collé en bas (mêmes onNext/isLoading qu'avant).
       child: Obx(() {

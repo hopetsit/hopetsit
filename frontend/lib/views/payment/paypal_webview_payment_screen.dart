@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/paypal_payment_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
-import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
-import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/payment/widgets/payment_ui_kit.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class PayPalWebviewPaymentScreen extends StatefulWidget {
@@ -35,6 +33,9 @@ class _PayPalWebviewPaymentScreenState extends State<PayPalWebviewPaymentScreen>
   final RxBool isLoading = true.obs;
   // v565 — état d'erreur de chargement de la page PayPal avec « Réessayer ».
   final RxBool loadFailed = false.obs;
+  // v569 — progression de la WebView (affichage seulement) pour la barre fine
+  // du squelette de chargement. Null tant qu'aucune progression n'est connue.
+  final RxnDouble loadProgress = RxnDouble();
   bool _captureStarted = false;
 
   // As provided by backend dev
@@ -51,6 +52,11 @@ class _PayPalWebviewPaymentScreenState extends State<PayPalWebviewPaymentScreen>
           onPageStarted: (url) {
             isLoading.value = true;
             _handleNavigation(url);
+          },
+          // v569 — purement décoratif : alimente la barre de progression du
+          // squelette. Aucune décision de paiement n'en dépend.
+          onProgress: (progress) {
+            loadProgress.value = (progress.clamp(0, 100)) / 100.0;
           },
           onPageFinished: (url) {
             isLoading.value = false;
@@ -74,6 +80,7 @@ class _PayPalWebviewPaymentScreenState extends State<PayPalWebviewPaymentScreen>
   void _reload() {
     loadFailed.value = false;
     isLoading.value = true;
+    loadProgress.value = null;
     _controller.loadRequest(Uri.parse(widget.approvalUrl));
   }
 
@@ -117,81 +124,48 @@ class _PayPalWebviewPaymentScreenState extends State<PayPalWebviewPaymentScreen>
 
   @override
   Widget build(BuildContext context) {
-    // v565 (point 28) — en-tête clair (montant dans le titre), état de
-    // chargement, état d'erreur avec « Réessayer », fermeture explicite.
+    // v569 — même habillage que les autres écrans de paiement : barre
+    // « Paiement sécurisé » avec cadenas + montant, squelette de chargement
+    // avec barre de progression, état d'erreur « Réessayer » / « Annuler ».
+    // La WebView garde TOUTE la place : les états ne s'affichent que pendant
+    // le chargement ou en cas d'échec, jamais par-dessus le formulaire.
     final accent = AppColors.primaryColor;
     return Scaffold(
-      backgroundColor: AppColors.whiteColor,
-      appBar: AppBar(
-        backgroundColor: AppColors.whiteColor,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        centerTitle: true,
-        iconTheme: IconThemeData(color: accent),
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded),
-          tooltip: 'common_cancel'.tr,
-          onPressed: () => Get.back(),
-        ),
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            PoppinsText(
-              text: 'payment_method_paypal'.tr,
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w700,
-              color: AppColors.blackColor,
-              maxLines: 1,
-            ),
-            InterText(
-              text: CurrencyHelper.format(widget.currency, widget.totalAmount),
-              fontSize: 11.5.sp,
-              fontWeight: FontWeight.w600,
-              color: accent,
-              maxLines: 1,
-            ),
-          ],
-        ),
+      backgroundColor: AppColors.scaffold(context),
+      appBar: PaySecureAppBar(
+        accent: accent,
+        title: 'pay569_title'.tr,
+        subtitle: CurrencyHelper.format(widget.currency, widget.totalAmount),
+        backIcon: Icons.close_rounded,
+        backTooltip: 'common_cancel'.tr,
+        onBack: () => Get.back(),
       ),
       body: Stack(
         children: [
           WebViewWidget(controller: _controller),
           Obx(
             () => isLoading.value && !loadFailed.value
-                ? Container(
-                    color: AppColors.whiteColor,
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(accent),
-                          ),
-                          SizedBox(height: 16.h),
-                          PoppinsText(
-                            text: 'payment_loading_page'.tr,
-                            fontSize: 14.sp,
-                            color: AppColors.grey700Color,
-                          ),
-                        ],
-                      ),
-                    ),
+                ? PayLoadingOverlay(
+                    message: 'pay569_connecting'.tr,
+                    accent: accent,
+                    progress: loadProgress.value,
                   )
                 : const SizedBox.shrink(),
           ),
           Obx(
             () => loadFailed.value
                 ? Container(
-                    color: AppColors.whiteColor,
-                    child: ProfileEmptyState(
-                      icon: Icons.cloud_off_rounded,
-                      title: 'v565_pay_load_error_title'.tr,
-                      message: 'v565_pay_page_load_error'.tr,
+                    color: AppColors.scaffold(context),
+                    child: PayErrorPanel(
+                      title: 'pay569_load_error_title'.tr,
+                      message: 'pay569_load_error_msg'.tr,
+                      retryLabel: 'common_retry'.tr,
+                      cancelLabel: 'common_cancel'.tr,
                       accent: accent,
-                      error: true,
-                      actionLabel: 'common_retry'.tr,
-                      onAction: _reload,
+                      onRetry: _reload,
+                      // Même action qu'avant : on quitte l'écran, le
+                      // contrôleur PayPal n'est pas touché.
+                      onCancel: () => Get.back(),
                     ),
                   )
                 : const SizedBox.shrink(),

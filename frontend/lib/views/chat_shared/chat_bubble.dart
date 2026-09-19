@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/views/chat_shared/chat_avatar.dart';
 import 'package:hopetsit/views/chat_shared/chat_media_viewer.dart';
 import 'package:hopetsit/views/chat_shared/chat_models.dart';
@@ -83,7 +84,10 @@ class ChatMessageBubble extends StatelessWidget {
         }
 
         return Padding(
-          padding: EdgeInsets.symmetric(vertical: 8.h),
+          // v569 — `useSafeArea` ne protège pas le bas d'une feuille : la
+          // dernière action (Annuler) passait sous la barre système.
+          padding:
+              EdgeInsets.fromLTRB(0, 8.h, 0, 8.h + appBottomInset(sheet)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

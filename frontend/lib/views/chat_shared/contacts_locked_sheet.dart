@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/chat_shared/chat_api.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
@@ -40,7 +41,7 @@ Future<void> showContactsLockedSheet(
           24.w,
           14.h,
           24.w,
-          18.h + MediaQuery.of(ctx).viewPadding.bottom,
+          18.h + appBottomInset(ctx),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

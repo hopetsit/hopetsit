@@ -47,6 +47,8 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
   bool _loading = false;
   bool _suppressNext = false;
   String _lastQuery = '';
+  // v569 — purement visuel : la dernière recherche ABOUTIE n'a rien donné.
+  bool _noResult = false;
 
   @override
   void initState() {
@@ -68,10 +70,11 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
     }
     final q = widget.controller.text.trim();
     if (q.length < 3) {
-      if (_suggestions.isNotEmpty || _loading) {
+      if (_suggestions.isNotEmpty || _loading || _noResult) {
         setState(() {
           _suggestions = const [];
           _loading = false;
+          _noResult = false;
         });
       }
       return;
@@ -84,7 +87,10 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
   Future<void> _search(String q) async {
     _lastQuery = q;
     if (!mounted) return;
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _noResult = false;
+    });
     try {
       final uri = Uri.parse(
         'https://nominatim.openstreetmap.org/search'
@@ -126,6 +132,7 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
       setState(() {
         _suggestions = out;
         _loading = false;
+        _noResult = out.isEmpty;
       });
     } catch (_) {
       if (!mounted) return;
@@ -147,53 +154,101 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
     setState(() {
       _suggestions = const [];
       _lastQuery = s.displayName;
+      _noResult = false;
     });
   }
 
+  OutlineInputBorder _border(Color color, double width) => OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14.r),
+        borderSide: BorderSide(color: color, width: width),
+      );
+
   @override
   Widget build(BuildContext context) {
+    // v569 — RENDU SEULEMENT : contrôleur, debounce, requête Nominatim et
+    // `onAddressSelected` inchangés. Le champ adopte le langage de
+    // `CustomTextField` (libellé au-dessus 13/600, coins 14, surface claire,
+    // bordure fine → marque au focus) et gagne un état « aucun résultat ».
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color line =
+        isDark ? AppColors.dividerDark : const Color(0xFFE2E5EA);
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        InterText(
+          text: widget.label,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textSecondary(context),
+          letterSpacing: 0.1,
+          maxLines: 2,
+        ),
+        SizedBox(height: 7.h),
         TextField(
           controller: widget.controller,
           maxLines: widget.maxLines,
           textInputAction: TextInputAction.search,
+          cursorColor: AppColors.primaryColor,
+          cursorWidth: 1.6,
+          style: TextStyle(
+            fontSize: 14.5.sp,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary(context),
+          ),
           decoration: InputDecoration(
-            labelText: widget.label,
-            border: const OutlineInputBorder(),
+            isDense: true,
+            constraints: BoxConstraints(minHeight: 52.h),
+            filled: true,
+            fillColor: isDark ? AppColors.inputFill(context) : Colors.white,
+            contentPadding:
+                EdgeInsets.symmetric(horizontal: 16.w, vertical: 15.h),
+            prefixIcon: Icon(
+              Icons.place_outlined,
+              size: 20.sp,
+              color: AppColors.textSecondary(context),
+            ),
+            border: _border(line, 1),
+            enabledBorder: _border(line, 1),
+            focusedBorder: _border(AppColors.primaryColor, 1.6),
             suffixIcon: _loading
                 ? Padding(
-                    padding: EdgeInsets.all(12.w),
+                    padding: EdgeInsets.all(14.w),
                     child: SizedBox(
                       width: 16.w,
                       height: 16.h,
                       child: CircularProgressIndicator(
-                        strokeWidth: 1.5,
+                        strokeWidth: 1.8,
                         valueColor: AlwaysStoppedAnimation<Color>(
                           AppColors.primaryColor,
                         ),
                       ),
                     ),
                   )
-                : const Icon(Icons.search),
+                : Icon(
+                    Icons.search,
+                    size: 20.sp,
+                    color: AppColors.textSecondary(context),
+                  ),
           ),
         ),
         if (_suggestions.isNotEmpty) ...[
-          SizedBox(height: 6.h),
+          SizedBox(height: 8.h),
           Container(
             decoration: BoxDecoration(
               color: AppColors.card(context),
-              borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: AppColors.grey300Color, width: 1),
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(color: line, width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withValues(alpha: 0.07),
+                  blurRadius: 16,
+                  spreadRadius: -2,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
+            clipBehavior: Clip.antiAlias,
             child: Column(
               children: _suggestions.map((s) {
                 final last = s == _suggestions.last;
@@ -202,31 +257,39 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
                   child: Container(
                     padding: EdgeInsets.symmetric(
                       horizontal: 12.w,
-                      vertical: 10.h,
+                      vertical: 11.h,
                     ),
                     decoration: BoxDecoration(
                       border: last
                           ? null
                           : Border(
                               bottom: BorderSide(
-                                color: AppColors.grey300Color
-                                    .withValues(alpha: 0.5),
+                                color: line.withValues(alpha: 0.7),
                                 width: 1,
                               ),
                             ),
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          Icons.location_on_outlined,
-                          color: AppColors.primaryColor,
-                          size: 18.sp,
+                        Container(
+                          width: 32.w,
+                          height: 32.w,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryColor
+                                .withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
+                          child: Icon(
+                            Icons.location_on_outlined,
+                            color: AppColors.primaryColor,
+                            size: 17.sp,
+                          ),
                         ),
                         SizedBox(width: 10.w),
                         Expanded(
                           child: InterText(
                             text: s.displayName,
-                            fontSize: 13.sp,
+                            fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: AppColors.textPrimary(context),
                             maxLines: 2,
@@ -238,6 +301,71 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
                   ),
                 );
               }).toList(),
+            ),
+          ),
+        ] else if (_loading) ...[
+          // v569 — état de chargement explicite : la petite roue dans le
+          // champ ne suffisait pas à dire « je cherche ».
+          SizedBox(height: 8.h),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 11.h),
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(color: line, width: 1),
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 16.w,
+                  height: 16.w,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.8,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppColors.primaryColor,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: InterText(
+                    text: 'auth569_searching'.tr,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary(context),
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else if (_noResult) ...[
+          SizedBox(height: 8.h),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 11.h),
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(color: line, width: 1),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.search_off_rounded,
+                  size: 18.sp,
+                  color: AppColors.textSecondary(context),
+                ),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: InterText(
+                    text: 'auth569_no_address_found'.tr,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary(context),
+                    maxLines: 2,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

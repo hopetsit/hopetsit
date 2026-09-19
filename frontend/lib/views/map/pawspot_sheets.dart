@@ -12,6 +12,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:hopetsit/controllers/pawspot_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -323,10 +324,9 @@ class _PawSpotCreateSheetState extends State<_PawSpotCreateSheet> {
           20.w,
           16.h,
           20.w,
-          20.h +
-              (MediaQuery.of(context).viewPadding.bottom > 0
-                  ? MediaQuery.of(context).viewPadding.bottom
-                  : 48.h),
+          // v569 — utilitaire unique `appBottomInset` (iOS = inset réel,
+          // Android = jamais moins de 48 px).
+          20.h + appBottomInset(context),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -835,9 +835,12 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
           20.w,
           16.h,
           20.w,
+          // v569 — `viewPadding.bottom` vaut 0 sur le Samsung de Daniel : les
+          // boutons du bas de la fiche finissaient sous la barre système.
           16.h +
-              MediaQuery.of(context).viewPadding.bottom +
-              MediaQuery.of(context).viewInsets.bottom,
+              (MediaQuery.of(context).viewInsets.bottom > 0
+                  ? MediaQuery.of(context).viewInsets.bottom
+                  : appBottomInset(context)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1274,7 +1277,8 @@ Future<void> showPawSpotListSheet(
       final spots = controller.spots.toList();
       return SafeArea(
         child: Padding(
-          padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 16.h),
+          padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w,
+              16.h + appBottomInsetInsideSafeArea(ctx)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

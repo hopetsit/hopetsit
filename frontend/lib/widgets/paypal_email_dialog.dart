@@ -1,7 +1,13 @@
-import 'dart:ui';
-
+// v569 — DESIGN UNIQUEMENT : l'API publique est inchangée (mêmes paramètres,
+// mêmes valeurs par défaut, `onPrimary` / `onSecondary` appelés à l'identique,
+// aucun pop ajouté — ce sont toujours les appelants qui ferment le dialogue).
+// Nouveau rendu : plus de `BackdropFilter` (coûteux), voile sombre, carte
+// coins 24, disque teinté 56 px, titre et sous-titre centrés, champ e-mail au
+// style moderne (coins 14, focus couleur de marque), boutons pleine largeur
+// empilés.
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
@@ -40,129 +46,144 @@ class PayPalEmailDialog extends StatelessWidget {
       );
     }
 
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
+    final Color accent = AppColors.activeRoleAccent();
+
     return Material(
       color: Colors.transparent,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-        child: Container(
-          color: Colors.black.withValues(alpha: 0.15),
-          child: Center(
-            child: Container(
-              width: 1.sw - 64.w,
-              padding: EdgeInsets.all(22.w),
-              decoration: BoxDecoration(
-                color: AppColors.card(context),
-                borderRadius: BorderRadius.circular(16.r),
-                boxShadow: AppColors.cardShadow(context),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        height: 40.w,
-                        width: 40.w,
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryColor.withValues(alpha: 0.10),
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                        child: Icon(
-                          Icons.email_outlined,
-                          color: AppColors.primaryColor,
-                          size: 20.sp,
-                        ),
+      child: ColoredBox(
+        color: Colors.black.withValues(alpha: dark ? 0.62 : 0.38),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              26.w,
+              24.h,
+              26.w,
+              24.h + MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 380.w),
+              child: Container(
+                padding: EdgeInsets.fromLTRB(20.w, 24.h, 20.w, 18.h),
+                decoration: BoxDecoration(
+                  color: AppColors.card(context),
+                  borderRadius: BorderRadius.circular(24.r),
+                  border: dark
+                      ? Border.all(color: AppColors.dividerDark, width: 1)
+                      : null,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: dark ? 0.5 : 0.16),
+                      blurRadius: 28,
+                      spreadRadius: -8,
+                      offset: const Offset(0, 14),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 56.w,
+                      height: 56.w,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: dark ? 0.22 : 0.12),
+                        shape: BoxShape.circle,
                       ),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: PoppinsText(
-                          text: title,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary(context),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 10.h),
-                  InterText(
-                    text: subtitle,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.grey700Color,
-                  ),
-                  SizedBox(height: 16.h),
-                  TextField(
-                    controller: controller,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.done,
-                    decoration: InputDecoration(
-                      hintText: 'sitter-payments@example.com',
-                      filled: true,
-                      fillColor: AppColors.inputFill(context),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16.w,
-                        vertical: 14.h,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14.r),
-                        borderSide: BorderSide(color: AppColors.divider(context)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14.r),
-                        borderSide: BorderSide(color: AppColors.divider(context)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14.r),
-                        borderSide: BorderSide(color: AppColors.primaryColor),
+                      child: Icon(
+                        Icons.alternate_email_rounded,
+                        color: accent,
+                        size: 28.sp,
                       ),
                     ),
-                  ),
-                  SizedBox(height: 18.h),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: CustomButton(
-                          title: secondaryText,
-                          bgColor: AppColors.card(context),
-                          textColor: AppColors.textPrimary(context),
-                          borderColor: AppColors.divider(context),
-                          height: 46.h,
-                          radius: 14.r,
-                          onTap: isLoading ? null : onSecondary,
-                        ),
+                    SizedBox(height: 14.h),
+                    PoppinsText(
+                      text: title,
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary(context),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 8.h),
+                    InterText(
+                      text: subtitle,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w400,
+                      height: 1.45,
+                      color: AppColors.textSecondary(context),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 18.h),
+                    TextField(
+                      controller: controller,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.done,
+                      style: TextStyle(
+                        color: AppColors.textPrimary(context),
+                        fontSize: 14.sp,
                       ),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: CustomButton(
-                          title: isLoading ? null : primaryText,
-                          bgColor: AppColors.primaryColor,
-                          textColor: AppColors.whiteColor,
-                          height: 46.h,
-                          radius: 14.r,
-                          onTap: isLoading
-                              ? null
-                              : () async {
-                                  await onPrimary();
-                                },
-                          child: isLoading
-                              ? SizedBox(
-                                  height: 20.h,
-                                  width: 20.w,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      AppColors.whiteColor,
-                                    ),
-                                  ),
-                                )
-                              : null,
+                      decoration: InputDecoration(
+                        hintText: 'misc569_email_hint'.tr,
+                        hintStyle: TextStyle(
+                          color: AppColors.textSecondary(context),
+                          fontSize: 13.sp,
                         ),
+                        filled: true,
+                        fillColor: AppColors.inputFill(context),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16.w,
+                          vertical: 14.h,
+                        ),
+                        border: _border(AppColors.divider(context)),
+                        enabledBorder: _border(AppColors.divider(context)),
+                        focusedBorder: _border(accent, width: 1.5),
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    SizedBox(height: 20.h),
+                    CustomButton(
+                      width: double.infinity,
+                      height: 50.h,
+                      radius: 14.r,
+                      title: isLoading ? null : primaryText,
+                      fontSize: 15.sp,
+                      fontWeight: FontWeight.w700,
+                      bgColor: accent,
+                      textColor: AppColors.whiteColor,
+                      onTap: isLoading
+                          ? null
+                          : () async {
+                              await onPrimary();
+                            },
+                      child: isLoading
+                          ? SizedBox(
+                              height: 20.h,
+                              width: 20.w,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppColors.whiteColor,
+                                ),
+                              ),
+                            )
+                          : null,
+                    ),
+                    SizedBox(height: 10.h),
+                    CustomButton(
+                      width: double.infinity,
+                      height: 50.h,
+                      radius: 14.r,
+                      title: secondaryText,
+                      fontSize: 15.sp,
+                      fontWeight: FontWeight.w600,
+                      bgColor: dark
+                          ? const Color(0xFF2A2A2A)
+                          : const Color(0xFFF1F2F4),
+                      textColor: AppColors.textPrimary(context),
+                      onTap: isLoading ? null : onSecondary,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -170,5 +191,11 @@ class PayPalEmailDialog extends StatelessWidget {
       ),
     );
   }
-}
 
+  OutlineInputBorder _border(Color color, {double width = 1}) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14.r),
+      borderSide: BorderSide(color: color, width: width),
+    );
+  }
+}

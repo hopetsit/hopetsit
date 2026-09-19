@@ -2202,13 +2202,28 @@ const selfCancelWithRefund = async (req, res) => {
     }
 
     // Best‑effort refund; refund provider helpers may or may not exist depending on build.
+    // v569 — un remboursement qui ÉCHOUE ne doit plus passer pour réussi : la
+    // réservation reste annulée, mais le paiement repasse en « refund » (= à
+    // rembourser) avec la cause, journalisée en clair pour l'admin. Avant :
+    // `paymentStatus = 'refunded'` + « refund initiated » même quand rien
+    // n'était parti (ex. moyen de paiement non géré).
+    let refundFailed = false;
     try {
       if (typeof refundBookingPayment === 'function') {
         await refundBookingPayment(booking);
       }
     } catch (refundErr) {
-      logger.error('⚠️  Self-cancel refund failed', refundErr);
-      // Do not fail the cancellation — the booking is marked and admin can retry.
+      refundFailed = true;
+      logger.error(
+        `⚠️  [selfCancelWithRefund] REMBOURSEMENT ÉCHOUÉ booking=${booking._id} provider=${booking.paymentProvider || '?'} : ${refundErr?.message || refundErr}`,
+      );
+      try {
+        booking.paymentStatus = 'refund';
+        booking.refundError = String(refundErr?.message || refundErr).slice(0, 300);
+        await booking.save();
+      } catch (saveErr) {
+        logger.error(`[selfCancelWithRefund] could not flag failed refund: ${saveErr?.message || saveErr}`);
+      }
     }
 
     // v23.1.160 — Notif aux 2 parties. L'owner doit savoir si le walker/sitter
@@ -2249,7 +2264,10 @@ const selfCancelWithRefund = async (req, res) => {
 
     return res.json({
       booking: sanitizeBooking(booking),
-      message: 'Booking cancelled and refund initiated.',
+      refundPending: refundFailed,
+      message: refundFailed
+        ? 'Booking cancelled. The refund could not be issued automatically and will be processed by support.'
+        : 'Booking cancelled and refund initiated.',
     });
   } catch (error) {
     logger.error('Self-cancel with refund error', error);
@@ -4194,17 +4212,25 @@ const getBookingAgreement = async (req, res) => {
     const booking = await Booking.findById(id)
       .populate('ownerId', 'name email avatar')
       .populate('sitterId', 'name email avatar stripeConnectAccountStatus')
+      // v569 — `walkerId` manquait : une réservation de PROMENADE laisse
+      // `sitterId` à null (createBooking : `sitterId: providerType ===
+      // 'sitter' ? sitterId : null`) et met le prestataire dans `walkerId`.
+      .populate('walkerId', 'name email avatar stripeConnectAccountStatus')
       .populate('petIds');
 
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found.' });
     }
 
-    // Verify user has permission (owner or sitter)
-    const ownerId = booking.ownerId._id.toString();
-    const sitterId = booking.sitterId._id.toString();
+    // Verify user has permission (owner or provider: sitter OR walker)
+    // v569 — BUG : `booking.sitterId._id.toString()` levait un TypeError
+    // (→ 500) sur toutes les réservations walker, donc l'écran « Accord de
+    // réservation » ne se remplissait jamais côté promenade.
+    const ownerId = booking.ownerId?._id?.toString() || String(booking.ownerId || '');
+    const providerDoc = booking.sitterId || booking.walkerId || null;
+    const providerId = providerDoc?._id?.toString() || '';
 
-    if (userId !== ownerId && userId !== sitterId) {
+    if (userId !== ownerId && userId !== providerId) {
       return res.status(403).json({ error: 'You do not have permission to view this booking.' });
     }
 
@@ -4284,13 +4310,21 @@ const getBookingAgreement = async (req, res) => {
         email: sanitized.owner?.email || '',
         avatar: sanitized.owner?.avatar?.url || '',
       },
+      // v569 — le prestataire peut être un walker : on retombe sur
+      // `sanitized.walker` / le document peuplé plutôt que de planter.
       sitter: {
-        id: sanitized.sitter?.id || sitterId,
-        name: sanitized.sitter?.name || '',
-        email: sanitized.sitter?.email || '',
-        avatar: sanitized.sitter?.avatar?.url || '',
-        stripeConnectAccountStatus: booking.sitterId.stripeConnectAccountStatus || 'not_connected',
+        id: sanitized.sitter?.id || sanitized.walker?.id || providerId,
+        name: sanitized.sitter?.name || sanitized.walker?.name || providerDoc?.name || '',
+        email: sanitized.sitter?.email || sanitized.walker?.email || providerDoc?.email || '',
+        avatar:
+          sanitized.sitter?.avatar?.url ||
+          sanitized.walker?.avatar?.url ||
+          providerDoc?.avatar?.url ||
+          '',
+        stripeConnectAccountStatus:
+          providerDoc?.stripeConnectAccountStatus || 'not_connected',
       },
+      providerRole: booking.sitterId ? 'sitter' : booking.walkerId ? 'walker' : null,
       pricing: {
         basePrice: sanitized.pricing?.basePrice || 0,
         pricingTier: sanitized.pricing?.pricingTier || 'hourly',

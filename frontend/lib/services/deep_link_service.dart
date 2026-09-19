@@ -40,6 +40,7 @@ import 'package:hopetsit/views/notifications/notification_post_view_screen.dart'
 import 'package:hopetsit/views/pet_owner/booking-application/owner_booking_detail_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
+import 'package:hopetsit/views/pet_owner/payments/owner_payments_screen.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/views/pet_owner/booking/owner_bookings_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/chat_screen.dart';
@@ -330,7 +331,18 @@ class DeepLinkService {
       _goToTab(0);
     } else if (first == 'wallet') {
       // v561 — écran Portefeuille (solde, versements, retraits).
-      Get.to(() => const WalletScreen());
+      // v569 — le portefeuille n'existe que pour gardien / promeneur : un
+      // PROPRIÉTAIRE tombait sur l'erreur serveur brute « requires role(s) ».
+      // Il va sur « Mes paiements ».
+      String role = '';
+      try {
+        role = (Get.find<AuthController>().userRole.value ?? '').toLowerCase();
+      } catch (_) {}
+      if (role == 'sitter' || role == 'walker') {
+        Get.to(() => const WalletScreen());
+      } else {
+        Get.to(() => const OwnerPaymentsScreen());
+      }
     } else if (first == 'subscription') {
       Get.to(() => const CoinShopScreen(initialTab: 3));
     } else if (first == 'paw-spot' || first == 'pawspot') {

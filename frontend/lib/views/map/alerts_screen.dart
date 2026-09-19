@@ -21,6 +21,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/map_report_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/pawmap_theme.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
@@ -128,7 +129,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
                     Navigator.of(ctx).pop();
                   },
                 )),
-            SizedBox(height: 8.h),
+            // v569 — la dernière option restait sous la barre système.
+            SizedBox(height: 8.h + appBottomInsetInsideSafeArea(ctx)),
           ],
         ),
       ),
@@ -169,7 +171,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
                     Navigator.of(ctx).pop();
                   },
                 )),
-            SizedBox(height: 8.h),
+            // v569 — la dernière option restait sous la barre système.
+            SizedBox(height: 8.h + appBottomInsetInsideSafeArea(ctx)),
           ],
         ),
       ),
@@ -407,7 +410,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   ),
                   builder: (ctx) => SafeArea(
                     child: Padding(
-                      padding: EdgeInsets.all(16.w),
+                      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w,
+                          16.w + appBottomInsetInsideSafeArea(ctx)),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,

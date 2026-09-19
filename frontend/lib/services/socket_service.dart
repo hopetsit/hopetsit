@@ -476,6 +476,47 @@ class SocketService {
     _presenceSubs.remove(cb);
   }
 
+  // ── conversation:deleted multiplexeur (v569) ────────────────────────────
+  // Daniel : « que tout soit bien synchronisé Android / iOS / web ». Le
+  // serveur émet `conversation:deleted { conversationId, at }` vers les 3
+  // rooms de rôle de CELUI qui supprime → tous SES appareils retirent la
+  // conversation sans recharger. Même principe que presence:update : UN
+  // listener socket, N abonnés (liste owner, liste sitter/walker…).
+  final List<void Function(Map<String, dynamic>)> _convDeletedSubs = [];
+
+  void _bindConversationDeletedMux() {
+    final s = _socket;
+    if (s == null) return;
+    s.off('conversation:deleted');
+    s.on('conversation:deleted', (data) {
+      Map<String, dynamic> map;
+      try {
+        map = data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+      } catch (_) {
+        return;
+      }
+      for (final cb in List.of(_convDeletedSubs)) {
+        try {
+          cb(map);
+        } catch (e) {
+          AppLogger.logError('conversation:deleted subscriber threw', error: e);
+        }
+      }
+    });
+  }
+
+  /// Abonne un listener `conversation:deleted` (référence STABLE, idempotent).
+  /// À appeler depuis un onConnected hook pour survivre aux reconnexions.
+  void addConversationDeletedListener(void Function(Map<String, dynamic>) cb) {
+    if (!_convDeletedSubs.contains(cb)) _convDeletedSubs.add(cb);
+    _bindConversationDeletedMux();
+  }
+
+  /// Désabonne UN listener `conversation:deleted`.
+  void removeConversationDeletedListener(void Function(Map<String, dynamic>) cb) {
+    _convDeletedSubs.remove(cb);
+  }
+
   /// LEGACY — délègue désormais au multiplexeur pour ne plus clobberer les
   /// autres abonnés. Préférer addMessageNewListener avec une réf stable.
   void onNewMessage(Function(Map<String, dynamic>) callback) {

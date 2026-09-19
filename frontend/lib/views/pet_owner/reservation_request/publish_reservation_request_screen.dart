@@ -16,6 +16,7 @@ import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/views/profile/my_pets_screen.dart';
 import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/views/pet_owner/pet_profile/pet_profile_screen.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class PublishReservationRequestScreen extends StatefulWidget {
   const PublishReservationRequestScreen({super.key, this.editPost});
@@ -427,7 +428,7 @@ class _PublishReservationRequestScreenState
       final submitting = controller.isSubmitting.value;
       return Container(
         padding: EdgeInsets.fromLTRB(
-            16.w, 10.h, 16.w, 10.h + MediaQuery.of(context).viewPadding.bottom),
+            16.w, 10.h, 16.w, 10.h + appBottomInset(context)),
         decoration: BoxDecoration(
           color: AppColors.card(context),
           border: Border(

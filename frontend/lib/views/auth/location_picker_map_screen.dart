@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 
 class LocationPickerMapScreen extends StatefulWidget {
   const LocationPickerMapScreen({super.key});
@@ -218,7 +219,10 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
                     ),
                   ],
                 ),
-                padding: EdgeInsets.all(20.w),
+                // v569 — panneau collé en bas sans SafeArea : le bouton de
+                // confirmation passait sous la barre système.
+                padding: EdgeInsets.fromLTRB(
+                    20.w, 20.w, 20.w, 20.w + appBottomInset(context)),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,

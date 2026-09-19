@@ -144,6 +144,11 @@ export default function ChatPage() {
   const [friends, setFriends] = useState<FriendItem[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [startingChatWith, setStartingChatWith] = useState<string | null>(null);
+  // v569 — suppression d'une conversation : confirmation dans une boîte propre
+  // (plus de window.confirm), suppression optimiste, et retrait en direct sur
+  // mes autres appareils via `conversation:deleted`.
+  const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // v23.1 part 146 — assure que le socket est créé même si l'user arrive
   // directement sur /chat sans passer par /dashboard.
@@ -161,8 +166,11 @@ export default function ChatPage() {
     getChatFeatures().then(setFeatures).catch(() => {});
   }, [router]);
 
-  async function refresh() {
-    setLoading(true);
+  // v569 — `silent` : rechargement de fond (une conversation masquée qui
+  // revient parce que l'autre m'écrit) — surtout pas l'écran « Chargement… »
+  // à la place de la page à chaque message.
+  async function refresh(silent = false) {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const list = await getConversations();
@@ -180,7 +188,7 @@ export default function ChatPage() {
       }
       setError(e instanceof Error ? e.message : "Failed to load conversations");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
@@ -310,6 +318,16 @@ export default function ChatPage() {
           ),
         );
       } else {
+        // v569 — conversation ABSENTE de ma liste : soit elle est nouvelle,
+        // soit je l'avais supprimée (masquée) et l'autre vient de m'écrire —
+        // le serveur vide alors `clearedFor` et la conversation M'EST rendue,
+        // avec son historique. Avant, la liste l'ignorait jusqu'au prochain
+        // rechargement de la page (l'app, elle, rechargeait déjà). On
+        // rafraîchit donc la liste : même comportement sur les 3 surfaces.
+        if (!conversations.some((c) => c.id === msg.conversationId)) {
+          void refresh(true);
+          return;
+        }
         // Bump unread sur la conv concernée, et hoist en haut.
         setConversations((prev) => {
           const idx = prev.findIndex((c) => c.id === msg.conversationId);
@@ -399,6 +417,23 @@ export default function ChatPage() {
       }
     },
   );
+
+  // v569 — Daniel : « que tout soit bien synchronisé Android / iOS / web ».
+  // Le serveur émet `conversation:deleted { conversationId }` vers MES trois
+  // rooms de rôle quand je supprime une conversation (sur n'importe lequel de
+  // mes appareils) : l'onglet ouvert ici retire la ligne SANS recharger, et
+  // ferme le panneau de droite si c'était la conversation affichée. Rien n'est
+  // émis à l'autre personne : elle garde sa copie.
+  useSocketEvent<{ conversationId?: string }>("conversation:deleted", (data) => {
+    const id = data?.conversationId;
+    if (!id) return;
+    setConversations((prev) => prev.filter((c) => c.id !== id));
+    setDeleteTarget((prev) => (prev && prev.id === id ? null : prev));
+    if (activeId === id) {
+      setActiveId(null);
+      setMessages([]);
+    }
+  });
 
   // v566 — « Lu · heure » : sous le DERNIER de mes messages lus.
   let lastReadId = "";
@@ -581,21 +616,37 @@ export default function ChatPage() {
   }
 
   // v23.1 part 248 — Daniel : "dans messag il manque le bouton pour effacer
-  // la conversation et nouvelle conversation". On wire les 2 actions.
-  async function handleDeleteConversation(id: string) {
-    if (typeof window !== "undefined") {
-      const confirmed = window.confirm(t("chat_delete_confirm"));
-      if (!confirmed) return;
+  // la conversation et nouvelle conversation".
+  // v569 — plus de `window.confirm` : boîte de confirmation dans le style du
+  // site (même texte honnête que l'app), puis suppression OPTIMISTE.
+  async function confirmDeleteConversation() {
+    const target = deleteTarget;
+    if (!target || deleting) return;
+    const id = target.id;
+    // La ligne part tout de suite ; on garde sa place pour pouvoir la remettre.
+    const index = conversations.findIndex((c) => c.id === id);
+    const wasActive = activeId === id;
+    setDeleting(true);
+    setConversations((prev) => prev.filter((c) => c.id !== id));
+    if (wasActive) {
+      setActiveId(null);
+      setMessages([]);
     }
     try {
       await deleteConversation(id);
-      setConversations((prev) => prev.filter((c) => c.id !== id));
-      if (activeId === id) {
-        setActiveId(null);
-        setMessages([]);
-      }
+      setDeleteTarget(null);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed to delete");
+      // Échec réseau : la conversation REVIENT à sa place, avec un message.
+      setConversations((prev) => {
+        if (prev.some((c) => c.id === id)) return prev;
+        const next = [...prev];
+        next.splice(index < 0 ? next.length : index, 0, target);
+        return next;
+      });
+      setError(e instanceof Error ? e.message : t("chatdel569_failed_body"));
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -712,7 +763,7 @@ export default function ChatPage() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteConversation(c.id);
+                    setDeleteTarget(c);
                   }}
                   aria-label={t("chat_delete_btn")}
                   title={t("chat_delete_btn")}
@@ -1056,6 +1107,80 @@ export default function ChatPage() {
           )}
         </div>
       </div>
+
+      {/* v569 — Confirmation de suppression, style du site (plus de
+          window.confirm). Le texte dit la VÉRITÉ du serveur : la conversation
+          est masquée pour MOI sur tous MES appareils, l'autre garde sa copie,
+          et elle revient avec son historique si cette personne m'écrit. */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => {
+            if (!deleting) setDeleteTarget(null);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("chatdel569_sheet_title")}
+            className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 grid h-16 w-16 place-items-center overflow-hidden rounded-full bg-bg-soft">
+              {deleteTarget.otherParty?.avatar || deleteTarget.participantAvatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={deleteTarget.otherParty?.avatar || deleteTarget.participantAvatar}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-lg font-bold text-ink-muted">
+                  {(deleteTarget.participantName || deleteTarget.otherParty?.name || "?")
+                    .split(/\s+/)
+                    .map((w) => w[0] || "")
+                    .slice(0, 2)
+                    .join("")
+                    .toUpperCase()}
+                </span>
+              )}
+            </div>
+            {(deleteTarget.participantName || deleteTarget.otherParty?.name) && (
+              <p className="text-sm font-semibold text-ink-muted">
+                {deleteTarget.participantName || deleteTarget.otherParty?.name}
+              </p>
+            )}
+            <h2 className="mt-1 font-display text-lg font-extrabold text-ink">
+              {t("chatdel569_sheet_title")}
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+              {(() => {
+                const name =
+                  deleteTarget.participantName || deleteTarget.otherParty?.name || "";
+                return name
+                  ? t("chatdel569_sheet_body").replace(/\{name\}/g, name)
+                  : t("chatdel569_sheet_body_generic");
+              })()}
+            </p>
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={confirmDeleteConversation}
+              className="mt-5 w-full rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+            >
+              {deleting ? t("common_loading") : t("chatdel569_confirm")}
+            </button>
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={() => setDeleteTarget(null)}
+              className="mt-2 w-full rounded-full px-4 py-2 text-sm font-semibold text-ink-muted transition hover:text-ink disabled:opacity-60"
+            >
+              {t("common_cancel")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* v23.1 part 248b — Modal sélection ami pour nouvelle conv */}
       {showNewConvModal && (

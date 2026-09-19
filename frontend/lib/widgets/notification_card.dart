@@ -1,9 +1,27 @@
+// v569 — carte de la cloche, refaite au langage visuel du lot « listes ».
+//
+// ⚠️ DESIGN UNIQUEMENT : mêmes paramètres de constructeur (`notification`,
+// `onTap`), mêmes conditions d'affichage des actions en ligne, mêmes appels
+// FriendController (accept / decline / acceptFamilyInvitation /
+// refuseFamilyInvitation) et même navigation au tap.
+//
+// Ce qui change :
+//   • pastille RONDE teintée par catégorie avec icône pleine (48), point
+//     « non lu » à gauche, fond très légèrement teinté pour les non-lus ;
+//   • titre 14/700, corps 13 gris sur 2 lignes, heure RELATIVE ;
+//   • les boutons Accepter / Refuser passent par `ActionPillButton`
+//     (kit commun : ≥ 44 px, coins 14, anti double-tap, haptique) ;
+//   • plus d'`IntrinsicHeight` avec un `Expanded` dedans (règle release du
+//     projet) : le liseré vertical est remplacé par la pastille + le point ;
+//   • dates/heures dans la langue de l'app (`Get.locale`), plus dans la
+//     locale par défaut du système.
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/friend_controller.dart';
 import 'package:hopetsit/models/app_notification_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:intl/intl.dart';
@@ -37,7 +55,13 @@ class _NotificationCardState extends State<NotificationCard> {
   IconData _iconForType(String type) {
     final t = type.toLowerCase();
     if (t.contains('like')) return Icons.favorite_rounded;
-    if (t.contains('comment')) return Icons.chat_bubble_outline_rounded;
+    if (t.contains('comment')) return Icons.chat_bubble_rounded;
+    if (t.contains('friend') || t.contains('family')) {
+      return Icons.group_rounded;
+    }
+    if (t.contains('live') || t.contains('handover') || t.contains('walk')) {
+      return Icons.my_location_rounded;
+    }
     if (t.contains('booking') ||
         t.contains('application') ||
         t.contains('request')) {
@@ -46,7 +70,10 @@ class _NotificationCardState extends State<NotificationCard> {
     if (t.contains('message') || t.contains('chat')) {
       return Icons.forum_rounded;
     }
-    if (t.contains('payment') || t.contains('payout')) {
+    if (t.contains('payment') ||
+        t.contains('payout') ||
+        t.contains('wallet') ||
+        t.contains('paid')) {
       return Icons.payments_rounded;
     }
     return Icons.notifications_rounded;
@@ -63,6 +90,10 @@ class _NotificationCardState extends State<NotificationCard> {
     final t = type.toLowerCase();
     if (t.contains('like')) return const Color(0xFFE91E63);
     if (t.contains('comment')) return const Color(0xFF5C6BC0);
+    // v569 — mêmes familles de couleur que les bandeaux d'action
+    // (ActionTone) : ami / social rose, suivi en direct violet.
+    if (t.contains('friend') || t.contains('family')) return ActionTone.social;
+    if (t.contains('live') || t.contains('handover')) return ActionTone.live;
     if (t.contains('booking') || t.contains('application') || t.contains('request')) {
       // Prefer the role-specific colour when provided by the backend.
       final role = notification.data['providerRole']?.toString().toLowerCase();
@@ -81,18 +112,24 @@ class _NotificationCardState extends State<NotificationCard> {
     return AppColors.activeRoleAccent();
   }
 
+  /// v569 — heure RELATIVE (à l'instant / 12 min / 3 h / 2 j), puis date
+  /// complète au-delà d'une semaine, DANS LA LANGUE DE L'APP.
+  /// ⚠️ bug corrigé : `DateFormat.Hm()` sans locale suivait la locale par
+  /// défaut, pas celle choisie par l'utilisateur.
   String _formatTime(DateTime utc) {
     final local = utc.toLocal();
-    final now = DateTime.now();
-    final diff = now.difference(local);
+    final diff = DateTime.now().difference(local);
     if (diff.inMinutes < 1) return 'time_just_now'.tr;
+    if (diff.inMinutes < 60) {
+      return 'lists569_time_min'.tr.replaceAll('{n}', '${diff.inMinutes}');
+    }
     if (diff.inHours < 24) {
-      return DateFormat.Hm().format(local);
+      return 'lists569_time_hour'.tr.replaceAll('{n}', '${diff.inHours}');
     }
     if (diff.inDays < 7) {
-      return DateFormat.E().add_Hm().format(local);
+      return 'lists569_time_day'.tr.replaceAll('{n}', '${diff.inDays}');
     }
-    return DateFormat.yMMMd().add_Hm().format(local);
+    return DateFormat.yMMMd(Get.locale?.toLanguageTag()).format(local);
   }
 
   /// Maps known English notification strings from the backend to localized keys.
@@ -239,38 +276,23 @@ class _NotificationCardState extends State<NotificationCard> {
     }
   }
 
+  /// Actions en ligne — kit commun `ActionPillButton` : principale pleine
+  /// (couleur « à traiter »), destructive en rouge texte. Le résultat final
+  /// devient une simple pastille d'état.
   Widget _buildInlineActions(Color accent) {
-    if (_actionDone == 'accepted') {
+    if (_actionDone != null) {
+      final accepted = _actionDone == 'accepted';
       return Padding(
         padding: EdgeInsets.only(top: 10.h),
-        child: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 18.sp),
-            SizedBox(width: 6.w),
-            InterText(
-              text: 'common_accepted'.tr,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w700,
-              color: Colors.green,
-            ),
-          ],
-        ),
-      );
-    }
-    if (_actionDone == 'refused') {
-      return Padding(
-        padding: EdgeInsets.only(top: 10.h),
-        child: Row(
-          children: [
-            Icon(Icons.cancel, color: Colors.red, size: 18.sp),
-            SizedBox(width: 6.w),
-            InterText(
-              text: 'common_refused'.tr,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w700,
-              color: Colors.red,
-            ),
-          ],
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: ActionStatusPill(
+            label: accepted ? 'common_accepted'.tr : 'common_refused'.tr,
+            icon: accepted
+                ? Icons.check_circle_rounded
+                : Icons.cancel_rounded,
+            tone: accepted ? ActionTone.success : ActionTone.danger,
+          ),
         ),
       );
     }
@@ -279,43 +301,29 @@ class _NotificationCardState extends State<NotificationCard> {
       child: Row(
         children: [
           Expanded(
-            child: ElevatedButton.icon(
+            child: ActionPillButton(
+              label: 'pawfollow_accept'.tr,
+              icon: Icons.check_rounded,
+              tone: accent,
+              compact: true,
+              expand: true,
+              haptic: true,
+              // Le bouton tapé affiche seul son indicateur (il reçoit un
+              // Future) ; l'autre est simplement neutralisé.
               onPressed: _actionPending ? null : _onAccept,
-              icon: Icon(Icons.check_rounded, size: 18.sp, color: Colors.white),
-              label: InterText(
-                text: 'pawfollow_accept'.tr,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFC92A12),
-                padding: EdgeInsets.symmetric(vertical: 8.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                elevation: 0,
-              ),
             ),
           ),
           SizedBox(width: 8.w),
           Expanded(
-            child: OutlinedButton.icon(
+            child: ActionPillButton(
+              label: 'pawfollow_refuse'.tr,
+              icon: Icons.close_rounded,
+              tone: ActionTone.danger,
+              kind: ActionPillKind.danger,
+              compact: true,
+              expand: true,
+              haptic: true,
               onPressed: _actionPending ? null : _onRefuse,
-              icon: Icon(Icons.close_rounded, size: 18.sp, color: Colors.red),
-              label: InterText(
-                text: 'pawfollow_refuse'.tr,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w700,
-                color: Colors.red,
-              ),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.red, width: 1.4),
-                padding: EdgeInsets.symmetric(vertical: 8.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-              ),
             ),
           ),
         ],
@@ -327,139 +335,114 @@ class _NotificationCardState extends State<NotificationCard> {
   Widget build(BuildContext context) {
     final accent = _accentForType(notification.type);
     final unread = notification.isUnread;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final radius = BorderRadius.circular(18.r);
+
+    // Fond : la surface du thème, très légèrement teintée de la couleur de
+    // la catégorie quand la notification n'est pas lue.
+    final background = unread
+        ? Color.alphaBlend(
+            accent.withValues(alpha: dark ? 0.16 : 0.055),
+            AppColors.card(context),
+          )
+        : AppColors.card(context);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16.r),
+        borderRadius: radius,
         child: Ink(
           decoration: BoxDecoration(
-            color: AppColors.whiteColor,
-            borderRadius: BorderRadius.circular(16.r),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            color: background,
+            borderRadius: radius,
+            boxShadow: AppColors.cardShadow(context),
             border: Border.all(
               color: unread
-                  ? accent.withValues(alpha: 0.35)
-                  : AppColors.grey300Color.withValues(alpha: 0.6),
-              width: unread ? 1.2 : 1,
+                  ? accent.withValues(alpha: dark ? 0.42 : 0.28)
+                  : AppColors.divider(context),
+              width: 1,
             ),
           ),
-          child: IntrinsicHeight(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(12.w, 14.h, 14.w, 14.h),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 4.w,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(15.r),
-                      bottomLeft: Radius.circular(15.r),
-                    ),
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        accent,
-                        accent.withValues(alpha: 0.65),
-                      ],
+                // Point « non lu » — à gauche, aligné sur la première ligne.
+                Padding(
+                  padding: EdgeInsets.only(top: 18.h, right: 8.w),
+                  child: Semantics(
+                    label: unread ? 'lists569_unread'.tr : null,
+                    child: Container(
+                      width: 7.w,
+                      height: 7.w,
+                      decoration: BoxDecoration(
+                        color: unread ? accent : Colors.transparent,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
                 ),
+                // Pastille ronde teintée + icône pleine.
+                Container(
+                  width: 48.w,
+                  height: 48.w,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: dark ? 0.26 : 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    _iconForType(notification.type),
+                    color: accent,
+                    size: 23.sp,
+                  ),
+                ),
+                SizedBox(width: 12.w),
                 Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 14.h),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 48.w,
-                          height: 48.w,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                accent.withValues(alpha: 0.15),
-                                accent.withValues(alpha: 0.08),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(14.r),
-                            border: Border.all(
-                              color: accent.withValues(alpha: 0.25),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: InterText(
+                              text: notification.title.isNotEmpty
+                                  ? _localizedTitle(notification.title)
+                                  : 'notifications_fallback_title'.tr,
+                              fontSize: 14.sp,
+                              fontWeight:
+                                  unread ? FontWeight.w700 : FontWeight.w600,
+                              color: AppColors.textPrimary(context),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          child: Icon(
-                            _iconForType(notification.type),
-                            color: accent,
-                            size: 24.sp,
+                          SizedBox(width: 8.w),
+                          InterText(
+                            text: _formatTime(notification.createdAt),
+                            fontSize: 11.sp,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textSecondary(context),
+                            maxLines: 1,
                           ),
-                        ),
-                        SizedBox(width: 12.w),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: InterText(
-                                      text: notification.title.isNotEmpty
-                                          ? _localizedTitle(notification.title)
-                                          : 'notifications_fallback_title'
-                                              .tr,
-                                      fontSize: 15.sp,
-                                      fontWeight: unread
-                                          ? FontWeight.w700
-                                          : FontWeight.w600,
-                                      color: AppColors.blackColor,
-                                      maxLines: 2,
-                                    ),
-                                  ),
-                                  if (unread) ...[
-                                    SizedBox(width: 8.w),
-                                    Container(
-                                      width: 8.w,
-                                      height: 8.w,
-                                      decoration: BoxDecoration(
-                                        color: accent,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              SizedBox(height: 6.h),
-                              InterText(
-                                text: _localizedBody(notification.body),
-                                fontSize: 13.sp,
-                                fontWeight: FontWeight.w400,
-                                color: AppColors.grey700Color,
-                                maxLines: 4,
-                              ),
-                              SizedBox(height: 8.h),
-                              InterText(
-                                text: _formatTime(notification.createdAt),
-                                fontSize: 11.sp,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.greyText,
-                              ),
-                              // v23.1.183 — Boutons Accepter/Refuser
-                              // inline pour friend_request_received et
-                              // family_invitation_received.
-                              if (_hasInlineActions) _buildInlineActions(accent),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                      SizedBox(height: 4.h),
+                      InterText(
+                        text: _localizedBody(notification.body),
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.textSecondary(context),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      // v23.1.183 — Boutons Accepter/Refuser inline pour
+                      // friend_request_received et family_invitation_received.
+                      if (_hasInlineActions) _buildInlineActions(accent),
+                    ],
                   ),
                 ),
               ],

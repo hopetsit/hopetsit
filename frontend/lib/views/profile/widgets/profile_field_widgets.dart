@@ -63,7 +63,13 @@ class ProfileChoiceChips extends StatelessWidget {
         final emoji = emojiFor?.call(value) ?? '';
         return GestureDetector(
           onTap: () => onToggle(value),
-          child: Container(
+          // v569 — DESIGN UNIQUEMENT : même `onToggle`, mêmes valeurs. Chips
+          // en pilules pleines (999) avec une petite coche quand c'est
+          // sélectionné, et un libellé qui s'ellipse au lieu de déborder.
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOut,
+            constraints: BoxConstraints(maxWidth: 260.w),
             padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 9.h),
             decoration: BoxDecoration(
               // v444 — Daniel : « Ce que vous recherchez » paraissait un cadre
@@ -72,11 +78,21 @@ class ProfileChoiceChips extends StatelessWidget {
               // invisibles, zone perçue comme vide. Fond carte (blanc) +
               // bordure plus marquée → chips toujours nettement visibles.
               color: isSel ? accent.withValues(alpha: 0.15) : AppColors.card(context),
-              borderRadius: BorderRadius.circular(20.r),
+              borderRadius: BorderRadius.circular(999.r),
               border: Border.all(
                 color: isSel ? accent : AppColors.divider(context),
                 width: isSel ? 1.6 : 1.2,
               ),
+              boxShadow: isSel
+                  ? [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.18),
+                        blurRadius: 8,
+                        spreadRadius: -3,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
+                  : null,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -85,12 +101,20 @@ class ProfileChoiceChips extends StatelessWidget {
                   Text(emoji, style: TextStyle(fontSize: 14.sp)),
                   SizedBox(width: 6.w),
                 ],
-                InterText(
-                  text: label,
-                  fontSize: 13.sp,
-                  fontWeight: isSel ? FontWeight.w700 : FontWeight.w400,
-                  color: isSel ? accent : AppColors.textPrimary(context),
+                Flexible(
+                  child: InterText(
+                    text: label,
+                    fontSize: 13.sp,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    fontWeight: isSel ? FontWeight.w700 : FontWeight.w400,
+                    color: isSel ? accent : AppColors.textPrimary(context),
+                  ),
                 ),
+                if (isSel) ...[
+                  SizedBox(width: 6.w),
+                  Icon(Icons.check_rounded, size: 14.sp, color: accent),
+                ],
               ],
             ),
           ),
@@ -125,15 +149,15 @@ class ProfileRadiusDropdown extends StatelessWidget {
         fillColor: AppColors.inputFill(context),
         contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14.r),
+          borderRadius: BorderRadius.circular(16.r),
           borderSide: BorderSide(color: AppColors.divider(context), width: 1),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14.r),
+          borderRadius: BorderRadius.circular(16.r),
           borderSide: BorderSide(color: AppColors.divider(context), width: 1),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14.r),
+          borderRadius: BorderRadius.circular(16.r),
           borderSide: BorderSide(color: accent, width: 1.5),
         ),
       ),
