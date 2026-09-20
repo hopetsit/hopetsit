@@ -52,7 +52,8 @@ Future<void> showContactsLockedSheet(
                 width: 40.w,
                 height: 4.h,
                 decoration: BoxDecoration(
-                  color: AppColors.grey300Color,
+                  // `divider()` renvoie exactement grey300Color en clair.
+                  color: AppColors.divider(ctx),
                   borderRadius: BorderRadius.circular(2.r),
                 ),
               ),
@@ -63,10 +64,11 @@ Future<void> showContactsLockedSheet(
                 width: 68.w,
                 height: 68.w,
                 decoration: BoxDecoration(
-                  color: t.tintStrong,
+                  color: t.softTintStrong(ctx),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.lock_rounded, size: 32.sp, color: t.accent),
+                child: Icon(Icons.lock_rounded,
+                    size: 32.sp, color: t.accentOn(ctx)),
               ),
             ),
             SizedBox(height: 16.h),

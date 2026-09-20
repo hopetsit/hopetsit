@@ -32,7 +32,11 @@ class ChatAvatar extends StatelessWidget {
       height: s,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.lightGreyColor,
+        // Sans photo, le disque gris clair devenait une tache blanche sur le
+        // fond sombre ; on garde exactement la valeur claire d'origine.
+        color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF3A3A3A)
+            : AppColors.lightGreyColor,
         border: borderColor != null
             ? Border.all(color: borderColor!, width: 1.5)
             : null,

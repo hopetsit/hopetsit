@@ -1040,13 +1040,13 @@ class PetPostCard extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.broken_image_outlined,
-                                size: 24.sp, color: AppColors.greyText),
+                                size: 24.sp, color: AppColors.textSecondary(context)),
                             SizedBox(height: 6.h),
                             InterText(
                               text: 'post569_photo_failed'.tr,
                               fontSize: 11.5.sp,
                               fontWeight: FontWeight.w500,
-                              color: AppColors.greyText,
+                              color: AppColors.textSecondary(context),
                               maxLines: 2,
                               textAlign: TextAlign.center,
                             ),
@@ -1169,7 +1169,12 @@ class PetPostCard extends StatelessWidget {
       decoration: BoxDecoration(
         // v441 — Daniel : carte « Caractère des animaux » en JAUNE PÂLE
         // (au lieu du gris inputFill).
-        color: const Color(0xFFFEF9E7),
+        // Audit mode sombre — le jaune pâle restait un pavé lumineux et le
+        // texte, thémé, y devenait blanc sur jaune clair : en sombre on garde
+        // la teinte mais en fond translucide (règle des teintes de statut).
+        color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFFF6D86B).withValues(alpha: 0.18)
+            : const Color(0xFFFEF9E7),
         borderRadius: BorderRadius.circular(14.r),
         border: Border.all(
           color: const Color(0xFFF6D86B).withValues(alpha: 0.6),
@@ -1180,7 +1185,13 @@ class PetPostCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.pets_rounded, size: 16.sp, color: const Color(0xFFB8860B)),
+              Icon(Icons.pets_rounded,
+                  size: 16.sp,
+                  // Audit mode sombre — le vieil or (#B8860B) disparaissait
+                  // sur le fond sombre : variante éclaircie.
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFFF6D86B)
+                      : const Color(0xFFB8860B)),
               SizedBox(width: 8.w),
               InterText(
                 // v442 — titre adapté au rôle : promeneur (1 chien) →
@@ -1244,7 +1255,7 @@ class PetPostCard extends StatelessWidget {
               if (p.age != null && p.age! > 0) _ageLabel(p.age!),
             ].join(' • '),
             fontSize: 12.sp,
-            color: AppColors.greyText,
+            color: AppColors.textSecondary(context),
           ),
         ],
         if (desc.isNotEmpty) ...[

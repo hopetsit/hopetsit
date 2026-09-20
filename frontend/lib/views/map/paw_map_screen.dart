@@ -2349,8 +2349,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                 height: 36.w,
                 decoration: BoxDecoration(
                   color: recent
-                      ? PawMapTheme.ink.withValues(alpha: 0.05)
-                      : PawMapTheme.pastelPeach,
+                      ? PawMapTheme.veilOn(context, 0.05, darkAlpha: 0.12)
+                      : (PawMapTheme.isDark(context)
+                          ? PawMapTheme.accent.withValues(alpha: 0.18)
+                          : PawMapTheme.pastelPeach),
                   borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Icon(
@@ -2358,7 +2360,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                       ? Icons.history_rounded
                       : Icons.location_city_rounded,
                   size: 18.sp,
-                  color: recent ? PawMapTheme.sub : PawMapTheme.accent,
+                  color: recent
+                      ? PawMapTheme.subOn(context)
+                      : PawMapTheme.toneOn(context, PawMapTheme.accent),
                 ),
               ),
               SizedBox(width: 11.w),
@@ -2371,7 +2375,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                       (city['name'] ?? '').toString(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: PawMapTheme.font(
+                      style: PawMapTheme.fontOn(context,
                           size: 14.sp, weight: FontWeight.w700),
                     ),
                     if ((city['label'] ?? '').toString().isNotEmpty)
@@ -2379,17 +2383,18 @@ class _PawMapScreenState extends State<PawMapScreen>
                         (city['label'] ?? '').toString(),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: PawMapTheme.font(
+                        style: PawMapTheme.fontOn(
+                          context,
                           size: 11.sp,
                           weight: FontWeight.w500,
-                          color: PawMapTheme.sub,
+                          color: PawMapTheme.subOn(context),
                         ),
                       ),
                   ],
                 ),
               ),
               Icon(Icons.north_east_rounded,
-                  size: 16.sp, color: PawMapTheme.sub),
+                  size: 16.sp, color: PawMapTheme.subOn(context)),
             ],
           ),
         ),
@@ -2406,7 +2411,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
         child: Container(
           decoration: BoxDecoration(
-            color: PawMapTheme.bg,
+            color: PawMapTheme.bgOn(ctx),
             borderRadius: BorderRadius.vertical(top: Radius.circular(26.r)),
           ),
           padding: EdgeInsets.fromLTRB(
@@ -2422,7 +2427,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 width: 42.w,
                 height: 4.h,
                 decoration: BoxDecoration(
-                  color: PawMapTheme.ink.withValues(alpha: 0.12),
+                  color: PawMapTheme.veilOn(ctx, 0.12, darkAlpha: 0.22),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -2431,8 +2436,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'pawmap_search_city'.tr,
-                  style:
-                      PawMapTheme.font(size: 18.sp, weight: FontWeight.w800),
+                  style: PawMapTheme.fontOn(ctx,
+                      size: 18.sp, weight: FontWeight.w800),
                 ),
               ),
               SizedBox(height: 12.h),
@@ -2440,9 +2445,9 @@ class _PawMapScreenState extends State<PawMapScreen>
               // droite, spinner pendant que les suggestions arrivent.
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: PawMapTheme.panelOn(ctx),
                   borderRadius: BorderRadius.circular(16.r),
-                  border: Border.all(color: PawMapTheme.border),
+                  border: Border.all(color: PawMapTheme.borderOn(ctx)),
                   boxShadow: PawMapTheme.pillShadow,
                 ),
                 padding: EdgeInsets.symmetric(horizontal: 12.w),
@@ -2456,14 +2461,14 @@ class _PawMapScreenState extends State<PawMapScreen>
                         controller: ctrl,
                         autofocus: true,
                         textInputAction: TextInputAction.search,
-                        style: PawMapTheme.font(
+                        style: PawMapTheme.fontOn(ctx,
                             size: 14.sp, weight: FontWeight.w600),
                         decoration: InputDecoration(
                           hintText: 'pawmap_search_city_hint'.tr,
                           hintStyle: PawMapTheme.font(
                             size: 13.sp,
                             weight: FontWeight.w500,
-                            color: PawMapTheme.sub,
+                            color: PawMapTheme.subOn(ctx),
                           ),
                           filled: false,
                           border: InputBorder.none,
@@ -2511,7 +2516,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                           suggestions.clear();
                         },
                         child: Icon(Icons.close_rounded,
-                            size: 18.sp, color: PawMapTheme.sub),
+                            size: 18.sp, color: PawMapTheme.subOn(ctx)),
                       );
                     }),
                   ],
@@ -2540,7 +2545,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                               style: PawMapTheme.font(
                                 size: 11.sp,
                                 weight: FontWeight.w700,
-                                color: PawMapTheme.sub,
+                                color: PawMapTheme.subOn(ctx),
                               ),
                             ),
                           ),
@@ -2560,7 +2565,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                       style: PawMapTheme.font(
                         size: 12.5.sp,
                         weight: FontWeight.w600,
-                        color: PawMapTheme.sub,
+                        color: PawMapTheme.subOn(ctx),
                       ),
                     ),
                   );
@@ -3263,7 +3268,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(Icons.gps_off_rounded,
-                                    size: 44.sp, color: AppColors.greyText),
+                                    size: 44.sp,
+                                    color: AppColors.textSecondary(sheetCtx)),
                                 SizedBox(height: 10.h),
                                 InterText(
                                   text: 'friends_people_live_empty_title'.tr,
@@ -5442,7 +5448,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   padding:
                       EdgeInsets.symmetric(horizontal: 14.w, vertical: 9.h),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: PawMapTheme.panelOn(context),
                     borderRadius: BorderRadius.circular(999),
                     boxShadow: PawMapTheme.pillShadow,
                   ),
@@ -5455,7 +5461,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                         child: Text(
                           hint,
                           textAlign: TextAlign.center,
-                          style: PawMapTheme.font(
+                          style: PawMapTheme.fontOn(context,
                               size: 12.sp, weight: FontWeight.w700),
                         ),
                       ),
@@ -5483,9 +5489,9 @@ class _PawMapScreenState extends State<PawMapScreen>
               child: Container(
                 padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: PawMapTheme.panelOn(context),
                   borderRadius: BorderRadius.circular(20.r),
-                  border: Border.all(color: PawMapTheme.border),
+                  border: Border.all(color: PawMapTheme.borderOn(context)),
                   boxShadow: PawMapTheme.pillShadow,
                 ),
                 child: Column(
@@ -5515,7 +5521,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                                 title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: PawMapTheme.font(
+                                style: PawMapTheme.fontOn(context,
                                     size: 13.5.sp, weight: FontWeight.w800),
                               ),
                               SizedBox(height: 1.h),
@@ -5527,10 +5533,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                                         : _pickAddress.value,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: PawMapTheme.font(
+                                    style: PawMapTheme.fontOn(
+                                      context,
                                       size: 11.sp,
                                       weight: FontWeight.w500,
-                                      color: PawMapTheme.sub,
+                                      color: PawMapTheme.subOn(context),
                                     ),
                                   )),
                             ],
@@ -5548,13 +5555,14 @@ class _PawMapScreenState extends State<PawMapScreen>
                             child: Container(
                               padding: EdgeInsets.symmetric(vertical: 12.h),
                               decoration: BoxDecoration(
-                                color: PawMapTheme.ink.withValues(alpha: 0.05),
+                                color: PawMapTheme.veilOn(context, 0.05,
+                                    darkAlpha: 0.12),
                                 borderRadius: BorderRadius.circular(13.r),
                               ),
                               child: Center(
                                 child: Text(
                                   'pawspot_pick_cancel'.tr,
-                                  style: PawMapTheme.font(
+                                  style: PawMapTheme.fontOn(context,
                                       size: 13.sp, weight: FontWeight.w800),
                                 ),
                               ),
@@ -5723,11 +5731,12 @@ class _PawMapScreenState extends State<PawMapScreen>
                     width: 24.w,
                     height: 24.w,
                     decoration: BoxDecoration(
-                      color: AppColors.greyText.withValues(alpha: 0.12),
+                      color: AppColors.textSecondary(context)
+                          .withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(Icons.close_rounded,
-                        size: 14.sp, color: AppColors.greyText),
+                        size: 14.sp, color: AppColors.textSecondary(context)),
                   ),
                 ),
               ],
@@ -5808,7 +5817,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 InterText(
                   text: r.city,
                   fontSize: 10.sp,
-                  color: AppColors.greyText,
+                  color: AppColors.textSecondary(context),
                   maxLines: 1,
                 ),
             ],
@@ -5923,14 +5932,14 @@ class _PawMapScreenState extends State<PawMapScreen>
         // v552 (corrigé) — Daniel : « le cadre du fond doit être blanc, pas
         // blanc translucide » : on garde la forme et l'ombre de la maquette,
         // mais le fond devient opaque (la carte défilait derrière le texte).
-        decoration: PawMapTheme.glass(opacity: 1.0),
+        decoration: PawMapTheme.glassOn(context, opacity: 1.0),
         padding: EdgeInsets.all(12.w),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildPanelActions(),
             SizedBox(height: 11.h),
-            Container(height: 1, color: PawMapTheme.border),
+            Container(height: 1, color: PawMapTheme.borderOn(context)),
             SizedBox(height: 11.h),
             _buildPanelFilters(),
             SizedBox(height: 11.h),
@@ -5972,10 +5981,17 @@ class _PawMapScreenState extends State<PawMapScreen>
                       width: 40.w,
                       height: 40.w,
                       decoration: BoxDecoration(
-                        color: pastel,
+                        // v571 — en sombre, la pastille pastel devient la
+                        // teinte de l'icône à 18 % (sinon 4 carrés très clairs
+                        // sur un panneau anthracite). Clair inchangé.
+                        color: PawMapTheme.isDark(context)
+                            ? iconColor.withValues(alpha: 0.18)
+                            : pastel,
                         borderRadius: BorderRadius.circular(14.r),
                       ),
-                      child: Icon(icon, size: 19.sp, color: iconColor),
+                      child: Icon(icon,
+                          size: 19.sp,
+                          color: PawMapTheme.toneOn(context, iconColor)),
                     ),
                     if (badge > 0)
                       Positioned(
@@ -5988,7 +6004,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                           decoration: BoxDecoration(
                             color: badgeColor,
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                            border: Border.all(
+                                color: PawMapTheme.panelOn(context), width: 2),
                           ),
                           child: Text(
                             badge > 9 ? '9+' : '$badge',
@@ -6008,7 +6025,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: PawMapTheme.font(
+                  style: PawMapTheme.fontOn(
+                    context,
                     size: 10.sp,
                     weight: FontWeight.w700,
                   ),
@@ -6091,13 +6109,17 @@ class _PawMapScreenState extends State<PawMapScreen>
             color: rose
                 ? PawMapTheme.rose
                 : (active
-                    ? tone.withValues(alpha: 0.14)
-                    : PawMapTheme.ink.withValues(alpha: 0.05)),
+                    ? tone.withValues(
+                        alpha: PawMapTheme.isDark(context) ? 0.18 : 0.14)
+                    : PawMapTheme.veilOn(context, 0.05, darkAlpha: 0.10)),
             borderRadius: BorderRadius.circular(999),
             border: outlined
                 ? Border.all(color: PawMapTheme.rose, width: 2)
                 : (active
-                    ? Border.all(color: tone.withValues(alpha: 0.35), width: 1.4)
+                    ? Border.all(
+                        color: PawMapTheme.toneOn(context, tone)
+                            .withValues(alpha: 0.35),
+                        width: 1.4)
                     : null),
             boxShadow: rose
                 ? [
@@ -6120,8 +6142,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                   color: rose
                       ? Colors.white
                       : (active
-                          ? tone
-                          : PawMapTheme.ink.withValues(alpha: 0.62)),
+                          ? PawMapTheme.toneOn(context, tone)
+                          : PawMapTheme.veilOn(context, 0.62,
+                              darkAlpha: 0.78)),
                 ),
               ),
               if (trailing != null) ...[SizedBox(width: 5.w), trailing],
@@ -6225,7 +6248,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                     : 'pawmap_quick_live_sub'.tr,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: PawMapTheme.font(size: 11.5.sp, weight: FontWeight.w700),
+                style: PawMapTheme.fontOn(context,
+                    size: 11.5.sp, weight: FontWeight.w700),
               ),
             ),
             GestureDetector(
@@ -6235,14 +6259,14 @@ class _PawMapScreenState extends State<PawMapScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.info_outline_rounded,
-                      size: 12.sp, color: PawMapTheme.sub),
+                      size: 12.sp, color: PawMapTheme.subOn(context)),
                   SizedBox(width: 4.w),
                   Text(
                     'pawmap_toggle_info_chip'.tr,
                     style: PawMapTheme.font(
                         size: 10.sp,
                         weight: FontWeight.w600,
-                        color: PawMapTheme.sub),
+                        color: PawMapTheme.subOn(context)),
                   ),
                 ],
               ),
@@ -6263,7 +6287,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 6.h),
             decoration: BoxDecoration(
-              color: PawMapTheme.ink.withValues(alpha: 0.04),
+              color: PawMapTheme.veilOn(context, 0.04, darkAlpha: 0.10),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Row(
@@ -6278,7 +6302,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     child: Text(
                       label,
                       maxLines: 1,
-                      style: PawMapTheme.font(
+                      style: PawMapTheme.fontOn(context,
                           size: 9.5.sp, weight: FontWeight.w700),
                     ),
                   ),
@@ -6291,7 +6315,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                   alignment:
                       on ? Alignment.centerRight : Alignment.centerLeft,
                   decoration: BoxDecoration(
-                    color: on ? accent : const Color(0xFFDCD4C8),
+                    color: on
+                        ? accent
+                        : (PawMapTheme.isDark(context)
+                            ? const Color(0xFF55565A)
+                            : const Color(0xFFDCD4C8)),
                     borderRadius: BorderRadius.circular(10.r),
                   ),
                   child: Container(
@@ -6339,7 +6367,8 @@ class _PawMapScreenState extends State<PawMapScreen>
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16.r),
         boxShadow: AppColors.cardShadow(context),
-        border: Border.all(color: AppColors.greyText.withValues(alpha: 0.12)),
+        border: Border.all(
+            color: AppColors.textSecondary(context).withValues(alpha: 0.12)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -6391,7 +6420,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                           border: Border.all(
                             color: checked
                                 ? const Color(0xFFC92A12)
-                                : AppColors.greyText.withValues(alpha: 0.5),
+                                : AppColors.textSecondary(context)
+                                    .withValues(alpha: 0.5),
                             width: 1.6,
                           ),
                         ),
@@ -6418,7 +6448,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                   },
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
-                        color: AppColors.greyText.withValues(alpha: 0.4)),
+                        color: AppColors.textSecondary(context)
+                            .withValues(alpha: 0.4)),
                     padding: EdgeInsets.symmetric(vertical: 8.h),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12.r)),
@@ -6539,7 +6570,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 width: 9.w,
                 height: 9.w,
                 decoration: BoxDecoration(
-                  color: on ? Colors.white : AppColors.greyText,
+                  color: on ? Colors.white : AppColors.textSecondary(context),
                   shape: BoxShape.circle,
                   boxShadow: on
                       ? [
@@ -6591,8 +6622,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                             ? Colors.white
                             : Colors.transparent),
                     inactiveThumbColor: Colors.white,
-                    inactiveTrackColor:
-                        AppColors.greyText.withValues(alpha: 0.4),
+                    inactiveTrackColor: AppColors.textSecondary(context)
+                        .withValues(alpha: 0.4),
                   ),
                 ),
               ),
@@ -7188,12 +7219,12 @@ class _PawMapScreenState extends State<PawMapScreen>
         _mapExpanded.value = false;
       },
       child: PawGlassPill(
-        color: PawMapTheme.ink.withValues(alpha: 0.18),
+        color: PawMapTheme.inkOn(context).withValues(alpha: 0.18),
         height: 44.h,
         width: 44.h,
         padding: EdgeInsets.zero,
         child: Icon(Icons.arrow_back_rounded,
-            size: 22.sp, color: PawMapTheme.ink),
+            size: 22.sp, color: PawMapTheme.inkOn(context)),
       ),
     );
   }
@@ -7225,8 +7256,11 @@ class _PawMapScreenState extends State<PawMapScreen>
       required String label,
       required VoidCallback onTap,
       bool filled = false,
-      Color color = PawMapTheme.ink,
+      Color? color,
     }) {
+      // v571 — lisibilité sombre : l'encre du libellé/icône suit le thème,
+      // la pilule de verre étant anthracite en sombre.
+      color ??= PawMapTheme.inkOn(context);
       // v565 (18/09) — Daniel : dock modernisé, mêmes couleurs : verre blanc
       // translucide + liseré fin (SOS reste rouge plein), coins 999, appui
       // scale 0,96 + haptique, libellé jamais tronqué (FittedBox).
@@ -7257,7 +7291,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                       style: PawMapTheme.font(
                         size: 12.sp,
                         weight: FontWeight.w700,
-                        color: filled ? Colors.white : PawMapTheme.ink,
+                        color: filled ? Colors.white : color,
                       ),
                     ),
                   ),
@@ -7300,7 +7334,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 onTap: _toggleNightMode,
                 color: _nightMode.value
                     ? PawMapTheme.accent
-                    : PawMapTheme.ink,
+                    : PawMapTheme.inkOn(context),
               )),
           pill(
             icon: Icons.timeline_rounded,
@@ -7356,7 +7390,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       isScrollControlled: true,
       builder: (ctx) => Container(
         decoration: BoxDecoration(
-          color: PawMapTheme.bg,
+          color: PawMapTheme.bgOn(ctx),
           borderRadius: BorderRadius.vertical(top: Radius.circular(26.r)),
         ),
         padding: EdgeInsets.fromLTRB(
@@ -7380,7 +7414,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 child: Icon(icon, size: 18.sp, color: color),
               ),
               title: Text(label,
-                  style: PawMapTheme.font(
+                  style: PawMapTheme.fontOn(ctx,
                       size: 13.sp, weight: FontWeight.w700)),
               trailing: Switch.adaptive(
                 value: value,
@@ -7398,7 +7432,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 width: 42.w,
                 height: 4.h,
                 decoration: BoxDecoration(
-                  color: PawMapTheme.ink.withValues(alpha: 0.12),
+                  color: PawMapTheme.veilOn(ctx, 0.12, darkAlpha: 0.22),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -7406,7 +7440,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text('pawmap_dock_layers'.tr,
-                    style: PawMapTheme.font(
+                    style: PawMapTheme.fontOn(ctx,
                         size: 18.sp, weight: FontWeight.w800)),
               ),
               SizedBox(height: 6.h),
@@ -7519,25 +7553,32 @@ class _PawMapScreenState extends State<PawMapScreen>
 
         Widget chip(String label, bool on, VoidCallback onTap,
             {Color color = PawMapTheme.pawFollow, IconData? icon}) {
+          // v571 — lisibilité sombre : sur la feuille anthracite, la teinte
+          // pleine (violet / vert) passe mal en TEXTE → variante éclaircie et
+          // fond un peu plus dense. En clair, rien ne change.
+          final bool isDark = PawMapTheme.isDark(ctx);
+          final Color offFg = isDark ? PawMapTheme.lighten(color) : color;
           return GestureDetector(
             onTap: onTap,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 160),
               padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
               decoration: BoxDecoration(
-                color: on ? color : color.withValues(alpha: 0.10),
+                color: on
+                    ? color
+                    : color.withValues(alpha: isDark ? 0.18 : 0.10),
                 borderRadius: BorderRadius.circular(20.r),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 if (icon != null) ...[
-                  Icon(icon, size: 15.sp, color: on ? Colors.white : color),
+                  Icon(icon, size: 15.sp, color: on ? Colors.white : offFg),
                   SizedBox(width: 4.w),
                 ],
                 Text(label,
                     style: TextStyle(
                       fontSize: 12.5.sp,
                       fontWeight: FontWeight.w700,
-                      color: on ? Colors.white : color,
+                      color: on ? Colors.white : offFg,
                     )),
               ]),
             ),
@@ -7583,7 +7624,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                               ? 'pawmap_around_subtitle'.tr
                               : '${PoiCategories.emoji(category!)} ${PoiCategories.label(category!)} · ${'pawmap_around_km'.tr.replaceAll('{km}', radius.toStringAsFixed(radius == radius.roundToDouble() ? 0 : 1))}',
                           style: TextStyle(
-                              fontSize: 12.sp, color: AppColors.greyText),
+                              fontSize: 12.sp,
+                              color: AppColors.textSecondary(ctx)),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -7691,12 +7733,14 @@ class _PawMapScreenState extends State<PawMapScreen>
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(Icons.wifi_off_rounded,
-                                        size: 30.sp, color: AppColors.greyText),
+                                        size: 30.sp,
+                                        color: AppColors.textSecondary(ctx)),
                                     SizedBox(height: 8.h),
                                     Text('v565_map_load_error'.tr,
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
-                                            color: AppColors.greyText)),
+                                            color:
+                                                AppColors.textSecondary(ctx))),
                                     SizedBox(height: 10.h),
                                     TextButton.icon(
                                       onPressed: () =>
@@ -7712,7 +7756,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                                 padding: EdgeInsets.all(24.h),
                                 child: Text('pawmap_around_none'.tr,
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(color: AppColors.greyText)),
+                                    style: TextStyle(
+                                        color: AppColors.textSecondary(ctx))),
                               )
                             : ListView.separated(
                                 shrinkWrap: true,
@@ -8557,7 +8602,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: _routeSteps.length,
-                  separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.greyText.withValues(alpha: 0.15)),
+                  separatorBuilder: (_, __) => Divider(
+                      height: 1, color: AppColors.divider(sheetCtx)),
                   itemBuilder: (_, i) {
                     final s = _routeSteps[i];
                     final ic = s.isArrival
@@ -8661,7 +8707,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 7.h),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: PawMapTheme.panelOn(context),
         borderRadius: BorderRadius.circular(24.r),
         border: Border.all(color: color.withValues(alpha: 0.45), width: 1.4),
         boxShadow: [
@@ -8689,7 +8735,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 text: distanceLabel,
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF1F2937),
+                color: PawMapTheme.inkOn(context),
                 height: 1.05,
               ),
               if (duration.isNotEmpty)
@@ -8942,12 +8988,12 @@ class _PawMapScreenState extends State<PawMapScreen>
               Row(
                 children: [
                   Icon(Icons.thumb_up_alt_outlined,
-                      size: 14.sp, color: AppColors.greyText),
+                      size: 14.sp, color: AppColors.textSecondary(context)),
                   SizedBox(width: 4.w),
                   InterText(
                     text: 'pawmap_confirmations_inline'.trParams({'count': report.confirmationsCount.toString()}),
                     fontSize: 11.sp,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(context),
                   ),
                 ],
               ),
@@ -9061,7 +9107,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16.sp, color: AppColors.greyText),
+          Icon(icon, size: 16.sp, color: AppColors.textSecondary(context)),
           SizedBox(width: 6.w),
           Expanded(child: InterText(text: text, fontSize: 12.sp)),
         ],
@@ -9074,7 +9120,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   Widget _poiHoursLine(String raw) {
     final status = evaluateOpeningHours(raw, DateTime.now());
     String? label;
-    Color color = AppColors.greyText;
+    Color color = AppColors.textSecondary(context);
     if (status != null) {
       final locale = Get.locale?.toString();
       String hm(DateTime d) => DateFormat.Hm(locale).format(d);

@@ -91,7 +91,7 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 570** (569 = v566 publiée le 19/09 ~10 h 35 : Play 569 par API, iOS 1.18 build 569 resoumis ; 568 = v565 publiée le 19/09 ~04 h 20 : Play 568 par API, iOS 1.18 build 568 resoumis ; 567 = v564 publiée le 19/09 ~02 h : Play 567 par API, iOS 1.18 build 567 resoumis à la place du 566 ; 566 = v563 publiée le 18/09 à 13 h 30 : Play release 566 par API, iOS 1.18 build 566 resoumis à la place du 565 ; 565 = v562 publiée le 18/09 : Play release 565 par API, iOS 1.18 build 565 soumis ; 564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 572** (571 = v567 accueils, 20/09 ; 570 = v567 : Play 570 le 19/09 ~23 h 30, iOS build 570 validé en attente de l'approbation de la 1.18/569 pour partir en 1.19 ; 569 = v566 publiée le 19/09 ~10 h 35 : Play 569 par API, iOS 1.18 build 569 resoumis ; 568 = v565 publiée le 19/09 ~04 h 20 : Play 568 par API, iOS 1.18 build 568 resoumis ; 567 = v564 publiée le 19/09 ~02 h : Play 567 par API, iOS 1.18 build 567 resoumis à la place du 566 ; 566 = v563 publiée le 18/09 à 13 h 30 : Play release 566 par API, iOS 1.18 build 566 resoumis à la place du 565 ; 565 = v562 publiée le 18/09 : Play release 565 par API, iOS 1.18 build 565 soumis ; 564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
 **18/09 (nuit) — BUILD 565 (v562 app) : la grande passe des 37 points, EN COURS.** Méthode : 8 lots
 en parallèle (contrats figés dans `docs/v565_contracts.md`, clés i18n par lot dans
@@ -373,6 +373,74 @@ lot depuis la 565 : ~12 agents Opus par vagues de 4 max, périmètres exclusifs,
 - i18n : paquets `chatdel569`, `shop569`, `agreement569`, `pay569`, `post569`, `misc569`, `auth569`, `lists569`
   branchés → 4 168 clés, 0 inconnue. jest 202/202, `tsc` 0, `dart analyze lib` 0 erreur / 0 warning.
   ⚠️ `dart format` lancé par erreur sur les 3 accueils (gros diff purement cosmétique).
+
+**19/09 (soir) — BUILD 570 (v567 app) : nouveau menu « patte PawMap » + écran de lancement animé (handoff Claude
+Design de Daniel, rangé dans `docs/design_handoff_pawmap_tab_bar/`, hi-fi, à suivre au pixel).**
+- ⚠️ REMPLACE la préférence du 12/09 (« bouton PawMap rectangle arrondi orange uni, pas de dégradé, menu pilule
+  blanche ») : le menu est désormais une pilule en DÉGRADÉ de la couleur du rôle (owner `#D83C28→#B92425` = la
+  maquette ; sitter `#2F6FD6→#1E4FB0` ; walker `#2FAE4E→#15803D` — constante `kPawTabBarPalettes` dans
+  `lib/widgets/paw_tab_bar.dart`, décision prise seul car Daniel tient aux couleurs de service : à confirmer),
+  icônes au trait blanches, point lumineux qui glisse sous l'onglet actif, et au centre la PATTE-PIN (coussinet
+  épingle noir + œil du logo + 4 doigts rouge/bleu/vert/violet qui sortent quand PawMap est actif). Daniel : « les
+  petits ronds devraient être plus proches » → `out` des doigts ramené de +4 px vers l'extérieur à 2 px vers le
+  centre (≈ 2 px de vide avec le coussinet).
+- « Ne gêne aucun bouton » (exigence Daniel) : même ancrage bas que l'ancien menu (marge 6 + inset), barre 70 vs
+  58 (+12 px), hauteur annoncée aux écrans = 76 + inset, zone tactile de la patte 84×67 seulement (test de widget :
+  deux boutons voisins reçoivent leurs taps), carte « Autour de vous » de la PawMap remontée de 116 à 132
+  (elle passait 8 px sous les doigts). Tests `test/paw_tab_bar_test.dart` (6).
+- Splash : `splash_screen.dart` (rendu seul, redirection inchangée, affichage minimal 1,6 s) ; natif uni `#DD4430`
+  (Android `launch_background.xml`, `values-v31` ET `values-night-v31` avec icône transparente ; iOS
+  `LaunchScreen.storyboard`, local au Mac). L'œil du logo n'est PAS au centre de `HoPetSit_logo.png` (centre de
+  l'œil = 256, 285.5) → image recadrée `pawmap_eye.png` (app + site).
+- Logo PawMap = la patte-pin : widget `PawMapLogo` (app), `website/public/pawmap_logo*.svg|png` +
+  `components/PawMapLogo.tsx` (animé sur l'accueil et `/pawmap`).
+- **PUBLICATION 19/09 ~23 h 30** : `~/Downloads/HoPetSit_v23.1.567_build570.{ipa,aab,apk}` ; Play 570 en production
+  par l'API (commit 200) ; serveur + site poussés (`publier_570.sh`, commit a0c6dcc) ; iOS : build 570 VALID
+  (`152b2bfd-5ec3-4071-858b-b7fdf72724cf`) mais **NON soumis** : la 1.18/569 était passée **IN_REVIEW** → on
+  n'annule pas un examen en cours (garde-fou ajouté au script iris : arrêt si IN_REVIEW / READY_FOR_SALE /
+  PENDING_DEVELOPER_RELEASE). **À FAIRE dès que la 1.18 est approuvée : créer la 1.19 (`POST appStoreVersions`),
+  whatsNew `notes_570.json`, attacher le build 570, soumettre ; puis admin « Versions de l'app ».**
+  **Prochain build = 571.**
+
+**20/09 — BUILD 571 (v567 app) : accueils plus accueillants (demande Daniel, 2 captures « Aucune publication »).**
+- **Gardien/promeneur** (`sitter_homescreen.dart`) : plus d'écran vide. Rien dans le rayon mais des annonces plus
+  loin → section « Les plus proches de toi » (max 10, pastille « à N km ») + carte « Rien dans un rayon de N km » avec
+  bouton « Élargir à N km ». Vraiment rien → `HomeEmptyKit` (`views/shared/widgets/home_empty_kit.dart`) : patte
+  PawMap qui respire, 3 cartes (Complète ton profil / Invite un propriétaire = `shareFriendsInvite()` / Mets-toi en
+  avant = `CoinShopScreen`), « Rafraîchir » à la couleur du rôle.
+- **`AroundMeSearchBar` redessinée** (API inchangée) : pastille-bouton « 📍 Autour de moi · Ville · Changer › » puis
+  curseur pleine largeur. Le bloc de gauche que Daniel croyait inutile ÉTAIT le choix de ville. `midTickKm: 50` retiré
+  côté propriétaire (la graduation du milieu était fausse : 10–500 km).
+- **Feuille de ville partagée** `views/shared/widgets/city_picker_sheet.dart` : `showCityPickerSheet(context, accent,
+  initialCity, subtitle…)` → `CityPickerResult` (`useMyPosition` | city/lat/lng). Nominatim identique, villes récentes
+  GetStorage `home571_recent_cities`, `appBottomInset`. Branchée chez le gardien/promeneur ET le propriétaire.
+- **Propriétaire** (`home_screen.dart` + `widgets/owner_home_kit.dart`) : 2 grandes cartes « Faire garder mon animal » /
+  « Faire promener mon chien » (compactes 56 dp dès 1 annonce) → `PublishReservationRequestScreen(initialServiceType:)`
+  (nouveau paramètre) ; « Mes annonces » vide = guide 3 étapes + « Publier » ; Gardiens/Promeneurs vides = écran
+  accueillant + « Élargir le rayon » (paliers 25/50/100/250/500) + « Invite un gardien » ; bandeau de confiance
+  (paiement sécurisé · identité vérifiée · annulation 72 h) ; onglet « Gardiens » par défaut si 0 annonce (une seule
+  fois, jamais contre un choix manuel) ; carte « Ajoute ton animal » si `MyPetsController` chargé et vide.
+- `ActionBanner` : titre sur 2 lignes (« Pas de demande en atten… » était coupé, 3 rôles).
+- i18n : `home571_i18n.dart` (18 clés) + `ownerhome571_i18n.dart` (20 clés) × 9 langues, 4 206 clés, 0 inconnue.
+  Tests : `test/home571_test.dart` (6) + `test/ownerhome571_test.dart` (5). ⚠️ `HomeEmptyIllustration` boucle :
+  `pump(Duration)`, jamais `pumpAndSettle`. ⚠️ pas de `CrossAxisAlignment.stretch` dans un sliver (contrainte infinie).
+- **Réservations des 3 rôles** refaites (rendu seul, logique intacte) : `BookingSegmentedTabs` dans `booking_ui_kit.dart`
+  = 4 onglets FIXES à parts égales, icône au-dessus du libellé (Daniel : « pas de slide dans les onglets ») ; cartes
+  (avatar, service, pastille de statut, méta en pastilles, prix) ; en-tête titre + compteur (`bookings571_i18n.dart`).
+- **Fond à petites pattes** `lib/widgets/paw_pattern_background.dart` (`PawPatternBackground(color, child, opacity)`,
+  CustomPainter déterministe, 9 % clair / 10 % sombre) posé sur : accueils (3 rôles), liste des messages + discussion,
+  réservations, profil (3 rôles). Daniel : « le fond est tout blanc, sans patte ».
+- **Audit mode sombre** : ~80 fichiers / ~370 occurrences. Cause n° 1 : `InterText`/`PoppinsText` retombaient sur
+  `blackColor` sans couleur → `textPrimary(context)`. Nouveaux helpers `AppColors.textSecondaryStrong/textTertiary/
+  mediaPlaceholder/accentOn(context, c)`. Laissé clair exprès : `guest_landing_screen.dart`.
+- **Police** : `main.dart` → `GoogleFonts.interTextTheme(...)` (clair + sombre) ; titres d'AppBar `GoogleFonts.poppins`
+  (`fontFamily: 'Poppins'` ne pointait sur AUCUNE police embarquée → police système).
+- Accueil propriétaire : carte « Faire garder » en BLEU gardien (demande Daniel), bouton « + » flottant visible
+  seulement après 260 px de défilement (il chevauchait la carte du rayon) ; onglet « Gardiens » par défaut seulement si
+  0 annonce ET des gardiens à montrer. Patte de l'écran vide animée (ondes radar + doigts en cascade, boucle 5,2 s).
+- Tests préexistants cassés, sans rapport : `test/widget_test.dart` (modèle Counter) et `test/i18n_test.dart`
+  (4 clés `friends_share_*` absentes de `fr.dart`).
+- Le 571 REMPLACE le 570 côté iOS (570 jamais soumis : la 1.18/569 était IN_REVIEW). **Prochain build = 572.**
 
 **18/09 — Pliables / tablettes / iPad : REPORTÉ (décision Daniel).** « Quand on sera beaucoup plus connus. » L'app tourne déjà (gonflée : `designSize` 393 px ; iPad = mode compatibilité, `TARGETED_DEVICE_FAMILY = 1`). Le jour venu : plafonner l'échelle + colonne centrée ≥ 600 px, portrait bloqué sur grand écran ; iPad natif = irréversible + captures 13" en 8 langues. **Priorité unique : plus d'utilisateurs et les premières réservations payées.**
 

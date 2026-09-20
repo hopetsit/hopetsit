@@ -19,7 +19,15 @@ import 'package:hopetsit/views/pet_owner/pet_profile/pet_profile_screen.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 
 class PublishReservationRequestScreen extends StatefulWidget {
-  const PublishReservationRequestScreen({super.key, this.editPost});
+  const PublishReservationRequestScreen({
+    super.key,
+    this.editPost,
+    this.initialServiceType,
+  });
+
+  /// v571 — type de service pré-sélectionné (grandes cartes de l'accueil).
+  /// Ignoré en mode « Modifier ».
+  final String? initialServiceType;
 
   /// v441 — quand non null, l'écran ouvre le formulaire de publication en mode
   /// « Modifier » : pré-rempli avec l'annonce existante, et l'enregistrement
@@ -42,6 +50,10 @@ class _PublishReservationRequestScreenState
     controller = Get.put(
       PublishReservationRequestController(editPost: widget.editPost),
     );
+    final preset = widget.initialServiceType;
+    if (preset != null && widget.editPost == null) {
+      controller.selectServiceType(preset);
+    }
   }
 
   @override
@@ -955,7 +967,7 @@ class _PublishReservationRequestScreenState
                 : 'send_request_start_label'.tr,
             fontSize: 13.sp,
             fontWeight: FontWeight.w600,
-            color: AppColors.grey700Color,
+            color: AppColors.textSecondaryStrong(context),
           ),
           SizedBox(height: 8.h),
           _dateTimeRow(
@@ -1060,7 +1072,7 @@ class _PublishReservationRequestScreenState
                       fontWeight: FontWeight.w500,
                       color: controller.formattedEndTime.isEmpty
                           ? AppColors.greyColor
-                          : AppColors.blackColor,
+                          : AppColors.textPrimary(context),
                     ),
                   ],
                 ),
@@ -1143,7 +1155,7 @@ class _PublishReservationRequestScreenState
                       text: dateText,
                       fontSize: 13.sp,
                       fontWeight: FontWeight.w500,
-                      color: isDatePlaceholder ? AppColors.greyColor : AppColors.blackColor,
+                      color: isDatePlaceholder ? AppColors.greyColor : AppColors.textPrimary(context),
                     ),
                   ),
                 ],
@@ -1178,7 +1190,7 @@ class _PublishReservationRequestScreenState
                       text: timeText,
                       fontSize: 13.sp,
                       fontWeight: FontWeight.w500,
-                      color: isTimePlaceholder ? AppColors.greyColor : AppColors.blackColor,
+                      color: isTimePlaceholder ? AppColors.greyColor : AppColors.textPrimary(context),
                     ),
                   ),
                 ],
@@ -1201,13 +1213,16 @@ class _PublishReservationRequestScreenState
       firstDate: now,
       lastDate: DateTime(now.year + 1, now.month, now.day),
       builder: (context, child) {
+        // Audit mode sombre — le TimePicker était déjà thémé (v442) mais le
+        // DatePicker restait figé en ColorScheme.light : calendrier blanc
+        // aveuglant en thème sombre.
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
               primary: AppColors.primaryColor,
               onPrimary: AppColors.whiteColor,
-              surface: AppColors.whiteColor,
-              onSurface: AppColors.blackColor,
+              surface: AppColors.card(context),
+              onSurface: AppColors.textPrimary(context),
             ),
           ),
           child: child!,
@@ -1477,7 +1492,7 @@ class _PublishReservationRequestScreenState
           text: sectionLabel,
           fontSize: 12.sp,
           fontWeight: FontWeight.w700,
-          color: AppColors.greyText,
+          color: AppColors.textSecondary(context),
         ),
         SizedBox(height: 8.h),
         Obx(
@@ -1686,7 +1701,7 @@ class _PublishReservationRequestScreenState
           text: 'service_location_label'.tr,
           fontSize: 14.sp,
           fontWeight: FontWeight.w500,
-          color: AppColors.grey700Color,
+          color: AppColors.textSecondaryStrong(context),
         ),
         SizedBox(height: 8.h),
         Obx(() {

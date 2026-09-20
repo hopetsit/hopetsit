@@ -223,7 +223,7 @@ class _LivePersonCardState extends State<_LivePersonCard> {
     // v565 — état réel de la session de l'ami.
     final bool stale = pos?.isStale ?? true;
     final Color dot = pos == null
-        ? AppColors.greyText
+        ? AppColors.textSecondary(context)
         : (stale ? _liveAmber : _liveGreen);
     final String statusText = pos == null
         ? 'friends_people_live_subtitle'.tr

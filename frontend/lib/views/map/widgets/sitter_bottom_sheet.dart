@@ -21,7 +21,7 @@ Widget sitterBottomSheet(
         padding: EdgeInsets.fromLTRB(
             16.w, 16.w, 16.w, 16.w + appBottomInsetInsideSafeArea(context)),
         decoration: BoxDecoration(
-          color: AppColors.whiteColor,
+          color: AppColors.card(context),
           borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
         ),
         child: Column(
@@ -39,7 +39,8 @@ Widget sitterBottomSheet(
                       ? CachedNetworkImageProvider(sitter.avatar.url, maxWidth: 150)
                       : null,
                   child: sitter.avatar.url.isEmpty
-                      ? Icon(Icons.person, size: 30.sp, color: AppColors.greyText)
+                      ? Icon(Icons.person,
+                          size: 30.sp, color: AppColors.textSecondary(context))
                       : null,
                 ),
                 SizedBox(width: 12.w),
@@ -54,7 +55,7 @@ Widget sitterBottomSheet(
                               text: sitter.name,
                               fontSize: 16.sp,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.blackColor,
+                              color: AppColors.textPrimary(context),
                             ),
                           ),
                           if (sitter.identityVerified) ...[
@@ -77,7 +78,7 @@ Widget sitterBottomSheet(
                         }),
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w400,
-                        color: AppColors.greyText,
+                        color: AppColors.textSecondary(context),
                       ),
                       if (sitter.rating > 0) ...[
                         SizedBox(height: 4.h),
@@ -88,7 +89,7 @@ Widget sitterBottomSheet(
                           }),
                           fontSize: 12.sp,
                           fontWeight: FontWeight.w400,
-                          color: AppColors.greyText,
+                          color: AppColors.textSecondary(context),
                         ),
                       ],
                     ],

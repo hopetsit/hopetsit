@@ -189,7 +189,7 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
                           children: [
                             ProfileRow(
                               icon: Icons.credit_card_off_rounded,
-                              color: AppColors.greyText,
+                              color: AppColors.textSecondary(context),
                               title: 'saved_cards_empty_title'.tr,
                               subtitle: 'owner_payments_empty_cards'.tr,
                               showChevron: false,
@@ -252,7 +252,7 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
                           children: [
                             ProfileRow(
                               icon: Icons.receipt_long_outlined,
-                              color: AppColors.greyText,
+                              color: AppColors.textSecondary(context),
                               title: 'owner_payments_empty_history'.tr,
                               subtitle: 'v565_pay_history_hint'.tr,
                               showChevron: false,

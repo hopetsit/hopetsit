@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/cancel_72h_sheet.dart';
 // v532 — copie du code de remise en pression longue.
@@ -24,6 +23,9 @@ import 'package:hopetsit/views/invoices/invoices_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+// v571 — fond à motif de pattes + service traduit dans la tête de carte.
+import 'package:hopetsit/utils/service_type_translator.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// v18.9 — "Mes réservations" côté Owner, clone du design walker/sitter
 /// (cartes compactes + filter chips) avec l'accent ORANGE du rôle owner.
@@ -160,82 +162,89 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // v23.1 part 27 — was AppColors.scaffold (#F7F7F8 grey) → blanc.
-      // Le grey transparaissait derrière la pill nav bar floating et créait
-      // l'illusion d'un "rectangle gris" en bas.
-      backgroundColor: AppColors.appBar(context),
+      // v571 — fond de page du thème (teinté rôle en clair, #121212 en
+      // sombre), le motif de pattes se posant par-dessus.
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
+        backgroundColor: AppColors.scaffold(context),
         elevation: 0,
-        scrolledUnderElevation: 0.5,
+        scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(color: _ownerAccent),
-        title: PoppinsText(
-          text: 'sitter_bookings_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
-        ),
+        title: Obx(() => BookingAppBarTitle(
+              title: 'sitter_bookings_title'.tr,
+              subtitle: _headerSubtitle(_bookingsController.bookings.length),
+            )),
         // v23.1 — Factures déplacé en chip dans la barre de filtres.
       ),
-      body: Column(
-        children: [
-          _buildStatusFilter(),
-          Expanded(
-            child: Obx(() {
-              if (_bookingsController.isLoading.value &&
-                  _bookingsController.bookings.isEmpty) {
-                return BookingLoadingList(accent: _ownerAccent);
-              }
-              // v565 — état d'erreur lisible (liste vide + erreur réseau).
-              if (_bookingsController.lastError.value.isNotEmpty &&
-                  _bookingsController.bookings.isEmpty) {
-                return BookingErrorState(
-                  message: _bookingsController.lastError.value,
-                  onRetry: () => _bookingsController.loadBookings(),
-                );
-              }
+      body: PawPatternBackground(
+        color: _ownerAccent,
+        child: Column(
+          children: [
+            _buildStatusFilter(),
+            Expanded(
+              child: Obx(() {
+                if (_bookingsController.isLoading.value &&
+                    _bookingsController.bookings.isEmpty) {
+                  return BookingLoadingList(accent: _ownerAccent);
+                }
+                // v565 — état d'erreur lisible (liste vide + erreur réseau).
+                if (_bookingsController.lastError.value.isNotEmpty &&
+                    _bookingsController.bookings.isEmpty) {
+                  return BookingErrorState(
+                    message: _bookingsController.lastError.value,
+                    onRetry: () => _bookingsController.loadBookings(),
+                  );
+                }
 
-              final list = _filteredBookings;
-              if (list.isEmpty) {
+                final list = _filteredBookings;
+                if (list.isEmpty) {
+                  return RefreshIndicator(
+                    color: _ownerAccent,
+                    onRefresh: () => _bookingsController.loadBookings(),
+                    child: BookingEmptyState(
+                      icon: Icons.event_note_rounded,
+                      accent: _ownerAccent,
+                      title: _selectedStatus == 'all'
+                          ? 'sitter_bookings_empty_all'.tr
+                          : 'sitter_bookings_empty_filtered'.trParams({
+                              'status': _label(_selectedStatus),
+                            }),
+                      subtitle: 'v565_bk_empty_hint'.tr,
+                    ),
+                  );
+                }
+
                 return RefreshIndicator(
                   color: _ownerAccent,
                   onRefresh: () => _bookingsController.loadBookings(),
-                  child: BookingEmptyState(
-                    icon: Icons.event_note_rounded,
-                    accent: _ownerAccent,
-                    title: _selectedStatus == 'all'
-                        ? 'sitter_bookings_empty_all'.tr
-                        : 'sitter_bookings_empty_filtered'.trParams({
-                            'status': _label(_selectedStatus),
-                          }),
-                    subtitle: 'v565_bk_empty_hint'.tr,
+                  child: ListView.builder(
+                    // v468 — dégager le bas pour passer AU-DESSUS de la barre de
+                    // menu pleine largeur (~80) + l'inset Samsung.
+                    padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w,
+                        110.h + appBottomInset(context)),
+                    itemCount: list.length,
+                    itemBuilder: (context, index) =>
+                        _buildBookingCard(list[index]),
                   ),
                 );
-              }
-
-              return RefreshIndicator(
-                color: _ownerAccent,
-                onRefresh: () => _bookingsController.loadBookings(),
-                child: ListView.builder(
-                  // v468 — dégager le bas pour passer AU-DESSUS de la barre de
-                  // menu pleine largeur (~80) + l'inset Samsung.
-                  padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w,
-                      110.h + appBottomInset(context)),
-                  itemCount: list.length,
-                  itemBuilder: (context, index) =>
-                      _buildBookingCard(list[index]),
-                ),
-              );
-            }),
-          ),
-        ],
+              }),
+            ),
+          ],
+        ),
       ),
     );
   }
 
+  /// v571 — sous-titre de l'en-tête : compteur de réservations chargées.
+  String _headerSubtitle(int n) {
+    if (n <= 0) return 'bookings571_count_none'.tr;
+    if (n == 1) return 'bookings571_count_one'.tr;
+    return 'bookings571_count_many'.tr.replaceAll('{n}', '$n');
+  }
+
   Widget _buildStatusFilter() {
-    // v565 — filtres en pilules (kit Réservations) + compteurs par statut.
+    // v571 — sélecteur segmenté (kit Réservations) + compteurs par statut.
     return Obx(() {
       final all = _bookingsController.bookings;
       final counts = <String, int>{
@@ -243,10 +252,11 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
           if (st != 'all' && st != 'factures')
             st: all.where((b) => _matchesStatus(b, st)).length,
       };
-      return BookingFilterBar(
+      return BookingSegmentedTabs(
         values: _statuses,
         selected: _selectedStatus,
         label: _label,
+        icon: bookingTabIcon,
         accent: _ownerAccent,
         linkValues: const {'factures'},
         counts: counts,
@@ -289,119 +299,83 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
     final totalAmount = booking.totalAmount ??
         booking.pricing?.totalPrice ??
         booking.basePrice;
-    return GestureDetector(
+    // v571 — même navigation qu'avant (tap = accord de réservation) : seul
+    // l'habillage change. Hiérarchie : prestataire + statut, méta-données en
+    // pastilles, prix bien lisible, puis les actions.
+    final bool paid = (booking.paymentStatus ?? '').toLowerCase() == 'paid';
+    final String service = translateServiceType(booking.serviceType);
+    return BookingCard(
+      accent: _ownerAccent,
+      margin: EdgeInsets.only(bottom: 16.h),
+      padding: EdgeInsets.zero,
       onTap: () {
         Get.to(() => BookingAgreementScreen(booking: booking));
       },
-      child: Container(
-        margin: EdgeInsets.only(bottom: 16.h),
-        // v465 — refonte carte : carte SURÉLEVÉE (ombre douce), coins 18,
-        // liseré orange role discret. Plus moderne, fini le simple cadre gris.
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(18.r),
-          border: Border.all(color: _ownerAccent.withValues(alpha: 0.18)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 14,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // v465 — en-tête teinté role : statut à gauche, prestataire (avatar
-            // + nom) à droite, sur un bandeau orange pâle.
-            Container(
-              padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 14.h),
-              color: _ownerAccent.withValues(alpha: 0.06),
-              child: Row(
-              children: [
-                _statusBadge(booking.status, booking.paymentStatus),
-                const Spacer(),
-                Flexible(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ClipOval(
-                        child: booking.sitter.avatar.url.isNotEmpty
-                            ? CachedNetworkImage(
-                                imageUrl: booking.sitter.avatar.url,
-                                width: 32.w,
-                                height: 32.h,
-                                memCacheWidth: 96, // v234.
-                                fit: BoxFit.cover,
-                                placeholder: (_, __) => _avatarPlaceholder(),
-                                errorWidget: (_, __, ___) =>
-                                    _avatarPlaceholder(),
-                              )
-                            : _avatarPlaceholder(),
-                      ),
-                      SizedBox(width: 8.w),
-                      Flexible(
-                        child: InterText(
-                          text: booking.sitter.name,
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary(context),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 16.w),
+      child: Padding(
+              padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 16.h),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-            _row(Icons.pets, 'sitter_bookings_pet_label'.tr,
-                booking.petName),
-            SizedBox(height: 12.h),
-            _row(Icons.calendar_today, 'sitter_bookings_date_label'.tr,
-                BookingDateFormat.localizedDate(booking.date)),
-            SizedBox(height: 12.h),
-            _row(Icons.access_time, 'sitter_bookings_time_label'.tr,
-                BookingDateFormat.localizedTime(booking.timeSlot)),
-            if (booking.duration != null && booking.duration! > 0) ...[
-              SizedBox(height: 12.h),
-              _row(Icons.timer, 'duration_label'.tr,
-                  '${booking.duration} min'),
-            ],
+            BookingPartyHeader(
+              name: booking.sitter.name,
+              avatarUrl: booking.sitter.avatar.url,
+              subtitle: service.isNotEmpty ? service : null,
+              accent: _ownerAccent,
+              trailing: BookingStatusChip(
+                status: booking.status,
+                paymentStatus: booking.paymentStatus,
+                accent: _ownerAccent,
+              ),
+            ),
+            SizedBox(height: 14.h),
+            Wrap(
+              spacing: 8.w,
+              runSpacing: 8.h,
+              children: [
+                BookingMetaChip(
+                  icon: Icons.pets_rounded,
+                  value: booking.petName,
+                  semanticsLabel: 'sitter_bookings_pet_label'.tr,
+                  tint: _ownerAccent,
+                ),
+                BookingMetaChip(
+                  icon: Icons.calendar_today_rounded,
+                  value: BookingDateFormat.localizedDate(booking.date),
+                  semanticsLabel: 'sitter_bookings_date_label'.tr,
+                ),
+                BookingMetaChip(
+                  icon: Icons.access_time_rounded,
+                  value: BookingDateFormat.localizedTime(booking.timeSlot),
+                  semanticsLabel: 'sitter_bookings_time_label'.tr,
+                ),
+                if (booking.duration != null && booking.duration! > 0)
+                  BookingMetaChip(
+                    icon: Icons.timer_rounded,
+                    value: '${booking.duration} min',
+                    semanticsLabel: 'duration_label'.tr,
+                  ),
+              ],
+            ),
             if (totalAmount != null) ...[
-              SizedBox(height: 12.h),
+              const BookingCardDivider(),
               // v18.9.2 — owner sur booking payé voit "Tu as payé €X".
-              Builder(builder: (_) {
-                final paid =
-                    (booking.paymentStatus ?? '').toLowerCase() == 'paid';
-                final formatted = CurrencyHelper.format(
-                  booking.pricing?.currency ?? booking.sitter.currency,
-                  totalAmount,
-                );
-                return Row(
-                  children: [
-                    Icon(Icons.attach_money, size: 16.sp, color: _ownerAccent),
-                    SizedBox(width: 8.w),
-                    InterText(
-                      text: paid
-                          ? 'bookings_card_you_paid'.trParams({
-                              'amount': formatted,
-                            })
-                          : formatted,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w700,
-                      color: _ownerAccent,
-                    ),
-                  ],
-                );
-              }),
+              BookingPriceRow(
+                accent: _ownerAccent,
+                icon: paid
+                    ? Icons.verified_rounded
+                    : Icons.credit_card_rounded,
+                amount: paid
+                    ? 'bookings_card_you_paid'.trParams({
+                        'amount': CurrencyHelper.format(
+                          booking.pricing?.currency ?? booking.sitter.currency,
+                          totalAmount,
+                        ),
+                      })
+                    : CurrencyHelper.format(
+                        booking.pricing?.currency ?? booking.sitter.currency,
+                        totalAmount,
+                      ),
+              ),
             ],
             SizedBox(height: 16.h),
             _buildActionButtons(booking),
@@ -442,9 +416,6 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
                 ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -571,49 +542,6 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
     );
   }
 
-  Widget _statusBadge(String status, String? paymentStatus) {
-    // v565 — pastille de statut du kit Réservations.
-    return BookingStatusChip(
-      status: status,
-      paymentStatus: paymentStatus,
-      accent: _ownerAccent,
-    );
-  }
-
-  Widget _row(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 16.sp, color: AppColors.grey700Color),
-        SizedBox(width: 8.w),
-        InterText(
-          text: label,
-          fontSize: 12.sp,
-          fontWeight: FontWeight.w400,
-          color: AppColors.grey700Color,
-        ),
-        SizedBox(width: 8.w),
-        Expanded(
-          child: InterText(
-            text: value.isNotEmpty ? value : '—',
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textPrimary(context),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _avatarPlaceholder() {
-    return Container(
-      width: 32.w,
-      height: 32.h,
-      color: AppColors.lightGrey,
-      child: Icon(Icons.person, size: 20.sp, color: _ownerAccent),
-    );
-  }
 }
 
 /// v23.1.292 — carte de note inline (maquette owner). Au montage, vérifie si
@@ -689,6 +617,9 @@ class _ReviewPromptTileState extends State<_ReviewPromptTile> {
   // État « déjà noté » : étoiles pleines + « Modifier ».
   Widget _alreadyRated() {
     final rating = ((_existing!['rating'] as num?) ?? 0).round();
+    // v571 — plus de vert/pêche en dur : le fond et le liseré se déduisent du
+    // thème, sinon la tuile restait blanc verdâtre en mode sombre.
+    const Color green = Color(0xFF16A34A);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _openReview(0),
@@ -696,20 +627,20 @@ class _ReviewPromptTileState extends State<_ReviewPromptTile> {
         margin: EdgeInsets.only(top: 12.h),
         padding: EdgeInsets.all(14.w),
         decoration: BoxDecoration(
-          color: const Color(0xFFEAF7EE),
+          color: bookingToneSurface(context, green),
           borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(color: const Color(0xFFB7E4C7)),
+          border: Border.all(color: green.withValues(alpha: 0.35)),
         ),
         child: Row(
           children: [
             Icon(Icons.check_circle_rounded,
-                color: AppColors.greenColor, size: 20.sp),
+                color: bookingToneForeground(context, green), size: 20.sp),
             SizedBox(width: 8.w),
             ...List.generate(
               5,
               (i) => Icon(
                 i < rating ? Icons.star_rounded : Icons.star_border_rounded,
-                color: Colors.amber,
+                color: const Color(0xFFF5B301),
                 size: 18.sp,
               ),
             ),
@@ -718,7 +649,7 @@ class _ReviewPromptTileState extends State<_ReviewPromptTile> {
               text: 'review_already_rated'.tr,
               fontSize: 13.sp,
               fontWeight: FontWeight.w700,
-              color: AppColors.primaryColor,
+              color: bookingToneForeground(context, AppColors.primaryColor),
             ),
           ],
         ),
@@ -734,10 +665,13 @@ class _ReviewPromptTileState extends State<_ReviewPromptTile> {
       child: Container(
         margin: EdgeInsets.only(top: 12.h),
         padding: EdgeInsets.all(16.w),
+        // v571 — pêche en dur remplacé par la teinte du rôle sur la surface
+        // du thème (lisible en clair comme en sombre).
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF4EF),
+          color: bookingToneSurface(context, AppColors.primaryColor),
           borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(color: const Color(0xFFFFD9CC)),
+          border: Border.all(
+              color: AppColors.primaryColor.withValues(alpha: 0.28)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -759,7 +693,8 @@ class _ReviewPromptTileState extends State<_ReviewPromptTile> {
                     child: Icon(
                       Icons.star_rounded,
                       size: 34.sp,
-                      color: AppColors.grey300Color,
+                      // v571 — gris fixe illisible en sombre.
+                      color: AppColors.divider(context),
                     ),
                   ),
                 );
@@ -796,11 +731,14 @@ class _HandoverCodeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // v571 — mêmes textes, mêmes gestes : seules les couleurs deviennent
+    // dépendantes du thème (titre et description étaient illisibles en sombre).
+    final Color fg = bookingToneForeground(context, AppColors.primaryColor);
     return Container(
       margin: EdgeInsets.only(top: 12.h),
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
       decoration: BoxDecoration(
-        color: AppColors.primaryColor.withValues(alpha: 0.08),
+        color: bookingToneSurface(context, AppColors.primaryColor),
         borderRadius: BorderRadius.circular(14.r),
         border: Border.all(
           color: AppColors.primaryColor.withValues(alpha: 0.35),
@@ -808,8 +746,7 @@ class _HandoverCodeTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.vpn_key_rounded,
-              color: AppColors.primaryColor, size: 22.sp),
+          Icon(Icons.vpn_key_rounded, color: fg, size: 22.sp),
           SizedBox(width: 12.w),
           Expanded(
             child: Column(
@@ -819,12 +756,13 @@ class _HandoverCodeTile extends StatelessWidget {
                   text: 'handover_owner_code_title'.tr,
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
                 ),
                 SizedBox(height: 2.h),
                 InterText(
                   text: 'handover_owner_code_desc'.tr,
                   fontSize: 11.sp,
-                  color: Colors.grey,
+                  color: AppColors.textSecondary(context),
                 ),
               ],
             ),
@@ -844,7 +782,7 @@ class _HandoverCodeTile extends StatelessWidget {
                 fontSize: 22.sp,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 4,
-                color: AppColors.primaryColor,
+                color: fg,
               ),
             ),
           ),

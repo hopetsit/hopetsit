@@ -865,7 +865,11 @@ class SignupWizardScreen extends StatelessWidget {
         Container(
           padding: EdgeInsets.all(12.w),
           decoration: BoxDecoration(
-            color: AppColors.lightGrey.withValues(alpha: 0.5),
+            // Audit mode sombre — `lightGrey` à 50 % donnait un pavé gris
+            // clair sous un texte clair. Clair : valeur d'origine.
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withValues(alpha: 0.06)
+                : AppColors.lightGrey.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(10.r),
           ),
           child: Row(
@@ -1052,7 +1056,8 @@ class SignupWizardScreen extends StatelessWidget {
                         InterText(
                           text: '—',
                           fontSize: 12.sp,
-                          color: AppColors.greyText,
+                          // `textSecondary()` = greyText exact en clair.
+                          color: AppColors.textSecondary(context),
                         )
                       ]
                     : c.acceptedAnimals
@@ -1072,7 +1077,11 @@ class SignupWizardScreen extends StatelessWidget {
                             ))
                         .toList(),
               )),
-          Divider(height: 20.h, color: AppColors.greyText.withValues(alpha: 0.15)),
+          Divider(
+              height: 20.h,
+              // Invisible en sombre avec greyText : on suit le texte secondaire
+              // (identique en clair).
+              color: AppColors.textSecondary(context).withValues(alpha: 0.15)),
           InterText(
             text: 'signup_review_rates'.tr,
             fontSize: 13.sp,

@@ -103,7 +103,7 @@ class _FriendsPetsTabState extends State<FriendsPetsTab> {
                     InterText(
                       text: 'friends_pets_empty_msg'.tr,
                       fontSize: 12.sp,
-                      color: AppColors.greyText,
+                      color: AppColors.textSecondary(context),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -171,14 +171,14 @@ class _FriendsPetsTabState extends State<FriendsPetsTab> {
                       ? 'friends_pets_owned_by'.trParams({'name': ownerName})
                       : (breed.isNotEmpty ? breed : '—'),
                   fontSize: 11.sp,
-                  color: AppColors.greyText,
+                  color: AppColors.textSecondary(context),
                   maxLines: 1,
                 ),
               ],
             ),
           ),
           Icon(Icons.chevron_right_rounded,
-              color: AppColors.greyText, size: 22.sp),
+              color: AppColors.textSecondary(context), size: 22.sp),
         ],
       ),
     );
@@ -291,7 +291,7 @@ class _FriendsMessagesTabState extends State<FriendsMessagesTab> {
                           ? Icons.lock_outline_rounded
                           : Icons.wifi_off_rounded,
                       size: 48.sp,
-                      color: is403 ? Colors.orange : AppColors.greyText,
+                      color: is403 ? Colors.orange : AppColors.textSecondary(context),
                     ),
                     SizedBox(height: 12.h),
                     InterText(
@@ -309,7 +309,7 @@ class _FriendsMessagesTabState extends State<FriendsMessagesTab> {
                       child: InterText(
                         text: err,
                         fontSize: 11.sp,
-                        color: AppColors.greyText,
+                        color: AppColors.textSecondary(context),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -329,6 +329,13 @@ class _FriendsMessagesTabState extends State<FriendsMessagesTab> {
           // v23.1 part 226 — empty state beefed up : grosse illustration
           // chat + titre clair + sous-texte explicatif + CTA visible
           // qui guide vers l'onglet Amis pour demarrer une conv.
+          // v571 — mode sombre : le disque pêche #FFF1ED/#FFE4D6 était une
+          // tache blanche sur le fond sombre, et l'icône rouge foncé dessus
+          // n'était plus lisible. Clair inchangé.
+          final bool isDark = Theme.of(context).brightness == Brightness.dark;
+          const Color ctaRed = Color(0xFFC92A12);
+          final Color illuIcon =
+              isDark ? Color.lerp(ctaRed, Colors.white, 0.45)! : ctaRed;
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.all(24.w),
@@ -343,16 +350,21 @@ class _FriendsMessagesTabState extends State<FriendsMessagesTab> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
-                          colors: [
-                            const Color(0xFFFFF1ED),
-                            const Color(0xFFFFE4D6),
-                          ],
+                          colors: isDark
+                              ? [
+                                  ctaRed.withValues(alpha: 0.26),
+                                  ctaRed.withValues(alpha: 0.12),
+                                ]
+                              : [
+                                  const Color(0xFFFFF1ED),
+                                  const Color(0xFFFFE4D6),
+                                ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                       ),
                       child: Icon(Icons.chat_bubble_outline_rounded,
-                          color: const Color(0xFFC92A12), size: 56.sp),
+                          color: illuIcon, size: 56.sp),
                     ),
                     SizedBox(height: 16.h),
                     InterText(
@@ -367,7 +379,7 @@ class _FriendsMessagesTabState extends State<FriendsMessagesTab> {
                       child: InterText(
                         text: 'friends_messages_empty_msg'.tr,
                         fontSize: 13.sp,
-                        color: AppColors.greyText,
+                        color: AppColors.textSecondary(context),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -379,15 +391,14 @@ class _FriendsMessagesTabState extends State<FriendsMessagesTab> {
                         color: AppColors.card(context),
                         borderRadius: BorderRadius.circular(14.r),
                         border: Border.all(
-                          color: const Color(0xFFC92A12)
-                              .withValues(alpha: 0.30),
+                          color: illuIcon.withValues(alpha: 0.30),
                           width: 1.2,
                         ),
                       ),
                       child: Row(
                         children: [
                           Icon(Icons.touch_app_rounded,
-                              color: const Color(0xFFC92A12), size: 20.sp),
+                              color: illuIcon, size: 20.sp),
                           SizedBox(width: 10.w),
                           Expanded(
                             child: InterText(
@@ -502,7 +513,7 @@ class _FriendsMessagesTabState extends State<FriendsMessagesTab> {
                 InterText(
                   text: lastMsg.isEmpty ? '—' : lastMsg,
                   fontSize: 11.sp,
-                  color: AppColors.greyText,
+                  color: AppColors.textSecondary(context),
                   maxLines: 1,
                 ),
               ],

@@ -244,7 +244,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                           text: 'notif_cat_$cat'.tr.toUpperCase(),
                           fontSize: 11.sp,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.greyText),
+                          color: AppColors.textSecondary(context)),
                     ),
                     for (final t in grouped[cat]!)
                       _typeTile(context, t, accent),

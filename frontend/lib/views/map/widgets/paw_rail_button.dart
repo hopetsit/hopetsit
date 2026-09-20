@@ -15,6 +15,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../utils/pawmap_theme.dart';
+
 class PawRailButton extends StatefulWidget {
   const PawRailButton({
     super.key,
@@ -161,13 +163,20 @@ class PawGlassCapsule extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // v571 — lisibilité sombre : la capsule blanche gardait ses icônes
+    // anthracite ; en sombre elle devient anthracite (icônes claires, cf.
+    // [PawCapsuleButton]) pour s'accorder aux panneaux de la PawMap. Le rendu
+    // clair est strictement inchangé.
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final items = <Widget>[];
     for (var i = 0; i < children.length; i++) {
       if (i > 0) {
         items.add(Container(
           height: 1,
           margin: EdgeInsets.symmetric(horizontal: 9.w),
-          color: const Color(0xFF1D1D1F).withValues(alpha: 0.08),
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.12)
+              : const Color(0xFF1D1D1F).withValues(alpha: 0.08),
         ));
       }
       items.add(children[i]);
@@ -181,10 +190,14 @@ class PawGlassCapsule extends StatelessWidget {
         child: Container(
           width: width.w,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.94),
+            color: isDark
+                ? PawMapTheme.panelDark.withValues(alpha: 0.96)
+                : Colors.white.withValues(alpha: 0.94),
             borderRadius: BorderRadius.circular(22.r),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.9),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.16)
+                  : Colors.white.withValues(alpha: 0.9),
               width: 1,
             ),
             boxShadow: [
@@ -234,8 +247,13 @@ class PawCapsuleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color t = tint ?? ink;
-    final Color iconColor = active ? t : (secondary ? grey : ink);
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    // v571 — sur capsule anthracite, l'encre #1D1D1F disparaît.
+    final Color baseInk = isDark ? const Color(0xFFF2F2F2) : ink;
+    final Color baseGrey = isDark ? const Color(0xFFB0B0B0) : grey;
+    final Color t = tint ?? baseInk;
+    final Color iconColor =
+        active ? (isDark ? PawMapTheme.lighten(t, 0.35) : t) : (secondary ? baseGrey : baseInk);
     return Tooltip(
       message: label,
       child: Semantics(
@@ -258,7 +276,9 @@ class PawCapsuleButton extends StatelessWidget {
                   width: (size - 10).w,
                   height: (size - 10).w,
                   decoration: BoxDecoration(
-                    color: active ? t.withValues(alpha: 0.12) : Colors.transparent,
+                    color: active
+                        ? t.withValues(alpha: isDark ? 0.22 : 0.12)
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(12.r),
                   ),
                   child: Icon(icon, color: iconColor, size: 20.sp),
@@ -355,6 +375,9 @@ class PawGlassPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // v571 — lisibilité sombre : pilule anthracite au lieu de blanche quand
+    // elle n'est pas « pleine ». Le liseré et le contenu gardent leur couleur.
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final r = BorderRadius.circular(radius);
     return ClipRRect(
       borderRadius: r,
@@ -370,7 +393,9 @@ class PawGlassPill extends StatelessWidget {
           decoration: BoxDecoration(
             color: filled
                 ? (gradient == null ? color : null)
-                : Colors.white.withValues(alpha: 0.94),
+                : (isDark
+                    ? PawMapTheme.panelDark.withValues(alpha: 0.96)
+                    : Colors.white.withValues(alpha: 0.94)),
             gradient: filled ? gradient : null,
             borderRadius: r,
             border: Border.all(
@@ -380,7 +405,8 @@ class PawGlassPill extends StatelessWidget {
             boxShadow: [
               BoxShadow(
                 color: (filled ? color : Colors.black)
-                    .withValues(alpha: filled ? 0.32 : 0.10),
+                    .withValues(
+                        alpha: filled ? 0.32 : (isDark ? 0.45 : 0.10)),
                 blurRadius: 14,
                 offset: const Offset(0, 5),
               ),

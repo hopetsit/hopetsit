@@ -196,7 +196,10 @@ class _LoyaltyCardState extends State<LoyaltyCard>
                         style: TextStyle(
                           fontSize: 12.5.sp,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF15803D),
+                          // Audit mode sombre — vert foncé #15803D ≈ 2,8:1
+                          // sur la carte sombre.
+                          color: AppColors.accentOn(
+                              context, const Color(0xFF15803D)),
                         ),
                       ),
                     ),

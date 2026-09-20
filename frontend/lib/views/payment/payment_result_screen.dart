@@ -182,7 +182,8 @@ class PaymentResultScreen extends StatelessWidget {
               // Back to Home
               ProfileSecondaryButton(
                 label: 'common_back_to_home'.tr,
-                accent: isSuccess ? AppColors.greyText : accent,
+                accent:
+                    isSuccess ? AppColors.textSecondary(context) : accent,
                 icon: Icons.home_rounded,
                 onTap: () => Get.until(
                   (route) =>

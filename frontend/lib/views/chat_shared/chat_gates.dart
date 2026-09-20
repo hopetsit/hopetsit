@@ -27,7 +27,8 @@ class ChatPaymentGate extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.lock_rounded, size: 20.sp, color: theme.accent),
+              Icon(Icons.lock_rounded,
+                  size: 20.sp, color: theme.accentOn(context)),
               SizedBox(width: 8.w),
               Expanded(
                 child: InterText(
@@ -77,8 +78,8 @@ class ChatPaymentGate extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: () => Get.to(() => const CoinShopScreen()),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: theme.accent,
-                    side: BorderSide(color: theme.accent),
+                    foregroundColor: theme.accentOn(context),
+                    side: BorderSide(color: theme.accentOn(context)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(24.r),
                     ),
@@ -114,7 +115,8 @@ class ChatLockedNotice extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.lock_outline_rounded, size: 18.sp, color: theme.accent),
+          Icon(Icons.lock_outline_rounded,
+              size: 18.sp, color: theme.accentOn(context)),
           SizedBox(width: 8.w),
           Expanded(
             child: InterText(

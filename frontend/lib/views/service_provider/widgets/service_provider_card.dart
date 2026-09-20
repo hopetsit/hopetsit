@@ -442,7 +442,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                           ),
                           child: Icon(
                             Icons.more_vert,
-                            color: AppColors.grey500Color,
+                            color: AppColors.textTertiary(context),
                             size: 20.sp,
                           ),
                         ),
@@ -534,7 +534,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
         decoration: BoxDecoration(
           color: AppColors.card(context),
           borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(color: AppColors.grey300Color),
+          border: Border.all(color: AppColors.divider(context)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -686,7 +686,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
         decoration: BoxDecoration(
           color: AppColors.card(context),
           borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(color: AppColors.grey300Color),
+          border: Border.all(color: AppColors.divider(context)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -796,7 +796,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                 children: [
                   if (hasLocation) ...[
                     Icon(Icons.place_outlined,
-                        size: 14.sp, color: AppColors.grey700Color),
+                        size: 14.sp, color: AppColors.textSecondaryStrong(context)),
                     SizedBox(width: 4.w),
                     Flexible(
                       child: InterText(
@@ -946,13 +946,13 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
   Widget _compactRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, size: 16.sp, color: AppColors.grey700Color),
+        Icon(icon, size: 16.sp, color: AppColors.textSecondaryStrong(context)),
         SizedBox(width: 8.w),
         InterText(
           text: label,
           fontSize: 12.sp,
           fontWeight: FontWeight.w400,
-          color: AppColors.grey700Color,
+          color: AppColors.textSecondaryStrong(context),
         ),
         SizedBox(width: 8.w),
         Expanded(
@@ -1069,7 +1069,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
         Icon(
           isLocked ? Icons.lock : Icons.lock_open,
           size: 20.sp,
-          color: AppColors.grey500Color,
+          color: AppColors.textTertiary(context),
         ),
         SizedBox(width: 8.w),
         Expanded(
@@ -1286,7 +1286,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                             text: 'service_card_reject'.tr,
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.greyText,
+                            color: AppColors.textSecondary(context),
                           ),
                   ),
                 ),
@@ -1315,7 +1315,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                         text: 'service_card_cancel'.tr,
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.greyText,
+                        color: AppColors.textSecondary(context),
                       ),
                     ),
                   ),
@@ -1415,7 +1415,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                         text: 'service_card_cancel'.tr,
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.greyText,
+                        color: AppColors.textSecondary(context),
                       ),
                     ),
                   ),

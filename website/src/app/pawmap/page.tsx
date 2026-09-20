@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { PawMapCTA } from "@/components/PawMapCTA";
-import { PawMapLogo } from "@/components/PawMapLogo";
+import { PawMapHeroBadge } from "@/components/PawMapHeroBadge";
 import { SubscriptionsExplainer } from "@/components/SubscriptionsExplainer";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { PhoneFrame, pawmapShotFor } from "@/lib/screens";
@@ -45,8 +45,8 @@ export default function PawMapPage() {
     <div className="bg-white">
       {/* ── 1. HÉRO ── */}
       <div className="mx-auto max-w-4xl px-4 pb-12 pt-20 text-center md:pt-28">
-        {/* v567 — nouveau logo PawMap « patte-pin », animé dans le héro. */}
-        <PawMapLogo size={72} animated className="mx-auto" />
+        {/* v571 — logo PawMap en grand sur sa tuile orange animée (scène du splash de l'app). */}
+        <PawMapHeroBadge />
         <span className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#F5F5F7] px-3.5 py-1.5 text-xs font-semibold text-[#6E6E73]">
           🌍 {t("hero_badge")}
         </span>

@@ -284,7 +284,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                       ),
                     ),
                     errorWidget: (context, url, error) => Container(
-                      color: AppColors.grey300Color,
+                      color: AppColors.mediaPlaceholder(context, AppColors.grey300Color),
                       child: Center(
                         child: Icon(
                           Icons.person,
@@ -295,7 +295,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                     ),
                   )
                 : Container(
-                    color: AppColors.grey300Color,
+                    color: AppColors.mediaPlaceholder(context, AppColors.grey300Color),
                     child: Center(
                       child: Icon(
                         Icons.person,
@@ -468,7 +468,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                 ),
               ],
               SizedBox(height: 12.h),
-              Divider(color: AppColors.grey300Color, thickness: 1),
+              Divider(color: AppColors.divider(context), thickness: 1),
               SizedBox(height: 12.h),
 
               // Current Status
@@ -479,14 +479,14 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                     text: 'sitter_detail_current_status_label'.tr,
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.grey700Color,
+                    color: AppColors.textSecondaryStrong(context),
                   ),
                   _buildStatusChip(status),
                 ],
               ),
               if (hasBooking) ...[
                 SizedBox(height: 12.h),
-                Divider(color: AppColors.grey300Color, thickness: 1),
+                Divider(color: AppColors.divider(context), thickness: 1),
                 SizedBox(height: 12.h),
                 // Application/Booking Status
                 Row(
@@ -496,7 +496,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                       text: 'sitter_detail_application_status_label'.tr,
                       fontSize: 13.sp,
                       fontWeight: FontWeight.w400,
-                      color: AppColors.grey700Color,
+                      color: AppColors.textSecondaryStrong(context),
                     ),
                     Container(
                       padding: EdgeInsets.symmetric(
@@ -547,7 +547,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
           text: label,
           fontSize: 13.sp,
           fontWeight: FontWeight.w400,
-          color: AppColors.grey700Color,
+          color: AppColors.textSecondaryStrong(context),
         ),
         PoppinsText(
           text: value,

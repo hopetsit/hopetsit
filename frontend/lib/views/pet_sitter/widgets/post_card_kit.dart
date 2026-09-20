@@ -121,7 +121,7 @@ class PostBullet extends StatelessWidget {
                   text: label,
                   fontSize: 10.5.sp,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.greyText,
+                  color: AppColors.textSecondary(context),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -336,8 +336,12 @@ class PostPill extends StatelessWidget {
         border = color.withValues(alpha: 0.55);
         break;
       case PostPillStyle.ghost:
-        bg = AppColors.grey300Color.withValues(alpha: 0.35);
-        fg = AppColors.grey500Color;
+        // Audit mode sombre — le gris clair à 35 % formait une pilule claire
+        // sur la carte sombre, et son libellé gris s'y perdait.
+        bg = Theme.of(context).brightness == Brightness.dark
+            ? Colors.white.withValues(alpha: 0.08)
+            : AppColors.grey300Color.withValues(alpha: 0.35);
+        fg = AppColors.textTertiary(context);
         border = Colors.transparent;
         break;
     }
@@ -411,7 +415,7 @@ class PostSecondaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final disabled = onTap == null;
-    final fg = disabled ? AppColors.grey500Color : color;
+    final fg = disabled ? AppColors.textTertiary(context) : color;
     return Material(
       color: disabled
           ? AppColors.grey300Color.withValues(alpha: 0.18)

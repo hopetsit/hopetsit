@@ -254,9 +254,9 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
           label,
           style: TextStyle(
             fontSize: 11.sp,
-            color: AppColors.greyText,
+            color: AppColors.textSecondary(context),
             decoration: TextDecoration.underline,
-            decorationColor: AppColors.greyText,
+            decorationColor: AppColors.textSecondary(context),
           ),
         ),
       ),
@@ -449,7 +449,11 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
               margin: EdgeInsets.fromLTRB(10.w, 4.h, 10.w, 10.h),
               padding: EdgeInsets.all(6.w),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1E9E2),
+                // Le beige clair entoure les 4 cartes (6 px de marge) : en mode
+                // sombre il formait un cadre éblouissant sur le fond #121212.
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.cardDark
+                    : const Color(0xFFF1E9E2),
                 borderRadius: BorderRadius.circular(30),
               ),
               child: TabBar(
@@ -1049,7 +1053,7 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                     InterText(
                       text: 'boost_inactive_hint'.tr,
                       fontSize: 12.sp,
-                      color: AppColors.greyText,
+                      color: AppColors.textSecondary(context),
                       maxLines: 2,
                     ),
                   ],
@@ -1112,7 +1116,7 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                     InterText(
                       text: 'v566_shop_wallet_hint'.tr,
                       fontSize: 11.sp,
-                      color: AppColors.greyText,
+                      color: AppColors.textSecondary(context),
                       maxLines: 2,
                     ),
                   ],
@@ -1250,14 +1254,14 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                 InterText(
                   text: '${map['days'] ?? 0} ${'boost_days'.tr}',
                   fontSize: 12.sp,
-                  color: AppColors.greyText,
+                  color: AppColors.textSecondary(context),
                 ),
                 const Spacer(),
                 if (date != null)
                   InterText(
                     text: '${date.day}/${date.month}/${date.year}',
                     fontSize: 11.sp,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(context),
                   ),
               ],
             ),
@@ -1553,7 +1557,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
           isDense: true,
           borderRadius: BorderRadius.circular(16),
           icon: Icon(Icons.expand_more_rounded,
-              size: 18.sp, color: AppColors.greyText),
+              size: 18.sp, color: AppColors.textSecondary(context)),
           items: controller.supportedCurrencies
               .map((c) => DropdownMenuItem<String>(
                     value: c,
@@ -2559,7 +2563,7 @@ class _PawSpotTabState extends State<_PawSpotTab>
             text: 'pawspot_trial_used'.tr,
             fontSize: 13.sp,
             fontWeight: FontWeight.w600,
-            color: AppColors.greyText,
+            color: AppColors.textSecondary(context),
             maxLines: 2,
           ),
         )
@@ -2761,7 +2765,7 @@ class _PawSpotTabState extends State<_PawSpotTab>
                   text: 'pts',
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.greyText,
+                  color: AppColors.textSecondary(context),
                 ),
               ),
               const Spacer(),
@@ -2801,7 +2805,7 @@ class _PawSpotTabState extends State<_PawSpotTab>
                 'points': '${(next['min'] as num?)?.toInt() ?? 0}',
               }),
               fontSize: 12.sp,
-              color: AppColors.greyText,
+              color: AppColors.textSecondary(context),
             ),
           ],
           if (_isGoldCreator) ...[
@@ -2885,7 +2889,7 @@ class _PawSpotTabState extends State<_PawSpotTab>
           InterText(
             text: 'pawspot_rewards_catalog_hint'.tr,
             fontSize: 12.sp,
-            color: AppColors.greyText,
+            color: AppColors.textSecondary(context),
             maxLines: 3,
           ),
           SizedBox(height: 12.h),
@@ -2902,13 +2906,13 @@ class _PawSpotTabState extends State<_PawSpotTab>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(Icons.info_outline_rounded,
-                  size: 15.sp, color: AppColors.greyText),
+                  size: 15.sp, color: AppColors.textSecondary(context)),
               SizedBox(width: 8.w),
               Expanded(
                 child: InterText(
                   text: 'pawspot_reward_feature'.tr,
                   fontSize: 12.sp,
-                  color: AppColors.greyText,
+                  color: AppColors.textSecondary(context),
                   maxLines: 2,
                 ),
               ),

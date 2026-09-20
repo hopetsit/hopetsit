@@ -23,7 +23,8 @@ class ChatLoadingState extends StatelessWidget {
             height: 28.w,
             child: CircularProgressIndicator(
               strokeWidth: 2.5,
-              valueColor: AlwaysStoppedAnimation<Color>(theme.accent),
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(theme.accentOn(context)),
             ),
           ),
           if (label != null) ...[
@@ -70,10 +71,10 @@ class ChatEmptyState extends StatelessWidget {
               width: 72.w,
               height: 72.w,
               decoration: BoxDecoration(
-                color: theme.tintStrong,
+                color: theme.softTintStrong(context),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 34.sp, color: theme.accent),
+              child: Icon(icon, size: 34.sp, color: theme.accentOn(context)),
             ),
             SizedBox(height: 16.h),
             PoppinsText(
@@ -138,7 +139,7 @@ class ChatErrorState extends StatelessWidget {
             Icon(
               locked ? Icons.lock_outline_rounded : Icons.wifi_off_rounded,
               size: 44.sp,
-              color: locked ? theme.accent : AppColors.greyColor,
+              color: locked ? theme.accentOn(context) : AppColors.greyColor,
             ),
             SizedBox(height: 12.h),
             InterText(
@@ -155,7 +156,8 @@ class ChatErrorState extends StatelessWidget {
               InterText(
                 text: detail,
                 fontSize: 11.sp,
-                color: AppColors.greyText,
+                // `textSecondary()` renvoie exactement greyText en clair.
+                color: AppColors.textSecondary(context),
                 textAlign: TextAlign.center,
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,
@@ -165,8 +167,8 @@ class ChatErrorState extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onRetry,
               style: OutlinedButton.styleFrom(
-                foregroundColor: theme.accent,
-                side: BorderSide(color: theme.accent),
+                foregroundColor: theme.accentOn(context),
+                side: BorderSide(color: theme.accentOn(context)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(22.r),
                 ),

@@ -1,3 +1,4 @@
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/role_chip.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -28,8 +29,15 @@ import 'package:hopetsit/views/pet_sitter/widgets/reservation_request_filter_dia
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
 import 'package:hopetsit/views/service_provider/owner_profile_view_screen.dart';
 import 'package:hopetsit/views/shared/widgets/around_me_search_bar.dart';
+import 'package:hopetsit/views/shared/widgets/city_picker_sheet.dart';
+import 'package:hopetsit/views/shared/widgets/home_empty_kit.dart';
+// v571 — actions de l'état vide : profil du rôle, invitation, boutique.
+import 'package:hopetsit/views/boost/coin_shop_screen.dart';
+import 'package:hopetsit/views/friends/tabs/friends_ui.dart'
+    show shareFriendsInvite;
+import 'package:hopetsit/views/pet_sitter/profile/edit_sitter_profile_screen.dart';
+import 'package:hopetsit/views/pet_walker/profile/edit_walker_profile_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -352,88 +360,30 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     );
   }
 
-  /// v441 — sheet de changement de ville (réutilise CityLocationPicker, comme
-  /// l'accueil owner). Choisir une ville fixe l'ancre + relance le filtre ;
-  /// le bouton géoloc remet l'ancre sur la position GPS de l'appareil.
-  void _showAroundMeCityPicker(BuildContext context) {
-    final cityController = TextEditingController(text: _searchCityLabel);
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.card(ctx),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            20.w,
-            14.h,
-            20.w,
-            // v569 — clavier ouvert : l'inset système est déjà couvert par
-            // le `viewInsets.bottom` du Padding parent.
-            20.h +
-                (MediaQuery.of(ctx).viewInsets.bottom > 0
-                    ? 0
-                    : appBottomInset(ctx)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36.w,
-                  height: 4.h,
-                  margin: EdgeInsets.only(bottom: 14.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.divider(ctx),
-                    borderRadius: BorderRadius.circular(2.r),
-                  ),
-                ),
-              ),
-              PoppinsText(
-                text: 'home_change_city_title'.tr,
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary(ctx),
-              ),
-              SizedBox(height: 4.h),
-              InterText(
-                text: 'home_change_city_hint'.tr,
-                fontSize: 12.sp,
-                color: AppColors.textSecondary(ctx),
-              ),
-              SizedBox(height: 12.h),
-              CityLocationPicker(
-                cityController: cityController,
-                isGettingLocation: false,
-                onGetLocation: () {
-                  // Retour à la géoloc de l'appareil (efface l'ancre ville).
-                  Navigator.pop(ctx);
-                  setState(() {
-                    _searchCityLabel = '';
-                    _anchorLat = null;
-                    _anchorLng = null;
-                  });
-                },
-                detectedCity: _searchCityLabel,
-                onLocationSelected: (city, lat, lng) {
-                  Navigator.pop(ctx);
-                  setState(() {
-                    _searchCityLabel = city.trim();
-                    _anchorLat = lat;
-                    _anchorLng = lng;
-                  });
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
+  /// v441 — sheet de changement de ville. v571 : la feuille est désormais la
+  /// feuille PARTAGÉE `showCityPickerSheet` (même géocodage Nominatim, même
+  /// « utiliser ma position », même valeur renvoyée qu'avant, rendu modernisé).
+  /// Choisir une ville fixe l'ancre + relance le filtre ; « ma position » remet
+  /// l'ancre sur la position GPS de l'appareil.
+  Future<void> _showAroundMeCityPicker(BuildContext context) async {
+    final result = await showCityPickerSheet(
+      context,
+      accent: _accent,
+      initialCity: _searchCityLabel,
+      subtitle: 'home571_city_hint_provider'.tr,
     );
+    if (result == null || !mounted) return;
+    setState(() {
+      if (result.useMyPosition) {
+        _searchCityLabel = '';
+        _anchorLat = null;
+        _anchorLng = null;
+      } else {
+        _searchCityLabel = result.city.trim();
+        _anchorLat = result.lat;
+        _anchorLng = result.lng;
+      }
+    });
   }
 
   Future<void> _loadUserPosition() async {
@@ -806,7 +756,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             SizedBox(width: 8.w),
           ],
         ),
-        body: SafeArea(
+        body: PawPatternBackground(
+ color: _accent,
+ child: SafeArea(
           child: RefreshIndicator(
             onRefresh: () async {
               // v20.0.19 — also reload rates so the "Estimation" block on
@@ -936,6 +888,12 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                         : distanceFiltered;
 
                     final sortedFeed = _sortFeedPosts(feedPosts);
+                    // v571 — même lot SANS le filtre distance : sert à
+                    // proposer « Les plus proches de toi » quand le rayon
+                    // courant ne laisse rien.
+                    final beforeDistance = _filterState.hasActiveFilters
+                        ? _applyRequestFilters(rolePrefiltered)
+                        : rolePrefiltered;
 
                     return Column(
                       children: [
@@ -954,343 +912,25 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                         // rayon ci-dessus, source unique du périmètre du feed).
                         SizedBox(height: 12.h),
                         if (sortedFeed.isEmpty)
-                          Padding(
-                            padding: EdgeInsets.symmetric(vertical: 24.h),
-                            child: Center(
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.inbox_rounded,
-                                    size: 48.sp,
-                                    color: AppColors.greyText,
-                                  ),
-                                  SizedBox(height: 12.h),
-                                  InterText(
-                                    text: _filterState.hasActiveFilters
-                                        ? 'sitter_no_requests_match'.tr
-                                        : 'posts_empty_title'.tr,
-                                    fontSize: 14.sp,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.greyText,
-                                  ),
-                                  // v23.1 part 122 — Daniel : "Qd il ny
-                                  // aucune annonce publier walker doit
-                                  // avoir sa car il ad que rafraichir".
-                                  // Bouton refresh manuel dans tous les cas
-                                  // d'empty state (avec ou sans filtre).
-                                  SizedBox(height: 16.h),
-                                  TextButton.icon(
-                                    onPressed: () =>
-                                        postsController.refreshPosts(),
-                                    icon: Icon(
-                                      Icons.refresh_rounded,
-                                      color: AppColors.primaryColor,
-                                      size: 18.sp,
-                                    ),
-                                    label: Text(
-                                      'common_refresh'.tr,
-                                      style: TextStyle(
-                                        color: AppColors.primaryColor,
-                                        fontSize: 13.sp,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          // v571 — plus jamais d'écran vide et triste : soit on
+                          // propose les annonces les plus proches hors rayon,
+                          // soit on affiche le kit d'accueil (illustration +
+                          // cartes d'action + rafraîchir à la couleur du rôle).
+                          _buildEmptyArea(
+                            context,
+                            postsController: postsController,
+                            currentRole: currentRole,
+                            outOfRange: beforeDistance,
+                          )
+                        else
+                          // Display all posts from API
+                          ...sortedFeed.map(
+                            (post) => _buildPostTile(
+                              post,
+                              postsController: postsController,
+                              currentRole: currentRole,
                             ),
                           ),
-                        // Display all posts from API
-                        ...sortedFeed.map((post) {
-                          // Get all image URLs from the post
-                          final imageUrls = post.images
-                              .map((img) => img.url)
-                              .where((url) => url.isNotEmpty)
-                              .toList();
-                          final petName = post.pets.isNotEmpty
-                              ? post.pets.first.petName
-                              : null;
-                          // DEEP WORK — résolution robuste du petId pour la
-                          // demande : on prend l'animal résolu de l'annonce en
-                          // priorité (post.pets), puis on retombe sur post.petIds
-                          // / post.petId pour les anciennes annonces où la liste
-                          // d'animaux sérialisée serait vide alors qu'un pet
-                          // existe bien. Évite le faux « annonce incomplète ».
-                          final petId = _resolvePostPetId(post);
-                          final ownerId = post.owner.id.isNotEmpty
-                              ? post.owner.id
-                              : '';
-                          final rawCity = post.location?.city.trim();
-                          final locationLabel =
-                              (rawCity != null && rawCity.isNotEmpty)
-                              ? rawCity
-                              : null;
-                          final dateRangeLabel = _postDateRangeLabel(post);
-                          final serviceTypesLabel = _serviceTypesDisplay(
-                            post.serviceTypes,
-                          );
-                          // Session v17.1 — lookup priority:
-                          //   1) in-session map (when the sitter just sent
-                          //      the request this session)
-                          //   2) stable post-id map (populated from
-                          //      application.postId — 100% reliable across
-                          //      logouts)
-                          //   3) legacy multi-field fingerprint (fallback
-                          //      for apps sent before v17.1 without postId).
-                          final pendingApplicationId =
-                              _pendingApplicationIds[post.id] ??
-                              _pendingApplicationIdsByPostId[post.id] ??
-                              _pendingApplicationIdsByFingerprint[_buildRequestFingerprint(
-                                ownerId: ownerId,
-                                petId: petId ?? '',
-                                serviceType: post.serviceTypes.isNotEmpty
-                                    ? post.serviceTypes.first
-                                    : '',
-                                serviceDate: _serviceDateForPost(post),
-                                startDate: _startDateForPost(post),
-                                endDate: _endDateForPost(post),
-                                timeSlot: _defaultTimeSlotForPost(post),
-                              )];
-                          final isCancelMode = pendingApplicationId != null;
-
-                          final priceEstimate = _estimateForPost(post);
-                          return Padding(
-                            padding: EdgeInsets.only(bottom: 16.h),
-                            child: PetPostCard(
-                              userName: post.owner.name,
-                              userEmail: '',
-                              userAvatar: post.owner.avatar.isNotEmpty
-                                  ? post.owner.avatar
-                                  : null,
-                              petImages: imageUrls,
-                              // v420 — maquette détail annonce : animaux + bio.
-                              pets: post.pets,
-                              ownerBio: post.owner.bio,
-                              serviceLocation: post.serviceLocation,
-                              postBody: post.body,
-                              petName: petName,
-                              serviceTypes: serviceTypesLabel.isEmpty
-                                  ? null
-                                  : serviceTypesLabel,
-                              dateRange: dateRangeLabel,
-                              // v443 — heure → horloge sous « Service ».
-                              serviceTime: _postTimeLabel(post),
-                              location: locationLabel,
-                              isNetworkImage: imageUrls.isNotEmpty,
-                              likeCount: post.likesCount,
-                              priceEstimate: priceEstimate,
-                              viewerRole: currentRole,
-                              // #107 — en-tête annonce cliquable côté
-                              // prestataire → profil propriétaire (lecture
-                              // seule) avec ses animaux. Désactivé si l'owner
-                              // est inconnu.
-                              onOwnerTap: ownerId.isNotEmpty
-                                  ? () => _openOwnerProfile(post, ownerId)
-                                  : null,
-                              // DEEP WORK — chaque animal de la bande annonce
-                              // est cliquable → fiche complète (même chemin que
-                              // « Voir les animaux »).
-                              onPetTap: (id) => _handleCardTap(id),
-                              // Session v17.1 — show the "Réservé" badge when
-                              // the owner has already accepted someone for
-                              // this post.
-                              isReserved: post.isReserved,
-                              reservedProviderRole:
-                                  post.reservedBy?.providerRole,
-                              // v23.1 part 116 — annonce boostée (owner a un
-                              // Boost actif). Affiche le ruban "🚀 URGENT".
-                              isOwnerBoosted: post.isOwnerBoosted,
-                              ownerBoostTier: post.ownerBoostTier,
-                              // Comments disabled on publications
-                              commentCount: 0,
-                              isLiked: postsController.isPostLiked(post.id),
-                              onViewPetDetails: petId != null
-                                  ? () async => _handleCardTap(petId)
-                                  : null,
-                              // v23.1.153 — Daniel : "le bouton demande
-                              // direct n'apparait pas". Avant : si
-                              // ownerId/petId/serviceTypes manquaient
-                              // dans le post (cas owner sans pet, ou
-                              // post sans serviceType), le callback
-                              // etait null → bouton invisible →
-                              // sitter/walker ne pouvait plus envoyer
-                              // de demande. Maintenant : on TOUJOURS
-                              // passe un callback (le bouton est visible)
-                              // et on valide les donnees a l'interieur,
-                              // avec snackbar explicite si quelque
-                              // chose manque.
-                              onSendRequest: () async {
-                                // v565 (point 25) — coordonnées obligatoires
-                                // avant de postuler à une annonce.
-                                if (!await ensureContactInfo(
-                                  context,
-                                  role: _isWalkerViewer ? 'walker' : 'sitter',
-                                )) {
-                                  return;
-                                }
-                                if (ownerId.isEmpty ||
-                                    petId == null ||
-                                    post.serviceTypes.isEmpty) {
-                                  CustomSnackbar.showError(
-                                    title: 'common_error'.tr,
-                                    message: 'post_incomplete_for_request'.tr,
-                                  );
-                                  return;
-                                }
-                                if (isCancelMode) {
-                                  await _handleCancelRequest(
-                                    requestKey: post.id,
-                                    applicationId: pendingApplicationId,
-                                  );
-                                } else {
-                                  await _handleSendRequest(
-                                    requestKey: post.id,
-                                    ownerId: ownerId,
-                                    petId: petId,
-                                    serviceType: post.serviceTypes.first,
-                                    serviceDate: _serviceDateForPost(post),
-                                    startDate: _startDateForPost(post),
-                                    endDate: _endDateForPost(post),
-                                    timeSlot: _defaultTimeSlotForPost(post),
-                                    houseSittingVenue: post.houseSittingVenue,
-                                    duration: _durationForPostService(
-                                      post,
-                                      post.serviceTypes.first,
-                                    ),
-                                    // v17.1 — forward the post id so the
-                                    // backend stores Application.postId.
-                                    postId: post.id,
-                                  );
-                                }
-                              },
-                              requestButtonText: isCancelMode
-                                  ? 'request_cancel_button'.tr
-                                  : 'send_request_button'.tr,
-                              isCancelRequest: isCancelMode,
-                              isRequestLoading:
-                                  _loadingStates[post.id] ?? false,
-                              onLike: () {
-                                // Toggle like with optimistic update
-                                postsController.toggleLike(post.id);
-                              },
-                              // Comments disabled on publications
-                              onComment: null,
-                              onBlockUser: ownerId.isNotEmpty
-                                  ? () => _handleBlockOwner(
-                                      ownerId: ownerId,
-                                      ownerName: post.owner.name,
-                                    )
-                                  : null,
-                              onReportPost: () =>
-                                  _handleReportPost(postId: post.id),
-                              // v23.1.170 — Daniel : "quand je partage la
-                              // demande dune publication sa menvoi lannonce
-                              // de la photo corrige sur les 3 profile".
-                              // Sitter envoyait `shareText = post.body` sans
-                              // lien deep-link → WhatsApp/Telegram/Instagram
-                              // priorise l'image et tronque le texte. On
-                              // mirror le pattern owner home (l.494) : texte
-                              // i18n avec @link + subject traduit.
-                              onShare: () {
-                                () async {
-                                  try {
-                                    final petName = post.pets.isNotEmpty
-                                        ? post.pets.first.petName
-                                        : '';
-                                    // v23.1.170 — voir home_screen.dart
-                                    // pour le pourquoi du .com au lieu de
-                                    // .app (domaine inexistant).
-                                    final link =
-                                        'https://hopetsit.com/post/${post.id}';
-                                    final subject = 'share_post_subject'
-                                        .trParams({
-                                          'petName': petName.isEmpty
-                                              ? 'HoPetSit'
-                                              : petName,
-                                        });
-                                    final shareText = 'share_post_body'
-                                        .trParams({'link': link});
-
-                                    final filesToShare = <XFile>[];
-
-                                    if (imageUrls.isNotEmpty) {
-                                      final tmp = await getTemporaryDirectory();
-                                      for (
-                                        var i = 0;
-                                        i < imageUrls.length;
-                                        i++
-                                      ) {
-                                        final imageUrl = imageUrls[i];
-                                        if (imageUrl.startsWith('http')) {
-                                          // v23.1.175 — Daniel : 14 crashes
-                                          // _Uri.resolve FormatException sur
-                                          // v169/v170. Cause : Uri.parse(url)
-                                          // throw si url contient espace ou
-                                          // caractères interdits. Fix : tryParse.
-                                          final uri = Uri.tryParse(imageUrl);
-                                          if (uri == null || !uri.hasScheme) {
-                                            continue;
-                                          }
-                                          final resp = await http.get(uri);
-                                          if (resp.statusCode == 200) {
-                                            final bytes = resp.bodyBytes;
-                                            final file = File(
-                                              '${tmp.path}/share_${post.id}_$i.jpg',
-                                            );
-                                            await file.writeAsBytes(bytes);
-                                            filesToShare.add(XFile(file.path));
-                                          }
-                                        } else {
-                                          // Treat as local asset path.
-                                          try {
-                                            final data = await rootBundle.load(
-                                              imageUrl,
-                                            );
-                                            final bytes = data.buffer
-                                                .asUint8List();
-                                            final file = File(
-                                              '${tmp.path}/share_${post.id}_$i.png',
-                                            );
-                                            await file.writeAsBytes(bytes);
-                                            filesToShare.add(XFile(file.path));
-                                          } catch (_) {
-                                            // Ignore only failed image and continue sharing others.
-                                          }
-                                        }
-                                      }
-                                    }
-
-                                    if (filesToShare.isNotEmpty) {
-                                      await SharePlus.instance.share(
-                                        ShareParams(
-                                          files: filesToShare,
-                                          text: shareText,
-                                          subject: subject,
-                                        ),
-                                      );
-                                    } else {
-                                      await SharePlus.instance.share(
-                                        ShareParams(
-                                          text: shareText,
-                                          subject: subject,
-                                        ),
-                                      );
-                                    }
-                                  } catch (error) {
-                                    AppLogger.logError(
-                                      'SitterHomescreen: share failed',
-                                      error: error,
-                                    );
-                                    CustomSnackbar.showError(
-                                      title: 'common_error'.tr,
-                                      message: 'share_failed'.tr,
-                                    );
-                                  }
-                                }();
-                              },
-                            ),
-                          );
-                        }),
                         SizedBox(height: 50.h),
                       ],
                     );
@@ -1300,7 +940,411 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             ),
           ),
         ),
+),
       ),
+    );
+  }
+
+  /// v571 — distance (km) entre l'ancre « Autour de moi » et une annonce.
+  /// null si l'annonce n'a pas de coordonnées ou s'il n'y a pas d'ancre.
+  double? _distanceKmTo(PostModel post) {
+    final anchor = _effectiveAnchor;
+    if (anchor == null) return null;
+    final lat = post.location?.lat;
+    final lng = post.location?.lng;
+    if (lat == null || lng == null) return null;
+    return Geolocator.distanceBetween(anchor.lat, anchor.lng, lat, lng) / 1000;
+  }
+
+  /// v571 — écran de modification du profil DU RÔLE (même écran que l'onglet
+  /// Profil › « Modifier le profil »).
+  void _openMyProfileEditor() {
+    if (_isWalkerViewer) {
+      Get.to(() => const EditWalkerProfileScreen());
+    } else {
+      Get.to(() => const EditSitterProfileScreen());
+    }
+  }
+
+  /// v571 — ce qu'on affiche quand le feed filtré est VIDE.
+  ///
+  ///   · s'il existe des annonces hors rayon (avec coordonnées) → section
+  ///     « Les plus proches de toi » : carte-info « Rien dans un rayon de X km »
+  ///     + bouton « Élargir à Y km », puis les 10 annonces les plus proches,
+  ///     chacune avec sa pastille de distance ;
+  ///   · sinon → le kit d'accueil (illustration qui respire, cartes d'action,
+  ///     bouton « Rafraîchir » à la couleur du rôle).
+  Widget _buildEmptyArea(
+    BuildContext context, {
+    required PostsController postsController,
+    required String currentRole,
+    required List<PostModel> outOfRange,
+  }) {
+    final nearest = <({PostModel post, double km})>[];
+    for (final post in outOfRange) {
+      final km = _distanceKmTo(post);
+      if (km == null) continue;
+      // Les annonces DANS le rayon sont déjà couvertes par le feed (si elles
+      // n'y sont pas, c'est un autre filtre : on ne les remonte pas ici).
+      if (km <= _radiusKm) continue;
+      nearest.add((post: post, km: km));
+    }
+    nearest.sort((a, b) => a.km.compareTo(b.km));
+    final shortlist = nearest.take(10).toList();
+
+    if (shortlist.isEmpty) {
+      return HomeEmptyKit(
+        accent: _accent,
+        onRefresh: () => postsController.refreshPosts(),
+        onCompleteProfile: _openMyProfileEditor,
+        onInvite: shareFriendsInvite,
+        onBoost: () => Get.to(() => const CoinShopScreen()),
+      );
+    }
+
+    // Plus petite valeur (arrondie au 10 km SUPÉRIEUR, bornée au max) qui
+    // inclut l'annonce la plus proche.
+    final suggested = ((shortlist.first.km / 10).ceil() * 10).clamp(
+      _kMinRadiusKm.toInt(),
+      _kMaxRadiusKm.toInt(),
+    );
+    final currentKm = _radiusKm.round();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HomeRadiusHintCard(
+          accent: _accent,
+          currentKm: currentKm,
+          suggestedKm: suggested,
+          onExpand: suggested > currentKm
+              ? () => setState(() => _radiusKm = suggested.toDouble())
+              : null,
+        ),
+        PoppinsText(
+          text: 'home571_nearest_title'.tr,
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary(context),
+          maxLines: 2,
+        ),
+        SizedBox(height: 10.h),
+        ...shortlist.map(
+          (e) => _buildPostTile(
+            e.post,
+            postsController: postsController,
+            currentRole: currentRole,
+            distanceKm: e.km.round(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// v571 — rendu d'UNE carte d'annonce. Extrait tel quel du `build` pour
+  /// être réutilisé par la section « Les plus proches de toi » SANS dupliquer
+  /// le rendu. [distanceKm] non nul ajoute la pastille « à 82 km » au-dessus.
+  Widget _buildPostTile(
+    PostModel post, {
+    required PostsController postsController,
+    required String currentRole,
+    int? distanceKm,
+  }) {
+    // Get all image URLs from the post
+    final imageUrls = post.images
+        .map((img) => img.url)
+        .where((url) => url.isNotEmpty)
+        .toList();
+    final petName = post.pets.isNotEmpty
+        ? post.pets.first.petName
+        : null;
+    // DEEP WORK — résolution robuste du petId pour la
+    // demande : on prend l'animal résolu de l'annonce en
+    // priorité (post.pets), puis on retombe sur post.petIds
+    // / post.petId pour les anciennes annonces où la liste
+    // d'animaux sérialisée serait vide alors qu'un pet
+    // existe bien. Évite le faux « annonce incomplète ».
+    final petId = _resolvePostPetId(post);
+    final ownerId = post.owner.id.isNotEmpty
+        ? post.owner.id
+        : '';
+    final rawCity = post.location?.city.trim();
+    final locationLabel =
+        (rawCity != null && rawCity.isNotEmpty)
+        ? rawCity
+        : null;
+    final dateRangeLabel = _postDateRangeLabel(post);
+    final serviceTypesLabel = _serviceTypesDisplay(
+      post.serviceTypes,
+    );
+    // Session v17.1 — lookup priority:
+    //   1) in-session map (when the sitter just sent
+    //      the request this session)
+    //   2) stable post-id map (populated from
+    //      application.postId — 100% reliable across
+    //      logouts)
+    //   3) legacy multi-field fingerprint (fallback
+    //      for apps sent before v17.1 without postId).
+    final pendingApplicationId =
+        _pendingApplicationIds[post.id] ??
+        _pendingApplicationIdsByPostId[post.id] ??
+        _pendingApplicationIdsByFingerprint[_buildRequestFingerprint(
+          ownerId: ownerId,
+          petId: petId ?? '',
+          serviceType: post.serviceTypes.isNotEmpty
+              ? post.serviceTypes.first
+              : '',
+          serviceDate: _serviceDateForPost(post),
+          startDate: _startDateForPost(post),
+          endDate: _endDateForPost(post),
+          timeSlot: _defaultTimeSlotForPost(post),
+        )];
+    final isCancelMode = pendingApplicationId != null;
+
+    final priceEstimate = _estimateForPost(post);
+    final Widget card = Padding(
+      padding: EdgeInsets.only(bottom: 16.h),
+      child: PetPostCard(
+        userName: post.owner.name,
+        userEmail: '',
+        userAvatar: post.owner.avatar.isNotEmpty
+            ? post.owner.avatar
+            : null,
+        petImages: imageUrls,
+        // v420 — maquette détail annonce : animaux + bio.
+        pets: post.pets,
+        ownerBio: post.owner.bio,
+        serviceLocation: post.serviceLocation,
+        postBody: post.body,
+        petName: petName,
+        serviceTypes: serviceTypesLabel.isEmpty
+            ? null
+            : serviceTypesLabel,
+        dateRange: dateRangeLabel,
+        // v443 — heure → horloge sous « Service ».
+        serviceTime: _postTimeLabel(post),
+        location: locationLabel,
+        isNetworkImage: imageUrls.isNotEmpty,
+        likeCount: post.likesCount,
+        priceEstimate: priceEstimate,
+        viewerRole: currentRole,
+        // #107 — en-tête annonce cliquable côté
+        // prestataire → profil propriétaire (lecture
+        // seule) avec ses animaux. Désactivé si l'owner
+        // est inconnu.
+        onOwnerTap: ownerId.isNotEmpty
+            ? () => _openOwnerProfile(post, ownerId)
+            : null,
+        // DEEP WORK — chaque animal de la bande annonce
+        // est cliquable → fiche complète (même chemin que
+        // « Voir les animaux »).
+        onPetTap: (id) => _handleCardTap(id),
+        // Session v17.1 — show the "Réservé" badge when
+        // the owner has already accepted someone for
+        // this post.
+        isReserved: post.isReserved,
+        reservedProviderRole:
+            post.reservedBy?.providerRole,
+        // v23.1 part 116 — annonce boostée (owner a un
+        // Boost actif). Affiche le ruban "🚀 URGENT".
+        isOwnerBoosted: post.isOwnerBoosted,
+        ownerBoostTier: post.ownerBoostTier,
+        // Comments disabled on publications
+        commentCount: 0,
+        isLiked: postsController.isPostLiked(post.id),
+        onViewPetDetails: petId != null
+            ? () async => _handleCardTap(petId)
+            : null,
+        // v23.1.153 — Daniel : "le bouton demande
+        // direct n'apparait pas". Avant : si
+        // ownerId/petId/serviceTypes manquaient
+        // dans le post (cas owner sans pet, ou
+        // post sans serviceType), le callback
+        // etait null → bouton invisible →
+        // sitter/walker ne pouvait plus envoyer
+        // de demande. Maintenant : on TOUJOURS
+        // passe un callback (le bouton est visible)
+        // et on valide les donnees a l'interieur,
+        // avec snackbar explicite si quelque
+        // chose manque.
+        onSendRequest: () async {
+          // v565 (point 25) — coordonnées obligatoires
+          // avant de postuler à une annonce.
+          if (!await ensureContactInfo(
+            context,
+            role: _isWalkerViewer ? 'walker' : 'sitter',
+          )) {
+            return;
+          }
+          if (ownerId.isEmpty ||
+              petId == null ||
+              post.serviceTypes.isEmpty) {
+            CustomSnackbar.showError(
+              title: 'common_error'.tr,
+              message: 'post_incomplete_for_request'.tr,
+            );
+            return;
+          }
+          if (isCancelMode) {
+            await _handleCancelRequest(
+              requestKey: post.id,
+              applicationId: pendingApplicationId,
+            );
+          } else {
+            await _handleSendRequest(
+              requestKey: post.id,
+              ownerId: ownerId,
+              petId: petId,
+              serviceType: post.serviceTypes.first,
+              serviceDate: _serviceDateForPost(post),
+              startDate: _startDateForPost(post),
+              endDate: _endDateForPost(post),
+              timeSlot: _defaultTimeSlotForPost(post),
+              houseSittingVenue: post.houseSittingVenue,
+              duration: _durationForPostService(
+                post,
+                post.serviceTypes.first,
+              ),
+              // v17.1 — forward the post id so the
+              // backend stores Application.postId.
+              postId: post.id,
+            );
+          }
+        },
+        requestButtonText: isCancelMode
+            ? 'request_cancel_button'.tr
+            : 'send_request_button'.tr,
+        isCancelRequest: isCancelMode,
+        isRequestLoading:
+            _loadingStates[post.id] ?? false,
+        onLike: () {
+          // Toggle like with optimistic update
+          postsController.toggleLike(post.id);
+        },
+        // Comments disabled on publications
+        onComment: null,
+        onBlockUser: ownerId.isNotEmpty
+            ? () => _handleBlockOwner(
+                ownerId: ownerId,
+                ownerName: post.owner.name,
+              )
+            : null,
+        onReportPost: () =>
+            _handleReportPost(postId: post.id),
+        // v23.1.170 — Daniel : "quand je partage la
+        // demande dune publication sa menvoi lannonce
+        // de la photo corrige sur les 3 profile".
+        // Sitter envoyait `shareText = post.body` sans
+        // lien deep-link → WhatsApp/Telegram/Instagram
+        // priorise l'image et tronque le texte. On
+        // mirror le pattern owner home (l.494) : texte
+        // i18n avec @link + subject traduit.
+        onShare: () {
+          () async {
+            try {
+              final petName = post.pets.isNotEmpty
+                  ? post.pets.first.petName
+                  : '';
+              // v23.1.170 — voir home_screen.dart
+              // pour le pourquoi du .com au lieu de
+              // .app (domaine inexistant).
+              final link =
+                  'https://hopetsit.com/post/${post.id}';
+              final subject = 'share_post_subject'
+                  .trParams({
+                    'petName': petName.isEmpty
+                        ? 'HoPetSit'
+                        : petName,
+                  });
+              final shareText = 'share_post_body'
+                  .trParams({'link': link});
+
+              final filesToShare = <XFile>[];
+
+              if (imageUrls.isNotEmpty) {
+                final tmp = await getTemporaryDirectory();
+                for (
+                  var i = 0;
+                  i < imageUrls.length;
+                  i++
+                ) {
+                  final imageUrl = imageUrls[i];
+                  if (imageUrl.startsWith('http')) {
+                    // v23.1.175 — Daniel : 14 crashes
+                    // _Uri.resolve FormatException sur
+                    // v169/v170. Cause : Uri.parse(url)
+                    // throw si url contient espace ou
+                    // caractères interdits. Fix : tryParse.
+                    final uri = Uri.tryParse(imageUrl);
+                    if (uri == null || !uri.hasScheme) {
+                      continue;
+                    }
+                    final resp = await http.get(uri);
+                    if (resp.statusCode == 200) {
+                      final bytes = resp.bodyBytes;
+                      final file = File(
+                        '${tmp.path}/share_${post.id}_$i.jpg',
+                      );
+                      await file.writeAsBytes(bytes);
+                      filesToShare.add(XFile(file.path));
+                    }
+                  } else {
+                    // Treat as local asset path.
+                    try {
+                      final data = await rootBundle.load(
+                        imageUrl,
+                      );
+                      final bytes = data.buffer
+                          .asUint8List();
+                      final file = File(
+                        '${tmp.path}/share_${post.id}_$i.png',
+                      );
+                      await file.writeAsBytes(bytes);
+                      filesToShare.add(XFile(file.path));
+                    } catch (_) {
+                      // Ignore only failed image and continue sharing others.
+                    }
+                  }
+                }
+              }
+
+              if (filesToShare.isNotEmpty) {
+                await SharePlus.instance.share(
+                  ShareParams(
+                    files: filesToShare,
+                    text: shareText,
+                    subject: subject,
+                  ),
+                );
+              } else {
+                await SharePlus.instance.share(
+                  ShareParams(
+                    text: shareText,
+                    subject: subject,
+                  ),
+                );
+              }
+            } catch (error) {
+              AppLogger.logError(
+                'SitterHomescreen: share failed',
+                error: error,
+              );
+              CustomSnackbar.showError(
+                title: 'common_error'.tr,
+                message: 'share_failed'.tr,
+              );
+            }
+          }();
+        },
+      ),
+    );
+    if (distanceKm == null) return card;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HomeDistancePill(accent: _accent, km: distanceKm),
+        card,
+      ],
     );
   }
 

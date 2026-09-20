@@ -152,7 +152,7 @@ class _ChatListBodyState extends State<ChatListBody> {
       return NotificationListener<ScrollNotification>(
         onNotification: _onScroll,
         child: RefreshIndicator(
-        color: theme.accent,
+        color: theme.accentOn(context),
         onRefresh: session.reloadConversations,
         child: ListView.separated(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -287,8 +287,10 @@ class _ConversationTile extends StatelessWidget {
                           fontSize: 11.sp,
                           fontWeight:
                               unread ? FontWeight.w700 : FontWeight.w500,
+                          // Heure d'une conversation non lue : accent posé sur
+                          // la carte → version éclaircie en mode sombre.
                           color: unread
-                              ? theme.accent
+                              ? theme.accentOn(context)
                               : AppColors.textSecondary(context),
                         ),
                       ],

@@ -616,7 +616,7 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
               ? 'cancel_72h_free_hint'.tr
               : 'cancel_72h_closed_hint'.tr,
           fontSize: 11.sp,
-          color: AppColors.greyText,
+          color: AppColors.textSecondary(context),
           textAlign: TextAlign.center,
         ),
       ],

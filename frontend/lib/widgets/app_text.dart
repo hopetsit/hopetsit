@@ -43,7 +43,10 @@ class PoppinsText extends StatelessWidget {
         fontStyle: fontStyle,
         decoration: textDecoration,
         fontWeight: fontWeight,
-        color: color ?? AppColors.blackColor,
+        // Audit mode sombre — le repli était `blackColor` en dur : tout texte
+        // sans couleur explicite devenait noir sur noir. `textPrimary` renvoie
+        // exactement `blackColor` en thème clair (aucun changement en clair).
+        color: color ?? AppColors.textPrimary(context),
         height: height,
       ).copyWith(fontFamilyFallback: cjkFontFallback),
     );
@@ -90,7 +93,8 @@ class InterText extends StatelessWidget {
         fontStyle: fontStyle,
         decoration: textDecoration,
         fontWeight: fontWeight,
-        color: color ?? AppColors.blackColor,
+        // Audit mode sombre — cf. PoppinsText : repli thémé au lieu de noir pur.
+        color: color ?? AppColors.textPrimary(context),
         height: height,
       ).copyWith(fontFamilyFallback: cjkFontFallback),
     );

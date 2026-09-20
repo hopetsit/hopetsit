@@ -201,7 +201,9 @@ class VoiceRecordingBar extends StatelessWidget {
               SizedBox(width: 10.w),
               Expanded(
                 child: controller.locked
-                    ? _Bars(level: controller.amplitude, color: theme.accent)
+                    ? _Bars(
+                        level: controller.amplitude,
+                        color: theme.accentOn(context))
                     : Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [

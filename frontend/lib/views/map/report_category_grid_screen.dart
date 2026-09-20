@@ -208,7 +208,7 @@ class ReportCategoryGridScreen extends StatelessWidget {
               child: InterText(
                 text: 'report_pick_category_hint'.tr,
                 fontSize: 12.sp,
-                color: AppColors.greyText,
+                color: AppColors.textSecondary(context),
               ),
             ),
             SizedBox(height: 16.h),

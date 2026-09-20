@@ -385,9 +385,9 @@ class _PetGalleryScreenState extends State<PetGalleryScreen> {
                         imageUrl: item.url,
                         fit: BoxFit.cover,
                         placeholder: (c, _) =>
-                            Container(color: AppColors.lightGreyColor),
+                            Container(color: AppColors.mediaPlaceholder(context, AppColors.lightGreyColor)),
                         errorWidget: (c, _, __) => Container(
-                          color: AppColors.lightGreyColor,
+                          color: AppColors.mediaPlaceholder(context, AppColors.lightGreyColor),
                           child: Icon(Icons.broken_image,
                               color: AppColors.greyColor),
                         ),

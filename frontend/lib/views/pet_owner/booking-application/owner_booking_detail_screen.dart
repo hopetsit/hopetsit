@@ -652,7 +652,12 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                     child: Container(
                       height: 50.h,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF0F0F2),
+                        // Audit mode sombre — bouton secondaire : le gris clair
+                        // en dur formait un pavé lumineux (et son libellé gris
+                        // devenait illisible) en thème sombre.
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : const Color(0xFFF0F0F2),
                         borderRadius: BorderRadius.circular(16.r),
                       ),
                       alignment: Alignment.center,
@@ -660,7 +665,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                         text: 'owner_cancel_booking'.tr,
                         fontSize: 15.sp,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.grey700Color,
+                        color: AppColors.textSecondaryStrong(context),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -760,7 +765,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                             ? 'cancel_72h_free_message'.tr
                             : 'cancel_72h_closed_message'.tr,
                         fontSize: 14.sp,
-                        color: AppColors.greyText,
+                        color: AppColors.textSecondary(context),
                       ),
                       SizedBox(height: 12.h),
                       Container(
@@ -805,7 +810,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                       child: InterText(
                         text: 'common_cancel'.tr,
                         fontSize: 14.sp,
-                        color: AppColors.greyText,
+                        color: AppColors.textSecondary(context),
                       ),
                     ),
                     if (canFreeCancelation)
@@ -864,7 +869,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
               ? 'cancel_72h_free_hint'.tr
               : 'cancel_72h_closed_hint'.tr,
           fontSize: 11.sp,
-          color: AppColors.greyText,
+          color: AppColors.textSecondary(context),
           textAlign: TextAlign.center,
         ),
       ],

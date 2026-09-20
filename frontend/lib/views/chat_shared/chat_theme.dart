@@ -5,6 +5,14 @@ import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 
+/// Rouge d'action destructive (supprimer, signaler, bloquer) posé en TEXTE ou
+/// en ICÔNE sur une surface : `AppColors.errorColor` tombe à ~3:1 sur un fond
+/// sombre. Mode clair : valeur d'origine, rendu inchangé.
+Color chatDanger(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFFF07070)
+        : AppColors.errorColor;
+
 class ChatRoleTheme {
   const ChatRoleTheme._({
     required this.role,
@@ -83,6 +91,26 @@ class ChatRoleTheme {
       isDark(context) ? const Color(0xFF2A2A2A) : Colors.white;
 
   Color receivedText(BuildContext context) => AppColors.textPrimary(context);
+
+  /// Fond pâle (aperçu de citation, bandeaux). Les pastels `tint` /
+  /// `tintStrong` sont quasi blancs : posés tels quels en mode sombre ils
+  /// donnent un pavé éblouissant sous un texte clair. En sombre on garde la
+  /// teinte du rôle, mais en voile transparent sur la surface sombre.
+  /// Mode clair : valeur d'origine, rendu inchangé.
+  Color softTint(BuildContext context) =>
+      isDark(context) ? accent.withValues(alpha: 0.16) : tint;
+
+  /// Idem pour les disques / pastilles teintés (bouton « + », icône d'état…).
+  Color softTintStrong(BuildContext context) =>
+      isDark(context) ? accent.withValues(alpha: 0.24) : tintStrong;
+
+  /// Accent utilisé en TEXTE ou en ICÔNE sur une surface (carte, bulle reçue,
+  /// barre du haut) : le rouge propriétaire et le bleu gardien tombent à ~2,9:1
+  /// sur un fond sombre. On l'éclaircit alors de 40 %. Mode clair : valeur
+  /// d'origine, rendu inchangé. À NE PAS utiliser comme couleur de fond.
+  Color accentOn(BuildContext context) => isDark(context)
+      ? (Color.lerp(accent, Colors.white, 0.40) ?? accent)
+      : accent;
 
   /// Bulle envoyée.
   Color get sentBubble => accent;

@@ -175,6 +175,37 @@ class AppColors {
   static Color textSecondary(BuildContext context) =>
       _isDark(context) ? textSecondaryDark : greyText;
 
+  /// Texte secondaire APPUYÉ — même rôle que [textSecondary] mais plus
+  /// contrasté en thème CLAIR (`grey700Color` #414651, la valeur qui était
+  /// écrite en dur dans les libellés de formulaire). En thème sombre ce gris
+  /// est quasi invisible sur #121212/#242424 : on retombe sur
+  /// `textSecondaryDark`. Audit mode sombre.
+  static Color textSecondaryStrong(BuildContext context) =>
+      _isDark(context) ? textSecondaryDark : grey700Color;
+
+  /// Gris neutre d'icône / de texte tertiaire. `greyColor` (#A1A1A1) reste
+  /// lisible en sombre ; ce helper existe pour `grey500Color` (#717680), qui
+  /// ne l'est pas. Audit mode sombre.
+  static Color textTertiary(BuildContext context) =>
+      _isDark(context) ? textSecondaryDark : grey500Color;
+
+  /// Variante LISIBLE d'une couleur de marque quand elle sert de texte ou
+  /// d'icône sur une surface sombre. Les couleurs de statut foncées
+  /// (`#DC2626`, `#15803D`, `#C92A12`, `#B45309`…) tombent à 2-3:1 sur
+  /// `#121212`/`#242424` ; on les éclaircit de 35 % vers le blanc. En thème
+  /// clair la couleur est renvoyée TELLE QUELLE (aucune régression).
+  /// Audit mode sombre.
+  static Color accentOn(BuildContext context, Color c) =>
+      _isDark(context) ? Color.lerp(c, whiteColor, 0.35)! : c;
+
+  /// Aplat neutre derrière un média (photo en cours de chargement, vignette
+  /// en erreur). `lightGrey` #F1F2F4 en clair — inchangé ; en sombre un pavé
+  /// clair de 300 px éblouit, on prend `surfaceDark`. Audit mode sombre.
+  /// [light] permet de conserver EXACTEMENT le gris d'origine en thème clair
+  /// quand l'appelant n'utilisait pas `lightGrey` (#D9D9D9, #D5D7DA…).
+  static Color mediaPlaceholder(BuildContext context, [Color? light]) =>
+      _isDark(context) ? surfaceDark : (light ?? lightGrey);
+
   /// Divider / border
   static Color divider(BuildContext context) =>
       _isDark(context) ? dividerDark : grey300Color;

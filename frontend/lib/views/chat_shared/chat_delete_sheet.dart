@@ -62,7 +62,8 @@ Future<bool> showChatDeleteSheet(
                 width: 40.w,
                 height: 4.h,
                 decoration: BoxDecoration(
-                  color: AppColors.grey300Color,
+                  // `divider()` renvoie exactement grey300Color en clair.
+                  color: AppColors.divider(ctx),
                   borderRadius: BorderRadius.circular(2.r),
                 ),
               ),
@@ -82,7 +83,7 @@ Future<bool> showChatDeleteSheet(
                           imageUrl: contactImage,
                           size: 70,
                           online: isOnline ? true : null,
-                          borderColor: t.tintStrong,
+                          borderColor: t.softTintStrong(ctx),
                         ),
                       ),
                     ),

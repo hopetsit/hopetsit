@@ -106,16 +106,26 @@ class SignUpScreen extends StatelessWidget {
                       // v20.0.6 — Banner expliquant que la CB se rajoute APRÈS
                       // l'inscription (pas pendant — on n'a pas encore de
                       // userId ni de Stripe Customer).
-                      Container(
+                      Builder(builder: (bCtx) {
+                        // Audit mode sombre — bleu #1A73E8 sur voile bleu très
+                        // pâle : ~3,5:1 sur fond sombre. Voile un peu plus
+                        // dense + bleu éclairci. Clair : valeurs d'origine.
+                        final bannerDark =
+                            Theme.of(bCtx).brightness == Brightness.dark;
+                        const blue = Color(0xFF1A73E8);
+                        final blueFg =
+                            bannerDark ? const Color(0xFF8AB4F8) : blue;
+                        return Container(
                         padding: EdgeInsets.symmetric(
                           horizontal: 14.w,
                           vertical: 13.h,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1A73E8).withValues(alpha: 0.07),
+                          color: blue
+                              .withValues(alpha: bannerDark ? 0.16 : 0.07),
                           borderRadius: BorderRadius.circular(16.r),
                           border: Border.all(
-                            color: const Color(0xFF1A73E8).withValues(alpha: 0.18),
+                            color: blue.withValues(alpha: 0.18),
                             width: 1,
                           ),
                         ),
@@ -125,13 +135,13 @@ class SignUpScreen extends StatelessWidget {
                               width: 30.w,
                               height: 30.w,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1A73E8)
-                                    .withValues(alpha: 0.12),
+                                color: blue.withValues(
+                                    alpha: bannerDark ? 0.20 : 0.12),
                                 borderRadius: BorderRadius.circular(10.r),
                               ),
                               child: Icon(
                                 Icons.credit_card_rounded,
-                                color: const Color(0xFF1A73E8),
+                                color: blueFg,
                                 size: 17.sp,
                               ),
                             ),
@@ -141,13 +151,14 @@ class SignUpScreen extends StatelessWidget {
                                 text: 'signup_cb_later_hint'.tr,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
-                                color: const Color(0xFF1A73E8),
+                                color: blueFg,
                                 maxLines: 3,
                               ),
                             ),
                           ],
                         ),
-                      ),
+                        );
+                      }),
                       SizedBox(height: 24.h),
                       _sectionTitle(context, 'auth569_section_profile'.tr),
                       SizedBox(height: 14.h),
@@ -495,7 +506,10 @@ class SignUpScreen extends StatelessWidget {
                               headerStyle: GoogleFonts.inter(
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.w400,
-                                color: AppColors.blackColor,
+                                // Audit mode sombre — noir en dur : la devise
+                                // choisie devenait noir sur noir.
+                                // `textPrimary()` = blackColor exact en clair.
+                                color: AppColors.textPrimary(context),
                               ),
                             ),
                             disabledDecoration:
@@ -572,7 +586,10 @@ class SignUpScreen extends StatelessWidget {
                               headerStyle: GoogleFonts.inter(
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.w400,
-                                color: AppColors.blackColor,
+                                // Audit mode sombre — noir en dur : la devise
+                                // choisie devenait noir sur noir.
+                                // `textPrimary()` = blackColor exact en clair.
+                                color: AppColors.textPrimary(context),
                               ),
                             ),
                             disabledDecoration:

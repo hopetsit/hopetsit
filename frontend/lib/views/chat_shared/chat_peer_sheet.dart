@@ -139,8 +139,12 @@ class _ChatPeerSheetState extends State<_ChatPeerSheet> {
             onPressed: () => Navigator.of(dCtx).pop(true),
             child: Text(
               'block_user_action'.tr,
-              style: const TextStyle(
-                  color: Color(0xFFDC2626), fontWeight: FontWeight.w700),
+              style: TextStyle(
+                  // Rouge éclairci sur un dialogue sombre (clair inchangé).
+                  color: Theme.of(dCtx).brightness == Brightness.dark
+                      ? const Color(0xFFF07070)
+                      : const Color(0xFFDC2626),
+                  fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -170,7 +174,11 @@ class _ChatPeerSheetState extends State<_ChatPeerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // `accent` sert de FOND au bouton plein (texte blanc dessus) ; `accentOn`
+    // sert au texte / à la bordure posés sur la feuille, illisibles en mode
+    // sombre avec le rouge propriétaire ou le bleu gardien.
     final accent = widget.theme.accent;
+    final accentText = widget.theme.accentOn(context);
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card(context),
@@ -219,7 +227,7 @@ class _ChatPeerSheetState extends State<_ChatPeerSheet> {
                 label: isFriend
                     ? 'pawmap_member_already'.tr
                     : 'pawmap_member_request_sent'.tr,
-                color: accent,
+                color: accentText,
               );
             }
             return _ActionButton(
@@ -265,9 +273,16 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = filled ? Colors.white : color;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Bouton non rempli : la couleur devient du TEXTE sur la feuille. Le rouge
+    // « Bloquer » y est illisible en mode sombre → éclairci (clair inchangé).
+    final onSurface =
+        isDark ? (Color.lerp(color, Colors.white, 0.40) ?? color) : color;
+    final fg = filled ? Colors.white : onSurface;
     return Material(
-      color: filled ? color : color.withValues(alpha: 0.08),
+      color: filled
+          ? color
+          : color.withValues(alpha: isDark ? 0.18 : 0.08),
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -315,12 +330,13 @@ class _StatePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 52,
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: color.withValues(alpha: isDark ? 0.16 : 0.08),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withValues(alpha: 0.35)),
       ),

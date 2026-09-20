@@ -108,7 +108,9 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   @override
   Widget build(BuildContext context) {
     final t = widget.theme;
-    final fg = widget.mine ? Colors.white : t.accent;
+    // Bulle reçue : icônes, durée et curseur sont posés sur la surface de la
+    // bulle → accent éclairci en mode sombre (clair inchangé).
+    final fg = widget.mine ? Colors.white : t.accentOn(context);
     final track = widget.mine
         ? Colors.white.withValues(alpha: 0.35)
         : t.accent.withValues(alpha: 0.18);
@@ -135,7 +137,9 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
               decoration: BoxDecoration(
                 color: widget.mine
                     ? Colors.white.withValues(alpha: 0.22)
-                    : t.tintStrong,
+                    // Bulle reçue : le pastel quasi blanc faisait un gros rond
+                    // clair dans une bulle sombre.
+                    : t.softTintStrong(context),
                 shape: BoxShape.circle,
               ),
               child: _loading

@@ -1,3 +1,4 @@
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
@@ -530,7 +531,9 @@ class _SitterIndividualChatScreenState
           }),
         ],
       ),
-      body: ChatConversationBody(
+      body: PawPatternBackground(
+ color: t.accent,
+ child: ChatConversationBody(
         session: chatController,
         theme: t,
         conversationId: widget.conversationId,
@@ -538,6 +541,7 @@ class _SitterIndividualChatScreenState
         specialCardBuilder: _specialCard,
         bottomBuilder: _bottom,
       ),
+),
     );
   }
 }

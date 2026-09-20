@@ -274,7 +274,9 @@ class _NotificationApplicationViewScreenState
                   text: 'notifications_application_not_found'.tr,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.grey700Color,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.grey700Color,
                   textAlign: TextAlign.center,
                 ),
                 if (widget.sitterIdFallback != null &&

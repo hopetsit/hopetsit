@@ -231,7 +231,7 @@ class TrackingRequestSheet extends StatelessWidget {
                       InterText(
                         text: breed,
                         fontSize: 12.sp,
-                        color: AppColors.greyText,
+                        color: AppColors.textSecondary(context),
                       ),
                     ],
                   ],
@@ -382,7 +382,7 @@ class TrackingRequestSheet extends StatelessWidget {
           _infoRow(
             context,
             leading: Icon(Icons.phone_outlined,
-                color: AppColors.greyText, size: 22.sp),
+                color: AppColors.textSecondary(context), size: 22.sp),
             labelKey: 'tracking_sheet_phone',
             value: phone.isEmpty ? '—' : phone,
             trailingIcon: Icons.call_rounded,
@@ -405,7 +405,7 @@ class TrackingRequestSheet extends StatelessWidget {
           _infoRow(
             context,
             leading: Icon(Icons.location_on_outlined,
-                color: AppColors.greyText, size: 22.sp),
+                color: AppColors.textSecondary(context), size: 22.sp),
             labelKey: 'tracking_sheet_address',
             value: address.isEmpty ? '—' : address,
             trailingIcon: Icons.map_rounded,

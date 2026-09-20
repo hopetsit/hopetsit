@@ -1,3 +1,4 @@
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -80,7 +81,9 @@ class SitterChatScreen extends StatelessWidget {
             // v565 — points 16 + 36 : liste modernisée partagée (avatar +
             // point vert, aperçu, heure, non-lus, glisser pour supprimer,
             // états vide / chargement / erreur) — views/chat_shared/.
-            body: SafeArea(
+            body: PawPatternBackground(
+ color: ChatRoleTheme.forRole(controller.myRole).accent,
+ child: SafeArea(
               child: ChatListBody(
                 session: controller,
                 theme: ChatRoleTheme.forRole(controller.myRole),
@@ -96,6 +99,7 @@ class SitterChatScreen extends StatelessWidget {
                 },
               ),
             ),
+),
           ),
         );
       },

@@ -124,7 +124,10 @@ class BlockedUsersScreen extends StatelessWidget {
                     placeholder: (context, url) => Container(
                       width: 50.w,
                       height: 50.h,
-                      color: AppColors.lightGrey,
+                      // v571 — mode sombre : #F1F2F4 = disque blanc éblouissant.
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? AppColors.dividerDark
+                          : AppColors.lightGrey,
                       child: Center(
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
@@ -134,7 +137,7 @@ class BlockedUsersScreen extends StatelessWidget {
                     ),
                     errorWidget: (context, url, error) => CircleAvatar(
                       radius: 25.r,
-                      backgroundColor: AppColors.grey300Color,
+                      backgroundColor: AppColors.divider(context),
                       child: Icon(
                         Icons.person,
                         size: 25.sp,
@@ -145,7 +148,7 @@ class BlockedUsersScreen extends StatelessWidget {
                 )
               : CircleAvatar(
                   radius: 25.r,
-                  backgroundColor: AppColors.grey300Color,
+                  backgroundColor: AppColors.divider(context),
                   backgroundImage: user.profileImage.isNotEmpty
                       ? AssetImage(user.profileImage)
                       : null,

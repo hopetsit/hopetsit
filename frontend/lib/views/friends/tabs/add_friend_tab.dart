@@ -225,7 +225,7 @@ class _AddFriendTabState extends State<AddFriendTab>
               child: Column(
                 children: [
                   Icon(Icons.person_search_rounded,
-                      size: 40.sp, color: AppColors.greyText),
+                      size: 40.sp, color: AppColors.textSecondary(context)),
                   SizedBox(height: 8.h),
                   InterText(
                     text: 'friends_add_no_results'.tr,

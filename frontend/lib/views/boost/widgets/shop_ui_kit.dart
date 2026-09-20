@@ -324,7 +324,7 @@ class ShopStatusPill extends StatelessWidget {
     final text = left.isEmpty ? '$label · $state' : '$label · $state · $left';
     final Color fg = active
         ? (onDark ? Colors.white : accent)
-        : (onDark ? Colors.white.withValues(alpha: 0.65) : AppColors.greyText);
+        : (onDark ? Colors.white.withValues(alpha: 0.65) : AppColors.textSecondary(context));
     final Color bg = active
         ? accent.withValues(alpha: onDark ? 0.30 : 0.12)
         : (onDark
@@ -414,7 +414,7 @@ class ShopSectionTitle extends StatelessWidget {
             style: TextStyle(
               fontSize: 12.sp,
               height: 1.3,
-              color: AppColors.greyText,
+              color: AppColors.textSecondary(context),
             ),
           ),
         ],
@@ -833,7 +833,7 @@ class ShopInfoRow extends StatelessWidget {
             if (showChevron && onTap != null) ...[
               SizedBox(width: 4.w),
               Icon(Icons.chevron_right_rounded,
-                  size: 20.sp, color: AppColors.greyText),
+                  size: 20.sp, color: AppColors.textSecondary(context)),
             ],
           ],
         ),
@@ -886,7 +886,7 @@ class ShopHelpCard extends StatelessWidget {
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.2,
-                color: AppColors.greyText,
+                color: AppColors.textSecondary(context),
               ),
             ),
           ),
@@ -971,7 +971,7 @@ class ShopPlanTile extends StatelessWidget {
         onDark ? Colors.white : AppColors.textPrimary(context);
     final Color subColor = onDark
         ? Colors.white.withValues(alpha: 0.65)
-        : AppColors.greyText;
+        : AppColors.textSecondary(context);
     final Color bg = onDark
         ? Colors.white.withValues(alpha: selected ? 0.12 : 0.05)
         : (selected
@@ -1305,7 +1305,7 @@ class ShopStickyBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = dark ? const Color(0xFF15120D) : AppColors.card(context);
     final titleColor =
-        dark ? Colors.white.withValues(alpha: 0.75) : AppColors.greyText;
+        dark ? Colors.white.withValues(alpha: 0.75) : AppColors.textSecondary(context);
     final priceColor =
         dark ? const Color(0xFFFFD34D) : AppColors.textPrimary(context);
     final enabled = onPressed != null && !loading;
@@ -1530,7 +1530,7 @@ class ShopLegalNote extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = onDark
         ? Colors.white.withValues(alpha: 0.62)
-        : AppColors.greyText;
+        : AppColors.textSecondary(context);
     final String body;
     if (oneTime) {
       body = 'v566_shop_legal_onetime'.tr;
@@ -1750,18 +1750,30 @@ class ShopExpiryNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Teinte de statut « ambre » : en mode sombre, le pastel clair devient un
+    // pavé éblouissant et son texte brun (#92400E) reste illisible → fond
+    // ambre très transparent + texte/icône éclaircis (règle des statuts).
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const amber = Color(0xFFF59E0B);
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF4E0),
+        color: isDark
+            ? amber.withValues(alpha: 0.18)
+            : const Color(0xFFFFF4E0),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFF5C26B)),
+        border: Border.all(
+          color: isDark
+              ? amber.withValues(alpha: 0.45)
+              : const Color(0xFFF5C26B),
+        ),
       ),
       child: Row(
         children: [
           Icon(Icons.schedule_rounded,
-              size: 18.sp, color: const Color(0xFFB45309)),
+              size: 18.sp,
+              color: isDark ? const Color(0xFFFCD34D) : const Color(0xFFB45309)),
           SizedBox(width: 8.w),
           Expanded(
             child: Text(
@@ -1775,7 +1787,9 @@ class ShopExpiryNotice extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF92400E),
+                color: isDark
+                    ? const Color(0xFFFCD34D)
+                    : const Color(0xFF92400E),
               ),
             ),
           ),
@@ -1800,7 +1814,7 @@ class ShopErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.cloud_off_rounded, size: 40.sp, color: AppColors.greyText),
+            Icon(Icons.cloud_off_rounded, size: 40.sp, color: AppColors.textSecondary(context)),
             SizedBox(height: 12.h),
             Text(
               'v566_shop_load_error'.tr,
@@ -1887,7 +1901,7 @@ Future<bool> showShopConfirmSheet(
           padding: EdgeInsets.symmetric(vertical: 9.h),
           child: Row(
             children: [
-              Icon(ic, size: 18.sp, color: AppColors.greyText),
+              Icon(ic, size: 18.sp, color: AppColors.textSecondary(ctx)),
               SizedBox(width: 10.w),
               Expanded(
                 flex: 4,
@@ -1915,9 +1929,9 @@ Future<bool> showShopConfirmSheet(
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 12.sp,
-                            color: AppColors.greyText,
+                            color: AppColors.textSecondary(ctx),
                             decoration: TextDecoration.lineThrough,
-                            decorationColor: AppColors.greyText,
+                            decorationColor: AppColors.textSecondary(ctx),
                           ),
                         ),
                       ),
@@ -2003,7 +2017,7 @@ Future<bool> showShopConfirmSheet(
                         style: TextStyle(
                           fontSize: 11.5.sp,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.greyText,
+                          color: AppColors.textSecondary(ctx),
                         ),
                       ),
                       SizedBox(height: 2.h),
@@ -2109,7 +2123,7 @@ Future<bool> showShopConfirmSheet(
                   style: TextStyle(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(ctx),
                   ),
                 ),
               ),

@@ -43,7 +43,7 @@ class ChatHeaderBar extends StatelessWidget implements PreferredSizeWidget {
       leading: IconButton(
         padding: EdgeInsets.zero,
         icon: Icon(Icons.arrow_back_ios_new_rounded,
-            color: theme.accent, size: 20.sp),
+            color: theme.accentOn(context), size: 20.sp),
         onPressed: () => Navigator.of(context).maybePop(),
       ),
       title: GestureDetector(

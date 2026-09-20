@@ -829,7 +829,7 @@ class _FamilyPickFriendSheetState extends State<_FamilyPickFriendSheet> {
                 fillColor: AppColors.card(context),
                 hintText: 'friends566_search_hint'.tr,
                 hintStyle:
-                    TextStyle(fontSize: 13.5.sp, color: AppColors.greyText),
+                    TextStyle(fontSize: 13.5.sp, color: AppColors.textSecondary(context)),
                 prefixIcon: Icon(Icons.search_rounded,
                     color: kFamilyViolet, size: 20.sp),
                 border: OutlineInputBorder(

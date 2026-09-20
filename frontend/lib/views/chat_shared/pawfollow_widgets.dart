@@ -27,6 +27,10 @@ const Color kPawFollowPurpleSoft = Color(0xFF9B6BF5);
 const Color kPawFollowPurpleDark = Color(0xFF6D28D9);
 const Color kPawFollowLive = Color(0xFF22C55E);
 
+/// Violet clair réservé au MODE SOMBRE : `kPawFollowPurple` en texte ou en
+/// bordure sur un fond sombre tombe sous le seuil de lisibilité.
+const Color kPawFollowPurpleOnDark = Color(0xFFC4B5FD);
+
 const LinearGradient kPawFollowGradient = LinearGradient(
   colors: [kPawFollowPurpleSoft, kPawFollowPurple, kPawFollowPurpleDark],
   stops: [0.0, 0.55, 1.0],
@@ -292,6 +296,17 @@ class PawFollowPrimaryButton extends StatelessWidget {
   }
 }
 
+bool _dark(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark;
+
+/// Rouge d'erreur lisible sur les deux fonds (valeur claire inchangée).
+Color _errorFg(BuildContext context) =>
+    _dark(context) ? const Color(0xFFF87171) : AppColors.errorColor;
+
+/// Violet PawFollow en texte / bordure (valeur claire inchangée).
+Color _pfPurpleFg(BuildContext context) =>
+    _dark(context) ? kPawFollowPurpleOnDark : kPawFollowPurple;
+
 /// Erreur lisible d'une demande de suivi.
 class _PfError {
   const _PfError(this.title, this.body, {this.shop = false});
@@ -422,10 +437,11 @@ class _PawFollowRequestSheetState extends State<_PawFollowRequestSheet> {
             width: 26.w,
             height: 26.w,
             decoration: BoxDecoration(
-              color: kPawFollowPurple.withValues(alpha: 0.12),
+              color: kPawFollowPurple
+                  .withValues(alpha: _dark(context) ? 0.22 : 0.12),
               borderRadius: BorderRadius.circular(9.r),
             ),
-            child: Icon(icon, size: 15.sp, color: kPawFollowPurple),
+            child: Icon(icon, size: 15.sp, color: _pfPurpleFg(context)),
           ),
           SizedBox(width: 10.w),
           Expanded(
@@ -568,7 +584,10 @@ class _PawFollowRequestSheetState extends State<_PawFollowRequestSheet> {
               width: double.infinity,
               padding: EdgeInsets.all(12.w),
               decoration: BoxDecoration(
-                color: AppColors.errorColor.withValues(alpha: 0.08),
+                // Encart d'erreur : voile un peu plus dense et rouge éclairci
+                // en mode sombre (le rouge d'origine y est illisible).
+                color: AppColors.errorColor
+                    .withValues(alpha: _dark(context) ? 0.16 : 0.08),
                 borderRadius: BorderRadius.circular(14.r),
                 border: Border.all(
                   color: AppColors.errorColor.withValues(alpha: 0.25),
@@ -581,7 +600,7 @@ class _PawFollowRequestSheetState extends State<_PawFollowRequestSheet> {
                     text: err.title,
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.errorColor,
+                    color: _errorFg(context),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -602,8 +621,8 @@ class _PawFollowRequestSheetState extends State<_PawFollowRequestSheet> {
                         Get.to(() => const CoinShopScreen(initialTab: 1));
                       },
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: kPawFollowPurple,
-                        side: const BorderSide(color: kPawFollowPurple),
+                        foregroundColor: _pfPurpleFg(context),
+                        side: BorderSide(color: _pfPurpleFg(context)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14.r),
                         ),
@@ -622,32 +641,41 @@ class _PawFollowRequestSheetState extends State<_PawFollowRequestSheet> {
           ],
           SizedBox(height: 14.h),
           if (_sent)
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 14.w),
-              decoration: BoxDecoration(
-                color: kPawFollowLive.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(18.r),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.check_circle_rounded,
-                      color: const Color(0xFF16A34A), size: 20.sp),
-                  SizedBox(width: 8.w),
-                  Flexible(
-                    child: InterText(
-                      text: 'cs_pf_sent'.tr,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF16A34A),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+            // Pastille de succès : en sombre le vert foncé sur un voile vert
+            // très pâle passait sous le seuil de lisibilité → vert éclairci.
+            Builder(builder: (ctx) {
+              final isDark = Theme.of(ctx).brightness == Brightness.dark;
+              final okGreen =
+                  isDark ? const Color(0xFF4ADE80) : const Color(0xFF16A34A);
+              return Container(
+                width: double.infinity,
+                padding:
+                    EdgeInsets.symmetric(vertical: 14.h, horizontal: 14.w),
+                decoration: BoxDecoration(
+                  color: kPawFollowLive
+                      .withValues(alpha: isDark ? 0.18 : 0.12),
+                  borderRadius: BorderRadius.circular(18.r),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.check_circle_rounded,
+                        color: okGreen, size: 20.sp),
+                    SizedBox(width: 8.w),
+                    Flexible(
+                      child: InterText(
+                        text: 'cs_pf_sent'.tr,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w800,
+                        color: okGreen,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            )
+                  ],
+                ),
+              );
+            })
           else
             PawFollowPrimaryButton(
               label: _sending

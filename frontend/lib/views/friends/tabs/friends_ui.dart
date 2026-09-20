@@ -164,17 +164,23 @@ class FriendsBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // v571 — audit mode sombre : une pastelle « fond teinté + texte de la même
+    // couleur » devient illisible sur une carte sombre (ambre #B45309 ≈ 2,4:1).
+    // En sombre : fond un peu plus dense et texte éclairci. Clair inchangé.
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color fg =
+        isDark ? Color.lerp(color, Colors.white, 0.45)! : color;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: isDark ? 0.18 : 0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 10.sp, color: color),
+            Icon(icon, size: 10.sp, color: fg),
             SizedBox(width: 3.w),
           ],
           Flexible(
@@ -182,7 +188,7 @@ class FriendsBadge extends StatelessWidget {
               text: label,
               fontSize: 10.sp,
               fontWeight: FontWeight.w700,
-              color: color,
+              color: fg,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -312,7 +318,7 @@ class FriendsSearchField extends StatelessWidget {
           isDense: true,
           border: InputBorder.none,
           hintText: hint,
-          hintStyle: TextStyle(fontSize: 13.5.sp, color: AppColors.greyText),
+          hintStyle: TextStyle(fontSize: 13.5.sp, color: AppColors.textSecondary(context)),
           prefixIcon: Icon(Icons.search_rounded, color: accent, size: 20.sp),
           suffixIcon: loading
               ? Padding(
@@ -332,7 +338,7 @@ class FriendsSearchField extends StatelessWidget {
                       ? const SizedBox.shrink()
                       : IconButton(
                           icon: Icon(Icons.cancel_rounded,
-                              size: 18.sp, color: AppColors.greyText),
+                              size: 18.sp, color: AppColors.textSecondary(context)),
                           onPressed: () {
                             controller.clear();
                             onChanged('');
@@ -375,8 +381,15 @@ class FriendsPillButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null && !loading;
-    final fg = filled ? Colors.white : color;
-    final bg = filled ? color : color.withValues(alpha: 0.10);
+    // v571 — mode sombre : la variante teintée (texte = `color` sur `color` à
+    // 10 %) manque de contraste sur une carte sombre → texte éclairci et fond
+    // un peu plus dense. La variante pleine (blanc sur couleur) ne bouge pas.
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final fg = filled
+        ? Colors.white
+        : (isDark ? Color.lerp(color, Colors.white, 0.40)! : color);
+    final bg =
+        filled ? color : color.withValues(alpha: isDark ? 0.16 : 0.10);
     return Opacity(
       opacity: enabled || loading ? 1 : 0.55,
       child: Material(

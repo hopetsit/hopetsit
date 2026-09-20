@@ -599,6 +599,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // v571 — audit lisibilité mode sombre : `grey700Color` (#414651) est
+    // presque noir, illisible sur le fond sombre. On garde la valeur claire
+    // à l'identique et on éclaircit seulement en sombre.
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color bodyGrey =
+        isDark ? AppColors.textSecondaryDark : AppColors.grey700Color;
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
@@ -643,7 +649,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   text: 'notifications_loading'.tr,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.grey700Color,
+                  color: bodyGrey,
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -661,13 +667,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   Icon(
                     Icons.error_outline_rounded,
                     size: 48.sp,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(context),
                   ),
                   SizedBox(height: 16.h),
                   InterText(
                     text: 'notifications_load_failed'.tr,
                     fontSize: 14.sp,
-                    color: AppColors.grey700Color,
+                    color: bodyGrey,
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 16.h),
@@ -705,14 +711,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     text: 'notifications_empty_title'.tr,
                     fontSize: 18.sp,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.blackColor,
+                    color: AppColors.textPrimary(context),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 8.h),
                   InterText(
                     text: 'notifications_empty_subtitle'.tr,
                     fontSize: 14.sp,
-                    color: AppColors.grey700Color,
+                    color: bodyGrey,
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -751,7 +757,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           text: 'notifications_loading_more'.tr,
                           fontSize: 12.sp,
                           fontWeight: FontWeight.w400,
-                          color: AppColors.greyText,
+                          color: AppColors.textSecondary(context),
                         ),
                       ],
                     ),

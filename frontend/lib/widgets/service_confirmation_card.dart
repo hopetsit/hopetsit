@@ -506,14 +506,17 @@ class _ServiceConfirmationCardState extends State<ServiceConfirmationCard> {
         ),
         child: Row(
           children: [
-            Icon(Icons.alarm_rounded, size: 16.sp, color: color),
+            // Audit mode sombre — l'orange owner #C92A12 en texte tombait à
+            // 1,8:1 sur le fond sombre.
+            Icon(Icons.alarm_rounded,
+                size: 16.sp, color: AppColors.accentOn(context, color)),
             SizedBox(width: 8.w),
             Expanded(
               child: InterText(
                 text: text,
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w600,
-                color: color,
+                color: AppColors.accentOn(context, color),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -689,6 +692,11 @@ class _ServiceConfirmationCardState extends State<ServiceConfirmationCard> {
   }) {
     final spinning = widget.busy && _pending == action;
     final disabled = widget.busy || onTap == null;
+    // Audit mode sombre — en variante « outlined » la couleur de statut sert
+    // de TEXTE sur le fond sombre : les rouges/verts foncés (#DC2626,
+    // #15803D) y tombent sous 3:1. Le bouton PLEIN garde sa couleur exacte
+    // (texte blanc dessus).
+    final Color fg = outlined ? AppColors.accentOn(context, color) : Colors.white;
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -700,11 +708,11 @@ class _ServiceConfirmationCardState extends State<ServiceConfirmationCard> {
               },
         style: ElevatedButton.styleFrom(
           backgroundColor: outlined ? Colors.transparent : color,
-          foregroundColor: outlined ? color : Colors.white,
+          foregroundColor: fg,
           disabledBackgroundColor:
               outlined ? Colors.transparent : color.withValues(alpha: 0.4),
           elevation: 0,
-          side: outlined ? BorderSide(color: color, width: 1.3) : null,
+          side: outlined ? BorderSide(color: fg, width: 1.3) : null,
           padding: EdgeInsets.symmetric(vertical: 13.h, horizontal: 10.w),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14.r),
@@ -716,14 +724,14 @@ class _ServiceConfirmationCardState extends State<ServiceConfirmationCard> {
                 height: 18.w,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: outlined ? color : Colors.white,
+                  color: fg,
                 ),
               )
             : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (icon != null) ...[
-                    Icon(icon, size: 16.sp, color: outlined ? color : Colors.white),
+                    Icon(icon, size: 16.sp, color: fg),
                     SizedBox(width: 6.w),
                   ],
                   Flexible(
@@ -731,7 +739,7 @@ class _ServiceConfirmationCardState extends State<ServiceConfirmationCard> {
                       text: label,
                       fontSize: 13.sp,
                       fontWeight: FontWeight.w700,
-                      color: outlined ? color : Colors.white,
+                      color: fg,
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

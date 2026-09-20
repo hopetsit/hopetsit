@@ -139,7 +139,7 @@ class _MyFriendsTabState extends State<MyFriendsTab>
                 child: Column(
                   children: [
                     Icon(Icons.search_off_rounded,
-                        size: 40.sp, color: AppColors.greyText),
+                        size: 40.sp, color: AppColors.textSecondary(context)),
                     SizedBox(height: 10.h),
                     InterText(
                       text: 'friends566_no_match'.tr,
@@ -403,7 +403,7 @@ class _FriendCardState extends State<FriendCard> {
                         borderRadius: BorderRadius.circular(16.r),
                       ),
                       icon: Icon(Icons.more_horiz_rounded,
-                          size: 20.sp, color: AppColors.greyText),
+                          size: 20.sp, color: AppColors.textSecondary(context)),
                       onSelected: (v) {
                         if (v == 'unfriend') _onUnfriend();
                         if (v == 'block') _onBlock();

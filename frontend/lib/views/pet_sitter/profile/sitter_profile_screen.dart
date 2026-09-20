@@ -1,3 +1,4 @@
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hopetsit/widgets/boost_profile_card.dart';
@@ -36,7 +37,9 @@ class SitterProfileScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
-      body: SingleChildScrollView(
+      body: PawPatternBackground(
+ color: AppColors.activeRoleAccent(),
+ child: SingleChildScrollView(
         child: Column(
           children: [
             // ── SITTER HERO HEADER ──────────────────────
@@ -113,6 +116,7 @@ class SitterProfileScreen extends StatelessWidget {
           ],
         ),
       ),
+),
     );
   }
 

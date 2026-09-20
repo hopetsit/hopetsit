@@ -168,8 +168,13 @@ class MyPetsScreen extends StatelessWidget {
                         imageUrl: imageUrl,
                         fit: BoxFit.cover,
                         memCacheWidth: 300,
-                        placeholder: (c, _) =>
-                            Container(color: AppColors.lightGreyColor),
+                        // v571 — mode sombre : #D9D9D9 = carré blanc le temps
+                        // du chargement sur une carte sombre.
+                        placeholder: (c, _) => Container(
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? AppColors.dividerDark
+                                    : AppColors.lightGreyColor),
                         errorWidget: (c, _, __) => Container(
                           color: accent.withValues(alpha: 0.12),
                           child: Icon(Icons.pets, color: accent, size: 30.sp),
@@ -207,7 +212,7 @@ class MyPetsScreen extends StatelessWidget {
                     InterText(
                       text: pet.breed,
                       fontSize: 13.sp,
-                      color: AppColors.greyText,
+                      color: AppColors.textSecondary(context),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -237,10 +242,10 @@ class MyPetsScreen extends StatelessWidget {
                           accent.withValues(alpha: 0.12), accent),
                       if (pet.gender == 'male')
                         _petChip('♂ ${'pet_gender_male'.tr}',
-                            AppColors.inputFill(context), AppColors.greyText),
+                            AppColors.inputFill(context), AppColors.textSecondary(context)),
                       if (pet.gender == 'female')
                         _petChip('♀ ${'pet_gender_female'.tr}',
-                            AppColors.inputFill(context), AppColors.greyText),
+                            AppColors.inputFill(context), AppColors.textSecondary(context)),
                     ],
                   ),
                 ],

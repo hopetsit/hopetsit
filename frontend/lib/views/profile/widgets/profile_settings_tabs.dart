@@ -29,7 +29,7 @@ class ProfilePreferencesTab extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _header('profile_prefs_title'.tr),
+        _header(context, 'profile_prefs_title'.tr),
         _toggle(
           context,
           icon: Icons.notifications_active_rounded,
@@ -68,7 +68,7 @@ class ProfilePreferencesTab extends StatelessWidget {
         // v551 — Daniel : « rajouter une ligne dans le profil : masquer mon
         // profil sur la carte (on/off), pour quelqu'un qui ne veut pas être
         // vu par les autres sauf ses amis ».
-        _header('profile_pref_privacy'.tr),
+        _header(context, 'profile_pref_privacy'.tr),
         _toggle(
           context,
           icon: Icons.visibility_off_rounded,
@@ -78,7 +78,7 @@ class ProfilePreferencesTab extends StatelessWidget {
           onChanged: (v) => onSave(prefs.copyWith(hideFromMap: v)),
         ),
         SizedBox(height: 18.h),
-        _header('profile_pref_language'.tr),
+        _header(context, 'profile_pref_language'.tr),
         _navTile(
           context,
           icon: Icons.translate_rounded,
@@ -89,7 +89,7 @@ class ProfilePreferencesTab extends StatelessWidget {
     );
   }
 
-  Widget _header(String label) => Padding(
+  Widget _header(BuildContext context, String label) => Padding(
         padding: EdgeInsets.only(top: 10.h, bottom: 8.h, left: 6.w),
         child: PoppinsText(
           text: label.toUpperCase(),
@@ -98,7 +98,7 @@ class ProfilePreferencesTab extends StatelessWidget {
           letterSpacing: 0.5,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          color: AppColors.greyText,
+          color: AppColors.textSecondary(context),
         ),
       );
 
@@ -236,7 +236,7 @@ class ProfileSecurityTab extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _header('profile_section_account'.tr),
+        _header(context, 'profile_section_account'.tr),
         _navTile(context,
             icon: Icons.lock_outline_rounded,
             label: 'profile_change_password'.tr,
@@ -293,7 +293,7 @@ class ProfileSecurityTab extends StatelessWidget {
           ),
         ),
         SizedBox(height: 18.h),
-        _header('profile_verifications'.tr),
+        _header(context, 'profile_verifications'.tr),
         _verifRow(context, 'profile_phone'.tr, phoneVerified),
         _verifRow(context, 'profile_email'.tr, emailVerified),
         SizedBox(height: 18.h),
@@ -336,7 +336,7 @@ class ProfileSecurityTab extends StatelessWidget {
     );
   }
 
-  Widget _header(String label) => Padding(
+  Widget _header(BuildContext context, String label) => Padding(
         padding: EdgeInsets.only(top: 10.h, bottom: 8.h, left: 6.w),
         child: PoppinsText(
           text: label.toUpperCase(),
@@ -345,7 +345,7 @@ class ProfileSecurityTab extends StatelessWidget {
           letterSpacing: 0.5,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          color: AppColors.greyText,
+          color: AppColors.textSecondary(context),
         ),
       );
 

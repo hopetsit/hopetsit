@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/role_chip.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -9,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:hopetsit/controllers/favorites_controller.dart';
 import 'package:hopetsit/controllers/home_controller.dart';
+import 'package:hopetsit/controllers/my_pets_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
@@ -21,13 +23,15 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/post_date_label.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
+import 'package:hopetsit/views/pet_owner/home/widgets/owner_home_kit.dart';
 import 'package:hopetsit/views/pet_owner/home/widgets/sitter_card.dart';
 import 'package:hopetsit/views/pet_owner/home/widgets/walker_card.dart';
 import 'package:hopetsit/views/pet_owner/posts/edit_post_screen.dart';
+import 'package:hopetsit/views/profile/edit_pet_screen.dart';
+import 'package:hopetsit/views/friends/tabs/friends_ui.dart' as friends_invite;
 import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
 import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
-import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
@@ -40,6 +44,7 @@ import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
 import 'package:hopetsit/views/shared/widgets/around_me_search_bar.dart';
+import 'package:hopetsit/views/shared/widgets/city_picker_sheet.dart';
 import 'package:share_plus/share_plus.dart';
 
 enum HomeMyPostsSortOrder { newestFirst, oldestFirst }
@@ -58,6 +63,18 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedTabIndex = 0;
+
+  // v571 — onglet ouvert par défaut. Un propriétaire SANS annonce arrive sur
+  // « Gardiens » (il n'a rien à voir dans « Mes annonces ») ; dès qu'il a une
+  // annonce, le comportement historique (onglet 0) est conservé. La bascule
+  // n'a lieu QU'UNE fois, et jamais si l'utilisateur a déjà choisi un onglet
+  // lui-même (ou si un lien profond / la navigation en a demandé un autre).
+  bool _autoTabApplied = false;
+  // v571 — le bouton « + » flottant chevauchait la carte du rayon : les deux
+  // grandes cartes d'action font le même travail en haut de page, il
+  // n'apparaît donc qu'une fois la page défilée.
+  bool _showFab = false;
+  bool _userPickedTab = false;
   // v443 — Daniel : « le tri Plus récent en premier sur l'accueil sert à
   // rien ». Sélecteur de tri RETIRÉ ; les publications restent en ordre
   // chronologique fixe (plus ancien d'abord).
@@ -94,6 +111,9 @@ class _HomeScreenState extends State<HomeScreen> {
   late final PostsController _postsController;
   // v444 — Favoris prestataires (cœur sur les cartes de recherche).
   late final FavoritesController _favoritesController;
+  // v571 — « Ajoute ton animal » : sans animal, le propriétaire ne peut pas
+  // réserver. Lecture réactive DIRECTE de la liste observable (règle GetX).
+  late final MyPetsController _petsController;
   late final GetStorage _storage;
   String? _userId;
 
@@ -121,15 +141,156 @@ class _HomeScreenState extends State<HomeScreen> {
         : Get.put(FavoritesController(), permanent: true);
     _favoritesController.ensureLoaded();
 
+    // v571 — animaux du propriétaire (chargés par onInit du contrôleur).
+    _petsController = Get.isRegistered<MyPetsController>()
+        ? Get.find<MyPetsController>()
+        : Get.put(MyPetsController());
+
     _storage = Get.find<GetStorage>();
 
     final userProfile =
         _storage.read(StorageKeys.userProfile) as Map<String, dynamic>?;
     _userId = userProfile?['id'] as String?;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _postsController.refreshPosts();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await _postsController.refreshPosts();
+      } finally {
+        // Même si le chargement échoue, on ne laisse pas le nouveau
+        // propriétaire bloqué sur un onglet « Mes annonces » vide.
+        _maybeOpenSittersTabOnce();
+      }
     });
+  }
+
+  /// v571 — une fois les annonces chargées : si le propriétaire n'en a AUCUNE,
+  /// on ouvre l'onglet « Gardiens ». Jamais deux fois, jamais par-dessus un
+  /// choix manuel, jamais si l'onglet courant n'est plus celui par défaut.
+  void _maybeOpenSittersTabOnce() {
+    if (!mounted || _autoTabApplied || _userPickedTab) return;
+    _autoTabApplied = true;
+    if (_selectedTabIndex != 0) return; // onglet déjà imposé ailleurs
+    if (_myPostsCount() > 0) return; // comportement actuel inchangé
+    // v571 — on n'ouvre « Gardiens » que s'il y a des gardiens à montrer :
+    // sinon le guide « Publie ta première annonce » est plus utile qu'une
+    // liste vide.
+    if (_homeController.sitters.isEmpty) return;
+    setState(() => _selectedTabIndex = 1);
+  }
+
+  /// Nombre d'annonces publiées par l'utilisateur courant.
+  int _myPostsCount() {
+    if (_userId == null) return 0;
+    final String uid = _userId!;
+    int n = 0;
+    for (final PostModel p in _postsController.posts) {
+      if (p.owner.id == uid) n++;
+    }
+    for (final PostModel p in _postsController.postsWithoutMedia) {
+      if (p.owner.id == uid) n++;
+    }
+    return n;
+  }
+
+  // ==========================================================================
+  // v571 — ouverture de la création d'annonce.
+  //
+  // `PublishReservationRequestScreen` n'accepte qu'un `editPost` : aucun
+  // argument de type de service. Son contrôleur est créé dans l'initState de
+  // l'écran (`Get.put`), donc on le pré-règle JUSTE APRÈS la navigation, dès
+  // qu'il est enregistré — sans toucher un fichier hors périmètre.
+  // ==========================================================================
+  static const String kServiceSitting = 'pet_sitting';
+  static const String kServiceWalking = 'dog_walking';
+
+  void _openPublishRequest({String? serviceType}) {
+    Get.to(
+      () => PublishReservationRequestScreen(initialServiceType: serviceType),
+    )?.then((_) {
+      if (mounted) _postsController.refreshPosts();
+    });
+  }
+
+  /// v571 — « Élargir le rayon » des états vides : palier suivant (ou maximum)
+  /// puis MÊMES appels que `onRadiusCommit` du bloc recherche.
+  static const List<double> _kRadiusSteps = <double>[25, 50, 100, 250, 500];
+
+  double? _nextRadiusStep() {
+    final double current = _homeController.nearMeRadiusKm.value;
+    for (final double step in _kRadiusSteps) {
+      if (step > current + 0.5) return step;
+    }
+    return null; // déjà au maximum
+  }
+
+  void _widenRadius() {
+    final double? next = _nextRadiusStep();
+    if (next == null) return;
+    final double v = next.clamp(_kMinRadiusKm, _kMaxRadiusKm).toDouble();
+    _homeController.nearMeRadiusKm.value = v;
+    _homeController.offersNearMeEnabled.value = true;
+    _homeController.loadNearbySitters(radiusKm: v.round());
+    _homeController.loadNearbyWalkers(radiusKm: v.round());
+  }
+
+  /// Bandeau de confiance (3 mini-éléments) affiché sous le bloc recherche.
+  Widget _buildTrustRow(BuildContext context) {
+    return OwnerTrustRow(
+      accent: _accent,
+      items: <OwnerTrustItem>[
+        OwnerTrustItem(
+          icon: Icons.lock_rounded,
+          label: 'ownerhome571_trust_payment'.tr,
+        ),
+        OwnerTrustItem(
+          icon: Icons.verified_user_rounded,
+          label: 'ownerhome571_trust_identity'.tr,
+        ),
+        OwnerTrustItem(
+          icon: Icons.undo_rounded,
+          label: 'ownerhome571_trust_cancel'.tr,
+        ),
+      ],
+    );
+  }
+
+  /// Les deux grandes cartes d'action. Version basse dès qu'une annonce existe.
+  Widget _buildActionCards(BuildContext context) {
+    return OwnerActionCards(
+      compact: _myPostsCount() > 0,
+      sittingTitle: 'ownerhome571_action_sitting'.tr,
+      walkingTitle: 'ownerhome571_action_walking'.tr,
+      onSitting: () => _openPublishRequest(serviceType: kServiceSitting),
+      onWalking: () => _openPublishRequest(serviceType: kServiceWalking),
+    );
+  }
+
+  /// État vide commun aux onglets Gardiens / Promeneurs.
+  Widget _buildProvidersEmpty(BuildContext context, {required bool walkers}) {
+    final double? next = _nextRadiusStep();
+    return OwnerProvidersEmpty(
+      accent: walkers ? _kWalkerAccent : _kSitterAccent,
+      icon: walkers ? Icons.directions_walk_rounded : Icons.home_work_rounded,
+      title: walkers
+          ? 'ownerhome571_empty_walkers_title'.tr
+          : 'ownerhome571_empty_sitters_title'.tr,
+      body: 'ownerhome571_empty_body'.tr,
+      primaryLabel: 'ownerhome571_empty_cta'.tr,
+      onPrimary: () => _openPublishRequest(
+        serviceType: walkers ? kServiceWalking : kServiceSitting,
+      ),
+      widenLabel: next == null
+          ? null
+          : 'ownerhome571_widen_to_km'.tr.replaceAll(
+              '{km}',
+              next.round().toString(),
+            ),
+      onWiden: next == null ? null : _widenRadius,
+      inviteTitle: 'ownerhome571_invite_title'.tr,
+      inviteBody: 'ownerhome571_invite_body'.tr,
+      inviteCta: 'ownerhome571_invite_cta'.tr,
+      onInvite: friends_invite.shareFriendsInvite,
+    );
   }
 
   static String _serviceTypesDisplay(List<String> types) {
@@ -240,71 +401,12 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (_homeController.walkers.isEmpty) {
-        return SliverFillRemaining(
-          hasScrollBody: false,
-          child: Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 28.w),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 72.w,
-                    height: 72.w,
-                    decoration: BoxDecoration(
-                      color: AppColors.greenColor.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.directions_walk_rounded,
-                      size: 36.sp,
-                      color: AppColors.greenColor,
-                    ),
-                  ),
-                  SizedBox(height: 16.h),
-                  // v23.1.147 — fix i18n : strings hardcodées FR remplacées par .tr.
-                  PoppinsText(
-                    text: 'home_no_walkers_title'.tr,
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary(context),
-                  ),
-                  SizedBox(height: 6.h),
-                  InterText(
-                    text: 'home_no_walkers_body'.tr,
-                    fontSize: 12.sp,
-                    color: AppColors.textSecondary(context),
-                    textAlign: TextAlign.center,
-                    maxLines: 4,
-                  ),
-                  SizedBox(height: 18.h),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Get.to(
-                        () => const PublishReservationRequestScreen(),
-                      )?.then((_) => _postsController.refreshPosts());
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.greenColor,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 18.w,
-                        vertical: 10.h,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                    ),
-                    icon: const Icon(Icons.add_rounded, color: Colors.white),
-                    label: InterText(
-                      text: 'home_publish_walk'.tr,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+        // v571 — état vide accueillant : illustration, explication, CTA
+        // « Publier mon annonce », « Élargir le rayon » et invitation.
+        return SliverPadding(
+          padding: EdgeInsets.fromLTRB(20.w, 4.h, 20.w, 8.h),
+          sliver: SliverToBoxAdapter(
+            child: _buildProvidersEmpty(context, walkers: true),
           ),
         );
       }
@@ -409,13 +511,7 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Actif : pill plein coloré (orange/bleu/vert) + texte blanc ;
   /// inactif : transparent + texte gris.
   Widget _buildTabBar(BuildContext context) {
-    final allPosts = <PostModel>[
-      ..._postsController.posts,
-      ..._postsController.postsWithoutMedia,
-    ];
-    final myCount = _userId == null
-        ? 0
-        : allPosts.where((p) => p.owner.id == _userId).length;
+    final myCount = _myPostsCount();
     return Container(
       height: 52.h,
       padding: EdgeInsets.all(6.w),
@@ -469,9 +565,11 @@ class _HomeScreenState extends State<HomeScreen> {
     required Color activeColor,
   }) {
     final selected = _selectedTabIndex == index;
-    final fg = selected ? AppColors.whiteColor : AppColors.grey500Color;
+    final fg = selected ? AppColors.whiteColor : AppColors.textTertiary(context);
     return GestureDetector(
       onTap: () {
+        // v571 — un choix manuel gèle la bascule automatique vers « Gardiens ».
+        _userPickedTab = true;
         if (_selectedTabIndex == index) return;
         setState(() => _selectedTabIndex = index);
       },
@@ -530,7 +628,6 @@ class _HomeScreenState extends State<HomeScreen> {
         radiusKm: current,
         minRadiusKm: _kMinRadiusKm,
         maxRadiusKm: _kMaxRadiusKm,
-        midTickKm: 50,
         onTapCity: () => _showCityPickerSheet(context),
         onRadiusChanged: (v) {
           _homeController.nearMeRadiusKm.value = v;
@@ -1066,81 +1163,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// v435 — sheet "Autour de moi" : champ ville avec autocomplétion (réutilise
   /// CityLocationPicker) pour changer la ville de recherche, + bouton retour GPS.
-  void _showCityPickerSheet(BuildContext context) {
-    final cityController = TextEditingController(
-      text: _homeController.searchCity.value,
+  /// v571 — feuille de ville partagée (même rendu que gardien/promeneur).
+  Future<void> _showCityPickerSheet(BuildContext context) async {
+    final result = await showCityPickerSheet(
+      context,
+      accent: _accent,
+      initialCity: _homeController.searchCity.value,
     );
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.card(ctx),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            20.w,
-            14.h,
-            20.w,
-            // v569 — clavier ouvert : son inset est déjà appliqué par le
-            // Padding parent, on n'ajoute pas l'inset système en double.
-            20.h +
-                (MediaQuery.of(ctx).viewInsets.bottom > 0
-                    ? 0
-                    : appBottomInset(ctx)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36.w,
-                  height: 4.h,
-                  margin: EdgeInsets.only(bottom: 14.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.divider(ctx),
-                    borderRadius: BorderRadius.circular(2.r),
-                  ),
-                ),
-              ),
-              PoppinsText(
-                text: 'home_change_city_title'.tr,
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary(ctx),
-              ),
-              SizedBox(height: 4.h),
-              InterText(
-                text: 'home_change_city_hint'.tr,
-                fontSize: 12.sp,
-                color: AppColors.textSecondary(ctx),
-              ),
-              SizedBox(height: 12.h),
-              CityLocationPicker(
-                cityController: cityController,
-                isGettingLocation: false,
-                onGetLocation: () {
-                  // Retour à la géoloc de l'appareil.
-                  Navigator.pop(ctx);
-                  _homeController.clearSearchCity();
-                  setState(() {});
-                },
-                detectedCity: _homeController.searchCity.value,
-                onLocationSelected: (city, lat, lng) {
-                  Navigator.pop(ctx);
-                  _homeController.setSearchCity(city, lat, lng);
-                  setState(() {});
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    if (result == null || !mounted) return;
+    if (result.useMyPosition) {
+      _homeController.clearSearchCity();
+    } else if (result.lat != null && result.lng != null) {
+      _homeController.setSearchCity(result.city, result.lat!, result.lng!);
+    }
+    setState(() {});
   }
 
   // v23.1 part 240 — retourne un Sliver pour s'integrer au CustomScrollView.
@@ -1164,50 +1200,23 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (sortedMine.isEmpty) {
-        // v546 — design : un simple texte gris « Aucune publication trouvée »
-        // laissait l'accueil vide et froid. On explique quoi faire (le
-        // composeur est juste au-dessus) avec une icône dans la teinte de
-        // marque, cohérent avec les autres états vides de l'app.
-        return SliverFillRemaining(
-          hasScrollBody: false,
-          child: Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 24.h),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 72.w,
-                    height: 72.w,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryColor.withValues(alpha: 0.10),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.campaign_rounded,
-                      size: 34.sp,
-                      color: AppColors.primaryColor,
-                    ),
-                  ),
-                  SizedBox(height: 14.h),
-                  InterText(
-                    text: 'my_posts_no_posts'.tr,
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary(context),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 6.h),
-                  InterText(
-                    text: 'home_posts_empty_hint'.tr,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.greyColor,
-                    textAlign: TextAlign.center,
-                    maxLines: 3,
-                  ),
-                ],
-              ),
+        // v571 — l'ancienne phrase grise (« Aucune publication trouvée » +
+        // conseil) laissait le nouveau propriétaire deviner quoi faire. On la
+        // remplace par une carte d'accueil : les 3 étapes du parcours et UN
+        // seul gros bouton qui ouvre la création d'annonce.
+        return SliverPadding(
+          padding: EdgeInsets.fromLTRB(20.w, 4.h, 20.w, 8.h),
+          sliver: SliverToBoxAdapter(
+            child: OwnerFirstPostCard(
+              accent: AppColors.primaryColor,
+              title: 'ownerhome571_first_title'.tr,
+              steps: <String>[
+                'ownerhome571_first_step1'.tr,
+                'ownerhome571_first_step2'.tr,
+                'ownerhome571_first_step3'.tr,
+              ],
+              ctaLabel: 'ownerhome571_first_cta'.tr,
+              onCta: _openPublishRequest,
             ),
           ),
         );
@@ -1362,21 +1371,11 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
       if (_homeController.sitters.isEmpty) {
-        // v565 — état vide cohérent avec l'onglet Promeneurs (icône, titre,
-        // explication, CTA « Publier une demande »).
-        return SliverToBoxAdapter(
-          child: BookingEmptyState(
-            embedded: true,
-            icon: Icons.home_work_rounded,
-            accent: AppColors.primaryColor,
-            title: 'home_no_sitters_message'.tr,
-            subtitle: 'home_posts_empty_hint'.tr,
-            ctaLabel: 'publish_request_publish_button'.tr,
-            onCta: () {
-              Get.to(
-                () => const PublishReservationRequestScreen(),
-              )?.then((_) => _postsController.refreshPosts());
-            },
+        // v571 — même état vide accueillant que l'onglet Promeneurs.
+        return SliverPadding(
+          padding: EdgeInsets.fromLTRB(20.w, 4.h, 20.w, 8.h),
+          sliver: SliverToBoxAdapter(
+            child: _buildProvidersEmpty(context, walkers: false),
           ),
         );
       }
@@ -1584,8 +1583,20 @@ class _HomeScreenState extends State<HomeScreen> {
         // Avantage perf : SliverList.builder garde le lazy build (pas de
         // regression v229 shrinkWrap). Le top fly-away quand l'user
         // descend dans la liste, comme demandé.
-        body: SafeArea(
-          child: CustomScrollView(
+        body: PawPatternBackground(
+ color: AppColors.primaryColor,
+ child: SafeArea(
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (ScrollNotification n) {
+              if (n.metrics.axis == Axis.vertical) {
+                final bool show = n.metrics.pixels > 260;
+                if (show != _showFab && mounted) {
+                  setState(() => _showFab = show);
+                }
+              }
+              return false;
+            },
+            child: CustomScrollView(
             // Hint Flutter de garder seulement 80px hors viewport en cache
             // pour scroller fluide sur low-end (Oppo / petits ecrans).
             cacheExtent: 80,
@@ -1594,6 +1605,47 @@ class _HomeScreenState extends State<HomeScreen> {
               const SliverToBoxAdapter(
                 child: HomeQuickActionBar(role: 'owner'),
               ),
+
+              // ── v571 : les 2 grandes cartes d'action ──────────────────
+              // Le propriétaire est celui qui paie : les deux chemins vers
+              // une réservation sont la première chose qu'il voit. Version
+              // basse (56 dp) dès qu'il a publié au moins une annonce.
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 0),
+                  child: _buildActionCards(context),
+                ),
+              ),
+
+              // ── v571 : « Ajoute ton animal » (aucun animal enregistré) ──
+              // Lecture réactive DIRECTE des observables ; tant que la liste
+              // n'est pas chargée (ou en erreur) on n'affiche RIEN, pour ne
+              // jamais montrer un faux positif.
+              SliverToBoxAdapter(
+                child: Obx(() {
+                  final bool loading = _petsController.isLoading.value;
+                  final bool failed =
+                      _petsController.errorMessage.value.isNotEmpty;
+                  final bool empty = _petsController.pets.isEmpty;
+                  if (loading || failed || !empty) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 0),
+                    child: OwnerAddPetCard(
+                      accent: AppColors.primaryColor,
+                      title: 'ownerhome571_addpet_title'.tr,
+                      ctaLabel: 'ownerhome571_addpet_cta'.tr,
+                      onTap: () async {
+                        await Get.to(() => const EditPetScreen());
+                        await _petsController.refreshPets();
+                      },
+                    ),
+                  );
+                }),
+              ),
+              SliverToBoxAdapter(child: SizedBox(height: 12.h)),
+
               // v426 — le composer "Publication" n'apparaît que sur l'onglet
               // "Mes publications" (absent des maquettes 50/51 prestataires).
               if (_selectedTabIndex == 0) ...[
@@ -1617,6 +1669,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.w),
                     child: _buildSearchBlock(context),
+                  ),
+                ),
+                // ── v571 : bandeau de confiance sous le bloc recherche ──
+                SliverToBoxAdapter(child: SizedBox(height: 10.h)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    child: _buildTrustRow(context),
                   ),
                 ),
                 SliverToBoxAdapter(child: SizedBox(height: 10.h)),
@@ -1656,12 +1716,20 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+          ),
         ),
+),
         // v23.1 — FAB compact bottom-right : icône + uniquement, gradient,
         // taille discrète pour ne pas masquer le contenu.
         // v471 — Daniel : « remonter encore un peu » le bouton + de l'accueil
         // owner. On le relève davantage (120) + l'inset Samsung.
-        floatingActionButton: Padding(
+        floatingActionButton: AnimatedScale(
+          scale: _showFab ? 1 : 0,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          child: IgnorePointer(
+            ignoring: !_showFab,
+            child: Padding(
           padding: EdgeInsets.only(bottom: 120.h + appBottomInset(context)),
           child: Container(
             width: 52.w,
@@ -1698,6 +1766,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
+          ),
+        ),
           ),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,

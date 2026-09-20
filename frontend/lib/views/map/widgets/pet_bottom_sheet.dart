@@ -11,11 +11,14 @@ Widget petBottomSheet(
   VoidCallback? onMessage,
   VoidCallback? onViewProfile,
 }) {
-  return SafeArea(
+  // v571 — `Builder` ajouté uniquement pour disposer d'un BuildContext et
+  // suivre le thème (clair / sombre). Aucune incidence sur la mise en page.
+  return Builder(
+    builder: (context) => SafeArea(
     child: Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
       ),
       child: Column(
@@ -33,7 +36,8 @@ Widget petBottomSheet(
                     ? CachedNetworkImageProvider(pet.avatarUrl, maxWidth: 150)
                     : null,
                 child: pet.avatarUrl.isEmpty
-                    ? Icon(Icons.pets, size: 30.sp, color: AppColors.greyText)
+                    ? Icon(Icons.pets,
+                        size: 30.sp, color: AppColors.textSecondary(context))
                     : null,
               ),
               SizedBox(width: 12.w),
@@ -45,7 +49,7 @@ Widget petBottomSheet(
                       text: pet.name,
                       fontSize: 16.sp,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.blackColor,
+                      color: AppColors.textPrimary(context),
                     ),
                     SizedBox(height: 4.h),
                     InterText(
@@ -53,7 +57,7 @@ Widget petBottomSheet(
                           '${pet.petType} • ${pet.distanceKm?.toStringAsFixed(2) ?? '—'} km',
                       fontSize: 12.sp,
                       fontWeight: FontWeight.w400,
-                      color: AppColors.greyText,
+                      color: AppColors.textSecondary(context),
                     ),
                   ],
                 ),
@@ -109,6 +113,7 @@ Widget petBottomSheet(
           SizedBox(height: 8.h),
         ],
       ),
+    ),
     ),
   );
 }

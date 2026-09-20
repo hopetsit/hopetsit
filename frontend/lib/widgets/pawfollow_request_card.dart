@@ -254,7 +254,14 @@ class PawfollowRequestCard extends StatelessWidget {
             // typique : avatar circulaire + nom + service ("Walk" /
             // "Sitting" / etc.).
             if ((petName ?? '').isNotEmpty) ...[
-              const Divider(height: 1, thickness: 0.6, color: Color(0xFFE5E7EB)),
+              Divider(
+                  height: 1,
+                  thickness: 0.6,
+                  // Audit mode sombre — filet clair en dur = trait lumineux
+                  // sur la carte sombre.
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.dividerDark
+                      : const Color(0xFFE5E7EB)),
               Padding(
                 padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
                 child: Row(
@@ -397,7 +404,14 @@ class PawfollowRequestCard extends StatelessWidget {
 
             // ── Bullets de rassurance (mockup : 3 cases avec check) ───
             if (canRespond) ...[
-              const Divider(height: 1, thickness: 0.6, color: Color(0xFFE5E7EB)),
+              Divider(
+                  height: 1,
+                  thickness: 0.6,
+                  // Audit mode sombre — filet clair en dur = trait lumineux
+                  // sur la carte sombre.
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.dividerDark
+                      : const Color(0xFFE5E7EB)),
               Padding(
                 padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 10.h),
                 child: Column(

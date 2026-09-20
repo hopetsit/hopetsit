@@ -162,7 +162,11 @@ class _ChatConversationBodyState extends State<ChatConversationBody>
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
           decoration: BoxDecoration(
-            color: AppColors.grey300Color.withValues(alpha: 0.45),
+            // Audit mode sombre — le gris clair d'origine donnait une pastille
+            // laiteuse sous un texte clair au milieu de la conversation.
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withValues(alpha: 0.08)
+                : AppColors.grey300Color.withValues(alpha: 0.45),
             borderRadius: BorderRadius.circular(14.r),
           ),
           child: Text(

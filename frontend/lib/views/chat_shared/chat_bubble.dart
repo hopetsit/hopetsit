@@ -96,7 +96,8 @@ class ChatMessageBubble extends StatelessWidget {
                 height: 4.h,
                 margin: EdgeInsets.only(bottom: 6.h),
                 decoration: BoxDecoration(
-                  color: AppColors.grey300Color,
+                  // `divider()` renvoie exactement grey300Color en clair.
+                  color: AppColors.divider(sheet),
                   borderRadius: BorderRadius.circular(2.r),
                 ),
               ),
@@ -117,7 +118,7 @@ class ChatMessageBubble extends StatelessWidget {
               if (mine && !m.isDeleted && !m.isPending)
                 tile(Icons.delete_outline_rounded, 'chat_delete_message'.tr,
                     () => _confirmDelete(context),
-                    color: AppColors.errorColor),
+                    color: chatDanger(sheet)),
               if (!mine && !m.isDeleted)
                 tile(Icons.flag_outlined, 'cs_action_report'.tr, () {
                   final photo = m.visualMedia.isNotEmpty
@@ -131,7 +132,7 @@ class ChatMessageBubble extends StatelessWidget {
                     snapshot: m.message,
                     photoUrl: photo,
                   );
-                }, color: AppColors.errorColor),
+                }, color: chatDanger(sheet)),
               tile(Icons.close_rounded, 'common_cancel'.tr, () {},
                   color: AppColors.textSecondary(sheet)),
             ],
@@ -159,7 +160,7 @@ class ChatMessageBubble extends StatelessWidget {
             onPressed: () => Get.back(result: true),
             child: Text(
               'chat_delete_message'.tr,
-              style: TextStyle(color: AppColors.errorColor),
+              style: TextStyle(color: chatDanger(context)),
             ),
           ),
         ],
@@ -283,7 +284,10 @@ class ChatMessageBubble extends StatelessWidget {
   Widget _quote(BuildContext context, ChatReplyRef r, Color textColor) {
     final fromMe = r.senderId.isNotEmpty && r.senderId == session.currentUserId;
     final who = fromMe ? 'cs_you'.tr : contactName;
-    final barColor = mine ? Colors.white : theme.accent;
+    // Bulle reçue : l'accent du rôle est posé sur la surface de la bulle →
+    // version éclaircie en mode sombre (identique en clair).
+    final quoteAccent = theme.accentOn(context);
+    final barColor = mine ? Colors.white : quoteAccent;
     return GestureDetector(
       onTap: () => onQuoteTap(r.messageId),
       child: Container(
@@ -303,7 +307,7 @@ class ChatMessageBubble extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: mine ? Colors.white : theme.accent,
+                color: mine ? Colors.white : quoteAccent,
                 fontSize: 11.5.sp,
                 fontWeight: FontWeight.w800,
               ),
@@ -364,7 +368,8 @@ class ChatMessageBubble extends StatelessWidget {
                 placeholder: (_, __) => Container(
                   width: tile,
                   height: tile,
-                  color: AppColors.grey300Color,
+                  // Pavé d'attente : gris clair en clair, gris foncé en sombre.
+                  color: AppColors.divider(context),
                   child: Center(
                     child: SizedBox(
                       width: 20.w,
@@ -380,7 +385,7 @@ class ChatMessageBubble extends StatelessWidget {
                 errorWidget: (_, __, ___) => Container(
                   width: tile,
                   height: tile,
-                  color: AppColors.grey300Color,
+                  color: AppColors.divider(context),
                   child: Icon(
                     a.isVideo
                         ? Icons.videocam_rounded
@@ -459,6 +464,9 @@ class ChatMessageBubble extends StatelessWidget {
   }
 
   Widget _translation(BuildContext context, Color textColor) {
+    // Bloc affiché uniquement dans une bulle REÇUE (surface du thème) :
+    // l'accent y est éclairci en mode sombre.
+    final linkColor = theme.accentOn(context);
     return Obx(() {
       final id = message.id;
       final auto = session.autoTranslate.value;
@@ -478,7 +486,7 @@ class ChatMessageBubble extends StatelessWidget {
             height: 14.w,
             child: CircularProgressIndicator(
               strokeWidth: 1.6,
-              valueColor: AlwaysStoppedAnimation<Color>(theme.accent),
+              valueColor: AlwaysStoppedAnimation<Color>(linkColor),
             ),
           ),
         );
@@ -505,7 +513,7 @@ class ChatMessageBubble extends StatelessWidget {
               Text(
                 'cs_translated_label'.tr,
                 style: TextStyle(
-                  color: theme.accent,
+                  color: linkColor,
                   fontSize: 10.sp,
                   fontWeight: FontWeight.w700,
                 ),
@@ -535,12 +543,12 @@ class ChatMessageBubble extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.translate_rounded, size: 12.sp, color: theme.accent),
+              Icon(Icons.translate_rounded, size: 12.sp, color: linkColor),
               SizedBox(width: 4.w),
               Text(
                 'cs_translate'.tr,
                 style: TextStyle(
-                  color: theme.accent,
+                  color: linkColor,
                   fontSize: 11.sp,
                   fontWeight: FontWeight.w700,
                 ),

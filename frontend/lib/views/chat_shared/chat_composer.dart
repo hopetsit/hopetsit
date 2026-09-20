@@ -153,7 +153,8 @@ class _ChatComposerState extends State<ChatComposer> {
                     width: 40.w,
                     height: 4.h,
                     decoration: BoxDecoration(
-                      color: AppColors.grey300Color,
+                      // `divider()` renvoie exactement grey300Color en clair.
+                      color: AppColors.divider(sheet),
                       borderRadius: BorderRadius.circular(2.r),
                     ),
                   ),
@@ -214,8 +215,8 @@ class _ChatComposerState extends State<ChatComposer> {
               if (!_rec.isRecording) ...[
                 _RoundButton(
                   icon: Icons.add_rounded,
-                  color: t.accent,
-                  background: t.tintStrong,
+                  color: t.accentOn(context),
+                  background: t.softTintStrong(context),
                   onTap: _openMenu,
                 ),
                 SizedBox(width: 8.w),
@@ -296,10 +297,15 @@ class _ChatComposerState extends State<ChatComposer> {
         }
         return Obx(() {
           if (!s.features.value.voice) {
+            // Bouton « envoyer » inactif : le gris clair d'origine devenait un
+            // pastille claire sous une icône grise en mode sombre.
+            final isDark = Theme.of(context).brightness == Brightness.dark;
             return _RoundButton(
               icon: Icons.send_rounded,
-              color: AppColors.greyColor,
-              background: AppColors.grey300Color.withValues(alpha: 0.5),
+              color: isDark ? AppColors.textSecondaryDark : AppColors.greyColor,
+              background: isDark
+                  ? Colors.white.withValues(alpha: 0.10)
+                  : AppColors.grey300Color.withValues(alpha: 0.5),
               onTap: widget.onSendText,
             );
           }
@@ -391,6 +397,14 @@ class _MenuRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Le menu « + » pose des icônes de couleur pleine sur un disque teinté :
+    // le violet, le sarcelle et le rouge y sont trop sombres en mode sombre.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = item.highlight
+        ? Colors.white
+        : (isDark
+            ? (Color.lerp(item.color, Colors.white, 0.38) ?? item.color)
+            : item.color);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -409,7 +423,7 @@ class _MenuRow extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: item.highlight
                       ? null
-                      : item.color.withValues(alpha: 0.12),
+                      : item.color.withValues(alpha: isDark ? 0.20 : 0.12),
                   gradient: item.highlight
                       ? LinearGradient(
                           colors: [
@@ -434,7 +448,7 @@ class _MenuRow extends StatelessWidget {
                 ),
                 child: Icon(
                   item.icon,
-                  color: item.highlight ? Colors.white : item.color,
+                  color: iconColor,
                   size: 22.sp,
                 ),
               ),
@@ -489,17 +503,20 @@ class _ReplyPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final who = target.isFromCurrentUser ? 'cs_you'.tr : contactName;
+    final accent = theme.accentOn(context);
     return Container(
       margin: EdgeInsets.only(bottom: 8.h),
       padding: EdgeInsets.fromLTRB(10.w, 8.h, 4.w, 8.h),
       decoration: BoxDecoration(
-        color: theme.tint,
+        // Audit mode sombre — `theme.tint` est un pastel quasi blanc : l'aperçu
+        // de la citation devenait un pavé clair sous un texte clair.
+        color: theme.softTint(context),
         borderRadius: BorderRadius.circular(14.r),
-        border: Border(left: BorderSide(color: theme.accent, width: 3)),
+        border: Border(left: BorderSide(color: accent, width: 3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.reply_rounded, size: 18.sp, color: theme.accent),
+          Icon(Icons.reply_rounded, size: 18.sp, color: accent),
           SizedBox(width: 8.w),
           Expanded(
             child: Column(
@@ -509,7 +526,7 @@ class _ReplyPreview extends StatelessWidget {
                   text: '${'cs_action_reply'.tr} · $who',
                   fontSize: 11.5.sp,
                   fontWeight: FontWeight.w800,
-                  color: theme.accent,
+                  color: accent,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

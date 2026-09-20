@@ -323,7 +323,7 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
                     text:
                         '${widget.initialPoint.latitude.toStringAsFixed(5)}, ${widget.initialPoint.longitude.toStringAsFixed(5)}',
                     fontSize: 10.sp,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(context),
                   ),
                 ),
               ],
@@ -378,27 +378,30 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
   /// Fond vert pâle pour signaler visuellement que le groupe entier est
   /// accessible sans Premium (plus besoin du badge "GRATUIT" par chip).
   Widget _buildFreeSection(BuildContext context, List<String> types) {
+    // v571 — lisibilité sombre : le vert #008000 sur la feuille anthracite est
+    // quasi illisible ; en sombre on prend un vert clair (le clair ne bouge pas).
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color green =
+        isDark ? const Color(0xFF4ADE80) : AppColors.greenColor;
     return Container(
       padding: EdgeInsets.all(10.w),
       decoration: BoxDecoration(
-        color: AppColors.greenColor.withValues(alpha: 0.06),
+        color: green.withValues(alpha: isDark ? 0.12 : 0.06),
         borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(
-            color: AppColors.greenColor.withValues(alpha: 0.25), width: 1),
+        border: Border.all(color: green.withValues(alpha: 0.25), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.check_circle_rounded,
-                  size: 14.sp, color: AppColors.greenColor),
+              Icon(Icons.check_circle_rounded, size: 14.sp, color: green),
               SizedBox(width: 4.w),
               InterText(
                 text: 'pawmap_section_free'.tr,
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w700,
-                color: AppColors.greenColor,
+                color: green,
               ),
               SizedBox(width: 6.w),
               InterText(

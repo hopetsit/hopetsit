@@ -447,9 +447,18 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
 
   Widget _buildSitterCardsShimmer() {
     return Builder(
-      builder: (context) => Shimmer.fromColors(
-        baseColor: AppColors.grey300Color,
-        highlightColor: AppColors.card(context),
+      builder: (context) {
+        // v571 — lisibilité sombre : le squelette gris clair (#D5D7DA) flashait
+        // en blanc sur fond sombre, et le « highlight » (carte sombre) rendait
+        // le scintillement inversé. En sombre : gris anthracite + éclat plus
+        // clair. Le rendu clair est inchangé.
+        final bool isDark = Theme.of(context).brightness == Brightness.dark;
+        final Color bone =
+            isDark ? const Color(0xFF2E2E2E) : AppColors.grey300Color;
+        return Shimmer.fromColors(
+        baseColor: bone,
+        highlightColor:
+            isDark ? const Color(0xFF3D3D3D) : AppColors.card(context),
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const NeverScrollableScrollPhysics(),
@@ -472,7 +481,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                 width: 56.r,
                 height: 56.r,
                 decoration: BoxDecoration(
-                  color: AppColors.grey300Color,
+                  color: bone,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -486,7 +495,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                       height: 14.h,
                       width: 80.w,
                       decoration: BoxDecoration(
-                        color: AppColors.grey300Color,
+                        color: bone,
                         borderRadius: BorderRadius.circular(4.r),
                       ),
                     ),
@@ -495,7 +504,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                       height: 12.h,
                       width: 120.w,
                       decoration: BoxDecoration(
-                        color: AppColors.grey300Color,
+                        color: bone,
                         borderRadius: BorderRadius.circular(4.r),
                       ),
                     ),
@@ -506,7 +515,8 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
           ),
         ),
       ),
-      ),
+        );
+      },
     );
   }
 

@@ -369,9 +369,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
     return DefaultTabController(
       length: AlertsScreen._tabs.length,
       child: Scaffold(
-        backgroundColor: PawMapTheme.bg,
+        backgroundColor: PawMapTheme.bgOn(context),
         appBar: AppBar(
-          backgroundColor: PawMapTheme.bg,
+          backgroundColor: PawMapTheme.bgOn(context),
           elevation: 0,
           title: Row(
             children: [
@@ -456,7 +456,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
           bottom: TabBar(
             isScrollable: true,
             labelColor: PawMapTheme.rose,
-            unselectedLabelColor: AppColors.greyText,
+            unselectedLabelColor: AppColors.textSecondary(context),
             indicatorColor: PawMapTheme.rose,
             tabs: AlertsScreen._tabs
                 .map((t) => Tab(text: t.labelKey.tr))
@@ -525,7 +525,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                         child: Row(
                           children: [
                             Icon(Icons.schedule_rounded,
-                                color: AppColors.greyText, size: 14.sp),
+                                color: AppColors.textSecondary(context), size: 14.sp),
                             SizedBox(width: 6.w),
                             Expanded(
                               child: Obx(() => InterText(
@@ -537,7 +537,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                   )),
                             ),
                             Icon(Icons.keyboard_arrow_down_rounded,
-                                color: AppColors.greyText, size: 16.sp),
+                                color: AppColors.textSecondary(context), size: 16.sp),
                           ],
                         ),
                       ),
@@ -831,7 +831,7 @@ class _EmptyState extends StatelessWidget {
                 ),
                 child: Icon(Icons.shield_outlined,
                     size: 50.sp,
-                    color: AppColors.greyText.withValues(alpha: 0.6)),
+                    color: AppColors.textSecondary(context).withValues(alpha: 0.6)),
               ),
               Positioned(
                 bottom: 8.h,
@@ -853,7 +853,7 @@ class _EmptyState extends StatelessWidget {
         InterText(
           text: 'alerts_empty_msg'.tr,
           fontSize: 13.sp,
-          color: AppColors.greyText,
+          color: AppColors.textSecondary(context),
           textAlign: TextAlign.center,
         ),
         SizedBox(height: 18.h),
@@ -1141,7 +1141,7 @@ class _InfoCard extends StatelessWidget {
           InterText(
             text: subtitle,
             fontSize: 9.sp,
-            color: AppColors.greyText,
+            color: AppColors.textSecondary(context),
             textAlign: TextAlign.center,
             maxLines: 3,
           ),
@@ -1195,7 +1195,7 @@ class _GpsRequiredState extends StatelessWidget {
         InterText(
           text: 'alerts_no_gps_msg'.tr,
           fontSize: 13.sp,
-          color: AppColors.greyText,
+          color: AppColors.textSecondary(context),
           textAlign: TextAlign.center,
         ),
         SizedBox(height: 18.h),
@@ -1360,13 +1360,13 @@ class _ReportCard extends StatelessWidget {
                   children: [
                     if (report.city.isNotEmpty) ...[
                       Icon(Icons.location_on_outlined,
-                          size: 12.sp, color: AppColors.greyText),
+                          size: 12.sp, color: AppColors.textSecondary(context)),
                       SizedBox(width: 3.w),
                       Flexible(
                         child: InterText(
                           text: report.city,
                           fontSize: 10.sp,
-                          color: AppColors.greyText,
+                          color: AppColors.textSecondary(context),
                           maxLines: 1,
                         ),
                       ),
@@ -1375,7 +1375,7 @@ class _ReportCard extends StatelessWidget {
                     InterText(
                       text: _timeAgo(report.createdAt),
                       fontSize: 10.sp,
-                      color: AppColors.greyText,
+                      color: AppColors.textSecondary(context),
                     ),
                   ],
                 ),

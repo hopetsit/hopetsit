@@ -172,7 +172,7 @@ class _ActionBadge extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: Icon(icon, color: tone, size: 21.sp),
+            child: Icon(icon, color: AppColors.accentOn(context, tone), size: 21.sp),
           ),
           if (pulse != null)
             Positioned(
@@ -209,7 +209,7 @@ class ActionCountChip extends StatelessWidget {
         text: '+$count',
         fontSize: 11,
         fontWeight: FontWeight.w800,
-        color: tone,
+        color: AppColors.accentOn(context, tone),
       ),
     );
   }
@@ -270,7 +270,8 @@ class ActionBanner extends StatelessWidget {
             fontSize: 15,
             fontWeight: FontWeight.w800,
             color: AppColors.textPrimary(context),
-            maxLines: 1,
+            // v571 — « Pas de demande en atten… » était coupé : 2 lignes.
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -735,7 +736,8 @@ class ActionSheetHeader extends StatelessWidget {
               ? CachedNetworkImageProvider(avatarUrl, maxWidth: 200)
               : null,
           child: avatarUrl.isEmpty
-              ? Icon(Icons.person, color: tone, size: 27.sp)
+              ? Icon(Icons.person,
+                  color: AppColors.accentOn(context, tone), size: 27.sp)
               : null,
         ),
         SizedBox(width: 12.w),
@@ -809,14 +811,14 @@ class ActionStatusPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 12.sp, color: tone),
+            Icon(icon, size: 12.sp, color: AppColors.accentOn(context, tone)),
             SizedBox(width: 4.w),
           ],
           PoppinsText(
             text: label,
             fontSize: 10.5,
             fontWeight: FontWeight.w700,
-            color: tone,
+            color: AppColors.accentOn(context, tone),
           ),
         ],
       ),
@@ -841,7 +843,9 @@ class ActionSheetRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = tone ?? AppColors.textSecondary(context);
+    final accent = tone == null
+        ? AppColors.textSecondary(context)
+        : AppColors.accentOn(context, tone!);
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 6.h),
       child: Row(

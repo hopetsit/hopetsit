@@ -21,6 +21,17 @@ import 'package:hopetsit/widgets/app_text.dart';
 ///   - owner  : bleu/vert selon l'onglet actif ;
 ///   - sitter : bleu  (#2563EB) ;
 ///   - walker : vert  (#16A34A).
+///
+/// v571 — REDESIGN (Daniel : « le bloc de gauche, je croyais que ça ne servait
+/// à rien »). L'ancienne disposition gauche/droite coupée par un trait cachait
+/// que le bloc ville était CLIQUABLE. Nouvelle disposition VERTICALE dans la
+/// même carte :
+///   · ligne 1 = une pastille-bouton pleine largeur (rond teinté + « Autour de
+///     moi » / nom de ville en gras + « Changer › » en accent) → `onTapCity` ;
+///   · ligne 2 = « Rayon » / valeur en accent, puis le slider pleine largeur
+///     avec ses 3 graduations.
+/// L'API publique et la logique (onRadiusChanged / onRadiusCommit, bornes,
+/// divisions) sont INCHANGÉES : l'accueil propriétaire continue de marcher.
 class AroundMeSearchBar extends StatelessWidget {
   const AroundMeSearchBar({
     super.key,
@@ -67,11 +78,8 @@ class AroundMeSearchBar extends StatelessWidget {
     final current = radiusKm.clamp(minRadiusKm, maxRadiusKm).toDouble();
     // Tick médian indicatif : valeur fournie ou milieu mathématique.
     final midTick = midTickKm ?? ((minRadiusKm + maxRadiusKm) / 2).round();
-    // v569 — DESIGN UNIQUEMENT : mêmes callbacks, mêmes bornes, même slider.
-    // Carte coins 20 + ombre douce, et la ville devient une pilule teintée
-    // avec un petit disque d'icône — on voit tout de suite que c'est cliquable.
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+      padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 10.h),
       decoration: BoxDecoration(
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20.r),
@@ -81,171 +89,186 @@ class AroundMeSearchBar extends StatelessWidget {
         ),
         boxShadow: AppColors.cardShadow(context),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Gauche : chip localisation (tappable → picker ville) ──
-          Expanded(
-            flex: 5,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14.r),
-                onTap: onTapCity,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 4.h),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 24.w,
-                            height: 24.w,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: accent.withValues(alpha: 0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(Icons.location_on_rounded,
-                                size: 14.sp, color: accent),
-                          ),
-                          SizedBox(width: 6.w),
-                          Flexible(
-                            child: PoppinsText(
-                              text: 'home_around_me'.tr,
-                              fontSize: 13.sp,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary(context),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 6.h),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 9.w,
-                          vertical: 5.h,
-                        ),
-                        decoration: BoxDecoration(
-                          color: accent.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(999.r),
-                          border: Border.all(
-                            color: accent.withValues(alpha: 0.18),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(
-                              child: InterText(
-                                text: cityLabel,
-                                fontSize: 11.sp,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary(context),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            SizedBox(width: 2.w),
-                            Icon(Icons.keyboard_arrow_down_rounded,
-                                size: 15.sp, color: accent),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+          _cityButton(context),
+          SizedBox(height: 12.h),
+          _radiusRow(context, current),
+          _slider(context, current),
+          _ticks(context, midTick),
+        ],
+      ),
+    );
+  }
+
+  /// Ligne 1 — pastille-bouton PLEINE LARGEUR, clairement cliquable.
+  Widget _cityButton(BuildContext context) {
+    return Material(
+      color: accent.withValues(alpha: 0.07),
+      borderRadius: BorderRadius.circular(16.r),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: const ValueKey<String>('around_me_city_button'),
+        onTap: onTapCity,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 9.h),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(
+              color: accent.withValues(alpha: 0.20),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 34.w,
+                height: 34.w,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.location_on_rounded,
+                  size: 18.sp,
+                  color: accent,
                 ),
               ),
-            ),
-          ),
-          SizedBox(width: 10.w),
-          Container(width: 1, height: 48.h, color: AppColors.divider(context)),
-          SizedBox(width: 10.w),
-          // ── Droite : rayon (label + valeur + slider + ticks) ──
-          Expanded(
-            flex: 7,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              SizedBox(width: 10.w),
+              // Le bloc texte prend toute la place restante : les libellés
+              // longs (allemand, polonais) sont tronqués, jamais débordants.
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     InterText(
-                      text: 'home_radius'.tr,
-                      fontSize: 12.sp,
+                      text: 'home_around_me'.tr,
+                      fontSize: 10.5.sp,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textSecondary(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    SizedBox(height: 1.h),
                     PoppinsText(
-                      text: '${current.toInt()} km',
-                      fontSize: 13.sp,
+                      text: cityLabel,
+                      fontSize: 13.5.sp,
                       fontWeight: FontWeight.w800,
-                      color: accent,
+                      color: AppColors.textPrimary(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: accent,
-                    inactiveTrackColor: accent.withValues(alpha: 0.18),
-                    thumbColor: accent,
-                    overlayColor: accent.withValues(alpha: 0.15),
-                    trackHeight: 4,
-                    thumbShape:
-                        const RoundSliderThumbShape(enabledThumbRadius: 9),
-                    // v494 — Daniel : la bulle « X km » qui apparaît en glissant
-                    // avait un fond MARRON (défaut du thème) → ROSE + texte blanc.
-                    valueIndicatorColor: const Color(0xFFEC4899),
-                    valueIndicatorTextStyle: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  child: Slider(
-                    value: current,
-                    min: minRadiusKm,
-                    max: maxRadiusKm,
-                    divisions: ((maxRadiusKm - minRadiusKm) ~/ 10),
-                    label: '${current.toInt()} km',
-                    onChanged: (value) {
-                      onRadiusChanged(
-                        value.clamp(minRadiusKm, maxRadiusKm).toDouble(),
-                      );
-                    },
-                    onChangeEnd: (value) {
-                      onRadiusCommit(
-                        value.clamp(minRadiusKm, maxRadiusKm).toDouble(),
-                      );
-                    },
-                  ),
+              ),
+              SizedBox(width: 8.w),
+              // Libellé-action : borné en largeur et tronqué pour ne jamais
+              // pousser la ville hors de la carte.
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 86.w),
+                child: InterText(
+                  text: 'home571_change'.tr,
+                  fontSize: 11.5.sp,
+                  fontWeight: FontWeight.w700,
+                  color: accent,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    InterText(
-                      text: '${minRadiusKm.toInt()} km',
-                      fontSize: 9.sp,
-                      color: AppColors.textSecondary(context),
-                    ),
-                    InterText(
-                      text: '$midTick km',
-                      fontSize: 9.sp,
-                      color: AppColors.textSecondary(context),
-                    ),
-                    InterText(
-                      text: '${maxRadiusKm.toInt()} km',
-                      fontSize: 9.sp,
-                      color: AppColors.textSecondary(context),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18.sp,
+                color: accent,
+              ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Ligne 2 — « Rayon » à gauche, valeur en accent à droite.
+  Widget _radiusRow(BuildContext context, double current) {
+    return Row(
+      children: [
+        Expanded(
+          child: InterText(
+            text: 'home_radius'.tr,
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary(context),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        SizedBox(width: 8.w),
+        PoppinsText(
+          text: '${current.toInt()} km',
+          fontSize: 13.sp,
+          fontWeight: FontWeight.w800,
+          color: accent,
+          maxLines: 1,
+        ),
+      ],
+    );
+  }
+
+  /// Slider pleine largeur — logique STRICTEMENT identique à l'origine.
+  Widget _slider(BuildContext context, double current) {
+    return SliderTheme(
+      data: SliderTheme.of(context).copyWith(
+        activeTrackColor: accent,
+        inactiveTrackColor: accent.withValues(alpha: 0.18),
+        thumbColor: accent,
+        overlayColor: accent.withValues(alpha: 0.15),
+        trackHeight: 4,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+        // v494 — Daniel : la bulle « X km » qui apparaît en glissant
+        // avait un fond MARRON (défaut du thème) → ROSE + texte blanc.
+        valueIndicatorColor: const Color(0xFFEC4899),
+        valueIndicatorTextStyle: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      child: Slider(
+        value: current,
+        min: minRadiusKm,
+        max: maxRadiusKm,
+        divisions: ((maxRadiusKm - minRadiusKm) ~/ 10),
+        label: '${current.toInt()} km',
+        onChanged: (value) {
+          onRadiusChanged(value.clamp(minRadiusKm, maxRadiusKm).toDouble());
+        },
+        onChangeEnd: (value) {
+          onRadiusCommit(value.clamp(minRadiusKm, maxRadiusKm).toDouble());
+        },
+      ),
+    );
+  }
+
+  /// Les 3 graduations sous le slider (min / milieu / max).
+  Widget _ticks(BuildContext context, int midTick) {
+    Widget tick(String text, TextAlign align) => Expanded(
+          child: InterText(
+            text: text,
+            fontSize: 9.sp,
+            color: AppColors.textSecondary(context),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: align,
+          ),
+        );
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 2.w),
+      child: Row(
+        children: [
+          tick('${minRadiusKm.toInt()} km', TextAlign.start),
+          tick('$midTick km', TextAlign.center),
+          tick('${maxRadiusKm.toInt()} km', TextAlign.end),
         ],
       ),
     );

@@ -381,7 +381,7 @@ class PetProfileScreen extends StatelessWidget {
               Row(
                 children: [
                   Icon(Icons.location_on_rounded,
-                      size: 14.sp, color: AppColors.greyText),
+                      size: 14.sp, color: AppColors.textSecondary(context)),
                   SizedBox(width: 3.w),
                   InterText(
                     // v465 — on filtre sur l'âge AFFICHÉ (vide si 0/inconnu) :
@@ -392,7 +392,7 @@ class PetProfileScreen extends StatelessWidget {
                         petAgeDisplay(pet.age),
                     ].join(' • '),
                     fontSize: 13.sp,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(context),
                   ),
                 ],
               ),
@@ -413,7 +413,7 @@ class PetProfileScreen extends StatelessWidget {
                     ],
                     if (pet.height.isNotEmpty) ...[
                       Icon(Icons.straighten_rounded,
-                          size: 14.sp, color: AppColors.greyText),
+                          size: 14.sp, color: AppColors.textSecondary(context)),
                       SizedBox(width: 4.w),
                       InterText(
                         text: '${pet.height} cm',
@@ -600,7 +600,7 @@ class PetProfileScreen extends StatelessWidget {
             InterText(
               text: 'pet_doc_none'.tr,
               fontSize: 12.sp,
-              color: AppColors.greyText,
+              color: AppColors.textSecondary(context),
             )
           else ...[
             for (final d in pet.documentTypes)
@@ -631,7 +631,7 @@ class PetProfileScreen extends StatelessWidget {
           InterText(
             text: 'pet_doc_add_hint'.tr,
             fontSize: 11.sp,
-            color: AppColors.greyText,
+            color: AppColors.textSecondary(context),
           ),
         ]),
         if (!pet.healthInsurance.isEmpty)
@@ -781,9 +781,9 @@ class PetProfileScreen extends StatelessWidget {
                   imageUrl: urls[i],
                   fit: BoxFit.cover,
                   placeholder: (c, _) =>
-                      Container(color: AppColors.lightGreyColor),
+                      Container(color: AppColors.mediaPlaceholder(context, AppColors.lightGreyColor)),
                   errorWidget: (c, _, __) => Container(
-                    color: AppColors.lightGreyColor,
+                    color: AppColors.mediaPlaceholder(context, AppColors.lightGreyColor),
                     child: Icon(Icons.broken_image, color: AppColors.greyColor),
                   ),
                 ),
@@ -893,7 +893,7 @@ class PetProfileScreen extends StatelessWidget {
               child: InterText(
                 text: value,
                 fontSize: 12.sp,
-                color: AppColors.greyText,
+                color: AppColors.textSecondary(Get.context!),
               ),
             ),
           ],
@@ -978,7 +978,7 @@ class PetProfileScreen extends StatelessWidget {
                   ? Icons.check_circle_rounded
                   : Icons.description_outlined,
               size: 17.sp,
-              color: available ? const Color(0xFF16A34A) : AppColors.greyText,
+              color: available ? const Color(0xFF16A34A) : AppColors.textSecondary(Get.context!),
             ),
             SizedBox(width: 8.w),
             Expanded(
@@ -1003,7 +1003,7 @@ class PetProfileScreen extends StatelessWidget {
                 text: label,
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w500,
-                color: AppColors.greyText,
+                color: AppColors.textSecondary(Get.context!),
               ),
             ),
             Expanded(

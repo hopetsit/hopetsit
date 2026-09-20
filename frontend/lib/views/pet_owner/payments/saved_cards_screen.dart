@@ -113,7 +113,7 @@ Future<bool> showPaymentConfirmSheet(
           SizedBox(height: 8.h),
           ProfileSecondaryButton(
             label: 'common_cancel'.tr,
-            accent: AppColors.greyText,
+            accent: AppColors.textSecondary(ctx),
             onTap: () => Navigator.of(ctx).pop(false),
           ),
         ],

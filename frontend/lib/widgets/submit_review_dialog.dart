@@ -197,7 +197,7 @@ class _SubmitReviewDialogState extends State<SubmitReviewDialog> {
               SizedBox(height: 6.h),
               ProfileSecondaryButton(
                 label: 'common_cancel'.tr,
-                accent: AppColors.greyText,
+                accent: AppColors.textSecondary(context),
                 onTap: _busy ? null : () => Navigator.of(context).pop(false),
               ),
             ],

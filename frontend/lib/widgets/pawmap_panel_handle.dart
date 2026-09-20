@@ -129,7 +129,11 @@ class _PawMapPanelHandleState extends State<PawMapPanelHandle>
           height: 24.h,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: PawMapTheme.pastelPeach,
+            // Audit mode sombre — le panneau PawMap est passé en anthracite :
+            // la pilule pêche en dur y formait une barre claire.
+            color: PawMapTheme.isDark(context)
+                ? PawMapTheme.accent.withValues(alpha: 0.18)
+                : PawMapTheme.pastelPeach,
             borderRadius: BorderRadius.circular(999),
           ),
           child: AnimatedBuilder(

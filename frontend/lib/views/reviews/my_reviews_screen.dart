@@ -53,7 +53,10 @@ class MyReviewsScreen extends StatelessWidget {
               text: 'common_cancel'.tr,
               fontSize: 14.sp,
               fontWeight: FontWeight.w600,
-              color: AppColors.grey500Color,
+              // v571 — mode sombre : #717680 disparaît sur le fond de carte.
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.grey500Color,
             ),
           ),
           TextButton(

@@ -459,11 +459,15 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Widget _pendingBanner() {
-    const amber = Color(0xFFC2410C);
+    // Teinte de statut : en sombre le fond à 10 % disparaît et le brun
+    // #C2410C de l'icône devient illisible → fond à 18 % + ambre éclairci.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final amber = isDark ? const Color(0xFFFBBF24) : const Color(0xFFC2410C);
     return Container(
       padding: EdgeInsets.all(14.w),
       decoration: BoxDecoration(
-        color: const Color(0xFFF59E0B).withValues(alpha: 0.10),
+        color: const Color(0xFFF59E0B)
+            .withValues(alpha: isDark ? 0.18 : 0.10),
         borderRadius: BorderRadius.circular(16.r),
       ),
       child: Row(
@@ -843,11 +847,14 @@ class _TransactionTile extends StatelessWidget {
     final isCredit = type == 'credit_booking' || type == 'refund' ||
         (type == 'admin_adjustment' && amount > 0);
     final sign = isCredit ? '+' : '-';
+    // Montants : le vert #059669 et le rouge #DC2626 passent sous le seuil de
+    // lisibilité sur la carte sombre (#242424) → variantes éclaircies.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = isCredit
-        ? const Color(0xFF059669)
+        ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
         : (status == 'pending'
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFFDC2626));
+            ? (isDark ? const Color(0xFFFBBF24) : const Color(0xFFF59E0B))
+            : (isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626)));
 
     final icon = {
       'credit_booking': Icons.call_received_rounded,
@@ -885,7 +892,8 @@ class _TransactionTile extends StatelessWidget {
               text: 'wallet_status_pending'.tr,
               fontSize: 10.sp,
               fontWeight: FontWeight.w600,
-              color: const Color(0xFFF59E0B),
+              color:
+                  isDark ? const Color(0xFFFBBF24) : const Color(0xFFF59E0B),
             ),
         ],
       ),

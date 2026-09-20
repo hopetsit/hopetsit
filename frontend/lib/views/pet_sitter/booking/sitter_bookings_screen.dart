@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/cancel_72h_sheet.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -22,6 +21,9 @@ import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 // v23.1 — onglet Factures.
 import 'package:hopetsit/views/invoices/invoices_screen.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+// v571 — fond à motif de pattes + service traduit dans la tête de carte.
+import 'package:hopetsit/utils/service_type_translator.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class SitterBookingsScreen extends StatefulWidget {
   const SitterBookingsScreen({super.key});
@@ -151,87 +153,96 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
+        backgroundColor: AppColors.scaffold(context),
         elevation: 0,
-        scrolledUnderElevation: 0.5,
+        scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: _sitterAccent),
         leading: BackButton(),
-        title: PoppinsText(
-          text: 'sitter_bookings_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
-        ),
+        title: Obx(() => BookingAppBarTitle(
+              title: 'sitter_bookings_title'.tr,
+              subtitle: _headerSubtitle(_bookingsController.bookings.length),
+            )),
         // v23.1 — Factures déplacé en chip dans la barre de filtres.
       ),
-      body: Column(
-        children: [
-          // Status Filter Chips
-          _buildStatusFilter(),
+      body: PawPatternBackground(
+        color: _sitterAccent,
+        child: Column(
+          children: [
+            // Status Filter Chips
+            _buildStatusFilter(),
 
-          // Bookings List
-          Expanded(
-            child: Obx(() {
-              if (_bookingsController.isLoading.value &&
-                  _bookingsController.bookings.isEmpty) {
-                return BookingLoadingList(accent: _sitterAccent);
-              }
-              // v565 — état d'erreur lisible (liste vide + erreur réseau).
-              if (_bookingsController.lastError.value.isNotEmpty &&
-                  _bookingsController.bookings.isEmpty) {
-                return BookingErrorState(
-                  message: _bookingsController.lastError.value,
-                  onRetry: () => _bookingsController.loadBookings(),
-                );
-              }
+            // Bookings List
+            Expanded(
+              child: Obx(() {
+                if (_bookingsController.isLoading.value &&
+                    _bookingsController.bookings.isEmpty) {
+                  return BookingLoadingList(accent: _sitterAccent);
+                }
+                // v565 — état d'erreur lisible (liste vide + erreur réseau).
+                if (_bookingsController.lastError.value.isNotEmpty &&
+                    _bookingsController.bookings.isEmpty) {
+                  return BookingErrorState(
+                    message: _bookingsController.lastError.value,
+                    onRetry: () => _bookingsController.loadBookings(),
+                  );
+                }
 
-              final filteredBookings = _filteredBookings;
+                final filteredBookings = _filteredBookings;
 
-              if (filteredBookings.isEmpty) {
+                if (filteredBookings.isEmpty) {
+                  return RefreshIndicator(
+                    color: _sitterAccent,
+                    onRefresh: () => _bookingsController.loadBookings(),
+                    child: BookingEmptyState(
+                      icon: Icons.event_note_rounded,
+                      accent: _sitterAccent,
+                      title: _selectedStatus == 'all'
+                          ? 'sitter_bookings_empty_all'.tr
+                          : 'sitter_bookings_empty_filtered'.trParams({
+                              'status': _getStatusLabel(_selectedStatus!),
+                            }),
+                      subtitle: 'v565_bk_empty_hint'.tr,
+                    ),
+                  );
+                }
+
                 return RefreshIndicator(
                   color: _sitterAccent,
                   onRefresh: () => _bookingsController.loadBookings(),
-                  child: BookingEmptyState(
-                    icon: Icons.event_note_rounded,
-                    accent: _sitterAccent,
-                    title: _selectedStatus == 'all'
-                        ? 'sitter_bookings_empty_all'.tr
-                        : 'sitter_bookings_empty_filtered'.trParams({
-                            'status': _getStatusLabel(_selectedStatus!),
-                          }),
-                    subtitle: 'v565_bk_empty_hint'.tr,
+                  child: ListView.builder(
+                    // v468 — dégage le bas au-dessus du menu pleine largeur
+                    padding: EdgeInsets.fromLTRB(
+                        20.w, 16.h, 20.w, 110.h + appBottomInset(context)),
+                    itemCount: filteredBookings.length,
+                    itemBuilder: (context, index) {
+                      final booking = filteredBookings[index];
+                      return _buildBookingCard(booking);
+                    },
                   ),
                 );
-              }
-
-              return RefreshIndicator(
-                color: _sitterAccent,
-                onRefresh: () => _bookingsController.loadBookings(),
-                child: ListView.builder(
-                  // v468 — dégage le bas au-dessus du menu pleine largeur
-                  padding: EdgeInsets.fromLTRB(
-                      20.w, 16.h, 20.w, 110.h + appBottomInset(context)),
-                  itemCount: filteredBookings.length,
-                  itemBuilder: (context, index) {
-                    final booking = filteredBookings[index];
-                    return _buildBookingCard(booking);
-                  },
-                ),
-              );
-            }),
-          ),
-        ],
+              }),
+            ),
+          ],
+        ),
       ),
     );
   }
 
+  /// v571 — sous-titre de l'en-tête : compteur de réservations chargées.
+  String _headerSubtitle(int n) {
+    if (n <= 0) return 'bookings571_count_none'.tr;
+    if (n == 1) return 'bookings571_count_one'.tr;
+    return 'bookings571_count_many'.tr.replaceAll('{n}', '$n');
+  }
+
   Widget _buildStatusFilter() {
-    // v565 — filtres en pilules (kit Réservations).
-    return BookingFilterBar(
+    // v571 — sélecteur segmenté (kit Réservations).
+    return BookingSegmentedTabs(
       values: _statuses,
       selected: _selectedStatus ?? 'all',
       label: _getStatusLabel,
+      icon: bookingTabIcon,
       accent: _sitterAccent,
       linkValues: const {'factures'},
       onSelected: (status) {
@@ -274,173 +285,83 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
   }
 
   Widget _buildBookingCard(BookingModel booking) {
-    return Container(
+    // v571 — mêmes données, mêmes conditions : hiérarchie claire (propriétaire
+    // + statut, méta-données en pastilles, montant bien lisible, actions).
+    final bool paid = (booking.paymentStatus ?? '').toLowerCase() == 'paid';
+    final String service = translateServiceType(booking.serviceType);
+    // v18.9.2 — sitter voit son montant NET perçu sur les bookings payés.
+    // v20.0.11 — commission is paid ON TOP by owner, so sitter receives
+    // basePrice intact. Fallback to basePrice, then to total/1.20 (back-out
+    // commission), never to total*0.8.
+    final double total =
+        booking.totalAmount ?? booking.pricing?.totalPrice ?? 0.0;
+    final double net = booking.pricing?.netAmount ??
+        booking.pricing?.basePrice ??
+        (total > 0 ? total / 1.20 : 0.0);
+    final String currency =
+        booking.pricing?.currency ?? booking.sitter.currency;
+    return BookingCard(
+      accent: _sitterAccent,
       margin: EdgeInsets.only(bottom: 16.h),
-      padding: EdgeInsets.all(16.w),
-      // v465 — refonte : carte surélevée (ombre), coins 18, liseré bleu rôle.
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(18.r),
-        border: Border.all(color: _sitterAccent.withValues(alpha: 0.18)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: Status and Pet Owner
-          Row(
+          // En-tête : propriétaire (avatar + nom + service) et statut.
+          BookingPartyHeader(
+            name: booking.owner.name,
+            avatarUrl: booking.owner.avatar.url,
+            subtitle: service.isNotEmpty ? service : null,
+            accent: _sitterAccent,
+            trailing: _buildStatusBadge(booking.status),
+          ),
+
+          SizedBox(height: 14.h),
+
+          // Booking Details
+          Wrap(
+            spacing: 8.w,
+            runSpacing: 8.h,
             children: [
-              // Status Badge
-              _buildStatusBadge(booking.status),
-              const Spacer(),
-              // Pet Owner Avatar
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    // Navigate to pet owner detail if needed
-                  },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ClipOval(
-                        child: booking.owner.avatar.url.isNotEmpty
-                            ? CachedNetworkImage(
-                                imageUrl: booking.owner.avatar.url,
-                                width: 32.w,
-                                height: 32.h,
-                                memCacheWidth: 96, // v234.
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(
-                                  width: 32.w,
-                                  height: 32.h,
-                                  color: AppColors.lightGrey,
-                                  child: Icon(
-                                    Icons.person,
-                                    size: 20.sp,
-                                    color: _sitterAccent,
-                                  ),
-                                ),
-                                errorWidget: (context, url, error) => Container(
-                                  width: 32.w,
-                                  height: 32.h,
-                                  color: AppColors.lightGrey,
-                                  child: Icon(
-                                    Icons.person,
-                                    size: 20.sp,
-                                    color: _sitterAccent,
-                                  ),
-                                ),
-                              )
-                            : Container(
-                                width: 32.w,
-                                height: 32.h,
-                                color: AppColors.lightGrey,
-                                child: Icon(
-                                  Icons.person,
-                                  size: 20.sp,
-                                  // v18.9.2 — accent rôle sitter (bleu)
-                                  // au lieu de l'orange primary.
-                                  color: _sitterAccent,
-                                ),
-                              ),
-                      ),
-                      SizedBox(width: 8.w),
-                      Flexible(
-                        child: InterText(
-                          text: booking.owner.name,
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textPrimary(context),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              BookingMetaChip(
+                icon: Icons.pets_rounded,
+                value: booking.petName,
+                semanticsLabel: 'sitter_bookings_pet_label'.tr,
+                tint: _sitterAccent,
               ),
+              // v18.9 — date + heure localisées (plus d'ISO brut / AM/PM en FR).
+              BookingMetaChip(
+                icon: Icons.calendar_today_rounded,
+                value: BookingDateFormat.localizedDate(booking.date),
+                semanticsLabel: 'sitter_bookings_date_label'.tr,
+              ),
+              BookingMetaChip(
+                icon: Icons.access_time_rounded,
+                value: BookingDateFormat.localizedTime(booking.timeSlot),
+                semanticsLabel: 'sitter_bookings_time_label'.tr,
+              ),
+              if (booking.duration != null && booking.duration! > 0)
+                BookingMetaChip(
+                  icon: Icons.timer_rounded,
+                  value: '${booking.duration} min',
+                  semanticsLabel: 'duration_label'.tr,
+                ),
             ],
           ),
 
-          SizedBox(height: 16.h),
+          const BookingCardDivider(),
 
-          // Booking Details
-          _buildDetailRow(Icons.pets, 'sitter_bookings_pet_label'.tr, booking.petName),
-          SizedBox(height: 12.h),
-          // v18.9 — date + heure localisées (plus d'ISO brut / AM/PM en FR).
-          _buildDetailRow(Icons.calendar_today, 'sitter_bookings_date_label'.tr,
-              BookingDateFormat.localizedDate(booking.date)),
-          SizedBox(height: 12.h),
-          _buildDetailRow(Icons.access_time, 'sitter_bookings_time_label'.tr,
-              BookingDateFormat.localizedTime(booking.timeSlot)),
-          if (booking.duration != null && booking.duration! > 0) ...[
-            SizedBox(height: 12.h),
-            _buildDetailRow(Icons.timer, 'duration_label'.tr,
-                '${booking.duration} min'),
-          ],
-          SizedBox(height: 12.h),
-          // v18.9.2 — sitter voit son montant NET perçu sur les bookings payés.
-          // Sinon tarif de référence.
-          Builder(builder: (context) {
-            final paid =
-                (booking.paymentStatus ?? '').toLowerCase() == 'paid';
-            if (paid) {
-              final total = booking.totalAmount ??
-                  booking.pricing?.totalPrice ??
-                  0.0;
-              // v20.0.11 — commission is paid ON TOP by owner, so sitter
-              // receives basePrice intact. Fallback to basePrice, then to
-              // total/1.20 (back-out commission), never to total*0.8.
-              final net = booking.pricing?.netAmount ??
-                  booking.pricing?.basePrice ??
-                  (total > 0 ? total / 1.20 : 0.0);
-              final currency =
-                  booking.pricing?.currency ?? booking.sitter.currency;
-              return Row(
-                children: [
-                  Icon(Icons.attach_money,
-                      size: 16.sp, color: _sitterAccent),
-                  SizedBox(width: 8.w),
-                  InterText(
-                    text: 'bookings_card_you_receive'.trParams({
-                      'amount': '${net.toStringAsFixed(2)} $currency',
-                    }),
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w700,
-                    color: _sitterAccent,
-                  ),
-                ],
-              );
-            }
-            return Row(
-              children: [
-                Icon(Icons.attach_money,
-                    size: 16.sp, color: AppColors.grey700Color),
-                SizedBox(width: 8.w),
-                InterText(
-                  text: 'sitter_bookings_rate_label'.tr,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.grey700Color,
-                ),
-                SizedBox(width: 8.w),
-                Expanded(
-                  child: InterText(
-                    text: PricingDisplayHelper.sitterBookingRateLine(booking),
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary(context),
-                  ),
-                ),
-              ],
-            );
-          }),
+          // Montant net perçu si payé, sinon tarif de référence.
+          BookingPriceRow(
+            accent: _sitterAccent,
+            icon: paid ? Icons.account_balance_wallet_rounded
+                : Icons.sell_rounded,
+            caption: paid ? null : 'sitter_bookings_rate_label'.tr,
+            amount: paid
+                ? 'bookings_card_you_receive'.trParams({
+                    'amount': '${net.toStringAsFixed(2)} $currency',
+                  })
+                : PricingDisplayHelper.sitterBookingRateLine(booking),
+          ),
 
           if (booking.description.isNotEmpty) ...[
             SizedBox(height: 12.h),
@@ -475,36 +396,14 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
     return BookingStatusChip(status: status, accent: _sitterAccent);
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 16.sp, color: AppColors.grey700Color),
-        SizedBox(width: 8.w),
-        InterText(
-          text: label,
-          fontSize: 12.sp,
-          fontWeight: FontWeight.w400,
-          color: AppColors.grey700Color,
-        ),
-        SizedBox(width: 8.w),
-        Expanded(
-          child: InterText(
-            text: value,
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-            color: AppColors.blackColor,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildDescription(String description) {
     return Container(
+      width: double.infinity,
       padding: EdgeInsets.all(12.w),
+      // v571 — le fond valait `card` DANS une carte `card` : bloc invisible.
       decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(8.r),
+        color: AppColors.textSecondary(context).withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(12.r),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -512,8 +411,8 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
           InterText(
             text: 'sitter_bookings_description_label'.tr,
             fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-            color: AppColors.grey700Color,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary(context),
           ),
           SizedBox(height: 4.h),
           InterText(

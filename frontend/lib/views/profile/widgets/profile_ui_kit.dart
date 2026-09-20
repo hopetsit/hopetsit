@@ -63,7 +63,8 @@ class ProfileSectionTitle extends StatelessWidget {
       child: Row(
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 14.sp, color: color ?? AppColors.greyText),
+            Icon(icon,
+                size: 14.sp, color: color ?? AppColors.textSecondary(context)),
             SizedBox(width: 6.w),
           ],
           Expanded(
@@ -72,7 +73,7 @@ class ProfileSectionTitle extends StatelessWidget {
               fontSize: 11.sp,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.6,
-              color: AppColors.greyText,
+              color: AppColors.textSecondary(context),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -109,8 +110,18 @@ class ProfileRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleColor =
-        danger ? AppColors.errorColor : AppColors.textPrimary(context);
+    // v571 — audit mode sombre : les icônes de marque posées sur leur propre
+    // teinte à 12 % s'enfoncent dans la carte sombre (#008000 ≈ 3:1,
+    // #C92A12 ≈ 2,2:1). En sombre on éclaircit l'icône et on densifie un peu
+    // la pastille. Le rendu clair est inchangé.
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = danger
+        ? (isDark
+            ? Color.lerp(AppColors.errorColor, Colors.white, 0.35)!
+            : AppColors.errorColor)
+        : AppColors.textPrimary(context);
+    final Color iconColor =
+        isDark ? Color.lerp(color, Colors.white, 0.35)! : color;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -121,10 +132,10 @@ class ProfileRow extends StatelessWidget {
               width: 36.w,
               height: 36.w,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
+                color: color.withValues(alpha: isDark ? 0.18 : 0.12),
                 borderRadius: BorderRadius.circular(11.r),
               ),
-              child: Icon(icon, size: 18.sp, color: color),
+              child: Icon(icon, size: 18.sp, color: iconColor),
             ),
             SizedBox(width: 12.w),
             Expanded(

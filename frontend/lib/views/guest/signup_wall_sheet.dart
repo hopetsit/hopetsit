@@ -404,7 +404,12 @@ class _SocialBtn extends StatelessWidget {
           backgroundColor: bg,
           elevation: 0,
           side: border
-              ? const BorderSide(color: Color(0xFFECE5DE))
+              // Le liseré crème d'origine ressortait comme un trait clair sur
+              // le bouton sombre → bordure du thème en mode sombre.
+              ? BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.dividerDark
+                      : const Color(0xFFECE5DE))
               : BorderSide.none,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12.r),

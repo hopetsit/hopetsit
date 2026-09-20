@@ -241,7 +241,7 @@ class _PawSpotCreateSheetState extends State<_PawSpotCreateSheet> {
       hintText: hint,
       hintStyle: TextStyle(
         fontSize: 13.sp,
-        color: AppColors.greyText,
+        color: AppColors.textSecondary(context),
         fontWeight: FontWeight.w500,
       ),
       filled: true,
@@ -381,7 +381,7 @@ class _PawSpotCreateSheetState extends State<_PawSpotCreateSheet> {
                   hint: InterText(
                     text: 'pawspot_add_type_hint'.tr,
                     fontSize: 13.sp,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(context),
                   ),
                   items: PawSpotTypes.all
                       .map(
@@ -440,7 +440,7 @@ class _PawSpotCreateSheetState extends State<_PawSpotCreateSheet> {
                   border: Border.all(
                     color: _photoUrl.isNotEmpty
                         ? _kGold
-                        : AppColors.greyText.withValues(alpha: 0.4),
+                        : AppColors.textSecondary(context).withValues(alpha: 0.4),
                     width: 1.3,
                   ),
                 ),
@@ -465,7 +465,7 @@ class _PawSpotCreateSheetState extends State<_PawSpotCreateSheet> {
                       )
                     else
                       Icon(Icons.add_a_photo_outlined,
-                          size: 18.sp, color: AppColors.greyText),
+                          size: 18.sp, color: AppColors.textSecondary(context)),
                     SizedBox(width: 8.w),
                     InterText(
                       text: 'pawspot_add_photo'.tr,
@@ -982,7 +982,7 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
                     side: BorderSide(
                       color: _liked
                           ? Colors.red
-                          : AppColors.greyText.withValues(alpha: 0.4),
+                          : AppColors.textSecondary(context).withValues(alpha: 0.4),
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.r),
@@ -1210,7 +1210,7 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
                       hintText: 'pawspot_comment_hint'.tr,
                       hintStyle: TextStyle(
                         fontSize: 12.sp,
-                        color: AppColors.greyText,
+                        color: AppColors.textSecondary(context),
                       ),
                       filled: true,
                       fillColor: AppColors.scaffold(context),
@@ -1288,7 +1288,7 @@ Future<void> showPawSpotListSheet(
                   width: 42.w,
                   height: 4.h,
                   decoration: BoxDecoration(
-                    color: AppColors.greyText.withValues(alpha: 0.4),
+                    color: AppColors.textSecondary(ctx).withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(4.r),
                   ),
                 ),
@@ -1361,7 +1361,7 @@ Future<void> showPawSpotListSheet(
                         InterText(
                           text: 'pawspot_list_empty'.tr,
                           fontSize: 13.sp,
-                          color: AppColors.greyText,
+                          color: AppColors.textSecondary(ctx),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -1375,7 +1375,7 @@ Future<void> showPawSpotListSheet(
                     itemCount: spots.length,
                     separatorBuilder: (_, __) => Divider(
                       height: 1,
-                      color: AppColors.greyText.withValues(alpha: 0.15),
+                      color: AppColors.textSecondary(ctx).withValues(alpha: 0.15),
                     ),
                     itemBuilder: (c, i) {
                       final s = spots[i];
@@ -1410,12 +1410,12 @@ Future<void> showPawSpotListSheet(
                               '${PawSpotTypes.label(s.type)}  ·  ❤️ ${s.likesCount}'
                               '${s.isGolden ? '  ·  🐾✨' : ''}',
                           fontSize: 12.sp,
-                          color: AppColors.greyText,
+                          color: AppColors.textSecondary(ctx),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         trailing: Icon(Icons.chevron_right_rounded,
-                            size: 20.sp, color: AppColors.greyText),
+                            size: 20.sp, color: AppColors.textSecondary(ctx)),
                         onTap: () {
                           Navigator.of(ctx).pop();
                           onOpenSpot(s);

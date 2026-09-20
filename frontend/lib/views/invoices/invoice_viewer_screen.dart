@@ -204,7 +204,12 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
   Widget build(BuildContext context) {
     final accent = _accent;
     return Scaffold(
-      backgroundColor: Colors.white,
+      // Audit mode sombre — le fond de page était figé en blanc pour la
+      // WebView, mais l'en-tête « Émetteur / Client » et la bannière de
+      // facturation posés AU-DESSUS se retrouvaient sur du blanc en thème
+      // sombre. La WebView peint déjà son propre fond blanc
+      // (setBackgroundColor ci-dessus) : le document reste blanc.
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
         backgroundColor: AppColors.scaffold(context),
         elevation: 0,

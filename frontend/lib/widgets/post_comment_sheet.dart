@@ -118,7 +118,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
               width: 40.w,
               height: 4.h,
               decoration: BoxDecoration(
-                color: AppColors.greyText.withValues(alpha: 0.3),
+                color: AppColors.textSecondary(context).withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2.r),
               ),
             ),
@@ -143,7 +143,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
               ),
             ),
 
-            Divider(height: 1.h, color: AppColors.greyText.withValues(alpha: 0.2)),
+            Divider(height: 1.h, color: AppColors.textSecondary(context).withValues(alpha: 0.2)),
 
             // Comments list
             Expanded(
@@ -156,21 +156,21 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
                             Icon(
                               Icons.comment_outlined,
                               size: 48.sp,
-                              color: AppColors.greyText.withValues(alpha: 0.5),
+                              color: AppColors.textSecondary(context).withValues(alpha: 0.5),
                             ),
                             SizedBox(height: 16.h),
                             InterText(
                               text: 'post_comments_empty_title'.tr,
                               fontSize: 16.sp,
                               fontWeight: FontWeight.w400,
-                              color: AppColors.greyText,
+                              color: AppColors.textSecondary(context),
                             ),
                             SizedBox(height: 8.h),
                             InterText(
                               text: 'post_comments_empty_subtitle'.tr,
                               fontSize: 14.sp,
                               fontWeight: FontWeight.w400,
-                              color: AppColors.greyText.withValues(alpha: 0.7),
+                              color: AppColors.textSecondary(context).withValues(alpha: 0.7),
                             ),
                           ],
                         ),
@@ -190,7 +190,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
             ),
 
             // Comment input section
-            Divider(height: 1.h, color: AppColors.greyText.withValues(alpha: 0.2)),
+            Divider(height: 1.h, color: AppColors.textSecondary(context).withValues(alpha: 0.2)),
             Padding(
               padding: EdgeInsets.only(
                 left: 16.w,
@@ -259,7 +259,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
                                 Icons.send,
                                 color: _commentText.value.trim().isNotEmpty
                                     ? AppColors.primaryColor
-                                    : AppColors.greyText.withValues(alpha: 0.5),
+                                    : AppColors.textSecondary(context).withValues(alpha: 0.5),
                                 size: 24.sp,
                               ),
                               onPressed: _commentText.value.trim().isNotEmpty
@@ -359,7 +359,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
                       text: formatDateTime(comment.createdAt),
                       fontSize: 12.sp,
                       fontWeight: FontWeight.w400,
-                      color: AppColors.greyText,
+                      color: AppColors.textSecondary(context),
                     ),
                     const Spacer(),
                     InkWell(
@@ -383,14 +383,14 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
                             Icon(
                               Icons.flag_outlined,
                               size: 12.sp,
-                              color: AppColors.greyText,
+                              color: AppColors.textSecondary(context),
                             ),
                             SizedBox(width: 3.w),
                             InterText(
                               text: 'report_short_label'.tr,
                               fontSize: 11.sp,
                               fontWeight: FontWeight.w500,
-                              color: AppColors.greyText,
+                              color: AppColors.textSecondary(context),
                             ),
                           ],
                         ),

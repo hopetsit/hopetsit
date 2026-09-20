@@ -740,14 +740,24 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       firstDate: now,
       lastDate: DateTime(now.year + 1, now.month, now.day),
       builder: (context, child) {
+        // Audit mode sombre — le sélecteur était forcé en ColorScheme.light :
+        // en thème sombre il s'ouvrait en pavé blanc aveuglant.
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: _roleColor,
-              onPrimary: AppColors.whiteColor,
-              surface: AppColors.whiteColor,
-              onSurface: AppColors.blackColor,
-            ),
+            colorScheme: isDark
+                ? ColorScheme.dark(
+                    primary: _roleColor,
+                    onPrimary: AppColors.whiteColor,
+                    surface: AppColors.cardDark,
+                    onSurface: AppColors.textPrimaryDark,
+                  )
+                : ColorScheme.light(
+                    primary: _roleColor,
+                    onPrimary: AppColors.whiteColor,
+                    surface: AppColors.whiteColor,
+                    onSurface: AppColors.blackColor,
+                  ),
           ),
           child: child!,
         );
@@ -807,38 +817,55 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       initialTime: initialTime,
       initialEntryMode: TimePickerEntryMode.input,
       builder: (context, child) {
+        // Audit mode sombre — cadran et fond étaient figés en clair.
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final Color surface =
+            isDark ? AppColors.cardDark : AppColors.whiteColor;
+        final Color onSurface =
+            isDark ? AppColors.textPrimaryDark : AppColors.blackColor;
+        final Color fieldFill =
+            isDark ? const Color(0xFF2A2A2A) : AppColors.lightGrey;
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
           child: Theme(
             data: Theme.of(context).copyWith(
               timePickerTheme: TimePickerThemeData(
-                backgroundColor: AppColors.whiteColor,
+                backgroundColor: surface,
                 hourMinuteShape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 hourMinuteColor: WidgetStateColor.resolveWith((states) =>
                     states.contains(WidgetState.selected)
                         ? _roleColor
-                        : AppColors.lightGrey),
+                        : fieldFill),
                 hourMinuteTextColor: WidgetStateColor.resolveWith((states) =>
                     states.contains(WidgetState.selected)
                         ? AppColors.whiteColor
-                        : AppColors.blackColor),
+                        : onSurface),
                 dialHandColor: _roleColor,
-                dialBackgroundColor: AppColors.lightGrey,
+                dialBackgroundColor: fieldFill,
                 entryModeIconColor: _roleColor,
                 helpTextStyle: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.grey700Color,
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.grey700Color,
                 ),
               ),
-              colorScheme: ColorScheme.light(
-                primary: _roleColor,
-                onPrimary: AppColors.whiteColor,
-                surface: AppColors.whiteColor,
-                onSurface: AppColors.blackColor,
-              ),
+              colorScheme: isDark
+                  ? ColorScheme.dark(
+                      primary: _roleColor,
+                      onPrimary: AppColors.whiteColor,
+                      surface: surface,
+                      onSurface: onSurface,
+                    )
+                  : ColorScheme.light(
+                      primary: _roleColor,
+                      onPrimary: AppColors.whiteColor,
+                      surface: surface,
+                      onSurface: onSurface,
+                    ),
             ),
             child: child!,
           ),

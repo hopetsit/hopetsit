@@ -148,7 +148,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               text: 'common_cancel'.tr,
               fontSize: 14.sp,
               fontWeight: FontWeight.w600,
-              color: AppColors.grey500Color,
+              color: _mutedGrey,
             ),
           ),
           TextButton(
@@ -190,6 +190,12 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     if (path.isNotEmpty) return AssetImage(path);
     return const AssetImage(AppImages.placeholderImage);
   }
+
+  // v571 — audit lisibilité mode sombre : `grey500Color` (#717680) passe
+  // inaperçu sur les cartes sombres. Valeur claire conservée à l'identique.
+  Color get _mutedGrey => Theme.of(context).brightness == Brightness.dark
+      ? AppColors.textSecondaryDark
+      : AppColors.grey500Color;
 
   BoxDecoration _cardDeco(BuildContext context) => BoxDecoration(
     color: AppColors.card(context),
@@ -253,7 +259,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
           Icon(
             Icons.cloud_off_rounded,
             size: 40.sp,
-            color: AppColors.grey500Color,
+            color: _mutedGrey,
           ),
           SizedBox(height: 12.h),
           InterText(
@@ -482,7 +488,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                 size: 38.sp,
                 color: filled
                     ? kRatingStarColor
-                    : AppColors.grey500Color.withValues(alpha: 0.5),
+                    : _mutedGrey.withValues(alpha: 0.5),
               ),
             ),
           ),
@@ -521,7 +527,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                   fontWeight: FontWeight.w500,
                   color: length >= _maxChars
                       ? AppColors.primaryColor
-                      : AppColors.grey500Color,
+                      : _mutedGrey,
                   maxLines: 1,
                 );
               }),
@@ -558,7 +564,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                 hintStyle: TextStyle(
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.grey500Color,
+                  color: _mutedGrey,
                 ),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
@@ -627,7 +633,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                 text: 'ui567_submit_hint'.tr,
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w400,
-                color: AppColors.grey500Color,
+                color: _mutedGrey,
                 textAlign: TextAlign.center,
                 maxLines: 2,
               ),
@@ -675,7 +681,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               : null,
           color: enabled
               ? null
-              : AppColors.grey500Color.withValues(alpha: 0.25),
+              : _mutedGrey.withValues(alpha: 0.25),
           borderRadius: radius,
           boxShadow: enabled
               ? const [

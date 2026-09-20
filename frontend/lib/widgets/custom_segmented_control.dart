@@ -138,7 +138,7 @@ class _CustomSegmentedControlState extends State<CustomSegmentedControl>
               textAlign: TextAlign.center,
               fontSize: 11.sp,
               fontWeight: FontWeight.w700,
-              color: selected ? AppColors.whiteColor : AppColors.grey500Color,
+              color: selected ? AppColors.whiteColor : AppColors.textTertiary(context),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

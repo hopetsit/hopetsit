@@ -172,7 +172,7 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
             isScrollable: true,
             tabAlignment: TabAlignment.center,
             labelColor: _gold,
-            unselectedLabelColor: AppColors.greyText,
+            unselectedLabelColor: AppColors.textSecondary(context),
             indicatorColor: _gold,
             labelStyle: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w700),
             unselectedLabelStyle:
@@ -597,7 +597,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
               width: 42.w,
               height: 4.h,
               decoration: BoxDecoration(
-                color: AppColors.greyText.withValues(alpha: 0.4),
+                color: AppColors.textSecondary(context).withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(4.r),
               ),
             ),
@@ -621,7 +621,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
         ),
         if (sub.isNotEmpty) ...[
           SizedBox(height: 2.h),
-          InterText(text: sub, fontSize: 12.sp, color: AppColors.greyText),
+          InterText(text: sub, fontSize: 12.sp, color: AppColors.textSecondary(context)),
         ],
       ],
     );
@@ -655,7 +655,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
               InterText(
                 text: label,
                 fontSize: 9.sp,
-                color: AppColors.greyText,
+                color: AppColors.textSecondary(context),
                 textAlign: TextAlign.center,
                 maxLines: 2,
               ),
@@ -714,7 +714,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
               InterText(
                 text: hasNext ? '$_lifetime / $nextMin' : '$_lifetime',
                 fontSize: 11.sp,
-                color: AppColors.greyText,
+                color: AppColors.textSecondary(context),
               ),
             ],
           ),
@@ -724,7 +724,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
             child: LinearProgressIndicator(
               value: frac,
               minHeight: 10.h,
-              backgroundColor: AppColors.greyText.withValues(alpha: 0.15),
+              backgroundColor: AppColors.textSecondary(context).withValues(alpha: 0.15),
               valueColor: const AlwaysStoppedAnimation(_gold),
             ),
           ),
@@ -804,7 +804,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary(context),
                 ),
-                InterText(text: 'pts', fontSize: 9.sp, color: AppColors.greyText),
+                InterText(text: 'pts', fontSize: 9.sp, color: AppColors.textSecondary(context)),
               ],
             ),
           ),
@@ -842,7 +842,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
                 InterText(
                   text: 'pawpoints_once'.tr,
                   fontSize: 9.sp,
-                  color: AppColors.greyText,
+                  color: AppColors.textSecondary(context),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -856,7 +856,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
               onPressed: (claimed || !affordable || busy) ? null : () => _redeem(r),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _gold,
-                disabledBackgroundColor: AppColors.greyText.withValues(alpha: 0.3),
+                disabledBackgroundColor: AppColors.textSecondary(context).withValues(alpha: 0.3),
                 padding: EdgeInsets.symmetric(horizontal: 10.w),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8.r)),
@@ -927,7 +927,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary(context),
                 ),
-                InterText(text: 'pts', fontSize: 9.sp, color: AppColors.greyText),
+                InterText(text: 'pts', fontSize: 9.sp, color: AppColors.textSecondary(context)),
               ],
             ),
           ),
@@ -948,7 +948,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
                   InterText(
                     text: valueLabel,
                     fontSize: 9.sp,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(context),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -962,7 +962,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
               onPressed: (soldOut || !affordable || busy) ? null : () => _redeem(r),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _gold,
-                disabledBackgroundColor: AppColors.greyText.withValues(alpha: 0.3),
+                disabledBackgroundColor: AppColors.textSecondary(context).withValues(alpha: 0.3),
                 padding: EdgeInsets.symmetric(horizontal: 10.w),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8.r)),
@@ -1040,7 +1040,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
                 InterText(
                   text: '${l['min']} pts',
                   fontSize: 10.sp,
-                  color: AppColors.greyText,
+                  color: AppColors.textSecondary(context),
                 ),
                 SizedBox(height: 4.h),
                 ...perks.map((p) => Padding(
@@ -1071,14 +1071,29 @@ class _RewardsSheetState extends State<_RewardsSheet> {
     final pawLegendMin =
         _levels.isNotEmpty ? ((_levels.last['min'] as num?)?.toInt() ?? 1000000) : 1000000;
     final remaining = (pawLegendMin - _lifetime).clamp(0, pawLegendMin);
+    // Le dégradé pastel (rose → ambre) portait `textPrimary`, qui devient BLANC
+    // en mode sombre : le sous-titre disparaissait sur le fond clair. En sombre
+    // on garde la teinte rose, mais très transparente (le texte redevient
+    // lisible), avec un rose éclairci pour le titre.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFCE7F3), Color(0xFFFEF3C7)],
+        gradient: LinearGradient(
+          colors: isDark
+              ? [
+                  const Color(0xFFF472B6).withValues(alpha: 0.18),
+                  const Color(0xFFF59E0B).withValues(alpha: 0.18),
+                ]
+              : const [Color(0xFFFCE7F3), Color(0xFFFEF3C7)],
         ),
         borderRadius: BorderRadius.circular(18.r),
-        border: Border.all(color: const Color(0xFFF472B6), width: 1.4),
+        border: Border.all(
+          color: isDark
+              ? const Color(0xFFF472B6).withValues(alpha: 0.55)
+              : const Color(0xFFF472B6),
+          width: 1.4,
+        ),
       ),
       child: Row(
         children: [
@@ -1093,7 +1108,9 @@ class _RewardsSheetState extends State<_RewardsSheet> {
                       .trParams({'pts': '$pawLegendMin'}),
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFFDB2777),
+                  color: isDark
+                      ? const Color(0xFFF9A8D4)
+                      : const Color(0xFFDB2777),
                 ),
                 SizedBox(height: 2.h),
                 InterText(
@@ -1256,7 +1273,7 @@ class _LeaderboardListState extends State<_LeaderboardList>
                 text: 'leaderboard_empty_subtitle'.tr,
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w500,
-                color: AppColors.greyText,
+                color: AppColors.textSecondary(context),
                 textAlign: TextAlign.center,
                 maxLines: 4,
               ),
@@ -1323,7 +1340,7 @@ class _LeaderboardListState extends State<_LeaderboardList>
                     text: '$rank',
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(context),
                     textAlign: TextAlign.center,
                   ),
           ),
@@ -1383,7 +1400,7 @@ class _LeaderboardListState extends State<_LeaderboardList>
                   return InterText(
                     text: parts.join(' · '),
                     fontSize: 11.sp,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(context),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   );
@@ -1416,7 +1433,7 @@ class _LeaderboardListState extends State<_LeaderboardList>
           InterText(
             text: 'pts',
             fontSize: 10.sp,
-            color: AppColors.greyText,
+            color: AppColors.textSecondary(context),
           ),
         ],
       ),
@@ -1427,8 +1444,8 @@ class _LeaderboardListState extends State<_LeaderboardList>
     return Container(
       width: 40.w,
       height: 40.w,
-      color: AppColors.greyText.withValues(alpha: 0.2),
-      child: Icon(Icons.person, size: 22.sp, color: AppColors.greyText),
+      color: AppColors.textSecondary(context).withValues(alpha: 0.2),
+      child: Icon(Icons.person, size: 22.sp, color: AppColors.textSecondary(context)),
     );
   }
 }

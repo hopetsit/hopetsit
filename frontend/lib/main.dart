@@ -7,6 +7,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kReleaseMode, FlutterError;
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -331,14 +332,13 @@ class MyApp extends StatelessWidget {
               // propre AppColors.scaffold(context) ; ceci ne sert que de
               // fallback quand un Scaffold n'en pose pas.
               scaffoldBackgroundColor: AppColors.scaffoldLightForRole(),
-              appBarTheme: const AppBarTheme(
+              appBarTheme: AppBarTheme(
                 backgroundColor: AppColors.whiteColor,
                 elevation: 0,
                 scrolledUnderElevation: 0.5,
                 surfaceTintColor: Colors.transparent,
                 iconTheme: IconThemeData(color: AppColors.primaryColor),
-                titleTextStyle: TextStyle(
-                  fontFamily: 'Poppins',
+                titleTextStyle: GoogleFonts.poppins(
                   fontWeight: FontWeight.w700,
                   fontSize: 18,
                   color: AppColors.blackColor,
@@ -346,9 +346,14 @@ class MyApp extends StatelessWidget {
               ),
               cardColor: AppColors.whiteColor,
               useMaterial3: true,
-              textTheme: Typography.blackMountainView.apply(
-                bodyColor: AppColors.blackColor,
-                displayColor: AppColors.blackColor,
+              // v571 — Daniel : « belle police dans toute l'app ». Tout
+              // Text() brut (boutons, dialogues, listes) héritait de la police
+              // système ; il hérite maintenant d'Inter, comme InterText.
+              textTheme: GoogleFonts.interTextTheme(
+                Typography.blackMountainView.apply(
+                  bodyColor: AppColors.blackColor,
+                  displayColor: AppColors.blackColor,
+                ),
               ),
               listTileTheme: const ListTileThemeData(
                 textColor: AppColors.blackColor,
@@ -454,22 +459,23 @@ class MyApp extends StatelessWidget {
               canvasColor: AppColors.backgroundDark,
               cardColor: AppColors.cardDark,
               dividerColor: AppColors.dividerDark,
-              appBarTheme: const AppBarTheme(
+              appBarTheme: AppBarTheme(
                 backgroundColor: AppColors.surfaceDark,
                 elevation: 0,
                 scrolledUnderElevation: 0.5,
                 surfaceTintColor: Colors.transparent,
                 iconTheme: IconThemeData(color: AppColors.primaryColor),
-                titleTextStyle: TextStyle(
-                  fontFamily: 'Poppins',
+                titleTextStyle: GoogleFonts.poppins(
                   fontWeight: FontWeight.w700,
                   fontSize: 18,
                   color: AppColors.textPrimaryDark,
                 ),
               ),
-              textTheme: Typography.whiteMountainView.apply(
-                bodyColor: AppColors.textPrimaryDark,
-                displayColor: AppColors.textPrimaryDark,
+              textTheme: GoogleFonts.interTextTheme(
+                Typography.whiteMountainView.apply(
+                  bodyColor: AppColors.textPrimaryDark,
+                  displayColor: AppColors.textPrimaryDark,
+                ),
               ),
               listTileTheme: const ListTileThemeData(
                 textColor: AppColors.textPrimaryDark,
