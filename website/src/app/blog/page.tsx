@@ -12,6 +12,20 @@ export const metadata: Metadata = {
 
 const POSTS = [
   {
+    slug: "faire-garder-son-chien-le-week-end-a-paris",
+    lang: "🇫🇷",
+    title: "Faire garder son chien le week-end à Paris : le mode d'emploi",
+    excerpt:
+      "Un mariage, un week-end à la campagne : comment faire garder son chien 2-3 jours à Paris, à quel prix, et comment choisir un pet sitter vérifié.",
+  },
+  {
+    slug: "finding-a-pet-sitter-in-austin",
+    lang: "🇺🇸",
+    title: "Finding a trusted dog sitter in Austin, TX (2026 guide)",
+    excerpt:
+      "Realistic Austin rates ($30-55/day, $15-25/walk), how to vet a sitter, and why secure in-app payment and live GPS tracking matter.",
+  },
+  {
     slug: "become-a-pet-sitter-in-chicago",
     lang: "🇺🇸",
     title: "How to become a pet sitter in Chicago (and what you can earn)",
