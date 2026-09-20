@@ -54,6 +54,10 @@ const appVersionRoutes = require('./routes/appVersionRoutes');
 const bugReportRoutes = require('./routes/bugReportRoutes');
 // v402 — Chantier 2 : codes promo (redemption user). 100% additif.
 const promoRoutes = require('./routes/promoRoutes');
+// v576 — mesure d'audience du site (maison, sans cookie ni donnée
+// personnelle). Route publique + agrégats admin.
+const siteEventRoutes = require('./routes/siteEventRoutes');
+const siteAnalyticsAdminRouter = require('./routes/siteEventRoutes').adminRouter;
 const {
   authLimiter,
   signupFlowLimiter,
@@ -118,6 +122,15 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,ht
 const renderOwnUrl = (process.env.RENDER_EXTERNAL_URL || '').replace(/\/$/, '');
 if (renderOwnUrl && !allowedOrigins.includes(renderOwnUrl)) {
   allowedOrigins.push(renderOwnUrl);
+}
+
+// v576 — le site public envoie sa mesure d'audience (POST /site-events) depuis
+// hopetsit.com ET www.hopetsit.com. Ces deux origines sont déjà censées être
+// dans ALLOWED_ORIGINS (le site appelle l'API pour le login) ; on les ajoute
+// par sécurité pour qu'une variable d'env incomplète ne fasse pas tomber la
+// mesure en erreur CORS.
+for (const publicSiteOrigin of ['https://hopetsit.com', 'https://www.hopetsit.com']) {
+  if (!allowedOrigins.includes(publicSiteOrigin)) allowedOrigins.push(publicSiteOrigin);
 }
 
 app.use(cors({
@@ -274,6 +287,10 @@ const versionedRoutes = [
   { path: '/posts', mw: [], router: postRoutes },
   // v402 — Chantier 2 : redemption code promo (l'app l'appellera plus tard).
   { path: '/promo', mw: [], router: promoRoutes },
+  // v576 — beacon d'audience du site public. Route ouverte (aucun compte
+  // requis), sans cookie, qui répond toujours 204 : validation, filtrage des
+  // robots et limitation de débit sont dans le routeur.
+  { path: '/site-events', mw: [], router: siteEventRoutes },
   { path: '/applications', mw: [], router: applicationRoutes },
   { path: '/conversations', mw: [], router: conversationRoutes },
   { path: '/tasks', mw: [], router: taskRoutes },
@@ -298,6 +315,10 @@ const versionedRoutes = [
   // v23.1 — auto-facturation pour owner / sitter / walker.
   { path: '/invoices', mw: [], router: invoiceRoutes },
   { path: '/admin/invoices', mw: [], router: adminInvoiceRouter },
+  // v576 — agrégats de la page « 📈 Trafic du site » de l'admin. Monté APRÈS
+  // /admin : adminRoutes ne connaît pas ce chemin, passe la main, et le
+  // rate-limit admin de /api/v1/admin s'applique quand même.
+  { path: '/admin/site-analytics', mw: [], router: siteAnalyticsAdminRouter },
   // v23.1 part 36 — KYC verification (Persona) payante 3 EUR pour sitter/walker.
   { path: '/kyc', mw: [], router: require('./routes/kycRoutes') },
   { path: '/donations', mw: [sensitiveLimiter], router: donationRoutes },

@@ -26,6 +26,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+// v576 — mesure d'audience : clics vers les stores depuis la page de repli.
+import { trackSiteEvent } from "@/components/SiteAnalytics";
 
 // v23.1.317 — Daniel (audit) : l'ID App Store était un placeholder (id6740000000)
 // → lien cassé 404. L'app iOS n'est pas encore publiée : on pointe vers la page
@@ -191,6 +193,7 @@ export default function CatchAllPage({
             href={APP_STORE_URL}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => trackSiteEvent("store_click", { store: "ios" })}
             className="bg-slate-900 text-white text-sm font-medium py-3 rounded-xl hover:bg-slate-800 transition-colors"
           >
             App Store
@@ -199,6 +202,7 @@ export default function CatchAllPage({
             href={PLAY_STORE_URL}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => trackSiteEvent("store_click", { store: "android" })}
             className="bg-slate-900 text-white text-sm font-medium py-3 rounded-xl hover:bg-slate-800 transition-colors"
           >
             Play Store

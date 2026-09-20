@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { getStoredUser } from "@/lib/api";
+// v576 — mesure d'audience : clics vers les stores depuis la page de repli.
+import { trackSiteEvent } from "@/components/SiteAnalytics";
 
 const APP_STORE_URL = "https://apps.apple.com/app/id6763645719";
 const PLAY_STORE_URL =
@@ -106,6 +108,7 @@ export function AppRoutePage({
             href={APP_STORE_URL}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => trackSiteEvent("store_click", { store: "ios" })}
             className="rounded-full bg-white py-2.5 text-xs font-semibold text-[#1D1D1F] ring-1 ring-black/5 transition hover:bg-[#E8E8ED]"
           >
             App Store
@@ -114,6 +117,7 @@ export function AppRoutePage({
             href={PLAY_STORE_URL}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => trackSiteEvent("store_click", { store: "android" })}
             className="rounded-full bg-white py-2.5 text-xs font-semibold text-[#1D1D1F] ring-1 ring-black/5 transition hover:bg-[#E8E8ED]"
           >
             Google Play

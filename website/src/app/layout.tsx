@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { DownloadAppBanner } from "@/components/DownloadAppBanner";
 import { AppLinkOpener } from "@/components/AppLinkOpener";
+import SiteAnalytics from "@/components/SiteAnalytics";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -160,6 +161,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               l'app sur le même chemin (hopetsit://…) avant de laisser la page
               web s'afficher. */}
           <AppLinkOpener />
+          {/* v576 — mesure d'audience maison : pages vues + clics vers les
+              stores. Sans cookie, sans stockage local, sans donnée
+              personnelle → aucun bandeau de consentement requis. */}
+          <SiteAnalytics />
           <main>{children}</main>
           <Footer />
         </LanguageProvider>

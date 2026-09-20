@@ -6,6 +6,10 @@
 const BASE = process.env.NEXT_PUBLIC_API_BASE
   ?? "https://hopetsit-backend.onrender.com/api/v1";
 
+// v576 — mesure d'audience (components/SiteAnalytics.tsx) : même URL d'API que
+// tout le reste du site, jamais redupliquée en dur ailleurs.
+export const API_BASE = BASE;
+
 const TOKEN_KEY = "hopetsit_token";
 const ROLE_KEY  = "hopetsit_role";
 const USER_KEY  = "hopetsit_user";

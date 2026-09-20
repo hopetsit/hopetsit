@@ -1,6 +1,8 @@
 "use client";
 
 import { useT } from "@/lib/i18n/LanguageProvider";
+// v576 — mesure d'audience : un clic sur un badge = un clic vers un store.
+import { trackSiteEvent } from "@/components/SiteAnalytics";
 
 // v508 — Daniel : « ajoute les boutons stores et branche juste Google Play ».
 // L'app est EN LIGNE sur le Play Store (com.cardellihermanos.hopetsit).
@@ -31,6 +33,7 @@ export default function StoreBadges({ center = false }: { center?: boolean }) {
         href={`${PLAY_URL}&hl=${lang}`}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() => trackSiteEvent("store_click", { store: "android" })}
       >
         <svg width="24" height="26" viewBox="0 0 512 512" aria-hidden="true">
           <path
@@ -64,6 +67,7 @@ export default function StoreBadges({ center = false }: { center?: boolean }) {
         href={APP_STORE_URL}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() => trackSiteEvent("store_click", { store: "ios" })}
       >
         <svg
           width="26"
