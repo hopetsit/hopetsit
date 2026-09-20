@@ -120,7 +120,13 @@ export default function CatchAllPage({
 
     // Tentative auto-open uniquement sur mobile (sur desktop le custom
     // scheme ne sert à rien — l'utilisateur n'a pas l'app installée).
-    if (detected !== "desktop") {
+    // v575 — ET uniquement sur un chemin que l'app sait ouvrir. Avant, TOUTE
+    // URL inconnue (lien de pub mal orthographié, ancienne URL, typo) tentait
+    // `hopetsit://<chemin>` : dans le navigateur intégré de Facebook cela
+    // produit une alerte ou un écran figé, et si l'app est installée elle
+    // s'ouvre sur une route inconnue (= écran de démarrage). Un visiteur perdu
+    // à chaque fois.
+    if (detected !== "desktop" && webFallbackFor(path)) {
       const link = buildAppDeepLink(path, window.location.search ?? "");
       // Iframe trick = pas de popup sur iOS si l'app n'est pas installée
       // (window.location ferait apparaître "page Web non disponible").
@@ -170,7 +176,7 @@ export default function CatchAllPage({
             " Télécharge l'app pour continuer, ou poursuis ta navigation sur le web."}
         </p>
 
-        {platform !== "desktop" && hasTriedOpen && (
+        {platform !== "desktop" && hasTriedOpen && fallback && (
           <button
             type="button"
             onClick={handleOpenApp}

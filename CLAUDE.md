@@ -91,7 +91,7 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 574** (573 = audit ancien design + correctifs, 20/09 ; 572 = correctif bandeau → PawMap, 20/09 ; 571 = v567 accueils, 20/09 ; 570 = v567 : Play 570 le 19/09 ~23 h 30, iOS build 570 validé en attente de l'approbation de la 1.18/569 pour partir en 1.19 ; 569 = v566 publiée le 19/09 ~10 h 35 : Play 569 par API, iOS 1.18 build 569 resoumis ; 568 = v565 publiée le 19/09 ~04 h 20 : Play 568 par API, iOS 1.18 build 568 resoumis ; 567 = v564 publiée le 19/09 ~02 h : Play 567 par API, iOS 1.18 build 567 resoumis à la place du 566 ; 566 = v563 publiée le 18/09 à 13 h 30 : Play release 566 par API, iOS 1.18 build 566 resoumis à la place du 565 ; 565 = v562 publiée le 18/09 : Play release 565 par API, iOS 1.18 build 565 soumis ; 564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 575** (574 = 23.1.568 rôles synchronisés + correctif INVALID_BINARY, 20/09 ; 573 = audit ancien design + correctifs, 20/09 ; 572 = correctif bandeau → PawMap, 20/09 ; 571 = v567 accueils, 20/09 ; 570 = v567 : Play 570 le 19/09 ~23 h 30, iOS build 570 validé en attente de l'approbation de la 1.18/569 pour partir en 1.19 ; 569 = v566 publiée le 19/09 ~10 h 35 : Play 569 par API, iOS 1.18 build 569 resoumis ; 568 = v565 publiée le 19/09 ~04 h 20 : Play 568 par API, iOS 1.18 build 568 resoumis ; 567 = v564 publiée le 19/09 ~02 h : Play 567 par API, iOS 1.18 build 567 resoumis à la place du 566 ; 566 = v563 publiée le 18/09 à 13 h 30 : Play release 566 par API, iOS 1.18 build 566 resoumis à la place du 565 ; 565 = v562 publiée le 18/09 : Play release 565 par API, iOS 1.18 build 565 soumis ; 564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
 **18/09 (nuit) — BUILD 565 (v562 app) : la grande passe des 37 points, EN COURS.** Méthode : 8 lots
 en parallèle (contrats figés dans `docs/v565_contracts.md`, clés i18n par lot dans
@@ -502,7 +502,30 @@ Design de Daniel, rangé dans `docs/design_handoff_pawmap_tab_bar/`, hi-fi, à s
 - **20/09 (matin) — iOS : 1.19/571 APPROUVÉE (READY_FOR_SALE)** → version **1.20** créée (`8dc6b629-187d-4551-86d3-9258d16ddd10`), build 573
   (`657e1dd0-646b-42bd-a075-0ccd83ce0f82`) attaché, whatsNew 8 locales, reviewSubmission
   `da3d9acf-2a34-472d-a580-e1f175bbf687` soumise. Reste : admin « Versions de l'app » → 573/573 après validation.
-- i18n : 4 225+ clés, 0 inconnue. **Prochain build = 574.**
+- i18n : 4 225+ clés, 0 inconnue.
+
+**20/09 (midi) — BUILD 574 (version interne 23.1.568) : rôles synchronisés + INVALID_BINARY Apple + bilan.**
+- ⚠️ **Piège Apple `INVALID_BINARY`** : la 1.20/573 a été rejetée automatiquement (« Binaire non valide », item REJECTED,
+  aucun fil dans le centre de résolution). Cause : le 573 portait `CFBundleShortVersionString` **23.1.567**, la même
+  série que le 571 de la 1.19 ; dès qu'Apple APPROUVE une version, la série est FERMÉE aux nouveaux builds. **Règle :
+  après chaque approbation Apple, incrémenter le nom de version du `pubspec.yaml` (23.1.568 → 23.1.569 …), pas
+  seulement le numéro de build.** Reprise : PATCH `canceled:true` sur la soumission UNRESOLVED_ISSUES, attacher le
+  nouveau build ; l'ajout de l'item renvoie 409 tant que la version n'est pas revenue à PREPARE_FOR_SUBMISSION →
+  réessayer. 1.20 resoumise avec le **574** (`88698989-a50d-459d-853f-263690cc0bb2`), soumission `fbeb4fb4-…`.
+- **Rôles synchronisés entre appareils** (Daniel : « activé sur Android, iOS ne l'affiche pas ») : `availableRoles` ne
+  venait qu'à la connexion et vivait en mémoire. Serveur : `GET /users/me/roles` (`controllers/rolesController.js`,
+  léger pour être testable). App : `AuthController.refreshAvailableRoles()` + persistance `available_roles_v574`,
+  appelé à l'init, à la reprise (`notifications_controller`) et sur l'onglet Profil (`stacked_navigation_wrapper`).
+  Site : `getMyRoles()` → ✓ / + devant chaque profil du tableau de bord.
+- **Relance e-mail** `verify_email_d2` dans `lifecycleEmailScheduler.js` (48 h–21 j, `verified !== true` ni profil frère
+  vérifié, UNE fois, garde-fous existants, 9 langues). jest 222/222.
+- **Meta** (accord « ok pub ») : Paris 9 €, Dallas propriétaires 5 €, Dallas gardiens 2 € = 16 €/j (Paris = 7 €/inscrit,
+  Dallas = 76 €). **Bilan** : `~/hopetsit-social/BILAN_2026-09-20.md` — 28 inscrits/7 j, 0 réservation sur 30 j, blocage
+  = manque de propriétaires et de première annonce. `bob_hebdo.py` : `?limit=1000` (totaux tronqués à 20/rôle).
+- Site : captures PawMap EN refaites (`public/screens/v573/en`). Astuce : passer l'app du simulateur en anglais en
+  écrivant `language_code` dans `Documents/GetStorage.gs` du conteneur (app arrêtée).
+- Play 574 en production (commit 200) ; serveur + site poussés (commit 6dcdd43). **Prochain build = 575, et version
+  interne 23.1.569 dès que la 1.20 est approuvée.**
 
 **18/09 — Pliables / tablettes / iPad : REPORTÉ (décision Daniel).** « Quand on sera beaucoup plus connus. » L'app tourne déjà (gonflée : `designSize` 393 px ; iPad = mode compatibilité, `TARGETED_DEVICE_FAMILY = 1`). Le jour venu : plafonner l'échelle + colonne centrée ≥ 600 px, portrait bloqué sur grand écran ; iPad natif = irréversible + captures 13" en 8 langues. **Priorité unique : plus d'utilisateurs et les premières réservations payées.**
 

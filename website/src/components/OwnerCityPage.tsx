@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ParisLocalPlaces, { parisEntry } from "@/components/ParisLocalPlaces";
+import { GetAppButton } from "@/components/GetAppButton";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 import { RECRUIT_PATH_PREFIX } from "@/lib/recruit-cities";
 
@@ -8,9 +9,25 @@ import { RECRUIT_PATH_PREFIX } from "@/lib/recruit-cities";
 // Alicante »…). Même source de données que les pages de recrutement
 // (recruit-cities.ts) : une ville = deux pages, liées entre elles.
 
+// v575 — premier écran mobile orienté conversion (trafic pub Meta, 100 %
+// mobile). Une phrase, trois preuves, UN bouton. Tout est rendu côté serveur
+// (aucun useT ici : ces pages sont statiques et doivent sortir du HTML dans la
+// bonne langue pour Google), donc les textes vivent dans COPY comme le reste.
+const PROOF_ICONS = ["🔒", "✓", "🗓"];
+
 type Copy = {
   kicker: (c: RecruitCity) => string;
   h1: (c: RecruitCity) => string;
+  /** Accroche courte au-dessus de la ligne de flottaison. */
+  heroLead: (c: RecruitCity) => string;
+  /** 3 preuves courtes : paiement · identité · annulation. */
+  proofs: [string, string, string];
+  /** Libellé du bouton principal (ouvre le store de l'appareil). */
+  heroCta: string;
+  /** Petite ligne sous le bouton (gratuité + stores). */
+  heroCtaNote: string;
+  /** Lien secondaire vers la carte des membres. */
+  heroSecondary: string;
   intro: (c: RecruitCity) => string;
   servicesTitle: string;
   services: { icon: string; t: string; p: string }[];
@@ -32,6 +49,11 @@ const COPY: Record<RecruitLang, Copy> = {
   fr: {
     kicker: (c) => c.region,
     h1: (c) => `Pet sitter à ${c.name} : garde de chien, chat et promenades`,
+    heroLead: (c) => `Un pet-sitter vérifié près de chez toi à ${c.name}. Tu publies ta demande, tu choisis, tu ne paies qu'à la réservation.`,
+    proofs: ["Paiement sécurisé", "Identité vérifiée", "Annulation gratuite 72 h"],
+    heroCta: "Publier ma demande",
+    heroCtaNote: "Gratuit — l'app HoPetSit sur l'App Store et Google Play",
+    heroSecondary: "Voir les gardiens près de chez moi →",
     intro: (c) =>
       `Week-end, vacances, journées de travail à rallonge : à ${c.name}, HoPetSit vous met en relation avec des gardiens et promeneurs vérifiés près de chez vous. Vous publiez votre demande gratuitement, vous comparez les profils, vous discutez par chat et vous ne payez que si vous réservez.`,
     servicesTitle: "Les services près de chez vous",
@@ -66,6 +88,11 @@ const COPY: Record<RecruitLang, Copy> = {
   en: {
     kicker: (c) => c.region,
     h1: (c) => `Pet sitters in ${c.name}: dog boarding, cat visits and dog walks`,
+    heroLead: (c) => `A verified pet sitter near you in ${c.name}. Post your request, pick your sitter, pay only when you book.`,
+    proofs: ["Secure payment", "ID verified", "72 h free cancellation"],
+    heroCta: "Post my request",
+    heroCtaNote: "Free — the HoPetSit app on the App Store and Google Play",
+    heroSecondary: "See sitters near me →",
     intro: (c) =>
       `Weekends, vacations, long workdays: in ${c.name}, HoPetSit connects you with verified sitters and dog walkers near you. Post your request for free, compare profiles, chat, and only pay when you book.`,
     servicesTitle: "Services near you",
@@ -100,6 +127,11 @@ const COPY: Record<RecruitLang, Copy> = {
   es: {
     kicker: (c) => c.region,
     h1: (c) => `Cuidador de mascotas en ${c.name}: cuidado de perros, gatos y paseos`,
+    heroLead: (c) => `Un cuidador verificado cerca de ti en ${c.name}. Publicas tu solicitud, eliges y solo pagas al reservar.`,
+    proofs: ["Pago seguro", "Identidad verificada", "Cancelación gratis 72 h"],
+    heroCta: "Publicar mi solicitud",
+    heroCtaNote: "Gratis — la app HoPetSit en App Store y Google Play",
+    heroSecondary: "Ver cuidadores cerca de mí →",
     intro: (c) =>
       `Fin de semana, vacaciones, jornadas largas: en ${c.name}, HoPetSit te pone en contacto con cuidadores y paseadores verificados cerca de ti. Publicas tu solicitud gratis, comparas perfiles, chateas y solo pagas si reservas.`,
     servicesTitle: "Servicios cerca de ti",
@@ -134,6 +166,11 @@ const COPY: Record<RecruitLang, Copy> = {
   de: {
     kicker: (c) => c.region,
     h1: (c) => `Tiersitter in ${c.name}: Hundebetreuung, Katzenbesuche und Gassi-Service`,
+    heroLead: (c) => `Ein verifizierter Tiersitter in deiner Nähe in ${c.name}. Anfrage veröffentlichen, auswählen, erst bei der Buchung bezahlen.`,
+    proofs: ["Sichere Zahlung", "Identität geprüft", "Storno gratis 72 Std."],
+    heroCta: "Anfrage veröffentlichen",
+    heroCtaNote: "Kostenlos — die HoPetSit-App im App Store und bei Google Play",
+    heroSecondary: "Sitter in meiner Nähe ansehen →",
     intro: (c) =>
       `Wochenende, Urlaub, lange Arbeitstage: in ${c.name} verbindet dich HoPetSit mit verifizierten Sittern und Gassigehern in deiner Nähe. Anfrage kostenlos veröffentlichen, Profile vergleichen, chatten und nur bei einer Buchung bezahlen.`,
     servicesTitle: "Leistungen in deiner Nähe",
@@ -168,6 +205,11 @@ const COPY: Record<RecruitLang, Copy> = {
   it: {
     kicker: (c) => c.region,
     h1: (c) => `Pet sitter a ${c.name}: custodia di cani, gatti e passeggiate`,
+    heroLead: (c) => `Un pet sitter verificato vicino a te a ${c.name}. Pubblichi la richiesta, scegli e paghi solo quando prenoti.`,
+    proofs: ["Pagamento sicuro", "Identità verificata", "Cancellazione gratis 72 h"],
+    heroCta: "Pubblica la mia richiesta",
+    heroCtaNote: "Gratis — l'app HoPetSit su App Store e Google Play",
+    heroSecondary: "Vedi i sitter vicino a me →",
     intro: (c) =>
       `Weekend, vacanze, giornate di lavoro infinite: a ${c.name}, HoPetSit ti mette in contatto con pet sitter e dog walker verificati vicino a te. Pubblichi la richiesta gratis, confronti i profili, chatti e paghi solo se prenoti.`,
     servicesTitle: "I servizi vicino a te",
@@ -202,6 +244,11 @@ const COPY: Record<RecruitLang, Copy> = {
   pt: {
     kicker: (c) => c.region,
     h1: (c) => `Pet sitter em ${c.name}: cuidado de cães, gatos e passeios`,
+    heroLead: (c) => `Um pet sitter verificado perto de ti em ${c.name}. Publicas o teu pedido, escolhes e só pagas ao reservar.`,
+    proofs: ["Pagamento seguro", "Identidade verificada", "Cancelamento grátis 72 h"],
+    heroCta: "Publicar o meu pedido",
+    heroCtaNote: "Grátis — a app HoPetSit na App Store e no Google Play",
+    heroSecondary: "Ver cuidadores perto de mim →",
     intro: (c) =>
       `Fim de semana, férias, dias de trabalho longos: em ${c.name}, a HoPetSit põe-te em contacto com cuidadores e passeadores verificados perto de ti. Publicas o teu pedido grátis, comparas perfis, conversas por chat e só pagas se reservares.`,
     servicesTitle: "Os serviços perto de ti",
@@ -236,6 +283,11 @@ const COPY: Record<RecruitLang, Copy> = {
   pl: {
     kicker: (c) => c.region,
     h1: (c) => `Opiekun zwierząt — ${c.name}: opieka nad psem, kotem i spacery`,
+    heroLead: (c) => `Zweryfikowany opiekun blisko Ciebie — ${c.name}. Publikujesz ogłoszenie, wybierasz i płacisz dopiero przy rezerwacji.`,
+    proofs: ["Bezpieczna płatność", "Zweryfikowana tożsamość", "Bezpłatna anulacja 72 h"],
+    heroCta: "Opublikuj ogłoszenie",
+    heroCtaNote: "Za darmo — aplikacja HoPetSit w App Store i Google Play",
+    heroSecondary: "Zobacz opiekunów w okolicy →",
     intro: (c) =>
       `Weekend, urlop, długie dni w pracy: w mieście ${c.name} HoPetSit łączy Cię ze zweryfikowanymi opiekunami i wyprowadzaczami w Twojej okolicy. Publikujesz ogłoszenie za darmo, porównujesz profile, piszesz na czacie i płacisz tylko wtedy, gdy rezerwujesz.`,
     servicesTitle: "Usługi w Twojej okolicy",
@@ -270,6 +322,11 @@ const COPY: Record<RecruitLang, Copy> = {
   ko: {
     kicker: (c) => c.region,
     h1: (c) => `${c.name} 펫시터: 강아지 돌봄, 고양이 방문, 산책`,
+    heroLead: (c) => `${c.name}에서 가까운 인증된 펫시터. 요청을 올리고, 고르고, 예약할 때만 결제하세요.`,
+    proofs: ["안전 결제", "신원 인증", "72시간 무료 취소"],
+    heroCta: "무료로 요청 올리기",
+    heroCtaNote: "무료 — App Store와 Google Play의 HoPetSit 앱",
+    heroSecondary: "근처 펫시터 보기 →",
     intro: (c) =>
       `주말, 휴가, 긴 근무일 — ${c.name}에서 HoPetSit이 근처의 인증된 펫시터와 산책 도우미를 연결해 드립니다. 요청은 무료로 올리고, 프로필을 비교하고, 채팅한 뒤 예약할 때만 결제하세요.`,
     servicesTitle: "근처에서 받을 수 있는 서비스",
@@ -304,6 +361,11 @@ const COPY: Record<RecruitLang, Copy> = {
   ja: {
     kicker: (c) => c.region,
     h1: (c) => `${c.name}のペットシッター：犬のお世話、猫の訪問、散歩`,
+    heroLead: (c) => `${c.name}の近くにいる認証済みペットシッター。リクエストを投稿して選び、予約するときだけお支払い。`,
+    proofs: ["安全な決済", "本人確認済み", "72時間前まで無料キャンセル"],
+    heroCta: "リクエストを投稿",
+    heroCtaNote: "無料 — App Store と Google Play の HoPetSit アプリ",
+    heroSecondary: "近くのシッターを見る →",
     intro: (c) =>
       `週末、休暇、長い勤務日。${c.name}では、HoPetSitが近くの認証済みシッターやウォーカーとあなたをつなぎます。リクエストは無料で投稿、プロフィールを比較し、チャットして、予約するときだけお支払い。`,
     servicesTitle: "近くで受けられるサービス",
@@ -349,11 +411,22 @@ export function ownerMetadata(c: RecruitCity, canonical: string) {
   };
 }
 
-export default function OwnerCityPage({ city }: { city: RecruitCity }) {
+export default function OwnerCityPage({
+  city,
+  h1,
+  children,
+}: {
+  city: RecruitCity;
+  /** Titre H1 propre à la page (sinon le H1 générique de la langue). */
+  h1?: string;
+  /** Bloc supplémentaire inséré sous l'encadré local (maillage interne…). */
+  children?: React.ReactNode;
+}) {
   const copy = COPY[city.lang];
   // v562 — arrondissement de Paris : contenu local réel à la place des blocs génériques.
   const paris = city.lang === "fr" && !!parisEntry(city.slug);
   const faq = paris ? [] : copy.faq(city);
+  const heading = h1 ?? (paris ? `Pet sitter ${city.name} : garde et promenade` : copy.h1(city));
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -378,15 +451,42 @@ export default function OwnerCityPage({ city }: { city: RecruitCity }) {
   const recruitHref = `${RECRUIT_PATH_PREFIX[city.lang]}/${city.slug}`;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-16 md:py-24">
+    <div className="mx-auto max-w-3xl px-4 pb-16 pt-7 md:pb-24 md:pt-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      {!paris && <p className="text-sm font-semibold text-owner">{copy.kicker(city)}</p>}
-      <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">{paris ? `Pet sitter ${city.name} : garde et promenade` : copy.h1(city)}</h1>
-      {!paris && <p className="mt-4 text-lg leading-relaxed text-ink-muted">{copy.intro(city)}</p>}
 
-      <div className="mt-10 rounded-2xl border border-owner/20 bg-owner-light/60 p-6">
+      {/* v575 — PREMIER ÉCRAN (360 × 640) : titre, 3 preuves, UN bouton.
+          Aucune image, aucune police supplémentaire, hauteurs fixes → pas de
+          décalage de mise en page. Le texte long (intro) passe sous le pli. */}
+      {!paris && <p className="text-sm font-semibold text-owner">{copy.kicker(city)}</p>}
+      <h1 className="mt-1.5 font-display text-[1.6rem] font-extrabold leading-[1.15] tracking-tight text-ink md:mt-2 md:text-4xl">{heading}</h1>
+      <p className="mt-3 text-[15px] leading-relaxed text-ink-muted md:text-lg">{copy.heroLead(city)}</p>
+
+      <ul className="mt-5 grid grid-cols-3 gap-2">
+        {copy.proofs.map((p, i) => (
+          <li key={p} className="rounded-2xl bg-bg-soft px-2 py-3 text-center">
+            <span aria-hidden="true" className="block text-base leading-none">{PROOF_ICONS[i]}</span>
+            <span className="mt-1.5 block text-[11px] font-semibold leading-tight text-ink md:text-xs">{p}</span>
+          </li>
+        ))}
+      </ul>
+
+      <GetAppButton
+        label={copy.heroCta}
+        className="mt-5 block w-full rounded-full bg-owner px-6 py-4 text-center text-base font-bold text-white shadow-cta transition hover:bg-owner-dark md:mx-auto md:w-auto md:min-w-[18rem]"
+      />
+      <p className="mt-2.5 text-center text-xs text-ink-soft">{copy.heroCtaNote}</p>
+      <p className="mt-3 text-center text-sm">
+        <Link href="/map" className="font-semibold text-owner-dark underline-offset-4 hover:underline">{copy.heroSecondary}</Link>
+      </p>
+
+      {/* ——— sous la ligne de flottaison ——— */}
+      {!paris && <p className="mt-10 text-base leading-relaxed text-ink-muted md:text-lg">{copy.intro(city)}</p>}
+
+      <div className="mt-8 rounded-2xl border border-owner/20 bg-owner-light/60 p-6">
         <p className="text-sm leading-relaxed text-ink">{city.local}</p>
       </div>
+
+      {children}
 
       {paris && <ParisLocalPlaces slug={city.slug} mode="owner" />}
 

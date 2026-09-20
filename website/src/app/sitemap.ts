@@ -41,6 +41,11 @@ const PUBLIC_PATHS = [
   "/blog/leaving-cat-alone-vacation",
   "/petsitter/paris",
   "/devenir-petsitter/paris",
+  // v575 — page d'atterrissage de la pub Meta « Paris · Propriétaires » et hub
+  // vers les 20 arrondissements (src/app/garde-animaux/paris/page.tsx).
+  // Elle n'est pas produite par ownerPaths() : son slug n'est pas dans
+  // recruit-cities (qui ne contient que paris-1…paris-20).
+  "/garde-animaux/paris",
   "/petsitter/madrid",
   "/petsitter/dallas",
   "/villes",
