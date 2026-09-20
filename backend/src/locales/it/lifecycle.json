@@ -2,6 +2,17 @@
   "friend": "ciao",
   "footer": "Ricevi questa e-mail perché hai un account HoPetSit.",
   "unsubscribe": "Annulla l'iscrizione ai consigli",
+  "verify_email_d2": {
+    "subject": "{{name}}, ti manca un passo: conferma la tua e-mail",
+    "title": "Conferma la tua e-mail, {{name}}",
+    "paragraphs": [
+      "Ti manca un passo: conferma la tua e-mail per attivare il tuo account HoPetSit.",
+      "Con l'account attivo puoi pubblicare una richiesta di pet sitting o ricevere quelle dei proprietari vicino a te. Puoi anche prenotare, chattare ed essere pagato in tutta sicurezza.",
+      "Apri l'app e tocca «Invia di nuovo il codice»: ne arriva uno nuovo con un tap. Controlla anche la posta indesiderata, a volte il nostro messaggio finisce lì."
+    ],
+    "cta": "Apri HoPetSit",
+    "ctaUrl": "https://www.hopetsit.com/pawmap"
+  },
   "welcome_provider_d1": {
     "subject": "{{name}}, 3 gesti per ricevere le prime richieste",
     "title": "Benvenuto su HoPetSit, {{name}}!",

@@ -258,6 +258,19 @@ export async function resendVerificationCode(email: string) {
 // PawSpot — il garde le max des compteurs, rien n'est perdu) et renvoie un
 // NOUVEAU token + le doc du nouveau rôle. On persiste pour rester connecté sous
 // le nouveau rôle. Même endpoint que l'app → aucun impact app.
+// v574 — rôles que possède la personne (même source que l'app :
+// GET /users/me/roles). Sert à montrer sur le site quels profils sont déjà
+// activés, y compris s'ils l'ont été depuis Android ou iOS.
+export async function getMyRoles(): Promise<AuthRole[]> {
+  try {
+    const raw = await request<{ availableRoles?: unknown }>("/users/me/roles", { method: "GET" });
+    const list = Array.isArray(raw?.availableRoles) ? raw.availableRoles : [];
+    return list.filter((r): r is AuthRole => r === "owner" || r === "sitter" || r === "walker");
+  } catch {
+    return [];
+  }
+}
+
 export async function switchRole(targetRole: AuthRole) {
   const raw = await request<AuthRaw>(
     "/users/switch-role",

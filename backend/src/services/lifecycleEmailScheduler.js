@@ -22,6 +22,7 @@ const LifecycleEmail = require('../models/LifecycleEmail');
  * une seule fois par étape, avec un lien de désabonnement.
  *
  * Étapes (cf. locales/<lang>/lifecycle.json) :
+ *   verify_email_d2       — 48 h à 21 j : e-mail jamais confirmé (UNE seule relance).
  *   welcome_d1            — 20 h après l'inscription : les 3 gestes qui comptent.
  *   profile_incomplete_d3 — prestataire à J+3 sans photo, présentation ou tarif.
  *   first_client_d7       — prestataire à J+7 sans réservation : amener son 1er client.
@@ -109,6 +110,30 @@ const providerProfileComplete = (u) =>
   Boolean(u.avatar && u.avatar.url) && String(u.bio || '').trim().length >= 20 &&
   ((u.hourlyRate || 0) > 0 || (u.dailyRate || 0) > 0 || (Array.isArray(u.walkRates) && u.walkRates.length > 0));
 
+/**
+ * v574 — bilan du 20/09/2026 : 45 % seulement des nouveaux inscrits confirment
+ * leur e-mail. « Un compte, trois profils » (v565) : l'e-mail est vérifié UNE
+ * fois pour la PERSONNE (`markVerifiedAcrossRoles` dans authController pose
+ * `verified:true` sur les 3 documents du même e-mail). Les comptes créés avant
+ * la v565 peuvent toutefois avoir un profil vérifié et un profil frère resté à
+ * `verified:false` : on regarde donc aussi les frères avant de relancer.
+ * Retourne true = la personne a déjà confirmé → AUCUNE relance.
+ */
+const personEmailVerified = async (user, role) => {
+  if (user.verified === true) return true;
+  const stored = String(user.email || '').toLowerCase().trim();
+  let plain = stored;
+  try { plain = String(decrypt(user.email || '') || '').toLowerCase().trim(); } catch (_) { plain = stored; }
+  const emails = [...new Set([stored, plain].filter(Boolean))];
+  if (!emails.length) return true; // pas d'e-mail exploitable → on n'écrit pas
+  const self = modelFor(role);
+  const siblings = [Owner, Sitter, Walker].filter((M) => M !== self);
+  const found = await Promise.all(
+    siblings.map((M) => M.exists({ email: { $in: emails }, verified: true })),
+  );
+  return found.some(Boolean);
+};
+
 const bookingCountFor = (role, id) =>
   Booking.countDocuments(role === 'owner' ? { ownerId: id } : role === 'sitter' ? { sitterId: id } : { walkerId: id });
 
@@ -185,12 +210,21 @@ async function runLifecycleOnce({ max = Number(process.env.LIFECYCLE_MAX_PER_RUN
   for (const role of ['sitter', 'walker', 'owner']) {
     const Model = modelFor(role);
     const users = await Model.find({ ...baseFilter, createdAt: { $lte: new Date(now - 20 * HOUR_MS), $gte: LIFECYCLE_SINCE } })
-      .select('name email appLocale language isStaff marketingOptOut avatar bio hourlyRate dailyRate walkRates createdAt updatedAt referralCode')
+      .select('name email appLocale language isStaff marketingOptOut verified avatar bio hourlyRate dailyRate walkRates createdAt updatedAt referralCode')
       .sort({ createdAt: -1 }).limit(2000).lean();
     for (const u of users) {
       if (!budgetLeft()) break;
       const age = now - new Date(u.createdAt).getTime();
       const isProvider = role !== 'owner';
+      // verify_email_d2 — PRIORITAIRE, donc AVANT « bienvenue » : un compte qui
+      // n'a pas confirmé son e-mail ne doit pas recevoir « bienvenue » puis
+      // « vérifie ». Les garde-fous existants (1 e-mail par compte et par
+      // passage, 6 jours d'écart) font le reste. 48 h à 21 jours ; l'index
+      // unique de LifecycleEmail garantit UNE SEULE relance par compte
+      // (Daniel : « surtout pas harceler par mail »).
+      if (age >= 2 * DAY_MS && age < 21 * DAY_MS && u.verified !== true) {
+        await consider(u, role, 'verify_email_d2', async () => !(await personEmailVerified(u, role)));
+      }
       // welcome_d1 — 20 h à 7 jours après l'inscription (au-delà : trop tard, on n'écrit plus « bienvenue »).
       if (age >= 20 * HOUR_MS && age < 7 * DAY_MS) {
         await consider(u, role, isProvider ? 'welcome_provider_d1' : 'welcome_owner_d1', async () => true);

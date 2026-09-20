@@ -591,6 +591,8 @@ router.delete('/:id', deleteAccount);
  *         description: Internal server error
  */
 router.post('/switch-role', requireAuth, switchRole);
+// v574 — rôles que possède la personne (synchronisation entre appareils).
+router.get('/me/roles', requireAuth, require('../controllers/rolesController').getMyRoles);
 
 // Sprint 4 step 1 — FCM device token registration
 router.post('/fcm-token', requireAuth, registerFcmToken);

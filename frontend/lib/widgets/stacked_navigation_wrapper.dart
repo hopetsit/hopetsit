@@ -109,6 +109,11 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   void _onTap(int index) {
     setState(() => _currentIndex = index);
     if (index == 0) _refreshNotificationBadge();
+    // v574 — onglet Profil : « Mes profils » reflète les rôles activés sur
+    // n'importe quel appareil (Android, iOS, web).
+    if (index == 4 && Get.isRegistered<AuthController>()) {
+      Get.find<AuthController>().refreshAvailableRoles();
+    }
     if (index == 1) {
       if (Get.isRegistered<ChatController>()) {
         Get.find<ChatController>().reloadConversations();

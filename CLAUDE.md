@@ -490,6 +490,18 @@ Design de Daniel, rangé dans `docs/design_handoff_pawmap_tab_bar/`, hi-fi, à s
   patte le chevauchaient) + `FittedBox` (débordait de 30 px), boutons peaufinés (rail, capsule, pilules).
 - FR : 23 valeurs franglaises corrigées (`walker`→promeneur, `owner`→propriétaire, « Top Promeneur »…).
 - Site : `public/screens/v573/fr/` (4 captures PawMap refaites) ; EN reste sur v561 (à refaire en anglais).
+- Fiche animal : bouton appareil photo SUR la bannière (`_changeBanner` = ajoute une photo de galerie, aperçu local
+  immédiat ; `resolvePetBannerUrl` retient désormais la photo de galerie la PLUS RÉCENTE ≠ avatar) + avatar cliquable
+  avec badge appareil photo. Site `/map` : rail gauche et en-tête alignés sur l'app.
+- **Publication 20/09 ~04 h 45** : Play **573 en production** (commit 200) ; serveur + site poussés par Daniel (commit
+  9f2bdfd). **iOS : la 1.19/571 est passée IN_REVIEW → NON annulée** ; l'IPA 573 est distribué par Transporter (build
+  prêt côté ASC). **À FAIRE dès que la 1.19 est approuvée (Daniel écrit « apple ok » ou vérifier par iris)** : créer la
+  version **1.20** (`POST /iris/v1/appStoreVersions`), whatsNew = `notes_573.json` (locales ASC `it` et `pl`), attacher
+  le build 573 (lister `builds?sort=-uploadedDate`, filtrer côté client), reviewSubmission → item → submitted. Puis
+  admin « Versions de l'app » → 573/573 quand les deux stores ont validé. Captures EN du site PawMap à refaire.
+- **20/09 (matin) — iOS : 1.19/571 APPROUVÉE (READY_FOR_SALE)** → version **1.20** créée (`8dc6b629-187d-4551-86d3-9258d16ddd10`), build 573
+  (`657e1dd0-646b-42bd-a075-0ccd83ce0f82`) attaché, whatsNew 8 locales, reviewSubmission
+  `da3d9acf-2a34-472d-a580-e1f175bbf687` soumise. Reste : admin « Versions de l'app » → 573/573 après validation.
 - i18n : 4 225+ clés, 0 inconnue. **Prochain build = 574.**
 
 **18/09 — Pliables / tablettes / iPad : REPORTÉ (décision Daniel).** « Quand on sera beaucoup plus connus. » L'app tourne déjà (gonflée : `designSize` 393 px ; iPad = mode compatibilité, `TARGETED_DEVICE_FAMILY = 1`). Le jour venu : plafonner l'échelle + colonne centrée ≥ 600 px, portrait bloqué sur grand écran ; iPad natif = irréversible + captures 13" en 8 langues. **Priorité unique : plus d'utilisateurs et les premières réservations payées.**

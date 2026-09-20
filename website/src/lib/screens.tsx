@@ -7,7 +7,7 @@
 export type ScreenShot = { src: string; alt: string };
 
 const EN: ScreenShot[] = [
-  { src: "/screens/v561/en/01-map.jpg", alt: "PawMap" },
+  { src: "/screens/v573/en/01-map.jpg", alt: "PawMap" },
   { src: "/screens/v561/en/02-report.jpg", alt: "Alerts" },
   { src: "/screens/v561/en/00-home.jpg", alt: "Home" },
   { src: "/screens/v561/en/05-profile.jpg", alt: "Profile" },
@@ -34,7 +34,7 @@ export function screensPreviewFor(lang: string): ScreenShot[] {
 
 /** Capture PawMap mise en avant (Paris en FR, Dallas sinon). */
 export function pawmapShotFor(lang: string): string {
-  return lang === "fr" ? "/screens/v573/fr/01-carte.jpg" : "/screens/v561/en/11-map-dallas.jpg";
+  return lang === "fr" ? "/screens/v573/fr/01-carte.jpg" : "/screens/v573/en/11-map-dallas.jpg";
 }
 
 /** Cadre de téléphone sobre (bord sombre, coins très arrondis, ombre douce). */

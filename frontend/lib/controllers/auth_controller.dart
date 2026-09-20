@@ -139,6 +139,53 @@ class AuthController extends GetxController {
     // (expiration glissante). Garde le token frais 365j + reconnecte le
     // socket temps réel avec un token valide. Best-effort, n'attend pas.
     unawaited(refreshToken());
+    // v574 — « Mes profils » : la liste des rôles n'arrivait qu'à la connexion
+    // et vivait en mémoire → vide après un redémarrage, jamais à jour quand un
+    // rôle était activé sur un AUTRE appareil. On restaure la dernière liste
+    // connue puis on la recharge depuis le serveur.
+    _restoreAvailableRoles();
+    ever<List<String>>(availableRoles, (roles) {
+      try {
+        _storage.write(_kAvailableRolesKey, roles.toList());
+      } catch (_) {/* stockage indisponible : on garde la mémoire */}
+    });
+    unawaited(refreshAvailableRoles());
+  }
+
+  static const String _kAvailableRolesKey = 'available_roles_v574';
+  bool _refreshingRoles = false;
+
+  void _restoreAvailableRoles() {
+    try {
+      final dynamic raw = _storage.read(_kAvailableRolesKey);
+      if (raw is List && availableRoles.isEmpty) {
+        availableRoles.assignAll(
+          raw.whereType<String>().where((s) => s.isNotEmpty).toSet().toList(),
+        );
+      }
+    } catch (_) {/* rien à restaurer */}
+  }
+
+  /// Recharge depuis le serveur les rôles que possède la personne. Silencieux :
+  /// hors connexion ou non connecté, on garde la dernière liste connue.
+  Future<void> refreshAvailableRoles() async {
+    if (_refreshingRoles) return;
+    // Pas de session (écran de connexion) : rien à demander.
+    if ((userRole.value ?? '').isEmpty) return;
+    _refreshingRoles = true;
+    try {
+      final repo = _userRepository ??
+          (Get.isRegistered<UserRepository>()
+              ? Get.find<UserRepository>()
+              : null);
+      if (repo == null) return;
+      final roles = await repo.getMyRoles();
+      if (roles.isNotEmpty) availableRoles.assignAll(roles);
+    } catch (_) {
+      // réseau / 401 : on ne vide surtout pas la liste.
+    } finally {
+      _refreshingRoles = false;
+    }
   }
 
   @override

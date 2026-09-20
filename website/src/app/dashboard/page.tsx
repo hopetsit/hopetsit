@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { ApiError, AuthUser, AuthRole, clearAuth, getConversations, getStoredUser, openInApp, redeemPromo, switchRole } from "@/lib/api";
+import { ApiError, AuthUser, AuthRole, clearAuth, getConversations, getMyRoles, getStoredUser, openInApp, redeemPromo, switchRole } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
 import { disconnectSocket } from "@/lib/socket";
 import NotificationBanner from "@/components/NotificationBanner";
@@ -215,6 +215,18 @@ export default function DashboardPage() {
         ? `🏠 ${t("signup_role_sitter")}`
         : `🚶 ${t("signup_role_walker")}`;
 
+  // v574 — profils déjà activés (sur n'importe quel appareil) : ✓ ; sinon +.
+  const [myRoles, setMyRoles] = useState<AuthRole[]>([]);
+  useEffect(() => {
+    let alive = true;
+    getMyRoles().then((r) => {
+      if (alive) setMyRoles(r);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [user?.role]);
+
   async function handleSwitchRole(target: AuthRole) {
     if (!user || target === user.role || switchingRole) return;
     if (!window.confirm(t("dash_switch_confirm"))) return;
@@ -327,7 +339,9 @@ export default function DashboardPage() {
                       disabled={switchingRole !== null}
                       className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-[#1D1D1F] transition hover:bg-[#E8E8ED] disabled:opacity-60"
                     >
-                      {switchingRole === r ? "…" : roleLabel(r)}
+                      {switchingRole === r
+                        ? "…"
+                        : `${myRoles.includes(r) ? "✓ " : "+ "}${roleLabel(r)}`}
                     </button>
                   ))}
               </div>

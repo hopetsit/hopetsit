@@ -89,6 +89,24 @@ class UserRepository {
   /// - If targetRole is provided, backend switches to that specific role
   ///   (required when switching from walker, or when going owner -> walker
   ///   or sitter -> walker).
+  /// v574 — rôles que possède la personne (owner / sitter / walker), à jour
+  /// côté serveur : sert à synchroniser « Mes profils » entre appareils.
+  Future<List<String>> getMyRoles() async {
+    final response = await _apiClient.get(
+      '/users/me/roles',
+      requiresAuth: true,
+    );
+    final raw = response is Map ? response['availableRoles'] : null;
+    if (raw is! List) return const <String>[];
+    return raw
+        .map((e) => e is String
+            ? e
+            : (e is Map && e['role'] is String ? e['role'] as String : ''))
+        .where((s) => s.isNotEmpty)
+        .toSet()
+        .toList();
+  }
+
   Future<Map<String, dynamic>> switchRole({String? targetRole}) async {
     final body = <String, dynamic>{};
     if (targetRole != null && targetRole.isNotEmpty) {

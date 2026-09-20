@@ -2,6 +2,17 @@
   "friend": "회원님",
   "footer": "HoPetSit 계정이 있어 이 메일을 받으셨습니다.",
   "unsubscribe": "팁 메일 수신 거부",
+  "verify_email_d2": {
+    "subject": "{{name}}님, 한 단계 남았어요: 이메일을 확인해 주세요",
+    "title": "이메일을 확인해 주세요, {{name}}님",
+    "paragraphs": [
+      "한 단계만 남았어요. 이메일을 확인하면 HoPetSit 계정이 활성화돼요.",
+      "계정이 활성화되면 돌봄 요청을 올리거나 근처 반려인의 요청을 받을 수 있어요. 예약하고, 채팅하고, 안전하게 정산받는 것도 가능해요.",
+      "앱을 열고 ‘인증번호 다시 받기’를 누르면 새 코드가 바로 와요. 스팸함도 한번 확인해 주세요, 가끔 메일이 그쪽으로 가기도 해요."
+    ],
+    "cta": "HoPetSit 열기",
+    "ctaUrl": "https://www.hopetsit.com/pawmap"
+  },
   "welcome_provider_d1": {
     "subject": "{{name}}님, 첫 요청을 받기 위한 3가지",
     "title": "HoPetSit에 오신 것을 환영해요, {{name}}님!",

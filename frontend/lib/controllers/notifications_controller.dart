@@ -98,6 +98,8 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
       try {
         if (Get.isRegistered<AuthController>()) {
           Get.find<AuthController>().refreshToken();
+          // v574 — un rôle activé sur un autre appareil apparaît ici au retour.
+          Get.find<AuthController>().refreshAvailableRoles();
         }
       } catch (_) {/* defensive */}
       // App returned to foreground — pull latest notifs so the bell badge

@@ -89,3 +89,38 @@ describe('optionalAuth', () => {
     expect(req.user).toEqual({ id: 'owner1', role: 'owner' });
   });
 });
+
+// v574 — GET /users/me/roles : « j'ai activé un rôle sur Android, iOS ne
+// l'affiche pas activé ». Le serveur doit donner, à tout moment, les rôles que
+// possède la personne, quel que soit le rôle du jeton.
+describe('getMyRoles', () => {
+  const call = async (user) => {
+    jest.doMock('../src/controllers/authController', () => ({
+      findAvailableRolesForAccount: async (email) =>
+        Object.values(PEOPLE)
+          .filter((d) => d.email === email)
+          .map((d) => ({ role: d._id.replace(/\d+$/, ''), _id: d._id })),
+    }));
+    const { getMyRoles } = require('../src/controllers/rolesController');
+    let status = 200;
+    let body = null;
+    const res = {
+      status(c) { status = c; return this; },
+      json(b) { body = b; return this; },
+    };
+    await getMyRoles({ user }, res);
+    return { status, body };
+  };
+
+  test('connecté en propriétaire → voit ses 3 rôles', async () => {
+    const { status, body } = await call({ id: 'owner1', role: 'owner' });
+    expect(status).toBe(200);
+    expect(body.activeRole).toBe('owner');
+    expect(body.availableRoles.sort()).toEqual(['owner', 'sitter', 'walker']);
+  });
+
+  test('autre personne → seulement son rôle', async () => {
+    const { body } = await call({ id: 'sitter2', role: 'sitter' });
+    expect(body.availableRoles).toEqual(['sitter']);
+  });
+});

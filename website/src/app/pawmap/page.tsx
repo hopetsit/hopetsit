@@ -34,10 +34,9 @@ export default function PawMapPage() {
   ];
 
   const dir = lang === "fr" ? "fr" : "en";
-  // v573 — captures FR refaites avec le nouveau design (menu « patte », en-tête
-  // PawMap à tuile orange). Les captures EN restent celles de la v561 tant
-  // qu'elles n'ont pas été refaites en anglais.
-  const shots = dir === "fr" ? "v573" : "v561";
+  // v573 — captures FR et EN refaites avec le nouveau design (menu « patte »,
+  // en-tête PawMap à tuile orange).
+  const shots = "v573";
   const gallery = [
     { src: pawmapShotFor(lang), alt: "PawMap" },
     { src: `/screens/${shots}/${dir}/${dir === "fr" ? "09-autour-liste" : "09-around-list"}.jpg`, alt: t("pawmap_categories") },
