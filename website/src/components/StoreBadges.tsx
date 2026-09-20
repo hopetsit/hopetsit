@@ -44,6 +44,8 @@ const APPLE_LABEL: Record<string, string> = {
   ko: "다운로드하기",
   ja: "からダウンロード",
 };
+// v577b — texte jamais coupé : pas de hauteur figée, interligne 1.25 (les
+// jambages de « g » et « y » étaient rognés), lignes insécables.
 // En japonais la petite ligne se lit APRÈS le nom du store.
 const LABEL_AFTER = new Set(["ja"]);
 
@@ -51,9 +53,9 @@ export default function StoreBadges({ center = false }: { center?: boolean }) {
   const { lang } = useT();
 
   const badge =
-    "group inline-flex h-[58px] min-w-[188px] items-center gap-3 rounded-2xl border border-white/15 bg-gradient-to-b from-[#2a2a2e] to-black px-4 leading-none text-white shadow-[0_8px_20px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.14)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.18)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D83C28] focus-visible:ring-offset-2";
-  const small = "text-[10.5px] font-medium tracking-wide text-white/80";
-  const big = "text-[19px] font-semibold tracking-tight";
+    "group inline-flex min-h-[60px] min-w-[196px] items-center gap-3 rounded-2xl border border-white/15 bg-gradient-to-b from-[#2a2a2e] to-black px-4 py-2 text-white shadow-[0_8px_20px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.14)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.18)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D83C28] focus-visible:ring-offset-2";
+  const small = "whitespace-nowrap text-[11px] font-medium leading-[1.25] tracking-wide text-white/80";
+  const big = "whitespace-nowrap text-[19px] font-semibold leading-[1.25] tracking-tight";
   const after = LABEL_AFTER.has(lang);
   const playLabel = PLAY_LABEL[lang] ?? PLAY_LABEL.en;
   const appleLabel = APPLE_LABEL[lang] ?? APPLE_LABEL.en;
@@ -89,7 +91,7 @@ export default function StoreBadges({ center = false }: { center?: boolean }) {
             fill="#ffc900"
           />
         </svg>
-        <span className={`flex items-start gap-1 ${after ? "flex-col-reverse" : "flex-col"}`}>
+        <span className={`flex items-start gap-0.5 ${after ? "flex-col-reverse" : "flex-col"}`}>
           <span className={small}>{playLabel}</span>
           <span className={big}>Google Play</span>
         </span>
@@ -113,7 +115,7 @@ export default function StoreBadges({ center = false }: { center?: boolean }) {
         >
           <path d="M17.05 12.54c-.02-2.02 1.65-2.99 1.73-3.04-.94-1.38-2.41-1.57-2.93-1.59-1.25-.13-2.44.73-3.07.73-.63 0-1.61-.71-2.65-.69-1.36.02-2.62.79-3.32 2.01-1.42 2.46-.36 6.1 1.01 8.1.67.98 1.47 2.08 2.51 2.04 1.01-.04 1.39-.65 2.61-.65 1.22 0 1.56.65 2.63.63 1.09-.02 1.78-1 2.44-1.99.77-1.14 1.09-2.24 1.11-2.3-.02-.01-2.13-.82-2.15-3.26zM15.03 6.59c.55-.67.93-1.6.82-2.53-.8.03-1.77.53-2.34 1.2-.51.59-.96 1.53-.84 2.44.89.07 1.8-.45 2.36-1.11z" />
         </svg>
-        <span className={`flex items-start gap-1 ${after ? "flex-col-reverse" : "flex-col"}`}>
+        <span className={`flex items-start gap-0.5 ${after ? "flex-col-reverse" : "flex-col"}`}>
           <span className={small}>{appleLabel}</span>
           <span className={big}>App Store</span>
         </span>
