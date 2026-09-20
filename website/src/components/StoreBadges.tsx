@@ -17,11 +17,46 @@ const PLAY_URL =
   "https://play.google.com/store/apps/details?id=com.cardellihermanos.hopetsit";
 const APP_STORE_URL = "https://apps.apple.com/app/hopetsit/id6763645719";
 
+// v577 — Daniel : « améliore ces deux boutons, traduits dans la bonne langue ».
+// Petite ligne du badge dans les 9 langues du site (formulations des badges
+// officiels Google / Apple), même largeur pour les deux, finition plus soignée
+// (dégradé noir, reflet, ombre douce, léger soulèvement au survol, anneau de
+// focus à la couleur de la marque). Le nom du store ne se traduit pas.
+const PLAY_LABEL: Record<string, string> = {
+  en: "Get it on",
+  fr: "Disponible sur",
+  es: "Disponible en",
+  de: "Jetzt bei",
+  it: "Disponibile su",
+  pt: "Disponível no",
+  pl: "Pobierz z",
+  ko: "다운로드하기",
+  ja: "で手に入れよう",
+};
+const APPLE_LABEL: Record<string, string> = {
+  en: "Download on the",
+  fr: "Télécharger dans l’",
+  es: "Consíguelo en el",
+  de: "Laden im",
+  it: "Scarica su",
+  pt: "Descarregar na",
+  pl: "Pobierz w",
+  ko: "다운로드하기",
+  ja: "からダウンロード",
+};
+// En japonais la petite ligne se lit APRÈS le nom du store.
+const LABEL_AFTER = new Set(["ja"]);
+
 export default function StoreBadges({ center = false }: { center?: boolean }) {
   const { lang } = useT();
 
   const badge =
-    "inline-flex items-center gap-3 rounded-xl border border-white/25 bg-black px-4 py-2.5 leading-none text-white transition";
+    "group inline-flex h-[58px] min-w-[188px] items-center gap-3 rounded-2xl border border-white/15 bg-gradient-to-b from-[#2a2a2e] to-black px-4 leading-none text-white shadow-[0_8px_20px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.14)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.18)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D83C28] focus-visible:ring-offset-2";
+  const small = "text-[10.5px] font-medium tracking-wide text-white/80";
+  const big = "text-[19px] font-semibold tracking-tight";
+  const after = LABEL_AFTER.has(lang);
+  const playLabel = PLAY_LABEL[lang] ?? PLAY_LABEL.en;
+  const appleLabel = APPLE_LABEL[lang] ?? APPLE_LABEL.en;
 
   return (
     <div
@@ -29,7 +64,8 @@ export default function StoreBadges({ center = false }: { center?: boolean }) {
     >
       {/* Google Play — EN LIGNE */}
       <a
-        className={`${badge} hover:opacity-85`}
+        className={badge}
+        aria-label={`${playLabel} Google Play`}
         href={`${PLAY_URL}&hl=${lang}`}
         target="_blank"
         rel="noopener noreferrer"
@@ -53,17 +89,16 @@ export default function StoreBadges({ center = false }: { center?: boolean }) {
             fill="#ffc900"
           />
         </svg>
-        <span className="flex flex-col items-start gap-0.5">
-          <span className="text-[10px] font-normal uppercase tracking-widest">
-            Get it on
-          </span>
-          <span className="text-lg font-medium">Google Play</span>
+        <span className={`flex items-start gap-1 ${after ? "flex-col-reverse" : "flex-col"}`}>
+          <span className={small}>{playLabel}</span>
+          <span className={big}>Google Play</span>
         </span>
       </a>
 
       {/* App Store — EN LIGNE (approuvé par Apple, v518) */}
       <a
-        className={`${badge} hover:opacity-85`}
+        className={badge}
+        aria-label={`${appleLabel} App Store`}
         href={APP_STORE_URL}
         target="_blank"
         rel="noopener noreferrer"
@@ -78,9 +113,9 @@ export default function StoreBadges({ center = false }: { center?: boolean }) {
         >
           <path d="M17.05 12.54c-.02-2.02 1.65-2.99 1.73-3.04-.94-1.38-2.41-1.57-2.93-1.59-1.25-.13-2.44.73-3.07.73-.63 0-1.61-.71-2.65-.69-1.36.02-2.62.79-3.32 2.01-1.42 2.46-.36 6.1 1.01 8.1.67.98 1.47 2.08 2.51 2.04 1.01-.04 1.39-.65 2.61-.65 1.22 0 1.56.65 2.63.63 1.09-.02 1.78-1 2.44-1.99.77-1.14 1.09-2.24 1.11-2.3-.02-.01-2.13-.82-2.15-3.26zM15.03 6.59c.55-.67.93-1.6.82-2.53-.8.03-1.77.53-2.34 1.2-.51.59-.96 1.53-.84 2.44.89.07 1.8-.45 2.36-1.11z" />
         </svg>
-        <span className="flex flex-col items-start gap-0.5">
-          <span className="text-[11px] font-normal">Download on the</span>
-          <span className="text-lg font-medium">App Store</span>
+        <span className={`flex items-start gap-1 ${after ? "flex-col-reverse" : "flex-col"}`}>
+          <span className={small}>{appleLabel}</span>
+          <span className={big}>App Store</span>
         </span>
       </a>
     </div>
