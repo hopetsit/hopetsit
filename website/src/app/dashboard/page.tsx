@@ -54,6 +54,22 @@ export default function DashboardPage() {
     })();
   }, []);
   // v404 — Daniel : badge de messages non lus sur la carte « Mes messages ».
+  // v574 — profils déjà activés (sur n'importe quel appareil) : ✓ ; sinon +.
+  // ⚠️ Doit rester AVANT le `if (loading) return` : un hook placé après un
+  // retour anticipé change le nombre de hooks entre deux rendus → plantage
+  // React « client-side exception » (bug du 20/09, corrigé le jour même).
+  const [myRoles, setMyRoles] = useState<AuthRole[]>([]);
+  useEffect(() => {
+    let alive = true;
+    if (!user) return;
+    getMyRoles().then((r) => {
+      if (alive) setMyRoles(r);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [user?.role]);
+
   const [unreadMsg, setUnreadMsg] = useState(0);
   useEffect(() => {
     (async () => {
@@ -214,18 +230,6 @@ export default function DashboardPage() {
       : r === "sitter"
         ? `🏠 ${t("signup_role_sitter")}`
         : `🚶 ${t("signup_role_walker")}`;
-
-  // v574 — profils déjà activés (sur n'importe quel appareil) : ✓ ; sinon +.
-  const [myRoles, setMyRoles] = useState<AuthRole[]>([]);
-  useEffect(() => {
-    let alive = true;
-    getMyRoles().then((r) => {
-      if (alive) setMyRoles(r);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [user?.role]);
 
   async function handleSwitchRole(target: AuthRole) {
     if (!user || target === user.role || switchingRole) return;

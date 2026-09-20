@@ -524,6 +524,20 @@ Design de Daniel, rangé dans `docs/design_handoff_pawmap_tab_bar/`, hi-fi, à s
   = manque de propriétaires et de première annonce. `bob_hebdo.py` : `?limit=1000` (totaux tronqués à 20/rôle).
 - Site : captures PawMap EN refaites (`public/screens/v573/en`). Astuce : passer l'app du simulateur en anglais en
   écrivant `language_code` dans `Documents/GetStorage.gs` du conteneur (app arrêtée).
+- **Cap « premières transactions » (consigne Daniel du 20/09 : « fais tout tout seul ») :**
+  - ⚠️ La pub Meta Paris pointait depuis le 13/09 sur `/garde-animaux/paris`, qui N'EXISTAIT PAS (catch-all « Ouvre
+    dans l'app », non caché, ~2 s) → 59 % de perte. Corrigé : `website/src/app/garde-animaux/paris/page.tsx` (statique,
+    hub des 20 arrondissements), premier écran mobile de conversion dans `OwnerCityPage.tsx`, `GetAppButton.tsx`,
+    plus de `hopetsit://` automatique sur chemin inconnu (commit c5a12cc, vérifié en ligne : PRERENDER, 0,75 s).
+    Reste : `<html lang="en">` statique sur tout le site ; doublon `/petsitter/paris` à fusionner un jour (308).
+  - **Mesure d'audience maison sans cookie** (commit d9e4f7d) : `POST /site-events` (`models/SiteEvent.js`, empreinte
+    journalière non réversible, ni IP ni UA stockés, robots rejetés, TTL 400 j), `GET /admin/site-analytics?days=`,
+    `website/src/components/SiteAnalytics.tsx` + `trackSiteEvent('store_click')`, page admin « 📈 Trafic du site ».
+    Les 3 pubs portent `url_tags=utm_source=meta&utm_medium=paid&utm_campaign=<clé>` (nouveaux creatives, anciens ids
+    gardés dans `meta_ads_state.json` sous `creative_sans_utm`). jest 255/255.
+  - FB/IG : file `banque_posts.json` réorientée propriétaires Paris (4 nouveaux posts, sauvegarde `.bak_20260920`).
+  - Daniel a dit **NON** à la commission offerte sur la première garde : ne la proposer nulle part.
+  - Claude lance désormais lui-même `bash ~/hopetsit-social/publier_*.sh` (autorisé explicitement le 20/09, ça passe).
 - Play 574 en production (commit 200) ; serveur + site poussés (commit 6dcdd43). **Prochain build = 575, et version
   interne 23.1.569 dès que la 1.20 est approuvée.**
 
