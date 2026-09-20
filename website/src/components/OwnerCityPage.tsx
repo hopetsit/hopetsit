@@ -1,5 +1,5 @@
 import Link from "next/link";
-import ParisLocalPlaces, { parisEntry } from "@/components/ParisLocalPlaces";
+import ParisLocalPlaces, { parisEntry, parisFaq } from "@/components/ParisLocalPlaces";
 import { GetAppButton } from "@/components/GetAppButton";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 import { RECRUIT_PATH_PREFIX } from "@/lib/recruit-cities";
@@ -425,7 +425,7 @@ export default function OwnerCityPage({
   const copy = COPY[city.lang];
   // v562 — arrondissement de Paris : contenu local réel à la place des blocs génériques.
   const paris = city.lang === "fr" && !!parisEntry(city.slug);
-  const faq = paris ? [] : copy.faq(city);
+  const faq = paris ? parisFaq(city.slug, "owner") : copy.faq(city);
   const heading = h1 ?? (paris ? `Pet sitter ${city.name} : garde et promenade` : copy.h1(city));
   const jsonLd = {
     "@context": "https://schema.org",

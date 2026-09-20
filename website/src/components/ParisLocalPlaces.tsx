@@ -198,6 +198,20 @@ export default function ParisLocalPlaces({ slug, mode }: { slug: string; mode: M
         </ul>
       </section>
 
+      {faq.length > 0 && (
+        <section className="mt-10">
+          <h2 className="font-display text-xl font-extrabold text-ink">Questions fréquentes, Paris {a}</h2>
+          <div className="mt-4 space-y-4">
+            {faq.map((f) => (
+              <div key={f.q} className="rounded-2xl border border-ink/5 bg-white p-5 shadow-card">
+                <h3 className="font-bold text-ink">{f.q}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-muted">{f.a}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <p className="mt-10 rounded-2xl bg-bg-soft p-5 text-sm leading-relaxed text-ink-muted">
         <Link href="/pawmap" className="font-semibold text-owner hover:underline">Paris {a} sur la PawMap →</Link>
       </p>

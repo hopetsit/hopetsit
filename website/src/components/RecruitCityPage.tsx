@@ -1,5 +1,5 @@
 import Link from "next/link";
-import ParisLocalPlaces, { parisEntry } from "@/components/ParisLocalPlaces";
+import ParisLocalPlaces, { parisEntry, parisFaq } from "@/components/ParisLocalPlaces";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 import { OWNER_PATH_PREFIX } from "@/lib/recruit-cities";
 
@@ -284,7 +284,7 @@ export function recruitMetadata(c: RecruitCity, canonical: string) {
 export default function RecruitCityPage({ city }: { city: RecruitCity }) {
   const copy = COPY[city.lang];
   const paris = city.lang === "fr" && !!parisEntry(city.slug);
-  const faq = paris ? [] : copy.faq(city);
+  const faq = paris ? parisFaq(city.slug, "recruit") : copy.faq(city);
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
