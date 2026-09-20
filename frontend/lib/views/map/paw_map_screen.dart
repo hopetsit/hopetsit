@@ -4674,20 +4674,52 @@ class _PawMapScreenState extends State<PawMapScreen>
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
         backgroundColor: AppColors.appBar(context),
+        // v573 — Daniel : « en haut à gauche, moderniser et aligner le logo
+        // avec le titre PawMap ». Le logo (patte-épingle, doigts sortis) vit
+        // dans une tuile orange arrondie — la même scène que l'écran
+        // d'ouverture et le héro du site — parfaitement centrée sur la ligne
+        // du titre, qui passe en Poppins gras.
+        titleSpacing: 16.w,
+        centerTitle: false,
         title: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // v470 — Daniel : « tu as mis un point orange au lieu du logo ». Le
-            // colorFilter srcIn écrasait TOUT le logo (disque+pin+pattes) en un
-            // aplat orange = un simple point. On utilise désormais le VRAI logo
-            // orange (disque orange + pin blanc + pattes), SANS colorFilter.
-            // v570 — le logo PawMap est désormais la PATTE-ÉPINGLE du handoff
-            // (même dessin que le bouton central de la barre, doigts sortis).
-            PawMapLogo(size: 28.w),
-            SizedBox(width: 8.w),
-            InterText(
+            Container(
+              width: 38.w,
+              height: 38.w,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12.r),
+                gradient: const LinearGradient(
+                  begin: Alignment(-0.6, -1),
+                  end: Alignment(0.6, 1),
+                  colors: <Color>[
+                    Color(0xFFF26A46),
+                    Color(0xFFDD4430),
+                    Color(0xFFC7311F),
+                  ],
+                ),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: const Color(0xFFDD4430).withValues(alpha: 0.32),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              // Le dessin est plus lourd en bas (pointe de l'épingle) : un
+              // léger décalage vers le haut le centre à l'œil.
+              child: Transform.translate(
+                offset: Offset(0, -1.w),
+                child: PawMapLogo(size: 30.w),
+              ),
+            ),
+            SizedBox(width: 10.w),
+            PoppinsText(
               text: 'PawMap',
-              fontSize: 18.sp,
-              fontWeight: FontWeight.w700,
+              fontSize: 20.sp,
+              fontWeight: FontWeight.w800,
               color: AppColors.textPrimary(context),
             ),
           ],
@@ -4701,8 +4733,10 @@ class _PawMapScreenState extends State<PawMapScreen>
           IconButton(
             tooltip: 'pawmap_search_city'.tr,
             icon: const Icon(Icons.search_rounded),
+            style: _pawMapHeaderButtonStyle(context),
             onPressed: _onSearchCity,
           ),
+          SizedBox(width: 6.w),
           // v554 — bouton « mettre à jour » avec retour visuel (spinner +
           // confirmation), et double appui impossible pendant le chargement.
           Obx(() => _refreshing.value
@@ -4721,9 +4755,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                 )
               : IconButton(
                   tooltip: 'pawmap_appbar_refresh'.tr,
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(Icons.refresh_rounded),
+                  style: _pawMapHeaderButtonStyle(context),
                   onPressed: _manualRefresh,
                 )),
+          SizedBox(width: 10.w),
         ],
       ),
       body: Stack(
@@ -5033,13 +5069,21 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // Signaler (bottom-right, à 24.h + inset).
                     // v470 — relevé franchement au-dessus de la barre de menu
                     // pleine largeur.
-                    bottom: 136.h - _tabBarLift(context) + MediaQuery.of(context).viewPadding.bottom,
+                    // v573 — nouveau menu « patte » : les 4 doigts dépassent
+                    // d'une trentaine de points au-dessus de la pilule et
+                    // chevauchaient ce bandeau (136 → 160).
+                    bottom: 160.h - _tabBarLift(context) + MediaQuery.of(context).viewPadding.bottom,
                     // v565 — point 20 : le bandeau reste ENTRE les deux rails
                     // (baseline fixe) au lieu de les faire remonter.
                     child: Center(
                       child: Padding(
                         padding: EdgeInsets.symmetric(horizontal: 52.w),
-                        child: _buildDirectionsBanner(),
+                        // v573 — « RIGHT OVERFLOWED BY 30 PIXELS » entre les
+                        // deux rails : le bandeau se réduit au lieu de déborder.
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: _buildDirectionsBanner(),
+                        ),
                       ),
                     ),
                   ),
@@ -5904,7 +5948,15 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   /// Hauteur commune des trois cadres de la rangée repliée.
-  static double get _topRowHeight => 46.h;
+  /// v573 — jeton partagé : filtres, « Partager en direct » et « Agrandir »
+  /// tirent leur hauteur, leur rayon et leur épaisseur de bord du MÊME endroit
+  /// (PawMapTheme.pill*), sans quoi les trois pilules ne tombaient pas juste.
+  static double get _topRowHeight => PawMapTheme.pillHeight.h;
+
+  /// Corps de texte commun aux pilules du haut (InterText, graisse 800).
+  /// ⚠️ Valeur BRUTE : `InterText` applique `.sp` lui-même — l'écrire `12.sp`
+  /// ici la mettait au carré et rendait le libellé minuscule à 320 dp.
+  static const double _topPillFontSize = 12;
 
   Widget _buildCollapsedTopRow() {
     return Padding(
@@ -6561,22 +6613,31 @@ class _PawMapScreenState extends State<PawMapScreen>
                   end: Alignment.centerRight,
                 )
               : null,
-          height: compact ? double.infinity : 46.h,
+          height: compact ? double.infinity : _topRowHeight,
           padding: EdgeInsets.fromLTRB(10.w, 0, 4.w, 0),
           child: Row(
             children: [
-              // Point d'état : vert (ou blanc sur fond vert) / gris.
-              Container(
-                width: 9.w,
-                height: 9.w,
+              // v573 — pastille d'état ANIMÉE : elle grossit et s'auréole
+              // quand le partage est actif (vert, ou ambre « signal perdu »),
+              // et redevient un point gris discret à l'arrêt. Le halo est
+              // blanc sur fond plein, teinté sur fond clair.
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOut,
+                width: (on ? 10 : 8).w,
+                height: (on ? 10 : 8).w,
                 decoration: BoxDecoration(
-                  color: on ? Colors.white : AppColors.textSecondary(context),
+                  color: on
+                      ? Colors.white
+                      : AppColors.textSecondary(context)
+                          .withValues(alpha: 0.75),
                   shape: BoxShape.circle,
                   boxShadow: on
                       ? [
                           BoxShadow(
-                            color: Colors.white.withValues(alpha: 0.7),
-                            blurRadius: 6,
+                            color: Colors.white.withValues(alpha: 0.75),
+                            blurRadius: 7,
+                            spreadRadius: 0.5,
                           ),
                         ]
                       : null,
@@ -6596,16 +6657,24 @@ class _PawMapScreenState extends State<PawMapScreen>
                       alignment: Alignment.centerLeft,
                       child: InterText(
                         text: compact ? _twoLines(label) : label,
-                        fontSize: compact ? 11.sp : 13.sp,
+                        // v573 — même corps et même graisse que « Agrandir » :
+                        // les trois pilules du haut partagent leur typo.
+                        fontSize: _topPillFontSize,
                         fontWeight: FontWeight.w800,
                         color: fg,
                         maxLines: compact ? 2 : 1,
+                        overflow: TextOverflow.ellipsis,
                         height: 1.05,
                       ),
                     ),
                   ),
                 ),
               ),
+              // v573 — interrupteur propre : sur la pilule PLEINE (partage
+              // actif) un rail vert sur fond vert ne se voyait pas → rail
+              // blanc translucide + liseré blanc ; à l'arrêt, rail gris et
+              // pastille blanche cerclée. Le vert « actif » suit la teinte
+              // courante (ambre quand le signal est perdu).
               SizedBox(
                 width: switchW,
                 height: 24.h,
@@ -6616,14 +6685,16 @@ class _PawMapScreenState extends State<PawMapScreen>
                     onChanged: (_) => _toggleBroadcast(),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     activeThumbColor: Colors.white,
-                    activeTrackColor: green,
+                    activeTrackColor:
+                        Colors.white.withValues(alpha: 0.34),
                     trackOutlineColor: WidgetStateProperty.resolveWith(
                         (st) => st.contains(WidgetState.selected)
-                            ? Colors.white
-                            : Colors.transparent),
+                            ? Colors.white.withValues(alpha: 0.9)
+                            : AppColors.textSecondary(context)
+                                .withValues(alpha: 0.35)),
                     inactiveThumbColor: Colors.white,
                     inactiveTrackColor: AppColors.textSecondary(context)
-                        .withValues(alpha: 0.4),
+                        .withValues(alpha: 0.28),
                   ),
                 ),
               ),
@@ -6675,9 +6746,9 @@ class _PawMapScreenState extends State<PawMapScreen>
         child: PawGlassPill(
           color: pink,
           filled: expanded,
-          height: fill ? double.infinity : 46.h,
+          height: fill ? double.infinity : _topRowHeight,
           width: fill ? double.infinity : null,
-          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          padding: EdgeInsets.symmetric(horizontal: 10.w),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -6692,16 +6763,21 @@ class _PawMapScreenState extends State<PawMapScreen>
               SizedBox(width: 6.w),
               // Pas de Flexible : la pilule vit aussi dans une Row à largeur
               // libre (rangée du haut) → largeur bornée explicitement.
+              // v573 — pas de Flexible ici : hors rangée repliée la pilule vit
+              // dans une Row à largeur NON bornée (RenderFlex planterait). Le
+              // plafond de largeur + FittedBox + ellipsis suffisent à tenir à
+              // 320 dp, en allemand comme en polonais.
               ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: 88.w),
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: InterText(
                     text: label,
-                    fontSize: 12.sp,
+                    fontSize: _topPillFontSize,
                     fontWeight: FontWeight.w800,
                     color: fg,
                     maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -7864,11 +7940,13 @@ class _PawMapScreenState extends State<PawMapScreen>
   }) {
     // v565 (18/09) — Daniel : « boutons plus beaux et design, mêmes
     // couleurs ». Le rendu vit dans PawRailButton (dégradé doux vers la
-    // teinte foncée, anneau blanc 1,5 px — 3 px si actif —, ombre colorée,
-    // scale 0,94 + haptique à l'appui). Espacement régulier : 8 en haut de
-    // chaque bouton (le dernier affleure la ligne de base de la capsule).
+    // teinte foncée, liseré blanc translucide, ombre colorée, appui 0,92 +
+    // retour élastique + haptique, anneau et halo quand le bouton est actif).
+    // v573 — l'écart vertical vient du jeton commun : les huit boutons du rail
+    // sont espacés exactement pareil, et le dernier affleure la ligne de base
+    // de la capsule droite.
     return Padding(
-      padding: EdgeInsets.only(top: 8.h),
+      padding: EdgeInsets.only(top: PawMapTheme.railGap.h),
       child: PawRailButton(
         color: color,
         label: label,
@@ -8665,9 +8743,14 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
+  /// v573 — puce de mode du bandeau d'itinéraire : les trois ont exactement la
+  /// même boîte et le même glyphe ; sélectionnée = pastille pleine à la
+  /// couleur du mode, anneau blanc fin et ombre colorée (l'état se lit d'un
+  /// coup d'œil) ; au repos = même pastille en voile de sa couleur, avec un
+  /// filet. Appui = même langage que le rail (échelle + haptique).
   Widget _routeModeChip(String mode, IconData icon) {
     final selected = _routeMode == mode;
-    final color = _routeColors[mode]!;
+    final color = AppColors.accentOn(context, _routeColors[mode]!);
     final label = mode == 'car'
         ? 'route_mode_car'.tr
         : mode == 'bike'
@@ -8677,17 +8760,38 @@ class _PawMapScreenState extends State<PawMapScreen>
       label: label,
       button: true,
       selected: selected,
-      child: GestureDetector(
-        onTap: () => _setRouteMode(mode),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          width: 30.w,
-          height: 30.w,
-          decoration: BoxDecoration(
-            color: selected ? color : color.withValues(alpha: 0.10),
-            shape: BoxShape.circle,
+      child: Tooltip(
+        message: label,
+        child: PawPressable(
+          scale: 0.92,
+          onTap: () => _setRouteMode(mode),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOut,
+            width: 30.w,
+            height: 30.w,
+            decoration: BoxDecoration(
+              color: selected ? color : color.withValues(alpha: 0.10),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected
+                    ? Colors.white.withValues(alpha: 0.85)
+                    : color.withValues(alpha: 0.28),
+                width: selected ? 1.6 : 1,
+              ),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.38),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child:
+                Icon(icon, size: 17.sp, color: selected ? Colors.white : color),
           ),
-          child: Icon(icon, size: 17.sp, color: selected ? Colors.white : color),
         ),
       ),
     );
@@ -8703,20 +8807,20 @@ class _PawMapScreenState extends State<PawMapScreen>
             ? '${(meters / 1000).toStringAsFixed(1)} km'
             : '$meters m';
     final duration = _formatDuration(_routeDurationSeconds);
-    final color = _routeColor;
+    // v573 — en sombre la couleur du mode (vert / bleu / orange pur) manquait
+    // de contraste sur l'anthracite du panneau : on l'éclaircit comme ailleurs.
+    final color = AppColors.accentOn(context, _routeColor);
+    final Color danger = AppColors.accentOn(context, const Color(0xFFC92A12));
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 7.h),
       decoration: BoxDecoration(
         color: PawMapTheme.panelOn(context),
         borderRadius: BorderRadius.circular(24.r),
-        border: Border.all(color: color.withValues(alpha: 0.45), width: 1.4),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        border: Border.all(
+          color: color.withValues(alpha: 0.45),
+          width: PawMapTheme.pillBorderWidth,
+        ),
+        boxShadow: PawMapTheme.pillShadowOn(context),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -8731,45 +8835,63 @@ class _PawMapScreenState extends State<PawMapScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              InterText(
+              // v573 — la distance est LE chiffre du bandeau : Poppins gras,
+              // comme les titres de l'app ; la durée reste en dessous, à la
+              // couleur du mode.
+              PoppinsText(
                 text: distanceLabel,
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
                 color: PawMapTheme.inkOn(context),
+                maxLines: 1,
                 height: 1.05,
               ),
               if (duration.isNotEmpty)
                 InterText(
                   text: duration,
-                  fontSize: 10.5.sp,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                   color: color,
+                  maxLines: 1,
                   height: 1.05,
                 ),
             ],
           ),
           if (_routeSteps.length > 1) ...[
             SizedBox(width: 10.w),
-            GestureDetector(
-              onTap: _showRouteStepsSheet,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 5.h),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14.r),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.format_list_bulleted_rounded, size: 13.sp, color: color),
-                    SizedBox(width: 3.w),
-                    InterText(
-                      text: 'route_steps_btn'.tr,
-                      fontSize: 11.sp,
-                      fontWeight: FontWeight.w800,
-                      color: color,
+            // v573 — « Étapes » et la croix parlent la même langue que les
+            // puces de mode : voile de la couleur, filet fin, appui animé.
+            Semantics(
+              label: 'route_steps_btn'.tr,
+              button: true,
+              child: PawPressable(
+                onTap: _showRouteStepsSheet,
+                child: Container(
+                  height: 28.w,
+                  padding: EdgeInsets.symmetric(horizontal: 9.w),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: color.withValues(alpha: 0.28),
+                      width: 1,
                     ),
-                  ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.format_list_bulleted_rounded,
+                          size: 13.sp, color: color),
+                      SizedBox(width: 3.w),
+                      InterText(
+                        text: 'route_steps_btn'.tr,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                        maxLines: 1,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -8778,16 +8900,24 @@ class _PawMapScreenState extends State<PawMapScreen>
           Semantics(
             label: 'directions_clear'.tr,
             button: true,
-            child: GestureDetector(
-              onTap: _clearRoute,
-              child: Container(
-                width: 28.w,
-                height: 28.w,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFC92A12).withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
+            child: Tooltip(
+              message: 'directions_clear'.tr,
+              child: PawPressable(
+                scale: 0.92,
+                onTap: _clearRoute,
+                child: Container(
+                  width: 28.w,
+                  height: 28.w,
+                  decoration: BoxDecoration(
+                    color: danger.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: danger.withValues(alpha: 0.28),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(Icons.close_rounded, size: 16.sp, color: danger),
                 ),
-                child: Icon(Icons.close_rounded, size: 16.sp, color: const Color(0xFFC92A12)),
               ),
             ),
           ),
@@ -9297,3 +9427,15 @@ class _TtlBadgeState extends State<_TtlBadge> {
   }
 }
 
+
+
+/// v573 — boutons de l'en-tête PawMap : pastilles rondes teintées (même
+/// langage que les boutons d'en-tête de l'accueil).
+ButtonStyle _pawMapHeaderButtonStyle(BuildContext context) {
+  return IconButton.styleFrom(
+    foregroundColor: AppColors.accentOn(context, AppColors.primaryColor),
+    backgroundColor: AppColors.primaryColor.withValues(alpha: 0.10),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    minimumSize: const Size(40, 40),
+  );
+}

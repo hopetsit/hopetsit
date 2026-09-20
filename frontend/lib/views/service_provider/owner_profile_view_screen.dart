@@ -1,3 +1,13 @@
+// v573 — FICHE PROPRIÉTAIRE vue par un gardien / promeneur depuis une annonce.
+//
+// Harmonisée avec les fiches gardien et promeneur via `public_profile_kit.dart`
+// (même en-tête héro, mêmes tuiles, mêmes cartes de section, même fond à
+// petites pattes). Aucune logique touchée : mêmes données portées par l'annonce,
+// même chemin de chargement d'une fiche animal au tap.
+//
+// ⚠️ L'avatar n'utilise PLUS `AppImages.placeholderImage` en repli (l'image de
+// catalogue grise) : sans photo on affiche l'initiale du prénom sur un aplat à
+// la couleur du rôle.
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -6,11 +16,10 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_detail_screen.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/post_card_kit.dart';
-import 'package:hopetsit/widgets/action_banner_kit.dart';
+import 'package:hopetsit/views/service_provider/widgets/public_profile_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -54,161 +63,118 @@ class OwnerProfileViewScreen extends StatefulWidget {
 }
 
 class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
+  static const PublicProfilePalette _palette = kOwnerProfilePalette;
+
   @override
   Widget build(BuildContext context) {
-    final bio = (widget.ownerBio ?? '').trim();
-    final city = (widget.ownerCity ?? '').trim();
-    final memberSince = (widget.memberSince ?? '').trim();
+    final String bio = (widget.ownerBio ?? '').trim();
+    final String city = (widget.ownerCity ?? '').trim();
+    final String memberSince = (widget.memberSince ?? '').trim();
+    final String name = widget.ownerName.trim().isNotEmpty
+        ? widget.ownerName.trim()
+        : 'common_user'.tr;
 
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        backgroundColor: AppColors.appBar(context),
-        surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: AppColors.primaryColor),
+      appBar: publicProfileAppBar(
+        palette: _palette,
         title: PoppinsText(
           text: 'owner_profile_title'.tr,
-          fontSize: 18.sp,
+          fontSize: 17,
           fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
+          color: Colors.white,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 32.h),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context, city: city, memberSince: memberSince),
-              if (bio.isNotEmpty) ...[
-                SizedBox(height: 18.h),
-                _buildAboutCard(context, bio),
-              ],
-              if (widget.pets.isNotEmpty) ...[
-                SizedBox(height: 18.h),
-                InterText(
-                  text: 'owner_profile_pets'.tr,
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary(context),
+        bottom: false,
+        child: PublicProfileBackground(
+          accent: _palette.accent,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              bottom: publicProfileBottomPadding(context),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                PublicProfileHero(
+                  palette: _palette,
+                  role: 'owner',
+                  name: name,
+                  imageUrl: widget.ownerAvatar,
+                  location: city,
+                  subtitle: memberSince,
                 ),
-                SizedBox(height: 12.h),
-                ...widget.pets.map((p) => Padding(
-                      padding: EdgeInsets.only(bottom: 12.h),
-                      child: _buildPetCard(context, p),
-                    )),
+                SizedBox(height: 18.h),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      if (widget.pets.isNotEmpty) ...<Widget>[
+                        PublicProfileStatsRow(
+                          accent: _palette.accent,
+                          stats: <PublicProfileStat>[
+                            PublicProfileStat(
+                              icon: Icons.pets_rounded,
+                              value: '${widget.pets.length}',
+                              label: 'profiles573_stat_pets'.tr,
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 14.h),
+                      ],
+                      if (bio.isNotEmpty) ...<Widget>[
+                        _buildAboutCard(context, bio),
+                        SizedBox(height: 14.h),
+                      ],
+                      if (widget.pets.isNotEmpty)
+                        PublicProfileSection(
+                          accent: _palette.accent,
+                          icon: Icons.pets_rounded,
+                          title: 'owner_profile_pets'.tr,
+                          trailing: InterText(
+                            text: '${widget.pets.length}',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textSecondary(context),
+                          ),
+                          child: Column(
+                            children: <Widget>[
+                              for (int i = 0; i < widget.pets.length; i++)
+                                ...<Widget>[
+                                  if (i > 0) SizedBox(height: 10.h),
+                                  _buildPetCard(context, widget.pets[i]),
+                                ],
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ],
-            ],
+            ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(
-    BuildContext context, {
-    required String city,
-    required String memberSince,
-  }) {
-    final avatar = (widget.ownerAvatar ?? '').trim();
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(18.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(18.r),
-        boxShadow: AppColors.cardShadow(context),
-      ),
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 44.r,
-            backgroundColor: AppColors.primaryColor.withValues(alpha: 0.15),
-            backgroundImage: avatar.isNotEmpty
-                ? CachedNetworkImageProvider(avatar, maxWidth: 300)
-                    as ImageProvider
-                : AssetImage(AppImages.placeholderImage) as ImageProvider,
-          ),
-          SizedBox(height: 12.h),
-          PoppinsText(
-            text: widget.ownerName.trim().isNotEmpty
-                ? widget.ownerName.trim()
-                : 'common_user'.tr,
-            fontSize: 18.sp,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary(context),
-            maxLines: 2,
-          ),
-          SizedBox(height: 6.h),
-          ActionStatusPill(
-            label: 'role_pet_owner'.tr,
-            icon: Icons.pets_rounded,
-            tone: AppColors.ownerAccent,
-          ),
-          if (city.isNotEmpty) ...[
-            SizedBox(height: 8.h),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.location_on_rounded,
-                    size: 14.sp, color: AppColors.textSecondary(context)),
-                SizedBox(width: 4.w),
-                Flexible(
-                  child: InterText(
-                    text: city,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary(context),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ],
-          if (memberSince.isNotEmpty) ...[
-            SizedBox(height: 6.h),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.event_available_rounded,
-                    size: 14.sp, color: AppColors.textSecondary(context)),
-                SizedBox(width: 4.w),
-                Flexible(
-                  child: InterText(
-                    text: memberSince,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary(context),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
       ),
     );
   }
 
   /// v569 — BUG mode sombre : le fond était `AppColors.scaffoldOwnerLight`
   /// (orange TRÈS pâle, en dur) alors que le texte suit le thème → bio
-  /// quasi invisible en sombre. On passe par `PostBlock` sur la surface du
-  /// thème. L'icône dorée `#B8860B` (reste de l'ancien jaune) devient la
-  /// couleur du rôle propriétaire.
+  /// quasi invisible en sombre. v573 : carte de section du kit, et le
+  /// « voir plus / voir moins » de `PostExpandableText` est conservé.
   Widget _buildAboutCard(BuildContext context, String bio) {
-    return PostBlock(
-      accent: AppColors.ownerAccent,
+    return PublicProfileSection(
+      accent: _palette.accent,
+      icon: Icons.person_rounded,
       title: 'owner_profile_about'.tr,
-      titleIcon: Icons.person_rounded,
       child: PostExpandableText(
         text: bio,
         moreLabel: 'post569_see_more'.tr,
         lessLabel: 'post569_see_less'.tr,
-        accent: AppColors.ownerAccent,
+        accent: _palette.accent,
         maxLines: 6,
       ),
     );
@@ -227,16 +193,15 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
         constraints: BoxConstraints(minHeight: PostCardKit.tapTarget.w),
         padding: EdgeInsets.all(12.w),
         decoration: BoxDecoration(
-          color: AppColors.card(context),
+          color: AppColors.scaffold(context),
           borderRadius: BorderRadius.circular(PostCardKit.blockRadius.r),
-          boxShadow: AppColors.cardShadow(context),
           border: Border.all(color: AppColors.divider(context)),
         ),
         child: Row(
           children: [
             CircleAvatar(
               radius: 26.r,
-              backgroundColor: AppColors.primaryColor.withValues(alpha: 0.12),
+              backgroundColor: _palette.accent.withValues(alpha: 0.12),
               backgroundImage: avatar.isNotEmpty
                   ? CachedNetworkImageProvider(avatar, maxWidth: 200)
                       as ImageProvider
@@ -263,7 +228,7 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
                           text: pet.petName.trim().isNotEmpty
                               ? pet.petName.trim()
                               : 'lists569_pet_fallback'.tr,
-                          fontSize: 15.sp,
+                          fontSize: 15,
                           fontWeight: FontWeight.w800,
                           color: AppColors.textPrimary(context),
                           maxLines: 1,
@@ -276,7 +241,7 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
                     SizedBox(height: 4.h),
                     InterText(
                       text: metaParts.join(' • '),
-                      fontSize: 12.sp,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: AppColors.textSecondary(context),
                       maxLines: 1,
@@ -288,7 +253,7 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
             ),
             SizedBox(width: 8.w),
             Icon(Icons.chevron_right_rounded,
-                size: 22.sp, color: AppColors.greyColor),
+                size: 22.sp, color: AppColors.textTertiary(context)),
           ],
         ),
       ),
@@ -350,7 +315,7 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
               SizedBox(height: 16.h),
               InterText(
                 text: 'pet_detail_loading'.tr,
-                fontSize: 13.sp,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary(context),
               ),

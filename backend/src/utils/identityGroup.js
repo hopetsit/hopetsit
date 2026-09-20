@@ -71,4 +71,19 @@ async function identityGroup(userId) {
   return { ids, docs, set };
 }
 
-module.exports = { identityGroup };
+/**
+ * v573 — Set des ids (3 rôles) de la personne connectée, ou Set vide si
+ * anonyme. Ne lève jamais.
+ */
+async function selfIdSet(req) {
+  try {
+    const id = req && req.user && req.user.id;
+    if (!id) return new Set();
+    const g = await identityGroup(id);
+    return g.set;
+  } catch (_) {
+    return new Set();
+  }
+}
+
+module.exports = { identityGroup, selfIdSet };

@@ -9,7 +9,10 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/auth/login_screen.dart';
 import 'package:hopetsit/views/guest/guest_landing_screen.dart';
 import 'package:hopetsit/views/guest/signup_wall_sheet.dart';
+import 'package:hopetsit/views/shared/widgets/home_empty_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v535 — SPEC ONBOARDING P1.1 : l'ÉCRAN DÉCOUVERTE INVITÉ.
@@ -19,6 +22,13 @@ import 'package:hopetsit/utils/bottom_inset.dart';
 /// tout », et FICHE PROFIL INVITÉ complète en bottom sheet (photo, badge ✓,
 /// note, ville, bio, services & tarifs). Toute action de contact ouvre le
 /// mur d'inscription contextuel [SignupWallSheet].
+///
+/// v573 — MISE AU DESIGN DE L'APP, rendu seulement (chargement des données,
+/// tri, filtres et navigation inchangés) : plus une seule couleur en dur ni
+/// un seul ternaire `isDark` écrit à la main — tout passe par les helpers
+/// contextuels d'`AppColors` ; le spinner nu devient un squelette de grille,
+/// l'état vide passe par `HomeEmptyKit`, et les deux boutons pleine largeur
+/// par `CustomButton`.
 class GuestDiscoveryScreen extends StatefulWidget {
   const GuestDiscoveryScreen({super.key});
 
@@ -32,10 +42,19 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
   String _filter = 'all'; // all | sitter | walker
   List<Map<String, dynamic>> _providers = const [];
 
-  static const _ink = Color(0xFF1B222E);
-  static const _muted = Color(0xFF6B6259);
-  static const _sitterBlue = Color(0xFF3A78EE);
-  static const _walkerGreen = Color(0xFF27AE60);
+  /// Accents de rôle de l'app (mêmes valeurs que `RoleChip` et les accueils).
+  /// `accentOn` les éclaircit sur fond sombre quand ils servent de texte.
+  static const Color _sitterBlue = AppColors.sitterAccent;
+  static const Color _walkerGreen = AppColors.walkerAccent;
+
+  /// Dégradé de fond, dérivé des helpers (crème en clair, nuit en sombre).
+  static List<Color> _pageGradient(BuildContext context) {
+    final Color base = AppColors.scaffold(context);
+    return <Color>[
+      Color.lerp(base, AppColors.card(context), 0.55)!,
+      base,
+    ];
+  }
 
   @override
   void initState() {
@@ -203,124 +222,119 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
   // ── UI ───────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color brand = AppColors.accentOn(context, AppColors.primaryColor);
     return Scaffold(
-      backgroundColor:
-          isDark ? AppColors.backgroundDark : const Color(0xFFFFF9F4),
+      backgroundColor: AppColors.scaffold(context),
       body: Container(
-        decoration: isDark
-            ? null
-            : const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFFFFF9F4), Color(0xFFFFF3EA)],
-                ),
-              ),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── En-tête : retour + titres + connexion ─────────────────
-              Padding(
-                padding: EdgeInsets.fromLTRB(16.w, 10.h, 12.w, 4.h),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        if (Navigator.of(context).canPop()) {
-                          Navigator.of(context).pop();
-                        } else {
-                          Get.offAll(() => const GuestLandingScreen());
-                        }
-                      },
-                      child: Container(
-                        padding: EdgeInsets.all(9.w),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.surfaceDark : Colors.white,
-                          borderRadius: BorderRadius.circular(12.r),
-                          border: Border.all(
-                            color: isDark
-                                ? AppColors.dividerDark
-                                : const Color(0xFFECE5DE),
-                          ),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: _pageGradient(context),
+          ),
+        ),
+        child: PawPatternBackground(
+          color: AppColors.primaryColor,
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── En-tête : retour + titres + connexion ─────────────────
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16.w, 10.h, 12.w, 4.h),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _SquareIconButton(
+                        icon: Icons.arrow_back_rounded,
+                        onTap: () {
+                          if (Navigator.of(context).canPop()) {
+                            Navigator.of(context).pop();
+                          } else {
+                            Get.offAll(() => const GuestLandingScreen());
+                          }
+                        },
+                      ),
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            PoppinsText(
+                              text: 'guest_near_title'.tr,
+                              fontSize: 17.sp,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary(context),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            SizedBox(height: 1.h),
+                            InterText(
+                              text: _topCity.isEmpty
+                                  ? 'guest_latest'.tr
+                                  : '${'guest_latest'.tr} · $_topCity',
+                              fontSize: 11.5.sp,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textSecondary(context),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        child: Icon(Icons.arrow_back_rounded,
-                            size: 20.sp,
-                            color: isDark ? Colors.white : _ink),
                       ),
-                    ),
-                    SizedBox(width: 12.w),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          FredokaText(
-                            text: 'guest_near_title'.tr,
-                            fontSize: 19.sp,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : _ink,
-                            maxLines: 1,
-                          ),
-                          SizedBox(height: 1.h),
-                          InterText(
-                            text: _topCity.isEmpty
-                                ? 'guest_latest'.tr
-                                : '${'guest_latest'.tr} · $_topCity',
-                            fontSize: 11.5.sp,
-                            fontWeight: FontWeight.w500,
-                            color: isDark
-                                ? AppColors.textSecondaryDark
-                                : _muted,
-                            maxLines: 1,
-                          ),
-                        ],
+                      SizedBox(width: 8.w),
+                      // v573 — le `TextButton` brut devient une pilule
+                      // « contour » cohérente avec le reste de l'app.
+                      CustomButton(
+                        bgColor: Colors.transparent,
+                        borderColor: brand,
+                        textColor: brand,
+                        title: 'guest_login'.tr,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        radius: 999.r,
+                        height: 34.h,
+                        width: 92.w,
+                        onTap: () => Get.to(() => const LoginScreen()),
                       ),
-                    ),
-                    TextButton(
-                      onPressed: () => Get.to(() => const LoginScreen()),
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.symmetric(horizontal: 8.w),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: InterText(
-                        text: 'guest_login'.tr,
-                        fontSize: 12.5.sp,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFC92A12),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              SizedBox(height: 8.h),
+                SizedBox(height: 8.h),
 
-              // ── Filtres : Tous / Pet sitters / Pet walkers ─────────────
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                child: Row(
-                  children: [
-                    _chip('guest_filter_all'.tr, 'all',
-                        isDark ? Colors.white : _ink, isDark),
-                    SizedBox(width: 8.w),
-                    _chip('pawmap_default_sitter'.tr, 'sitter', _sitterBlue,
-                        isDark),
-                    SizedBox(width: 8.w),
-                    _chip('pawmap_default_walker'.tr, 'walker', _walkerGreen,
-                        isDark),
-                  ],
+                // ── Filtres : Tous / Pet sitters / Pet walkers ─────────────
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+                  child: Row(
+                    children: [
+                      // « Tous » prenait l'encre #1B222E en dur : en mode
+                      // sombre l'aplat devenait quasi invisible. Il prend
+                      // désormais l'orange de la marque.
+                      Flexible(
+                        child: _chip('guest_filter_all'.tr, 'all',
+                            AppColors.primaryColor),
+                      ),
+                      SizedBox(width: 8.w),
+                      Flexible(
+                        child: _chip(
+                            'pawmap_default_sitter'.tr, 'sitter', _sitterBlue),
+                      ),
+                      SizedBox(width: 8.w),
+                      Flexible(
+                        child: _chip(
+                            'pawmap_default_walker'.tr, 'walker', _walkerGreen),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              SizedBox(height: 6.h),
+                SizedBox(height: 6.h),
 
-              // ── Grille d'avatars ───────────────────────────────────────
-              Expanded(
-                child: _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _grid(isDark),
-              ),
-            ],
+                // ── Grille d'avatars ───────────────────────────────────────
+                Expanded(
+                  child: _loading ? const _GuestGridSkeleton() : _grid(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -330,94 +344,76 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
       // bottomSheet recevait un padding déjà consommé par le Scaffold →
       // on utilise viewPadding (valeur brute, jamais consommée).
       bottomSheet: Container(
-        color: isDark ? AppColors.backgroundDark : const Color(0xFFFFF3EA),
+        color: AppColors.scaffold(context),
         padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w,
             14.h + appBottomInset(context)),
         child: SafeArea(
           top: false,
           bottom: false,
-          child: GestureDetector(
+          child: CustomButton(
+            isGradient: true,
+            title: 'guest_create_account'.tr,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            radius: 16.r,
+            height: 50.h,
             onTap: () => SignupWallSheet.show(trigger: 'cta'),
-            child: Container(
-              width: double.infinity,
-              height: 50.h,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFE25822), Color(0xFFC92A12)],
-                ),
-                borderRadius: BorderRadius.circular(16.r),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFC92A12).withValues(alpha: 0.28),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: PoppinsText(
-                  text: 'guest_create_account'.tr,
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _chip(String label, String value, Color color, bool isDark) {
+  Widget _chip(String label, String value, Color color) {
     final selected = _filter == value;
-    final bg = selected
-        ? (value == 'all' ? _ink : color)
-        : (isDark ? AppColors.surfaceDark : Colors.white);
-    final fg = selected
-        ? Colors.white
-        : (isDark ? AppColors.textSecondaryDark : _muted);
+    // Sélectionnée : aplat SATURÉ de la couleur (texte blanc lisible dans les
+    // deux thèmes). Non sélectionnée : surface de carte + bord du thème.
+    final bg = selected ? color : AppColors.card(context);
+    final fg = selected ? Colors.white : AppColors.textSecondary(context);
     return GestureDetector(
       onTap: () => setState(() {
         _filter = value;
         _showAll = false;
       }),
+      behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(99.r),
+          borderRadius: BorderRadius.circular(999.r),
           border: selected
               ? null
-              : Border.all(
-                  color: isDark
-                      ? AppColors.dividerDark
-                      : const Color(0xFFECE5DE),
-                ),
+              : Border.all(color: AppColors.divider(context), width: 1),
         ),
         child: InterText(
           text: label,
           fontSize: 12.sp,
           fontWeight: FontWeight.w700,
           color: fg,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
         ),
       ),
     );
   }
 
-  Widget _grid(bool isDark) {
+  Widget _grid() {
     final items = _filtered;
     if (items.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.w),
-          child: InterText(
-            text: 'guest_empty'.tr,
-            fontSize: 14.sp,
-            color: Colors.grey,
-            textAlign: TextAlign.center,
+      // v573 — l'ancien état vide = une ligne de texte gris centrée. Le kit
+      // partagé des accueils (patte animée + titre + phrase + « Rafraîchir »)
+      // rend l'écran accueillant au lieu de vide.
+      return ListView(
+        padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 96.h),
+        children: <Widget>[
+          HomeEmptyKit(
+            accent: AppColors.primaryColor,
+            onRefresh: _load,
+            title: 'home571_empty_title'.tr,
+            body: 'guest_empty'.tr,
           ),
-        ),
+        ],
       );
     }
     // 8 profils visibles + cellule « +N Voir tout » si plus.
@@ -439,23 +435,25 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
         itemCount: shown.length + (collapsed ? 1 : 0),
         itemBuilder: (_, i) {
           if (collapsed && i == shown.length) {
-            return _seeAllCell(extra, isDark);
+            return _seeAllCell(extra);
           }
-          return _gridCell(shown[i], isDark);
+          return _gridCell(shown[i]);
         },
       ),
     );
   }
 
-  Widget _gridCell(Map<String, dynamic> m, bool isDark) {
+  Widget _gridCell(Map<String, dynamic> m) {
     final name = (m['name'] ?? '').toString();
     final avatar = _avatarOf(m);
     final isWalker = m['_role'] == 'walker';
     final verified = _isVerified(m);
-    final roleColor = isWalker ? _walkerGreen : _sitterBlue;
+    final roleColor = AppColors.accentOn(
+        context, isWalker ? _walkerGreen : _sitterBlue);
 
     return GestureDetector(
       onTap: () => _openProfile(m),
+      behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -469,7 +467,7 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: roleColor, width: 2.4),
-                  color: isDark ? AppColors.surfaceDark : Colors.white,
+                  color: AppColors.card(context),
                 ),
                 child: ClipOval(
                   child: avatar.isNotEmpty
@@ -493,9 +491,7 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
                       color: const Color(0xFFF4C04A),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isDark
-                            ? AppColors.backgroundDark
-                            : Colors.white,
+                        color: AppColors.card(context),
                         width: 2,
                       ),
                     ),
@@ -510,7 +506,7 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
             text: name.isEmpty ? _roleName(isWalker) : name.split(' ').first,
             fontSize: 12.sp,
             fontWeight: FontWeight.w700,
-            color: isDark ? Colors.white : _ink,
+            color: AppColors.textPrimary(context),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -535,9 +531,11 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
     );
   }
 
-  Widget _seeAllCell(int extra, bool isDark) {
+  Widget _seeAllCell(int extra) {
+    final Color brand = AppColors.accentOn(context, AppColors.primaryColor);
     return GestureDetector(
       onTap: () => setState(() => _showAll = true),
+      behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -546,11 +544,9 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
             height: 72.w,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isDark
-                  ? AppColors.surfaceDark
-                  : const Color(0xFFC92A12).withValues(alpha: 0.06),
+              color: brand.withValues(alpha: 0.08),
               border: Border.all(
-                color: const Color(0xFFC92A12).withValues(alpha: 0.45),
+                color: brand.withValues(alpha: 0.45),
                 width: 1.6,
               ),
             ),
@@ -559,7 +555,7 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
                 text: '+$extra',
                 fontSize: 17.sp,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFFC92A12),
+                color: brand,
               ),
             ),
           ),
@@ -568,8 +564,9 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
             text: 'guest_see_all'.tr,
             fontSize: 11.5.sp,
             fontWeight: FontWeight.w700,
-            color: const Color(0xFFC92A12),
+            color: brand,
             maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -585,7 +582,6 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
   void _openProfile(Map<String, dynamic> m) {
     FirebaseAnalyticsService.instance
         .logFunnel('guest_profile_view', params: {'role': '${m['_role']}'});
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final name = (m['name'] ?? '').toString();
     final city = _cityOf(m);
     final avatar = _avatarOf(m);
@@ -597,15 +593,19 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
     final services = _servicesOf(m);
     final price = _priceOf(m);
     final currency = _currencyOf(m);
-    final roleColor = isWalker ? _walkerGreen : _sitterBlue;
+    final roleColor = AppColors.accentOn(
+        context, isWalker ? _walkerGreen : _sitterBlue);
+    final Color ink = AppColors.textPrimary(context);
+    final Color muted = AppColors.textSecondary(context);
+    final Color brand = AppColors.accentOn(context, AppColors.primaryColor);
 
     Get.bottomSheet(
       isScrollControlled: true,
       Container(
         constraints: BoxConstraints(maxHeight: Get.height * 0.82),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28.r)),
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
         ),
         padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w,
             16.h + appBottomInset(context)),
@@ -617,8 +617,8 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
                 width: 44.w,
                 height: 4.h,
                 decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(99.r),
+                  color: AppColors.divider(context),
+                  borderRadius: BorderRadius.circular(999.r),
                 ),
               ),
               SizedBox(height: 16.h),
@@ -657,8 +657,7 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
                           color: const Color(0xFFF4C04A),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color:
-                                isDark ? AppColors.surfaceDark : Colors.white,
+                            color: AppColors.card(context),
                             width: 2.4,
                           ),
                         ),
@@ -673,7 +672,7 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
                 text: name.isEmpty ? _roleName(isWalker) : name,
                 fontSize: 19.sp,
                 fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : _ink,
+                color: ink,
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -731,20 +730,21 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
                           ' ${rating.toStringAsFixed(1)}${reviews > 0 ? ' ($reviews)' : ''}',
                       fontSize: 12.5.sp,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : _ink,
+                      color: ink,
                     ),
                     SizedBox(width: 12.w),
                   ],
                   if (city.isNotEmpty) ...[
-                    Icon(Icons.place_outlined,
-                        size: 14.sp,
-                        color:
-                            isDark ? AppColors.textSecondaryDark : _muted),
-                    InterText(
-                      text: ' $city',
-                      fontSize: 12.5.sp,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? AppColors.textSecondaryDark : _muted,
+                    Icon(Icons.place_outlined, size: 14.sp, color: muted),
+                    Flexible(
+                      child: InterText(
+                        text: ' $city',
+                        fontSize: 12.5.sp,
+                        fontWeight: FontWeight.w600,
+                        color: muted,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     SizedBox(width: 12.w),
                   ],
@@ -755,7 +755,8 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
                       }),
                       fontSize: 12.5.sp,
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFFC92A12),
+                      color: brand,
+                      maxLines: 1,
                     ),
                 ],
               ),
@@ -769,7 +770,7 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
                     text: 'guest_about'.tr,
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : _ink,
+                    color: ink,
                   ),
                 ),
                 SizedBox(height: 6.h),
@@ -777,21 +778,18 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
                   width: double.infinity,
                   padding: EdgeInsets.all(12.w),
                   decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.backgroundDark
-                        : const Color(0xFFFFF9F4),
-                    borderRadius: BorderRadius.circular(14.r),
+                    color: AppColors.scaffold(context),
+                    borderRadius: BorderRadius.circular(18.r),
                     border: Border.all(
-                      color: isDark
-                          ? AppColors.dividerDark
-                          : const Color(0xFFECE5DE),
+                      color: AppColors.divider(context).withValues(alpha: 0.8),
+                      width: 1,
                     ),
                   ),
                   child: InterText(
                     text: bio,
                     fontSize: 12.5.sp,
                     fontWeight: FontWeight.w500,
-                    color: isDark ? AppColors.textSecondaryDark : _muted,
+                    color: muted,
                     maxLines: 6,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -801,30 +799,45 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
               // Services & tarifs
               if (services.isNotEmpty) ...[
                 SizedBox(height: 16.h),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: PoppinsText(
-                    text: 'guest_services'.tr,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : _ink,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      width: 26.w,
+                      height: 26.w,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: roleColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(9.r),
+                      ),
+                      child: Icon(Icons.sell_rounded,
+                          size: 14.sp, color: roleColor),
+                    ),
+                    SizedBox(width: 8.w),
+                    Expanded(
+                      child: PoppinsText(
+                        text: 'guest_services'.tr,
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w800,
+                        color: ink,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 6.h),
+                SizedBox(height: 8.h),
                 ...services.map(
                   (s) => Container(
                     margin: EdgeInsets.only(bottom: 6.h),
                     padding: EdgeInsets.symmetric(
                         horizontal: 12.w, vertical: 10.h),
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? AppColors.backgroundDark
-                          : const Color(0xFFFFF9F4),
-                      borderRadius: BorderRadius.circular(12.r),
+                      color: AppColors.scaffold(context),
+                      borderRadius: BorderRadius.circular(18.r),
                       border: Border.all(
-                        color: isDark
-                            ? AppColors.dividerDark
-                            : const Color(0xFFECE5DE),
+                        color:
+                            AppColors.divider(context).withValues(alpha: 0.8),
+                        width: 1,
                       ),
                     ),
                     child: Row(
@@ -834,16 +847,18 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
                             text: _serviceLabel(s.key),
                             fontSize: 12.5.sp,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : _ink,
+                            color: ink,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        SizedBox(width: 8.w),
                         InterText(
                           text: '${s.value.toStringAsFixed(0)} $currency',
                           fontSize: 12.5.sp,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFFC92A12),
+                          color: brand,
+                          maxLines: 1,
                         ),
                       ],
                     ),
@@ -854,33 +869,140 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
               SizedBox(height: 18.h),
 
               // Contacter → mur d'inscription contextuel
-              GestureDetector(
+              CustomButton(
+                isGradient: true,
+                title: 'guest_contact'.tr,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                radius: 16.r,
+                height: 50.h,
                 onTap: () {
                   Get.back();
                   SignupWallSheet.show(trigger: 'contact');
                 },
-                child: Container(
-                  width: double.infinity,
-                  height: 50.h,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFE25822), Color(0xFFC92A12)],
-                    ),
-                    borderRadius: BorderRadius.circular(16.r),
-                  ),
-                  child: Center(
-                    child: PoppinsText(
-                      text: 'guest_contact'.tr,
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Bouton carré de l'en-tête (retour), posé sur la carte du thème.
+class _SquareIconButton extends StatelessWidget {
+  const _SquareIconButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final BorderRadius br = BorderRadius.circular(14.r);
+    return Material(
+      color: AppColors.card(context),
+      borderRadius: br,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        borderRadius: br,
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.all(9.w),
+          decoration: BoxDecoration(
+            borderRadius: br,
+            border: Border.all(color: AppColors.divider(context), width: 1),
+          ),
+          child: Icon(icon,
+              size: 20.sp, color: AppColors.textPrimary(context)),
+        ),
+      ),
+    );
+  }
+}
+
+/// Squelette de la grille pendant le chargement.
+///
+/// v573 — remplace le `CircularProgressIndicator` seul : l'invité voit tout de
+/// suite la FORME de l'écran qui arrive, ce qui le fait paraître plus rapide.
+class _GuestGridSkeleton extends StatefulWidget {
+  const _GuestGridSkeleton();
+
+  @override
+  State<_GuestGridSkeleton> createState() => _GuestGridSkeletonState();
+}
+
+class _GuestGridSkeletonState extends State<_GuestGridSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Color base = AppColors.divider(context).withValues(alpha: 0.55);
+    final Color hi = AppColors.divider(context).withValues(alpha: 0.20);
+
+    Widget cell() => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              width: 72.w,
+              height: 72.w,
+              decoration: BoxDecoration(color: base, shape: BoxShape.circle),
+            ),
+            SizedBox(height: 8.h),
+            Container(
+              width: 46.w,
+              height: 9.h,
+              decoration: BoxDecoration(
+                color: base,
+                borderRadius: BorderRadius.circular(999.r),
+              ),
+            ),
+            SizedBox(height: 6.h),
+            Container(
+              width: 60.w,
+              height: 12.h,
+              decoration: BoxDecoration(
+                color: base,
+                borderRadius: BorderRadius.circular(999.r),
+              ),
+            ),
+          ],
+        );
+
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (BuildContext context, Widget? child) {
+        final double t = _c.value * 2 - 0.5;
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (Rect rect) => LinearGradient(
+            begin: Alignment(-1 + t * 2, -0.4),
+            end: Alignment(t * 2, 0.4),
+            colors: <Color>[base, hi, base],
+          ).createShader(rect),
+          child: child,
+        );
+      },
+      child: GridView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 96.h),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          mainAxisSpacing: 14.h,
+          crossAxisSpacing: 10.w,
+          childAspectRatio: 0.72,
+        ),
+        itemCount: 9,
+        itemBuilder: (_, __) => cell(),
       ),
     );
   }

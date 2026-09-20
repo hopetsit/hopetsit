@@ -1,3 +1,4 @@
+import 'package:hopetsit/utils/map_ui_state.dart';
 import 'dart:async' show unawaited;
 
 import 'package:get/get.dart';
@@ -441,7 +442,7 @@ class SitterProfileController extends GetxController implements ProfileSettingsH
   }
 
   void navigateToBookings() {
-    Get.to(() => const SitterBookingsScreen());
+    openMainTabOr(3, () => const SitterBookingsScreen());
   }
 
   // v406 — sauvegarde préférences/2FA via PATCH profil (PUT /users/:id/profile).

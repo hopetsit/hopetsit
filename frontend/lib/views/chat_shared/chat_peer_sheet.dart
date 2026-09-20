@@ -11,6 +11,7 @@ import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/views/chat_shared/chat_avatar.dart';
 import 'package:hopetsit/views/chat_shared/chat_session.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
+import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -124,31 +125,17 @@ class _ChatPeerSheetState extends State<_ChatPeerSheet> {
 
   Future<void> _block() async {
     if (_blocking) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('block_user_title'.tr),
-        content: Text('block_user_confirm_message'.tr),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dCtx).pop(false),
-            child: Text('common_cancel'.tr),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dCtx).pop(true),
-            child: Text(
-              'block_user_action'.tr,
-              style: TextStyle(
-                  // Rouge éclairci sur un dialogue sombre (clair inchangé).
-                  color: Theme.of(dCtx).brightness == Brightness.dark
-                      ? const Color(0xFFF07070)
-                      : const Color(0xFFDC2626),
-                  fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
+    // v573 — dialogue maison (app_dialog_kit) : carte coins 22, disque rouge,
+    // bouton « Bloquer » principal destructif. Logique inchangée.
+    final ok = await showAppConfirmDialog(
+      context,
+      title: 'block_user_title'.tr,
+      message: 'block_user_confirm_message'.tr,
+      confirmLabel: 'block_user_action'.tr,
+      cancelLabel: 'common_cancel'.tr,
+      destructive: true,
+      icon: Icons.block_rounded,
+      accent: widget.theme.accent,
     );
     if (ok != true || !mounted) return;
     setState(() => _blocking = true);
@@ -243,7 +230,7 @@ class _ChatPeerSheetState extends State<_ChatPeerSheet> {
           _ActionButton(
             icon: Icons.block_rounded,
             label: 'block_user_action'.tr,
-            color: const Color(0xFFDC2626),
+            color: AppColors.errorColor,
             filled: false,
             busy: _blocking,
             onTap: _block,
@@ -276,8 +263,7 @@ class _ActionButton extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     // Bouton non rempli : la couleur devient du TEXTE sur la feuille. Le rouge
     // « Bloquer » y est illisible en mode sombre → éclairci (clair inchangé).
-    final onSurface =
-        isDark ? (Color.lerp(color, Colors.white, 0.40) ?? color) : color;
+    final onSurface = AppColors.accentOn(context, color);
     final fg = filled ? Colors.white : onSurface;
     return Material(
       color: filled

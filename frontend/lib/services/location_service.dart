@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:geolocator/geolocator.dart';
+import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
 import 'package:geocoding/geocoding.dart' as geocoding;
 import 'package:hopetsit/utils/logger.dart';
 
@@ -11,13 +15,21 @@ class LocationService {
 
   LocationService._internal();
 
+  /// v573 — raison du dernier échec de [getCurrentLocation], pour que l'écran
+  /// puisse AFFICHER pourquoi « Me localiser » n'a rien donné (avant : silence
+  /// total). Valeurs : '' (ok) | 'service_off' | 'denied' | 'denied_forever' |
+  /// 'timeout'.
+  String lastFailure = '';
+
   /// Request location permission and get current position
   Future<Position?> getCurrentLocation() async {
     try {
       // Check if location services are enabled
+      lastFailure = '';
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         AppLogger.logError('Location services are disabled.');
+        lastFailure = 'service_off';
         return null;
       }
 
@@ -27,6 +39,7 @@ class LocationService {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           AppLogger.logError('Location permissions are denied');
+          lastFailure = 'denied';
           return null;
         }
       }
@@ -112,32 +125,99 @@ class LocationService {
     double latitude,
     double longitude,
   ) async {
+    // 1) Géocodeur natif du téléphone. Sur beaucoup d'Android (Samsung
+    //    compris) il échoue ou renvoie une fiche sans ville : on n'abandonne
+    //    plus, on passe au secours.
     try {
       List<geocoding.Placemark> placemarks = await geocoding
-          .placemarkFromCoordinates(latitude, longitude);
+          .placemarkFromCoordinates(latitude, longitude)
+          .timeout(const Duration(seconds: 6));
 
       if (placemarks.isNotEmpty) {
         final placemark = placemarks.first;
-        return {
-          'city': placemark.locality ?? placemark.administrativeArea,
-          'country': placemark.country,
-          // Sprint 6.5 step 2 — ISO-2 country code (e.g. 'FR').
-          'countryCodeIso': placemark.isoCountryCode,
-          'street': placemark.street,
-          'postalCode': placemark.postalCode,
-          'administrativeArea': placemark.administrativeArea,
-          'latitude': latitude,
-          'longitude': longitude,
-        };
+        final String city =
+            (placemark.locality ?? '').trim().isNotEmpty
+                ? placemark.locality!.trim()
+                : (placemark.subAdministrativeArea ?? '').trim().isNotEmpty
+                    ? placemark.subAdministrativeArea!.trim()
+                    : (placemark.administrativeArea ?? '').trim();
+        if (city.isNotEmpty) {
+          return {
+            'city': city,
+            'country': placemark.country,
+            'countryCodeIso': placemark.isoCountryCode,
+            'street': placemark.street,
+            'postalCode': placemark.postalCode,
+            'administrativeArea': placemark.administrativeArea,
+            'latitude': latitude,
+            'longitude': longitude,
+          };
+        }
       }
-      return null;
     } catch (e) {
-      AppLogger.logError('Error getting address from coordinates', error: e);
+      AppLogger.logError('Native reverse geocoding failed', error: e);
+    }
+    // 2) v573 — secours OpenStreetMap (Nominatim), le service déjà utilisé par
+    //    la recherche de ville de l'app.
+    return _reverseWithNominatim(latitude, longitude);
+  }
+
+  Future<Map<String, dynamic>?> _reverseWithNominatim(
+    double latitude,
+    double longitude,
+  ) async {
+    try {
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse'
+        '?lat=$latitude&lon=$longitude'
+        '&format=json&addressdetails=1&zoom=18'
+        '&accept-language=${Get.locale?.languageCode ?? 'fr'}',
+      );
+      final res = await http.get(
+        uri,
+        headers: const {
+          'User-Agent': 'HoPetSit/20.0 (contact@hopetsit.com)',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 8));
+      if (res.statusCode != 200) return null;
+      final dynamic body = json.decode(res.body);
+      if (body is! Map) return null;
+      final Map addr = (body['address'] as Map?) ?? const {};
+      String pick(List<String> keys) {
+        for (final k in keys) {
+          final v = (addr[k] ?? '').toString().trim();
+          if (v.isNotEmpty) return v;
+        }
+        return '';
+      }
+
+      final city = pick(
+        ['city', 'town', 'village', 'municipality', 'suburb', 'county', 'state'],
+      );
+      if (city.isEmpty) return null;
+      final road = pick(['road', 'pedestrian', 'footway', 'neighbourhood']);
+      final number = pick(['house_number']);
+      final street = road.isEmpty
+          ? ''
+          : (number.isEmpty ? road : '$number $road');
+      final code = pick(['country_code']).toUpperCase();
+      return {
+        'city': city,
+        'country': pick(['country']),
+        'countryCodeIso': code.isEmpty ? null : code,
+        'street': street,
+        'postalCode': pick(['postcode']),
+        'administrativeArea': pick(['state', 'region']),
+        'latitude': latitude,
+        'longitude': longitude,
+      };
+    } catch (e) {
+      AppLogger.logError('Nominatim reverse geocoding failed', error: e);
       return null;
     }
   }
 
-  /// Get coordinates from city name
   Future<Position?> getCoordinatesFromCity(String cityName) async {
     try {
       List<geocoding.Location> locations = await geocoding.locationFromAddress(

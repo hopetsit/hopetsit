@@ -174,6 +174,19 @@ const createApplication = async (req, res) => {
       return res.status(400).json({ error: 'ownerId query parameter is required.' });
     }
 
+    // v573 — on ne se propose pas sur sa propre annonce (1 personne = jusqu'à
+    // 3 documents de rôle reliés par l'e-mail).
+    try {
+      const { selfIdSet } = require('../utils/identityGroup');
+      const mine = await selfIdSet(req);
+      if (mine.has(String(ownerId))) {
+        return res.status(403).json({
+          error: 'You cannot apply to your own request.',
+          code: 'OWN_POST',
+        });
+      }
+    } catch (_) { /* non bloquant */ }
+
     const trimmedPetName = typeof petName === 'string' ? petName.trim() : '';
     const trimmedDescription = typeof description === 'string' ? description.trim() : '';
     const trimmedTimeSlot = typeof timeSlot === 'string' ? timeSlot.trim() : '';

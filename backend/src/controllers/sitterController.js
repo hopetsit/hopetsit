@@ -1,4 +1,5 @@
 const Sitter = require('../models/Sitter');
+const { selfIdSet } = require('../utils/identityGroup');
 const Review = require('../models/Review');
 const Owner = require('../models/Owner');
 const { sanitizeUser } = require('../utils/sanitize');
@@ -283,7 +284,13 @@ const findNearbySitters = async (req, res) => {
         _matchedBy: 'cityMatch',
       });
     }
-    const sitters = Array.from(sittersById.values());
+    // v573 — Daniel : « quand j'utilise les 3 rôles, mon profil gardien et
+    // promeneur apparaissent comme proposition ». Une personne = jusqu'à 3
+    // documents (même e-mail) : on retire ceux du spectateur.
+    const selfIds = await selfIdSet(req);
+    const sitters = Array.from(sittersById.values()).filter(
+      (s) => !selfIds.has(String(s._id)),
+    );
 
     // Format response with sitter details
     // v23.1 part 65 — Bug 9 : also surface MAP BOOST (PawSpot) data, not

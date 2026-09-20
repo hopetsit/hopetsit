@@ -11,6 +11,7 @@ import 'package:hopetsit/views/pet_sitter/widgets/post_card_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
+import 'package:hopetsit/widgets/photo_viewer_screen.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
 
 class PetPostCard extends StatelessWidget {
@@ -2296,45 +2297,33 @@ class PetPostCard extends StatelessWidget {
   }
 
   void _openPhotoViewer(BuildContext context, int initialIndex) {
+    // v573 — la visionneuse n'est plus un `Scaffold` noir coiffé d'une
+    // `AppBar` noire (barre invisible sur fond noir, pas de compteur).
+    //
+    // Photos du réseau — le cas réel des annonces : on passe par la
+    // visionneuse COMMUNE `lib/widgets/photo_viewer_screen.dart` (bouton
+    // fermer rond translucide, compteur « 3 / 8 », `InteractiveViewer`,
+    // décodage borné).
+    final bool allNetwork = petImages.isNotEmpty &&
+        petImages.every((String u) =>
+            u.startsWith('http://') || u.startsWith('https://'));
+    if (allNetwork) {
+      openPhotoViewer(petImages, initialIndex: initialIndex);
+      return;
+    }
+
+    // Photos locales (`isNetworkImage: false`) : la visionneuse commune ne
+    // sait afficher que des URL, on garde donc `PhotoViewGallery` ici — mais
+    // avec le même habillage : plus d'AppBar, bouton fermer rond translucide
+    // et compteur.
     Get.to(
-      () => Scaffold(
-        backgroundColor: Colors.black,
-        appBar: AppBar(
-          backgroundColor: Colors.black,
-          iconTheme: const IconThemeData(color: Colors.white),
-          leading: IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Get.back(),
-          ),
-        ),
-        body: PhotoViewGallery.builder(
-          scrollPhysics: const BouncingScrollPhysics(),
-          builder: (BuildContext context, int index) {
-            return PhotoViewGalleryPageOptions(
-              imageProvider: isNetworkImage
-                  ? NetworkImage(petImages[index])
-                  : AssetImage(petImages[index]) as ImageProvider,
-              initialScale: PhotoViewComputedScale.contained,
-              minScale: PhotoViewComputedScale.contained,
-              maxScale: PhotoViewComputedScale.covered * 2,
-            );
-          },
-          itemCount: petImages.length,
-          loadingBuilder: (context, event) => Center(
-            child: CircularProgressIndicator(
-              value: event == null
-                  ? 0
-                  : event.cumulativeBytesLoaded / event.expectedTotalBytes!,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
-            ),
-          ),
-          backgroundDecoration: const BoxDecoration(color: Colors.black),
-          pageController: PageController(initialPage: initialIndex),
-          onPageChanged: (index) {
-            // Optional: track page changes
-          },
-        ),
+      () => _AssetPhotoViewer(
+        images: petImages,
+        initialIndex: initialIndex,
+        isNetworkImage: isNetworkImage,
       ),
+      transition: Transition.fadeIn,
+      fullscreenDialog: true,
     );
   }
 
@@ -2404,6 +2393,132 @@ class PetPostCard extends StatelessWidget {
               letterSpacing: 1.2,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// v573 — visionneuse plein écran pour les photos LOCALES (assets).
+///
+/// Les annonces réelles passent par `openPhotoViewer` (visionneuse commune,
+/// réseau). Celle-ci ne sert qu'au cas `isNetworkImage: false` et reprend le
+/// même habillage : fond noir sans AppBar, bouton fermer rond translucide et
+/// compteur « 3 / 8 ».
+class _AssetPhotoViewer extends StatefulWidget {
+  const _AssetPhotoViewer({
+    required this.images,
+    required this.initialIndex,
+    required this.isNetworkImage,
+  });
+
+  final List<String> images;
+  final int initialIndex;
+  final bool isNetworkImage;
+
+  @override
+  State<_AssetPhotoViewer> createState() => _AssetPhotoViewerState();
+}
+
+class _AssetPhotoViewerState extends State<_AssetPhotoViewer> {
+  late final PageController _pages;
+  late int _index;
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.images.isEmpty
+        ? 0
+        : widget.initialIndex.clamp(0, widget.images.length - 1);
+    _pages = PageController(initialPage: _index);
+  }
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final MediaQueryData mq = MediaQuery.of(context);
+    final bool multiple = widget.images.length > 1;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: <Widget>[
+          Positioned.fill(
+            child: PhotoViewGallery.builder(
+              scrollPhysics: const BouncingScrollPhysics(),
+              builder: (BuildContext context, int index) {
+                return PhotoViewGalleryPageOptions(
+                  imageProvider: widget.isNetworkImage
+                      ? NetworkImage(widget.images[index])
+                      : AssetImage(widget.images[index]) as ImageProvider,
+                  initialScale: PhotoViewComputedScale.contained,
+                  minScale: PhotoViewComputedScale.contained,
+                  maxScale: PhotoViewComputedScale.covered * 2,
+                );
+              },
+              itemCount: widget.images.length,
+              loadingBuilder: (context, event) => const Center(
+                child: SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                  ),
+                ),
+              ),
+              backgroundDecoration: const BoxDecoration(color: Colors.black),
+              pageController: _pages,
+              onPageChanged: (int index) => setState(() => _index = index),
+            ),
+          ),
+          Positioned(
+            top: mq.padding.top + 8,
+            left: 12,
+            child: Material(
+              color: Colors.white.withValues(alpha: 0.16),
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => Navigator.of(context).maybePop(),
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Tooltip(
+                    message: 'common_close'.tr,
+                    child: const Icon(Icons.close_rounded,
+                        color: Colors.white, size: 22),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (multiple)
+            Positioned(
+              top: mq.padding.top + 14,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: InterText(
+                    text: '${_index + 1} / ${widget.images.length}',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

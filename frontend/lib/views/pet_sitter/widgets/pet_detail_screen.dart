@@ -1,3 +1,10 @@
+// v573 — modernisation : fond à petites pattes, sections en cartes, et SURTOUT
+// plus aucune image marketing en repli. `AppImages.placeholderImage` est une
+// illustration de la boutique : l'afficher à la place de la photo d'un animal
+// faisait passer un visuel promotionnel pour la vraie photo. Remplacée partout
+// par un aplat `AppColors.mediaPlaceholder(context)` + patte teintée, et les
+// `CircularProgressIndicator` nus par le même aplat qui respire.
+//
 // v569 — fiche animal vue par le prestataire, remise au format du lot :
 // en-tête photo arrondi, identité, puces d'infos à icônes (`PostBullet`) et
 // blocs encadrés (`PostBlock`), pilules de vaccination lisibles.
@@ -11,9 +18,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/post_card_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:intl/intl.dart';
 
 class PetDetailScreen extends StatefulWidget {
@@ -130,7 +137,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
               backgroundColor: AppColors.primaryColor,
               child: CircleAvatar(
                 radius: 14.r,
-                backgroundColor: AppColors.grey300Color,
+                backgroundColor: AppColors.mediaPlaceholder(context),
                 backgroundImage:
                     widget.sitterProfileImage != null &&
                         widget.sitterProfileImage!.isNotEmpty &&
@@ -144,9 +151,9 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                         (!widget.sitterProfileImage!.startsWith('http://') &&
                             !widget.sitterProfileImage!.startsWith('https://'))
                     ? Icon(
-                        Icons.person,
+                        Icons.person_rounded,
                         size: 20.sp,
-                        color: AppColors.greyColor,
+                        color: AppColors.textSecondary(context),
                       )
                     : null,
               ),
@@ -154,7 +161,11 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
+      // v573 — fond à petites pattes (même grammaire que les accueils, les
+      // pages Réservations et les profils).
+      body: PawPatternBackground(
+        color: AppColors.primaryColor,
+        child: SingleChildScrollView(
         child: SafeArea(
           child: Column(
             children: [
@@ -189,6 +200,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
             ],
           ),
         ),
+        ),
       ),
     );
   }
@@ -208,21 +220,42 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
             child: Container(
               width: double.infinity,
               height: 300.h,
-              decoration: BoxDecoration(color: AppColors.lightGrey),
+              color: AppColors.mediaPlaceholder(context),
               child: hasImages
                   ? (hasMultipleImages
                         ? _buildImageSlider()
                         : _buildSingleImage(widget.petImages.first))
-                  : Center(
-                      child: Image.asset(
-                        AppImages.placeholderImage,
-                        width: 60.w,
-                        height: 60.h,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
+                  : const _PawPlaceholder(size: 64),
             ),
           ),
+
+          // v573 — voile dégradé en bas de la photo : les pastilles de
+          // pagination (blanches) disparaissaient sur une photo claire.
+          if (hasImages)
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 180.h,
+              height: 120.h,
+              child: IgnorePointer(
+                child: ClipRRect(
+                  borderRadius:
+                      BorderRadius.vertical(bottom: Radius.circular(28.r)),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: <Color>[
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.32),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
           // Page Indicators (only show if multiple images)
           if (hasMultipleImages)
@@ -422,13 +455,22 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
           'pet_detail_vaccinations'.tr.replaceAll('@name', widget.petName),
         ),
         SizedBox(height: 12.h),
-        Wrap(
-          spacing: 8.w,
-          runSpacing: 8.h,
-          children: widget.vaccinations
-              .map((vaccination) => _buildVaccinationTag(_localizedVaccination(vaccination)))
-              .toList(),
-        ),
+        // v573 — les pilules de vaccination vivent dans une carte, comme les
+        // autres sections (avant : posées à même le fond).
+        if (widget.vaccinations.isNotEmpty)
+          PostBlock(
+            accent: AppColors.primaryColor,
+            background: AppColors.card(context),
+            borderColor: AppColors.divider(context),
+            child: Wrap(
+              spacing: 8.w,
+              runSpacing: 8.h,
+              children: widget.vaccinations
+                  .map((vaccination) =>
+                      _buildVaccinationTag(_localizedVaccination(vaccination)))
+                  .toList(),
+            ),
+          ),
       ],
     );
   }
@@ -442,16 +484,40 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
           'pet_detail_gallery'.tr.replaceAll('@name', widget.petName),
         ),
         SizedBox(height: 12.h),
+        // v573 — état vide illustré, et grille logée dans une carte.
         if (widget.galleryImages.isEmpty)
-          Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 24.h),
-              child: InterText(
-                text: 'pet_detail_no_photos'.tr,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w400,
-                color: AppColors.greyColor,
-              ),
+          PostBlock(
+            accent: AppColors.primaryColor,
+            background: AppColors.card(context),
+            borderColor: AppColors.divider(context),
+            child: Column(
+              children: [
+                SizedBox(height: 8.h),
+                Container(
+                  width: 56.w,
+                  height: 56.w,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryColor.withValues(alpha: 0.10),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.photo_library_rounded,
+                    size: 26.sp,
+                    color:
+                        AppColors.accentOn(context, AppColors.primaryColor),
+                  ),
+                ),
+                SizedBox(height: 10.h),
+                InterText(
+                  text: 'pet_detail_no_photos'.tr,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  textAlign: TextAlign.center,
+                  color: AppColors.textSecondary(context),
+                ),
+                SizedBox(height: 8.h),
+              ],
             ),
           )
         else
@@ -477,26 +543,17 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                     ? CachedNetworkImage(
                         imageUrl: imageUrl,
                         fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: AppColors.lightGrey,
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                AppColors.primaryColor,
-                              ),
-                            ),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: AppColors.lightGrey,
-                          child: Icon(
-                            Icons.broken_image,
-                            color: AppColors.greyColor,
-                          ),
-                        ),
+                        placeholder: (context, url) =>
+                            const _PawPlaceholder(size: 28, animate: true),
+                        errorWidget: (context, url, error) =>
+                            const _PawPlaceholder(size: 28),
                       )
-                    : Image.asset(imageUrl, fit: BoxFit.cover),
+                    : Image.asset(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const _PawPlaceholder(size: 28),
+                      ),
               );
             },
           ),
@@ -714,48 +771,21 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
 
         return Container(
           width: double.infinity,
-          decoration: BoxDecoration(color: AppColors.lightGrey),
+          color: AppColors.mediaPlaceholder(context),
           child: isNetworkImage
               ? CachedNetworkImage(
                   imageUrl: imageUrl,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    color: AppColors.lightGrey,
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          AppColors.primaryColor,
-                        ),
-                      ),
-                    ),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    color: AppColors.lightGrey,
-                    child: Center(
-                      child: Image.asset(
-                        AppImages.placeholderImage,
-                        width: 60.w,
-                        height: 60.h,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
+                  placeholder: (context, url) =>
+                      const _PawPlaceholder(size: 64, animate: true),
+                  errorWidget: (context, url, error) =>
+                      const _PawPlaceholder(size: 64),
                 )
               : Image.asset(
                   imageUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: AppColors.lightGrey,
-                    child: Center(
-                      child: Image.asset(
-                        AppImages.placeholderImage,
-                        width: 60.w,
-                        height: 60.h,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
+                  errorBuilder: (context, error, stackTrace) =>
+                      const _PawPlaceholder(size: 64),
                 ),
         );
       },
@@ -768,48 +798,21 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
 
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(color: AppColors.lightGrey),
+      color: AppColors.mediaPlaceholder(context),
       child: isNetworkImage
           ? CachedNetworkImage(
               imageUrl: imageUrl,
               fit: BoxFit.cover,
-              placeholder: (context, url) => Container(
-                color: AppColors.lightGrey,
-                child: Center(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      AppColors.primaryColor,
-                    ),
-                  ),
-                ),
-              ),
-              errorWidget: (context, url, error) => Container(
-                color: AppColors.lightGrey,
-                child: Center(
-                  child: Image.asset(
-                    AppImages.placeholderImage,
-                    width: 60.w,
-                    height: 60.h,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
+              placeholder: (context, url) =>
+                  const _PawPlaceholder(size: 64, animate: true),
+              errorWidget: (context, url, error) =>
+                  const _PawPlaceholder(size: 64),
             )
           : Image.asset(
               imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                color: AppColors.lightGrey,
-                child: Center(
-                  child: Image.asset(
-                    AppImages.placeholderImage,
-                    width: 60.w,
-                    height: 60.h,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
+              errorBuilder: (context, error, stackTrace) =>
+                  const _PawPlaceholder(size: 64),
             ),
     );
   }
@@ -831,6 +834,74 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// v573 — repli média de la fiche animal : aplat neutre
+/// (`AppColors.mediaPlaceholder`) + patte teintée à la couleur de marque.
+///
+/// Il remplace DEUX anciens rendus :
+///   · `Image.asset(AppImages.placeholderImage)` — une illustration marketing
+///     affichée à la place de la photo de l'animal quand elle manquait ou
+///     échouait : le prestataire croyait voir la vraie photo ;
+///   · `CircularProgressIndicator` nu pendant le chargement — avec
+///     [animate] à true, la patte respire doucement à la place.
+class _PawPlaceholder extends StatefulWidget {
+  const _PawPlaceholder({this.size = 48, this.animate = false});
+
+  /// Taille de la patte, en `sp`.
+  final double size;
+
+  /// Chargement en cours : la patte respire.
+  final bool animate;
+
+  @override
+  State<_PawPlaceholder> createState() => _PawPlaceholderState();
+}
+
+class _PawPlaceholderState extends State<_PawPlaceholder>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _ctl;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.animate) {
+      _ctl = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 950),
+      )..repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctl?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget paw = Icon(
+      Icons.pets_rounded,
+      size: widget.size.sp,
+      color: AppColors.accentOn(context, AppColors.primaryColor)
+          .withValues(alpha: 0.42),
+    );
+    return Container(
+      color: AppColors.mediaPlaceholder(context),
+      alignment: Alignment.center,
+      child: _ctl == null
+          ? paw
+          : AnimatedBuilder(
+              animation: _ctl!,
+              builder: (_, child) => Opacity(
+                opacity: 0.45 + (_ctl!.value * 0.45),
+                child: child,
+              ),
+              child: paw,
+            ),
     );
   }
 }

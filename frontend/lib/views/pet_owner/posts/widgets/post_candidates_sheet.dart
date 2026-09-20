@@ -31,6 +31,104 @@ class PostCandidatesSheet {
   }
 }
 
+/// v573 — dialogue de confirmation au patron moderne (accepter / refuser un
+/// gardien : le moment décisif de l'annonce). Même grammaire que
+/// `CustomConfirmationDialog` — carte `AppColors.card`, coins 22, disque
+/// teinté, `PoppinsText` + `InterText`, boutons du kit — mais avec un TITRE
+/// propre à chaque action, que le dialogue commun (titre générique
+/// « misc569_confirm_title ») ne sait pas porter.
+///
+/// Renvoie `true` seulement si l'utilisateur confirme. Aucun texte nouveau :
+/// les clés i18n sont celles des anciens `AlertDialog`.
+Future<bool?> _showModernConfirm({
+  required BuildContext context,
+  required IconData icon,
+  required Color tone,
+  required String title,
+  required String message,
+  required String confirmLabel,
+  required bool destructive,
+}) {
+  final bool dark = Theme.of(context).brightness == Brightness.dark;
+  return showDialog<bool>(
+    context: context,
+    barrierDismissible: true,
+    barrierColor: Colors.black.withValues(alpha: dark ? 0.62 : 0.38),
+    builder: (dialogCtx) => Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: EdgeInsets.symmetric(horizontal: 28.w, vertical: 24.h),
+      child: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 360.w),
+          child: Container(
+            padding: EdgeInsets.fromLTRB(20.w, 24.h, 20.w, 18.h),
+            decoration: BoxDecoration(
+              color: AppColors.card(dialogCtx),
+              borderRadius: BorderRadius.circular(22.r),
+              border: Border.all(color: AppColors.divider(dialogCtx)),
+              boxShadow: AppColors.cardShadow(dialogCtx),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56.w,
+                  height: 56.w,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: tone.withValues(alpha: dark ? 0.22 : 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon,
+                      size: 28.sp, color: AppColors.accentOn(dialogCtx, tone)),
+                ),
+                SizedBox(height: 14.h),
+                PoppinsText(
+                  text: title,
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary(dialogCtx),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 8.h),
+                InterText(
+                  text: message,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w400,
+                  height: 1.45,
+                  color: AppColors.textSecondary(dialogCtx),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 22.h),
+                ActionPillButton(
+                  label: confirmLabel,
+                  icon: icon,
+                  tone: tone,
+                  kind: destructive
+                      ? ActionPillKind.danger
+                      : ActionPillKind.filled,
+                  expand: true,
+                  haptic: destructive,
+                  onPressed: () => Navigator.of(dialogCtx).pop(true),
+                ),
+                SizedBox(height: 10.h),
+                ActionPillButton(
+                  label: 'common_cancel'.tr,
+                  tone: AppColors.textSecondary(dialogCtx),
+                  kind: ActionPillKind.ghost,
+                  expand: true,
+                  onPressed: () => Navigator.of(dialogCtx).pop(false),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class _CandidatesSheetBody extends StatefulWidget {
   const _CandidatesSheetBody({required this.postId});
 
@@ -76,31 +174,15 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
 
   Future<void> _accept(ApplicationModel app) async {
     if (_busy.value) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await _showModernConfirm(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: Text('candidates_choose_dialog_title'.tr),
-        content: Text(
-          'candidates_choose_dialog_message'
-              .trParams({'name': app.sitter.name}),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(false),
-            child: Text('common_cancel'.tr),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(true),
-            child: Text(
-              'candidates_choose_confirm'.tr,
-              style: TextStyle(
-                color: AppColors.primaryColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
+      icon: Icons.verified_rounded,
+      tone: AppColors.primaryColor,
+      title: 'candidates_choose_dialog_title'.tr,
+      message:
+          'candidates_choose_dialog_message'.trParams({'name': app.sitter.name}),
+      confirmLabel: 'candidates_choose_confirm'.tr,
+      destructive: false,
     );
     if (confirmed != true) return;
     _busy.value = true;
@@ -117,28 +199,15 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
 
   Future<void> _reject(ApplicationModel app) async {
     if (_busy.value) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await _showModernConfirm(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: Text('candidates_reject_dialog_title'.tr),
-        content: Text(
-          'candidates_reject_dialog_message'
-              .trParams({'name': app.sitter.name}),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(false),
-            child: Text('common_cancel'.tr),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(true),
-            child: Text(
-              'common_reject'.tr,
-              style: const TextStyle(color: Color(0xFFE53935)),
-            ),
-          ),
-        ],
-      ),
+      icon: Icons.warning_amber_rounded,
+      tone: ActionTone.danger,
+      title: 'candidates_reject_dialog_title'.tr,
+      message:
+          'candidates_reject_dialog_message'.trParams({'name': app.sitter.name}),
+      confirmLabel: 'common_reject'.tr,
+      destructive: true,
     );
     if (confirmed != true) return;
     _busy.value = true;
@@ -193,17 +262,42 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
               final loading = _controller.isLoading.value;
               final list = _candidates();
               if (loading && list.isEmpty) {
-                return const Center(child: CircularProgressIndicator());
+                // v573 — squelettes de cartes plutôt qu'un spinner nu : la
+                // feuille garde sa forme pendant le chargement.
+                return const _CandidatesSkeleton();
               }
               if (list.isEmpty) {
+                // v573 — état vide illustré (disque teinté + icône) au lieu
+                // d'une ligne de texte perdue au milieu de la feuille.
                 return Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24.h),
-                  child: Center(
-                    child: InterText(
-                      text: 'candidates_empty'.tr,
-                      fontSize: 13.sp,
-                      color: AppColors.textSecondary(context),
-                    ),
+                  padding: EdgeInsets.symmetric(vertical: 28.h),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 64.w,
+                        height: 64.w,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryColor.withValues(alpha: 0.10),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.groups_2_rounded,
+                          size: 30.sp,
+                          color: AppColors.accentOn(
+                              context, AppColors.primaryColor),
+                        ),
+                      ),
+                      SizedBox(height: 12.h),
+                      InterText(
+                        text: 'candidates_empty'.tr,
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w500,
+                        textAlign: TextAlign.center,
+                        color: AppColors.textSecondary(context),
+                      ),
+                    ],
                   ),
                 );
               }
@@ -251,43 +345,156 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
   }
 
   Widget _sortBar(BuildContext context) {
-    Widget chip(String labelKey, _SortMode mode, IconData icon) {
-      final selected = _sortMode == mode;
-      return Padding(
-        padding: EdgeInsets.only(right: 8.w),
-        child: ChoiceChip(
-          label: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 14.sp,
-                  color: selected ? Colors.white : AppColors.primaryColor),
-              SizedBox(width: 4.w),
-              Text(labelKey.tr, style: TextStyle(fontSize: 12.sp)),
-            ],
-          ),
-          selected: selected,
-          onSelected: (_) => setState(() => _sortMode = mode),
-          selectedColor: AppColors.primaryColor,
-          labelStyle: TextStyle(
-            color: selected ? Colors.white : AppColors.textPrimary(context),
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+    // v573 — 3 pilules FIXES à parts égales (même grammaire que
+    // `BookingSegmentedTabs`) : plus de rangée qui glisse, plus de
+    // `ChoiceChip` Material au milieu d'un écran au nouveau design. Le tri et
+    // ses 3 modes sont inchangés.
+    Widget pill(String labelKey, _SortMode mode, IconData icon) {
+      final bool selected = _sortMode == mode;
+      final Color fg =
+          selected ? AppColors.whiteColor : AppColors.textSecondary(context);
+      return Expanded(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => _sortMode = mode),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 8.h),
+            decoration: BoxDecoration(
+              color: selected ? AppColors.primaryColor : Colors.transparent,
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 15.sp, color: fg),
+                SizedBox(width: 5.w),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: InterText(
+                      text: labelKey.tr,
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w700,
+                      color: fg,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
-    return SizedBox(
-      height: 36.h,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
+    return Container(
+      padding: EdgeInsets.all(5.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: AppColors.divider(context)),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Row(
         children: [
-          chip('candidates_sort_newest', _SortMode.newest,
+          pill('candidates_sort_newest', _SortMode.newest,
               Icons.schedule_rounded),
-          chip('candidates_sort_price', _SortMode.priceAsc,
+          SizedBox(width: 4.w),
+          pill('candidates_sort_price', _SortMode.priceAsc,
               Icons.payments_rounded),
-          chip('candidates_sort_rating', _SortMode.ratingDesc,
+          SizedBox(width: 4.w),
+          pill('candidates_sort_rating', _SortMode.ratingDesc,
               Icons.star_rounded),
         ],
+      ),
+    );
+  }
+}
+
+/// v573 — squelette de chargement de la feuille des candidatures : 3 cartes
+/// grises qui respirent, à la place du `CircularProgressIndicator` nu.
+class _CandidatesSkeleton extends StatefulWidget {
+  const _CandidatesSkeleton();
+
+  @override
+  State<_CandidatesSkeleton> createState() => _CandidatesSkeletonState();
+}
+
+class _CandidatesSkeletonState extends State<_CandidatesSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  Widget _bar(BuildContext context, double w, double h) => Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+          color: AppColors.mediaPlaceholder(context),
+          borderRadius: BorderRadius.circular(6.r),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctl,
+      builder: (context, _) => Opacity(
+        opacity: 0.45 + (_ctl.value * 0.35),
+        child: ListView.separated(
+          shrinkWrap: true,
+          padding: EdgeInsets.zero,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: 3,
+          separatorBuilder: (_, __) => SizedBox(height: 10.h),
+          itemBuilder: (_, __) => Container(
+            padding: EdgeInsets.all(12.w),
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
+              borderRadius: BorderRadius.circular(18.r),
+              border: Border.all(color: AppColors.divider(context)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 44.w,
+                      height: 44.w,
+                      decoration: BoxDecoration(
+                        color: AppColors.mediaPlaceholder(context),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    SizedBox(width: 10.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _bar(context, 130.w, 12.h),
+                          SizedBox(height: 7.h),
+                          _bar(context, 88.w, 10.h),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 14.h),
+                _bar(context, double.infinity, 40.h),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -318,11 +525,19 @@ class _CandidateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final avatarUrl = app.sitter.avatar.url;
     final isWalker = app.providerRole == 'walker';
+    // v573 — couleur du rôle éclaircie en mode sombre (`accentOn`) : le bleu
+    // gardien #1976D2 et le rouge propriétaire étaient illisibles sur fond
+    // sombre.
+    final Color roleTone = AppColors.accentOn(
+      context,
+      isWalker ? const Color(0xFF1976D2) : AppColors.primaryColor,
+    );
     return Container(
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(14.r),
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: AppColors.divider(context)),
         boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
@@ -359,6 +574,7 @@ class _CandidateCard extends StatelessWidget {
                                 : 'provider_unknown'.tr,
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary(context),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -366,21 +582,16 @@ class _CandidateCard extends StatelessWidget {
                         SizedBox(width: 6.w),
                         Container(
                           padding: EdgeInsets.symmetric(
-                              horizontal: 6.w, vertical: 2.h),
+                              horizontal: 7.w, vertical: 2.h),
                           decoration: BoxDecoration(
-                            color: (isWalker
-                                    ? const Color(0xFF1976D2)
-                                    : AppColors.primaryColor)
-                                .withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6.r),
+                            color: roleTone.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8.r),
                           ),
                           child: InterText(
                             text: (isWalker ? 'role_walker' : 'role_sitter').tr,
                             fontSize: 10.sp,
                             fontWeight: FontWeight.w600,
-                            color: isWalker
-                                ? const Color(0xFF1976D2)
-                                : AppColors.primaryColor,
+                            color: roleTone,
                           ),
                         ),
                       ],
@@ -425,14 +636,15 @@ class _CandidateCard extends StatelessWidget {
                   padding:
                       EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8.r),
+                    color: AppColors.primaryColor.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(10.r),
                   ),
                   child: PoppinsText(
                     text: _priceLabel(),
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.primaryColor,
+                    color:
+                        AppColors.accentOn(context, AppColors.primaryColor),
                   ),
                 ),
             ],

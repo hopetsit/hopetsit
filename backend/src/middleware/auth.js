@@ -59,6 +59,25 @@ const requireAuth = async (req, res, next) => {
   }
 };
 
+/**
+ * v573 — authentification FACULTATIVE : si un jeton valide est présent on
+ * renseigne `req.user`, sinon on continue en anonyme. Sert aux routes publiques
+ * qui doivent malgré tout savoir QUI regarde (ex. ne pas proposer à un
+ * propriétaire ses propres profils gardien/promeneur).
+ */
+const optionalAuth = (req, res, next) => {
+  try {
+    const token = getTokenFromHeader(req.headers.authorization);
+    if (token) {
+      const payload = verifyToken(token);
+      req.user = { id: payload.id, role: payload.role };
+    }
+  } catch (_) {
+    /* jeton absent/expiré : anonyme */
+  }
+  return next();
+};
+
 const requireRole =
   (...allowedRoles) =>
   (req, res, next) => {
@@ -123,6 +142,7 @@ const requireVerifiedEmail = async (req, res, next) => {
 };
 
 module.exports = {
+  optionalAuth,
   requireAuth,
   requireRole,
   requireVerifiedEmail,

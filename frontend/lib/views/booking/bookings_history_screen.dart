@@ -1,47 +1,27 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/service_type_translator.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/views/booking/booking_agreement_screen.dart';
 import 'package:hopetsit/views/reviews/reviews_screen.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
-import 'package:intl/intl.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 
-// v22.3 — Bug 17e : helpers de formatage pour eviter "2026-04-28T00:00:00.000Z"
-// brut affiche dans l'historique. Renvoie "lun. 28 avr. 2026" et "13:39".
-String _formatBookingDate(String raw) {
-  if (raw.isEmpty) return '—';
-  if (raw.contains('T') || raw.contains('-')) {
-    try {
-      final dt = DateTime.parse(raw).toLocal();
-      final lang = Get.locale?.languageCode ?? 'fr';
-      return DateFormat('EEE d MMM y', lang).format(dt);
-    } catch (_) {}
-  }
-  return raw;
-}
-
-String _formatBookingTime(String raw) {
-  if (raw.isEmpty) return '—';
-  if (raw.contains('T')) {
-    try {
-      final dt = DateTime.parse(raw).toLocal();
-      final lang = Get.locale?.languageCode ?? 'fr';
-      final pattern = lang == 'en' ? 'h:mm a' : 'HH:mm';
-      return DateFormat(pattern, lang).format(dt);
-    } catch (_) {}
-  }
-  return raw;
-}
+// v573 — les dates/heures passent par `BookingDateFormat`, le formateur
+// partagé par les pages Réservations des 3 rôles (avant : deux helpers
+// locaux qui rendaient « lun. 28 avr. 2026 » au lieu de « lun., 28 avr.
+// 2026 » — même information, mise en forme différente d'un écran à l'autre).
 
 class BookingsHistoryScreen extends StatefulWidget {
   const BookingsHistoryScreen({super.key});
@@ -123,7 +103,11 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
           color: AppColors.textPrimary(context),
         ),
       ),
-      body: Column(
+      // v573 — même fond à petites pattes que les pages Réservations des
+      // 3 rôles (Daniel : « le fond est tout blanc, sans patte »).
+      body: PawPatternBackground(
+        color: AppColors.primaryColor,
+        child: Column(
         children: [
           // Status Filter Chips
           _buildStatusFilter(),
@@ -180,6 +164,7 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
             }),
           ),
         ],
+        ),
       ),
     );
   }
@@ -220,142 +205,88 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
     }
   }
 
+  /// v18.6 — couleur d'accent du rôle (vert promeneur / bleu gardien / rouge
+  /// propriétaire). Règle INCHANGÉE : elle est seulement remontée au niveau de
+  /// la carte pour que l'avatar, les pastilles et les boutons s'accordent.
+  Color _roleAccent(BookingModel booking) {
+    final serviceLower = (booking.serviceType ?? '').toLowerCase();
+    if (serviceLower.contains('dog_walking') ||
+        serviceLower.contains('walking')) {
+      return const Color(0xFF16A34A);
+    }
+    if (serviceLower.contains('sitting') ||
+        serviceLower.contains('day_care') ||
+        serviceLower.contains('boarding')) {
+      return const Color(0xFF2563EB);
+    }
+    return AppColors.primaryColor;
+  }
+
   Widget _buildBookingCard(BookingModel booking) {
-    return Container(
+    // v573 — la carte est reconstruite avec les widgets PUBLICS du kit
+    // Réservations (`booking_ui_kit.dart`) : elle est désormais identique à
+    // celles des pages Réservations des 3 rôles (coins 20, fond
+    // `AppColors.card`, liseré et ombre du thème, méta-données en pastilles,
+    // prix lisible). Avant : coins 12, `grey300Color` en dur, aucune ombre et
+    // trois `AppColors.lightGrey` illisibles en mode sombre.
+    // Aucune donnée, aucune condition et aucune navigation ne changent.
+    final Color accent = _roleAccent(booking);
+    final String service = translateServiceType(booking.serviceType);
+    final bool paid = (booking.paymentStatus ?? '').toLowerCase() == 'paid';
+    final String amount = CurrencyHelper.format(
+      booking.pricing?.currency ?? booking.sitter.currency,
+      booking.pricing?.totalPrice ??
+          booking.totalAmount ??
+          booking.pricing?.basePrice ??
+          booking.sitter.hourlyRate,
+    );
+
+    return BookingCard(
+      accent: accent,
       margin: EdgeInsets.only(bottom: 16.h),
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.grey300Color, width: 1),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: Status and Service Provider
-          Row(
+          BookingPartyHeader(
+            name: booking.sitter.name,
+            avatarUrl: booking.sitter.avatar.url,
+            subtitle: service.isNotEmpty ? service : null,
+            accent: accent,
+            trailing: BookingStatusChip(
+              status: booking.status,
+              paymentStatus: booking.paymentStatus,
+              accent: accent,
+            ),
+          ),
+          SizedBox(height: 14.h),
+          Wrap(
+            spacing: 8.w,
+            runSpacing: 8.h,
             children: [
-              // Status Badge
-              _buildStatusBadge(booking),
-              const Spacer(),
-              // Service Provider Avatar
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    // Navigate to service provider detail if needed
-                  },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ClipOval(
-                        child: booking.sitter.avatar.url.isNotEmpty
-                            ? CachedNetworkImage(
-                                imageUrl: booking.sitter.avatar.url,
-                                width: 32.w,
-                                height: 32.h,
-                                memCacheWidth: 96, // v23.1 part 250 perf (32px liste)
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(
-                                  width: 32.w,
-                                  height: 32.h,
-                                  color: AppColors.lightGrey,
-                                  child: Icon(
-                                    Icons.person,
-                                    size: 20.sp,
-                                    color: AppColors.primaryColor,
-                                  ),
-                                ),
-                                errorWidget: (context, url, error) => Container(
-                                  width: 32.w,
-                                  height: 32.h,
-                                  color: AppColors.lightGrey,
-                                  child: Icon(
-                                    Icons.person,
-                                    size: 20.sp,
-                                    color: AppColors.primaryColor,
-                                  ),
-                                ),
-                              )
-                            : Container(
-                                width: 32.w,
-                                height: 32.h,
-                                color: AppColors.lightGrey,
-                                child: Icon(
-                                  Icons.person,
-                                  size: 20.sp,
-                                  color: AppColors.primaryColor,
-                                ),
-                              ),
-                      ),
-                      SizedBox(width: 8.w),
-                      Flexible(
-                        child: InterText(
-                          text: booking.sitter.name,
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textPrimary(context),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              BookingMetaChip(
+                icon: Icons.pets_rounded,
+                value: booking.petName,
+                semanticsLabel: 'bookings_detail_pet_label'.tr,
+                tint: accent,
+              ),
+              BookingMetaChip(
+                icon: Icons.calendar_today_rounded,
+                value: BookingDateFormat.localizedDate(booking.date),
+                semanticsLabel: 'bookings_detail_date_label'.tr,
+              ),
+              BookingMetaChip(
+                icon: Icons.access_time_rounded,
+                value: BookingDateFormat.localizedTime(booking.timeSlot),
+                semanticsLabel: 'bookings_detail_time_label'.tr,
               ),
             ],
           ),
-
-          SizedBox(height: 16.h),
-
-          // Booking Details
-          _buildDetailRow(
-            Icons.pets,
-            'bookings_detail_pet_label'.tr,
-            booking.petName,
-          ),
-          SizedBox(height: 12.h),
-          _buildDetailRow(
-            Icons.calendar_today,
-            'bookings_detail_date_label'.tr,
-            _formatBookingDate(booking.date),
-          ),
-          SizedBox(height: 12.h),
-          _buildDetailRow(
-            Icons.access_time,
-            'bookings_detail_time_label'.tr,
-            _formatBookingTime(booking.timeSlot),
-          ),
-          SizedBox(height: 12.h),
-          Row(
-            children: [
-              Icon(
-                Icons.attach_money,
-                size: 16.sp,
-                color: AppColors.grey700Color,
-              ),
-              SizedBox(width: 8.w),
-              InterText(
-                text: 'bookings_detail_total_amount_label'.tr,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w400,
-                color: AppColors.grey700Color,
-              ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: InterText(
-                  text: CurrencyHelper.format(
-                    booking.pricing?.currency ?? booking.sitter.currency,
-                    booking.pricing?.totalPrice ??
-                        booking.totalAmount ??
-                        booking.pricing?.basePrice ??
-                        booking.sitter.hourlyRate,
-                  ),
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary(context),
-                ),
-              ),
-            ],
+          const BookingCardDivider(),
+          BookingPriceRow(
+            accent: accent,
+            icon: paid ? Icons.verified_rounded : Icons.credit_card_rounded,
+            caption: 'bookings_detail_total_amount_label'.tr,
+            amount: amount,
           ),
           // v18.8 — design unifié sur les 3 rôles (walker/sitter/owner).
           // On supprime les lignes téléphone / localisation / notation dans
@@ -365,57 +296,28 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
 
           if (booking.description.isNotEmpty) ...[
             SizedBox(height: 12.h),
-            _buildDescription(booking.description),
+            _buildDescription(accent, booking.description),
           ],
 
           SizedBox(height: 16.h),
 
           // Action Buttons
-          _buildActionButtons(booking),
+          _buildActionButtons(booking, accent),
         ],
       ),
     );
   }
 
-  Widget _buildStatusBadge(BookingModel booking) {
-    // v565 — pastille de statut du kit Réservations (statut + paiement).
-    return BookingStatusChip(
-      status: booking.status,
-      paymentStatus: booking.paymentStatus,
-      accent: AppColors.primaryColor,
-    );
-  }
-
-  Widget _buildDetailRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 16.sp, color: AppColors.grey700Color),
-        SizedBox(width: 8.w),
-        InterText(
-          text: label,
-          fontSize: 12.sp,
-          fontWeight: FontWeight.w400,
-          color: AppColors.grey700Color,
-        ),
-        SizedBox(width: 8.w),
-        Expanded(
-          child: InterText(
-            text: value,
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textPrimary(context),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDescription(String description) {
+  Widget _buildDescription(Color accent, String description) {
+    // v573 — encart teinté à la couleur du rôle (avant : même fond que la
+    // carte, donc invisible).
     return Container(
+      width: double.infinity,
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(8.r),
+        color: accent.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: AppColors.divider(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -423,13 +325,13 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
           InterText(
             text: 'bookings_detail_description_label'.tr,
             fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-            color: AppColors.grey700Color,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary(context),
           ),
           SizedBox(height: 4.h),
           InterText(
             text: description,
-            fontSize: 12.sp,
+            fontSize: 12.5.sp,
             fontWeight: FontWeight.w400,
             color: AppColors.textPrimary(context),
           ),
@@ -438,163 +340,113 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
     );
   }
 
-  Widget _buildActionButtons(BookingModel booking) {
+  Widget _buildActionButtons(BookingModel booking, Color roleAccent) {
     final statusLower = booking.status.toLowerCase();
     final paymentStatusLower = booking.paymentStatus?.toLowerCase();
 
-    // v18.6 — cohérence couleur sur la page Réservations : on utilise
-    // l'accent du rôle (vert walker / bleu sitter / rouge primary owner)
-    // pour TOUS les boutons d'action, comme sur le reste de l'app.
-    final serviceLower = (booking.serviceType ?? '').toLowerCase();
-    final Color roleAccent = (serviceLower.contains('dog_walking') ||
-            serviceLower.contains('walking'))
-        ? const Color(0xFF16A34A)
-        : (serviceLower.contains('sitting') ||
-                serviceLower.contains('day_care') ||
-                serviceLower.contains('boarding'))
-            ? const Color(0xFF2563EB)
-            : AppColors.primaryColor;
+    // v573 — mêmes conditions, mêmes appels, mêmes navigations : seul
+    // l'habillage change (`ActionPillButton` du kit). « Payer » reste
+    // l'action principale, « Voir détails » passe en contour, et les actions
+    // secondaires descendent sur leur propre ligne — trois boutons côte à
+    // côte tronquaient les libellés allemands et polonais.
+    // v23.1 — le bouton « Payer » ne doit apparaître QUE pour le rôle
+    // propriétaire (sinon 403 au tap côté gardien/promeneur).
+    // v22.4 — Bug B1 : il s'affiche dès que la réservation est
+    // acceptée/confirmée et non encore payée.
+    final bool showPay = ((GetStorage().read<String>(StorageKeys.userRole) ??
+                    '')
+                .toLowerCase() ==
+            'owner') &&
+        (statusLower == 'accepted' ||
+            statusLower == 'agreed' ||
+            statusLower == 'mutually_accepted' ||
+            statusLower == 'confirmed') &&
+        paymentStatusLower != 'paid';
+    final bool showCancel =
+        statusLower == 'pending' || statusLower == 'agreed';
+    // v18.5 — #22 / v23.1.290 : « Laisser un avis » sur les réservations
+    // terminées OU confirmées (le flux v259 laisse status == 'paid').
+    final bool showReview = statusLower == 'completed' ||
+        booking.confirmationStatus == 'confirmed';
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // View Details Button
-        Expanded(
-          child: OutlinedButton(
-            onPressed: () {
-              Get.to(() => BookingAgreementScreen(booking: booking));
-            },
-            style: OutlinedButton.styleFrom(
-              padding: EdgeInsets.symmetric(vertical: 10.h),
-              side: BorderSide(color: roleAccent, width: 1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.r),
+        Row(
+          children: [
+            Expanded(
+              child: ActionPillButton(
+                label: 'bookings_action_view_details'.tr,
+                icon: Icons.receipt_long_outlined,
+                tone: roleAccent,
+                kind: ActionPillKind.outlined,
+                expand: true,
+                onPressed: () {
+                  Get.to(() => BookingAgreementScreen(booking: booking));
+                },
               ),
             ),
-            child: InterText(
-              text: 'bookings_action_view_details'.tr,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w500,
-              color: roleAccent,
-            ),
-          ),
+            if (showPay) ...[
+              SizedBox(width: 10.w),
+              Expanded(
+                child: ActionPillButton(
+                  label: 'service_card_pay_now'.tr,
+                  icon: Icons.credit_card_rounded,
+                  tone: roleAccent,
+                  expand: true,
+                  onPressed: () {
+                    Get.to(() => BookingAgreementScreen(booking: booking));
+                  },
+                ),
+              ),
+            ],
+          ],
         ),
-
-        // v22.4 — Bug B1 : bouton "Payer" affiché dès que la réservation
-        // est acceptée/confirmée et non encore payée. Avant, la condition
-        // exigeait status='agreed' ET paymentStatus='pending', ce qui
-        // excluait le cas le plus courant : sitter accepte → status =
-        // 'accepted' → paymentStatus null/vide → owner ne voyait pas le
-        // bouton sur la card. Aligné avec la logique de home_quick_action_bar.
-        // v23.1 — bug fix : the button must ONLY appear for the owner role.
-        // Before, sitter & walker also saw "Payer maintenant" on their
-        // received booking cards, which navigated them to the agreement
-        // screen with a Pay action (= 403 forbidden role on tap).
-        if (((GetStorage().read<String>(StorageKeys.userRole) ?? '').toLowerCase() == 'owner') &&
-            (statusLower == 'accepted' ||
-                statusLower == 'agreed' ||
-                statusLower == 'mutually_accepted' ||
-                statusLower == 'confirmed') &&
-            paymentStatusLower != 'paid') ...[
-          SizedBox(width: 12.w),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () {
-                Get.to(() => BookingAgreementScreen(booking: booking));
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: roleAccent,
-                padding: EdgeInsets.symmetric(vertical: 10.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.r),
+        if (showReview) ...[
+          SizedBox(height: 8.h),
+          ActionPillButton(
+            label: 'booking_leave_review'.tr,
+            icon: Icons.star_rounded,
+            tone: ActionTone.pending,
+            expand: true,
+            onPressed: () {
+              final serviceLower = (booking.serviceType ?? '').toLowerCase();
+              final resolvedRole = (serviceLower.contains('walking') ||
+                      serviceLower.contains('dog_walking'))
+                  ? 'walker'
+                  : 'sitter';
+              Get.to(
+                () => ReviewsScreen(
+                  serviceProviderName: booking.sitter.name,
+                  phoneNumber: booking.sitter.mobile,
+                  email: booking.sitter.email,
+                  profileImagePath: booking.sitter.avatar.url.isNotEmpty
+                      ? booking.sitter.avatar.url
+                      : null,
+                  serviceProviderId: booking.sitter.id,
+                  bookingId: booking.id,
+                  revieweeRole: resolvedRole,
                 ),
-              ),
-              child: InterText(
-                text: 'service_card_pay_now'.tr,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: AppColors.whiteColor,
-              ),
-            ),
+              );
+            },
           ),
         ],
-
-        if (statusLower == 'pending' || statusLower == 'agreed') ...[
-          SizedBox(width: 12.w),
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () {
-                _showCancelBookingDialog(context, booking);
-              },
-              style: OutlinedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: 10.h),
-                side: BorderSide(color: AppColors.errorColor, width: 1),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-              ),
-              child: InterText(
-                text: 'service_card_cancel'.tr,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: AppColors.errorColor,
-              ),
-            ),
-          ),
-        ],
-
-        // v18.5 — #22 : bouton "Laisser un avis" sur bookings completed.
-        // Remplace l'option review sur l'écran paiement réussi (#17) qui
-        // n'avait pas de sens car le service n'était pas encore fait.
-        // v23.1.290 — le flux de confirmation (v259) met confirmationStatus
-        // == 'confirmed' en laissant status == 'paid' → le bouton
-        // n'apparaissait JAMAIS. On l'affiche aussi quand le service est
-        // confirmé.
-        if (statusLower == 'completed' ||
-            booking.confirmationStatus == 'confirmed') ...[
-          SizedBox(width: 12.w),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () {
-                final serviceLower =
-                    (booking.serviceType ?? '').toLowerCase();
-                final resolvedRole = (serviceLower.contains('walking') ||
-                        serviceLower.contains('dog_walking'))
-                    ? 'walker'
-                    : 'sitter';
-                Get.to(
-                  () => ReviewsScreen(
-                    serviceProviderName: booking.sitter.name,
-                    phoneNumber: booking.sitter.mobile,
-                    email: booking.sitter.email,
-                    profileImagePath: booking.sitter.avatar.url.isNotEmpty
-                        ? booking.sitter.avatar.url
-                        : null,
-                    serviceProviderId: booking.sitter.id,
-                    bookingId: booking.id,
-                    revieweeRole: resolvedRole,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF59E0B),
-                padding: EdgeInsets.symmetric(vertical: 10.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-              ),
-              child: InterText(
-                text: 'booking_leave_review'.tr,
-                fontSize: 12.sp,
-                     fontWeight: FontWeight.w500,
-                color: AppColors.whiteColor,
-              ),
-            ),
+        if (showCancel) ...[
+          SizedBox(height: 8.h),
+          ActionPillButton(
+            label: 'service_card_cancel'.tr,
+            icon: Icons.event_busy_rounded,
+            tone: ActionTone.danger,
+            kind: ActionPillKind.danger,
+            expand: true,
+            onPressed: () {
+              _showCancelBookingDialog(context, booking);
+            },
           ),
         ],
       ],
     );
   }
-
   void _showCancelBookingDialog(BuildContext context, BookingModel booking) {
     CustomConfirmationDialog.show(
       context: context,

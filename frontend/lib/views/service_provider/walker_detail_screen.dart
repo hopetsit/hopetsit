@@ -1,4 +1,17 @@
-import 'package:cached_network_image/cached_network_image.dart';
+// v573 — FICHE PROMENEUR vue par un propriétaire.
+//
+// Même refonte de RENDU que la fiche gardien (`public_profile_kit.dart`) :
+// bandeau dégradé vert promeneur + avatar cerclé de blanc (initiale sans
+// photo, jamais d'image de catalogue), rangée de 3 tuiles, sections en cartes
+// coins 20 avec icône Material dans un rond teinté, sections vides réduites à
+// une ligne discrète DANS la carte, fond à petites pattes.
+//
+// Chargement, repository, conditions d'affichage et données : INCHANGÉS.
+// Seuls changements hors rendu pur, tous sans risque :
+//   · le titre de la barre affichait « Promeneur » en FRANÇAIS EN DUR → clé
+//     existante `role_walker` (l'écran l'utilisait déjà plus bas) ;
+//   · la ville / l'adresse (même expression qu'avant) remonte dans l'en-tête
+//     au lieu d'une carte à elle seule — rien n'est perdu.
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -8,9 +21,9 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/service_type_translator.dart';
-import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/reviews/widgets/rating_stars.dart';
-import 'package:hopetsit/widgets/verified_badge.dart';
+import 'package:hopetsit/views/service_provider/widgets/public_profile_kit.dart';
+import 'package:hopetsit/widgets/app_text.dart';
 
 /// v23.1 part 37 — WalkerDetailScreen équivalent de ServiceProviderDetailScreen
 /// pour les walkers. Affiche le profil public complet (avatar, nom, rating,
@@ -28,7 +41,8 @@ class WalkerDetailScreen extends StatefulWidget {
 }
 
 class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
-  static const Color _walkerAccent = Color(0xFF16A34A);
+  static const PublicProfilePalette _palette = kWalkerProfilePalette;
+
   WalkerModel? _walker;
   bool _loading = true;
   String? _error;
@@ -65,51 +79,139 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: _walkerAccent),
+      appBar: publicProfileAppBar(
+        palette: _palette,
         title: PoppinsText(
-          text: _walker?.name ?? 'Promeneur',
-          fontSize: 18.sp,
+          text: _walker?.name ?? 'role_walker'.tr,
+          fontSize: 17,
           fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
+          color: Colors.white,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: _walkerAccent))
-          : _error != null
-              ? _buildError()
-              : _walker == null
-                  ? Center(child: Text('walker_not_found'.tr))
-                  : _buildContent(),
+      body: SafeArea(
+        bottom: false,
+        child: _loading
+            ? const PublicProfileSkeleton(palette: _palette)
+            : _error != null
+                ? PublicProfileErrorView(
+                    accent: _palette.accent,
+                    message: 'walker_load_error'.tr,
+                    actionLabel: 'common_retry'.tr,
+                    onRetry: _loadWalker,
+                  )
+                : _walker == null
+                    ? PublicProfileErrorView(
+                        accent: _palette.accent,
+                        icon: Icons.person_off_rounded,
+                        message: 'walker_not_found'.tr,
+                      )
+                    : _buildContent(context, _walker!),
+      ),
     );
   }
 
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(20.w),
+  Widget _buildContent(BuildContext context, WalkerModel w) {
+    final String language = w.language.trim();
+    final List<String> services =
+        w.service.where((String s) => s.trim().isNotEmpty).toList();
+    // v472 — Daniel : « ce sont les ANCIENS tarifs, maintenant c'est
+    // 30 min / 1h / 2h ». On ne montre que les 3 paliers officiels.
+    final List<WalkRate> rates = w.walkRates
+        .where((WalkRate r) =>
+            r.enabled &&
+            r.basePrice > 0 &&
+            const <int>[30, 60, 120].contains(r.durationMinutes))
+        .toList();
+
+    return PublicProfileBackground(
+      accent: _palette.accent,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.only(
+          bottom: publicProfileBottomPadding(context),
+        ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline,
-                color: const Color(0xFFE53935), size: 48.sp),
-            SizedBox(height: 12.h),
-            InterText(
-              text: 'walker_load_error'.tr,
-              fontSize: 14.sp,
-              textAlign: TextAlign.center,
-              color: AppColors.textSecondary(context),
-            ),
-            SizedBox(height: 12.h),
-            ElevatedButton(
-              onPressed: _loadWalker,
-              style: ElevatedButton.styleFrom(backgroundColor: _walkerAccent),
-              child: Text('common_retry'.tr,
-                  style: const TextStyle(color: Colors.white)),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            _buildHero(w),
+            SizedBox(height: 18.h),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  _buildStats(w),
+                  SizedBox(height: 14.h),
+
+                  // Bio — v471 : libellés i18n (étaient en dur FR).
+                  if ((w.bio ?? '').trim().isNotEmpty) ...<Widget>[
+                    PublicProfileSection(
+                      accent: _palette.accent,
+                      icon: Icons.person_rounded,
+                      title: 'walker_detail_about'.tr,
+                      child: PublicProfileBody(text: w.bio!.trim()),
+                    ),
+                    SizedBox(height: 14.h),
+                  ],
+
+                  // Langue
+                  if (language.isNotEmpty) ...<Widget>[
+                    PublicProfileSection(
+                      accent: _palette.accent,
+                      icon: Icons.language_rounded,
+                      title: 'walker_detail_language'.tr,
+                      child: PublicProfileBody(text: language),
+                    ),
+                    SizedBox(height: 14.h),
+                  ],
+
+                  // Tarifs walking
+                  if (rates.isNotEmpty) ...<Widget>[
+                    PublicProfileSection(
+                      accent: _palette.accent,
+                      icon: Icons.payments_rounded,
+                      title: 'walker_detail_rates'.tr,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: rates
+                            .map<Widget>((WalkRate r) => PublicProfileRateRow(
+                                  label: _walkDurationLabel(r.durationMinutes),
+                                  value: CurrencyHelper.format(
+                                      w.currency, r.basePrice),
+                                  accent: _palette.accent,
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                    SizedBox(height: 14.h),
+                  ],
+
+                  // Services proposés — v23.1 : libellés lisibles via
+                  // service_type_translator (ex. 'dog_walking' → « Promenade »).
+                  if (services.isNotEmpty) ...<Widget>[
+                    PublicProfileSection(
+                      accent: _palette.accent,
+                      icon: Icons.work_rounded,
+                      title: 'signup_services_offered'.tr,
+                      child: Wrap(
+                        spacing: 8.w,
+                        runSpacing: 8.h,
+                        children: services
+                            .map<Widget>((String s) => PublicProfileTag(
+                                  label: translateServiceType(s),
+                                  accent: _palette.accent,
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                    SizedBox(height: 14.h),
+                  ],
+
+                  // v23.1.290 — Avis (note + commentaire), visibles par tous.
+                  _buildReviewsCard(context, w),
+                ],
+              ),
             ),
           ],
         ),
@@ -117,333 +219,115 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
     );
   }
 
-  Widget _buildContent() {
-    final w = _walker!;
-    return ListView(
-      padding: EdgeInsets.all(20.w),
-      children: [
-        // Header card : avatar + nom + verified badge + rating
-        Container(
-          padding: EdgeInsets.all(16.w),
-          decoration: BoxDecoration(
-            color: AppColors.appBar(context),
-            borderRadius: BorderRadius.circular(16.r),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 40.r,
-                backgroundColor: _walkerAccent.withValues(alpha: 0.15),
-                backgroundImage: w.avatar.url.isNotEmpty
-                    ? CachedNetworkImageProvider(w.avatar.url)
-                    : null,
-                child: w.avatar.url.isEmpty
-                    ? Icon(Icons.person, color: _walkerAccent, size: 40.sp)
-                    : null,
-              ),
-              SizedBox(width: 14.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: PoppinsText(
-                            text: w.name,
-                            fontSize: 18.sp,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        SizedBox(width: 6.w),
-                        // v471 — Daniel : la pastille « vérifié » ne doit
-                        // apparaître QUE si le promeneur a PAYÉ la vérification
-                        // d'identité (KYC 3€) → `identityVerified`, pas le flag
-                        // large `verified` (qui était vrai pour tout le monde).
-                        VerifiedBadge(isVerified: w.identityVerified),
-                      ],
-                    ),
-                    SizedBox(height: 4.h),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: 8.w, vertical: 2.h),
-                      decoration: BoxDecoration(
-                        color: _walkerAccent.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6.r),
-                      ),
-                      child: InterText(
-                        text: 'role_walker'.tr,
-                        fontSize: 10.sp,
-                        fontWeight: FontWeight.w700,
-                        color: _walkerAccent,
-                      ),
-                    ),
-                    SizedBox(height: 8.h),
-                    // v565 (point 38) — étoiles modernes, « Nouveau » sans avis.
-                    Row(
-                      children: [
-                        Flexible(
-                          child: RatingStars(
-                            rating: w.rating,
-                            reviewsCount: w.reviewsCount,
-                            size: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+  Widget _buildHero(WalkerModel w) {
+    final String city = (w.city ?? '').trim();
+    return PublicProfileHero(
+      palette: _palette,
+      role: 'walker',
+      name: w.name,
+      imageUrl: w.avatar.url,
+      // v471 — Daniel : la pastille « vérifié » ne doit apparaître QUE si le
+      // promeneur a PAYÉ la vérification d'identité (KYC 3 €).
+      verified: w.identityVerified,
+      location: city.isNotEmpty ? city : w.address.trim(),
+      // v565 (point 38) — étoiles modernes, « Nouveau » sans avis.
+      rating: RatingStars(
+        rating: w.rating,
+        reviewsCount: w.reviewsCount,
+        size: 16,
+      ),
+    );
+  }
+
+  Widget _buildStats(WalkerModel w) {
+    return PublicProfileStatsRow(
+      accent: _palette.accent,
+      stats: <PublicProfileStat>[
+        PublicProfileStat(
+          icon: Icons.star_rounded,
+          value: w.rating > 0 ? w.rating.toStringAsFixed(1) : '—',
+          label: 'profiles573_stat_rating'.tr,
         ),
-        SizedBox(height: 16.h),
-
-        // Bio — v471 : libellés i18n (étaient en dur FR).
-        if ((w.bio ?? '').isNotEmpty) ...[
-          _section('walker_detail_about'.tr, Icons.person_outline, w.bio!),
-          SizedBox(height: 12.h),
-        ],
-
-        // Localisation
-        if ((w.city ?? '').isNotEmpty || w.address.isNotEmpty)
-          _section(
-            'sitter_detail_location'.tr,
-            Icons.location_on_outlined,
-            (w.city != null && w.city!.isNotEmpty) ? w.city! : w.address,
-          ),
-        SizedBox(height: 12.h),
-
-        // Langue
-        if (w.language.isNotEmpty)
-          _section('walker_detail_language'.tr, Icons.language, w.language),
-        SizedBox(height: 12.h),
-
-        // Tarifs walking
-        if (w.walkRates.isNotEmpty) ...[
-          Container(
-            padding: EdgeInsets.all(16.w),
-            decoration: BoxDecoration(
-              color: AppColors.appBar(context),
-              borderRadius: BorderRadius.circular(12.r),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 6,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.payments_outlined,
-                        color: _walkerAccent, size: 20.sp),
-                    SizedBox(width: 8.w),
-                    PoppinsText(
-                      text: 'walker_detail_rates'.tr,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary(context),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 10.h),
-                // v472 — Daniel : « ce sont les ANCIENS tarifs, maintenant
-                // c'est 30 min / 1h / 2h ». On ne montre que les 3 paliers
-                // officiels (30/60/120 min) + libellé propre (30 min / 1h / 2h),
-                // au lieu de « Promenade X min » (en dur FR) avec le 90 min mort.
-                ...w.walkRates
-                    .where((r) =>
-                        r.enabled &&
-                        r.basePrice > 0 &&
-                        const [30, 60, 120].contains(r.durationMinutes))
-                    .map(
-                      (r) => Padding(
-                        padding: EdgeInsets.symmetric(vertical: 4.h),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            InterText(
-                              text: _walkDurationLabel(r.durationMinutes),
-                              fontSize: 13.sp,
-                            ),
-                            InterText(
-                              text: CurrencyHelper.format(
-                                  w.currency, r.basePrice),
-                              fontSize: 13.sp,
-                              fontWeight: FontWeight.w700,
-                              color: _walkerAccent,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-              ],
-            ),
-          ),
-          SizedBox(height: 12.h),
-        ],
-
-        // Service info — v23.1 : libellés lisibles via service_type_translator
-        // (ex. 'dog_walking' → « Promenade ») + titre i18n « Services proposés ».
-        if (w.service.where((s) => s.trim().isNotEmpty).isNotEmpty)
-          _section(
-            'signup_services_offered'.tr,
-            Icons.work_outline,
-            translateServiceTypes(
-              w.service.where((s) => s.trim().isNotEmpty).toList(),
-            ),
-          ),
-
-        SizedBox(height: 16.h),
-        // v23.1.290 — Avis (note + commentaire), visibles par tous.
-        _buildReviewsSection(w),
+        PublicProfileStat(
+          icon: Icons.reviews_rounded,
+          value: '${w.reviewsCount}',
+          label: 'profiles573_stat_reviews'.tr,
+        ),
+        PublicProfileStat(
+          icon: Icons.directions_walk_rounded,
+          value: '${w.completedWalksCount}',
+          label: 'profiles573_stat_walks'.tr,
+        ),
       ],
     );
   }
 
-  // v23.1.290 — section Avis du walker, miroir du détail sitter. Rend w.reviews
-  // (avatar + nom + étoiles + commentaire). Visible par tous.
-  Widget _buildReviewsSection(dynamic w) {
-    final reviewsList = (w.reviews as List<dynamic>?) ?? [];
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColors.appBar(context),
-        borderRadius: BorderRadius.circular(12.r),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.rate_review_outlined,
-                  color: _walkerAccent, size: 20.sp),
-              SizedBox(width: 8.w),
-              PoppinsText(
-                text: 'sitter_detail_reviews_title'.tr,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary(context),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          if (reviewsList.isEmpty)
-            InterText(
-              text: 'sitter_detail_no_reviews'.tr,
-              fontSize: 13.sp,
-              color: AppColors.greyColor,
-            )
-          else
-            ...reviewsList.map<Widget>(
-              (review) => Padding(
-                padding: EdgeInsets.only(bottom: 12.h),
-                child: _buildReviewItem(review),
-              ),
+  Widget _buildReviewsCard(BuildContext context, WalkerModel w) {
+    final List<dynamic> reviews = w.reviews;
+    return PublicProfileSection(
+      accent: _palette.accent,
+      icon: Icons.star_rounded,
+      title: 'sitter_detail_reviews_title'.tr,
+      trailing: reviews.isEmpty
+          ? null
+          : InterText(
+              text: '${reviews.length}',
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary(context),
             ),
-        ],
-      ),
+      child: reviews.isEmpty
+          ? PublicProfileEmptyLine(
+              icon: Icons.star_outline_rounded,
+              text: 'sitter_detail_no_reviews'.tr,
+            )
+          : Column(
+              children: <Widget>[
+                for (int i = 0; i < reviews.length; i++) ...<Widget>[
+                  if (i > 0) SizedBox(height: 10.h),
+                  _buildReviewItem(context, reviews[i]),
+                ],
+              ],
+            ),
     );
   }
 
-  Widget _buildReviewItem(dynamic review) {
+  Widget _buildReviewItem(BuildContext context, dynamic review) {
     String asStr(dynamic v) => v == null ? '' : v.toString();
-    final Map reviewMap = review is Map ? review : const {};
-    final Map reviewerMap =
-        reviewMap['reviewer'] is Map ? reviewMap['reviewer'] as Map : const {};
-    final reviewerName =
-        asStr(reviewMap['reviewerName']).isNotEmpty
-            ? asStr(reviewMap['reviewerName'])
-            : asStr(reviewerMap['name']);
-    final reviewerImage = asStr(reviewMap['reviewerImage']).isNotEmpty
+    final Map<dynamic, dynamic> reviewMap =
+        review is Map ? review : const <dynamic, dynamic>{};
+    final Map<dynamic, dynamic> reviewerMap = reviewMap['reviewer'] is Map
+        ? reviewMap['reviewer'] as Map<dynamic, dynamic>
+        : const <dynamic, dynamic>{};
+    final String reviewerName = asStr(reviewMap['reviewerName']).isNotEmpty
+        ? asStr(reviewMap['reviewerName'])
+        : asStr(reviewerMap['name']);
+    final String reviewerImage = asStr(reviewMap['reviewerImage']).isNotEmpty
         ? asStr(reviewMap['reviewerImage'])
         : asStr(reviewerMap['avatar']);
-    final rating = (reviewMap['rating'] as num?)?.toDouble() ?? 0.0;
-    final comment = asStr(reviewMap['comment']);
-    final displayName = reviewerName.trim().isNotEmpty
+    final double rating = (reviewMap['rating'] as num?)?.toDouble() ?? 0.0;
+    final String displayName = reviewerName.trim().isNotEmpty
         ? reviewerName.trim()
         : 'sitter_detail_anonymous_reviewer'.tr;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        reviewerImage.startsWith('http')
-            ? ClipOval(
-                child: CachedNetworkImage(
-                  imageUrl: reviewerImage,
-                  width: 44.w,
-                  height: 44.w,
-                  memCacheWidth: 132,
-                  fit: BoxFit.cover,
-                  errorWidget: (c, u, e) => CircleAvatar(
-                    radius: 22.r,
-                    backgroundColor: AppColors.grey300Color,
-                    child: Icon(Icons.person,
-                        size: 24.sp, color: AppColors.greyColor),
-                  ),
-                ),
-              )
-            : CircleAvatar(
-                radius: 22.r,
-                backgroundColor: AppColors.grey300Color,
-                child: Icon(Icons.person,
-                    size: 24.sp, color: AppColors.greyColor),
-              ),
-        SizedBox(width: 12.w),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: PoppinsText(
-                      text: displayName,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary(context),
-                    ),
-                  ),
-                  ...List.generate(5, (i) {
-                    return Icon(
-                      i < rating.round() ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
-                      size: 13.sp,
-                    );
-                  }),
-                ],
-              ),
-              if (comment.isNotEmpty) ...[
-                SizedBox(height: 4.h),
-                InterText(
-                  text: comment,
-                  fontSize: 12.sp,
-                  color: AppColors.textSecondary(context),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
+    return PublicProfileReviewCard(
+      name: displayName,
+      imageUrl: reviewerImage,
+      rating: rating,
+      comment: asStr(reviewMap['comment']),
+      date: _reviewDate(context, reviewMap['createdAt']),
+      accent: _palette.accent,
     );
+  }
+
+  /// Date d'un avis, formatée par les localisations Material (jamais de table
+  /// de mois codée en dur). Null si la date est absente ou illisible.
+  String? _reviewDate(BuildContext context, dynamic raw) {
+    final String s = (raw ?? '').toString().trim();
+    if (s.isEmpty) return null;
+    final DateTime? d = DateTime.tryParse(s);
+    if (d == null) return null;
+    return MaterialLocalizations.of(context).formatShortDate(d.toLocal());
   }
 
   // v472 — Daniel : nouveaux paliers walking « 30 min / 1h / 2h » (fini le
@@ -462,45 +346,5 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
       default:
         return '$minutes min';
     }
-  }
-
-  Widget _section(String title, IconData icon, String body) {
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColors.appBar(context),
-        borderRadius: BorderRadius.circular(12.r),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: _walkerAccent, size: 20.sp),
-              SizedBox(width: 8.w),
-              PoppinsText(
-                text: title,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary(context),
-              ),
-            ],
-          ),
-          SizedBox(height: 8.h),
-          InterText(
-            text: body,
-            fontSize: 13.sp,
-            color: AppColors.textPrimary(context),
-          ),
-        ],
-      ),
-    );
   }
 }

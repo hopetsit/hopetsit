@@ -5,6 +5,7 @@
 //   wallet · Abonnements & boutique · Préférences & notifications · Sécurité
 //   · Aide.
 // Aucune fonction retirée : chaque ancienne tuile a sa rangée ici.
+import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -45,6 +46,8 @@ import 'package:hopetsit/views/profile/widgets/profile_settings_host.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/views/reviews/my_reviews_screen.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
+import 'package:hopetsit/widgets/app_dialog_kit.dart';
+import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/loyalty_card.dart';
 import 'package:hopetsit/widgets/promo_code_sheet.dart';
 import 'package:hopetsit/widgets/top_sitter_card.dart';
@@ -78,29 +81,51 @@ Future<void> openMyReviews({required String role, required Color accent}) async 
 }
 
 /// Boîte de dialogue Apparence (Clair / Sombre / Système), partagée.
-void showThemeDialog() {
+///
+/// v573 — dialogue maison (`app_dialog_kit`) : carte coins 22, disque teinté,
+/// rangées de choix `AppChoiceRow` avec radio dessinée à l'accent du rôle.
+/// Plus aucun `RadioListTile`. La logique est inchangée : un tap appelle
+/// toujours `ThemeController.setMode`, et le dialogue reste ouvert.
+void showThemeDialog([BuildContext? context]) {
   final tc = Get.find<ThemeController>();
-  Get.dialog(
-    AlertDialog(
-      title: Text('theme_setting_title'.tr),
-      content: Obx(
-        () => RadioGroup<ThemeMode>(
-          groupValue: tc.themeMode.value,
-          onChanged: (v) {
-            if (v != null) tc.setMode(v);
-          },
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RadioListTile<ThemeMode>(title: Text('theme_light'.tr), value: ThemeMode.light),
-              RadioListTile<ThemeMode>(title: Text('theme_dark'.tr), value: ThemeMode.dark),
-              RadioListTile<ThemeMode>(title: Text('theme_system'.tr), value: ThemeMode.system),
-            ],
-          ),
-        ),
-      ),
+  final ctx = context ?? Get.context;
+  if (ctx == null) return;
+  final accent = AppColors.activeRoleAccent();
+  showDialog<void>(
+    context: ctx,
+    builder: (dCtx) => AppDialogCard(
+      title: 'theme_setting_title'.tr,
+      message: 'theme_setting_subtitle'.tr,
+      icon: Icons.brightness_6_rounded,
+      accent: accent,
+      content: Obx(() {
+        // Règle GetX du projet : le `.value` est lu DANS la closure de l'Obx.
+        final current = tc.themeMode.value;
+        Widget row(ThemeMode mode, IconData icon, String label) => Padding(
+              padding: EdgeInsets.only(bottom: 8.h),
+              child: AppChoiceRow(
+                label: label,
+                icon: icon,
+                accent: accent,
+                selected: current == mode,
+                onTap: () => tc.setMode(mode),
+              ),
+            );
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            row(ThemeMode.light, Icons.light_mode_rounded, 'theme_light'.tr),
+            row(ThemeMode.dark, Icons.dark_mode_rounded, 'theme_dark'.tr),
+            row(ThemeMode.system, Icons.brightness_auto_rounded,
+                'theme_system'.tr),
+          ],
+        );
+      }),
       actions: [
-        TextButton(onPressed: () => Get.back(), child: Text('common_close'.tr)),
+        AppDialogSecondaryButton(
+          label: 'common_close'.tr,
+          onTap: () => Navigator.of(dCtx).pop(),
+        ),
       ],
     ),
   );
@@ -191,7 +216,7 @@ class ProfileCategories extends StatelessWidget {
             title: 'profile_pawmap'.tr,
             subtitle: _isOwner ? 'profile_pawmap_subtitle'.tr : 'sitter_pawmap_subtitle'.tr,
             color: _purple,
-            onTap: () => Get.to(() => const PawMapScreen()),
+            onTap: () => openMainTabOr(2, () => const PawMapScreen()),
           ),
         ]),
       ],
@@ -239,7 +264,7 @@ class ProfileCategories extends StatelessWidget {
               title: 'bookings_tab_title'.tr,
               subtitle: 'bookings_tab_subtitle'.tr,
               color: accent,
-              onTap: () => Get.to(() => const SitterBookingsScreen()),
+              onTap: () => openMainTabOr(3, () => const SitterBookingsScreen()),
             ),
           ProfileRow(
             icon: Icons.payments_rounded,
@@ -347,19 +372,24 @@ class ProfileCategories extends StatelessWidget {
             subtitle: 'promo_profile_tile_subtitle'.tr,
             color: _purple,
             onTap: () => showPromoCodeSheet(context, accent: accent),
+            // v573 — audit mode sombre : le violet de marque sert ici de TEXTE
+            // sur une pastille posée sur la carte → version `accentOn`.
             trailing: GestureDetector(
               onTap: () => Get.to(() => PromoCodeScreen(accent: accent)),
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
                 decoration: BoxDecoration(
-                  color: _purple.withValues(alpha: 0.12),
+                  color: AppColors.accentOn(context, _purple)
+                      .withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text(
-                  'promo_popup_cta'.tr,
+                child: InterText(
+                  text: 'promo_popup_cta'.tr,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11.sp, fontWeight: FontWeight.w700, color: _purple),
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.accentOn(context, _purple),
                 ),
               ),
             ),
@@ -423,7 +453,7 @@ class ProfileCategories extends StatelessWidget {
             title: 'theme_setting_title'.tr,
             subtitle: 'theme_setting_subtitle'.tr,
             color: _purple,
-            onTap: showThemeDialog,
+            onTap: () => showThemeDialog(context),
           ),
         ]),
       ],

@@ -144,6 +144,90 @@ class PawMapTheme {
         ),
       ];
 
+  // ── v573 — jetons communs aux BOUTONS de la PawMap ──────────────────────
+  // Daniel : « peaufine les boutons de la PawMap ». Le rail gauche, la capsule
+  // droite, les trois pilules du haut et le bandeau d'itinéraire tiraient
+  // chacun leurs tailles, rayons et ombres de valeurs écrites en dur : d'où
+  // des hauteurs et des épaisseurs de bord qui ne tombaient pas juste. Tout
+  // part désormais d'ici. Ce sont des dp de maquette : les appelants passent
+  // par `.w` / `.h` / `.r` comme partout ailleurs.
+
+  /// Diamètre d'un bouton rond du rail gauche.
+  static const double railButtonSize = 46;
+
+  /// Écart vertical entre deux boutons du rail (identique partout).
+  static const double railGap = 8;
+
+  /// Part du diamètre occupée par le glyphe d'un bouton du rail — la même pour
+  /// une icône Material et pour un SVG, sinon les poids optiques divergent.
+  static const double railIconRatio = 0.48;
+
+  /// Zone tactile minimale d'un bouton (recommandation Apple ; Material dit
+  /// 48, mais le rail en compte huit et doit tenir au-dessus du menu).
+  static const double minTapTarget = 44;
+
+  /// Hauteur commune des pilules de la rangée du haut.
+  static const double pillHeight = 46;
+
+  /// Rayon commun des pilules (capsule pleine).
+  static const double pillRadius = 999;
+
+  /// Épaisseur de bord commune des pilules et de la capsule.
+  static const double pillBorderWidth = 1.4;
+
+  /// Dégradé subtil d'un bouton du rail : la couleur légèrement éclaircie en
+  /// haut, assombrie en bas. Jamais un aplat — mais jamais un effet « bille »
+  /// non plus : 16 % vers le blanc, 18 % vers le noir.
+  static LinearGradient railGradient(Color c, {Color? top, Color? bottom}) =>
+      LinearGradient(
+        colors: [
+          top ?? lighten(c, 0.16),
+          bottom ?? Color.lerp(c, Colors.black, 0.18)!,
+        ],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      );
+
+  /// Ombre portée COLORÉE d'un bouton du rail (jamais du noir dur) : une
+  /// nappe à la teinte du bouton, plus une assise très fine pour le détacher
+  /// d'un fond de carte clair. [active] ajoute le halo de l'état sélectionné.
+  static List<BoxShadow> railShadow(
+    Color tone, {
+    bool pressed = false,
+    bool active = false,
+  }) =>
+      [
+        if (active)
+          BoxShadow(
+            color: tone.withValues(alpha: 0.42),
+            blurRadius: 16,
+            spreadRadius: 1.5,
+          ),
+        BoxShadow(
+          color: tone.withValues(alpha: pressed ? 0.20 : 0.34),
+          blurRadius: 14,
+          spreadRadius: -2,
+          offset: Offset(0, pressed ? 3 : 6),
+        ),
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.07),
+          blurRadius: 3,
+          offset: const Offset(0, 1),
+        ),
+      ];
+
+  /// Ombre d'une pilule / de la capsule, thémée : `pillShadow` en clair (la
+  /// maquette), une ombre plus dense en sombre où un halo clair ne se voit pas.
+  static List<BoxShadow> pillShadowOn(BuildContext context) => isDark(context)
+      ? const [
+          BoxShadow(
+            color: Color(0x73000000),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ]
+      : pillShadow;
+
   /// Police de la PawMap et de ses sous-pages (Sora, comme la maquette).
   /// Le reste de l'app garde ses polices existantes.
   static TextStyle font({

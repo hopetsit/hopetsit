@@ -12,6 +12,8 @@ import 'package:hopetsit/views/profile/widgets/edit_profile_widgets.dart';
 import 'package:hopetsit/views/profile/widgets/pet_form_widgets.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v428 — écran UNIFIÉ « Modifier l'animal » (create + edit). Quand [petId] est
@@ -66,36 +68,78 @@ class EditPetScreen extends StatelessWidget {
     final hasLocal = controller.petProfileImage.value != null;
     final hasRemote = controller.currentAvatarUrl.value.isNotEmpty;
     if (!hasLocal && !hasRemote) return;
+    // v573 — patron moderne (cf. `widgets/custom_confirmation_dialog.dart`) :
+    // carte coins 22, disque rouge, PoppinsText / InterText, boutons du kit.
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      barrierColor: Colors.black.withValues(alpha: dark ? 0.62 : 0.38),
+      builder: (ctx) => Dialog(
         backgroundColor: AppColors.card(ctx),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
-        title: PoppinsText(
-          text: 'pet_photo_delete_title'.tr,
-          fontSize: 16.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(ctx),
-        ),
-        content: InterText(
-          text: 'pet_photo_delete_confirm'.tr,
-          fontSize: 14.sp,
-          color: AppColors.textSecondary(ctx),
-          maxLines: 4,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('common_cancel'.tr),
+        insetPadding: EdgeInsets.symmetric(horizontal: 28.w, vertical: 24.h),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(22.r)),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20.w, 24.h, 20.w, 18.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56.w,
+                height: 56.w,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.errorColor
+                      .withValues(alpha: dark ? 0.22 : 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.delete_outline_rounded,
+                    size: 28.sp,
+                    color: AppColors.accentOn(ctx, AppColors.errorColor)),
+              ),
+              SizedBox(height: 14.h),
+              PoppinsText(
+                text: 'pet_photo_delete_title'.tr,
+                fontSize: 17.sp,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary(ctx),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+              ),
+              SizedBox(height: 8.h),
+              InterText(
+                text: 'pet_photo_delete_confirm'.tr,
+                fontSize: 13.5.sp,
+                height: 1.45,
+                color: AppColors.textSecondary(ctx),
+                textAlign: TextAlign.center,
+                maxLines: 4,
+              ),
+              SizedBox(height: 20.h),
+              CustomButton(
+                height: 48.h,
+                radius: 14.r,
+                title: 'post_action_delete'.tr,
+                fontSize: 15.sp,
+                bgColor: AppColors.errorColor,
+                textColor: Colors.white,
+                onTap: () => Navigator.of(ctx).pop(true),
+              ),
+              SizedBox(height: 10.h),
+              CustomButton(
+                height: 48.h,
+                radius: 14.r,
+                title: 'common_cancel'.tr,
+                fontSize: 15.sp,
+                fontWeight: FontWeight.w600,
+                bgColor:
+                    dark ? const Color(0xFF2A2A2A) : const Color(0xFFF1F2F4),
+                textColor: AppColors.textPrimary(ctx),
+                onTap: () => Navigator.of(ctx).pop(false),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              'post_action_delete'.tr,
-              style: const TextStyle(color: AppColors.errorColor),
-            ),
-          ),
-        ],
+        ),
       ),
     );
     if (confirmed == true) {
@@ -159,7 +203,11 @@ class EditPetScreen extends StatelessWidget {
           );
         }
 
-        return Column(
+        // v573 — fond à petites pattes derrière le formulaire (comme les
+        // accueils / réservations / fiche animal).
+        return PawPatternBackground(
+          color: accent,
+          child: Column(
           children: [
             Expanded(
               child: SingleChildScrollView(
@@ -625,6 +673,7 @@ class EditPetScreen extends StatelessWidget {
               ),
             ),
           ],
+          ),
         );
       }),
     );

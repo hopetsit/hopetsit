@@ -1,4 +1,5 @@
 const Walker = require('../models/Walker');
+const { selfIdSet } = require('../utils/identityGroup');
 const { sanitizeUser } = require('../utils/sanitize');
 const { uploadMedia } = require('../services/cloudinary');
 const { encrypt, decrypt } = require('../utils/encryption');
@@ -227,7 +228,11 @@ const findNearbyWalkers = async (req, res) => {
         byId.set(id, { ...w, _matchedBy: 'mapBoostLocation' });
       }
     }
-    const walkers = Array.from(byId.values()).map((w) => {
+    // v573 — ne jamais proposer au spectateur ses propres profils (3 rôles).
+    const selfIds = await selfIdSet(req);
+    const walkers = Array.from(byId.values())
+      .filter((w) => !selfIds.has(String(w._id)))
+      .map((w) => {
       // Strip sensitive fields
       const { password, ibanNumber, insuranceCertUrl, paypalEmail, ...rest } = w;
       return rest;

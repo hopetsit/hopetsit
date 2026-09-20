@@ -1,4 +1,28 @@
-import 'package:cached_network_image/cached_network_image.dart';
+// v573 — FICHE GARDIEN vue par un propriétaire (depuis une annonce, l'accueil,
+// la PawMap, une notification ou la liste d'amis).
+//
+// Daniel, capture à l'appui : « c'est la vieille page, le design d'avant, pas
+// possible ». Refonte de RENDU uniquement — contrôleur, appels réseau,
+// navigation et conditions d'affichage sont strictement identiques.
+//
+// Ce qui change :
+//   · plus AUCUNE image de couverture en pleine largeur : le visuel marketing
+//     qui servait de repli quand le gardien n'a pas de photo a disparu, l'en-tête
+//     est un bandeau dégradé bleu gardien + un avatar cerclé de blanc (initiale
+//     si pas de photo) ;
+//   · la carte « Détails de la réservation » ne s'affiche PLUS quand il n'y a
+//     pas de réservation liée (avant : une ligne vide, puis « Statut actuel :
+//     DISPONIBLE » ET « Statut de la demande : Disponible » — deux pastilles de
+//     styles différents pour la même information). Une seule pastille de statut
+//     est visible à la fois : la disponibilité dans l'en-tête sans réservation,
+//     la pastille `BookingStatusChip` dans la carte avec réservation ;
+//   · toutes les sections sont des cartes (coins 20) avec une icône Material
+//     ronde teintée ; les sections vides affichent une ligne discrète DANS la
+//     carte au lieu de trois gros blocs de vide ;
+//   · « Démarrer le chat » devient l'action principale d'une barre collante en
+//     bas (dégagement `appBottomInset`, barre Samsung) au lieu d'un gros bouton
+//     au milieu de la page ; partage et signalement restent en haut à droite,
+//     en boutons ronds translucides sur le bandeau.
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -9,15 +33,16 @@ import 'package:hopetsit/models/sitter_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
-import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/service_type_translator.dart';
+import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
-import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/reviews/widgets/rating_stars.dart';
-import 'package:hopetsit/widgets/verified_badge.dart';
+import 'package:hopetsit/views/service_provider/widgets/public_profile_kit.dart';
+import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
+import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:share_plus/share_plus.dart';
 
 class Review {
@@ -72,36 +97,40 @@ class _ServiceProviderDetailContent extends StatelessWidget {
     this.booking,
   });
 
+  static const PublicProfilePalette _palette = kSitterProfilePalette;
+
+  /// Condition INCHANGÉE : une réservation / candidature est liée dès que le
+  /// statut n'est pas un simple état de présence du gardien.
+  bool get _hasBooking {
+    final String s = status.toLowerCase();
+    return s != 'available' && s != 'offline' && s != 'online';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: AppColors.primaryColor),
-        leading: BackButton(),
+      appBar: publicProfileAppBar(
+        palette: _palette,
         title: Obx(
           () => PoppinsText(
-            text:
-                controller.sitter.value?.name ??
+            text: controller.sitter.value?.name ??
                 'sitter_detail_loading_name'.tr,
-            fontSize: 18.sp,
+            fontSize: 17,
             fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary(context),
+            color: Colors.white,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-        actions: [
+        actions: <Widget>[
           // v531 — retour testeur US : « I can't find a way to share or
           // forward to friends ». Partage du profil prestataire via la
           // feuille native (WhatsApp, Instagram, SMS, email…).
-          IconButton(
+          PublicProfileBannerAction(
+            icon: Icons.ios_share_rounded,
             tooltip: 'post_action_share'.tr,
-            icon: const Icon(Icons.ios_share_rounded,
-                color: AppColors.primaryColor),
-            onPressed: () {
+            onTap: () {
               try {
                 final name = controller.sitter.value?.name ?? '';
                 final safeName = name.isEmpty ? 'HoPetSit' : name;
@@ -118,10 +147,10 @@ class _ServiceProviderDetailContent extends StatelessWidget {
               }
             },
           ),
-          IconButton(
+          PublicProfileBannerAction(
+            icon: Icons.flag_outlined,
             tooltip: 'report_dialog_title'.tr,
-            icon: const Icon(Icons.flag_outlined, color: AppColors.primaryColor),
-            onPressed: () {
+            onTap: () {
               ReportDialog.show(
                 context: context,
                 targetType: 'profile',
@@ -131,228 +160,162 @@ class _ServiceProviderDetailContent extends StatelessWidget {
             },
           ),
         ],
-        // actionsLegacy: [
-        //   Obx(
-        //     () => Padding(
-        //       padding: EdgeInsets.only(right: 16.w),
-        //       child:
-        //           controller.sitter.value?.avatar.url != null &&
-        //               controller.sitter.value!.avatar.url.isNotEmpty &&
-        //               (controller.sitter.value!.avatar.url.startsWith(
-        //                     'http://',
-        //                   ) ||
-        //                   controller.sitter.value!.avatar.url.startsWith(
-        //                     'https://',
-        //                   ))
-        //           ? ClipOval(
-        //               child: CachedNetworkImage(
-        //                 imageUrl: controller.sitter.value!.avatar.url,
-        //                 width: 32.w,
-        //                 height: 32.h,
-        //                 fit: BoxFit.cover,
-        //                 placeholder: (context, url) => CircleAvatar(
-        //                   radius: 16.r,
-        //                   backgroundColor: AppColors.lightGrey,
-        //                   child: CircularProgressIndicator(
-        //                     strokeWidth: 2,
-        //                     valueColor: AlwaysStoppedAnimation<Color>(
-        //                       AppColors.primaryColor,
-        //                     ),
-        //                   ),
-        //                 ),
-        //                 errorWidget: (context, url, error) => CircleAvatar(
-        //                   radius: 16.r,
-        //                   backgroundImage: AssetImage(AppImages.AppImages.placeholderImageage),
-        //                 ),
-        //               ),
-        //             )
-        //           : CircleAvatar(
-        //               radius: 16.r,
-        //               backgroundImage: AssetImage(AppImages.AppImages.placeholderImageage),
-        //             ),
-        //     ),
-        //   ),
-        // ],
       ),
       body: SafeArea(
+        bottom: false,
         child: Obx(() {
           if (controller.isLoading.value) {
-            return Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  AppColors.primaryColor,
-                ),
-              ),
+            return const PublicProfileSkeleton(palette: _palette);
+          }
+
+          final SitterModel? sitter = controller.sitter.value;
+          if (sitter == null) {
+            return PublicProfileErrorView(
+              accent: _palette.accent,
+              message: controller.errorMessage.value ??
+                  'sitter_detail_load_error'.tr,
             );
           }
 
-          if (controller.sitter.value == null) {
-            return Center(
-              child: Padding(
-                padding: EdgeInsets.all(20.w),
-                child: InterText(
-                  text:
-                      controller.errorMessage.value ??
-                      'sitter_detail_load_error'.tr,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.greyColor,
-                ),
-              ),
-            );
-          }
-
-          final sitter = controller.sitter.value!;
-          return SingleChildScrollView(
-            child: Column(
-              children: [
-                // Hero Section
-                _buildHeroSection(sitter, context),
-
-                // Content Sections
-                Padding(
-                  padding: EdgeInsets.all(20.w),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Start Chat Button
-                      _buildStartChatButton(controller, sitter, booking),
-                      SizedBox(height: 16.h),
-
-                      // Booking/Application Details Section
-                      _buildBookingDetailsSection(sitter, status, context),
-                      SizedBox(height: 24.h),
-
-                      // About Section
-                      _buildAboutSection(sitter, context),
-                      SizedBox(height: 24.h),
-
-                      // Skills Section
-                      _buildSkillsSection(sitter, context),
-                      SizedBox(height: 24.h),
-
-                      // Services Offered Section (v23.1 — services proposés +
-                      // animaux acceptés, libellés i18n via service_type_translator).
-                      _buildServicesSection(sitter, context),
-                      SizedBox(height: 24.h),
-
-                      // Reviews Section
-                      _buildReviewsSection(sitter, context),
-                    ],
+          return Column(
+            children: <Widget>[
+              Expanded(
+                child: PublicProfileBackground(
+                  accent: _palette.accent,
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.only(
+                      bottom: publicProfileBottomPadding(
+                        context,
+                        hasActionBar: true,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        _buildHero(context, sitter),
+                        SizedBox(height: 18.h),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16.w),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              _buildStats(context, sitter),
+                              SizedBox(height: 14.h),
+                              if (_hasBooking) ...<Widget>[
+                                _buildBookingCard(context),
+                                SizedBox(height: 14.h),
+                              ],
+                              _buildRatesCard(context, sitter),
+                              SizedBox(height: 14.h),
+                              _buildAboutCard(context, sitter),
+                              SizedBox(height: 14.h),
+                              _buildSkillsCard(context, sitter),
+                              ..._buildServicesCard(context, sitter),
+                              SizedBox(height: 14.h),
+                              _buildReviewsCard(context, sitter),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
+              ),
+              PublicProfileActionBar(
+                child: _buildStartChatButton(context, sitter),
+              ),
+            ],
           );
         }),
       ),
     );
   }
 
-  Widget _buildHeroSection(sitter, BuildContext context) {
-    final imageUrl =
-        sitter.avatar.url.isNotEmpty &&
-            (sitter.avatar.url.startsWith('http://') ||
-                sitter.avatar.url.startsWith('https://'))
-        ? sitter.avatar.url
-        : null;
+  // ───────────────────────────── En-tête ─────────────────────────────
 
-    return SizedBox(
-      height: 350.h,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Background Image
-          SizedBox(
-            width: double.infinity,
-            height: 300.h,
-            child: imageUrl != null
-                ? CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    width: double.infinity,
-                    height: 300.h,
-                    memCacheWidth: 720, // v23.1 part 250 perf (header pleine largeur)
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: AppColors.lightGrey,
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.primaryColor,
-                          ),
-                        ),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: AppColors.mediaPlaceholder(context, AppColors.grey300Color),
-                      child: Center(
-                        child: Icon(
-                          Icons.person,
-                          size: 80.sp,
-                          color: AppColors.greyColor,
-                        ),
-                      ),
-                    ),
-                  )
-                : Container(
-                    color: AppColors.mediaPlaceholder(context, AppColors.grey300Color),
-                    child: Center(
-                      child: Icon(
-                        Icons.person,
-                        size: 80.sp,
-                        color: AppColors.greyColor,
-                      ),
-                    ),
-                  ),
+  Widget _buildHero(BuildContext context, SitterModel sitter) {
+    return PublicProfileHero(
+      palette: _palette,
+      role: 'sitter',
+      name: sitter.name,
+      imageUrl: sitter.avatar.url,
+      // v23.1 part 251 — badge KYC only (flag legacy verified retiré).
+      verified: sitter.identityVerified,
+      // Une SEULE pastille de statut : sans réservation liée on montre la
+      // disponibilité ici, sinon c'est la carte « réservation » qui l'affiche.
+      statusChip: _hasBooking ? null : _availabilityPill(context),
+      location: sitter.displayCity,
+      // v565 (point 38) — étoiles modernes, « Nouveau » sans avis.
+      rating: RatingStars(
+        rating: sitter.rating,
+        reviewsCount: sitter.reviewsCount,
+        size: 16,
+      ),
+    );
+  }
+
+  Widget _availabilityPill(BuildContext context) {
+    final String s = status.toLowerCase();
+    final bool online = s == 'available' || s == 'online';
+    return PublicProfileStatusPill(
+      icon: online ? Icons.check_circle_rounded : Icons.circle_outlined,
+      label: _localizedStatusLabel(status),
+      tone: online ? const Color(0xFF16A34A) : AppColors.greyColor,
+    );
+  }
+
+  // ───────────────────────────── Statistiques ─────────────────────────
+
+  Widget _buildStats(BuildContext context, SitterModel sitter) {
+    return PublicProfileStatsRow(
+      accent: _palette.accent,
+      stats: <PublicProfileStat>[
+        PublicProfileStat(
+          icon: Icons.star_rounded,
+          value: sitter.rating > 0 ? sitter.rating.toStringAsFixed(1) : '—',
+          label: 'profiles573_stat_rating'.tr,
+        ),
+        PublicProfileStat(
+          icon: Icons.reviews_rounded,
+          value: '${sitter.reviewsCount}',
+          label: 'profiles573_stat_reviews'.tr,
+        ),
+        PublicProfileStat(
+          icon: Icons.verified_user_rounded,
+          value: '${sitter.completedServicesCount}',
+          label: 'profiles573_stat_services'.tr,
+        ),
+      ],
+    );
+  }
+
+  // ───────────────────────────── Sections ─────────────────────────────
+
+  /// Carte « Détails de la réservation » — affichée UNIQUEMENT quand une
+  /// réservation / candidature est liée, avec UNE seule pastille de statut.
+  Widget _buildBookingCard(BuildContext context) {
+    return PublicProfileSection(
+      accent: _palette.accent,
+      icon: Icons.event_note_rounded,
+      title: 'sitter_detail_booking_details_title'.tr,
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: InterText(
+              text: 'sitter_detail_application_status_label'.tr,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondaryStrong(context),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-
-          // Profile Overlay Card
-          Positioned(
-            bottom: -10.h,
-            left: 40.w,
-            right: 40.w,
-            child: Container(
-              height: 110.h,
-              decoration: BoxDecoration(
-                color: AppColors.card(context),
-                borderRadius: BorderRadius.all(Radius.circular(26.r)),
-              ),
-              padding: EdgeInsets.all(20.w),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: PoppinsText(
-                          text: sitter.name,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary(context),
-                        ),
-                      ),
-                      // v23.1 part 251 — badge KYC only (flag legacy verified retire).
-                      if (sitter.identityVerified) ...[
-                        SizedBox(width: 8.w),
-                        VerifiedBadge(isVerified: true, large: true),
-                      ],
-                    ],
-                  ),
-                  SizedBox(height: 8.h),
-                  // v565 (point 38) — étoiles modernes, « Nouveau » sans avis.
-                  Row(
-                    children: [
-                      Flexible(
-                        child: RatingStars(
-                          rating: sitter.rating,
-                          reviewsCount: sitter.reviewsCount,
-                          size: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+          SizedBox(width: 10.w),
+          Flexible(
+            child: BookingStatusChip(
+              status: status,
+              paymentStatus: booking?.paymentStatus,
+              accent: _palette.accent,
             ),
           ),
         ],
@@ -360,325 +323,143 @@ class _ServiceProviderDetailContent extends StatelessWidget {
     );
   }
 
-  Widget _buildAboutSection(sitter, BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Image.asset(
-              AppImages.pawIcon,
-              width: 20.w,
-              height: 20.h,
-              color: AppColors.textPrimary(context),
-            ),
-            SizedBox(width: 8.w),
-            PoppinsText(
-              text: 'sitter_detail_about_title'.trParams({'name': sitter.name}),
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
-            ),
-          ],
-        ),
-        SizedBox(height: 12.h),
-        PoppinsText(
-          text: sitter.bio?.isNotEmpty == true
-              ? sitter.bio!
-              : 'sitter_detail_no_bio'.tr,
-          fontSize: 13.sp,
-          fontWeight: FontWeight.w400,
-          color: AppColors.greyColor,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBookingDetailsSection(SitterModel sitter, String status, BuildContext context) {
-    final hourlyRate = sitter.hourlyRate;
-    final hasBooking =
-        status.toLowerCase() != 'available' &&
-        status.toLowerCase() != 'offline' &&
-        status.toLowerCase() != 'online';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.calendar_today,
-              size: 20.sp,
-              color: AppColors.primaryColor,
-            ),
-            SizedBox(width: 8.w),
-            PoppinsText(
-              text: hasBooking
-                  ? 'sitter_detail_booking_details_title'.tr
-                  : 'sitter_detail_availability_pricing_title'.tr,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
-            ),
-          ],
-        ),
-        SizedBox(height: 16.h),
-        Container(
-          padding: EdgeInsets.all(16.w),
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(12.r),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Hourly Rate
-              if (hourlyRate > 0) ...[
-                _buildRateRow(
-                  'price_per_hour'.tr,
-                  CurrencyHelper.format(sitter.currency, hourlyRate),
-                  context,
-                ),
-              ],
-              // Daily Rate
-              if (sitter.dailyRate > 0) ...[
-                if (hourlyRate > 0) SizedBox(height: 12.h),
-                _buildRateRow(
-                  'price_per_day'.tr,
-                  CurrencyHelper.format(sitter.currency, sitter.dailyRate),
-                  context,
-                ),
-              ],
-              // Weekly Rate
-              if (sitter.weeklyRate > 0) ...[
-                SizedBox(height: 12.h),
-                _buildRateRow(
-                  'price_per_week'.tr,
-                  CurrencyHelper.format(sitter.currency, sitter.weeklyRate),
-                  context,
-                ),
-              ],
-              // Monthly Rate
-              if (sitter.monthlyRate > 0) ...[
-                SizedBox(height: 12.h),
-                _buildRateRow(
-                  'price_per_month'.tr,
-                  CurrencyHelper.format(sitter.currency, sitter.monthlyRate),
-                  context,
-                ),
-              ],
-              SizedBox(height: 12.h),
-              Divider(color: AppColors.divider(context), thickness: 1),
-              SizedBox(height: 12.h),
-
-              // Current Status
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  InterText(
-                    text: 'sitter_detail_current_status_label'.tr,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.textSecondaryStrong(context),
-                  ),
-                  _buildStatusChip(status),
-                ],
-              ),
-              if (hasBooking) ...[
-                SizedBox(height: 12.h),
-                Divider(color: AppColors.divider(context), thickness: 1),
-                SizedBox(height: 12.h),
-                // Application/Booking Status
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    InterText(
-                      text: 'sitter_detail_application_status_label'.tr,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.textSecondaryStrong(context),
-                    ),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12.w,
-                        vertical: 4.h,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            status.toLowerCase() == 'pending'
-                                ? Icons.timer
-                                : status.toLowerCase() == 'agreed' ||
-                                      status.toLowerCase() == 'accepted'
-                                ? Icons.check_circle
-                                : Icons.info,
-                            size: 12.sp,
-                            color: AppColors.primaryColor,
-                          ),
-                          SizedBox(width: 4.w),
-                          InterText(
-                            text: _localizedStatusLabel(status),
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primaryColor,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRateRow(String label, String value, BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        InterText(
-          text: label,
-          fontSize: 13.sp,
-          fontWeight: FontWeight.w400,
-          color: AppColors.textSecondaryStrong(context),
-        ),
-        PoppinsText(
-          text: value,
-          fontSize: 14.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.primaryColor,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSkillsSection(sitter, BuildContext context) {
-    final skillsList = sitter.skillsList;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Image.asset(AppImages.skillIcon, width: 26.w, height: 26.h),
-            SizedBox(width: 8.w),
-            PoppinsText(
-              text: 'sitter_detail_skills_title'.tr,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
-            ),
-          ],
-        ),
-        SizedBox(height: 12.h),
-        if (skillsList.isNotEmpty)
-          Wrap(
-            spacing: 8.w,
-            runSpacing: 8.h,
-            children: skillsList
-                .map<Widget>((skill) => _buildSkillTag(skill, context))
-                .toList(),
-          )
-        else
-          InterText(
-            text: 'sitter_detail_no_skills'.tr,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w400,
-            color: AppColors.greyColor,
-          ),
-      ],
-    );
-  }
-
-  Widget _buildSkillTag(String skill, BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.primaryColor),
-        borderRadius: BorderRadius.circular(20.r),
-      ),
-      child: InterText(
-        text: skill,
-        fontSize: 14.sp,
-        fontWeight: FontWeight.w400,
-        color: AppColors.textSecondary(context),
-      ),
-    );
-  }
-
-  // v23.1 — section « Services proposés » côté owner : liste les services du
-  // prestataire (sitter.service) avec libellés lisibles via le helper
-  // service_type_translator, + les animaux acceptés (acceptedPetTypes).
-  Widget _buildServicesSection(SitterModel sitter, BuildContext context) {
-    final services = sitter.service
-        .where((s) => s.trim().isNotEmpty)
-        .toList();
-    final petTypes = sitter.acceptedPetTypes
-        .where((p) => p.trim().isNotEmpty)
-        .toList();
-
-    // Rien à afficher : on masque la section entière.
-    if (services.isEmpty && petTypes.isEmpty) {
-      return const SizedBox.shrink();
+  Widget _buildRatesCard(BuildContext context, SitterModel sitter) {
+    final List<Widget> rows = <Widget>[];
+    if (sitter.hourlyRate > 0) {
+      rows.add(_rate(context, 'price_per_hour'.tr, sitter.hourlyRate, sitter));
+    }
+    if (sitter.dailyRate > 0) {
+      rows.add(_rate(context, 'price_per_day'.tr, sitter.dailyRate, sitter));
+    }
+    if (sitter.weeklyRate > 0) {
+      rows.add(_rate(context, 'price_per_week'.tr, sitter.weeklyRate, sitter));
+    }
+    if (sitter.monthlyRate > 0) {
+      rows.add(
+          _rate(context, 'price_per_month'.tr, sitter.monthlyRate, sitter));
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.work_outline,
-              size: 20.sp,
-              color: AppColors.primaryColor,
+    return PublicProfileSection(
+      accent: _palette.accent,
+      icon: Icons.payments_rounded,
+      title: 'sitter_detail_availability_pricing_title'.tr,
+      child: rows.isEmpty
+          ? PublicProfileEmptyLine(
+              icon: Icons.payments_outlined,
+              text: 'profiles573_no_rates'.tr,
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: rows,
             ),
-            SizedBox(width: 8.w),
-            PoppinsText(
-              text: 'signup_services_offered'.tr,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
+    );
+  }
+
+  Widget _rate(
+    BuildContext context,
+    String label,
+    double value,
+    SitterModel sitter,
+  ) {
+    return PublicProfileRateRow(
+      label: label,
+      value: CurrencyHelper.format(sitter.currency, value),
+      accent: _palette.accent,
+    );
+  }
+
+  Widget _buildAboutCard(BuildContext context, SitterModel sitter) {
+    final String bio = (sitter.bio ?? '').trim();
+    return PublicProfileSection(
+      accent: _palette.accent,
+      icon: Icons.person_rounded,
+      title: 'sitter_detail_about_title'.trParams({'name': sitter.name}),
+      child: bio.isNotEmpty
+          ? PublicProfileBody(text: bio)
+          : PublicProfileEmptyLine(
+              icon: Icons.notes_rounded,
+              text: 'sitter_detail_no_bio'.tr,
             ),
+    );
+  }
+
+  Widget _buildSkillsCard(BuildContext context, SitterModel sitter) {
+    final List<String> skills = sitter.skillsList
+        .where((String s) => s.trim().isNotEmpty)
+        .toList();
+    return PublicProfileSection(
+      accent: _palette.accent,
+      icon: Icons.workspace_premium_rounded,
+      title: 'sitter_detail_skills_title'.tr,
+      child: skills.isEmpty
+          ? PublicProfileEmptyLine(
+              icon: Icons.school_outlined,
+              text: 'sitter_detail_no_skills'.tr,
+            )
+          : Wrap(
+              spacing: 8.w,
+              runSpacing: 8.h,
+              children: skills
+                  .map<Widget>((String s) =>
+                      PublicProfileTag(label: s, accent: _palette.accent))
+                  .toList(),
+            ),
+    );
+  }
+
+  /// v23.1 — services proposés + animaux acceptés. Condition INCHANGÉE : la
+  /// section entière disparaît quand les deux listes sont vides.
+  List<Widget> _buildServicesCard(BuildContext context, SitterModel sitter) {
+    final List<String> services =
+        sitter.service.where((String s) => s.trim().isNotEmpty).toList();
+    final List<String> petTypes =
+        sitter.acceptedPetTypes.where((String p) => p.trim().isNotEmpty).toList();
+    if (services.isEmpty && petTypes.isEmpty) return const <Widget>[];
+
+    return <Widget>[
+      SizedBox(height: 14.h),
+      PublicProfileSection(
+        accent: _palette.accent,
+        icon: Icons.work_rounded,
+        title: 'signup_services_offered'.tr,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            if (services.isNotEmpty)
+              Wrap(
+                spacing: 8.w,
+                runSpacing: 8.h,
+                children: services
+                    .map<Widget>((String s) => PublicProfileTag(
+                          label: translateServiceType(s),
+                          accent: _palette.accent,
+                        ))
+                    .toList(),
+              ),
+            if (petTypes.isNotEmpty) ...<Widget>[
+              if (services.isNotEmpty) SizedBox(height: 14.h),
+              InterText(
+                text: 'signup_animals_accepted'.tr,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary(context),
+              ),
+              SizedBox(height: 8.h),
+              Wrap(
+                spacing: 8.w,
+                runSpacing: 8.h,
+                children: petTypes
+                    .map<Widget>((String p) => PublicProfileTag(
+                          label: _petTypeLabel(p),
+                          accent: _palette.accent,
+                        ))
+                    .toList(),
+              ),
+            ],
           ],
         ),
-        SizedBox(height: 12.h),
-        if (services.isNotEmpty)
-          Wrap(
-            spacing: 8.w,
-            runSpacing: 8.h,
-            children: services
-                .map<Widget>(
-                  (s) => _buildSkillTag(translateServiceType(s), context),
-                )
-                .toList(),
-          ),
-        if (petTypes.isNotEmpty) ...[
-          SizedBox(height: 16.h),
-          PoppinsText(
-            text: 'signup_animals_accepted'.tr,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary(context),
-          ),
-          SizedBox(height: 8.h),
-          Wrap(
-            spacing: 8.w,
-            runSpacing: 8.h,
-            children: petTypes
-                .map<Widget>(
-                  (p) => _buildSkillTag(_petTypeLabel(p), context),
-                )
-                .toList(),
-          ),
-        ],
-      ],
-    );
+      ),
+    ];
   }
 
   // Mappe un code espèce (dog/cat/small/nac/bird) vers son libellé i18n, avec
@@ -692,248 +473,131 @@ class _ServiceProviderDetailContent extends StatelessWidget {
     return normalized[0].toUpperCase() + normalized.substring(1);
   }
 
-  Widget _buildReviewsSection(sitter, BuildContext context) {
-    final reviewsList = sitter.reviews as List<dynamic>? ?? [];
-    final List<Widget> reviewWidgets = reviewsList.isEmpty
-        ? [
-            InterText(
-              text: 'sitter_detail_no_reviews'.tr,
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w400,
-              color: AppColors.greyColor,
-            ),
-          ]
-        : reviewsList
-              .map<Widget>(
-                (review) => Column(
-                  children: [
-                    _buildReviewItem(review, context),
-                    SizedBox(height: 16.h),
-                  ],
-                ),
-              )
-              .toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Image.asset(AppImages.skillIcon, width: 26.w, height: 26.h),
-            SizedBox(width: 8.w),
-            InterText(
-              text: 'sitter_detail_reviews_title'.tr,
-              fontSize: 14.sp,
+  Widget _buildReviewsCard(BuildContext context, SitterModel sitter) {
+    final List<dynamic> reviews = sitter.reviews;
+    return PublicProfileSection(
+      accent: _palette.accent,
+      icon: Icons.star_rounded,
+      title: 'sitter_detail_reviews_title'.tr,
+      trailing: reviews.isEmpty
+          ? null
+          : InterText(
+              text: '${reviews.length}',
+              fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
+              color: AppColors.textSecondary(context),
             ),
-          ],
-        ),
-        SizedBox(height: 16.h),
-        ...reviewWidgets,
-      ],
-    );
-  }
-
-  Widget _buildReviewItem(dynamic review, BuildContext context) {
-    final reviewerName =
-        review['reviewer']['name'] as String? ??
-        'sitter_detail_anonymous_reviewer'.tr;
-    final reviewerImage = review['reviewerImage'] as String? ?? '';
-    final rating = (review['rating'] as num?)?.toDouble() ?? 0.0;
-    final reviewText = review['comment'] as String? ?? '';
-
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: AppColors.cardShadow(context),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          reviewerImage.isNotEmpty &&
-                  (reviewerImage.startsWith('http://') ||
-                      reviewerImage.startsWith('https://'))
-              ? ClipOval(
-                  child: CachedNetworkImage(
-                    imageUrl: reviewerImage,
-                    width: 50.w,
-                    height: 50.h,
-                    memCacheWidth: 150, // v23.1 part 250 perf (avatar 50px liste reviews)
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => CircleAvatar(
-                      radius: 25.r,
-                      backgroundColor: AppColors.lightGrey,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          AppColors.primaryColor,
-                        ),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => CircleAvatar(
-                      radius: 25.r,
-                      backgroundColor: AppColors.grey300Color,
-                      child: Icon(
-                        Icons.person,
-                        size: 28.sp,
-                        color: AppColors.greyColor,
-                      ),
-                    ),
-                  ),
-                )
-              : CircleAvatar(
-                  radius: 25.r,
-                  backgroundColor: AppColors.grey300Color,
-                  child: Icon(
-                    Icons.person,
-                    size: 28.sp,
-                    color: AppColors.greyColor,
-                  ),
-                ),
-          SizedBox(width: 12.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                PoppinsText(
-                  text: reviewerName,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary(context),
-                ),
-                SizedBox(height: 4.h),
-                Row(
-                  children: [
-                    Row(
-                      children: [
-                        ...List.generate(5, (index) {
-                          if (index < rating.floor()) {
-                            return Icon(
-                              Icons.star,
-                              color: Colors.amber,
-                              size: 12.sp,
-                            );
-                          } else if (index == rating.floor() &&
-                              rating % 1 != 0) {
-                            return Icon(
-                              Icons.star_half,
-                              color: Colors.amber,
-                              size: 12.sp,
-                            );
-                          } else {
-                            return Icon(
-                              Icons.star_border,
-                              color: Colors.amber,
-                              size: 12.sp,
-                            );
-                          }
-                        }),
-                        SizedBox(width: 4.w),
-                        PoppinsText(
-                          text: rating.toStringAsFixed(1),
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.textPrimary(context),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8.h),
-                InterText(
-                  text: reviewText,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.textSecondary(context),
-                ),
+      child: reviews.isEmpty
+          ? PublicProfileEmptyLine(
+              icon: Icons.star_outline_rounded,
+              text: 'sitter_detail_no_reviews'.tr,
+            )
+          : Column(
+              children: <Widget>[
+                for (int i = 0; i < reviews.length; i++) ...<Widget>[
+                  if (i > 0) SizedBox(height: 10.h),
+                  _buildReviewItem(context, reviews[i]),
+                ],
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _buildStartChatButton(
-    SitterDetailController controller,
-    sitter,
-    BookingModel? booking,
-  ) {
+  Widget _buildReviewItem(BuildContext context, dynamic review) {
+    String asStr(dynamic v) => v == null ? '' : v.toString();
+    final Map<dynamic, dynamic> map =
+        review is Map ? review : const <dynamic, dynamic>{};
+    final Map<dynamic, dynamic> reviewer = map['reviewer'] is Map
+        ? map['reviewer'] as Map<dynamic, dynamic>
+        : const <dynamic, dynamic>{};
+    final String name = asStr(reviewer['name']).trim().isNotEmpty
+        ? asStr(reviewer['name']).trim()
+        : 'sitter_detail_anonymous_reviewer'.tr;
+    final String image = asStr(map['reviewerImage']).trim().isNotEmpty
+        ? asStr(map['reviewerImage']).trim()
+        : asStr(reviewer['avatar']).trim();
+    final double rating = (map['rating'] as num?)?.toDouble() ?? 0.0;
+
+    return PublicProfileReviewCard(
+      name: name,
+      imageUrl: image,
+      rating: rating,
+      comment: asStr(map['comment']),
+      date: _reviewDate(context, map['createdAt']),
+      accent: _palette.accent,
+    );
+  }
+
+  /// Date d'un avis, formatée par les localisations Material (jamais de table
+  /// de mois codée en dur). Null si la date est absente ou illisible.
+  String? _reviewDate(BuildContext context, dynamic raw) {
+    final String s = (raw ?? '').toString().trim();
+    if (s.isEmpty) return null;
+    final DateTime? d = DateTime.tryParse(s);
+    if (d == null) return null;
+    return MaterialLocalizations.of(context).formatShortDate(d.toLocal());
+  }
+
+  // ───────────────────────── Barre d'action ──────────────────────────
+
+  /// Action principale — MÊME logique qu'avant : verrouillée tant que la
+  /// réservation liée n'est pas payée, spinner pendant l'ouverture du chat.
+  Widget _buildStartChatButton(BuildContext context, SitterModel sitter) {
     return Obx(() {
-      final isLoading = controller.isStartingChat.value;
+      final bool isLoading = controller.isStartingChat.value;
 
       // Check if payment status is paid
       final paymentStatus = booking?.paymentStatus?.toLowerCase().trim();
       final isPaid = paymentStatus == 'paid';
       final isLocked = booking != null && !isPaid;
 
-      return GestureDetector(
+      final IconData icon = isLocked
+          ? Icons.lock_rounded
+          : Icons.chat_bubble_rounded;
+      final String label = isLoading
+          ? 'sitter_detail_starting_chat'.tr
+          : isLocked
+              ? 'sitter_detail_unlock_after_payment'.tr
+              : 'sitter_detail_start_chat'.tr;
+
+      return CustomButton(
+        bgColor: isLocked ? AppColors.greyColor : _palette.accent,
         onTap: (isLoading || isLocked)
             ? null
             : () => _handleStartChat(
-                controller,
-                sitter.id,
-                sitter.name,
-                sitter.avatar.url,
+                  controller,
+                  sitter.id,
+                  sitter.name,
+                  sitter.avatar.url,
+                ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (isLoading)
+              SizedBox(
+                width: 18.w,
+                height: 18.w,
+                child: const CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            else
+              Icon(icon, color: Colors.white, size: 19.sp),
+            SizedBox(width: 9.w),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: InterText(
+                  text: label,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  maxLines: 1,
+                ),
               ),
-        child: Container(
-          width: double.infinity,
-          height: 48.h,
-          decoration: BoxDecoration(
-            gradient: isLocked ? null : LinearGradient(colors: [AppColors.primaryColor, AppColors.primaryColor.withValues(alpha: 0.85)]),
-            color: isLocked ? AppColors.grey300Color : null,
-            borderRadius: BorderRadius.circular(16.r),
-            boxShadow: isLocked ? null : [BoxShadow(color: AppColors.primaryColor.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (isLoading) ...[
-                SizedBox(
-                  width: 18.w,
-                  height: 18.h,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      AppColors.whiteColor,
-                    ),
-                  ),
-                ),
-                SizedBox(width: 10.w),
-                InterText(
-                  text: 'sitter_detail_starting_chat'.tr,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.whiteColor,
-                ),
-              ] else if (isLocked) ...[
-                Icon(Icons.lock, color: AppColors.whiteColor, size: 20.sp),
-                SizedBox(width: 8.w),
-                InterText(
-                  text: 'sitter_detail_unlock_after_payment'.tr,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.whiteColor,
-                ),
-              ] else ...[
-                Icon(
-                  Icons.chat_bubble_outline,
-                  color: AppColors.whiteColor,
-                  size: 20.sp,
-                ),
-                SizedBox(width: 8.w),
-                InterText(
-                  text: 'sitter_detail_start_chat'.tr,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.whiteColor,
-                ),
-              ],
-            ],
-          ),
+            ),
+          ],
         ),
       );
     });
@@ -1034,78 +698,5 @@ class _ServiceProviderDetailContent extends StatelessWidget {
         if (status.isEmpty) return status;
         return status[0].toUpperCase() + status.substring(1);
     }
-  }
-
-  Widget _buildStatusChip(String status) {
-    final statusLower = status.toLowerCase();
-    Color backgroundColor;
-    Color textColor;
-    IconData icon;
-    String displayText = _localizedStatusLabel(status);
-
-    switch (statusLower) {
-      case 'available':
-      case 'online':
-        backgroundColor = Colors.green.withValues(alpha: 0.1);
-        textColor = Colors.green;
-        icon = Icons.check_circle;
-        break;
-      case 'cancelled':
-        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
-        textColor = AppColors.errorColor;
-        icon = Icons.cancel;
-        break;
-      case 'rejected':
-        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
-        textColor = AppColors.errorColor;
-        icon = Icons.close_rounded;
-        break;
-      case 'pending':
-        backgroundColor = Colors.orange.withValues(alpha: 0.1);
-        textColor = Colors.orange;
-        icon = Icons.timer;
-        break;
-      case 'agreed':
-        backgroundColor = AppColors.greenColor.withValues(alpha: 0.1);
-        textColor = AppColors.greenColor;
-        icon = Icons.check_circle;
-        break;
-      case 'paid':
-        backgroundColor = AppColors.greenColor.withValues(alpha: 0.1);
-        textColor = AppColors.greenColor;
-        icon = Icons.check_circle;
-        break;
-      case 'accepted':
-        backgroundColor = AppColors.greenColor.withValues(alpha: 0.1);
-        textColor = AppColors.greenColor;
-        icon = Icons.check_circle;
-        break;
-      default:
-        backgroundColor = AppColors.greyColor.withValues(alpha: 0.1);
-        textColor = AppColors.greyColor;
-        icon = Icons.info;
-        displayText = status.toUpperCase();
-    }
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(12.r),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14.sp, color: textColor),
-          SizedBox(width: 6.w),
-          InterText(
-            text: displayText,
-            fontSize: 11.sp,
-            fontWeight: FontWeight.w600,
-            color: textColor,
-          ),
-        ],
-      ),
-    );
   }
 }

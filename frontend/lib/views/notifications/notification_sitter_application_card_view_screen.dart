@@ -317,20 +317,42 @@ class _NotificationSitterApplicationCardViewScreenState
           ),
         ),
         body: SafeArea(
+          // v573 — squelette de carte plutôt qu'un spinner nu : l'écran garde
+          // sa forme pendant que la candidature se charge.
           child: showLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const _ApplicationSkeleton()
               : booking == null
               ? Center(
                   child: Padding(
                     padding: EdgeInsets.all(24.w),
-                    child: InterText(
-                      text: 'notifications_application_not_found'.tr,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w400,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.grey700Color,
-                      textAlign: TextAlign.center,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 64.w,
+                          height: 64.w,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryColor
+                                .withValues(alpha: 0.10),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.search_off_rounded,
+                            size: 30.sp,
+                            color: AppColors.accentOn(
+                                context, AppColors.primaryColor),
+                          ),
+                        ),
+                        SizedBox(height: 12.h),
+                        InterText(
+                          text: 'notifications_application_not_found'.tr,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textSecondary(context),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                   ),
                 )
@@ -469,4 +491,100 @@ class NotificationSitterNewRequestCardViewScreen
     super.key,
     required super.bookingId,
   }) : super(title: 'notif_title_booking_new'.tr);
+}
+
+/// v573 — squelette de la carte de candidature, affiché pendant le
+/// chargement à la place du `CircularProgressIndicator` nu.
+class _ApplicationSkeleton extends StatefulWidget {
+  const _ApplicationSkeleton();
+
+  @override
+  State<_ApplicationSkeleton> createState() => _ApplicationSkeletonState();
+}
+
+class _ApplicationSkeletonState extends State<_ApplicationSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  Widget _bar(double w, double h) => Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+          color: AppColors.mediaPlaceholder(context),
+          borderRadius: BorderRadius.circular(6.r),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctl,
+      builder: (context, _) => Opacity(
+        opacity: 0.45 + (_ctl.value * 0.35),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 32.h),
+          child: Container(
+            padding: EdgeInsets.all(16.w),
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
+              borderRadius: BorderRadius.circular(20.r),
+              border: Border.all(color: AppColors.divider(context)),
+              boxShadow: AppColors.cardShadow(context),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 48.w,
+                      height: 48.w,
+                      decoration: BoxDecoration(
+                        color: AppColors.mediaPlaceholder(context),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _bar(150.w, 13.h),
+                          SizedBox(height: 8.h),
+                          _bar(96.w, 11.h),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 18.h),
+                _bar(double.infinity, 12.h),
+                SizedBox(height: 9.h),
+                _bar(double.infinity, 12.h),
+                SizedBox(height: 9.h),
+                _bar(180.w, 12.h),
+                SizedBox(height: 22.h),
+                Row(
+                  children: [
+                    Expanded(child: _bar(double.infinity, 46.h)),
+                    SizedBox(width: 10.w),
+                    Expanded(child: _bar(double.infinity, 46.h)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

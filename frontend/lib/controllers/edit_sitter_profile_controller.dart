@@ -649,7 +649,7 @@ class EditSitterProfileController extends GetxController {
         }
 
         CustomSnackbar.showSuccess(
-          title: 'Location Found',
+          title: 'Location Found'.tr,
           message: 'Your city (@city) has been detected'.trParams({
             'city': userCity.value,
           }),

@@ -17,7 +17,7 @@ const {
   submitIdentityVerification,
   getMyIdentityVerification,
 } = require('../controllers/sitterController');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requireRole, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -612,7 +612,7 @@ router.put('/me/avatar', requireAuth, requireRole('sitter'), upload.single('avat
  *                 value:
  *                   error: "Unable to find nearby sitters. Please try again later."
  */
-router.get('/nearby', findNearbySitters);
+router.get('/nearby', optionalAuth, findNearbySitters);
 
 /**
  * @swagger

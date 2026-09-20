@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 
@@ -208,30 +209,33 @@ Future<void> showAppLanguagePicker(BuildContext context, Color accent) {
               color: AppColors.textPrimary(context),
             ),
             SizedBox(height: 8.h),
-            ...entries.map((e) {
-              final selected = e.key == current;
-              return ListTile(
-                onTap: () async {
-                  await LocalizationService.updateLocale(e.key);
-                  Get.back();
-                },
-                leading: Icon(
-                  selected
-                      ? Icons.radio_button_checked_rounded
-                      : Icons.radio_button_unchecked_rounded,
-                  color: selected ? accent : AppColors.textSecondary(context),
-                  size: 20.sp,
+            // v573 — rangées maison (`AppChoiceRow`) avec radio dessinée à
+            // l'accent du rôle, au lieu des `ListTile` Material. La liste
+            // défile : 9 langues ne tiennent pas sur un petit écran.
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: entries.map((e) {
+                    final selected = e.key == current;
+                    return Padding(
+                      padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 8.h),
+                      child: AppChoiceRow(
+                        label: e.value,
+                        leadingText:
+                            LocalizationService.languageFlags[e.key] ?? '',
+                        accent: accent,
+                        selected: selected,
+                        onTap: () async {
+                          await LocalizationService.updateLocale(e.key);
+                          Get.back();
+                        },
+                      ),
+                    );
+                  }).toList(),
                 ),
-                title: InterText(
-                  text:
-                      '${LocalizationService.languageFlags[e.key] ?? ''} ${e.value}'
-                          .trim(),
-                  fontSize: 15.sp,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: AppColors.textPrimary(context),
-                ),
-              );
-            }),
+              ),
+            ),
             SizedBox(height: 12.h + appBottomInsetInsideSafeArea(ctx)),
           ],
         ),

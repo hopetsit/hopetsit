@@ -47,6 +47,7 @@ import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
+import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/booking/handover/handover_action_sheet.dart';
 import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
@@ -1095,7 +1096,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       requestedTab.value = kPawMapTabIndex;
       return;
     }
-    Get.to(() => const BookingsHistoryScreen());
+    // v571 — repli : toujours la PawMap (le bandeau dit « découvre la
+    // PawMap »), plus jamais l'ancien historique des réservations.
+    openMainTabOr(2, () => const PawMapScreen());
   }
 
   // ─── Tap handlers (graceful degradation if a route is missing) ─────────
@@ -1514,9 +1517,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
 
   void _openChatListFallback(bool isOwnerView) {
     if (isOwnerView) {
-      Get.to(() => const ChatScreen());
+      openMainTabOr(1, () => const ChatScreen());
     } else {
-      Get.to(() => const SitterChatScreen());
+      openMainTabOr(1, () => const SitterChatScreen());
     }
   }
 

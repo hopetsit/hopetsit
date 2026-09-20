@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -214,11 +215,15 @@ class EditPetController extends GetxController {
 
   Future<void> pickPetProfileImage() async {
     try {
+      // v573 — Daniel : « ça charge doucement et mal quand on change de
+      // photo ». Image allégée AVANT l'envoi (1280 px / q80) : l'avatar
+      // s'affiche à 120 dp, au-delà c'est du réseau perdu. `uploadPetMedia`
+      // envoie le fichier tel quel (multipart) — pas de 2e compression.
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 80,
-        maxWidth: 1200,
-        maxHeight: 1200,
+        maxWidth: 1280,
+        maxHeight: 1280,
       );
 
       if (image != null) {
@@ -462,12 +467,29 @@ class EditPetController extends GetxController {
       await _petRepository.updatePet(petId: petId, petData: petData);
 
       if (petProfileImage.value != null) {
+        // v573 — progression VISIBLE pendant l'envoi de la photo (l'avatar de
+        // l'écran lit `isUploadingImage`) : avant, l'écran semblait figé entre
+        // l'enregistrement et le retour à la fiche.
+        isUploadingImage.value = true;
+        final String previousAvatar = currentAvatarUrl.value;
         try {
           await _petRepository.uploadPetMediaWithQuery(
             petId: petId,
             imageFile: petProfileImage.value!,
           );
+          // Cloudinary peut renvoyer EXACTEMENT la même URL : sans éviction,
+          // la fiche animal réafficherait l'ANCIENNE photo depuis le cache.
+          if (previousAvatar.isNotEmpty) {
+            try {
+              await CachedNetworkImage.evictFromCache(previousAvatar);
+              PaintingBinding.instance.imageCache
+                  .evict(CachedNetworkImageProvider(previousAvatar));
+              PaintingBinding.instance.imageCache.clearLiveImages();
+            } catch (_) {/* cache indisponible : on continue */}
+          }
           await loadPetData();
+          // La photo locale a été acceptée : on repasse sur l'URL serveur.
+          petProfileImage.value = null;
         } catch (error) {
           if (error is ApiException) {
             CustomSnackbar.showWarning(
@@ -483,6 +505,8 @@ class EditPetController extends GetxController {
                       .tr,
             );
           }
+        } finally {
+          isUploadingImage.value = false;
         }
       }
 

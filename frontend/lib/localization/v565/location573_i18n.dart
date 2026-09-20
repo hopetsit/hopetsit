@@ -1,0 +1,77 @@
+// v573 — « Me localiser » : messages clairs au lieu du silence (9 langues).
+// Placeholder `{city}` remplacé par `.tr.replaceAll`.
+const Map<String, Map<String, String>> location573I18n =
+    <String, Map<String, String>>{
+  'en': <String, String>{
+    'location573_title': "Location",
+    'location573_found': "Found: {city}",
+    'location573_service_off': "Turn on GPS on your phone, then try again.",
+    'location573_denied': "Allow location access for HoPetSit to fill in your city automatically.",
+    'location573_denied_forever': "Location is blocked for HoPetSit. Enable it in your phone settings, or type your city.",
+    'location573_not_found': "We could not find your position. Type your city below.",
+  },
+  'fr': <String, String>{
+    'location573_title': "Localisation",
+    'location573_found': "Trouvé : {city}",
+    'location573_service_off': "Active le GPS de ton téléphone, puis réessaie.",
+    'location573_denied': "Autorise la localisation pour HoPetSit afin de remplir ta ville automatiquement.",
+    'location573_denied_forever': "La localisation est bloquée pour HoPetSit. Active-la dans les réglages du téléphone, ou tape ta ville.",
+    'location573_not_found': "Position introuvable pour l'instant. Tape ta ville ci-dessous.",
+  },
+  'es': <String, String>{
+    'location573_title': "Ubicación",
+    'location573_found': "Encontrado: {city}",
+    'location573_service_off': "Activa el GPS de tu teléfono y vuelve a intentarlo.",
+    'location573_denied': "Permite la ubicación a HoPetSit para rellenar tu ciudad automáticamente.",
+    'location573_denied_forever': "La ubicación está bloqueada para HoPetSit. Actívala en los ajustes del teléfono o escribe tu ciudad.",
+    'location573_not_found': "No hemos podido encontrar tu posición. Escribe tu ciudad abajo.",
+  },
+  'de': <String, String>{
+    'location573_title': "Standort",
+    'location573_found': "Gefunden: {city}",
+    'location573_service_off': "Schalte das GPS deines Handys ein und versuche es erneut.",
+    'location573_denied': "Erlaube HoPetSit den Standortzugriff, um deine Stadt automatisch auszufüllen.",
+    'location573_denied_forever': "Der Standort ist für HoPetSit gesperrt. Aktiviere ihn in den Einstellungen oder gib deine Stadt ein.",
+    'location573_not_found': "Dein Standort konnte nicht ermittelt werden. Gib deine Stadt unten ein.",
+  },
+  'it': <String, String>{
+    'location573_title': "Posizione",
+    'location573_found': "Trovato: {city}",
+    'location573_service_off': "Attiva il GPS del telefono e riprova.",
+    'location573_denied': "Consenti la posizione a HoPetSit per compilare automaticamente la tua città.",
+    'location573_denied_forever': "La posizione è bloccata per HoPetSit. Attivala nelle impostazioni del telefono o scrivi la tua città.",
+    'location573_not_found': "Posizione non trovata. Scrivi la tua città qui sotto.",
+  },
+  'pt': <String, String>{
+    'location573_title': "Localização",
+    'location573_found': "Encontrado: {city}",
+    'location573_service_off': "Ativa o GPS do telemóvel e tenta de novo.",
+    'location573_denied': "Autoriza a localização para o HoPetSit preencher a tua cidade automaticamente.",
+    'location573_denied_forever': "A localização está bloqueada para o HoPetSit. Ativa-a nas definições do telemóvel ou escreve a tua cidade.",
+    'location573_not_found': "Não foi possível encontrar a tua posição. Escreve a tua cidade abaixo.",
+  },
+  'ko': <String, String>{
+    'location573_title': "위치",
+    'location573_found': "찾음: {city}",
+    'location573_service_off': "휴대폰의 GPS를 켠 뒤 다시 시도하세요.",
+    'location573_denied': "도시를 자동으로 입력하려면 HoPetSit의 위치 접근을 허용하세요.",
+    'location573_denied_forever': "HoPetSit의 위치 접근이 차단되어 있습니다. 휴대폰 설정에서 허용하거나 도시를 직접 입력하세요.",
+    'location573_not_found': "위치를 찾을 수 없습니다. 아래에 도시를 입력하세요.",
+  },
+  'ja': <String, String>{
+    'location573_title': "位置情報",
+    'location573_found': "見つかりました:{city}",
+    'location573_service_off': "スマートフォンのGPSをオンにして、もう一度お試しください。",
+    'location573_denied': "都市を自動入力するには、HoPetSitに位置情報へのアクセスを許可してください。",
+    'location573_denied_forever': "HoPetSitの位置情報がブロックされています。端末の設定で許可するか、都市名を入力してください。",
+    'location573_not_found': "現在地を取得できませんでした。下に都市名を入力してください。",
+  },
+  'pl': <String, String>{
+    'location573_title': "Lokalizacja",
+    'location573_found': "Znaleziono: {city}",
+    'location573_service_off': "Włącz GPS w telefonie i spróbuj ponownie.",
+    'location573_denied': "Zezwól HoPetSit na dostęp do lokalizacji, aby automatycznie uzupełnić miasto.",
+    'location573_denied_forever': "Lokalizacja jest zablokowana dla HoPetSit. Włącz ją w ustawieniach telefonu lub wpisz miasto.",
+    'location573_not_found': "Nie udało się ustalić Twojej pozycji. Wpisz miasto poniżej.",
+  },
+};

@@ -12,6 +12,7 @@
 //      tap → fiche animal, « + Ajouter un animal » s'il n'y en a pas)
 //   3. badges d'abonnement redessinés (ActiveBenefitsRow en mode hero)
 //   4. rangée de 3 statistiques en tuiles de verre, toutes cliquables.
+import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -463,9 +464,9 @@ class _CompletedBookingsTile extends StatelessWidget {
         // d'onglet.
         onTap: () {
           if (role == 'sitter') {
-            Get.to(() => const SitterBookingsScreen());
+            openMainTabOr(3, () => const SitterBookingsScreen());
           } else if (role == 'walker') {
-            Get.to(() => const WalkerBookingsScreen());
+            openMainTabOr(3, () => const WalkerBookingsScreen());
           } else {
             Get.to(() => const BookingsHistoryScreen());
           }

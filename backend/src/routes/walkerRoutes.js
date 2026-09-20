@@ -15,7 +15,7 @@ const {
   submitIdentityVerification,
   getMyIdentityVerification,
 } = require('../controllers/walkerController');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requireRole, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -156,7 +156,7 @@ router.get('/me/earnings', requireAuth, requireRole('walker'), async (req, res) 
 });
 
 // Public discovery.
-router.get('/nearby', findNearbyWalkers);
+router.get('/nearby', optionalAuth, findNearbyWalkers);
 router.get('/', listWalkers);
 // Additif — disponibilités publiques d'un walker (déclaré avant /:id).
 router.get('/:id/availability', getWalkerAvailability);

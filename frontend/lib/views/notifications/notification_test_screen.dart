@@ -15,8 +15,10 @@ import 'package:permission_handler/permission_handler.dart' show openAppSettings
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 
 class NotificationTestScreen extends StatefulWidget {
@@ -172,7 +174,8 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
             color: AppColors.textPrimary(context)),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          // v573 — spinner thémé (couleur du rôle) au lieu du spinner nu.
+          ? Center(child: AppSpinner(size: 28.w, color: accent))
           : ListView(
               // v569 — dernier bouton d'envoi au-dessus de la barre système.
               padding: EdgeInsets.fromLTRB(
@@ -182,7 +185,8 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                   padding: EdgeInsets.all(14.w),
                   decoration: BoxDecoration(
                     color: AppColors.card(context),
-                    borderRadius: BorderRadius.circular(16.r),
+                    // v573 — coins du nouveau design (20 au lieu de 16).
+                    borderRadius: BorderRadius.circular(20.r),
                     boxShadow: AppColors.cardShadow(context),
                   ),
                   child: Column(
@@ -200,33 +204,39 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                       _statusRow(context, tokenOk,
                           tokenOk ? 'notif_test_token_ok'.tr : 'notif_test_token_missing'.tr),
                       SizedBox(height: 12.h),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _busyType == null ? _reRegister : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: accent,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12.r)),
-                          ),
-                          icon: const Icon(Icons.sync_rounded, size: 18),
-                          label: Text('notif_test_reregister'.tr),
-                        ),
+                      // v573 — boutons du kit (`CustomButton`) : principal
+                      // plein, secondaire contour. Plus d'`ElevatedButton` /
+                      // `TextButton` stylés à la main.
+                      CustomButton(
+                        key: const ValueKey<String>('notif_test_reregister'),
+                        height: 48.h,
+                        radius: 14.r,
+                        bgColor: accent,
+                        onTap: _busyType == null ? _reRegister : null,
+                        child: _busyType == '__register__'
+                            ? const AppSpinner(
+                                size: 20, color: Colors.white, strokeWidth: 2.2)
+                            : _iconLabel(Icons.sync_rounded,
+                                'notif_test_reregister'.tr, Colors.white),
                       ),
                       // v566 — autorisation refusée : le système ne redemande plus,
                       // seul un passage par les Réglages la rétablit.
-                      if (!permOk)
-                        SizedBox(
-                          width: double.infinity,
-                          child: TextButton.icon(
-                            onPressed: () => openAppSettings(),
-                            icon: Icon(Icons.settings_outlined, size: 18, color: accent),
-                            label: Text('notif_test_open_settings'.tr,
-                                style: TextStyle(color: accent)),
-                          ),
+                      if (!permOk) ...[
+                        SizedBox(height: 8.h),
+                        CustomButton(
+                          key: const ValueKey<String>('notif_test_settings'),
+                          height: 48.h,
+                          radius: 14.r,
+                          bgColor: Colors.transparent,
+                          borderColor: AppColors.divider(context),
+                          textColor: AppColors.accentOn(context, accent),
+                          onTap: () => openAppSettings(),
+                          child: _iconLabel(
+                              Icons.settings_outlined,
+                              'notif_test_open_settings'.tr,
+                              AppColors.accentOn(context, accent)),
                         ),
+                      ],
                     ],
                   ),
                 ),
@@ -264,10 +274,37 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
     );
   }
 
+  /// Contenu « icône + libellé » d'un [CustomButton] (jamais de débordement :
+  /// le libellé se réduit avant de déborder, y compris en allemand).
+  Widget _iconLabel(IconData icon, String label, Color color) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 18.sp, color: color),
+        SizedBox(width: 8.w),
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: InterText(
+              text: label,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+              color: color,
+              maxLines: 1,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _statusRow(BuildContext context, bool ok, String label) {
+    // v573 — vert / rouge passés par `accentOn` : lisibles en mode sombre.
+    final Color c = AppColors.accentOn(
+        context, ok ? const Color(0xFF16A34A) : AppColors.errorColor);
     return Row(children: [
       Icon(ok ? Icons.check_circle_rounded : Icons.error_rounded,
-          size: 18, color: ok ? const Color(0xFF16A34A) : const Color(0xFFDC2626)),
+          size: 18, color: c),
       SizedBox(width: 8.w),
       Expanded(
         child: PoppinsText(
@@ -276,32 +313,66 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
     ]);
   }
 
+  /// v573 — rangée maison (style du kit Profil) au lieu du `ListTile` :
+  /// libellé + identifiant technique + pastille d'envoi à l'accent du rôle.
   Widget _typeTile(BuildContext context, String type, Color accent) {
     final busy = _busyType == type;
+    final Color on = AppColors.accentOn(context, accent);
     return Container(
       margin: EdgeInsets.only(bottom: 8.h),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(14.r),
+        borderRadius: BorderRadius.circular(18.r),
         boxShadow: AppColors.cardShadow(context),
       ),
-      child: ListTile(
-        dense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 2.h),
-        title: PoppinsText(
-            text: _label(type),
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary(context)),
-        subtitle: PoppinsText(
-            text: type, fontSize: 10.sp, color: AppColors.textSecondary(context)),
-        trailing: busy
-            ? SizedBox(
-                width: 18.w,
-                height: 18.w,
-                child: const CircularProgressIndicator(strokeWidth: 2))
-            : Icon(Icons.send_rounded, color: accent, size: 20),
-        onTap: _busyType == null ? () => _fire(type) : null,
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _busyType == null ? () => _fire(type) : null,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 11.h),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      PoppinsText(
+                          text: _label(type),
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary(context),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+                      SizedBox(height: 2.h),
+                      InterText(
+                          text: type,
+                          fontSize: 10.sp,
+                          color: AppColors.textSecondary(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 10.w),
+                Container(
+                  width: 34.w,
+                  height: 34.w,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: on.withValues(alpha: 0.14),
+                    shape: BoxShape.circle,
+                  ),
+                  child: busy
+                      ? AppSpinner(size: 17.w, color: on, strokeWidth: 2)
+                      : Icon(Icons.send_rounded, color: on, size: 17.sp),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

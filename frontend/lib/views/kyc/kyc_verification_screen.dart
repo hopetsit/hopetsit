@@ -767,19 +767,88 @@ class _PersonaWebViewScreenState extends State<_PersonaWebViewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // v573 — c'était le SEUL `AppBar` Material brut de l'app (titre au style
+    // par défaut, fond et élévation du thème). Il adopte l'en-tête du reste
+    // des écrans : `AppColors.appBar`, elevation 0, titre `PoppinsText`,
+    // fine ligne de séparation. Le WebView et sa logique sont inchangés.
     return Scaffold(
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        title: Text('kyc_identity_title'.tr),
+        backgroundColor: AppColors.appBar(context),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        title: PoppinsText(
+          text: 'kyc_identity_title'.tr,
+          fontSize: 16.sp,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary(context),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          tooltip: 'common_close'.tr,
+          icon: Icon(Icons.close_rounded,
+              size: 22.sp, color: AppColors.textPrimary(context)),
           onPressed: () => Navigator.of(context).pop(),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: AppColors.divider(context)),
         ),
       ),
       body: Stack(
         children: [
           WebViewWidget(controller: _controller),
           if (_loading)
-            const Center(child: CircularProgressIndicator()),
+            Positioned.fill(
+              child: Container(
+                color: AppColors.scaffold(context),
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 64.w,
+                      height: 64.w,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryColor.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.verified_user_rounded,
+                          size: 30.sp,
+                          color: AppColors.accentOn(
+                              context, AppColors.primaryColor)),
+                    ),
+                    SizedBox(height: 16.h),
+                    SizedBox(
+                      width: 140.w,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(999.r),
+                        child: LinearProgressIndicator(
+                          minHeight: 4.h,
+                          backgroundColor: AppColors.divider(context),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.accentOn(
+                                context, AppColors.primaryColor),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 12.h),
+                    InterText(
+                      text: 'pawmap_loading'.tr,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary(context),
+                      maxLines: 1,
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );

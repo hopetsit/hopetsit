@@ -18,6 +18,7 @@ import 'package:hopetsit/views/chat_shared/chat_session.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/views/chat_shared/chat_time.dart';
 import 'package:hopetsit/views/chat_shared/voice_player.dart';
+import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
@@ -63,23 +64,49 @@ class ChatMessageBubble extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
       ),
       builder: (sheet) {
+        // v573 — rangée maison (style du kit Profil) : pastille d'icône
+        // teintée + libellé. Remplace le `ListTile` Material brut.
         Widget tile(IconData icon, String label, VoidCallback onTap,
             {Color? color}) {
+          final bool dark = Theme.of(sheet).brightness == Brightness.dark;
           final c = color ?? AppColors.textPrimary(sheet);
-          return ListTile(
-            leading: Icon(icon, color: c, size: 22.sp),
-            title: InterText(
-              text: label,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w600,
-              color: c,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+          final chip = color ?? AppColors.accentOn(sheet, theme.accent);
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                Navigator.of(sheet).pop();
+                onTap();
+              },
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36.w,
+                      height: 36.w,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: chip.withValues(alpha: dark ? 0.18 : 0.12),
+                        borderRadius: BorderRadius.circular(11.r),
+                      ),
+                      child: Icon(icon, color: chip, size: 18.sp),
+                    ),
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: InterText(
+                        text: label,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                        color: c,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            onTap: () {
-              Navigator.of(sheet).pop();
-              onTap();
-            },
           );
         }
 
@@ -143,28 +170,17 @@ class ChatMessageBubble extends StatelessWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context) async {
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        backgroundColor: AppColors.card(context),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20.r),
-        ),
-        title: Text('chat_delete_message'.tr),
-        content: Text('chat_delete_message_confirm'.tr),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: Text('common_cancel'.tr),
-          ),
-          TextButton(
-            onPressed: () => Get.back(result: true),
-            child: Text(
-              'chat_delete_message'.tr,
-              style: TextStyle(color: chatDanger(context)),
-            ),
-          ),
-        ],
-      ),
+    // v573 — dialogue maison (app_dialog_kit) : carte coins 22, disque rouge,
+    // bouton principal destructif. Logique inchangée.
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: 'chat_delete_message'.tr,
+      message: 'chat_delete_message_confirm'.tr,
+      confirmLabel: 'chat_delete_message'.tr,
+      cancelLabel: 'common_cancel'.tr,
+      destructive: true,
+      icon: Icons.delete_outline_rounded,
+      accent: theme.accent,
     );
     if (confirmed == true) await session.deleteMessage(message.id);
   }
@@ -194,13 +210,8 @@ class ChatMessageBubble extends StatelessWidget {
           bottomLeft: Radius.circular(mine ? 20.r : 6.r),
           bottomRight: Radius.circular(mine ? 6.r : 20.r),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        // v573 — ombre du thème (invisible en sombre) au lieu d'un noir en dur.
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Opacity(
         opacity: m.isPending ? 0.72 : 1,
@@ -295,7 +306,9 @@ class ChatMessageBubble extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(8.w, 6.h, 10.w, 6.h),
         decoration: BoxDecoration(
           color: theme.quoteBackground(mine, context),
-          borderRadius: BorderRadius.circular(12.r),
+          // v573 — coins alignés sur le nouveau design (cartes 14 à l'intérieur
+          // d'une bulle à 20).
+          borderRadius: BorderRadius.circular(14.r),
           border: Border(left: BorderSide(color: barColor, width: 3)),
         ),
         child: Column(

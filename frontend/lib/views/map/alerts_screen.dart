@@ -25,9 +25,11 @@ import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/pawmap_theme.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
+import 'package:hopetsit/views/map/widgets/map_sheet_kit.dart';
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/rounded_text_button.dart';
 
 class AlertsScreen extends StatefulWidget {
   const AlertsScreen({super.key});
@@ -95,88 +97,44 @@ class _AlertsScreenState extends State<AlertsScreen> {
     }
   }
 
-  void _openRadiusPicker() {
-    final options = <double>[5, 10, 25, 50, 100];
-    showModalBottomSheet<void>(
+  // v573 — les deux sélecteurs passent par la feuille du kit PawMap
+  // (`showMapChoiceSheet`) : poignée, coins 24, rangées maison (icône dans un
+  // rond teinté + libellé + coche) et dégagement bas garanti. Les valeurs
+  // proposées et l'effet d'un choix sont INCHANGÉS.
+  Future<void> _openRadiusPicker() async {
+    const options = <double>[5, 10, 25, 50, 100];
+    final picked = await showMapChoiceSheet<double>(
       context: context,
-      backgroundColor: AppColors.card(context),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: EdgeInsets.all(16.w),
-              child: InterText(
-                text: 'alerts_filter_radius_title'.tr,
-                fontSize: 15.sp,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary(context),
-              ),
-            ),
-            ...options.map((km) => ListTile(
-                  leading: Icon(Icons.gps_fixed_rounded,
-                      color: AppColors.primaryColor, size: 20.sp),
-                  title: Text('${km.toInt()} km'),
-                  trailing: Obx(() => _radiusKm.value == km
-                      ? Icon(Icons.check_circle_rounded,
-                          color: AppColors.primaryColor)
-                      : const SizedBox.shrink()),
-                  onTap: () {
-                    _radiusKm.value = km;
-                    Navigator.of(ctx).pop();
-                  },
-                )),
-            // v569 — la dernière option restait sous la barre système.
-            SizedBox(height: 8.h + appBottomInsetInsideSafeArea(ctx)),
-          ],
-        ),
-      ),
+      title: 'alerts_filter_radius_title'.tr,
+      selected: _radiusKm.value,
+      titleIcon: Icons.gps_fixed_rounded,
+      options: options
+          .map((km) => MapChoiceOption<double>(
+                value: km,
+                label: '${km.toInt()} km',
+                icon: Icons.gps_fixed_rounded,
+              ))
+          .toList(),
     );
+    if (picked != null) _radiusKm.value = picked;
   }
 
-  void _openPeriodPicker() {
-    final options = <int>[24, 48, 168, 720]; // 24h / 48h / 7j / 30j
-    showModalBottomSheet<void>(
+  Future<void> _openPeriodPicker() async {
+    const options = <int>[24, 48, 168, 720]; // 24h / 48h / 7j / 30j
+    final picked = await showMapChoiceSheet<int>(
       context: context,
-      backgroundColor: AppColors.card(context),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: EdgeInsets.all(16.w),
-              child: InterText(
-                text: 'alerts_filter_period_title'.tr,
-                fontSize: 15.sp,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary(context),
-              ),
-            ),
-            ...options.map((h) => ListTile(
-                  leading: Icon(Icons.schedule_rounded,
-                      color: AppColors.primaryColor, size: 20.sp),
-                  title: Text(_periodLabel(h)),
-                  trailing: Obx(() => _sinceHours.value == h
-                      ? Icon(Icons.check_circle_rounded,
-                          color: AppColors.primaryColor)
-                      : const SizedBox.shrink()),
-                  onTap: () {
-                    _sinceHours.value = h;
-                    Navigator.of(ctx).pop();
-                  },
-                )),
-            // v569 — la dernière option restait sous la barre système.
-            SizedBox(height: 8.h + appBottomInsetInsideSafeArea(ctx)),
-          ],
-        ),
-      ),
+      title: 'alerts_filter_period_title'.tr,
+      selected: _sinceHours.value,
+      titleIcon: Icons.schedule_rounded,
+      options: options
+          .map((h) => MapChoiceOption<int>(
+                value: h,
+                label: _periodLabel(h),
+                icon: Icons.schedule_rounded,
+              ))
+          .toList(),
     );
+    if (picked != null) _sinceHours.value = picked;
   }
 
   String _periodLabel(int hours) {
@@ -186,44 +144,20 @@ class _AlertsScreenState extends State<AlertsScreen> {
     return 'alerts_period_30d'.tr;
   }
 
-  void _openSearch() {
-    showDialog<void>(
+  // v573 — dialogue de recherche repris sur la coque du kit (carte coins 22,
+  // titre PoppinsText, champ thémé, boutons `CustomButton`). Comportement
+  // identique : valider pose la requête, « effacer » la vide, fermer ne touche
+  // à rien.
+  Future<void> _openSearch() async {
+    final result = await showMapTextInputDialog(
       context: context,
-      builder: (ctx) {
-        final ctrl = TextEditingController(text: _searchQuery.value);
-        return AlertDialog(
-          title: Text('alerts_search_title'.tr),
-          content: TextField(
-            controller: ctrl,
-            autofocus: true,
-            decoration: InputDecoration(
-              hintText: 'alerts_search_hint'.tr,
-              prefixIcon: const Icon(Icons.search),
-            ),
-            onSubmitted: (v) {
-              _searchQuery.value = v.trim();
-              Navigator.of(ctx).pop();
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                _searchQuery.value = '';
-                Navigator.of(ctx).pop();
-              },
-              child: Text('common_clear'.tr),
-            ),
-            TextButton(
-              onPressed: () {
-                _searchQuery.value = ctrl.text.trim();
-                Navigator.of(ctx).pop();
-              },
-              child: Text('common_search'.tr),
-            ),
-          ],
-        );
-      },
+      title: 'alerts_search_title'.tr,
+      hint: 'alerts_search_hint'.tr,
+      initialValue: _searchQuery.value,
+      confirmLabel: 'common_search'.tr,
+      clearLabel: 'common_clear'.tr,
     );
+    if (result != null) _searchQuery.value = result;
   }
 
   // v23.1 part 211 — bouton "Activer les notifications" du mockup.
@@ -303,23 +237,15 @@ class _AlertsScreenState extends State<AlertsScreen> {
       buf.writeln('Visibles pour moi dans /nearby : $wouldShow / ${all.length}');
       buf.writeln('');
       buf.writeln('TIP: ${r['tip'] ?? ''}');
-      showDialog<void>(
+      // v573 — même contenu brut (c'est un outil de diagnostic), mais posé sur
+      // la coque de dialogue du kit : surface thémée, texte lisible en sombre,
+      // bouton de fermeture du kit.
+      await showMapInfoDialog(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('alerts_diagnose_title'.tr),
-          content: SingleChildScrollView(
-            child: SelectableText(
-              buf.toString(),
-              style: TextStyle(fontFamily: 'monospace', fontSize: 10.sp),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text('common_close'.tr),
-            ),
-          ],
-        ),
+        title: 'alerts_diagnose_title'.tr,
+        body: buf.toString(),
+        icon: Icons.bug_report_outlined,
+        monospace: true,
       );
     } catch (e) {
       if (!mounted) return;
@@ -376,9 +302,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
           title: Row(
             children: [
               Icon(Icons.notifications_active_rounded,
-                  color: const Color(0xFFF59E0B), size: 22.sp),
+                  color: AppColors.accentOn(context, const Color(0xFFF59E0B)),
+                  size: 22.sp),
               SizedBox(width: 8.w),
-              InterText(
+              // v573 — titre d'écran en PoppinsText (règle du nouveau design).
+              PoppinsText(
                 text: 'alerts_screen_title'.tr,
                 fontSize: 18.sp,
                 fontWeight: FontWeight.w700,
@@ -401,52 +329,52 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   color: AppColors.primaryColor, size: 22.sp),
               tooltip: 'alerts_filter_title'.tr,
               onPressed: () {
+                // v573 — feuille des filtres au nouveau design : poignée,
+                // coins 24, deux rangées maison (icône + libellé + valeur +
+                // chevron) au lieu des `ListTile` Material. Les deux actions
+                // ouvrent les mêmes sélecteurs qu'avant.
                 showModalBottomSheet<void>(
                   context: context,
-                  backgroundColor: AppColors.card(context),
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20.r)),
-                  ),
-                  builder: (ctx) => SafeArea(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w,
-                          16.w + appBottomInsetInsideSafeArea(ctx)),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          InterText(
-                            text: 'alerts_filter_title'.tr,
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary(context),
-                          ),
-                          SizedBox(height: 12.h),
-                          ListTile(
-                            leading: Icon(Icons.gps_fixed_rounded,
-                                color: AppColors.primaryColor),
-                            title: Text('alerts_filter_radius_title'.tr),
-                            subtitle: Obx(() =>
-                                Text('${_radiusKm.value.toInt()} km')),
-                            onTap: () {
-                              Navigator.of(ctx).pop();
-                              _openRadiusPicker();
-                            },
-                          ),
-                          ListTile(
-                            leading: Icon(Icons.schedule_rounded,
-                                color: AppColors.primaryColor),
-                            title: Text('alerts_filter_period_title'.tr),
-                            subtitle: Obx(
-                                () => Text(_periodLabel(_sinceHours.value))),
-                            onTap: () {
-                              Navigator.of(ctx).pop();
-                              _openPeriodPicker();
-                            },
-                          ),
-                        ],
-                      ),
+                  backgroundColor: Colors.transparent,
+                  builder: (ctx) => Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.card(ctx),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(24.r)),
+                    ),
+                    padding: EdgeInsets.fromLTRB(
+                        16.w, 10.h, 16.w, 10.h + appBottomInset(ctx)),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const MapSheetHandle(),
+                        MapSheetTitle(
+                          title: 'alerts_filter_title'.tr,
+                          icon: Icons.tune_rounded,
+                        ),
+                        SizedBox(height: 8.h),
+                        Obx(() => MapChoiceRow(
+                              icon: Icons.gps_fixed_rounded,
+                              label: 'alerts_filter_radius_title'.tr,
+                              value: '${_radiusKm.value.toInt()} km',
+                              showChevron: true,
+                              onTap: () {
+                                Navigator.of(ctx).pop();
+                                _openRadiusPicker();
+                              },
+                            )),
+                        Obx(() => MapChoiceRow(
+                              icon: Icons.schedule_rounded,
+                              label: 'alerts_filter_period_title'.tr,
+                              value: _periodLabel(_sinceHours.value),
+                              showChevron: true,
+                              onTap: () {
+                                Navigator.of(ctx).pop();
+                                _openPeriodPicker();
+                              },
+                            )),
+                      ],
                     ),
                   ),
                 );
@@ -711,7 +639,8 @@ class _AlertsListState extends State<_AlertsList>
         // resolution → message GPS-denied explicite avec CTA pour re-tenter.
         if (widget.myPos.value == null) {
           if (widget.resolvingPos.value) {
-            return const Center(child: CircularProgressIndicator());
+            // v573 — squelettes de cartes au lieu d'une roue centrée.
+            return const MapCardSkeletonList();
           }
           return _GpsRequiredState(
             onRetry: () async {
@@ -742,7 +671,7 @@ class _AlertsListState extends State<_AlertsList>
           );
         }
         if (_loading.value && _reports.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
+          return const MapCardSkeletonList();
         }
         final filtered = _filtered();
         if (filtered.isEmpty) {
@@ -805,73 +734,24 @@ class _EmptyState extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 100.h),
       children: [
         SizedBox(height: 16.h),
-        // ── Hero illustration : bouclier + paws + sparkles ────────────
-        Center(
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Text('✨', style: TextStyle(fontSize: 18.sp)),
-              Positioned(
-                left: 30.w,
-                top: 0,
-                child: Text('✨', style: TextStyle(fontSize: 12.sp)),
-              ),
-              Positioned(
-                right: 30.w,
-                top: 10.h,
-                child: Text('✨', style: TextStyle(fontSize: 10.sp)),
-              ),
-              Container(
-                margin: EdgeInsets.only(top: 24.h),
-                width: 100.w,
-                height: 100.w,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primaryColor.withValues(alpha: 0.08),
-                ),
-                child: Icon(Icons.shield_outlined,
-                    size: 50.sp,
-                    color: AppColors.textSecondary(context).withValues(alpha: 0.6)),
-              ),
-              Positioned(
-                bottom: 8.h,
-                child: Text('🐾',
-                    style: TextStyle(fontSize: 16.sp)),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: 16.h),
-        InterText(
-          text: 'alerts_empty_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w800,
-          color: AppColors.textPrimary(context),
-          textAlign: TextAlign.center,
-        ),
-        SizedBox(height: 6.h),
-        InterText(
-          text: 'alerts_empty_msg'.tr,
-          fontSize: 13.sp,
-          color: AppColors.textSecondary(context),
-          textAlign: TextAlign.center,
+        // ── État vide soigné (kit PawMap) ─────────────────────────────
+        MapEmptyBlock(
+          icon: Icons.shield_outlined,
+          emoji: '🐾',
+          title: 'alerts_empty_title'.tr,
+          message: 'alerts_empty_msg'.tr,
         ),
         SizedBox(height: 18.h),
         // ── Section "Que pouvez-vous faire ?" ─────────────────────────
-        Container(
-          padding: EdgeInsets.all(14.w),
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(14.r),
-            border: Border.all(color: AppColors.divider(context)),
-          ),
+        MapSheetCard(
           child: Column(
             children: [
-              InterText(
+              PoppinsText(
                 text: 'alerts_what_can_you_do'.tr,
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w800,
                 color: AppColors.textPrimary(context),
+                textAlign: TextAlign.center,
               ),
               SizedBox(height: 12.h),
               Row(
@@ -905,7 +785,7 @@ class _EmptyState extends StatelessWidget {
         Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: BorderRadius.circular(14.r),
+            borderRadius: BorderRadius.circular(20.r),
             onTap: onSignalLost,
             child: Container(
               padding: EdgeInsets.all(14.w),
@@ -915,7 +795,7 @@ class _EmptyState extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(14.r),
+                borderRadius: BorderRadius.circular(20.r),
                 boxShadow: [
                   BoxShadow(
                     color: const Color(0xFFDC2626).withValues(alpha: 0.35),
@@ -933,17 +813,21 @@ class _EmptyState extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        InterText(
+                        PoppinsText(
                           text: 'alerts_signal_lost_title'.tr,
                           fontSize: 15.sp,
                           fontWeight: FontWeight.w800,
                           color: Colors.white,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         SizedBox(height: 2.h),
                         InterText(
                           text: 'alerts_signal_lost_subtitle'.tr,
                           fontSize: 11.sp,
                           color: Colors.white.withValues(alpha: 0.9),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -957,13 +841,8 @@ class _EmptyState extends StatelessWidget {
         ),
         SizedBox(height: 14.h),
         // ── Footer info cards ──────────────────────────────────────────
-        Container(
+        MapSheetCard(
           padding: EdgeInsets.all(12.w),
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(14.r),
-            border: Border.all(color: AppColors.divider(context)),
-          ),
           child: Row(
             children: [
               Expanded(
@@ -1011,7 +890,7 @@ class _SignalLostBanner extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(14.r),
+        borderRadius: BorderRadius.circular(18.r),
         onTap: onTap,
         child: Container(
           padding: EdgeInsets.all(12.w),
@@ -1021,7 +900,7 @@ class _SignalLostBanner extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(14.r),
+            borderRadius: BorderRadius.circular(18.r),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFFDC2626).withValues(alpha: 0.30),
@@ -1038,17 +917,21 @@ class _SignalLostBanner extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    InterText(
+                    PoppinsText(
                       text: 'alerts_signal_lost_title'.tr,
                       fontSize: 13.sp,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     SizedBox(height: 1.h),
                     InterText(
                       text: 'alerts_signal_lost_subtitle'.tr,
                       fontSize: 10.sp,
                       color: Colors.white.withValues(alpha: 0.9),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -1077,8 +960,10 @@ class _ActionPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // v573 — la couleur de service reste lisible sur fond sombre.
+    final Color tone = AppColors.accentOn(context, color);
     return InkWell(
-      borderRadius: BorderRadius.circular(12.r),
+      borderRadius: BorderRadius.circular(14.r),
       onTap: onTap,
       child: SizedBox(
         width: 90.w,
@@ -1087,11 +972,15 @@ class _ActionPill extends StatelessWidget {
             Container(
               width: 44.w,
               height: 44.w,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: color.withValues(alpha: 0.12),
+                color: tone.withValues(
+                    alpha: Theme.of(context).brightness == Brightness.dark
+                        ? 0.22
+                        : 0.12),
               ),
-              child: Icon(icon, color: color, size: 22.sp),
+              child: Icon(icon, color: tone, size: 22.sp),
             ),
             SizedBox(height: 6.h),
             InterText(
@@ -1127,7 +1016,7 @@ class _InfoCard extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 4.w),
       child: Column(
         children: [
-          Icon(icon, color: iconColor, size: 24.sp),
+          Icon(icon, color: AppColors.accentOn(context, iconColor), size: 24.sp),
           SizedBox(height: 6.h),
           InterText(
             text: title,
@@ -1171,76 +1060,38 @@ class _GpsRequiredState extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 60.h),
       children: [
         SizedBox(height: 40.h),
-        Center(
-          child: Container(
-            width: 100.w,
-            height: 100.w,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFFF59E0B).withValues(alpha: 0.10),
-            ),
-            child: Icon(Icons.location_off_rounded,
-                size: 56.sp, color: const Color(0xFFF59E0B)),
-          ),
+        // v573 — état vide du kit + boutons `CustomButton` (plus d'Elevated /
+        // Outlined Material bruts). Les deux actions sont inchangées.
+        MapEmptyBlock(
+          icon: Icons.location_off_rounded,
+          tint: const Color(0xFFF59E0B),
+          title: 'alerts_no_gps_title'.tr,
+          message: 'alerts_no_gps_msg'.tr,
         ),
-        SizedBox(height: 16.h),
-        InterText(
-          text: 'alerts_no_gps_title'.tr,
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w800,
-          color: AppColors.textPrimary(context),
-          textAlign: TextAlign.center,
-        ),
-        SizedBox(height: 6.h),
-        InterText(
-          text: 'alerts_no_gps_msg'.tr,
-          fontSize: 13.sp,
-          color: AppColors.textSecondary(context),
-          textAlign: TextAlign.center,
-        ),
-        SizedBox(height: 18.h),
-        SizedBox(
+        SizedBox(height: 20.h),
+        CustomButton(
           width: double.infinity,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFC92A12),
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(vertical: 14.h),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14.r),
-              ),
-            ),
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-            label: InterText(
-              text: 'common_retry'.tr,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-            onPressed: onRetry,
-          ),
+          height: 52.h,
+          radius: 16.r,
+          title: 'common_retry'.tr,
+          fontSize: 15.sp,
+          fontWeight: FontWeight.w800,
+          bgColor: AppColors.primaryColor,
+          textColor: Colors.white,
+          onTap: onRetry,
         ),
         SizedBox(height: 10.h),
-        SizedBox(
+        CustomButton(
           width: double.infinity,
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: AppColors.divider(context)),
-              padding: EdgeInsets.symmetric(vertical: 14.h),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14.r),
-              ),
-            ),
-            icon: Icon(Icons.settings_rounded,
-                color: AppColors.textPrimary(context)),
-            label: InterText(
-              text: 'alerts_gps_open_settings'.tr,
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
-            ),
-            onPressed: onOpenSettings,
-          ),
+          height: 52.h,
+          radius: 16.r,
+          title: 'alerts_gps_open_settings'.tr,
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w700,
+          bgColor: AppColors.card(context),
+          textColor: AppColors.textPrimary(context),
+          borderColor: AppColors.divider(context),
+          onTap: onOpenSettings,
         ),
       ],
     );
@@ -1284,6 +1135,9 @@ class _ReportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sev = _severity();
+    // v573 — la couleur de sévérité passe par `accentOn` : le rouge #DC2626 et
+    // le vert #16A34A tombaient à 2-3:1 sur le fond sombre.
+    final Color sevTone = AppColors.accentOn(context, sev.color);
     final emoji = ReportTypes.emoji(report.type);
     // v23.1 part 213 — Daniel : "si tu clic dessus sa te montre sur la
     // map". Wrap dans Material + InkWell qui navigue vers PawMap centree
@@ -1291,7 +1145,7 @@ class _ReportCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(14.r),
+        borderRadius: BorderRadius.circular(18.r),
         onTap: () {
           if (report.latitude == 0 && report.longitude == 0) {
             // Defensive : un report a (0,0) est invalide → on n'ouvre
@@ -1308,7 +1162,7 @@ class _ReportCard extends StatelessWidget {
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(14.r),
+        borderRadius: BorderRadius.circular(18.r),
         boxShadow: AppColors.cardShadow(context),
         border: Border.all(color: AppColors.divider(context)),
       ),
@@ -1316,11 +1170,11 @@ class _ReportCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(10.r),
+            borderRadius: BorderRadius.circular(12.r),
             child: Container(
               width: 60.w,
               height: 60.w,
-              color: sev.color.withValues(alpha: 0.10),
+              color: sevTone.withValues(alpha: 0.10),
               child: report.photoUrl.isNotEmpty
                   ? CachedNetworkImage(
                       imageUrl: report.photoUrl,
@@ -1340,12 +1194,13 @@ class _ReportCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                InterText(
+                PoppinsText(
                   text: _typeLabel(),
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w800,
-                  color: sev.color,
+                  color: sevTone,
                   maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 SizedBox(height: 4.h),
                 if (report.note.isNotEmpty)
@@ -1386,15 +1241,16 @@ class _ReportCard extends StatelessWidget {
           Container(
             padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
             decoration: BoxDecoration(
-              color: sev.color.withValues(alpha: 0.15),
+              color: sevTone.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10.r),
-              border: Border.all(color: sev.color.withValues(alpha: 0.4)),
+              border: Border.all(color: sevTone.withValues(alpha: 0.4)),
             ),
             child: InterText(
               text: sev.label,
               fontSize: 9.sp,
               fontWeight: FontWeight.w800,
-              color: sev.color,
+              color: sevTone,
+              maxLines: 1,
             ),
           ),
         ],

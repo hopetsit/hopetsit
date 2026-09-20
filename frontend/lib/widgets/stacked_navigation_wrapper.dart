@@ -44,6 +44,9 @@ class StackedNavigationWrapper extends StatefulWidget {
 }
 
 class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
+  /// Nombre de wrappers de navigation actuellement montés (voir initState).
+  static int _mountedWrappers = 0;
+
   int _currentIndex = 0;
   Worker? _tabRequestWorker;
 
@@ -57,6 +60,11 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
       Future.delayed(const Duration(seconds: 3), AppUpdateService.checkOnce);
     });
     // v559 — un autre écran demande un onglet (ex. PawMap avec itinéraire).
+    // v571 — compteur et non simple booléen : au changement de rôle le
+    // NOUVEAU wrapper se monte AVANT que l'ancien soit démonté ; l'ancien
+    // remettait alors le drapeau à false et le bandeau « Tout est à jour »
+    // retombait sur l'historique des réservations au lieu d'ouvrir la PawMap.
+    _mountedWrappers++;
     navWrapperMounted.value = true;
     _tabRequestWorker = ever<int>(requestedTab, (i) {
       if (i < 0 || !mounted) return;
@@ -68,7 +76,8 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   @override
   void dispose() {
     _tabRequestWorker?.dispose();
-    navWrapperMounted.value = false;
+    _mountedWrappers = (_mountedWrappers - 1).clamp(0, 99);
+    navWrapperMounted.value = _mountedWrappers > 0;
     super.dispose();
   }
 

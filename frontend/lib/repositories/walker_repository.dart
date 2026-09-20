@@ -153,6 +153,9 @@ class WalkerRepository {
           'lng': lng.toString(),
           'radiusInMeters': radiusInMeters.toString(),
         },
+        // v573 — le serveur doit savoir QUI regarde pour ne pas proposer à un
+        // propriétaire son propre profil promeneur (compte aux 3 rôles).
+        requiresAuth: true,
       );
       final data = _asMap(response);
       final list = data['walkers'];

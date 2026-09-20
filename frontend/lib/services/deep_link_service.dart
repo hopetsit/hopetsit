@@ -553,13 +553,15 @@ class DeepLinkService {
     }
   }
 
-  void _goToTab(int index) {
-    if (navWrapperMounted.value) {
-      try {
-        Get.until((route) => route.isFirst);
-      } catch (_) {/* déjà à la racine */}
-      requestedTab.value = index;
-    }
+  /// Bascule sur un onglet du menu principal. Renvoie `false` si le menu
+  /// n'est pas monté (l'appelant pousse alors l'écran en repli).
+  bool _goToTab(int index) {
+    if (!navWrapperMounted.value) return false;
+    try {
+      Get.until((route) => route.isFirst);
+    } catch (_) {/* déjà à la racine */}
+    requestedTab.value = index;
+    return true;
   }
 
   Future<void> _openConversation(String conversationId, Map<String, String> q) async {
@@ -827,7 +829,13 @@ class DeepLinkService {
     }
   }
 
+  // v573 — Daniel : « le menu d'en bas avait disparu ». Chat, Réservations et
+  // Profil SONT des onglets (mêmes index pour les 3 rôles : 0 Accueil · 1 Chat
+  // · 2 PawMap · 3 Réservations · 4 Profil). Un lien ou une notification les
+  // EMPILAIT comme pages plein écran, donc sans menu. On bascule désormais sur
+  // l'onglet ; l'empilement ne sert plus que de repli si le menu n'est pas là.
   void _openChatList() {
+    if (_goToTab(1)) return;
     if (_currentRole() == 'owner') {
       Get.to(() => const ChatScreen());
     } else {
@@ -836,6 +844,7 @@ class DeepLinkService {
   }
 
   void _openBookingsScreen() {
+    if (_goToTab(3)) return;
     switch (_currentRole()) {
       case 'walker':
         Get.to(() => const WalkerBookingsScreen());
@@ -858,6 +867,7 @@ class DeepLinkService {
   }
 
   void _openProfileScreen() {
+    if (_goToTab(4)) return;
     switch (_currentRole()) {
       case 'walker':
         Get.to(() => const WalkerProfileScreen());

@@ -34,11 +34,15 @@ export default function PawMapPage() {
   ];
 
   const dir = lang === "fr" ? "fr" : "en";
+  // v573 — captures FR refaites avec le nouveau design (menu « patte », en-tête
+  // PawMap à tuile orange). Les captures EN restent celles de la v561 tant
+  // qu'elles n'ont pas été refaites en anglais.
+  const shots = dir === "fr" ? "v573" : "v561";
   const gallery = [
     { src: pawmapShotFor(lang), alt: "PawMap" },
-    { src: `/screens/v561/${dir}/${dir === "fr" ? "09-autour-liste" : "09-around-list"}.jpg`, alt: t("pawmap_categories") },
-    { src: `/screens/v561/${dir}/${dir === "fr" ? "10-itineraire" : "10-route"}.jpg`, alt: "Itinéraire" },
-    { src: `/screens/v561/${dir}/${dir === "fr" ? "11-carte-dallas" : "11-map-dallas"}.jpg`, alt: "PawMap Dallas" },
+    { src: `/screens/${shots}/${dir}/${dir === "fr" ? "09-autour-liste" : "09-around-list"}.jpg`, alt: t("pawmap_categories") },
+    { src: `/screens/${shots}/${dir}/${dir === "fr" ? "10-itineraire" : "10-route"}.jpg`, alt: "Itinéraire" },
+    { src: `/screens/${shots}/${dir}/${dir === "fr" ? "11-carte-dallas" : "11-map-dallas"}.jpg`, alt: "PawMap Dallas" },
   ];
 
   return (

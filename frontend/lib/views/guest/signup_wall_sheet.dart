@@ -10,6 +10,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/auth/login_screen.dart';
 import 'package:hopetsit/views/auth/signup_wizard_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v535 — SPEC ONBOARDING P1.2 : le MUR D'INSCRIPTION CONTEXTUEL.
@@ -95,8 +96,10 @@ class SignupWallSheet extends StatelessWidget {
     final title = (name != null && name!.isNotEmpty)
         ? 'guest_wall_title_named'.trParams({'name': name!})
         : 'guest_wall_title'.tr;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final muted = isDark ? AppColors.textSecondaryDark : Colors.grey;
+    // v573 — harmonisation avec le design 567-571 : plus de `Colors.grey` ni
+    // de ternaire `isDark` écrit à la main, poignée et coins alignés sur les
+    // autres feuilles, boutons sociaux au langage `CustomButton`.
+    final Color muted = AppColors.textSecondary(context);
 
     final roles = <_WallRole>[
       _WallRole(
@@ -130,7 +133,7 @@ class SignupWallSheet extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
       ),
       // v569 — `Get.bottomSheet` ne protège pas le bas : sur le Samsung de
@@ -150,8 +153,8 @@ class SignupWallSheet extends StatelessWidget {
                   width: 44.w,
                   height: 4.h,
                   decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(2.r),
+                    color: AppColors.divider(context),
+                    borderRadius: BorderRadius.circular(999.r),
                   ),
                 ),
               ),
@@ -166,9 +169,11 @@ class SignupWallSheet extends StatelessWidget {
               SizedBox(height: 12.h),
               PoppinsText(
                 text: title,
-                fontSize: 19.sp,
-                fontWeight: FontWeight.w700,
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary(context),
                 textAlign: TextAlign.center,
+                maxLines: 3,
               ),
               SizedBox(height: 6.h),
               InterText(
@@ -176,6 +181,7 @@ class SignupWallSheet extends StatelessWidget {
                 fontSize: 13.sp,
                 color: muted,
                 textAlign: TextAlign.center,
+                maxLines: 3,
               ),
               SizedBox(height: 16.h),
               InterText(
@@ -183,13 +189,13 @@ class SignupWallSheet extends StatelessWidget {
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w700,
                 color: muted,
+                maxLines: 2,
               ),
               SizedBox(height: 8.h),
               for (final r in roles) ...[
                 _RoleCard(
                   role: r,
                   recommended: r.userType == recommended,
-                  isDark: isDark,
                   onTap: () => _toWizard(r.userType),
                 ),
                 SizedBox(height: 8.h),
@@ -229,26 +235,30 @@ class SignupWallSheet extends StatelessWidget {
                     child: _SocialBtn(
                       label: 'button_google'.tr,
                       icon: Icons.g_mobiledata,
-                      bg: isDark ? AppColors.backgroundDark : Colors.white,
-                      fg: isDark ? Colors.white : const Color(0xFF17141F),
+                      bg: AppColors.card(context),
+                      fg: AppColors.textPrimary(context),
                       border: true,
                       onTap: () => _social('google'),
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: 6.h),
-              TextButton(
-                onPressed: () {
+              SizedBox(height: 10.h),
+              CustomButton(
+                bgColor: Colors.transparent,
+                borderColor:
+                    AppColors.accentOn(context, AppColors.primaryColor),
+                textColor:
+                    AppColors.accentOn(context, AppColors.primaryColor),
+                title: 'guest_wall_login'.tr,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                radius: 16.r,
+                height: 46.h,
+                onTap: () {
                   Get.back();
                   Get.to(() => const LoginScreen());
                 },
-                child: InterText(
-                  text: 'guest_wall_login'.tr,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primaryColor,
-                ),
               ),
             ],
           ),
@@ -276,95 +286,106 @@ class _WallRole {
 class _RoleCard extends StatelessWidget {
   final _WallRole role;
   final bool recommended;
-  final bool isDark;
   final VoidCallback onTap;
   const _RoleCard({
     required this.role,
     required this.recommended,
-    required this.isDark,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final c = role.color;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-        decoration: BoxDecoration(
-          color: recommended
-              ? c.withValues(alpha: isDark ? 0.18 : 0.08)
-              : (isDark ? AppColors.backgroundDark : Colors.white),
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color: recommended
-                ? c
-                : (isDark ? AppColors.dividerDark : const Color(0xFFECE5DE)),
-            width: recommended ? 1.6 : 1,
+    final Color c = AppColors.accentOn(context, role.color);
+    final BorderRadius br = BorderRadius.circular(18.r);
+    return Material(
+      color: recommended
+          ? c.withValues(alpha: 0.10)
+          : AppColors.card(context),
+      borderRadius: br,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        borderRadius: br,
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+          decoration: BoxDecoration(
+            borderRadius: br,
+            border: Border.all(
+              color: recommended
+                  ? c
+                  : AppColors.divider(context).withValues(alpha: 0.8),
+              width: recommended ? 1.6 : 1,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42.w,
-              height: 42.w,
-              decoration: BoxDecoration(
-                color: c.withValues(alpha: 0.14),
-                shape: BoxShape.circle,
+          child: Row(
+            children: [
+              Container(
+                width: 42.w,
+                height: 42.w,
+                decoration: BoxDecoration(
+                  color: c.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(role.emoji, style: TextStyle(fontSize: 20.sp)),
               ),
-              alignment: Alignment.center,
-              child: Text(role.emoji, style: TextStyle(fontSize: 20.sp)),
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: PoppinsText(
-                          text: role.titleKey.tr,
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w700,
-                          color: c,
-                          maxLines: 1,
-                        ),
-                      ),
-                      if (recommended) ...[
-                        SizedBox(width: 8.w),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 8.w, vertical: 2.h),
-                          decoration: BoxDecoration(
-                            color: c,
-                            borderRadius: BorderRadius.circular(999.r),
-                          ),
-                          child: InterText(
-                            text: 'guest_wall_recommended'.tr,
-                            fontSize: 10.sp,
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: PoppinsText(
+                            text: role.titleKey.tr,
+                            fontSize: 14.5.sp,
                             fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                            color: c,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (recommended) ...[
+                          SizedBox(width: 8.w),
+                          Flexible(
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 8.w, vertical: 2.h),
+                              decoration: BoxDecoration(
+                                color: role.color,
+                                borderRadius: BorderRadius.circular(999.r),
+                              ),
+                              child: InterText(
+                                text: 'guest_wall_recommended'.tr,
+                                fontSize: 10.sp,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
-                  SizedBox(height: 2.h),
-                  InterText(
-                    text: role.subtitleKey.tr,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w500,
-                    color: isDark ? AppColors.textSecondaryDark : Colors.grey,
-                    maxLines: 2,
-                  ),
-                ],
+                    ),
+                    SizedBox(height: 2.h),
+                    InterText(
+                      text: role.subtitleKey.tr,
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary(context),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Icon(Icons.chevron_right_rounded, color: c, size: 22.sp),
-          ],
+              SizedBox(width: 4.w),
+              Icon(Icons.chevron_right_rounded, color: c, size: 22.sp),
+            ],
+          ),
         ),
       ),
     );
@@ -389,30 +410,42 @@ class _SocialBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44.h,
-      child: ElevatedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 18.sp, color: fg),
-        label: InterText(
-          text: label,
-          fontSize: 13.sp,
-          fontWeight: FontWeight.w800,
-          color: fg,
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: bg,
-          elevation: 0,
-          side: border
-              // Le liseré crème d'origine ressortait comme un trait clair sur
-              // le bouton sombre → bordure du thème en mode sombre.
-              ? BorderSide(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? AppColors.dividerDark
-                      : const Color(0xFFECE5DE))
-              : BorderSide.none,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.r),
+    final BorderRadius br = BorderRadius.circular(14.r);
+    return Material(
+      color: bg,
+      borderRadius: br,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        borderRadius: br,
+        onTap: onTap,
+        child: Container(
+          height: 46.h,
+          padding: EdgeInsets.symmetric(horizontal: 10.w),
+          decoration: BoxDecoration(
+            borderRadius: br,
+            border: border
+                ? Border.all(color: AppColors.divider(context), width: 1)
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18.sp, color: fg),
+              SizedBox(width: 7.w),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: InterText(
+                    text: label,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: fg,
+                    maxLines: 1,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

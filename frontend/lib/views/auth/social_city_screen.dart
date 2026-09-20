@@ -7,6 +7,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 
 /// v565 audit-inscription — dernière étape d'une inscription Google / Apple.
@@ -75,10 +76,13 @@ class _SocialCityScreenState extends State<SocialCityScreen> {
           if (city.isNotEmpty) _cityController.text = city;
         });
       } else {
+        // v573 — BUG : les deux clés étaient passées BRUTES (sans `.tr`),
+        // donc l'utilisateur lisait « snackbar_text_location_not_found ».
+        // On passe au passage sur les messages `location573_*`, qui disent
+        // POURQUOI la localisation a échoué au lieu d'un message unique.
         CustomSnackbar.showWarning(
-          title: 'snackbar_text_location_not_found',
-          message:
-              'snackbar_text_could_not_detect_your_location_please_enable_location_servic',
+          title: 'location573_title'.tr,
+          message: _locationFailureMessage(),
         );
       }
     } catch (_) {
@@ -90,6 +94,21 @@ class _SocialCityScreenState extends State<SocialCityScreen> {
       }
     } finally {
       if (mounted) setState(() => _gettingLocation = false);
+    }
+  }
+
+  /// Message adapté à la raison du dernier échec de `LocationService`
+  /// ('service_off' | 'denied' | 'denied_forever' | autre).
+  String _locationFailureMessage() {
+    switch (_locationService.lastFailure) {
+      case 'service_off':
+        return 'location573_service_off'.tr;
+      case 'denied':
+        return 'location573_denied'.tr;
+      case 'denied_forever':
+        return 'location573_denied_forever'.tr;
+      default:
+        return 'location573_not_found'.tr;
     }
   }
 
@@ -130,6 +149,7 @@ class _SocialCityScreenState extends State<SocialCityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final Color accent = AppColors.accentOn(context, _accent);
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
       body: SafeArea(
@@ -149,48 +169,88 @@ class _SocialCityScreenState extends State<SocialCityScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(height: 8.h),
+                    // v573 — icône de section dans un rond teinté, comme
+                    // partout ailleurs dans l'app depuis la v569.
                     Container(
                       width: 64.w,
                       height: 64.w,
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: _accent.withValues(alpha: 0.12),
+                        color: accent.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(Icons.location_on_rounded,
-                          color: _accent, size: 32.sp),
+                          color: accent, size: 32.sp),
                     ),
                     SizedBox(height: 18.h),
                     PoppinsText(
                       text: 'social_city_title'.tr,
-                      fontSize: 24.sp,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 22.sp,
+                      fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary(context),
+                      maxLines: 3,
                     ),
                     SizedBox(height: 6.h),
                     InterText(
                       text: 'social_city_sub'.tr,
-                      fontSize: 14.sp,
+                      fontSize: 13.5.sp,
                       color: AppColors.textSecondary(context),
+                      maxLines: 4,
                     ),
-                    SizedBox(height: 22.h),
-                    CityLocationPicker(
-                      cityController: _cityController,
-                      onGetLocation: _detectLocation,
-                      isGettingLocation: _gettingLocation,
-                      detectedCity: _detectedCity,
-                      onLocationSelected: (city, latitude, longitude) {
-                        setState(() {
-                          _lat = latitude;
-                          _lng = longitude;
-                          _detectedCity = city;
-                        });
-                      },
-                    ),
-                    SizedBox(height: 12.h),
-                    InterText(
-                      text: 'social_city_optional_hint'.tr,
-                      fontSize: 12.sp,
-                      color: AppColors.textSecondary(context),
+                    SizedBox(height: 20.h),
+                    // Carte du nouveau design : coins 20, surface du thème,
+                    // bord `divider`, ombre douce (nulle en sombre).
+                    Container(
+                      width: double.infinity,
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
+                      decoration: BoxDecoration(
+                        color: AppColors.card(context),
+                        borderRadius: BorderRadius.circular(20.r),
+                        border: Border.all(
+                          color: AppColors.divider(context)
+                              .withValues(alpha: 0.8),
+                          width: 1,
+                        ),
+                        boxShadow: AppColors.cardShadow(context),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CityLocationPicker(
+                            cityController: _cityController,
+                            onGetLocation: _detectLocation,
+                            isGettingLocation: _gettingLocation,
+                            detectedCity: _detectedCity,
+                            onLocationSelected: (city, latitude, longitude) {
+                              setState(() {
+                                _lat = latitude;
+                                _lng = longitude;
+                                _detectedCity = city;
+                              });
+                            },
+                          ),
+                          SizedBox(height: 12.h),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.info_outline_rounded,
+                                  size: 14.sp,
+                                  color: AppColors.textSecondary(context)),
+                              SizedBox(width: 6.w),
+                              Expanded(
+                                child: InterText(
+                                  text: 'social_city_optional_hint'.tr,
+                                  fontSize: 12.sp,
+                                  color: AppColors.textSecondary(context),
+                                  maxLines: 4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                     SizedBox(height: 24.h),
                   ],
@@ -201,35 +261,30 @@ class _SocialCityScreenState extends State<SocialCityScreen> {
               // v569 — complément du SafeArea (0 sur le Samsung de Daniel).
               padding: EdgeInsets.fromLTRB(24.w, 0, 24.w,
                   24.h + appBottomInsetInsideSafeArea(context)),
-              child: SizedBox(
-                width: double.infinity,
+              child: CustomButton(
+                // Fond plein : la couleur BRUTE du rôle (le texte est blanc
+                // dessus). `accentOn` ne sert qu'au texte et aux icônes.
+                bgColor: _accent,
+                radius: 16.r,
                 height: 52.h,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _accent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14.r),
-                    ),
-                  ),
-                  onPressed: _submitting ? null : _continue,
-                  child: _submitting
-                      ? SizedBox(
-                          width: 20.w,
-                          height: 20.w,
-                          child: const CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : InterText(
-                          text: 'social_city_continue'.tr,
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
+                onTap: _submitting ? null : _continue,
+                child: _submitting
+                    ? SizedBox(
+                        width: 20.w,
+                        height: 20.w,
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
-                ),
+                      )
+                    : InterText(
+                        text: 'social_city_continue'.tr,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        maxLines: 1,
+                      ),
               ),
             ),
           ],

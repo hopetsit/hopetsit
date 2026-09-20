@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/controllers/reviews_controller.dart';
 import 'package:hopetsit/views/reviews/widgets/rating_stars.dart' show kRatingStarColor;
@@ -181,14 +180,37 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     }
   }
 
-  ImageProvider _avatarProvider() {
+  /// v573 — `null` quand il n'y a pas de photo. Avant, le repli était
+  /// `AssetImage(AppImages.placeholderImage)` : une illustration marketing
+  /// présentée comme la photo du prestataire qu'on vient de noter. On affiche
+  /// désormais son initiale sur un aplat teinté (voir [_avatarFallback]).
+  ImageProvider? _avatarProvider() {
     final path = widget.profileImagePath?.trim() ?? '';
     if (path.startsWith('http')) {
       // v23.1 part 243 round 3 — perf : décodage borné.
       return CachedNetworkImageProvider(path, maxWidth: 240);
     }
     if (path.isNotEmpty) return AssetImage(path);
-    return const AssetImage(AppImages.placeholderImage);
+    return null;
+  }
+
+  /// Initiale du prestataire, sinon une silhouette — jamais une image de
+  /// catalogue.
+  Widget _avatarFallback(BuildContext context) {
+    final String name = widget.serviceProviderName.trim();
+    final String initial =
+        name.isNotEmpty ? name.characters.first.toUpperCase() : '';
+    final Color tone = AppColors.accentOn(context, AppColors.primaryColor);
+    return Center(
+      child: initial.isEmpty
+          ? Icon(Icons.person_rounded, size: 34.sp, color: tone)
+          : PoppinsText(
+              text: initial,
+              fontSize: 28.sp,
+              fontWeight: FontWeight.w800,
+              color: tone,
+            ),
+    );
   }
 
   // v571 — audit lisibilité mode sombre : `grey500Color` (#717680) passe
@@ -324,21 +346,27 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: 72.w,
-            height: 72.w,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.primaryColor.withValues(alpha: 0.18),
-                width: 2,
+          Builder(builder: (context) {
+            final ImageProvider? avatar = _avatarProvider();
+            return Container(
+              width: 72.w,
+              height: 72.w,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: avatar == null
+                    ? AppColors.primaryColor.withValues(alpha: 0.12)
+                    : null,
+                border: Border.all(
+                  color: AppColors.primaryColor.withValues(alpha: 0.18),
+                  width: 2,
+                ),
+                image: avatar == null
+                    ? null
+                    : DecorationImage(image: avatar, fit: BoxFit.cover),
               ),
-              image: DecorationImage(
-                image: _avatarProvider(),
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
+              child: avatar == null ? _avatarFallback(context) : null,
+            );
+          }),
           SizedBox(width: 14.w),
           Expanded(
             child: Column(

@@ -384,28 +384,49 @@ class PublishReservationRequestController extends GetxController {
   }
 
   Future<void> detectLocation() async {
+    if (isGettingLocation.value) return;
     isGettingLocation.value = true;
     try {
       final data = await _locationService.getUserLocationWithCity();
+      final city = (data?['city'] as String?)?.trim() ?? '';
+      final street = (data?['street'] as String?)?.trim() ?? '';
       if (data != null) {
-        final city = (data['city'] as String?)?.trim() ?? '';
-        final street = (data['street'] as String?)?.trim() ?? '';
-        detectedCity.value = city;
+        // Les coordonnées servent au filtre distance même sans nom de ville.
         userLat.value = data['latitude'] as double?;
         userLng.value = data['longitude'] as double?;
-
-        if (city.isNotEmpty) {
-          cityController.text = city;
-        }
-        if (street.isNotEmpty) {
-          addressController.text = street;
-        }
+      }
+      if (city.isNotEmpty) {
+        detectedCity.value = city;
+        cityController.text = city;
+        if (street.isNotEmpty) addressController.text = street;
+        CustomSnackbar.showSuccess(
+          title: 'location573_title'.tr,
+          message: 'location573_found'.tr.replaceAll('{city}', city),
+        );
+      } else {
+        // v573 — Daniel : « la localisation auto marche pas ». Avant, tout
+        // échec (GPS coupé, permission, délai, ville introuvable) était muet.
+        _showLocationFailure();
       }
     } catch (e) {
       AppLogger.logError('Failed to detect location', error: e);
+      _showLocationFailure();
     } finally {
       isGettingLocation.value = false;
     }
+  }
+
+  void _showLocationFailure() {
+    final String key = switch (_locationService.lastFailure) {
+      'service_off' => 'location573_service_off',
+      'denied' => 'location573_denied',
+      'denied_forever' => 'location573_denied_forever',
+      _ => 'location573_not_found',
+    };
+    CustomSnackbar.showWarning(
+      title: 'location573_title'.tr,
+      message: key.tr,
+    );
   }
 
   Future<void> pickImages() async {

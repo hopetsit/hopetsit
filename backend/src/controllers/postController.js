@@ -3,6 +3,19 @@ const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const Post = require('../models/Post');
 const Pet = require('../models/Pet');
+const { identityGroup, selfIdSet } = require('../utils/identityGroup');
+
+/** v573 — retire d'une liste d'annonces celles du spectateur gardien/promeneur. */
+async function hideOwnPostsForProviders(req, posts) {
+  if (!req.user || (req.user.role !== 'sitter' && req.user.role !== 'walker')) {
+    return posts;
+  }
+  const selfIds = await selfIdSet(req);
+  if (selfIds.size === 0) return posts;
+  return posts.filter(
+    (post) => !selfIds.has(String((post.ownerId && post.ownerId._id) || post.ownerId)),
+  );
+}
 const { sanitizePost } = require('../utils/sanitize');
 const { isOwnerSitterInteractionBlocked } = require('../services/blockService');
 const { uploadMedia } = require('../services/cloudinary');
@@ -408,6 +421,12 @@ const createPost = async (req, res) => {
             .filter(Boolean)
             .map((x) => x.toString()),
         );
+        // v573 — les comptes récents n'ont pas d'oldId : les 3 documents d'une
+        // même personne ne sont reliés que par l'e-mail → groupe d'identité.
+        try {
+          const grp = await identityGroup(ownerId);
+          for (const gid of grp.ids) selfIds.add(String(gid));
+        } catch (_) { /* non bloquant */ }
 
         for (const r of recipients) {
           const rid = r._id ? r._id.toString() : '';
@@ -457,7 +476,12 @@ const listPosts = async (req, res) => {
     const posts = await Post.find(filter).sort({ createdAt: -1 }).populate('ownerId');
 
     // Safety filter: never return posts without a valid ownerId
-    const visiblePosts = posts.filter((post) => !!post.ownerId);
+    let visiblePosts = posts.filter((post) => !!post.ownerId);
+    // v573 — un gardien/promeneur ne voit pas (et ne peut donc pas se proposer
+    // sur) les annonces de SON PROPRE profil propriétaire (1 personne = jusqu'à
+    // 3 documents de rôle). Côté propriétaire on ne filtre rien : « Mes
+    // annonces » s'appuie sur cette même liste.
+    visiblePosts = await hideOwnPostsForProviders(req, visiblePosts);
 
     // v23.1 part 116 — Daniel : "que sitter et walker aussi vois que
     // lannonce et booster et en haut de toute les annonce". Pour chaque
@@ -630,7 +654,12 @@ const getMediaPosts = async (req, res) => {
     }
     
     const posts = await Post.find(filter).sort({ createdAt: -1 }).populate('ownerId');
-    const visiblePosts = posts.filter((post) => !!post.ownerId);
+    let visiblePosts = posts.filter((post) => !!post.ownerId);
+    // v573 — un gardien/promeneur ne voit pas (et ne peut donc pas se proposer
+    // sur) les annonces de SON PROPRE profil propriétaire (1 personne = jusqu'à
+    // 3 documents de rôle). Côté propriétaire on ne filtre rien : « Mes
+    // annonces » s'appuie sur cette même liste.
+    visiblePosts = await hideOwnPostsForProviders(req, visiblePosts);
     
     // Enhanced posts with pet information
     const enhancedPosts = await Promise.all(
@@ -821,6 +850,8 @@ const getRequestPosts = async (req, res) => {
 
     const posts = await Post.find(filter).sort({ createdAt: -1 }).populate('ownerId');
     let visiblePosts = posts.filter((post) => !!post.ownerId);
+    // v573 — pas ses propres annonces quand on regarde en gardien/promeneur.
+    visiblePosts = await hideOwnPostsForProviders(req, visiblePosts);
 
     // v530 — Daniel : « des gens des USA voient mon annonce d'Espagne, des
     // gens de France m'écrivent alors que je suis en Espagne ». Ce feed
@@ -1153,7 +1184,10 @@ const getNearbyRequestPosts = async (req, res) => {
       createdAt: post.createdAt,
     }));
 
-    res.json({ posts, count: posts.length, radiusKm: maxDistanceKm });
+    // v573 — jamais ses propres annonces dans « demandes près de moi ».
+    const selfIdsNearby = await selfIdSet(req);
+    const visible = posts.filter((p) => !selfIdsNearby.has(String(p.ownerId)));
+    res.json({ posts: visible, count: visible.length, radiusKm: maxDistanceKm });
   } catch (error) {
     logger.error('[posts/requests/nearby] Error', error);
     res.status(500).json({ error: 'Unable to fetch nearby requests.' });

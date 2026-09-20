@@ -248,7 +248,7 @@ export default function HomePage() {
           </div>
           <div className="flex items-end justify-center gap-5">
             <PhoneFrame src={pawmapShot} alt="HoPetSit — PawMap Paris" className="w-52 md:w-60" />
-            <PhoneFrame src="/screens/v561/fr/11-carte-dallas.jpg" alt="HoPetSit — PawMap Dallas" className="w-44 md:w-52" />
+            <PhoneFrame src="/screens/v573/fr/11-carte-dallas.jpg" alt="HoPetSit — PawMap Dallas" className="w-44 md:w-52" />
           </div>
         </div>
       </section>

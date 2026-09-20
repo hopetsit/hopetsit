@@ -11,6 +11,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 class MyProfilesCard extends StatelessWidget {
@@ -102,69 +103,24 @@ class MyProfilesCard extends StatelessWidget {
     });
   }
 
+  /// v573 — dialogue maison (`app_dialog_kit`) : carte coins 22, disque à la
+  /// couleur du rôle, bouton principal plein + secondaire contour. La logique
+  /// est inchangée — `switchRole` est appelé sans fermer le dialogue (le
+  /// bouton passe en attente), puis le dialogue se referme au retour.
   void _confirm(BuildContext context, {required String targetRole}) {
     final auth = Get.find<AuthController>();
     final label = _roleLabel(targetRole);
-    final accent = accentFor(targetRole);
-    showDialog(
-      context: context,
+    showAppConfirmDialog(
+      context,
+      title: _titleFor(targetRole),
+      message: 'my_profiles_confirm'.trParams({'role': label}),
+      busyMessage: 'dialog_switch_role_switching'.trParams({'role': label}),
+      confirmLabel: 'my_profiles_continue'.tr,
+      cancelLabel: 'common_cancel'.tr,
+      icon: _iconFor(targetRole),
+      accent: accentFor(targetRole),
       barrierDismissible: false,
-      builder: (dialogContext) {
-        return Obx(() {
-          final isLoading = auth.isSwitchingRole.value;
-          return AlertDialog(
-            backgroundColor: AppColors.card(dialogContext),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
-            title: Text(
-              _titleFor(targetRole),
-              style: TextStyle(
-                color: AppColors.textPrimary(dialogContext),
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isLoading)
-                  Padding(
-                    padding: EdgeInsets.only(bottom: 16.h),
-                    child: CircularProgressIndicator(color: accent),
-                  ),
-                Text(
-                  isLoading
-                      ? 'dialog_switch_role_switching'.trParams({'role': label})
-                      : 'my_profiles_confirm'.trParams({'role': label}),
-                  style: TextStyle(color: AppColors.textPrimary(dialogContext)),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: isLoading ? null : () => Navigator.of(dialogContext).pop(),
-                child: Text('common_cancel'.tr,
-                    style: TextStyle(color: AppColors.textSecondary(dialogContext))),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: accent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
-                ),
-                onPressed: isLoading
-                    ? null
-                    : () async {
-                        await auth.switchRole(targetRole: targetRole);
-                        if (!dialogContext.mounted) return;
-                        if (Get.isDialogOpen == true) {
-                          Navigator.of(dialogContext).pop();
-                        }
-                      },
-                child: Text('my_profiles_continue'.tr),
-              ),
-            ],
-          );
-        });
-      },
+      onConfirm: () => auth.switchRole(targetRole: targetRole),
     );
   }
 }

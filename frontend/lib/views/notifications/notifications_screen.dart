@@ -1,3 +1,4 @@
+import 'package:hopetsit/utils/map_ui_state.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -235,9 +236,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       // bouton « 🐾 J'ai récupéré l'animal » qui confirme le début du service.
       if (type == 'service_start_due') {
         if (role == 'walker') {
-          Get.to(() => const WalkerBookingsScreen());
+          openMainTabOr(3, () => const WalkerBookingsScreen());
         } else {
-          Get.to(() => const SitterBookingsScreen());
+          openMainTabOr(3, () => const SitterBookingsScreen());
         }
         return;
       }
@@ -526,11 +527,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         type == 'booking_refunded' ||
         type == 'visit_report') {
       if (role == 'walker') {
-        Get.to(() => const WalkerBookingsScreen());
+        openMainTabOr(3, () => const WalkerBookingsScreen());
       } else if (role == 'sitter') {
-        Get.to(() => const SitterBookingsScreen());
+        openMainTabOr(3, () => const SitterBookingsScreen());
       } else {
-        Get.to(() => const OwnerBookingsScreen());
+        openMainTabOr(3, () => const OwnerBookingsScreen());
       }
       return;
     }
@@ -541,11 +542,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         type == 'top_sitter_achieved' ||
         type == 'kyc_verified') {
       if (role == 'walker') {
-        Get.to(() => const WalkerProfileScreen());
+        openMainTabOr(4, () => const WalkerProfileScreen());
       } else if (role == 'sitter') {
-        Get.to(() => const SitterProfileScreen());
+        openMainTabOr(4, () => const SitterProfileScreen());
       } else {
-        Get.to(() => const ProfileScreen());
+        openMainTabOr(4, () => const ProfileScreen());
       }
       return;
     }
@@ -559,7 +560,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     // 5) Animal perdu signalé à proximité + nouvelle demande près de chez moi
     //    → la carte, où le signalement est affiché.
     if (type == 'lost_pet_sighting' || type == 'new_request_nearby') {
-      Get.to(() => const PawMapScreen());
+      openMainTabOr(2, () => const PawMapScreen());
       return;
     }
 

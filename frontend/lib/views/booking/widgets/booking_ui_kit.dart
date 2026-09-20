@@ -175,14 +175,14 @@ class BookingFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 46.h,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.fromLTRB(16.w, 6.h, 16.w, 6.h),
-        itemCount: values.length,
-        separatorBuilder: (_, __) => SizedBox(width: 8.w),
-        itemBuilder: (context, i) {
+    // v573 — Daniel ne veut pas de filtres qui glissent : les pastilles se
+    // rangent sur plusieurs lignes FIXES (Wrap), tout est visible d'un coup.
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16.w, 6.h, 16.w, 6.h),
+      child: Wrap(
+        spacing: 8.w,
+        runSpacing: 8.h,
+        children: List<Widget>.generate(values.length, (i) {
           final v = values[i];
           final isLink = linkValues.contains(v);
           final isSel = !isLink && selected == v;
@@ -191,14 +191,13 @@ class BookingFilterBar extends StatelessWidget {
             onTap: () => onSelected(v),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 160),
-              padding: EdgeInsets.symmetric(horizontal: 14.w),
+              padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
               decoration: BoxDecoration(
                 color: isSel
                     ? accent
                     : AppColors.textSecondary(context).withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(999),
               ),
-              alignment: Alignment.center,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -237,7 +236,7 @@ class BookingFilterBar extends StatelessWidget {
               ),
             ),
           );
-        },
+        }),
       ),
     );
   }

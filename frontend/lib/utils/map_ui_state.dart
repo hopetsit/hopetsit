@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
@@ -45,4 +46,24 @@ void openPawMapWithRoute(double lat, double lng) {
         routeToLat: lat,
         routeToLng: lng,
       ));
+}
+
+/// v573 — Daniel : « le menu d'en bas avait disparu ». Les 5 destinations du
+/// menu (0 Accueil · 1 Chat · 2 PawMap · 3 Réservations · 4 Profil — mêmes
+/// index pour les 3 rôles) étaient souvent EMPILÉES (`Get.to(XScreen())`)
+/// depuis une notification, le profil ou un bandeau : page plein écran, donc
+/// sans menu. `openMainTab` revient à la racine et bascule sur l'onglet ;
+/// renvoie `false` si le menu n'est pas monté.
+bool openMainTab(int index) {
+  if (!navWrapperMounted.value) return false;
+  try {
+    Get.until((route) => route.isFirst);
+  } catch (_) {/* pile déjà à la racine */}
+  requestedTab.value = index;
+  return true;
+}
+
+/// Bascule sur l'onglet [index] ; à défaut de menu, empile [fallback].
+void openMainTabOr(int index, Widget Function() fallback) {
+  if (!openMainTab(index)) Get.to(fallback);
 }

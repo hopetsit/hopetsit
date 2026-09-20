@@ -789,62 +789,73 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
         backgroundColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange;
         icon = Icons.pending;
-        displayText = 'PENDING';
+        displayText = 'status_pending_label'.tr;
         break;
       case 'agreed':
         backgroundColor = AppColors.primaryColor.withValues(alpha: 0.1);
         textColor = AppColors.primaryColor;
         icon = Icons.check_circle;
-        displayText = 'AGREED';
+        displayText = 'status_agreed_label'.tr;
         break;
       case 'paid':
         backgroundColor = Colors.green.withValues(alpha: 0.1);
         textColor = Colors.green;
         icon = Icons.check_circle_outline;
-        displayText = 'PAID';
+        displayText = 'status_paid_label'.tr;
         break;
       case 'payment_pending':
         backgroundColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange;
         icon = Icons.hourglass_empty;
-        displayText = 'PAYMENT PENDING';
+        displayText = 'status_payment_pending_label'.tr;
         break;
       case 'payment_failed':
         backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
         textColor = AppColors.errorColor;
         icon = Icons.error_outline;
-        displayText = 'PAYMENT FAILED';
+        displayText = 'status_payment_failed_label'.tr;
         break;
       case 'cancelled':
         backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
         textColor = AppColors.errorColor;
         icon = Icons.cancel;
-        displayText = 'CANCELLED';
+        displayText = 'status_cancelled_label'.tr;
         break;
       default:
         backgroundColor = AppColors.primaryColor.withValues(alpha: 0.1);
         textColor = AppColors.primaryColor;
         icon = Icons.info;
-        displayText = statusLower.toUpperCase();
+        displayText = statusLower.tr;
     }
 
+    // v573 — le libellé était de l'ANGLAIS EN DUR préfixé « Status: »
+    // (« Status: PAYMENT PENDING ») sur les 9 langues. Il passe par les clés
+    // `status_*_label` déjà traduites (celles du kit Réservations) et le
+    // préfixe disparaît : la pastille se lit seule.
+    // La teinte du texte est éclaircie en mode sombre (`accentOn`) — le vert
+    // et l'orange saturés étaient illisibles sur le fond #242424.
+    final Color fg = AppColors.accentOn(context, textColor);
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(color: textColor, width: 1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: fg.withValues(alpha: 0.45), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16.sp, color: textColor),
-          SizedBox(width: 8.w),
-          PoppinsText(
-            text: 'Status: $displayText',
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w600,
-            color: textColor,
+          Icon(icon, size: 15.sp, color: fg),
+          SizedBox(width: 7.w),
+          Flexible(
+            child: InterText(
+              text: displayText,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w700,
+              color: fg,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),

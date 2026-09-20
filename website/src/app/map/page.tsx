@@ -1110,7 +1110,16 @@ export default function MapPage() {
         <div className="min-w-0">
           {/* v567 — logo PawMap « patte-pin » en tête de la carte. */}
           <h1 className="flex items-center gap-3 font-display text-3xl font-bold tracking-[-0.02em] text-[#1D1D1F] md:text-5xl">
-            <PawMapLogo size={44} title={null} className="shrink-0" />
+            {/* v573 — même en-tête que l'app : le logo dans sa tuile orange. */}
+            <span
+              className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl"
+              style={{
+                background: "linear-gradient(165deg,#F26A46 0%,#DD4430 45%,#C7311F 100%)",
+                boxShadow: "0 6px 16px rgba(221,68,48,0.32)",
+              }}
+            >
+              <PawMapLogo size={38} title={null} />
+            </span>
             {t("map_title")}
           </h1>
           <p className="mt-2 text-[#6E6E73]">
@@ -1583,7 +1592,7 @@ export default function MapPage() {
             l'app : Autour de moi, Itinéraire, Chat, Photo du spot, Voir spots,
             Tag spot, Signaler, Voir signaux. Chaque bouton est branché sur une
             fonction qui existe déjà sur cette page. */}
-        <div className="absolute bottom-3 left-2.5 z-[1000] flex flex-col gap-1.5 md:bottom-4 md:left-3 md:gap-2">
+        <div className="absolute bottom-3 left-2.5 z-[1000] flex flex-col gap-2 md:bottom-4 md:left-3 md:gap-2.5">
           {(
             [
               { k: "around", g1: "#A076FF", g2: "#7040D6", label: t("map_around_title"), on: () => document.getElementById("around-list")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
@@ -1620,12 +1629,17 @@ export default function MapPage() {
               aria-label={b.label}
               aria-pressed={b.active}
               onClick={b.on}
-              className="grid h-10 w-10 place-items-center rounded-full transition hover:scale-105 active:scale-95 md:h-11 md:w-11"
+              // v573 — même finition que le rail de l'app (build 573) : 44 px
+              // partout (zone tactile), liseré blanc translucide, ombre COLORÉE
+              // douce au lieu du noir dur, reflet interne, appui élastique, et
+              // état actif = anneau blanc + halo à la couleur du bouton.
+              className="grid h-11 w-11 place-items-center rounded-full transition-transform duration-300 ease-[cubic-bezier(.3,1.5,.4,1)] hover:scale-105 active:scale-90 active:duration-100"
               style={{
                 background: `linear-gradient(165deg, ${b.g1}, ${b.g2})`,
-                border: `2px solid ${b.active === false ? "rgba(255,255,255,0.45)" : "#fff"}`,
-                boxShadow: "0 4px 12px rgba(0,0,0,0.28)",
-                opacity: b.active === false ? 0.72 : 1,
+                border: "1.5px solid rgba(255,255,255,0.85)",
+                boxShadow: b.active
+                  ? `0 0 0 3px rgba(255,255,255,0.95), 0 0 18px ${b.g1}, 0 6px 14px ${b.g2}66, inset 0 1px 0 rgba(255,255,255,0.35)`
+                  : `0 6px 14px ${b.g2}66, inset 0 1px 0 rgba(255,255,255,0.35)`,
               }}
             >
               <span className="block h-[22px] w-[22px]" dangerouslySetInnerHTML={{ __html: RAIL_SVG[b.k] }} />

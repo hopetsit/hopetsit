@@ -91,7 +91,7 @@ est la machine de travail principale ; le PC sert de miroir à jour.
 | Backend + admin (Render) | ADMIN_BUILD v546 | Déployé |
 | Site (Vercel) | polonais + fix géoloc PawMap + blog | Déployé |
 
-**Prochain build APK/AAB = 572** (571 = v567 accueils, 20/09 ; 570 = v567 : Play 570 le 19/09 ~23 h 30, iOS build 570 validé en attente de l'approbation de la 1.18/569 pour partir en 1.19 ; 569 = v566 publiée le 19/09 ~10 h 35 : Play 569 par API, iOS 1.18 build 569 resoumis ; 568 = v565 publiée le 19/09 ~04 h 20 : Play 568 par API, iOS 1.18 build 568 resoumis ; 567 = v564 publiée le 19/09 ~02 h : Play 567 par API, iOS 1.18 build 567 resoumis à la place du 566 ; 566 = v563 publiée le 18/09 à 13 h 30 : Play release 566 par API, iOS 1.18 build 566 resoumis à la place du 565 ; 565 = v562 publiée le 18/09 : Play release 565 par API, iOS 1.18 build 565 soumis ; 564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
+**Prochain build APK/AAB = 574** (573 = audit ancien design + correctifs, 20/09 ; 572 = correctif bandeau → PawMap, 20/09 ; 571 = v567 accueils, 20/09 ; 570 = v567 : Play 570 le 19/09 ~23 h 30, iOS build 570 validé en attente de l'approbation de la 1.18/569 pour partir en 1.19 ; 569 = v566 publiée le 19/09 ~10 h 35 : Play 569 par API, iOS 1.18 build 569 resoumis ; 568 = v565 publiée le 19/09 ~04 h 20 : Play 568 par API, iOS 1.18 build 568 resoumis ; 567 = v564 publiée le 19/09 ~02 h : Play 567 par API, iOS 1.18 build 567 resoumis à la place du 566 ; 566 = v563 publiée le 18/09 à 13 h 30 : Play release 566 par API, iOS 1.18 build 566 resoumis à la place du 565 ; 565 = v562 publiée le 18/09 : Play release 565 par API, iOS 1.18 build 565 soumis ; 564 = v561 publiée le 12/09 : Play release 564 par API `play_release_api.py` [commit 200], iOS 1.17 build 564 ; 563 = IPA seule v560). 548 (03/09) = traductions site + polonais app + PawMap monde → Play APPROUVÉ/LIVE ; iOS 1.12/547 APPROUVÉE, **1.13 (build 548) WAITING_FOR_REVIEW**. **549 (04/09) = les 6 autres langues de l'app relues (es/de/it/pt/ko/ja, 1 915 corrections)** → **Play APPROUVÉ/LIVE (« Dernière release : 549 »)**, iOS : soumission 548 annulée, **1.13 resoumise avec le build 549 → WAITING_FOR_REVIEW (04/09)**.
 
 **18/09 (nuit) — BUILD 565 (v562 app) : la grande passe des 37 points, EN COURS.** Méthode : 8 lots
 en parallèle (contrats figés dans `docs/v565_contracts.md`, clés i18n par lot dans
@@ -440,7 +440,57 @@ Design de Daniel, rangé dans `docs/design_handoff_pawmap_tab_bar/`, hi-fi, à s
   0 annonce ET des gardiens à montrer. Patte de l'écran vide animée (ondes radar + doigts en cascade, boucle 5,2 s).
 - Tests préexistants cassés, sans rapport : `test/widget_test.dart` (modèle Counter) et `test/i18n_test.dart`
   (4 clés `friends_share_*` absentes de `fr.dart`).
+- **Publication 20/09 ~02 h 45** : Play 571 en production par API (commit 200) ; serveur + site poussés par Daniel
+  (commit 2640b7a) ; site `/pawmap` : `PawMapHeroBadge.tsx` (patte en grand sur tuile orange animée, scène du splash).
+  **iOS : 1.18/569 APPROUVÉE (READY_FOR_SALE le 20/09)** → version **1.19** créée (`bce5c89e-4b3e-4e5e-ae8e-7dcfb55ae72e`),
+  build 571 (`0eb1f3fd-dcce-4a6e-9cbd-21b3cee4cd2d`) attaché, reviewSubmission `950f8eeb-89a9-4339-9788-0fbef01db2b8`
+  → **WAITING_FOR_REVIEW**. ⚠️ `filter[version]=571` renvoyait « absent » alors que le build existait : lister par
+  `sort=-uploadedDate` et filtrer côté client. Admin « Versions de l'app » : à passer à 571/571 après validation.
 - Le 571 REMPLACE le 570 côté iOS (570 jamais soumis : la 1.18/569 était IN_REVIEW). **Prochain build = 572.**
+
+**20/09 (~03 h 30) — BUILD 572 : bandeau « Tout est à jour » → PawMap (bug signalé par Daniel, 3 rôles).**
+- Symptôme : le tap sur le bandeau neutre de l'accueil ouvrait l'ancien « Historique des réservations » au lieu de la
+  PawMap. **Cause racine** : `navWrapperMounted` (`utils/map_ui_state.dart`) était un simple booléen ; au CHANGEMENT DE
+  RÔLE le nouveau `StackedNavigationWrapper` se monte AVANT le `dispose()` de l'ancien, qui remettait le drapeau à
+  `false` → `_onNeutralTap` (`home_quick_action_bar.dart`) prenait son repli. Touchait aussi `openPawMapWithRoute` et
+  les liens profonds après un changement de rôle.
+- Correctif : compteur statique `_mountedWrappers` dans `stacked_navigation_wrapper.dart` (`navWrapperMounted.value =
+  _mountedWrappers > 0`) + repli de `_onNeutralTap` = `PawMapScreen` (plus jamais `BookingsHistoryScreen`).
+- Vérifié au simulateur : propriétaire → profil promeneur → tap bandeau = onglet PawMap, menu conservé.
+- iOS : Daniel a demandé une publication UNIQUE à la fin → le 572 n'a PAS été envoyé à Apple (1.19 reste sur le 571, WAITING_FOR_REVIEW) ; Play 572 publié (commit 200). **Prochain build = 573.**
+
+**20/09 (matin) — BUILD 573 : audit complet « ancien design » + correctifs (Daniel : « ce genre de bug ne doit pas exister »).**
+- **Audit** (agent Explore, 414 fichiers) : ~25 écrans/feuilles/dialogues encore à l'ancien style, 4 chaînes en dur,
+  ~7 400 lignes de code mort (liste dans le rapport, NON supprimées). Lots refaits, rendu seul, logique intacte :
+  - Profils publics `views/service_provider/` (gardien, promeneur, propriétaire) + `widgets/public_profile_kit.dart` :
+    bandeau dégradé du rôle + avatar/initiale (PLUS d'image marketing `AppImages.placeholderImage`), carte « Détails de
+    la réservation » seulement si réservation liée, sections en cartes, « Démarrer le chat » en barre collante.
+  - Fiche animal `pet_profile_screen.dart` (devenu Stateful) : `resolvePetBannerUrl()` = bannière JAMAIS identique à
+    l'avatar (sinon bandeau dessiné à pattes) ; changement de photo = aperçu local immédiat + voile, 1280 px/q80,
+    `precacheImage`, éviction du cache si même URL, rechargement EN PLACE (plus de `Get.off`). Visionneuse commune
+    `lib/widgets/photo_viewer_screen.dart` (`openPhotoViewer`). « Mes animaux » refaite.
+  - `lib/widgets/app_dialog_kit.dart` : `showAppConfirmDialog(...)` + `AppChoiceRow` (thème, langue, blocage, suppression,
+    changement de rôle). ⚠️ avec `onConfirm` qui fait `Get.offAll` (switchRole), ne `pop()` que si
+    `ModalRoute.of(context)?.isActive` — sinon assertion `_history.isNotEmpty` (écran rouge trouvé au simulateur).
+  - `views/map/widgets/map_sheet_kit.dart` (alertes + PawSpot), historique des réservations (cartes du kit, filtres en
+    `Wrap` fixe), feuille des candidats, `pet_detail_screen.dart`, écran invité (clair + sombre), `sign_up_as`, KYC.
+- **Menu du bas perdu** : 17 `Get.to(() => const <ÉcranOnglet>())` (notifications, profil, bandeau, liens) empilaient
+  Chat/Réservations/Profil/PawMap SANS menu → `openMainTab(index)` / `openMainTabOr(index, fallback)` dans
+  `utils/map_ui_state.dart` ; `deep_link_service` : `_goToTab` renvoie bool, chat=1, réservations=3, profil=4.
+  **Garde-fou** `test/no_tab_push_test.dart` : échoue si un tel empilement réapparaît.
+- **Localisation auto** (`services/location_service.dart`) : géocodeur natif souvent muet sur Android → secours
+  Nominatim `/reverse`, délai GPS 6 → 12 s, `lastFailure` ('service_off'|'denied'|'denied_forever'|'timeout') +
+  messages `location573_*` (9 langues) dans la publication et l'inscription sociale (qui affichait des CLÉS brutes).
+- **Comptes aux 3 rôles** (serveur, vaut pour toutes les versions) : `middleware/auth.optionalAuth`,
+  `utils/identityGroup.selfIdSet(req)` ; `/sitters/nearby` et `/walkers/nearby` retirent les documents du spectateur ;
+  `postController` : `hideOwnPostsForProviders` (listPosts, media, requests) + nearby + anti auto-notification par
+  groupe d'identité (les comptes récents n'ont pas d'`oldId`) ; `createApplication` refuse sa propre annonce (403
+  `OWN_POST`). App : `getNearbyWalkers` envoie désormais le jeton. Test `tests/selfExclusion.test.js` (jest 208/208).
+- PawMap : en-tête (tuile orange + logo aligné + Poppins), bandeau d'itinéraire remonté 136 → 160 (les doigts de la
+  patte le chevauchaient) + `FittedBox` (débordait de 30 px), boutons peaufinés (rail, capsule, pilules).
+- FR : 23 valeurs franglaises corrigées (`walker`→promeneur, `owner`→propriétaire, « Top Promeneur »…).
+- Site : `public/screens/v573/fr/` (4 captures PawMap refaites) ; EN reste sur v561 (à refaire en anglais).
+- i18n : 4 225+ clés, 0 inconnue. **Prochain build = 574.**
 
 **18/09 — Pliables / tablettes / iPad : REPORTÉ (décision Daniel).** « Quand on sera beaucoup plus connus. » L'app tourne déjà (gonflée : `designSize` 393 px ; iPad = mode compatibilité, `TARGETED_DEVICE_FAMILY = 1`). Le jour venu : plafonner l'échelle + colonne centrée ≥ 600 px, portrait bloqué sur grand écran ; iPad natif = irréversible + captures 13" en 8 langues. **Priorité unique : plus d'utilisateurs et les premières réservations payées.**
 
