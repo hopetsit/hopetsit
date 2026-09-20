@@ -1768,3 +1768,56 @@ HoPetSit_iOS_Build_Guide_v23.1.523.pdf).
 - Backend : `cd backend && npm install && npm run dev` (nécessite `.env`).
 - Site : `cd website && npm install && npm run dev`.
 - App : `cd frontend && flutter pub get && flutter run`.
+
+## ⛔ RÈGLE SEO DU 20/09/2026 — NE PLUS MULTIPLIER LES PAGES (mesurée, pas supposée)
+
+Audit des **654 URL** du sitemap, une par une, via la Search Console
+(`~/hopetsit-social/gsc_bob.py --audit`, lecture seule, relançable, reprise automatique, écrit
+`gsc_audit.json`). Résultat du 20/09/2026 :
+
+| État | Pages |
+|---|---|
+| Envoyée et indexée | **223** |
+| **Google ne reconnaît pas cette URL** (jamais explorée) | **255** |
+| Détectée, actuellement non indexée | 145 |
+| Page en double sans canonique retenue | 20 |
+| Explorée, actuellement non indexée | 11 |
+
+Par marché (indexées / total) : **France 42/239 (17 %)**, USA + anglais 113/240 (47 %),
+Allemagne 12/36 (33 %), Espagne 7/32 (21 %), autres langues (pl, ko, ja, it, pt, nl) 49/107 (45 %).
+**Paris : 1 page indexée sur 42.**
+
+Le sitemap est sain (654 URL, 0 erreur, relu par Google) et les pages déclarent bien leur balise
+canonique (vérifié dans le HTML servi) : **le problème n'est pas technique.** Le site propose 654 URL
+avec une autorité quasi nulle ; Google n'en explore qu'une fraction, et chaque page ajoutée **dilue
+le budget d'exploration** au détriment des marchés visés.
+
+### Ordre de priorité des marchés (Daniel, 20/09/2026)
+1. **France (Paris) et USA** — priorité absolue, inchangée.
+2. **Allemagne et Espagne** — à développer ensuite. Les villes existent déjà
+   (`/tiersitter-werden`, `/tierbetreuung`, `/ser-cuidador-de-mascotas`, `/cuidado-de-mascotas`) :
+   **il n'y a aucune page à créer**, seulement à faire indexer et convertir.
+3. **Toutes les autres langues** (pl, ko, ja, it, pt, nl) — **gelées** : ni nouvelle ville, ni
+   nouvelle langue. Elles consomment le budget d'exploration des quatre marchés ci-dessus.
+
+### Règles de développement
+1. **Ne pas créer de nouvelles pages villes ni de nouvelles langues** tant que le taux d'indexation
+   ne remonte pas. Une ligne de plus dans `src/lib/recruit-cities.ts` = deux URL de plus qui ne
+   seront pas explorées.
+2. **Une page générée en boucle depuis une liste de données ne s'indexe pas toute seule.** Être dans
+   le sitemap ne suffit pas (les 20 arrondissements de Paris le prouvent). Une page neuve n'a de
+   chance d'être indexée que si des pages **déjà indexées** pointent vers elle : prévoir les liens
+   internes entrants AVANT de créer la page.
+3. **Améliorer et relier l'existant plutôt qu'élargir** — Paris et USA d'abord, puis Allemagne et
+   Espagne.
+4. **Google n'accepte aucune demande d'indexation par API** (l'Indexing API est réservée aux offres
+   d'emploi et aux événements en direct). Seul IndexNow (`~/hopetsit-social/indexnow.py`) fonctionne,
+   et uniquement pour Bing/Yandex/Naver/Seznam.
+5. **Contrôle** : relancer l'audit et comparer le nombre de pages indexées. Ne jamais juger
+   l'indexation au nombre de pages publiées ni au trafic.
+
+### Point de vigilance ouvert
+20 pages (dont `/devenir-petsitter/paris-14`) sont attribuées par Google au domaine
+`www.747live.bet` (site de paris en ligne), alors que nos pages servent bien leur propre canonique
+et ne contiennent rien de ce domaine. Le dernier passage de Google sur ces pages date du 15/09.
+Piste : contenu copié par ce site. Rien à corriger dans le code ; à re-vérifier au prochain audit.
