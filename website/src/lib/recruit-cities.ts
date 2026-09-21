@@ -404,3 +404,57 @@ export const OWNER_PATH_PREFIX: Record<RecruitLang, string> = {
 export function ownerPaths(): string[] {
   return RECRUIT_CITIES.map((c) => `${OWNER_PATH_PREFIX[c.lang]}/${c.slug}`);
 }
+
+// ---------------------------------------------------------------------------
+// v576 — MAILLAGE ENTRE VILLES VOISINES (21/09/2026).
+// Constat de l'audit Search Console du 20/09 : les pages villes ne pointaient
+// que vers leur jumelle (propriétaire ↔ sitter). Une page n'a de chance d'être
+// explorée que si des pages DÉJÀ indexées mènent à elle : /become-a-pet-sitter/dallas
+// était inconnue de Google alors qu'Austin et Houston, elles, sont indexées.
+// On ne crée aucune page ici : on relie celles qui existent.
+//
+// Le champ `region` est irrégulier (« Texas, USA » mais « Plano, Texas, USA ») :
+// on en tire donc le pays (dernier segment) et l'état/région (avant-dernier
+// quand il y en a un), ce qui regroupe correctement Dallas avec Austin, Houston
+// et toutes les villes de la métropole.
+// ---------------------------------------------------------------------------
+
+function regionParts(region: string): { country: string; area: string } {
+  const parts = region.split(",").map((s) => s.trim()).filter(Boolean);
+  const country = parts[parts.length - 1] ?? region;
+  const area = parts.length >= 2 ? parts[parts.length - 2] : parts[0] ?? region;
+  return { country, area };
+}
+
+/**
+ * Villes à proposer au bas d'une page ville : d'abord le même état/région,
+ * puis le même pays, dans l'ordre stable du tableau (donc identique à chaque
+ * build). Ne renvoie jamais la ville elle-même.
+ */
+export function nearbyCities(lang: RecruitLang, slug: string, limit = 6): RecruitCity[] {
+  const self = recruitCity(lang, slug);
+  if (!self) return [];
+  const mine = regionParts(self.region);
+  const pool = RECRUIT_CITIES.filter((c) => c.lang === lang && c.slug !== slug);
+  const sameArea = pool.filter((c) => {
+    const p = regionParts(c.region);
+    return p.country === mine.country && p.area === mine.area;
+  });
+  const sameCountry = pool.filter(
+    (c) => regionParts(c.region).country === mine.country && !sameArea.includes(c),
+  );
+  return [...sameArea, ...sameCountry].slice(0, limit);
+}
+
+/** Libellé du bloc « villes voisines », par langue. */
+export const NEARBY_LABEL: Record<RecruitLang, string> = {
+  fr: "Villes voisines",
+  en: "Nearby cities",
+  pl: "Miasta w pobliżu",
+  ko: "가까운 도시",
+  es: "Ciudades cercanas",
+  de: "Städte in der Nähe",
+  it: "Città vicine",
+  pt: "Cidades próximas",
+  ja: "近くの都市",
+};

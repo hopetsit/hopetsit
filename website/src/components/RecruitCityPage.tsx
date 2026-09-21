@@ -1,7 +1,7 @@
 import Link from "next/link";
 import ParisLocalPlaces, { parisEntry, parisFaq } from "@/components/ParisLocalPlaces";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
-import { OWNER_PATH_PREFIX } from "@/lib/recruit-cities";
+import { OWNER_PATH_PREFIX, RECRUIT_PATH_PREFIX, nearbyCities, NEARBY_LABEL } from "@/lib/recruit-cities";
 
 // v547 — page « devenir pet sitter à <ville> » (composant serveur statique,
 // indexable). Copie par langue, détail local injecté pour que chaque page
@@ -284,6 +284,7 @@ export function recruitMetadata(c: RecruitCity, canonical: string) {
 export default function RecruitCityPage({ city }: { city: RecruitCity }) {
   const copy = COPY[city.lang];
   const paris = city.lang === "fr" && !!parisEntry(city.slug);
+  const nearby = paris ? [] : nearbyCities(city.lang, city.slug);
   const faq = paris ? parisFaq(city.slug, "recruit") : copy.faq(city);
   const jsonLd = {
     "@context": "https://schema.org",
@@ -357,6 +358,21 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
           {paris ? `${city.name} : trouver un pet sitter →` : OWNER_LINK[city.lang](city)}
         </Link>
       </p>
+
+      {/* v576 — villes voisines (voir OwnerCityPage) : c'est ce chemin qui manquait
+          pour que Google atteigne /become-a-pet-sitter/dallas depuis Austin et Houston. */}
+      {!paris && nearby.length > 0 && (
+        <nav aria-label={NEARBY_LABEL[city.lang]} className="mt-10 border-t border-black/5 pt-6">
+          <h2 className="text-sm font-semibold text-ink">{NEARBY_LABEL[city.lang]}</h2>
+          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+            {nearby.map((n) => (
+              <li key={n.slug}>
+                <Link href={`${RECRUIT_PATH_PREFIX[n.lang]}/${n.slug}`} className="text-sitter-dark underline-offset-4 hover:underline">{n.name}</Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
     </div>
   );
 }

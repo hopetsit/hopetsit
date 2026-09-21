@@ -2,7 +2,7 @@ import Link from "next/link";
 import ParisLocalPlaces, { parisEntry, parisFaq } from "@/components/ParisLocalPlaces";
 import { GetAppButton } from "@/components/GetAppButton";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
-import { RECRUIT_PATH_PREFIX } from "@/lib/recruit-cities";
+import { RECRUIT_PATH_PREFIX, OWNER_PATH_PREFIX, nearbyCities, NEARBY_LABEL } from "@/lib/recruit-cities";
 
 // v560 — moteur de croissance : pages « trouver un pet sitter à <ville> »
 // (intention PROPRIÉTAIRE : « pet sitter Paris 11 », « cuidador de perros
@@ -449,6 +449,7 @@ export default function OwnerCityPage({
     ],
   };
   const recruitHref = `${RECRUIT_PATH_PREFIX[city.lang]}/${city.slug}`;
+  const nearby = paris ? [] : nearbyCities(city.lang, city.slug);
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-16 pt-7 md:pb-24 md:pt-16">
@@ -540,6 +541,22 @@ export default function OwnerCityPage({
       <p className="mt-8 text-center text-sm">
         <Link href={recruitHref} className="font-semibold text-sitter-dark underline-offset-4 hover:underline">{paris ? `${city.name} : devenir pet sitter →` : copy.recruitLink(city)}</Link>
       </p>
+
+      {/* v576 — villes voisines : donne à Google un chemin depuis les pages déjà
+          indexées vers celles qu'il n'a jamais explorées. Paris a déjà son propre
+          maillage (ParisLocalPlaces), on ne le double pas. */}
+      {!paris && nearby.length > 0 && (
+        <nav aria-label={NEARBY_LABEL[city.lang]} className="mt-10 border-t border-black/5 pt-6">
+          <h2 className="text-sm font-semibold text-ink">{NEARBY_LABEL[city.lang]}</h2>
+          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+            {nearby.map((n) => (
+              <li key={n.slug}>
+                <Link href={`${OWNER_PATH_PREFIX[n.lang]}/${n.slug}`} className="text-owner underline-offset-4 hover:underline">{n.name}</Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
     </div>
   );
 }
