@@ -41,6 +41,8 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+// v575 — audit P0-1 / P1-6 : bornes de durée de promenade partagées.
+import 'package:hopetsit/utils/walk_duration.dart';
 // Comments removed from publications
 import 'dart:io';
 import 'package:flutter/services.dart';
@@ -651,6 +653,17 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     ].join('|');
   }
 
+  /// v575 — audit P1-6 / P1-7 : durée de la promenade proposée à l'annonce.
+  ///
+  /// AVANT, la vraie durée était ÉCRASÉE : `<= 45 ? 30 : 60`. Une annonce de
+  /// 90 minutes partait donc à 60, et le propriétaire payait moins que ce
+  /// qu'il avait demandé (ou recevait une promenade plus courte).
+  /// Désormais, dans l'ordre :
+  ///   1. `walkDurationMinutes` — la durée que le propriétaire a CHOISIE
+  ///      (nouveau champ de l'annonce, v575) ;
+  ///   2. fin − début de l'annonce, arrondi au multiple de 15 le plus proche
+  ///      et borné à 15–300 minutes (mêmes bornes que le serveur) ;
+  ///   3. 30 minutes en dernier recours (annonce sans dates, comme avant).
   static int? _durationForPostService(PostModel post, String serviceType) {
     final normalized = serviceType
         .trim()
@@ -661,13 +674,11 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       return null;
     }
 
-    if (post.startDate != null && post.endDate != null) {
-      final minutes = post.endDate!.difference(post.startDate!).inMinutes.abs();
-      if (minutes <= 45) return 30;
-      return 60;
-    }
-
-    return 30;
+    return walkDurationForPost(
+      chosen: post.walkDurationMinutes,
+      start: post.startDate,
+      end: post.endDate,
+    );
   }
 
   /// DEEP WORK — résout l'id de l'animal à utiliser pour la demande envoyée par
@@ -1446,10 +1457,22 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             : 'request_send_success'.tr,
       );
     } on ApiException catch (error) {
+      // v575 — audit P2-3 : toutes les erreurs étaient remplacées par
+      // « Échec de l'envoi de la demande », y compris celles qui disent
+      // EXACTEMENT quoi corriger (durée invalide, tarif manquant, annonce
+      // déjà réservée…). On affiche le message du serveur quand il existe,
+      // et un message dédié pour sa propre annonce (code `OWN_POST`).
       AppLogger.logError('Failed to send request', error: error.message);
+      final details = error.details;
+      final code = details is Map ? (details['code'] ?? '').toString() : '';
+      final serverMessage = error.message.trim();
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: 'request_send_failed'.tr,
+        message: code == 'OWN_POST'
+            ? 'fixes575_own_post'.tr
+            : (serverMessage.isNotEmpty
+                ? serverMessage
+                : 'request_send_failed'.tr),
       );
     } catch (error) {
       AppLogger.logError('Failed to send request', error: error);

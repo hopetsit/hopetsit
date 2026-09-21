@@ -342,7 +342,11 @@ class SignupWizardScreen extends StatelessWidget {
           ),
         ),
         SizedBox(height: 16.h),
-        _field(c.nameController, 'signup_field_name'.tr),
+        // v575 — Daniel : « j'ai que "nom" et pas "nom et prénom" ». Deux
+        // champs dès l'inscription (Prénom puis Nom) ; `nameController` est
+        // recomposé à la volée, tout le reste de l'app continue de lire `name`.
+        _field(c.firstNameController, 'label_first_name'.tr),
+        _field(c.lastNameController, 'label_last_name'.tr),
         // v527 — retour Jose : hint localisé (DD/MM/AAAA en espagnol…) +
         // slashs insérés automatiquement pendant la saisie.
         _field(c.dobController, 'signup_field_dob'.tr,

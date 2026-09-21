@@ -666,6 +666,11 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
           ...data,
           // v561 — même chemin que le bouton du mail : l'app l'ouvre au tap.
           route: appRoute,
+          // v575 — audit P1-3 : le push ne disait PAS pour quel profil il
+          // était émis. Taper une notif destinée au profil gardien alors que
+          // l'app est sur le profil propriétaire ouvrait un écran qui répond
+          // 403. L'app compare désormais `recipientRole` au rôle actif.
+          recipientRole: String(role || ''),
           ...(inAppCreated && inAppCreated._id
             ? { notificationId: String(inAppCreated._id) }
             : {}),

@@ -441,10 +441,15 @@ class ProfileCategories extends StatelessWidget {
             color: accent,
             onTap: () => Get.to(() => ProfilePreferencesScreen(host: host, accent: accent, initialTab: 1)),
           ),
+          // v575 — Daniel : « il y a déjà "Langue de l'app", et dans "À propos
+          // de moi" il y a "Langue" : ce n'est pas clair ». Cette ligne ouvre
+          // bien la LANGUE D'AFFICHAGE : elle porte désormais le même nom
+          // qu'ailleurs (« Langue de l'app »), avec le sous-texte qui lève le
+          // doute. Les « Langues parlées » vivent dans Modifier le profil.
           ProfileRow(
             icon: Icons.translate_rounded,
-            title: 'profile_pref_language'.tr,
-            subtitle: 'profile_change_language_subtitle'.tr,
+            title: 'pref_app_language'.tr,
+            subtitle: 'pref_app_language_sub'.tr,
             color: _blue,
             onTap: host.showLanguageDialog,
           ),

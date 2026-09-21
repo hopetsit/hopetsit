@@ -7,6 +7,11 @@ const { decrypt, encrypt, maskEmail } = require('../utils/encryption');
 const { uploadMedia } = require('../services/cloudinary');
 const { normalizeCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
 const logger = require('../utils/logger');
+// v575 — identité partagée entre les 3 profils d'une même personne.
+const {
+  propagateSharedIdentity,
+  fillMissingIdentityFromSiblings,
+} = require('../utils/sharedIdentity');
 const {
   validatePriceAgainstRecommended,
   getRecommendedPriceRange,
@@ -1005,6 +1010,12 @@ const updateSitterProfile = async (req, res) => {
       experienceTags,
       acceptedPetTypes,
       coverageRadiusKm,
+      // v575 — champs d'identité qui manquaient côté gardien : la ville plate
+      // et le pays ne pouvaient PAS être enregistrés depuis « Modifier le
+      // profil » (seule `location.city` l'était, et seulement avec un GPS).
+      city,
+      country,
+      appLocale,
     } = req.body || {};
 
     // Build update object with only provided fields
@@ -1014,12 +1025,16 @@ const updateSitterProfile = async (req, res) => {
     if (typeof canServiceAtOwner === 'boolean') updateData.canServiceAtOwner = canServiceAtOwner;
     if (typeof canServiceAtSitter === 'boolean') updateData.canServiceAtSitter = canServiceAtSitter;
 
-    // Update name
-    if (name !== undefined) {
-      if (typeof name !== 'string' || !name.trim()) {
-        return res.status(400).json({ error: 'Name must be a non-empty string.' });
-      }
-      updateData.name = name.trim();
+    // Update name — v575 : « prénom » + « nom ». `name` reste la source
+    // d'affichage et est recalculé depuis firstName/lastName quand l'app les
+    // envoie ; une ancienne app qui n'envoie que `name` voit ses deux parties
+    // re-dérivées (utils/personName.js).
+    try {
+      const { buildNameUpdate } = require('../utils/personName');
+      const nameUpdate = buildNameUpdate(req.body || {}, sitter);
+      if (nameUpdate) Object.assign(updateData, nameUpdate);
+    } catch (nameErr) {
+      return res.status(400).json({ error: nameErr.message || 'Name must be a non-empty string.' });
     }
 
     // Update email (check uniqueness)
@@ -1071,6 +1086,19 @@ const updateSitterProfile = async (req, res) => {
     // Update address
     if (address !== undefined) {
       updateData.address = typeof address === 'string' ? address.trim() : '';
+    }
+
+    // v575 — ville plate / pays / locale, acceptés comme côté propriétaire.
+    if (city !== undefined) {
+      updateData.city = typeof city === 'string' ? city.trim() : '';
+    }
+    if (country !== undefined) {
+      updateData.country = typeof country === 'string'
+        ? country.trim().toUpperCase().slice(0, 2)
+        : '';
+    }
+    if (appLocale !== undefined) {
+      updateData.appLocale = typeof appLocale === 'string' ? appLocale.trim() : '';
     }
 
     // Update rate
@@ -1254,20 +1282,13 @@ const updateSitterProfile = async (req, res) => {
       return res.status(404).json({ error: 'Sitter not found.' });
     }
 
-    // v18.9.8 — sync des champs partagés vers Owner + Walker du même user.
-    // Les champs sitter-spécifiques (hourlyRate, dailyRate, weeklyRate,
-    // monthlyRate, servicePricing, identityVerification) sont ignorés par
-    // syncSharedFields car ils ne figurent pas dans SHARED_FIELDS.
-    try {
-      const { syncSharedFields } = require('../utils/userSyncService');
-      await syncSharedFields({
-        email: updatedSitter.email,
-        update: updateData,
-        excludeRole: 'sitter',
-      });
-    } catch (syncErr) {
-      logger.warn('[sitter.updateProfile] cross-role sync failed', syncErr?.message || syncErr);
-    }
+    // v575 — propagation des SEULS champs d'identité vers Owner + Walker de la
+    // même personne (e-mail OU oldId). AVANT, `syncSharedFields` propageait
+    // aussi `bio`/`skills` (présentation de GARDIEN copiée sur le profil
+    // propriétaire) et écrasait les frères par des valeurs vides. On passe
+    // `updateOps.$set` et non `updateData` : la ville plate posée par le
+    // chemin « ville sans GPS » (cityOnly) n'était sinon jamais propagée.
+    await propagateSharedIdentity(updatedSitter, 'sitter', updateOps.$set || {});
 
     res.json({
       message: 'Profile updated successfully.',
@@ -1360,19 +1381,8 @@ const updateSitterAvatar = async (req, res) => {
     // email. Sans cette propagation, changer sa photo en tant que sitter la
     // laissait périmée sur les profils owner/walker — d'où la photo qui
     // « change toute seule » d'un appareil ou d'un profil à l'autre.
-    try {
-      const { syncSharedFields } = require('../utils/userSyncService');
-      await syncSharedFields({
-        email: sitter.email,
-        update: { avatar: sitter.avatar },
-        excludeRole: 'sitter',
-      });
-    } catch (syncErr) {
-      logger.warn(
-        '[updateSitterAvatar] cross-role sync failed (non-blocking)',
-        syncErr?.message || syncErr,
-      );
-    }
+    // v575 — une seule voie de propagation : utils/sharedIdentity.
+    await propagateSharedIdentity(sitter, 'sitter', { avatar: sitter.avatar });
 
     res.json({
       message: 'Avatar updated successfully.',

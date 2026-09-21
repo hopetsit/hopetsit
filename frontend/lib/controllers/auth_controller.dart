@@ -1430,6 +1430,27 @@ class AuthController extends GetxController {
         }
       }
 
+      // v575 — P1-2 : « plus de temps réel après un changement de rôle ».
+      // Le serveur lit le rôle ET l'id dans le JWT au HANDSHAKE du socket
+      // (chatSocket.js → `socket.join(userRoom(trusted.role, trusted.id))`).
+      // On écrivait bien le nouveau jeton (SecureTokenStore + GetStorage) mais
+      // on ne touchait jamais au socket : il restait dans la room
+      // `user:<ancien rôle>:<ancien id>` → ni messages ni notifications en
+      // direct jusqu'au redémarrage de l'app.
+      // `updateAuthToken` (utilisé par refreshToken) ne coupe PAS un socket
+      // vivant — c'est volontaire là-bas — donc on force ici une reconnexion
+      // propre, APRÈS l'écriture du jeton, du rôle et du profil (le profil
+      // porte l'id utilisé par `user:identify` et `conversation:join`).
+      if (newToken != null && newToken.isNotEmpty) {
+        try {
+          if (Get.isRegistered<SocketService>()) {
+            await Get.find<SocketService>().reconnectWithToken(newToken);
+          }
+        } catch (e) {
+          debugPrint('[HOPETSIT] ⚠️ socket reconnect après switchRole: $e');
+        }
+      }
+
       CustomSnackbar.showSuccess(
         title: 'snackbar_text_role_switched',
         message: 'auth_role_switched_message'.tr.replaceAll(

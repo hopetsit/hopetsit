@@ -19,6 +19,13 @@ const {
   SERVICE_TYPES,
   LOCATION_TYPES,
 } = require('../utils/pricing');
+// v575 — audit P0-1 : durées de promenade alignées sur `walkRateEntrySchema`
+// (tout multiple de 15 entre 15 et 300) + prix par palier ou au prorata.
+const {
+  isValidWalkDuration,
+  resolveWalkPricing,
+  WALK_DURATION_ERROR,
+} = require('../utils/walkDuration');
 // Stripe disabled (v21.1.1 purge) — calls now use airwallex.* (createPlatformPaymentIntent, retrievePaymentIntent, confirmPaymentIntent, createRefund, createPayout)
 // v21 — Airwallex platform-only PI fallback when PAYMENT_PROVIDER=airwallex.
 // Marketplace split (Beneficiaries + Payouts API) lands in v21.1 ;
@@ -295,12 +302,19 @@ const createBooking = async (req, res) => {
       : LOCATION_TYPES.STANDARD;
 
     // Validate duration for dog_walking
+    // v575 — audit P0-1 : on accepte désormais TOUT multiple de 15 entre 15 et
+    // 300 minutes, exactement comme `walkRateEntrySchema` (models/Walker.js).
+    // Avant, 90 et 120 min — proposées par l'app — étaient refusées en 400.
     let durationNum = null;
     if (canonicalServiceType === SERVICE_TYPES.DOG_WALKING) {
-      if (!duration || (duration !== 30 && duration !== 60)) {
-        return res.status(400).json({ error: 'duration is required for dog_walking. Valid values: 30 or 60 minutes.' });
+      const parsedWalkDuration = Number(duration);
+      if (!isValidWalkDuration(parsedWalkDuration)) {
+        return res.status(400).json({
+          error: WALK_DURATION_ERROR,
+          code: 'INVALID_WALK_DURATION',
+        });
       }
-      durationNum = duration;
+      durationNum = parsedWalkDuration;
     }
 
     const owner = await Owner.findById(ownerId);
@@ -328,26 +342,13 @@ const createBooking = async (req, res) => {
       if (!walker) {
         return res.status(404).json({ error: 'Walker not found.' });
       }
-      const findWalkRate = (min) => {
-        const rate = (walker.walkRates || []).find(
-          (r) =>
-            r.durationMinutes === min && r.enabled && r.basePrice > 0,
-        );
-        return rate ? rate.basePrice : null;
-      };
-      let derivedHourly = findWalkRate(60);
-      if (!derivedHourly) {
-        const half = findWalkRate(30);
-        if (half) derivedHourly = half * 2;
-      }
-      if (!derivedHourly) {
-        const ninety = findWalkRate(90);
-        if (ninety) derivedHourly = ninety * (60 / 90);
-      }
-      if (!derivedHourly) {
-        const twoHours = findWalkRate(120);
-        if (twoHours) derivedHourly = twoHours / 2;
-      }
+      // v575 — audit P0-1 : la cascade 60 → 30 → 90 → 120 ignorait tous les
+      // autres paliers (45, 75, 150…). Un promeneur n'ayant configuré QUE 45
+      // min était traité comme « sans tarif » et la réservation refusée.
+      // `resolveWalkPricing` prend le palier exact quand il existe, sinon le
+      // palier 60, sinon le plus proche, au prorata.
+      const walkPricing = resolveWalkPricing(walker.walkRates, durationNum);
+      const derivedHourly = walkPricing ? walkPricing.hourlyRate : null;
       if (!derivedHourly || derivedHourly <= 0) {
         return res.status(400).json({
           error:
@@ -1788,6 +1789,16 @@ const _formatBookingForUser = async (booking, userRole) => {
         }),
         description: booking.description,
         date: booking.date,
+        // v575 — audit P1-1 : cet objet est reconstruit À LA MAIN, donc il
+        // PERDAIT les 4 champs que `sanitizeBooking` calcule pour la fenêtre
+        // des 72 h (`canSelfCancel`, `hoursUntilStart`) et les dates réelles
+        // (`startDate`/`endDate`, qui portent l'heure — `date` est à minuit).
+        // L'app retombait alors sur son calcul local à minuit : bouton affiché
+        // alors que le serveur refusait (et inversement).
+        startDate: sanitized.startDate ?? booking.startDate ?? null,
+        endDate: sanitized.endDate ?? booking.endDate ?? null,
+        canSelfCancel: sanitized.canSelfCancel ?? null,
+        hoursUntilStart: sanitized.hoursUntilStart ?? null,
         timeSlot: booking.timeSlot,
         serviceType: booking.serviceType,
         houseSittingVenue: booking.houseSittingVenue || null,
@@ -1928,6 +1939,26 @@ const cancelBooking = async (req, res) => {
 
     if (booking.status === 'cancelled') {
       return res.status(409).json({ error: 'Booking already cancelled.' });
+    }
+
+    // v575 — audit P0-2 : une réservation DÉJÀ PAYÉE ne doit JAMAIS passer par
+    // cette annulation « simple ». Elle forçait status='cancelled' +
+    // paymentStatus='cancelled' SANS déclencher le moindre remboursement, et
+    // laissait `payoutStatus`/`scheduledPayoutAt` programmés : le propriétaire
+    // perdait son argent et le prestataire pouvait encore être payé.
+    // Le seul chemin correct est `selfCancelWithRefund` (POST
+    // /bookings/:id/self-cancel), qui rembourse et annule le versement.
+    // On refuse ici AVANT toute écriture.
+    const isPaidBooking =
+      booking.status === 'paid' ||
+      booking.paymentStatus === 'paid' ||
+      !!booking.paidAt;
+    if (isPaidBooking) {
+      return res.status(409).json({
+        error:
+          'This booking has already been paid. Use the self-cancel endpoint so the payment is refunded.',
+        code: 'PAID_BOOKING_USE_SELF_CANCEL',
+      });
     }
 
     booking.status = 'cancelled';
@@ -2811,6 +2842,75 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
 };
 
 /**
+ * v575 — audit P1-8 : « la carte enregistrée est redemandée à la 2ᵉ tentative ».
+ *
+ * `createBookingPaymentIntent` a DEUX sorties : le chemin nominal (nouvelle
+ * intention de paiement) et le retour anticipé qui réutilise une intention
+ * encore valide. Le retour anticipé ne renvoyait que
+ * `{paymentIntentId, clientSecret, booking}` : il manquait `customerId` —
+ * sans lui la page Airwallex n'affiche AUCUNE carte enregistrée — ainsi que
+ * `defaultConsentId`, `amount`, `currency`, `serverConfirmed` et
+ * `savedCardError`. D'où : 1ʳᵉ tentative avec la carte mémorisée, 2ᵉ tentative
+ * (celle qui réutilise l'intention) avec saisie manuelle.
+ *
+ * Un seul constructeur de réponse pour les deux chemins.
+ */
+const buildPaymentIntentResponse = ({
+  paymentIntentId,
+  clientSecret,
+  booking,
+  amountInCents,
+  currency,
+  commissionAmount,
+  netSitterAmount,
+  loyaltyDiscountApplied = null,
+  customerId = null,
+  defaultConsentId = null,
+  serverConfirmed = false,
+  nextActionUrl = null,
+  savedCardError = null,
+  reusedExistingIntent = false,
+}) => ({
+  paymentIntentId,
+  clientSecret,
+  amount: amountInCents,
+  currency,
+  commissionAmount,
+  netSitterAmount,
+  loyaltyDiscountApplied: loyaltyDiscountApplied
+    ? {
+        amount: loyaltyDiscountApplied.discountAmount,
+        creditId: loyaltyDiscountApplied.creditId,
+      }
+    : null,
+  booking: sanitizeBooking(booking),
+  // v568 — la page Airwallex n'affiche les cartes enregistrées que si
+  // l'app lui transmet `customer_id` ; `defaultConsentId` sert à l'app
+  // pour annoncer « Payer avec •••• 4242 » avant l'ouverture.
+  customerId,
+  defaultConsentId,
+  // v23.1 part 47/49 — saved-card fast path signals.
+  //   serverConfirmed=true → frontend skips HPP, calls /confirm-payment.
+  //   nextActionUrl → 3DS challenge URL, frontend opens that in
+  //     WebView (still no card re-entry needed).
+  //   savedCardError → consent rejected outright by Airwallex (disabled,
+  //     expired, declined). Frontend should surface to the user instead
+  //     of silently falling back to HPP.
+  serverConfirmed,
+  nextActionUrl,
+  savedCardError,
+  message: serverConfirmed
+    ? 'PaymentIntent confirmed via saved card. Skip HPP.'
+    : (nextActionUrl
+        ? 'Saved card requires 3DS verification. Open nextActionUrl.'
+        : (savedCardError
+            ? 'Saved card unusable.'
+            : (reusedExistingIntent
+                ? 'Existing PaymentIntent reused. Open HPP for user payment.'
+                : 'PaymentIntent created successfully. Open HPP for user payment.'))),
+});
+
+/**
  * Create PaymentIntent for booking payment
  * POST /bookings/:id/create-payment-intent
  */
@@ -2951,11 +3051,54 @@ const createBookingPaymentIntent = async (req, res) => {
           'REQUIRES_CUSTOMER_ACTION',
         ]);
         if (reusableStatuses.has(existingStatus)) {
-          return res.json({
-            paymentIntentId: existingPaymentIntent.id,
-            clientSecret: existingPaymentIntent.client_secret,
-            booking: sanitizeBooking(booking),
-          });
+          // v575 — audit P1-8 : même forme de réponse que le chemin nominal,
+          // sinon l'app perd `customerId` et la page Airwallex redemande la
+          // carte alors qu'elle est enregistrée.
+          const reusedCurrency = assertSupportedCurrency(
+            booking.pricing?.currency ||
+              countryToCurrency(sitter.country) ||
+              DEFAULT_CURRENCY,
+            'Booking currency must be one of EUR/USD/GBP/CHF to create a payment.',
+          );
+          const reusedMajor = Number(existingPaymentIntent.amount);
+          const reusedAmountInCents = Number.isFinite(reusedMajor) && reusedMajor > 0
+            ? Math.round(reusedMajor * 100)
+            : Math.round((Number(booking.pricing?.totalPrice) || 0) * 100);
+          const reusedCommission = Math.max(
+            0,
+            Math.round((booking.pricing?.commission || 0) * 100),
+          );
+          let reusedCustomerId = null;
+          let reusedDefaultConsentId = null;
+          try {
+            const ownerDoc = booking.ownerId;
+            const ensured = await ensureAirwallexCustomer({
+              userId: ownerDoc._id.toString(),
+              role: 'owner',
+              userDoc: ownerDoc,
+              logTag: 'createPaymentIntent.reuse',
+            });
+            reusedCustomerId = ensured.customerId;
+            reusedDefaultConsentId = ensured.defaultConsentId;
+          } catch (custErr) {
+            logger.warn(
+              `[createPaymentIntent] customer ensure failed on reused PI: ${custErr?.message || custErr}`,
+            );
+          }
+          return res.json(
+            buildPaymentIntentResponse({
+              paymentIntentId: existingPaymentIntent.id,
+              clientSecret: existingPaymentIntent.client_secret,
+              booking,
+              amountInCents: reusedAmountInCents,
+              currency: reusedCurrency,
+              commissionAmount: reusedCommission,
+              netSitterAmount: reusedAmountInCents - reusedCommission,
+              customerId: reusedCustomerId,
+              defaultConsentId: reusedDefaultConsentId,
+              reusedExistingIntent: true,
+            }),
+          );
         }
         // Sinon (CANCELLED, REQUIRES_CAPTURE, EXPIRED, etc.) : on
         // detache le PI pourri du booking et on continue vers la
@@ -3271,43 +3414,25 @@ const createBookingPaymentIntent = async (req, res) => {
     const applicationFee = Math.max(0, baseCommissionInCents - discountInCents);
     const netSitter = amountInCents - applicationFee;
 
-    res.json({
-      paymentIntentId: paymentIntent.id,
-      clientSecret: paymentIntent.client_secret,
-      amount: amountInCents,
-      currency: bookingCurrency,
-      commissionAmount: applicationFee,
-      netSitterAmount: netSitter,
-      loyaltyDiscountApplied: loyaltyDiscountApplied
-        ? {
-            amount: loyaltyDiscountApplied.discountAmount,
-            creditId: loyaltyDiscountApplied.creditId,
-          }
-        : null,
-      booking: sanitizeBooking(booking),
-      // v568 — la page Airwallex n'affiche les cartes enregistrées que si
-      // l'app lui transmet `customer_id` ; `defaultConsentId` sert à l'app
-      // pour annoncer « Payer avec •••• 4242 » avant l'ouverture.
-      customerId: airwallexCustomerId,
-      defaultConsentId,
-      // v23.1 part 47/49 — saved-card fast path signals.
-      //   serverConfirmed=true → frontend skips HPP, calls /confirm-payment.
-      //   nextActionUrl → 3DS challenge URL, frontend opens that in
-      //     WebView (still no card re-entry needed).
-      //   savedCardError → consent rejected outright by Airwallex (disabled,
-      //     expired, declined). Frontend should surface to the user instead
-      //     of silently falling back to HPP.
-      serverConfirmed,
-      nextActionUrl,
-      savedCardError,
-      message: serverConfirmed
-        ? 'PaymentIntent confirmed via saved card. Skip HPP.'
-        : (nextActionUrl
-            ? 'Saved card requires 3DS verification. Open nextActionUrl.'
-            : (savedCardError
-                ? 'Saved card unusable.'
-                : 'PaymentIntent created successfully. Open HPP for user payment.')),
-    });
+    // v575 — audit P1-8 : constructeur de réponse commun avec le retour
+    // anticipé « intention réutilisée » (cf. buildPaymentIntentResponse).
+    res.json(
+      buildPaymentIntentResponse({
+        paymentIntentId: paymentIntent.id,
+        clientSecret: paymentIntent.client_secret,
+        booking,
+        amountInCents,
+        currency: bookingCurrency,
+        commissionAmount: applicationFee,
+        netSitterAmount: netSitter,
+        loyaltyDiscountApplied,
+        customerId: airwallexCustomerId,
+        defaultConsentId,
+        serverConfirmed,
+        nextActionUrl,
+        savedCardError,
+      }),
+    );
   } catch (error) {
     // v23.1 — structured error mapping (PART 4). Backend now returns a stable
     // `code` (PAYMENT_INTENT_FAILED, PROVIDER_NOT_CONFIGURED, …) so the
@@ -6657,4 +6782,7 @@ module.exports = {
   getBookingProvider,
   buildHandoverTimeline: _buildHandoverTimeline,
   HANDOVER_AUTO_CONFIRM_MS,
+  // v575 — audit : exposés pour les tests (aucun réseau, aucune base).
+  _formatBookingForUser,
+  buildPaymentIntentResponse,
 };

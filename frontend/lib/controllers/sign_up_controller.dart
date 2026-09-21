@@ -16,6 +16,7 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/auth/otp_verification_screen.dart';
 import 'package:hopetsit/controllers/otp_verification_controller.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/profile_completion.dart' show joinPersonName;
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:country_code_picker/country_code_picker.dart'
     show CountryCode;
@@ -37,6 +38,10 @@ class SignUpController extends GetxController {
   // Sign Up Form key and controllers
   final formKey = GlobalKey<FormState>();
   final nameController = TextEditingController();
+  // v575 — « nom et prénom » : saisis séparément, recomposés dans `name`
+  // (source d'affichage de toute l'app et du site).
+  final firstNameController = TextEditingController();
+  final lastNameController = TextEditingController();
   final emailController = TextEditingController();
   final phoneController = TextEditingController();
   final passwordController = TextEditingController();
@@ -511,6 +516,8 @@ class SignUpController extends GetxController {
   /// Clears all form text fields (e.g. after success or error).
   void clearFields() {
     nameController.clear();
+    firstNameController.clear();
+    lastNameController.clear();
     emailController.clear();
     phoneController.clear();
     passwordController.clear();
@@ -596,6 +603,10 @@ class SignUpController extends GetxController {
     final phone = phoneController.text.trim();
     final data = <String, dynamic>{
       'name': nameController.text.trim(),
+      // v575 — envoyés en plus de `name` : le serveur les stocke tels quels
+      // (et recalcule `name`), les anciens serveurs les ignorent.
+      'firstName': firstNameController.text.trim(),
+      'lastName': lastNameController.text.trim(),
       'email': emailController.text.trim(),
       'password': passwordController.text,
       'mobile': phone,
@@ -836,6 +847,16 @@ class SignUpController extends GetxController {
   /// v409 — validation de l'étape 1 du wizard (infos perso), sans formKey
   /// (les champs des autres étapes ne sont pas montés dans un Form unique).
   String? validateStep1() {
+    // v575 — le nom complet est recomposé depuis prénom + nom avant toute
+    // validation : `validateName` et le récapitulatif restent inchangés.
+    nameController.text = joinPersonName(
+        firstNameController.text, lastNameController.text);
+    if (firstNameController.text.trim().isEmpty) {
+      return 'error_first_name_required'.tr;
+    }
+    if (lastNameController.text.trim().isEmpty) {
+      return 'error_last_name_required'.tr;
+    }
     final e = validateName(nameController.text) ??
         validateEmail(emailController.text) ??
         validatePassword(passwordController.text);

@@ -9,12 +9,38 @@ import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/views/profile/widgets/profile_field_widgets.dart';
 import 'package:hopetsit/views/profile/widgets/email_change_field.dart';
 import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart';
+import 'package:hopetsit/utils/profile_completion.dart' show ProfileFocusField;
+import 'package:hopetsit/views/profile/widgets/profile_about_fields.dart';
+import 'package:hopetsit/views/profile/widgets/profile_focus_anchors.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/views/profile/widgets/edit_profile_widgets.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 
-class EditSitterProfileScreen extends StatelessWidget {
-  const EditSitterProfileScreen({super.key});
+class EditSitterProfileScreen extends StatefulWidget {
+  /// v575 — champ à mettre en évidence à l'ouverture (`ProfileFocusField.*`).
+  /// Facultatif : `null` = comportement historique (haut de page).
+  final String? focusField;
+
+  const EditSitterProfileScreen({super.key, this.focusField});
+
+  @override
+  State<EditSitterProfileScreen> createState() => _EditSitterProfileScreenState();
+}
+
+class _EditSitterProfileScreenState extends State<EditSitterProfileScreen> {
+  final ProfileFocusAnchors _anchors = ProfileFocusAnchors();
+
+  @override
+  void initState() {
+    super.initState();
+    _anchors.reveal(widget.focusField);
+  }
+
+  @override
+  void dispose() {
+    _anchors.dispose();
+    super.dispose();
+  }
 
   // v426 — toggle helper partagé par les chips multi-sélection.
   void _toggle(List<String> list, String value) {
@@ -87,19 +113,41 @@ class EditSitterProfileScreen extends StatelessWidget {
                         icon: Icons.badge_outlined,
                         accent: accent,
                         children: [
+                          // v575 — « dans mon profil j'ai que "nom" et
+                          // pas "nom et prénom" » : deux champs distincts,
+                          // Prénom puis Nom, identiques sur les 3 rôles.
+                          // `name` reste la source d'affichage : le serveur le
+                          // recalcule depuis ces deux champs.
+                          Container(
+                            key: _anchors.anchor(ProfileFocusField.name),
+                            child: ProfileInput(
+                              label: 'label_first_name'.tr,
+                              hint: 'hint_first_name'.tr,
+                              controller: controller.firstNameController,
+                              accent: accent,
+                              focusNode: _anchors.node(ProfileFocusField.name),
+                              textInputAction: TextInputAction.next,
+                              textCapitalization: TextCapitalization.words,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'error_first_name_required'.tr;
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          // Le NOM n'est pas bloquant à l'édition : un compte
+                          // historique peut n'avoir qu'un mot (« Madonna »), et
+                          // refuser l'enregistrement empêcherait de modifier
+                          // n'importe quel autre champ. La barre « profil
+                          // complété » se charge de le réclamer.
                           ProfileInput(
-                            label: 'label_name'.tr,
-                            hint: 'hint_name'.tr,
-                            controller: controller.nameController,
+                            label: 'label_last_name'.tr,
+                            hint: 'hint_last_name'.tr,
+                            controller: controller.lastNameController,
                             accent: accent,
                             textInputAction: TextInputAction.next,
                             textCapitalization: TextCapitalization.words,
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'error_name_required'.tr;
-                              }
-                              return null;
-                            },
                           ),
                           // v426 — Date de naissance ; v527 — slashs auto.
                           ProfileInput(
@@ -144,6 +192,7 @@ class EditSitterProfileScreen extends StatelessWidget {
                         accent: accent,
                         children: [
                           ProfileInput(
+                            key: _anchors.anchor(ProfileFocusField.address),
                             label: 'label_address'.tr,
                             hint: 'hint_address'.tr,
                             controller: controller.addressController,
@@ -169,34 +218,41 @@ class EditSitterProfileScreen extends StatelessWidget {
                       ),
 
                       // ── À propos ──
+                      // v575 — bloc UNIFIÉ sur les 3 rôles : même carte, même
+                      // ordre, mêmes widgets partagés. « À propos de moi »
+                      // reste PROPRE au rôle (on ne se présente pas pareil en
+                      // gardien et en propriétaire) ; « Langues parlées » est
+                      // une information de la PERSONNE, partagée par les 3
+                      // profils — et elle ne se confond plus avec « Langue de
+                      // l'app », qui vit dans Préférences.
                       ProfileFormCard(
                         title: 'edit_profile_section_about'.tr,
                         icon: Icons.person_outline_rounded,
                         accent: accent,
                         children: [
-                          ProfileInput(
-                            label: 'label_about_me'.tr,
-                            hint: 'hint_bio'.tr,
-                            controller: controller.bioController,
-                            accent: accent,
-                            keyboardType: TextInputType.multiline,
-                            textInputAction: TextInputAction.newline,
-                            maxLines: 4,
+                          Container(
+                            key: _anchors.anchor(ProfileFocusField.bio),
+                            child: ProfileAboutField(
+                              controller: controller.bioController,
+                              accent: accent,
+                              focusNode: _anchors.node(ProfileFocusField.bio),
+                            ),
                           ),
-                          // Langues parlées — puces multi-sélection (le texte
-                          // joint alimente languageController pour l'API).
-                          ProfileFieldLabel('label_language'.tr),
-                          ProfileLanguageChips(
-                            selected: controller.selectedLanguages,
-                            accent: accent,
-                            onChanged: (joined) =>
-                                controller.languageController.text = joined,
+                          Container(
+                            key: _anchors.anchor(ProfileFocusField.languages),
+                            child: ProfileLanguageField(
+                              selected: controller.selectedLanguages,
+                              accent: accent,
+                              onChanged: (joined) =>
+                                  controller.languageController.text = joined,
+                            ),
                           ),
                         ],
                       ),
 
                       // ── Services (synchro inscription↔profil, v426) ──
                       ProfileFormCard(
+                        key: _anchors.anchor(ProfileFocusField.services),
                         title: 'edit_profile_section_services'.tr,
                         icon: Icons.pets_rounded,
                         accent: accent,
@@ -214,7 +270,10 @@ class EditSitterProfileScreen extends StatelessWidget {
                                 selected: controller.selectedServices.toList(), // v444: read RxList in Obx
                                 onToggle: (v) => _toggle(controller.selectedServices, v),
                               )),
-                          ProfileFieldLabel('signup_animals_accepted'.tr),
+                          ProfileFieldLabel(
+                            'signup_animals_accepted'.tr,
+                            key: _anchors.anchor(ProfileFocusField.animals),
+                          ),
                           Obx(() => ProfileChoiceChips(
                                 accent: accent,
                                 options: const [

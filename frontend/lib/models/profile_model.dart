@@ -1,6 +1,18 @@
+String? _firstNonEmpty(List<String?> values) {
+  for (final v in values) {
+    if (v != null && v.trim().isNotEmpty) return v;
+  }
+  return values.isEmpty ? null : values.last;
+}
+
 class ProfileModel {
   final String id;
   final String name;
+  // v575 — « dans mon profil j'ai que "nom" et pas "nom et prénom" ».
+  // `name` reste la source d'affichage partout ; ces deux champs l'alimentent.
+  // Pour un compte antérieur, le serveur les dérive à la lecture.
+  final String firstName;
+  final String lastName;
   final String email;
   final String mobile;
   final String language;
@@ -50,6 +62,8 @@ class ProfileModel {
   ProfileModel({
     required this.id,
     required this.name,
+    this.firstName = '',
+    this.lastName = '',
     required this.email,
     required this.mobile,
     required this.language,
@@ -100,14 +114,23 @@ class ProfileModel {
       country: (json['country'] ?? '').toString().toUpperCase(),
       countryCode: (json['countryCode'] ?? '').toString(),
       name: json['name'] as String? ?? '',
+      firstName: json['firstName'] as String? ?? '',
+      lastName: json['lastName'] as String? ?? '',
       email: json['email'] as String? ?? '',
       mobile: json['mobile'] as String? ?? '',
       language: json['language'] as String? ?? '',
       address: json['address'] as String? ?? '',
-      // Support nested `location` object while keeping backwards compatibility
-      city: (json['location'] is Map<String, dynamic>)
-          ? (json['location']['city'] as String?)
-          : json['city'] as String?,
+      // Support nested `location` object while keeping backwards compatibility.
+      // v575 — BUG : quand le compte n'a pas de GPS, le serveur renvoie
+      // `location.city = ''` ET la ville plate `city`. On prenait la chaîne
+      // vide → l'élément « Ville » de la complétion restait rouge à vie.
+      // On garde donc la première valeur NON VIDE.
+      city: _firstNonEmpty([
+        (json['location'] is Map<String, dynamic>)
+            ? json['location']['city'] as String?
+            : null,
+        json['city'] as String?,
+      ]),
       latitude: (json['location'] is Map<String, dynamic>)
           ? (json['location']['lat'] as num?)?.toDouble()
           : (json['latitude'] as num?)?.toDouble(),
@@ -179,6 +202,8 @@ class ProfileModel {
     return {
       'id': id,
       'name': name,
+      'firstName': firstName,
+      'lastName': lastName,
       'email': email,
       'mobile': mobile,
       'language': language,

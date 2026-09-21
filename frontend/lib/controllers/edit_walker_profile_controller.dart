@@ -16,6 +16,8 @@ import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/date_slash_formatter.dart'
     show parseDdMmYyyy, ageInYears;
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/profile_completion.dart'
+    show splitPersonName, joinPersonName;
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/profile/widgets/phone_prefix_helper.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -56,6 +58,9 @@ class EditWalkerProfileController extends GetxController {
   // Form key and controllers
   final formKey = GlobalKey<FormState>();
   final nameController = TextEditingController();
+  // v575 — « nom et prénom » : deux champs distincts, comme sur les 3 rôles.
+  final firstNameController = TextEditingController();
+  final lastNameController = TextEditingController();
   final emailController = TextEditingController();
   final phoneController = TextEditingController();
   final addressController = TextEditingController();
@@ -165,6 +170,14 @@ class EditWalkerProfileController extends GetxController {
           walker.id.isNotEmpty ? walker.id : (storedProfile?['id']?.toString() ?? '');
 
       nameController.text = walker.name;
+      // v575 — prénom / nom (dérivés de `name` pour un compte antérieur).
+      final nameParts = splitPersonName(
+        walker.name,
+        firstName: walker.firstName,
+        lastName: walker.lastName,
+      );
+      firstNameController.text = nameParts.firstName;
+      lastNameController.text = nameParts.lastName;
       emailController.text = walker.email;
       phoneController.text = walker.mobile;
       addressController.text = walker.address;
@@ -357,8 +370,17 @@ class EditWalkerProfileController extends GetxController {
       final mobile = PhonePrefix.nationalNumber(
           phoneController.text, selectedCountryCode.value);
 
+      // v575 — le nom complet est recomposé depuis prénom + nom ; le serveur
+      // recalcule `name`, qui reste la source d'affichage partout ailleurs.
+      final firstName = firstNameController.text.trim();
+      final lastName = lastNameController.text.trim();
+      final fullName = joinPersonName(firstName, lastName);
+      nameController.text = fullName;
+
       final payload = <String, dynamic>{
-        'name': nameController.text.trim(),
+        'name': fullName,
+        'firstName': firstName,
+        'lastName': lastName,
         'mobile': mobile,
       };
 
@@ -410,17 +432,22 @@ class EditWalkerProfileController extends GetxController {
         'atOwner': pickupAtOwner.value,
       };
 
-      // Location coordinates
+      // v575 — BUG « la ville ne s'enregistre jamais » : `location` n'était
+      // envoyé QUE avec des coordonnées GPS, donc une ville tapée à la main
+      // était perdue et l'élément « Ville » de la complétion restait rouge.
+      final cityForLocation = (userCity.value.isNotEmpty
+              ? userCity.value
+              : locationController.text)
+          .trim();
+      if (cityForLocation.isNotEmpty) payload['city'] = cityForLocation;
       if (userLatitude.value != null && userLongitude.value != null) {
-        final cityForLocation = (userCity.value.isNotEmpty
-                ? userCity.value
-                : locationController.text)
-            .trim();
         payload['location'] = {
           'lat': userLatitude.value,
           'lng': userLongitude.value,
           if (cityForLocation.isNotEmpty) 'city': cityForLocation,
         };
+      } else if (cityForLocation.isNotEmpty) {
+        payload['location'] = {'city': cityForLocation};
       }
 
       // Session v16.2 — SAVE ORDER REVERSED. Previously the profile PATCH ran
@@ -483,26 +510,28 @@ class EditWalkerProfileController extends GetxController {
       await loadProfileData();
 
       CustomSnackbar.showSuccess(
-        title: 'common_success',
-        message: 'edit_profile_update_success',
+        title: 'common_success'.tr,
+        message: 'edit_profile_update_success'.tr,
       );
 
       return true;
     } on ApiException catch (error) {
       AppLogger.logError('Failed to update walker profile',
           error: error.message);
+      // v575 — le titre était une CLÉ BRUTE (pas de `.tr`) : l'utilisateur
+      // voyait « pet_update_failed ». Motif exact du serveur, traduit.
       CustomSnackbar.showError(
-        title: 'pet_update_failed',
+        title: 'common_error'.tr,
         message: error.message.isNotEmpty
             ? error.message
-            : 'common_error_generic'.tr,
+            : 'profile_update_failed'.tr,
       );
       return false;
     } catch (error) {
       AppLogger.logError('Failed to update walker profile', error: error);
       CustomSnackbar.showError(
-        title: 'pet_update_failed'.tr,
-        message: 'common_error_generic'.tr,
+        title: 'common_error'.tr,
+        message: 'profile_update_failed'.tr,
       );
       return false;
     } finally {
@@ -554,6 +583,13 @@ class EditWalkerProfileController extends GetxController {
   Future<void> handleUpdateProfileWithNavigation() async {
     final success = await validateAndUpdateProfile();
     if (success) {
+      // v575 — CAUSE RACINE du « pourcentage qui ne bouge pas » chez le
+      // promeneur : sa page Profil (et donc sa barre de complétion) lit le
+      // `ProfileController`, qui n'était JAMAIS rechargé après un
+      // enregistrement — contrairement aux deux autres rôles.
+      if (Get.isRegistered<ProfileController>()) {
+        await Get.find<ProfileController>().loadMyProfile();
+      }
       Get.back();
     }
   }

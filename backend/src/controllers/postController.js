@@ -4,6 +4,8 @@ const Walker = require('../models/Walker');
 const Post = require('../models/Post');
 const Pet = require('../models/Pet');
 const { identityGroup, selfIdSet } = require('../utils/identityGroup');
+// v575 — audit P1-7 : durée de promenade portée par l'annonce.
+const { isValidWalkDuration } = require('../utils/walkDuration');
 
 /** v573 — retire d'une liste d'annonces celles du spectateur gardien/promeneur. */
 async function hideOwnPostsForProviders(req, posts) {
@@ -160,7 +162,7 @@ function applyAnimalFields(payload, animalCount, animalTypes) {
 
 const createPost = async (req, res) => {
   try {
-    const { body, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, serviceLocation, animalCount, animalTypes } = req.body || {};
+    const { body, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, serviceLocation, animalCount, animalTypes, walkDurationMinutes } = req.body || {};
     const ownerId = req.user?.id;
 
     if (!ownerId) {
@@ -221,6 +223,22 @@ const createPost = async (req, res) => {
       .filter(Boolean);
     if (normalizedServices.length > 0) {
       postPayload.serviceTypes = normalizedServices;
+    }
+
+    // v575 — audit P1-7 : durée de promenade choisie par le propriétaire.
+    // Optionnelle et rétro-compatible : absente → l'annonce n'en porte pas et
+    // le prestataire retombe sur la déduction fin − début. Multipart envoie
+    // des chaînes, d'où le Number().
+    if (walkDurationMinutes !== undefined && walkDurationMinutes !== null
+        && String(walkDurationMinutes).trim() !== '') {
+      const parsedWalkDuration = Number(walkDurationMinutes);
+      if (!isValidWalkDuration(parsedWalkDuration)) {
+        return res.status(400).json({
+          error: 'walkDurationMinutes must be an integer multiple of 15, between 15 and 300.',
+          code: 'INVALID_WALK_DURATION',
+        });
+      }
+      postPayload.walkDurationMinutes = parsedWalkDuration;
     }
 
     const normalizedVenue = normalizeHouseSittingVenue(houseSittingVenue);
@@ -764,6 +782,9 @@ const getPublicRequestPosts = async (req, res) => {
         startDate: p.startDate,
         endDate: p.endDate,
         serviceTypes: p.serviceTypes || [],
+        // v575 — audit P1-7 : durée de promenade voulue par le propriétaire.
+        walkDurationMinutes:
+          typeof p.walkDurationMinutes === 'number' ? p.walkDurationMinutes : null,
         animalCount: p.animalCount || 0,
         animalTypes: p.animalTypes || [],
         city: (p.location && (p.location.city || p.location.label)) || '',
@@ -1175,6 +1196,9 @@ const getNearbyRequestPosts = async (req, res) => {
       serviceLocation: post.serviceLocation || '',
       startDate: post.startDate,
       endDate: post.endDate,
+      // v575 — audit P1-7 : durée de promenade voulue par le propriétaire.
+      walkDurationMinutes:
+        typeof post.walkDurationMinutes === 'number' ? post.walkDurationMinutes : null,
       location: {
         city: post.location.city || '',
         lat: post.location.lat,
@@ -1500,7 +1524,7 @@ const createPostWithMedia = async (req, res) => {
   try {
     const ownerId = req.user?.id;
     const userRole = req.user?.role;
-    const { body, folder, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, postType: rawPostType, animalCount, animalTypes } = req.body || {};
+    const { body, folder, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, postType: rawPostType, animalCount, animalTypes, walkDurationMinutes } = req.body || {};
 
     if (!ownerId) {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
@@ -1646,6 +1670,22 @@ const createPostWithMedia = async (req, res) => {
       postPayload.serviceTypes = normalizedServices;
     }
 
+    // v575 — audit P1-7 : durée de promenade choisie par le propriétaire.
+    // Optionnelle et rétro-compatible : absente → l'annonce n'en porte pas et
+    // le prestataire retombe sur la déduction fin − début. Multipart envoie
+    // des chaînes, d'où le Number().
+    if (walkDurationMinutes !== undefined && walkDurationMinutes !== null
+        && String(walkDurationMinutes).trim() !== '') {
+      const parsedWalkDuration = Number(walkDurationMinutes);
+      if (!isValidWalkDuration(parsedWalkDuration)) {
+        return res.status(400).json({
+          error: 'walkDurationMinutes must be an integer multiple of 15, between 15 and 300.',
+          code: 'INVALID_WALK_DURATION',
+        });
+      }
+      postPayload.walkDurationMinutes = parsedWalkDuration;
+    }
+
     const normalizedVenue = normalizeHouseSittingVenue(houseSittingVenue);
     const isHouseSittingPost = includesHouseSittingService(normalizedServices);
     if (isHouseSittingPost) {
@@ -1775,6 +1815,8 @@ const updatePost = async (req, res) => {
       houseSittingVenue,
       serviceLocation,
       showAnimalCharacter,
+      // v575 — audit P1-7 : durée de promenade éditable comme les autres champs.
+      walkDurationMinutes,
     } = req.body || {};
 
     if (typeof body === 'string') {
@@ -1806,6 +1848,23 @@ const updatePost = async (req, res) => {
       post.serviceTypes = Array.isArray(serviceTypes)
         ? serviceTypes.map((s) => String(s || '').trim()).filter(Boolean)
         : [];
+    }
+
+    // v575 — audit P1-7 : `null` / '' efface la durée, une valeur valide la
+    // remplace, une valeur invalide est refusée (jamais silencieusement).
+    if (walkDurationMinutes !== undefined) {
+      if (walkDurationMinutes === null || String(walkDurationMinutes).trim() === '') {
+        post.walkDurationMinutes = null;
+      } else {
+        const parsedWalkDuration = Number(walkDurationMinutes);
+        if (!isValidWalkDuration(parsedWalkDuration)) {
+          return res.status(400).json({
+            error: 'walkDurationMinutes must be an integer multiple of 15, between 15 and 300.',
+            code: 'INVALID_WALK_DURATION',
+          });
+        }
+        post.walkDurationMinutes = parsedWalkDuration;
+      }
     }
 
     if (houseSittingVenue !== undefined) {

@@ -2,12 +2,25 @@ import 'package:hopetsit/data/network/api_client.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
 
 /// Handles authentication-related API interactions.
 class AuthRepository {
   AuthRepository(this._apiClient);
 
   final ApiClient _apiClient;
+
+  /// v575 — vrai quand une session existe (jeton sécurisé ou miroir
+  /// GetStorage). Permet d'envoyer `Authorization` seulement quand il y en a
+  /// un : `requiresAuth: true` sans jeton lève une `ApiException`.
+  bool _hasSession() {
+    try {
+      final t = SecureTokenStore.currentToken();
+      return t != null && t.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// Performs login with email and password and returns the server response.
   Future<Map<String, dynamic>> login({
@@ -128,14 +141,28 @@ class AuthRepository {
 
   /// Chooses services for the user (pet owner or pet sitter).
   /// Accepts an array of service strings.
+  ///
+  /// v575 — P1-5 : une même adresse e-mail peut porter jusqu'à 3 documents
+  /// (propriétaire / gardien / promeneur). Sans indication de rôle, le serveur
+  /// renvoyait TOUJOURS le document propriétaire : un prestataire cochait ses
+  /// services et ils partaient sur son profil propriétaire. On envoie donc
+  /// [role] (le rôle de l'écran) et, quand une session existe, le jeton — dont
+  /// le rôle fait foi côté serveur. Sans session (fin d'inscription), on ne
+  /// pose pas d'en-tête `Authorization` : `requiresAuth: true` lèverait.
   Future<Map<String, dynamic>> chooseService({
     required String email,
     required List<String> services,
+    String? role,
   }) async {
+    final hasToken = _hasSession();
     final response = await _apiClient.post(
       ApiEndpoints.authChooseService,
       queryParameters: {'email': email},
-      body: {'service': services},
+      body: {
+        'service': services,
+        if (role != null && role.isNotEmpty) 'role': role,
+      },
+      requiresAuth: hasToken,
     );
 
     if (response is Map<String, dynamic>) {

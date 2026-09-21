@@ -10,6 +10,8 @@ import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/utils/date_slash_formatter.dart'
     show parseDdMmYyyy, ageInYears;
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/profile_completion.dart'
+    show splitPersonName, joinPersonName;
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/profile/widgets/phone_prefix_helper.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
@@ -59,6 +61,9 @@ class EditSitterProfileController extends GetxController {
   final extraPetRateController = TextEditingController();
   final responseTimeController = TextEditingController();
   final languageController = TextEditingController();
+  // v575 — « nom et prénom » : deux champs distincts, comme sur les 3 rôles.
+  final firstNameController = TextEditingController();
+  final lastNameController = TextEditingController();
   // v426 — synchro inscription↔profil : champs collectés par le wizard 5 étapes.
   final dobController = TextEditingController();
   final RxList<String> acceptedAnimals = <String>[].obs;
@@ -131,6 +136,8 @@ class EditSitterProfileController extends GetxController {
     extraPetRateController.dispose();
     responseTimeController.dispose();
     languageController.dispose();
+    firstNameController.dispose();
+    lastNameController.dispose();
     dobController.dispose();
     super.onClose();
   }
@@ -165,6 +172,14 @@ class EditSitterProfileController extends GetxController {
 
       // Populate form fields
       nameController.text = profileData['name']?.toString() ?? '';
+      // v575 — prénom / nom (dérivés de `name` pour un compte antérieur).
+      final nameParts = splitPersonName(
+        nameController.text,
+        firstName: profileData['firstName']?.toString() ?? '',
+        lastName: profileData['lastName']?.toString() ?? '',
+      );
+      firstNameController.text = nameParts.firstName;
+      lastNameController.text = nameParts.lastName;
       emailController.text = profileData['email']?.toString() ?? '';
       // v565 — point 12 : indicatif = stocké, sinon déduit du PAYS du compte,
       // sinon extrait du numéro ; le champ n'affiche que le numéro national.
@@ -201,6 +216,12 @@ class EditSitterProfileController extends GetxController {
             userLongitude.value = lng;
           }
         }
+      }
+
+      // v575 — sans GPS, le serveur renvoie `location.city` vide et la ville
+      // dans le champ PLAT `city` : on prend la première valeur non vide.
+      if (city.trim().isEmpty) {
+        city = profileData['city']?.toString() ?? '';
       }
 
       userCity.value = city;
@@ -522,8 +543,16 @@ class EditSitterProfileController extends GetxController {
       // l'utilisateur n'avait pas ouvert le dropdown) et écrasait la devise
       // choisie dans MyRatesScreen. Idem pour le tarif journalier qui
       // disparaissait parce que hourlyRate écrasait la tier-pricing logic.
+      // v575 — le nom complet est recomposé depuis prénom + nom.
+      final firstName = firstNameController.text.trim();
+      final lastName = lastNameController.text.trim();
+      final fullName = joinPersonName(firstName, lastName);
+      nameController.text = fullName;
+
       await _sitterRepository.updateSitterProfileMe(
-        name: nameController.text.trim(),
+        name: fullName,
+        firstName: firstName,
+        lastName: lastName,
         email: emailController.text.trim(),
         // v565 — point 12 : numéro NATIONAL + indicatif séparé.
         mobile: PhonePrefix.nationalNumber(
@@ -531,6 +560,10 @@ class EditSitterProfileController extends GetxController {
         countryCode: selectedCountryCode.value,
         address: addressController.text.trim().isNotEmpty
             ? addressController.text.trim()
+            : null,
+        // v575 — ville plate envoyée même sans GPS.
+        city: (locationPayload != null && locationPayload['city'] is String)
+            ? locationPayload['city'] as String
             : null,
         location: locationPayload,
         bio: bioController.text.trim().isNotEmpty
@@ -568,24 +601,29 @@ class EditSitterProfileController extends GetxController {
         await Get.find<SitterProfileController>().loadMyProfile();
       }
 
+      // v575 — le message parlait de la PHOTO après un enregistrement de
+      // profil. Message correct désormais.
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,
-        message: 'profile_picture_update_success'.tr,
+        message: 'edit_profile_update_success'.tr,
       );
 
       return true;
     } on ApiException catch (error) {
+      // v575 — motif exact du refus, traduit (plus d'échec silencieux).
       AppLogger.logError('Failed to update profile', error: error.message);
       CustomSnackbar.showError(
-        title: 'pet_update_failed'.tr,
-        message: error.message,
+        title: 'common_error'.tr,
+        message: error.message.isNotEmpty
+            ? error.message
+            : 'profile_update_failed'.tr,
       );
       return false;
     } catch (error) {
       AppLogger.logError('Failed to update profile', error: error);
       CustomSnackbar.showError(
-        title: 'pet_update_failed'.tr,
-        message: 'common_error_generic'.tr,
+        title: 'common_error'.tr,
+        message: 'profile_update_failed'.tr,
       );
       return false;
     } finally {

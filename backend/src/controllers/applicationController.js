@@ -12,6 +12,12 @@ const {
 const { isOwnerSitterInteractionBlocked } = require('../services/blockService');
 const { calculateTotalWithAddOns, SERVICE_TYPES, LOCATION_TYPES, commissionRateForProvider } = require('../utils/pricing');
 const { assertSupportedCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
+// v575 — audit P0-1 : durées de promenade alignées sur `walkRateEntrySchema`.
+const {
+  isValidWalkDuration,
+  resolveWalkPricing,
+  WALK_DURATION_ERROR,
+} = require('../utils/walkDuration');
 const { normalizeServiceType } = require('../utils/bookingAgreementFields');
 const { createNotificationSafe } = require('../services/notificationService');
 // Session v17.3 — FCM push + email helper. createNotificationSafe only
@@ -210,27 +216,13 @@ const createApplication = async (req, res) => {
       if (!provider) {
         return res.status(404).json({ error: 'Walker not found.' });
       }
-      // Derive an hourly equivalent from walkRates (same precedence as
-      // bookingController): 60-min direct, else 30x2, else 90*(60/90), else 120/2.
-      const findWalkRate = (min) => {
-        const rate = (provider.walkRates || []).find(
-          (r) => r.durationMinutes === min && r.enabled && r.basePrice > 0,
-        );
-        return rate ? rate.basePrice : null;
-      };
-      let derivedHourly = findWalkRate(60);
-      if (!derivedHourly) {
-        const half = findWalkRate(30);
-        if (half) derivedHourly = half * 2;
-      }
-      if (!derivedHourly) {
-        const ninety = findWalkRate(90);
-        if (ninety) derivedHourly = ninety * (60 / 90);
-      }
-      if (!derivedHourly) {
-        const twoHours = findWalkRate(120);
-        if (twoHours) derivedHourly = twoHours / 2;
-      }
+      // v575 — audit P0-1 : même règle que bookingController. La cascade
+      // 60 → 30 → 90 → 120 ignorait tous les autres paliers configurables
+      // (45, 75, 150…) ; `resolveWalkPricing` les prend tous en compte.
+      // La durée demandée n'est validée que plus bas : on dérive donc ici un
+      // tarif horaire de référence (palier 60, sinon le plus proche).
+      const walkPricing = resolveWalkPricing(provider.walkRates, Number(duration));
+      const derivedHourly = walkPricing ? walkPricing.hourlyRate : null;
       if (!derivedHourly || derivedHourly <= 0) {
         return res.status(400).json({
           error: 'You must set at least one walk rate before sending requests to owners.',
@@ -333,11 +325,17 @@ const createApplication = async (req, res) => {
       ? LOCATION_TYPES.LARGE_CITY
       : LOCATION_TYPES.STANDARD;
 
+    // v575 — audit P0-1 : tout multiple de 15 entre 15 et 300 minutes, comme
+    // `walkRateEntrySchema`. 90 et 120 min — proposées par l'app — étaient
+    // refusées en 400 alors que le promeneur pouvait les tarifer.
     let durationNum = null;
     if (normalizedForInternalChecks === SERVICE_TYPES.DOG_WALKING) {
       const parsedDuration = Number(duration);
-      if (![30, 60].includes(parsedDuration)) {
-        return res.status(400).json({ error: 'duration is required for dog_walking. Valid values: 30 or 60.' });
+      if (!isValidWalkDuration(parsedDuration)) {
+        return res.status(400).json({
+          error: WALK_DURATION_ERROR,
+          code: 'INVALID_WALK_DURATION',
+        });
       }
       durationNum = parsedDuration;
     }

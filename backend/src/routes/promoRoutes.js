@@ -6,6 +6,8 @@ const UserSubscription = require('../models/UserSubscription');
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
+// v575 — audit P1-9 : un code promo se consomme PAR PERSONNE, pas par profil.
+const { selfIdSet } = require('../utils/identityGroup');
 const logger = require('../utils/logger');
 
 // v402 — Chantier 2 : redemption d'un code promo côté UTILISATEUR.
@@ -121,7 +123,18 @@ router.post('/redeem', requireAuth, async (req, res) => {
     if (!promo || !promo.isRedeemable()) {
       return res.status(404).json({ error: 'Code invalide ou expiré.' });
     }
-    const already = await PromoCodeRedemption.findOne({ promoCodeId: promo._id, userId });
+    // v575 — audit P1-9 : un code à usage unique était utilisable 3 fois.
+    // La déduplication portait sur l'`_id` du DOCUMENT DE RÔLE ; or une même
+    // personne possède jusqu'à 3 documents distincts (Owner / Sitter /
+    // Walker). Il suffisait de changer de profil pour reconsommer le code.
+    // On refuse désormais dès que N'IMPORTE LEQUEL des ids de la personne a
+    // déjà utilisé ce code.
+    const selfIds = await selfIdSet(req);
+    const redemptionIds = selfIds.size > 0 ? [...selfIds] : [userId];
+    const already = await PromoCodeRedemption.findOne({
+      promoCodeId: promo._id,
+      userId: { $in: redemptionIds },
+    });
     if (already) return res.status(409).json({ error: 'Code déjà utilisé.' });
 
     let reward = {};

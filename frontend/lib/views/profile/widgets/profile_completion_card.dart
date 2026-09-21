@@ -1,56 +1,46 @@
 // v565 — point 25 : barre « profil complété à X % » sur la page Profil des
-// 3 rôles, avec lien vers ce qui manque (feuille coordonnées ou écran
-// « Modifier le profil »). Disparaît quand le profil est à 100 %.
+// 3 rôles, avec lien vers ce qui manque. Disparaît quand le profil est à 100 %.
+//
+// v575 — Daniel : « ça ouvre les mêmes » et « quand tu remplis, ça ne met pas
+// à jour ». Le calcul est sorti d'ici (fonction pure `utils/profile_completion.dart`,
+// testée) et CHAQUE élément porte désormais sa propre destination : photo →
+// sélecteur d'image, téléphone/adresse/ville → feuille coordonnées, nom / bio /
+// services / animaux → écran d'édition POSITIONNÉ sur le bon champ, animaux du
+// propriétaire → « Mes animaux ». Après l'action, `onChanged` recharge le
+// profil depuis le serveur pour que le pourcentage bouge tout de suite.
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
 import 'package:hopetsit/models/profile_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/profile_completion.dart';
 import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
-class ProfileCompletionItem {
-  final String key;
-  final String label;
-  final bool done;
-  const ProfileCompletionItem(this.key, this.label, this.done);
-}
+export 'package:hopetsit/utils/profile_completion.dart'
+    show ProfileFixItem, ProfileFixTarget, ProfileFocusField;
 
-/// Calcule les éléments de complétion d'un profil selon le rôle.
-List<ProfileCompletionItem> profileCompletionItems(ProfileModel p, String role) {
-  final isOwner = role == 'owner';
-  final items = <ProfileCompletionItem>[
-    ProfileCompletionItem('photo', 'completion_item_photo'.tr, p.avatar.url.trim().isNotEmpty),
-    ProfileCompletionItem('phone', 'completion_item_phone'.tr, p.mobile.trim().isNotEmpty),
-    ProfileCompletionItem('address', 'completion_item_address'.tr, p.address.trim().isNotEmpty),
-    ProfileCompletionItem('city', 'completion_item_city'.tr, (p.city ?? '').trim().isNotEmpty),
-    ProfileCompletionItem('bio', 'completion_item_bio'.tr, p.bio.trim().length >= 20),
-  ];
-  if (isOwner) {
-    final petsCount = p.stats.petsCount > 0 ? p.stats.petsCount : p.pets.length;
-    items.add(ProfileCompletionItem('pets', 'completion_item_pets'.tr, petsCount > 0));
-  } else {
-    items.add(ProfileCompletionItem('services', 'completion_item_services'.tr, p.service.isNotEmpty));
-    items.add(ProfileCompletionItem('animals', 'completion_item_animals'.tr, p.acceptedPetTypes.isNotEmpty));
-  }
-  return items;
-}
+/// Conservé pour les appelants historiques.
+List<ProfileFixItem> profileCompletionItems(ProfileModel p, String role) =>
+    profileCompletionItemsFor(ProfileCompletionInput.fromProfile(p), role);
 
-int profileCompletionPercent(ProfileModel p, String role) {
-  final items = profileCompletionItems(p, role);
-  if (items.isEmpty) return 100;
-  final done = items.where((i) => i.done).length;
-  return ((done / items.length) * 100).round();
-}
+int profileCompletionPercent(ProfileModel p, String role) =>
+    profileCompletionPercentFor(ProfileCompletionInput.fromProfile(p), role);
 
 class ProfileCompletionCard extends StatelessWidget {
   final ProfileModel? profile;
   final String role;
   final Color accent;
-  final VoidCallback onEditProfile;
+
+  /// Ouvre « Modifier le profil ». Reçoit le champ à mettre en évidence
+  /// (`ProfileFocusField.*`) ; un écran qui ne le gère pas l'ignore.
+  final void Function(String? focusField) onEditProfile;
   final VoidCallback? onPets;
   final VoidCallback? onPhoto;
+
+  /// Rechargement du profil après une action (retour d'écran ou de feuille).
+  final Future<void> Function()? onChanged;
 
   const ProfileCompletionCard({
     super.key,
@@ -60,34 +50,45 @@ class ProfileCompletionCard extends StatelessWidget {
     required this.onEditProfile,
     this.onPets,
     this.onPhoto,
+    this.onChanged,
   });
 
-  void _fix(BuildContext context, ProfileCompletionItem item) {
-    switch (item.key) {
-      case 'phone':
-      case 'address':
-      case 'city':
-        showContactInfoSheet(context, role: role, profile: profile);
+  Future<void> _fix(BuildContext context, ProfileFixItem item) async {
+    switch (item.target) {
+      case ProfileFixTarget.contactSheet:
+        await showContactInfoSheet(context, role: role, profile: profile);
         break;
-      case 'pets':
-        (onPets ?? onEditProfile)();
+      case ProfileFixTarget.pets:
+        if (onPets != null) {
+          onPets!();
+        } else {
+          onEditProfile(item.focusField);
+        }
         break;
-      case 'photo':
-        (onPhoto ?? onEditProfile)();
+      case ProfileFixTarget.photo:
+        if (onPhoto != null) {
+          onPhoto!();
+        } else {
+          onEditProfile(item.focusField);
+        }
         break;
-      default:
-        onEditProfile();
+      case ProfileFixTarget.editProfile:
+        onEditProfile(item.focusField);
+        break;
     }
+    // Le pourcentage et la liste doivent bouger DÈS le retour.
+    if (onChanged != null) await onChanged!();
   }
 
   @override
   Widget build(BuildContext context) {
     final p = profile;
     if (p == null) return const SizedBox.shrink();
-    final items = profileCompletionItems(p, role);
+    final input = ProfileCompletionInput.fromProfile(p);
+    final items = profileCompletionItemsFor(input, role);
     final missing = items.where((i) => !i.done).toList();
     if (missing.isEmpty) return const SizedBox.shrink();
-    final percent = profileCompletionPercent(p, role);
+    final percent = profileCompletionPercentFor(input, role);
 
     return Container(
       margin: EdgeInsets.only(bottom: 16.h),
@@ -152,6 +153,7 @@ class ProfileCompletionCard extends StatelessWidget {
             children: [
               for (final m in missing)
                 GestureDetector(
+                  key: ValueKey<String>('completion_fix_${m.key}'),
                   onTap: () => _fix(context, m),
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
@@ -166,7 +168,7 @@ class ProfileCompletionCard extends StatelessWidget {
                         Icon(Icons.add_rounded, size: 14.sp, color: accent),
                         SizedBox(width: 4.w),
                         InterText(
-                          text: m.label,
+                          text: m.labelKey.tr,
                           fontSize: 12.sp,
                           fontWeight: FontWeight.w600,
                           color: accent,

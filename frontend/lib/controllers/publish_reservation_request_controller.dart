@@ -12,6 +12,8 @@ import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/logger.dart';
+// v575 — audit P1-7 : bornes de durée de promenade partagées avec le serveur.
+import 'package:hopetsit/utils/walk_duration.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -237,11 +239,16 @@ class PublishReservationRequestController extends GetxController {
 
     // Promenade : recalcule la durée sélectionnée depuis l'écart start→end pour
     // que la puce de durée soit correctement mise en surbrillance.
-    if (selectedServiceType.value == 'dog_walking' &&
-        p.startDate != null &&
-        p.endDate != null) {
-      final diffMin = p.endDate!.difference(p.startDate!).inMinutes;
-      if (diffMin > 0) selectedDuration.value = diffMin.toString();
+    // v575 — audit P1-7 : la durée choisie par le propriétaire est désormais
+    // stockée sur l'annonce ; on la relit en priorité.
+    if (selectedServiceType.value == 'dog_walking') {
+      final stored = p.walkDurationMinutes;
+      if (stored != null && stored > 0) {
+        selectedDuration.value = stored.toString();
+      } else if (p.startDate != null && p.endDate != null) {
+        final diffMin = p.endDate!.difference(p.startDate!).inMinutes;
+        if (diffMin > 0) selectedDuration.value = diffMin.toString();
+      }
     }
 
     // Lieu de garde (at_owner / at_sitter / both).
@@ -610,6 +617,13 @@ class PublishReservationRequestController extends GetxController {
             : null)
         : null;
 
+    // v575 — audit P1-7 : la durée de promenade choisie ici n'était JAMAIS
+    // envoyée — l'annonce ne portait que start/end, et le prestataire la
+    // devinait (mal). On la transmet, normalisée aux bornes du serveur.
+    final walkMinutes = selectedServiceType.value == 'dog_walking'
+        ? roundToWalkDuration(int.tryParse(selectedDuration.value ?? ''))
+        : null;
+
     isSubmitting.value = true;
     try {
       if (isEditMode) {
@@ -635,6 +649,7 @@ class PublishReservationRequestController extends GetxController {
           houseSittingVenue: venue,
           serviceLocation: svcLocation,
           showAnimalCharacter: showAnimalCharacter.value,
+          walkDurationMinutes: walkMinutes,
         );
 
         // v449 — Daniel : « modifier l'annonce MÊME les photos ». Si l'owner a
@@ -676,6 +691,7 @@ class PublishReservationRequestController extends GetxController {
           houseSittingVenue: venue,
           serviceLocation: svcLocation,
           showAnimalCharacter: showAnimalCharacter.value,
+          walkDurationMinutes: walkMinutes,
         );
       } else {
         await _ownerRepository.createReservationRequestWithMedia(
@@ -691,6 +707,7 @@ class PublishReservationRequestController extends GetxController {
           houseSittingVenue: venue,
           serviceLocation: svcLocation,
           showAnimalCharacter: showAnimalCharacter.value,
+          walkDurationMinutes: walkMinutes,
           imageFiles: imageFiles.toList(),
         );
       }

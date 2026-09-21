@@ -603,7 +603,15 @@ class PushNotificationService extends GetxService {
       if (route.isEmpty || !route.startsWith('/')) {
         route = DeepLinkService.routeForNotification(type, data);
       }
-      unawaited(DeepLinkService.instance.openRoute(route));
+      // v575 — audit P1-3 : le serveur dit désormais pour QUEL profil la
+      // notification a été émise. Si ce n'est pas le profil actif, on
+      // n'ouvre pas un écran qui répondrait 403 : `openRoute` affiche la
+      // liste des notifications avec un bandeau traduit.
+      final recipientRole = (data['recipientRole'] ?? '').toString();
+      unawaited(
+        DeepLinkService.instance
+            .openRoute(route, recipientRole: recipientRole),
+      );
     } catch (e) {
       if (kDebugMode) debugPrint('FCM tap nav failed (type=$type): $e');
       try {

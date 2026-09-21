@@ -77,14 +77,12 @@ class ProfilePreferencesTab extends StatelessWidget {
           value: prefs.hideFromMap,
           onChanged: (v) => onSave(prefs.copyWith(hideFromMap: v)),
         ),
-        SizedBox(height: 18.h),
-        _header(context, 'profile_pref_language'.tr),
-        _navTile(
-          context,
-          icon: Icons.translate_rounded,
-          label: 'profile_pref_language'.tr,
-          onTap: onLanguage,
-        ),
+        // v575 — Daniel : « il y a 2 fois "Langue préférée" ». C'ÉTAIT un vrai
+        // doublon : ce bloc ouvrait le même sélecteur de LANGUE DE L'APP que
+        // la section « Apparence & langue » affichée juste en dessous sur le
+        // MÊME écran (`preferences_screen.dart`). Une seule entrée est
+        // conservée : « Langue de l'app », dans la section Apparence & langue.
+        // `onLanguage` reste dans l'API du widget (appelé par d'autres écrans).
       ],
     );
   }
@@ -161,49 +159,6 @@ class ProfilePreferencesTab extends StatelessWidget {
     );
   }
 
-  Widget _navTile(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: EdgeInsets.only(bottom: 8.h),
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(16.r),
-          boxShadow: AppColors.cardShadow(context),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 38.w,
-              height: 38.w,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-              child: Icon(icon, size: 18.sp, color: accent),
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: PoppinsText(
-                text: label,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary(context),
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded,
-                size: 20.sp, color: AppColors.textSecondary(context)),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 /// v406 refonte — contenu de l'onglet « Sécurité » du profil (maquette).

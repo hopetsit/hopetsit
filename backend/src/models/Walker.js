@@ -49,6 +49,14 @@ const walkerSchema = new mongoose.Schema(
       },
     },
     name: { type: String, required: true, trim: true },
+    // v575 — « dans mon profil j'ai que "nom" et pas "nom et prénom" »
+    // (Daniel, 21/09/2026). `name` reste la source d'affichage PARTOUT (cartes,
+    // chat, réservations, factures, e-mails, admin, site) ; ces deux champs
+    // l'alimentent. Optionnels : un compte historique n'a que `name`, et le
+    // découpage est alors dérivé À LA LECTURE (utils/personName.js) sans
+    // migration de données.
+    firstName: { type: String, default: '', trim: true },
+    lastName: { type: String, default: '', trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     mobile: { type: String, default: '' },
     countryCode: { type: String, default: '' },

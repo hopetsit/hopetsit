@@ -132,6 +132,21 @@ const buildLastMessagePreview = ({ body, attachments }) => {
 };
 
 /**
+ * v575 — audit P2-1 : nature du dernier message (pendant traduisible de
+ * `buildLastMessagePreview`). '' = vrai texte → l'app affiche `lastMessage`.
+ * Valeurs alignées sur `chatPreviewForKind` côté app.
+ */
+const buildLastMessageKind = ({ body, attachments }) => {
+  if (body) return '';
+  const list = Array.isArray(attachments) ? attachments : [];
+  if (list.length === 0) return '';
+  if (list.length === 1) {
+    return list[0]?.resourceType === 'video' ? 'video' : 'image';
+  }
+  return 'attachment';
+};
+
+/**
  * v18.8 — Accepte désormais (ownerId, sitterId[, walkerId]).
  * Quand walkerId est fourni, on match sur walkerId au lieu de sitterId.
  * Conserve la compatibilité avec l'ancienne signature à 2 arguments.
@@ -265,6 +280,13 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
   });
 
   conversation.lastMessage = buildLastMessagePreview({
+    body: trimmedBody,
+    attachments: normalizedAttachments,
+  });
+  // v575 — audit P2-1 : nature du dernier message, pour que l'app rende
+  // l'aperçu dans SA langue au lieu de l'anglais figé ci-dessus.
+  // `lastMessage` reste écrit à l'identique pour les versions installées.
+  conversation.lastMessageKind = buildLastMessageKind({
     body: trimmedBody,
     attachments: normalizedAttachments,
   });

@@ -687,11 +687,21 @@ class ChatController extends GetxController
     }
 
     // Extract last message
-    final lastMessage =
+    // v575 — audit P2-1 : l'aperçu d'un message SANS texte (photo, vidéo,
+    // vocal, pièce jointe) était figé dans la langue du serveur (« Sent a
+    // photo », « 🎤 Message vocal ») → liste moitié français moitié anglais.
+    // Le serveur envoie désormais la NATURE du message (`lastMessageKind`) ;
+    // on la rend dans la langue de l'utilisateur. Sans ce champ (ancien
+    // serveur), on garde le texte tel quel.
+    final lastMessageKind = (data['lastMessageKind'] ?? '').toString();
+    final lastMessageRaw =
         data['lastMessage']?.toString() ??
         data['message']?.toString() ??
         data['text']?.toString() ??
         '';
+    final lastMessage = lastMessageKind.isNotEmpty
+        ? chatPreviewForKind(lastMessageKind, '')
+        : lastMessageRaw;
 
     // Extract last message time
     DateTime lastMessageTime;

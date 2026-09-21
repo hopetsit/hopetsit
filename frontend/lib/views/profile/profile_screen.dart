@@ -77,13 +77,18 @@ class ProfileScreen extends StatelessWidget {
                   SizedBox(height: 16.h),
 
                   // v565 — point 25 : barre « profil complété à X % ».
+                  // v575 — chaque pastille ouvre SON écran, positionné sur le
+                  // bon champ ; `onChanged` recharge le profil au retour pour
+                  // que le pourcentage bouge immédiatement.
                   Obx(() => ProfileCompletionCard(
                         profile: controller.profile.value,
                         role: 'owner',
                         accent: AppColors.primaryColor,
-                        onEditProfile: controller.navigateToEditProfile,
+                        onEditProfile: (focusField) =>
+                            controller.navigateToEditProfile(focusField: focusField),
                         onPets: controller.navigateToEditPetProfile,
                         onPhoto: controller.pickAndUploadProfilePicture,
+                        onChanged: controller.loadMyProfile,
                       )),
 
                   // Quick Actions Row

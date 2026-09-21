@@ -5,8 +5,62 @@ const { updateService, updateProfile, updateCard, deleteAccount, updateOwnerCard
   // v565
   getNotificationPrefs, updateNotificationPrefs, requestEmailChange, confirmEmailChange, resendEmailChange } = require('../controllers/userController');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { identityGroup } = require('../utils/identityGroup');
 
 const router = express.Router();
+
+// ─── v575 — P0-3 SÉCURITÉ : les routes `/users/:id/*` ────────────────────────
+// Les 4 routes qui prennent un id dans l'URL (`PUT /:id/service`,
+// `PUT /:id/profile`, `PUT /:id/card`, `DELETE /:id`) étaient montées SANS
+// `requireAuth` : n'importe qui connaissant un id — et un id fuit dans
+// `ownerId` / `sitterId` / `walkerId` de nombreuses réponses — pouvait
+// modifier un profil ou SUPPRIMER un compte.
+//
+// `requireSelfId` complète `requireAuth` : la cible doit être la personne
+// connectée. Une personne = jusqu'à 3 documents (Owner / Sitter / Walker)
+// reliés par l'e-mail → on accepte tout id du GROUPE D'IDENTITÉ
+// (`utils/identityGroup`), pas seulement `req.user.id` : l'app édite parfois
+// le profil d'un rôle frère avec le jeton d'un autre.
+//
+// Pas d'exception admin ici : l'administration passe par ses propres routes
+// `/admin/users/...` (middleware `requireAdmin` dans `adminRoutes.js`).
+const requireSelfId = async (req, res, next) => {
+  const logger = require('../utils/logger');
+  try {
+    const meId = String(req.user?.id || '');
+    const targetId = String(req.params?.id || '');
+    if (!meId) {
+      return res.status(401).json({ error: 'Authorization token is required.' });
+    }
+    if (!targetId) {
+      return res.status(400).json({ error: 'Invalid user id.' });
+    }
+    if (targetId === meId) return next();
+
+    const { set } = await identityGroup(meId);
+    if (set.has(targetId)) return next();
+
+    logger.warn(
+      {
+        path: req.originalUrl,
+        method: req.method,
+        userId: meId,
+        targetId,
+      },
+      '[requireSelfId] 403 — tentative de modification du compte d’autrui',
+    );
+    return res.status(403).json({
+      error: 'You can only modify your own account.',
+      code: 'FORBIDDEN_NOT_SELF',
+    });
+  } catch (error) {
+    logger.error('[requireSelfId] identity check failed', error);
+    return res.status(403).json({
+      error: 'You can only modify your own account.',
+      code: 'FORBIDDEN_NOT_SELF',
+    });
+  }
+};
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -424,7 +478,8 @@ router.delete('/me', requireAuth, deleteAccountFromToken);
  *       404:
  *         description: User not found
  */
-router.put('/:id/service', updateService);
+// v575 P0-3 — authentification + cible = soi-même (cf. `requireSelfId`).
+router.put('/:id/service', requireAuth, requireSelfId, updateService);
 
 /**
  * @swagger
@@ -494,7 +549,10 @@ router.put('/:id/service', updateService);
  *       404:
  *         description: User not found
  */
-router.put('/:id/profile', updateProfile);
+// v575 P0-3 — authentification + cible = soi-même (cf. `requireSelfId`).
+// ⚠️ Cette route EST utilisée par l'app (préférences, 2FA, « Modifier le
+// profil » propriétaire) : elle envoie déjà son jeton (`requiresAuth: true`).
+router.put('/:id/profile', requireAuth, requireSelfId, updateProfile);
 
 /**
  * @swagger
@@ -532,7 +590,9 @@ router.put('/:id/profile', updateProfile);
  *       404:
  *         description: User not found
  */
-router.put('/:id/card', updateCard);
+// v575 P0-3 — authentification + cible = soi-même (cf. `requireSelfId`).
+// (La route répond 410 depuis la v568 : plus aucun PAN ne transite ici.)
+router.put('/:id/card', requireAuth, requireSelfId, updateCard);
 
 /**
  * @swagger
@@ -553,7 +613,8 @@ router.put('/:id/card', updateCard);
  *       404:
  *         description: User not found
  */
-router.delete('/:id', deleteAccount);
+// v575 P0-3 — authentification + cible = soi-même (cf. `requireSelfId`).
+router.delete('/:id', requireAuth, requireSelfId, deleteAccount);
 
 /**
  * @swagger

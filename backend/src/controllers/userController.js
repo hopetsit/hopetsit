@@ -26,48 +26,21 @@ const logger = require('../utils/logger');
 const { ensureAvatarFromSiblingRoles } = require('../utils/avatarFallback');
 const { identityGroup } = require('../utils/identityGroup');
 
-// ─── v565 point 1 — propagation aux 3 profils de la personne ───────────────
-// AVANT : updateProfile/updateProfilePicture appelaient utils/userSyncService,
-// dont le `module.exports = syncSafeFields` (identifiant inexistant) lève
-// ReferenceError au require → le try/catch avalait l'erreur et AUCUNE synchro
-// n'a jamais eu lieu (« cross-role sync failed (non-blocking) » dans les logs).
-// On propage ici, par identityGroup (même _id / e-mail / oldId), les champs
-// partagés : nom, photo, téléphone, indicatif, pays, ville, adresse, langue…
+// ─── v565 point 1 / v575 — propagation aux 3 profils de la personne ────────
+// AVANT (v565) : `propagateToSiblings` vivait ici et propageait aussi `bio` et
+// `skills` — la présentation d'un GARDIEN se retrouvait sur le profil
+// propriétaire — et écrasait les frères par des valeurs VIDES (un écran
+// d'édition qui n'affiche pas le champ « pays » envoie `country: ''`).
+// v575 : la liste blanche et la règle « jamais d'écrasement par du vide »
+// vivent dans `utils/sharedIdentity.js`, partagé par les routes des 3 rôles.
 const MODEL_BY_NAME = { Owner, Sitter, Walker };
-const SIBLING_SYNC_FIELDS = [
-  'name', 'avatar', 'mobile', 'countryCode', 'country', 'city', 'address',
-  'language', 'currency', 'bio', 'skills', 'dateOfBirth', 'location',
-];
-const propagateToSiblings = async (accountId, update, { fields = SIBLING_SYNC_FIELDS } = {}) => {
-  const payload = {};
-  for (const k of fields) {
-    if (Object.prototype.hasOwnProperty.call(update || {}, k) && update[k] !== undefined) payload[k] = update[k];
-  }
-  if (!Object.keys(payload).length) return { synced: [], targets: 0 };
-  const g = await identityGroup(accountId);
-  let targets = 0;
-  for (const d of g.docs) {
-    if (String(d.id) === String(accountId)) continue;
-    const Model = MODEL_BY_NAME[d.model];
-    if (!Model) continue;
-    try {
-      const r = await Model.updateOne({ _id: d.id }, { $set: payload });
-      if (r?.modifiedCount) targets += 1;
-      // `location.city` ne peut être posé que si le doc a des coordonnées
-      // (index 2dsphere) → mise à jour conditionnelle.
-      if (payload.city && !payload.location) {
-        await Model.updateOne(
-          { _id: d.id, 'location.coordinates.1': { $exists: true } },
-          { $set: { 'location.city': payload.city } },
-        );
-      }
-    } catch (e) {
-      logger.warn(`[propagateToSiblings] ${d.model}:${d.id} failed : ${e?.message || e}`);
-    }
-  }
-  logger.info(`[propagateToSiblings] ${accountId} → ${targets} doc(s) : ${Object.keys(payload).join(', ')}`);
-  return { synced: Object.keys(payload), targets };
-};
+const {
+  propagateSharedIdentity,
+  fillMissingIdentityFromSiblings,
+  buildIdentityFromSource,
+  SHARED_IDENTITY_FIELDS,
+  isEmptyValue: isEmptyIdentityValue,
+} = require('../utils/sharedIdentity');
 
 // v565 point 12 — indicatif renvoyé/accepté tel quel (« +33 ») ; on ajoute
 // juste le « + » manquant quand le client envoie « 33 ».
@@ -76,6 +49,30 @@ const normalizeCountryCode = (v) => {
   if (!raw) return '';
   if (/^\d{1,4}$/.test(raw)) return `+${raw}`;
   return raw;
+};
+
+// ─── v575 — P0-4 : la collection cible vient du RÔLE DU JETON ───────────────
+// Plusieurs fonctions de ce fichier devinaient la collection par une cascade
+// `Owner.findById(id)` → `Sitter.findById(id)` → `Walker.findById(id)`, en
+// ignorant `req.user.role`. Or `switchRole` peut créer le document du rôle
+// cible avec `_id = baseOldId` (l'`_id` du premier document de la personne) :
+// pour un compte créé d'abord en gardien/promeneur, `Owner._id === Sitter._id`.
+// La cascade renvoyait alors TOUJOURS l'Owner — « Supprimer mon compte »
+// effaçait le profil PROPRIÉTAIRE d'un prestataire, et « Modifier mon profil »
+// écrivait sur le mauvais document.
+//
+// `ROLE_MODELS[role]` est désormais essayé EN PREMIER ; la cascade historique
+// ne sert plus que de repli (jeton sans rôle connu, ou id d'un document frère
+// d'une autre collection — cas légitime de `PUT /users/:id/profile`).
+const ROLE_MODELS = { owner: Owner, sitter: Sitter, walker: Walker };
+const ROLE_MODEL_NAMES = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' };
+const ALL_ROLES = ['owner', 'sitter', 'walker'];
+
+/** Rôles à essayer, celui du jeton d'abord. Ne lève jamais. */
+const roleSearchOrder = (req) => {
+  const tokenRole = String(req?.user?.role || '').toLowerCase();
+  if (!ROLE_MODELS[tokenRole]) return [...ALL_ROLES];
+  return [tokenRole, ...ALL_ROLES.filter((r) => r !== tokenRole)];
 };
 
 const OWNER_SERVICES = ['Pet Sitting', 'House Sitting', 'Day Care', 'Long Stay'];
@@ -87,8 +84,12 @@ const SITTER_SERVICES = [...OWNER_SERVICES, 'Dog Walking'];
 // Airwallex seul ; nous ne conservons que marque, 4 derniers chiffres et
 // expiration, renvoyés par l'API Airwallex.
 
-const buildProfileUpdate = ({ name, mobile, countryCode, language, address, avatar, bio, skills, currency, country, city }) => {
+const buildProfileUpdate = ({ name, mobile, countryCode, language, address, avatar, bio, skills, currency, country, city }, currentDoc = {}) => {
   const update = {};
+  // v575 — « prénom » + « nom » : traités par `utils/personName.buildNameUpdate`
+  // (appelé par `updateProfile`, qui a accès à `firstName`/`lastName` du corps).
+  // Ici on ne garde le chemin historique que pour les appels internes qui ne
+  // passent qu'un `name`.
   // v565 point 1 — pays (ISO-2) et ville (champ plat, conservé sans GPS).
   if (country !== undefined) {
     if (country !== null && typeof country !== 'string') throw new Error('Country must be a string.');
@@ -174,18 +175,21 @@ const updateService = async (req, res) => {
       return res.status(400).json({ error: 'Service is required (array of service names).' });
     }
 
-    let account = await Owner.findById(id);
-    let role = 'owner';
     // Session v15 — all roles can pick any of the 5 service types (Pet
     // Sitting, House Sitting, Day Care, Long Stay, Dog Walking). The old
     // split OWNER_SERVICES / SITTER_SERVICES used to reject a legitimate
     // "Dog Walking" selection for an Owner who wants to offer walks too.
-    let allowedServices = SITTER_SERVICES;
+    const allowedServices = SITTER_SERVICES;
 
-    if (!account) {
-      account = await Sitter.findById(id);
-      role = 'sitter';
-      allowedServices = SITTER_SERVICES;
+    // v575 P0-4 — le rôle du jeton d'abord (cf. `roleSearchOrder`). Avant, un
+    // gardien dont l'`_id` est partagé avec son document propriétaire voyait
+    // ses services écrits sur l'Owner. Le promeneur, lui, n'était même pas
+    // cherché (la cascade s'arrêtait à Sitter) → 404.
+    let account = null;
+    let role = null;
+    for (const r of roleSearchOrder(req)) {
+      account = await ROLE_MODELS[r].findById(id);
+      if (account) { role = r; break; }
     }
 
     if (!account) {
@@ -217,7 +221,29 @@ const updateProfile = async (req, res) => {
     const { id } = req.params;
     const { name, mobile, countryCode, language, address, avatar, bio, skills, currency, location, servicePreferences, country, city } = req.body || {};
 
-    const update = buildProfileUpdate({ name, mobile, countryCode, language, address, avatar, bio, skills, currency, country, city });
+    const update = buildProfileUpdate({ mobile, countryCode, language, address, avatar, bio, skills, currency, country, city });
+
+    // v575 — « dans mon profil j'ai que "nom" et pas "nom et prénom" ».
+    // `name` reste la source d'affichage : il est recalculé depuis
+    // `firstName` + `lastName` quand l'app les envoie, et re-découpé quand une
+    // ancienne app n'envoie que `name`.
+    const body = req.body || {};
+    const touchesName = ['name', 'firstName', 'lastName']
+      .some((k) => Object.prototype.hasOwnProperty.call(body, k));
+    if (touchesName) {
+      const { buildNameUpdate } = require('../utils/personName');
+      // Le champ non fourni garde sa valeur courante : on lit d'abord le
+      // document, quel que soit son rôle.
+      // v575 P0-4 — rôle du jeton d'abord : quand `Owner._id === Sitter._id`
+      // (switchRole), lire l'Owner en premier ramenait le nom du mauvais doc.
+      let currentForName = {};
+      for (const r of roleSearchOrder(req)) {
+        const d = await ROLE_MODELS[r].findById(id).select('name firstName lastName').lean().catch(() => null);
+        if (d) { currentForName = d; break; }
+      }
+      const nameUpdate = buildNameUpdate(body, currentForName);
+      if (nameUpdate) Object.assign(update, nameUpdate);
+    }
 
     // Sprint 5 step 2 — accept owner service preferences.
     if (servicePreferences && typeof servicePreferences === 'object') {
@@ -285,19 +311,16 @@ const updateProfile = async (req, res) => {
       updateOps.$unset = { location: '' };
     }
 
-    let account = await Owner.findByIdAndUpdate(id, updateOps, { new: true });
-    let role = 'owner';
-
-    if (!account) {
-      account = await Sitter.findByIdAndUpdate(id, updateOps, { new: true });
-      role = 'sitter';
-    }
-
     // v18.9.8 — support walker (avant, updateProfile ne regardait que Owner
     // et Sitter, un walker obtenait 404 en modifiant son profil).
-    if (!account) {
-      account = await Walker.findByIdAndUpdate(id, updateOps, { new: true });
-      role = 'walker';
+    // v575 P0-4 — et surtout : le rôle du jeton en premier. Sinon un gardien
+    // dont l'`_id` est partagé avec son document propriétaire (switchRole)
+    // écrivait sa bio/ses préférences sur le profil PROPRIÉTAIRE.
+    let account = null;
+    let role = null;
+    for (const r of roleSearchOrder(req)) {
+      account = await ROLE_MODELS[r].findByIdAndUpdate(id, updateOps, { new: true });
+      if (account) { role = r; break; }
     }
 
     if (!account) {
@@ -319,25 +342,11 @@ const updateProfile = async (req, res) => {
       } catch (_) { /* best-effort */ }
     }
 
-    // v18.9.8 — sync des champs partagés (nom, adresse, ville, carte…)
-    // vers les autres rôles du même user (matché par email). Les tarifs
-    // et autres champs rôle-spécifiques sont automatiquement ignorés.
-    try {
-      const { syncSharedFields } = require('../utils/userSyncService');
-      await syncSharedFields({
-        email: account.email,
-        update,
-        excludeRole: role,
-      });
-    } catch (syncErr) {
-      logger.warn('[updateProfile] cross-role sync failed (non-blocking)', syncErr?.message || syncErr);
-    }
-    // v565 point 1 — propagation fiable (identityGroup) des champs partagés.
-    try {
-      await propagateToSiblings(account._id, update);
-    } catch (propErr) {
-      logger.warn('[updateProfile] propagateToSiblings failed (non-blocking)', propErr?.message || propErr);
-    }
+    // v575 — propagation des SEULS champs d'identité de la personne vers ses
+    // documents frères (même e-mail / oldId). `bio`, `skills`, les tarifs et
+    // tout ce qui est propre à un rôle restent sur le document courant, et une
+    // valeur vide ne remplace jamais une valeur existante chez le frère.
+    await propagateSharedIdentity(account, role, update);
 
     const out = sanitizeUser(account, { includeEmail: true });
     out.city = out.city || (out.location && out.location.city) || '';
@@ -389,27 +398,27 @@ const deleteAccount = async (req, res) => {
   try {
     const { id } = req.params;
 
-    let account = await Owner.findById(id);
-    let role = 'owner';
-
-    if (!account) {
-      account = await Sitter.findById(id);
-      role = 'sitter';
-    }
-
     // Walkers are a distinct collection since session v3.2 — look them up too
     // so "Delete my account" works for the walker role.
-    if (!account) {
-      account = await Walker.findById(id);
-      role = 'walker';
+    //
+    // v575 P0-4 — BUG CRITIQUE : cette cascade commençait par `Owner.findById`
+    // et ignorait `req.user.role`. `switchRole` réutilise `baseOldId` comme
+    // `_id` du document créé → pour un compte inscrit d'abord en gardien ou
+    // promeneur, `Owner._id === Sitter._id`. Un prestataire qui supprimait son
+    // compte effaçait donc son profil PROPRIÉTAIRE (et gardait le sien).
+    // Le rôle du jeton est maintenant essayé en premier.
+    let account = null;
+    let role = null;
+    for (const r of roleSearchOrder(req)) {
+      account = await ROLE_MODELS[r].findById(id);
+      if (account) { role = r; break; }
     }
 
     if (!account) {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    const roleModel =
-      role === 'owner' ? 'Owner' : role === 'sitter' ? 'Sitter' : 'Walker';
+    const roleModel = ROLE_MODEL_NAMES[role];
     const userId = account._id;
 
     // v567 — Daniel : « demander 3 raisons et que ça me le dise dans l'admin ».
@@ -435,14 +444,20 @@ const deleteAccount = async (req, res) => {
       logger.warn(`[deleteAccount] booking stats failed (continuing): ${e?.message || e}`);
     }
 
-    // Conversation / Booking / Application are keyed by ownerId + sitterId
-    // (the walker table is not yet wired into these). For walkers we skip
-    // these cleanups — anything that references the walker goes orphan and
-    // gets pruned by a background job later.
-    if (role === 'owner' || role === 'sitter') {
-      const conversationFilter =
-        role === 'owner' ? { ownerId: userId } : { sitterId: userId };
-      const conversations = await Conversation.find(conversationFilter).select('_id');
+    // Conversation / Booking / Application référencent la personne par
+    // `ownerId`, `sitterId` OU `walkerId` (les 3 champs existent dans les 3
+    // schémas depuis la v18.6).
+    //
+    // v575 P1-10 — AVANT, le cas `walker` était sauté : le commentaire
+    // annonçait un « job de fond » qui n'a jamais existé, donc les
+    // conversations, messages, réservations et candidatures d'un promeneur
+    // supprimé restaient en base indéfiniment (RGPD + orphelins affichés en
+    // face). Le promeneur suit désormais exactement les mêmes règles que le
+    // gardien, avec `walkerId`.
+    {
+      const idField =
+        role === 'owner' ? 'ownerId' : role === 'sitter' ? 'sitterId' : 'walkerId';
+      const conversations = await Conversation.find({ [idField]: userId }).select('_id');
 
       if (conversations.length) {
         const conversationIds = conversations.map((conversation) => conversation._id);
@@ -450,13 +465,9 @@ const deleteAccount = async (req, res) => {
         await Conversation.deleteMany({ _id: { $in: conversationIds } });
       }
 
-      await Booking.deleteMany({
-        [role === 'owner' ? 'ownerId' : 'sitterId']: userId,
-      });
+      await Booking.deleteMany({ [idField]: userId });
 
-      await Application.deleteMany({
-        [role === 'owner' ? 'ownerId' : 'sitterId']: userId,
-      });
+      await Application.deleteMany({ [idField]: userId });
     }
 
     let sitterIdsForRecalc = [];
@@ -714,14 +725,17 @@ const deleteAccountFromToken = async (req, res) => {
     // Walkers are a distinct collection (added in session v3.2). Without
     // this branch the Model fallback to Owner made walker deletions fail
     // with "User not found".
-    const Model =
-      role === 'sitter' ? Sitter : role === 'walker' ? Walker : Owner;
+    const Model = ROLE_MODELS[String(role).toLowerCase()] || Owner;
     const account = await Model.findById(userId);
 
     if (!account) {
       return res.status(404).json({ error: 'User not found.' });
     }
 
+    // v575 P0-4 — `deleteAccount` lit `req.user.role` (via `roleSearchOrder`)
+    // et cible `ROLE_MODELS[role]` : le rôle du jeton est donc propagé, et un
+    // gardien qui se désinscrit ne peut plus effacer son profil propriétaire
+    // homonyme (`Owner._id === Sitter._id` après un switchRole).
     req.params.id = userId;
     return deleteAccount(req, res);
   } catch (error) {
@@ -818,25 +832,8 @@ const updateProfilePicture = async (req, res) => {
     // même email → en changeant de rôle, ou en se connectant depuis un autre
     // appareil sur l'autre rôle, l'ancienne photo (ou aucune) revenait.
     // Le correctif v523 côté app ne faisait que MASQUER ce désalignement.
-    try {
-      const { syncSharedFields } = require('../utils/userSyncService');
-      await syncSharedFields({
-        email: user.email,
-        update: { avatar: user.avatar },
-        excludeRole: userRole,
-      });
-    } catch (syncErr) {
-      logger.warn(
-        '[updateProfilePicture] cross-role sync failed (non-blocking)',
-        syncErr?.message || syncErr,
-      );
-    }
-    // v565 point 1 — propagation fiable de la photo aux 2 autres profils.
-    try {
-      await propagateToSiblings(user._id, { avatar: user.avatar });
-    } catch (propErr) {
-      logger.warn('[updateProfilePicture] propagateToSiblings failed', propErr?.message || propErr);
-    }
+    // v575 — une seule voie de propagation : utils/sharedIdentity.
+    await propagateSharedIdentity(user, userRole, { avatar: user.avatar });
 
     res.json({
       message: 'Profile picture updated successfully.',
@@ -877,6 +874,10 @@ const getOwnerProfile = async (req, res) => {
       }
       // v546 — photo complétée depuis un rôle frère si vide (autre appareil).
       await ensureAvatarFromSiblingRoles(account, userRole);
+      // v575 — rattrapage À LA LECTURE : tout champ d'identité vide ici alors
+      // qu'un profil frère le possède est complété (réponse + base, pour CE
+      // document seulement). Évite toute migration sur la production.
+      await fillMissingIdentityFromSiblings(account, userRole);
       const p = sanitizeUser(account, { includeEmail: true });
       // v565 — ville plate (point 1) ; countryCode renvoyé tel quel (point 12).
       p.city = p.city || (p.location && p.location.city) || '';
@@ -890,6 +891,8 @@ const getOwnerProfile = async (req, res) => {
     }
     // v546 — photo complétée depuis un rôle frère si vide (autre appareil).
     await ensureAvatarFromSiblingRoles(owner, 'owner');
+    // v575 — rattrapage à la lecture des champs d'identité vides.
+    await fillMissingIdentityFromSiblings(owner, 'owner');
 
     // Fetch related data
     const pets = await Pet.find({ ownerId: ownerId }).sort({ createdAt: -1 });
@@ -960,7 +963,8 @@ const signAuthToken = (payload, options = {}) => {
   });
 };
 
-const ROLE_MODELS = { owner: Owner, sitter: Sitter, walker: Walker };
+// v575 — `ROLE_MODELS` est désormais déclaré en haut du fichier (il sert aussi
+// à `updateService` / `updateProfile` / `deleteAccount`, cf. P0-4).
 const VALID_SWITCH_ROLES = Object.keys(ROLE_MODELS);
 
 const switchRole = async (req, res) => {
@@ -1019,33 +1023,41 @@ const switchRole = async (req, res) => {
     const originalPasswordHash = userData.password;
 
     // Prepare data for new role (password will be included temporarily for validation, then restored)
+    // v575 — le bloc d'identité (nom, téléphone + indicatif, adresse, ville,
+    // pays, langue, locale, devise, date de naissance, photo) vient d'une SEULE
+    // source : `utils/sharedIdentity.buildIdentityFromSource`. Le profil créé
+    // par « Activer » arrive donc pré-rempli, comme les deux autres.
+    // insertOne() ne passe pas par Mongoose : valeurs par défaut et timestamps
+    // posés à la main.
+    const identityFromSource = buildIdentityFromSource(userData);
     let newUserData = {
       name: userData.name,
       email: userData.email,
-      mobile: userData.mobile || '',
-      countryCode: userData.countryCode || '',
+      mobile: '',
+      countryCode: '',
       password: originalPasswordHash, // Include password for validation, will be restored after create
-      language: userData.language || '',
-      // v565 audit-inscription — le profil créé par « Activer » perdait la
-      // ville plate, le pays, la langue des e-mails et la date de naissance
-      // (→ « ville ? » dans l'admin, e-mails en anglais). insertOne() ne
-      // passe pas par Mongoose : les timestamps sont posés à la main.
-      city: (userData.city || userData.location?.city || '').toString().trim(),
-      country: (userData.country || '').toString().toUpperCase().trim(),
-      appLocale: userData.appLocale || '',
-      dateOfBirth: userData.dateOfBirth || '',
+      language: '',
+      city: '',
+      country: '',
+      appLocale: '',
+      dateOfBirth: '',
+      address: '',
+      currency: DEFAULT_CURRENCY,
+      avatar: { url: '', publicId: '' },
+      ...identityFromSource,
       createdAt: new Date(),
       updatedAt: new Date(),
-      address: userData.address || '',
-      currency: userData.currency || DEFAULT_CURRENCY,
-      bio: userData.bio || '',
-      skills: userData.skills || '',
+      // `bio` / `skills` NE sont PAS des champs partagés (présentation propre
+      // au rôle) — on les laisse vides sur le nouveau profil.
+      bio: '',
+      skills: '',
       acceptedTerms: userData.acceptedTerms || false,
       service: Array.isArray(userData.service) ? userData.service : userData.service ? [userData.service] : [],
       verified: userData.verified || false,
       firebaseUid: userData.firebaseUid || null,
       authProvider: userData.authProvider || 'password',
-      avatar: userData.avatar || { url: '', publicId: '' },
+      // `avatar` est posé par `identityFromSource` ci-dessus (ne pas le
+      // redéclarer ici : la dernière clé d'un littéral objet gagne).
       oldId: baseOldId,
       card: userData.card || {
         holderName: '',
@@ -1121,7 +1133,9 @@ const switchRole = async (req, res) => {
       newUserData.acceptedPetTypes = ['dog_small', 'dog_medium', 'dog_large'];
       newUserData.maxPetsPerWalk = 1;
       newUserData.hasInsurance = false;
-      newUserData.coverageCity = (originalLocation?.city || '').toString();
+      // `coverageCity` = zone de travail du promeneur (champ PROPRE au rôle) ;
+      // on l'initialise seulement, à partir de la ville de la personne.
+      newUserData.coverageCity = (originalLocation?.city || newUserData.city || '').toString();
       newUserData.coverageRadiusKm = 3;
       newUserData.walkRates = [];
       newUserData.defaultWalkDurationMinutes = 30;
@@ -1180,15 +1194,23 @@ const switchRole = async (req, res) => {
     });
     if (existingTarget) {
       try {
+        // v575 — le profil cible existe déjà : on ne l'ÉCRASE PAS avec les
+        // valeurs du rôle courant (l'utilisateur a pu y saisir autre chose).
+        // On ne COMPLÈTE que ses champs d'identité VIDES, depuis le profil
+        // source. Le reste du rattrapage (frère le plus récemment modifié)
+        // est fait par `fillMissingIdentityFromSiblings` juste après.
+        const fromSource = buildIdentityFromSource(userData);
         const shared = {};
-        for (const k of ['name', 'avatar', 'mobile', 'countryCode', 'country', 'city', 'address', 'language', 'appLocale', 'currency']) {
-          const v = userData[k];
-          if (v != null && v !== '' && !(typeof v === 'object' && !Array.isArray(v) && !v.url)) shared[k] = v;
+        for (const [k, v] of Object.entries(fromSource)) {
+          if (isEmptyIdentityValue(existingTarget[k])) shared[k] = v;
         }
         if (Array.isArray(userData.fcmTokens) && userData.fcmTokens.length) {
           await ROLE_MODELS[targetRole].updateOne(
             { _id: existingTarget._id },
-            { $set: shared, $addToSet: { fcmTokens: { $each: userData.fcmTokens } } },
+            {
+              ...(Object.keys(shared).length ? { $set: shared } : {}),
+              $addToSet: { fcmTokens: { $each: userData.fcmTokens } },
+            },
           );
         } else if (Object.keys(shared).length) {
           await ROLE_MODELS[targetRole].updateOne({ _id: existingTarget._id }, { $set: shared });
@@ -1203,6 +1225,9 @@ const switchRole = async (req, res) => {
         logger.warn('[switchRole] synchro abonnement échouée (non bloquant)', e);
       }
       const reusedDoc = await ROLE_MODELS[targetRole].findById(existingTarget._id);
+      // v575 — dernier filet : ce qui reste vide est complété depuis le frère
+      // le plus récemment modifié (réponse ET base, pour ce document seul).
+      await fillMissingIdentityFromSiblings(reusedDoc, targetRole);
       const token = signAuthToken({ id: reusedDoc._id.toString(), role: targetRole });
       let availableRoles = [];
       try {
@@ -1774,7 +1799,9 @@ module.exports = {
   requestEmailChange,
   confirmEmailChange,
   resendEmailChange,
-  propagateToSiblings,
+  // v575 — `propagateToSiblings` a été remplacé par
+  // `utils/sharedIdentity.propagateSharedIdentity` (liste blanche stricte,
+  // jamais d'écrasement par du vide). Personne ne l'importait.
   updateService,
   updateProfile,
   updateCard,

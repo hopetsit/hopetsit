@@ -12,6 +12,27 @@ import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart
 import 'package:hopetsit/views/pet_walker/bottom_wrapper/walker_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
 
+/// v575 — P1-5 : `userType` est le vocabulaire de l'app (`pet_owner`,
+/// `pet_sitter`, `pet_walker`) ; le serveur attend `owner` / `sitter` /
+/// `walker`. Fonction PURE (testée dans `test/choose_service_role_test.dart`) :
+/// renvoie `null` quand le type est inconnu, pour laisser au serveur son
+/// comportement historique plutôt que d'envoyer un rôle faux.
+String? serverRoleForUserType(String? userType) {
+  switch ((userType ?? '').trim().toLowerCase()) {
+    case 'pet_owner':
+    case 'owner':
+      return 'owner';
+    case 'pet_sitter':
+    case 'sitter':
+      return 'sitter';
+    case 'pet_walker':
+    case 'walker':
+      return 'walker';
+    default:
+      return null;
+  }
+}
+
 class ChooseServiceController extends GetxController {
   /// For backward compatibility, we keep a \"primary\" selected service,
   /// but all logic should rely on [selectedServices] for multi-select.
@@ -342,9 +363,15 @@ class ChooseServiceController extends GetxController {
           .map((sv) => _mapServiceValueToApiFormat(sv))
           .toList();
 
+      // v575 — P1-5 : on envoie le rôle de l'écran courant. Le serveur
+      // privilégie le rôle du jeton quand il y en a un, puis ce `role` ;
+      // sans rien, il retombe sur l'ancien comportement (document
+      // propriétaire d'abord), qui écrivait les services d'un prestataire
+      // multi-rôles sur son profil propriétaire.
       await _authRepository.chooseService(
         email: emailToUse,
         services: servicesToSend,
+        role: serverRoleForUserType(userType),
       );
 
       if (isFromProfile) {

@@ -366,8 +366,12 @@ class ProfileController extends GetxController implements ProfileSettingsHost {
     Get.to(() => const MyPetsScreen());
   }
 
-  void navigateToEditProfile() {
-    Get.to(() => const EditOwnerProfileScreen());
+  /// v575 — `focusField` (facultatif) : champ à mettre en évidence à
+  /// l'ouverture, envoyé par la barre « profil complété ». Au retour, le
+  /// profil est rechargé DEPUIS LE SERVEUR pour que le pourcentage bouge.
+  Future<void> navigateToEditProfile({String? focusField}) async {
+    await Get.to(() => EditOwnerProfileScreen(focusField: focusField));
+    await loadMyProfile();
   }
 
   void navigateToChooseService() {

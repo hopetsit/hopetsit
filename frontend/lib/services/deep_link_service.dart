@@ -15,6 +15,8 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
+// v575 — audit P1-3 : libellé traduit du profil destinataire.
+import 'package:hopetsit/localization/v565/fixes575_i18n.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
 // v532 — lien de partage d'un PawSpot (/spot/<id>) → ouvre la carte.
 import 'package:hopetsit/utils/map_ui_state.dart';
@@ -433,11 +435,35 @@ class DeepLinkService {
   /// `/bookings/<id>`, `/alert/<id>`…) exactement comme un lien universel.
   /// Utilisé par le tap sur un push (champ `route` du payload) et par la
   /// cloche. Une route sans `/` initial est acceptée.
-  Future<void> openRoute(String route) async {
+  Future<void> openRoute(String route, {String? recipientRole}) async {
+    // v575 — audit P1-3 : une notification émise pour un AUTRE profil de la
+    // même personne ouvrait un écran qui répond 403 (la session porte le rôle
+    // actif). On n'y va pas : on ouvre la liste des notifications avec un
+    // bandeau qui dit de quel profil il s'agit. Le changement de rôle
+    // automatique n'est pas fait ici (il dépend d'AuthController).
+    if (blockedForOtherRole(recipientRole)) return;
     final r = route.trim();
     if (r.isEmpty) return;
     final path = r.startsWith('/') ? r : '/$r';
     await _safeHandle(Uri.parse('https://hopetsit.com$path'));
+  }
+
+  /// v575 — audit P1-3. Renvoie `true` (et informe l'utilisateur) quand
+  /// [recipientRole] est un rôle valide DIFFÉRENT du rôle actif.
+  /// Sans `recipientRole` (ancien serveur), on ne bloque jamais.
+  bool blockedForOtherRole(String? recipientRole) {
+    final target = (recipientRole ?? '').trim().toLowerCase();
+    if (!const <String>['owner', 'sitter', 'walker'].contains(target)) {
+      return false;
+    }
+    if (target == _currentRole()) return false;
+    _openNotificationsScreen();
+    CustomSnackbar.showInfo(
+      title: 'notifications_title'.tr,
+      message: 'fixes575_notification_other_role'.tr
+          .replaceAll('{role}', fixes575RoleLabelKey(target).tr),
+    );
+    return true;
   }
 
   /// Route « thème » pour un type de notification (miroir de

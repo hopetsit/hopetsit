@@ -178,6 +178,10 @@ class _ContactInfoSheetState extends State<_ContactInfoSheet> {
       final city = _city.text.trim();
       final p = widget.profile;
       if (city.isNotEmpty) {
+        // v575 — la ville PLATE est envoyée en plus de `location` : sans GPS,
+        // le serveur ne pouvait la déduire que du chemin de secours, et
+        // l'élément « Ville » de la complétion restait rouge.
+        payload['city'] = city;
         payload['location'] = {
           if (p?.latitude != null && p?.longitude != null) ...{
             'lat': p!.latitude,

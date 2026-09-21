@@ -48,8 +48,8 @@ import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/views/map/widgets/paw_rail_button.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/pawmap_header_badge.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
-import 'package:hopetsit/widgets/paw_tab_bar.dart' show PawMapLogo;
 
 /// PawMap — Phase 2 Couche 1 (POIs) + Phase 3 Couche 2 (reports 48h).
 ///
@@ -4685,36 +4685,8 @@ class _PawMapScreenState extends State<PawMapScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(
-              width: 38.w,
-              height: 38.w,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12.r),
-                gradient: const LinearGradient(
-                  begin: Alignment(-0.6, -1),
-                  end: Alignment(0.6, 1),
-                  colors: <Color>[
-                    Color(0xFFF26A46),
-                    Color(0xFFDD4430),
-                    Color(0xFFC7311F),
-                  ],
-                ),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: const Color(0xFFDD4430).withValues(alpha: 0.32),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              // Le dessin est plus lourd en bas (pointe de l'épingle) : un
-              // léger décalage vers le haut le centre à l'œil.
-              child: Transform.translate(
-                offset: Offset(0, -1.w),
-                child: PawMapLogo(size: 30.w),
-              ),
-            ),
+            // v575 — patte recentrée dans la tuile + animation discrète.
+            PawMapHeaderBadge(size: 38.w),
             SizedBox(width: 10.w),
             PoppinsText(
               text: 'PawMap',

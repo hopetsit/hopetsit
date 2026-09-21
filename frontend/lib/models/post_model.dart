@@ -8,6 +8,10 @@ class PostModel {
   final String body;
   final DateTime? startDate;
   final DateTime? endDate;
+  /// v575 — audit P1-7 : durée de promenade CHOISIE par le propriétaire
+  /// (multiple de 15, 15–300 min). `null` sur les annonces antérieures : le
+  /// prestataire retombe alors sur la déduction fin − début.
+  final int? walkDurationMinutes;
   final List<String> serviceTypes;
   final String? houseSittingVenue;
   /// Sprint 5 / v435 — lieu de garde choisi par l'owner :
@@ -61,6 +65,7 @@ class PostModel {
     required this.body,
     this.startDate,
     this.endDate,
+    this.walkDurationMinutes,
     required this.serviceTypes,
     this.houseSittingVenue,
     this.serviceLocation,
@@ -149,6 +154,7 @@ class PostModel {
       body: json['body'] as String? ?? '',
       startDate: parseDate(json['startDate']),
       endDate: parseDate(json['endDate']),
+      walkDurationMinutes: (json['walkDurationMinutes'] as num?)?.toInt(),
       serviceTypes: parseServiceTypes(json['serviceTypes']),
       houseSittingVenue: json['houseSittingVenue'] as String?,
       serviceLocation: json['serviceLocation'] as String?,
@@ -237,6 +243,7 @@ class PostModel {
       body: body,
       startDate: startDate,
       endDate: endDate,
+      walkDurationMinutes: walkDurationMinutes,
       serviceTypes: serviceTypes,
       houseSittingVenue: houseSittingVenue,
       serviceLocation: serviceLocation,

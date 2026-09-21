@@ -12,6 +12,8 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
+// v575 — audit P0-2 : feuille commune d'annulation < 72 h avec remboursement.
+import 'package:hopetsit/widgets/cancel_72h_sheet.dart';
 import 'package:hopetsit/views/booking/booking_agreement_screen.dart';
 import 'package:hopetsit/views/reviews/reviews_screen.dart';
 import 'package:get_storage/get_storage.dart';
@@ -362,8 +364,17 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
             statusLower == 'mutually_accepted' ||
             statusLower == 'confirmed') &&
         paymentStatusLower != 'paid';
-    final bool showCancel =
-        statusLower == 'pending' || statusLower == 'agreed';
+    // v575 — audit P0-2 : une réservation PAYÉE s'annule uniquement par le
+    // parcours « annulation < 72 h avec remboursement » (celui des pages
+    // Réservations). L'annulation simple ne remboursait RIEN.
+    final bool isPaidBooking = paymentStatusLower == 'paid';
+    final bool isCancellablePaid = isPaidBooking &&
+        statusLower != 'cancelled' &&
+        statusLower != 'completed' &&
+        statusLower != 'refunded';
+    final bool showCancel = isCancellablePaid ||
+        statusLower == 'pending' ||
+        statusLower == 'agreed';
     // v18.5 — #22 / v23.1.290 : « Laisser un avis » sur les réservations
     // terminées OU confirmées (le flux v259 laisse status == 'paid').
     final bool showReview = statusLower == 'completed' ||
@@ -440,13 +451,30 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
             kind: ActionPillKind.danger,
             expand: true,
             onPressed: () {
-              _showCancelBookingDialog(context, booking);
+              if (isCancellablePaid) {
+                _confirmSelfCancel(booking);
+              } else {
+                _showCancelBookingDialog(context, booking);
+              }
             },
           ),
         ],
       ],
     );
   }
+  /// v575 — audit P0-2 : même parcours que les pages Réservations des 3 rôles
+  /// (`showCancel72hSheet` → `self-cancel` avec remboursement). L'annulation
+  /// simple laissait l'argent chez nous et le versement au prestataire
+  /// programmé. La feuille s'adapte : confirmation possible seulement à plus
+  /// de 72 h du début, sinon message « fenêtre fermée » sans bouton.
+  Future<void> _confirmSelfCancel(BookingModel booking) async {
+    final canFree = booking.isSelfCancelEligible;
+    final confirmed = await showCancel72hSheet(canFree: canFree);
+    if (confirmed == true && canFree) {
+      await _bookingsController.selfCancelBooking(bookingId: booking.id);
+    }
+  }
+
   void _showCancelBookingDialog(BuildContext context, BookingModel booking) {
     CustomConfirmationDialog.show(
       context: context,

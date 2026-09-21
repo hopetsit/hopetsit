@@ -32,6 +32,15 @@ const conversationSchema = new mongoose.Schema(
       lastReadAt: { type: Date, default: null },
     }],
     lastMessage: { type: String, default: '' },
+    // v575 — audit P2-1 : l'aperçu était FIGÉ dans la langue du serveur
+    // (« Sent a photo », « 🎤 Message vocal ») → liste de conversations
+    // moitié français moitié anglais. On mémorise désormais la NATURE du
+    // dernier message ; l'app la rend dans la langue de l'utilisateur avec
+    // `chatPreviewForKind`. `lastMessage` reste écrit à l'identique pour les
+    // versions installées, qui continuent de l'afficher.
+    // Valeurs : '' (texte), 'audio', 'image', 'video', 'attachment',
+    // 'phone_share', 'address_share'.
+    lastMessageKind: { type: String, default: '' },
     lastMessageAt: { type: Date, default: Date.now },
     // v23.1.255 — Daniel : "si j'efface une conversation et la personne me
     // réécrit, ça doit rouvrir une conversation". Soft-delete PAR USER : la

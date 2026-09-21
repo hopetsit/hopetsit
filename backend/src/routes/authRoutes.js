@@ -20,7 +20,7 @@ const {
   createOneTimeToken,
   exchangeOneTimeToken,
 } = require('../controllers/oneTimeTokenController');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { adminLoginLimiter } = require('../middleware/rateLimiters');
 
 const router = express.Router();
@@ -1081,7 +1081,10 @@ router.put('/change-password', requireAuth, changePassword);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/choose-service', chooseService);
+// v575 P1-5 — `optionalAuth` : la route reste publique (elle est appelée en
+// fin d'inscription, avant toute session), mais quand un jeton est présent son
+// rôle fait foi pour choisir le document à mettre à jour.
+router.post('/choose-service', optionalAuth, chooseService);
 
 /**
  * @swagger

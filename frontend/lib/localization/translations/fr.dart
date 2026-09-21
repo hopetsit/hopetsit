@@ -2889,6 +2889,13 @@ const Map<String, String> frFRTranslations = <String, String>{
     'boost_duration_weeks': '@count semaines',
     'boost_duration_one_month': '1 mois',
     // v18.9.8 — amis / partage position
+    // v575 — 4 clés absentes du fichier FR canonique (elles n'existaient que
+    // dans le paquet v565 `core_i18n`), ce qui faisait échouer `test/i18n_test.dart`.
+    'friends_share_qr': 'QR code',
+    'friends_share_email': 'E-mail',
+    'friends_share_qr_title': 'Fais scanner ce QR code',
+    'friends_share_qr_hint':
+        "La personne qui le scanne arrive directement sur ta demande d'ami.",
     'friends_share_position_label': 'Partager',
     // v23.1 part 226 — badge sous la Switch read-only quand le user a
     // un PawFollow actif (partage auto debloquer par l'abonnement).

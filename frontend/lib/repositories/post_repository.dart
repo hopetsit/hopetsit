@@ -214,6 +214,8 @@ class PostRepository {
     String? houseSittingVenue,
     String? serviceLocation,
     bool? showAnimalCharacter,
+    // v575 — audit P1-7 : durée de promenade éditable comme les autres champs.
+    int? walkDurationMinutes,
   }) async {
     final payload = <String, dynamic>{};
     if (body != null) payload['body'] = body;
@@ -230,6 +232,9 @@ class PostRepository {
     if (serviceLocation != null) payload['serviceLocation'] = serviceLocation;
     if (showAnimalCharacter != null) {
       payload['showAnimalCharacter'] = showAnimalCharacter;
+    }
+    if (walkDurationMinutes != null) {
+      payload['walkDurationMinutes'] = walkDurationMinutes;
     }
 
     final response = await _apiClient.patch(

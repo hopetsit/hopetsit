@@ -357,8 +357,11 @@ class SitterProfileController extends GetxController implements ProfileSettingsH
   }
 
   // Navigation methods
-  void navigateToEditProfile() {
-    Get.to(() => const EditSitterProfileScreen());
+  /// v575 — `focusField` (facultatif) : champ à mettre en évidence à
+  /// l'ouverture. Au retour, le profil est rechargé depuis le serveur.
+  Future<void> navigateToEditProfile({String? focusField}) async {
+    await Get.to(() => EditSitterProfileScreen(focusField: focusField));
+    await loadMyProfile();
   }
 
   void navigateToChooseService() {

@@ -53,14 +53,20 @@ class SocketService {
   bool get isConnected => _isConnected;
 
   /// Connects to the Socket.IO server.
-  Future<void> connect() async {
+  ///
+  /// v575 — [tokenOverride] permet d'imposer le jeton du handshake sans
+  /// dépendre de la course d'écriture du stockage sécurisé (utilisé par
+  /// `reconnectWithToken` après un changement de rôle).
+  Future<void> connect({String? tokenOverride}) async {
     if (_socket != null && _isConnected) {
       AppLogger.logInfo('Socket already connected');
       return;
     }
 
     try {
-      final token = SecureTokenStore.currentToken();
+      final token = (tokenOverride != null && tokenOverride.isNotEmpty)
+          ? tokenOverride
+          : SecureTokenStore.currentToken();
       if (token == null || token.isEmpty) {
         // Import AuthController to handle login required error
         // Note: We can't import controllers in services, so we'll handle this at the call site
@@ -165,6 +171,51 @@ class SocketService {
     }
   }
 
+  /// v575 — P1-2 : reconnexion FORCÉE avec un nouveau jeton.
+  ///
+  /// Le serveur lit le rôle et l'id dans le JWT **au handshake**
+  /// (`chatSocket.js` : `socket.join(userRoom(trusted.role, trusted.id))`).
+  /// Après un changement de rôle, mettre simplement `socket.auth` à jour ne
+  /// suffit donc pas : tant que la connexion courante vit, le socket reste
+  /// dans la room `user:<ancien rôle>:<ancien id>` et ne reçoit plus ni
+  /// message ni notification en direct. `updateAuthToken` ne coupe
+  /// volontairement PAS un socket vivant — d'où cette méthode dédiée.
+  ///
+  /// Idempotente et sans fuite d'écouteurs : on détruit l'instance socket
+  /// (`disconnect()` fait `dispose()` + met `_socket` à null, ce qui retire
+  /// tous ses listeners) puis `connect()` en recrée une. Les abonnés des
+  /// multiplexeurs (`message:new`, accusés, présence, `conversation:deleted`)
+  /// vivent dans des listes Dart qui survivent à l'opération ; leurs listeners
+  /// socket sont re-bindés ici, et les `_onConnectedHooks` (notifications,
+  /// carte en direct…) sont rejoués par `onConnect`.
+  Future<void> reconnectWithToken(String token) async {
+    try {
+      if (token.isEmpty) {
+        AppLogger.logError('reconnectWithToken: jeton vide, ignoré');
+        return;
+      }
+      disconnect();
+      await connect(tokenOverride: token);
+      // Les muxes se rebindent sur la NOUVELLE instance socket ; sans cela
+      // les abonnés resteraient enregistrés côté Dart mais plus aucun
+      // événement n'arriverait du serveur.
+      _rebindMuxes();
+      AppLogger.logInfo('Socket reconnecté avec le nouveau jeton');
+    } catch (e) {
+      AppLogger.logError('reconnectWithToken failed', error: e);
+    }
+  }
+
+  /// Re-attache les listeners socket des multiplexeurs sur l'instance
+  /// courante. Sans effet quand personne n'est abonné.
+  void _rebindMuxes() {
+    if (_socket == null) return;
+    if (_messageNewSubs.isNotEmpty) _bindMessageNewMux();
+    if (_receiptSubs.isNotEmpty) _bindReceiptMux();
+    if (_presenceSubs.isNotEmpty) _bindPresenceMux();
+    if (_convDeletedSubs.isNotEmpty) _bindConversationDeletedMux();
+  }
+
   /// v23.1 part 228 — Daniel : "fais que en background l'app reste
   /// connecter". Appele au resume du lifecycle Flutter. Si le socket
   /// est dispose ou disconnected, on re-connecte. Sinon best-effort
@@ -202,9 +253,8 @@ class SocketService {
   Future<void> updateAuthToken(String token) async {
     try {
       if (_socket == null) {
-        // Pas encore de socket : connexion normale (connect() lit le token
-        // frais depuis le storage).
-        await connect();
+        // Pas encore de socket : connexion normale avec le jeton frais.
+        await connect(tokenOverride: token);
         return;
       }
       // Met à jour la source de vérité pour les (re)connexions futures.

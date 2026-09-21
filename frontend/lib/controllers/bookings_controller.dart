@@ -151,7 +151,18 @@ class BookingsController extends GetxController {
       // Refresh the bookings list
       await loadBookings();
     } on ApiException catch (error) {
-      CustomSnackbar.showError(title: 'common_error'.tr, message: error.message);
+      // v575 — audit P0-2 : le serveur refuse désormais l'annulation SIMPLE
+      // d'une réservation déjà payée (elle ne remboursait rien et laissait le
+      // versement programmé). On explique quoi faire, dans la langue du
+      // compte, au lieu d'afficher le message anglais brut du serveur.
+      final details = error.details;
+      final code = details is Map ? (details['code'] ?? '').toString() : '';
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: code == 'PAID_BOOKING_USE_SELF_CANCEL'
+            ? 'fixes575_cancel_paid_use_refund'.tr
+            : error.message,
+      );
     } catch (error) {
       CustomSnackbar.showError(
         title: 'common_error'.tr,

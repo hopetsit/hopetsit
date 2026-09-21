@@ -36,6 +36,21 @@ const postSchema = new mongoose.Schema(
       enum: ['owners_home', 'sitters_home'],
       default: null,
     },
+    // v575 — audit P1-7 : durée de promenade CHOISIE par le propriétaire.
+    // Jusqu'ici l'annonce ne stockait que start/end et le prestataire devait
+    // deviner la durée (`_durationForPostService` l'écrasait à 30 ou 60 min).
+    // Champ optionnel : absent → on retombe sur la déduction fin − début.
+    // Mêmes bornes que `walkRateEntrySchema` (models/Walker.js).
+    walkDurationMinutes: {
+      type: Number,
+      default: null,
+      min: 15,
+      max: 300,
+      validate: {
+        validator: (v) => v == null || (Number.isInteger(v) && v % 15 === 0),
+        message: 'walkDurationMinutes must be an integer multiple of 15, between 15 and 300.',
+      },
+    },
     // Associated pet for this post (optional, legacy single-pet field kept
     // for backwards compatibility — new requests prefer the petIds array
     // below for multi-pet support).

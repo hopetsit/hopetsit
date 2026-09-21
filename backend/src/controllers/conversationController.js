@@ -120,6 +120,28 @@ const buildReplySnapshot = async (conversationId, replyTo) => {
   };
 };
 
+/**
+ * v575 — audit P2-1 : NATURE du dernier message, pour que l'app rende
+ * l'aperçu dans SA langue (`chatPreviewForKind`). Renvoie '' pour un vrai
+ * message texte — dans ce cas l'app affiche `lastMessage` tel quel.
+ * Les valeurs correspondent exactement aux cas de `chatPreviewForKind`.
+ */
+const previewKindOf = ({ body, attachments, type }) => {
+  const hasText = typeof body === 'string' && body.trim().length > 0;
+  if (hasText) return '';
+  const t = String(type || '').toLowerCase();
+  if (t === 'voice' || t === 'audio') return 'audio';
+  if (t === 'phone_share' || t === 'address_share') return t;
+  const list = Array.isArray(attachments) ? attachments : [];
+  if (list.length === 0) return '';
+  if (list.length === 1) {
+    return list[0]?.resourceType === 'video' ? 'video' : 'image';
+  }
+  // Plusieurs pièces jointes : l'app n'a pas de libellé pluriel dédié, on
+  // retombe sur « pièce jointe » (cas `default` de chatPreviewForKind).
+  return 'attachment';
+};
+
 /** Aperçu de conversation / notification pour une pièce jointe. */
 const attachmentPreview = (attachments, kind) => {
   if (kind === 'voice') return '🎤 Message vocal';
@@ -189,10 +211,21 @@ const persistBookingAttachmentMessage = async ({ conversation, senderRole, sende
     replyTo: replyTo || null,
   });
   const preview = cleanBody || attachmentPreview(attachments, type === 'voice' ? 'voice' : 'media');
+  // v575 — audit P2-1 : `preview` reste le texte de repli (anciennes apps) ;
+  // `lastMessageKind` permet aux apps ≥ 575 de le traduire.
+  const previewKind = previewKindOf({ body: cleanBody, attachments, type });
   const inc = senderRole === 'owner' ? { sitterUnreadCount: 1 } : { ownerUnreadCount: 1 };
   await Conversation.updateOne(
     { _id: conversation._id },
-    { $set: { lastMessage: preview, lastMessageAt: new Date(), clearedFor: [] }, $inc: inc },
+    {
+      $set: {
+        lastMessage: preview,
+        lastMessageKind: previewKind,
+        lastMessageAt: new Date(),
+        clearedFor: [],
+      },
+      $inc: inc,
+    },
   );
   // Notification NEW_MESSAGE au destinataire (owner ↔ prestataire).
   try {
@@ -615,6 +648,8 @@ const sendFriendMessage = async ({
         ? (type === 'voice' ? '🎤 Message vocal' : '📎 Pièce jointe') : '');
   const update = {
     lastMessage: preview,
+    // v575 — audit P2-1 : nature du message, rendue dans la langue de l'app.
+    lastMessageKind: previewKindOf({ body, attachments, type }),
     lastMessageAt: new Date(),
     // v23.1.255 — un nouveau message ami fait réapparaître la conversation
     // chez quiconque l'avait masquée (soft-delete).
@@ -1114,6 +1149,8 @@ const startConversation = async (req, res) => {
         attachments: [],
       });
       conversation.lastMessage = trimmedMsgCheck;
+      // v575 — audit P2-1 : message texte → aucune nature à traduire.
+      conversation.lastMessageKind = '';
       conversation.lastMessageAt = new Date();
       // v23.1.255 — un nouveau message fait RÉAPPARAÎTRE la conversation chez
       // quiconque l'avait masquée (soft-delete) → "la personne me réécrit, ça
@@ -1262,6 +1299,8 @@ const startConversationBySitter = async (req, res) => {
         attachments: [],
       });
       conversation.lastMessage = trimmedMsgCheckS;
+      // v575 — audit P2-1 : message texte → aucune nature à traduire.
+      conversation.lastMessageKind = '';
       conversation.lastMessageAt = new Date();
       // v23.1.255 — réapparition de la conversation masquée sur nouveau message.
       conversation.clearedFor = [];
@@ -1386,6 +1425,8 @@ const startConversationByWalker = async (req, res) => {
         attachments: [],
       });
       conversation.lastMessage = trimmedMsgCheckW;
+      // v575 — audit P2-1 : message texte → aucune nature à traduire.
+      conversation.lastMessageKind = '';
       conversation.lastMessageAt = new Date();
       // v23.1.255 — réapparition de la conversation masquée sur nouveau message.
       conversation.clearedFor = [];

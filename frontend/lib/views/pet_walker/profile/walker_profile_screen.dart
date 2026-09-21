@@ -84,12 +84,16 @@ class WalkerProfileScreen extends StatelessWidget {
                   SizedBox(height: 16.h),
 
                   // v565 — point 25 : barre « profil complété à X % ».
+                  // v575 — pastilles ciblées ; `await` + rechargement au
+                  // retour : le pourcentage du promeneur ne bougeait jamais.
                   Obx(() => ProfileCompletionCard(
                         profile: controller.profile.value,
                         role: 'walker',
                         accent: _accent,
-                        onEditProfile: () => Get.to(() => const EditWalkerProfileScreen()),
+                        onEditProfile: (focusField) => Get.to(
+                            () => EditWalkerProfileScreen(focusField: focusField)),
                         onPhoto: controller.pickAndUploadProfilePicture,
+                        onChanged: controller.loadMyProfile,
                       )),
 
                   // Quick Actions: revenues, calendar, boost, iban.

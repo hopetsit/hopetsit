@@ -4,6 +4,11 @@ const { sanitizeUser } = require('../utils/sanitize');
 const { uploadMedia } = require('../services/cloudinary');
 const { encrypt, decrypt } = require('../utils/encryption');
 const logger = require('../utils/logger');
+// v575 — identité partagée entre les 3 profils d'une même personne.
+const {
+  propagateSharedIdentity,
+  fillMissingIdentityFromSiblings,
+} = require('../utils/sharedIdentity');
 
 const bufferToDataUri = (file) => `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
 
@@ -315,6 +320,12 @@ const getMyWalkerProfile = async (req, res) => {
     if (!walker) {
       return res.status(404).json({ error: 'Walker profile not found.' });
     }
+    // v575 — rattrapage À LA LECTURE : un champ d'identité vide ici alors
+    // qu'un profil frère le possède est complété (réponse + base, pour ce
+    // document seulement). Aucune migration sur la production.
+    const { ensureAvatarFromSiblingRoles } = require('../utils/avatarFallback');
+    await ensureAvatarFromSiblingRoles(walker, 'walker');
+    await fillMissingIdentityFromSiblings(walker, 'walker');
     res.json({ walker: sanitizeUser(walker, { includeEmail: true }) });
   } catch (error) {
     logger.error('getMyWalkerProfile error', error);
@@ -338,9 +349,20 @@ const updateMyWalkerProfile = async (req, res) => {
     // "pickup at owner" toggle on every save.
     const allowed = [
       'name',
+      // v575 — « dans mon profil j'ai que "nom" et pas "nom et prénom" ».
+      'firstName',
+      'lastName',
       'mobile',
       'countryCode',
+      // v575 — ces trois champs d'identité manquaient à la liste blanche : un
+      // promeneur ne pouvait enregistrer NI son pays, NI sa ville (hors
+      // `location.city`), NI sa photo depuis « Modifier le profil ».
+      'country',
+      'city',
+      'avatar',
+      'currency',
       'language',
+      'appLocale',
       'address',
       'bio',
       'skills',
@@ -373,6 +395,19 @@ const updateMyWalkerProfile = async (req, res) => {
       if (Object.prototype.hasOwnProperty.call(req.body, key)) {
         update[key] = req.body[key];
       }
+    }
+
+    // v575 — « prénom » + « nom » : `name` reste la source d'affichage et est
+    // recalculé depuis firstName/lastName ; une ancienne app qui n'envoie que
+    // `name` voit ses deux parties re-dérivées (utils/personName.js).
+    try {
+      const { buildNameUpdate } = require('../utils/personName');
+      const current = await Walker.findById(req.user.id)
+        .select('name firstName lastName').lean();
+      const nameUpdate = buildNameUpdate(req.body || {}, current || {});
+      if (nameUpdate) Object.assign(update, nameUpdate);
+    } catch (nameErr) {
+      return res.status(400).json({ error: nameErr.message || 'Name must be a non-empty string.' });
     }
 
     // Additif — normalise les dates de dispo en UTC midnight (même convention
@@ -446,20 +481,12 @@ const updateMyWalkerProfile = async (req, res) => {
       return res.status(404).json({ error: 'Walker profile not found.' });
     }
 
-    // v18.9.8 — propage nom / adresse / téléphone / bio vers les profils
-    // owner + sitter du même user. Les champs walker-spécifiques
-    // (walkRates, acceptedPetTypes, etc.) sont automatiquement ignorés
-    // par syncSharedFields (ils ne figurent pas dans la whitelist).
-    try {
-      const { syncSharedFields } = require('../utils/userSyncService');
-      await syncSharedFields({
-        email: walker.email,
-        update,
-        excludeRole: 'walker',
-      });
-    } catch (syncErr) {
-      logger.warn('[updateMyWalkerProfile] cross-role sync failed', syncErr?.message || syncErr);
-    }
+    // v575 — propage les SEULS champs d'identité (nom, prénom, téléphone,
+    // indicatif, adresse, ville, pays, langue, devise, date de naissance,
+    // photo, position) vers les profils owner + sitter de la même personne.
+    // `bio`, `skills`, tarifs et tout ce qui est propre au promeneur restent
+    // ici, et une valeur vide n'écrase jamais une valeur existante.
+    await propagateSharedIdentity(walker, 'walker', update);
 
     res.json({ walker: sanitizeUser(walker, { includeEmail: true }) });
   } catch (error) {

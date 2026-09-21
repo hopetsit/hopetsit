@@ -5,6 +5,10 @@
 class WalkerModel {
   final String id;
   final String name;
+  // v575 — « nom et prénom » : renvoyés par le serveur (dérivés de `name`
+  // pour un compte antérieur). `name` reste la source d'affichage.
+  final String firstName;
+  final String lastName;
   final String email;
   final String mobile;
   /// Country dial code, e.g. "+34", "+33". Kept separate from `mobile` so the
@@ -93,6 +97,8 @@ class WalkerModel {
   WalkerModel({
     required this.id,
     required this.name,
+    this.firstName = '',
+    this.lastName = '',
     required this.email,
     required this.mobile,
     this.countryCode = '',
@@ -163,6 +169,12 @@ class WalkerModel {
         cityName = null;
       }
     }
+    // v575 — sans GPS, le serveur renvoie `location.city` vide et la ville
+    // dans le champ PLAT `city` : sans ce repli, « Ville » restait manquante.
+    if (cityName == null || cityName.isEmpty) {
+      final flat = json['city'] as String?;
+      if (flat != null && flat.trim().isNotEmpty) cityName = flat;
+    }
     final distStr = json['distance'];
     if (distStr != null) {
       distKm = double.tryParse(distStr.toString());
@@ -189,6 +201,8 @@ class WalkerModel {
     return WalkerModel(
       id: json['id'] as String? ?? json['_id']?.toString() ?? '',
       name: json['name'] as String? ?? '',
+      firstName: json['firstName'] as String? ?? '',
+      lastName: json['lastName'] as String? ?? '',
       email: json['email'] as String? ?? '',
       mobile: json['mobile'] as String? ?? '',
       countryCode: json['countryCode'] as String? ?? '',

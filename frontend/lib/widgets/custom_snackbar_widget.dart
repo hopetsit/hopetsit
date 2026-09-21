@@ -115,28 +115,41 @@ class CustomSnackbar {
   }
 
   // v18.9.4 — debounce pour bloquer la duplication de popups quand l'user
-  // tape 5 fois sur un bouton qui rate. Avant, 5 taps = 5 snackbars
-  // empilés. On garde le dernier couple (title|message) affiché et on
-  // refuse un duplicata dans la fenêtre. `_lastShowAt` empêche aussi le
-  // spam même avec un couple différent (rate-limit 600ms global).
+  // tape 5 fois sur un bouton qui rate. Avant, 5 taps = 5 snackbars empilés.
+  //
+  // v575 — audit P2-6 « bandeaux avalés » : le rate-limit global de 600 ms
+  // supprimait AUSSI un bandeau au message DIFFÉRENT. Un succès suivi d'un
+  // avertissement (ou deux erreurs distinctes) dans la même demi-seconde →
+  // le second disparaissait sans laisser de trace, alors qu'il portait
+  // l'information utile. On ne déduplique plus que le couple
+  // (titre, message) IDENTIQUE, dans une fenêtre de 3 s.
   static String? _lastKey;
   static DateTime? _lastShowAt;
 
   static bool _shouldSuppress(String title, String message) {
     final now = DateTime.now();
     final key = '$title|$message';
-    if (_lastShowAt != null) {
+    if (_lastShowAt != null && key == _lastKey) {
       final delta = now.difference(_lastShowAt!).inMilliseconds;
-      if (delta < 600) {
-        return true;
-      }
-      if (key == _lastKey && delta < 3000) {
+      if (delta < 3000) {
         return true;
       }
     }
     _lastKey = key;
     _lastShowAt = now;
     return false;
+  }
+
+  /// v575 — exposé pour les tests : même fonction que celle appelée par les
+  /// 4 méthodes publiques. `debugResetBannerDedupe()` remet l'état à zéro.
+  @visibleForTesting
+  static bool debugShouldSuppress(String title, String message) =>
+      _shouldSuppress(title, message);
+
+  @visibleForTesting
+  static void debugResetBannerDedupe() {
+    _lastKey = null;
+    _lastShowAt = null;
   }
 
   // v567 — POLISH « bannière iOS » : les 4 méthodes publiques sont inchangées

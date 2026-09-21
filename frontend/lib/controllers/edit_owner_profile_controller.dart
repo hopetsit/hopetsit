@@ -10,6 +10,8 @@ import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/utils/date_slash_formatter.dart'
     show parseDdMmYyyy, ageInYears;
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/profile_completion.dart'
+    show splitPersonName, joinPersonName;
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/profile/widgets/phone_prefix_helper.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -34,12 +36,22 @@ class EditOwnerProfileController extends GetxController {
   // Form key and controllers
   final formKey = GlobalKey<FormState>();
   final nameController = TextEditingController();
+  // v575 — « dans mon profil j'ai que "nom" et pas "nom et prénom" ».
+  // `nameController` reste alimenté (compatibilité) mais c'est désormais
+  // « Prénom » + « Nom » qui sont saisis et envoyés.
+  final firstNameController = TextEditingController();
+  final lastNameController = TextEditingController();
   final emailController = TextEditingController();
   final phoneController = TextEditingController();
   final addressController = TextEditingController();
   final locationController = TextEditingController();
   final bioController = TextEditingController();
   final languageController = TextEditingController();
+  // v575 — « Langues parlées » : même sélecteur que gardien/promeneur (le
+  // propriétaire avait un champ texte libre, confondu avec « Langue de
+  // l'app »). Source de vérité ; `languageController` reste synchronisé
+  // (join « , ») pour l'API, dont le champ `language` est un texte libre.
+  final RxList<String> selectedLanguages = <String>[].obs;
   // v426 — synchro inscription↔profil : champs collectés par le wizard owner
   // (date de naissance + préférences de recherche : services + rayon).
   final dobController = TextEditingController();
@@ -76,6 +88,8 @@ class EditOwnerProfileController extends GetxController {
   @override
   void onClose() {
     nameController.dispose();
+    firstNameController.dispose();
+    lastNameController.dispose();
     emailController.dispose();
     phoneController.dispose();
     addressController.dispose();
@@ -111,6 +125,15 @@ class EditOwnerProfileController extends GetxController {
 
       // Populate form fields
       nameController.text = profileData['name']?.toString() ?? '';
+      // v575 — prénom / nom : renvoyés par le serveur, dérivés de `name` pour
+      // un compte antérieur (1er mot = prénom, le reste = nom).
+      final nameParts = splitPersonName(
+        nameController.text,
+        firstName: profileData['firstName']?.toString() ?? '',
+        lastName: profileData['lastName']?.toString() ?? '',
+      );
+      firstNameController.text = nameParts.firstName;
+      lastNameController.text = nameParts.lastName;
       emailController.text = profileData['email']?.toString() ?? '';
       // v565 — point 12 : indicatif = stocké, sinon déduit du PAYS du compte,
       // sinon extrait du numéro ; le champ n'affiche que le numéro national.
@@ -149,6 +172,12 @@ class EditOwnerProfileController extends GetxController {
         }
       }
 
+      // v575 — sans GPS, le serveur renvoie `location.city` vide et la ville
+      // dans le champ PLAT `city` : on prend la première valeur non vide.
+      if (city.trim().isEmpty) {
+        city = profileData['city']?.toString() ?? '';
+      }
+
       userCity.value = city;
 
       addressController.text = rawAddress;
@@ -173,6 +202,15 @@ class EditOwnerProfileController extends GetxController {
       } else {
         languageController.text = rawLanguage?.toString() ?? '';
       }
+      // v575 — puces « Langues parlées » alimentées par la chaîne serveur.
+      final langText = languageController.text.trim();
+      selectedLanguages.value = langText.isEmpty
+          ? <String>[]
+          : langText
+              .split(RegExp(r'[,;]\s*'))
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList();
 
       // Set current avatar URL
       final avatar = profileData['avatar'];
@@ -286,8 +324,17 @@ class EditOwnerProfileController extends GetxController {
       final mobile = PhonePrefix.nationalNumber(
           phoneController.text, selectedCountryCode.value);
 
+      // v575 — prénom + nom. Le serveur recalcule `name` (source d'affichage
+      // partout ailleurs) ; on l'envoie aussi pour les vieux serveurs.
+      final firstName = firstNameController.text.trim();
+      final lastName = lastNameController.text.trim();
+      final fullName = joinPersonName(firstName, lastName);
+      nameController.text = fullName;
+
       final payload = <String, dynamic>{
-        'name': nameController.text.trim(),
+        'name': fullName,
+        'firstName': firstName,
+        'lastName': lastName,
         'email': emailController.text.trim(),
         'mobile': mobile,
       };
@@ -340,20 +387,26 @@ class EditOwnerProfileController extends GetxController {
         'preferredLanguage': language,
       };
 
-      // Include location coordinates if available (same format as signup)
+      // v575 — BUG « la ville ne s'enregistre jamais » : `location` n'était
+      // envoyé QUE si des coordonnées GPS existaient. Une ville tapée à la
+      // main n'atteignait donc jamais le serveur et l'élément « Ville » de la
+      // barre de complétion restait rouge quoi qu'on fasse. La ville PLATE
+      // part désormais toujours ; les coordonnées s'ajoutent si on les a.
+      final cityForLocation = (userCity.value.isNotEmpty
+              ? userCity.value
+              : locationController.text)
+          .trim();
+      if (cityForLocation.isNotEmpty) {
+        payload['city'] = cityForLocation;
+      }
       if (userLatitude.value != null && userLongitude.value != null) {
-        // Prefer detected city; fall back to what's in the location text field
-        final cityForLocation =
-            (userCity.value.isNotEmpty
-                    ? userCity.value
-                    : locationController.text)
-                .trim();
-
         payload['location'] = {
           'lat': userLatitude.value,
           'lng': userLongitude.value,
           if (cityForLocation.isNotEmpty) 'city': cityForLocation,
         };
+      } else if (cityForLocation.isNotEmpty) {
+        payload['location'] = {'city': cityForLocation};
       }
 
       await _userRepository.updateUserProfile(userId, payload);
@@ -365,23 +418,28 @@ class EditOwnerProfileController extends GetxController {
       await loadProfileData();
 
       CustomSnackbar.showSuccess(
-        title: 'common_success',
-        message: 'edit_profile_update_success',
+        title: 'common_success'.tr,
+        message: 'edit_profile_update_success'.tr,
       );
 
       return true;
     } on ApiException catch (error) {
+      // v575 — « ça refuse » sans rien dire : le titre et le message étaient
+      // des CLÉS BRUTES (pas de `.tr`) et le motif réel du serveur était
+      // jeté. On affiche désormais la raison exacte, traduite.
       AppLogger.logError('Failed to update profile', error: error.message);
       CustomSnackbar.showError(
-        title: 'pet_update_failed',
-        message: 'common_error_generic',
+        title: 'common_error'.tr,
+        message: error.message.isNotEmpty
+            ? error.message
+            : 'profile_update_failed'.tr,
       );
       return false;
     } catch (error) {
       AppLogger.logError('Failed to update profile', error: error);
       CustomSnackbar.showError(
-        title: 'pet_update_failed'.tr,
-        message: 'common_error_generic'.tr,
+        title: 'common_error'.tr,
+        message: 'profile_update_failed'.tr,
       );
       return false;
     } finally {

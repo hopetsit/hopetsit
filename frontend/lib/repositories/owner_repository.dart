@@ -45,6 +45,8 @@ class OwnerRepository {
     String? houseSittingVenue,
     String? serviceLocation,
     bool showAnimalCharacter = true,
+    // v575 — audit P1-7 : durée de promenade choisie par le propriétaire.
+    int? walkDurationMinutes,
   }) async {
     final effectiveIds = petIds.isNotEmpty
         ? petIds
@@ -69,6 +71,9 @@ class OwnerRepository {
         'houseSittingVenue': houseSittingVenue,
       if (serviceLocation != null && serviceLocation.isNotEmpty)
         'serviceLocation': serviceLocation,
+      // v575 — audit P1-7 : envoyée seulement quand elle existe (promenade).
+      if (walkDurationMinutes != null)
+        'walkDurationMinutes': walkDurationMinutes,
     };
 
     final response = await _apiClient.post(
@@ -107,6 +112,8 @@ class OwnerRepository {
     String? houseSittingVenue,
     String? serviceLocation,
     bool showAnimalCharacter = true,
+    // v575 — audit P1-7 : durée de promenade choisie par le propriétaire.
+    int? walkDurationMinutes,
     required List<File> imageFiles,
   }) async {
     final effectiveIds = petIds.isNotEmpty
@@ -134,6 +141,9 @@ class OwnerRepository {
         'houseSittingVenue': houseSittingVenue,
       if (serviceLocation != null && serviceLocation.isNotEmpty)
         'serviceLocation': serviceLocation,
+      // v575 — audit P1-7 : multipart → chaîne (le serveur fait Number()).
+      if (walkDurationMinutes != null)
+        'walkDurationMinutes': walkDurationMinutes.toString(),
     };
 
     final response = await _apiClient.postMultipart(

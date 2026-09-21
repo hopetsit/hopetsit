@@ -174,6 +174,15 @@ const sanitizeUser = (userDoc, { includeCard = false, includeEmail = false, incl
         : [];
   }
 
+  // v575 — « dans mon profil j'ai que "nom" et pas "nom et prénom" ».
+  // `name` reste la source d'affichage. On expose EN PLUS les deux parties,
+  // dérivées de `name` quand le compte est antérieur au champ (1er mot =
+  // prénom, le reste = nom). Aucune écriture en base : la dérivation n'est
+  // persistée que lorsque l'utilisateur enregistre son profil.
+  if (Object.prototype.hasOwnProperty.call(sanitized, 'name')) {
+    require('./personName').withDerivedNameParts(sanitized);
+  }
+
   // Format location for API response (lat, lng, city) - always include for consistent API shape
   const rawLocation = sanitized.location;
   const formattedLocation = formatLocationForResponse(rawLocation);
@@ -466,6 +475,11 @@ const sanitizePost = (postDoc) => {
   } else {
     post.videos = [];
   }
+  // v575 — audit P1-7 : durée de promenade portée par l'annonce (ou null).
+  // Exposée explicitement pour que le prestataire envoie la VRAIE durée voulue
+  // par le propriétaire au lieu de la deviner.
+  post.walkDurationMinutes =
+    typeof postDoc.walkDurationMinutes === 'number' ? postDoc.walkDurationMinutes : null;
   // v404 — Daniel : nombre d'animaux + types (chien/chat/NAC…) sur l'annonce.
   post.animalCount = typeof postDoc.animalCount === 'number' ? postDoc.animalCount : 0;
   post.animalTypes = Array.isArray(postDoc.animalTypes) ? postDoc.animalTypes : [];

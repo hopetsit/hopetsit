@@ -104,19 +104,24 @@ const signAuthToken = (payload, options = {}) => {
   });
 };
 
-const findAccountByEmail = async (email) => {
+// v575 P1-5 — `findAccountByEmail` renvoyait TOUJOURS l'Owner en priorité.
+// Une personne peut avoir jusqu'à 3 documents pour le même e-mail : le
+// paramètre `preferredRole` (facultatif) permet à l'appelant qui connaît le
+// rôle courant — `chooseService` via `req.user.role` ou le corps — de viser
+// le bon document. Sans lui, l'ordre historique owner → sitter → walker est
+// conservé : aucun appelant existant ne change de comportement.
+const AUTH_ROLE_MODELS = { owner: Owner, sitter: Sitter, walker: Walker };
+const AUTH_ROLE_ORDER = ['owner', 'sitter', 'walker'];
+
+const findAccountByEmail = async (email, preferredRole) => {
   const lower = email.toLowerCase();
-  const owner = await Owner.findOne({ email: lower });
-  if (owner) {
-    return { role: 'owner', account: owner };
-  }
-  const sitter = await Sitter.findOne({ email: lower });
-  if (sitter) {
-    return { role: 'sitter', account: sitter };
-  }
-  const walker = await Walker.findOne({ email: lower });
-  if (walker) {
-    return { role: 'walker', account: walker };
+  const wanted = String(preferredRole || '').toLowerCase();
+  const order = AUTH_ROLE_MODELS[wanted]
+    ? [wanted, ...AUTH_ROLE_ORDER.filter((r) => r !== wanted)]
+    : AUTH_ROLE_ORDER;
+  for (const role of order) {
+    const account = await AUTH_ROLE_MODELS[role].findOne({ email: lower });
+    if (account) return { role, account };
   }
   return null;
 };
@@ -364,6 +369,10 @@ const signup = async (req, res) => {
     // d'abord — ils portent l'IBAN — sinon owner).
     const _siblingSource = existingSitter || existingWalker || existingOwner || null;
 
+    // v575 — trio nom / prénom / nom de famille (une seule source de vérité).
+    const nameFields = require('../utils/personName').buildNameUpdate(user, {}) ||
+      { name: user.name, firstName: '', lastName: '' };
+
     // Process location data (optional: only when valid coordinates provided)
     const location = processLocationData(user.location);
 
@@ -387,7 +396,12 @@ const signup = async (req, res) => {
     }
 
     const ownerPayload = {
-      name: user.name,
+      name: nameFields.name,
+      // v575 — « nom et prénom » : envoyés par l'app ≥ 575, dérivés de `name`
+      // pour les clients plus anciens (utils/personName.js). `name` reste la
+      // source d'affichage partout.
+      firstName: nameFields.firstName,
+      lastName: nameFields.lastName,
       email,
       mobile,
       countryCode,
@@ -449,7 +463,12 @@ const signup = async (req, res) => {
     }
 
     const sitterPayload = {
-      name: user.name,
+      name: nameFields.name,
+      // v575 — « nom et prénom » : envoyés par l'app ≥ 575, dérivés de `name`
+      // pour les clients plus anciens (utils/personName.js). `name` reste la
+      // source d'affichage partout.
+      firstName: nameFields.firstName,
+      lastName: nameFields.lastName,
       email,
       mobile,
       countryCode,
@@ -541,7 +560,12 @@ const signup = async (req, res) => {
     // walker-specific fields (acceptedPetTypes, coverageRadiusKm, insurance).
     const walkerCurrency = sitterCurrency; // same normalization as sitter
     const walkerPayload = {
-      name: user.name,
+      name: nameFields.name,
+      // v575 — « nom et prénom » : envoyés par l'app ≥ 575, dérivés de `name`
+      // pour les clients plus anciens (utils/personName.js). `name` reste la
+      // source d'affichage partout.
+      firstName: nameFields.firstName,
+      lastName: nameFields.lastName,
       email,
       mobile,
       countryCode,
@@ -1981,6 +2005,19 @@ const changePassword = async (req, res) => {
   }
 };
 
+// v575 P1-5 — rôle demandé pour `chooseService`. Le jeton fait foi quand il
+// est présent (`optionalAuth` sur la route) ; sinon on accepte un `role`
+// facultatif dans le corps ou la query (l'écran « Choisir mes services » de
+// l'inscription n'a pas encore de session). Une valeur inconnue est ignorée →
+// comportement historique.
+const resolveChooseServiceRole = (req) => {
+  const fromToken = String(req.user?.role || '').toLowerCase();
+  if (AUTH_ROLE_MODELS[fromToken]) return fromToken;
+  const raw = (req.body && req.body.role) || (req.query && req.query.role);
+  const asked = String(raw || '').toLowerCase();
+  return AUTH_ROLE_MODELS[asked] ? asked : null;
+};
+
 const chooseService = async (req, res) => {
   try {
     const { email } = req.query;
@@ -1999,7 +2036,13 @@ const chooseService = async (req, res) => {
       return res.status(400).json({ error: 'Service is required (array of service names).' });
     }
 
-    const result = await findAccountByEmail(email);
+    // v575 P1-5 — BUG : `findAccountByEmail(email)` renvoyait l'Owner en
+    // priorité. Un gardien/promeneur multi-rôles cochait ses services, l'écran
+    // affichait « mis à jour »… et la liste partait sur son document
+    // PROPRIÉTAIRE. On vise désormais `ROLE_MODELS[role]` quand le rôle est
+    // connu (jeton d'abord, puis `role` du corps) ; sans rôle, rien ne change.
+    const wantedRole = resolveChooseServiceRole(req);
+    const result = await findAccountByEmail(email, wantedRole);
     if (!result) {
       return res.status(404).json({ error: 'User not found.' });
     }

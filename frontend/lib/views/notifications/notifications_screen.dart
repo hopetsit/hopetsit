@@ -19,6 +19,8 @@ import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
+// v575 — audit P1-4 : repli de navigation par « route thème ».
+import 'package:hopetsit/services/deep_link_service.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
 // v23.1.319 — Daniel (audit) : routage des notifs paiement/wallet/boutique.
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
@@ -224,6 +226,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final type = n.type.toLowerCase();
     final data = n.data;
     final role = n.recipientRole.toLowerCase();
+
+    // v575 — audit P1-4 : repli commun. `routeForNotification` connaît la
+    // destination de CHAQUE type (miroir de `emailLinkBuilder.buildAppRoute`
+    // côté serveur) et `openRoute` passe par les ONGLETS du menu — jamais par
+    // un `Get.to(() => const XScreen())` qui afficherait un écran d'onglet
+    // sans menu (cf. test/no_tab_push_test.dart).
+    Future<void> openByRoute() async {
+      final route = DeepLinkService.routeForNotification(type, data);
+      await DeepLinkService.instance.openRoute(route);
+    }
 
     // Session v16.3b - route for BOTH sitter AND walker (both are providers
     // and receive the same booking_new notification when an owner books them
@@ -433,7 +445,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final applicationId = _dataString(data, 'applicationId');
       final providerRoleFromData = _dataString(data, 'providerRole');
       final sitterId = _dataString(data, 'sitterId');
-      if (role != 'owner') return;
+      // v575 — audit P1-4 : côté prestataire, `application_rejected` et
+      // `application_rejected_other_accepted` sortaient ICI sans rien ouvrir.
+      if (role != 'owner') {
+        await openByRoute();
+        return;
+      }
       if (applicationId != null && applicationId.isNotEmpty) {
         await _showOwnerApplicationDialog(
           context: context,
@@ -450,6 +467,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             status: 'pending',
           ),
         );
+      } else {
+        // v575 — audit P1-4 : ni applicationId ni sitterId → au moins la
+        // destination générique du type, plutôt que rien.
+        await openByRoute();
       }
       return;
     }
@@ -595,7 +616,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         );
       }
+      return;
     }
+
+    // v575 — audit P1-4 : 14 types de notifications n'étaient couverts par
+    // AUCUNE branche ci-dessus (booking_paid, booking_paid_owner, les 4
+    // handover_*, walk_started, walk_finished, sos_pet_nearby,
+    // live_session_ended, live_still_active, application_rejected,
+    // application_rejected_other_accepted, BOOKING_MUTUALLY_ACCEPTED) : le
+    // tap ne faisait RIEN.
+    await openByRoute();
   }
 
   @override

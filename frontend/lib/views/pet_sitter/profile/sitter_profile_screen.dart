@@ -71,11 +71,17 @@ class SitterProfileScreen extends StatelessWidget {
                   // _buildSitterStatsRow conservée mais plus appelée.
 
                   // v565 — point 25 : barre « profil complété à X % ».
+                  // v575 — pastilles ciblées + rechargement au retour. Le
+                  // gardien n'a pas de sélecteur d'image sur sa page Profil :
+                  // « Photo » ouvre l'écran d'édition, dont l'avatar est en
+                  // haut (donc sans `focusField`).
                   Obx(() => ProfileCompletionCard(
                         profile: controller.profile.value,
                         role: 'sitter',
                         accent: sitterAccent,
-                        onEditProfile: controller.navigateToEditProfile,
+                        onEditProfile: (focusField) =>
+                            controller.navigateToEditProfile(focusField: focusField),
+                        onChanged: controller.loadMyProfile,
                       )),
 
                   // v565 (lot app-calendar-wallet) — 2 grandes cartes d'action :

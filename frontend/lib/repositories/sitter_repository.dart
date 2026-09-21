@@ -537,10 +537,15 @@ class SitterRepository {
         details: {'ownerId': ownerId, 'basePrice': basePrice},
       );
     }
+    // v575 — audit P0-1 : ce garde-fou refusait CÔTÉ APP les durées 90 et 120
+    // min que l'app propose pourtant elle-même, et toutes celles que le
+    // promeneur peut tarifer (multiples de 15 de 15 à 300 min). Le serveur
+    // valide désormais la même règle que `walkRateEntrySchema` ; on ne garde
+    // ici que le contrôle « durée présente ».
     if (normalizedServiceType == 'dog_walking' &&
-        (duration == null || (duration != 30 && duration != 60))) {
+        (duration == null || duration <= 0)) {
       throw ApiException(
-        'duration is required for dog_walking. Valid values: 30 or 60.',
+        'duration is required for dog_walking.',
         details: {
           'ownerId': ownerId,
           'serviceType': normalizedServiceType,
@@ -783,10 +788,15 @@ class SitterRepository {
   /// Fields: name, email, mobile, address, location, bio, skills, language
   Future<Map<String, dynamic>> updateSitterProfileMe({
     required String name,
+    // v575 — prénom / nom (le serveur recalcule `name`, qui reste la source
+    // d'affichage partout ailleurs). Optionnels : rétro-compatible.
+    String? firstName,
+    String? lastName,
     required String email,
     required String mobile,
     String? countryCode,
     String? address,
+    String? city,
     Map<String, dynamic>? location,
     String? bio,
     String? skills,
@@ -805,10 +815,17 @@ class SitterRepository {
       'email': email,
       'mobile': mobile,
       'countryCode': countryCode,
+      if (firstName != null) 'firstName': firstName,
+      if (lastName != null) 'lastName': lastName,
     };
 
     if (address != null && address.isNotEmpty) {
       payload['address'] = address;
+    }
+    // v575 — ville PLATE : sans elle, une ville tapée sans GPS n'était jamais
+    // enregistrée et l'élément « Ville » de la complétion restait rouge.
+    if (city != null && city.isNotEmpty) {
+      payload['city'] = city;
     }
     if (location != null) {
       payload['location'] = location;
