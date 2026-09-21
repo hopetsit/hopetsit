@@ -1038,11 +1038,16 @@ const updateSitterProfile = async (req, res) => {
     }
 
     // Update email (check uniqueness)
-    if (email !== undefined) {
-      const trimmedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
-      if (!trimmedEmail) {
-        return res.status(400).json({ error: 'Email must be a non-empty string.' });
-      }
+    // v575.1 — Daniel, 21/09 : « Email must be a non-empty string » bloquait
+    // TOUT enregistrement du profil gardien. L'écran d'édition envoie
+    // `email: ''` quand il ne l'affiche pas (l'e-mail se change par le flux
+    // dédié avec code de vérification) : une chaîne vide veut dire « ne
+    // touche pas à l'e-mail », jamais « efface-le ». Même règle que les
+    // autres champs partagés (utils/sharedIdentity.js).
+    const trimmedEmailIn =
+      typeof email === 'string' ? email.trim().toLowerCase() : '';
+    if (email !== undefined && trimmedEmailIn) {
+      const trimmedEmail = trimmedEmailIn;
       
       // Check if email is already taken by another user
       const existingOwner = await Owner.findOne({ email: trimmedEmail });

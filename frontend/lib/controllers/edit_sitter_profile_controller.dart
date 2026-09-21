@@ -553,7 +553,13 @@ class EditSitterProfileController extends GetxController {
         name: fullName,
         firstName: firstName,
         lastName: lastName,
-        email: emailController.text.trim(),
+        // v575.1 — l'e-mail se change par le flux dédié (code de
+        // vérification) : vide = « ne touche pas à l'e-mail », sinon le
+        // serveur refusait tout l'enregistrement (« Email must be a
+        // non-empty string », bug Daniel du 21/09).
+        email: emailController.text.trim().isEmpty
+            ? null
+            : emailController.text.trim(),
         // v565 — point 12 : numéro NATIONAL + indicatif séparé.
         mobile: PhonePrefix.nationalNumber(
             phoneController.text, selectedCountryCode.value),

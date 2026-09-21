@@ -22,13 +22,34 @@ class ProfileFocusAnchors {
 
   bool hasNode(String field) => _nodes.containsKey(field);
 
-  /// Fait défiler jusqu'à la section, après la première frame. Sans effet si
-  /// `field` est nul, inconnu, ou si l'ancre n'est pas (encore) montée.
+  /// Fait défiler jusqu'à la section et lui donne le focus.
+  ///
+  /// v575 (trouvé en test réel) : l'écran d'édition affiche d'abord une roue de
+  /// chargement (`isFetching`) ; à la première frame l'ancre n'est donc PAS
+  /// encore montée et l'ancienne version abandonnait en silence — le bouton
+  /// « À propos de moi » ouvrait l'écran sans jamais descendre jusqu'au champ.
+  /// On réessaie donc jusqu'à ce que l'ancre existe (4 s maximum).
   void reveal(String? field, {bool requestFocus = true}) {
     if (field == null || field.isEmpty) return;
+    _disposed = false;
+    _tryReveal(field, requestFocus, 0);
+  }
+
+  bool _disposed = false;
+
+  void _tryReveal(String field, bool requestFocus, int attempt) {
+    if (_disposed || attempt > 33) return; // 33 × 120 ms ≈ 4 s
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (_disposed) return;
       final ctx = _keys[field]?.currentContext;
-      if (ctx == null) return;
+      if (ctx == null) {
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+        _tryReveal(field, requestFocus, attempt + 1);
+        // Force une frame : sans elle le rappel suivant n'arriverait jamais sur
+        // un écran immobile.
+        WidgetsBinding.instance.scheduleFrame();
+        return;
+      }
       try {
         await Scrollable.ensureVisible(
           ctx,
@@ -39,13 +60,14 @@ class ProfileFocusAnchors {
       } catch (_) {
         // Pas de Scrollable ancêtre (écran court) : rien à faire.
       }
-      if (requestFocus && _nodes.containsKey(field)) {
+      if (!_disposed && requestFocus && _nodes.containsKey(field)) {
         _nodes[field]!.requestFocus();
       }
     });
   }
 
   void dispose() {
+    _disposed = true;
     for (final n in _nodes.values) {
       n.dispose();
     }

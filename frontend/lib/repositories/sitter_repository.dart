@@ -792,7 +792,10 @@ class SitterRepository {
     // d'affichage partout ailleurs). Optionnels : rétro-compatible.
     String? firstName,
     String? lastName,
-    required String email,
+    /// v575.1 — vide/nul = « ne touche pas à l'e-mail » (il se change par le
+    /// flux dédié avec code de vérification). Envoyer une chaîne vide faisait
+    /// refuser TOUT l'enregistrement par le serveur.
+    String? email,
     required String mobile,
     String? countryCode,
     String? address,
@@ -812,11 +815,11 @@ class SitterRepository {
   }) async {
     final payload = <String, dynamic>{
       'name': name,
-      'email': email,
       'mobile': mobile,
       'countryCode': countryCode,
       if (firstName != null) 'firstName': firstName,
       if (lastName != null) 'lastName': lastName,
+      if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
     };
 
     if (address != null && address.isNotEmpty) {
