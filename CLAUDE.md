@@ -1785,20 +1785,49 @@ Audit des **654 URL** du sitemap, une par une, via la Search Console
 
 Par marché (indexées / total) : **France 42/239 (17 %)**, USA + anglais 113/240 (47 %),
 Allemagne 12/36 (33 %), Espagne 7/32 (21 %), autres langues (pl, ko, ja, it, pt, nl) 49/107 (45 %).
-**Paris : 1 page indexée sur 42.**
+**Paris : 1 page indexée sur 42** — ce périmètre = les 40 pages d'arrondissement
+(`/garde-animaux/paris-1..20` + `/devenir-petsitter/paris-1..20`) plus les 2 pages d'accueil Paris ;
+la seule indexée est `/garde-animaux/paris-14`. (En comptant aussi les pages anglaises `paris-en` :
+3 indexées sur 51. Toujours dire ce qu'on compte.)
 
 Le sitemap est sain (654 URL, 0 erreur, relu par Google) et les pages déclarent bien leur balise
-canonique (vérifié dans le HTML servi) : **le problème n'est pas technique.** Le site propose 654 URL
+canonique (vérifié dans le HTML servi). **Mais une part du résultat de Paris était bel et bien
+technique** : le contenu local des 40 pages d'arrondissement était **du code mort depuis le 17/09**
+— il ne s'affichait pas, les pages sont restées quasi identiques entre elles. Corrigé par le commit
+`ed7ee82`, le soir même de cet audit : **les chiffres Paris ci-dessus sont donc antérieurs au
+correctif** et doivent être remesurés. Au-delà de ce cas, la cause reste structurelle : le site
+propose 654 URL
 avec une autorité quasi nulle ; Google n'en explore qu'une fraction, et chaque page ajoutée **dilue
 le budget d'exploration** au détriment des marchés visés.
 
-### Ordre de priorité des marchés (Daniel, 20/09/2026)
-1. **France (Paris) et USA** — priorité absolue, inchangée.
-2. **Allemagne et Espagne** — à développer ensuite. Les villes existent déjà
-   (`/tiersitter-werden`, `/tierbetreuung`, `/ser-cuidador-de-mascotas`, `/cuidado-de-mascotas`) :
+### Ordre de priorité des marchés (Daniel, 21/09/2026) — identique dans toutes les sources
+1. **Paris / France** et **Dallas / USA**, à égalité, priorité absolue.
+2. **Espagne** et **Allemagne** — à développer ensuite. Les villes existent déjà
+   (`/ser-cuidador-de-mascotas`, `/cuidado-de-mascotas`, `/tiersitter-werden`, `/tierbetreuung`) :
    **il n'y a aucune page à créer**, seulement à faire indexer et convertir.
-3. **Toutes les autres langues** (pl, ko, ja, it, pt, nl) — **gelées** : ni nouvelle ville, ni
-   nouvelle langue. Elles consomment le budget d'exploration des quatre marchés ci-dessus.
+3. **Tout le reste — autres langues (pl, ko, ja, it, pt, nl) et autres villes — est gelé** : ni
+   nouvelle ville, ni nouvelle langue. Elles consomment le budget d'exploration des quatre marchés
+   ci-dessus.
+
+État de ces marchés au 20/09/2026 (source : `gsc_audit.json`) :
+
+| Marché prioritaire | Indexées | Détail |
+|---|---|---|
+| **Paris** | **1 / 42** | 40 pages d'arrondissement + 2 pages d'accueil ; seule `/garde-animaux/paris-14` est indexée |
+| **Zone Dallas–Fort Worth** | **1 / 12** | 6 villes × 2 familles d'URL ; seule `/pet-sitting/dallas` est indexée |
+| France entière | 42 / 239 (17 %) | |
+| USA + anglais | 113 / 240 (47 %) | |
+
+| Marché à développer | Indexées |
+|---|---|
+| **Allemagne** (+ Autriche, Suisse) | **12 / 36** (33 %) |
+| **Espagne** | **7 / 32** (21 %) |
+
+⚠️ **Le trou le plus coûteux : `/become-a-pet-sitter/dallas` est inconnue de Google**
+(« Google ne reconnaît pas cette URL »), tout comme `/petsitter/dallas`, `/become-a-pet-sitter/plano`,
+`/become-a-pet-sitter/frisco` et `/become-a-pet-sitter/fort-worth`. C'est la page qui recrute les
+pet sitters sur la ville où tourne la pub Meta à 16 €/jour : on paie pour amener du monde sur un
+marché dont la page de recrutement n'existe pas pour Google. À traiter en premier.
 
 ### Règles de développement
 1. **Ne pas créer de nouvelles pages villes ni de nouvelles langues** tant que le taux d'indexation
