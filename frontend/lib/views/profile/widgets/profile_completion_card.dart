@@ -35,9 +35,17 @@ class ProfileCompletionCard extends StatelessWidget {
 
   /// Ouvre « Modifier le profil ». Reçoit le champ à mettre en évidence
   /// (`ProfileFocusField.*`) ; un écran qui ne le gère pas l'ignore.
-  final void Function(String? focusField) onEditProfile;
-  final VoidCallback? onPets;
-  final VoidCallback? onPhoto;
+  ///
+  /// v576 — le type est un `Future` et il est ATTENDU : quand il ne l'était
+  /// pas (`void`), `onChanged` se déclenchait à l'instant même où l'écran
+  /// d'édition s'ouvrait, donc AVANT toute modification — le pourcentage ne
+  /// bougeait jamais au retour (« la barre ne monte pas », Daniel 21/09).
+  final Future<void> Function(String? focusField) onEditProfile;
+  /// « Mes animaux » (propriétaire). Attendu lui aussi.
+  final Future<void> Function()? onPets;
+
+  /// Sélecteur de photo. Attendu lui aussi.
+  final Future<void> Function()? onPhoto;
 
   /// Rechargement du profil après une action (retour d'écran ou de feuille).
   final Future<void> Function()? onChanged;
@@ -60,20 +68,20 @@ class ProfileCompletionCard extends StatelessWidget {
         break;
       case ProfileFixTarget.pets:
         if (onPets != null) {
-          onPets!();
+          await onPets!();
         } else {
-          onEditProfile(item.focusField);
+          await onEditProfile(item.focusField);
         }
         break;
       case ProfileFixTarget.photo:
         if (onPhoto != null) {
-          onPhoto!();
+          await onPhoto!();
         } else {
-          onEditProfile(item.focusField);
+          await onEditProfile(item.focusField);
         }
         break;
       case ProfileFixTarget.editProfile:
-        onEditProfile(item.focusField);
+        await onEditProfile(item.focusField);
         break;
     }
     // Le pourcentage et la liste doivent bouger DÈS le retour.

@@ -90,7 +90,10 @@ class WalkerProfileScreen extends StatelessWidget {
                         profile: controller.profile.value,
                         role: 'walker',
                         accent: _accent,
-                        onEditProfile: (focusField) => Get.to(
+                        // v576 — `async` + `await` : sans ça le rechargement
+                        // (`onChanged`) partait à l'ouverture de l'écran, pas
+                        // à son retour, et la barre restait figée.
+                        onEditProfile: (focusField) async => await Get.to(
                             () => EditWalkerProfileScreen(focusField: focusField)),
                         onPhoto: controller.pickAndUploadProfilePicture,
                         onChanged: controller.loadMyProfile,

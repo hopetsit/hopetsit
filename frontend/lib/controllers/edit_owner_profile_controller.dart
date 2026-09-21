@@ -14,6 +14,7 @@ import 'package:hopetsit/utils/profile_completion.dart'
     show splitPersonName, joinPersonName;
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/profile/widgets/phone_prefix_helper.dart';
+import 'package:hopetsit/utils/server_error_message.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/services/location_service.dart';
 
@@ -241,13 +242,11 @@ class EditOwnerProfileController extends GetxController {
         await AuthController.handleLoginRequiredError();
         return;
       }
-      loadError.value =
-          error.message.isNotEmpty ? error.message : 'profile_load_error'.tr;
+      // v576 — clé traduite, jamais le texte serveur (anglais).
+      loadError.value = errorKeyFor(error, fallbackKey: 'profile_load_error').tr;
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: error.message.isNotEmpty
-            ? error.message
-            : 'profile_load_error'.tr,
+        message: errorKeyFor(error, fallbackKey: 'profile_load_error'),
       );
     } catch (error) {
       AppLogger.logError('Failed to load profile', error: error);
@@ -425,14 +424,13 @@ class EditOwnerProfileController extends GetxController {
       return true;
     } on ApiException catch (error) {
       // v575 — « ça refuse » sans rien dire : le titre et le message étaient
-      // des CLÉS BRUTES (pas de `.tr`) et le motif réel du serveur était
-      // jeté. On affiche désormais la raison exacte, traduite.
+      // des CLÉS BRUTES (pas de `.tr`).
+      // v576 — la « raison exacte » du serveur est en ANGLAIS : on la
+      // convertit en clé traduite (code / mots-clés / statut HTTP).
       AppLogger.logError('Failed to update profile', error: error.message);
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: error.message.isNotEmpty
-            ? error.message
-            : 'profile_update_failed'.tr,
+        message: errorKeyFor(error, fallbackKey: 'profile_update_failed'),
       );
       return false;
     } catch (error) {
@@ -476,9 +474,10 @@ class EditOwnerProfileController extends GetxController {
       );
     } on ApiException catch (error) {
       AppLogger.logError('Failed to upload image', error: error.message);
+      // v576 — titre et message étaient des CLÉS BRUTES (pas de `.tr`).
       CustomSnackbar.showError(
-        title: 'profile_upload_failed',
-        message: 'common_error_generic',
+        title: 'profile_upload_failed'.tr,
+        message: errorKeyFor(error, fallbackKey: 'fixes576_err_photo_failed'),
       );
     } catch (error) {
       AppLogger.logError('Failed to upload image', error: error);

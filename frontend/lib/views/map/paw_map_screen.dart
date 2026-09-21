@@ -257,7 +257,19 @@ class _PawMapScreenState extends State<PawMapScreen>
   LatLng? _lastReloadCenter;
   /// v565 — point 8 : zoom à partir duquel les membres prennent la couleur
   /// de leur rôle (rose fluo en dessous).
-  static const double _roleColorZoom = 9.0;
+  /// v576 — Daniel : « quand on zoome, on voit la couleur par rôle un peu plus
+  /// vite, en zoomant moins ». Seuil 9 → 6,5 : à 6,5 on voit encore une
+  /// région entière, donc la couleur arrive bien avant l'échelle de la ville.
+  static const double _roleColorZoom = 6.5;
+
+  /// v576 — couleurs de rôle (INCHANGÉES : mêmes valeurs que les badges de
+  /// membre). Extraites ici pour que les pastilles de GROUPE puissent utiliser
+  /// exactement la même palette que les marqueurs individuels.
+  static const Map<String, List<Color>> _roleGradients = {
+    'owner': [Color(0xFFFF5A2E), Color(0xFFD83C28)],
+    'walker': [Color(0xFF2FD16B), Color(0xFF16A34A)],
+    'sitter': [Color(0xFF4F8DFF), Color(0xFF2563EB)],
+  };
   /// v551 — Daniel : « filtres par type, joli et minimaliste, pas de slide ».
   /// Rôles de membres affichés sur la carte (tous par défaut).
   final RxSet<String> _memberRoles = <String>{'sitter', 'walker', 'owner'}.obs;
@@ -785,6 +797,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   // courant → le regroupement suit exactement ce que l'œil voit.
   final Map<String, BitmapDescriptor> _clusterMarkers = {};
   static const double _clusterCellPx = 76;
+  /// v576 — les MEMBRES se regroupent dans une cellule plus fine que les
+  /// lieux : c'est le regroupement, pas le seuil de zoom, qui cachait la
+  /// couleur de rôle (une pastille rose « 3 » reste rose quel que soit le
+  /// zoom). Avec 44 px, les badges colorés se séparent environ un cran de
+  /// zoom plus tôt, sans rendre la carte illisible.
+  static const double _memberClusterCellPx = 44;
 
   double _mercX(double lng) => (lng + 180.0) / 360.0 * 256.0;
   double _mercY(double lat) {
@@ -795,14 +813,15 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Regroupe [items] par cellule d'écran. Renvoie des groupes non vides.
   List<List<T>> _clusterize<T>(
     List<T> items,
-    LatLng Function(T) posOf,
-  ) {
+    LatLng Function(T) posOf, {
+    double cellPx = _clusterCellPx,
+  }) {
     final scale = math.pow(2.0, _zoomLevel).toDouble();
     final cells = <String, List<T>>{};
     for (final it in items) {
       final p = posOf(it);
-      final x = _mercX(p.longitude) * scale / _clusterCellPx;
-      final y = _mercY(p.latitude) * scale / _clusterCellPx;
+      final x = _mercX(p.longitude) * scale / cellPx;
+      final y = _mercY(p.latitude) * scale / cellPx;
       final key = '${x.floor()}_${y.floor()}';
       (cells[key] ??= <T>[]).add(it);
     }
@@ -829,6 +848,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     bool rose, {
     Color? themeColor,
     String? emoji,
+    Map<String, int>? roleCounts,
   }) async {
     final label = count > 99 ? '99+' : '$count';
     const double size = 128;
@@ -838,6 +858,24 @@ class _PawMapScreenState extends State<PawMapScreen>
     final double r = count >= 50 ? 44 : (count >= 10 ? 40 : 36);
     Color a = rose ? const Color(0xFFFF4FA3) : const Color(0xFF3E9BE9);
     Color b = rose ? const Color(0xFFF01E86) : const Color(0xFF2563EB);
+    // v576 — Daniel : « on voit leur couleur par rôle en zoomant moins ».
+    // Tant que des membres restent groupés, la pastille prend la couleur du
+    // rôle DOMINANT du groupe (au lieu d'un rose uniforme qui ne dit rien) et
+    // porte un anneau découpé selon la composition réelle : trois arcs =
+    // trois familles présentes. Les couleurs de rôle sont inchangées.
+    String? dominantRole;
+    if (roleCounts != null && roleCounts.isNotEmpty) {
+      final entries = roleCounts.entries
+          .where((e) => e.value > 0 && _roleGradients.containsKey(e.key))
+          .toList()
+        ..sort((x, y) => y.value.compareTo(x.value));
+      if (entries.isNotEmpty) {
+        dominantRole = entries.first.key;
+        final g = _roleGradients[dominantRole]!;
+        a = g[0];
+        b = g[1];
+      }
+    }
     if (themeColor != null) {
       // Dégradé clair → foncé construit autour de la couleur du thème.
       final hsl = HSLColor.fromColor(themeColor);
@@ -869,6 +907,35 @@ class _PawMapScreenState extends State<PawMapScreen>
         ..strokeWidth = 4
         ..color = Colors.white,
     );
+    // v576 — anneau de composition : un arc par rôle présent, proportionnel
+    // au nombre de membres de ce rôle dans le groupe. C'est le « petit
+    // repère » qui dit, sans zoomer, qu'il y a par exemple 2 gardiens et
+    // 1 propriétaire. Dessiné seulement pour les groupes de membres.
+    if (dominantRole != null && roleCounts != null) {
+      final present = ['owner', 'sitter', 'walker']
+          .where((k) => (roleCounts[k] ?? 0) > 0)
+          .toList();
+      if (present.length > 1) {
+        final total = present.fold<int>(0, (s, k) => s + (roleCounts[k] ?? 0));
+        double start = -math.pi / 2;
+        final rect = Rect.fromCircle(center: center, radius: r + 7);
+        for (final k in present) {
+          final sweep = (roleCounts[k]! / total) * 2 * math.pi;
+          canvas.drawArc(
+            rect,
+            start + 0.06,
+            math.max(0.0, sweep - 0.12),
+            false,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 7
+              ..strokeCap = StrokeCap.round
+              ..color = _roleGradients[k]![0],
+          );
+          start += sweep;
+        }
+      }
+    }
     final tp = TextPainter(
       text: TextSpan(
         text: label,
@@ -898,8 +965,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     return BitmapDescriptor.bytes(bytes!.buffer.asUint8List(), width: 52);
   }
 
-  void _ensureClusterMarker(int count, bool rose, {String? category}) {
-    final key = _clusterKey(count, rose, category);
+  void _ensureClusterMarker(int count, bool rose,
+      {String? category, Map<String, int>? roleCounts}) {
+    final key = _clusterKey(count, rose, category, roleCounts);
     if (_clusterMarkers.containsKey(key) ||
         _emojiGenInProgress.contains(key)) {
       return;
@@ -910,6 +978,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       rose,
       themeColor: category != null ? _colorForPoi(category) : null,
       emoji: category != null ? PoiCategories.emoji(category) : null,
+      roleCounts: roleCounts,
     ).then((bd) {
       _clusterMarkers[key] = bd;
       _emojiGenInProgress.remove(key);
@@ -929,8 +998,14 @@ class _PawMapScreenState extends State<PawMapScreen>
     return v > 0 ? v : 48.0;
   }
 
-  String _clusterKey(int count, bool rose, String? category) =>
-      'cl_${rose ? 1 : 0}_${category ?? ''}_${count > 99 ? 100 : count}';
+  String _clusterKey(int count, bool rose, String? category,
+          [Map<String, int>? roleCounts]) =>
+      'cl_${rose ? 1 : 0}_${category ?? ''}_${count > 99 ? 100 : count}'
+      // v576 — la composition par rôle fait partie de l'identité du bitmap :
+      // sans elle, deux groupes de même taille mais de rôles différents
+      // partageraient la même pastille mise en cache.
+      '_${roleCounts == null ? '' : ['owner', 'sitter', 'walker']
+          .map((k) => '${k[0]}${roleCounts[k] ?? 0}').join()}';
 
   /// Tap sur une pastille de groupe : on zoome dessus, le groupe s'ouvre.
   Future<void> _zoomToCluster(LatLng target) async {
@@ -4089,14 +4164,26 @@ class _PawMapScreenState extends State<PawMapScreen>
       final groups = _clusterize<Map<String, dynamic>>(
         placeable,
         (p) => posOfMember(p)!,
+        // v576 — cellule plus fine pour les membres : les badges colorés se
+        // séparent plus tôt (cf. _memberClusterCellPx).
+        cellPx: _memberClusterCellPx,
       );
       for (final group in groups) {
         if (group.length > 1) {
           final target = _centroid<Map<String, dynamic>>(
               group, (p) => posOfMember(p)!);
-          final key = _clusterKey(group.length, true, null);
+          // v576 — composition du groupe : la pastille prend la couleur du
+          // rôle dominant et un anneau découpé montre les autres.
+          final roleCounts = <String, int>{'owner': 0, 'sitter': 0, 'walker': 0};
+          for (final m in group) {
+            final rr = (m['_role'] ?? '').toString().toLowerCase();
+            if (roleCounts.containsKey(rr)) roleCounts[rr] = roleCounts[rr]! + 1;
+          }
+          final key = _clusterKey(group.length, true, null, roleCounts);
           final icon = _clusterMarkers[key];
-          if (icon == null) _ensureClusterMarker(group.length, true);
+          if (icon == null) {
+            _ensureClusterMarker(group.length, true, roleCounts: roleCounts);
+          }
           markers.add(
             Marker(
               markerId: MarkerId('mcluster_${target.latitude.toStringAsFixed(4)}'

@@ -10,6 +10,7 @@ const {
   getInvoice,
   renderInvoiceHtml,
   adminListInvoices,
+  sendInvoiceError,
 } = require('../controllers/invoiceController');
 
 const router = express.Router();
@@ -28,18 +29,20 @@ const requireAuthQueryOrHeader = (req, res, next) => {
     } else if (queryToken.length > 0) {
       token = queryToken;
     }
+    // v576 — la réponse est affichée dans la WebView de l'app : page
+    // traduite (« Ta session a expiré… ») au lieu d'une phrase anglaise brute.
     if (!token) {
-      return res.status(401).send('Authorization token is required.');
+      return sendInvoiceError(req, res, 401, 'errorAuth');
     }
     const secret = process.env.JWT_SECRET;
     if (!secret) {
-      return res.status(500).send('JWT_SECRET not configured.');
+      return sendInvoiceError(req, res, 500, 'errorServer');
     }
     const payload = jwt.verify(token, secret);
     req.user = { id: payload.id, role: payload.role };
     return next();
   } catch (e) {
-    return res.status(401).send('Invalid or expired token.');
+    return sendInvoiceError(req, res, 401, 'errorAuth');
   }
 };
 

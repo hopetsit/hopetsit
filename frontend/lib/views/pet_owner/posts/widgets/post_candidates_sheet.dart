@@ -1,3 +1,4 @@
+import 'package:hopetsit/widgets/role_chip.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -588,7 +589,9 @@ class _CandidateCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8.r),
                           ),
                           child: InterText(
-                            text: (isWalker ? 'role_walker' : 'role_sitter').tr,
+                            // v576 — libellé unifié (plus de « Petsitter »).
+                            text: roleLabelKey(
+                                isWalker ? 'walker' : 'sitter').tr,
                             fontSize: 10.sp,
                             fontWeight: FontWeight.w600,
                             color: roleTone,

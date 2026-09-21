@@ -694,9 +694,40 @@ router.get('/me/referrals', requireAuth, getMyReferralsRoute);
 //   GET    /users/me/favorites               → liste [{providerId, providerRole}]
 //   POST   /users/me/favorites               → ajout idempotent {providerId, providerRole}
 //   DELETE /users/me/favorites/:providerId   → suppression
-router.get('/me/favorites', requireAuth, requireRole('owner'), getFavoriteProviders);
-router.post('/me/favorites', requireAuth, requireRole('owner'), addFavoriteProvider);
-router.delete('/me/favorites/:providerId', requireAuth, requireRole('owner'), removeFavoriteProvider);
+// v576 — Daniel : « mes listes également » doivent être synchronisées entre les
+// 3 profils. Les favoris sont stockés sur le document Owner de la personne,
+// mais `requireRole('owner')` refusait (403) l'accès depuis les profils gardien
+// et promeneur : la même personne perdait sa liste en changeant de rôle. Le
+// middleware ci-dessous résout le document Owner DU GROUPE D'IDENTITÉ et
+// présente le contrôleur avec ce profil — aucune donnée n'est déplacée, la
+// liste reste unique et vit toujours sur le document Owner.
+const asOwnerProfile = async (req, res, next) => {
+  try {
+    if (String(req.user?.role || '').toLowerCase() === 'owner') return next();
+    const Owner = require('../models/Owner');
+    const g = await identityGroup(req.user.id);
+    const ownerDoc = g.docs.find((d) => d.model === 'Owner')
+      || (await Owner.findOne({ _id: { $in: g.ids } }).select('_id').lean()
+        .then((d) => (d ? { id: String(d._id) } : null)));
+    if (!ownerDoc) {
+      // La personne n'a pas (encore) de profil propriétaire : liste vide
+      // plutôt qu'un 403 incompréhensible côté app.
+      if (req.method === 'GET') return res.json({ favorites: [] });
+      return res.status(403).json({
+        error: 'An owner profile is required to manage favorites.',
+        code: 'OWNER_PROFILE_REQUIRED',
+      });
+    }
+    req.user = { ...req.user, id: String(ownerDoc.id), role: 'owner' };
+    return next();
+  } catch (e) {
+    return res.status(500).json({ error: 'Unable to resolve owner profile.' });
+  }
+};
+
+router.get('/me/favorites', requireAuth, asOwnerProfile, getFavoriteProviders);
+router.post('/me/favorites', requireAuth, asOwnerProfile, addFavoriteProvider);
+router.delete('/me/favorites/:providerId', requireAuth, asOwnerProfile, removeFavoriteProvider);
 
 // v23.1 part 133 — Phase 7 audit P7-12 : RGPD article 15 (droit d'accès)
 // + article 20 (droit à la portabilité). Renvoie un JSON complet de

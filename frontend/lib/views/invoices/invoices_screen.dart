@@ -15,6 +15,7 @@ import 'package:hopetsit/views/invoices/widgets/invoice_billing_blocks.dart';
 import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 
@@ -76,6 +77,16 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   /// we open the same HTML in an in-app WebView with a clean HoPetSit
   /// header. The user never sees the backend URL.
   Future<void> _openInvoice(InvoiceModel inv) async {
+    // v576 — BUG : un identifiant vide produisait l'URL « /invoices//html »
+    // (et « /invoices/undefined/html » côté web), donc une page d'erreur au
+    // lieu de la facture. Le tap doit toujours aboutir à un résultat VISIBLE.
+    if (inv.id.trim().isEmpty) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'invoice576_open_failed'.tr,
+      );
+      return;
+    }
     // v23.1.162 — Daniel : page facture en FR sur UI espagnole. Le HTML
     // est genere par le backend, donc on doit lui dire dans quelle langue
     // afficher. On lit la locale active de GetX et on ajoute ?lang=xx a

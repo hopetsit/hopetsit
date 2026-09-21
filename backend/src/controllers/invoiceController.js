@@ -8,6 +8,8 @@
  *   POST /admin/invoices         → liste admin avec filtres (role-aware)
  */
 
+const fs = require('fs');
+const path = require('path');
 const Invoice = require('../models/Invoice');
 const Booking = require('../models/Booking');
 const Owner = require('../models/Owner');
@@ -20,6 +22,101 @@ const {
   snapshotForApi,
   isSnapshotFrozen,
 } = require('../utils/billingInfo');
+
+// ─── v576 — identité de l'entité qui facture ────────────────────────────────
+// CARDELLI HERMANOS LIMITED exploite HoPetSit : la marque affichée au client
+// reste HoPetSit (il a réservé là), mais la facture est ÉMISE par la société.
+// Ces valeurs reprennent exactement celles déjà présentes dans le pied de page
+// de l'ancien gabarit — rien n'est inventé (pas d'adresse de rue, elle n'a
+// jamais figuré ici).
+const ISSUER_COMPANY = {
+  name: 'CARDELLI HERMANOS LIMITED',
+  place: 'Hong Kong',
+  companyNumber: 'n-2671528',
+  email: 'contact@hopetsit.com',
+};
+
+// ─── v576 — logos EMBARQUÉS (data URI) ──────────────────────────────────────
+// Un PDF imprimé depuis la page doit rester complet hors ligne : aucune URL
+// distante, donc les images sont encodées en base64 dans le HTML. Les fichiers
+// sont lus UNE fois au chargement du module et gardés en mémoire.
+//   · hopetsit_logo_192.png = logo OFFICIEL actuel de l'app (fourni par
+//     Daniel en 320 px dans hopetsit_logo.png), redimensionné à 192 px =
+//     4× sa taille d'affichage (48 px) : net à l'impression A4, et 3× plus
+//     léger (54 ko au lieu de 124 ko). Le master 320 px reste dans assets.
+//     L'ancien dessin SVG en dur (carré orange de la v23.1) ne correspondait
+//     plus à la marque refaite au build 570.
+//   · cardelli_hermanos_logo.png (320 px) = logo de la société qui facture.
+const embeddedPng = (name, label) => {
+  try {
+    const file = path.join(__dirname, '..', 'assets', name);
+    return `data:image/png;base64,${fs.readFileSync(file).toString('base64')}`;
+  } catch (e) {
+    logger.warn(`[invoice] logo ${label} illisible (${e.message}) — facture rendue sans ce logo`);
+    return '';
+  }
+};
+const CARDELLI_LOGO_DATA_URI = embeddedPng('cardelli_hermanos_logo.png', 'Cardelli Hermanos');
+const HOPETSIT_LOGO_DATA_URI = embeddedPng('hopetsit_logo_192.png', 'HoPetSit')
+  || embeddedPng('hopetsit_logo.png', 'HoPetSit (master)');
+
+// ─── v576 — libellés de la facture : locales/<lang>/invoice.json ────────────
+// Même mécanisme que notifications.json / lifecycle.json (lecture + cache).
+// L'anglais sert de socle : une clé absente d'une langue ne peut pas faire
+// apparaître une chaîne vide dans la facture.
+const INVOICE_LOCALES = ['en', 'fr', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl'];
+const _invoiceCatalogs = {};
+const loadInvoiceCatalog = (locale) => {
+  if (_invoiceCatalogs[locale]) return _invoiceCatalogs[locale];
+  try {
+    const file = path.join(__dirname, '..', 'locales', locale, 'invoice.json');
+    _invoiceCatalogs[locale] = JSON.parse(fs.readFileSync(file, 'utf8') || '{}');
+  } catch (e) {
+    logger.warn(`[invoice] catalogue ${locale} illisible: ${e.message}`);
+    _invoiceCatalogs[locale] = {};
+  }
+  return _invoiceCatalogs[locale];
+};
+const invoiceTexts = (lang) => ({ ...loadInvoiceCatalog('en'), ...loadInvoiceCatalog(lang) });
+
+// ─── v576 — langue et page d'erreur (facture consultée en WebView) ──────────
+// Avant : un 401 / 403 / 404 renvoyait une phrase ANGLAISE en texte brut, que
+// la WebView de l'app affichait telle quelle (« Invoice not found »). On rend
+// désormais une page lisible, traduite, qui dit quoi faire.
+const twoLetters = (v) => String(v || '').toLowerCase().slice(0, 2);
+const langFromRequest = (req) => [
+  twoLetters(req && req.query ? req.query.lang : ''),
+  twoLetters(((req && req.headers && req.headers['accept-language']) || '').split(',')[0].split('-')[0]),
+].find((l) => INVOICE_LOCALES.includes(l)) || 'en';
+
+const escapeHtml = (v) => String(v == null ? '' : v)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+/** Page d'erreur de la facture : status HTTP + message traduit. */
+function sendInvoiceError(req, res, status, key) {
+  const lang = langFromRequest(req);
+  const T = invoiceTexts(lang);
+  const message = T[key] || T.errorServer;
+  res.status(status).set('Content-Type', 'text/html; charset=utf-8');
+  return res.send(`<!DOCTYPE html>
+<html lang="${lang}">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${escapeHtml(T.errorTitle)}</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 32px 20px; background: #fff; color: #17141F; text-align: center; }
+  .box { max-width: 420px; }
+  h1 { font-size: 18px; font-weight: 800; margin: 0 0 8px; }
+  p { font-size: 14px; line-height: 1.6; color: #5B5B66; margin: 0; }
+  .mark { width: 44px; height: 44px; border-radius: 12px; background: #C92A12; margin: 0 auto 16px; }
+</style>
+</head>
+<body><div class="box"><div class="mark"></div>
+<h1>${escapeHtml(T.errorTitle)}</h1><p>${escapeHtml(message)}</p></div></body>
+</html>`);
+}
 
 // ─── v566 — instantanés de facturation ──────────────────────────────────────
 // `issuerBilling` (prestataire) et `customerBilling` (propriétaire) sont copiés
@@ -312,10 +409,10 @@ const renderInvoiceHtml = async (req, res) => {
     // v498 — id invalide (ex. 'undefined') → 404 propre au lieu d'un CastError
     // qui finissait en 500 « Server error ».
     if (!/^[0-9a-fA-F]{24}$/.test(String(req.params.id || ''))) {
-      return res.status(404).send('Invoice not found');
+      return sendInvoiceError(req, res, 404, 'errorNotFound');
     }
     const inv = await Invoice.findById(req.params.id).lean();
-    if (!inv) return res.status(404).send('Invoice not found');
+    if (!inv) return sendInvoiceError(req, res, 404, 'errorNotFound');
 
     // Optional auth via query token. v498 — Daniel : « le bouton télécharger
     // PDF ne marche pas ». Une facture d'ABONNEMENT/PROMO n'a pas de providerId
@@ -327,7 +424,7 @@ const renderInvoiceHtml = async (req, res) => {
       const isProvider = inv.providerId ? String(inv.providerId) === uid : false;
       const isAdmin = req.user.role === 'admin';
       if (!isOwner && !isProvider && !isAdmin) {
-        return res.status(403).send('Access denied');
+        return sendInvoiceError(req, res, 403, 'errorDenied');
       }
     }
 
@@ -351,7 +448,7 @@ const renderInvoiceHtml = async (req, res) => {
     // ?lang=es/de/it/pt/en/fr quand il ouvre la WebView.
     // v566 — 9 langues (ko / ja / pl ajoutés) ; sans `?lang`, on prend la
     // langue du COMPTE (appLocale) avant l'Accept-Language du navigateur.
-    const supported = ['en', 'fr', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl'];
+    const supported = INVOICE_LOCALES;
     const two = (v) => String(v || '').toLowerCase().slice(0, 2);
     let accountLang = '';
     if (!supported.includes(two(req.query.lang)) && req.user?.id && req.user.role !== 'admin') {
@@ -369,172 +466,35 @@ const renderInvoiceHtml = async (req, res) => {
     ].find((l) => supported.includes(l));
     const lang = rawLang || 'en';
 
-    // v23.1.164 — Daniel : "dans la fcture ya tjr ecris invoice fais que tt
-    // soit bien traduit". Ajout du label `invoiceLabel` qui sert pour le
-    // <title> de la page ET pour le numero affiche en haut a droite.
-    // v23.1.175 — Daniel : "sur le descriptif de la facture mal traduit
-    // a verifier tte les langue". On ajoute serviceWalk / serviceDaycare /
-    // serviceBoarding / serviceSitting / serviceGeneric à chaque langue,
-    // et on traduit la cellule "Description" du tableau en fonction de
-    // inv.serviceType (au lieu de juste replace _ par espace).
-    const T = {
-      en: {
-        invoiceTitle: 'HoPetSit Invoice', invoiceLabel: 'Invoice', downloadBtn: '⬇ Download PDF',
-        billTo: 'Bill to (Owner)', serviceProvider: 'Service provider',
-        description: 'Description', serviceDate: 'Service date', pets: 'Pets',
-        amount: 'Amount', issued: 'Issued', paid: 'Paid',
-        grossAmount: 'Gross amount', commission: 'HoPetSit platform fee (20%)',
-        netProvider: 'Net to provider', totalCharged: 'Total charged to owner',
-        footer: 'Payment processed by Airwallex (PCI-DSS Level 1 certified). HoPetSit does not access, transmit or store cardholder data.',
-        cancelTerms: 'Self-cancellation with full refund available up to 72h before the service starts. See',
-        escrowText: "Funds are held in escrow until 24h after the service ends, then released to the provider's registered IBAN.",
-        serviceWalk: 'Dog walk', serviceDaycare: 'Day care',
-        serviceBoarding: 'Overnight boarding', serviceSitting: 'Pet-sitting',
-        serviceGeneric: 'Service',
-      },
-      fr: {
-        invoiceTitle: 'Facture HoPetSit', invoiceLabel: 'Facture', downloadBtn: '⬇ Télécharger PDF',
-        billTo: 'Facturé à (Propriétaire)', serviceProvider: 'Prestataire',
-        description: 'Description', serviceDate: 'Date du service', pets: 'Animaux',
-        amount: 'Montant', issued: 'Émise', paid: 'Payée',
-        grossAmount: 'Montant brut', commission: 'Commission HoPetSit (20%)',
-        netProvider: 'Net pour le prestataire', totalCharged: 'Total facturé au propriétaire',
-        footer: 'Paiement traité par Airwallex (certifié PCI-DSS Niveau 1). HoPetSit n\'accède pas, ne transmet pas et ne stocke pas les données de carte bancaire.',
-        cancelTerms: 'Annulation gratuite avec remboursement intégral disponible jusqu\'à 72h avant le début du service. Voir',
-        escrowText: "Les fonds sont conservés en séquestre jusqu'à 24h après la fin du service, puis libérés vers l'IBAN enregistré du prestataire.",
-        serviceWalk: 'Promenade chien', serviceDaycare: 'Garderie',
-        serviceBoarding: 'Garde nuit', serviceSitting: 'Pet-sitting',
-        serviceGeneric: 'Service',
-      },
-      es: {
-        invoiceTitle: 'Factura HoPetSit', invoiceLabel: 'Factura', downloadBtn: '⬇ Descargar PDF',
-        billTo: 'Facturado a (Propietario)', serviceProvider: 'Prestador del servicio',
-        description: 'Descripción', serviceDate: 'Fecha del servicio', pets: 'Mascotas',
-        amount: 'Importe', issued: 'Emitida', paid: 'Pagada',
-        grossAmount: 'Importe bruto', commission: 'Comisión HoPetSit (20%)',
-        netProvider: 'Neto para el prestador', totalCharged: 'Total facturado al propietario',
-        footer: 'Pago procesado por Airwallex (certificado PCI-DSS Nivel 1). HoPetSit no accede, transmite ni almacena datos de tarjetas.',
-        cancelTerms: 'Cancelación gratuita con reembolso íntegro disponible hasta 72h antes del inicio del servicio. Ver',
-        escrowText: 'Los fondos se mantienen en depósito hasta 24h después del final del servicio, luego se liberan al IBAN registrado del prestador.',
-        serviceWalk: 'Paseo de perros', serviceDaycare: 'Guardería',
-        serviceBoarding: 'Hospedaje nocturno', serviceSitting: 'Pet-sitting',
-        serviceGeneric: 'Servicio',
-      },
-      de: {
-        invoiceTitle: 'HoPetSit Rechnung', invoiceLabel: 'Rechnung', downloadBtn: '⬇ PDF herunterladen',
-        billTo: 'Rechnung an (Besitzer)', serviceProvider: 'Dienstleister',
-        description: 'Beschreibung', serviceDate: 'Servicedatum', pets: 'Tiere',
-        amount: 'Betrag', issued: 'Ausgestellt', paid: 'Bezahlt',
-        grossAmount: 'Bruttobetrag', commission: 'HoPetSit Plattformgebühr (20%)',
-        netProvider: 'Netto an Anbieter', totalCharged: 'Gesamtbetrag an Besitzer berechnet',
-        footer: 'Zahlung verarbeitet durch Airwallex (PCI-DSS Stufe 1 zertifiziert). HoPetSit greift nicht auf Kartendaten zu, überträgt oder speichert sie nicht.',
-        cancelTerms: 'Kostenlose Stornierung mit voller Rückerstattung bis 72 Std. vor Servicebeginn möglich. Siehe',
-        escrowText: 'Die Gelder werden bis 24 Std. nach Serviceende treuhänderisch verwahrt und dann auf das hinterlegte IBAN des Anbieters freigegeben.',
-        serviceWalk: 'Gassi gehen', serviceDaycare: 'Tagesbetreuung',
-        serviceBoarding: 'Übernachtungspflege', serviceSitting: 'Pet-Sitting',
-        serviceGeneric: 'Service',
-      },
-      it: {
-        invoiceTitle: 'Fattura HoPetSit', invoiceLabel: 'Fattura', downloadBtn: '⬇ Scarica PDF',
-        billTo: 'Fatturato a (Proprietario)', serviceProvider: 'Prestatore del servizio',
-        description: 'Descrizione', serviceDate: 'Data del servizio', pets: 'Animali',
-        amount: 'Importo', issued: 'Emessa', paid: 'Pagata',
-        grossAmount: 'Importo lordo', commission: 'Commissione HoPetSit (20%)',
-        netProvider: 'Netto al prestatore', totalCharged: 'Totale addebitato al proprietario',
-        footer: 'Pagamento elaborato da Airwallex (certificato PCI-DSS Livello 1). HoPetSit non accede, trasmette o memorizza i dati delle carte.',
-        cancelTerms: 'Annullamento gratuito con rimborso integrale disponibile fino a 72h prima dell\'inizio del servizio. Vedi',
-        escrowText: 'I fondi sono conservati in deposito fino a 24h dopo la fine del servizio, poi rilasciati sull\'IBAN registrato del prestatore.',
-        serviceWalk: 'Passeggiata cane', serviceDaycare: 'Asilo',
-        serviceBoarding: 'Pensione notturna', serviceSitting: 'Pet-sitting',
-        serviceGeneric: 'Servizio',
-      },
-      pt: {
-        invoiceTitle: 'Fatura HoPetSit', invoiceLabel: 'Fatura', downloadBtn: '⬇ Descarregar PDF',
-        billTo: 'Faturado a (Proprietário)', serviceProvider: 'Prestador do serviço',
-        description: 'Descrição', serviceDate: 'Data do serviço', pets: 'Animais',
-        amount: 'Valor', issued: 'Emitida', paid: 'Paga',
-        grossAmount: 'Valor bruto', commission: 'Comissão HoPetSit (20%)',
-        netProvider: 'Líquido para o prestador', totalCharged: 'Total cobrado ao proprietário',
-        footer: 'Pagamento processado pela Airwallex (certificado PCI-DSS Nível 1). A HoPetSit não acede, transmite nem armazena dados de cartões.',
-        cancelTerms: 'Cancelamento gratuito com reembolso integral disponível até 72h antes do início do serviço. Ver',
-        escrowText: 'Os fundos são mantidos em garantia até 24h após o fim do serviço, depois libertados para o IBAN registado do prestador.',
-        serviceWalk: 'Passeio de cão', serviceDaycare: 'Creche',
-        serviceBoarding: 'Hospedagem noturna', serviceSitting: 'Pet-sitting',
-        serviceGeneric: 'Serviço',
-      },
-      ko: {
-        invoiceTitle: 'HoPetSit 청구서', invoiceLabel: '청구서', downloadBtn: '⬇ PDF 다운로드',
-        billTo: '청구 대상 (보호자)', serviceProvider: '서비스 제공자',
-        description: '내용', serviceDate: '서비스 날짜', pets: '반려동물',
-        amount: '금액', issued: '발행일', paid: '결제일',
-        grossAmount: '총액', commission: 'HoPetSit 플랫폼 수수료 (20%)',
-        netProvider: '제공자 정산액', totalCharged: '보호자 결제 총액',
-        footer: '결제는 Airwallex(PCI-DSS 레벨 1 인증)에서 처리됩니다. HoPetSit은 카드 정보에 접근하거나 전송·저장하지 않습니다.',
-        cancelTerms: '서비스 시작 72시간 전까지 직접 취소 시 전액 환불됩니다. 자세히 보기:',
-        escrowText: '결제 금액은 서비스 종료 후 24시간까지 에스크로로 보관된 뒤 제공자의 등록된 IBAN으로 지급됩니다.',
-        serviceWalk: '반려견 산책', serviceDaycare: '데이케어',
-        serviceBoarding: '숙박 돌봄', serviceSitting: '펫시팅',
-        serviceGeneric: '서비스',
-      },
-      ja: {
-        invoiceTitle: 'HoPetSit 請求書', invoiceLabel: '請求書', downloadBtn: '⬇ PDFをダウンロード',
-        billTo: '請求先（飼い主）', serviceProvider: 'サービス提供者',
-        description: '内容', serviceDate: 'サービス日', pets: 'ペット',
-        amount: '金額', issued: '発行日', paid: '支払日',
-        grossAmount: '総額', commission: 'HoPetSit プラットフォーム手数料 (20%)',
-        netProvider: '提供者への支払額', totalCharged: '飼い主への請求総額',
-        footer: '決済は Airwallex（PCI-DSS レベル1認定）が処理します。HoPetSit はカード情報へのアクセス・送信・保存を行いません。',
-        cancelTerms: 'サービス開始の72時間前までのキャンセルは全額返金されます。詳細：',
-        escrowText: '代金はサービス終了後24時間までエスクローで保管され、その後提供者の登録済み IBAN に支払われます。',
-        serviceWalk: '犬の散歩', serviceDaycare: 'デイケア',
-        serviceBoarding: 'お泊まり預かり', serviceSitting: 'ペットシッティング',
-        serviceGeneric: 'サービス',
-      },
-      pl: {
-        invoiceTitle: 'Faktura HoPetSit', invoiceLabel: 'Faktura', downloadBtn: '⬇ Pobierz PDF',
-        billTo: 'Nabywca (właściciel)', serviceProvider: 'Usługodawca',
-        description: 'Opis', serviceDate: 'Data usługi', pets: 'Zwierzęta',
-        amount: 'Kwota', issued: 'Wystawiono', paid: 'Opłacono',
-        grossAmount: 'Kwota brutto', commission: 'Prowizja platformy HoPetSit (20%)',
-        netProvider: 'Kwota netto dla usługodawcy', totalCharged: 'Łączna kwota pobrana od właściciela',
-        footer: 'Płatność obsługuje Airwallex (certyfikat PCI-DSS poziom 1). HoPetSit nie ma dostępu do danych karty, nie przesyła ich ani nie przechowuje.',
-        cancelTerms: 'Samodzielne anulowanie z pełnym zwrotem jest możliwe do 72 godzin przed rozpoczęciem usługi. Zobacz',
-        escrowText: 'Środki są przechowywane w depozycie do 24 godzin po zakończeniu usługi, a następnie wypłacane na zarejestrowany IBAN usługodawcy.',
-        serviceWalk: 'Spacer z psem', serviceDaycare: 'Opieka dzienna',
-        serviceBoarding: 'Opieka z noclegiem', serviceSitting: 'Pet-sitting',
-        serviceGeneric: 'Usługa',
-      },
-    }[lang];
+    // v576 — les libellés viennent de locales/<lang>/invoice.json (même
+    // mécanisme que les notifications et les e-mails de cycle de vie) :
+    // plus aucune table de traduction en dur dans ce contrôleur, et aucun mot
+    // anglais résiduel (le statut « paid » était affiché brut avant la v576).
+    const T = invoiceTexts(lang);
 
-    // v566 — blocs « Émetteur » / « Client » (informations de facturation).
-    const BT = {
-      en: { issuer: 'Issuer', customer: 'Customer', vat: 'VAT No.', passport: 'Passport', companyNumber: 'Company No.', idOther: 'ID', business: 'Business', individual: 'Individual' },
-      fr: { issuer: 'Émetteur', customer: 'Client', vat: 'N° TVA', passport: 'Passeport', companyNumber: "N° d'entreprise", idOther: 'Identifiant', business: 'Professionnel', individual: 'Particulier' },
-      es: { issuer: 'Emisor', customer: 'Cliente', vat: 'N.º IVA', passport: 'Pasaporte', companyNumber: 'N.º de empresa', idOther: 'Identificador', business: 'Profesional', individual: 'Particular' },
-      de: { issuer: 'Aussteller', customer: 'Kunde', vat: 'USt-IdNr.', passport: 'Reisepass', companyNumber: 'Handelsregisternr.', idOther: 'Kennnummer', business: 'Gewerblich', individual: 'Privatperson' },
-      it: { issuer: 'Emittente', customer: 'Cliente', vat: 'P. IVA', passport: 'Passaporto', companyNumber: 'N. impresa', idOther: 'Identificativo', business: 'Professionista', individual: 'Privato' },
-      pt: { issuer: 'Emitente', customer: 'Cliente', vat: 'N.º IVA', passport: 'Passaporte', companyNumber: 'N.º de empresa', idOther: 'Identificador', business: 'Profissional', individual: 'Particular' },
-      ko: { issuer: '발행자', customer: '고객', vat: '부가세 번호', passport: '여권', companyNumber: '사업자 번호', idOther: '식별 번호', business: '사업자', individual: '개인' },
-      ja: { issuer: '発行者', customer: '顧客', vat: 'VAT番号', passport: 'パスポート', companyNumber: '法人番号', idOther: '識別番号', business: '事業者', individual: '個人' },
-      pl: { issuer: 'Wystawca', customer: 'Klient', vat: 'Nr VAT', passport: 'Paszport', companyNumber: 'Nr firmy', idOther: 'Identyfikator', business: 'Firma', individual: 'Osoba prywatna' },
-    }[lang];
+    // Libellé du type d'identifiant du client / du prestataire. Les sigles
+    // nationaux (NIF, NIE, CIF, SIRET, EIN) ne se traduisent pas ; TVA,
+    // passeport et numéro d'entreprise, si.
     const idTypeLabel = (t) => ({
       nif: 'NIF', nie: 'NIE', cif: 'CIF', siret: 'SIRET', ein: 'EIN',
-      vat: BT.vat, passport: BT.passport, company_number: BT.companyNumber, other: BT.idOther,
-    }[t] || BT.idOther);
-    // Lignes d'un bloc : nom légal, « NIF : X… », n° TVA, adresse. Vide → ''.
+      vat: T.vat, passport: T.passport, company_number: T.companyNumber, other: T.idOther,
+    }[t] || T.idOther);
+
+    // Lignes d'un bloc de facturation : raison sociale (+ « Professionnel »),
+    // « NIF : X… », n° de TVA, adresse complète. Un champ vide ne produit
+    // JAMAIS de ligne, et aucun libellé n'est affiché sans sa valeur.
     const billingLines = (b, accountName) => {
       if (!b) return '';
       const lines = [];
       // Nom légal identique au nom du compte (particulier) : pas de doublon.
       const sameName = String(b.legalName || '').trim().toLowerCase() === String(accountName || '').trim().toLowerCase();
-      if (b.legalName && !(sameName && b.type !== 'business')) lines.push(`<div class="sub"><strong>${esc(b.legalName)}</strong>${b.type === 'business' ? ` · ${BT.business}` : ''}</div>`);
-      if (b.idNumber) lines.push(`<div class="sub">${esc(idTypeLabel(b.idType))} : ${esc(b.idNumber)}</div>`);
-      if (b.vatNumber && !(b.idType === 'vat' && b.vatNumber === b.idNumber)) lines.push(`<div class="sub">${BT.vat} : ${esc(b.vatNumber)}</div>`);
+      if (b.legalName && !(sameName && b.type !== 'business')) lines.push(`<div class="line"><strong>${esc(b.legalName)}</strong>${b.type === 'business' ? ` · ${esc(T.business)}` : ''}</div>`);
+      if (b.idNumber) lines.push(`<div class="line">${esc(idTypeLabel(b.idType))}${esc(T.labelSep)}${esc(b.idNumber)}</div>`);
+      if (b.vatNumber && !(b.idType === 'vat' && b.vatNumber === b.idNumber)) lines.push(`<div class="line">${esc(T.vat)}${esc(T.labelSep)}${esc(b.vatNumber)}</div>`);
       const cityLine = [b.postalCode, b.city].filter(Boolean).join(' ');
       const addr = [b.address, cityLine, b.country].filter(Boolean).map(esc).join(', ');
-      if (addr) lines.push(`<div class="sub">${addr}</div>`);
-      return lines.join('\n      ');
+      if (addr) lines.push(`<div class="line">${addr}</div>`);
+      return lines.join('\n        ');
     };
     const issuerB = snapshotForApi(inv.issuerBilling);
     const customerB = snapshotForApi(inv.customerBilling);
@@ -548,201 +508,278 @@ const renderInvoiceHtml = async (req, res) => {
       if (s.includes('day_care') || s.includes('garderie')) return T.serviceDaycare;
       if (s.includes('boarding') || s.includes('overnight')) return T.serviceBoarding;
       if (s.includes('sitting')) return T.serviceSitting;
-      return raw ? raw.replace(/_/g, ' ') : T.serviceGeneric;
+      return raw ? esc(raw.replace(/_/g, ' ')) : T.serviceGeneric;
     };
+
+    // Rôle du prestataire : traduit, jamais la valeur brute anglaise.
+    const roleLabel = inv.providerRole === 'walker'
+      ? T.roleWalker
+      : inv.providerRole === 'sitter' ? T.roleSitter : inv.providerRole;
+
+    const refunded = inv.status === 'refunded';
+    const statusLabel = refunded ? T.statusRefunded : T.statusPaid;
+    // Logo de la société, embarqué en base64 : aucun appel réseau à
+    // l'impression. Absent (fichier illisible) → monogramme de repli.
+    const issuerLogo = CARDELLI_LOGO_DATA_URI
+      ? `<img class="issuer-logo" src="${CARDELLI_LOGO_DATA_URI}" alt="${esc(ISSUER_COMPANY.name)}" width="54" height="54" />`
+      : '<div class="issuer-logo issuer-logo--fallback">CH</div>';
+    // Logo de la marque (en-tête) : absent → seul le mot-symbole « HoPetSit »
+    // reste, jamais d'image cassée.
+    const brandLogo = HOPETSIT_LOGO_DATA_URI
+      ? `<img class="brand-logo" src="${HOPETSIT_LOGO_DATA_URI}" alt="HoPetSit" width="48" height="48" />`
+      : '';
 
     res.set('Content-Type', 'text/html; charset=utf-8');
     return res.send(`<!DOCTYPE html>
 <html lang="${lang}">
 <head>
 <meta charset="utf-8" />
-<title>${T.invoiceLabel} ${inv.invoiceNumber} — HoPetSit</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${esc(T.invoiceLabel)} ${esc(inv.invoiceNumber)} — HoPetSit</title>
 <style>
+  /* v576 — gabarit sobre, lisible en couleur comme en noir et blanc.
+     Aucune dépendance externe : polices système, tout le CSS est inline.
+     Rouge HoPetSit #C92A12 (la marque de l'app), noir/doré #C9A227
+     (CARDELLI HERMANOS LIMITED, l'entité qui facture) — en touches. */
+  :root {
+    --brand: #C92A12;
+    --gold: #C9A227;
+    --ink: #17141F;
+    --muted: #5B5B66;
+    --rule: #DEDEE5;
+    --soft: #F6F6F8;
+  }
   * { box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    color: #1f1f1f;
+    color: var(--ink);
     margin: 0;
-    padding: 40px;
-    background: #fff;
+    padding: 28px 20px 104px;
+    background: #F2F2F5;
+    -webkit-font-smoothing: antialiased;
   }
-  .head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
-  .brand { font-size: 28px; font-weight: 700; color: #5942CC; }
-  .brand small { display: block; font-size: 11px; font-weight: 400; color: #888; margin-top: 4px; }
-  .meta { text-align: right; font-size: 13px; }
-  .meta .num { font-size: 18px; font-weight: 700; color: #5942CC; }
-  .meta .status {
-    display: inline-block; padding: 4px 12px; border-radius: 999px;
-    font-size: 11px; font-weight: 700; text-transform: uppercase;
-    background: #E8F5E9; color: #2E7D32; margin-top: 6px;
+  .sheet {
+    max-width: 780px; margin: 0 auto; background: #fff;
+    border: 1px solid var(--rule); border-radius: 16px;
+    padding: 34px 34px 26px;
   }
-  .meta .status.refunded { background: #FFEBEE; color: #C62828; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
-  .card { padding: 14px 16px; border: 1px solid #E0DAFF; border-radius: 10px; background: #F9F7FF; }
-  .card h3 { margin: 0 0 8px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #5942CC; font-weight: 700; }
-  .card .name { font-size: 14px; font-weight: 600; }
-  .card .sub { font-size: 12px; color: #555; margin-top: 4px; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-  th, td { text-align: left; padding: 10px 12px; font-size: 13px; }
-  th { background: #5942CC; color: #fff; font-weight: 600; }
-  tbody tr:nth-child(even) { background: #F5F2FF; }
-  .totals { width: 320px; margin-left: auto; }
-  .totals tr td:first-child { color: #555; }
-  .totals tr td:last-child { text-align: right; font-weight: 600; }
-  .totals tr.grand td { font-size: 15px; color: #5942CC; border-top: 2px solid #5942CC; padding-top: 12px; }
-  .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #E0DAFF; font-size: 11px; color: #888; line-height: 1.6; }
-  .pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; background: #5942CC; color: #fff; margin-left: 6px; }
-  /* v23.1 part 44/45 — fix Daniel "factures sur Render mais on peut pas
-     les télécharger". On mobile the print menu is hidden behind a 3-dot
-     menu and most users never find it. We show TWO clear "Télécharger
-     PDF" entry points : a banner CTA at the top (so users see it before
-     scrolling) and a sticky bottom bar (so it stays in reach while
-     reading). Both call window.print() which on mobile browsers presents
-     the native Save-as-PDF / Share sheet. Bars hide themselves in print
-     mode so the saved PDF only contains the invoice itself. */
-  .download-cta-top {
-    background: linear-gradient(135deg, #EF4324, #FF6B4A);
-    color: #fff; border-radius: 14px;
-    padding: 14px 16px; margin-bottom: 24px;
-    display: flex; align-items: center; justify-content: space-between;
-    box-shadow: 0 4px 12px rgba(239, 67, 36, 0.25);
+  /* En-tête : marque HoPetSit à gauche, identité du document à droite. */
+  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-logo { width: 48px; height: 48px; display: block; flex: 0 0 auto; border-radius: 11px; }
+  .brand-name { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
+  .brand-sub { font-size: 10.5px; color: var(--muted); margin-top: 3px; line-height: 1.45; }
+  .doc { text-align: right; }
+  .doc-kind { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brand); }
+  .doc-num { font-size: 19px; font-weight: 800; margin-top: 2px; }
+  .doc-row { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .doc-row b { color: var(--ink); font-weight: 600; }
+  .status {
+    display: inline-block; margin-top: 8px; padding: 4px 12px; border-radius: 999px;
+    font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+    background: #ECF6EE; color: #1E6B33; border: 1px solid #1E6B33;
   }
-  .download-cta-top .label { font-weight: 700; font-size: 14px; }
-  .download-cta-top button {
-    background: #fff; color: #EF4324; border: 0;
-    padding: 10px 20px; border-radius: 999px;
-    font-size: 14px; font-weight: 800; cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
+  .status.refunded { background: #FDEDED; color: #A3261A; border-color: #A3261A; }
+  .rule { height: 3px; background: var(--brand); border-radius: 2px; margin: 18px 0 22px; }
+  /* Blocs Émetteur / Client / Prestataire. */
+  .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { border: 1px solid var(--rule); border-radius: 12px; padding: 14px 16px; background: #fff; break-inside: avoid; }
+  .card.issuer { background: var(--soft); border-left: 3px solid var(--gold); }
+  .card.provider { grid-column: 1 / -1; }
+  .card h3 {
+    margin: 0 0 9px; font-size: 10px; font-weight: 800; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .card .name { font-size: 14px; font-weight: 700; line-height: 1.35; }
+  .card .line { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.45; }
+  .card .line strong { color: var(--ink); font-weight: 600; }
+  .issuer-head { display: flex; align-items: center; gap: 12px; }
+  .issuer-logo { width: 54px; height: 54px; border-radius: 50%; display: block; flex: 0 0 auto; }
+  .issuer-logo--fallback {
+    background: #000; color: var(--gold); font-weight: 800; font-size: 19px;
+    display: flex; align-items: center; justify-content: center; border: 2px solid var(--gold);
+  }
+  .pill {
+    display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 9.5px;
+    font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+    border: 1px solid var(--rule); color: var(--muted); margin-left: 6px; vertical-align: 2px;
+  }
+  /* Tableau des lignes. */
+  .section-title {
+    margin: 26px 0 8px; font-size: 10px; font-weight: 800; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  table.items { width: 100%; border-collapse: collapse; break-inside: avoid; }
+  table.items th {
+    text-align: left; font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted);
+    padding: 0 10px 8px; border-bottom: 1px solid var(--ink);
+  }
+  table.items td { padding: 12px 10px; font-size: 13px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  table.items th:first-child, table.items td:first-child { padding-left: 0; }
+  table.items th:last-child, table.items td:last-child { padding-right: 0; text-align: right; white-space: nowrap; }
+  /* Totaux. */
+  .totals { width: 320px; margin: 18px 0 0 auto; border-collapse: collapse; break-inside: avoid; }
+  .totals td { padding: 7px 0; font-size: 13px; }
+  .totals td:first-child { color: var(--muted); }
+  .totals td:last-child { text-align: right; font-weight: 600; white-space: nowrap; }
+  .totals tr.grand td { font-size: 16px; font-weight: 800; border-top: 2px solid var(--ink); padding-top: 12px; }
+  .totals tr.grand td:first-child { color: var(--ink); }
+  /* Pied de page légal. */
+  .legal { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--rule); break-inside: avoid; }
+  .legal h4 {
+    margin: 0 0 6px; font-size: 10px; font-weight: 800; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .legal p { margin: 0 0 5px; font-size: 10.5px; color: var(--muted); line-height: 1.6; }
+  .legal a { color: var(--brand); }
+  /* Deux entrées « Télécharger PDF » : bandeau en haut (vu avant de faire
+     défiler) et barre fixe en bas (à portée pendant la lecture). Les deux
+     disparaissent à l'impression. */
+  .cta {
+    max-width: 780px; margin: 0 auto 16px; background: var(--brand); color: #fff;
+    border-radius: 14px; padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .cta .label { font-weight: 700; font-size: 14px; }
+  .cta button {
+    background: #fff; color: var(--brand); border: 0; padding: 9px 18px; border-radius: 999px;
+    font-size: 13px; font-weight: 800; cursor: pointer; -webkit-tap-highlight-color: transparent;
   }
   .download-bar {
-    position: fixed; left: 0; right: 0; bottom: 0;
-    padding: 12px 16px; background: #fff;
-    border-top: 1px solid #E0DAFF;
-    box-shadow: 0 -4px 12px rgba(0,0,0,0.08);
-    text-align: center;
-    z-index: 9999;
+    position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px; background: #fff;
+    border-top: 1px solid var(--rule); box-shadow: 0 -4px 12px rgba(0,0,0,0.08);
+    text-align: center; z-index: 9999;
   }
   .download-bar button {
-    background: #EF4324; color: #fff; border: 0;
-    padding: 14px 32px; border-radius: 999px;
-    font-size: 16px; font-weight: 800; cursor: pointer;
-    box-shadow: 0 2px 8px rgba(239, 67, 36, 0.35);
+    background: var(--brand); color: #fff; border: 0; padding: 14px 32px; border-radius: 999px;
+    font-size: 16px; font-weight: 800; cursor: pointer; width: 100%; max-width: 360px;
     -webkit-tap-highlight-color: transparent;
-    width: 100%;
-    max-width: 360px;
   }
   .download-bar button:active { transform: scale(0.97); }
-  body { padding-bottom: 92px; } /* leave room for the fixed bar */
+  @media (max-width: 560px) {
+    body { padding: 16px 12px 104px; }
+    .sheet { padding: 20px 18px; border-radius: 12px; }
+    .head { flex-direction: column; }
+    .doc { text-align: left; }
+    .parties { grid-template-columns: 1fr; }
+    .totals { width: 100%; }
+  }
   @media print {
-    body { padding: 20px; padding-bottom: 20px; }
-    .download-bar, .download-cta-top { display: none !important; }
+    @page { size: A4; margin: 14mm; }
+    body { background: #fff; padding: 0; }
+    .sheet { max-width: none; border: 0; border-radius: 0; padding: 0; }
+    .cta, .download-bar { display: none !important; }
+    .card, table.items, .totals, .legal, .parties { break-inside: avoid; page-break-inside: avoid; }
+    table.items thead { display: table-header-group; }
+    .card.issuer { background: #fff; }
+    a { color: var(--ink); text-decoration: none; }
   }
 </style>
 </head>
 <body>
-  <div class="download-cta-top">
-    <span class="label">📄 ${T.invoiceTitle}</span>
-    <button type="button" onclick="downloadInvoice()">${T.downloadBtn}</button>
+  <div class="cta">
+    <span class="label">${esc(T.invoiceTitle)}</span>
+    <button type="button" onclick="downloadInvoice()">${esc(T.downloadBtn)}</button>
   </div>
-  <div class="head">
-    <div class="brand" style="display: flex; align-items: center; gap: 12px;">
-      <!-- v23.1 part 67 — official HoPetSit logo (orange rounded square +
-           white paw with red/blue/green dots), copy of frontend
-           assets/brand/web/logo-orange.svg. Daniel : "Mettre notre logo
-           sur la facture". -->
-      <svg width="56" height="56" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-        <rect width="1024" height="1024" rx="200" fill="#EF4324"/>
-        <g transform="translate(512, 471)">
-          <path d="M0,-427 C-427,-427 -427,-171 -427,55 C-427,300 -215,478 0,539 C215,478 427,300 427,55 C427,-171 427,-427 0,-427 Z" fill="white"/>
-          <ellipse cx="-195" cy="-154" rx="58" ry="65" fill="#EF4324"/>
-          <ellipse cx="-68" cy="-235" rx="58" ry="65" fill="#1A73E8"/>
-          <ellipse cx="68"  cy="-235" rx="58" ry="65" fill="#008000"/>
-          <ellipse cx="195" cy="-154" rx="58" ry="65" fill="#EF4324"/>
-          <path d="M-290,120 C-290,-34 -181,-119 0,-119 C181,-119 290,-34 290,120 C290,239 181,314 0,314 C-181,314 -290,239 -290,120 Z" fill="#1A1A1A"/>
-          <ellipse cx="0" cy="120" rx="205" ry="102" fill="#0D0D0D"/>
-          <circle cx="0" cy="120" r="99" fill="#EF4324"/>
-          <circle cx="0" cy="120" r="55" fill="#0D0D0D"/>
-          <circle cx="24" cy="92" r="26" fill="white"/>
-          <circle cx="-20" cy="137" r="14" fill="white" opacity="0.5"/>
-          <path d="M-205,120 C-116,55 116,55 205,120" fill="none" stroke="#0D0D0D" stroke-width="8.9" stroke-linecap="round"/>
-          <path d="M-205,120 C-116,184 116,184 205,120" fill="none" stroke="#0D0D0D" stroke-width="8.9" stroke-linecap="round"/>
-        </g>
-      </svg>
-      <div>
-        HoPetSit
-        <small>Operated by CARDELLI HERMANOS LIMITED · Hong Kong<br/>Company No. n-2671528 · contact@hopetsit.com</small>
+
+  <div class="sheet">
+    <div class="head">
+      <div class="brand">
+        ${brandLogo}
+        <div>
+          <div class="brand-name">HoPetSit</div>
+          <div class="brand-sub">${esc(T.operatedBy)} ${esc(ISSUER_COMPANY.name)}<br/>${esc(ISSUER_COMPANY.place)} · ${esc(T.companyNumber)}${esc(T.labelSep)}${esc(ISSUER_COMPANY.companyNumber)}</div>
+        </div>
+      </div>
+      <div class="doc">
+        <div class="doc-kind">${esc(T.invoiceLabel)}</div>
+        <div class="doc-num">${esc(inv.invoiceNumber)}</div>
+        <div class="doc-row">${esc(T.issued)}${esc(T.labelSep)}<b>${fmt(inv.issuedAt)}</b></div>
+        <div class="doc-row">${esc(T.paid)}${esc(T.labelSep)}<b>${fmt(inv.paidAt)}</b></div>
+        <span class="status${refunded ? ' refunded' : ''}">${esc(statusLabel)}</span>
       </div>
     </div>
-    <div class="meta">
-      <div class="num">${T.invoiceLabel} ${inv.invoiceNumber}</div>
-      <div>${T.issued}: ${fmt(inv.issuedAt)}</div>
-      <div>${T.paid}: ${fmt(inv.paidAt)}</div>
-      <span class="status ${inv.status === 'refunded' ? 'refunded' : ''}">${inv.status}</span>
-    </div>
-  </div>
 
-  <div class="grid">
-    <div class="card">
-      <h3>${BT.issuer} · ${T.serviceProvider} <span class="pill">${esc(inv.providerRole)}</span></h3>
-      <div class="name">${esc(inv.providerName || '—')}</div>
-      <div class="sub">${esc(inv.providerEmail || '')}</div>
-      ${billingLines(issuerB, inv.providerName)}
-    </div>
-    <div class="card">
-      <h3>${BT.customer} · ${T.billTo}</h3>
-      <div class="name">${esc(inv.ownerName || '—')}</div>
-      <div class="sub">${esc(inv.ownerEmail || '')}</div>
-      ${billingLines(customerB, inv.ownerName)}
-    </div>
-  </div>
+    <div class="rule"></div>
 
-  <table>
-    <thead>
+    <div class="parties">
+      <div class="card issuer">
+        <h3>${esc(T.issuer)}</h3>
+        <div class="issuer-head">
+          ${issuerLogo}
+          <div>
+            <div class="name">${esc(ISSUER_COMPANY.name)}</div>
+            <div class="line">${esc(ISSUER_COMPANY.place)}</div>
+          </div>
+        </div>
+        <div class="line">${esc(T.companyNumber)}${esc(T.labelSep)}${esc(ISSUER_COMPANY.companyNumber)}</div>
+        <div class="line">${esc(ISSUER_COMPANY.email)}</div>
+      </div>
+      <div class="card">
+        <h3>${esc(T.customer)} · ${esc(T.billTo)}</h3>
+        <div class="name">${esc(inv.ownerName || '—')}</div>
+        ${inv.ownerEmail ? `<div class="line">${esc(inv.ownerEmail)}</div>` : ''}
+        ${billingLines(customerB, inv.ownerName)}
+      </div>
+      <div class="card provider">
+        <h3>${esc(T.serviceProvider)}${inv.providerRole ? `<span class="pill">${esc(roleLabel)}</span>` : ''}</h3>
+        <div class="name">${esc(inv.providerName || '—')}</div>
+        ${inv.providerEmail ? `<div class="line">${esc(inv.providerEmail)}</div>` : ''}
+        ${billingLines(issuerB, inv.providerName)}
+      </div>
+    </div>
+
+    <div class="section-title">${esc(T.summary)}</div>
+    <table class="items">
+      <thead>
+        <tr>
+          <th>${esc(T.description)}</th>
+          <th>${esc(T.serviceDate)}</th>
+          <th>${esc(T.pets)}</th>
+          <th>${esc(T.amount)}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>${serviceLabelHtml(inv.serviceType)}</td>
+          <td>${fmt(inv.serviceDate || inv.startDate)}${inv.endDate ? ' → ' + fmt(inv.endDate) : ''}</td>
+          <td>${(inv.petNames && inv.petNames.length ? esc(inv.petNames.join(', ')) : '—')}</td>
+          <td>${money(inv.grossAmount)}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table class="totals">
       <tr>
-        <th>${T.description}</th>
-        <th>${T.serviceDate}</th>
-        <th>${T.pets}</th>
-        <th style="text-align:right;">${T.amount}</th>
+        <td>${esc(T.grossAmount)}</td>
+        <td>${money(inv.grossAmount)}</td>
       </tr>
-    </thead>
-    <tbody>
       <tr>
-        <td>${serviceLabelHtml(inv.serviceType)}</td>
-        <td>${fmt(inv.serviceDate || inv.startDate)}${inv.endDate ? ' → ' + fmt(inv.endDate) : ''}</td>
-        <td>${(inv.petNames && inv.petNames.length ? inv.petNames.join(', ') : '—')}</td>
-        <td style="text-align:right;">${money(inv.grossAmount)}</td>
+        <td>${esc(T.commission)}</td>
+        <td>${money(inv.commission)}</td>
       </tr>
-    </tbody>
-  </table>
+      <tr>
+        <td>${esc(T.netProvider)}</td>
+        <td>${money(inv.netPayout)}</td>
+      </tr>
+      <tr class="grand">
+        <td>${esc(T.totalCharged)}</td>
+        <td>${money(inv.grossAmount)}</td>
+      </tr>
+    </table>
 
-  <table class="totals">
-    <tr>
-      <td>${T.grossAmount}</td>
-      <td>${money(inv.grossAmount)}</td>
-    </tr>
-    <tr>
-      <td>${T.commission}</td>
-      <td>${money(inv.commission)}</td>
-    </tr>
-    <tr>
-      <td>${T.netProvider}</td>
-      <td>${money(inv.netPayout)}</td>
-    </tr>
-    <tr class="grand">
-      <td>${T.totalCharged}</td>
-      <td>${money(inv.grossAmount)}</td>
-    </tr>
-  </table>
-
-  <div class="footer">
-    ${T.footer}<br/>
-    ${T.escrowText} ${T.cancelTerms}
-    <a href="https://hopetsit.com/refund">https://hopetsit.com/refund</a>.
+    <div class="legal">
+      <h4>${esc(T.legalMentions)}</h4>
+      <p>${esc(T.operatedBy)} ${esc(ISSUER_COMPANY.name)} · ${esc(ISSUER_COMPANY.place)} · ${esc(T.companyNumber)}${esc(T.labelSep)}${esc(ISSUER_COMPANY.companyNumber)} · ${esc(ISSUER_COMPANY.email)}</p>
+      <p>${esc(T.footer)}</p>
+      <p>${esc(T.escrowText)} ${esc(T.cancelTerms)} <a href="https://hopetsit.com/refund">https://hopetsit.com/refund</a>.</p>
+    </div>
   </div>
 
   <div class="download-bar">
-    <button type="button" onclick="downloadInvoice()" aria-label="${T.downloadBtn}">
-      ${T.downloadBtn}
+    <button type="button" onclick="downloadInvoice()" aria-label="${esc(T.downloadBtn)}">
+      ${esc(T.downloadBtn)}
     </button>
   </div>
 
@@ -752,21 +789,33 @@ const renderInvoiceHtml = async (req, res) => {
        Falls back to window.print() when the page is opened in a regular
        browser (no HoPetSit channel registered). -->
   <script>
+    // v576 — BUG : la page appelait « HoPetSit.postMessage », or le canal
+    // enregistré par l'app s'appelle « Hopetsit » (invoice_viewer_screen.dart).
+    // Les identifiants JS sont sensibles à la casse : le message n'arrivait
+    // JAMAIS, on retombait sur window.print(), silencieux sur WebView Android
+    // → « le bouton Télécharger ne marche pas ». On essaie les deux noms, donc
+    // les apps DÉJÀ INSTALLÉES sont réparées sans rebuild.
+    function invoiceChannel() {
+      try { if (typeof Hopetsit !== 'undefined' && Hopetsit) return Hopetsit; } catch (_) { /* absent */ }
+      try { if (typeof HoPetSit !== 'undefined' && HoPetSit) return HoPetSit; } catch (_) { /* absent */ }
+      return null;
+    }
     function downloadInvoice() {
+      var ch = invoiceChannel();
       try {
-        if (typeof HoPetSit !== 'undefined' && HoPetSit && typeof HoPetSit.postMessage === 'function') {
-          HoPetSit.postMessage('download');
+        if (ch && typeof ch.postMessage === 'function') {
+          ch.postMessage('download');
           return;
         }
-      } catch (_) { /* fall through */ }
-      try { window.print(); } catch (_) { /* last-ditch silent */ }
+      } catch (_) { /* on retombe sur l'impression du navigateur */ }
+      try { window.print(); } catch (_) { /* dernier recours silencieux */ }
     }
   </script>
 </body>
 </html>`);
   } catch (err) {
     logger.error('[invoiceController.renderInvoiceHtml]', err);
-    return res.status(500).send('Server error');
+    return sendInvoiceError(req, res, 500, 'errorServer');
   }
 };
 
@@ -811,4 +860,11 @@ module.exports = {
   renderInvoiceHtml,
   adminListInvoices,
   ensureBillingSnapshots,
+  // v576 — exposés pour les tests (catalogue des libellés, logo embarqué).
+  INVOICE_LOCALES,
+  invoiceTexts,
+  sendInvoiceError,
+  CARDELLI_LOGO_DATA_URI,
+  HOPETSIT_LOGO_DATA_URI,
+  ISSUER_COMPANY,
 };

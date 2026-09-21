@@ -4,6 +4,7 @@
 // ombre douce, pastilles de rôle, boutons pilule teintés. Couleur d'accent =
 // couleur du rôle COURANT (owner orange, gardien bleu, promeneur vert) ;
 // violet réservé à la Famille PawFollow, vert à « en ligne / accepter ».
+import 'package:hopetsit/widgets/role_chip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -38,16 +39,10 @@ Color friendRoleColor(String? roleOrModel) =>
     profileAccentFor((roleOrModel ?? '').toLowerCase());
 
 /// Libellé traduit du rôle (`Owner` / `sitter` / …).
-String friendRoleLabel(String? roleOrModel) {
-  switch ((roleOrModel ?? '').toLowerCase()) {
-    case 'walker':
-      return 'role_walker'.tr;
-    case 'sitter':
-      return 'role_sitter'.tr;
-    default:
-      return 'role_owner'.tr;
-  }
-}
+/// v576 — même source que la pastille partagée : `role_sitter` valait
+/// « Petsitter » en français (franglais) alors que l'app dit « Gardien ».
+String friendRoleLabel(String? roleOrModel) =>
+    roleLabelKey(roleOrModel ?? '').tr;
 
 /// Anneau PawSpot : doré (gold / platinum), bleu (bronze / silver), sinon null.
 Color? pawSpotRingColor(String? tier) {

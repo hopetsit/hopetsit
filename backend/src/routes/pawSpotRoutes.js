@@ -34,6 +34,8 @@ const logger = require('../utils/logger');
 const { assertPaidIntent, PaymentNotVerifiedError } = require('../utils/assertPaidIntent');
 // v566 — plateforme d'origine de l'achat (ios | android | web).
 const { platformFromRequest } = require('../utils/purchasePlatform');
+// v576 — PawSpot appartient à la PERSONNE (ses 3 profils), pas au rôle actif.
+const { personIds } = require('../utils/personScope');
 
 const router = express.Router();
 const PROVIDER = (process.env.PAYMENT_PROVIDER || 'airwallex').toLowerCase();
@@ -181,7 +183,27 @@ const { moderateText: _moderateSpot } = require('../services/textModerationServi
 // actif, parce que le serveur ne disait jamais si la personne avait déjà aimé /
 // validé / visité ce spot. Rouvrir la fiche puis retaper le cœur RETIRAIT donc
 // son like sans prévenir. On renvoie l'état réel du lecteur.
-const spotJson = (s, viewerId = '') => ({
+// v576 — Daniel : « les PawSpot doivent être synchro » entre les 3 profils.
+// `viewerId` désignait le document du rôle ACTIF : un spot créé, aimé ou
+// validé depuis le profil propriétaire revenait « pas le mien / pas aimé »
+// depuis le profil gardien — et retaper le cœur le likait une SECONDE fois
+// sous un autre identifiant. On accepte désormais un Set d'identifiants (les
+// 3 profils de la personne) ; une chaîne reste acceptée pour compatibilité.
+const _viewerSet = (viewer) => {
+  if (!viewer) return null;
+  if (viewer instanceof Set) return viewer.size ? viewer : null;
+  if (Array.isArray(viewer)) return viewer.length ? new Set(viewer.map(String)) : null;
+  return new Set([String(viewer)]);
+};
+const _hasAny = (list, set) =>
+  !!set && (list || []).some((u) => set.has(String(u)));
+
+const spotJson = (s, viewer = '') => {
+  const vs = _viewerSet(viewer);
+  return _spotJsonInner(s, vs);
+};
+
+const _spotJsonInner = (s, vs) => ({
   id: String(s._id),
   type: s.type,
   name: _moderateSpot(s.name || '').clean,
@@ -204,10 +226,11 @@ const spotJson = (s, viewerId = '') => ({
   // ⭐ qualité (système de confiance) : 3.0 base, +0.5/validation, cap 5.
   quality: Math.min(5, Math.round((3 + (s.validationsCount || 0) * 0.5) * 10) / 10),
   // v567 — état du lecteur (cœur plein / trophée grisé / visite déjà marquée).
-  likedByMe: !!viewerId && (s.likedBy || []).some((u) => String(u) === String(viewerId)),
-  validatedByMe: !!viewerId && (s.validatedBy || []).some((u) => String(u) === String(viewerId)),
-  visitedByMe: !!viewerId && (s.visitedBy || []).some((u) => String(u) === String(viewerId)),
-  isMine: !!viewerId && String(s.creatorId) === String(viewerId),
+  // v576 — évalué sur les 3 profils de la personne.
+  likedByMe: _hasAny(s.likedBy, vs),
+  validatedByMe: _hasAny(s.validatedBy, vs),
+  visitedByMe: _hasAny(s.visitedBy, vs),
+  isMine: !!vs && vs.has(String(s.creatorId)),
   createdAt: s.createdAt,
 });
 
@@ -220,21 +243,21 @@ const VISIBLE = { hidden: false, deletedAt: null };
  * sitter / walker, reliés par l'email). Les spots, le quota gratuit et la
  * reprise de points doivent raisonner sur le COMPTE, pas sur le profil actif.
  */
-async function accountRoleIds(userId, role) {
+// v576 — délégué à `utils/personScope` (lui-même bâti sur `identityGroup`) :
+// même définition de « la personne » partout (e-mail ET `oldId`, alors qu'ici
+// seul l'e-mail était pris en compte) et 6 requêtes au lieu de 4 séquentielles.
+async function accountRoleIds(userId, role) { // eslint-disable-line no-unused-vars
   try {
-    const Model = modelForRole(role);
-    const me = await Model.findById(userId).select('email').lean();
-    const email = String(me?.email || '').toLowerCase().trim();
-    if (!email) return [userId];
-    const ids = [];
-    for (const M of [Owner, Sitter, Walker]) {
-      const d = await M.findOne({ email }).select('_id').lean();
-      if (d) ids.push(d._id);
-    }
+    const ids = await personIds(userId);
     return ids.length ? ids : [userId];
   } catch (_) {
     return [userId];
   }
+}
+
+/** v576 — les mêmes identifiants, en Set de chaînes (tests O(1)). */
+async function accountRoleIdSet(userId, role) {
+  return new Set((await accountRoleIds(userId, role)).map(String));
 }
 
 /**
@@ -369,7 +392,8 @@ router.get('/nearby', requireAuth, async (req, res) => {
       return fb - fa;
     });
     await enrichGoldenCreators(spots);
-    res.json({ spots: spots.map((s) => spotJson(s, req.user.id)) });
+    const vs = await accountRoleIdSet(req.user.id, req.user.role);
+    res.json({ spots: spots.map((s) => spotJson(s, vs)) });
   } catch (e) {
     logger.error('[pawspots/nearby]', e);
     res.status(500).json({ error: e.message });
@@ -391,7 +415,8 @@ router.get('/top', requireAuth, async (req, res) => {
       .limit(50)
       .lean();
     await enrichGoldenCreators(spots);
-    res.json({ spots: spots.map((s) => spotJson(s, req.user.id)) });
+    const vs = await accountRoleIdSet(req.user.id, req.user.role);
+    res.json({ spots: spots.map((s) => spotJson(s, vs)) });
   } catch (e) {
     logger.error('[pawspots/top]', e);
     res.status(500).json({ error: e.message });
@@ -519,10 +544,13 @@ router.get('/me/points', requireAuth, async (req, res) => {
     });
     const createdTotal = await PawSpot.countDocuments({ creatorId: { $in: myIds } });
     const subscribed = await hasActivePawSpot(req.user.id, req.user.role);
-    const sub = await UserSubscription.findOne({
-      userId: req.user.id,
-      userModel: userModelFromRole(req.user.role),
-    }).select('pawspotExpiry pawspotTrialUsedAt').lean();
+    // v576 — l'abonnement PawSpot a pu être acheté depuis un autre profil : on
+    // lit la date d'expiration la plus lointaine du compte, sinon l'écran
+    // affichait « aucun abonnement » à un abonné qui avait changé de rôle.
+    const sub = (await UserSubscription.find({ userId: { $in: myIds } })
+      .select('pawspotExpiry pawspotTrialUsedAt').lean())
+      .sort((a, b) => new Date(b.pawspotExpiry || 0) - new Date(a.pawspotExpiry || 0))[0]
+      || null;
     res.json({
       points,
       spendable: st.spendable,
@@ -843,7 +871,7 @@ router.post('/', requireAuth, async (req, res) => {
 
     const unlimited = subscribed || meDoc?.isStaff === true;
     res.status(201).json({
-      spot: spotJson(spot, req.user.id),
+      spot: spotJson(spot, new Set(myIds.map(String))),
       pointsEarned: earned,
       dailyCapReached: overDailyCap,
       mySpotsCount: await PawSpot.countDocuments({ creatorId: { $in: myIds }, deletedAt: null }),
@@ -869,19 +897,27 @@ router.post('/:id/like', requireAuth, async (req, res) => {
     // v567 — anti-triche : on ne peut pas aimer son propre spot (la route
     // /validate l'interdisait déjà, pas /like). Sans ça, l'auteur comptait
     // pour l'un des 10 ❤️ qui déclenchent SES propres +10 points.
-    if (uid === String(current.creatorId)) {
+    // v576 — sur les 3 profils : sinon il suffisait de changer de rôle pour
+    // aimer son propre spot, et pour l'aimer une DEUXIÈME fois.
+    const mine = await accountRoleIdSet(req.user.id, req.user.role);
+    if (mine.has(String(current.creatorId))) {
       return res.status(400).json({
         error: 'You cannot like your own spot.',
         code: 'SELF_LIKE',
       });
     }
-    const wasLiked = (current.likedBy || []).some((u) => String(u) === uid);
+    const wasLiked = (current.likedBy || []).some((u) => mine.has(String(u)));
     // v567 — $addToSet / $pull : atomique. L'ancien push/splice + save
     // permettait à deux requêtes simultanées d'inscrire DEUX fois le même
     // utilisateur dans likedBy (compteur de likes gonflé).
     const spot = await PawSpot.findOneAndUpdate(
       { _id: req.params.id, ...VISIBLE },
-      wasLiked ? { $pull: { likedBy: uid } } : { $addToSet: { likedBy: uid } },
+      wasLiked
+        // v576 — le ❤️ a pu être posé sous un AUTRE de mes profils : on retire
+        // toutes mes traces, sinon le retrait ne faisait rien et le compteur
+        // restait bloqué.
+        ? { $pull: { likedBy: { $in: [...mine] } } }
+        : { $addToSet: { likedBy: uid } },
       { new: true },
     );
     if (!spot) return res.status(404).json({ error: 'Spot not found.' });
@@ -926,13 +962,15 @@ router.post('/:id/validate', requireAuth, async (req, res) => {
       .select('creatorId validatedBy communityValidated validationsCount')
       .lean();
     if (!current) return res.status(404).json({ error: 'Spot not found.' });
-    if (uid === String(current.creatorId)) {
+    // v576 — auteur et validateur sont jugés sur les 3 profils de la personne.
+    const mine = await accountRoleIdSet(req.user.id, req.user.role);
+    if (mine.has(String(current.creatorId))) {
       return res.status(400).json({
         error: 'You cannot validate your own spot.',
         code: 'SELF_VALIDATE',
       });
     }
-    if ((current.validatedBy || []).some((u) => String(u) === uid)) {
+    if ((current.validatedBy || []).some((u) => mine.has(String(u)))) {
       return res.json({
         validated: current.communityValidated === true,
         validationsCount: current.validationsCount || 0,
@@ -942,7 +980,7 @@ router.post('/:id/validate', requireAuth, async (req, res) => {
     // v567 — atomique : une double requête ne peut plus inscrire deux fois le
     // même validateur (le compteur de validations ne se gonfle plus tout seul).
     const spot = await PawSpot.findOneAndUpdate(
-      { _id: req.params.id, ...VISIBLE, validatedBy: { $ne: uid } },
+      { _id: req.params.id, ...VISIBLE, validatedBy: { $nin: [...mine] } },
       { $addToSet: { validatedBy: uid } },
       { new: true },
     );
@@ -975,8 +1013,10 @@ router.post('/:id/validate', requireAuth, async (req, res) => {
 router.post('/:id/visit', requireAuth, async (req, res) => {
   try {
     const uid = String(req.user.id);
+    // v576 — une visite par PERSONNE (pas une par profil).
+    const mine = await accountRoleIdSet(req.user.id, req.user.role);
     const spot = await PawSpot.findOneAndUpdate(
-      { _id: req.params.id, ...VISIBLE, visitedBy: { $ne: uid } },
+      { _id: req.params.id, ...VISIBLE, visitedBy: { $nin: [...mine] } },
       { $addToSet: { visitedBy: uid }, $inc: { visitsCount: 1 } },
       { new: true },
     );
@@ -1013,7 +1053,10 @@ router.post('/:id/comment', requireAuth, async (req, res) => {
     // fois par personne ET par spot. Avant, écrire 50 fois « ok » sur le même
     // spot rapportait 100 PawPoints — le classement et les récompenses à
     // points n'avaient plus aucun sens.
-    const firstComment = !(spot.commentAwardedBy || []).some((u) => String(u) === uid);
+    // v576 — une seule prime « commentaire utile » par PERSONNE et par spot :
+    // sinon le même humain pouvait la toucher trois fois (une par profil).
+    const mineC = await accountRoleIdSet(req.user.id, req.user.role);
+    const firstComment = !(spot.commentAwardedBy || []).some((u) => mineC.has(String(u)));
     if (firstComment) spot.commentAwardedBy.push(uid);
     await spot.save();
     let pointsEarned = 0;
@@ -1068,7 +1111,10 @@ router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const spot = await PawSpot.findOne({ _id: req.params.id, deletedAt: null });
     if (!spot) return res.status(404).json({ error: 'Spot not found.' });
-    if (String(spot.creatorId) !== String(req.user.id)) {
+    // v576 — je peux supprimer MON spot depuis n'importe lequel de mes profils
+    // (avant : 403 dès qu'on avait changé de rôle depuis la création).
+    const mine = await accountRoleIdSet(req.user.id, req.user.role);
+    if (!mine.has(String(spot.creatorId))) {
       return res.status(403).json({ error: 'Only the creator can delete this spot.' });
     }
     // Verrou : seule la requête qui pose deletedAt reprend les points (une
@@ -1136,12 +1182,39 @@ router.post('/rewards/redeem', requireAuth, async (req, res) => {
     if (!updated) {
       return res.status(402).json({ error: 'Not enough PawPoints.', code: 'INSUFFICIENT_POINTS' });
     }
+    // v576 — LE DÉBIT DOIT TOUCHER LES 3 PROFILS. Il ne portait que sur le
+    // document du rôle actif ; comme la synchronisation des points prend le
+    // MAXIMUM des trois profils (pawPointsService.syncPointsAcrossRoles), les
+    // points repartaient chez le frère et revenaient à la lecture suivante :
+    // la récompense était gratuite. On aligne explicitement les trois soldes
+    // sur la valeur débitée, exactement comme pawPointsRoutes.spendPoints.
+    const myIds = await accountRoleIds(req.user.id, req.user.role);
+    const _alignSpendable = async (value) => {
+      try {
+        await Promise.all([Owner, Sitter, Walker].map((M) => M.updateOne(
+          { _id: { $in: myIds } },
+          { $set: { pawPointsSpendable: Number(value) || 0 } },
+        ).catch(() => {})));
+      } catch (_) { /* best-effort : le débit principal a déjà eu lieu */ }
+    };
+    const _refund = async () => {
+      const back = await Model.findByIdAndUpdate(
+        req.user.id,
+        { $inc: { pawPointsSpendable: cost } },
+        { new: true },
+      ).select('pawPointsSpendable').catch(() => null);
+      await _alignSpendable(back?.pawPointsSpendable ?? 0);
+    };
+    await _alignSpendable(updated.pawPointsSpendable);
 
     if (reward === 'feature_spot') {
-      const spot = await PawSpot.findOne({ _id: req.body?.spotId, creatorId: req.user.id });
+      // v576 — mon spot, quel que soit le profil qui l'a créé.
+      const spot = await PawSpot.findOne({
+        _id: req.body?.spotId, creatorId: { $in: myIds },
+      });
       if (!spot) {
         // Rembourse si le spot n'existe pas / pas à lui.
-        await Model.findByIdAndUpdate(req.user.id, { $inc: { pawPointsSpendable: cost } });
+        await _refund();
         return res.status(404).json({ error: 'Spot not found (or not yours).' });
       }
       spot.featuredUntil = new Date(Date.now() + 7 * 86400000);
@@ -1149,7 +1222,7 @@ router.post('/rewards/redeem', requireAuth, async (req, res) => {
     } else if (reward === 'badge_color') {
       const color = String(req.body?.color || '').trim();
       if (!/^#?[0-9a-fA-F]{6}$/.test(color)) {
-        await Model.findByIdAndUpdate(req.user.id, { $inc: { pawPointsSpendable: cost } });
+        await _refund();
         return res.status(400).json({ error: 'color must be a hex like #FFAA00.' });
       }
       await Model.findByIdAndUpdate(req.user.id, {

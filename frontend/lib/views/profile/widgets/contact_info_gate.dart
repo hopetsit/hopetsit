@@ -45,6 +45,7 @@ import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/profile/widgets/phone_prefix_helper.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/utils/server_error_message.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// Vrai si le téléphone ET l'adresse sont renseignés.
@@ -210,9 +211,10 @@ class _ContactInfoSheetState extends State<_ContactInfoSheet> {
     } on ApiException catch (e) {
       AppLogger.logError('ensureContactInfo save failed', error: e.message);
       if (mounted) {
+        // v576 — jamais le texte serveur brut (anglais) dans le bandeau.
         CustomSnackbar.showError(
           title: 'common_error'.tr,
-          message: e.message.isNotEmpty ? e.message : 'profile_update_failed'.tr,
+          message: errorKeyFor(e, fallbackKey: 'profile_update_failed'),
         );
       }
     } catch (e) {

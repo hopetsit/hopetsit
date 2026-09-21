@@ -12,6 +12,9 @@ const {
   propagateSharedIdentity,
   fillMissingIdentityFromSiblings,
 } = require('../utils/sharedIdentity');
+// v576 — fiche gardien « vue par moi-même » : l'e-mail, le téléphone et
+// l'adresse ne sortent que pour la personne elle-même (cf. sitterSelfView.js).
+const { sitterSelfPrivateFields, isSelfProfile } = require('../utils/sitterSelfView');
 const {
   validatePriceAgainstRecommended,
   getRecommendedPriceRange,
@@ -436,6 +439,28 @@ const getSitterProfile = async (req, res) => {
       return res.status(404).json({ error: 'Sitter not found.' });
     }
 
+    // v576 — « Aucun e-mail ajouté » : cette route sert AUSSI l'écran
+    // « Modifier le profil » du gardien. Quand le lecteur est la personne
+    // elle-même (l'un des ids de son groupe owner/sitter/walker), on lui rend
+    // ses champs privés ET on applique le rattrapage d'identité à la lecture,
+    // comme le font déjà `/users/me/profile` et `/walkers/me`. Pour tout autre
+    // lecteur, la fiche reste strictement publique (v535).
+    let isSelf = false;
+    if (req.user && req.user.id) {
+      try {
+        isSelf = isSelfProfile(await selfIdSet(req), id);
+      } catch (_) {
+        isSelf = false;
+      }
+    }
+    if (isSelf) {
+      try {
+        const { ensureAvatarFromSiblingRoles } = require('../utils/avatarFallback');
+        await ensureAvatarFromSiblingRoles(sitter, 'sitter');
+      } catch (_) {/* best-effort */}
+      await fillMissingIdentityFromSiblings(sitter, 'sitter');
+    }
+
     // v23.1.296 — Daniel : "Top Sitter pas à jour après prestation". Double
     // cause : (1) cette réponse était construite À LA MAIN sans
     // completedServicesCount/averageRating/isTopSitter → la carte lisait
@@ -484,18 +509,24 @@ const getSitterProfile = async (req, res) => {
     const sitterProfile = {
       id: sitter._id.toString(),
       name: sitter.name || '',
+      // v575 — « nom et prénom » : la complétion du profil juge sur les DEUX
+      // parties ; sans elles, l'élément « Nom » du gardien restait rouge.
+      firstName: sitter.firstName || '',
+      lastName: sitter.lastName || '',
       // v535 — FUITE : cette fiche est PUBLIQUE (route sans requireAuth) et
       // renvoyait l'email, le téléphone (avec indicatif) et l'adresse postale
       // du gardien à n'importe qui. Outre le RGPD, c'est aussi ce qui permet
-      // de contourner la plateforme (contact direct sans commission). On ne
-      // sort plus que des champs publics ; la ville reste disponible via
-      // `location.city` plus bas.
-      email: '',
-      mobile: '',
-      countryCode: '',
+      // de contourner la plateforme (contact direct sans commission).
+      // v576 — ces champs reviennent UNIQUEMENT pour la personne elle-même
+      // (`isSelf`), parce que son propre écran d'édition se charge ici.
+      ...sitterSelfPrivateFields(sitter, isSelf),
       language: sitter.language || '',
       currency: sitter.currency || DEFAULT_CURRENCY,
-      address: '',
+      // v576 — ville PLATE : sans GPS, la ville n'est pas dans `location.city`
+      // mais dans le champ plat `city` (modèle v565). Sans cette ligne,
+      // l'élément « Ville » de la barre de complétion du gardien ne passait
+      // jamais au vert, même après enregistrement.
+      city: sitter.city || (sitter.location && sitter.location.city) || '',
       rate: sitter.rate || '',
       hourlyRate: sitter.hourlyRate || 0,
       dailyRate: sitter.dailyRate || 0,
@@ -1044,9 +1075,16 @@ const updateSitterProfile = async (req, res) => {
     // dédié avec code de vérification) : une chaîne vide veut dire « ne
     // touche pas à l'e-mail », jamais « efface-le ». Même règle que les
     // autres champs partagés (utils/sharedIdentity.js).
+    // v576 — et l'e-mail INCHANGÉ ne doit RIEN déclencher non plus. Depuis que
+    // l'écran d'édition du gardien reçoit enfin l'e-mail réel, il le renvoie
+    // tel quel à l'enregistrement ; le contrôle d'unicité ci-dessous trouvait
+    // alors le profil PROPRIÉTAIRE de la même personne (un compte = jusqu'à 3
+    // documents reliés par l'e-mail) et refusait tout par un 409 « déjà
+    // associé à un autre compte ». Un e-mail identique à l'actuel = no-op.
     const trimmedEmailIn =
       typeof email === 'string' ? email.trim().toLowerCase() : '';
-    if (email !== undefined && trimmedEmailIn) {
+    const currentSitterEmail = (sitter.email || '').trim().toLowerCase();
+    if (email !== undefined && trimmedEmailIn && trimmedEmailIn !== currentSitterEmail) {
       const trimmedEmail = trimmedEmailIn;
       
       // Check if email is already taken by another user

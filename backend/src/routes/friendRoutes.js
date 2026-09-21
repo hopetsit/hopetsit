@@ -24,8 +24,58 @@ const logger = require('../utils/logger');
 // référencent UN doc précis → toutes les lectures « par personne » doivent
 // matcher le groupe complet, sinon l'ami disparaît dès qu'il change de rôle.
 const { identityGroup } = require('../utils/identityGroup');
+// v576 — Daniel : « les amis ne sont pas synchronisés dans les rôles ». Une
+// amitié appartient à la PERSONNE, pas au profil : on lit sur le groupe des
+// deux côtés et on n'affiche qu'UNE entrée par humain (jamais une par rôle).
+// `personIndex` résout N personnes en 6 requêtes (voir utils/personScope.js).
+const { personIds, personIndex } = require('../utils/personScope');
 
 const router = express.Router();
+
+/**
+ * v576 — déduplique une liste d'amitiés PAR PERSONNE.
+ *
+ * Deux amitiés peuvent relier les mêmes humains sous des couples de rôles
+ * différents (je l'ai ajouté en propriétaire, il m'a ajouté en gardien avant
+ * que la détection cross-rôle n'existe). L'app affichait alors deux fois la
+ * même personne. On garde une seule entrée : la plus « avancée » (acceptée
+ * avant en attente) puis la plus récente.
+ *
+ * Écarte aussi les amitiés où les DEUX côtés sont moi (résidus d'avant la
+ * détection « impossible d'être ami avec soi-même »).
+ *
+ * @returns {Promise<{ kept: Array, index: Map }>}
+ */
+async function dedupeFriendshipsByPerson(friendships, mySet) {
+  const others = [];
+  for (const f of friendships) {
+    const iAmRequester = mySet.has(String(f.requesterId));
+    others.push(String(iAmRequester ? f.addresseeId : f.requesterId));
+  }
+  const index = await personIndex(others);
+  const rank = (f) => (f.status === 'accepted' ? 2 : f.status === 'pending' ? 1 : 0);
+  const byPerson = new Map();
+  for (const f of friendships) {
+    const iAmRequester = mySet.has(String(f.requesterId));
+    const otherId = String(iAmRequester ? f.addresseeId : f.requesterId);
+    // Mes propres profils frères ne sont pas des amis.
+    if (mySet.has(otherId)) continue;
+    const entry = index.get(otherId);
+    if (entry && entry.ids.some((id) => mySet.has(id))) continue;
+    const key = entry ? entry.key : `i:${otherId}`;
+    const prev = byPerson.get(key);
+    if (
+      !prev
+      || rank(f) > rank(prev)
+      || (rank(f) === rank(prev)
+        && new Date(f.updatedAt || f.createdAt || 0)
+          > new Date(prev.updatedAt || prev.createdAt || 0))
+    ) {
+      byPerson.set(key, f);
+    }
+  }
+  return { kept: [...byPerson.values()], index };
+}
 
 const ROLE_TO_MODEL_NAME = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' };
 const MODEL_BY_NAME = { Owner, Sitter, Walker };
@@ -100,20 +150,41 @@ router.post('/live-position', requireAuth, async (req, res) => {
 // v551 — Daniel : « masquer mon profil sur la carte … sauf ses amis ».
 // Renvoie l'ensemble des ids (string) des amis ACCEPTÉS du viewer, pour que
 // quelqu'un qui s'est masqué reste visible de ses amis.
+// v576 — CROSS-RÔLE. Ce helper ne matchait que l'id du rôle ACTIF : un ami
+// ajouté depuis le profil propriétaire n'était pas reconnu comme ami depuis le
+// profil gardien, donc un membre qui s'était masqué de la carte disparaissait
+// aussi pour ses amis (v551 promettait l'inverse). On matche le groupe complet
+// des deux côtés : mes 3 ids, et TOUS les ids de rôle de chaque ami.
 async function _friendIdsOf(userId) {
   try {
     const Friendship = require('../models/Friendship');
+    const mine = await personIds(userId);
+    const mineSet = new Set(mine.map(String));
     const rows = await Friendship.find({
       status: 'accepted',
-      $or: [{ requesterId: userId }, { addresseeId: userId }],
+      $or: [
+        { requesterId: { $in: mine } },
+        { addresseeId: { $in: mine } },
+      ],
     })
       .select('requesterId addresseeId')
       .lean();
-    const set = new Set();
+    const others = [];
     for (const r of rows) {
       const a = String(r.requesterId);
       const b = String(r.addresseeId);
-      set.add(a === String(userId) ? b : a);
+      const other = mineSet.has(a) ? b : a;
+      if (!mineSet.has(other)) others.push(other);
+    }
+    if (!others.length) return new Set();
+    // Un ami est visible quel que soit le profil sous lequel il se connecte :
+    // on renvoie TOUS ses ids de rôle (résolution en lot, 6 requêtes).
+    const idx = await personIndex(others);
+    const set = new Set();
+    for (const id of others) {
+      const e = idx.get(id);
+      if (e) e.ids.forEach((x) => set.add(x));
+      else set.add(id);
     }
     return set;
   } catch (e) {
@@ -1230,9 +1301,27 @@ router.get('/', requireAuth, async (req, res) => {
     // force mySharePosition=true sur toutes les friendships retournees.
     const { hasActivePawFollow } = require('../models/UserSubscription');
     const viewerHasPawFollow = await hasActivePawFollow(user.id).catch(() => false);
-    const enriched = await Promise.all(
-      friendships.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow, g.set)),
+    // v576 — UNE entrée par HUMAIN. Avant, une personne liée deux fois (une
+    // amitié sous son profil gardien, une autre sous son profil propriétaire)
+    // apparaissait deux fois dans « Mes amis ». La déduplication a lieu AVANT
+    // l'enrichissement : elle réduit aussi le nombre de requêtes.
+    const { kept, index: personIdx } = await dedupeFriendshipsByPerson(
+      friendships, g.set,
     );
+    const enriched = await Promise.all(
+      kept.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow, g.set)),
+    );
+    // v576 — rôle sous lequel l'ami se montre aujourd'hui (le plus récemment
+    // vu) + la liste de ses profils : l'app peut afficher la bonne pastille de
+    // couleur même si l'amitié a été nouée sous un autre rôle.
+    for (const e of enriched) {
+      const entry = e.other && e.other.id ? personIdx.get(String(e.other.id)) : null;
+      if (!entry) continue;
+      e.other.activeRole = entry.activeRole
+        || String(e.other.model || '').toLowerCase();
+      e.other.roles = entry.roles;
+      e.other.personIds = entry.ids;
+    }
     // v451 — Daniel : « les anciens amis au profil supprimé restaient dans ma
     // liste — quand on supprime un compte, tout doit disparaître ». On NE garde
     // donc plus les orphelins (other.deleted) : on PURGE l'amitié vers un compte
@@ -1384,10 +1473,26 @@ router.get('/requests', requireAuth, async (req, res) => {
     // v23.1 part 226 — viewerHasPawFollow calcule once pour les 2 listes.
     const { hasActivePawFollow } = require('../models/UserSubscription');
     const viewerHasPawFollow = await hasActivePawFollow(user.id).catch(() => false);
-    const [incomingEnriched, outgoingEnriched] = await Promise.all([
-      Promise.all(incoming.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow, g.set))),
-      Promise.all(outgoing.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow, g.set))),
+    // v576 — une demande appartient à la PERSONNE : une seule ligne par humain
+    // (deux demandes envoyées à deux profils du même ami = une seule entrée),
+    // et jamais une demande venant/partant d'un de mes propres profils frères.
+    const [dedupIn, dedupOut] = await Promise.all([
+      dedupeFriendshipsByPerson(incoming, g.set),
+      dedupeFriendshipsByPerson(outgoing, g.set),
     ]);
+    const [incomingEnriched, outgoingEnriched] = await Promise.all([
+      Promise.all(dedupIn.kept.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow, g.set))),
+      Promise.all(dedupOut.kept.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow, g.set))),
+    ]);
+    for (const [list, dd] of [[incomingEnriched, dedupIn], [outgoingEnriched, dedupOut]]) {
+      for (const e of list) {
+        const entry = e.other && e.other.id ? dd.index.get(String(e.other.id)) : null;
+        if (!entry) continue;
+        e.other.activeRole = entry.activeRole
+          || String(e.other.model || '').toLowerCase();
+        e.other.roles = entry.roles;
+      }
+    }
 
     res.json({
       // v23.1.201 — on garde les orphelins pour qu'ils soient visibles
@@ -2105,10 +2210,20 @@ router.get('/live-positions', requireAuth, async (req, res) => {
     const positions = [];
     const seenOther = new Set(); // dédoublonne si 2 amitiés couvrent la même personne
 
+    // v576 — PERFORMANCE. La boucle appelait `identityGroup(otherId)` pour
+    // CHAQUE ami : 6 requêtes par ami, soit 600 requêtes pour 100 amis, à
+    // chaque ouverture de la PawMap. On résout tout le monde en 6 requêtes.
+    const livePersonIdx = await personIndex(
+      friendships.map((f) => (g.set.has(String(f.requesterId))
+        ? String(f.addresseeId) : String(f.requesterId))),
+    );
+
     for (const f of friendships) {
       const iAmRequester = g.set.has(String(f.requesterId));
       const otherId = iAmRequester ? String(f.addresseeId) : String(f.requesterId);
       const otherModel = iAmRequester ? f.addresseeModel : f.requesterModel;
+      // Mes propres profils ne sont pas des amis à suivre.
+      if (g.set.has(otherId)) continue;
 
       // Opt-out explicite de L'AUTRE → jamais visible (prime sur tout).
       const otherShareFlag = iAmRequester
@@ -2125,7 +2240,13 @@ router.get('/live-positions', requireAuth, async (req, res) => {
       if (!canTrack && otherShareFlag === true) canTrack = true;
       if (!canTrack) continue;
 
-      const gOther = await identityGroup(otherId);
+      const gOther = livePersonIdx.get(otherId)
+        || { ids: [otherId], set: new Set([otherId]), docs: [] };
+      // Repli : si la résolution du groupe a échoué, on garde au moins le
+      // document référencé par l'amitié (comportement d'avant la v576).
+      const otherDocs = gOther.docs.length
+        ? gOther.docs
+        : [{ id: otherId, model: otherModel || 'Owner' }];
       if ([...gOther.set].some((oid) => seenOther.has(oid))) continue;
       gOther.set.forEach((oid) => seenOther.add(oid));
 
@@ -2140,7 +2261,7 @@ router.get('/live-positions', requireAuth, async (req, res) => {
 
       // Position la plus fraîche (< 24h) parmi tous ses docs de rôle.
       let best = null;
-      for (const d of gOther.docs) {
+      for (const d of otherDocs) {
         const Model = MODELS[d.model];
         if (!Model) continue;
         let doc = null;
@@ -2243,8 +2364,11 @@ router.get('/family/members', requireAuth, async (req, res) => {
 
     // Subs qui m'incluent comme membre (someone else's family).
     // v23.1.283 — famille active tolérante (familyExpiry OU ancien plan).
+    // v576 — j'ai pu être invité sous un AUTRE de mes profils : sans le groupe
+    // d'identité, la famille « disparaissait » en changeant de rôle.
+    const gFam = await identityGroup(user.id);
     const subsHostingMe = await UserSubscription.find({
-      'familyMembers.userId': user.id,
+      'familyMembers.userId': { $in: gFam.ids },
       ...familyActiveMatch(now),
     }).lean();
 
@@ -2271,7 +2395,7 @@ router.get('/family/members', requireAuth, async (req, res) => {
     for (const sub of subsHostingMe) {
       // Le titulaire de cette sub est un de mes "family circle".
       const holderId = String(sub.userId);
-      if (holderId !== String(user.id) && !byId.has(holderId)) {
+      if (!gFam.set.has(holderId) && !byId.has(holderId)) {
         byId.set(holderId, {
           userId: holderId,
           userModel: sub.userModel,
@@ -2283,7 +2407,7 @@ router.get('/family/members', requireAuth, async (req, res) => {
       // Et les autres membres (sauf moi).
       for (const m of (sub.familyMembers || [])) {
         const id = String(m.userId);
-        if (id === String(user.id)) continue;
+        if (gFam.set.has(id)) continue; // c'est moi, sous l'un de mes profils
         if (byId.has(id)) continue;
         byId.set(id, {
           userId: id,
@@ -2484,7 +2608,11 @@ router.post('/family/invite-member', requireAuth, async (req, res) => {
         code: 'FAMILY_FULL',
       });
     }
-    if (sub.familyMembers.some((m) => String(m.userId) === String(userId))) {
+    // v576 — un humain ne compte qu'une fois : on refuse l'invitation si un
+    // de ses AUTRES profils est déjà membre (sinon la même personne occupait
+    // deux ou trois des cinq places).
+    const gTarget = await identityGroup(userId);
+    if (sub.familyMembers.some((m) => gTarget.set.has(String(m.userId)))) {
       return res.status(409).json({ error: 'Already a family member.' });
     }
     // v23.1.183 — Daniel : "developpe le sous menu amis famislle pour
@@ -2695,8 +2823,11 @@ router.delete('/family/member/:userId', requireAuth, async (req, res) => {
     // supprimé après switchRole / chaîne oldId cassée) → le filtre par ID seul
     // la ratait. On garde donc les subs contenant le membre dont le TITULAIRE a
     // mon email (même logique que resolveOwnFamilySub email-recovery).
+    // v576 — le membre a pu être ajouté sous un autre de ses profils : on le
+    // cherche sur tout son groupe d'identité.
+    const gMember = await identityGroup(targetId);
     const subsWithMember = await UserSubscription.find({
-      'familyMembers.userId': targetId,
+      'familyMembers.userId': { $in: gMember.ids },
     });
     const subs = [];
     for (const sub of subsWithMember) {
@@ -2723,7 +2854,7 @@ router.delete('/family/member/:userId', requireAuth, async (req, res) => {
     for (const sub of subs) {
       const before = (sub.familyMembers || []).length;
       sub.familyMembers = (sub.familyMembers || []).filter(
-        (m) => String(m.userId) !== String(targetId),
+        (m) => !gMember.set.has(String(m.userId)),
       );
       if (sub.familyMembers.length !== before) {
         await sub.save();
@@ -2764,15 +2895,17 @@ router.post('/family/leave', requireAuth, async (req, res) => {
     const user = me(req);
     const now = new Date();
     // Toutes les subs Famille actives où je figure comme membre.
+    // v576 — sur mes 3 profils : j'ai pu être invité sous un autre rôle.
+    const gLeave = await identityGroup(user.id);
     const subs = await UserSubscription.find({
-      'familyMembers.userId': user.id,
+      'familyMembers.userId': { $in: gLeave.ids },
       ...familyActiveMatch(now),
     });
     let removed = 0;
     for (const sub of subs) {
       const before = (sub.familyMembers || []).length;
       sub.familyMembers = (sub.familyMembers || []).filter(
-        (m) => String(m.userId) !== String(user.id),
+        (m) => !gLeave.set.has(String(m.userId)),
       );
       if (sub.familyMembers.length !== before) {
         removed += before - sub.familyMembers.length;
@@ -2804,22 +2937,38 @@ router.get('/pets', requireAuth, async (req, res) => {
   try {
     const user = me(req);
     // 1) Collecte les userIds de mes amis acceptes + membres famille active.
+    // v576 — cette route filtrait encore sur (id + modèle) du rôle ACTIF : les
+    // animaux des amis ajoutés depuis un autre profil n'apparaissaient jamais.
+    // On matche mon groupe d'identité, et on retient TOUS les ids de rôle de
+    // chaque ami (l'animal est rattaché à son document Owner, qui n'est pas
+    // forcément celui référencé dans l'amitié).
+    const gPets = await identityGroup(user.id);
     const friends = await Friendship.find({
+      status: 'accepted',
       $or: [
-        { requesterId: user.id, requesterModel: user.model, status: 'accepted' },
-        { addresseeId: user.id, addresseeModel: user.model, status: 'accepted' },
+        { requesterId: { $in: gPets.ids } },
+        { addresseeId: { $in: gPets.ids } },
       ],
     }).lean();
-    const friendIds = new Set();
+    const rawOthers = [];
     for (const f of friends) {
-      const otherId = String(f.requesterId) === String(user.id)
-        ? f.addresseeId : f.requesterId;
-      friendIds.add(String(otherId));
+      const otherId = gPets.set.has(String(f.requesterId))
+        ? String(f.addresseeId) : String(f.requesterId);
+      if (!gPets.set.has(otherId)) rawOthers.push(otherId);
+    }
+    const friendIds = new Set();
+    if (rawOthers.length) {
+      const idx = await personIndex(rawOthers);
+      for (const id of rawOthers) {
+        const e = idx.get(id);
+        if (e) e.ids.forEach((x) => friendIds.add(x));
+        else friendIds.add(id);
+      }
     }
     // Famille : titulaire ou membre actif.
     const now = new Date();
     const ownSub = await UserSubscription.findOne({
-      userId: user.id,
+      userId: { $in: gPets.ids },
       ...familyActiveMatch(now),
     }).lean();
     if (ownSub && Array.isArray(ownSub.familyMembers)) {
@@ -2828,18 +2977,19 @@ router.get('/pets', requireAuth, async (req, res) => {
       }
     }
     const subsHostingMe = await UserSubscription.find({
-      'familyMembers.userId': user.id,
+      'familyMembers.userId': { $in: gPets.ids },
       ...familyActiveMatch(now),
     }).lean();
     for (const sub of subsHostingMe) {
       friendIds.add(String(sub.userId));
       for (const m of (sub.familyMembers || [])) {
         if ((!m.status || m.status === 'active')
-            && String(m.userId) !== String(user.id)) {
+            && !gPets.set.has(String(m.userId))) {
           friendIds.add(String(m.userId));
         }
       }
     }
+    for (const id of gPets.ids) friendIds.delete(String(id));
     if (friendIds.size === 0) {
       return res.json({ pets: [] });
     }
@@ -2887,8 +3037,11 @@ router.get('/family/invitations', requireAuth, async (req, res) => {
   try {
     const user = me(req);
     const now = new Date();
+    // v576 — une invitation famille s'adresse à la PERSONNE : elle doit être
+    // visible (et acceptable) depuis n'importe lequel de ses 3 profils.
+    const gInv = await identityGroup(user.id);
     const subs = await UserSubscription.find({
-      'familyMembers.userId': user.id,
+      'familyMembers.userId': { $in: gInv.ids },
       'familyMembers.status': 'pending',
       ...familyActiveMatch(now),
     }).lean();
@@ -2896,7 +3049,7 @@ router.get('/family/invitations', requireAuth, async (req, res) => {
     const invitations = [];
     for (const sub of subs) {
       const member = (sub.familyMembers || []).find(
-        (m) => String(m.userId) === String(user.id) && m.status === 'pending',
+        (m) => gInv.set.has(String(m.userId)) && m.status === 'pending',
       );
       if (!member) continue;
       // Récupère le nom du titulaire pour l'afficher dans la cloche.
@@ -2948,7 +3101,7 @@ router.post('/family/invitation/:id/accept', requireAuth, async (req, res) => {
       // v23.1.283 — l'invitation est identifiée par son _id (n'existe que sur
       // une sub famille) ; plus de filtre plan:'famille' (famille découplée).
       'familyMembers._id': invitationId,
-      'familyMembers.userId': user.id,
+      'familyMembers.userId': { $in: (await identityGroup(user.id)).ids },
       status: 'active',
     });
     if (!sub) {
@@ -2958,7 +3111,9 @@ router.post('/family/invitation/:id/accept', requireAuth, async (req, res) => {
     if (!member) {
       return res.status(404).json({ error: 'Invitation not found.' });
     }
-    if (String(member.userId) !== String(user.id)) {
+    // v576 — l'invitation peut viser un autre de mes profils : je l'accepte
+    // quand même (c'est bien moi).
+    if (!(await identityGroup(user.id)).set.has(String(member.userId))) {
       return res.status(403).json({ error: 'Not your invitation.' });
     }
     if (member.status !== 'pending') {
@@ -3003,7 +3158,7 @@ router.post('/family/invitation/:id/refuse', requireAuth, async (req, res) => {
     const sub = await UserSubscription.findOne({
       // v23.1.283 — famille découplée : plus de filtre plan:'famille'.
       'familyMembers._id': invitationId,
-      'familyMembers.userId': user.id,
+      'familyMembers.userId': { $in: (await identityGroup(user.id)).ids },
     });
     if (!sub) {
       return res.status(404).json({ error: 'Invitation not found.' });
@@ -3012,7 +3167,8 @@ router.post('/family/invitation/:id/refuse', requireAuth, async (req, res) => {
     if (!member) {
       return res.status(404).json({ error: 'Invitation not found.' });
     }
-    if (String(member.userId) !== String(user.id)) {
+    // v576 — cf. accept : l'invitation appartient à la personne.
+    if (!(await identityGroup(user.id)).set.has(String(member.userId))) {
       return res.status(403).json({ error: 'Not your invitation.' });
     }
     if (member.status !== 'pending') {

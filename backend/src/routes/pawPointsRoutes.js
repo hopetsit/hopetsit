@@ -43,14 +43,13 @@ async function _identity(userId, role) {
     if (!me) return out;
     out.email = me.email || '';
     out.name = me.name || '';
-    if (!out.email) {
-      out.ids = [userId];
-      return out;
-    }
-    const docs = await Promise.all(
-      [Owner, Sitter, Walker].map((M) => M.findOne({ email: out.email }).select('_id').lean()),
-    );
-    out.ids = docs.filter(Boolean).map((d) => d._id);
+    // v576 — les identifiants des profils frères viennent maintenant de
+    // `utils/personScope` (bâti sur identityGroup) : il relie aussi les
+    // comptes par `oldId`, que la recherche par e-mail seule laissait de côté
+    // (anciens profils dont l'e-mail a changé). Même définition de « la
+    // personne » que les amis, les blocages et les PawSpots.
+    const { personIds } = require('../utils/personScope');
+    out.ids = await personIds(userId);
     if (!out.ids.length) out.ids = [userId];
   } catch (_) { /* best-effort */ }
   return out;

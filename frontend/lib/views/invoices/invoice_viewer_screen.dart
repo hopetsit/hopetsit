@@ -113,6 +113,19 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
           }
         },
       )
+      // v576 — le gabarit servi par le backend appelait « HoPetSit » (deux
+      // majuscules) alors que le canal ci-dessus s'appelle « Hopetsit ». Les
+      // identifiants JS sont sensibles à la casse : le bouton intégré à la
+      // page n'atteignait jamais l'app. Le serveur essaie désormais les deux
+      // noms (répare les apps déjà installées) et l'app écoute les deux.
+      ..addJavaScriptChannel(
+        'HoPetSit',
+        onMessageReceived: (msg) {
+          if (msg.message == 'download') {
+            _triggerPrint();
+          }
+        },
+      )
       ..loadRequest(Uri.tryParse(widget.url) ?? Uri.parse('about:blank'));
   }
 
@@ -174,15 +187,22 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
         text: 'invoice_pdf_subject'.tr,
       ));
     } catch (e) {
+      // v576 — BUG : le repli appelait window.print(), qui ne fait RIEN dans
+      // la WebView Android → l'utilisateur tapait et il ne se passait rien,
+      // sans le moindre message. On tente toujours l'impression (elle marche
+      // sur iOS / navigateur), mais on prévient TOUJOURS en cas d'échec.
+      bool printed = false;
       try {
         await _controller.runJavaScript('window.print();');
+        printed = Platform.isIOS;
       } catch (_) {
-        if (mounted) {
-          CustomSnackbar.showError(
-            title: 'common_error'.tr,
-            message: 'invoice_download_failed'.tr,
-          );
-        }
+        printed = false;
+      }
+      if (!printed && mounted) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'invoice576_save_failed'.tr,
+        );
       }
     } finally {
       if (mounted) setState(() => _sharing = false);

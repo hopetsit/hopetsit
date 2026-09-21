@@ -676,7 +676,10 @@ router.get('/', listSitters);
  *       404:
  *         description: Sitter not found
  */
-router.get('/:id', getSitterProfile);
+// v576 — `optionalAuth` : la fiche reste PUBLIQUE (jamais de 401), mais quand
+// un jeton est présent le contrôleur peut reconnaître la personne elle-même et
+// lui rendre ses champs privés (son écran « Modifier le profil » se charge ici).
+router.get('/:id', optionalAuth, getSitterProfile);
 
 // ─── IBAN PAYOUT (like Vinted) ────────────────────────────────────────────────
 // requireAuth / requireRole are already imported at the top of this file.

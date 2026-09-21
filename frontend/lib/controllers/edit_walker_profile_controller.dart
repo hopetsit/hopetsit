@@ -20,6 +20,7 @@ import 'package:hopetsit/utils/profile_completion.dart'
     show splitPersonName, joinPersonName;
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/profile/widgets/phone_prefix_helper.dart';
+import 'package:hopetsit/utils/server_error_message.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// Dedicated controller for the Walker "Edit profile" screen.
@@ -265,13 +266,12 @@ class EditWalkerProfileController extends GetxController {
       AppLogger.logError('Failed to load walker profile',
           error: error.message);
       // Never auto-logout the walker from this screen — show the real reason.
-      loadError.value =
-          error.message.isNotEmpty ? error.message : 'profile_load_error'.tr;
+      // v576 — « la raison » devient une clé TRADUITE : le message serveur est
+      // en anglais et ne doit jamais s'afficher tel quel.
+      loadError.value = errorKeyFor(error, fallbackKey: 'profile_load_error').tr;
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: error.message.isNotEmpty
-            ? error.message
-            : 'profile_load_error'.tr,
+        message: errorKeyFor(error, fallbackKey: 'profile_load_error'),
       );
     } catch (error) {
       AppLogger.logError('Failed to load walker profile', error: error);
@@ -519,12 +519,11 @@ class EditWalkerProfileController extends GetxController {
       AppLogger.logError('Failed to update walker profile',
           error: error.message);
       // v575 — le titre était une CLÉ BRUTE (pas de `.tr`) : l'utilisateur
-      // voyait « pet_update_failed ». Motif exact du serveur, traduit.
+      // voyait « pet_update_failed ».
+      // v576 — et le message n'est plus le texte serveur anglais.
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: error.message.isNotEmpty
-            ? error.message
-            : 'profile_update_failed'.tr,
+        message: errorKeyFor(error, fallbackKey: 'profile_update_failed'),
       );
       return false;
     } catch (error) {
@@ -705,9 +704,11 @@ class EditWalkerProfileController extends GetxController {
       );
       Get.back();
     } catch (e) {
+      // v576 — `e.toString()` = trace Dart brute dans le bandeau.
+      AppLogger.logError('Failed to update walker rates', error: e);
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: e.toString(),
+        message: errorKeyFor(e, fallbackKey: 'profile_update_failed'),
       );
     } finally {
       isLoading.value = false;

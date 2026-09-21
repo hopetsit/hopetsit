@@ -27,6 +27,7 @@ import 'package:hopetsit/views/profile/widgets/profile_field_widgets.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/rounded_text_button.dart';
 
 /// Présentation libre. Compteur discret + aide qui explique le minimum retenu
 /// par la barre « profil complété » (avant, une bio de 5 caractères était
@@ -251,21 +252,60 @@ class ProfileLanguageField extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(height: 12.h),
-                Container(
-                  width: 40.w,
-                  height: 4.h,
-                  decoration: BoxDecoration(
-                    color: AppColors.divider(ctx),
-                    borderRadius: BorderRadius.circular(2.r),
+                // v576 — Daniel : « quand j'ajoute mes langues, il n'y a ni
+                // bouton valider ni retour ». La poignée devient CLIQUABLE
+                // (fermeture) et une croix est posée en haut à droite : sur
+                // Android le geste « glisser vers le bas » n'était pas évident
+                // et rien ne le disait.
+                GestureDetector(
+                  key: const ValueKey<String>('profile_language_handle'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => Get.back<void>(),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4.h),
+                    child: Container(
+                      width: 40.w,
+                      height: 4.h,
+                      decoration: BoxDecoration(
+                        color: AppColors.divider(ctx),
+                        borderRadius: BorderRadius.circular(2.r),
+                      ),
+                    ),
                   ),
                 ),
-                SizedBox(height: 14.h),
-                PoppinsText(
-                  text: 'label_spoken_languages'.tr,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary(ctx),
-                  maxLines: 1,
+                SizedBox(height: 10.h),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12.w),
+                  child: Row(
+                    children: [
+                      SizedBox(width: 36.w),
+                      Expanded(
+                        child: PoppinsText(
+                          text: 'label_spoken_languages'.tr,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary(ctx),
+                          maxLines: 1,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      SizedBox(
+                        width: 36.w,
+                        child: IconButton(
+                          key: const ValueKey<String>('profile_language_close'),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          tooltip: 'common_close'.tr,
+                          onPressed: () => Get.back<void>(),
+                          icon: Icon(
+                            Icons.close_rounded,
+                            size: 20.sp,
+                            color: AppColors.textSecondary(ctx),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 SizedBox(height: 4.h),
                 Padding(
@@ -309,7 +349,26 @@ class ProfileLanguageField extends StatelessWidget {
                     }),
                   ),
                 ),
-                SizedBox(height: 12.h + appBottomInsetInsideSafeArea(ctx)),
+                // v576 — bouton principal « Valider » : la sélection est déjà
+                // appliquée au fil des taps (`onChanged`), il ferme donc la
+                // feuille — mais il rend l'action ÉVIDENTE et termine l'écran
+                // proprement, comme partout ailleurs dans l'app.
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w,
+                      12.h + appBottomInsetInsideSafeArea(ctx)),
+                  child: CustomButton(
+                    key: const ValueKey<String>('profile_language_validate'),
+                    title: 'fixes576_validate'.tr,
+                    bgColor: accent,
+                    textColor: Colors.white,
+                    height: 50.h,
+                    radius: 14.r,
+                    onTap: () {
+                      onChanged?.call(selected.join(', '));
+                      Get.back<void>();
+                    },
+                  ),
+                ),
               ],
             ),
           ),

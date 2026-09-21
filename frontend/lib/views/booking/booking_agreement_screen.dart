@@ -35,6 +35,7 @@
 //    événements socket `booking:paid` / `booking:accepted` / `booking:cancelled`
 //    avec un handler NOMMÉ (un `off(event)` global casserait les listeners de
 //    BookingsController / PostsController).
+import 'package:hopetsit/widgets/role_chip.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -763,7 +764,8 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen>
         _isOwnerView ? _booking.sitter.avatar.url : _booking.owner.avatar.url;
     final roleLabel = _isOwnerView
         ? 'booking_agreement_service_provider_label'.tr
-        : 'role_owner'.tr;
+        // v576 — libellé de rôle unifié (clé unique pour toute l'app).
+        : roleLabelKey('owner').tr;
     final ref = _booking.id.length > 6
         ? _booking.id.substring(_booking.id.length - 6).toUpperCase()
         : _booking.id.toUpperCase();

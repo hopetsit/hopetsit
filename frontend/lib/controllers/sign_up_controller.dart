@@ -12,6 +12,7 @@ import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
+import 'package:hopetsit/utils/server_error_message.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/auth/otp_verification_screen.dart';
 import 'package:hopetsit/controllers/otp_verification_controller.dart';
@@ -582,9 +583,10 @@ class SignUpController extends GetxController {
       clearFields();
       return true;
     } on ApiException catch (error) {
+      // v576 — l'inscription affichait le message serveur en anglais.
       CustomSnackbar.showError(
         title: 'signup_failed_title'.tr,
-        message: error.message,
+        message: errorKeyFor(error, fallbackKey: 'common_error_generic'),
       );
       return false;
     } catch (error) {

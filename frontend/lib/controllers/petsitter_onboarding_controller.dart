@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/server_error_message.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 
@@ -163,9 +164,11 @@ class PetsitterOnboardingController extends GetxController {
       Get.until((route) => route.isFirst);
     } on ApiException catch (error) {
       AppLogger.logError('Failed to complete onboarding', error: error.message);
+      // v576 — message serveur anglais → clé traduite.
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: error.message,
+        message: errorKeyFor(error,
+            fallbackKey: 'snackbar_text_failed_to_complete_profile_please_try_again'),
       );
     } catch (e) {
       AppLogger.logError('Failed to complete onboarding', error: e);

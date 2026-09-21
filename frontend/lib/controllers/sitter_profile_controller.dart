@@ -30,6 +30,7 @@ import 'package:hopetsit/views/pet_sitter/booking/sitter_bookings_screen.dart';
 import 'package:hopetsit/views/auth/choose_service_screen.dart';
 import 'package:hopetsit/models/profile_model.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
+import 'package:hopetsit/utils/server_error_message.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 class SitterProfileController extends GetxController implements ProfileSettingsHost {
@@ -550,9 +551,10 @@ class SitterProfileController extends GetxController implements ProfileSettingsH
       Get.offAll(() => const LoginScreen());
     } on ApiException catch (error) {
       AppLogger.logError('Failed to delete account', error: error.message);
+      // v576 — message serveur anglais → clé traduite.
       CustomSnackbar.showError(
         title: 'delete_account_failed_title'.tr,
-        message: error.message,
+        message: errorKeyFor(error, fallbackKey: 'delete_account_failed_generic'),
       );
     } catch (error) {
       AppLogger.logError('Failed to delete account', error: error);

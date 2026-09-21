@@ -9,6 +9,7 @@
 //   via `printing/PdfGoogleFonts` qui contient tous les glyphes Unicode
 //   (€, €, accents diacritiques, etc.).
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:get/get.dart';
 import 'package:hopetsit/models/billing_info_model.dart';
 import 'package:hopetsit/models/invoice_model.dart';
@@ -19,8 +20,34 @@ import 'package:printing/printing.dart';
 class InvoicePdfGenerator {
   InvoicePdfGenerator._();
 
+  // v576 — logos RÉELS dans le PDF enregistré sur le téléphone : le logo
+  // officiel HoPetSit (celui de la marque refaite au build 570) en en-tête, et
+  // celui de CARDELLI HERMANOS LIMITED — l'entité qui facture — dans le bloc
+  // légal. Avant, l'en-tête n'avait qu'un carré orange avec un emoji 🐾.
+  // Chargés une seule fois puis gardés en mémoire ; un asset illisible ne doit
+  // jamais empêcher la génération du PDF (repli : pas d'image).
+  static pw.MemoryImage? _brandLogo;
+  static pw.MemoryImage? _issuerLogo;
+  static bool _logosTried = false;
+
+  static Future<void> _loadLogos() async {
+    if (_logosTried) return;
+    _logosTried = true;
+    Future<pw.MemoryImage?> load(String asset) async {
+      try {
+        final data = await rootBundle.load(asset);
+        return pw.MemoryImage(data.buffer.asUint8List());
+      } catch (_) {
+        return null;
+      }
+    }
+    _brandLogo = await load('assets/brand/png/logo-mark-192.png');
+    _issuerLogo = await load('assets/brand/png/cardelli_hermanos_logo.png');
+  }
+
   static Future<List<int>> build(InvoiceModel inv) async {
     final doc = pw.Document();
+    await _loadLogos();
 
     // v23.1.168 — Noto Sans contient le € + accents. On charge regular + bold
     // une seule fois et on les réutilise via le pw.Theme global.
@@ -69,12 +96,14 @@ class InvoicePdfGenerator {
                             fontWeight: pw.FontWeight.bold,
                             color: orange)),
                     pw.SizedBox(height: 2),
+                    // v576 — ces deux lignes étaient EN ANGLAIS en dur, même
+                    // sur une facture française.
                     pw.Text(
-                      'Operated by CARDELLI HERMANOS LIMITED · Hong Kong',
+                      '${'invoice576_operated_by'.tr} $_kIssuerName · $_kIssuerPlace',
                       style: pw.TextStyle(fontSize: 9, color: muted),
                     ),
                     pw.Text(
-                      'Company No. n-2671528 · contact@hopetsit.com',
+                      '${'invoice576_company_no'.tr} : $_kIssuerNumber · $_kIssuerEmail',
                       style: pw.TextStyle(fontSize: 9, color: muted),
                     ),
                   ],
@@ -87,7 +116,9 @@ class InvoicePdfGenerator {
                   borderRadius: pw.BorderRadius.circular(6),
                 ),
                 child: pw.Text(
-                  isRefunded ? 'REFUNDED' : 'PAID',
+                  (isRefunded ? 'invoice576_status_refunded' : 'invoice576_status_paid')
+                      .tr
+                      .toUpperCase(),
                   style: pw.TextStyle(
                     color: PdfColors.white,
                     fontSize: 10,
@@ -144,7 +175,7 @@ class InvoicePdfGenerator {
                 child: _partyBox(
                   'billing_issuer'.tr.toUpperCase(),
                   inv.providerName,
-                  inv.providerRole.toUpperCase(),
+                  _roleLabel(inv.providerRole),
                   accent,
                   billing: inv.issuerBilling,
                 ),
@@ -207,9 +238,31 @@ class InvoicePdfGenerator {
                 top: pw.BorderSide(color: PdfColors.grey300, width: 1),
               ),
             ),
-            child: pw.Text(
-              'invoice_pdf_footer'.tr,
-              style: pw.TextStyle(fontSize: 9, color: muted),
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                if (_issuerLogo != null) ...[
+                  pw.SizedBox(width: 34, height: 34, child: pw.Image(_issuerLogo!)),
+                  pw.SizedBox(width: 10),
+                ],
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        '$_kIssuerName · $_kIssuerPlace · '
+                        '${'invoice576_company_no'.tr} : $_kIssuerNumber · $_kIssuerEmail',
+                        style: pw.TextStyle(fontSize: 9, color: muted),
+                      ),
+                      pw.SizedBox(height: 3),
+                      pw.Text(
+                        'invoice_pdf_footer'.tr,
+                        style: pw.TextStyle(fontSize: 9, color: muted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -219,21 +272,37 @@ class InvoicePdfGenerator {
     return doc.save();
   }
 
+  // Identité de l'entité qui facture (mêmes valeurs que le pied de page de la
+  // facture HTML côté serveur — rien d'inventé).
+  static const String _kIssuerName = 'CARDELLI HERMANOS LIMITED';
+  static const String _kIssuerPlace = 'Hong Kong';
+  static const String _kIssuerNumber = 'n-2671528';
+  static const String _kIssuerEmail = 'contact@hopetsit.com';
+
+  static String _roleLabel(String role) {
+    switch (role.toLowerCase()) {
+      case 'walker':
+        return 'invoice576_role_walker'.tr;
+      case 'sitter':
+        return 'invoice576_role_sitter'.tr;
+      default:
+        return role;
+    }
+  }
+
   static pw.Widget _logo() {
-    // Simple orange rounded square + multicolor paw, recreated with pdf
-    // primitives. Simplified version of the SVG used in the HTML invoice.
+    // v576 — logo officiel de la marque. Repli sur le carré rouge uni si
+    // l'asset manque : jamais de trou ni de plantage.
+    final img = _brandLogo;
+    if (img != null) {
+      return pw.SizedBox(width: 56, height: 56, child: pw.Image(img));
+    }
     return pw.Container(
       width: 56,
       height: 56,
       decoration: pw.BoxDecoration(
         color: PdfColor.fromInt(0xFFC92A12),
         borderRadius: pw.BorderRadius.circular(12),
-      ),
-      child: pw.Center(
-        child: pw.Text(
-          '🐾',
-          style: const pw.TextStyle(fontSize: 30, color: PdfColors.white),
-        ),
       ),
     );
   }

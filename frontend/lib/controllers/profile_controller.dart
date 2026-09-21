@@ -32,6 +32,7 @@ import 'package:hopetsit/views/profile/my_pets_screen.dart';
 import 'package:hopetsit/views/reviews/reviews_screen.dart';
 import 'package:hopetsit/views/auth/choose_service_screen.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
+import 'package:hopetsit/utils/server_error_message.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 class ProfileController extends GetxController implements ProfileSettingsHost {
@@ -265,7 +266,7 @@ class ProfileController extends GetxController implements ProfileSettingsHost {
     } on ApiException catch (error) {
       CustomSnackbar.showError(
         title: 'profile_unblock_failed'.tr,
-        message: error.message,
+        message: errorKeyFor(error, fallbackKey: 'profile_unblock_failed_generic'),
       );
     } catch (error) {
       AppLogger.logError('Failed to unblock user', error: error);
@@ -362,8 +363,12 @@ class ProfileController extends GetxController implements ProfileSettingsHost {
     Get.to(() => const AddCardScreen(userType: 'pet_owner'));
   }
 
-  void navigateToEditPetProfile() {
-    Get.to(() => const MyPetsScreen());
+  /// v576 — `Future` ATTENDABLE : la pastille « Mes animaux » de la barre de
+  /// complétion recharge le profil au RETOUR de cet écran. Tant que la
+  /// méthode était `void`, le rechargement partait à l'ouverture et le
+  /// pourcentage ne bougeait pas après l'ajout d'un animal.
+  Future<void> navigateToEditPetProfile() async {
+    await Get.to(() => const MyPetsScreen());
   }
 
   /// v575 — `focusField` (facultatif) : champ à mettre en évidence à
@@ -537,7 +542,7 @@ class ProfileController extends GetxController implements ProfileSettingsHost {
       AppLogger.logError('Failed to delete account', error: error.message);
       CustomSnackbar.showError(
         title: 'delete_account_failed_title'.tr,
-        message: error.message,
+        message: errorKeyFor(error, fallbackKey: 'delete_account_failed_generic'),
       );
     } catch (error) {
       AppLogger.logError('Failed to delete account', error: error);
@@ -666,7 +671,7 @@ class ProfileController extends GetxController implements ProfileSettingsHost {
       );
       CustomSnackbar.showError(
         title: 'profile_upload_failed'.tr,
-        message: error.message,
+        message: errorKeyFor(error, fallbackKey: 'profile_upload_failed_generic'),
       );
     } catch (error) {
       AppLogger.logError('Failed to upload profile picture', error: error);

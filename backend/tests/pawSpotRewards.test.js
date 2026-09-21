@@ -27,7 +27,19 @@ const mockMatches = (doc, filter) => {
     if (k === '$or') return v.some((f) => mockMatches(doc, f));
     const cur = mockGet(doc, k);
     if (v && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date)) {
-      if ('$in' in v) return v.$in.some((x) => String(x) === String(cur));
+      if ('$in' in v) {
+        if (Array.isArray(cur)) {
+          return cur.some((c) => v.$in.some((x) => String(x) === String(c)));
+        }
+        return v.$in.some((x) => String(x) === String(cur));
+      }
+      // v576 — `$nin` : utilisé pour « aucun de mes 3 profils n'a déjà validé
+      // / visité ce spot ». Sur un TABLEAU, Mongo exige qu'aucun élément ne
+      // corresponde.
+      if ('$nin' in v) {
+        const list = Array.isArray(cur) ? cur : [cur];
+        return !list.some((c) => v.$nin.some((x) => String(x) === String(c)));
+      }
       if ('$ne' in v) {
         if (Array.isArray(cur)) return !cur.some((x) => String(x) === String(v.$ne));
         return String(cur) !== String(v.$ne) && !(v.$ne === true && cur === true);
@@ -91,7 +103,15 @@ const mockApplyUpdate = (doc, update) => {
     if (!doc[k].some((x) => String(x) === String(v))) doc[k].push(v);
   }
   for (const [k, v] of Object.entries(u.$pull || {})) {
-    doc[k] = (doc[k] || []).filter((x) => String(x) !== String(v));
+    // v576 — `$pull: { champ: { $in: [...] } }` : retire toutes mes traces
+    // (le ❤️ a pu être posé sous un autre de mes profils).
+    if (v && typeof v === 'object' && Array.isArray(v.$in)) {
+      doc[k] = (doc[k] || []).filter(
+        (x) => !v.$in.some((y) => String(y) === String(x)),
+      );
+    } else {
+      doc[k] = (doc[k] || []).filter((x) => String(x) !== String(v));
+    }
   }
 };
 

@@ -270,7 +270,14 @@ class _EditWalkerProfileScreenState extends State<EditWalkerProfileScreen> {
                                 selected: controller.selectedServices.toList(), // v444: read RxList in Obx
                                 onToggle: (v) => _toggle(controller.selectedServices, v),
                               )),
-                          ProfileFieldLabel('signup_animals_walked'.tr),
+                          // v576 — l'ancre « Animaux acceptés » MANQUAIT côté
+                          // promeneur (elle existait chez le gardien) : la
+                          // pastille de complétion ouvrait l'écran en haut de
+                          // page, sans jamais montrer le choix demandé.
+                          ProfileFieldLabel(
+                            'signup_animals_walked'.tr,
+                            key: _anchors.anchor(ProfileFocusField.animals),
+                          ),
                           Obx(() => ProfileChoiceChips(
                                 accent: accent,
                                 options: const [

@@ -4,6 +4,7 @@ import 'package:hopetsit/controllers/email_verification_controller.dart';
 import 'package:hopetsit/controllers/sign_up_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
+import 'package:hopetsit/utils/server_error_message.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
@@ -392,15 +393,16 @@ class ChooseServiceController extends GetxController {
 
       return true;
     } on ApiException catch (error) {
-      // Surface the real backend error instead of a generic message.
-      final detail = error.message.isNotEmpty
-          ? error.message
-          : 'snackbar_choose_service_controller_004'.tr;
+      // v576 — « surfacer l'erreur réelle » voulait dire afficher l'anglais
+      // du serveur. On garde le détail dans le journal et on affiche une clé
+      // TRADUITE choisie sur le code / le statut HTTP.
+      final detail = errorKeyFor(error,
+          fallbackKey: 'snackbar_choose_service_controller_004');
       if (kDebugMode) {
         debugPrint('[HOPETSIT] chooseService ApiException: ${error.statusCode} - ${error.message} - details=${error.details}');
       }
       CustomSnackbar.showError(
-        title: 'snackbar_text_selection_failed',
+        title: 'snackbar_text_selection_failed'.tr,
         message: detail,
       );
       return false;

@@ -518,9 +518,23 @@ async function isInSameFamily(userAId, userBId) {
   if (a === b) return true;
   const Model = mongoose.model('UserSubscription');
   const now = new Date();
+  // v576 — la famille relie des PERSONNES : un membre invité sous son profil
+  // propriétaire n'était plus reconnu dès qu'il passait en gardien (suivi
+  // famille coupé sans raison). On compare les groupes d'identité.
+  let aIds = [a];
+  let bIds = [b];
+  try {
+    const { personIds } = require('../utils/personScope');
+    const [ga, gb] = await Promise.all([personIds(a), personIds(b)]);
+    if (ga && ga.length) aIds = ga.map(String);
+    if (gb && gb.length) bIds = gb.map(String);
+  } catch (_) { /* repli : les ids seuls */ }
+  if (aIds.some((x) => bIds.includes(x))) return true; // même personne
+  const inB = (id) => bIds.includes(String(id));
+  const inA = (id) => aIds.includes(String(id));
   // Sub où A est titulaire ET active ET famille → vérifier si B est dedans
   const subA = await Model.findOne({
-    userId: a,
+    userId: { $in: aIds },
     ...familyActiveMatch(now),
   }).lean();
   // v23.1.183 — n'inclut que les membres status='active' (les 'pending'
@@ -530,30 +544,29 @@ async function isInSameFamily(userAId, userBId) {
     !m.status || m.status === 'active';
   if (subA && Array.isArray(subA.familyMembers)) {
     if (subA.familyMembers.some(
-      (m) => isActiveMember(m) && String(m.userId) === b,
+      (m) => isActiveMember(m) && inB(m.userId),
     )) return true;
   }
   // Sub où B est titulaire ET active ET famille → vérifier si A est dedans
   const subB = await Model.findOne({
-    userId: b,
+    userId: { $in: bIds },
     ...familyActiveMatch(now),
   }).lean();
   if (subB && Array.isArray(subB.familyMembers)) {
     if (subB.familyMembers.some(
-      (m) => isActiveMember(m) && String(m.userId) === a,
+      (m) => isActiveMember(m) && inA(m.userId),
     )) return true;
   }
   // Subs où A figure en family member → vérifier si B figure dans la même
   const subsContainingA = await Model.find({
-    'familyMembers.userId': a,
+    'familyMembers.userId': { $in: aIds },
     ...familyActiveMatch(now),
   }).lean();
   for (const sub of subsContainingA) {
     // v23.1.183 — ignore les membres pending.
-    const memberIds = (sub.familyMembers || [])
-      .filter((m) => !m.status || m.status === 'active')
-      .map((m) => String(m.userId));
-    if (memberIds.includes(b) || String(sub.userId) === b) return true;
+    const members = (sub.familyMembers || [])
+      .filter((m) => !m.status || m.status === 'active');
+    if (members.some((m) => inB(m.userId)) || inB(sub.userId)) return true;
   }
   return false;
 }
@@ -589,8 +602,20 @@ async function hasActivePawFollow(userId) {
   //    plan='famille'). v23.1.283 — famille découplée de l'individuel.
   // v23.1.284 — détection par DATE (pas par status, qui peut être périmé) :
   // période individuelle OU familyExpiry dans le futur = actif.
+  // v576 — Daniel : « PawFollow doit être synchro » sur les 3 rôles.
+  // L'abonnement est écrit sur le document du rôle qui a payé : lu sous le
+  // seul id courant, un abonné PawFollow passé sur un autre de ses profils
+  // était traité comme non-abonné (partage de position coupé, badge absent,
+  // « Personnes en direct » vide). On interroge les 3 documents de la
+  // personne. Aucune écriture : on ne déplace pas l'abonnement.
+  let selfIds = [String(userId)];
+  try {
+    const { personIds } = require('../utils/personScope');
+    const ids = await personIds(userId);
+    if (ids && ids.length) selfIds = ids.map(String);
+  } catch (_) { /* repli : l'id courant seul */ }
   const own = await Model.findOne({
-    userId: String(userId),
+    userId: { $in: selfIds },
     $or: [
       { currentPeriodEnd: { $gt: now } },
       { familyExpiry: { $gt: now } },
@@ -605,11 +630,12 @@ async function hasActivePawFollow(userId) {
   // à une sub 'famille' active en tant que membre status='active' (les
   // 'pending' n'ont pas encore accepté ; les anciens membres sans status
   // sont considérés actifs pour rétro-compat, cf isInSameFamily).
+  // v576 — le membre a pu être invité sur un autre de ses profils.
   const asMember = await Model.findOne({
     ...familyActiveMatch(now),
     familyMembers: {
       $elemMatch: {
-        userId: String(userId),
+        userId: { $in: selfIds },
         $or: [{ status: 'active' }, { status: { $exists: false } }],
       },
     },

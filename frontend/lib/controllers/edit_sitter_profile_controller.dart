@@ -15,6 +15,7 @@ import 'package:hopetsit/utils/profile_completion.dart'
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/profile/widgets/phone_prefix_helper.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/server_error_message.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/services/location_service.dart';
 
@@ -366,11 +367,12 @@ class EditSitterProfileController extends GetxController {
         await AuthController.handleLoginRequiredError();
         return;
       }
-      loadError.value =
-          error.message.isNotEmpty ? error.message : 'profile_load_error'.tr;
+      // v576 — jamais le texte serveur brut : clé traduite choisie sur le
+      // code / le statut HTTP (utils/server_error_message.dart).
+      loadError.value = errorKeyFor(error, fallbackKey: 'profile_load_error').tr;
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: 'profile_load_error'.tr,
+        message: errorKeyFor(error, fallbackKey: 'profile_load_error'),
       );
     } catch (error) {
       AppLogger.logError('Failed to load profile', error: error);
@@ -618,11 +620,11 @@ class EditSitterProfileController extends GetxController {
     } on ApiException catch (error) {
       // v575 — motif exact du refus, traduit (plus d'échec silencieux).
       AppLogger.logError('Failed to update profile', error: error.message);
+      // v576 — motif traduit (le serveur parle anglais : « Email must be a
+      // non-empty string. » ne doit JAMAIS atteindre l'écran).
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: error.message.isNotEmpty
-            ? error.message
-            : 'profile_update_failed'.tr,
+        message: errorKeyFor(error, fallbackKey: 'profile_update_failed'),
       );
       return false;
     } catch (error) {
@@ -656,8 +658,8 @@ class EditSitterProfileController extends GetxController {
     } on ApiException catch (error) {
       AppLogger.logError('Failed to upload image', error: error.message);
       CustomSnackbar.showError(
-        title: 'profile_upload_failed'.tr,
-        message: error.message,
+        title: 'common_error'.tr,
+        message: errorKeyFor(error, fallbackKey: 'fixes576_err_photo_failed'),
       );
     } catch (error) {
       AppLogger.logError('Failed to upload image', error: error);
@@ -824,9 +826,11 @@ class EditSitterProfileController extends GetxController {
       );
       Get.back();
     } catch (e) {
+      // v576 — `e.toString()` affichait une trace Dart brute dans le bandeau.
+      AppLogger.logError('Failed to update sitter rates', error: e);
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: e.toString(),
+        message: errorKeyFor(e, fallbackKey: 'profile_update_failed'),
       );
     } finally {
       isLoading.value = false;

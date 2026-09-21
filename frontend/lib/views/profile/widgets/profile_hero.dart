@@ -12,6 +12,7 @@
 //      tap → fiche animal, « + Ajouter un animal » s'il n'y en a pas)
 //   3. badges d'abonnement redessinés (ActiveBenefitsRow en mode hero)
 //   4. rangée de 3 statistiques en tuiles de verre, toutes cliquables.
+import 'package:hopetsit/widgets/role_chip.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -79,16 +80,10 @@ class ProfileHero extends StatelessWidget {
 
   Color get _accent => _gradient.first;
 
-  String get _roleLabel {
-    switch (role) {
-      case 'sitter':
-        return 'role_pet_sitter'.tr;
-      case 'walker':
-        return 'role_pet_walker'.tr;
-      default:
-        return 'role_pet_owner'.tr;
-    }
-  }
+  // v576 — UNE seule source de libellé pour toute l'app (`roleLabelKey`),
+  // 9 langues, sans franglais. Les anciennes clés `role_pet_*` divergeaient
+  // de celles de la pastille `RoleChip` : deux mots pour le même rôle.
+  String get _roleLabel => roleLabelKey(role).tr;
 
   @override
   Widget build(BuildContext context) {
@@ -225,30 +220,11 @@ class ProfileHero extends StatelessWidget {
         ),
       );
 
-  /// Chip « verre » : logo de l'app + libellé du rôle, coins 999.
-  Widget _roleChip() => Container(
-        padding: EdgeInsets.fromLTRB(6.w, 5.h, 13.w, 5.h),
-        decoration: _glass(radius: 999),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6.r),
-              child: Image.asset('assets/brand/png/ic_launcher.png',
-                  width: 22.w, height: 22.w, fit: BoxFit.cover),
-            ),
-            SizedBox(width: 8.w),
-            InterText(
-              text: _roleLabel,
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      );
+  /// v576 — la pastille de rôle vient du widget PARTAGÉ (`RoleChip`), variante
+  /// « verre » pour le bandeau en dégradé. Avant, l'en-tête redessinait sa
+  /// propre pilule avec d'autres libellés.
+  Widget _roleChip() =>
+      RoleChip(role: role, variant: RoleChipVariant.glass);
 
   /// Avatar rond 96 à anneau blanc + bouton caméra du rôle.
   Widget _avatar() {
