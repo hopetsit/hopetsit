@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CityPage } from "../_cityPage";
 
 export const metadata: Metadata = {
-  title: "Pet sitter in Dallas, TX — dog walking & pet care | HoPetSit",
+  title: "Pet sitter in Dallas, TX — dog walking & pet care",
   description:
     "Find a verified pet sitter or dog walker in Dallas. Real reviews, secure in-app payment and live GPS tracking of every walk. Free on HoPetSit.",
   alternates: { canonical: "https://www.hopetsit.com/petsitter/dallas" },

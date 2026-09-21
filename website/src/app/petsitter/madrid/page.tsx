@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CityPage } from "../_cityPage";
 
 export const metadata: Metadata = {
-  title: "Cuidador de mascotas en Madrid — paseos y cuidado | HoPetSit",
+  title: "Cuidador de mascotas en Madrid — paseos y cuidado",
   description:
     "Encuentra un cuidador de perros y gatos verificado en Madrid. Reseñas reales, pago seguro y seguimiento GPS de cada paseo. Gratis en HoPetSit.",
   alternates: { canonical: "https://www.hopetsit.com/petsitter/madrid" },

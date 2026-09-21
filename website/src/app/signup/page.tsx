@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { ApiError, AuthRole, signup } from "@/lib/api";
 import { SocialButtons } from "@/components/SocialButtons";
@@ -20,9 +20,23 @@ export default function SignupPage() {
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy]         = useState(false);
+  // v577 — les pages villes propriétaires (pub Meta Paris/Dallas) envoient
+  // maintenant ici plutôt que sur le store : on reprend le rôle et la ville
+  // passés dans l'URL (?role=owner&city=Paris) pour que le visiteur n'ait plus
+  // que trois champs à remplir. Lecture dans un effet (pas useSearchParams :
+  // cette page est statique, un bailout CSR casserait le build).
   const [err, setErr]           = useState("");
   // v532 — consentement CGU réel (cf. commentaire dans le formulaire).
   const [acceptTerms, setAcceptTerms] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search);
+    const r = (q.get("role") || "").toLowerCase();
+    if (r === "owner" || r === "sitter" || r === "walker") setRole(r as AuthRole);
+    const c = (q.get("city") || "").trim();
+    if (c) setCity(c);
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

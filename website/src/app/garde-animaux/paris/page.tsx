@@ -42,7 +42,10 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: CANONICAL },
-  openGraph: { title: TITLE, description: DESCRIPTION, url: CANONICAL, type: "website" },
+  // v577 — og:image explicite : sans lui cette page, cible de la publicite
+  // Paris, se partage sans aucune vignette (un `openGraph` de page remplace
+  // celui du layout au lieu de le completer).
+  openGraph: { title: TITLE, description: DESCRIPTION, url: CANONICAL, type: "website", siteName: "HoPetSit", images: [{ url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630, alt: "HoPetSit" }] },
 };
 
 const ARRONDISSEMENTS = RECRUIT_CITIES.filter(

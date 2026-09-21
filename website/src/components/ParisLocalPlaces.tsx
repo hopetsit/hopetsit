@@ -196,6 +196,18 @@ export default function ParisLocalPlaces({ slug, mode }: { slug: string; mode: M
             );
           })}
         </ul>
+        {/* v577 — SEO (21/09/2026) : lien vers la page PARIS entiere. Relevé du
+            20/09 : /garde-animaux/paris et /devenir-petsitter/paris sont les
+            pages ou la publicite Paris envoie, et Google ne connaissait meme
+            pas leur adresse — la liste des villes du site contient paris-1 a
+            paris-20 mais pas « paris » tout court, donc aucun menu, aucune
+            liste et aucun hub ne menait a elles. Les 20 pages arrondissement
+            leur donnent maintenant un chemin. Aucune page creee. */}
+        <p className="mt-4 text-sm">
+          <Link href={`${base}/paris`} className="font-semibold text-owner underline-offset-4 hover:underline">
+            {mode === "owner" ? "Voir toute la ville : garde d'animaux à Paris →" : "Voir toute la ville : devenir pet sitter à Paris →"}
+          </Link>
+        </p>
       </section>
 
       {faq.length > 0 && (

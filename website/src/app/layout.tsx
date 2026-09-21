@@ -55,7 +55,22 @@ export const metadata: Metadata = {
       "Pet sitters and dog walkers worldwide. One app, three roles, full transparency.",
     images: ["/og-image.png"],
   },
-  robots: { index: true, follow: true },
+  // v577 — SEO (21/09/2026) : la VIGNETTE Google. Sans `max-image-preview:large`
+  // Google se limite par défaut a une miniature minuscule, voire a rien du tout,
+  // a cote du resultat de recherche — c'est le reglage le plus rentable
+  // disponible et il est gratuit. `max-snippet:-1` laisse Google afficher un
+  // extrait de texte complet. Les espaces prives ne sont pas concernes : ils
+  // recoivent `X-Robots-Tag: noindex` via src/middleware.ts, et en cas de
+  // conflit Google applique toujours la directive la plus restrictive.
+  // Ne PAS retirer `index`/`follow` : cette balise est heritee par toutes les
+  // pages vitrine, qui doivent rester indexables.
+  robots: {
+    index: true,
+    follow: true,
+    "max-image-preview": "large",
+    "max-snippet": -1,
+    "max-video-preview": -1,
+  },
   // v402 — Daniel : "sur Google le favicon sort Wix". Google ignore souvent
   // les favicons SVG et préfère un favicon.ico raster. On sert donc d'abord le
   // .ico + des PNG (logo HoPetSit) ; le SVG reste pour les navigateurs modernes.

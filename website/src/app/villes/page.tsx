@@ -7,7 +7,8 @@ import { RECRUIT_CITIES, RECRUIT_PATH_PREFIX, OWNER_PATH_PREFIX, type RecruitLan
 // suffit pour que Google découvre et recrawle tout le lot.
 
 export const metadata: Metadata = {
-  title: "HoPetSit près de chez vous — pet sitters et promeneurs par ville",
+  // v577 — `absolute` : la marque est deja en tete du titre (voir /blog).
+  title: { absolute: "HoPetSit près de chez vous — pet sitters et promeneurs par ville" },
   description:
     "Toutes les villes HoPetSit : trouver un pet sitter ou devenir pet sitter à Paris, Lyon, Madrid, Berlin, Milan, Lisbonne, Varsovie, Séoul, Tokyo, New York et plus.",
   alternates: { canonical: "https://www.hopetsit.com/villes" },
@@ -26,6 +27,15 @@ const LANG_LABEL: Record<RecruitLang, { flag: string; name: string; owner: strin
   ja: { flag: "🇯🇵", name: "日本", owner: "シッターを探す", recruit: "シッターになる" },
 };
 
+// Pages villes « entieres », ecrites a la main, hors RECRUIT_CITIES.
+const BIG_CITIES: { href: string; label: string }[] = [
+  { href: "/garde-animaux/paris", label: "Garde d'animaux à Paris" },
+  { href: "/devenir-petsitter/paris", label: "Devenir pet sitter à Paris" },
+  { href: "/petsitter/paris", label: "Pet sitter à Paris" },
+  { href: "/petsitter/madrid", label: "Cuidador en Madrid" },
+  { href: "/petsitter/dallas", label: "Pet sitter in Dallas" },
+];
+
 export default function CitiesHubPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-16 md:py-24">
@@ -33,6 +43,23 @@ export default function CitiesHubPage() {
       <p className="mt-4 max-w-2xl text-lg text-ink-muted">
         Pet sitters, promeneurs et propriétaires : la communauté HoPetSit grandit ville par ville. Choisissez la vôtre.
       </p>
+      {/* v577 — SEO (21/09/2026). Le hub listait uniquement RECRUIT_CITIES, qui
+          contient « paris-1 » a « paris-20 » mais PAS « paris » tout court : les
+          trois grandes pages Paris, celles ou la publicite envoie, n'etaient
+          donc reliees par aucun menu, aucune liste et aucun hub, et Google ne
+          connaissait meme pas leur adresse (releve du 20/09). Meme chose pour
+          Madrid et Dallas. Ces pages existent deja : on ne fait que les relier. */}
+      <section className="mt-10 rounded-2xl border border-ink/10 bg-bg-soft p-5">
+        <h2 className="font-display text-xl font-extrabold text-ink">Les grandes villes</h2>
+        <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          {BIG_CITIES.map((c) => (
+            <li key={c.href}>
+              <Link href={c.href} className="font-semibold text-ink underline-offset-4 hover:text-owner hover:underline">{c.label}</Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       {LANG_ORDER.map((lang) => {
         const cities = RECRUIT_CITIES.filter((c) => c.lang === lang);
         if (!cities.length) return null;

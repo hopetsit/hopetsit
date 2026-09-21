@@ -264,20 +264,22 @@ const COPY: Record<RecruitLang, Copy> = {
 export function recruitMetadata(c: RecruitCity, canonical: string) {
   const copy = COPY[c.lang];
   const title =
-    c.lang === "fr" ? `Devenir pet sitter à ${c.name} — HoPetSit`
-    : c.lang === "en" ? `Become a pet sitter in ${c.name} — HoPetSit`
-    : c.lang === "pl" ? `Zostań opiekunem zwierząt — ${c.name} — HoPetSit`
-    : c.lang === "es" ? `Ser cuidador de mascotas en ${c.name} — HoPetSit`
-    : c.lang === "de" ? `Tiersitter werden in ${c.name} — HoPetSit`
-    : c.lang === "it" ? `Diventare pet sitter a ${c.name} — HoPetSit`
-    : c.lang === "pt" ? `Ser pet sitter em ${c.name} — HoPetSit`
-    : c.lang === "ja" ? `${c.name}でペットシッターになる — HoPetSit`
-    : `${c.name} 펫시터 되기 — HoPetSit`;
+    c.lang === "fr" ? `Devenir pet sitter à ${c.name}`
+    : c.lang === "en" ? `Become a pet sitter in ${c.name}`
+    : c.lang === "pl" ? `Zostań opiekunem zwierząt — ${c.name}`
+    : c.lang === "es" ? `Ser cuidador de mascotas en ${c.name}`
+    : c.lang === "de" ? `Tiersitter werden in ${c.name}`
+    : c.lang === "it" ? `Diventare pet sitter a ${c.name}`
+    : c.lang === "pt" ? `Ser pet sitter em ${c.name}`
+    : c.lang === "ja" ? `${c.name}でペットシッターになる`
+    : `${c.name} 펫시터 되기`;
   return {
     title,
     description: copy.intro(c).slice(0, 155),
     alternates: { canonical },
-    openGraph: { title, description: copy.intro(c).slice(0, 155), url: canonical, type: "website" as const },
+    // v577 — voir OwnerCityPage : un `openGraph` de page remplace celui du
+    // layout, l'og:image doit donc etre repete ici (1200x630 reels).
+    openGraph: { title, description: copy.intro(c).slice(0, 155), url: canonical, type: "website" as const, siteName: "HoPetSit", images: [{ url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630, alt: "HoPetSit" }] },
   };
 }
 
@@ -289,7 +291,14 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
-      { "@type": "WebPage", name: copy.h1(city), inLanguage: copy.inLanguage },
+      // v577 — `primaryImageOfPage` : l'image que Google retient en priorite
+      // pour la vignette du resultat de recherche (condition 4 de la vignette).
+      {
+        "@type": "WebPage",
+        name: copy.h1(city),
+        inLanguage: copy.inLanguage,
+        primaryImageOfPage: { "@type": "ImageObject", url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630 },
+      },
       ...(faq.length ? [{
         "@type": "FAQPage",
         mainEntity: faq.map((f) => ({

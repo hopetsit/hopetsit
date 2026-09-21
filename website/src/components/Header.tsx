@@ -41,12 +41,19 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-white/80 backdrop-blur-xl">
+      {/* v577 — TABLETTE (21/09/2026). Le menu du haut passait en version
+          « bureau » des 768 px : a cette largeur exacte, « Comment ca marche »
+          et « Se connecter » n'avaient plus la place, se cassaient en trois
+          lignes et DEBORDAIENT de la barre (hauteur fixe h-14), par-dessus le
+          logo. Mesure : nav 359 px + logo 103 px + boutons 274 px = 736 px pour
+          736 px utiles. La version compacte (logo + langue + S'inscrire +
+          menu) court donc maintenant jusqu'a 1024 px. */}
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <Link href="/" className="flex items-center" aria-label="HoPetSit">
           <LogoWithText />
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-1 lg:flex">
           {/* v562 — Daniel : page courante en orange pâle (pas de gris foncé). */}
           {links.map((l) => {
             const current = pathname === l.href || pathname?.startsWith(l.href + "/");
@@ -55,7 +62,7 @@ export function Header() {
                 key={l.href}
                 href={l.href}
                 aria-current={current ? "page" : undefined}
-                className={`rounded-full px-3 py-1.5 text-[13px] font-medium transition ${
+                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition ${
                   current ? "bg-owner-light text-owner-dark" : "text-[#1D1D1F]/70 hover:bg-[#F5F5F7] hover:text-[#1D1D1F]"
                 }`}
               >
@@ -81,7 +88,7 @@ export function Header() {
                   pleine couleur du rôle + ombre, au lieu d'une fine bordure. */}
               <Link
                 href="/dashboard"
-                className={`hidden items-center gap-2 rounded-full ${roleColor} px-4 py-2 text-sm font-semibold text-white shadow-cta transition hover:opacity-90 md:inline-flex`}
+                className={`hidden items-center gap-2 rounded-full ${roleColor} px-4 py-2 text-sm font-semibold text-white shadow-cta transition hover:opacity-90 lg:inline-flex`}
                 title={user.email}
               >
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/25 text-xs font-bold text-white">
@@ -94,7 +101,7 @@ export function Header() {
               <button
                 type="button"
                 onClick={onLogout}
-                className="hidden rounded-full px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink md:inline-block"
+                className="hidden rounded-full px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink lg:inline-block"
               >
                 {t("dash_logout")}
               </button>
@@ -103,7 +110,7 @@ export function Header() {
             <>
               <Link
                 href="/login"
-                className="hidden rounded-full px-3 py-1.5 text-[13px] font-medium text-[#1D1D1F]/80 hover:text-[#1D1D1F] md:inline-block"
+                className="hidden rounded-full px-3 py-1.5 text-[13px] font-medium text-[#1D1D1F]/80 hover:text-[#1D1D1F] lg:inline-block"
               >
                 {t("nav_login")}
               </Link>
@@ -118,7 +125,7 @@ export function Header() {
 
           <button
             type="button"
-            className="ml-1 rounded-md p-1.5 md:hidden"
+            className="ml-1 rounded-md p-1.5 lg:hidden"
             aria-label="Toggle menu"
             onClick={() => setOpen((v) => !v)}
           >
@@ -132,7 +139,7 @@ export function Header() {
       </div>
 
       {open && (
-        <nav className="border-t border-ink/5 bg-white px-4 py-2 md:hidden">
+        <nav className="border-t border-ink/5 bg-white px-4 py-2 lg:hidden">
           {/* v458 — bouton « Ouvrir la PawMap » retiré du menu (barre du haut)
               pour l'instant. */}
           {links.map((l) => {

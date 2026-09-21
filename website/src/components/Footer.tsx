@@ -87,6 +87,11 @@ export function Footer() {
       links: [
         { href: "/blog", label: "Blog" },
         { href: "/petsitter/paris",  label: "Pet sitter à Paris" },
+        // v577 — SEO (21/09/2026) : la page ou la publicite Paris envoie. Elle
+        // n'avait qu'un seul lien entrant sur tout le site, depuis un article
+        // de blog lui-meme pas indexe. Un lien de pied de page la rend
+        // atteignable depuis les 223 pages deja indexees.
+        { href: "/garde-animaux/paris", label: "Garde d'animaux à Paris" },
         { href: "/petsitter/madrid", label: "Cuidador en Madrid" },
         { href: "/petsitter/dallas", label: "Pet sitter in Dallas" },
       ],

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CityPage } from "../_cityPage";
 
 export const metadata: Metadata = {
-  title: "Pet sitter à Paris — garde de chien & chat, promenades | HoPetSit",
+  title: "Pet sitter à Paris — garde de chien & chat, promenades",
   description:
     "Trouvez un pet sitter ou un promeneur de chien vérifié à Paris. Avis réels, paiement sécurisé et suivi GPS de chaque promenade. Gratuit sur HoPetSit.",
   alternates: { canonical: "https://www.hopetsit.com/petsitter/paris" },

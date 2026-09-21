@@ -4,7 +4,9 @@ import Link from "next/link";
 // v531 — SEO : index du blog (pages 100% statiques côté serveur pour que
 // Google indexe le texte — contrairement aux pages app qui sont client-side).
 export const metadata: Metadata = {
-  title: "Le blog HoPetSit — conseils garde & promenade d'animaux",
+  // v577 — `absolute` : sans lui le layout ajoute « · HoPetSit » a un titre
+  // qui contient deja la marque, et Google coupe la fin du titre pour rien.
+  title: { absolute: "Le blog HoPetSit — conseils garde & promenade d'animaux" },
   description:
     "Tarifs des pet sitters, conseils pour faire garder votre chien ou chat, promenades : les guides pratiques de l'équipe HoPetSit.",
   alternates: { canonical: "https://www.hopetsit.com/blog" },

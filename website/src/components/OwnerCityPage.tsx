@@ -1,6 +1,7 @@
 import Link from "next/link";
 import ParisLocalPlaces, { parisEntry, parisFaq } from "@/components/ParisLocalPlaces";
 import { GetAppButton } from "@/components/GetAppButton";
+import { OwnerSignupCta } from "@/components/OwnerSignupCta";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 import { RECRUIT_PATH_PREFIX, OWNER_PATH_PREFIX, nearbyCities, NEARBY_LABEL } from "@/lib/recruit-cities";
 
@@ -26,6 +27,8 @@ type Copy = {
   heroCta: string;
   /** Petite ligne sous le bouton (gratuité + stores). */
   heroCtaNote: string;
+  /** v577 — lien secondaire vers le store (le bouton principal mène au site). */
+  heroAppLink: string;
   /** Lien secondaire vers la carte des membres. */
   heroSecondary: string;
   intro: (c: RecruitCity) => string;
@@ -53,6 +56,7 @@ const COPY: Record<RecruitLang, Copy> = {
     proofs: ["Paiement sécurisé", "Identité vérifiée", "Annulation gratuite 72 h"],
     heroCta: "Publier ma demande",
     heroCtaNote: "Gratuit — l'app HoPetSit sur l'App Store et Google Play",
+    heroAppLink: "Ou télécharger l'app HoPetSit →",
     heroSecondary: "Voir les gardiens près de chez moi →",
     intro: (c) =>
       `Week-end, vacances, journées de travail à rallonge : à ${c.name}, HoPetSit vous met en relation avec des gardiens et promeneurs vérifiés près de chez vous. Vous publiez votre demande gratuitement, vous comparez les profils, vous discutez par chat et vous ne payez que si vous réservez.`,
@@ -79,11 +83,11 @@ const COPY: Record<RecruitLang, Copy> = {
       { q: "Combien coûte l'inscription ?", a: "Rien. Publier une demande et discuter avec les gardiens est gratuit. Vous payez uniquement la garde que vous réservez." },
     ],
     ctaTitle: (c) => `Trouvez votre gardien à ${c.name}`,
-    ctaText: "Téléchargez l'app, publiez votre demande en deux minutes et recevez les réponses des gardiens près de chez vous.",
+    ctaText: "Publiez votre demande en deux minutes et recevez les réponses des gardiens près de chez vous.",
     ctaBtn: "Publier ma demande gratuite",
     recruitLink: (c) => `Vous aimez les animaux ? Devenez pet sitter à ${c.name} →`,
     inLanguage: "fr",
-    metaTitle: (c) => `Pet sitter à ${c.name} — garde de chien, chat & promenades | HoPetSit`,
+    metaTitle: (c) => `Pet sitter à ${c.name} — garde de chien, chat & promenades`,
   },
   en: {
     kicker: (c) => c.region,
@@ -92,6 +96,7 @@ const COPY: Record<RecruitLang, Copy> = {
     proofs: ["Secure payment", "ID verified", "72 h free cancellation"],
     heroCta: "Post my request",
     heroCtaNote: "Free — the HoPetSit app on the App Store and Google Play",
+    heroAppLink: "Or download the HoPetSit app →",
     heroSecondary: "See sitters near me →",
     intro: (c) =>
       `Weekends, vacations, long workdays: in ${c.name}, HoPetSit connects you with verified sitters and dog walkers near you. Post your request for free, compare profiles, chat, and only pay when you book.`,
@@ -118,11 +123,11 @@ const COPY: Record<RecruitLang, Copy> = {
       { q: "How much does it cost to sign up?", a: "Nothing. Posting a request and chatting with sitters is free. You only pay for the booking you make." },
     ],
     ctaTitle: (c) => `Find your sitter in ${c.name}`,
-    ctaText: "Download the app, post your request in two minutes and get replies from sitters near you.",
+    ctaText: "Post your request in two minutes and get replies from sitters near you.",
     ctaBtn: "Post my free request",
     recruitLink: (c) => `Love animals? Become a pet sitter in ${c.name} →`,
     inLanguage: "en",
-    metaTitle: (c) => `Pet sitters in ${c.name} — dog sitting, cat visits & walks | HoPetSit`,
+    metaTitle: (c) => `Pet sitters in ${c.name} — dog sitting, cat visits & walks`,
   },
   es: {
     kicker: (c) => c.region,
@@ -131,6 +136,7 @@ const COPY: Record<RecruitLang, Copy> = {
     proofs: ["Pago seguro", "Identidad verificada", "Cancelación gratis 72 h"],
     heroCta: "Publicar mi solicitud",
     heroCtaNote: "Gratis — la app HoPetSit en App Store y Google Play",
+    heroAppLink: "O descargar la app HoPetSit →",
     heroSecondary: "Ver cuidadores cerca de mí →",
     intro: (c) =>
       `Fin de semana, vacaciones, jornadas largas: en ${c.name}, HoPetSit te pone en contacto con cuidadores y paseadores verificados cerca de ti. Publicas tu solicitud gratis, comparas perfiles, chateas y solo pagas si reservas.`,
@@ -157,11 +163,11 @@ const COPY: Record<RecruitLang, Copy> = {
       { q: "¿Cuánto cuesta registrarse?", a: "Nada. Publicar una solicitud y chatear con los cuidadores es gratis. Solo pagas el cuidado que reservas." },
     ],
     ctaTitle: (c) => `Encuentra a tu cuidador en ${c.name}`,
-    ctaText: "Descarga la app, publica tu solicitud en dos minutos y recibe respuestas de cuidadores cerca de ti.",
+    ctaText: "Publica tu solicitud en dos minutos y recibe respuestas de cuidadores cerca de ti.",
     ctaBtn: "Publicar mi solicitud gratis",
     recruitLink: (c) => `¿Te gustan los animales? Sé cuidador de mascotas en ${c.name} →`,
     inLanguage: "es",
-    metaTitle: (c) => `Cuidador de mascotas en ${c.name} — perros, gatos y paseos | HoPetSit`,
+    metaTitle: (c) => `Cuidador de mascotas en ${c.name} — perros, gatos y paseos`,
   },
   de: {
     kicker: (c) => c.region,
@@ -170,6 +176,7 @@ const COPY: Record<RecruitLang, Copy> = {
     proofs: ["Sichere Zahlung", "Identität geprüft", "Storno gratis 72 Std."],
     heroCta: "Anfrage veröffentlichen",
     heroCtaNote: "Kostenlos — die HoPetSit-App im App Store und bei Google Play",
+    heroAppLink: "Oder die HoPetSit-App laden →",
     heroSecondary: "Sitter in meiner Nähe ansehen →",
     intro: (c) =>
       `Wochenende, Urlaub, lange Arbeitstage: in ${c.name} verbindet dich HoPetSit mit verifizierten Sittern und Gassigehern in deiner Nähe. Anfrage kostenlos veröffentlichen, Profile vergleichen, chatten und nur bei einer Buchung bezahlen.`,
@@ -196,11 +203,11 @@ const COPY: Record<RecruitLang, Copy> = {
       { q: "Was kostet die Anmeldung?", a: "Nichts. Eine Anfrage zu veröffentlichen und mit Sittern zu chatten ist kostenlos. Du bezahlst nur die Betreuung, die du buchst." },
     ],
     ctaTitle: (c) => `Finde deinen Sitter in ${c.name}`,
-    ctaText: "Lade die App, veröffentliche deine Anfrage in zwei Minuten und erhalte Antworten von Sittern in deiner Nähe.",
+    ctaText: "Veröffentliche deine Anfrage in zwei Minuten und erhalte Antworten von Sittern in deiner Nähe.",
     ctaBtn: "Kostenlose Anfrage veröffentlichen",
     recruitLink: (c) => `Du liebst Tiere? Werde Tiersitter in ${c.name} →`,
     inLanguage: "de",
-    metaTitle: (c) => `Tiersitter in ${c.name} — Hundebetreuung, Katzenbesuche & Gassi | HoPetSit`,
+    metaTitle: (c) => `Tiersitter in ${c.name} — Hundebetreuung, Katzenbesuche & Gassi`,
   },
   it: {
     kicker: (c) => c.region,
@@ -209,6 +216,7 @@ const COPY: Record<RecruitLang, Copy> = {
     proofs: ["Pagamento sicuro", "Identità verificata", "Cancellazione gratis 72 h"],
     heroCta: "Pubblica la mia richiesta",
     heroCtaNote: "Gratis — l'app HoPetSit su App Store e Google Play",
+    heroAppLink: "Oppure scarica l'app HoPetSit →",
     heroSecondary: "Vedi i sitter vicino a me →",
     intro: (c) =>
       `Weekend, vacanze, giornate di lavoro infinite: a ${c.name}, HoPetSit ti mette in contatto con pet sitter e dog walker verificati vicino a te. Pubblichi la richiesta gratis, confronti i profili, chatti e paghi solo se prenoti.`,
@@ -235,11 +243,11 @@ const COPY: Record<RecruitLang, Copy> = {
       { q: "Quanto costa iscriversi?", a: "Niente. Pubblicare una richiesta e chattare con i sitter è gratis. Paghi solo la custodia che prenoti." },
     ],
     ctaTitle: (c) => `Trova il tuo sitter a ${c.name}`,
-    ctaText: "Scarica l'app, pubblica la richiesta in due minuti e ricevi le risposte dei sitter vicino a te.",
+    ctaText: "Pubblica la richiesta in due minuti e ricevi le risposte dei sitter vicino a te.",
     ctaBtn: "Pubblicare la mia richiesta gratuita",
     recruitLink: (c) => `Ami gli animali? Diventa pet sitter a ${c.name} →`,
     inLanguage: "it",
-    metaTitle: (c) => `Pet sitter a ${c.name} — custodia cani, gatti e passeggiate | HoPetSit`,
+    metaTitle: (c) => `Pet sitter a ${c.name} — custodia cani, gatti e passeggiate`,
   },
   pt: {
     kicker: (c) => c.region,
@@ -248,6 +256,7 @@ const COPY: Record<RecruitLang, Copy> = {
     proofs: ["Pagamento seguro", "Identidade verificada", "Cancelamento grátis 72 h"],
     heroCta: "Publicar o meu pedido",
     heroCtaNote: "Grátis — a app HoPetSit na App Store e no Google Play",
+    heroAppLink: "Ou transferir a app HoPetSit →",
     heroSecondary: "Ver cuidadores perto de mim →",
     intro: (c) =>
       `Fim de semana, férias, dias de trabalho longos: em ${c.name}, a HoPetSit põe-te em contacto com cuidadores e passeadores verificados perto de ti. Publicas o teu pedido grátis, comparas perfis, conversas por chat e só pagas se reservares.`,
@@ -274,11 +283,11 @@ const COPY: Record<RecruitLang, Copy> = {
       { q: "Quanto custa a inscrição?", a: "Nada. Publicar um pedido e conversar com os cuidadores é grátis. Só pagas o cuidado que reservas." },
     ],
     ctaTitle: (c) => `Encontra o teu cuidador em ${c.name}`,
-    ctaText: "Descarrega a app, publica o teu pedido em dois minutos e recebe respostas de cuidadores perto de ti.",
+    ctaText: "Publica o teu pedido em dois minutos e recebe respostas de cuidadores perto de ti.",
     ctaBtn: "Publicar o meu pedido grátis",
     recruitLink: (c) => `Gostas de animais? Sê pet sitter em ${c.name} →`,
     inLanguage: "pt",
-    metaTitle: (c) => `Pet sitter em ${c.name} — cuidado de cães, gatos e passeios | HoPetSit`,
+    metaTitle: (c) => `Pet sitter em ${c.name} — cuidado de cães, gatos e passeios`,
   },
   pl: {
     kicker: (c) => c.region,
@@ -287,6 +296,7 @@ const COPY: Record<RecruitLang, Copy> = {
     proofs: ["Bezpieczna płatność", "Zweryfikowana tożsamość", "Bezpłatna anulacja 72 h"],
     heroCta: "Opublikuj ogłoszenie",
     heroCtaNote: "Za darmo — aplikacja HoPetSit w App Store i Google Play",
+    heroAppLink: "Albo pobierz aplikację HoPetSit →",
     heroSecondary: "Zobacz opiekunów w okolicy →",
     intro: (c) =>
       `Weekend, urlop, długie dni w pracy: w mieście ${c.name} HoPetSit łączy Cię ze zweryfikowanymi opiekunami i wyprowadzaczami w Twojej okolicy. Publikujesz ogłoszenie za darmo, porównujesz profile, piszesz na czacie i płacisz tylko wtedy, gdy rezerwujesz.`,
@@ -313,11 +323,11 @@ const COPY: Record<RecruitLang, Copy> = {
       { q: "Ile kosztuje rejestracja?", a: "Nic. Publikowanie ogłoszenia i czat z opiekunami są bezpłatne. Płacisz tylko za opiekę, którą rezerwujesz." },
     ],
     ctaTitle: (c) => `Znajdź opiekuna — ${c.name}`,
-    ctaText: "Pobierz aplikację, opublikuj ogłoszenie w dwie minuty i odbieraj odpowiedzi opiekunów z okolicy.",
+    ctaText: "Opublikuj ogłoszenie w dwie minuty i odbieraj odpowiedzi opiekunów z okolicy.",
     ctaBtn: "Opublikuj bezpłatne ogłoszenie",
     recruitLink: (c) => `Kochasz zwierzęta? Zostań opiekunem — ${c.name} →`,
     inLanguage: "pl",
-    metaTitle: (c) => `Opiekun zwierząt ${c.name} — opieka nad psem, kotem i spacery | HoPetSit`,
+    metaTitle: (c) => `Opiekun zwierząt ${c.name} — opieka nad psem, kotem i spacery`,
   },
   ko: {
     kicker: (c) => c.region,
@@ -326,6 +336,7 @@ const COPY: Record<RecruitLang, Copy> = {
     proofs: ["안전 결제", "신원 인증", "72시간 무료 취소"],
     heroCta: "무료로 요청 올리기",
     heroCtaNote: "무료 — App Store와 Google Play의 HoPetSit 앱",
+    heroAppLink: "HoPetSit 앱 다운로드 →",
     heroSecondary: "근처 펫시터 보기 →",
     intro: (c) =>
       `주말, 휴가, 긴 근무일 — ${c.name}에서 HoPetSit이 근처의 인증된 펫시터와 산책 도우미를 연결해 드립니다. 요청은 무료로 올리고, 프로필을 비교하고, 채팅한 뒤 예약할 때만 결제하세요.`,
@@ -352,11 +363,11 @@ const COPY: Record<RecruitLang, Copy> = {
       { q: "가입 비용이 있나요?", a: "없습니다. 요청 올리기와 펫시터와의 채팅은 무료예요. 예약한 돌봄 비용만 결제합니다." },
     ],
     ctaTitle: (c) => `${c.name}에서 펫시터 찾기`,
-    ctaText: "앱을 받고 2분 만에 요청을 올리면 근처 펫시터의 답을 받을 수 있어요.",
+    ctaText: "2분 만에 요청을 올리면 근처 펫시터의 답을 받을 수 있어요.",
     ctaBtn: "무료로 요청 올리기",
     recruitLink: (c) => `동물을 좋아하시나요? ${c.name} 펫시터 되기 →`,
     inLanguage: "ko",
-    metaTitle: (c) => `${c.name} 펫시터 — 강아지 돌봄, 고양이 방문, 산책 | HoPetSit`,
+    metaTitle: (c) => `${c.name} 펫시터 — 강아지 돌봄, 고양이 방문, 산책`,
   },
   ja: {
     kicker: (c) => c.region,
@@ -365,6 +376,7 @@ const COPY: Record<RecruitLang, Copy> = {
     proofs: ["安全な決済", "本人確認済み", "72時間前まで無料キャンセル"],
     heroCta: "リクエストを投稿",
     heroCtaNote: "無料 — App Store と Google Play の HoPetSit アプリ",
+    heroAppLink: "HoPetSit アプリをダウンロード →",
     heroSecondary: "近くのシッターを見る →",
     intro: (c) =>
       `週末、休暇、長い勤務日。${c.name}では、HoPetSitが近くの認証済みシッターやウォーカーとあなたをつなぎます。リクエストは無料で投稿、プロフィールを比較し、チャットして、予約するときだけお支払い。`,
@@ -391,11 +403,11 @@ const COPY: Record<RecruitLang, Copy> = {
       { q: "登録に費用はかかりますか？", a: "かかりません。リクエストの投稿もシッターとのチャットも無料です。お支払いは予約したお世話の分だけです。" },
     ],
     ctaTitle: (c) => `${c.name}でシッターを見つける`,
-    ctaText: "アプリをダウンロードし、2分でリクエストを投稿して、近くのシッターからの返信を受け取りましょう。",
+    ctaText: "2分でリクエストを投稿して、近くのシッターからの返信を受け取りましょう。",
     ctaBtn: "無料でリクエストを投稿",
     recruitLink: (c) => `動物が好きですか？${c.name}でペットシッターになる →`,
     inLanguage: "ja",
-    metaTitle: (c) => `${c.name}のペットシッター — 犬のお世話・猫の訪問・散歩 | HoPetSit`,
+    metaTitle: (c) => `${c.name}のペットシッター — 犬のお世話・猫の訪問・散歩`,
   },
 };
 
@@ -407,7 +419,14 @@ export function ownerMetadata(c: RecruitCity, canonical: string) {
     title,
     description,
     alternates: { canonical },
-    openGraph: { title, description, url: canonical, type: "website" as const },
+    // v577 — SEO (21/09/2026). Une page qui declare son propre `openGraph`
+    // REMPLACE celui du layout, elle n'en herite pas champ par champ : les 621
+    // pages villes sortaient donc SANS og:image. Consequence mesuree dans le
+    // HTML produit : aucune vignette quand le lien est partage sur WhatsApp,
+    // Facebook ou Instagram, et aucune image candidate pour la vignette Google
+    // a cote du resultat de recherche. og-image.png fait bien 1200x630 reels
+    // (fichier mesure, pas seulement declare).
+    openGraph: { title, description, url: canonical, type: "website" as const, siteName: "HoPetSit", images: [{ url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630, alt: "HoPetSit" }] },
   };
 }
 
@@ -436,6 +455,9 @@ export default function OwnerCityPage({
         serviceType: "Pet sitting, cat visits and dog walking",
         provider: { "@type": "Organization", name: "HoPetSit", url: "https://www.hopetsit.com" },
         areaServed: { "@type": "City", name: city.name },
+        // v577 — image declaree dans les donnees structurees : c'est celle
+        // que Google retient en priorite pour la vignette du resultat.
+        image: "https://www.hopetsit.com/og-image.png",
         inLanguage: copy.inLanguage,
       },
       ...(faq.length ? [{
@@ -471,12 +493,19 @@ export default function OwnerCityPage({
         ))}
       </ul>
 
-      <GetAppButton
+      {/* v577 — le bouton principal mène au parcours WEB (/signup puis
+          /posts/create) : publier une demande ne demande plus d'installer
+          l'app. Le store reste accessible juste en dessous. */}
+      <OwnerSignupCta
         label={copy.heroCta}
+        city={city.name}
         className="mt-5 block w-full rounded-full bg-owner px-6 py-4 text-center text-base font-bold text-white shadow-cta transition hover:bg-owner-dark md:mx-auto md:w-auto md:min-w-[18rem]"
       />
       <p className="mt-2.5 text-center text-xs text-ink-soft">{copy.heroCtaNote}</p>
       <p className="mt-3 text-center text-sm">
+        <GetAppButton label={copy.heroAppLink} className="font-semibold text-owner-dark underline-offset-4 hover:underline" />
+      </p>
+      <p className="mt-2 text-center text-sm">
         <Link href="/map" className="font-semibold text-owner-dark underline-offset-4 hover:underline">{copy.heroSecondary}</Link>
       </p>
 
@@ -535,7 +564,7 @@ export default function OwnerCityPage({
       <div className="mt-14 rounded-3xl bg-owner-light p-8 text-center">
         <h2 className="font-display text-2xl font-extrabold text-ink">{paris ? `${city.name} avec HoPetSit` : copy.ctaTitle(city)}</h2>
         {!paris && <p className="mx-auto mt-2 max-w-md text-sm text-ink-muted">{copy.ctaText}</p>}
-        <Link href="/download" className="mt-5 inline-block rounded-full bg-owner px-7 py-3 text-sm font-bold text-white">{paris ? "Télécharger" : copy.ctaBtn}</Link>
+        <OwnerSignupCta label={paris ? "Publier ma demande" : copy.ctaBtn} city={city.name} className="mt-5 inline-block rounded-full bg-owner px-7 py-3 text-sm font-bold text-white" />
       </div>
 
       <p className="mt-8 text-center text-sm">
