@@ -2,6 +2,7 @@ import Link from "next/link";
 import ParisLocalPlaces, { parisEntry, parisFaq } from "@/components/ParisLocalPlaces";
 import { GetAppButton } from "@/components/GetAppButton";
 import { OwnerSignupCta } from "@/components/OwnerSignupCta";
+import { CitySupplyProof } from "@/components/CitySupplyProof";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 import { RECRUIT_PATH_PREFIX, OWNER_PATH_PREFIX, nearbyCities, NEARBY_LABEL } from "@/lib/recruit-cities";
 
@@ -483,6 +484,15 @@ export default function OwnerCityPage({
       {!paris && <p className="text-sm font-semibold text-owner">{copy.kicker(city)}</p>}
       <h1 className="mt-1.5 font-display text-[1.6rem] font-extrabold leading-[1.15] tracking-tight text-ink md:mt-2 md:text-4xl">{heading}</h1>
       <p className="mt-3 text-[15px] leading-relaxed text-ink-muted md:text-lg">{copy.heroLead(city)}</p>
+
+      {/* 22/09/2026 — preuve que l'offre existe vraiment (compte en direct).
+          Les arrondissements interrogent « Paris » : un gardien inscrit à
+          Paris dessert le 11e comme le 15e. Le bloc disparaît s'il n'y a
+          personne ou si le serveur ne répond pas. */}
+      <CitySupplyProof
+        city={city.name.replace(/\s+\d+\s*(er|e|ème|eme|th|st|nd|rd)?$/i, "").trim() || city.name}
+        lang={city.lang}
+      />
 
       <ul className="mt-5 grid grid-cols-3 gap-2">
         {copy.proofs.map((p, i) => (

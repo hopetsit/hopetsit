@@ -160,6 +160,182 @@ function applyAnimalFields(payload, animalCount, animalTypes) {
   if (norm.length) payload.animalTypes = norm;
 }
 
+// Règle de type pour /posts/with-media (cf. le commentaire dans
+// createPostWithMedia). Pure et exportée pour être testée seule.
+const resolveMediaPostType = ({ rawPostType, startDate, endDate, serviceTypes, houseSittingVenue }) => {
+  if (rawPostType === 'request') return 'request';
+  if (rawPostType === 'media') return 'media';
+  const hasService = Array.isArray(serviceTypes)
+    ? serviceTypes.length > 0
+    : Boolean(serviceTypes);
+  const looksLikeReservationRequest = Boolean(
+    (startDate && endDate) || hasService || houseSittingVenue,
+  );
+  return looksLikeReservationRequest ? 'request' : 'media';
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  NOTIFIER LES PRESTATAIRES PROCHES qu'une nouvelle demande est publiée.
+//  Extrait de createPost le 22/09/2026 pour être partagé avec
+//  createPostWithMedia : une demande publiée AVEC une photo passait par
+//  /posts/with-media, qui ne notifiait personne. Corps inchangé.
+// ═══════════════════════════════════════════════════════════════════════════
+const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner, ownerId }) => {
+    setImmediate(async () => {
+      try {
+        const Sitter = require('../models/Sitter');
+        const Walker = require('../models/Walker');
+        const { sendNotification } = require('../services/notificationSender');
+
+        const isWalkingPost = normalizedServices.includes('dog_walking');
+        const RecipientModel = isWalkingPost ? Walker : Sitter;
+        const recipientRole = isWalkingPost ? 'walker' : 'sitter';
+
+        // v565 — point 30 : « les prestataires PROCHES reçoivent la notif ».
+        // AVANT : égalité stricte sur la ville (« Málaga » ≠ « malaga » ≠
+        // « Malaga (Andalucía) » → 0 destinataire) et, sans ville, les 50
+        // premiers prestataires DU MONDE étaient notifiés ; le rayon
+        // géographique n'était jamais utilisé.
+        // MAINTENANT : (a) même ville, insensible à la casse, aux accents et
+        // aux compléments entre parenthèses / après virgule ; (b) ET/OU dans
+        // le rayon de couverture du prestataire (coverageRadiusKm, plancher
+        // 10 km, plafond 100 km) autour des coordonnées de l'annonce ;
+        // sans ville ni coordonnées → personne (plus d'envoi mondial).
+        const cityKey = postPayload.location && postPayload.location.city;
+        const postLat = Number(postPayload.location && postPayload.location.lat);
+        const postLng = Number(postPayload.location && postPayload.location.lng);
+        const hasPostCoords =
+          Number.isFinite(postLat) && Number.isFinite(postLng) &&
+          !(postLat === 0 && postLng === 0);
+
+        const byId = new Map();
+        const addRecipients = (docs) => {
+          for (const d of docs || []) {
+            if (d && d._id) byId.set(d._id.toString(), d);
+          }
+        };
+
+        if (cityKey) {
+          const cityCore = String(cityKey).split(/[(,/]/)[0].trim();
+          if (cityCore) {
+            // Regex insensible aux accents : chaque lettre de base accepte
+            // ses variantes accentuées (« malaga » ↔ « Málaga »).
+            const ACCENTS = {
+              a: 'aàáâãäåą', c: 'cçćč', e: 'eèéêëęě', i: 'iìíîïı', l: 'lł',
+              n: 'nñńň', o: 'oòóôõöøő', s: 'sśšş', u: 'uùúûüůű', y: 'yýÿ', z: 'zźżž',
+            };
+            const base = cityCore
+              .normalize('NFD').replace(/[̀-ͯ]/g, '')
+              .toLowerCase();
+            const pattern = base
+              .split('')
+              .map((ch) => {
+                if (ACCENTS[ch]) return `[${ACCENTS[ch]}${ACCENTS[ch].toUpperCase()}]`;
+                if (/\s/.test(ch)) return '\\s*';
+                return ch.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
+              })
+              .join('');
+            const rx = new RegExp(pattern, 'i');
+            const cityDocs = await RecipientModel.find({
+              $or: [
+                { 'location.city': rx },
+                { city: rx },
+                { coverageCity: rx },
+              ],
+            })
+              .select('_id oldId')
+              .limit(100)
+              .lean();
+            addRecipients(cityDocs);
+          }
+        }
+
+        if (hasPostCoords) {
+          try {
+            const MAX_RADIUS_KM = 100;
+            const geoDocs = await RecipientModel.find({
+              location: {
+                $geoWithin: {
+                  $centerSphere: [[postLng, postLat], MAX_RADIUS_KM / 6371],
+                },
+              },
+            })
+              .select('_id oldId coverageRadiusKm location.coordinates')
+              .limit(300)
+              .lean();
+            const toRad = (x) => (x * Math.PI) / 180;
+            for (const d of geoDocs) {
+              const c = d.location && d.location.coordinates;
+              if (!Array.isArray(c) || c.length < 2) continue;
+              const dLat = toRad(Number(c[1]) - postLat);
+              const dLng = toRad(Number(c[0]) - postLng);
+              const a =
+                Math.sin(dLat / 2) ** 2 +
+                Math.cos(toRad(postLat)) * Math.cos(toRad(Number(c[1]))) *
+                Math.sin(dLng / 2) ** 2;
+              const km = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+              const radius = Math.min(
+                MAX_RADIUS_KM,
+                Math.max(10, Number(d.coverageRadiusKm) || 0),
+              );
+              if (km <= radius) addRecipients([d]);
+            }
+          } catch (geoErr) {
+            logger.warn(`[createPost] geo recipients failed (non-blocking): ${geoErr?.message || geoErr}`);
+          }
+        }
+
+        const recipients = Array.from(byId.values()).slice(0, 150);
+
+        // v448 — AUDIT : ne PAS s'auto-notifier. 1 compte = 3 profils (owner +
+        // sitter + walker) ; si l'owner qui publie est aussi prestataire dans la
+        // même ville, son propre doc prestataire figurait dans la liste → il
+        // recevait une notif « nouvelle demande près de chez vous » pour sa
+        // PROPRE annonce. On exclut via les identifiants partagés entre docs.
+        const selfIds = new Set(
+          [ownerId, owner && owner.oldId, owner && owner._id]
+            .filter(Boolean)
+            .map((x) => x.toString()),
+        );
+        // v573 — les comptes récents n'ont pas d'oldId : les 3 documents d'une
+        // même personne ne sont reliés que par l'e-mail → groupe d'identité.
+        try {
+          const grp = await identityGroup(ownerId);
+          for (const gid of grp.ids) selfIds.add(String(gid));
+        } catch (_) { /* non bloquant */ }
+
+        for (const r of recipients) {
+          const rid = r._id ? r._id.toString() : '';
+          const roldId = r.oldId ? r.oldId.toString() : '';
+          if (selfIds.has(rid) || (roldId && selfIds.has(roldId))) {
+            continue; // c'est le doc prestataire de l'owner lui-même → skip
+          }
+          sendNotification({
+            userId: r._id.toString(),
+            role: recipientRole,
+            type: 'new_request_nearby',
+            data: {
+              postId: newPost._id.toString(),
+              ownerName: owner.name || '',
+              serviceType: normalizedServices[0] || '',
+              city: cityKey || '',
+            },
+            actor: { role: 'owner', id: ownerId },
+          });
+        }
+
+        logger.info(
+          `[createPost] notified ${recipients.length} ${recipientRole}(s) for new request in ${cityKey || 'any city'}`,
+        );
+      } catch (err) {
+        logger.warn(
+          '[postController.createPost] notify nearby failed',
+          err && err.message ? err.message : err,
+        );
+      }
+    });
+};
+
 const createPost = async (req, res) => {
   try {
     const { body, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, serviceLocation, animalCount, animalTypes, walkDurationMinutes } = req.body || {};
@@ -323,159 +499,7 @@ const createPost = async (req, res) => {
     // v22.1 — Bug 13a : notifier les sitters/walkers locaux qu'une nouvelle
     // demande est disponible (push + in-app + badge). Async fire-and-forget,
     // ne bloque pas la réponse HTTP.
-    setImmediate(async () => {
-      try {
-        const Sitter = require('../models/Sitter');
-        const Walker = require('../models/Walker');
-        const { sendNotification } = require('../services/notificationSender');
-
-        const isWalkingPost = normalizedServices.includes('dog_walking');
-        const RecipientModel = isWalkingPost ? Walker : Sitter;
-        const recipientRole = isWalkingPost ? 'walker' : 'sitter';
-
-        // v565 — point 30 : « les prestataires PROCHES reçoivent la notif ».
-        // AVANT : égalité stricte sur la ville (« Málaga » ≠ « malaga » ≠
-        // « Malaga (Andalucía) » → 0 destinataire) et, sans ville, les 50
-        // premiers prestataires DU MONDE étaient notifiés ; le rayon
-        // géographique n'était jamais utilisé.
-        // MAINTENANT : (a) même ville, insensible à la casse, aux accents et
-        // aux compléments entre parenthèses / après virgule ; (b) ET/OU dans
-        // le rayon de couverture du prestataire (coverageRadiusKm, plancher
-        // 10 km, plafond 100 km) autour des coordonnées de l'annonce ;
-        // sans ville ni coordonnées → personne (plus d'envoi mondial).
-        const cityKey = postPayload.location && postPayload.location.city;
-        const postLat = Number(postPayload.location && postPayload.location.lat);
-        const postLng = Number(postPayload.location && postPayload.location.lng);
-        const hasPostCoords =
-          Number.isFinite(postLat) && Number.isFinite(postLng) &&
-          !(postLat === 0 && postLng === 0);
-
-        const byId = new Map();
-        const addRecipients = (docs) => {
-          for (const d of docs || []) {
-            if (d && d._id) byId.set(d._id.toString(), d);
-          }
-        };
-
-        if (cityKey) {
-          const cityCore = String(cityKey).split(/[(,/]/)[0].trim();
-          if (cityCore) {
-            // Regex insensible aux accents : chaque lettre de base accepte
-            // ses variantes accentuées (« malaga » ↔ « Málaga »).
-            const ACCENTS = {
-              a: 'aàáâãäåą', c: 'cçćč', e: 'eèéêëęě', i: 'iìíîïı', l: 'lł',
-              n: 'nñńň', o: 'oòóôõöøő', s: 'sśšş', u: 'uùúûüůű', y: 'yýÿ', z: 'zźżž',
-            };
-            const base = cityCore
-              .normalize('NFD').replace(/[̀-ͯ]/g, '')
-              .toLowerCase();
-            const pattern = base
-              .split('')
-              .map((ch) => {
-                if (ACCENTS[ch]) return `[${ACCENTS[ch]}${ACCENTS[ch].toUpperCase()}]`;
-                if (/\s/.test(ch)) return '\\s*';
-                return ch.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
-              })
-              .join('');
-            const rx = new RegExp(pattern, 'i');
-            const cityDocs = await RecipientModel.find({
-              $or: [
-                { 'location.city': rx },
-                { city: rx },
-                { coverageCity: rx },
-              ],
-            })
-              .select('_id oldId')
-              .limit(100)
-              .lean();
-            addRecipients(cityDocs);
-          }
-        }
-
-        if (hasPostCoords) {
-          try {
-            const MAX_RADIUS_KM = 100;
-            const geoDocs = await RecipientModel.find({
-              location: {
-                $geoWithin: {
-                  $centerSphere: [[postLng, postLat], MAX_RADIUS_KM / 6371],
-                },
-              },
-            })
-              .select('_id oldId coverageRadiusKm location.coordinates')
-              .limit(300)
-              .lean();
-            const toRad = (x) => (x * Math.PI) / 180;
-            for (const d of geoDocs) {
-              const c = d.location && d.location.coordinates;
-              if (!Array.isArray(c) || c.length < 2) continue;
-              const dLat = toRad(Number(c[1]) - postLat);
-              const dLng = toRad(Number(c[0]) - postLng);
-              const a =
-                Math.sin(dLat / 2) ** 2 +
-                Math.cos(toRad(postLat)) * Math.cos(toRad(Number(c[1]))) *
-                Math.sin(dLng / 2) ** 2;
-              const km = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-              const radius = Math.min(
-                MAX_RADIUS_KM,
-                Math.max(10, Number(d.coverageRadiusKm) || 0),
-              );
-              if (km <= radius) addRecipients([d]);
-            }
-          } catch (geoErr) {
-            logger.warn(`[createPost] geo recipients failed (non-blocking): ${geoErr?.message || geoErr}`);
-          }
-        }
-
-        const recipients = Array.from(byId.values()).slice(0, 150);
-
-        // v448 — AUDIT : ne PAS s'auto-notifier. 1 compte = 3 profils (owner +
-        // sitter + walker) ; si l'owner qui publie est aussi prestataire dans la
-        // même ville, son propre doc prestataire figurait dans la liste → il
-        // recevait une notif « nouvelle demande près de chez vous » pour sa
-        // PROPRE annonce. On exclut via les identifiants partagés entre docs.
-        const selfIds = new Set(
-          [ownerId, owner && owner.oldId, owner && owner._id]
-            .filter(Boolean)
-            .map((x) => x.toString()),
-        );
-        // v573 — les comptes récents n'ont pas d'oldId : les 3 documents d'une
-        // même personne ne sont reliés que par l'e-mail → groupe d'identité.
-        try {
-          const grp = await identityGroup(ownerId);
-          for (const gid of grp.ids) selfIds.add(String(gid));
-        } catch (_) { /* non bloquant */ }
-
-        for (const r of recipients) {
-          const rid = r._id ? r._id.toString() : '';
-          const roldId = r.oldId ? r.oldId.toString() : '';
-          if (selfIds.has(rid) || (roldId && selfIds.has(roldId))) {
-            continue; // c'est le doc prestataire de l'owner lui-même → skip
-          }
-          sendNotification({
-            userId: r._id.toString(),
-            role: recipientRole,
-            type: 'new_request_nearby',
-            data: {
-              postId: newPost._id.toString(),
-              ownerName: owner.name || '',
-              serviceType: normalizedServices[0] || '',
-              city: cityKey || '',
-            },
-            actor: { role: 'owner', id: ownerId },
-          });
-        }
-
-        logger.info(
-          `[createPost] notified ${recipients.length} ${recipientRole}(s) for new request in ${cityKey || 'any city'}`,
-        );
-      } catch (err) {
-        logger.warn(
-          '[postController.createPost] notify nearby failed',
-          err && err.message ? err.message : err,
-        );
-      }
-    });
+    notifyNearbyProviders({ newPost, postPayload, normalizedServices, owner, ownerId });
 
     res.status(201).json({ post: sanitizePost(newPost) });
   } catch (error) {
@@ -1538,7 +1562,20 @@ const createPostWithMedia = async (req, res) => {
     // en passant postType='request'. L'app n'envoie pas ce champ → reste 'media'
     // comme avant (zéro impact app). Une annonce request avec photos apparaît
     // dans le feed des demandes (getRequestPosts) ET porte ses images.
-    const resolvedPostType = rawPostType === 'request' ? 'request' : 'media';
+    // ⚠️ 22/09/2026 — LE TROU LE PLUS COÛTEUX DE L'ENTONNOIR.
+    // L'app appelle /posts/with-media SANS postType quand le propriétaire
+    // joint une photo de son animal à sa demande (le geste le plus naturel).
+    // La demande était donc enregistrée en 'media' : invisible dans le feed
+    // des gardiens (getRequestPosts filtre postType:'request'), absente de
+    // « Mes annonces », et aucune notification envoyée. Le propriétaire
+    // croyait avoir publié ; personne ne voyait rien.
+    // On déduit donc le type : une publication qui porte des DATES de service
+    // ou un type de service EST une demande de réservation ; une vraie photo
+    // sociale n'a ni date ni service. Corrige toutes les apps déjà installées,
+    // sans rebuild. Le site, lui, envoie déjà postType='request'.
+    const resolvedPostType = resolveMediaPostType({
+      rawPostType, startDate, endDate, serviceTypes, houseSittingVenue,
+    });
 
     // v23.1 part 122 — même protection que createPost : bloque les
     // emails / téléphones dans le body.
@@ -1744,6 +1781,19 @@ const createPostWithMedia = async (req, res) => {
     const newPost = await Post.create(postPayload);
 
     await newPost.populate('ownerId');
+
+    // 22/09/2026 — une demande publiée avec photo ne prévenait AUCUN gardien
+    // (ce bloc n'existait que dans createPost). Même fonction, mêmes règles :
+    // ville insensible aux accents + rayon de couverture, jamais soi-même.
+    if (resolvedPostType === 'request') {
+      notifyNearbyProviders({
+        newPost,
+        postPayload,
+        normalizedServices,
+        owner,
+        ownerId,
+      });
+    }
 
     res.status(201).json({ 
       message: 'Post created successfully.',
@@ -2098,6 +2148,7 @@ const getPostById = async (req, res) => {
 };
 
 module.exports = {
+  resolveMediaPostType,
   getPublicRequestPosts,
   createPost,
   createPostWithMedia,

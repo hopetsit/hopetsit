@@ -338,6 +338,9 @@ const versionedRoutes = [
   { path: '/map-boost', mw: [sensitiveLimiter], router: mapBoostRoutes },
   // v554 — suggestions de villes (autocomplétion de la barre PawMap).
   { path: '/geo', mw: [], router: require('./routes/geoRoutes') },
+  // 22/09/2026 — nombre de prestataires par ville, PUBLIC et anonyme (que des
+  // chiffres) : les pages villes montrent enfin une preuve d'offre réelle.
+  { path: '/supply', mw: [], router: require('./routes/supplyRoutes') },
   { path: '/subscriptions', mw: [sensitiveLimiter], router: subscriptionRoutes },
   // v503 — Apple IAP (StoreKit 2) : validation des achats de l'app iOS.
   { path: '/apple-iap', mw: [sensitiveLimiter], router: require('./routes/appleIapRoutes') },
