@@ -27,7 +27,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 // v576 — mesure d'audience : clics vers les stores depuis la page de repli.
-import { trackSiteEvent } from "@/components/SiteAnalytics";
+import PawMapLogo from "@/components/PawMapLogo";
+import StoreBadges from "@/components/StoreBadges";
 
 // v23.1.317 — Daniel (audit) : l'ID App Store était un placeholder (id6740000000)
 // → lien cassé 404. L'app iOS n'est pas encore publiée : on pointe vers la page
@@ -161,10 +162,12 @@ export default function CatchAllPage({
   return (
     <main className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center px-4 py-12">
       <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center">
-        {/* v23.1.171 — logo.png n'existe pas, on utilise un emoji + bg
-            orange pour éviter l'icône cassée. Le logo svg est sur la home. */}
-        <div className="mx-auto mb-6 w-20 h-20 rounded-2xl bg-orange-500 flex items-center justify-center text-white text-4xl">
-          🐾
+        {/* v578 — Daniel : « ça c'est horrible, mets notre vraie icône animée
+            (celle de la PawMap de l'app) ». Le carré orange + emoji 🐾 laisse
+            la place au vrai logo PawMap, animé (les doigts sortent du
+            coussinet au survol / à l'apparition). */}
+        <div className="mx-auto mb-6 flex w-20 justify-center">
+          <PawMapLogo size={80} animated />
         </div>
 
         <h1 className="text-2xl font-bold text-ink mb-2">
@@ -188,25 +191,12 @@ export default function CatchAllPage({
           </button>
         )}
 
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <a
-            href={APP_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => trackSiteEvent("store_click", { store: "ios" })}
-            className="bg-ink-deep text-white text-sm font-medium py-3 rounded-xl hover:bg-ink transition-colors"
-          >
-            App Store
-          </a>
-          <a
-            href={PLAY_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => trackSiteEvent("store_click", { store: "android" })}
-            className="bg-ink-deep text-white text-sm font-medium py-3 rounded-xl hover:bg-ink transition-colors"
-          >
-            Play Store
-          </a>
+        {/* v578 — Daniel : « et les vrais designs Google Play et App Store ».
+            Les deux pavés « App Store » / « Play Store » en texte brut sont
+            remplacés par les VRAIS badges officiels (logos + phrase traduite
+            dans les 9 langues), déjà utilisés sur l'accueil. */}
+        <div className="mb-4 flex flex-col items-center gap-3">
+          <StoreBadges center />
         </div>
 
         {fallback && (

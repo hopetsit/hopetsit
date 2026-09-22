@@ -63,7 +63,7 @@ class ReportCategoryGridScreen extends StatelessWidget {
       type: ReportTypes.trash,
       labelKey: 'report_cat_trash',
       icon: Icons.delete_rounded,
-      color: Color(0xFF607D8B),
+      color: Color(0xFF8B6960),
     ),
     // v414 — véto ouvert / de garde : gratuit (utile à toute la communauté).
     _CategoryDef(
@@ -98,7 +98,7 @@ class ReportCategoryGridScreen extends StatelessWidget {
       type: ReportTypes.trap,
       labelKey: 'report_cat_trap',
       icon: Icons.gps_off_rounded,
-      color: Color(0xFF6B7280),
+      color: Color(0xFF8B6960),
     ),
     _CategoryDef(
       type: ReportTypes.strayPet,
@@ -147,7 +147,7 @@ class ReportCategoryGridScreen extends StatelessWidget {
       type: ReportTypes.leashRequired,
       labelKey: 'report_cat_leash_required',
       icon: Icons.pets_rounded,
-      color: Color(0xFF455A64),
+      color: Color(0xFF644B45),
     ),
     _CategoryDef(
       type: ReportTypes.heatHotGround,
@@ -165,7 +165,7 @@ class ReportCategoryGridScreen extends StatelessWidget {
       type: ReportTypes.other,
       labelKey: 'report_cat_other',
       icon: Icons.more_horiz_rounded,
-      color: Color(0xFF6B7280),
+      color: Color(0xFF8B6960),
     ),
   ];
 

@@ -789,7 +789,7 @@ class _AvailabilityCalendarScreenState
       fg = Colors.white;
       mark = Icon(Icons.check_rounded, size: 10.sp, color: Colors.white);
     } else if (blocked) {
-      bg = dark ? const Color(0xFF2A3340) : const Color(0xFFEEE4E2);
+      bg = dark ? const Color(0xFF422D28) : const Color(0xFFEEE4E2);
       fg = AppColors.textSecondary(context);
       deco = TextDecoration.lineThrough;
       mark = Icon(Icons.close_rounded,
@@ -946,7 +946,7 @@ class _AvailabilityCalendarScreenState
             'availability_legend_available'.tr,
           ),
           item(
-            box(dark ? const Color(0xFF2A3340) : const Color(0xFFEEE4E2),
+            box(dark ? const Color(0xFF422D28) : const Color(0xFFEEE4E2),
                 child: Icon(Icons.close_rounded,
                     size: 10.sp, color: AppColors.textSecondary(context))),
             'availability_legend_blocked'.tr,

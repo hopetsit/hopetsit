@@ -296,10 +296,10 @@ export default function HomePage() {
             <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-[#231715]">Pet sitters à Paris et en Île-de-France</h2>
             <ul className="mt-4 flex flex-wrap gap-2 text-sm">
               {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
-                <li key={`p${n}`}><Link href={`/garde-animaux/paris-${n}`} className="inline-block rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark">Paris {n}{n === 1 ? "er" : "e"}</Link></li>
+                <li key={`p${n}`}><Link href={`/garde-animaux/paris-${n}`} className="inline-block rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark max-lg:py-3">Paris {n}{n === 1 ? "er" : "e"}</Link></li>
               ))}
               {[["boulogne-billancourt","Boulogne"],["neuilly-sur-seine","Neuilly"],["levallois-perret","Levallois"],["issy-les-moulineaux","Issy"],["vincennes","Vincennes"],["montreuil","Montreuil"],["versailles","Versailles"]].map(([slug, name]) => (
-                <li key={slug}><Link href={`/garde-animaux/${slug}`} className="inline-block rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark">{name}</Link></li>
+                <li key={slug}><Link href={`/garde-animaux/${slug}`} className="inline-block rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark max-lg:py-3">{name}</Link></li>
               ))}
             </ul>
             <p className="mt-3 text-sm"><Link href="/devenir-petsitter/paris" className="font-semibold text-owner hover:underline">Devenir pet sitter à Paris →</Link></p>
@@ -308,7 +308,7 @@ export default function HomePage() {
             <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-[#231715]">Pet sitters in the United States</h2>
             <ul className="mt-4 flex flex-wrap gap-2 text-sm">
               {[["dallas","Dallas"],["fort-worth","Fort Worth"],["plano","Plano"],["frisco","Frisco"],["houston","Houston"],["austin","Austin"],["new-york","New York"],["los-angeles","Los Angeles"],["chicago","Chicago"],["miami","Miami"],["san-francisco","San Francisco"],["seattle","Seattle"],["boston","Boston"],["atlanta","Atlanta"],["denver","Denver"],["phoenix","Phoenix"]].map(([slug, name]) => (
-                <li key={slug}><Link href={`/pet-sitting/${slug}`} className="inline-block rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark">{name}</Link></li>
+                <li key={slug}><Link href={`/pet-sitting/${slug}`} className="inline-block rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark max-lg:py-3">{name}</Link></li>
               ))}
             </ul>
             <p className="mt-3 text-sm"><Link href="/become-a-pet-sitter/dallas" className="font-semibold text-owner hover:underline">Become a pet sitter in Dallas →</Link> · <Link href="/villes" className="text-[#6E4F48] hover:underline">All cities</Link></p>

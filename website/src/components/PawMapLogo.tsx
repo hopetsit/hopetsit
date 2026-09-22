@@ -6,7 +6,7 @@ import { useId } from "react";
  * Logo PawMap — « patte-pin » (handoff design de Daniel, 19/09/2026).
  *
  * Un coussinet en forme d'épingle de carte (carré à coins 50% 50% 50% 0 tourné
- * de −45°, dégradé 135° #3A363F → #17151A, bord blanc, ombre portée) qui
+ * de −45°, dégradé 135° #3B2E2A → #1B1614, bord blanc, ombre portée) qui
  * contient l'ŒIL du logo HoPetSit, surmonté des 4 doigts colorés (billes du
  * logo) posés sur un arc, en symétrie miroir.
  *
@@ -102,8 +102,8 @@ ${TOES.map(
           x2={RP}
           y2={RP}
         >
-          <stop offset="0" stopColor="#3A363F" />
-          <stop offset="1" stopColor="#17151A" />
+          <stop offset="0" stopColor="#3B2E2A" />
+          <stop offset="1" stopColor="#1B1614" />
         </linearGradient>
         {TOES.map((t) => (
           <radialGradient key={t.key} id={id(t.key)} cx="0.35" cy="0.3" r="0.92">
@@ -115,7 +115,7 @@ ${TOES.map(
           <circle cx="0" cy="0" r={EYE_R} />
         </clipPath>
         <filter id={id("shPad")} x="-40%" y="-40%" width="180%" height="180%">
-          <feDropShadow dx="0" dy="7" stdDeviation="6" floodColor="#17151A" floodOpacity="0.38" />
+          <feDropShadow dx="0" dy="7" stdDeviation="6" floodColor="#1B1614" floodOpacity="0.38" />
         </filter>
         <filter id={id("shToe")} x="-60%" y="-60%" width="220%" height="220%">
           <feDropShadow dx="0" dy="3" stdDeviation="2.6" floodColor="#2A0A05" floodOpacity="0.34" />
@@ -167,7 +167,7 @@ ${TOES.map(
 
         {/* L'œil du logo HoPetSit, droit, clippé dans son cercle. */}
         <g filter={`url(#${id("shEye")})`}>
-          <circle cx="0" cy="0" r={EYE_R} fill="#17151A" />
+          <circle cx="0" cy="0" r={EYE_R} fill="#1B1614" />
           <image
             clipPath={`url(#${id("eye")})`}
             x={-EYE_R}

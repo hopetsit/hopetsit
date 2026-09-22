@@ -152,7 +152,7 @@ class ProfileCategories extends StatelessWidget {
   static const Color _amber = Color(0xFFE8920A);
   static const Color _gold = Color(0xFFE8A00A);
   static const Color _blue = Color(0xFF1A73E8);
-  static const Color _slate = Color(0xFF94A3B8);
+  static const Color _slate = Color(0xFFB69C96);
   static const Color _warn = Color(0xFFF59E0B);
 
   @override

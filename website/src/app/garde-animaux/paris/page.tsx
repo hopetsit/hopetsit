@@ -62,7 +62,7 @@ function Chips({ cities }: { cities: RecruitCity[] }) {
         <li key={c.slug}>
           <Link
             href={`${OWNER_PATH_PREFIX.fr}/${c.slug}`}
-            className="inline-block rounded-full bg-bg-soft px-3.5 py-2 text-sm font-medium text-ink transition hover:bg-owner-light hover:text-owner-dark"
+            className="inline-block rounded-full bg-bg-soft px-3.5 py-2 text-sm font-medium text-ink transition hover:bg-owner-light hover:text-owner-dark max-lg:py-3"
           >
             {c.name}
           </Link>

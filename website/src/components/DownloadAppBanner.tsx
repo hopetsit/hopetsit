@@ -35,7 +35,7 @@ export function DownloadAppBanner() {
         <span className="text-sm font-medium">📱 {t("dl_banner_title")}</span>
         <Link
           href="/download"
-          className="rounded-full bg-white/15 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-white/25"
+          className="rounded-full bg-white/15 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-white/25 max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center"
         >
           {t("nav_download")}
         </Link>
@@ -47,7 +47,7 @@ export function DownloadAppBanner() {
         aria-hidden={!shown}
         tabIndex={shown ? 0 : -1}
         className={
-          "fixed bottom-4 right-4 z-30 inline-flex items-center gap-1.5 rounded-full bg-owner px-4 py-2.5 text-sm font-semibold text-white shadow-cta transition-all duration-300 md:hidden " +
+          "fixed bottom-4 right-4 z-30 inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-owner px-4 py-2.5 text-sm font-semibold text-white shadow-cta transition-all duration-300 md:hidden " +
           (shown ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-6 opacity-0")
         }
       >

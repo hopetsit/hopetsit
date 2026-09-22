@@ -84,7 +84,7 @@ export default function HowItWorksPage() {
       </section>
 
       {/* ── Suivi GRATUIT pendant le service ── bande sombre. */}
-      <section className="relative overflow-hidden bg-[#17141f] py-20 text-white">
+      <section className="relative overflow-hidden bg-[#201613] py-20 text-white">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0"

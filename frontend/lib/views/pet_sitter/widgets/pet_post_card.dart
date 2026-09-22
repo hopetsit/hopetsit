@@ -1760,7 +1760,7 @@ class PetPostCard extends StatelessWidget {
             ? const Color(0xFF16A34A)
             : role == 'sitter'
                 ? const Color(0xFF2563EB)
-                : const Color(0xFF6B7280));
+                : const Color(0xFF8B6960));
     final String label = 'reserved_badge'.tr == 'reserved_badge'
         ? 'Réservé'
         : 'reserved_badge'.tr;

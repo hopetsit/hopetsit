@@ -253,6 +253,11 @@ class _ConversationTile extends StatelessWidget {
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 13.h),
           decoration: BoxDecoration(
+            // v578 — Daniel : « les messages, cadres gris blanc ». La carte
+            // n'avait PAS de fond : l'ombre (noir à 4 %) se peignait sur
+            // toute sa surface et la rendait grise (245,245,245 mesuré).
+            // On repose le fond de carte sous l'ombre.
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(22.r),
             boxShadow: AppColors.cardShadow(context),
           ),

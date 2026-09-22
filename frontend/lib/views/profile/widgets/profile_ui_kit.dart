@@ -4,6 +4,7 @@
 // rangées séparées par un filet, chip d'icône teinté, chevron discret.
 // La couleur du rôle est passée en `accent` (owner orange #C92A12, sitter
 // bleu #2563EB, walker vert #16A34A).
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -55,7 +56,15 @@ class ProfileSectionTitle extends StatelessWidget {
   final String text;
   final IconData? icon;
   final Color? color;
-  const ProfileSectionTitle(this.text, {super.key, this.icon, this.color});
+
+  /// v578 — Daniel, 22/09 : « le petit haut-parleur animé » sur le profil.
+  /// Le titre « SON » porte une icône de haut-parleur qui, avec ce drapeau,
+  /// respire en continu et laisse partir des ondes. Discret : c'est un
+  /// repère visuel, pas une animation qui attire l'œil.
+  final bool animatedIcon;
+
+  const ProfileSectionTitle(this.text,
+      {super.key, this.icon, this.color, this.animatedIcon = false});
 
   @override
   Widget build(BuildContext context) {
@@ -64,8 +73,13 @@ class ProfileSectionTitle extends StatelessWidget {
       child: Row(
         children: [
           if (icon != null) ...[
-            Icon(icon,
-                size: 14.sp, color: color ?? AppColors.textSecondary(context)),
+            animatedIcon
+                ? LiveSpeakerIcon(
+                    size: 16.sp,
+                    color: color ?? AppColors.textSecondary(context))
+                : Icon(icon,
+                    size: 14.sp,
+                    color: color ?? AppColors.textSecondary(context)),
             SizedBox(width: 6.w),
           ],
           Expanded(
@@ -768,4 +782,114 @@ Future<T?> showProfileSheet<T>(
       ),
     ),
   );
+}
+
+
+/// v578 — Petit haut-parleur ANIMÉ du profil (Daniel, 22/09).
+///
+/// Boucle de 2,2 s : le cône respire de 4 % et deux ondes sortent l'une
+/// après l'autre, en fondu. Tout est dessiné — aucune image, aucune police
+/// d'icônes — pour que la couleur suive le rôle. L'animation se coupe si le
+/// téléphone demande moins d'animations.
+class LiveSpeakerIcon extends StatefulWidget {
+  const LiveSpeakerIcon({super.key, required this.size, required this.color});
+
+  final double size;
+  final Color color;
+
+  @override
+  State<LiveSpeakerIcon> createState() => _LiveSpeakerIconState();
+}
+
+class _LiveSpeakerIconState extends State<LiveSpeakerIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _loop = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2200),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _loop.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool still = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    return RepaintBoundary(
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: AnimatedBuilder(
+          animation: _loop,
+          builder: (BuildContext context, Widget? _) => CustomPaint(
+            painter: _LiveSpeakerPainter(
+              color: widget.color,
+              t: still ? 0.4 : _loop.value,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LiveSpeakerPainter extends CustomPainter {
+  _LiveSpeakerPainter({required this.color, required this.t});
+
+  final Color color;
+  final double t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double w = size.width;
+    final double h = size.height;
+    final Paint body = Paint()..color = color;
+
+    final double breath = 1 + 0.04 * math.sin(t * 2 * math.pi);
+    canvas.save();
+    canvas.translate(w * 0.30, h / 2);
+    canvas.scale(breath, breath);
+    canvas.translate(-w * 0.30, -h / 2);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.08, h * 0.36, w * 0.16, h * 0.28),
+        Radius.circular(w * 0.05),
+      ),
+      body,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.24, h * 0.38)
+        ..lineTo(w * 0.44, h * 0.16)
+        ..lineTo(w * 0.44, h * 0.84)
+        ..lineTo(w * 0.24, h * 0.62)
+        ..close(),
+      body,
+    );
+    canvas.restore();
+
+    for (int i = 0; i < 2; i++) {
+      final double phase = (t + i * 0.5) % 1.0;
+      final double eased = Curves.easeOut.transform(phase);
+      final double radius = w * (0.20 + 0.18 * eased);
+      final double fade = (1 - phase).clamp(0.0, 1.0);
+      canvas.drawArc(
+        Rect.fromCircle(center: Offset(w * 0.44, h / 2), radius: radius),
+        -math.pi / 3.2,
+        2 * math.pi / 3.2,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = w * 0.085
+          ..color = color.withValues(alpha: 0.9 * fade),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_LiveSpeakerPainter old) =>
+      old.t != t || old.color != color;
 }

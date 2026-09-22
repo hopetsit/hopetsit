@@ -33,7 +33,7 @@ export function PawMapCTA({
 
   const sizeCls =
     size === "compact"
-      ? "px-5 py-2.5 text-sm gap-1.5"
+      ? "px-5 py-2.5 text-sm gap-1.5 max-lg:min-h-[44px]"
       : "px-8 py-4 text-base md:text-lg gap-2";
 
   // v567 — le glyphe devient le nouveau logo PawMap (patte-pin). Quelques

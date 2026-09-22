@@ -83,7 +83,7 @@ class BookingStatusStyle {
             'status_agreed_label'.tr, Icons.handshake_rounded);
       case 'cancelled':
       case 'rejected':
-        return BookingStatusStyle(const Color(0xFF6B7280),
+        return BookingStatusStyle(const Color(0xFF8B6960),
             'status_cancelled_label'.tr, Icons.cancel_rounded);
       case 'refunded':
         return BookingStatusStyle(const Color(0xFF2563EB),
@@ -96,7 +96,7 @@ class BookingStatusStyle {
             'status_payment_failed_label'.tr, Icons.error_rounded);
       default:
         return BookingStatusStyle(
-            const Color(0xFF6B7280), primary.tr, Icons.info_rounded);
+            const Color(0xFF8B6960), primary.tr, Icons.info_rounded);
     }
   }
 }

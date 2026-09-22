@@ -49,7 +49,7 @@ export function Header() {
           736 px utiles. La version compacte (logo + langue + S'inscrire +
           menu) court donc maintenant jusqu'a 1024 px. */}
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center" aria-label="HoPetSit">
+        <Link href="/" className="flex min-h-[44px] items-center" aria-label="HoPetSit">
           <LogoWithText />
         </Link>
 
@@ -125,7 +125,11 @@ export function Header() {
 
           <button
             type="button"
-            className="ml-1 rounded-md p-1.5 lg:hidden"
+            /* v583 — pouce (Bob, 22/09) : le bouton du menu mesurait
+               34 x 34 px, sous le minimum de 44 px. C'est LA navigation sur
+               telephone. Carre de 44 px, icone inchangee. lg:hidden : le
+               bureau n'est pas concerne. */
+            className="ml-1 flex h-11 w-11 items-center justify-center rounded-xl lg:hidden"
             aria-label="Toggle menu"
             onClick={() => setOpen((v) => !v)}
           >
@@ -149,7 +153,7 @@ export function Header() {
                 key={l.href}
                 href={l.href}
                 onClick={() => setOpen(false)}
-                className={`block rounded-xl px-3 py-2.5 text-sm font-medium ${current ? "bg-owner-light text-owner-dark" : "text-ink"}`}
+                className={`block rounded-xl px-3 py-3 text-sm font-medium ${current ? "bg-owner-light text-owner-dark" : "text-ink"}`}
               >
                 {l.label}
               </Link>
@@ -160,7 +164,7 @@ export function Header() {
               <Link
                 href="/dashboard"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-2 px-2 py-2.5 text-sm font-medium text-ink"
+                className="flex min-h-[44px] items-center gap-2 px-2 py-2.5 text-sm font-medium text-ink"
               >
                 <span
                   className={`flex h-6 w-6 items-center justify-center rounded-full ${roleColor} text-xs font-bold text-white`}
@@ -172,7 +176,7 @@ export function Header() {
               <button
                 type="button"
                 onClick={onLogout}
-                className="block w-full px-2 py-2.5 text-left text-sm font-medium text-ink-muted"
+                className="block w-full px-2 py-3 text-left text-sm font-medium text-ink-muted"
               >
                 {t("dash_logout")}
               </button>
@@ -181,7 +185,7 @@ export function Header() {
             <Link
               href="/login"
               onClick={() => setOpen(false)}
-              className="block px-2 py-2.5 text-sm font-medium text-ink"
+              className="block px-2 py-3 text-sm font-medium text-ink"
             >
               {t("nav_login")}
             </Link>

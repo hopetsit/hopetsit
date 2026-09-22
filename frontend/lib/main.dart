@@ -382,10 +382,12 @@ class MyApp extends StatelessWidget {
                     states.contains(WidgetState.selected)
                         ? AppColors.primaryColor
                         : AppColors.greyColor),
+                // v578 — piste ETEINTE en teinte chaude pleine : a 30 %
+                // d'opacite sur blanc, la couleur redevenait grise.
                 trackColor: WidgetStateProperty.resolveWith((states) =>
                     states.contains(WidgetState.selected)
                         ? AppColors.primaryColor.withValues(alpha: 0.4)
-                        : AppColors.greyColor.withValues(alpha: 0.3)),
+                        : AppColors.grey300Color),
               ),
               inputDecorationTheme: const InputDecorationTheme(
                 labelStyle: TextStyle(color: AppColors.grey700Color),

@@ -127,7 +127,7 @@ export function Footer() {
                   rel="noopener noreferrer"
                   aria-label={s.label}
                   title={s.label}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink-muted shadow-sm ring-1 ring-ink/5 transition hover:text-ink hover:shadow"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink-muted shadow-sm ring-1 ring-ink/5 transition hover:text-ink hover:shadow max-lg:h-11 max-lg:w-11"
                 >
                   {s.icon}
                 </a>
@@ -139,12 +139,17 @@ export function Footer() {
               <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
                 {c.title}
               </h4>
-              <ul className="mt-3 space-y-2">
+              {/* v583 — pouce (Bob, 22/09) : ces liens faisaient 17 px de haut
+                  pour 8 px d'ecart. On visait « Conditions generales » et on
+                  ouvrait « Confidentialite ». Sur telephone chaque lien occupe
+                  44 px et l'ecart tombe a 0 : la zone grandit, le pied de page
+                  ne s'allonge presque pas. Le bureau est inchange. */}
+              <ul className="mt-3 space-y-2 max-lg:space-y-0">
                 {c.links.map((l) => (
                   <li key={l.href}>
                     <Link
                       href={l.href}
-                      className="text-sm text-ink-muted hover:text-ink"
+                      className="text-sm text-ink-muted hover:text-ink max-lg:flex max-lg:min-h-[44px] max-lg:items-center"
                     >
                       {l.label}
                     </Link>

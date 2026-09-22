@@ -73,3 +73,31 @@ html.lang-switching body {
   body { transition: none; }
   html.lang-switching body { opacity: 1; }
 }
+
+/* v583 — MOBILE (Bob, 22/09/2026). Deux defauts mesures a 375 px sur
+   /posts/create — la page ou un proprietaire publie sa demande depuis la 581,
+   donc la page qui rapporte.
+
+   1) LES 6 CHAMPS ETAIENT A 14 px. Sous 16 px, Safari iOS ZOOME TOUT SEUL des
+      qu'on touche un champ, et ne dezoome jamais : le reste du formulaire sort
+      de l'ecran et il faut pincer pour revenir. 16 px supprime ce zoom.
+   2) Champs de 38 a 42 px de haut, sous le minimum de 44 px vise au pouce
+      (Apple 44, Google 48).
+
+   Regle globale et mobile seulement (< 1024 px) : le bureau ne bouge pas, et
+   toute page a champs du site en profite, y compris /login, /signup, /contact
+   et /book — 77 champs dans 20 fichiers, qu'il aurait fallu reprendre un a un. */
+@media (max-width: 1023px) {
+  /* Les :not() ne sont pas decoratifs : ils portent la specificite au-dessus
+     de la classe Tailwind text-sm, sinon la regle est ignoree en silence
+     (c'est ce qui est arrive aux deux zones de texte au premier essai). */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select:not([hidden]):not([aria-hidden="true"]),
+  textarea:not([hidden]):not([aria-hidden="true"]) {
+    font-size: 16px;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select:not([hidden]):not([aria-hidden="true"]) {
+    min-height: 44px;
+  }
+}

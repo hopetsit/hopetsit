@@ -2150,7 +2150,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               decoration: InputDecoration(
                 hintText: 'paw_map_search_city_hint'.tr,
                 hintStyle: TextStyle(
-                  color: const Color(0xFF9CA3AF),
+                  color: const Color(0xFFB69C95),
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w500,
                 ),
@@ -6788,11 +6788,12 @@ class _PawMapScreenState extends State<PawMapScreen>
                     trackOutlineColor: WidgetStateProperty.resolveWith(
                         (st) => st.contains(WidgetState.selected)
                             ? Colors.white.withValues(alpha: 0.9)
-                            : AppColors.textSecondary(context)
-                                .withValues(alpha: 0.35)),
+                            // v578 — « aucun gris » : une encre chaude posee
+                            // a 28 % sur du blanc redevient GRISE. On passe
+                            // donc en teinte chaude PLEINE, qui se voit.
+                            : AppColors.greyColor.withValues(alpha: 0.6)),
                     inactiveThumbColor: Colors.white,
-                    inactiveTrackColor: AppColors.textSecondary(context)
-                        .withValues(alpha: 0.28),
+                    inactiveTrackColor: AppColors.grey300Color,
                   ),
                 ),
               ),

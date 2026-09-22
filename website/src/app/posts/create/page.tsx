@@ -236,7 +236,7 @@ export default function CreatePostPage() {
                 key={s}
                 type="button"
                 onClick={() => toggleService(s)}
-                className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                className={`rounded-full border px-4 py-2 text-sm font-semibold transition max-lg:min-h-[44px] ${
                   services.includes(s)
                     ? "border-owner bg-owner-light text-owner-dark"
                     : "border-ink/15 bg-white text-ink hover:border-ink/30"
@@ -257,7 +257,7 @@ export default function CreatePostPage() {
                   key={v}
                   type="button"
                   onClick={() => setVenue(v)}
-                  className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                  className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition max-lg:min-h-[44px] ${
                     venue === v
                       ? "border-owner bg-owner-light text-owner-dark"
                       : "border-ink/15 bg-white text-ink hover:border-ink/30"
@@ -322,7 +322,7 @@ export default function CreatePostPage() {
                 key={a.key}
                 type="button"
                 onClick={() => toggleAnimalType(a.key)}
-                className={`rounded-full border px-3.5 py-2 text-sm font-semibold transition ${
+                className={`rounded-full border px-3.5 py-2 text-sm font-semibold transition max-lg:min-h-[44px] ${
                   animalTypes.includes(a.key)
                     ? "border-owner bg-owner-light text-owner-dark"
                     : "border-ink/15 bg-white text-ink hover:border-ink/30"

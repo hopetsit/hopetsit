@@ -102,7 +102,7 @@ export function LangSwitcher() {
         ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`lang-switch inline-flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-sm font-medium text-ink transition-[color,border-color,box-shadow] duration-150 ${
+        className={`lang-switch inline-flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-sm font-medium text-ink transition-[color,border-color,box-shadow] duration-150 max-lg:min-h-[44px] ${
           open ? "border-ink/30 bg-bg-soft" : "border-ink/10 hover:border-ink/30"
         }`}
         aria-haspopup="listbox"

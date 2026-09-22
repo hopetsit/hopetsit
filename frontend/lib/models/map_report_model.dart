@@ -182,7 +182,7 @@ class ReportTypes {
       // PREMIUM - existants
       case poop:          return 0xFF795548; // brown
       case pee:           return 0xFFFFB300; // yellow
-      case waterBroken:   return 0xFF455A64; // blue grey
+      case waterBroken:   return 0xFF644B45; // blue grey
       case lostPet:       return 0xFFEC407A; // pink
       case foundPet:      return 0xFF43A047; // green
       case deadAnimal:    return 0xFF4D3C37; // dark grey
@@ -197,13 +197,13 @@ class ReportTypes {
       case fallenTree:    return 0xFF2E7D32; // dark green
       case chemical:      return 0xFFF57F17; // amber dark
       case wildlife:      return 0xFF5D4037; // brown
-      case noDogsZone:    return 0xFF37474F; // dark blue grey
+      case noDogsZone:    return 0xFF4F3C37; // dark blue grey
       // FREE - v23.1.293
       case food:          return 0xFF8BC34A; // light green
-      case trash:         return 0xFF607D8B; // blue grey
+      case trash:         return 0xFF8B6960; // blue grey
       // v414 — nouveaux
       case vetOpen:       return 0xFF00897B; // teal (santé)
-      case leashRequired: return 0xFF455A64; // blue grey
+      case leashRequired: return 0xFF644B45; // blue grey
       case heatHotGround: return 0xFFFF5722; // deep orange (chaleur)
       case tickZone:      return 0xFF6D4C41; // brown (herbes/parasites)
       case other:

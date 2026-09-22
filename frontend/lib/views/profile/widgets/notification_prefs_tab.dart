@@ -112,7 +112,8 @@ class NotificationPrefsTab extends StatelessWidget {
                 ),
             ],
           ),
-          ProfileSectionTitle('notif_prefs_sound'.tr, icon: Icons.volume_up_rounded),
+          ProfileSectionTitle('notif_prefs_sound'.tr,
+              icon: Icons.volume_up_rounded, animatedIcon: true),
           ProfileGroupCard(
             children: [
               for (final s in NotificationPrefsController.sounds)

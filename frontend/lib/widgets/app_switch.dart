@@ -34,7 +34,7 @@ class AppSwitch extends StatelessWidget {
     final Color offTrack =
         isDark ? const Color(0xFF433431) : const Color(0xFFECE2DF);
     final Color offOutline =
-        isDark ? const Color(0xFF584540) : const Color(0xFFC4C9D2);
+        isDark ? const Color(0xFF584540) : const Color(0xFFD4C5C2);
     final bool enabled = onChanged != null;
 
     return Opacity(

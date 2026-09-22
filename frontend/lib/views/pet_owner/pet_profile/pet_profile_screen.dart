@@ -1403,7 +1403,7 @@ class _PetProfileScreenState extends State<PetProfileScreen> {
   /// Ligne « Label : Oui/Non » avec pastille colorée (pucé, stérilisé…).
   Widget _yesNoRow(BuildContext context, String label, bool value) {
     final Color base =
-        value ? const Color(0xFF16A34A) : const Color(0xFF9CA3AF);
+        value ? const Color(0xFF16A34A) : const Color(0xFFB69C95);
     final Color fg = AppColors.accentOn(context, base);
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 5.h),
