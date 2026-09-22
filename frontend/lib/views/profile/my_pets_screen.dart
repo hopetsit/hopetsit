@@ -16,6 +16,7 @@
 //     rafraîchir conservé ;
 //   · dialogue de suppression = `showAppConfirmDialog` (plus d'`AlertDialog`).
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -64,6 +65,14 @@ class MyPetsScreen extends StatelessWidget {
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        // v582 — relevé le 23/09 : l'heure et la batterie s'affichaient en
+        // BLANC sur le fond clair, donc invisibles. Flutter déduit la couleur
+        // des icônes de la barre d'état du fond de l'AppBar ; « transparent »
+        // compte pour du noir, d'où des icônes blanches. On la fixe selon le
+        // thème réel de la page.
+        systemOverlayStyle: Theme.of(context).brightness == Brightness.dark
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
