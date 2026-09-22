@@ -12,7 +12,30 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- v581 — Daniel, 22/09 : « l'antivirus du téléphone met une erreur ».
+         RECEIVE_BOOT_COMPLETED (« démarrage automatique au boot ») est une des
+         permissions que les antivirus signalent le plus, et l'app ne s'en sert
+         PAS : aucune notification planifiée (aucun zonedSchedule ni
+         periodicallyShow dans lib/). Elle arrivait par fusion depuis
+         flutter_local_notifications. On la retire explicitement.
+         ⚠️ À REMETTRE le jour où l'app planifiera une notification locale
+         devant survivre à un redémarrage. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"
+        tools:node="remove" />
+    <!-- v581 — Daniel, 22/09 : « l'antivirus du téléphone met une erreur ».
+         Firebase Analytics fait entrer par fusion 4 permissions Privacy
+         Sandbox. HoPetSit n'affiche AUCUNE publicité : le ciblage
+         (CUSTOM_AUDIENCE = audiences publicitaires, TOPICS = centres
+         d'intérêt déduits) ne sert donc à rien, et ce sont exactement les
+         permissions qu'un antivirus signale comme « pistage publicitaire ».
+         On les retire.
+         ⚠️ On GARDE AD_ID et ATTRIBUTION : ce sont elles qui rattachent une
+         installation à une campagne Meta / Google Ads. Les retirer casserait
+         la mesure des pubs que Daniel paie. -->
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_CUSTOM_AUDIENCE"
+        tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_TOPICS"
+        tools:node="remove" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- v23.1 part 244 — Daniel screenshot Persona KYC : "Impossible

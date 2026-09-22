@@ -35,7 +35,12 @@ export function DownloadAppBanner() {
         <span className="text-sm font-medium">📱 {t("dl_banner_title")}</span>
         <Link
           href="/download"
-          className="rounded-full bg-white/15 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-white/25 max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center"
+          // v581 — Daniel : « sur le site, le Télécharger l'app, il y a du
+          // gris ». Du blanc à 15 % posé sur l'encre sombre redonne un gris
+          // (même piège que les interrupteurs de l'app). Le bouton prend donc
+          // la couleur PLEINE de la marque, comme les autres appels à
+          // l'action du site.
+          className="rounded-full bg-owner px-4 py-1.5 text-sm font-semibold text-white shadow-cta transition hover:bg-owner-dark max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center"
         >
           {t("nav_download")}
         </Link>
