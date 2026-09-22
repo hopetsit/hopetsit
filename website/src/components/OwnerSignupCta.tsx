@@ -27,7 +27,12 @@ export function OwnerSignupCta({
   city?: string;
   className?: string;
 }) {
-  const href = `/signup?role=owner${city ? `&city=${encodeURIComponent(city)}` : ""}`;
+  // v578 — 22/09 : le bouton promet « publier ma demande », mais l'inscription
+  // finissait sur /dashboard. On porte la destination promise dans l'URL
+  // (?next=/posts/create) ; signup et verify-email la font suivre.
+  const href =
+    `/signup?role=owner${city ? `&city=${encodeURIComponent(city)}` : ""}` +
+    `&next=${encodeURIComponent("/posts/create")}`;
   return (
     <Link
       href={href}

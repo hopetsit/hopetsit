@@ -14,6 +14,9 @@ function VerifyEmailInner() {
   const router = useRouter();
   const params = useSearchParams();
   const email = (params.get("email") || "").trim().toLowerCase();
+  // v578 — destination promise par le bouton d'origine (ex. /posts/create).
+  const nextRaw = (params.get("next") || "").trim();
+  const nextPath = nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "";
 
   const [code, setCode]   = useState("");
   const [busy, setBusy]   = useState(false);
@@ -34,7 +37,7 @@ function VerifyEmailInner() {
       // v565 — rôle du compte qui vient de s'inscrire (persisté par signup).
       const stored = getStoredUser();
       await verifyEmail(email, code, stored?.email === email ? stored.role : undefined);
-      router.push("/dashboard");
+      router.push(nextPath || "/dashboard");
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("verify_error"));
     } finally {

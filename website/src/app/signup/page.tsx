@@ -25,6 +25,9 @@ export default function SignupPage() {
   // passés dans l'URL (?role=owner&city=Paris) pour que le visiteur n'ait plus
   // que trois champs à remplir. Lecture dans un effet (pas useSearchParams :
   // cette page est statique, un bailout CSR casserait le build).
+  // v578 — destination promise par le bouton d'origine (?next=/posts/create).
+  // Chemin interne uniquement : jamais une URL absolue (redirection ouverte).
+  const [nextPath, setNextPath] = useState("");
   const [err, setErr]           = useState("");
   // v532 — consentement CGU réel (cf. commentaire dans le formulaire).
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -36,6 +39,8 @@ export default function SignupPage() {
     if (r === "owner" || r === "sitter" || r === "walker") setRole(r as AuthRole);
     const c = (q.get("city") || "").trim();
     if (c) setCity(c);
+    const n = (q.get("next") || "").trim();
+    if (n.startsWith("/") && !n.startsWith("//")) setNextPath(n);
   }, []);
 
   async function onSubmit(e: React.FormEvent) {
@@ -78,9 +83,12 @@ export default function SignupPage() {
       // v402 — l'inscription web exige désormais la vérif email (le backend
       // envoie un code par mail). On envoie l'utilisateur sur /verify-email.
       if (res.needsVerification) {
-        router.push(`/verify-email?email=${encodeURIComponent(cleanEmail)}`);
+        router.push(
+          `/verify-email?email=${encodeURIComponent(cleanEmail)}` +
+            (nextPath ? `&next=${encodeURIComponent(nextPath)}` : ""),
+        );
       } else {
-        router.push("/dashboard");
+        router.push(nextPath || "/dashboard");
       }
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
@@ -112,7 +120,7 @@ export default function SignupPage() {
         onSubmit={onSubmit}
         className="mt-10 space-y-4 rounded-3xl border border-ink/5 bg-white p-7 shadow-card"
       >
-        <SocialButtons defaultRole={role} city={city} />
+        <SocialButtons defaultRole={role} city={city} next={nextPath} />
         <div className="space-y-2">
           {roles.map((r) => (
             <label

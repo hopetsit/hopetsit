@@ -13,9 +13,11 @@ type Props = {
   defaultRole?: AuthRole;
   /** v565 — ville saisie sur la page d'inscription (nouveau compte Google). */
   city?: string;
+  /** v578 — chemin interne où aller après connexion (défaut /dashboard). */
+  next?: string;
 };
 
-export function SocialButtons({ defaultRole = "owner", city }: Props) {
+export function SocialButtons({ defaultRole = "owner", city, next }: Props) {
   const { t, lang } = useT();
   const router = useRouter();
   const [busy, setBusy] = useState<"" | "google" | "apple">("");
@@ -33,7 +35,7 @@ export function SocialButtons({ defaultRole = "owner", city }: Props) {
     try {
       const idToken = await signInWithGooglePopup();
       await googleSignIn(idToken, defaultRole, { city: city?.trim() || undefined, lang });
-      router.push("/dashboard");
+      router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
     } catch (e) {
       // Firebase popup-cancellation: stay silent, the user just closed the window.
       const message = e instanceof Error ? e.message : "";
