@@ -24,6 +24,7 @@ import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/views/reviews/widgets/rating_stars.dart';
 import 'package:hopetsit/views/service_provider/widgets/public_profile_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// v23.1 part 37 — WalkerDetailScreen équivalent de ServiceProviderDetailScreen
 /// pour les walkers. Affiche le profil public complet (avatar, nom, rating,
@@ -90,7 +91,9 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
           overflow: TextOverflow.ellipsis,
         ),
       ),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         bottom: false,
         child: _loading
             ? const PublicProfileSkeleton(palette: _palette)
@@ -109,6 +112,7 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
                       )
                     : _buildContent(context, _walker!),
       ),
+        ),
     );
   }
 

@@ -28,6 +28,7 @@ import 'package:hopetsit/views/friends/tabs/pending_banner.dart';
 import 'package:hopetsit/views/friends/tabs/requests_tab.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class FriendsScreen extends StatefulWidget {
   // v23.1 part 223 — `initialIndex` ouvre directement un onglet (liens
@@ -164,7 +165,9 @@ class _FriendsScreenState extends State<FriendsScreen>
           ],
         ),
       ),
-      body: Column(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: Column(
         children: [
           PendingRequestsBanner(
             controller: controller,
@@ -197,6 +200,7 @@ class _FriendsScreenState extends State<FriendsScreen>
           ),
         ],
       ),
+        ),
     );
   }
 }

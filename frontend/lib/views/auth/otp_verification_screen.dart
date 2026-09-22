@@ -5,6 +5,7 @@ import 'package:pinput/pinput.dart';
 import 'package:hopetsit/controllers/otp_verification_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class OtpVerificationScreen extends StatelessWidget {
   final String email;
@@ -88,7 +89,9 @@ class OtpVerificationScreen extends StatelessWidget {
       },
       child: Scaffold(
         backgroundColor: AppColors.scaffold(context),
-        body: SafeArea(
+        body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 20.w),
             child: Column(
@@ -247,6 +250,7 @@ class OtpVerificationScreen extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

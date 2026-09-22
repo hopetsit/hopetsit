@@ -6,6 +6,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class ChooseServiceScreen extends StatelessWidget {
   final String userType;
@@ -154,7 +155,9 @@ class ChooseServiceScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 20.w),
           child: Column(
@@ -349,6 +352,7 @@ class ChooseServiceScreen extends StatelessWidget {
           ),
         ),
       ),
+        ),
     );
   }
 }

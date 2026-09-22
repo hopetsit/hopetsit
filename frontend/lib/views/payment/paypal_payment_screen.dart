@@ -11,6 +11,7 @@ import 'package:hopetsit/views/payment/widgets/payment_ui_kit.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class PayPalPaymentScreen extends StatelessWidget {
   const PayPalPaymentScreen({
@@ -54,7 +55,9 @@ class PayPalPaymentScreen extends StatelessWidget {
         subtitle: amountText,
         onBack: () => Navigator.of(context).maybePop(),
       ),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         top: false,
         child: Column(
           children: [
@@ -175,6 +178,7 @@ class PayPalPaymentScreen extends StatelessWidget {
           ],
         ),
       ),
+        ),
     );
   }
 }

@@ -78,10 +78,10 @@ const STATUS_META: Record<BookingStatus, { key: string; color: string }> = {
   accepted: { key: "booking_status_accepted", color: "bg-blue-100 text-blue-800" },
   agreed: { key: "booking_status_agreed", color: "bg-blue-100 text-blue-800" },
   paid: { key: "booking_status_paid", color: "bg-green-100 text-green-800" },
-  completed: { key: "booking_status_completed", color: "bg-slate-100 text-slate-700" },
+  completed: { key: "booking_status_completed", color: "bg-bg-panel text-ink-muted" },
   cancelled: { key: "booking_status_cancelled", color: "bg-red-100 text-red-700" },
   rejected: { key: "booking_status_rejected", color: "bg-red-100 text-red-700" },
-  refunded: { key: "booking_status_refunded", color: "bg-slate-100 text-slate-700" },
+  refunded: { key: "booking_status_refunded", color: "bg-bg-panel text-ink-muted" },
 };
 
 export default function BookingsPage() {
@@ -281,7 +281,7 @@ function BookingCard({
   const meta = STATUS_META[booking.status];
   const statusInfo = {
     label: meta ? t(meta.key) : booking.status,
-    color: meta?.color || "bg-slate-100 text-slate-700",
+    color: meta?.color || "bg-bg-panel text-ink-muted",
   };
   const showActions = !isOwner && booking.status === "pending";
   // Owner peut payer une réservation convenue/acceptée tant qu'elle n'est pas

@@ -15,6 +15,7 @@ import 'package:hopetsit/views/service_provider/service_provider_detail_screen.d
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class PetsMapScreen extends StatefulWidget {
   const PetsMapScreen({super.key});
@@ -31,7 +32,9 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         child: Obx(() {
           final userLoc = controller.userLocation.value;
           final sittersWithLocation = controller.sitters
@@ -83,7 +86,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                         color: AppColors.card(context),
                         borderRadius: BorderRadius.circular(12.r),
                         boxShadow: [
-                          BoxShadow(color: Colors.black12, blurRadius: 8),
+                          BoxShadow(color: AppColors.greyColor.withValues(alpha: 0.05), blurRadius: 8),
                         ],
                       ),
                       child: IconButton(
@@ -103,7 +106,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                           color: AppColors.card(context),
                           borderRadius: BorderRadius.circular(12.r),
                           boxShadow: [
-                            BoxShadow(color: Colors.black12, blurRadius: 8),
+                            BoxShadow(color: AppColors.greyColor.withValues(alpha: 0.05), blurRadius: 8),
                           ],
                         ),
                         child: Row(
@@ -166,7 +169,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                             color: AppColors.card(context),
                             borderRadius: BorderRadius.circular(12.r),
                             boxShadow: [
-                              BoxShadow(color: Colors.black12, blurRadius: 8),
+                              BoxShadow(color: AppColors.greyColor.withValues(alpha: 0.05), blurRadius: 8),
                             ],
                           ),
                           child: Column(
@@ -442,6 +445,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
           );
         }),
       ),
+        ),
     );
   }
 
@@ -454,11 +458,11 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
         // clair. Le rendu clair est inchangé.
         final bool isDark = Theme.of(context).brightness == Brightness.dark;
         final Color bone =
-            isDark ? const Color(0xFF2E2E2E) : AppColors.grey300Color;
+            isDark ? const Color(0xFF392723) : AppColors.grey300Color;
         return Shimmer.fromColors(
         baseColor: bone,
         highlightColor:
-            isDark ? const Color(0xFF3D3D3D) : AppColors.card(context),
+            isDark ? const Color(0xFF473733) : AppColors.card(context),
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const NeverScrollableScrollPhysics(),

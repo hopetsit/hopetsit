@@ -32,9 +32,9 @@ class AppSwitch extends StatelessWidget {
     // le fond sombre des cartes en mode nuit).
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final Color offTrack =
-        isDark ? const Color(0xFF3A3A3A) : const Color(0xFFE2E5EA);
+        isDark ? const Color(0xFF433431) : const Color(0xFFECE2DF);
     final Color offOutline =
-        isDark ? const Color(0xFF4C4C4C) : const Color(0xFFC4C9D2);
+        isDark ? const Color(0xFF584540) : const Color(0xFFC4C9D2);
     final bool enabled = onChanged != null;
 
     return Opacity(

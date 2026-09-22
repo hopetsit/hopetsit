@@ -96,7 +96,7 @@ export function makeAvatarIcon(
   const onlineDot =
     isOnline === undefined || isOnline === null
       ? ""
-      : `<div style="position:absolute;bottom:2px;right:2px;width:14px;height:14px;border-radius:50%;border:2.5px solid #fff;background:${isOnline ? "#22C55E" : "#C7C7CC"};box-shadow:0 1px 3px rgba(0,0,0,.3);"></div>`;
+      : `<div style="position:absolute;bottom:2px;right:2px;width:14px;height:14px;border-radius:50%;border:2.5px solid #fff;background:${isOnline ? "#22C55E" : "#D6C3BE"};box-shadow:0 1px 3px rgba(0,0,0,.3);"></div>`;
   // v23.1.399 — Daniel : couronne 👑 + anneau OR pour les membres Paw
   // Premium (prioritaire sur le violet famille), comme dans l'app.
   const GOLD = "#E8A00A";

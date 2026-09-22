@@ -278,13 +278,13 @@ export default function DashboardPage() {
       <div className="md:grid md:grid-cols-[250px_1fr] md:gap-8">
         {/* ── BARRE LATÉRALE ── identité + nav complète + rôle + déconnexion. */}
         <aside className="md:sticky md:top-6 md:self-start">
-          <div className="rounded-[24px] bg-[#F5F5F7] p-5">
+          <div className="rounded-[24px] bg-[#FAF1EC] p-5">
             <div className="flex items-center gap-3">
               <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-full bg-${roleColor} text-xl text-white`}>
                 🐾
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-[#1D1D1F]">
+                <div className="truncate text-sm font-semibold text-[#231715]">
                   {user?.name?.split(" ")[0] || "you"}
                 </div>
                 <div className="text-xs text-ink-muted">
@@ -297,7 +297,7 @@ export default function DashboardPage() {
             {premiumLabel && (
               <a
                 href="/boutique"
-                className="mt-3 flex items-center gap-2 rounded-full bg-[#1D1D1F] px-3 py-1.5 text-xs font-semibold text-[#FFD34D]"
+                className="mt-3 flex items-center gap-2 rounded-full bg-[#231715] px-3 py-1.5 text-xs font-semibold text-[#FFD34D]"
               >
                 <span>👑</span>
                 <span className="truncate">{premiumLabel}</span>
@@ -341,7 +341,7 @@ export default function DashboardPage() {
                       type="button"
                       onClick={() => handleSwitchRole(r)}
                       disabled={switchingRole !== null}
-                      className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-[#1D1D1F] transition hover:bg-[#E8E8ED] disabled:opacity-60"
+                      className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-[#231715] transition hover:bg-[#F0E3DF] disabled:opacity-60"
                     >
                       {switchingRole === r
                         ? "…"
@@ -357,7 +357,7 @@ export default function DashboardPage() {
               <div className="truncate text-xs text-ink-muted">{user?.email}</div>
               <button
                 onClick={logout}
-                className="mt-2 w-full rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#1D1D1F] transition hover:bg-[#E8E8ED]"
+                className="mt-2 w-full rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#231715] transition hover:bg-[#F0E3DF]"
               >
                 {t("dash_logout")}
               </button>
@@ -395,7 +395,7 @@ export default function DashboardPage() {
                 type="button"
                 onClick={handleOpenApp}
                 disabled={openingApp}
-                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#1D1D1F] transition hover:bg-[#E8E8ED] disabled:cursor-not-allowed disabled:opacity-70"
+                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#231715] transition hover:bg-[#F0E3DF] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {openingApp && (
                   <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -426,7 +426,7 @@ export default function DashboardPage() {
               colorés » → cartes pleines couleur (dégradé + texte blanc). */}
           <Link
             href="/map"
-            className="group relative mt-4 flex items-center gap-4 overflow-hidden rounded-[24px] bg-[#F5F5F7] p-5 text-[#1D1D1F] transition hover:bg-owner-light"
+            className="group relative mt-4 flex items-center gap-4 overflow-hidden rounded-[24px] bg-[#FAF1EC] p-5 text-[#231715] transition hover:bg-owner-light"
           >
             <span
               aria-hidden
@@ -440,7 +440,7 @@ export default function DashboardPage() {
             </span>
             <span className="flex-1">
               <span className="block text-base font-semibold">{t("dash_card_map_title")}</span>
-              <span className="block text-sm text-[#6E6E73]">{t("dash_card_map_sub")}</span>
+              <span className="block text-sm text-[#6E4F48]">{t("dash_card_map_sub")}</span>
             </span>
             <span className="grid h-9 w-9 place-items-center rounded-full bg-white text-lg transition group-hover:translate-x-1">→</span>
           </Link>
@@ -448,7 +448,7 @@ export default function DashboardPage() {
           {/* Réservations en cours → /bookings. */}
           <Link
             href="/bookings"
-            className="group relative mt-3 flex items-center gap-4 overflow-hidden rounded-[24px] bg-[#F5F5F7] p-5 text-[#1D1D1F] transition hover:bg-owner-light"
+            className="group relative mt-3 flex items-center gap-4 overflow-hidden rounded-[24px] bg-[#FAF1EC] p-5 text-[#231715] transition hover:bg-owner-light"
           >
             <span
               aria-hidden
@@ -461,7 +461,7 @@ export default function DashboardPage() {
             </span>
             <span className="flex-1">
               <span className="block text-base font-semibold">{t("dash_card_bookings_title")}</span>
-              <span className="block text-sm text-[#6E6E73]">
+              <span className="block text-sm text-[#6E4F48]">
                 {isOwner ? t("dash_card_bookings_sub_owner") : t("dash_card_bookings_sub_provider")}
               </span>
             </span>
@@ -469,8 +469,8 @@ export default function DashboardPage() {
           </Link>
 
           {/* Actions rapides. */}
-          <h2 className="mt-10 font-display text-2xl font-bold tracking-[-0.02em] text-[#1D1D1F]">{t("dash_account_section")}</h2>
-          <p className="mt-1 text-[15px] text-[#6E6E73]">{t("dash_account_section_sub")}</p>
+          <h2 className="mt-10 font-display text-2xl font-bold tracking-[-0.02em] text-[#231715]">{t("dash_account_section")}</h2>
+          <p className="mt-1 text-[15px] text-[#6E4F48]">{t("dash_account_section_sub")}</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <NavCard
               href="/posts"
@@ -494,7 +494,7 @@ export default function DashboardPage() {
               <NavCard href="/search" emoji="🔍" tint="bg-violet-50" title={t("dash_card_search_title")} subtitle={t("dash_card_search_sub")} />
             )}
             {isProvider && (
-              <NavCard href="/sitter-setup" emoji="⚙️" tint="bg-slate-100" title={t("dash_card_setup_title")} subtitle={t("dash_card_setup_sub")} />
+              <NavCard href="/sitter-setup" emoji="⚙️" tint="bg-bg-panel" title={t("dash_card_setup_title")} subtitle={t("dash_card_setup_sub")} />
             )}
             <NavCard
               href="/friends"
@@ -529,7 +529,7 @@ export default function DashboardPage() {
           {/* PawPremium — bande sombre/or (discrète, sous les actions). */}
           <a
             href="/boutique"
-            className="group mt-4 flex items-center gap-4 rounded-[24px] bg-[#1D1D1F] p-5 transition hover:bg-black"
+            className="group mt-4 flex items-center gap-4 rounded-[24px] bg-[#231715] p-5 transition hover:bg-black"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/pawpremium_logo.svg" alt="" width={44} height={44} />
@@ -544,9 +544,9 @@ export default function DashboardPage() {
               directement utilisable (même endpoint /promo/redeem que la boutique). */}
           <div
             id="promo"
-            className="mt-4 scroll-mt-24 rounded-[24px] bg-[#F5F5F7] p-5"
+            className="mt-4 scroll-mt-24 rounded-[24px] bg-[#FAF1EC] p-5"
           >
-            <p className="flex items-center gap-2 text-sm font-semibold text-[#1D1D1F]">
+            <p className="flex items-center gap-2 text-sm font-semibold text-[#231715]">
               <span>🎟️</span> {t("promo_title")}
             </p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -564,7 +564,7 @@ export default function DashboardPage() {
                 type="button"
                 onClick={handleApplyPromo}
                 disabled={promoBusy || !promoCode.trim()}
-                className="shrink-0 rounded-full bg-[#1D1D1F] px-6 py-2.5 text-sm font-semibold text-white hover:bg-black disabled:opacity-60"
+                className="shrink-0 rounded-full bg-[#231715] px-6 py-2.5 text-sm font-semibold text-white hover:bg-black disabled:opacity-60"
               >
                 {promoBusy ? "…" : t("promo_apply")}
               </button>
@@ -602,7 +602,7 @@ function SideLink({
     <Link
       href={href}
       aria-current={current ? "page" : undefined}
-      className={`group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${current ? "bg-owner-light text-owner-dark" : "text-[#1D1D1F] hover:bg-owner-light hover:text-owner-dark"}`}
+      className={`group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${current ? "bg-owner-light text-owner-dark" : "text-[#231715] hover:bg-owner-light hover:text-owner-dark"}`}
     >
       <span className="relative text-lg">
         {emoji}
@@ -638,7 +638,7 @@ function NavCard({
   return (
     <Link
       href={href}
-      className="group flex items-center gap-4 rounded-[20px] bg-[#F5F5F7] p-4 transition hover:bg-owner-light"
+      className="group flex items-center gap-4 rounded-[20px] bg-[#FAF1EC] p-4 transition hover:bg-owner-light"
     >
       <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-white text-2xl">
         {emoji}

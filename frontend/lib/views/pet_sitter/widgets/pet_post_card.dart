@@ -13,6 +13,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:hopetsit/widgets/photo_viewer_screen.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class PetPostCard extends StatelessWidget {
   final String userName;
@@ -2445,7 +2446,9 @@ class _AssetPhotoViewerState extends State<_AssetPhotoViewer> {
     final bool multiple = widget.images.length > 1;
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: Stack(
         children: <Widget>[
           Positioned.fill(
             child: PhotoViewGallery.builder(
@@ -2521,6 +2524,7 @@ class _AssetPhotoViewerState extends State<_AssetPhotoViewer> {
             ),
         ],
       ),
+        ),
     );
   }
 }

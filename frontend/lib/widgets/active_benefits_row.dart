@@ -206,7 +206,7 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
           : 0;
       // v444 — Daniel : badge discret = jours restants dans une pastille
       // pleine NOIRE (Premium = le plus prestigieux).
-      children.add(_badge(context, '👑', days, const Color(0xFF111111),
+      children.add(_badge(context, '👑', days, const Color(0xFF150F0D),
           name: 'hero_benefit_premium'.tr));
     }
     if (hasIndividualPawFollow) {
@@ -295,7 +295,7 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
     }
     // Texte SOMBRE sur le jaune PawSpot (contraste), BLANC sinon.
     final onColor = color == const Color(0xFFE8A00A)
-        ? const Color(0xFF1A1A1A)
+        ? const Color(0xFF201614)
         : Colors.white;
     // v446 — Daniel : badges PLUS PETITS (ils étaient coupés sur la droite).
     final double fs = widget.compact ? 9.sp : 10.sp;

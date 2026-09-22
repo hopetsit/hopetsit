@@ -10,6 +10,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
@@ -20,6 +21,8 @@ class OnboardingScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      // v578 — le motif de pattes se place DANS le dégradé plein écran,
+      // sinon le fond opaque le recouvrait entièrement.
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -39,8 +42,8 @@ class OnboardingScreen extends StatelessWidget {
             colors: isDark
                 ? const [
                     Color(0xFF3A201A),
-                    Color(0xFF1C1714),
-                    Color(0xFF161210),
+                    Color(0xFF1E1512),
+                    Color(0xFF18100E),
                   ]
                 : const [
                     Color(0xFFC92A12),
@@ -50,6 +53,8 @@ class OnboardingScreen extends StatelessWidget {
             stops: const [0.0, 0.55, 1.0],
           ),
         ),
+        child: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
         child: SafeArea(
           // v23.1.167 — Daniel : "la bande doit etre en arriere plan car
           // elle cache les 3 icones". Cause : v166 wrappait le contenu
@@ -348,6 +353,7 @@ class OnboardingScreen extends StatelessWidget {
           ),
         ),
       ),
+        ),
     );
   }
 }
@@ -377,7 +383,7 @@ class _FeatureCard extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 13.h),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF241D1A) : Colors.white,
+        color: isDark ? const Color(0xFF261B18) : Colors.white,
         borderRadius: BorderRadius.circular(20.r),
         border: isDark
             ? Border.all(color: const Color(0xFF352A25))

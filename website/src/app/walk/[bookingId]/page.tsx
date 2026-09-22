@@ -171,7 +171,7 @@ export default function WalkPage() {
             className={`ml-auto rounded-full px-2.5 py-0.5 text-xs font-semibold ${
               booking.status === "paid"
                 ? "bg-green-100 text-green-800"
-                : "bg-slate-100 text-slate-700"
+                : "bg-bg-panel text-ink-muted"
             }`}
           >
             {booking.status}

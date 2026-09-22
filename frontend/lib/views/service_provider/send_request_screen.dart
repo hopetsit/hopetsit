@@ -10,6 +10,7 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/views/profile/my_pets_screen.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class SendRequestScreen extends StatefulWidget {
   final String serviceProviderName;
@@ -89,7 +90,9 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           color: AppColors.textPrimary(context),
         ),
       ),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         child: SingleChildScrollView(
           // v569 — le SafeArea n'applique rien sur le Samsung de Daniel : le
           // bouton « Envoyer la demande » finissait sous la barre système.
@@ -310,6 +313,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           ),
         ),
       ),
+        ),
     );
   }
 
@@ -824,7 +828,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
         final Color onSurface =
             isDark ? AppColors.textPrimaryDark : AppColors.blackColor;
         final Color fieldFill =
-            isDark ? const Color(0xFF2A2A2A) : AppColors.lightGrey;
+            isDark ? const Color(0xFF342420) : AppColors.lightGrey;
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
           child: Theme(

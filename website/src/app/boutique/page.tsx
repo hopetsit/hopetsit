@@ -1038,7 +1038,7 @@ function PackageCard({
   const { t, lang } = useT();
   const tierColors: Record<string, string> = {
     bronze: "from-amber-700 to-amber-500",
-    silver: "from-slate-500 to-slate-300",
+    silver: "from-ink-soft to-bg-panel",
     gold: "from-yellow-500 to-amber-400",
     platinum: "from-violet-700 to-violet-500",
   };

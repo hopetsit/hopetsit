@@ -12,8 +12,8 @@
 //
 // `collapsible` = entrée discrète « J'ai un code » qui déplie le champ
 // (pages /pay et /pricing) ; sinon la carte est affichée directement
-// (profil, boutique). Style Apple : carte #F5F5F7, coins 24 px, texte
-// #1D1D1F / #6E6E73, état sélectionné orange pâle.
+// (profil, boutique). Style Apple : carte #FAF1EC, coins 24 px, texte
+// #231715 / #6E4F48, état sélectionné orange pâle.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -120,12 +120,12 @@ export function PromoCodeBox({
   }
 
   return (
-    <div className={`rounded-[24px] bg-[#F5F5F7] p-5 ${className}`}>
+    <div className={`rounded-[24px] bg-[#FAF1EC] p-5 ${className}`}>
       <div className="flex items-center gap-2">
         <span aria-hidden="true" className="text-lg">🎁</span>
-        <p className="text-sm font-semibold text-[#1D1D1F]">{t("promo_title")}</p>
+        <p className="text-sm font-semibold text-[#231715]">{t("promo_title")}</p>
       </div>
-      <p className="mt-1 text-xs text-[#6E6E73]">{t("promo_check_hint")}</p>
+      <p className="mt-1 text-xs text-[#6E4F48]">{t("promo_check_hint")}</p>
       {publicPromo?.message && loggedIn && (
         <p className="mt-2 rounded-2xl bg-owner-light px-3 py-2 text-xs font-medium text-owner-dark">
           🎉 {publicPromo.message}{" "}
@@ -136,7 +136,7 @@ export function PromoCodeBox({
       {!loggedIn ? (
         <Link
           href="/login"
-          className="mt-3 inline-flex items-center rounded-full bg-[#1D1D1F] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black"
+          className="mt-3 inline-flex items-center rounded-full bg-[#231715] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black"
         >
           {t("promo_login_first")}
         </Link>
@@ -161,13 +161,13 @@ export function PromoCodeBox({
               }}
               placeholder={t("promo_placeholder")}
               aria-label={t("promo_title")}
-              className="min-w-0 flex-1 rounded-full border-0 bg-white px-4 py-2.5 text-sm uppercase tracking-wide text-[#1D1D1F] outline-none ring-1 ring-black/5 focus:ring-2 focus:ring-owner/40"
+              className="min-w-0 flex-1 rounded-full border-0 bg-white px-4 py-2.5 text-sm uppercase tracking-wide text-[#231715] outline-none ring-1 ring-black/5 focus:ring-2 focus:ring-owner/40"
             />
             <button
               type="button"
               onClick={() => void apply()}
               disabled={state.kind === "busy" || !code.trim()}
-              className="shrink-0 rounded-full bg-[#1D1D1F] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
+              className="shrink-0 rounded-full bg-[#231715] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
             >
               {state.kind === "busy" ? "…" : t("promo_apply")}
             </button>

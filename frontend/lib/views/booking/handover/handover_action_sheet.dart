@@ -168,7 +168,7 @@ class _HandoverActionSheetState extends State<HandoverActionSheet> {
                     width: 40.w,
                     height: 4.h,
                     decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.35),
+                      color: AppColors.greyColor.withValues(alpha: 0.35),
                       borderRadius: BorderRadius.circular(2.r),
                     ),
                   ),
@@ -234,12 +234,12 @@ class _HandoverActionSheetState extends State<HandoverActionSheet> {
                     height: 130.h,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.08),
+                      color: AppColors.greyColor.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(16.r),
                       border: Border.all(
                         color: _photo != null
                             ? accent
-                            : Colors.grey.withValues(alpha: 0.30),
+                            : AppColors.greyColor.withValues(alpha: 0.30),
                         width: 1.2,
                       ),
                       image: _photo != null

@@ -19,6 +19,7 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/chat_access_upsell_helper.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// Represents a unified item that can be either an application or a booking.
 class _UnifiedItem {
@@ -167,7 +168,9 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
           onProfileTap: () {},
         ),
         backgroundColor: AppColors.scaffold(context),
-        body: SafeArea(
+        body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
           child: Column(
             children: [
               // ── Summary cards ──
@@ -219,6 +222,7 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
               Expanded(child: _buildUnifiedContent()),
             ],
           ),
+        ),
         ),
       ),
     );

@@ -12,6 +12,7 @@ import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class PawspotLeaderboardScreen extends StatefulWidget {
   const PawspotLeaderboardScreen({super.key});
@@ -186,7 +187,9 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
             ],
           ),
         ),
-        body: Column(
+        body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: Column(
           children: [
             _buildMyPointsHeader(context),
             Expanded(
@@ -211,6 +214,7 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

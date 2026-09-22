@@ -61,8 +61,8 @@ class InvoicePdfGenerator {
     );
 
     final orange = PdfColor.fromInt(0xFFC92A12);
-    final dark = PdfColor.fromInt(0xFF1F1F1F);
-    final muted = PdfColor.fromInt(0xFF777777);
+    final dark = PdfColor.fromInt(0xFF261B18);
+    final muted = PdfColor.fromInt(0xFF8A6C64);
     final isRefunded = inv.status.toLowerCase() == 'refunded';
     final accent = isRefunded ? PdfColor.fromInt(0xFFC62828) : orange;
     final symbol = _symbolFor(inv.currency);
@@ -235,7 +235,7 @@ class InvoicePdfGenerator {
             padding: const pw.EdgeInsets.only(top: 14),
             decoration: pw.BoxDecoration(
               border: pw.Border(
-                top: pw.BorderSide(color: PdfColors.grey300, width: 1),
+                top: pw.BorderSide(color: PdfColor.fromInt(0xFFDECBC6), width: 1),
               ),
             ),
             child: pw.Row(
@@ -358,13 +358,13 @@ class InvoicePdfGenerator {
               style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 2),
           pw.Text(showProfileName ? '$name · $sub' : sub,
-              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+              style: pw.TextStyle(fontSize: 10, color: PdfColor.fromInt(0xFF6E4F48))),
           if (details.isNotEmpty) pw.SizedBox(height: 6),
           for (final line in details)
             pw.Padding(
               padding: const pw.EdgeInsets.only(bottom: 1.5),
               child: pw.Text(line,
-                  style: pw.TextStyle(fontSize: 10, color: PdfColor.fromInt(0xFF1F1F1F))),
+                  style: pw.TextStyle(fontSize: 10, color: PdfColor.fromInt(0xFF261B18))),
             ),
         ],
       ),
@@ -378,7 +378,7 @@ class InvoicePdfGenerator {
     String Function(DateTime?) fmtDate,
   ) {
     return pw.Table(
-      border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.4),
+      border: pw.TableBorder.all(color: PdfColor.fromInt(0xFFDECBC6), width: 0.4),
       columnWidths: const {
         0: pw.FlexColumnWidth(2.5),
         1: pw.FlexColumnWidth(1.7),

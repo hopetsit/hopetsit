@@ -241,7 +241,7 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final Color line =
-        isDark ? AppColors.dividerDark : const Color(0xFFE2E5EA);
+        isDark ? AppColors.dividerDark : const Color(0xFFECE2DF);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

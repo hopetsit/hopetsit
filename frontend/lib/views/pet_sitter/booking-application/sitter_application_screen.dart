@@ -22,6 +22,7 @@ import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class SitterApplicationScreen extends StatefulWidget {
   const SitterApplicationScreen({super.key});
@@ -120,7 +121,7 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
                   width: 40.w,
                   height: 4.h,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
+                    color: AppColors.greyColor,
                     borderRadius: BorderRadius.circular(2.r),
                   ),
                 ),
@@ -233,7 +234,9 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
           },
         ),
         backgroundColor: AppColors.scaffold(context),
-        body: SafeArea(
+        body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
           child: Column(
             children: [
               // ── Summary cards (Candidatures / Réservations) ──
@@ -288,6 +291,7 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
               Expanded(child: _buildApplicationsTab()),
             ],
           ),
+        ),
         ),
       ),
     );

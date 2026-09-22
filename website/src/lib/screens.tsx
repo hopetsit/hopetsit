@@ -50,7 +50,7 @@ export function PhoneFrame({
   priority?: boolean;
 }) {
   return (
-    <div className={`rounded-[36px] bg-[#1D1D1F] p-[6px] shadow-[0_30px_60px_-28px_rgba(0,0,0,0.45)] ${className}`}>
+    <div className={`rounded-[36px] bg-[#231715] p-[6px] shadow-[0_30px_60px_-28px_rgba(0,0,0,0.45)] ${className}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}

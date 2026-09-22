@@ -40,6 +40,7 @@ import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class TrackingRequestSheet extends StatelessWidget {
   const TrackingRequestSheet({
@@ -134,7 +135,9 @@ class TrackingRequestSheet extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         child: ListView(
           // Le SafeArea ne suffit pas sur les Samsung edge-to-edge (inset
           // annoncé à 0) : on ajoute le complément manquant.
@@ -173,6 +176,7 @@ class TrackingRequestSheet extends StatelessWidget {
           ],
         ),
       ),
+        ),
     );
   }
 

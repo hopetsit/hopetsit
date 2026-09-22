@@ -185,7 +185,7 @@ class ReportTypes {
       case waterBroken:   return 0xFF455A64; // blue grey
       case lostPet:       return 0xFFEC407A; // pink
       case foundPet:      return 0xFF43A047; // green
-      case deadAnimal:    return 0xFF424242; // dark grey
+      case deadAnimal:    return 0xFF4D3C37; // dark grey
       case trap:          return 0xFF6D4C41; // dark brown
       case poison:        return 0xFF7B1FA2; // purple
       case strayPet:      return 0xFF8D6E63; // light brown
@@ -207,7 +207,7 @@ class ReportTypes {
       case heatHotGround: return 0xFFFF5722; // deep orange (chaleur)
       case tickZone:      return 0xFF6D4C41; // brown (herbes/parasites)
       case other:
-      default:            return 0xFF9E9E9E; // neutral grey
+      default:            return 0xFFAC9690; // neutral grey
     }
   }
 

@@ -27,16 +27,16 @@ export function PageHero({
       <div className={"mx-auto max-w-4xl px-4 pb-14 pt-20 md:pb-20 md:pt-28 " + (centered ? "text-center" : "text-left")}>
         {badge && (
           <div className={"mb-6 flex " + (centered ? "justify-center" : "justify-start")}>
-            <span className="inline-flex items-center gap-2 rounded-full bg-[#F5F5F7] px-3.5 py-1.5 text-xs font-semibold text-[#6E6E73]">
+            <span className="inline-flex items-center gap-2 rounded-full bg-[#FAF1EC] px-3.5 py-1.5 text-xs font-semibold text-[#6E4F48]">
               {badge}
             </span>
           </div>
         )}
-        <h1 className="font-display text-[2.75rem] font-bold leading-[1.05] tracking-[-0.03em] text-[#1D1D1F] md:text-6xl">
+        <h1 className="font-display text-[2.75rem] font-bold leading-[1.05] tracking-[-0.03em] text-[#231715] md:text-6xl">
           {title}
         </h1>
         {subtitle && (
-          <p className={"mt-5 max-w-2xl text-lg leading-relaxed text-[#6E6E73] md:text-xl " + (centered ? "mx-auto" : "")}>
+          <p className={"mt-5 max-w-2xl text-lg leading-relaxed text-[#6E4F48] md:text-xl " + (centered ? "mx-auto" : "")}>
             {subtitle}
           </p>
         )}
@@ -50,8 +50,8 @@ export function PageHero({
 export function SectionTitle({ children, sub }: { children: ReactNode; sub?: string }) {
   return (
     <div className="text-center">
-      <h2 className="font-display text-3xl font-bold tracking-[-0.02em] text-[#1D1D1F] md:text-5xl">{children}</h2>
-      {sub && <p className="mx-auto mt-4 max-w-2xl text-lg text-[#6E6E73]">{sub}</p>}
+      <h2 className="font-display text-3xl font-bold tracking-[-0.02em] text-[#231715] md:text-5xl">{children}</h2>
+      {sub && <p className="mx-auto mt-4 max-w-2xl text-lg text-[#6E4F48]">{sub}</p>}
     </div>
   );
 }

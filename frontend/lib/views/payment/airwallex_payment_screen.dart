@@ -568,7 +568,7 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
                           style: TextStyle(
                             fontSize: 14.sp,
                             color: _controller.isProcessing.value
-                                ? Colors.grey
+                                ? AppColors.greyColor
                                 : accent,
                             fontWeight: FontWeight.w600,
                           ),

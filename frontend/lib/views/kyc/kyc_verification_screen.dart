@@ -22,6 +22,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 // onPermissionRequest et grant CAMERA + RECORD_AUDIO au site hosted.
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// v23.1 part 36 — KYC verification screen pour sitter/walker.
 /// Flow :
@@ -798,7 +799,9 @@ class _PersonaWebViewScreenState extends State<_PersonaWebViewScreen> {
           child: Container(height: 1, color: AppColors.divider(context)),
         ),
       ),
-      body: Stack(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: Stack(
         children: [
           WebViewWidget(controller: _controller),
           if (_loading)
@@ -851,6 +854,7 @@ class _PersonaWebViewScreenState extends State<_PersonaWebViewScreen> {
             ),
         ],
       ),
+        ),
     );
   }
 }

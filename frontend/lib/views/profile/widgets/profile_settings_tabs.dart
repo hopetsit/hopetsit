@@ -453,7 +453,7 @@ class ProfileTabBar extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        color: dark ? const Color(0xFF232323) : const Color(0xFFF1F2F4),
+        color: dark ? const Color(0xFF2B1E1B) : const Color(0xFFF6F1EF),
         borderRadius: BorderRadius.circular(999.r),
       ),
       child: Row(

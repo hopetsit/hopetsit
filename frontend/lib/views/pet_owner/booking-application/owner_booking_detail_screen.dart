@@ -12,6 +12,7 @@ import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/widgets/service_confirmation_card.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/submit_review_dialog.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// Detail screen for a booking (owner view).
 /// Shows: Service Provider (sitter card), Pets, Note, Pay/Chat/Cancel actions.
@@ -292,7 +293,9 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
           color: AppColors.textPrimary(context),
         ),
       ),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(horizontal: 20.w),
           child: Column(
@@ -657,7 +660,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                         // devenait illisible) en thème sombre.
                         color: Theme.of(context).brightness == Brightness.dark
                             ? Colors.white.withValues(alpha: 0.08)
-                            : const Color(0xFFF0F0F2),
+                            : const Color(0xFFF5EFED),
                         borderRadius: BorderRadius.circular(16.r),
                       ),
                       alignment: Alignment.center,
@@ -716,6 +719,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
           ),
         ),
       ),
+        ),
     );
   }
 
@@ -1114,7 +1118,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
       case 'pending': return Colors.orange;
       case 'failed': return AppColors.errorColor;
       case 'refunded': return Colors.blueGrey;
-      default: return Colors.grey;
+      default: return AppColors.greyColor;
     }
   }
 

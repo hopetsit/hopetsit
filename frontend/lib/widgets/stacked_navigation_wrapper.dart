@@ -255,7 +255,7 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
         border: Border.all(color: palette.bottom, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF14141E).withValues(alpha: 0.25),
+            color: const Color(0xFF1E1513).withValues(alpha: 0.25),
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),

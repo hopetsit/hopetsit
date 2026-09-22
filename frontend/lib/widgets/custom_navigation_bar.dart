@@ -16,7 +16,7 @@ import 'package:hopetsit/widgets/notification_badge.dart';
 /// callback onTap(index) identique. Seul le VISUEL change.
 const Color _kAccent = Color(0xFFD83C28); // v559 — orange de l'icône (Daniel) // orange maquette (actif + centre)
 const Color _kAccentDark = Color(0xFFB92425);
-const Color _kInactive = Color(0xFF7D7D82);
+const Color _kInactive = Color(0xFF94736B);
 
 class CustomNavigationBar extends StatelessWidget {
   final int currentIndex;
@@ -104,12 +104,12 @@ class CustomNavigationBar extends StatelessWidget {
             borderRadius: BorderRadius.circular(28.r),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF14141E).withValues(alpha: 0.10),
+                color: const Color(0xFF1E1513).withValues(alpha: 0.10),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
               ),
               BoxShadow(
-                color: const Color(0xFF14141E).withValues(alpha: 0.04),
+                color: const Color(0xFF1E1513).withValues(alpha: 0.04),
                 blurRadius: 4,
                 offset: const Offset(0, 1),
               ),

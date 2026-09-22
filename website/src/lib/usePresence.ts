@@ -49,5 +49,5 @@ export function usePresence(): {
 
 /** Petit point vert / gris, commun aux pages (chat, amis). */
 export function onlineDotClass(online: boolean): string {
-  return online ? "bg-emerald-500" : "bg-[#C7C7CC]";
+  return online ? "bg-emerald-500" : "bg-[#D6C3BE]";
 }

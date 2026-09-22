@@ -224,7 +224,7 @@ const CATEGORY_COLOR: Record<PoiCategory, string> = {
   trainer: "#F59E0B", // amber
   hotel: "#8B5CF6", // violet
   restaurant: "#EA580C", // orange
-  other: "#6B7280", // gray
+  other: "#6E4F48", // encre chaude (ex-gris)
 };
 
 function makeCategoryIcon(category: PoiCategory): L.DivIcon {
@@ -271,7 +271,7 @@ function makeSpotIcon(type: PawSpotType, isGolden: boolean): L.DivIcon {
   const size = isGolden ? 54 : 48;
   return new L.DivIcon({
     className: "",
-    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;border:3px solid ${ring};box-sizing:border-box;background:#111;overflow:hidden;filter:drop-shadow(0 2px 5px rgba(0,0,0,0.4));"><img src="/pawspot_marker.png" alt="" width="${size - 6}" height="${size - 6}" style="display:block;width:100%;height:100%;object-fit:cover;border-radius:50%"/></div>`,
+    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;border:3px solid ${ring};box-sizing:border-box;background:#231715;overflow:hidden;filter:drop-shadow(0 2px 5px rgba(0,0,0,0.4));"><img src="/pawspot_marker.png" alt="" width="${size - 6}" height="${size - 6}" style="display:block;width:100%;height:100%;object-fit:cover;border-radius:50%"/></div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -size / 2],
@@ -374,7 +374,7 @@ function makeMemberIcon(m: NearbyMember): L.DivIcon {
   const crown = premium
     ? '<div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);font-size:12px;">👑</div>'
     : "";
-  const dot = `<div style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;border:1.5px solid #fff;background:${online ? "#22C55E" : "#9CA3AF"};"></div>`;
+  const dot = `<div style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;border:1.5px solid #fff;background:${online ? "#22C55E" : "#8A6B64"};"></div>`;
   // v561 — Daniel : « légèrement plus grand et plus brillant » (34 → 40 px,
   // halo plus lumineux), identique à l'app.
   const glow = online
@@ -657,12 +657,12 @@ export default function PoiMap({
               <Popup>
                 <div className="text-sm">
                   <div className="mb-1 font-bold">{poi.title}</div>
-                  <div className="mb-1 text-xs text-gray-600">
+                  <div className="mb-1 text-xs text-ink-muted">
                     {POI_CATEGORY_LABELS[poi.category]?.emoji}{" "}
                     {POI_CATEGORY_LABELS[poi.category]?.label}
                   </div>
                   {poi.address && (
-                    <div className="text-xs text-gray-600">📍 {poi.address}</div>
+                    <div className="text-xs text-ink-muted">📍 {poi.address}</div>
                   )}
                   {/* v559 — option A (Daniel) : statut ouvert/fermé + appel ;
                       plus de lien vers le site du commerce (pas de pub
@@ -679,7 +679,7 @@ export default function PoiMap({
                             🕐 {st.label}
                           </div>
                         )}
-                        <div className="text-gray-600">
+                        <div className="text-ink-muted">
                           {st ? "" : "🕐 "}
                           {poi.openingHours}
                         </div>
@@ -690,7 +690,7 @@ export default function PoiMap({
                     <div className="mt-1 text-xs">
                       <a
                         href={`tel:${poi.phone.replace(/[^0-9+]/g, "")}`}
-                        className="font-semibold text-gray-800 underline"
+                        className="font-semibold text-ink underline"
                       >
                         📞 {poi.phone}
                         {callLabel ? ` · ${callLabel}` : ""}
@@ -736,10 +736,10 @@ export default function PoiMap({
                   {spot.isGolden ? "🐾✨ " : ""}
                   {spot.name}
                 </div>
-                <div className="mb-1 text-xs text-gray-600">
+                <div className="mb-1 text-xs text-ink-muted">
                   {spotTypeLabels?.[spot.type] || spot.type}
                 </div>
-                <div className="mb-1 text-xs text-gray-700">
+                <div className="mb-1 text-xs text-ink-muted">
                   ❤️ {spot.likesCount} · ⭐{" "}
                   {Number(spot.quality || 0).toFixed(1)} · 👣 {spot.visitsCount}
                 </div>
@@ -792,10 +792,10 @@ export default function PoiMap({
                     {reportTypeLabels?.[r.type] || r.type}
                   </div>
                   {r.note ? (
-                    <div className="mb-1 text-xs text-gray-700">{r.note}</div>
+                    <div className="mb-1 text-xs text-ink-muted">{r.note}</div>
                   ) : null}
                   {typeof r.confirmationsCount === "number" ? (
-                    <div className="text-xs text-gray-600">
+                    <div className="text-xs text-ink-muted">
                       ✅ {r.confirmationsCount}
                     </div>
                   ) : null}
@@ -1065,7 +1065,7 @@ function MemberPopup({
             {m.isPremium ? "👑 " : ""}
             {m.name || "Membre"}
           </div>
-          <div className="text-xs text-gray-600">
+          <div className="text-xs text-ink-muted">
             {roleLabel}
             {m.approx ? "" : m.isOnline ? " · 🟢" : " · ⚪"}
           </div>
@@ -1092,7 +1092,7 @@ function MemberPopup({
         </div>
       ) : null}
       {m.approx && labels?.approx ? (
-        <div className="mb-2 text-[11px] text-gray-500">
+        <div className="mb-2 text-[11px] text-ink-soft">
           {/* v550 — le rayon affiché est celui que le backend garantit
               (approxKm), plus un « ~1 km » écrit en dur qui ne correspondait
               pas au floutage réel. */}
@@ -1110,7 +1110,7 @@ function MemberPopup({
               setState(r);
             }}
             className="rounded-full px-3 py-1 text-xs font-semibold text-white disabled:opacity-80"
-            style={{ background: state === "error" ? "#6B7280" : "linear-gradient(135deg,#F06AA0,#E0568B)" }}
+            style={{ background: state === "error" ? "#6E4F48" : "linear-gradient(135deg,#F06AA0,#E0568B)" }}
           >
             {state === "sent" ? labels.sent
               : state === "already" ? labels.already

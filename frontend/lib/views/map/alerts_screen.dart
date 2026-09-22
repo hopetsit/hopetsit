@@ -30,6 +30,7 @@ import 'package:hopetsit/views/notifications/notifications_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class AlertsScreen extends StatefulWidget {
   const AlertsScreen({super.key});
@@ -391,7 +392,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 .toList(),
           ),
         ),
-        body: Column(
+        body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: Column(
           children: [
             // ── Chips de filtre (mockup) ───────────────────────────────
             Padding(
@@ -499,6 +502,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
               ),
             ),
           ],
+        ),
         ),
         // v23.1 part 212 — Daniel : "sur la page alerte enleve le bouton
         // signaler en bas a droite". Le FAB faisait doublon avec le gros

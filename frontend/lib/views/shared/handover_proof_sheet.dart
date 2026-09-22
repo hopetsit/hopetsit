@@ -115,7 +115,7 @@ class _HandoverProofSheetState extends State<HandoverProofSheet> {
                   width: 44.w,
                   height: 4.h,
                   decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.4),
+                    color: AppColors.greyColor.withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(2.r),
                   ),
                 ),
@@ -134,7 +134,7 @@ class _HandoverProofSheetState extends State<HandoverProofSheet> {
                     ? 'handover_pickup_desc'.tr
                     : 'handover_return_desc'.tr,
                 fontSize: 13.sp,
-                color: Colors.grey,
+                color: AppColors.greyColor,
               ),
               SizedBox(height: 16.h),
 
@@ -145,12 +145,12 @@ class _HandoverProofSheetState extends State<HandoverProofSheet> {
                   height: 150.h,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.10),
+                    color: AppColors.greyColor.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(14.r),
                     border: Border.all(
                       color: _photo != null
                           ? AppColors.primaryColor
-                          : Colors.grey.withValues(alpha: 0.35),
+                          : AppColors.greyColor.withValues(alpha: 0.35),
                       width: 1.4,
                     ),
                     image: _photo != null
@@ -233,7 +233,7 @@ class _HandoverProofSheetState extends State<HandoverProofSheet> {
                 InterText(
                   text: 'handover_code_hint'.tr,
                   fontSize: 11.sp,
-                  color: Colors.grey,
+                  color: AppColors.greyColor,
                 ),
               ],
 
@@ -275,7 +275,7 @@ class _HandoverProofSheetState extends State<HandoverProofSheet> {
                   child: InterText(
                     text: 'common_cancel'.tr,
                     fontSize: 13.sp,
-                    color: Colors.grey,
+                    color: AppColors.greyColor,
                   ),
                 ),
               ),

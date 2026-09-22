@@ -63,7 +63,7 @@ export function Header() {
                 href={l.href}
                 aria-current={current ? "page" : undefined}
                 className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition ${
-                  current ? "bg-owner-light text-owner-dark" : "text-[#1D1D1F]/70 hover:bg-[#F5F5F7] hover:text-[#1D1D1F]"
+                  current ? "bg-owner-light text-owner-dark" : "text-[#231715]/70 hover:bg-[#FAF1EC] hover:text-[#231715]"
                 }`}
               >
                 {l.label}
@@ -110,7 +110,7 @@ export function Header() {
             <>
               <Link
                 href="/login"
-                className="hidden rounded-full px-3 py-1.5 text-[13px] font-medium text-[#1D1D1F]/80 hover:text-[#1D1D1F] lg:inline-block"
+                className="hidden rounded-full px-3 py-1.5 text-[13px] font-medium text-[#231715]/80 hover:text-[#231715] lg:inline-block"
               >
                 {t("nav_login")}
               </Link>

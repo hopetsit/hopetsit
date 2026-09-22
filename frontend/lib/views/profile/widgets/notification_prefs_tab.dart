@@ -211,7 +211,9 @@ class _SoundRow extends StatelessWidget {
                     : Icon(
                         Icons.play_circle_fill_rounded,
                         size: 26.sp,
-                        color: AppColors.textSecondary(context),
+                        // v578 — « aucun gris » : le bouton d'écoute prend la
+                        // couleur du rôle, il ne se fond plus dans le texte.
+                        color: accent,
                       ),
               ),
             SizedBox(width: 4.w),

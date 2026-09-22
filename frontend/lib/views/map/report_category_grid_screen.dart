@@ -21,6 +21,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class ReportCategoryGridScreen extends StatelessWidget {
   const ReportCategoryGridScreen({super.key});
@@ -189,7 +190,9 @@ class ReportCategoryGridScreen extends StatelessWidget {
           ],
         ),
       ),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         child: ListView(
           padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 24.h),
           children: [
@@ -296,6 +299,7 @@ class ReportCategoryGridScreen extends StatelessWidget {
           ],
         ),
       ),
+        ),
     );
   }
 

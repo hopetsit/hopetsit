@@ -11,6 +11,8 @@ import 'package:hopetsit/views/chat_shared/chat_models.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 
 Future<void> openChatMedia(BuildContext context, ChatAttachment a) async {
   if (a.isVideo) {
@@ -49,7 +51,9 @@ Future<void> openChatMedia(BuildContext context, ChatAttachment a) async {
             onPressed: () => Navigator.of(ctx).pop(),
           ),
         ),
-        body: PhotoView(
+        body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: PhotoView(
           imageProvider: provider,
           backgroundDecoration: const BoxDecoration(color: Colors.black),
           minScale: PhotoViewComputedScale.contained,
@@ -57,6 +61,7 @@ Future<void> openChatMedia(BuildContext context, ChatAttachment a) async {
           loadingBuilder: (_, __) => const Center(
             child: CircularProgressIndicator(color: Colors.white70),
           ),
+        ),
         ),
       ),
     ),

@@ -30,6 +30,7 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/golden_paw_coin.dart';
 // v504 — refus 3.1.2(c) : liens CGU (EULA) + confidentialité dans la boutique.
 import 'package:url_launcher/url_launcher.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// v491 — VRAI logo « membre Paw Map proche » : cercle rose dégradé + patte
 /// blanche (réplique du badge de la carte). Fonction TOP-LEVEL → partagée par
@@ -490,7 +491,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                   ),
                   _shopCardTab(
                     index: 3,
-                    colors: const [Color(0xFF3A3028), Color(0xFF0F0B08)],
+                    colors: const [Color(0xFF3A3028), Color(0xFF0E0A09)],
                     shadow: Colors.black,
                     svg: PawCardIcons.premium,
                     title: 'shop_tab_premium'.tr,
@@ -509,7 +510,9 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
         // une bande vide. Sur Android il n'y a pas de bottomNavigationBar : le
         // corps garde son inset, que shopBottomInset() corrige à 48 px quand le
         // système ment à 0 (Samsung edge-to-edge).
-        body: Builder(
+        body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: Builder(
           builder: (ctx) {
             final body = TabBarView(
               key: ValueKey<int>(_promoEpoch),
@@ -546,6 +549,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
               child: body,
             );
           },
+        ),
         ),
         // v503 — bouton « Restaurer mes achats » en bas de la boutique,
         // iOS uniquement (exigence Apple pour les achats intégrés).
@@ -657,9 +661,9 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
   static const List<Map<String, dynamic>> _fallbackPackages = [
     // v23.1.393 — baisse PawBoost (Daniel) : -20%, alignée backend.
     {'tier': 'bronze',   'amount': 3.99,  'days': 3,  'icon': '🥉', 'color': Color(0xFFCD7F32)},
-    {'tier': 'silver',   'amount': 7.99,  'days': 7,  'icon': '🥈', 'color': Color(0xFFC0C0C0)},
+    {'tier': 'silver',   'amount': 7.99,  'days': 7,  'icon': '🥈', 'color': Color(0xFFC9BBB7)},
     {'tier': 'gold',     'amount': 11.99, 'days': 15, 'icon': '🥇', 'color': Color(0xFFFFD700)},
-    {'tier': 'platinum', 'amount': 19.99, 'days': 30, 'icon': '💎', 'color': Color(0xFFE5E4E2)},
+    {'tier': 'platinum', 'amount': 19.99, 'days': 30, 'icon': '💎', 'color': Color(0xFFEBDFDC)},
   ];
 
   /// v18.9.8 — libellé de durée localisé. Remplace les labels EN hardcodés
@@ -2463,7 +2467,7 @@ class _PawSpotTabState extends State<_PawSpotTab>
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+        border: Border.all(color: AppColors.greyColor.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2978,7 +2982,7 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
   // Identité Paw Premium : or sur fond noir (mockup Daniel).
   static const Color _gold = Color(0xFFE8A00A);
   static const Color _goldLight = Color(0xFFFFD700);
-  static const Color _black = Color(0xFF15120D);
+  static const Color _black = Color(0xFF150F0D);
 
   // Repli EUR tant que /subscriptions/plans n'a pas répondu.
   static const double _fallbackMonthly = 7.99;
@@ -3113,7 +3117,7 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
           ? 'shop_promo_discount_note'.trParams({'percent': '${promo.percent}'})
           : null,
       durationLabel: shopPeriodLabel(plan == 'premium_yearly' ? 365 : 30),
-      colors: const [Color(0xFF3A3028), Color(0xFF0F0B08)],
+      colors: const [Color(0xFF3A3028), Color(0xFF0E0A09)],
       icon: SvgPicture.string(PawCardIcons.premium, width: 20, height: 20),
       method: method,
     );
@@ -3334,7 +3338,7 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
                         width: 36, height: 36),
                     title: 'Paw Premium',
                     subtitle: 'premium_bundle_subtitle'.tr,
-                    colors: const [Color(0xFF3A3028), Color(0xFF0F0B08)],
+                    colors: const [Color(0xFF3A3028), Color(0xFF0E0A09)],
                     titleColor: const Color(0xFFFFD34D),
                     status: _buildActiveCard(context),
                   ),
@@ -3354,7 +3358,7 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
                   SizedBox(height: 12.h),
                   shopValueCard(
                     context,
-                    color: const Color(0xFF15120D),
+                    color: const Color(0xFF150F0D),
                     freeTitle: 'shop_pp_free_title'.tr,
                     freeBody: 'shop_pp_free_body'.tr,
                     plusTitle: 'shop_pp_plus_title'.tr,

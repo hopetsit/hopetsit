@@ -5,6 +5,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/controllers/map_report_controller.dart';
 import 'package:hopetsit/controllers/pawspot_controller.dart';
 import 'package:hopetsit/models/map_report_model.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 
 /// v457 — Daniel : « agrandir la carte » EN VERSION SÛRE.
 ///
@@ -85,7 +87,9 @@ class _FullScreenMapScreenState extends State<FullScreenMapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: Stack(
         children: [
           // Carte plein écran — UNE seule instance, jamais redimensionnée.
           GoogleMap(
@@ -150,6 +154,7 @@ class _FullScreenMapScreenState extends State<FullScreenMapScreen> {
           ),
         ],
       ),
+        ),
     );
   }
 }

@@ -7,6 +7,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// v569 — RENDU SEULEMENT. Le contrôleur, la longueur du code (4), le
 /// `onCompleted`, `resendCode`, le compte à rebours, le `PopScope` et
@@ -53,7 +54,7 @@ class EmailVerificationScreen extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         border: Border.all(
-          color: isDark ? AppColors.dividerDark : const Color(0xFFE2E5EA),
+          color: isDark ? AppColors.dividerDark : const Color(0xFFECE2DF),
         ),
         borderRadius: BorderRadius.circular(16.r),
         color: isDark ? AppColors.inputFill(context) : Colors.white,
@@ -93,7 +94,9 @@ class EmailVerificationScreen extends StatelessWidget {
       },
       child: Scaffold(
         backgroundColor: AppColors.scaffold(context),
-        body: SafeArea(
+        body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
           child: Column(
             children: [
               Expanded(
@@ -280,6 +283,7 @@ class EmailVerificationScreen extends StatelessWidget {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

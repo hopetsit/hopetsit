@@ -389,7 +389,7 @@ export default function ProfilePage() {
             )}
           </div>
           {emailStep !== "idle" && (
-            <div className="mt-3 space-y-3 rounded-[20px] bg-[#F5F5F7] p-4">
+            <div className="mt-3 space-y-3 rounded-[20px] bg-[#FAF1EC] p-4">
               {emailStep === "form" ? (
                 <>
                   <label className="block">
@@ -417,7 +417,7 @@ export default function ProfilePage() {
                       type="button"
                       onClick={(e) => void handleEmailRequest(e)}
                       disabled={emailBusy || !newEmail.trim() || !emailPassword}
-                      className="rounded-full bg-[#1D1D1F] px-5 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
+                      className="rounded-full bg-[#231715] px-5 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
                     >
                       {emailBusy ? "…" : t("profile_email_send")}
                     </button>
@@ -454,7 +454,7 @@ export default function ProfilePage() {
                       type="button"
                       onClick={(e) => void handleEmailConfirm(e)}
                       disabled={emailBusy || emailCode.trim().length < 4}
-                      className="rounded-full bg-[#1D1D1F] px-5 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
+                      className="rounded-full bg-[#231715] px-5 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
                     >
                       {emailBusy ? "…" : t("profile_email_confirm")}
                     </button>

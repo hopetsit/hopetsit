@@ -53,7 +53,7 @@ export default function StoreBadges({ center = false }: { center?: boolean }) {
   const { lang } = useT();
 
   const badge =
-    "group inline-flex min-h-[60px] min-w-[196px] items-center gap-3 rounded-2xl border border-white/15 bg-gradient-to-b from-[#2a2a2e] to-black px-4 py-2 text-white shadow-[0_8px_20px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.14)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.18)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D83C28] focus-visible:ring-offset-2";
+    "group inline-flex min-h-[60px] min-w-[196px] items-center gap-3 rounded-2xl border border-white/15 bg-gradient-to-b from-[#2A1B18] to-black px-4 py-2 text-white shadow-[0_8px_20px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.14)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.18)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D83C28] focus-visible:ring-offset-2";
   const small = "whitespace-nowrap text-[11px] font-medium leading-[1.25] tracking-wide text-white/80";
   const big = "whitespace-nowrap text-[19px] font-semibold leading-[1.25] tracking-tight";
   const after = LABEL_AFTER.has(lang);

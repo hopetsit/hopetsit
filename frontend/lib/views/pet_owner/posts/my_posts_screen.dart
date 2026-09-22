@@ -29,6 +29,7 @@ import 'package:hopetsit/widgets/post_comment_sheet.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 enum MyPostsSortOrder { newestFirst, oldestFirst }
 
@@ -567,7 +568,9 @@ isOwnerBoosted: post.isOwnerBoosted ||
         ),
         iconTheme: IconThemeData(color: AppColors.textPrimary(context)),
       ),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         child: Obx(() {
           final isLoading = postsController.isLoading.value;
           // v569 — l'écran ne montrait JAMAIS l'erreur du contrôleur : une
@@ -636,6 +639,7 @@ isOwnerBoosted: post.isOwnerBoosted ||
           );
         }),
       ),
+        ),
     );
   }
 }

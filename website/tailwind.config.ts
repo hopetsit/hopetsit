@@ -27,8 +27,19 @@ const config: Config = {
         owner:  { DEFAULT: "#C92A12", light: "#FBE9E5", dark: "#9E1F0B" },
         sitter: { DEFAULT: "#1A73E8", light: "#E3EFFE", dark: "#0E5BC0" },
         walker: { DEFAULT: "#16A34A", light: "#DEF7E5", dark: "#0F7C37" },
-        ink:    { DEFAULT: "#111827", muted: "#6B7280", soft: "#9CA3AF" },
-        bg:     { DEFAULT: "#FFFFFF", soft: "#F9FAFB", panel: "#F3F4F6" },
+        // v577 — Daniel, 22/09 : « aucun gris nulle part », et la règle vaut
+        // aussi pour le site. Les neutres ne sont plus des gris froids mais
+        // des encres CHAUDES tirées du rouge de marque (teinte ~14°). Les
+        // contrastes restent au-dessus des seuils : encre 17,4:1 sur blanc,
+        // muted 7,3:1, soft 4,8:1.
+        ink:    { DEFAULT: "#231715", muted: "#6E4F48", soft: "#8A6B64",
+                  deep: "#2A1B18", line: "#EADFDC" },
+        bg:     { DEFAULT: "#FFFFFF", soft: "#FDF8F7", panel: "#FAEFEC" },
+      },
+      // v577 — le preflight Tailwind pose #E5E7EB (gris froid) sur toutes les
+      // bordures. On le remplace par la ligne chaude de la palette.
+      borderColor: {
+        DEFAULT: "#EADFDC",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "Segoe UI", "Helvetica", "Arial", "sans-serif"],

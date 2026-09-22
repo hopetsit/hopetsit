@@ -2,23 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 
 class AppColors {
+  // ── v578 — « aucun gris nulle part » (Daniel, 22/09) ──────────────────
+  // Les neutres de l'app ne sont plus des gris purs ou froids : ce sont des
+  // ENCRES CHAUDES tirées du rouge de marque (#C92A12), à clarté identique.
+  // Tous les contrastes y GAGNENT (texte secondaire 4,95:1 → 7,3:1). Le
+  // mode sombre suit la même teinte. Les noms restent `grey*` pour ne pas
+  // casser les ~900 appels existants — seules les valeurs changent.
+
   static const Color primaryColor = Color(0xFFC92A12);
   static const Color blackColor = Color(0xFF000000);
   static const Color whiteColor = Color(0xFFFFFFFF);
   static const Color white38Color = Color(0x3EFFFFFF);
-  static const Color greyColor = Color(0xFFA1A1A1);
-  static const Color grey300Color = Color(0xFFD5D7DA);
-  static const Color grey500Color = Color(0xFF717680);
-  static const Color grey700Color = Color(0xFF414651);
+  static const Color greyColor = Color(0xFFA8867E);
+  static const Color grey300Color = Color(0xFFDECBC6);
+  static const Color grey500Color = Color(0xFF7A5A52);
+  static const Color grey700Color = Color(0xFF4A332E);
   static const Color errorColor = Color(0xFFD32F2F);
-  static const Color hintColor = Color(0xFF535862);
-  static const lightGreyColor = Color(0xFFD9D9D9);
-  static const textFieldBorder = Color(0xFFD5D7DA);
+  static const Color hintColor = Color(0xFF5E433D);
+  static const lightGreyColor = Color(0xFFE2CFCA);
+  static const textFieldBorder = Color(0xFFDECBC6);
   // v449 — léger gris neutre (revert du jaune v448 ; le fond de page est
   // désormais teinté par RÔLE, cf scaffold()).
-  static const lightGrey = Color(0xFFF1F2F4);
-  static const greyText = Color(0xFF707070);
-  static const chatFieldColor = Color(0xFFF1F2F4);
+  static const lightGrey = Color(0xFFF7EBE7);
+  static const greyText = Color(0xFF6E4F48);
+  static const chatFieldColor = Color(0xFFF7EBE7);
   static const greenColor = Color(0xFF008000);
   // Role accents — used on SignUp cards and per-role profile screens.
   // v23.1.346 — audit codes couleur (Daniel) : canon = sitter 0xFF2563EB.
@@ -65,12 +72,12 @@ class AppColors {
   static const purpleLineNavigation = Color(0xFFBF32C1);
 
   // Sprint 6 step 1 — dark mode palette.
-  static const Color backgroundDark = Color(0xFF121212);
-  static const Color surfaceDark = Color(0xFF1E1E1E);
-  static const Color cardDark = Color(0xFF242424);
-  static const Color textPrimaryDark = Color(0xFFF5F5F5);
-  static const Color textSecondaryDark = Color(0xFFB0B0B0);
-  static const Color dividerDark = Color(0xFF333333);
+  static const Color backgroundDark = Color(0xFF160F0D);
+  static const Color surfaceDark = Color(0xFF241916);
+  static const Color cardDark = Color(0xFF2D1F1B);
+  static const Color textPrimaryDark = Color(0xFFF5EFEE);
+  static const Color textSecondaryDark = Color(0xFFBFA39D);
+  static const Color dividerDark = Color(0xFF3D2E2B);
 
   // ── Modern light palette ──
   // v449 — Daniel : « au lieu du jaune, couleur PAR RÔLE depuis l'inscription
@@ -212,7 +219,7 @@ class AppColors {
 
   /// Chat field / input background — teinté par RÔLE en mode clair (v449).
   static Color inputFill(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF2A2A2A) : inputFillLightForRole();
+      _isDark(context) ? const Color(0xFF342420) : inputFillLightForRole();
 
   /// Subtle shadow that works in dark mode (invisible) and light mode.
   ///

@@ -14,6 +14,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// v409 refonte — inscription en wizard 5 étapes (maquette « S'INSCRIRE COMME …
 /// »). Réutilise SignUpController (tag: userType) → l'auth/OTP existante n'est
@@ -99,7 +100,9 @@ class SignupWizardScreen extends StatelessWidget {
       // (logo + titre + sous-titre) dès que le clavier est ouvert → les champs
       // récupèrent toute la hauteur et sont tous lisibles ; padding bas généreux
       // pour que le dernier champ ne passe pas sous le bouton « Suivant ».
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         child: Obx(() {
           final step = c.currentStep.value;
           final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
@@ -124,6 +127,7 @@ class SignupWizardScreen extends StatelessWidget {
           );
         }),
       ),
+        ),
     ),
     ));
   }

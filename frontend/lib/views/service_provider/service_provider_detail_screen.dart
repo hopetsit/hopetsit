@@ -44,6 +44,7 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class Review {
   final String reviewerName;
@@ -161,7 +162,9 @@ class _ServiceProviderDetailContent extends StatelessWidget {
           ),
         ],
       ),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         bottom: false,
         child: Obx(() {
           if (controller.isLoading.value) {
@@ -228,6 +231,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
           );
         }),
       ),
+        ),
     );
   }
 

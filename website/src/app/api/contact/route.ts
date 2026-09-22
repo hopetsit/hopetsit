@@ -67,13 +67,13 @@ export async function POST(req: Request) {
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width:560px; margin:0 auto; padding:24px;">
       <h2 style="color:#C92A12; margin:0 0 16px 0;">New message from hopetsit.com</h2>
-      <table style="border-collapse:collapse; width:100%; font-size:14px; color:#1F2937;">
+      <table style="border-collapse:collapse; width:100%; font-size:14px; color:#231715;">
         <tr><td style="padding:8px 0; font-weight:600; width:90px;">From:</td><td>${escapeHtml(name)}</td></tr>
         <tr><td style="padding:8px 0; font-weight:600;">Email:</td><td><a href="mailto:${escapeHtml(email)}" style="color:#1A73E8;">${escapeHtml(email)}</a></td></tr>
       </table>
-      <h3 style="margin:24px 0 8px 0; color:#1F2937;">Message</h3>
-      <div style="padding:16px; background:#F9FAFB; border-radius:12px; white-space:pre-wrap; color:#1F2937;">${escapeHtml(message)}</div>
-      <p style="margin-top:24px; font-size:12px; color:#6B7280;">
+      <h3 style="margin:24px 0 8px 0; color:#231715;">Message</h3>
+      <div style="padding:16px; background:#FDF8F7; border-radius:12px; white-space:pre-wrap; color:#231715;">${escapeHtml(message)}</div>
+      <p style="margin-top:24px; font-size:12px; color:#6E4F48;">
         Reply directly to this email to answer ${escapeHtml(name)}.
       </p>
     </div>

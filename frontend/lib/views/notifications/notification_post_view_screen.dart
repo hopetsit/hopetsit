@@ -22,6 +22,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/post_comment_sheet.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// Shows a single post as the same [PetPostCard] used on the home feed (e.g. from a like notification).
 class NotificationPostViewScreen extends StatefulWidget {
@@ -386,7 +387,9 @@ class _NotificationPostViewScreenState
           color: AppColors.textPrimary(context),
         ),
       ),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 24.h),
           child: Obx(() {
@@ -485,6 +488,7 @@ class _NotificationPostViewScreenState
           }),
         ),
       ),
+        ),
     );
   }
 }

@@ -261,7 +261,7 @@ class PawfollowRequestCard extends StatelessWidget {
                   // sur la carte sombre.
                   color: Theme.of(context).brightness == Brightness.dark
                       ? AppColors.dividerDark
-                      : const Color(0xFFE5E7EB)),
+                      : const Color(0xFFEEE4E2)),
               Padding(
                 padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
                 child: Row(
@@ -411,7 +411,7 @@ class PawfollowRequestCard extends StatelessWidget {
                   // sur la carte sombre.
                   color: Theme.of(context).brightness == Brightness.dark
                       ? AppColors.dividerDark
-                      : const Color(0xFFE5E7EB)),
+                      : const Color(0xFFEEE4E2)),
               Padding(
                 padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 10.h),
                 child: Column(

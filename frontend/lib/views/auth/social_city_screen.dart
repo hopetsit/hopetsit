@@ -9,6 +9,7 @@ import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// v565 audit-inscription — dernière étape d'une inscription Google / Apple.
 ///
@@ -152,7 +153,9 @@ class _SocialCityScreenState extends State<SocialCityScreen> {
     final Color accent = AppColors.accentOn(context, _accent);
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         child: Column(
           children: [
             Padding(
@@ -290,6 +293,7 @@ class _SocialCityScreenState extends State<SocialCityScreen> {
           ],
         ),
       ),
+        ),
     );
   }
 }

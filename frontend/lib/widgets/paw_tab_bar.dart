@@ -177,8 +177,8 @@ const Color _kToePurpleLight = Color(0xFFB57FE6);
 const Color _kToePurpleDark = Color(0xFF7A3FB0);
 
 /// Noir du coussinet (`linear-gradient(135deg,#3A363F,#17151A)`).
-const Color kPawPadLight = Color(0xFF3A363F);
-const Color kPawPadDark = Color(0xFF17151A);
+const Color kPawPadLight = Color(0xFF443531);
+const Color kPawPadDark = Color(0xFF1D1412);
 
 /// Patte de la BARRE (zone 84×84).
 const PawGlyphSpec kPawGlyphBar = PawGlyphSpec(
@@ -189,14 +189,14 @@ const PawGlyphSpec kPawGlyphBar = PawGlyphSpec(
   toeBorder: 2.5,
   padShadow: <BoxShadow>[
     BoxShadow(
-      color: Color(0x8017151A), // rgba(23,21,26,.5)
+      color: Color(0x801D1412), // rgba(23,21,26,.5)
       blurRadius: 30,
       offset: Offset(0, 14),
     ),
   ],
   toeShadow: <BoxShadow>[
     BoxShadow(
-      color: Color(0x6617151A), // rgba(23,21,26,.4)
+      color: Color(0x661D1412), // rgba(23,21,26,.4)
       blurRadius: 10,
       offset: Offset(0, 4),
     ),

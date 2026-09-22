@@ -8,6 +8,7 @@ import 'package:hopetsit/views/auth/social_city_screen.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/guest/guest_landing_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// Sign-up role selector.
 ///
@@ -46,7 +47,9 @@ class SignUpAsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 24.w),
@@ -190,6 +193,7 @@ class SignUpAsScreen extends StatelessWidget {
           ),
         ),
       ),
+        ),
     );
   }
 }

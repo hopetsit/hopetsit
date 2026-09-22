@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/enriched_pet_form_state.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 
 /// v406 refonte — sections de formulaire enrichies (À propos / Santé /
 /// Habitudes) pour la création et l'édition d'un animal. Consomme un
@@ -65,7 +66,7 @@ class PetExtraFields extends StatelessWidget {
               fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
             ),
             side: BorderSide(
-              color: selected ? accent : Colors.grey.withValues(alpha: 0.4),
+              color: selected ? accent : AppColors.greyColor.withValues(alpha: 0.4),
             ),
           );
         }).toList(),

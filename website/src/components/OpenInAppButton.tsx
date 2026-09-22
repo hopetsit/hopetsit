@@ -128,7 +128,7 @@ export function OpenInAppButton({
         </p>
       )}
       {hintAppMissing && !error && (
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="mt-2 text-xs text-ink-soft">
           L&apos;app HoPetSit ne semble pas installée. Télécharge-la depuis
           le Play Store ou l&apos;App Store, puis recommence.
         </p>

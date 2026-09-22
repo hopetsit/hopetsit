@@ -9,6 +9,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/views/auth/forgot_flow/reset_password_screen.dart';
 import 'package:hopetsit/views/auth/forgot_flow/forgot_password_screen.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// v569 — RENDU SEULEMENT : longueur du code (6), `otpController`,
 /// `verifyPasswordResetOTP`, `resendOTP`, le compte à rebours et le retour
@@ -35,7 +36,7 @@ class ForgotPasswordOtpScreen extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         border: Border.all(
-          color: isDark ? AppColors.dividerDark : const Color(0xFFE2E5EA),
+          color: isDark ? AppColors.dividerDark : const Color(0xFFECE2DF),
         ),
         borderRadius: BorderRadius.circular(14.r),
         color: isDark ? AppColors.inputFill(context) : Colors.white,
@@ -71,7 +72,9 @@ class ForgotPasswordOtpScreen extends StatelessWidget {
         context,
         'forgot_password_verify_code_title'.tr,
       ),
-      body: SingleChildScrollView(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
           22.w,
           12.h,
@@ -266,6 +269,7 @@ class ForgotPasswordOtpScreen extends StatelessWidget {
           ],
         ),
       ),
+        ),
     );
   }
 }

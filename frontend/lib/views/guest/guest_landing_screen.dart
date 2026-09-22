@@ -351,7 +351,7 @@ class GuestLandingScreen extends StatelessWidget {
                                     icon: Icons.apple,
                                     // Noir Apple imposé par les règles de
                                     // marque : il ne suit pas le thème.
-                                    bg: const Color(0xFF101319),
+                                    bg: const Color(0xFF191210),
                                     fg: Colors.white,
                                     onTap: () => Get.find<AuthController>()
                                         .loginWithApple(),

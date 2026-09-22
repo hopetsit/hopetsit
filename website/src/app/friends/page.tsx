@@ -45,7 +45,7 @@ function Avatar({ url, name, online }: { url?: string; name?: string; online?: b
       <span
         aria-hidden="true"
         className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${
-          online ? "bg-emerald-500" : "bg-[#C7C7CC]"
+          online ? "bg-emerald-500" : "bg-[#D6C3BE]"
         }`}
       />
     );

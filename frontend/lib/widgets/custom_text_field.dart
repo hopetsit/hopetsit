@@ -122,9 +122,9 @@ class _CustomTextFieldState extends State<CustomTextField> {
     // teintés par rôle), gris foncé en sombre. Désactivé = un cran plus terne
     // mais toujours lisible.
     final Color fill = !widget.enabled
-        ? (isDark ? const Color(0xFF1B1B1B) : const Color(0xFFF4F5F7))
+        ? (isDark ? const Color(0xFF211715) : const Color(0xFFF8F4F3))
         : (isDark ? AppColors.inputFill(context) : Colors.white);
-    final Color line = isDark ? AppColors.dividerDark : const Color(0xFFE2E5EA);
+    final Color line = isDark ? AppColors.dividerDark : const Color(0xFFECE2DF);
     final Color textColor = widget.enabled
         ? AppColors.textPrimary(context)
         : AppColors.textSecondary(context);

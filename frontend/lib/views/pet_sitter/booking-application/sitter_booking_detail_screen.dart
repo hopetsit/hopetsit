@@ -16,6 +16,7 @@ import 'package:hopetsit/widgets/service_confirmation_card.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// Detail screen for a booking request (sitter view).
 /// Shows: Requests (client card), Pets, Note, Accept/Decline.
@@ -270,7 +271,9 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
           color: AppColors.textPrimary(context),
         ),
       ),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(horizontal: 20.w),
           child: Column(
@@ -581,6 +584,7 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
           ),
         ),
       ),
+        ),
     );
   }
 

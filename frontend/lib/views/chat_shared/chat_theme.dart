@@ -57,7 +57,7 @@ class ChatRoleTheme {
   );
 
   static const online = Color(0xFF22C55E);
-  static const offline = Color(0xFFB3AFA8);
+  static const offline = Color(0xFFB9A7A2);
 
   static ChatRoleTheme forRole(String? raw) {
     final r = (raw ?? '').toLowerCase();
@@ -88,7 +88,7 @@ class ChatRoleTheme {
 
   /// Bulle reçue.
   Color receivedBubble(BuildContext context) =>
-      isDark(context) ? const Color(0xFF2A2A2A) : Colors.white;
+      isDark(context) ? const Color(0xFF342420) : Colors.white;
 
   Color receivedText(BuildContext context) => AppColors.textPrimary(context);
 

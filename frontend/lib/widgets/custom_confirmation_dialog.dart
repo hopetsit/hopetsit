@@ -50,7 +50,7 @@ class CustomConfirmationDialog extends StatelessWidget {
   /// passent un fond clair : on ne peut pas forcer du blanc).
   static Color _onColor(Color background) =>
       background.computeLuminance() > 0.6
-          ? const Color(0xFF17141F)
+          ? const Color(0xFF201613)
           : AppColors.whiteColor;
 
   @override
@@ -60,7 +60,7 @@ class CustomConfirmationDialog extends StatelessWidget {
 
     final Color primaryBg = yesButtonColor ?? AppColors.primaryColor;
     final Color secondaryBg = cancelButtonColor ??
-        (dark ? const Color(0xFF2A2A2A) : const Color(0xFFF1F2F4));
+        (dark ? const Color(0xFF342420) : const Color(0xFFF6F1EF));
 
     // Teinte du disque : rouge si destructif, sinon la couleur de marque du
     // rôle courant (un fond clair passé par l'appelant serait invisible).

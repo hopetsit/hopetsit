@@ -9,6 +9,7 @@ import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/views/auth/forgot_flow/forgot_password_otp_screen.dart';
 import 'package:hopetsit/views/auth/forgot_flow/forgot_password_screen.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// v569 — RENDU SEULEMENT : `Get.put(ForgotPasswordController(...))`, la
 /// `formKey` locale, `requestPasswordResetOTP`, `startCountdown()` et la
@@ -24,7 +25,9 @@ class ForgotPasswordEmailScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
       appBar: forgotFlowAppBar(context, 'forgot_password'.tr),
-      body: SingleChildScrollView(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
           22.w,
           12.h,
@@ -123,6 +126,7 @@ class ForgotPasswordEmailScreen extends StatelessWidget {
           ),
         ),
       ),
+        ),
     );
   }
 }

@@ -47,6 +47,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/notification_card.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -668,7 +669,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           }),
         ],
       ),
-      body: Obx(() {
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: Obx(() {
         if (_c.isLoading.value && _c.notifications.isEmpty) {
           return Center(
             child: Column(
@@ -827,6 +830,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         );
       }),
+        ),
     );
   }
 

@@ -96,7 +96,7 @@ class SignupWallSheet extends StatelessWidget {
     final title = (name != null && name!.isNotEmpty)
         ? 'guest_wall_title_named'.trParams({'name': name!})
         : 'guest_wall_title'.tr;
-    // v573 — harmonisation avec le design 567-571 : plus de `Colors.grey` ni
+    // v573 — harmonisation avec le design 567-571 : plus de `AppColors.greyColor` ni
     // de ternaire `isDark` écrit à la main, poignée et coins alignés sur les
     // autres feuilles, boutons sociaux au langage `CustomButton`.
     final Color muted = AppColors.textSecondary(context);
@@ -224,7 +224,7 @@ class SignupWallSheet extends StatelessWidget {
                       child: _SocialBtn(
                         label: 'button_apple'.tr,
                         icon: Icons.apple,
-                        bg: const Color(0xFF101319),
+                        bg: const Color(0xFF191210),
                         fg: Colors.white,
                         onTap: () => _social('apple'),
                       ),

@@ -76,7 +76,7 @@ const ROLE_CHIP_COLOR: Record<string, string> = {
   sitter: "#2563EB",
   walker: "#16A34A",
 };
-const roleChipColor = (role: string) => ROLE_CHIP_COLOR[role] || "#6B7280";
+const roleChipColor = (role: string) => ROLE_CHIP_COLOR[role] || "#6E4F48";
 
 // v23.1.147 — note : PoiMap est dynamic pour éviter le SSR de Leaflet.
 // Son loading state est en français hardcodé ; il est court (1-2s) donc
@@ -84,7 +84,7 @@ const roleChipColor = (role: string) => ROLE_CHIP_COLOR[role] || "#6B7280";
 const PoiMap = dynamic(() => import("@/components/PoiMap"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[70vh] min-h-[450px] items-center justify-center rounded-2xl border border-ink/5 bg-[#F5F5F7] text-[#6E6E73]">
+    <div className="flex h-[70vh] min-h-[450px] items-center justify-center rounded-2xl border border-ink/5 bg-[#FAF1EC] text-[#6E4F48]">
       ⌛
     </div>
   ),
@@ -1022,7 +1022,7 @@ export default function MapPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-24 text-center text-[#6E6E73]">
+      <div className="mx-auto max-w-5xl px-4 py-24 text-center text-[#6E4F48]">
         {t("map_loading_locating")}
       </div>
     );
@@ -1099,7 +1099,7 @@ export default function MapPage() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <BackLink href="/dashboard" label={t("nav_dashboard")} />
         {fetching && (
-          <span className="text-xs text-[#6E6E73]">{t("map_searching")}</span>
+          <span className="text-xs text-[#6E4F48]">{t("map_searching")}</span>
         )}
       </div>
 
@@ -1109,7 +1109,7 @@ export default function MapPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           {/* v567 — logo PawMap « patte-pin » en tête de la carte. */}
-          <h1 className="flex items-center gap-3 font-display text-3xl font-bold tracking-[-0.02em] text-[#1D1D1F] md:text-5xl">
+          <h1 className="flex items-center gap-3 font-display text-3xl font-bold tracking-[-0.02em] text-[#231715] md:text-5xl">
             {/* v573 — même en-tête que l'app : le logo dans sa tuile orange. */}
             <span
               className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl"
@@ -1122,7 +1122,7 @@ export default function MapPage() {
             </span>
             {t("map_title")}
           </h1>
-          <p className="mt-2 text-[#6E6E73]">
+          <p className="mt-2 text-[#6E4F48]">
             {t("map_count_results").replace("{count}", String(visiblePois.length))}
             {" "}
             {t("map_pan_hint")}
@@ -1130,7 +1130,7 @@ export default function MapPage() {
         </div>
         <form
           onSubmit={handleCitySearch}
-          className="flex items-center gap-2 rounded-full bg-[#F5F5F7] p-1.5 pl-4"
+          className="flex items-center gap-2 rounded-full bg-[#FAF1EC] p-1.5 pl-4"
         >
           <span aria-hidden>📍</span>
           <input
@@ -1142,7 +1142,7 @@ export default function MapPage() {
           <button
             type="submit"
             disabled={citySearching || !cityQuery.trim()}
-            className="rounded-full bg-[#1D1D1F] px-4 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-full bg-[#231715] px-4 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
           >
             {citySearching ? "…" : `🔍 ${t("map_search_city_btn")}`}
           </button>
@@ -1165,7 +1165,7 @@ export default function MapPage() {
       <div className="mt-6 flex flex-wrap items-center gap-2.5">
         {/* Légende : avatar membre ROSE + PATTE BLANCHE (v505 — logo officiel,
             comme l'app : patte blanche sur fond rose, plus d'emoji). */}
-        <span className="ml-1 inline-flex items-center gap-1.5 text-xs font-semibold text-[#6E6E73]">
+        <span className="ml-1 inline-flex items-center gap-1.5 text-xs font-semibold text-[#6E4F48]">
           <span
             className="grid h-6 w-6 place-items-center rounded-full border-2 border-white shadow"
             style={{ background: "linear-gradient(135deg,#F06AA0,#E0568B)" }}
@@ -1209,7 +1209,7 @@ export default function MapPage() {
               className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
                 on
                   ? "bg-owner-light text-owner-dark"
-                  : "bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"
+                  : "bg-[#FAF1EC] text-[#231715] hover:bg-[#F0E3DF]"
               }`}
             >
               <span aria-hidden>{emoji}</span>
@@ -1218,7 +1218,7 @@ export default function MapPage() {
           );
         })}
         {membersAround > 0 && (
-          <span className="ml-1 text-xs font-semibold text-[#6E6E73]">
+          <span className="ml-1 text-xs font-semibold text-[#6E4F48]">
             {t("map_members_around").replace("{count}", String(membersAround))}
           </span>
         )}
@@ -1226,7 +1226,7 @@ export default function MapPage() {
 
       {/* 2) Bandeau « Amis en direct » : clic sur l'en-tête = charge/affiche la
           couche amis ; chips cliquables = zoom sur l'ami. */}
-      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[18px] bg-[#F5F5F7] px-4 py-2.5">
+      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[18px] bg-[#FAF1EC] px-4 py-2.5">
         <button
           type="button"
           onClick={toggleFriendsLayer}
@@ -1236,15 +1236,15 @@ export default function MapPage() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
           </span>
-          <span className="text-sm font-semibold text-[#1D1D1F]">
+          <span className="text-sm font-semibold text-[#231715]">
             {t("map_live_friends")}
           </span>
-          <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-[#1D1D1F]">
+          <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-[#231715]">
             {livePositionsList.length}
           </span>
         </button>
         {friendsLoading && (
-          <span className="text-xs text-[#6E6E73]">{t("common_loading")}</span>
+          <span className="text-xs text-[#6E4F48]">{t("common_loading")}</span>
         )}
         {showFriends &&
           livePositionsList.map((p) => (
@@ -1264,7 +1264,7 @@ export default function MapPage() {
                 {(p.name || "?").charAt(0).toUpperCase()}
               </span>
               <span
-                className={`inline-block h-2 w-2 rounded-full ${p.isOnline === false ? "bg-[#C7C7CC]" : "bg-emerald-500"}`}
+                className={`inline-block h-2 w-2 rounded-full ${p.isOnline === false ? "bg-[#D6C3BE]" : "bg-emerald-500"}`}
               />
               {p.name} · {t(`role_${p.role}`)}
             </button>
@@ -1275,20 +1275,20 @@ export default function MapPage() {
       {(() => {
         const subs: { label: string; bg: string; fg: string }[] = [];
         if (benefits?.premiumActive)
-          subs.push({ label: "PawPremium", bg: "#1D1D1F", fg: "#FFD34D" });
+          subs.push({ label: "PawPremium", bg: "#231715", fg: "#FFD34D" });
         if (benefits?.pawspotActive)
-          subs.push({ label: "PawSpots", bg: "#FFFFFF", fg: "#1D1D1F" });
+          subs.push({ label: "PawSpots", bg: "#FFFFFF", fg: "#231715" });
         if (benefits?.familyActive)
-          subs.push({ label: "PawFamily", bg: "#FFFFFF", fg: "#1D1D1F" });
+          subs.push({ label: "PawFamily", bg: "#FFFFFF", fg: "#231715" });
         if (benefits?.pawFollowActive)
-          subs.push({ label: "PawFollow", bg: "#FFFFFF", fg: "#1D1D1F" });
+          subs.push({ label: "PawFollow", bg: "#FFFFFF", fg: "#231715" });
         if (!subs.length) return null;
         return (
-          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[18px] bg-[#F5F5F7] px-4 py-2.5">
-            <span className="text-sm font-semibold text-[#1D1D1F]">
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[18px] bg-[#FAF1EC] px-4 py-2.5">
+            <span className="text-sm font-semibold text-[#231715]">
               {t("map_active_subs")}
             </span>
-            <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-[#1D1D1F]">
+            <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-[#231715]">
               {subs.length}
             </span>
             {subs.map((sb) => (
@@ -1303,7 +1303,7 @@ export default function MapPage() {
             <button
               type="button"
               onClick={() => router.push("/boutique")}
-              className="ml-auto rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#1D1D1F] transition hover:bg-[#E8E8ED]"
+              className="ml-auto rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#231715] transition hover:bg-[#F0E3DF]"
             >
               {t("map_manage")}
             </button>
@@ -1362,7 +1362,7 @@ export default function MapPage() {
               <button
                 type="button"
                 onClick={() => setShowSteps((v) => !v)}
-                className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#1D1D1F] hover:bg-[#E8E8ED]"
+                className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#231715] hover:bg-[#F0E3DF]"
               >
                 ☰ {showSteps ? t("map_route_steps_hide") : t("map_route_steps")}
               </button>
@@ -1370,7 +1370,7 @@ export default function MapPage() {
             <button
               type="button"
               onClick={clearRoute}
-              className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#1D1D1F] hover:bg-[#E8E8ED]"
+              className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#231715] hover:bg-[#F0E3DF]"
             >
               ✕ {t("map_route_clear")}
             </button>
@@ -1398,7 +1398,7 @@ export default function MapPage() {
                   </span>
                   <span className="flex-1">{s.instruction}</span>
                   {s.distanceMeters > 0 && (
-                    <span className="shrink-0 text-[#6E6E73]">
+                    <span className="shrink-0 text-[#6E4F48]">
                       {s.distanceMeters >= 1000
                         ? `${(s.distanceMeters / 1000).toFixed(1)} km`
                         : `${s.distanceMeters} m`}
@@ -1415,13 +1415,13 @@ export default function MapPage() {
           chip d'état (amis + pawspots déjà visibles sur la carte). */}
       <div className="mt-3">
         {premiumDays !== null || isStaffSub ? (
-          <span className="inline-flex items-center gap-2 rounded-full bg-[#1D1D1F] px-4 py-2 text-xs font-semibold text-[#FFD34D]">
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#231715] px-4 py-2 text-xs font-semibold text-[#FFD34D]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/pawpremium_logo.svg" alt="" width={18} height={18} />
             {isStaffSub ? t("map_premium_active_staff") : t("map_premium_active_days").replace("{days}", String(premiumDays))}
           </span>
         ) : (
-          <Link href="/boutique" className="inline-flex items-center gap-2 rounded-full bg-[#1D1D1F] px-4 py-2 text-xs font-semibold text-[#FFD34D] hover:bg-black">
+          <Link href="/boutique" className="inline-flex items-center gap-2 rounded-full bg-[#231715] px-4 py-2 text-xs font-semibold text-[#FFD34D] hover:bg-black">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/pawpremium_logo.svg" alt="" width={18} height={18} />
             {t("map_premium_buy_cta")} →
@@ -1727,36 +1727,36 @@ export default function MapPage() {
           : spots.map((sp) => ({ id: sp.id, lat: sp.lat, lng: sp.lng, km: haversineKm(from.lat, from.lng, sp.lat, sp.lng), emoji: SPOT_EMOJI[sp.type] || "📍", title: sp.name, sub: `${spotTypeLabels[sp.type] || sp.type}${sp.description ? ` · ${sp.description}` : ""}`, photo: sp.photoUrl || "", meta: `❤️ ${sp.likesCount} · ${t("map_spot_visits").replace("{count}", String(sp.visitsCount))}`, golden: sp.isGolden }));
         rows.sort((a, b) => a.km - b.km);
         return (
-          <div id="side-panel" className="mt-6 scroll-mt-24 rounded-[24px] bg-[#F5F5F7] p-5">
+          <div id="side-panel" className="mt-6 scroll-mt-24 rounded-[24px] bg-[#FAF1EC] p-5">
             <div className="flex items-center gap-2">
               <span className="grid h-8 w-8 place-items-center rounded-full text-white" style={{ background: isReports ? "linear-gradient(165deg,#5A4E46,#28201B)" : "linear-gradient(165deg,#FAC346,#E2981A)" }}>
                 <span className="block h-4 w-4" dangerouslySetInnerHTML={{ __html: RAIL_SVG[isReports ? "feed" : "spot"] }} />
               </span>
-              <h2 className="font-display text-lg font-bold text-[#1D1D1F]">{isReports ? t("map_panel_reports_title") : t("map_panel_spots_title")}</h2>
-              <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-[#1D1D1F]">{rows.length}</span>
-              <button type="button" onClick={() => setSidePanel(null)} className="ml-auto text-2xl leading-none text-[#6E6E73] hover:text-ink" aria-label={t("map_close")}>×</button>
+              <h2 className="font-display text-lg font-bold text-[#231715]">{isReports ? t("map_panel_reports_title") : t("map_panel_spots_title")}</h2>
+              <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-[#231715]">{rows.length}</span>
+              <button type="button" onClick={() => setSidePanel(null)} className="ml-auto text-2xl leading-none text-[#6E4F48] hover:text-ink" aria-label={t("map_close")}>×</button>
             </div>
             <ModePicker mode={routeMode} onChange={setRouteMode} label={t("map_route_mode_label")} labels={{ walk: t("map_route_mode_walk"), bike: t("map_route_mode_bike"), car: t("map_route_mode_car") }} />
             {rows.length === 0 ? (
-              <p className="mt-4 text-sm text-[#6E6E73]">{t("map_panel_empty")}</p>
+              <p className="mt-4 text-sm text-[#6E4F48]">{t("map_panel_empty")}</p>
             ) : (
               <ul className="mt-4 grid gap-2 md:grid-cols-2">
                 {rows.slice(0, 30).map((r) => (
-                  <li key={`${sidePanel}-${r.id}`} className="flex items-center gap-3 rounded-[18px] bg-white p-3 transition hover:bg-[#FAFAFA]">
+                  <li key={`${sidePanel}-${r.id}`} className="flex items-center gap-3 rounded-[18px] bg-white p-3 transition hover:bg-[#FDF8F7]">
                     <button type="button" onClick={() => setFocusTarget({ lat: r.lat, lng: r.lng, ts: Date.now() })} title={t("map_around_show")} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                       {r.photo ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={r.photo} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
                       ) : (
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#F5F5F7] text-lg">{r.emoji}</span>
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#FAF1EC] text-lg">{r.emoji}</span>
                       )}
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold text-[#1D1D1F]">
+                        <span className="block truncate text-sm font-semibold text-[#231715]">
                           {r.golden && <span className="mr-1" title={t("map_golden_spot")}>🏅</span>}
                           {r.title}
                         </span>
-                        {r.sub && <span className="block truncate text-xs text-[#6E6E73]">{r.sub}</span>}
-                        <span className="block truncate text-xs text-[#6E6E73]">
+                        {r.sub && <span className="block truncate text-xs text-[#6E4F48]">{r.sub}</span>}
+                        <span className="block truncate text-xs text-[#6E4F48]">
                           {r.km < 1 ? `${Math.round(r.km * 1000)} m` : `${r.km.toFixed(1)} km`} · {r.meta}
                         </span>
                       </span>
@@ -1787,20 +1787,20 @@ export default function MapPage() {
           .sort((a, b) => a.km - b.km)
           .slice(0, 6);
         return (
-          <div id="around-list" className="mt-6 scroll-mt-24 rounded-[24px] bg-[#F5F5F7] p-5">
+          <div id="around-list" className="mt-6 scroll-mt-24 rounded-[24px] bg-[#FAF1EC] p-5">
             <div className="flex items-center gap-2">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-[#8B5CF6] text-white">
                 <ActionIcon kind="around" />
               </span>
-              <h2 className="font-display text-lg font-bold text-[#1D1D1F]">{t("map_around_title")}</h2>
+              <h2 className="font-display text-lg font-bold text-[#231715]">{t("map_around_title")}</h2>
             </div>
-            <p className="mt-1 text-xs text-[#6E6E73]">{t("map_around_sub")}</p>
+            <p className="mt-1 text-xs text-[#6E4F48]">{t("map_around_sub")}</p>
           {/* v562 — Daniel : « dans itinéraire / autour de moi il n'y a pas
               à pied / voiture / vélo à choisir ». Le mode choisi ici est celui
               utilisé par tous les boutons Itinéraire de la page. */}
           <ModePicker mode={routeMode} onChange={setRouteMode} label={t("map_route_mode_label")} labels={{ walk: t("map_route_mode_walk"), bike: t("map_route_mode_bike"), car: t("map_route_mode_car") }} />
             {near.length === 0 ? (
-              <p className="mt-4 text-sm text-[#6E6E73]">{t("map_around_empty")}</p>
+              <p className="mt-4 text-sm text-[#6E4F48]">{t("map_around_empty")}</p>
             ) : (
               <ul className="mt-4 grid gap-2 md:grid-cols-2">
                 {near.map(({ p, km }) => {
@@ -1810,7 +1810,7 @@ export default function MapPage() {
                   return (
                     <li
                       key={`near-${p._id}`}
-                      className={`flex items-center gap-3 rounded-[18px] p-3 transition ${active ? "bg-owner-light" : "bg-white hover:bg-[#FAFAFA]"}`}
+                      className={`flex items-center gap-3 rounded-[18px] p-3 transition ${active ? "bg-owner-light" : "bg-white hover:bg-[#FDF8F7]"}`}
                     >
                       <button
                         type="button"
@@ -1821,12 +1821,12 @@ export default function MapPage() {
                         title={t("map_around_show")}
                         className="flex min-w-0 flex-1 items-center gap-3 text-left"
                       >
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#F5F5F7] text-lg">
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#FAF1EC] text-lg">
                           {POI_CATEGORY_LABELS[p.category]?.emoji}
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate text-sm font-semibold text-[#1D1D1F]">{p.title}</span>
-                          <span className="block truncate text-xs text-[#6E6E73]">
+                          <span className="block truncate text-sm font-semibold text-[#231715]">{p.title}</span>
+                          <span className="block truncate text-xs text-[#6E4F48]">
                             {km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`}
                             {st && (
                               <>
@@ -1857,35 +1857,35 @@ export default function MapPage() {
 
       {/* Détails du POI sélectionné */}
       {selectedPoi && (
-        <div className="mt-6 rounded-[24px] bg-[#F5F5F7] p-5">
+        <div className="mt-6 rounded-[24px] bg-[#FAF1EC] p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-xs uppercase tracking-wider text-[#6E6E73]">
+              <div className="text-xs uppercase tracking-wider text-[#6E4F48]">
                 {POI_CATEGORY_LABELS[selectedPoi.category]?.emoji}{" "}
                 {t(CAT_KEY_FOR_LANG[selectedPoi.category])}
               </div>
               <h2 className="mt-1 text-lg font-bold text-ink">{selectedPoi.title}</h2>
               {selectedPoi.address && (
-                <p className="mt-1 text-sm text-[#6E6E73]">📍 {selectedPoi.address}</p>
+                <p className="mt-1 text-sm text-[#6E4F48]">📍 {selectedPoi.address}</p>
               )}
             </div>
             <button
               type="button"
               onClick={() => setSelectedPoi(null)}
-              className="text-2xl leading-none text-[#6E6E73] hover:text-ink"
+              className="text-2xl leading-none text-[#6E4F48] hover:text-ink"
               aria-label={t("map_close")}
             >
               ×
             </button>
           </div>
           {selectedPoi.description && (
-            <p className="mt-3 text-sm text-[#6E6E73]">{selectedPoi.description}</p>
+            <p className="mt-3 text-sm text-[#6E4F48]">{selectedPoi.description}</p>
           )}
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             {selectedPoi.phone && (
               <a
                 href={`tel:${selectedPoi.phone}`}
-                className="rounded-full bg-[#F5F5F7] px-3 py-1 font-medium text-ink hover:bg-ink/10"
+                className="rounded-full bg-[#FAF1EC] px-3 py-1 font-medium text-ink hover:bg-ink/10"
               >
                 📞 {selectedPoi.phone}
               </a>
@@ -1895,13 +1895,13 @@ export default function MapPage() {
                 href={selectedPoi.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-full bg-[#F5F5F7] px-3 py-1 font-medium text-ink hover:bg-ink/10"
+                className="rounded-full bg-[#FAF1EC] px-3 py-1 font-medium text-ink hover:bg-ink/10"
               >
                 {t("map_website_action")}
               </a>
             )}
             {selectedPoi.openingHours && (
-              <span className="rounded-full bg-[#F5F5F7] px-3 py-1 text-[#6E6E73]">
+              <span className="rounded-full bg-[#FAF1EC] px-3 py-1 text-[#6E4F48]">
                 🕐 {selectedPoi.openingHours}
               </span>
             )}
@@ -1910,7 +1910,7 @@ export default function MapPage() {
             <div className="mt-3 text-sm">
               <span className="font-bold text-amber-600">★ {selectedPoi.rating.toFixed(1)}</span>
               {selectedPoi.reviewsCount ? (
-                <span className="ml-1 text-[#6E6E73]">
+                <span className="ml-1 text-[#6E4F48]">
                   {t("map_reviews_count").replace("{count}", String(selectedPoi.reviewsCount))}
                 </span>
               ) : null}
@@ -1920,7 +1920,7 @@ export default function MapPage() {
       )}
 
       {/* Légende */}
-      <div className="mt-8 rounded-[18px] bg-[#F5F5F7] px-4 py-3 text-xs text-[#6E6E73]">
+      <div className="mt-8 rounded-[18px] bg-[#FAF1EC] px-4 py-3 text-xs text-[#6E4F48]">
         💡 {t("map_legend")}
       </div>
 
@@ -1931,16 +1931,16 @@ export default function MapPage() {
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl ring-1 ring-ink/10">
             {/* v497 — feuille EN BAS (pas de fond noir plein écran) → la carte +
                 le viseur restent visibles pendant qu'on positionne. */}
-            <h3 className="font-display text-lg font-semibold text-[#1D1D1F]">
+            <h3 className="font-display text-lg font-semibold text-[#231715]">
               {createKind === "spot"
                 ? t("map_tag_spot_cta")
                 : t("map_report_cta")}
             </h3>
-            <p className="mt-1 text-xs text-[#6E6E73]">
+            <p className="mt-1 text-xs text-[#6E4F48]">
               {t("map_create_center_hint")}
             </p>
 
-            <label className="mt-3 block text-xs font-semibold text-[#6E6E73]">
+            <label className="mt-3 block text-xs font-semibold text-[#6E4F48]">
               {t("map_type_label")}
             </label>
             <select
@@ -1971,7 +1971,7 @@ export default function MapPage() {
                   className="mt-3 w-full rounded-xl border border-ink/15 px-3 py-2 text-sm"
                 />
                 {/* v562 — photo depuis l'ordinateur (site web). */}
-                <label className="mt-3 block text-xs font-semibold text-[#6E6E73]">{t("map_spot_photo_label")}</label>
+                <label className="mt-3 block text-xs font-semibold text-[#6E4F48]">{t("map_spot_photo_label")}</label>
                 <input
                   ref={photoInputRef}
                   type="file"
@@ -1986,7 +1986,7 @@ export default function MapPage() {
                 <button
                   type="button"
                   onClick={() => photoInputRef.current?.click()}
-                  className="mt-1 flex w-full items-center gap-3 rounded-xl border border-dashed border-ink/25 bg-[#F5F5F7] px-3 py-2 text-left text-xs text-[#6E6E73] transition hover:bg-owner-light"
+                  className="mt-1 flex w-full items-center gap-3 rounded-xl border border-dashed border-ink/25 bg-[#FAF1EC] px-3 py-2 text-left text-xs text-[#6E4F48] transition hover:bg-owner-light"
                 >
                   {createPhotoPreview ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -2018,7 +2018,7 @@ export default function MapPage() {
                 type="button"
                 onClick={() => setCreateKind(null)}
                 disabled={creating}
-                className="rounded-full px-4 py-2 text-sm font-semibold text-[#6E6E73] hover:bg-ink/5"
+                className="rounded-full px-4 py-2 text-sm font-semibold text-[#6E4F48] hover:bg-ink/5"
               >
                 {t("map_create_cancel")}
               </button>
@@ -2056,7 +2056,7 @@ function CategoryChip({
       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
         active
           ? "bg-owner-light text-owner-dark"
-          : "bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"
+          : "bg-[#FAF1EC] text-[#231715] hover:bg-[#F0E3DF]"
       }`}
     >
       <span aria-hidden="true">{emoji}</span>
@@ -2161,7 +2161,7 @@ function ModePicker({
   const emoji: Record<RouteMode, string> = { walk: "🚶", bike: "🚲", car: "🚗" };
   return (
     <div className="mt-3 flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 text-xs font-semibold text-[#6E6E73]">{label}</span>
+      <span className="mr-1 text-xs font-semibold text-[#6E4F48]">{label}</span>
       {(["walk", "bike", "car"] as RouteMode[]).map((m) => (
         <button
           key={m}

@@ -184,7 +184,7 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
             onPressed: () => Get.back(result: false),
             child: Text(
               'common_cancel'.tr,
-              style: const TextStyle(color: Colors.grey),
+              style: const TextStyle(color: AppColors.greyColor),
             ),
           ),
           ElevatedButton(

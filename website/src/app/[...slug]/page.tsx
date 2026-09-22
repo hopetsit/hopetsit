@@ -167,10 +167,10 @@ export default function CatchAllPage({
           🐾
         </div>
 
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">
+        <h1 className="text-2xl font-bold text-ink mb-2">
           Ouvre dans l'app HoPetSit
         </h1>
-        <p className="text-slate-600 text-sm mb-6">
+        <p className="text-ink-muted text-sm mb-6">
           Cette page est disponible dans l'application mobile HoPetSit.
           {platform !== "desktop" &&
             " On a essayé d'ouvrir l'app automatiquement ; si rien ne s'est passé, tape sur le bouton ci-dessous."}
@@ -194,7 +194,7 @@ export default function CatchAllPage({
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => trackSiteEvent("store_click", { store: "ios" })}
-            className="bg-slate-900 text-white text-sm font-medium py-3 rounded-xl hover:bg-slate-800 transition-colors"
+            className="bg-ink-deep text-white text-sm font-medium py-3 rounded-xl hover:bg-ink transition-colors"
           >
             App Store
           </a>
@@ -203,7 +203,7 @@ export default function CatchAllPage({
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => trackSiteEvent("store_click", { store: "android" })}
-            className="bg-slate-900 text-white text-sm font-medium py-3 rounded-xl hover:bg-slate-800 transition-colors"
+            className="bg-ink-deep text-white text-sm font-medium py-3 rounded-xl hover:bg-ink transition-colors"
           >
             Play Store
           </a>
@@ -212,13 +212,13 @@ export default function CatchAllPage({
         {fallback && (
           <Link
             href={fallback.href}
-            className="block text-orange-600 hover:text-orange-700 text-sm font-medium underline pt-3 border-t border-slate-100"
+            className="block text-orange-600 hover:text-orange-700 text-sm font-medium underline pt-3 border-t border-ink-line"
           >
             {fallback.label}
           </Link>
         )}
 
-        <p className="text-xs text-slate-400 mt-6">
+        <p className="text-xs text-ink-soft mt-6">
           Lien demandé : <code className="font-mono">{path}</code>
         </p>
       </div>

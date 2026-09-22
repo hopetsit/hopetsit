@@ -29,7 +29,7 @@ class BoostProfileCard extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(6.w),
       decoration: BoxDecoration(
-        color: dark ? const Color(0xFF221E1B) : const Color(0xFFF4EDE7),
+        color: dark ? const Color(0xFF261A17) : const Color(0xFFF4EDE7),
         borderRadius: BorderRadius.circular(24.r),
         border: Border.all(
           color: dark
@@ -77,7 +77,7 @@ class BoostProfileCard extends StatelessWidget {
           SizedBox(width: 6.w),
           Expanded(
             child: PawShopCard(
-              colors: const [Color(0xFF3A3028), Color(0xFF0F0B08)],
+              colors: const [Color(0xFF3A3028), Color(0xFF0E0A09)],
               shadow: Colors.black,
               svg: PawCardIcons.premium,
               title: 'shop_tile_pawpremium'.tr,

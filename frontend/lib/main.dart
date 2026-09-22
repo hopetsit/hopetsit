@@ -109,9 +109,9 @@ void main() async {
     statusBarIconBrightness: Brightness.dark,
     // v23.1.164 — Gris #E5E7EB (slate-200) + icones SOMBRES = lisible
     // dans toutes les langues, persiste aux changements de locale.
-    systemNavigationBarColor: Color(0xFFE5E7EB),
+    systemNavigationBarColor: Color(0xFFEEE4E2),
     systemNavigationBarIconBrightness: Brightness.dark,
-    systemNavigationBarDividerColor: Color(0xFFE5E7EB),
+    systemNavigationBarDividerColor: Color(0xFFEEE4E2),
     // v465 — Daniel : « la barre Samsung est transparente, on voit des boutons
     // derrière ». true = la barre système a un fond opaque (scrim) → plus de
     // contenu visible/cliquable derrière elle.
@@ -281,9 +281,9 @@ class MyApp extends StatelessWidget {
           value: const SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.dark,
-            systemNavigationBarColor: Color(0xFFE5E7EB),
+            systemNavigationBarColor: Color(0xFFEEE4E2),
             systemNavigationBarIconBrightness: Brightness.dark,
-            systemNavigationBarDividerColor: Color(0xFFE5E7EB),
+            systemNavigationBarDividerColor: Color(0xFFEEE4E2),
             // v465 — Daniel : « la barre Samsung est transparente, on voit des boutons
     // derrière ». true = la barre système a un fond opaque (scrim) → plus de
     // contenu visible/cliquable derrière elle.

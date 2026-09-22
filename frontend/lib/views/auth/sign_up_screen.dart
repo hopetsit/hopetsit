@@ -22,6 +22,7 @@ import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class SignUpScreen extends StatelessWidget {
   final String userType; // 'pet_owner' or 'pet_sitter'
@@ -82,7 +83,9 @@ class SignUpScreen extends StatelessWidget {
           color: AppColors.textPrimary(context),
         ),
       ),
-      body: Stack(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: Stack(
         children: [
           SafeArea(
             child: SingleChildScrollView(
@@ -830,6 +833,7 @@ class SignUpScreen extends StatelessWidget {
           ),
         ],
       ),
+        ),
     );
   }
 }
@@ -918,7 +922,7 @@ BoxDecoration _fieldBox(BuildContext context, {bool error = false}) {
     border: Border.all(
       color: error
           ? AppColors.errorColor
-          : (isDark ? AppColors.dividerDark : const Color(0xFFE2E5EA)),
+          : (isDark ? AppColors.dividerDark : const Color(0xFFECE2DF)),
       width: error ? 1.2 : 1,
     ),
     borderRadius: BorderRadius.circular(14.r),
@@ -941,7 +945,7 @@ Widget _signupSocialButton(
     opacity: onTap == null ? 0.5 : 1,
     child: Material(
       color: isApple
-          ? const Color(0xFF101319)
+          ? const Color(0xFF191210)
           : (isDark ? AppColors.surfaceDark : Colors.white),
       borderRadius: BorderRadius.circular(14.r),
       clipBehavior: Clip.antiAlias,
@@ -959,7 +963,7 @@ Widget _signupSocialButton(
                 : Border.all(
                     color: isDark
                         ? AppColors.dividerDark
-                        : const Color(0xFFE2E5EA),
+                        : const Color(0xFFECE2DF),
                     width: 1.2,
                   ),
           ),

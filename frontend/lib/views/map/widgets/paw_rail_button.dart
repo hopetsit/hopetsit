@@ -252,8 +252,8 @@ class PawCapsuleButton extends StatelessWidget {
     this.size = 42,
   });
 
-  static const Color ink = Color(0xFF1D1D1F);
-  static const Color grey = Color(0xFF6E6E73);
+  static const Color ink = Color(0xFF251A17);
+  static const Color grey = Color(0xFF82665E);
 
   final IconData icon;
   final String label;
@@ -267,8 +267,8 @@ class PawCapsuleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isDark = PawMapTheme.isDark(context);
     // v571 — sur capsule anthracite, l'encre #1D1D1F disparaît.
-    final Color baseInk = isDark ? const Color(0xFFF2F2F2) : ink;
-    final Color baseGrey = isDark ? const Color(0xFFB0B0B0) : grey;
+    final Color baseInk = isDark ? const Color(0xFFF5F0EF) : ink;
+    final Color baseGrey = isDark ? const Color(0xFFBBA9A5) : grey;
     final Color t = tint ?? baseInk;
     // v573 — l'état actif prend la couleur de marque, éclaircie en sombre
     // (AppColors.accentOn) pour rester lisible sur l'anthracite.

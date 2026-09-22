@@ -16,7 +16,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v577'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v578'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -44,13 +44,13 @@
   --primary: #D83C28;
   --primary-dark: #B02F1E;
   --primary-light: #FBE9E5;
-  --bg: #F5F5F7;
+  --bg: #FBF6F5;
   --surface: #FFFFFF;
-  --surface2: #F5F5F7;
+  --surface2: #FAF1EF;
   --card: #FFFFFF;
-  --border: #E5E5EA;
-  --text: #1D1D1F;
-  --text-muted: #6E6E73;
+  --border: #EADFDC;
+  --text: #231715;
+  --text-muted: #6E4F48;
   --green: #1F9D55;
   --orange: #E08A0A;
   --red: #D93025;
@@ -168,7 +168,7 @@ td > span[style*="border-radius"] { white-space: nowrap; display: inline-block; 
 #payments-table-body table { min-width: 900px; }
 #pay-shop-table { overflow-x: auto; }
 #pay-shop-table table { min-width: 430px; }
-.table-toolbar { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #FAFAFC; }
+.table-toolbar { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #FDF8F7; }
 .search-input, input[type="text"], input[type="email"], input[type="url"], input[type="number"], input[type="date"], input[type="password"], textarea {
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px; font-family: inherit;
   padding: 9px 12px; color: var(--text); font-size: 13px; outline: none; transition: border-color .15s, box-shadow .15s;
@@ -184,7 +184,7 @@ td > span[style*="border-radius"] { white-space: nowrap; display: inline-block; 
 }
 .filter-select:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
 table { width: 100%; border-collapse: separate; border-spacing: 0; }
-th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); background: #FAFAFC; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); background: #FDF8F7; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
 td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #F0F0F3; vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
 tbody tr { transition: background .12s; }
@@ -197,7 +197,7 @@ td:first-child { font-weight: 500; }
 .badge-red { background: rgba(217,48,37,.10); color: var(--red); }
 .badge-orange { background: rgba(224,138,10,.14); color: #9A5B00; }
 .badge-blue { background: rgba(37,99,235,.10); color: var(--blue); }
-.badge-gray { background: rgba(110,110,115,.12); color: var(--text-muted); }
+.badge-neutral { background: rgba(110,79,72,.14); color: var(--text-muted); }
 .badge::before { content: '●'; font-size: 7px; }
 
 /* ACTION BUTTONS */
@@ -274,7 +274,7 @@ label > input, label > select, label > textarea { color: var(--text); }
    Menu regroupé, compteurs cliquables, sous-onglets, interrupteurs, chronologie
    de remise/rendu, bulles du chat, classes utilisées par le JS mais jamais
    définies (.data-table, .input, .btn-approve, .btn-reject, .primary). */
-:root { --card-2: #FAFAFC; --card-bg: #FAFAFC; }
+:root { --card-2: #FDF8F7; --card-bg: #FDF8F7; }
 .nav-section { margin-top: 18px; }
 .nav-section:first-of-type { margin-top: 6px; }
 .nav-item .nav-count { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--text-muted); background: var(--surface2); padding: 1px 7px; border-radius: 999px; }
@@ -394,7 +394,7 @@ function filterNav(q) {
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v577</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v578</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -1757,12 +1757,12 @@ function fmtDate(d, withTime) {
 // v19.1.5 — global helpers (statusBadge + payBadge + showToast) promoted from
 // the old local scope so they work in Bookings/Sitters/Owners loaders.
 function statusBadge(s) {
-  const map = { pending: 'badge-orange', accepted: 'badge-blue', agreed: 'badge-blue', paid: 'badge-green', completed: 'badge-green', cancelled: 'badge-red', rejected: 'badge-red', payment_failed: 'badge-red', refunded: 'badge-gray' };
-  return `<span class="badge ${map[s] || 'badge-gray'}">${t('status_' + s, s || 'unknown')}</span>`;
+  const map = { pending: 'badge-orange', accepted: 'badge-blue', agreed: 'badge-blue', paid: 'badge-green', completed: 'badge-green', cancelled: 'badge-red', rejected: 'badge-red', payment_failed: 'badge-red', refunded: 'badge-neutral' };
+  return `<span class="badge ${map[s] || 'badge-neutral'}">${t('status_' + s, s || 'unknown')}</span>`;
 }
 function payBadge(s) {
-  const map = { paid: 'badge-green', pending: 'badge-orange', failed: 'badge-red', refunded: 'badge-gray', cancelled: 'badge-gray' };
-  return `<span class="badge ${map[s] || 'badge-gray'}">${t('pay_' + (s || 'pending'), s || 'pending')}</span>`;
+  const map = { paid: 'badge-green', pending: 'badge-orange', failed: 'badge-red', refunded: 'badge-neutral', cancelled: 'badge-neutral' };
+  return `<span class="badge ${map[s] || 'badge-neutral'}">${t('pay_' + (s || 'pending'), s || 'pending')}</span>`;
 }
 function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
@@ -1992,7 +1992,7 @@ async function searchUsers() {
       tb.innerHTML = `<tr><td colspan="6" style="color:var(--text-muted)">${t('empty_no_result')}</td></tr>`;
       return;
     }
-    const stBadge = (st) => ({ active: 'badge-green', suspended: 'badge-orange', banned: 'badge-red' }[st || 'active'] || 'badge-gray');
+    const stBadge = (st) => ({ active: 'badge-green', suspended: 'badge-orange', banned: 'badge-red' }[st || 'active'] || 'badge-neutral');
     tb.innerHTML = rows.map(u => {
       const b = _ROLE_BADGE[u.role] || _ROLE_BADGE.owner;
       const dev = u.devices != null ? u.devices : (Array.isArray(u.fcmTokens) ? u.fcmTokens.length : null);
@@ -2217,7 +2217,7 @@ async function loadShopPanel() {
           ? '<span class="badge badge-blue">✓ Payé</span>'
           : p.isActive
           ? '<span class="badge badge-green">Actif</span>'
-          : '<span class="badge badge-gray">Expiré</span>';
+          : '<span class="badge badge-neutral">Expiré</span>';
         return `<tr>
           <td style="font-size:12px;color:var(--text-muted)">${fmtDate(p.purchasedAt)}</td>
           <td><strong>${escapeHtml(p.userName || '-')}</strong></td>
@@ -2526,13 +2526,13 @@ async function loadPawSpotSubs() {
     document.getElementById('pawspot-summary').innerHTML =
       card('🐶 Owners — mensuel', cell('owner').monthly, '#E8A00A') +
       card('🐶 Owners — annuel', cell('owner').yearly, '#E8A00A') +
-      card('🐶 Owners — essai 7j', cell('owner').trial, '#9CA3AF') +
+      card('🐶 Owners — essai 7j', cell('owner').trial, '#8A6B64') +
       card('🏠 Sitters — mensuel', cell('sitter').monthly, '#E8A00A') +
       card('🏠 Sitters — annuel', cell('sitter').yearly, '#E8A00A') +
-      card('🏠 Sitters — essai 7j', cell('sitter').trial, '#9CA3AF') +
+      card('🏠 Sitters — essai 7j', cell('sitter').trial, '#8A6B64') +
       card('🐕 Walkers — mensuel', cell('walker').monthly, '#E8A00A') +
       card('🐕 Walkers — annuel', cell('walker').yearly, '#E8A00A') +
-      card('🐕 Walkers — essai 7j', cell('walker').trial, '#9CA3AF');
+      card('🐕 Walkers — essai 7j', cell('walker').trial, '#8A6B64');
     const planLabel = { monthly: '📆 Mensuel', yearly: '📅 Annuel', trial: '🎁 Essai 7 j' };
     const rows = (d.rows || []).map((r) =>
       `<tr><td>${r.name || '—'}</td><td>${r.email || '—'}</td><td>${r.role}</td><td>${planLabel[r.plan] || r.plan}</td><td>${r.expiry ? new Date(r.expiry).toLocaleDateString() : '—'}</td></tr>`).join('');
@@ -2834,7 +2834,7 @@ async function loadAccountDeletions() {
         const zone = [countryFlag(it.country || ''), it.city || ''].filter(Boolean).join(' ');
         const plat = it.platform ? ((platformLabel[it.platform] || '') + ' ' + escapeHtml(it.platform)).trim() : '—';
         const pills = (it.reasons || []).length
-          ? (it.reasons || []).map((r) => '<span class="badge badge-gray">' + escapeHtml(delReasonLabel(r)) + '</span>').join(' ')
+          ? (it.reasons || []).map((r) => '<span class="badge badge-neutral">' + escapeHtml(delReasonLabel(r)) + '</span>').join(' ')
           : '<span style="color:var(--text-muted)">—</span>';
         return '<tr><td>' + escapeHtml(fmtDate(it.deletedAt, true)) + '</td>' +
           '<td>' + escapeHtml(it.role || '—') + '</td>' +
@@ -4826,8 +4826,8 @@ async function loadDashboard() {
       family:          { product: 'PawFamily',  period: 'monthly', emoji: '👨‍👩‍👧', color: '#6A34E0' },
       famille:         { product: 'PawFamily',  period: 'monthly', emoji: '👨‍👩‍👧', color: '#6A34E0' },
       family_yearly:   { product: 'PawFamily',  period: 'yearly',  emoji: '👨‍👩‍👧', color: '#6A34E0' },
-      premium_monthly: { product: 'PawPremium', period: 'monthly', emoji: '👑', color: '#1D1D1F' },
-      premium_yearly:  { product: 'PawPremium', period: 'yearly',  emoji: '👑', color: '#1D1D1F' },
+      premium_monthly: { product: 'PawPremium', period: 'monthly', emoji: '👑', color: '#231715' },
+      premium_yearly:  { product: 'PawPremium', period: 'yearly',  emoji: '👑', color: '#231715' },
       pawspot_monthly: { product: 'PawSpot',    period: 'monthly', emoji: '🐾', color: '#E8A00A' },
       pawspot_yearly:  { product: 'PawSpot',    period: 'yearly',  emoji: '🐾', color: '#E8A00A' },
     };
@@ -4845,11 +4845,11 @@ async function loadDashboard() {
     const people = (n) => n + ' ' + (n > 1 ? t('dash_subs_people_pl', 'personnes') : t('dash_subs_people', 'personne'));
     const subsHtml = byPlan.some(p => p.count || p.people)
       ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' + byPlan
-          .map(p => ({ p, m: PLAN_META[String(p.plan || '').toLowerCase()] || { product: p.plan || '?', period: '', emoji: '📦', color: '#6E6E73' } }))
+          .map(p => ({ p, m: PLAN_META[String(p.plan || '').toLowerCase()] || { product: p.plan || '?', period: '', emoji: '📦', color: '#6E4F48' } }))
           .sort((a, b) => a.m.product.localeCompare(b.m.product) || a.m.period.localeCompare(b.m.period))
           .map(({ p, m }) => `<span style="display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:12px;background:${m.color}14;border-left:4px solid ${m.color};${(p.people || p.count) ? '' : 'opacity:.55'}">
               <span style="font-size:16px">${m.emoji}</span>
-              <span style="line-height:1.25"><b style="color:${m.color === '#1D1D1F' ? '#1D1D1F' : m.color}">${m.product}</b>
+              <span style="line-height:1.25"><b style="color:${m.color === '#231715' ? '#231715' : m.color}">${m.product}</b>
                 <span style="color:var(--text-muted)"> · ${m.period === 'yearly' ? t('dash_subs_yearly', 'Annuel') : m.period === 'monthly' ? t('dash_subs_monthly', 'Mensuel') : ''}</span><br>
                 <span style="font-size:13px">${people(p.people != null ? p.people : (p.count || 0))} · ${(p.count || 0)} ${t('dash_subs_payments', 'paiement(s)')} · <b>€${(p.total || 0).toFixed(2)}</b></span></span></span>`)
           .join('') + '</div>'
@@ -5174,7 +5174,7 @@ function renderSitters() {
         <td>${s.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           ${!s.verified ? `<button class="action-btn btn-verify" onclick="verifySitter('${s._id}')">✓ Verify</button>` : ''}
-          <button class="action-btn" style="background:${s.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('sitter','${s._id}',${!s.isStaff})">${s.isStaff?'Retirer Staff ⭐':'Activer Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteSitter('${s._id}')">Supprimer</button>
+          <button class="action-btn" style="background:${s.isStaff?'#6E4F48':'#16A34A'};color:#fff" onclick="toggleStaff('sitter','${s._id}',${!s.isStaff})">${s.isStaff?'Retirer Staff ⭐':'Activer Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteSitter('${s._id}')">Supprimer</button>
         </td>
       </tr>
     `;}).join('')}</tbody></table>
@@ -5326,7 +5326,7 @@ function renderOwners() {
         <td>${devCell}</td>
         <td>${u.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="action-btn" style="background:${u.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('${u._role}','${u._id}',${!u.isStaff})">${u.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button>
+          <button class="action-btn" style="background:${u.isStaff?'#6E4F48':'#16A34A'};color:#fff" onclick="toggleStaff('${u._role}','${u._id}',${!u.isStaff})">${u.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button>
           <button class="action-btn" onclick="changeUserEmail('${u._role}','${u._id}','${escapeHtml(u.email||'')}')" title="${t('users_email_edit_title','Corriger l\'adresse e-mail (renvoie un code de vérification)')}">✉️ ${t('users_email_edit','E-mail')}</button>
           <button class="action-btn" onclick="showUserBilling('${u._role}','${u._id}')" title="${t('billing_btn_title','Informations de facturation : NIF, SIRET, TVA, adresse')}">🧾 ${t('billing_btn','Facturation')}</button>
           <button class="action-btn btn-delete" onclick="deleteUnifiedUser('${u._role}','${u._id}')">Supprimer</button>
@@ -5415,7 +5415,7 @@ function renderWalkers() {
         <td>${w.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           ${!w.verified ? `<button class="action-btn btn-verify" onclick="verifyWalker('${w._id}')">✓ Verify</button>` : ''}
-          <button class="action-btn" style="background:${w.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('walker','${w._id}',${!w.isStaff})">${w.isStaff?'Retirer Staff ⭐':'Activer Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteWalker('${w._id}')">Supprimer</button>
+          <button class="action-btn" style="background:${w.isStaff?'#6E4F48':'#16A34A'};color:#fff" onclick="toggleStaff('walker','${w._id}',${!w.isStaff})">${w.isStaff?'Retirer Staff ⭐':'Activer Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteWalker('${w._id}')">Supprimer</button>
         </td>
       </tr>
     `;}).join('')}</tbody></table>
@@ -5915,8 +5915,8 @@ function openPaymentDetail(bookingId) {
 function showPaymentModal(p) {
   const fmt = (v) => `€${Number(v || 0).toFixed(2)}`;
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString(adminLocale(), { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
-  const statusColors = { paid: '#22c55e', failed: '#ef4444', refunded: '#f59e0b', pending: '#94a3b8' };
-  const payoutColors = { completed: '#22c55e', processing: '#3b82f6', failed: '#ef4444', pending: '#f59e0b', cancelled: '#94a3b8' };
+  const statusColors = { paid: '#22c55e', failed: '#ef4444', refunded: '#f59e0b', pending: '#8A6B64' };
+  const payoutColors = { completed: '#22c55e', processing: '#3b82f6', failed: '#ef4444', pending: '#f59e0b', cancelled: '#8A6B64' };
 
   const modalHtml = `
     <div id="payment-detail-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)this.remove()">
@@ -6250,12 +6250,12 @@ const PRODUCT_COLORS = {
 // tableau de bord, Mes revenus, la Comptabilité et l'Activité boutique lisent
 // les mêmes champs (gross / storeFee / net), aucune formule n'est refaite.
 const SHOP_CHANNEL_META = {
-  apple:       { emoji: '🍎', color: '#111827', key: 'shopch_apple',       fr: 'App Store (iOS)' },
+  apple:       { emoji: '🍎', color: '#231715', key: 'shopch_apple',       fr: 'App Store (iOS)' },
   google_play: { emoji: '🤖', color: '#16A34A', key: 'shopch_google_play', fr: 'Google Play' },
   airwallex:   { emoji: '💳', color: '#2563EB', key: 'shopch_airwallex',   fr: 'Carte (Airwallex)' },
   paypal:      { emoji: '🅿️', color: '#0EA5E9', key: 'shopch_paypal',      fr: 'PayPal' },
   promo:       { emoji: '🎁', color: '#F59E0B', key: 'shopch_promo',       fr: 'Offerts' },
-  autre:       { emoji: '👛', color: '#6E6E73', key: 'shopch_autre',       fr: 'Portefeuille / autre' },
+  autre:       { emoji: '👛', color: '#6E4F48', key: 'shopch_autre',       fr: 'Portefeuille / autre' },
 };
 const SHOP_PRODUCT_META = {
   pawboost:      { label: '🚀 PawBoost' },
@@ -6296,7 +6296,7 @@ function shopChannelBadge(c) {
 function shopFlagBadges(x) {
   let h = '';
   if (x.estimated || x.estimatedCount) h += ' <span class="badge badge-orange" title="' + escapeHtml(t('shopch_estimated_tip', 'Montant réel non enregistré : prix catalogue du produit')) + '">' + t('shopch_estimated', 'estimé') + (x.estimatedCount ? ' ×' + x.estimatedCount : '') + '</span>';
-  if (x.untraced || x.untracedCount) h += ' <span class="badge badge-gray" title="' + escapeHtml(t('shopch_untraced_tip', 'Ni montant enregistré ni prix catalogue : compté, 0 €')) + '">' + t('shopch_untraced', 'non tracé') + (x.untracedCount ? ' ×' + x.untracedCount : '') + '</span>';
+  if (x.untraced || x.untracedCount) h += ' <span class="badge badge-neutral" title="' + escapeHtml(t('shopch_untraced_tip', 'Ni montant enregistré ni prix catalogue : compté, 0 €')) + '">' + t('shopch_untraced', 'non tracé') + (x.untracedCount ? ' ×' + x.untracedCount : '') + '</span>';
   return h;
 }
 
@@ -6600,11 +6600,11 @@ function renderBoostsTable(purchases, total) {
       ? `<span class="badge badge-blue">✓ Payé</span>`
       : isActive
       ? `<span class="badge badge-green">Actif</span>`
-      : `<span class="badge badge-gray">Expired</span>`;
+      : `<span class="badge badge-neutral">Expired</span>`;
     const productKey = p.product || 'profile_boost';
-    const productBadge = `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${PRODUCT_COLORS[productKey]||'#555'}22;color:${PRODUCT_COLORS[productKey]||'#888'}">${PRODUCT_LABELS[productKey]||productKey}</span>${p.paymentProvider === 'apple_iap' ? ' 🍎' : ''}`;
+    const productBadge = `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${PRODUCT_COLORS[productKey]||'#3A2723'}22;color:${PRODUCT_COLORS[productKey]||'#6E4F48'}">${PRODUCT_LABELS[productKey]||productKey}</span>${p.paymentProvider === 'apple_iap' ? ' 🍎' : ''}`;
     const tierBadge = p.tier
-      ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${TIER_COLORS[p.tier]||'#555'}22;color:${TIER_COLORS[p.tier]||'#888'}">${TIER_LABELS[p.tier]||p.tier}${p.days?` · ${p.days}d`:''}</span>`
+      ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${TIER_COLORS[p.tier]||'#3A2723'}22;color:${TIER_COLORS[p.tier]||'#6E4F48'}">${TIER_LABELS[p.tier]||p.tier}${p.days?` · ${p.days}d`:''}</span>`
       : '-';
     const roleBadge = p.role === 'sitter'
       ? '<span class="badge badge-blue">🐕 Sitter</span>'
@@ -6948,7 +6948,7 @@ async function loadAdminPayouts() {
         '<div class="stat-value">' + (s.cumulativeSwept||0).toFixed(2) + ' EUR</div>' +
         '<div class="stat-sub">'+(s.cumulativeSweepsCount||0)+' retrait(s) au total</div>' +
       '</div>' +
-      '<div class="stat-card" style="--accent:#111827">' +
+      '<div class="stat-card" style="--accent:#231715">' +
         '<div class="stat-label">🍎 Ventes Apple (iOS)</div>' +
         '<div class="stat-value">' + (s.appleTotal||0).toFixed(2) + ' EUR</div>' +
         '<div class="stat-sub">'+(s.appleCount||0)+' achat(s) — versés par Apple sur ton compte bancaire (hors Airwallex)</div>' +
@@ -7779,7 +7779,7 @@ async function loadBugReports() {
     // tels quels → XSS si un user mal intentionné écrivait un bug avec
     // payload script.
     const rows = (d.reports||[]).map(r => {
-      const statusColor = r.status === 'open' ? '#EF4324' : r.status === 'in_progress' ? '#F59E0B' : r.status === 'fixed' ? '#16A34A' : '#6B7280';
+      const statusColor = r.status === 'open' ? '#EF4324' : r.status === 'in_progress' ? '#F59E0B' : r.status === 'fixed' ? '#16A34A' : '#6E4F48';
       return '<tr>' +
         '<td style="font-size:11px;color:var(--text-muted)">'+fmtDate(r.createdAt)+'</td>' +
         '<td><span style="background:'+statusColor+';color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">'+escapeHtml(r.status||'')+'</span></td>' +

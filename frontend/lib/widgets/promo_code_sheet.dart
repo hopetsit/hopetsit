@@ -618,7 +618,7 @@ class _PromoPopupState extends State<PromoPopup> with SingleTickerProviderStateM
               border: Border.all(color: accent.withValues(alpha: 0.25)),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF14141E).withValues(alpha: 0.16),
+                  color: const Color(0xFF1E1513).withValues(alpha: 0.16),
                   blurRadius: 24,
                   offset: const Offset(0, 10),
                 ),

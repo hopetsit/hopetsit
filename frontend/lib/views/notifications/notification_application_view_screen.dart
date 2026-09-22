@@ -12,6 +12,7 @@ import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/views/service_provider/widgets/service_provider_card.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// Shows one sitter request as the same [ServiceProviderCard] used on Applications tab.
 class NotificationApplicationViewScreen extends StatefulWidget {
@@ -253,7 +254,9 @@ class _NotificationApplicationViewScreenState
           color: AppColors.textPrimary(context),
         ),
       ),
-      body: Obx(() {
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: Obx(() {
         final loading =
             _applicationsController.isLoading.value &&
             _applicationsController.applications.isEmpty;
@@ -330,6 +333,7 @@ class _NotificationApplicationViewScreenState
           ),
         );
       }),
+        ),
     );
   }
 }

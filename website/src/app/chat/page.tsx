@@ -729,7 +729,7 @@ export default function ChatPage() {
                         aria-label={online ? t("chat_online") : t("chat_offline")}
                         title={online ? t("chat_online") : t("chat_offline")}
                         className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${
-                          online ? "bg-emerald-500" : "bg-[#C7C7CC]"
+                          online ? "bg-emerald-500" : "bg-[#D6C3BE]"
                         }`}
                       />
                       <span className="truncate">
@@ -820,7 +820,7 @@ export default function ChatPage() {
                     <span className="hidden min-w-0 items-center gap-2 md:flex">
                       <span
                         className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${
-                          online ? "bg-emerald-500" : "bg-[#C7C7CC]"
+                          online ? "bg-emerald-500" : "bg-[#D6C3BE]"
                         }`}
                       />
                       <span className="truncate text-sm font-semibold text-ink">

@@ -21,6 +21,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:intl/intl.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// Edit post screen for the post owner.
 ///
@@ -263,7 +264,9 @@ class _EditPostScreenState extends State<EditPostScreen> {
           color: AppColors.textPrimary(context),
         ),
       ),
-      body: Column(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: Column(
         children: [
           Expanded(
             child: ListView(
@@ -380,6 +383,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
           ),
         ],
       ),
+        ),
     );
   }
 }

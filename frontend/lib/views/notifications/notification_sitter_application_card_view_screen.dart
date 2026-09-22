@@ -16,6 +16,7 @@ import 'package:hopetsit/views/pet_sitter/widgets/pet_sitter_application_card.da
 import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class NotificationSitterApplicationCardViewScreen extends StatefulWidget {
   const NotificationSitterApplicationCardViewScreen({
@@ -189,7 +190,7 @@ class _NotificationSitterApplicationCardViewScreenState
                     width: 40.w,
                     height: 4.h,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade400,
+                      color: AppColors.greyColor,
                       borderRadius: BorderRadius.circular(2.r),
                     ),
                   ),
@@ -316,7 +317,9 @@ class _NotificationSitterApplicationCardViewScreenState
             color: AppColors.textPrimary(context),
           ),
         ),
-        body: SafeArea(
+        body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
           // v573 — squelette de carte plutôt qu'un spinner nu : l'écran garde
           // sa forme pendant que la candidature se charge.
           child: showLoading
@@ -471,6 +474,7 @@ class _NotificationSitterApplicationCardViewScreenState
                     ],
                   ),
                 ),
+        ),
         ),
       );
     });

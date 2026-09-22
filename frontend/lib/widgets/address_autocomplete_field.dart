@@ -171,7 +171,7 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
     // bordure fine → marque au focus) et gagne un état « aucun résultat ».
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final Color line =
-        isDark ? AppColors.dividerDark : const Color(0xFFE2E5EA);
+        isDark ? AppColors.dividerDark : const Color(0xFFECE2DF);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

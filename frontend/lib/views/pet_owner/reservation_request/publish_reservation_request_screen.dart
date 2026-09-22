@@ -17,6 +17,7 @@ import 'package:hopetsit/views/profile/my_pets_screen.dart';
 import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/views/pet_owner/pet_profile/pet_profile_screen.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class PublishReservationRequestScreen extends StatefulWidget {
   const PublishReservationRequestScreen({
@@ -89,7 +90,9 @@ class _PublishReservationRequestScreenState
           color: AppColors.textPrimary(context),
         ),
       ),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         bottom: false,
         child: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -193,6 +196,7 @@ class _PublishReservationRequestScreenState
           ),
         ),
       ),
+        ),
       bottomNavigationBar: _buildStickyBar(),
     );
   }
@@ -1861,7 +1865,7 @@ class _PublishReservationRequestScreenState
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black26,
+                                  color: AppColors.greyColor.withValues(alpha: 0.10),
                                   blurRadius: 4,
                                   offset: const Offset(0, 2),
                                 ),

@@ -14,6 +14,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// Couleur d'accent d'un rôle (owner / sitter / walker).
 Color profileAccentFor(String? role) {
@@ -330,7 +331,9 @@ class ProfileSubPageScaffold extends StatelessWidget {
         ),
         actions: actions,
       ),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         top: false,
         child: bottom == null
             ? content
@@ -345,6 +348,7 @@ class ProfileSubPageScaffold extends StatelessWidget {
                 ],
               ),
       ),
+        ),
     );
   }
 }

@@ -17,6 +17,7 @@ import 'package:hopetsit/widgets/micro_anims.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/views/auth/forgot_flow/forgot_password_email_screen.dart';
 import 'package:hopetsit/views/auth/sign_up_as.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// v540 — écran de connexion « Bon retour ❤ » (maquette LAP écran 2a).
 /// Reskin visuel UNIQUEMENT : toute la logique (formKey, contrôleurs email/
@@ -104,6 +105,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.backgroundDark : const Color(0xFFFFF9F4),
+      // v578 — le motif de pattes se place DANS le dégradé, sinon le fond
+      // opaque le recouvrait et on ne voyait rien.
       body: Container(
         decoration: isDark
             ? null
@@ -114,7 +117,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   colors: [Color(0xFFFFF9F4), Color(0xFFFFF3EA)],
                 ),
               ),
-        child: SafeArea(
+        child: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
           child: SingleChildScrollView(
             // v569 — le bouton principal ne doit jamais rester sous la barre
             // système Android (viewPadding = 0 sur les Samsung edge-to-edge).
@@ -535,6 +540,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
+        ),
     );
   }
 
@@ -806,7 +812,7 @@ class _SocialLoginButton extends StatelessWidget {
       opacity: onTap == null && !isLoading ? 0.5 : 1,
       child: Material(
         color: isAppleButton
-            ? const Color(0xFF101319)
+            ? const Color(0xFF191210)
             : (isDark ? AppColors.surfaceDark : Colors.white),
         borderRadius: BorderRadius.circular(14.r),
         clipBehavior: Clip.antiAlias,

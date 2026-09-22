@@ -424,11 +424,11 @@ class _BannerCardState extends State<_BannerCard>
   @override
   Widget build(BuildContext context) {
     final bool dark = Theme.of(context).brightness == Brightness.dark;
-    final Color surface = dark ? const Color(0xFF1D1D1F) : Colors.white;
+    final Color surface = dark ? const Color(0xFF251A17) : Colors.white;
     final Color titleColor =
-        dark ? const Color(0xFFF5F5F7) : const Color(0xFF17141F);
+        dark ? const Color(0xFFF8F5F4) : const Color(0xFF201613);
     final Color messageColor =
-        dark ? const Color(0xFF9E9EA7) : const Color(0xFF6E6E73);
+        dark ? const Color(0xFFAF9B96) : const Color(0xFF82665E);
     final Color borderColor =
         dark ? const Color(0x26FFFFFF) : const Color(0x14000000);
 

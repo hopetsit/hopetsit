@@ -8,6 +8,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/notification_card.dart';
 import 'package:hopetsit/views/notifications/notification_sitter_application_card_view_screen.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class SitterNotificationsScreen extends StatefulWidget {
   const SitterNotificationsScreen({super.key});
@@ -124,7 +125,9 @@ class _SitterNotificationsScreenState extends State<SitterNotificationsScreen> {
           }),
         ],
       ),
-      body: Obx(() {
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: Obx(() {
         if (_c.isLoading.value && _c.notifications.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -210,6 +213,7 @@ class _SitterNotificationsScreenState extends State<SitterNotificationsScreen> {
           ),
         );
       }),
+        ),
     );
   }
 }

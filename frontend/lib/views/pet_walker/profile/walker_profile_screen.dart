@@ -182,7 +182,7 @@ class WalkerProfileScreen extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 10.w),
           decoration: BoxDecoration(
             color: Get.isDarkMode
-                ? const Color(0xFF1F2A22)
+                ? const Color(0xFF2D1F1C)
                 : const Color(0xFFE6F6EC),
             borderRadius: BorderRadius.circular(16.r),
             border: Border.all(

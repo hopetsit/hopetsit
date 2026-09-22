@@ -333,7 +333,7 @@ class _BrandedLoader extends StatelessWidget {
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
-                color: Color(0xFF1F1F1F),
+                color: Color(0xFF261B18),
               ),
             ),
             const SizedBox(height: 8),
@@ -353,7 +353,7 @@ class _BrandedLoader extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF777777),
+                  color: Color(0xFF8A6C64),
                   height: 1.4,
                 ),
               ),

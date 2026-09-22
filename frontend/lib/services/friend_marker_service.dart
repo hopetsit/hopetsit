@@ -49,7 +49,7 @@ class FriendMarkerService extends GetxService {
   static const _violetFamily = Color(0xFF8B5CF6);
   // v23.1.395 — anneau Paw Premium (or).
   static const _goldPremium = Color(0xFFE8A00A);
-  static const _silver = Color(0xFFC0C0C0);
+  static const _silver = Color(0xFFC9BBB7);
 
   String _cacheKey(String userId, String avatarUrl, String role, bool isFamily,
           bool isPremium) =>

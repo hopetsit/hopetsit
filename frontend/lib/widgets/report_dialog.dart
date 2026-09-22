@@ -226,8 +226,8 @@ class ReportDialog {
                   fontSize: 15.sp,
                   fontWeight: FontWeight.w600,
                   bgColor: dark
-                      ? const Color(0xFF2A2A2A)
-                      : const Color(0xFFF1F2F4),
+                      ? const Color(0xFF342420)
+                      : const Color(0xFFF6F1EF),
                   textColor: AppColors.textPrimary(ctx),
                   onTap: () => Navigator.of(ctx).pop(),
                 ),

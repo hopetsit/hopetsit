@@ -173,7 +173,7 @@ export default function PayPage() {
               <p className="max-w-sm text-lg font-semibold text-ink">{t("pay_booking_hint")}</p>
               <Link
                 href="/bookings"
-                className="mt-5 inline-flex rounded-full bg-[#1D1D1F] px-6 py-3 text-sm font-semibold text-white transition hover:bg-black"
+                className="mt-5 inline-flex rounded-full bg-[#231715] px-6 py-3 text-sm font-semibold text-white transition hover:bg-black"
               >
                 {t("pay_open_bookings")} →
               </Link>

@@ -133,11 +133,11 @@ class _AddFriendTabState extends State<AddFriendTab>
                 backgroundColor: Colors.white,
                 eyeStyle: const QrEyeStyle(
                   eyeShape: QrEyeShape.square,
-                  color: Color(0xFF17141F),
+                  color: Color(0xFF201613),
                 ),
                 dataModuleStyle: const QrDataModuleStyle(
                   dataModuleShape: QrDataModuleShape.square,
-                  color: Color(0xFF17141F),
+                  color: Color(0xFF201613),
                 ),
               ),
             ),

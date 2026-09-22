@@ -14,11 +14,11 @@ class PawMapTheme {
   PawMapTheme._();
 
   // ── Maquette ────────────────────────────────────────────────────────────
-  static const Color ink = Color(0xFF17130F);
+  static const Color ink = Color(0xFF18100E);
   static const Color sub = Color(0xFF877C71);
   static const Color bg = Color(0xFFFAF7F2);
   static const Color mapBg = Color(0xFFF0EBE1);
-  static const Color border = Color(0x1217130F); // rgba(23,19,15,.07)
+  static const Color border = Color(0x1218100E); // rgba(23,19,15,.07)
   static const Color accent = Color(0xFFD83C28); // v559 — orange de l'icône (Daniel), ex-E8551C
   static const Color rose = Color(0xFFE0397F); // agrandir, actif, onglets
   static const Color roseDark = Color(0xFFC72A6C);
@@ -59,10 +59,10 @@ class PawMapTheme {
   // Ce qui suit ne concerne QUE les surfaces posées par-dessus la carte
   // (panneau des filtres, cartes, bandeaux) et les feuilles/écrans annexes :
   // en sombre, un panneau crème avec du texte `ink` était illisible.
-  static const Color inkDark = Color(0xFFF2F2F2);
-  static const Color subDark = Color(0xFFB0B0B0);
-  static const Color bgDark = Color(0xFF16171A); // fond de feuille / d'écran
-  static const Color panelDark = Color(0xFF232427); // panneau, carte, pilule
+  static const Color inkDark = Color(0xFFF5F0EF);
+  static const Color subDark = Color(0xFFBBA9A5);
+  static const Color bgDark = Color(0xFF1E1512); // fond de feuille / d'écran
+  static const Color panelDark = Color(0xFF2E201C); // panneau, carte, pilule
   static const Color borderDarkTone = Color(0x33FFFFFF);
 
   static bool isDark(BuildContext context) =>

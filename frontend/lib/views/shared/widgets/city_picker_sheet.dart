@@ -393,7 +393,7 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
           borderSide: BorderSide(color: c, width: w),
         );
     final Color line =
-        isDark ? AppColors.dividerDark : const Color(0xFFE2E5EA);
+        isDark ? AppColors.dividerDark : const Color(0xFFECE2DF);
     return TextField(
       key: const ValueKey<String>('city_picker_field'),
       controller: _controller,

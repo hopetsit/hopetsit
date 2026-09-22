@@ -76,14 +76,14 @@ export function AppRoutePage({
 
   return (
     <main className="flex min-h-[70vh] items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md rounded-[24px] bg-[#F5F5F7] p-8 text-center">
+      <div className="w-full max-w-md rounded-[24px] bg-[#FAF1EC] p-8 text-center">
         <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-white text-3xl shadow-sm">
           🐾
         </div>
-        <h1 className="mt-6 font-display text-2xl font-bold tracking-[-0.02em] text-[#1D1D1F]">
+        <h1 className="mt-6 font-display text-2xl font-bold tracking-[-0.02em] text-[#231715]">
           {title ?? t("approute_title")}
         </h1>
-        <p className="mt-2 text-sm text-[#6E6E73]">{subtitle ?? t("approute_sub")}</p>
+        <p className="mt-2 text-sm text-[#6E4F48]">{subtitle ?? t("approute_sub")}</p>
 
         <div className="mt-6 flex flex-col gap-2">
           {mobile && (
@@ -97,7 +97,7 @@ export function AppRoutePage({
           )}
           <Link
             href={target}
-            className="w-full rounded-full bg-[#1D1D1F] px-6 py-3 text-sm font-semibold text-white transition hover:bg-black"
+            className="w-full rounded-full bg-[#231715] px-6 py-3 text-sm font-semibold text-white transition hover:bg-black"
           >
             {webLabel ?? t("approute_web")}
           </Link>
@@ -109,7 +109,7 @@ export function AppRoutePage({
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => trackSiteEvent("store_click", { store: "ios" })}
-            className="rounded-full bg-white py-2.5 text-xs font-semibold text-[#1D1D1F] ring-1 ring-black/5 transition hover:bg-[#E8E8ED]"
+            className="rounded-full bg-white py-2.5 text-xs font-semibold text-[#231715] ring-1 ring-black/5 transition hover:bg-[#F0E3DF]"
           >
             App Store
           </a>
@@ -118,14 +118,14 @@ export function AppRoutePage({
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => trackSiteEvent("store_click", { store: "android" })}
-            className="rounded-full bg-white py-2.5 text-xs font-semibold text-[#1D1D1F] ring-1 ring-black/5 transition hover:bg-[#E8E8ED]"
+            className="rounded-full bg-white py-2.5 text-xs font-semibold text-[#231715] ring-1 ring-black/5 transition hover:bg-[#F0E3DF]"
           >
             Google Play
           </a>
         </div>
 
         {redirectAfterMs > 0 && (
-          <p className="mt-5 text-xs text-[#6E6E73]">{t("approute_redirecting")}</p>
+          <p className="mt-5 text-xs text-[#6E4F48]">{t("approute_redirecting")}</p>
         )}
       </div>
     </main>

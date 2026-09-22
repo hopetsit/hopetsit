@@ -7,6 +7,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/views/auth/login_screen.dart';
 import 'package:hopetsit/views/auth/forgot_flow/forgot_password_screen.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// v569 — RENDU SEULEMENT : le bouton renvoie toujours vers
 /// `Get.offAll(() => const LoginScreen())`, les textes et les deux points de
@@ -23,7 +24,9 @@ class PasswordResetSuccessScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
             22.w,
@@ -134,6 +137,7 @@ class PasswordResetSuccessScreen extends StatelessWidget {
           ),
         ),
       ),
+        ),
     );
   }
 

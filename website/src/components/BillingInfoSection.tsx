@@ -157,12 +157,12 @@ export function BillingInfoSection({
   }
 
   return (
-    <section id="billing" className={`rounded-[24px] bg-[#F5F5F7] p-5 md:p-6 ${className}`}>
+    <section id="billing" className={`rounded-[24px] bg-[#FAF1EC] p-5 md:p-6 ${className}`}>
       <div className="flex items-center gap-2">
         <span aria-hidden="true" className="text-lg">🧾</span>
-        <h2 className="text-base font-semibold text-[#1D1D1F]">{t("billing_title")}</h2>
+        <h2 className="text-base font-semibold text-[#231715]">{t("billing_title")}</h2>
       </div>
-      <p className="mt-1 text-xs text-[#6E6E73]">{t("billing_sub")}</p>
+      <p className="mt-1 text-xs text-[#6E4F48]">{t("billing_sub")}</p>
 
       <form onSubmit={save} className="mt-4 space-y-4" aria-busy={!loaded || busy}>
         <div className="inline-flex rounded-full bg-white p-1">
@@ -173,7 +173,7 @@ export function BillingInfoSection({
               onClick={() => set("type", k)}
               aria-pressed={info.type === k}
               className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
-                info.type === k ? "bg-owner-light text-owner-dark" : "text-[#6E6E73] hover:text-[#1D1D1F]"
+                info.type === k ? "bg-owner-light text-owner-dark" : "text-[#6E4F48] hover:text-[#231715]"
               }`}
             >
               {t(k === "individual" ? "billing_type_individual" : "billing_type_business")}
@@ -248,7 +248,7 @@ export function BillingInfoSection({
           </BField>
         </div>
 
-        <p className="text-xs text-[#6E6E73]">{t("billing_frozen_note")}</p>
+        <p className="text-xs text-[#6E4F48]">{t("billing_frozen_note")}</p>
 
         {msg && (
           <div
@@ -262,7 +262,7 @@ export function BillingInfoSection({
         <button
           type="submit"
           disabled={busy || !loaded}
-          className="rounded-full bg-[#1D1D1F] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-full bg-[#231715] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
         >
           {busy ? t("billing_saving") : t("billing_save")}
         </button>
@@ -274,7 +274,7 @@ export function BillingInfoSection({
 function BField({ label, full, children }: { label: string; full?: boolean; children: React.ReactNode }) {
   return (
     <label className={`block ${full ? "sm:col-span-2" : ""}`}>
-      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6E6E73]">{label}</span>
+      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6E4F48]">{label}</span>
       {children}
     </label>
   );
@@ -297,26 +297,26 @@ export function BillingPartyBlock({
   const addr = [b?.address, cityLine, b?.country].filter(Boolean).join(", ");
   const hasData = !!(b && (b.legalName || b.idNumber || b.vatNumber || addr));
   return (
-    <div className="rounded-2xl bg-[#F5F5F7] px-4 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6E6E73]">{title}</p>
-      <p className="mt-1 text-sm font-semibold text-[#1D1D1F]">{b?.legalName || name || "—"}</p>
+    <div className="rounded-2xl bg-[#FAF1EC] px-4 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6E4F48]">{title}</p>
+      <p className="mt-1 text-sm font-semibold text-[#231715]">{b?.legalName || name || "—"}</p>
       {hasData ? (
-        <div className="mt-0.5 space-y-0.5 text-xs text-[#6E6E73]">
+        <div className="mt-0.5 space-y-0.5 text-xs text-[#6E4F48]">
           {b?.legalName && name && b.legalName !== name && <p>{name}</p>}
           {b?.idNumber && (
             <p>
-              {idLabel} : <span className="font-mono text-[#1D1D1F]">{b.idNumber}</span>
+              {idLabel} : <span className="font-mono text-[#231715]">{b.idNumber}</span>
             </p>
           )}
           {b?.vatNumber && !(b.idType === "vat" && b.vatNumber === b.idNumber) && (
             <p>
-              {t("billing_vat_number")} : <span className="font-mono text-[#1D1D1F]">{b.vatNumber}</span>
+              {t("billing_vat_number")} : <span className="font-mono text-[#231715]">{b.vatNumber}</span>
             </p>
           )}
           {addr && <p>{addr}</p>}
         </div>
       ) : (
-        <p className="mt-0.5 text-xs text-[#6E6E73]">{t("billing_missing")}</p>
+        <p className="mt-0.5 text-xs text-[#6E4F48]">{t("billing_missing")}</p>
       )}
     </div>
   );

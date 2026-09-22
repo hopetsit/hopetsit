@@ -47,14 +47,14 @@ export default function PricingPage() {
             {tiers.map((tier) => (
               <div
                 key={tier.title}
-                className="group relative overflow-hidden rounded-[28px] bg-[#F5F5F7] p-9"
+                className="group relative overflow-hidden rounded-[28px] bg-[#FAF1EC] p-9"
               >
                                 <div className="relative">
                   <div className="flex items-center gap-3">
                     <span className={`grid h-12 w-12 place-items-center rounded-full bg-white text-2xl`}>{tier.emoji}</span>
-                    <h2 className="text-sm font-semibold uppercase tracking-wider text-[#6E6E73]">{tier.title}</h2>
+                    <h2 className="text-sm font-semibold uppercase tracking-wider text-[#6E4F48]">{tier.title}</h2>
                   </div>
-                  <div className="mt-6 font-display text-4xl font-bold tracking-[-0.02em] text-[#1D1D1F] md:text-5xl">
+                  <div className="mt-6 font-display text-4xl font-bold tracking-[-0.02em] text-[#231715] md:text-5xl">
                     {tier.price}
                   </div>
                   <ul className="mt-7 space-y-3">
@@ -69,7 +69,7 @@ export default function PricingPage() {
                   </ul>
                   <Link
                     href={tier.href}
-                    className="mt-8 inline-flex w-full items-center justify-center rounded-full bg-[#1D1D1F] px-6 py-3 text-sm font-semibold text-white transition hover:bg-black"
+                    className="mt-8 inline-flex w-full items-center justify-center rounded-full bg-[#231715] px-6 py-3 text-sm font-semibold text-white transition hover:bg-black"
                   >
                     {t("nav_signup")} →
                   </Link>
@@ -78,19 +78,19 @@ export default function PricingPage() {
             ))}
           </div>
 
-          <p className="mx-auto mt-8 max-w-3xl text-center text-sm leading-relaxed text-[#6E6E73]">
+          <p className="mx-auto mt-8 max-w-3xl text-center text-sm leading-relaxed text-[#6E4F48]">
             {t("pricing_note")}
           </p>
 
           {/* v565 (point 27) — entrée discrète « J'ai un code » sur les tarifs. */}
           <div className="mx-auto mt-6 flex max-w-xl flex-col items-center gap-3 text-center">
-            <p className="text-sm text-[#6E6E73]">{t("promo_pricing_hint")}</p>
+            <p className="text-sm text-[#6E4F48]">{t("promo_pricing_hint")}</p>
             <PromoCodeBox collapsible className="w-full text-left" />
           </div>
         </div>
       </section>
 
-      <div className="bg-[#F5F5F7]">
+      <div className="bg-[#FAF1EC]">
         <div className="mx-auto max-w-6xl px-4 pt-20">
           <SectionTitle>{t("hiw_subs_title")}</SectionTitle>
         </div>
@@ -99,7 +99,7 @@ export default function PricingPage() {
 
       {/* ── PawPremium ── v562 : bande noire sobre. */}
       <section className="px-4 py-20">
-        <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 rounded-[28px] bg-[#1D1D1F] p-10 text-center md:flex-row md:p-14 md:text-left">
+        <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 rounded-[28px] bg-[#231715] p-10 text-center md:flex-row md:p-14 md:text-left">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/pawpremium_logo.svg" alt="PawPremium" width={88} height={88} className="shrink-0" />
           <div className="flex-1">
@@ -107,7 +107,7 @@ export default function PricingPage() {
             <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-white/75 md:mx-0">{t("home_pawpremium_blurb")}</p>
             <p className="mt-3 text-sm font-semibold text-[#FFD34D]">{priceLines.premium}</p>
           </div>
-          <Link href="/boutique" className="shrink-0 rounded-full bg-white px-7 py-3.5 text-sm font-semibold text-[#1D1D1F] transition hover:bg-[#E8E8ED]">
+          <Link href="/boutique" className="shrink-0 rounded-full bg-white px-7 py-3.5 text-sm font-semibold text-[#231715] transition hover:bg-[#F0E3DF]">
             {t("pawpremium_cta")} →
           </Link>
         </div>

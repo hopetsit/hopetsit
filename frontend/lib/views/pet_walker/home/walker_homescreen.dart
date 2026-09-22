@@ -7,6 +7,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// Walker home screen — Phase-1 placeholder.
 /// Presents a welcome state until the walker-specific widgets (today's walks,
@@ -48,7 +49,9 @@ class WalkerHomescreen extends StatelessWidget {
       // pas le haut fix sa sur les 3 profile". Walker home wrapper en
       // SingleChildScrollView : la welcome card + boost row + tous les
       // elements scrollent ensemble.
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           // v468 — dégage le bas au-dessus du menu pleine largeur
@@ -119,6 +122,7 @@ class WalkerHomescreen extends StatelessWidget {
           ),
         ),
       ),
+        ),
     );
   }
 }

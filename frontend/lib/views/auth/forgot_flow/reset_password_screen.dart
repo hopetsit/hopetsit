@@ -8,6 +8,7 @@ import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/views/auth/forgot_flow/password_reset_success_screen.dart';
 import 'package:hopetsit/views/auth/forgot_flow/forgot_password_screen.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// v569 — RENDU SEULEMENT : la `formKey` locale, les deux contrôleurs de mot
 /// de passe, `validatePassword` / `validateConfirmPassword`, `resetPassword`
@@ -31,7 +32,9 @@ class ResetPasswordScreen extends StatelessWidget {
         context,
         'forgot_password_create_new_title'.tr,
       ),
-      body: SingleChildScrollView(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
           22.w,
           12.h,
@@ -120,6 +123,7 @@ class ResetPasswordScreen extends StatelessWidget {
           ),
         ),
       ),
+        ),
     );
   }
 }

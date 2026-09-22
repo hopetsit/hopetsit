@@ -14,6 +14,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:intl/intl.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// Résultat de paiement (succès / échec).
 ///
@@ -47,7 +48,9 @@ class PaymentResultScreen extends StatelessWidget {
         (isSuccess ? null : 'pay569_failed_generic'.tr);
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         child: SingleChildScrollView(
           // v569 — dégagement bas unique de l'app (aucun autre inset n'est
           // appliqué sur cet écran : le SafeArea ne couvre pas le Samsung).
@@ -196,6 +199,7 @@ class PaymentResultScreen extends StatelessWidget {
           ),
         ),
       ),
+        ),
     );
   }
 

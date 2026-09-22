@@ -1095,8 +1095,8 @@ class _PawMapScreenState extends State<PawMapScreen>
           break;
       }
     }
-    final Color offTop = Color.lerp(pink, const Color(0xFFBFBFC6), 0.55)!;
-    final Color offBottom = Color.lerp(pinkDark, const Color(0xFFA9A9B2), 0.55)!;
+    final Color offTop = Color.lerp(pink, const Color(0xFFCBBDBA), 0.55)!;
+    final Color offBottom = Color.lerp(pinkDark, const Color(0xFFB9A7A2), 0.55)!;
     final Color fillTop = !online ? offTop : (selected ? pinkDark : pink);
     final Color fillBottom = online ? pinkDark : offBottom;
 
@@ -1176,7 +1176,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       6.5,
       Paint()
         ..color =
-            online ? const Color(0xFF2ECC71) : const Color(0xFFC3C3C9),
+            online ? const Color(0xFF2ECC71) : const Color(0xFFCEC1BE),
     );
     // Badge doré 👑 (haut-droite) si membre premium.
     if (premium) {
@@ -1740,7 +1740,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         ? const Color(0xFF3A3028)
         : Color.lerp(base, Colors.white, 0.28)!;
     final Color bottom = golden
-        ? const Color(0xFF0F0B08)
+        ? const Color(0xFF0E0A09)
         : Color.lerp(base, Colors.black, 0.18)!;
     final Color rim = golden ? const Color(0xFFFFD34D) : Colors.white;
 
@@ -1810,7 +1810,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           const Offset(cx + 17, cy + 17),
           golden
               ? const [Color(0xFFFFE989), Color(0xFFE8A00A)]
-              : const [Colors.white, Color(0xFFF3F1EE)],
+              : const [Colors.white, Color(0xFFF4EEED)],
         ),
     );
     if (golden) {
@@ -3709,7 +3709,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         role: role,
       );
       final Color providerStroke =
-          p['isPremiumOnly'] == true ? const Color(0xFF15120D) : providerHalo;
+          p['isPremiumOnly'] == true ? const Color(0xFF150F0D) : providerHalo;
       final bool providerOnline =
           p['isOnline'] != false && p['online'] != false;
       final providerHp = _haloPhase.value; // 0..1
@@ -3901,7 +3901,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             fillColor: color.withValues(
               alpha: (0.20 * (1 - roleHp)).clamp(0.0, 1.0),
             ),
-            strokeColor: (isPremiumMember ? const Color(0xFF15120D) : color)
+            strokeColor: (isPremiumMember ? const Color(0xFF150F0D) : color)
                 .withValues(
               alpha: (0.85 * (1 - roleHp) + 0.15).clamp(0.0, 1.0),
             ),
@@ -6468,7 +6468,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     color: on
                         ? accent
                         : (PawMapTheme.isDark(context)
-                            ? const Color(0xFF55565A)
+                            ? const Color(0xFF664F4A)
                             : const Color(0xFFDCD4C8)),
                     borderRadius: BorderRadius.circular(10.r),
                   ),

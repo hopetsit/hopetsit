@@ -20,6 +20,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class NotificationTestScreen extends StatefulWidget {
   const NotificationTestScreen({super.key});
@@ -173,7 +174,9 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary(context)),
       ),
-      body: _loading
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: _loading
           // v573 — spinner thémé (couleur du rôle) au lieu du spinner nu.
           ? Center(child: AppSpinner(size: 28.w, color: accent))
           : ListView(
@@ -271,6 +274,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                   ),
               ],
             ),
+        ),
     );
   }
 

@@ -22,6 +22,7 @@ import 'package:hopetsit/views/pet_sitter/widgets/post_card_kit.dart';
 import 'package:hopetsit/views/service_provider/widgets/public_profile_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// #107 — Vue PROFIL PROPRIÉTAIRE en lecture seule, ouverte par un prestataire
 /// (promeneur / pet-sitter) depuis l'en-tête (avatar + nom) d'une annonce
@@ -87,7 +88,9 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
           overflow: TextOverflow.ellipsis,
         ),
       ),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         bottom: false,
         child: PublicProfileBackground(
           accent: _palette.accent,
@@ -158,6 +161,7 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
           ),
         ),
       ),
+        ),
     );
   }
 

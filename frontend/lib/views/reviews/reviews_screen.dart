@@ -10,6 +10,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/controllers/reviews_controller.dart';
 import 'package:hopetsit/views/reviews/widgets/rating_stars.dart' show kRatingStarColor;
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class ReviewsScreen extends StatefulWidget {
   final String serviceProviderName;
@@ -252,12 +253,15 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
           color: AppColors.textPrimary(context),
         ),
       ),
-      body: SafeArea(
+      body: PawPatternBackground(
+          color: AppColors.activeRoleAccent(),
+          child: SafeArea(
         bottom: false,
         child: _bootstrapping
             ? _loadingState()
             : (_loadFailed ? _errorState() : _content(context, bottomInset)),
       ),
+        ),
     );
   }
 
@@ -565,7 +569,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
           Container(
             padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
             decoration: BoxDecoration(
-              color: dark ? const Color(0xFF1E1E1E) : Colors.white,
+              color: dark ? const Color(0xFF251A17) : Colors.white,
               borderRadius: BorderRadius.circular(14.r),
               border: Border.all(color: AppColors.divider(context), width: 1),
             ),

@@ -1303,7 +1303,7 @@ class ShopStickyBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = dark ? const Color(0xFF15120D) : AppColors.card(context);
+    final bg = dark ? const Color(0xFF150F0D) : AppColors.card(context);
     final titleColor =
         dark ? Colors.white.withValues(alpha: 0.75) : AppColors.textSecondary(context);
     final priceColor =
