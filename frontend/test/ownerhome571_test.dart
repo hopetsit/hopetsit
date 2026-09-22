@@ -165,7 +165,11 @@ void main() {
         onCta: () => published++,
       ),
     ));
-    await tester.pumpAndSettle();
+    // v580 — le mégaphone de la carte est ANIMÉ en boucle : `pumpAndSettle`
+    // attendrait la fin d'une animation qui ne s'arrête jamais et finirait en
+    // délai dépassé. On avance donc d'un temps fixe, ce qui vérifie la même
+    // chose (rendu complet, aucune exception).
+    await tester.pump(const Duration(milliseconds: 300));
     expect(tester.takeException(), isNull);
 
     expect(find.text('Publie ta première annonce en 1 minute'), findsOneWidget);
@@ -175,7 +179,7 @@ void main() {
     expect(find.text('Tu paies en toute sécurité'), findsOneWidget);
 
     await tester.tap(find.text('Publier mon annonce'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(published, 1);
   });
 }

@@ -11,6 +11,7 @@
 // Contrainte de largeur : tout doit tenir à 320 dp, y compris en allemand et
 // en polonais → titres bornés (`maxLines` + ellipsis), rangée de confiance en
 // colonnes `Expanded` (jamais de `Row` non borné qui déborde).
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -355,7 +356,11 @@ class OwnerFirstPostCard extends StatelessWidget {
                   ],
                 ),
               ),
-              child: Icon(Icons.campaign_rounded, size: 30.sp, color: tint),
+              // v580 — Daniel, 22/09 : « le haut-parleur, c'est celui-là ! »
+              // Le mégaphone de « Publie ta première annonce » s'anime : il
+              // s'incline doucement et laisse partir deux ondes, comme s'il
+              // appelait les gardiens autour de toi.
+              child: AnimatedMegaphone(size: 30.sp, color: tint),
             ),
           ),
           SizedBox(height: 12.h),
@@ -765,4 +770,119 @@ class OwnerAddPetCard extends StatelessWidget {
       ),
     );
   }
+}
+
+
+/// v580 — Mégaphone ANIMÉ de la carte « Publie ta première annonce ».
+///
+/// Boucle de 2,4 s : le porte-voix s'incline de 6° et revient, pendant que
+/// deux ondes sortent du pavillon l'une après l'autre, en fondu. Dessiné au
+/// `CustomPainter` pour suivre exactement la couleur du rôle. L'animation se
+/// coupe si le téléphone demande moins d'animations.
+class AnimatedMegaphone extends StatefulWidget {
+  const AnimatedMegaphone({super.key, required this.size, required this.color});
+
+  final double size;
+  final Color color;
+
+  @override
+  State<AnimatedMegaphone> createState() => _AnimatedMegaphoneState();
+}
+
+class _AnimatedMegaphoneState extends State<AnimatedMegaphone>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _loop = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2400),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _loop.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool still = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    return RepaintBoundary(
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: AnimatedBuilder(
+          animation: _loop,
+          builder: (BuildContext context, Widget? _) => CustomPaint(
+            painter: _MegaphonePainter(
+              color: widget.color,
+              t: still ? 0.35 : _loop.value,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MegaphonePainter extends CustomPainter {
+  _MegaphonePainter({required this.color, required this.t});
+
+  final Color color;
+  final double t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double w = size.width;
+    final double h = size.height;
+    final Paint body = Paint()..color = color;
+
+    // Balancement du porte-voix : ±6°, aller-retour doux.
+    final double tilt = 0.105 * math.sin(t * 2 * math.pi);
+    canvas.save();
+    canvas.translate(w * 0.30, h * 0.62);
+    canvas.rotate(tilt);
+    canvas.translate(-w * 0.30, -h * 0.62);
+
+    // Poignée.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.17, h * 0.62, w * 0.09, h * 0.24),
+        Radius.circular(w * 0.03),
+      ),
+      body,
+    );
+    // Pavillon, pointé vers le haut à droite.
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.12, h * 0.44)
+        ..lineTo(w * 0.60, h * 0.16)
+        ..lineTo(w * 0.60, h * 0.72)
+        ..lineTo(w * 0.12, h * 0.62)
+        ..close(),
+      body,
+    );
+    canvas.restore();
+
+    // Deux ondes qui s'échappent du pavillon.
+    for (int i = 0; i < 2; i++) {
+      final double phase = (t + i * 0.5) % 1.0;
+      final double eased = Curves.easeOut.transform(phase);
+      final double radius = w * (0.12 + 0.20 * eased);
+      final double fade = (1 - phase).clamp(0.0, 1.0);
+      canvas.drawArc(
+        Rect.fromCircle(center: Offset(w * 0.60, h * 0.44), radius: radius),
+        -math.pi / 3.4,
+        2 * math.pi / 3.4,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = w * 0.085
+          ..color = color.withValues(alpha: 0.9 * fade),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MegaphonePainter old) =>
+      old.t != t || old.color != color;
 }
