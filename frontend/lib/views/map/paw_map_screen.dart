@@ -127,7 +127,44 @@ class _PawMapScreenState extends State<PawMapScreen>
   // a camera position on the very first frame, even before geolocation
   // resolves. This fixes the "need to tap twice to see the map" bug caused
   // by IndexedStack keeping the screen built-but-hidden.
-  LatLng _currentCenter = const LatLng(48.8566, 2.3522);
+  /// v577 — Daniel : « des fois quand tu ouvres la carte ça te met à Paris
+  /// avant ta position ». La carte partait TOUJOURS de Paris en dur, puis
+  /// sautait sur la vraie position dès que le GPS répondait — plusieurs
+  /// secondes sur un téléphone lent, et le saut se revoyait à chaque fois que
+  /// l'écran était reconstruit. On repart maintenant du DERNIER endroit
+  /// regardé, enregistré sur l'appareil ; Paris ne sert plus qu'au tout
+  /// premier lancement, avant toute position connue.
+  LatLng _currentCenter = _restoreLastCenter();
+
+  static const LatLng _kFallbackCenter = LatLng(48.8566, 2.3522);
+  static const String _kLastCenterKey = 'pawmap_last_center';
+
+  static LatLng _restoreLastCenter() {
+    try {
+      final dynamic raw = GetStorage().read(_kLastCenterKey);
+      if (raw is Map) {
+        final double? lat = (raw['lat'] as num?)?.toDouble();
+        final double? lng = (raw['lng'] as num?)?.toDouble();
+        if (lat != null &&
+            lng != null &&
+            lat.abs() <= 90 &&
+            lng.abs() <= 180 &&
+            !(lat == 0 && lng == 0)) {
+          return LatLng(lat, lng);
+        }
+      }
+    } catch (_) {/* stockage indisponible : on garde le repli */}
+    return _kFallbackCenter;
+  }
+
+  static void _saveLastCenter(LatLng c) {
+    try {
+      GetStorage().write(
+        _kLastCenterKey,
+        <String, double>{'lat': c.latitude, 'lng': c.longitude},
+      );
+    } catch (_) {/* best effort */}
+  }
 
   // v463 — Daniel : « agrandir la carte ». Mode carte agrandie = un CALQUE
   // plein écran posé PAR-DESSUS la PawMap normale (laquelle reste montée et
@@ -2268,6 +2305,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         // _currentCenter ne bouge que si on n'a pas de focus explicite.
         if (!hasInitialFocus) {
           _currentCenter = myCenter;
+          _saveLastCenter(myCenter);
         }
       });
 
@@ -2851,6 +2889,7 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   void _onCameraMove(CameraPosition pos) {
     _currentCenter = pos.target;
+    _saveLastCenter(pos.target);
     // v550 — perf : tant que la caméra bouge, le halo ne pulse pas (sinon la
     // GoogleMap se reconstruit 1,7×/s pendant le pan → saccades sur mobile).
     _cameraMoving = true;

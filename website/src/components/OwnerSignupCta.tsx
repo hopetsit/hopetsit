@@ -27,12 +27,13 @@ export function OwnerSignupCta({
   city?: string;
   className?: string;
 }) {
-  // v578 — 22/09 : le bouton promet « publier ma demande », mais l'inscription
-  // finissait sur /dashboard. On porte la destination promise dans l'URL
-  // (?next=/posts/create) ; signup et verify-email la font suivre.
-  const href =
-    `/signup?role=owner${city ? `&city=${encodeURIComponent(city)}` : ""}` +
-    `&next=${encodeURIComponent("/posts/create")}`;
+  // v581 — 22/09, dernière étape : le bouton dit « Publier ma demande », il
+  // ouvre donc LE FORMULAIRE, tout de suite, sans compte. On y écrit sa
+  // demande ; le compte se crée à la fin, quand la personne sait ce qu'elle
+  // obtient. (Avant : inscription → code par e-mail → formulaire. Deux tiers
+  // des inscrits ne vérifiaient jamais leur e-mail et n'arrivaient jamais
+  // jusqu'ici — mesuré le 22/09 : 33 inscriptions, 12 vérifiées, 0 demande.)
+  const href = `/posts/create${city ? `?city=${encodeURIComponent(city)}` : ""}`;
   return (
     <Link
       href={href}

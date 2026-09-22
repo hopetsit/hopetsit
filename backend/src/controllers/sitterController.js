@@ -15,6 +15,7 @@ const {
 // v576 — fiche gardien « vue par moi-même » : l'e-mail, le téléphone et
 // l'adresse ne sortent que pour la personne elle-même (cf. sitterSelfView.js).
 const { sitterSelfPrivateFields, isSelfProfile } = require('../utils/sitterSelfView');
+const { coarsenLocation } = require('../utils/coarseLocation');
 const {
   validatePriceAgainstRecommended,
   getRecommendedPriceRange,
@@ -558,11 +559,15 @@ const getSitterProfile = async (req, res) => {
       service: Array.isArray(sitter.service) ? sitter.service : sitter.service ? [sitter.service] : [],
       verified: sitter.verified || false,
       // Location information
-      location: sitter.location ? {
+      // 22/09/2026 — la position EXACTE (donc le domicile) sortait ici pour
+      // n'importe quel lecteur, alors que la couche monde de la PawMap
+      // arrondit volontairement à ~1 km. Même règle partout maintenant ;
+      // la personne elle-même continue de voir sa position exacte.
+      location: sitter.location ? coarsenLocation({
         coordinates: sitter.location.coordinates || null,
         city: sitter.location.city || '',
         locationType: sitter.location.locationType || 'standard',
-      } : null,
+      }, id, isSelf) : null,
       // Reviews array
       reviews: formattedReviews,
       // Boost status
@@ -571,7 +576,12 @@ const getSitterProfile = async (req, res) => {
       // v406 refonte — champs maquette pour la fiche/carte publique du sitter.
       // ⚠️ Réponse hand-built (pas sanitizeUser) → SANS ces lignes ces champs
       // n'apparaissent jamais dans l'API publique (cf mémoire getSitterProfile).
-      dateOfBirth: sitter.dateOfBirth || '',
+      // 22/09/2026 — la date de naissance EXACTE sortait publiquement. Elle
+      // n'est affichée nulle part (ni app ni site : vérifié) et sert à
+      // l'écran d'édition du gardien, donc elle reste pour lui seul.
+      // `sanitizeUser` la retire déjà côté promeneur ; cette réponse-ci est
+      // écrite à la main et échappait à la règle.
+      dateOfBirth: isSelf ? (sitter.dateOfBirth || '') : '',
       experienceTags: Array.isArray(sitter.experienceTags) ? sitter.experienceTags : [],
       acceptedPetTypes: Array.isArray(sitter.acceptedPetTypes) ? sitter.acceptedPetTypes : [],
       availableDays: Array.isArray(sitter.availableDays) ? sitter.availableDays : [],

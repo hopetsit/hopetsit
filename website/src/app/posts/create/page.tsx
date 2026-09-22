@@ -13,11 +13,25 @@ import {
 
 // v402 — Owner publie une annonce depuis le SITE (parité app). Endpoint
 // existant POST /posts (owner only). Aucun impact app.
+/** Brouillon gardé le temps de l'inscription (ce navigateur seulement). */
+const DRAFT_KEY = "hopetsit_post_draft_v1";
+
 export default function CreatePostPage() {
   const { t } = useT();
   const router = useRouter();
 
   const [role, setRole] = useState<string | null>(null);
+  // 22/09/2026 — LE FORMULAIRE D'ABORD, LE COMPTE À LA FIN.
+  // Mesure du 22/09 : 33 inscriptions en 7 jours, 12 e-mails vérifiés (36 %).
+  // On demandait à un inconnu de créer un compte PUIS d'aller chercher un code
+  // dans sa boîte mail avant même de pouvoir décrire son besoin — et aucune
+  // demande n'a jamais été publiée. Désormais on écrit la demande, puis on
+  // crée le compte : le brouillon est gardé et repris après la vérification.
+  const [invite, setInvite] = useState(false);
+  // La ville est OBLIGATOIRE : c'est elle qui déclenche l'alerte « nouvelle
+  // demande près de chez toi » chez les gardiens. Sans elle, une demande
+  // publiée depuis le site ne prévenait PERSONNE.
+  const [city, setCity] = useState("");
   const [body, setBody] = useState("");
   const [services, setServices] = useState<string[]>([]);
   const [venue, setVenue] = useState<"owners_home" | "sitters_home">("owners_home");
@@ -58,11 +72,31 @@ export default function CreatePostPage() {
 
   useEffect(() => {
     const u = getStoredUser();
-    if (!u) {
-      router.replace("/login");
-      return;
-    }
-    setRole(u.role);
+    setInvite(!u);
+    if (u) setRole(u.role);
+
+    // Ville pré-remplie par la page ville d'où l'on vient (?city=Paris).
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const c = (q.get("city") || "").trim();
+      if (c) setCity(c);
+    } catch { /* URL exotique */ }
+
+    // Brouillon laissé avant l'inscription : on le remet tel quel.
+    try {
+      const brut = window.localStorage.getItem(DRAFT_KEY);
+      if (!brut) return;
+      const d = JSON.parse(brut) as Record<string, unknown>;
+      if (typeof d.body === "string") setBody(d.body);
+      if (Array.isArray(d.services)) setServices(d.services as string[]);
+      if (d.venue === "owners_home" || d.venue === "sitters_home") setVenue(d.venue);
+      if (typeof d.startDate === "string") setStartDate(d.startDate);
+      if (typeof d.endDate === "string") setEndDate(d.endDate);
+      if (typeof d.notes === "string") setNotes(d.notes);
+      if (typeof d.animalCount === "number") setAnimalCount(d.animalCount);
+      if (Array.isArray(d.animalTypes)) setAnimalTypes(d.animalTypes as string[]);
+      if (typeof d.city === "string" && d.city) setCity(d.city);
+    } catch { /* brouillon illisible → on repart d'une page vierge */ }
   }, [router]);
 
   const svcLabel = (s: string) =>
@@ -87,6 +121,28 @@ export default function CreatePostPage() {
       setErr(t("posts_error_body"));
       return;
     }
+    if (!city.trim()) {
+      setErr(t("signup_city_required"));
+      return;
+    }
+
+    // Invité : rien n'est envoyé au serveur (il refuserait, et c'est très
+    // bien : aucune annonce d'un compte qui n'existe pas). On met la demande
+    // de côté et on va créer le compte ; au retour, le formulaire est rempli.
+    if (invite) {
+      try {
+        window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
+          body, services, venue, startDate, endDate, notes,
+          animalCount, animalTypes, city,
+        }));
+      } catch { /* navigation privée : on continue sans mémoriser */ }
+      router.push(
+        `/signup?role=owner&city=${encodeURIComponent(city.trim())}`
+        + `&next=${encodeURIComponent("/posts/create")}`,
+      );
+      return;
+    }
+
     setBusy(true);
     setErr("");
     try {
@@ -99,6 +155,8 @@ export default function CreatePostPage() {
         notes: notes.trim() || undefined,
         animalCount: animalCount > 0 ? animalCount : undefined,
         animalTypes: animalTypes.length ? animalTypes : undefined,
+        // Sans ville, aucun gardien n'est prévenu (cf. le commentaire plus haut).
+        location: { city: city.trim() },
       };
       // Avec photos → /posts/with-media (postType=request) ; sinon → /posts.
       if (photos.length > 0) {
@@ -106,10 +164,19 @@ export default function CreatePostPage() {
       } else {
         await createPost(input);
       }
+      try { window.localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
       router.push("/posts");
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
-        router.replace("/login");
+        // Session expirée pendant la saisie : on garde le travail de la
+        // personne plutôt que de le jeter avec elle vers /login.
+        try {
+          window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
+            body, services, venue, startDate, endDate, notes,
+            animalCount, animalTypes, city,
+          }));
+        } catch { /* ignore */ }
+        router.replace(`/login?next=${encodeURIComponent("/posts/create")}`);
         return;
       }
       setErr(e instanceof ApiError ? e.message : t("posts_error"));
@@ -137,6 +204,18 @@ export default function CreatePostPage() {
         onSubmit={onSubmit}
         className="mt-10 space-y-5 rounded-3xl border border-ink/5 bg-white p-7 shadow-card"
       >
+        <div>
+          <label className="block text-sm font-medium text-ink">{t("posts_city_label")}</label>
+          <input
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            required
+            autoComplete="address-level2"
+            placeholder={t("posts_city_ph")}
+            className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3.5 py-2.5 text-sm text-ink focus:border-owner focus:outline-none"
+          />
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-ink">{t("posts_body_label")}</label>
           <textarea
@@ -255,8 +334,11 @@ export default function CreatePostPage() {
           </div>
         </div>
 
-        {/* v402 — Photos de l'annonce (ajouter / supprimer avant publication) */}
-        <div>
+        {/* v402 — Photos de l'annonce (ajouter / supprimer avant publication).
+            Masquées à l'invité : un fichier choisi ici ne survivrait pas au
+            passage par l'inscription, et on ne fait pas travailler quelqu'un
+            pour rien. */}
+        <div className={invite ? "hidden" : undefined}>
           <label className="block text-sm font-medium text-ink">{t("posts_photos_label")}</label>
           <div className="mt-2 flex flex-wrap gap-3">
             {photos.map((f, i) => (
@@ -287,8 +369,11 @@ export default function CreatePostPage() {
           disabled={busy}
           className="w-full rounded-full bg-owner py-3 text-sm font-semibold text-white shadow-cta hover:bg-owner-dark disabled:opacity-60"
         >
-          {busy ? t("posts_publishing") : t("posts_submit")}
+          {busy ? t("posts_publishing") : invite ? t("posts_guest_cta") : t("posts_submit")}
         </button>
+        {invite && (
+          <p className="text-center text-xs text-ink-muted">{t("posts_guest_note")}</p>
+        )}
         {err && <p className="text-center text-sm text-owner-dark">{err}</p>}
         <p className="text-center text-xs text-ink-muted">{t("posts_no_contact_info")}</p>
       </form>

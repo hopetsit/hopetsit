@@ -160,6 +160,8 @@ router.get('/nearby', optionalAuth, findNearbyWalkers);
 router.get('/', listWalkers);
 // Additif — disponibilités publiques d'un walker (déclaré avant /:id).
 router.get('/:id/availability', getWalkerAvailability);
-router.get('/:id', getWalkerProfile);
+// 22/09/2026 — optionalAuth : sans lui, impossible de savoir si le lecteur
+// est le promeneur lui-même, et sa position exacte était servie à tous.
+router.get('/:id', optionalAuth, getWalkerProfile);
 
 module.exports = router;

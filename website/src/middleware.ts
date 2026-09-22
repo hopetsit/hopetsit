@@ -12,6 +12,10 @@ const NOINDEX = [
   "/login", "/signup", "/verify-email", "/open", "/pay", "/kyc-complete",
   "/search", "/map", "/boutique", "/posts", "/pawpoints", "/family", "/book",
   "/dashboard", "/chat", "/bookings", "/invoices", "/profile", "/pets",
+  // 22/09/2026 — /p/<role>/<id> : lien de profil qu'un prestataire partage
+  // lui-même. Utile et public, mais ce n'est PAS un annuaire : on ne le fait
+  // pas indexer par Google.
+  "/p/",
   "/walk", "/friends", "/sitter-setup", "/delete-account",
   // v565 — pages « thème » des e-mails/push (ouvrent l'app ou renvoient
   // vers l'équivalent web) : privées, jamais à indexer.

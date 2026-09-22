@@ -1,5 +1,6 @@
 // v565 — point 19 : onglet « Notifications » des Préférences (3 rôles).
 // Interrupteurs par catégorie + choix du son avec bouton d'écoute.
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -202,21 +203,141 @@ class _SoundRow extends StatelessWidget {
                 onPressed: onPreview,
                 tooltip: 'notif_prefs_listen'.tr,
                 visualDensity: VisualDensity.compact,
-                icon: Icon(
-                  playing ? Icons.graphic_eq_rounded : Icons.play_circle_fill_rounded,
-                  size: 26.sp,
-                  color: playing ? accent : AppColors.textSecondary(context),
-                ),
+                // v577 — Daniel : « le petit haut-parleur animé ». Pendant
+                // l'écoute, l'icône figée `graphic_eq` est remplacée par un
+                // haut-parleur dont les ondes sortent en cascade.
+                icon: playing
+                    ? SpeakerPlayingIcon(color: accent, size: 26.sp)
+                    : Icon(
+                        Icons.play_circle_fill_rounded,
+                        size: 26.sp,
+                        color: AppColors.textSecondary(context),
+                      ),
               ),
             SizedBox(width: 4.w),
             Icon(
               selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
               size: 22.sp,
-              color: selected ? accent : AppColors.greyColor,
+              // v577 — « aucun gris nulle part » : le cercle vide prend une
+              // teinte pâle de la couleur du rôle, plus le gris neutre.
+              color: selected ? accent : accent.withValues(alpha: 0.32),
             ),
           ],
         ),
       ),
     );
   }
+}
+
+
+/// v577 — Haut-parleur animé, affiché pendant l'écoute d'un son de
+/// notification (Daniel, 22/09 : « le petit haut-parleur animé »).
+///
+/// Une seule boucle de 1,1 s : le cône respire légèrement et les deux ondes
+/// sortent l'une après l'autre, en fondu. Tout est dessiné (aucune image), la
+/// couleur suit l'accent du rôle. L'animation se coupe si le téléphone
+/// demande moins d'animations.
+class SpeakerPlayingIcon extends StatefulWidget {
+  const SpeakerPlayingIcon({super.key, required this.color, required this.size});
+
+  final Color color;
+  final double size;
+
+  @override
+  State<SpeakerPlayingIcon> createState() => _SpeakerPlayingIconState();
+}
+
+class _SpeakerPlayingIconState extends State<SpeakerPlayingIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _loop = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _loop.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool still = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    return RepaintBoundary(
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: AnimatedBuilder(
+          animation: _loop,
+          builder: (BuildContext context, Widget? _) => CustomPaint(
+            painter: _SpeakerPainter(
+              color: widget.color,
+              t: still ? 0.45 : _loop.value,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SpeakerPainter extends CustomPainter {
+  _SpeakerPainter({required this.color, required this.t});
+
+  final Color color;
+  final double t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double w = size.width;
+    final double h = size.height;
+    final Paint body = Paint()..color = color;
+
+    // Respiration douce du cône (±4 %).
+    final double breath =
+        1 + 0.04 * math.sin(t * 2 * math.pi);
+    canvas.save();
+    canvas.translate(w * 0.30, h / 2);
+    canvas.scale(breath, breath);
+    canvas.translate(-w * 0.30, -h / 2);
+
+    // Corps : petit rectangle arrondi + pavillon triangulaire.
+    final RRect box = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.10, h * 0.36, w * 0.16, h * 0.28),
+      Radius.circular(w * 0.05),
+    );
+    canvas.drawRRect(box, body);
+    final Path horn = Path()
+      ..moveTo(w * 0.26, h * 0.38)
+      ..lineTo(w * 0.46, h * 0.18)
+      ..lineTo(w * 0.46, h * 0.82)
+      ..lineTo(w * 0.26, h * 0.62)
+      ..close();
+    canvas.drawPath(horn, body);
+    canvas.restore();
+
+    // Deux ondes qui sortent l'une après l'autre.
+    for (int i = 0; i < 2; i++) {
+      final double phase = (t + i * 0.5) % 1.0;
+      final double eased = Curves.easeOut.transform(phase);
+      final double radius = w * (0.22 + 0.16 * eased);
+      final double fade = (1 - phase).clamp(0.0, 1.0);
+      final Paint wave = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = w * 0.075
+        ..color = color.withValues(alpha: 0.85 * fade);
+      canvas.drawArc(
+        Rect.fromCircle(center: Offset(w * 0.46, h / 2), radius: radius),
+        -math.pi / 3.2,
+        2 * math.pi / 3.2,
+        false,
+        wave,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SpeakerPainter old) =>
+      old.t != t || old.color != color;
 }

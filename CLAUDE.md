@@ -1800,14 +1800,25 @@ propose 654 URL
 avec une autorité quasi nulle ; Google n'en explore qu'une fraction, et chaque page ajoutée **dilue
 le budget d'exploration** au détriment des marchés visés.
 
-### Ordre de priorité des marchés (Daniel, 21/09/2026) — identique dans toutes les sources
-1. **Paris / France** et **Dallas / USA**, à égalité, priorité absolue.
-2. **Espagne** et **Allemagne** — à développer ensuite. Les villes existent déjà
-   (`/ser-cuidador-de-mascotas`, `/cuidado-de-mascotas`, `/tiersitter-werden`, `/tierbetreuung`) :
-   **il n'y a aucune page à créer**, seulement à faire indexer et convertir.
-3. **Tout le reste — autres langues (pl, ko, ja, it, pt, nl) et autres villes — est gelé** : ni
-   nouvelle ville, ni nouvelle langue. Elles consomment le budget d'exploration des quatre marchés
-   ci-dessus.
+### Ordre de priorité des marchés (Daniel, 21/09/2026 au soir) — identique dans toutes les sources
+1. **Paris / France** et **Dallas / USA**, à égalité, priorité absolue — **jusqu'à la PREMIÈRE
+   TRANSACTION PAYÉE**. C'est la condition d'arrêt : tant qu'elle n'est pas atteinte, ces deux
+   marchés passent avant tout le reste, quel que soit le jour de la semaine.
+2. **Allemagne** et **Espagne**. Les villes existent déjà (`/tiersitter-werden`, `/tierbetreuung`,
+   `/ser-cuidador-de-mascotas`, `/cuidado-de-mascotas`) : **aucune page à créer**, seulement à
+   faire indexer et convertir.
+3. **Italie** (`/diventare-pet-sitter`, `/custodia-animali`) et **Royaume-Uni**. Le Royaume-Uni est
+   le « pays au choix » que Daniel m'a laissé, tranché sur les chiffres le 21/09 : Search Console
+   du 23/08 au 19/09 — **1 016 impressions**, 2e pays du site derrière les USA (2 226), position
+   moyenne 14,5, CTR 0,20 %. Il est **déjà servi par les pages anglaises écrites pour Dallas**,
+   donc il ne coûte aucune page nouvelle. Écartés par les chiffres : Pologne (125 impressions mais
+   position 33), Portugal (29), Japon (23, 0 clic), Corée (17). Pays-Bas, Hongrie et Tchéquie sont
+   exclus d'office — aucune langue en place, il faudrait créer des pages.
+4. **Tout le reste — pl, ko, ja, pt et les villes hors de ces marchés — est gelé** : ni nouvelle
+   ville, ni nouvelle langue. Elles consomment le budget d'exploration des marchés ci-dessus.
+
+⚠️ La France est prioritaire **par choix commercial** (la pub et Paris y sont), pas parce qu'elle
+est visible : 158 impressions sur ~4 100, contre 2 226 aux USA. C'est le chantier, pas l'acquis.
 
 État de ces marchés au 20/09/2026 (source : `gsc_audit.json`) :
 

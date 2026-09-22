@@ -378,29 +378,11 @@ const WORLD_LIMIT = 3000;
 // (jusqu'à ~1,6 km d'erreur cumulée en latitude). Le « ~1 km » affiché était
 // donc faux partout ailleurs qu'à l'équateur. On raisonne maintenant en
 // KILOMÈTRES : pas de grille converti en degrés à la latitude du membre.
-const WORLD_APPROX_KM = 1; // rayon d'imprécision annoncé aux clients
-const KM_PER_DEG_LAT = 111.32;
-function _jitterKm(idStr) {
-  // hash stable → décalage déterministe borné à ±0,2 km sur chaque axe. Il ne
-  // sert qu'à ne pas empiler deux membres sur le même nœud de grille : la
-  // confidentialité vient de l'arrondi (irréversible), pas du décalage.
-  let h = 0;
-  for (let i = 0; i < idStr.length; i += 1) h = (h * 31 + idStr.charCodeAt(i)) | 0;
-  const a = ((h & 0xffff) / 0xffff - 0.5) * 0.4;
-  const b = (((h >> 16) & 0xffff) / 0xffff - 0.5) * 0.4;
-  return [a, b];
-}
-/** Renvoie [lng, lat] flouté. Erreur max : 0,5 km (grille) + 0,2 km (décalage). */
-function _blur(lat, lng, idStr) {
-  const cosLat = Math.max(0.05, Math.cos((lat * Math.PI) / 180));
-  const stepLat = WORLD_APPROX_KM / KM_PER_DEG_LAT;
-  const stepLng = WORLD_APPROX_KM / (KM_PER_DEG_LAT * cosLat);
-  const [kLng, kLat] = _jitterKm(idStr);
-  const outLat = Math.round(lat / stepLat) * stepLat + kLat / KM_PER_DEG_LAT;
-  const outLng = Math.round(lng / stepLng) * stepLng
-    + kLng / (KM_PER_DEG_LAT * cosLat);
-  return [Math.round(outLng * 1e5) / 1e5, Math.round(outLat * 1e5) / 1e5];
-}
+// 22/09/2026 — cette fonction vit désormais dans utils/coarseLocation.js :
+// les fiches publiques /sitters/:id et /walkers/:id renvoyaient les
+// coordonnées EXACTES, elles doivent appliquer exactement le même floutage.
+// Corps inchangé.
+const { WORLD_APPROX_KM, blurLngLat: _blur } = require('../utils/coarseLocation');
 /**
  * v551 — « masquer mon profil sur la carte … sauf mes amis ». Le cache de la
  * couche monde est PARTAGÉ par tous les appelants : on ne peut donc pas y

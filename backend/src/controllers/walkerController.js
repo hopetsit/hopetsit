@@ -1,6 +1,7 @@
 const Walker = require('../models/Walker');
 const { selfIdSet } = require('../utils/identityGroup');
 const { sanitizeUser } = require('../utils/sanitize');
+const { coarsenLocation } = require('../utils/coarseLocation');
 const { uploadMedia } = require('../services/cloudinary');
 const { encrypt, decrypt } = require('../utils/encryption');
 const logger = require('../utils/logger');
@@ -133,6 +134,20 @@ const getWalkerProfile = async (req, res) => {
       createdAt: r.createdAt,
     }));
     const payload = sanitizeUser(walker);
+    // 22/09/2026 — sanitizeUser retire déjà l'e-mail, le téléphone et la date
+    // de naissance, mais PAS la position : les coordonnées exactes (donc le
+    // domicile) sortaient pour n'importe quel lecteur. Même arrondi ~1 km que
+    // la couche monde de la PawMap ; le promeneur garde sa position exacte.
+    let isSelfWalker = false;
+    if (req.user && req.user.id) {
+      try {
+        const { selfIdSet } = require('../utils/identityGroup');
+        const ids = await selfIdSet(req);
+        isSelfWalker = !!ids && typeof ids.has === 'function'
+          && ids.has(String(req.params.id));
+      } catch (_) { isSelfWalker = false; }
+    }
+    payload.location = coarsenLocation(payload.location, req.params.id, isSelfWalker);
     payload.reviews = formattedReviews;
     // v23.1.296 — self-heal : recalcule le statut Top Walker à la lecture du
     // profil pour qu'il reflète toujours les prestations confirmées (même si le

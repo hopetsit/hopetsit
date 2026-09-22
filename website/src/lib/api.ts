@@ -1863,6 +1863,9 @@ export async function createPostWithMedia(input: CreatePostInput, files: File[])
   if (input.notes) fd.append("notes", input.notes);
   if (input.animalCount) fd.append("animalCount", String(input.animalCount));
   (input.animalTypes || []).forEach((tp) => fd.append("animalTypes", tp));
+  // 22/09/2026 — la ville manquait ici aussi : une annonce avec photos publiée
+  // depuis le site ne prévenait aucun gardien (le serveur cible par ville).
+  if (input.location?.city) fd.append("location", JSON.stringify(input.location));
   files.forEach((f) => fd.append("photos", f));
   const raw = await request<{ post?: RequestPost } & RequestPost>("/posts/with-media", {
     method: "POST",

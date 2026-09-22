@@ -233,7 +233,15 @@ async function runLifecycleOnce({ max = Number(process.env.LIFECYCLE_MAX_PER_RUN
         await consider(u, role, 'profile_incomplete_d3', async () => !providerProfileComplete(u));
       }
       if (isProvider && age >= 7 * DAY_MS && age < 60 * DAY_MS) {
-        await consider(u, role, 'first_client_d7', async () => (await bookingCountFor(role, u._id)) === 0);
+        // 22/09/2026 — cet e-mail dit « partage ton profil » depuis toujours,
+        // mais son bouton menait à /profile, une page PRIVÉE : le voisin à qui
+        // le gardien envoyait le lien tombait sur un mur de connexion. On lui
+        // donne maintenant SON lien public, lisible sans compte et qui mène à
+        // la réservation. C'est notre chemin le plus court vers une première
+        // transaction : la confiance existe déjà hors de l'application.
+        await consider(u, role, 'first_client_d7',
+          async () => (await bookingCountFor(role, u._id)) === 0,
+          '', { shareUrl: `${SITE}/p/${role}/${u._id}` });
       }
       if (!isProvider && age >= 5 * DAY_MS && age < 60 * DAY_MS) {
         await consider(u, role, 'owner_first_request_d5', async () =>
