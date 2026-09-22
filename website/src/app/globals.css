@@ -101,3 +101,21 @@ html.lang-switching body {
     min-height: 44px;
   }
 }
+
+
+/* v580b — Daniel : « l'icône animée, je veux le carré orange comme l'icône
+   officielle ». L'icône de l'app (logo.png) respire doucement et son halo
+   pulse, au lieu de la punaise PawMap dessinée. Discret : 3 % d'amplitude,
+   3,2 s par cycle. Respecte prefers-reduced-motion. */
+@keyframes hps-app-icon {
+  0%, 100% { transform: scale(1);    box-shadow: 0 10px 26px -12px rgba(201, 42, 18, 0.55); }
+  50%      { transform: scale(1.035); box-shadow: 0 16px 34px -12px rgba(201, 42, 18, 0.75); }
+}
+.hps-app-icon {
+  animation: hps-app-icon 3.2s ease-in-out infinite;
+  border-radius: 22%;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hps-app-icon { animation: none; }
+}

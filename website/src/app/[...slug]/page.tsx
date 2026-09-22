@@ -27,7 +27,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 // v576 — mesure d'audience : clics vers les stores depuis la page de repli.
-import PawMapLogo from "@/components/PawMapLogo";
 import StoreBadges from "@/components/StoreBadges";
 
 // v23.1.317 — Daniel (audit) : l'ID App Store était un placeholder (id6740000000)
@@ -166,8 +165,18 @@ export default function CatchAllPage({
             (celle de la PawMap de l'app) ». Le carré orange + emoji 🐾 laisse
             la place au vrai logo PawMap, animé (les doigts sortent du
             coussinet au survol / à l'apparition). */}
-        <div className="mx-auto mb-6 flex w-20 justify-center">
-          <PawMapLogo size={80} animated />
+        <div className="mx-auto mb-6 flex justify-center">
+          {/* v580b — Daniel : « je veux le carré orange comme l'icône
+              officielle ». On affiche l'icône réelle de l'app, animée par
+              une respiration douce (classe hps-app-icon). */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="HoPetSit"
+            width={84}
+            height={84}
+            className="hps-app-icon h-[84px] w-[84px]"
+          />
         </div>
 
         <h1 className="text-2xl font-bold text-ink mb-2">
