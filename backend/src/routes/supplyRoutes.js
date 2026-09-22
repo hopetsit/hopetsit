@@ -25,10 +25,6 @@ const router = express.Router();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 min : ça ne bouge pas vite.
 const CACHE_MAX = 300;
 const DEFAULT_RADIUS_KM = 25;
-const GEOCODE_TTL_MS = 24 * 60 * 60 * 1000; // une ville ne bouge pas.
-const PHOTON = 'https://photon.komoot.io/api/';
-const UA = 'HoPetSit/23.1 (https://www.hopetsit.com; contact@hopetsit.com)';
-const GEO_TIMEOUT_MS = 4000;
 const MAX_RADIUS_KM = 100;
 
 const _cache = new Map();
@@ -48,48 +44,10 @@ function _cacheSet(key, v) {
   _cache.set(key, { t: Date.now(), v });
 }
 
-/**
- * Où est cette ville ? — 22/09/2026.
- *
- * Sans coordonnées, on ne comptait que les prestataires dont la ville
- * s'ÉCRIT exactement comme la page : « Paris » ratait Boulogne, Courbevoie,
- * Asnières et Bois-d'Arcy, qui desservent pourtant Paris ; et « Dallas »
- * renvoyait 0 alors qu'il y a des prestataires à Arlington, Euless et Haslet.
- * On géocode donc la ville (Photon, même fournisseur que l'autocomplétion de
- * la PawMap, sans clé ni coût) et on compte aussi dans un rayon. Mémorisé
- * 24 h ; si Photon ne répond pas, on retombe sur le nom seul — jamais d'échec.
- */
-const _geoCache = new Map();
-
-async function geocodeCity(city) {
-  const key = city.toLowerCase();
-  const hit = _geoCache.get(key);
-  if (hit && Date.now() - hit.t < GEOCODE_TTL_MS) return hit.v;
-  const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), GEO_TIMEOUT_MS);
-  try {
-    const url = `${PHOTON}?limit=1&osm_tag=place:city&osm_tag=place:town`
-      + `&q=${encodeURIComponent(city)}`;
-    const r = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'application/json' },
-      signal: ctl.signal,
-    });
-    if (!r.ok) throw new Error(`http ${r.status}`);
-    const j = await r.json();
-    const c = (((j.features || [])[0] || {}).geometry || {}).coordinates || [];
-    const v = Number.isFinite(Number(c[0])) && Number.isFinite(Number(c[1]))
-      ? { lat: Number(c[1]), lng: Number(c[0]) }
-      : null;
-    _geoCache.set(key, { t: Date.now(), v });
-    return v;
-  } catch (e) {
-    logger.warn(`[supply/city] géocodage indisponible pour « ${city} » : ${e && e.message ? e.message : e}`);
-    _geoCache.set(key, { t: Date.now(), v: null });
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
+// 22/09/2026 — le géocodage vit dans utils/geocodeCity.js : les notifications
+// « nouvelle demande près de chez toi » en ont besoin aussi, et les deux
+// doivent répondre la même chose.
+const { geocodeCity, baseCityName } = require('../utils/geocodeCity');
 
 /**
  * Regex de ville insensible à la casse ET aux accents — même règle que la
@@ -152,7 +110,8 @@ async function countRole(Model, rx, lat, lng, radiusKm) {
 
 router.get('/city', async (req, res) => {
   try {
-    const city = String(req.query.city || '').trim().slice(0, 80);
+    // « Paris 11e » compte comme « Paris » : un gardien du 15e dessert le 11e.
+    const city = baseCityName(String(req.query.city || '').trim().slice(0, 80));
     const lat = Number(req.query.lat);
     const lng = Number(req.query.lng);
     const radiusKm = Math.min(

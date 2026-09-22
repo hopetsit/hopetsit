@@ -201,12 +201,38 @@ const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner
         // le rayon de couverture du prestataire (coverageRadiusKm, plancher
         // 10 km, plafond 100 km) autour des coordonnées de l'annonce ;
         // sans ville ni coordonnées → personne (plus d'envoi mondial).
-        const cityKey = postPayload.location && postPayload.location.city;
-        const postLat = Number(postPayload.location && postPayload.location.lat);
-        const postLng = Number(postPayload.location && postPayload.location.lng);
-        const hasPostCoords =
+        // Daniel, 22/09 : « Paris avec tous les arrondissements autour ».
+        // « Paris 11e » est ramené à « Paris » pour la comparaison ET pour le
+        // géocodage, sinon la demande d'un 11e n'atteint aucun gardien du 15e.
+        const { baseCityName } = require('../utils/geocodeCity');
+        const cityKey = baseCityName(
+          (postPayload.location && postPayload.location.city) || '',
+        ) || (postPayload.location && postPayload.location.city);
+        let postLat = Number(postPayload.location && postPayload.location.lat);
+        let postLng = Number(postPayload.location && postPayload.location.lng);
+        let hasPostCoords =
           Number.isFinite(postLat) && Number.isFinite(postLng) &&
           !(postLat === 0 && postLng === 0);
+
+        // 22/09/2026 — une demande publiée depuis le SITE n'a qu'un nom de
+        // ville : le navigateur ne donne pas de GPS sans autorisation, et on ne
+        // la demande pas pour publier. Sans coordonnées, seul le nom comptait :
+        // une demande « Paris » atteignait les 3 gardiens écrivant « Paris » et
+        // ratait les 9 autres qui desservent Paris depuis Boulogne, Courbevoie,
+        // Asnières ou Bois-d'Arcy. On géocode donc la ville ici — on est déjà
+        // hors du chemin de la réponse HTTP (setImmediate), le délai ne coûte
+        // rien à l'utilisateur, et un échec laisse simplement le nom seul.
+        if (!hasPostCoords && cityKey) {
+          try {
+            const { geocodeCity } = require('../utils/geocodeCity');
+            const g = await geocodeCity(cityKey);
+            if (g) {
+              postLat = g.lat;
+              postLng = g.lng;
+              hasPostCoords = true;
+            }
+          } catch (_) { /* non bloquant : on garde le nom de ville */ }
+        }
 
         const byId = new Map();
         const addRecipients = (docs) => {

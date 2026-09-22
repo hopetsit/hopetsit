@@ -5,6 +5,11 @@ import { API_BASE } from "@/lib/api";
 
 // 22/09/2026 — PREUVE D'OFFRE RÉELLE sur les pages villes propriétaires.
 //
+// ⚠️ 22/09 au soir — le mot « vérifié » a été RETIRÉ de ces phrases : la route
+// /supply/city exclut les comptes de test, masqués et bannis, mais PAS ceux qui
+// n'ont jamais validé leur e-mail (2 gardiens sur 7 en Île-de-France). Annoncer
+// « gardiens vérifiés » était faux. Le nombre, lui, est exact.
+//
 // Mesure du 22/09 : /garde-animaux/paris a reçu 52 visiteurs (toute la pub
 // Meta « Paris · Propriétaires ») et ZÉRO clic, sur aucun bouton. La page
 // promet « un pet-sitter vérifié près de chez toi » sans montrer qu'il existe
@@ -24,63 +29,63 @@ type N = { sitters: number; walkers: number; city: string };
 // composant client (le build échoue). On passe donc la langue.
 const LIGNE: Record<string, (n: N) => string> = {
   fr: (n: N) => {
-      const g = n.sitters > 1 ? `${n.sitters} gardiens vérifiés` : `${n.sitters} gardien vérifié`;
+      const g = n.sitters > 1 ? `${n.sitters} gardiens` : `${n.sitters} gardien`;
       const p = n.walkers > 1 ? `${n.walkers} promeneurs` : `${n.walkers} promeneur`;
       if (!n.walkers) return `${g} déjà inscrits autour de ${n.city}`;
       if (!n.sitters) return `${p} déjà inscrits autour de ${n.city}`;
       return `${g} et ${p} déjà inscrits autour de ${n.city}`;
     },
   en: (n: N) => {
-      const g = n.sitters > 1 ? `${n.sitters} verified sitters` : `${n.sitters} verified sitter`;
+      const g = n.sitters > 1 ? `${n.sitters} sitters` : `${n.sitters} sitter`;
       const p = n.walkers > 1 ? `${n.walkers} dog walkers` : `${n.walkers} dog walker`;
       if (!n.walkers) return `${g} already signed up around ${n.city}`;
       if (!n.sitters) return `${p} already signed up around ${n.city}`;
       return `${g} and ${p} already signed up around ${n.city}`;
     },
   es: (n: N) => {
-      const g = n.sitters > 1 ? `${n.sitters} cuidadores verificados` : `${n.sitters} cuidador verificado`;
+      const g = n.sitters > 1 ? `${n.sitters} cuidadores` : `${n.sitters} cuidador`;
       const p = n.walkers > 1 ? `${n.walkers} paseadores` : `${n.walkers} paseador`;
       if (!n.walkers) return `${g} ya registrados cerca de ${n.city}`;
       if (!n.sitters) return `${p} ya registrados cerca de ${n.city}`;
       return `${g} y ${p} ya registrados cerca de ${n.city}`;
     },
   de: (n: N) => {
-      const g = n.sitters > 1 ? `${n.sitters} geprüfte Sitter` : `${n.sitters} geprüfter Sitter`;
+      const g = n.sitters > 1 ? `${n.sitters} Sitter` : `${n.sitters} Sitter`;
       const p = n.walkers > 1 ? `${n.walkers} Gassigeher` : `${n.walkers} Gassigeher`;
       if (!n.walkers) return `${g} bereits rund um ${n.city} angemeldet`;
       if (!n.sitters) return `${p} bereits rund um ${n.city} angemeldet`;
       return `${g} und ${p} bereits rund um ${n.city} angemeldet`;
     },
   it: (n: N) => {
-      const g = n.sitters > 1 ? `${n.sitters} sitter verificati` : `${n.sitters} sitter verificato`;
+      const g = n.sitters > 1 ? `${n.sitters} sitter` : `${n.sitters} sitter`;
       const p = n.walkers > 1 ? `${n.walkers} dog sitter per passeggiate` : `${n.walkers} dog sitter per passeggiate`;
       if (!n.walkers) return `${g} già iscritti intorno a ${n.city}`;
       if (!n.sitters) return `${p} già iscritti intorno a ${n.city}`;
       return `${g} e ${p} già iscritti intorno a ${n.city}`;
     },
   pt: (n: N) => {
-      const g = n.sitters > 1 ? `${n.sitters} cuidadores verificados` : `${n.sitters} cuidador verificado`;
+      const g = n.sitters > 1 ? `${n.sitters} cuidadores` : `${n.sitters} cuidador`;
       const p = n.walkers > 1 ? `${n.walkers} passeadores` : `${n.walkers} passeador`;
       if (!n.walkers) return `${g} já inscritos perto de ${n.city}`;
       if (!n.sitters) return `${p} já inscritos perto de ${n.city}`;
       return `${g} e ${p} já inscritos perto de ${n.city}`;
     },
   pl: (n: N) => {
-      const g = `${n.sitters} zweryfikowanych opiekunów`;
+      const g = `${n.sitters} opiekunów`;
       const p = `${n.walkers} wyprowadzaczy psów`;
       if (!n.walkers) return `${g} już zapisanych w okolicy ${n.city}`;
       if (!n.sitters) return `${p} już zapisanych w okolicy ${n.city}`;
       return `${g} i ${p} już zapisanych w okolicy ${n.city}`;
     },
   ko: (n: N) => {
-      if (!n.walkers) return `${n.city} 주변에 인증된 펫시터 ${n.sitters}명이 등록되어 있어요`;
+      if (!n.walkers) return `${n.city} 주변에 펫시터 ${n.sitters}명이 등록되어 있어요`;
       if (!n.sitters) return `${n.city} 주변에 산책 도우미 ${n.walkers}명이 등록되어 있어요`;
-      return `${n.city} 주변에 인증된 펫시터 ${n.sitters}명과 산책 도우미 ${n.walkers}명이 등록되어 있어요`;
+      return `${n.city} 주변에 펫시터 ${n.sitters}명과 산책 도우미 ${n.walkers}명이 등록되어 있어요`;
     },
   ja: (n: N) => {
-      if (!n.walkers) return `${n.city}の近くに認証済みシッターが${n.sitters}人登録しています`;
+      if (!n.walkers) return `${n.city}の近くにシッターが${n.sitters}人登録しています`;
       if (!n.sitters) return `${n.city}の近くに散歩スタッフが${n.walkers}人登録しています`;
-      return `${n.city}の近くに認証済みシッターが${n.sitters}人、散歩スタッフが${n.walkers}人登録しています`;
+      return `${n.city}の近くにシッターが${n.sitters}人、散歩スタッフが${n.walkers}人登録しています`;
     },
 };
 
