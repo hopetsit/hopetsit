@@ -71,14 +71,14 @@ const Map<String, String> frFRTranslations = <String, String>{
       'handover_owner_code_desc': 'Donne-le au prestataire quand tu lui confies ton animal.',
       'handover_owner_code_copied': 'Code copie',
       'handover_pickup_title': 'Je recupere l\'animal',
-      'handover_pickup_desc': 'Prends une photo de l\'animal et saisis le code a 4 chiffres que le proprietaire t\'indique.',
+      'handover_pickup_desc': 'Prends une photo de l\'animal et saisis le code à 4 chiffres que le propriétaire t\'indique.',
       'handover_return_title': 'Je rends l\'animal',
       'handover_return_desc': 'Prends une photo de l\'animal au moment de le rendre : c\'est ta preuve en cas de litige.',
       'handover_take_photo': 'Prendre une photo',
       'handover_from_gallery': 'Choisir dans la galerie',
       'handover_remove_photo': 'Retirer la photo',
-      'handover_code_label': 'Code du proprietaire',
-      'handover_code_hint': 'Le proprietaire voit ce code dans son application.',
+      'handover_code_label': 'Code du propriétaire',
+      'handover_code_hint': 'Le propriétaire voit ce code dans son application.',
       'handover_confirm_pickup': 'Confirmer la recuperation',
       'handover_confirm_return': 'Confirmer la restitution',
       // v23.1 — pet delete keys
@@ -118,18 +118,15 @@ const Map<String, String> frFRTranslations = <String, String>{
       'candidates_sort_rating': 'Mieux notés',
       'candidates_choose_button': 'Choisir',
       'candidates_choose_dialog_title': 'Choisir ce prestataire ?',
-      'candidates_choose_dialog_message':
-          'En choisissant @name, les autres candidats pour cette publication seront automatiquement informés que la mission a été attribuée.',
+      'candidates_choose_dialog_message': 'En choisissant @name, les autres candidats pour cette publication seront automatiquement informés que la mission a été attribuée.',
       'candidates_choose_confirm': 'Choisir',
       'candidates_reject_dialog_title': 'Refuser cette candidature ?',
-      'candidates_reject_dialog_message':
-          'Voulez-vous vraiment refuser la candidature de @name ?',
+      'candidates_reject_dialog_message': 'Voulez-vous vraiment refuser la candidature de @name ?',
       'candidates_no_reviews': 'Pas encore d\'avis',
       'candidates_empty': 'Aucune candidature en attente.',
       // v23.1 — payment screen "save my card" checkbox
       'payment_save_card_label': 'Enregistrer ma carte',
-      'payment_save_card_subtitle':
-          'Pour des paiements plus rapides la prochaine fois. Stockée de manière sécurisée chez Airwallex.',
+      'payment_save_card_subtitle': 'Pour des paiements plus rapides la prochaine fois. Stockée de manière sécurisée chez Airwallex.',
       // v23.1 — saved cards (Airwallex payment_consents)
       'saved_cards_title': 'Mes cartes',
       'saved_cards_delete_title': 'Supprimer cette carte',
@@ -167,7 +164,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       // v23.1.183 — Daniel : "developpe le sous menu amis famislle pour
       // accepter refuse rbloquer". Strings pour la cloche + écran amis.
       'common_done': 'Fait',
-      'common_try_again': 'Reessaie plus tard.',
+      'common_try_again': 'Réessaie plus tard.',
       'common_accepted': 'Acceptee',
       'common_refused': 'Refusee',
       'friend_request_accepted_msg': 'Vous etes maintenant amis.',
@@ -331,8 +328,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawspot_lb_country': 'Pays',
       'pawspot_lb_europe': 'Europe',
       'pawspot_rewards_title': 'Récompenses Premium',
-      'pawspot_rewards_catalog_hint':
-          'Échange tes PawPoints contre les récompenses du catalogue (mises à jour régulièrement).',
+      'pawspot_rewards_catalog_hint': 'Échange tes PawPoints contre les récompenses du catalogue (mises à jour régulièrement).',
       'pawspot_reward_feature': 'Mettre un spot en avant 7 j (50 pts)',
       'pawspot_reward_badge_color': 'Couleur de badge (100 pts)',
       'pawspot_reward_banner': 'Bannière personnalisée (150 pts)',
@@ -449,8 +445,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'friends_messages_empty_title': 'Aucun message pour le moment',
       'friends_messages_empty_msg': 'Tes conversations avec amis et famille apparaitront ici une fois demarrees.',
       // v23.1 part 226 — Daniel : "message marche pa page blanche".
-      'friends_messages_empty_cta':
-          'Va dans l\'onglet « Amis » et appuie sur 💬 a cote d\'un ami pour demarrer une conversation.',
+      'friends_messages_empty_cta': 'Va dans l\'onglet « Amis » et appuie sur 💬 a cote d\'un ami pour demarrer une conversation.',
       'friends_messages_error_title': 'Impossible de charger les conversations',
       // v23.1.186 — AlertsScreen + ReportCategoryGridScreen (mockup Daniel).
       'alerts_screen_title': 'Alertes',
@@ -463,7 +458,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'alerts_severity_medium': 'Moyen',
       'alerts_severity_info': 'Info',
       'alerts_empty_title': 'Aucune alerte',
-      'alerts_empty_msg': 'Pas de signalement dans cette categorie pour le moment.',
+      'alerts_empty_msg': 'Pas de signalement dans cette catégorie pour le moment.',
       'alerts_report_lost_btn': 'Signaler un animal perdu',
       // v23.1 part 211 — refonte page Alertes (mockup Daniel)
       'alerts_chip_radius': 'Autour de moi · @km km',
@@ -478,20 +473,20 @@ const Map<String, String> frFRTranslations = <String, String>{
       'alerts_period_30d': '30 derniers jours',
       'alerts_what_can_you_do': 'Que pouvez-vous faire ?',
       'alerts_action_see_nearby': 'Voir les alertes proches',
-      'alerts_action_widen': 'Elargir la recherche',
+      'alerts_action_widen': 'Élargir la recherche',
       'alerts_action_enable_notifs': 'Activer les notifications',
       'alerts_signal_lost_title': 'Signaler un animal perdu',
-      'alerts_signal_lost_subtitle': 'Aidez a retrouver un compagnon',
-      'alerts_info_community_title': 'Communaute active',
+      'alerts_signal_lost_subtitle': 'Aidez à retrouver un compagnon',
+      'alerts_info_community_title': 'Communauté active',
       'alerts_info_community_msg': 'Des milliers de personnes veillent',
       'alerts_info_nearby_title': 'Alertes proches',
-      'alerts_info_nearby_msg': 'Signalements autour de vous en temps reel',
+      'alerts_info_nearby_msg': 'Signalements autour de vous en temps réel',
       'alerts_info_smart_title': 'Notifications intelligentes',
       'alerts_info_smart_msg': 'Soyez averti des nouvelles alertes',
       // v23.1 part 213 — refus de creer un report sans GPS valide
       'alerts_no_gps_title': 'Position GPS requise',
       'alerts_no_gps_msg': 'Active la localisation pour signaler une alerte. Sans GPS valide, ton signalement ne pourrait pas etre vu par les autres.',
-      'alerts_gps_open_settings': 'Ouvrir les parametres de localisation',
+      'alerts_gps_open_settings': 'Ouvrir les paramètres de localisation',
       // v23.1 part 222 — bouton diagnostic alertes
       'alerts_diagnose_tooltip': 'Diagnostic alertes',
       'alerts_diagnose_title': 'Diagnostic alertes',
@@ -499,7 +494,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'common_clear': 'Effacer',
       'report_screen_title': 'Signaler',
       'report_what_to_report': 'Que souhaitez-vous signaler ?',
-      'report_pick_category_hint': 'Choisis une categorie pour aller plus vite.',
+      'report_pick_category_hint': 'Choisis une catégorie pour aller plus vite.',
       'report_cat_lost_pet': 'Animal perdu',
       'report_cat_hazard': 'Danger',
       'report_cat_aggressive_dog': 'Chien mechant',
@@ -549,7 +544,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'tracking_sheet_title': 'Suivre mon animal',
       'tracking_sheet_in_care_badge': 'En garde',
       'tracking_sheet_panel_title': 'Suivi en direct',
-      'tracking_sheet_panel_desc': 'Suivez votre animal en temps reel pendant la garde.',
+      'tracking_sheet_panel_desc': 'Suivez votre animal en temps réel pendant la garde.',
       'tracking_sheet_available': 'Disponible',
       'tracking_sheet_follow_btn': 'Suivre mon animal',
       'tracking_sheet_later': 'Plus tard',
@@ -557,7 +552,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'tracking_sheet_sitter_walker': 'Pet-sitter / Promeneur',
       'tracking_sheet_contact_via_chat': 'Pour le contacter, utilisez la conversation. Ses coordonnees restent privees.',
       'tracking_sheet_trust_title': 'Transparence & confiance',
-      'tracking_sheet_trust_msg': 'Le suivi en direct renforce la securite et la confiance entre vous.',
+      'tracking_sheet_trust_msg': 'Le suivi en direct renforce la sécurité et la confiance entre vous.',
       // v23.1.193 — version courte du label pour le pill "Effacer" inline.
       'chat_delete_short': 'Effacer',
       // v23.1.194 — Refonte TrackingRequestSheet pour matcher EXACTEMENT
@@ -595,15 +590,15 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawmap_search_city_hint': 'Ex : Paris, Lyon, Madrid…',
       'pawmap_search_city_btn': 'Rechercher',
       'pawmap_search_city_not_found_title': 'Ville introuvable',
-      'pawmap_search_city_not_found_msg': 'Verifie l\'orthographe et reessaie.',
+      'pawmap_search_city_not_found_msg': 'Vérifie l\'orthographe et réessaie.',
       // v23.1.188 — Carte chat pawfollow_request style mockup Daniel.
       'pawfollow_card_title': 'Suivi en direct',
-      'pawfollow_bullet_transparency': 'Le proprietaire pourra voir la position de l\'animal en temps reel.',
-      'pawfollow_bullet_control': 'Vous gardez le controle a tout moment.',
-      'pawfollow_bullet_anytime_off': 'Le suivi peut etre desactive a tout moment.',
+      'pawfollow_bullet_transparency': 'Le propriétaire pourra voir la position de l\'animal en temps réel.',
+      'pawfollow_bullet_control': 'Vous gardez le controle à tout moment.',
+      'pawfollow_bullet_anytime_off': 'Le suivi peut être désactivé à tout moment.',
       'pawfollow_later': 'Plus tard',
       'pawfollow_trust_title': 'Transparence & confiance',
-      'pawfollow_trust_msg': 'Le suivi en direct renforce la securite et la confiance entre vous.',
+      'pawfollow_trust_msg': 'Le suivi en direct renforce la sécurité et la confiance entre vous.',
       // v23.1 — likes count pill
       'post_likes_singular': 'j\'aime',
       'post_likes_plural': 'j\'aime',
@@ -631,18 +626,12 @@ const Map<String, String> frFRTranslations = <String, String>{
       // tell at a glance whether a request came from a walker or a sitter.
       // Keys follow the pattern `<generic_key>_<role>` so NotificationCard
       // can pick them automatically based on notification.data.providerRole.
-      'notif_body_provider_sent_request_walker':
-          'Un promeneur vous a envoyé une demande.',
-      'notif_body_provider_sent_request_sitter':
-          'Un petsitter vous a envoyé une demande.',
-      'notif_body_booking_new_walker':
-          'Un promeneur vous a envoyé une demande de réservation.',
-      'notif_body_booking_new_sitter':
-          'Un petsitter vous a envoyé une demande de réservation.',
-      'notif_body_booking_accepted_walker':
-          'Votre promeneur a accepté votre demande.',
-      'notif_body_booking_accepted_sitter':
-          'Votre petsitter a accepté votre demande.',
+      'notif_body_provider_sent_request_walker': 'Un promeneur vous a envoyé une demande.',
+      'notif_body_provider_sent_request_sitter': 'Un petsitter vous a envoyé une demande.',
+      'notif_body_booking_new_walker': 'Un promeneur vous a envoyé une demande de réservation.',
+      'notif_body_booking_new_sitter': 'Un petsitter vous a envoyé une demande de réservation.',
+      'notif_body_booking_accepted_walker': 'Votre promeneur a accepté votre demande.',
+      'notif_body_booking_accepted_sitter': 'Votre petsitter a accepté votre demande.',
       // Session v17.1 — badge on a PetPostCard when the post has been
       // reserved (owner accepted a walker/sitter application).
       'reserved_badge': 'Réservé',
@@ -659,8 +648,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'card_added_success': 'Carte ajoutée',
       'card_deleted_success': 'Carte supprimée',
       'availability_title': 'Disponibilités',
-      'availability_instructions':
-          'Appuie sur un jour : 1er appui = disponible (vert), 2e = bloqué (rouge), 3e = effacer.',
+      'availability_instructions': 'Appuie sur un jour : 1er appui = disponible (vert), 2e = bloqué (rouge), 3e = effacer.',
       'common_error': 'Erreur',
       // v23.1 part 252 — common_warning + 5 cles orphelines (audit i18n).
       'common_warning': 'Attention',
@@ -669,8 +657,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'payout_status_not_connected': 'Non connecté',
       'payout_verification_step_identity': 'Vérification d\'identité',
       'verified': 'Vérifié',
-      'common_error_message':
-          'Une erreur est survenue. Réessayez ou contactez le support si le problème persiste.',
+      'common_error_message': 'Une erreur est survenue. Réessayez ou contactez le support si le problème persiste.',
       'common_success': 'Succès',
       'common_select_value': 'Sélectionner une valeur',
       'label_not_available': 'N/D',
@@ -678,111 +665,68 @@ const Map<String, String> frFRTranslations = <String, String>{
       'common_refresh': 'Rafraîchir',
       'common_search': 'Rechercher',
 
-      'Application accepted successfully': 'Candidature acceptee avec succes',
-      'Application rejected successfully': 'Candidature rejetee avec succes',
-      'Blocked users saved successfully':
-          'Utilisateurs bloques enregistres avec succes',
-      'Card saved successfully!': 'Carte enregistree avec succes !',
-      'Could not detect your location. Please enable location services.':
-          'Impossible de detecter votre position. Veuillez activer les services de localisation.',
-      'Could not load nearby sitters. Please try again.':
-          'Impossible de charger les pet sitters a proximite. Veuillez reessayer.',
-      'Email verified successfully!': 'E-mail verifie avec succes !',
-      'Failed to add task. Please try again.':
-          'Impossible d\'ajouter la tache. Veuillez reessayer.',
-      'Failed to change password. Please try again.':
-          'Impossible de changer le mot de passe. Veuillez reessayer.',
-      'Failed to complete profile. Please try again.':
-          'Impossible de terminer le profil. Veuillez reessayer.',
+      'Application accepted successfully': 'Candidature acceptee avec succès',
+      'Application rejected successfully': 'Candidature rejetee avec succès',
+      'Blocked users saved successfully': 'Utilisateurs bloques enregistres avec succès',
+      'Card saved successfully!': 'Carte enregistree avec succès !',
+      'Could not detect your location. Please enable location services.': 'Impossible de detecter votre position. Veuillez activer les services de localisation.',
+      'Could not load nearby sitters. Please try again.': 'Impossible de charger les pet sitters a proximite. Veuillez réessayer.',
+      'Email verified successfully!': 'E-mail vérifie avec succès !',
+      'Failed to add task. Please try again.': 'Impossible d\'ajouter la tache. Veuillez réessayer.',
+      'Failed to change password. Please try again.': 'Impossible de changer le mot de passe. Veuillez réessayer.',
+      'Failed to complete profile. Please try again.': 'Impossible de terminer le profil. Veuillez réessayer.',
       'Failed to fetch tasks.': 'Impossible de recuperer les taches.',
-      'Failed to get your location. Please try again.':
-          'Impossible d\'obtenir votre position. Veuillez reessayer.',
-      'Failed to load booking details. Using default pricing.':
-          'Impossible de charger les details de reservation. Tarification par defaut utilisee.',
-      'Failed to load pet data. Please try again.':
-          'Impossible de charger les donnees de l\'animal. Veuillez reessayer.',
-      'Failed to load pets. Please try again.':
-          'Impossible de charger les animaux. Veuillez reessayer.',
-      'Failed to load profile data. Please try again.':
-          'Impossible de charger les donnees du profil. Veuillez reessayer.',
-      'Failed to load sitter details. Please try again.':
-          'Impossible de charger les details du pet sitter. Veuillez reessayer.',
-      'Failed to pick image. Please try again.':
-          'Impossible de selectionner l\'image. Veuillez reessayer.',
-      'Failed to pick passport image. Please try again.':
-          'Impossible de selectionner l\'image du passeport. Veuillez reessayer.',
-      'Failed to pick pet pictures or videos. Please try again.':
-          'Impossible de selectionner les photos ou videos de l\'animal. Veuillez reessayer.',
-      'Failed to pick pet profile image. Please try again.':
-          'Impossible de selectionner l\'image de profil de l\'animal. Veuillez reessayer.',
-      'Failed to save card. Please try again.':
-          'Impossible d\'enregistrer la carte. Veuillez reessayer.',
-      'Failed to start conversation. Please try again.':
-          'Impossible de demarrer la conversation. Veuillez reessayer.',
-      'Failed to submit review. Please try again.':
-          'Impossible d\'envoyer l\'avis. Veuillez reessayer.',
-      'Failed to switch role. Please try again.':
-          'Impossible de changer de role. Veuillez reessayer.',
+      'Failed to get your location. Please try again.': 'Impossible d\'obtenir votre position. Veuillez réessayer.',
+      'Failed to load booking details. Using default pricing.': 'Impossible de charger les détails de réservation. Tarification par defaut utilisee.',
+      'Failed to load pet data. Please try again.': 'Impossible de charger les données de l\'animal. Veuillez réessayer.',
+      'Failed to load pets. Please try again.': 'Impossible de charger les animaux. Veuillez réessayer.',
+      'Failed to load profile data. Please try again.': 'Impossible de charger les données du profil. Veuillez réessayer.',
+      'Failed to load sitter details. Please try again.': 'Impossible de charger les détails du pet sitter. Veuillez réessayer.',
+      'Failed to pick image. Please try again.': 'Impossible de selectionner l\'image. Veuillez réessayer.',
+      'Failed to pick passport image. Please try again.': 'Impossible de selectionner l\'image du passeport. Veuillez réessayer.',
+      'Failed to pick pet pictures or videos. Please try again.': 'Impossible de selectionner les photos ou videos de l\'animal. Veuillez réessayer.',
+      'Failed to pick pet profile image. Please try again.': 'Impossible de selectionner l\'image de profil de l\'animal. Veuillez réessayer.',
+      'Failed to save card. Please try again.': 'Impossible d\'enregistrer la carte. Veuillez réessayer.',
+      'Failed to start conversation. Please try again.': 'Impossible de demarrer la conversation. Veuillez réessayer.',
+      'Failed to submit review. Please try again.': 'Impossible d\'envoyer l\'avis. Veuillez réessayer.',
+      'Failed to switch role. Please try again.': 'Impossible de changer de role. Veuillez réessayer.',
       'Height is required.': 'La taille est requise.',
-      'Height must be greater than 0.': 'La taille doit etre superieure a 0.',
-      'Hourly rate must be greater than 0.':
-          'Le tarif horaire doit etre superieur a 0.',
-      'Image uploaded successfully!': 'Image telechargee avec succes !',
-      'Password changed successfully!': 'Mot de passe modifie avec succes !',
+      'Height must be greater than 0.': 'La taille doit être superieure a 0.',
+      'Hourly rate must be greater than 0.': 'Le tarif horaire doit être superieur a 0.',
+      'Image uploaded successfully!': 'Image telechargee avec succès !',
+      'Password changed successfully!': 'Mot de passe modifié avec succès !',
       'Passwords do not match': 'Les mots de passe ne correspondent pas',
-      'Pet profile created but media upload failed. You can add media later.':
-          'Profil de l\'animal cree, mais le telechargement des medias a echoue. Vous pouvez ajouter des medias plus tard.',
-      'Pet profile created successfully!':
-          'Profil de l\'animal cree avec succes !',
-      'Pet profile updated successfully!':
-          'Profil de l\'animal mis a jour avec succes !',
-      'Please accept the Terms and Conditions':
-          'Veuillez accepter les conditions generales.',
-      'Please agree to the Terms and Conditions':
-          'Veuillez accepter les conditions generales.',
-      'Please enter a new password.':
-          'Veuillez saisir un nouveau mot de passe.',
-      'Please enter the complete verification code':
-          'Veuillez saisir le code de verification complet',
+      'Pet profile created but media upload failed. You can add media later.': 'Profil de l\'animal cree, mais le telechargement des médias a échoué. Vous pouvez ajouter des médias plus tard.',
+      'Pet profile created successfully!': 'Profil de l\'animal créé avec succès !',
+      'Pet profile updated successfully!': 'Profil de l\'animal mis à jour avec succès !',
+      'Please accept the Terms and Conditions': 'Veuillez accepter les conditions générales.',
+      'Please agree to the Terms and Conditions': 'Veuillez accepter les conditions générales.',
+      'Please enter a new password.': 'Veuillez saisir un nouveau mot de passe.',
+      'Please enter the complete verification code': 'Veuillez saisir le code de verification complet',
       'Please enter your PayPal email.': 'Veuillez saisir votre e-mail de paiement.',
-      'Please fill in all fields correctly.':
-          'Veuillez remplir correctement tous les champs.',
-      'Please fill in all required fields':
-          'Veuillez remplir tous les champs obligatoires',
-      'Please fill in at least one field.':
-          'Veuillez remplir au moins un champ.',
-      'Please fix the highlighted fields and try again.':
-          'Veuillez corriger les champs en surbrillance et reessayer.',
+      'Please fill in all fields correctly.': 'Veuillez remplir correctement tous les champs.',
+      'Please fill in all required fields': 'Veuillez remplir tous les champs obligatoires',
+      'Please fill in at least one field.': 'Veuillez remplir au moins un champ.',
+      'Please fix the highlighted fields and try again.': 'Veuillez corriger les champs en surbrillance et réessayer.',
       'Please try logging in again': 'Veuillez vous reconnecter',
-      'Please verify your email to continue.':
-          'Veuillez verifier votre e-mail pour continuer.',
-      'Profile completed successfully!': 'Profil complete avec succes !',
-      'Profile picture updated successfully!':
-          'Photo de profil mise a jour avec succes !',
-      'Profile updated successfully!': 'Profil mis a jour avec succes !',
-      'Review submitted successfully!': 'Avis envoye avec succes !',
-      'Selected image file is not accessible. Please try again.':
-          'Le fichier image selectionne est inaccessible. Veuillez reessayer.',
-      'Sitter blocked successfully!': 'Pet sitter bloque avec succes !',
-      'Something went wrong. Please try again.':
-          'Une erreur est survenue. Veuillez reessayer.',
-      'Something went wrong. Please try logging in again.':
-          'Une erreur est survenue. Veuillez vous reconnecter.',
-      'Task added successfully!': 'Tache ajoutee avec succes !',
-      'Unknown user role. Please try again.':
-          'Role utilisateur inconnu. Veuillez reessayer.',
-      'Verification code has been resent to your email':
-          'Le code de verification a ete renvoye a votre e-mail',
+      'Please verify your email to continue.': 'Veuillez verifier votre e-mail pour continuer.',
+      'Profile completed successfully!': 'Profil complete avec succès !',
+      'Profile picture updated successfully!': 'Photo de profil mise à jour avec succès !',
+      'Profile updated successfully!': 'Profil mis à jour avec succès !',
+      'Review submitted successfully!': 'Avis envoyé avec succès !',
+      'Selected image file is not accessible. Please try again.': 'Le fichier image sélectionné est inaccessible. Veuillez réessayer.',
+      'Sitter blocked successfully!': 'Pet sitter bloque avec succès !',
+      'Something went wrong. Please try again.': 'Une erreur est survenue. Veuillez réessayer.',
+      'Something went wrong. Please try logging in again.': 'Une erreur est survenue. Veuillez vous reconnecter.',
+      'Task added successfully!': 'Tache ajoutee avec succès !',
+      'Unknown user role. Please try again.': 'Role utilisateur inconnu. Veuillez réessayer.',
+      'Verification code has been resent to your email': 'Le code de verification a été renvoye a votre e-mail',
       'Verification code resent': 'Code de verification renvoye',
       'Welcome back!': 'Bon retour !',
-      'You have already reviewed this sitter. You can only submit one review per sitter.':
-          'Vous avez deja evalue ce pet sitter. Vous ne pouvez soumettre qu\'un seul avis par pet sitter.',
-      'Your city (@city) has been detected':
-          'Ta ville (@city) a été détectée',
-      'Profile updated but image upload failed. Please try again.':
-          'Profil mis a jour mais l\'envoi de l\'image a echoue. Veuillez reessayer.',
-      'Profile updated but image upload failed: @error':
-          'Profil mis à jour, mais l\'envoi de l\'image a échoué : @error',
+      'You have already reviewed this sitter. You can only submit one review per sitter.': 'Vous avez déjà évalué ce pet sitter. Vous ne pouvez soumettre qu\'un seul avis par pet sitter.',
+      'Your city (@city) has been detected': 'Ta ville (@city) a été détectée',
+      'Profile updated but image upload failed. Please try again.': 'Profil mis à jour mais l\'envoi de l\'image a échoué. Veuillez réessayer.',
+      'Profile updated but image upload failed: @error': 'Profil mis à jour, mais l\'envoi de l\'image a échoué : @error',
 
       // Posts / Comments
       'post_action_like': 'J’aime',
@@ -793,8 +737,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'post_comments_empty_title': 'Aucun commentaire',
       'post_comments_empty_subtitle': 'Soyez le premier à commenter !',
       'post_comment_added_success': 'Commentaire ajouté avec succès !',
-      'post_comment_add_failed':
-          'Impossible d’ajouter le commentaire. Réessayez.',
+      'post_comment_add_failed': 'Impossible d’ajouter le commentaire. Réessayez.',
       'post_comments_count_singular': '@count commentaire',
       'post_comments_count_plural': '@count commentaires',
 
@@ -804,18 +747,13 @@ const Map<String, String> frFRTranslations = <String, String>{
       'time_minutes_ago': 'il y a @count min',
       'time_just_now': 'À l’instant',
       'posts_empty_title': 'Aucune publication disponible',
-      'posts_load_failed':
-          'Impossible de charger les publications. Veuillez réessayer.',
-      'posts_like_login_required':
-          'Veuillez vous connecter pour aimer les publications.',
-      'posts_like_failed':
-          'Impossible d’aimer la publication. Veuillez réessayer.',
-      'posts_unlike_failed':
-          'Impossible de retirer le j’aime. Veuillez réessayer.',
+      'posts_load_failed': 'Impossible de charger les publications. Veuillez réessayer.',
+      'posts_like_login_required': 'Veuillez vous connecter pour aimer les publications.',
+      'posts_like_failed': 'Impossible d’aimer la publication. Veuillez réessayer.',
+      'posts_unlike_failed': 'Impossible de retirer le j’aime. Veuillez réessayer.',
       'application_accept_success': 'Candidature acceptée avec succès !',
       'application_reject_success': 'Candidature refusée avec succès !',
-      'application_action_failed':
-          'Échec de la réponse à la candidature. Veuillez réessayer.',
+      'application_action_failed': 'Échec de la réponse à la candidature. Veuillez réessayer.',
       'request_card_pet_owner': 'Propriétaire : @name',
       'sitter_reservation_requests': 'Demandes de réservation',
       'sitter_filters': 'Filtres',
@@ -850,8 +788,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'profile_no_email_added': 'Aucun e-mail ajouté',
       'label_password': 'Mot de passe',
       'hint_password': 'Créez un mot de passe',
-      'password_requirement':
-          'Doit comporter au moins 8 caractères avec des lettres majuscules, minuscules et un chiffre.',
+      'password_requirement': 'Doit comporter au moins 8 caractères avec des lettres majuscules, minuscules et un chiffre.',
       'label_language': 'Langue',
       'hint_language': 'Entrez les langues que vous parlez',
       'label_address': 'Adresse',
@@ -918,25 +855,22 @@ const Map<String, String> frFRTranslations = <String, String>{
       // v216 fix : kyc_link_unavailable existe deja ligne 2497, doublon
       // supprime ici (sinon Flutter const-map error)
       'kyc_unavailable_title': 'Verification temporairement indisponible',
-      'kyc_unavailable_msg': 'La verification d\'identite est desactivee pour le moment. Ton paiement est conserve, on activera bientot.',
+      'kyc_unavailable_msg': 'La verification d\'identité est desactivee pour le moment. Ton paiement est conserve, on activera bientot.',
       'kyc_payment_required_title': 'Paiement requis',
       'kyc_payment_required_msg': 'Tu dois payer les 3 EUR de frais de verification avant de lancer le scan ID + selfie.',
-      'kyc_already_verified_title': 'Deja verifie',
-      'kyc_already_verified_msg': 'Ton identite est deja verifiee — le badge "Verifie" est actif sur ton profil.',
+      'kyc_already_verified_title': 'Déjà vérifie',
+      'kyc_already_verified_msg': 'Ton identité est déjà vérifiée — le badge "Vérifie" est actif sur ton profil.',
       'kyc_only_provider_msg': 'La verification Didit est reservee aux pet-sitters et promeneurs.',
       'pawfollow_request_sent_header': 'Demande de suivi en direct envoyée',
       'pawfollow_share_position_pending': 'Partage de position en attente',
       // v23.1 part 240 — i18n sweep complet (audit hardcoded strings).
       'friends_add_friend_title': 'Ajouter un ami',
       'chat_locked_dialog_title': 'Chat verrouillé',
-      'chat_locked_dialog_desc':
-          'Pour chatter librement avec des amis et entre deux prestations, active un des deux forfaits :',
+      'chat_locked_dialog_desc': 'Pour chatter librement avec des amis et entre deux prestations, active un des deux forfaits :',
       'chat_locked_dialog_premium_title': 'Premium',
-      'chat_locked_dialog_premium_sub':
-          'Chat avec tout le monde + toutes les features.',
+      'chat_locked_dialog_premium_sub': 'Chat avec tout le monde + toutes les features.',
       'chat_locked_dialog_addon_title': 'Chat add-on (~0,99 €/mois)',
-      'chat_locked_dialog_addon_sub':
-          'Débloque juste le chat, renouvelé tous les 30 jours.',
+      'chat_locked_dialog_addon_sub': 'Débloque juste le chat, renouvelé tous les 30 jours.',
       'chat_locked_dialog_later': 'Plus tard',
       'chat_locked_dialog_open_shop': 'Voir la Boutique',
       'pawfollow_request_owner_wants_to_follow': 'Le propriétaire souhaite suivre ta position en direct',
@@ -1015,18 +949,14 @@ const Map<String, String> frFRTranslations = <String, String>{
       'family_active_title': 'PawFollow Famille actif',
       'family_you_are_member': 'Tu es membre de la famille de @name',
       'family_you_are_member_generic': 'Tu es membre d\'une famille',
-      'family_member_only_hint':
-          'Seul le titulaire peut ajouter ou retirer des membres.',
+      'family_member_only_hint': 'Seul le titulaire peut ajouter ou retirer des membres.',
       'family_leave_button': 'Quitter la famille',
-      'family_leave_confirm_desc':
-          'Tu ne feras plus partie de cette famille. Tu pourras créer la tienne ou être réinvité.',
+      'family_leave_confirm_desc': 'Tu ne feras plus partie de cette famille. Tu pourras créer la tienne ou être réinvité.',
       'family_left_msg': 'Tu as quitté la famille.',
       'family_members_added': 'membres ajoutés',
-      'family_active_desc':
-          'Ajoutez votre famille pour pouvoir partager vos animaux, lieux et alertes en toute sécurité.',
+      'family_active_desc': 'Ajoutez votre famille pour pouvoir partager vos animaux, lieux et alertes en toute sécurité.',
       'family_invite_section_title': 'Inviter un membre à ma famille',
-      'family_invite_section_desc':
-          'Choisissez comment vous souhaitez inviter un ami ou un proche.',
+      'family_invite_section_desc': 'Choisissez comment vous souhaitez inviter un ami ou un proche.',
       'family_invite_by_name_sub': 'Choisissez un ami parmi vos contacts',
       'family_invite_by_email_sub': 'Envoyez une invitation par email',
       'family_members_list_title': 'Membres de ma famille',
@@ -1135,31 +1065,25 @@ const Map<String, String> frFRTranslations = <String, String>{
       'hint_password_login': 'Entrez votre mot de passe',
       'forgot_password': 'Mot de passe oublié ?',
       'forgot_password_reset_title': 'Réinitialiser votre mot de passe',
-      'forgot_password_reset_message':
-          'Entrez votre adresse e-mail et nous vous enverrons un code pour réinitialiser votre mot de passe.',
+      'forgot_password_reset_message': 'Entrez votre adresse e-mail et nous vous enverrons un code pour réinitialiser votre mot de passe.',
       'forgot_password_email_label': 'Adresse e-mail',
       'forgot_password_sending_code': 'Envoi du code...',
       'forgot_password_send_code': 'Envoyer le code de vérification',
       'forgot_password_remember': 'Vous vous souvenez de votre mot de passe ? ',
       'forgot_password_otp_sent_title': 'Code envoyé',
-      'forgot_password_otp_sent_message':
-          'Le code de vérification a été envoyé à votre e-mail',
+      'forgot_password_otp_sent_message': 'Le code de vérification a été envoyé à votre e-mail',
       'forgot_password_request_failed': 'Échec de la demande',
       'forgot_password_verified_title': 'Vérifié',
-      'forgot_password_verified_message':
-          'Vous pouvez maintenant réinitialiser votre mot de passe',
+      'forgot_password_verified_message': 'Vous pouvez maintenant réinitialiser votre mot de passe',
       'forgot_password_verification_failed': 'Échec de la vérification',
-      'forgot_password_reset_success':
-          'Votre mot de passe a été réinitialisé avec succès',
+      'forgot_password_reset_success': 'Votre mot de passe a été réinitialisé avec succès',
       'forgot_password_reset_failed': 'Échec de la réinitialisation',
       'forgot_password_code_resent_title': 'Code renvoyé',
-      'forgot_password_code_resent_message':
-          'Le code de vérification a été renvoyé à votre e-mail',
+      'forgot_password_code_resent_message': 'Le code de vérification a été renvoyé à votre e-mail',
       'forgot_password_resend_failed': 'Échec du renvoi',
       'forgot_password_verify_code_title': 'Vérifier le code',
       'forgot_password_enter_code_title': 'Entrez le code de vérification',
-      'forgot_password_code_sent_to':
-          'Nous avons envoyé un code à 6 chiffres à @email',
+      'forgot_password_code_sent_to': 'Nous avons envoyé un code à 6 chiffres à @email',
       'forgot_password_verifying': 'Vérification...',
       'forgot_password_resend_in': 'Renvoyer le code dans @seconds s',
       'forgot_password_resend_code': 'Renvoyer le code',
@@ -1167,25 +1091,19 @@ const Map<String, String> frFRTranslations = <String, String>{
       'forgot_password_change_email': 'Le changer',
       'forgot_password_create_new_title': 'Créer un nouveau mot de passe',
       'forgot_password_set_new_title': 'Définissez votre nouveau mot de passe',
-      'forgot_password_set_new_message':
-          'Créez un mot de passe fort pour sécuriser votre compte. Assurez-vous qu\'il contient au moins 8 caractères.',
+      'forgot_password_set_new_message': 'Créez un mot de passe fort pour sécuriser votre compte. Assurez-vous qu\'il contient au moins 8 caractères.',
       'forgot_password_new_hint': 'Entrez le nouveau mot de passe',
       'forgot_password_confirm_hint': 'Réentrez votre mot de passe',
       'forgot_password_resetting': 'Réinitialisation du mot de passe...',
       'forgot_password_reset_button': 'Réinitialiser le mot de passe',
-      'forgot_password_reset_success_title':
-          'Mot de passe réinitialisé avec succès !',
-      'forgot_password_reset_success_message':
-          'Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.',
+      'forgot_password_reset_success_title': 'Mot de passe réinitialisé avec succès !',
+      'forgot_password_reset_success_message': 'Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.',
       'forgot_password_email_verified_title': 'E-mail vérifié',
       'forgot_password_email_verified_subtitle': 'Votre e-mail a été vérifié',
       'forgot_password_password_updated_title': 'Mot de passe mis à jour',
-      'forgot_password_password_updated_subtitle':
-          'Votre mot de passe a été modifié',
-      'forgot_password_login_new_password':
-          'Se connecter avec le nouveau mot de passe',
-      'forgot_password_security_warning':
-          'Si vous n\'avez pas demandé ce changement, veuillez sécuriser votre compte immédiatement.',
+      'forgot_password_password_updated_subtitle': 'Votre mot de passe a été modifié',
+      'forgot_password_login_new_password': 'Se connecter avec le nouveau mot de passe',
+      'forgot_password_security_warning': 'Si vous n\'avez pas demandé ce changement, veuillez sécuriser votre compte immédiatement.',
       'logging_in': 'Connexion en cours...',
       'or_continue_with': 'Ou continuer avec',
       'dont_have_account': 'Vous n\'avez pas de compte ? ',
@@ -1246,11 +1164,9 @@ const Map<String, String> frFRTranslations = <String, String>{
       'invoice_pdf_service_generic': 'Service',
       'invoice_pdf_subject': 'Facture HoPetSit',
       'error_invalid_details_title': 'Détails invalides',
-      'error_invalid_details_message':
-          'Veuillez corriger les champs en surbrillance puis réessayer.',
+      'error_invalid_details_message': 'Veuillez corriger les champs en surbrillance puis réessayer.',
       'error_terms_required_title': 'Conditions requises',
-      'error_terms_required_message':
-          'Veuillez accepter les conditions générales.',
+      'error_terms_required_message': 'Veuillez accepter les conditions générales.',
       'error_name_required': 'Veuillez entrer votre nom',
       'error_name_length': 'Le nom doit contenir au moins 2 caractères',
       'error_email_required': 'Veuillez entrer votre e‑mail',
@@ -1258,16 +1174,11 @@ const Map<String, String> frFRTranslations = <String, String>{
       'error_phone_invalid': 'Veuillez entrer un numéro de téléphone valide',
       'error_phone_required': 'Veuillez entrer votre numéro de téléphone',
       'error_password_required': 'Veuillez entrer un mot de passe',
-      'error_password_length':
-          'Le mot de passe doit contenir au moins 8 caractères',
-      'error_password_uppercase':
-          'Le mot de passe doit contenir au moins une lettre majuscule',
-      'error_password_lowercase':
-          'Le mot de passe doit contenir au moins une lettre minuscule',
-      'error_password_number':
-          'Le mot de passe doit contenir au moins un chiffre',
-      'error_password_confirm_required':
-          'Veuillez confirmer votre mot de passe',
+      'error_password_length': 'Le mot de passe doit contenir au moins 8 caractères',
+      'error_password_uppercase': 'Le mot de passe doit contenir au moins une lettre majuscule',
+      'error_password_lowercase': 'Le mot de passe doit contenir au moins une lettre minuscule',
+      'error_password_number': 'Le mot de passe doit contenir au moins un chiffre',
+      'error_password_confirm_required': 'Veuillez confirmer votre mot de passe',
       'error_password_match': 'Les mots de passe ne correspondent pas',
       'error_otp_required': 'Le code OTP est requis',
       'error_otp_length': 'Le code OTP doit contenir 6 chiffres',
@@ -1288,17 +1199,14 @@ const Map<String, String> frFRTranslations = <String, String>{
       'error_rate_invalid': 'Veuillez entrer un tarif valide',
       'error_rate_zero': 'Le tarif horaire ne peut pas être 0',
       'error_skills_required': 'Veuillez entrer vos compétences',
-      'error_skills_length':
-          'Les compétences doivent contenir au moins 2 caractères',
+      'error_skills_length': 'Les compétences doivent contenir au moins 2 caractères',
 
       'location_found_title': 'Localisation trouvée',
       'location_found_message': 'Votre ville (@city) a été détectée',
       'location_not_found_title': 'Localisation introuvable',
-      'location_not_found_message':
-          'Impossible de détecter votre localisation. Veuillez activer les services de localisation.',
+      'location_not_found_message': 'Impossible de détecter votre localisation. Veuillez activer les services de localisation.',
       'location_error_title': 'Erreur',
-      'location_error_message':
-          'Échec de la récupération de votre localisation. Veuillez réessayer.',
+      'location_error_message': 'Échec de la récupération de votre localisation. Veuillez réessayer.',
       // Location picker
       'label_city': 'Ville',
       'location_getting': 'Obtention...',
@@ -1307,8 +1215,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'location_detected': 'Détecté : @city',
       'location_enter_city': 'Entrez votre ville',
       'error_city_required': 'Veuillez entrer votre ville',
-      'location_detected_message':
-          'Votre localisation a été détectée. Vous serez connecté avec des prestataires de services dans cette zone.',
+      'location_detected_message': 'Votre localisation a été détectée. Vous serez connecté avec des prestataires de services dans cette zone.',
       'location_select_title': 'Sélectionner l\'emplacement',
       'location_selected': 'Emplacement sélectionné',
       'location_selected_city': 'Ville sélectionnée',
@@ -1321,11 +1228,9 @@ const Map<String, String> frFRTranslations = <String, String>{
       'location_get_error': 'Impossible d\'obtenir votre localisation',
 
       'signup_account_created_title': 'Compte créé',
-      'signup_account_created_message':
-          'Veuillez vérifier votre e‑mail pour continuer.',
+      'signup_account_created_message': 'Veuillez vérifier votre e‑mail pour continuer.',
       'signup_failed_title': "Échec de l’inscription",
-      'signup_failed_generic_message':
-          'Une erreur est survenue. Veuillez réessayer.',
+      'signup_failed_generic_message': 'Une erreur est survenue. Veuillez réessayer.',
 
       'language_dialog_title': 'Choisir la langue',
       'language_dialog_message':
@@ -1340,8 +1245,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'service_updated': 'Service mis à jour',
       'service_selected': 'Services sélectionnés',
       'edit_profile_update_success': 'Profil mis à jour avec succès !',
-      'edit_profile_picture_update_success':
-          'Photo de profil mise à jour avec succès !',
+      'edit_profile_picture_update_success': 'Photo de profil mise à jour avec succès !',
       // Choose service screen
       'choose_service_title': 'Choisir un service',
       'choose_service_choose_all': 'Tout choisir',
@@ -1387,69 +1291,50 @@ const Map<String, String> frFRTranslations = <String, String>{
       'profile_donate_us': 'Faire un don',
       'blocked_users_title': 'Utilisateurs bloqués',
       'blocked_users_empty_title': 'Aucun utilisateur bloqué',
-      'blocked_users_empty_message':
-          'Les utilisateurs que vous bloquez apparaîtront ici',
+      'blocked_users_empty_message': 'Les utilisateurs que vous bloquez apparaîtront ici',
       'blocked_users_unblock_button': 'Débloquer',
-      'blocked_users_unblock_dialog_message':
-          'Voulez-vous vraiment débloquer @name ?',
-      'delete_account_dialog_message':
-          'Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.',
+      'blocked_users_unblock_dialog_message': 'Voulez-vous vraiment débloquer @name ?',
+      'delete_account_dialog_message': 'Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.',
       'delete_account_success_title': 'Compte supprimé',
-      'delete_account_success_message':
-          'Votre compte a été supprimé avec succès',
+      'delete_account_success_message': 'Votre compte a été supprimé avec succès',
       'delete_account_failed_title': 'Échec de la suppression',
-      'delete_account_failed_generic':
-          'Une erreur est survenue. Veuillez réessayer.',
+      'delete_account_failed_generic': 'Une erreur est survenue. Veuillez réessayer.',
       'logout_dialog_message': 'Êtes-vous sûr de vouloir vous déconnecter ?',
       'profile_switch_role_card_title': 'Passer à @role',
-      'profile_switch_role_card_description':
-          'Passez votre compte en @role pour commencer à recevoir des demandes.',
+      'profile_switch_role_card_description': 'Passez votre compte en @role pour commencer à recevoir des demandes.',
       'dialog_switch_role_title': 'Changer de rôle',
-      'dialog_switch_role_switching':
-          'Changement pour @role...\n\nVeuillez patienter.',
-      'dialog_switch_role_confirm':
-          'Voulez-vous vraiment passer en @role ?\n\nVous pourrez revenir en arrière à tout moment.',
+      'dialog_switch_role_switching': 'Changement pour @role...\n\nVeuillez patienter.',
+      'dialog_switch_role_confirm': 'Voulez-vous vraiment passer en @role ?\n\nVous pourrez revenir en arrière à tout moment.',
       'dialog_switch_role_button': 'Passer à @role',
       'profile_switch_to_sitter': 'Passer à Gardien',
       'profile_switch_to_owner': 'Passer à Propriétaire',
-      'profile_switch_to_sitter_description':
-          'Passez votre compte en Gardien pour commencer à recevoir des demandes.',
-      'profile_switch_to_owner_description':
-          'Passez votre compte en Propriétaire pour commencer à recevoir des demandes.',
+      'profile_switch_to_sitter_description': 'Passez votre compte en Gardien pour commencer à recevoir des demandes.',
+      'profile_switch_to_owner_description': 'Passez votre compte en Propriétaire pour commencer à recevoir des demandes.',
       'profile_switch_role_dialog_title': 'Changer de rôle',
-      'profile_switch_to_sitter_loading':
-          'Changement pour Gardien...\n\nVeuillez patienter.',
-      'profile_switch_to_owner_loading':
-          'Changement pour Propriétaire...\n\nVeuillez patienter.',
-      'profile_switch_to_sitter_confirm':
-          'Voulez-vous vraiment passer en Gardien ?\n\nVous pourrez revenir en arrière à tout moment.',
-      'profile_switch_to_owner_confirm':
-          'Voulez-vous vraiment passer en Propriétaire ?\n\nVous pourrez revenir en arrière à tout moment.',
+      'profile_switch_to_sitter_loading': 'Changement pour Gardien...\n\nVeuillez patienter.',
+      'profile_switch_to_owner_loading': 'Changement pour Propriétaire...\n\nVeuillez patienter.',
+      'profile_switch_to_sitter_confirm': 'Voulez-vous vraiment passer en Gardien ?\n\nVous pourrez revenir en arrière à tout moment.',
+      'profile_switch_to_owner_confirm': 'Voulez-vous vraiment passer en Propriétaire ?\n\nVous pourrez revenir en arrière à tout moment.',
       'common_continue': 'Continuer',
       'common_cancelled': 'Annulé',
       'common_coming_soon': 'Bientôt disponible',
       'common_go_to_home': 'Aller à l\'accueil',
       'common_back_to_home': 'Retour à l\'accueil',
       'error_login_required': 'Veuillez vous reconnecter',
-      'error_email_not_found':
-          'E-mail utilisateur introuvable. Veuillez vous reconnecter.',
+      'error_email_not_found': 'E-mail utilisateur introuvable. Veuillez vous reconnecter.',
       'profile_load_error': 'Échec du chargement du profil',
       'blocked_users_unblock_success': 'Utilisateur débloqué avec succès',
-      'blocked_users_save_success':
-          'Utilisateurs bloqués enregistrés avec succès',
+      'blocked_users_save_success': 'Utilisateurs bloqués enregistrés avec succès',
       'donate_coming_soon': 'La fonctionnalité de don sera bientôt disponible',
       'payout_status_screen_title': 'Statut des paiements',
       'payout_paypal_email_title': 'Email de paiement',
       'payout_add_paypal_email_title': 'Ajouter un email de paiement',
-      'payout_add_paypal_email_subtitle':
-          'Definissez l\'email ou vous souhaitez recevoir les paiements. Vous pourrez le modifier plus tard depuis le statut des paiements.',
+      'payout_add_paypal_email_subtitle': 'Definissez l\'email ou vous souhaitez recevoir les paiements. Vous pourrez le modifier plus tard depuis le statut des paiements.',
       'payout_status_saved': 'Enregistre',
       'payout_status_not_set': 'Non defini',
-      'payout_paypal_email_hint':
-          'Ajoutez un email pour recevoir les virements.',
+      'payout_paypal_email_hint': 'Ajoutez un email pour recevoir les virements.',
       'payout_update_paypal_email': 'Mettre à jour l\'email de paiement',
-      'payout_paypal_dialog_subtitle':
-          'Cet email sera utilise pour les paiements PayPal. Assurez-vous qu\'il correspond a votre compte PayPal.',
+      'payout_paypal_dialog_subtitle': 'Cet email sera utilise pour les paiements PayPal. Assurez-vous qu\'il correspond a votre compte PayPal.',
       'payout_account_id_label': 'ID du compte',
       'payout_verification_title': 'Statut de verification',
       'payout_status_title': 'Statut des paiements',
@@ -1459,33 +1344,23 @@ const Map<String, String> frFRTranslations = <String, String>{
       'payout_schedule_label': 'Frequence des paiements',
       'payout_schedule_daily': 'Quotidien',
       'payout_minimum_amount_label': 'Montant minimum',
-      'payout_status_verified': 'Verifie',
+      'payout_status_verified': 'Vérifie',
       'payout_status_pending': 'En attente',
       'payout_status_rejected': 'Rejete',
       'payout_status_not_started': 'Non commence',
       'payout_status_active': 'Actif',
       'payout_status_restricted': 'Restreint',
-      'payout_verification_message_verified':
-          'Votre compte a ete verifie. Vous pouvez maintenant recevoir des paiements.',
-      'payout_verification_message_pending':
-          'Votre verification est en cours d\'examen. Cela prend generalement 1 a 2 jours ouvrables.',
-      'payout_verification_message_rejected':
-          'Votre verification a ete rejetee. Veuillez mettre a jour vos informations et reessayer.',
-      'payout_verification_message_not_started':
-          'Veuillez terminer la verification pour commencer a recevoir des paiements.',
-      'payout_message_active':
-          'Vos paiements sont actifs. Les gains seront transferes quotidiennement sur votre compte bancaire.',
-      'payout_message_pending':
-          'Votre compte de paiement est en cours de configuration. Cela peut prendre quelques jours ouvrables.',
-      'payout_message_restricted':
-          'Vos paiements sont actuellement restreints. Veuillez contacter le support.',
-      'payout_message_not_connected':
-          'Configurez votre compte de paiement pour commencer à recevoir des virements.',
+      'payout_verification_message_verified': 'Votre compte a été vérifie. Vous pouvez maintenant recevoir des paiements.',
+      'payout_verification_message_pending': 'Votre verification est en cours d\'examen. Cela prend generalement 1 a 2 jours ouvrables.',
+      'payout_verification_message_rejected': 'Votre verification a été rejetee. Veuillez mettre à jour vos informations et réessayer.',
+      'payout_verification_message_not_started': 'Veuillez terminer la verification pour commencer a recevoir des paiements.',
+      'payout_message_active': 'Vos paiements sont actifs. Les gains seront transferes quotidiennement sur votre compte bancaire.',
+      'payout_message_pending': 'Votre compte de paiement est en cours de configuration. Cela peut prendre quelques jours ouvrables.',
+      'payout_message_restricted': 'Vos paiements sont actuellement restreints. Veuillez contacter le support.',
+      'payout_message_not_connected': 'Configurez votre compte de paiement pour commencer à recevoir des virements.',
       'payment_title': 'Paiement',
-      'payment_info_message':
-          'Cliquez sur "Payer" ci-dessous pour saisir en toute sécurité vos informations de paiement.',
-      'payment_paypal_info':
-          'Vous serez redirigé pour approuver le paiement, puis nous le confirmerons ici.',
+      'payment_info_message': 'Cliquez sur "Payer" ci-dessous pour saisir en toute sécurité vos informations de paiement.',
+      'payment_paypal_info': 'Vous serez redirigé pour approuver le paiement, puis nous le confirmerons ici.',
       'payment_pay_with_paypal': 'Payer @amount',
       'booking_agreement_title': 'Accord de réservation',
       'booking_agreement_payment_completed': 'Paiement effectué',
@@ -1516,8 +1391,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'payment_cancel_title': 'Annuler le paiement ?',
       'payment_cancel_message': 'Voulez-vous vraiment annuler ce paiement ?',
       'payment_continue': 'Continuer le paiement',
-      'payment_load_error':
-          'Échec du chargement de la page de paiement : @error',
+      'payment_load_error': 'Échec du chargement de la page de paiement : @error',
       'payment_success_title': 'Paiement réussi !',
       'payment_failed_title': 'Échec du paiement',
       'payment_success_message': 'Votre paiement a été traité avec succès.',
@@ -1534,64 +1408,43 @@ const Map<String, String> frFRTranslations = <String, String>{
       'payment_secure_info': 'Paiement sécurisé via Airwallex. Tes données carte ne transitent jamais par nos serveurs.',
       'payment_processing': 'Paiement en cours…',
       'button_pay': 'Payer',
-      'payment_error_client_secret_missing':
-          'Échec de la création de l\'intention de paiement. Le secret client est manquant.',
+      'payment_error_client_secret_missing': 'Échec de la création de l\'intention de paiement. Le secret client est manquant.',
       'payment_error_publishable_key_missing': 'Configuration de paiement manquante.',
       'payment_error_invalid_publishable_key': 'Configuration de paiement invalide.',
-      'payment_processing_failed':
-          'Échec du traitement du paiement. Veuillez réessayer.',
+      'payment_processing_failed': 'Échec du traitement du paiement. Veuillez réessayer.',
       'payment_error_title': 'Erreur de paiement',
       'payment_unavailable_title': 'Réessayez dans un instant',
-      'payment_unavailable_message':
-          'Paiement momentanément indisponible. Réessayez dans quelques instants ou contactez le support si le problème persiste.',
+      'payment_unavailable_message': 'Paiement momentanément indisponible. Réessayez dans quelques instants ou contactez le support si le problème persiste.',
       'payment_invalid_amount_title': 'Montant invalide',
-      'payment_invalid_amount_message':
-          'Le montant du paiement est invalide. Veuillez contacter le support.',
-      'payment_min_amount_message':
-          'Le montant minimum accepté est de 0,50 €. Ajuste le tarif ou la durée de la prestation.',
-      'payment_initiate_error':
-          'Échec de l\'initiation du paiement. Veuillez réessayer.',
+      'payment_invalid_amount_message': 'Le montant du paiement est invalide. Veuillez contacter le support.',
+      'payment_min_amount_message': 'Le montant minimum accepté est de 0,50 €. Ajuste le tarif ou la durée de la prestation.',
+      'payment_initiate_error': 'Échec de l\'initiation du paiement. Veuillez réessayer.',
       // v23.1 — PART 4 structured Airwallex error mapping.
-      'payment_error_intent_failed':
-          'Le paiement n\'a pas pu être initié. Réessaie dans un instant.',
-      'payment_error_auth_failed':
-          'Configuration de paiement incorrecte. Contacte le support.',
-      'payment_error_declined':
-          'Carte refusée. Vérifie ton plafond ou utilise une autre carte.',
-      'payment_error_provider_not_configured':
-          'Le prestataire n\'a pas encore configuré son IBAN. Le paiement sera mis en attente.',
-      'payment_error_amount_invalid':
-          'Montant invalide. Vérifie le tarif et la durée de la prestation.',
-      'payment_error_currency_invalid':
-          'Devise non prise en charge. Contacte le support.',
-      'payment_error_env_not_configured':
-          'Le service de paiement est en maintenance. Réessaie plus tard.',
-      'payment_error_invalid_id':
-          'Réservation introuvable. Recharge la page et réessaie.',
-      'payment_error_provider_incomplete':
-          'Le prestataire doit compléter ses informations avant de recevoir un paiement.',
-      'payment_error_unknown':
-          'Une erreur inattendue est survenue. Réessaie ou contacte le support.',
-      'payment_confirmation_failed':
-          'Échec de la confirmation du paiement. Veuillez contacter le support.',
+      'payment_error_intent_failed': 'Le paiement n\'a pas pu être initié. Réessaie dans un instant.',
+      'payment_error_auth_failed': 'Configuration de paiement incorrecte. Contacte le support.',
+      'payment_error_declined': 'Carte refusée. Vérifie ton plafond ou utilise une autre carte.',
+      'payment_error_provider_not_configured': 'Le prestataire n\'a pas encore configuré son IBAN. Le paiement sera mis en attente.',
+      'payment_error_amount_invalid': 'Montant invalide. Vérifie le tarif et la durée de la prestation.',
+      'payment_error_currency_invalid': 'Devise non prise en charge. Contacte le support.',
+      'payment_error_env_not_configured': 'Le service de paiement est en maintenance. Réessaie plus tard.',
+      'payment_error_invalid_id': 'Réservation introuvable. Recharge la page et réessaie.',
+      'payment_error_provider_incomplete': 'Le prestataire doit compléter ses informations avant de recevoir un paiement.',
+      'payment_error_unknown': 'Une erreur inattendue est survenue. Réessaie ou contacte le support.',
+      'payment_confirmation_failed': 'Échec de la confirmation du paiement. Veuillez contacter le support.',
       'payment_chat_with_sitter': 'Discuter avec ton pet-sitter',
       'payment_chat_with_walker': 'Discuter avec ton promeneur',
       'payment_chat_opener_message': 'Bonjour, je viens de réserver — au plaisir d\'échanger ! 🐾',
       'payment_chat_open_fallback': "Impossible d'ouvrir le chat maintenant. Tu peux le retrouver dans l'onglet Chat.",
       'common_info': 'Info',
       'review_already_reviewed_title': 'Déjà noté',
-      'review_already_reviewed_message':
-          'Vous avez déjà noté ce pet sitter. Vous ne pouvez soumettre qu\'une seule note par pet sitter.',
+      'review_already_reviewed_message': 'Vous avez déjà noté ce pet sitter. Vous ne pouvez soumettre qu\'une seule note par pet sitter.',
       'sitter_applications_tab': 'Candidatures',
       'sitter_no_bookings_found': 'Aucune réservation trouvée',
       'sitter_application_accepted_success': 'Candidature acceptée avec succès',
-      'sitter_application_accept_failed':
-          'Échec de l\'acceptation de la candidature. Veuillez réessayer.',
+      'sitter_application_accept_failed': 'Échec de l\'acceptation de la candidature. Veuillez réessayer.',
       'sitter_application_rejected_success': 'Candidature rejetée avec succès',
-      'sitter_application_reject_failed':
-          'Échec du rejet de la candidature. Veuillez réessayer.',
-      'sitter_chat_start_failed':
-          'Échec du démarrage de la conversation. Veuillez réessayer.',
+      'sitter_application_reject_failed': 'Échec du rejet de la candidature. Veuillez réessayer.',
+      'sitter_chat_start_failed': 'Échec du démarrage de la conversation. Veuillez réessayer.',
       'sitter_chat_with_owner': 'Discuter avec le propriétaire',
       'sitter_pet_weight': 'Poids',
       'sitter_pet_height': 'Taille',
@@ -1701,8 +1554,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'home_no_sitters_message': 'Aucun pet sitter disponible pour le moment.',
       // v23.1.147 — strings hardcodées extraites en clés .tr.
       'home_no_walkers_title': 'Aucun promeneur disponible',
-      'home_no_walkers_body':
-          'Aucun promeneur dans votre zone pour le moment. Vous pouvez publier une demande de promenade — elle sera visible par les promeneurs à proximité.',
+      'home_no_walkers_body': 'Aucun promeneur dans votre zone pour le moment. Vous pouvez publier une demande de promenade — elle sera visible par les promeneurs à proximité.',
       'paw_map_search_city_hint': 'Chercher une ville…',
       'paw_map_filter_all': 'Tous',
       'pawmap_filter_places': 'Lieux',
@@ -1804,8 +1656,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawmap_following_default': 'votre ami',
       'pawmap_following_stop': 'Arrêter',
       'pawmap_fit_none_title': 'Aucun ami à afficher',
-      'pawmap_fit_none_msg':
-          'Aucun de vos amis ne partage sa position pour le moment.',
+      'pawmap_fit_none_msg': 'Aucun de vos amis ne partage sa position pour le moment.',
       'pawmap_time_just_now': 'à l\'instant',
       'pawmap_distance_km': '@km km',
       'pawmap_hours_remaining_label': '@hours h restantes',
@@ -1889,8 +1740,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'home_post_success': 'Publication créée avec succès !',
       'home_post_failed': 'Publication échouée',
       'home_post_failed_generic': "Une erreur s'est produite. Veuillez réessayer.",
-      'home_block_sitter_message':
-          'Voulez-vous vraiment bloquer @name ? Vous ne pourrez plus voir son profil ni lui envoyer de demandes.',
+      'home_block_sitter_message': 'Voulez-vous vraiment bloquer @name ? Vous ne pourrez plus voir son profil ni lui envoyer de demandes.',
       'home_block_sitter_yes': 'Annuler',
       'home_block_sitter_no': 'Bloquer',
       'status_available': 'disponible',
@@ -1908,8 +1758,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'unified_empty_filtered': 'Aucun résultat pour ce filtre',
       'unified_type_application': 'Candidature',
       'unified_type_booking': 'Réservation',
-      'booking_cancel_dialog_message':
-          'Voulez-vous vraiment annuler cette réservation ?',
+      'booking_cancel_dialog_message': 'Voulez-vous vraiment annuler cette réservation ?',
       // Common UI
       'common_select': 'Sélectionner',
       'common_save': 'Enregistrer',
@@ -1947,18 +1796,15 @@ const Map<String, String> frFRTranslations = <String, String>{
       'home_posts_empty_hint': 'Écris ta demande juste au-dessus : les gardiens et promeneurs près de chez toi la verront et pourront te répondre.',
       'my_posts_empty_subtitle': 'Publie une demande pour trouver un pet-sitter ou un promeneur près de chez toi.', // v23.1 part 253
       'my_posts_delete_title': 'Supprimer la publication ?',
-      'my_posts_delete_message':
-          'Voulez-vous vraiment supprimer cette publication ? Cette action est irreversible.',
-      'my_posts_delete_success': 'Publication supprimee avec succes.',
-      'my_posts_delete_failed':
-          'Echec de la suppression de la publication. Veuillez reessayer.',
+      'my_posts_delete_message': 'Voulez-vous vraiment supprimer cette publication ? Cette action est irreversible.',
+      'my_posts_delete_success': 'Publication supprimee avec succès.',
+      'my_posts_delete_failed': 'Echec de la suppression de la publication. Veuillez réessayer.',
       'my_posts_sort_label': 'Trier',
       'my_posts_sort_newest': 'Plus recent en premier',
       'my_posts_sort_oldest': 'Plus ancien en premier',
       'notifications_title': 'Notifications',
       'notifications_empty_title': 'Aucune notification',
-      'notifications_empty_subtitle':
-          'Quand il se passe quelque chose, vous le verrez ici.',
+      'notifications_empty_subtitle': 'Quand il se passe quelque chose, vous le verrez ici.',
       'notifications_mark_all_read': 'Tout marquer comme lu',
       'notifications_load_failed': 'Impossible de charger les notifications.',
       'notifications_fallback_title': 'Notification',
@@ -1990,8 +1836,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'notifications_post_view_title': 'Publication',
       'notifications_request_view_title': 'Demande du pet-sitter',
       'notifications_request_view_title_walker': 'Demande du promeneur',
-      'notifications_application_not_found':
-          'Cette demande n\'est plus disponible ou n\'a pas pu etre chargee.',
+      'notifications_application_not_found': 'Cette demande n\'est plus disponible ou n\'a pas pu etre chargee.',
       'notifications_open_sitter_profile': 'Voir le profil du pet-sitter',
       'notifications_loading': 'Chargement des notifications…',
       'notifications_loading_more': 'Chargement…',
@@ -2071,13 +1916,11 @@ const Map<String, String> frFRTranslations = <String, String>{
       'create_pet_profile_view_public': 'Public',
       'create_pet_profile_view_private': 'Privé',
       'create_pet_profile_view_friends': 'Amis uniquement',
-      'create_pet_upload_media_label':
-          'Télécharger des photos et vidéos de l’animal',
+      'create_pet_upload_media_label': 'Télécharger des photos et vidéos de l’animal',
       'create_pet_upload_media_upload': 'Télécharger',
       'create_pet_upload_media_change': 'Modifier (@count)',
       'create_pet_upload_media_selected': '@count fichier(s) sélectionné(s)',
-      'create_pet_upload_passport_label':
-          'Télécharger la photo du passeport de l’animal',
+      'create_pet_upload_passport_label': 'Télécharger la photo du passeport de l’animal',
       'create_pet_upload_passport_change': 'Modifier',
       'create_pet_upload_passport_upload': 'Télécharger',
       'create_pet_upload_passport_selected': 'Photo du passeport sélectionnée',
@@ -2088,8 +1931,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'send_request_description_label': 'Description',
       'send_request_description_hint': 'Ajoutez des détails supplémentaires...',
       'label_pets': 'Animaux',
-      'send_request_no_pets_message':
-          'Aucun animal. Ajoutez un animal pour continuer.',
+      'send_request_no_pets_message': 'Aucun animal. Ajoutez un animal pour continuer.',
       'send_request_pets_select_placeholder': 'Sélectionner',
       'send_request_dates_label': 'Dates',
       'send_request_start_label': 'Début',
@@ -2121,19 +1963,14 @@ const Map<String, String> frFRTranslations = <String, String>{
       'donation_payment_label': 'Don à HoPetSit',
       'donation_payment_subtitle': 'Merci de soutenir l\'app',
       'donation_thanks_title': 'Merci !',
-      'donation_thanks_message':
-          'Ton don de @amount est bien reçu. Ça nous aide vraiment.',
+      'donation_thanks_message': 'Ton don de @amount est bien reçu. Ça nous aide vraiment.',
       'booking_agreement_city_label': 'Ville',
       'identity_verification_started_title': 'Vérification démarrée',
-      'identity_verification_started_followup':
-          'Suis le lien pour terminer.',
-      'identity_verification_started_sdk':
-          'Session Identity créée, ouvre le SDK.',
-      'identity_verification_upload_success':
-          'Document envoyé. En attente de vérification.',
+      'identity_verification_started_followup': 'Suis le lien pour terminer.',
+      'identity_verification_started_sdk': 'Session Identity créée, ouvre le SDK.',
+      'identity_verification_upload_success': 'Document envoyé. En attente de vérification.',
       'send_request_duration_label': 'Durée (minutes)',
-      'send_request_duration_rate_missing':
-          'Tarif non défini pour cette durée — à confirmer avec le prestataire',
+      'send_request_duration_rate_missing': 'Tarif non défini pour cette durée — à confirmer avec le prestataire',
       'send_request_duration_minutes_label': '@minutes min',
       'send_request_button': 'Envoyer la demande',
       'send_request_button_sending': 'Envoi en cours...',
@@ -2141,8 +1978,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'send_request_invalid_time_title': 'Heure invalide',
       'send_request_invalid_time_message':
           "L'heure de fin doit être postérieure à l'heure de début.",
-      'send_request_missing_fields_generic':
-          'Merci de remplir tous les champs obligatoires.',
+      'send_request_missing_fields_generic': 'Merci de remplir tous les champs obligatoires.',
       'send_request_missing_fields_prefix': 'Merci de remplir : @fields',
       'send_request_missing_pets': 'Animaux',
       'send_request_missing_description': 'Description',
@@ -2167,8 +2003,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'publish_request_add_images': 'Ajouter des images',
       'publish_request_add_more_images': 'Ajouter plus d\'images',
       'publish_request_publish_button': 'Publier la demande',
-      'publish_request_fill_required':
-          'Merci de remplir tous les champs obligatoires.',
+      'publish_request_fill_required': 'Merci de remplir tous les champs obligatoires.',
       'publish_request_ui_only_success': 'UI créée (pas encore publiée).',
       'publish_request_success': 'Demande de réservation publiée avec succès !',
       'publish_request_service_walking': 'Promenade',
@@ -2185,8 +2020,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'house_sitting_venue_owners_home': 'Chez le propriétaire',
       'house_sitting_venue_sitters_home': 'Chez le pet-sitter',
       // Chat screens
-      'chat_error_loading_conversations':
-          'Erreur lors du chargement des conversations',
+      'chat_error_loading_conversations': 'Erreur lors du chargement des conversations',
       // v23.1 part 225 — message dedie quand le backend renvoie un 403
       // (role/permission insuffisante). On affiche aussi le details du
       // backend dessous pour diagnostiquer la cause exacte.
@@ -2194,12 +2028,10 @@ const Map<String, String> frFRTranslations = <String, String>{
       'chat_retry': 'Réessayer',
       'chat_no_conversations': 'Aucune conversation pour le moment',
       'chat_error_loading_messages': 'Erreur lors du chargement des messages',
-      'chat_no_messages':
-          'Aucun message pour le moment. Commencez la conversation !',
+      'chat_no_messages': 'Aucun message pour le moment. Commencez la conversation !',
       'chat_input_hint': 'Écrire un message...',
       'chat_locked_title': 'Chat verrouillé',
-      'chat_locked_after_payment':
-          'Le chat est disponible uniquement après le paiement de la réservation.',
+      'chat_locked_after_payment': 'Le chat est disponible uniquement après le paiement de la réservation.',
       // Pets map screen
       'map_search_hint': 'Rechercher une ville ou une zone',
       'map_search_empty': 'Veuillez entrer un lieu.',
@@ -2258,8 +2090,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'map_sitter_services_distance': '@services • @distance km',
       // Service provider detail screen
       'sitter_detail_loading_name': 'Chargement...',
-      'sitter_detail_load_error':
-          'Impossible de charger les détails du pet sitter',
+      'sitter_detail_load_error': 'Impossible de charger les détails du pet sitter',
       'sitter_detail_no_rating': 'Aucune note pour le moment',
       'sitter_detail_about_title': 'À propos de @name',
       'sitter_detail_no_bio': 'Aucune biographie disponible.',
@@ -2296,8 +2127,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'sitter_detail_starting_chat': 'Démarrage...',
       'sitter_detail_unlock_after_payment': 'Déverrouiller après paiement',
       'sitter_detail_start_chat': 'Démarrer le chat',
-      'sitter_detail_start_chat_failed':
-          'Échec du démarrage de la conversation. Veuillez réessayer.',
+      'sitter_detail_start_chat_failed': 'Échec du démarrage de la conversation. Veuillez réessayer.',
       'status_available_label': 'Disponible',
       'status_cancelled_label': 'Annulée',
       'status_rejected_label': 'Refusée',
@@ -2328,8 +2158,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pet_detail_gender_unknown': 'Inconnu',
       'pet_detail_breed_unknown': 'Inconnu',
       'pet_detail_no_vaccinations': 'Aucune vaccination répertoriée',
-      'pet_detail_load_error':
-          'Échec du chargement des détails de l\'animal. Veuillez réessayer.',
+      'pet_detail_load_error': 'Échec du chargement des détails de l\'animal. Veuillez réessayer.',
       // Sitter bookings screen
       'sitter_bookings_title': 'Mes réservations',
       'sitter_bookings_empty_all': 'Aucune réservation trouvée',
@@ -2340,28 +2169,20 @@ const Map<String, String> frFRTranslations = <String, String>{
       'sitter_bookings_rate_label': 'Tarif',
       'sitter_bookings_description_label': 'Description',
       'sitter_bookings_cancel_button': 'Annuler la réservation',
-      'sitter_bookings_cancel_dialog_message':
-          'Êtes-vous sûr de vouloir annuler cette réservation ?',
+      'sitter_bookings_cancel_dialog_message': 'Êtes-vous sûr de vouloir annuler cette réservation ?',
       'sitter_bookings_cancel_dialog_yes': 'Oui, annuler',
-      'sitter_bookings_cancel_success':
-          'Demande d\'annulation soumise avec succès !',
-      'sitter_bookings_cancel_error':
-          'Échec de la demande d\'annulation. Veuillez réessayer.',
+      'sitter_bookings_cancel_success': 'Demande d\'annulation soumise avec succès !',
+      'sitter_bookings_cancel_error': 'Échec de la demande d\'annulation. Veuillez réessayer.',
       // Owner bookings controller
       'bookings_cancel_success': 'Réservation annulée avec succès !',
-      'bookings_cancel_error':
-          'Échec de l\'annulation de la réservation. Veuillez réessayer.',
-      'bookings_cancel_request_success':
-          'Demande d\'annulation soumise avec succès !',
-      'bookings_cancel_request_error':
-          'Échec de la demande d\'annulation. Veuillez réessayer.',
+      'bookings_cancel_error': 'Échec de l\'annulation de la réservation. Veuillez réessayer.',
+      'bookings_cancel_request_success': 'Demande d\'annulation soumise avec succès !',
+      'bookings_cancel_request_error': 'Échec de la demande d\'annulation. Veuillez réessayer.',
       'request_cancel_button': 'Annuler la demande',
       'request_cancel_button_cancelling': 'Annulation...',
       'request_cancel_success': 'Demande annulée avec succès !',
-      'request_cancel_error':
-          'Échec de l\'annulation de la demande. Veuillez réessayer.',
-      'bookings_payment_status_error':
-          'Échec de l\'obtention du statut de paiement. Veuillez réessayer.',
+      'request_cancel_error': 'Échec de l\'annulation de la demande. Veuillez réessayer.',
+      'bookings_payment_status_error': 'Échec de l\'obtention du statut de paiement. Veuillez réessayer.',
       // Service provider card
       'service_card_no_phone': 'Aucun numéro disponible',
       'service_card_no_location': 'Aucun lieu disponible',
@@ -2412,20 +2233,16 @@ const Map<String, String> frFRTranslations = <String, String>{
       'Switch Role Failed': 'Échec du changement de rôle',
       'Verification Code Sent': 'Code de vérification envoyé',
       'auth_apple_signin_failed': 'Échec de la connexion Apple',
-      'auth_apple_signin_failed_generic':
-          'Un problème est survenu. Veuillez réessayer.',
+      'auth_apple_signin_failed_generic': 'Un problème est survenu. Veuillez réessayer.',
       'auth_apple_signin_success': 'Connexion avec Apple réussie',
       'auth_google_signin_choose_services': 'Veuillez choisir vos services',
       'auth_google_signin_failed': 'La connexion Google a échoué. Réessayez.',
-      'auth_google_signin_firebase_token_failed':
-          'Impossible d\'obtenir le jeton Firebase ID.',
+      'auth_google_signin_firebase_token_failed': 'Impossible d\'obtenir le jeton Firebase ID.',
       'auth_google_signin_success': 'Connexion avec Google réussie',
       'auth_google_signin_title': 'Connexion Google',
       'auth_google_signin_token_missing': 'Le jeton Google ID est manquant.',
-      'auth_google_signin_web_required':
-          'Cette plateforme nécessite une connexion web.',
-      'auth_role_switch_failed':
-          'Impossible de changer de rôle. Veuillez réessayer.',
+      'auth_google_signin_web_required': 'Cette plateforme nécessite une connexion web.',
+      'auth_role_switch_failed': 'Impossible de changer de rôle. Veuillez réessayer.',
       'auth_role_switched': 'Rôle changé',
       'auth_role_switched_message': 'Passage réussi à @role',
       'auth_welcome_back': 'Bon retour !',
@@ -2434,8 +2251,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'change_password_new_required': 'Saisis un nouveau mot de passe.',
       'change_password_success': 'Mot de passe modifié !',
       'change_password_validation_error': 'Erreur de validation',
-      'email_verification_code_required':
-          'Saisis le code de vérification complet',
+      'email_verification_code_required': 'Saisis le code de vérification complet',
       'email_verification_success': 'Adresse e-mail vérifiée !',
       'map_load_error': 'Impossible de charger la carte. Réessaie.',
       'my_pets_load_error': 'Impossible de charger tes animaux. Réessaie.',
@@ -2443,31 +2259,23 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pet_update_failed': 'Mise à jour impossible',
       'pet_validation_error': 'Erreur de validation',
       'profile_blocked_users_load_error': 'Impossible de charger les utilisateurs bloqués',
-      'profile_edit_coming_soon':
-          'La modification du profil arrive bientôt',
+      'profile_edit_coming_soon': 'La modification du profil arrive bientôt',
       'profile_image_pick_failed': 'Impossible de choisir l\'image. Réessaie.',
       'profile_invalid_file_type': 'Type de fichier non valide',
-      'profile_invalid_file_type_message':
-          'Choisis une image JPEG, PNG ou WebP.',
-      'profile_picture_update_success':
-          'Photo de profil mise à jour avec succès',
+      'profile_invalid_file_type_message': 'Choisis une image JPEG, PNG ou WebP.',
+      'profile_picture_update_success': 'Photo de profil mise à jour avec succès',
       'profile_unblock_failed': 'Déblocage impossible',
-      'profile_unblock_failed_generic':
-          'Une erreur est survenue. Réessaie.',
+      'profile_unblock_failed_generic': 'Une erreur est survenue. Réessaie.',
       'profile_unblock_success': 'Utilisateur débloqué',
       'profile_upload_failed': 'Envoi impossible',
       'profile_update_failed': 'Échec de la mise à jour du profil',
-      'profile_upload_failed_generic':
-          'Une erreur est survenue. Réessaie.',
+      'profile_upload_failed_generic': 'Une erreur est survenue. Réessaie.',
       'profile_user_not_found': 'Utilisateur introuvable',
-      'request_duration_required':
-          'Choisis une durée pour la promenade.',
+      'request_duration_required': 'Choisis une durée pour la promenade.',
       'request_pet_required': 'Choisis au moins un animal.',
-      'request_send_failed':
-          'Impossible d\'envoyer la demande. Veuillez réessayer.',
+      'request_send_failed': 'Impossible d\'envoyer la demande. Veuillez réessayer.',
       'request_send_success': 'Demande envoyée avec succès !',
-      'request_sitter_pricing_error':
-          'Veuillez d’abord définir votre tarif horaire dans le profil.',
+      'request_sitter_pricing_error': 'Veuillez d’abord définir votre tarif horaire dans le profil.',
       'request_validation_error': 'Erreur de validation',
       'review_submit_failed': 'Impossible d\'envoyer l\'avis. Veuillez réessayer.',
       'reviews_title': 'Avis',
@@ -2491,141 +2299,93 @@ const Map<String, String> frFRTranslations = <String, String>{
       'application_card_you_receive': 'Tu touches @amount net',
       'application_card_owner_pays': 'Le propriétaire paie @amount (commission HoPetSit incluse)',
       'share_failed': 'Le partage a échoué. Réessaie.',
-      'snackbar_choose_service_controller_001':
-          'Please select valid services for your account type.',
-      'snackbar_choose_service_controller_002':
-          'Your services have been updated successfully!',
-      'snackbar_choose_service_controller_003':
-          'Your services have been selected successfully!',
-      'snackbar_choose_service_controller_004':
-          'Impossible de mettre à jour les services. Réessaie.',
-      'snackbar_choose_service_controller_005':
-          'Please select at least one service to continue.',
-      'snackbar_choose_service_controller_006':
-          'Please select a valid service to continue.',
-      'snackbar_choose_service_controller_007':
-          'Please select at least one service.',
-      'snackbar_sitter_paypal_payout_controller_001':
-          'L\'e-mail PayPal de paiement est requis.',
-      'snackbar_sitter_paypal_payout_controller_002':
-          'E-mail de paiement mis à jour avec succès !',
-      'snackbar_sitter_paypal_payout_controller_003':
-          'Echec de la mise a jour de l\'e-mail PayPal de paiement. Veuillez reessayer.',
+      'snackbar_choose_service_controller_001': 'Please select valid services for your account type.',
+      'snackbar_choose_service_controller_002': 'Your services have been updated successfully!',
+      'snackbar_choose_service_controller_003': 'Your services have been selected successfully!',
+      'snackbar_choose_service_controller_004': 'Impossible de mettre à jour les services. Réessaie.',
+      'snackbar_choose_service_controller_005': 'Please select at least one service to continue.',
+      'snackbar_choose_service_controller_006': 'Please select a valid service to continue.',
+      'snackbar_choose_service_controller_007': 'Please select at least one service.',
+      'snackbar_sitter_paypal_payout_controller_001': 'L\'e-mail PayPal de paiement est requis.',
+      'snackbar_sitter_paypal_payout_controller_002': 'E-mail de paiement mis à jour avec succès !',
+      'snackbar_sitter_paypal_payout_controller_003': 'Echec de la mise à jour de l\'e-mail PayPal de paiement. Veuillez réessayer.',
       'task_add_failed': 'Impossible d\'ajouter la tâche. Réessaie.',
       'task_add_success': 'Tâche ajoutée !',
       'task_fetch_failed': 'Impossible de charger les tâches.',
       'task_fields_required': 'Remplis au moins un champ.',
 
-      'snackbar_text_application_accepted_successfully':
-          'Candidature acceptee avec succes',
-      'snackbar_text_application_rejected_successfully':
-          'Candidature rejetee avec succes',
-      'snackbar_text_blocked_users_saved_successfully':
-          'Utilisateurs bloques enregistres avec succes',
-      'snackbar_text_card_saved_successfully':
-          'Carte enregistree avec succes !',
-      'snackbar_text_could_not_detect_your_location_please_enable_location_servic':
-          'Impossible de detecter votre position. Veuillez activer les services de localisation.',
-      'snackbar_text_could_not_load_nearby_sitters_please_try_again':
-          'Impossible de charger les pet sitters a proximite. Veuillez reessayer.',
+      'snackbar_text_application_accepted_successfully': 'Candidature acceptee avec succès',
+      'snackbar_text_application_rejected_successfully': 'Candidature rejetee avec succès',
+      'snackbar_text_blocked_users_saved_successfully': 'Utilisateurs bloques enregistres avec succès',
+      'snackbar_text_card_saved_successfully': 'Carte enregistree avec succès !',
+      'snackbar_text_could_not_detect_your_location_please_enable_location_servic': 'Impossible de detecter votre position. Veuillez activer les services de localisation.',
+      'snackbar_text_could_not_load_nearby_sitters_please_try_again': 'Impossible de charger les pet sitters a proximite. Veuillez réessayer.',
       'snackbar_text_email_not_verified': 'E-mail non vérifié',
-      'snackbar_text_failed_to_complete_profile_please_try_again':
-          'Impossible de terminer le profil. Veuillez reessayer.',
-      'snackbar_text_failed_to_load_booking_details_using_default_pricing':
-          'Impossible de charger les details de reservation. Tarification par defaut utilisee.',
-      'snackbar_text_failed_to_load_pet_data_please_try_again':
-          'Impossible de charger les donnees de l\'animal. Veuillez reessayer.',
-      'snackbar_text_failed_to_load_sitter_details_please_try_again':
-          'Impossible de charger les details du pet sitter. Veuillez reessayer.',
-      'snackbar_text_failed_to_pick_passport_image_please_try_again':
-          'Impossible de selectionner l\'image du passeport. Veuillez reessayer.',
-      'snackbar_text_failed_to_pick_pet_pictures_or_videos_please_try_again':
-          'Impossible de selectionner les photos ou videos de l\'animal. Veuillez reessayer.',
-      'snackbar_text_failed_to_pick_pet_profile_image_please_try_again':
-          'Impossible de selectionner l\'image de profil de l\'animal. Veuillez reessayer.',
-      'snackbar_text_failed_to_save_card_please_try_again':
-          'Impossible d\'enregistrer la carte. Veuillez reessayer.',
-      'snackbar_text_failed_to_start_conversation_please_try_again':
-          'Impossible de demarrer la conversation. Veuillez reessayer.',
-      'snackbar_text_failed_to_switch_role_please_try_again':
-          'Impossible de changer de role. Veuillez reessayer.',
+      'snackbar_text_failed_to_complete_profile_please_try_again': 'Impossible de terminer le profil. Veuillez réessayer.',
+      'snackbar_text_failed_to_load_booking_details_using_default_pricing': 'Impossible de charger les détails de réservation. Tarification par defaut utilisee.',
+      'snackbar_text_failed_to_load_pet_data_please_try_again': 'Impossible de charger les données de l\'animal. Veuillez réessayer.',
+      'snackbar_text_failed_to_load_sitter_details_please_try_again': 'Impossible de charger les détails du pet sitter. Veuillez réessayer.',
+      'snackbar_text_failed_to_pick_passport_image_please_try_again': 'Impossible de selectionner l\'image du passeport. Veuillez réessayer.',
+      'snackbar_text_failed_to_pick_pet_pictures_or_videos_please_try_again': 'Impossible de selectionner les photos ou videos de l\'animal. Veuillez réessayer.',
+      'snackbar_text_failed_to_pick_pet_profile_image_please_try_again': 'Impossible de selectionner l\'image de profil de l\'animal. Veuillez réessayer.',
+      'snackbar_text_failed_to_save_card_please_try_again': 'Impossible d\'enregistrer la carte. Veuillez réessayer.',
+      'snackbar_text_failed_to_start_conversation_please_try_again': 'Impossible de demarrer la conversation. Veuillez réessayer.',
+      'snackbar_text_failed_to_switch_role_please_try_again': 'Impossible de changer de role. Veuillez réessayer.',
       'snackbar_text_height_is_required': 'La taille est requise.',
-      'snackbar_text_height_must_be_greater_than_0':
-          'La taille doit etre superieure a 0.',
-      'snackbar_text_hourly_rate_must_be_greater_than_0':
-          'Le tarif horaire doit etre superieur a 0.',
-      'snackbar_text_weekly_rate_must_be_greater_than_0':
-          'Le tarif hebdomadaire doit etre superieur a 0.',
-      'snackbar_text_monthly_rate_must_be_greater_than_0':
-          'Le tarif mensuel doit etre superieur a 0.',
+      'snackbar_text_height_must_be_greater_than_0': 'La taille doit être superieure a 0.',
+      'snackbar_text_hourly_rate_must_be_greater_than_0': 'Le tarif horaire doit être superieur a 0.',
+      'snackbar_text_weekly_rate_must_be_greater_than_0': 'Le tarif hebdomadaire doit être superieur a 0.',
+      'snackbar_text_monthly_rate_must_be_greater_than_0': 'Le tarif mensuel doit être superieur a 0.',
       'snackbar_text_invalid_url': 'URL invalide',
       'snackbar_text_unknown_error': 'Erreur inconnue',
       'snackbar_text_image_error': 'Erreur d\'image',
-      'snackbar_text_image_uploaded_successfully':
-          'Image telechargee avec succes !',
+      'snackbar_text_image_uploaded_successfully': 'Image telechargee avec succès !',
       'snackbar_text_invalid_hourly_rate': 'Taux horaire invalide',
       'snackbar_text_location_not_found': 'Emplacement introuvable',
-      'snackbar_text_passwords_do_not_match':
-          'Les mots de passe ne correspondent pas',
-      'snackbar_text_pet_profile_created_but_media_upload_failed_you_can_add_medi':
-          'Profil de l\'animal cree, mais le telechargement des medias a echoue. Vous pouvez ajouter des medias plus tard.',
-      'snackbar_text_pet_profile_created_successfully':
-          'Profil de l\'animal cree avec succes !',
-      'snackbar_text_pet_profile_updated_successfully':
-          'Profil de l\'animal mis a jour avec succes !',
-      'snackbar_text_please_accept_the_terms_and_conditions':
-          'Veuillez accepter les conditions generales.',
-      'snackbar_text_please_enter_your_paypal_email':
-          'Veuillez saisir votre e-mail de paiement.',
-      'snackbar_text_please_fill_in_all_required_fields':
-          'Veuillez remplir tous les champs obligatoires',
+      'snackbar_text_passwords_do_not_match': 'Les mots de passe ne correspondent pas',
+      'snackbar_text_pet_profile_created_but_media_upload_failed_you_can_add_medi': 'Profil de l\'animal cree, mais le telechargement des médias a échoué. Vous pouvez ajouter des médias plus tard.',
+      'snackbar_text_pet_profile_created_successfully': 'Profil de l\'animal créé avec succès !',
+      'snackbar_text_pet_profile_updated_successfully': 'Profil de l\'animal mis à jour avec succès !',
+      'snackbar_text_please_accept_the_terms_and_conditions': 'Veuillez accepter les conditions générales.',
+      'snackbar_text_please_enter_your_paypal_email': 'Veuillez saisir votre e-mail de paiement.',
+      'snackbar_text_please_fill_in_all_required_fields': 'Veuillez remplir tous les champs obligatoires',
       'snackbar_text_please_try_logging_in_again': 'Veuillez vous reconnecter',
-      'snackbar_text_profile_completed_successfully':
-          'Profil complete avec succes !',
-      'snackbar_text_profile_updated_but_image_upload_failed_please_try_again':
-          'Profil mis a jour mais l\'envoi de l\'image a echoue. Veuillez reessayer.',
+      'snackbar_text_profile_completed_successfully': 'Profil complete avec succès !',
+      'snackbar_text_profile_updated_but_image_upload_failed_please_try_again': 'Profil mis à jour mais l\'envoi de l\'image a échoué. Veuillez réessayer.',
       'snackbar_text_required': 'Requis',
-      'snackbar_text_review_submitted_successfully':
-          'Avis envoye avec succes !',
+      'snackbar_text_review_submitted_successfully': 'Avis envoyé avec succès !',
       'snackbar_text_role_switched': 'Rôle commuté',
-      'snackbar_text_selected_image_file_is_not_accessible_please_try_again':
-          'Le fichier image selectionne est inaccessible. Veuillez reessayer.',
+      'snackbar_text_selected_image_file_is_not_accessible_please_try_again': 'Le fichier image sélectionné est inaccessible. Veuillez réessayer.',
       'snackbar_text_selection_failed': 'Échec de la sélection',
-      'snackbar_text_sitter_blocked_successfully':
-          'Pet sitter bloque avec succes !',
-      'snackbar_text_something_went_wrong_please_try_logging_in_again':
-          'Une erreur est survenue. Veuillez vous reconnecter.',
+      'snackbar_text_sitter_blocked_successfully': 'Pet sitter bloque avec succès !',
+      'snackbar_text_something_went_wrong_please_try_logging_in_again': 'Une erreur est survenue. Veuillez vous reconnecter.',
       'snackbar_text_success': 'Succès',
-      'snackbar_text_successfully_switched_to_userrole_value':
-          'Changement de rôle réussi.',
+      'snackbar_text_successfully_switched_to_userrole_value': 'Changement de rôle réussi.',
       'snackbar_text_switch_role_failed': 'Échec du changement de rôle',
       // v23.1 — bug #2/#3 banner accept/reject snackbars.
       'snackbar_text_request_accepted': 'Demande acceptée',
       'snackbar_text_request_accepted_message': 'La demande a bien été acceptée. Le client peut maintenant payer.',
       'snackbar_text_request_refused': 'Demande refusée',
       'snackbar_text_request_refused_message': 'La demande a été refusée.',
-      'snackbar_text_unknown_user_role_please_try_again':
-          'Role utilisateur inconnu. Veuillez reessayer.',
-      'snackbar_text_verification_code_has_been_resent_to_your_email':
-          'Le code de verification a ete renvoye a votre e-mail',
+      'snackbar_text_unknown_user_role_please_try_again': 'Role utilisateur inconnu. Veuillez réessayer.',
+      'snackbar_text_verification_code_has_been_resent_to_your_email': 'Le code de verification a été renvoye a votre e-mail',
       'snackbar_text_verification_code_resent': 'Code de verification renvoye',
       'snackbar_text_verification_code_sent': 'Code de vérification envoyé',
       'snackbar_text_welcome_back': 'Bon retour !',
-      'snackbar_text_you_have_already_reviewed_this_sitter_you_can_only_submit_on':
-          'Vous avez deja evalue ce pet sitter. Vous ne pouvez soumettre qu\'un seul avis par pet sitter.',
+      'snackbar_text_you_have_already_reviewed_this_sitter_you_can_only_submit_on': 'Vous avez déjà évalué ce pet sitter. Vous ne pouvez soumettre qu\'un seul avis par pet sitter.',
     'post_more_options': 'Plus d\'options',
     'post_action_block_user': 'Bloquer l\'utilisateur',
     'post_action_report': 'Signaler la publication',
     'block_user_title': 'Bloquer l\'utilisateur',
     'block_user_action': 'Bloquer',
     'block_user_confirm_message': 'Etes-vous sur de vouloir bloquer cet utilisateur? Vous ne verrez plus son contenu.',
-    'block_user_success': 'Utilisateur bloque avec succes.',
-    'block_user_failed': 'Echec du blocage. Veuillez reessayer.',
+    'block_user_success': 'Utilisateur bloque avec succès.',
+    'block_user_failed': 'Echec du blocage. Veuillez réessayer.',
     'report_post_received': 'Signalement recu. Merci.',
     'pet_photo_delete_title': 'Supprimer la photo',
     'pet_photo_delete_confirm': 'Voulez-vous vraiment supprimer cette photo?',
-    'pet_photo_deleted': 'Photo supprimee avec succes.',
-    'pet_photo_delete_failed': 'Echec de la suppression. Veuillez reessayer.',
+    'pet_photo_deleted': 'Photo supprimee avec succès.',
+    'pet_photo_delete_failed': 'Echec de la suppression. Veuillez réessayer.',
     'new_publication_button': 'Nouvelle publication',
 
       // Sprint fix: missing UI strings (pet edit / CGU / post card)
@@ -2730,14 +2490,12 @@ const Map<String, String> frFRTranslations = <String, String>{
       'post_view_dog_details': 'Voir les détails du chien',
       'post_view_pets': 'Voir les animaux',
       'post_apply_cta': 'Postuler à cette demande',
-      'post_apply_review_note':
-          'Le propriétaire examinera votre profil avant d’accepter votre candidature.',
+      'post_apply_review_note': 'Le propriétaire examinera votre profil avant d’accepter votre candidature.',
       'post_gain_estimate_title': 'Votre gain estimé',
       'post_gain_client_pays': 'Client paie',
       'post_gain_commission': 'Commission PawMap (10 %)',
       'post_gain_you_get': 'Vous recevez',
-      'post_gain_variation_note':
-          'Le montant final peut varier selon les détails réels de la réservation.',
+      'post_gain_variation_note': 'Le montant final peut varier selon les détails réels de la réservation.',
       'post_action_save': 'Sauvegarder',
       'post_boost_active': '🚀 BOOST ACTIF',
       'post_published_just_now': 'Publié à l’instant',
@@ -2749,15 +2507,15 @@ const Map<String, String> frFRTranslations = <String, String>{
       'post_time_days': 'jours',
     'report_dialog_title': 'Signaler',
     'report_dialog_subtitle': 'Aidez-nous a garder HoPetSit sur en choisissant une raison.',
-    'report_dialog_details_hint': 'Details supplementaires (optionnel)',
+    'report_dialog_details_hint': 'Détails supplementaires (optionnel)',
     'report_submit_button': 'Envoyer le signalement',
-    'report_submit_success': 'Merci, votre signalement a ete envoye.',
+    'report_submit_success': 'Merci, votre signalement a été envoyé.',
     'report_submit_failed': 'Echec de l\'envoi du signalement.',
     'report_reason_spam': 'Spam / publicite',
     'report_reason_harassment': 'Harcelement / insultes',
     'report_reason_inappropriate': 'Contenu inapproprie',
     'report_reason_fraud': 'Arnaque / fraude',
-    'report_reason_safety': 'Probleme de securite',
+    'report_reason_safety': 'Probleme de sécurité',
     'report_reason_other': 'Autre',
     'report_short_label': 'Signaler',
     'price_per_hour_short': 'h',
@@ -2791,8 +2549,8 @@ const Map<String, String> frFRTranslations = <String, String>{
     'share_profile_subject': 'Découvre @name sur HoPetSit',
     'share_profile_body': 'Je te recommande @name sur HoPetSit, l\'app de garde et promenade d\'animaux 🐾 @link',
     'payout_iban_saved_success': 'IBAN enregistre ! En attente de verification admin avant le premier virement.',
-    'payout_method_updated': 'Methode de versement mise a jour.',
-    'payout_iban_verified': '✓ Verifie',
+    'payout_method_updated': 'Methode de versement mise à jour.',
+    'payout_iban_verified': '✓ Vérifie',
     'payout_iban_pending': '⏳ En attente',
     'payout_label_holder': 'Titulaire',
     'payout_label_bic': 'BIC/SWIFT',
@@ -2839,7 +2597,7 @@ const Map<String, String> frFRTranslations = <String, String>{
     'earnings_paid_on': 'Verse le',
     'earnings_status_completed': 'Verse',
     'earnings_status_processing': 'En cours',
-    'earnings_status_failed': 'Echoue',
+    'earnings_status_failed': 'Échoué',
     'earnings_status_pending': 'En attente',
     'cancel_72h_title': 'Annulation de réservation',
     'cancel_72h_free_message': 'Vous pouvez annuler gratuitement cette réservation. Le remboursement sera effectué automatiquement sur votre moyen de paiement.',
@@ -2951,15 +2709,12 @@ const Map<String, String> frFRTranslations = <String, String>{
     'wallet_withdraw_success_paypal': 'Ton virement sera exécuté sous 1 jour ouvré.',
     // v20.0.19 — wallet withdraw error UX (PAYPAL / IBAN not configured).
     'wallet_paypal_needed_title': 'Configure ton email de paiement',
-    'wallet_paypal_needed_message':
-        'Tu dois renseigner ton email PayPal avant de pouvoir retirer de l\'argent. Ça prend 30 secondes.',
+    'wallet_paypal_needed_message': 'Tu dois renseigner ton email PayPal avant de pouvoir retirer de l\'argent. Ça prend 30 secondes.',
     'wallet_configure_paypal': 'Configurer mon email',
     'wallet_iban_needed_title': 'Configure ton IBAN',
-    'wallet_iban_needed_message':
-        'Tu dois enregistrer et vérifier ton IBAN avant de pouvoir retirer de l\'argent. Ça prend moins d\'une minute.',
+    'wallet_iban_needed_message': 'Tu dois enregistrer et vérifier ton IBAN avant de pouvoir retirer de l\'argent. Ça prend moins d\'une minute.',
     'wallet_configure_iban': 'Configurer mon IBAN',
-    'wallet_withdraw_error_generic':
-        'Retrait impossible pour l\'instant. Réessaie dans quelques instants.',
+    'wallet_withdraw_error_generic': 'Retrait impossible pour l\'instant. Réessaie dans quelques instants.',
     'wallet_status_pending': 'En attente',
     'wallet_type_credit_booking': 'Paiement reçu',
     'wallet_type_debit_withdrawal': 'Retrait',
