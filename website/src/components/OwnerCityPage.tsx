@@ -27,6 +27,8 @@ type Copy = {
   /** Libellé du bouton principal (ouvre le store de l'appareil). */
   heroCta: string;
   /** Petite ligne sous le bouton (gratuité + stores). */
+  // 23/09 (Bob) : le bouton ouvre le formulaire web sans compte (v581) ;
+  // l'ancienne note parlait encore de l'App Store et contredisait le bouton.
   heroCtaNote: string;
   /** v577 — lien secondaire vers le store (le bouton principal mène au site). */
   heroAppLink: string;
@@ -56,7 +58,7 @@ const COPY: Record<RecruitLang, Copy> = {
     heroLead: (c) => `Un pet-sitter vérifié près de chez toi à ${c.name}. Tu publies ta demande, tu choisis, tu ne paies qu'à la réservation.`,
     proofs: ["Paiement sécurisé", "Identité vérifiée", "Annulation gratuite 72 h"],
     heroCta: "Publier ma demande",
-    heroCtaNote: "Gratuit — l'app HoPetSit sur l'App Store et Google Play",
+    heroCtaNote: "Gratuit · sans compte pour commencer · 2 minutes",
     heroAppLink: "Ou télécharger l'app HoPetSit →",
     heroSecondary: "Voir les gardiens près de chez moi →",
     intro: (c) =>
@@ -96,7 +98,7 @@ const COPY: Record<RecruitLang, Copy> = {
     heroLead: (c) => `A verified pet sitter near you in ${c.name}. Post your request, pick your sitter, pay only when you book.`,
     proofs: ["Secure payment", "ID verified", "72 h free cancellation"],
     heroCta: "Post my request",
-    heroCtaNote: "Free — the HoPetSit app on the App Store and Google Play",
+    heroCtaNote: "Free · no account needed to start · 2 minutes",
     heroAppLink: "Or download the HoPetSit app →",
     heroSecondary: "See sitters near me →",
     intro: (c) =>
@@ -136,7 +138,7 @@ const COPY: Record<RecruitLang, Copy> = {
     heroLead: (c) => `Un cuidador verificado cerca de ti en ${c.name}. Publicas tu solicitud, eliges y solo pagas al reservar.`,
     proofs: ["Pago seguro", "Identidad verificada", "Cancelación gratis 72 h"],
     heroCta: "Publicar mi solicitud",
-    heroCtaNote: "Gratis — la app HoPetSit en App Store y Google Play",
+    heroCtaNote: "Gratis · sin cuenta para empezar · 2 minutos",
     heroAppLink: "O descargar la app HoPetSit →",
     heroSecondary: "Ver cuidadores cerca de mí →",
     intro: (c) =>
@@ -176,7 +178,7 @@ const COPY: Record<RecruitLang, Copy> = {
     heroLead: (c) => `Ein verifizierter Tiersitter in deiner Nähe in ${c.name}. Anfrage veröffentlichen, auswählen, erst bei der Buchung bezahlen.`,
     proofs: ["Sichere Zahlung", "Identität geprüft", "Storno gratis 72 Std."],
     heroCta: "Anfrage veröffentlichen",
-    heroCtaNote: "Kostenlos — die HoPetSit-App im App Store und bei Google Play",
+    heroCtaNote: "Kostenlos · ohne Konto starten · 2 Minuten",
     heroAppLink: "Oder die HoPetSit-App laden →",
     heroSecondary: "Sitter in meiner Nähe ansehen →",
     intro: (c) =>
@@ -216,7 +218,7 @@ const COPY: Record<RecruitLang, Copy> = {
     heroLead: (c) => `Un pet sitter verificato vicino a te a ${c.name}. Pubblichi la richiesta, scegli e paghi solo quando prenoti.`,
     proofs: ["Pagamento sicuro", "Identità verificata", "Cancellazione gratis 72 h"],
     heroCta: "Pubblica la mia richiesta",
-    heroCtaNote: "Gratis — l'app HoPetSit su App Store e Google Play",
+    heroCtaNote: "Gratis · senza account per iniziare · 2 minuti",
     heroAppLink: "Oppure scarica l'app HoPetSit →",
     heroSecondary: "Vedi i sitter vicino a me →",
     intro: (c) =>
@@ -256,7 +258,7 @@ const COPY: Record<RecruitLang, Copy> = {
     heroLead: (c) => `Um pet sitter verificado perto de ti em ${c.name}. Publicas o teu pedido, escolhes e só pagas ao reservar.`,
     proofs: ["Pagamento seguro", "Identidade verificada", "Cancelamento grátis 72 h"],
     heroCta: "Publicar o meu pedido",
-    heroCtaNote: "Grátis — a app HoPetSit na App Store e no Google Play",
+    heroCtaNote: "Grátis · sem conta para começar · 2 minutos",
     heroAppLink: "Ou transferir a app HoPetSit →",
     heroSecondary: "Ver cuidadores perto de mim →",
     intro: (c) =>
@@ -296,7 +298,7 @@ const COPY: Record<RecruitLang, Copy> = {
     heroLead: (c) => `Zweryfikowany opiekun blisko Ciebie — ${c.name}. Publikujesz ogłoszenie, wybierasz i płacisz dopiero przy rezerwacji.`,
     proofs: ["Bezpieczna płatność", "Zweryfikowana tożsamość", "Bezpłatna anulacja 72 h"],
     heroCta: "Opublikuj ogłoszenie",
-    heroCtaNote: "Za darmo — aplikacja HoPetSit w App Store i Google Play",
+    heroCtaNote: "Za darmo · bez konta na start · 2 minuty",
     heroAppLink: "Albo pobierz aplikację HoPetSit →",
     heroSecondary: "Zobacz opiekunów w okolicy →",
     intro: (c) =>
@@ -336,7 +338,7 @@ const COPY: Record<RecruitLang, Copy> = {
     heroLead: (c) => `${c.name}에서 가까운 인증된 펫시터. 요청을 올리고, 고르고, 예약할 때만 결제하세요.`,
     proofs: ["안전 결제", "신원 인증", "72시간 무료 취소"],
     heroCta: "무료로 요청 올리기",
-    heroCtaNote: "무료 — App Store와 Google Play의 HoPetSit 앱",
+    heroCtaNote: "무료 · 계정 없이 시작 · 2분",
     heroAppLink: "HoPetSit 앱 다운로드 →",
     heroSecondary: "근처 펫시터 보기 →",
     intro: (c) =>
@@ -376,7 +378,7 @@ const COPY: Record<RecruitLang, Copy> = {
     heroLead: (c) => `${c.name}の近くにいる認証済みペットシッター。リクエストを投稿して選び、予約するときだけお支払い。`,
     proofs: ["安全な決済", "本人確認済み", "72時間前まで無料キャンセル"],
     heroCta: "リクエストを投稿",
-    heroCtaNote: "無料 — App Store と Google Play の HoPetSit アプリ",
+    heroCtaNote: "無料 · アカウント不要で開始 · 2分",
     heroAppLink: "HoPetSit アプリをダウンロード →",
     heroSecondary: "近くのシッターを見る →",
     intro: (c) =>
