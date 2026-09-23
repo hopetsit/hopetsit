@@ -328,9 +328,11 @@ class _BrandedLoader extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Connexion sécurisée…',
-              style: TextStyle(
+            // ZOE 23/09 — était « Connexion sécurisée… » en dur : du
+            // français affiché dans les 9 langues. La clé existait déjà.
+            Text(
+              'payment_connecting'.tr,
+              style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
                 color: Color(0xFF261B18),

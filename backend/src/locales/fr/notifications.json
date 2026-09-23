@@ -217,21 +217,21 @@
   },
   "family_invitation_received": {
     "title": "Invitation Famille PawFollow",
-    "body": "Tu as recu une invitation a rejoindre une famille PawFollow. Ouvre l app pour accepter ou refuser.",
+    "body": "Tu as reçu une invitation à rejoindre une famille PawFollow. Ouvre l'app pour accepter ou refuser.",
     "emailSubject": "Invitation Famille - HoPetSit",
-    "emailBody": "<p>Tu as recu une invitation a rejoindre une famille PawFollow. Ouvre l app HoPetSit pour repondre.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ouvrir dans l'app</a></p>"
+    "emailBody": "<p>Tu as reçu une invitation à rejoindre une famille PawFollow. Ouvre l'app HoPetSit pour répondre.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ouvrir dans l'app</a></p>"
   },
   "family_invitation_accepted": {
-    "title": "Invitation acceptee",
-    "body": "Un membre vient d accepter ton invitation Famille PawFollow.",
-    "emailSubject": "Invitation acceptee - HoPetSit",
-    "emailBody": "<p>Un membre vient d accepter ton invitation Famille PawFollow. Tu peux maintenant le suivre en direct sur la PawMap.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ouvrir dans l'app</a></p>"
+    "title": "Invitation acceptée",
+    "body": "Un membre vient d'accepter ton invitation Famille PawFollow.",
+    "emailSubject": "Invitation acceptée - HoPetSit",
+    "emailBody": "<p>Un membre vient d'accepter ton invitation Famille PawFollow. Tu peux maintenant le suivre en direct sur la PawMap.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ouvrir dans l'app</a></p>"
   },
   "family_invitation_refused": {
-    "title": "Invitation refusee",
-    "body": "Un membre a refuse ton invitation Famille PawFollow. Une place est de nouveau disponible.",
-    "emailSubject": "Invitation refusee - HoPetSit",
-    "emailBody": "<p>Un membre a refuse ton invitation Famille PawFollow. Une place est de nouveau disponible dans ton plan Famille.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ouvrir dans l'app</a></p>"
+    "title": "Invitation refusée",
+    "body": "Un membre a refusé ton invitation Famille PawFollow. Une place est de nouveau disponible.",
+    "emailSubject": "Invitation refusée - HoPetSit",
+    "emailBody": "<p>Un membre a refusé ton invitation Famille PawFollow. Une place est de nouveau disponible dans ton plan Famille.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ouvrir dans l'app</a></p>"
   },
   "kyc_verified": {
     "title": "Identité vérifiée ✅",

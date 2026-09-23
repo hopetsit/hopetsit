@@ -39,20 +39,20 @@ class ChangePasswordController extends GetxController {
 
   String? validateNewPassword(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Password is required';
+      return 'error_password_required'.tr;
     }
     if (value.length < 8) {
-      return 'Password must be at least 8 characters';
+      return 'error_password_length'.tr;
     }
     return null;
   }
 
   String? validateConfirmPassword(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please confirm your password';
+      return 'error_password_confirm_required'.tr;
     }
     if (value != newPasswordController.text) {
-      return 'Passwords do not match';
+      return 'error_password_match'.tr;
     }
     return null;
   }
@@ -72,7 +72,7 @@ class ChangePasswordController extends GetxController {
         confirmPasswordController.text.trim()) {
       CustomSnackbar.showError(
         title: 'change_password_validation_error'.tr,
-        message: 'snackbar_text_passwords_do_not_match',
+        message: 'snackbar_text_passwords_do_not_match'.tr,
       );
       return;
     }
