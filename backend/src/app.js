@@ -225,6 +225,9 @@ const ADMIN_HTML_PATH = path.join(__dirname, '..', '..', 'admin_dashboard.html')
 // build is actually LIVE on Render (GET /__build). If /__build still returns an
 // old value after a push, Render did not redeploy (auto-deploy off / build
 // filter / failed deploy) — not a code problem.
+// ⚠️ ADA 23/09 : Render ne redéploie QUE si un fichier de backend/ change. Une publication
+// de admin_dashboard.html seul (ex. aedfaab, traduction EN/ES) reste invisible en ligne :
+// toucher ce fichier. Garder un numéro en chiffres seuls (le contrôle de la page lit /v(\d+)/).
 const ADMIN_BUILD = 'v582';
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
