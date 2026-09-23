@@ -1,4 +1,4 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show Completer, unawaited;
 import 'dart:convert';
 import 'dart:io' show Platform;
 
@@ -15,6 +15,7 @@ import 'package:hopetsit/services/deep_link_service.dart';
 // v23.1.319 — Daniel (audit) : routage du tap PUSH vers l'écran Notifications.
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
+import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 
 /// Push notification service for HopeTSIT.
 ///
@@ -149,16 +150,28 @@ class PushNotificationService extends GetxService {
     _initialized = true;
 
     try {
-      // iOS: request permission. Android 13+ also needs POST_NOTIFICATIONS.
-      final settings = await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
-      );
-      _systemBannersAuthorized =
-          settings.authorizationStatus == AuthorizationStatus.authorized ||
-              settings.authorizationStatus == AuthorizationStatus.provisional;
+      // v583 NEO — plus de demande d'autorisation au tout premier lancement,
+      // AVANT l'inscription (audit du 23/09 : la fenêtre iOS s'ouvrait sur
+      // l'écran d'accueil, sans explication). Sans session et sans réponse
+      // antérieure, on attend l'entrée dans l'app : askAfterEntryIfUndecided()
+      // explique d'abord pourquoi, puis pose la question système.
+      // Un compte déjà connecté garde le comportement d'avant.
+      final current = await _messaging.getNotificationSettings();
+      if (current.authorizationStatus == AuthorizationStatus.notDetermined &&
+          !_hasSession()) {
+        _systemBannersAuthorized = false;
+      } else {
+        // iOS: request permission. Android 13+ also needs POST_NOTIFICATIONS.
+        final settings = await _messaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+          provisional: false,
+        );
+        _systemBannersAuthorized =
+            settings.authorizationStatus == AuthorizationStatus.authorized ||
+                settings.authorizationStatus == AuthorizationStatus.provisional;
+      }
 
       // Configure local notifications (used for foreground messages).
       // v566 — audit : petite icône MONOCHROME (patte blanche, drawable vectoriel).
@@ -166,10 +179,14 @@ class PushNotificationService extends GetxService {
       // la barre d'état Android.
       const AndroidInitializationSettings androidInit =
           AndroidInitializationSettings(_smallIcon);
+      // v583 NEO — ne demande RIEN ici : la seule demande est celle de
+      // FirebaseMessaging (ci-dessus ou askAfterEntryIfUndecided), qui couvre
+      // aussi les notifications locales sur iOS. Laisser `true` rouvrait la
+      // fenêtre système au premier lancement.
       const DarwinInitializationSettings iosInit = DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
       );
       const InitializationSettings initSettings = InitializationSettings(
         android: androidInit,
@@ -237,6 +254,76 @@ class PushNotificationService extends GetxService {
     }
 
     return this;
+  }
+
+  bool _hasSession() {
+    try {
+      if (!Get.isRegistered<ApiClient>()) return false;
+      final t = Get.find<ApiClient>().authToken;
+      return t != null && t.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void>? _entryAsk;
+
+  /// v583 NEO — question « notifications » posée à l'entrée dans l'app
+  /// (inscription ou connexion), une seule fois par session, et seulement si
+  /// l'utilisateur n'a jamais répondu. Une phrase par rôle explique d'abord
+  /// à quoi elles servent ; « Activer » ouvre ensuite la fenêtre système.
+  /// « Plus tard » ne consomme pas la fenêtre système : elle sera posée au
+  /// lancement suivant (compte connecté → comportement d'avant).
+  /// Plusieurs appelants attendent le MÊME Future (connexion + assistant).
+  Future<void> askAfterEntryIfUndecided({String? role}) =>
+      _entryAsk ??= _askAfterEntry(role);
+
+  Future<void> _askAfterEntry(String? role) async {
+    try {
+      // Laisse l'accueil s'afficher (Get.offAll) avant la fenêtre.
+      await Future.delayed(const Duration(milliseconds: 1800));
+      final current = await _messaging.getNotificationSettings();
+      if (current.authorizationStatus != AuthorizationStatus.notDetermined) {
+        return;
+      }
+      final r = (role ?? '').toLowerCase();
+      final bodyKey = r.contains('walker')
+          ? 'neo583_notif_walker'
+          : r.contains('sitter')
+              ? 'neo583_notif_sitter'
+              : 'neo583_notif_owner';
+      final choice = Completer<bool>();
+      await Get.dialog<void>(
+        CustomConfirmationDialog(
+          message: bodyKey.tr,
+          yesText: 'neo583_notif_allow'.tr,
+          cancelText: 'neo583_notif_later'.tr,
+          onYes: () {
+            if (!choice.isCompleted) choice.complete(true);
+          },
+          onCancel: () {
+            if (!choice.isCompleted) choice.complete(false);
+          },
+        ),
+        barrierDismissible: false,
+      );
+      final ok = choice.isCompleted ? await choice.future : false;
+      if (!ok) return;
+      final settings = await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
+      _systemBannersAuthorized =
+          settings.authorizationStatus == AuthorizationStatus.authorized ||
+              settings.authorizationStatus == AuthorizationStatus.provisional;
+      if (_systemBannersAuthorized) {
+        unawaited(_fetchAndRegisterToken());
+      }
+    } catch (e) {
+      debugPrint('askAfterEntryIfUndecided failed: $e');
+    }
   }
 
   /// v566 — jeton FCM : attend le jeton APNs sur iOS (jusqu'à 3 s), puis réessaie

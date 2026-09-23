@@ -33,7 +33,11 @@ class SignupWizardScreen extends StatelessWidget {
           ? AppColors.sitterAccent
           : AppColors.primaryColor;
 
-  static const _steps = 5;
+  // v583 NEO — propriétaire : 4 étapes. L'ancienne étape « Vos animaux »
+  // ne collectait rien et annonçait « après la vérification de votre email »,
+  // faux depuis la v535 (on entre dans l'app sans vérifier). L'ajout de
+  // l'animal s'ouvre désormais à l'entrée dans l'app (SignUpController).
+  int get _steps => _isOwner ? 4 : 5;
 
   SignUpController _ctrl() {
     return Get.isRegistered<SignUpController>(tag: userType)
@@ -235,10 +239,8 @@ class SignupWizardScreen extends StatelessWidget {
     if (_isOwner) {
       switch (step) {
         case 1:
-          return _stepOwnerPets(context, c);
-        case 2:
           return _stepOwnerSearch(context, c);
-        case 3:
+        case 2:
           return _stepOwnerPrefs(context, c);
         default:
           return _stepReview(context, c);
@@ -416,44 +418,7 @@ class SignupWizardScreen extends StatelessWidget {
     );
   }
 
-  // ── ÉTAPE 2 owner — Mes animaux (ajout après vérif email) ──────────────────
-  Widget _stepOwnerPets(BuildContext context, SignUpController c) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionTitle('signup_step_pets'.tr),
-        InterText(
-          text: 'signup_pets_hint'.tr,
-          fontSize: 13.sp,
-          color: AppColors.textSecondary(context),
-        ),
-        SizedBox(height: 16.h),
-        Container(
-          padding: EdgeInsets.all(16.w),
-          decoration: BoxDecoration(
-            color: _accent.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(14.r),
-            border: Border.all(color: _accent.withValues(alpha: 0.25)),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.pets_rounded, color: _accent, size: 22.sp),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: InterText(
-                  text: 'signup_pets_after_verification'.tr,
-                  fontSize: 13.sp,
-                  color: AppColors.textPrimary(context),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── ÉTAPE 3 owner — Ce que vous recherchez ─────────────────────────────────
+  // ── ÉTAPE 2 owner — Ce que vous recherchez ─────────────────────────────────
   Widget _stepOwnerSearch(BuildContext context, SignUpController c) {
     final services = const [
       ['walk', 'signup_service_walk', 'signup_service_walk_sub', Icons.directions_walk_rounded],
@@ -508,7 +473,7 @@ class SignupWizardScreen extends StatelessWidget {
     );
   }
 
-  // ── ÉTAPE 4 owner — Vos préférences ────────────────────────────────────────
+  // ── ÉTAPE 3 owner — Vos préférences ────────────────────────────────────────
   Widget _stepOwnerPrefs(BuildContext context, SignUpController c) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -523,13 +488,8 @@ class SignupWizardScreen extends StatelessWidget {
         // v445 — « Assurance PawMap » retirée du wizard (fonctionnalité morte).
         Obx(() => _switchRow('profile_pref_flexible_cancellation'.tr, c.prefFlexCancel.value,
             (v) => c.prefFlexCancel.value = v)),
-        SizedBox(height: 14.h),
-        _label('signup_pref_language'.tr),
-        Obx(() => _dropdown(
-              value: c.selectedLanguage.value,
-              items: c.languageOptions,
-              onChanged: c.updateLanguage,
-            )),
+        // v583 NEO — la langue n'est plus redemandée ici : c'est la même
+        // valeur (selectedLanguage) que celle choisie à l'étape 1.
       ],
     );
   }
@@ -898,7 +858,7 @@ class SignupWizardScreen extends StatelessWidget {
     );
   }
 
-  // ── ÉTAPE 5 — Aperçu + conditions ──────────────────────────────────────────
+  // ── DERNIÈRE ÉTAPE (owner 4, prestataire 5) — Aperçu + conditions ──────────────────────────────────────────
   Widget _stepReview(BuildContext context, SignUpController c) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -993,6 +953,11 @@ class SignupWizardScreen extends StatelessWidget {
           ),
         ),
         SizedBox(height: 14.h),
+        // v583 NEO — code parrain : chaque membre partage « Rejoins HoPetSit
+        // avec mon code … » (my_referrals_screen), mais l'assistant n'avait
+        // aucun champ pour le saisir → 0 parrain sur 85 comptes (23/09).
+        // Facultatif ; déjà envoyé au serveur par _buildUserPayload.
+        _field(c.referralCodeController, 'signup_referral_code_label'.tr),
         Obx(() => Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

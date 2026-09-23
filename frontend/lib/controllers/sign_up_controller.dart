@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -25,6 +26,10 @@ import 'package:hopetsit/utils/date_slash_formatter.dart'
     show parseDdMmYyyy, ageInYears;
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/pending_signup_photo.dart';
+import 'package:hopetsit/controllers/my_pets_controller.dart';
+import 'package:hopetsit/services/push_notification_service.dart';
+import 'package:hopetsit/views/profile/edit_pet_screen.dart';
+import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
 
 class SignUpController extends GetxController {
   SignUpController({
@@ -98,7 +103,9 @@ class SignUpController extends GetxController {
 
   void onStepEntered(int step) {
     if (wizardScroll.hasClients) wizardScroll.jumpTo(0);
-    final locStep = userType == 'pet_owner' ? 2 : 1;
+    // v583 NEO — l'étape « ville » est la 2e (index 1) pour les 3 rôles
+    // depuis que l'étape vide « Vos animaux » du propriétaire a été retirée.
+    const locStep = 1;
     if (step == locStep && !hasPlace && !isGettingLocation.value) {
       getCurrentLocationFromMaps();
     }
@@ -903,8 +910,8 @@ class SignUpController extends GetxController {
         cityController.text.trim().isNotEmpty;
 
     if (userType == 'pet_owner') {
-      // Étape 3 (index 2) : ville + au moins un service recherché.
-      if (step == 2) {
+      // Étape 2 (index 1, v583) : ville + au moins un service recherché.
+      if (step == 1) {
         if (!hasPlace) return 'signup_error_city_required'.tr;
         if (selectedServices.isEmpty) return 'signup_error_service_required'.tr;
       }
@@ -1003,10 +1010,6 @@ class SignUpController extends GetxController {
           if (ok) {
             FirebaseAnalyticsService.instance
                 .logFunnel('signup_direct_entry', params: {'role': _apiRole});
-            // v565 audit-inscription — la photo choisie au wizard n'était
-            // uploadée QUE par l'écran OTP ; sur ce chemin direct elle était
-            // perdue. On l'envoie maintenant qu'un jeton existe.
-            await uploadPendingSignupPhotoIfAny();
             final role = auth.userRole.value;
             if (role == 'sitter') {
               Get.offAll(() => const SitterNavWrapper());
@@ -1016,6 +1019,16 @@ class SignUpController extends GetxController {
               Get.offAll(() => const BottomNavWrapper());
             }
             entered = true;
+            // v565 audit-inscription — la photo choisie au wizard n'était
+            // uploadée QUE par l'écran OTP ; sur ce chemin direct elle était
+            // perdue. On l'envoie maintenant qu'un jeton existe.
+            // v583 NEO — envoyée APRÈS l'entrée dans l'app (et non plus
+            // avant) : l'accueil s'affiche sans attendre le réseau, et la
+            // question « notifications » ne tombe plus sur l'assistant.
+            unawaited(uploadPendingSignupPhotoIfAny());
+            if (role != 'sitter' && role != 'walker') {
+              unawaited(_openOwnerFirstSteps());
+            }
           }
         }
       } catch (_) {/* repli OTP ci-dessous */}
@@ -1033,7 +1046,7 @@ class SignUpController extends GetxController {
       // ramène à l'étape ville (owner = étape 3, prestataire = étape 2).
       final code = error.details is Map ? (error.details as Map)['code'] : null;
       if (error.statusCode == 400 && code == 'CITY_REQUIRED') {
-        currentStep.value = userType == 'pet_owner' ? 2 : 1;
+        currentStep.value = 1; // v583 — étape ville, pour les 3 rôles
         onStepEntered(currentStep.value);
         editingLocation.value = true;
         CustomSnackbar.showError(
@@ -1068,6 +1081,55 @@ class SignUpController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  /// v583 NEO — premiers pas du propriétaire, juste après l'inscription.
+  ///
+  /// Mesure du 23/09 : 14 propriétaires inscrits, 4 avec un animal, 0 demande
+  /// publiée. Une demande exige un animal (PublishReservationRequestController
+  /// ._firstMissingField) : on ouvre donc « Ajouter un animal », puis, s'il a
+  /// été enregistré, « Publier ma demande » avec le service choisi pendant
+  /// l'inscription déjà sélectionné. Un retour arrière laisse simplement le
+  /// propriétaire sur son accueil (qui garde sa carte « Ajoute ton animal »).
+  Future<void> _openOwnerFirstSteps() async {
+    try {
+      // Laisse la question « notifications » (posée à l'entrée, une seule
+      // fois) se terminer avant d'ouvrir l'écran suivant.
+      if (Get.isRegistered<PushNotificationService>()) {
+        await Get.find<PushNotificationService>().askAfterEntryIfUndecided();
+      } else {
+        await Future.delayed(const Duration(milliseconds: 600));
+      }
+      final added = await Get.to(() => const EditPetScreen());
+      if (added != true) return;
+      if (Get.isRegistered<MyPetsController>()) {
+        await Get.find<MyPetsController>().refreshPets();
+      }
+      FirebaseAnalyticsService.instance.logFunnel('signup_owner_pet_added');
+      Get.to(() => PublishReservationRequestScreen(
+            initialServiceType: _publishServiceFromSignup(),
+          ));
+    } catch (e) {
+      AppLogger.logWarning('Premiers pas propriétaire interrompus : $e');
+    }
+  }
+
+  /// Service coché à l'inscription → type de demande de l'écran de
+  /// publication (walk → promenade, daycare → garderie, garde/visite →
+  /// pet-sitting). Aucun coché : l'écran reste sans présélection.
+  String? _publishServiceFromSignup() {
+    for (final s in selectedServices) {
+      switch (s) {
+        case 'walk':
+          return 'dog_walking';
+        case 'daycare':
+          return 'day_care';
+        case 'boarding':
+        case 'visit':
+          return 'pet_sitting';
+      }
+    }
+    return null;
   }
 
   /// v532 — traduit une erreur d'inscription en message compréhensible.

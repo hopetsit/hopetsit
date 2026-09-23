@@ -147,7 +147,11 @@ class _MyReferralsScreenState extends State<MyReferralsScreen> {
                               onTap: _code.isEmpty
                                   ? null
                                   : () {
-                                      final msg = 'referrals_share_text'.trParams({'code': _code});
+                                      // v583 NEO — le lien pré-remplit le code à
+                                      // l'inscription (site /signup?ref=…).
+                                      final msg =
+                                          '${'referrals_share_text'.trParams({'code': _code})}\n'
+                                          'https://www.hopetsit.com/signup?ref=$_code';
                                       SharePlus.instance.share(ShareParams(text: msg));
                                     },
                             ),

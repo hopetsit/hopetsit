@@ -1244,6 +1244,10 @@ class AuthController extends GetxController {
       // call /users/fcm-token with the fresh JWT context.
       await pushService.reRegisterAfterLogin();
       debugPrint('[HOPETSIT] ✅ FCM token re-registered after login');
+      // v583 NEO — question « notifications » à l'entrée dans l'app (une
+      // fois, seulement si jamais répondu) : elle n'est plus posée au tout
+      // premier lancement, avant l'inscription.
+      unawaited(pushService.askAfterEntryIfUndecided(role: userRole.value));
     } catch (e) {
       debugPrint('[HOPETSIT] ⚠️ FCM token re-register failed: $e');
     }
