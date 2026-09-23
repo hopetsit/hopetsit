@@ -31,6 +31,11 @@ export default function SignupPage() {
   const [err, setErr]           = useState("");
   // v532 — consentement CGU réel (cf. commentaire dans le formulaire).
   const [acceptTerms, setAcceptTerms] = useState(false);
+  // v583 NEO — code parrain transmis par lien : /signup?ref=AB23CD45.
+  // Seul le format exact des codes est retenu (8 caractères, majuscules,
+  // sans I/O/0/1) : les QR des affiches portent ?ref=<nom-du-commerce>, en
+  // minuscules, qui ne doit pas devenir un faux parrain.
+  const [referralCode, setReferralCode] = useState("");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -41,6 +46,8 @@ export default function SignupPage() {
     if (c) setCity(c);
     const n = (q.get("next") || "").trim();
     if (n.startsWith("/") && !n.startsWith("//")) setNextPath(n);
+    const ref = (q.get("ref") || "").trim();
+    if (/^[A-HJ-NP-Z2-9]{8}$/.test(ref)) setReferralCode(ref);
   }, []);
 
   async function onSubmit(e: React.FormEvent) {
@@ -79,6 +86,7 @@ export default function SignupPage() {
         role,
         city: city.trim(),
         lang,
+        ...(referralCode ? { referralCode } : {}),
       });
       // v402 — l'inscription web exige désormais la vérif email (le backend
       // envoie un code par mail). On envoie l'utilisateur sur /verify-email.

@@ -202,6 +202,8 @@ export async function signup(input: {
   // langue du site → e-mail de vérification dans la bonne langue + appLocale.
   city?: string;
   lang?: string;
+  // v583 NEO — code parrain reçu par lien (/signup?ref=CODE), facultatif.
+  referralCode?: string;
 }): Promise<{ needsVerification: boolean; email: string; token?: string; user?: AuthUser; emailVerified?: boolean }> {
   // The /auth/signup contract requires `{ role, user: {...} }` (and accepts
   // optional fields like mobile, countryCode, currency that we don't collect
@@ -215,6 +217,7 @@ export async function signup(input: {
       acceptedTerms: true,
       ...(input.city ? { city: input.city, location: { city: input.city } } : {}),
       ...(input.lang ? { language: input.lang, appLocale: input.lang } : {}),
+      ...(input.referralCode ? { referralCode: input.referralCode } : {}),
     },
   };
   // v402 — le backend /auth/signup crée le compte avec verified:false et NE
