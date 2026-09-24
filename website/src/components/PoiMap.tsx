@@ -1,24 +1,25 @@
 "use client";
 
 // v23.1 part 146 — Composant carte interactive avec POI pet-friendly.
-// Affiche tous les POI proches d'un centre donné, avec markers colorés par
-// catégorie. Popup au click → détails + action "Voir" qui scrolle vers le
-// panneau latéral.
-//
 // v23.1 carte unique — Daniel : "sur le site web, UNE SEULE carte". PoiMap
-// devient LA carte du site : en plus des POI + position user, elle sait
-// afficher (couches optionnelles pilotées par /map) :
-//   1. la couche PawFollow amis/famille en direct (markers avatars + halos,
-//      mêmes icônes que FriendsLiveMap — helpers importés de là) ;
-//   2. les PawSpots communautaires (patte 🐾 colorée par type, dorée si
-//      isGolden) avec popup likes/qualité/photo + bouton Itinéraire ;
-//   3. une polyline d'itinéraire orange (#C92A12) renvoyée par le backend.
+// est LA carte du site : lieux + ma position + couches optionnelles pilotées
+// par /map (amis en direct, PawSpots, signalements, membres, itinéraire).
+//
+// 24/09/2026 — LOT B, étape 3 : LA NOUVELLE LÉGENDE (LEGENDE_PAWMAP.md,
+// validée par Daniel le 23/09), identique à l'app :
+//   rond = personne (icône du rôle, couleur du rôle à tous les zooms),
+//   goutte = lieu (couleur du type), carré = groupe de lieux, noir et or =
+//   PawSpot, rose = ami, couronne or = Premium, PawBoost = lueur turquoise qui
+//   respire + fusée, « Moi » 56 px avec ma photo, demandes des propriétaires
+//   en bulle orange foncé (prix dedans), signalement = triangle rouge.
+// + zoom de suivi « joli » (vol en douceur, zoom rue, suit le point, tracé
+//   violet PawFollow, pause au geste), mode sombre, prix sur l'épingle au
+//   zoom rue. Tous les dessins viennent de lib/pawmapLegend.ts.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Circle,
   CircleMarker,
-  LayersControl,
   MapContainer,
   Marker,
   Polyline,
@@ -26,20 +27,12 @@ import {
   TileLayer,
   Tooltip,
   useMap,
-  useMapEvents, ZoomControl } from "react-leaflet";
+  useMapEvents,
+  ZoomControl,
+} from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import type { RouteStep } from "@/lib/api";
-
-// v559 — pictogramme d'une manœuvre Valhalla (info-bulle des repères de virage).
-function stepGlyph(type: number): string {
-  if (type >= 4 && type <= 6) return "🏁";
-  if (type >= 9 && type <= 11) return "↱";
-  if (type >= 14 && type <= 16) return "↰";
-  if (type === 12 || type === 13) return "↩";
-  if (type === 26 || type === 27) return "⟳";
-  return "↑";
-}
 import {
   MapReport,
   MapReportType,
@@ -50,158 +43,36 @@ import {
   Poi,
   PoiCategory,
 } from "@/lib/api";
-import {
-  FAMILY_VIOLET,
-  haloColor,
-  makeAvatarIcon,
-  subscriptionHaloColor,
-} from "@/components/FriendsLiveMap";
+import { makeAvatarIcon } from "@/components/FriendsLiveMap";
 import type { FriendLivePosition, Role } from "@/components/FriendsLiveMap";
+import { clusterize } from "@/lib/mapCluster";
+import {
+  memberPinHtml,
+  photoPinHtml,
+  memberClusterHtml,
+  placePinHtml,
+  placeClusterHtml,
+  spotPinHtml,
+  spotClusterHtml,
+  reportPinHtml,
+  requestBubbleHtml,
+  formatPrice,
+  ROLE_COLOR,
+  PAWFOLLOW_VIOLET,
+  PAWMAP_KEYFRAMES,
+  roleKey,
+} from "@/lib/pawmapLegend";
 
-/**
- * v23.1.358 — Daniel : "mets le nom et le rôle des amis en direct sur la
- * PawMap, et quand on clique sur eux ça zoome dessus". Marker ami avec
- * tooltip PERMANENT « nom · rôle » sous l'avatar + clic → flyTo zoom 16.
- */
-function LiveFriendMarker({
-  p,
-  isFamily,
-  isPremium,
-  hasPawFollow,
-  hasPawSpot,
-  roleLabel,
-  onFocus,
-  onDirections,
-  directionsLabel,
-}: {
-  p: FriendLivePosition;
-  isFamily: boolean;
-  isPremium?: boolean;
-  hasPawFollow?: boolean;
-  hasPawSpot?: boolean;
-  roleLabel: string;
-  onFocus?: () => void;
-  /** v559 — itinéraire vers l'ami (modes + virages, comme lieux et spots). */
-  onDirections?: (target: { lat: number; lng: number }) => void;
-  directionsLabel?: string;
-}) {
-  // v556 — halo par abonnement (même grille que l'app) : Premium or + contour
-  // noir, PawFollow/Famille violet, PawSpot jaune, sinon couleur du rôle.
-  const halo = subscriptionHaloColor({
-    premium: isPremium,
-    pawFollow: isFamily || hasPawFollow,
-    pawSpot: hasPawSpot,
-    role: p.role,
-  });
-  return (
-    <span>
-      <Circle
-        center={[p.lat, p.lng]}
-        radius={70}
-        pathOptions={{
-          color: isPremium ? "#15120D" : halo,
-          fillColor: halo,
-          fillOpacity: 0.2,
-          weight: 2,
-          opacity: 0.8,
-        }}
-      />
-      {isFamily && (
-        <Circle
-          center={[p.lat, p.lng]}
-          radius={95}
-          pathOptions={{
-            color: FAMILY_VIOLET,
-            fillOpacity: 0,
-            weight: 3,
-            opacity: 0.95,
-          }}
-        />
-      )}
-      <Marker
-        position={[p.lat, p.lng]}
-        icon={makeAvatarIcon(p.role, p.name, p.avatar, isFamily, isPremium, p.isOnline)}
-        zIndexOffset={800}
-        eventHandlers={{
-          // v23.1.364 — le clic notifie la PAGE (focusTarget) → FlyToFocus
-          // zoome ; le remount mapKey n'écrase plus rien (cf plus haut).
-          click: () => onFocus?.(),
-        }}
-      >
-        <Tooltip
-          permanent
-          direction="bottom"
-          offset={[0, 16]}
-          className="!rounded-lg !border-0 !bg-white/95 !px-2 !py-0.5 !text-[11px] !font-semibold !shadow"
-        >
-          {p.name} · {roleLabel}
-        </Tooltip>
-        <Popup autoPan={false}>
-          <div className="text-sm">
-            <strong>{p.name}</strong>
-            <br />
-            <span className="text-xs uppercase tracking-wider opacity-70">
-              {roleLabel}
-            </span>
-            <br />
-            <span className="text-xs opacity-70">
-              {new Date(p.at).toLocaleString()}
-            </span>
-            {onDirections && (
-              <>
-                <br />
-                <button
-                  type="button"
-                  onClick={() => onDirections({ lat: p.lat, lng: p.lng })}
-                  className="mt-2 rounded-full px-3 py-1 text-xs font-bold text-white"
-                  style={{ backgroundColor: "#16A34A" }}
-                >
-                  🧭 {directionsLabel || "→"}
-                </button>
-              </>
-            )}
-          </div>
-        </Popup>
-      </Marker>
-    </span>
-  );
-}
+export { clusterize } from "@/lib/mapCluster";
 
-/**
- * v23.1.364 — vole vers la cible quand la page met à jour focusTarget
- * (clic sur un marqueur ami OU sur un chip nom·rôle de la rangée).
- */
-function FlyToFocus({
-  target,
-}: {
-  target: { lat: number; lng: number; ts: number } | null;
-}) {
-  const map = useMap();
-  useEffect(() => {
-    if (!target) return;
-    // v556 — Daniel : « que ça zoome plus » → niveau rue (17) au lieu de 16.
-    map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 17), {
-      duration: 0.8,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target?.ts]);
-  return null;
-}
-
-// v404 — recentre la carte quand `center` change FORTEMENT (recherche ville /
-// géoloc) SANS remonter la carte ni toucher au zoom. Le garde-fou « far » évite
-// de contrarier l'utilisateur sur un simple pan (le centre y est déjà) et tout
-// risque de boucle moveend → setCenter → setView.
-function RecenterMap({ center }: { center: [number, number] }) {
-  const map = useMap();
-  useEffect(() => {
-    const c = map.getCenter();
-    const far =
-      Math.abs(c.lat - center[0]) > 0.05 || Math.abs(c.lng - center[1]) > 0.05;
-    if (far) map.setView(center, map.getZoom(), { animate: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center[0], center[1]]);
-  return null;
+// v559 — pictogramme d'une manœuvre Valhalla (info-bulle des repères de virage).
+function stepGlyph(type: number): string {
+  if (type >= 4 && type <= 6) return "◉";
+  if (type >= 9 && type <= 11) return "↱";
+  if (type >= 14 && type <= 16) return "↰";
+  if (type === 12 || type === 13) return "↩";
+  if (type === 26 || type === 27) return "⟳";
+  return "↑";
 }
 
 // Fix global icones Leaflet (sinon path cassé en bundler).
@@ -213,193 +84,222 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-// Couleur de fond du marker selon la catégorie.
-const CATEGORY_COLOR: Record<PoiCategory, string> = {
-  vet: "#DC2626", // red — urgence santé
-  shop: "#7C3AED", // purple
-  groomer: "#EC4899", // pink
-  park: "#16A34A", // green
-  beach: "#0EA5E9", // sky blue
-  water: "#06B6D4", // cyan
-  trainer: "#F59E0B", // amber
-  hotel: "#8B5CF6", // violet
-  restaurant: "#EA580C", // orange
-  other: "#6E4F48", // encre chaude (ex-gris)
+/** Demande d'un propriétaire, position déjà FLOUTÉE par la page (~1 km). */
+export type MapRequest = {
+  id: string;
+  lat: number;
+  lng: number;
+  service: "sitting" | "walk";
+  priceLabel?: string | null;
+  mine?: boolean;
+  boosted?: boolean;
+  title?: string;
+  body?: string;
+  ownerName?: string;
+  city?: string;
 };
 
-function makeCategoryIcon(category: PoiCategory): L.DivIcon {
-  const { emoji } = POI_CATEGORY_LABELS[category];
-  const bg = CATEGORY_COLOR[category];
-  return new L.DivIcon({
+// ── Icônes (un dessin par famille, dans lib/pawmapLegend) ────────────────────
+const placeIconCache = new Map<string, L.DivIcon>();
+function placeIcon(category: PoiCategory): L.DivIcon {
+  let ic = placeIconCache.get(category);
+  if (!ic) {
+    ic = L.divIcon({ className: "", html: placePinHtml(category, 30), iconSize: [30, 39], iconAnchor: [15, 38], popupAnchor: [0, -34] });
+    placeIconCache.set(category, ic);
+  }
+  return ic;
+}
+function spotIcon(type: PawSpotType, golden: boolean): L.DivIcon {
+  const size = golden ? 40 : 32;
+  return L.divIcon({ className: "", html: spotPinHtml(type, golden), iconSize: [size, Math.round(size * 1.3)], iconAnchor: [size / 2, Math.round(size * 1.3) - 1], popupAnchor: [0, -Math.round(size * 1.2)] });
+}
+const reportIcon = () => L.divIcon({ className: "", html: reportPinHtml(30), iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -14] });
+function memberIcon(m: NearbyMember, priceLabel: string | null): L.DivIcon {
+  return L.divIcon({
     className: "",
-    html: `<div style="
-      width: 36px; height: 36px; border-radius: 50%;
-      background: ${bg};
-      border: 3px solid white;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px; line-height: 1;
-    ">${emoji}</div>`,
+    html: memberPinHtml({
+      role: m.role,
+      premium: !!(m.isPremiumOnly ?? m.isPremium),
+      boosted: !!m.isBoosted,
+      pawFollow: !!m.hasPawFollow,
+      online: m.approx ? null : m.isOnline !== false,
+      priceLabel,
+      size: 36,
+    }),
     iconSize: [36, 36],
     iconAnchor: [18, 18],
-    popupAnchor: [0, -18],
+    popupAnchor: [0, -20],
   });
 }
-
-// v23.1 carte unique — marker patte 🐾 PawSpot coloré par type ; les spots
-// dorés (isGolden) passent en #FFD700 avec un liseré ambre.
-const SPOT_COLOR: Record<PawSpotType, string> = {
-  path_walk: "#16A34A",
-  chill: "#2563EB",
-  playground: "#EF4444",
-  swimming: "#14B8A6",
-  food_cafe: "#E8A00A",
-  other: "#EC4899",
-};
-
-
-// v23.1.368 — Daniel : "colore mon emoji selon le thème du spot". TOUS les
-// spots affichent désormais LA pièce-médaille officielle, déclinée dans la
-// couleur du type ; la version OR reste celle des spots golden.
-function makeSpotIcon(type: PawSpotType, isGolden: boolean): L.DivIcon {
-  // v562 — Daniel : « la PawMap du site n'est pas à jour, les icônes de
-  // PawSpot ». Même marqueur que l'app (`assets/images/pawspot_coin.png` =
-  // bouton noir + pin doré) copié en `/pawspot_marker.png`, avec l'anneau
-  // couleur du TYPE ; les spots golden gardent l'anneau OR et sont un peu
-  // plus grands, comme dans l'app.
-  const ring = isGolden ? "#FFD34D" : SPOT_COLOR[type] || SPOT_COLOR.other;
-  const size = isGolden ? 54 : 48;
-  return new L.DivIcon({
-    className: "",
-    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;border:3px solid ${ring};box-sizing:border-box;background:#231715;overflow:hidden;filter:drop-shadow(0 2px 5px rgba(0,0,0,0.4));"><img src="/pawspot_marker.png" alt="" width="${size - 6}" height="${size - 6}" style="display:block;width:100%;height:100%;object-fit:cover;border-radius:50%"/></div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -size / 2],
-  });
-}
-
-// Pin "ma position" — v23.1.359 : HALO ANIMÉ (pulse hps-pulse, comme le
-// halo qui respire dans l'app), teinté couleur du RÔLE de l'utilisateur.
-// v23.1.394 — Daniel : « ma position avec MON PROFIL, pas un point ». Si
-// l'avatar est dispo → photo ronde 40px, anneau couleur du rôle + halo
-// pulsé. Sinon, fallback sur l'ancien point.
-// v23.1.394 — `crown` : couronne 👑 sur l'avatar quand PawPremium actif
-// (Daniel : « je vois pas où doit être le badge — regarde ma position »).
-function makeUserIcon(color: string, avatarUrl?: string | null, crown?: boolean): L.DivIcon {
-  if (avatarUrl) {
-    // v23.1.396 — Daniel : « je sors en tout petit » → 40 → 64 px.
-    const ring = crown ? "#FFD700" : color;
-    return new L.DivIcon({
-      className: "",
-      html: `<div style="position:relative;width:64px;height:64px;">
-        <div style="position:absolute;inset:-7px;border-radius:50%;
-          background:${ring}45;border:3px solid ${ring};
-          animation:hps-pulse 1.8s ease-out infinite;"></div>
-        <img src="${avatarUrl}" alt="" style="position:absolute;inset:0;
-          width:64px;height:64px;border-radius:50%;object-fit:cover;
-          border:4px solid ${ring};box-shadow:0 3px 10px rgba(0,0,0,0.35);
-          background:#fff;" />
-        ${crown ? '<div style="position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:22px;text-shadow:0 1px 3px rgba(0,0,0,0.4);">👑</div>' : ''}
-      </div>`,
-      iconSize: [64, 64],
-      iconAnchor: [32, 32],
-      popupAnchor: [0, -38],
-    });
-  }
-  return new L.DivIcon({
-    className: "",
-    html: `<div style="position:relative;width:18px;height:18px;">
-      <div style="position:absolute;inset:-2px;border-radius:50%;
-        background:${color}55;border:2px solid ${color};
-        animation:hps-pulse 1.8s ease-out infinite;"></div>
-      <div style="position:absolute;inset:0;border-radius:50%;
-        background:${color};border:3px solid white;
-        box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>
-    </div>`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
-  });
-}
-
-// v497 — Daniel : « voir les signaux sur le web ». Emoji par type de
-// signalement (markers de la couche reports), + icône Leaflet divIcon ronde.
-const REPORT_EMOJI: Record<MapReportType, string> = {
-  lost_pet: "🐾",
-  found_pet: "🔍",
-  aggressive_dog: "⚠️",
-  water_active: "💧",
-  dead_animal: "💀",
-  trap: "🪤",
-  poison: "☠️",
-  stray_pet: "🐈",
-  construction: "🚧",
-  food: "🍖",
-  trash: "🗑️",
-  vet_open: "🏥",
-  leash_required: "🦮",
-  heat_hot_ground: "🔥",
-  tick_zone: "🕷️",
-};
-function makeReportIcon(type: MapReportType): L.DivIcon {
-  const emoji = REPORT_EMOJI[type] || "🔔";
+function meIcon(o: { role: string; name: string; avatar?: string | null; premium?: boolean; meLabel?: string; friendsOnly?: boolean; boosted?: boolean; pawFollow?: boolean }): L.DivIcon {
   return L.divIcon({
     className: "",
-    html: `<div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:50%;border:2px solid #C92A12;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:15px;">${emoji}</div>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
+    html: `<div style="position:relative;width:56px;height:56px;"><div style="position:absolute;inset:-8px;border-radius:50%;border:3px solid ${ROLE_COLOR[roleKey(o.role)]};animation:hps-pulse 2s ease-out infinite;"></div>${photoPinHtml({ ...o, me: true })}</div>`,
+    iconSize: [56, 56],
+    iconAnchor: [28, 28],
+    popupAnchor: [0, -32],
   });
 }
-
-// v497 — membre PawMap proche : badge ROSE (dégradé) + patte blanche, couronne
-// 👑 si Premium, point vert/gris selon en ligne. Même style que l'app.
-function hexToRgba(hex: string, a: number): string {
-  const h = hex.replace("#", "");
-  const n = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
-}
-
-// v556 — Daniel : « une couleur par utilisateur : owner orange, walker vert,
-// sitter bleu ; Premium doré et noir avec couronne ; PawFollow violet ;
-// PawSpot jaune ». Le badge rose uniforme (v550) laisse place à la grille
-// d'abonnement — identique à l'app.
-function makeMemberIcon(m: NearbyMember): L.DivIcon {
-  const online = m.isOnline !== false;
-  const premium = !!(m.isPremiumOnly ?? m.isPremium);
-  const color = subscriptionHaloColor({
-    premium,
-    pawFollow: !!m.hasPawFollow,
-    pawSpot: !!(m.hasPawSpot ?? m.isPawSpot),
-    role: m.role,
-  });
-  const crown = premium
-    ? '<div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);font-size:12px;">👑</div>'
-    : "";
-  const dot = `<div style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;border:1.5px solid #fff;background:${online ? "#22C55E" : "#8A6B64"};"></div>`;
-  // v561 — Daniel : « légèrement plus grand et plus brillant » (34 → 40 px,
-  // halo plus lumineux), identique à l'app.
-  const glow = online
-    ? `0 0 0 5px ${hexToRgba(color, 0.32)}, 0 0 22px 7px ${hexToRgba(color, 0.7)}, 0 1px 6px rgba(0,0,0,.35)`
-    : `0 0 0 3px ${hexToRgba(color, 0.16)}, 0 1px 5px rgba(0,0,0,.3)`;
-  const bg = online
-    ? `linear-gradient(135deg,${hexToRgba(color, 0.85)},${color})`
-    : `linear-gradient(135deg,${hexToRgba(color, 0.45)},${hexToRgba(color, 0.6)})`;
-  const border = premium ? "#15120D" : "#fff";
+function requestIcon(r: MapRequest, mineLabel: string): L.DivIcon {
   return L.divIcon({
     className: "",
-    // v505 — patte BLANCHE (logo officiel, comme l'app) au lieu de l'emoji 🐾.
-    html: `<div style="position:relative;width:40px;height:40px;">${crown}<div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${bg};border:2.5px solid ${border};box-shadow:${glow};"><svg viewBox="0 0 24 24" width="20" height="20" fill="#fff"><ellipse cx="12" cy="15.6" rx="4.6" ry="3.7"/><ellipse cx="5.3" cy="10.9" rx="2" ry="2.6"/><ellipse cx="9.4" cy="7.4" rx="2" ry="2.7"/><ellipse cx="14.6" cy="7.4" rx="2" ry="2.7"/><ellipse cx="18.7" cy="10.9" rx="2" ry="2.6"/></svg></div>${dot}</div>`,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
+    html: requestBubbleHtml({ service: r.service, priceLabel: r.priceLabel, boosted: r.boosted, mine: r.mine, mineLabel }),
+    iconSize: [80, 44],
+    iconAnchor: [40, 42],
+    popupAnchor: [0, -40],
   });
+}
+
+// ── Petits composants ────────────────────────────────────────────────────────
+function FlyToFocus({ target }: { target: { lat: number; lng: number; ts: number } | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!target) return;
+    // Zoom de rue lisible (~17), vol en douceur (0,9 s), pas de saut sec.
+    map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 17), { duration: 0.9 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.ts]);
+  return null;
+}
+
+// v404 — recentre quand `center` change FORTEMENT (recherche / géoloc), sans
+// toucher au zoom ni contrarier un simple pan.
+function RecenterMap({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    const c = map.getCenter();
+    const far = Math.abs(c.lat - center[0]) > 0.05 || Math.abs(c.lng - center[1]) > 0.05;
+    if (far) map.flyTo(center, map.getZoom(), { duration: 0.9 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [center[0], center[1]]);
+  return null;
+}
+
+/** Remonte le zoom courant (regroupement + mémorisation) et le centre à l'arrêt. */
+function ViewWatcher({ onZoom, onMove }: { onZoom: (z: number) => void; onMove?: (c: { lat: number; lng: number }) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    onZoom(map.getZoom());
+  }, [map, onZoom]);
+  useMapEvents({
+    zoomend(e) {
+      onZoom(e.target.getZoom());
+    },
+    moveend(e) {
+      const c = e.target.getCenter();
+      onMove?.({ lat: c.lat, lng: c.lng });
+    },
+  });
+  return null;
+}
+
+/**
+ * Zoom de suivi « joli » : la caméra vole jusqu'au point suivi (zoom de rue
+ * 16,5), puis le garde centré sans à-coups ; un geste de l'utilisateur met le
+ * suivi en pause (la page affiche « Reprendre le suivi »).
+ */
+function FollowController({ target, onUserGesture }: { target: { lat: number; lng: number; key: string } | null; onUserGesture: () => void }) {
+  const map = useMap();
+  const lastKey = useRef<string | null>(null);
+  const programmatic = useRef(false);
+  useEffect(() => {
+    if (!target) {
+      lastKey.current = null;
+      return;
+    }
+    programmatic.current = true;
+    if (lastKey.current !== target.key) {
+      lastKey.current = target.key;
+      map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 16.5), { duration: 1 });
+    } else {
+      map.panTo([target.lat, target.lng], { animate: true, duration: 0.8, easeLinearity: 0.3 });
+    }
+    const done = () => { programmatic.current = false; };
+    map.once("moveend", done);
+    return () => { map.off("moveend", done); };
+  }, [map, target]);
+  useMapEvents({
+    dragstart() {
+      if (target) onUserGesture();
+    },
+    zoomstart() {
+      if (target && !programmatic.current) onUserGesture();
+    },
+  });
+  return null;
+}
+
+function PlaceCluster({ center, count, category }: { center: [number, number]; count: number; category: PoiCategory | null }) {
+  const map = useMap();
+  const icon = useMemo(() => L.divIcon({ className: "", html: placeClusterHtml(count, category), iconSize: [36, 36], iconAnchor: [18, 18] }), [count, category]);
+  return <Marker position={center} icon={icon} zIndexOffset={100} eventHandlers={{ click: () => map.flyTo(center, Math.min(map.getZoom() + 2.2, 19), { duration: 0.8 }) }} />;
+}
+function MemberCluster({ center, count }: { center: [number, number]; count: number }) {
+  const map = useMap();
+  const icon = useMemo(() => L.divIcon({ className: "", html: memberClusterHtml(count), iconSize: [56, 34], iconAnchor: [28, 17] }), [count]);
+  return <Marker position={center} icon={icon} zIndexOffset={250} eventHandlers={{ click: () => map.flyTo(center, Math.min(map.getZoom() + 2.2, 19), { duration: 0.8 }) }} />;
+}
+function SpotCluster({ center, count }: { center: [number, number]; count: number }) {
+  const map = useMap();
+  const icon = useMemo(() => L.divIcon({ className: "", html: spotClusterHtml(count), iconSize: [36, 36], iconAnchor: [18, 18] }), [count]);
+  return <Marker position={center} icon={icon} zIndexOffset={300} eventHandlers={{ click: () => map.flyTo(center, Math.min(map.getZoom() + 2.2, 19), { duration: 0.8 }) }} />;
+}
+
+/** Ami en direct : sa photo, anneau rose, nom · rôle ; clic = suivi. */
+function LiveFriendMarker({ p, isFamily, isPremium, roleLabel, onFocus, onDirections, directionsLabel, followLabel }: {
+  p: FriendLivePosition;
+  isFamily: boolean;
+  isPremium?: boolean;
+  roleLabel: string;
+  onFocus?: () => void;
+  onDirections?: (target: { lat: number; lng: number }) => void;
+  directionsLabel?: string;
+  followLabel?: string;
+}) {
+  return (
+    <Marker
+      position={[p.lat, p.lng]}
+      icon={makeAvatarIcon(p.role, p.name, p.avatar, isFamily, isPremium, p.isOnline)}
+      zIndexOffset={800}
+      eventHandlers={{ click: () => onFocus?.() }}
+    >
+      <Tooltip permanent direction="bottom" offset={[0, 22]} className="!rounded-full !border-0 !bg-white/95 !px-2 !py-0.5 !text-[11px] !font-semibold !shadow">
+        {p.name} · {roleLabel}
+      </Tooltip>
+      <Popup autoPan={false}>
+        <div className="text-sm">
+          <strong>{p.name}</strong>
+          <br />
+          <span className="text-xs font-semibold" style={{ color: ROLE_COLOR[roleKey(p.role)] }}>{roleLabel}</span>
+          <br />
+          <span className="text-xs text-ink-muted">{new Date(p.at).toLocaleString()}</span>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {onFocus && followLabel && (
+              <button type="button" onClick={onFocus} className="rounded-full px-3 py-1 text-xs font-bold text-white" style={{ backgroundColor: PAWFOLLOW_VIOLET }}>
+                {followLabel}
+              </button>
+            )}
+            {onDirections && (
+              <button type="button" onClick={() => onDirections({ lat: p.lat, lng: p.lng })} className="rounded-full px-3 py-1 text-xs font-bold text-white" style={{ backgroundColor: "#16A34A" }}>
+                {directionsLabel || "→"}
+              </button>
+            )}
+          </div>
+        </div>
+      </Popup>
+    </Marker>
+  );
 }
 
 export default function PoiMap({
   center,
+  initialZoom = 13,
   pois,
   userLocation,
   selectedPoi,
   onSelectPoi,
   onMapMove,
+  onZoomChange,
   spots = [],
   spotTypeLabels,
   reports = [],
@@ -412,15 +312,23 @@ export default function PoiMap({
   friendPositions = [],
   familyIds = [],
   premiumIds = [],
-  pawFollowIds = [],
-  pawSpotIds = [],
   roleLabels,
-  userHaloColor,
+  userRole = "sitter",
+  userName = "",
   userAvatarUrl,
   userIsPremium,
+  userBoosted,
+  userPawFollow,
+  userFriendsOnly,
   userAccuracy,
+  meLabel = "Moi",
+  positionLabel = "",
+  accuracyLabel = "",
   focusTarget = null,
   onFriendFocus,
+  followUserId = null,
+  onFollowPause,
+  followLabel,
   routePoints = null,
   routeColor = "#C92A12",
   routeSteps = null,
@@ -428,285 +336,182 @@ export default function PoiMap({
   directionsLabel = "→",
   formatOpenStatus,
   callLabel = "",
+  requests = [],
+  requestLabels,
+  onOfferService,
+  dark = false,
 }: {
   center: [number, number];
+  /** Zoom d'ouverture (mémorisé par la page). */
+  initialZoom?: number;
   pois: Poi[];
   userLocation?: { lat: number; lng: number } | null;
   selectedPoi?: Poi | null;
   onSelectPoi?: (poi: Poi) => void;
-  /** Fired when the user finishes panning/zooming the map. */
   onMapMove?: (center: { lat: number; lng: number }) => void;
-  /** v23.1 carte unique — PawSpots communautaires (couche optionnelle). */
+  onZoomChange?: (zoom: number) => void;
   spots?: PawSpot[];
-  /** Labels i18n des types de spot (fournis par la page via t()). */
   spotTypeLabels?: Partial<Record<PawSpotType, string>>;
-  /** v497 — signalements PawMap (couche optionnelle « Voir signaux »). */
   reports?: MapReport[];
-  /** Labels i18n des types de signalement (popup). */
   reportTypeLabels?: Partial<Record<MapReportType, string>>;
-  /** v497 — membres PawMap proches (badge rose), abonnés. */
   members?: NearbyMember[];
-  /** Labels i18n des rôles (owner/sitter/walker) pour le popup membre. */
   memberRoleLabels?: Record<string, string>;
-  /** v548 — libellés du popup membre (ajouter en ami, réserver, approx.). */
-  memberLabels?: {
-    /** v551 — libellé « dès » devant le tarif d'entrée. */
-    priceFrom?: string;
-    addFriend: string;
-    sent: string;
-    already: string;
-    failed: string;
-    book: string;
-    approx: string;
-  };
-  /** v548 — « cliquer sur un membre et demander en ami ». */
+  memberLabels?: { priceFrom?: string; addFriend: string; sent: string; already: string; failed: string; book: string; approx: string; verified?: string };
   onAddFriend?: (m: NearbyMember) => Promise<"sent" | "already" | "error">;
-  /** v497 — appelé à l'ouverture du popup d'un spot → compte la visite. */
   onSpotVisit?: (id: string) => void;
-  /** v23.1 carte unique — amis/famille en direct (couche optionnelle). */
   friendPositions?: FriendLivePosition[];
   familyIds?: string[];
-  /** v23.1.399 — ids des membres PawPremium → couronne 👑 + anneau OR. */
   premiumIds?: string[];
-  /** v556 — amis abonnés PawFollow / PawSpot (couleur du halo). */
-  pawFollowIds?: string[];
-  pawSpotIds?: string[];
-  /** v23.1.358 — libellés i18n des rôles (owner/sitter/walker) pour le
-      tooltip permanent « nom · rôle » sous chaque ami en direct. */
   roleLabels?: Partial<Record<Role, string>>;
-  /** v23.1.359 — couleur du halo animé "ma position" (couleur du rôle de
-      l'utilisateur connecté ; bleu par défaut). */
-  userHaloColor?: string;
-  /** v23.1.394 — photo de profil affichée comme marqueur « ma position ». */
+  /** « Moi » : rôle (anneau), nom, photo, couronne, boost, mode amis. */
+  userRole?: string;
+  userName?: string;
   userAvatarUrl?: string | null;
-  /** v23.1.394 — couronne 👑 + anneau OR sur le marqueur si Premium. */
   userIsPremium?: boolean;
-  /** v23.1.397 — précision (m) du relevé navigateur → cercle autour de moi. */
+  userBoosted?: boolean;
+  userPawFollow?: boolean;
+  userFriendsOnly?: boolean;
   userAccuracy?: number | null;
-  /** v23.1.364 — cible de zoom (clic marqueur ami / chip nom·rôle). */
+  meLabel?: string;
+  positionLabel?: string;
+  accuracyLabel?: string;
   focusTarget?: { lat: number; lng: number; ts: number } | null;
   onFriendFocus?: (p: FriendLivePosition) => void;
-  /** v23.1 carte unique — polyline itinéraire. v559 : couleur par mode. */
+  /** Ami suivi en direct (zoom de suivi « joli »). */
+  followUserId?: string | null;
+  onFollowPause?: () => void;
+  followLabel?: string;
   routePoints?: { lat: number; lng: number }[] | null;
   routeColor?: string;
-  /** v559 — mini-repères de virage (instruction en info-bulle). */
   routeSteps?: RouteStep[] | null;
-  /** Bouton "Itinéraire" des popups (spots + POI). */
   onDirections?: (target: { lat: number; lng: number }) => void;
   directionsLabel?: string;
-  /** v559 — option A : statut « ouvert / fermé » calculé par la page (i18n). */
   formatOpenStatus?: (raw: string) => { label: string; open: boolean } | null;
   callLabel?: string;
+  /** Demandes des propriétaires (bulle orange), positions floutées par la page. */
+  requests?: MapRequest[];
+  requestLabels?: { title: string; mine: string; offer: string; sitting: string; walk: string };
+  onOfferService?: (id: string) => void;
+  /** Mode sombre : fond de carte sombre, épingles gardent leur liseré blanc. */
+  dark?: boolean;
 }) {
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
   const premiumSet = useMemo(() => new Set(premiumIds), [premiumIds]);
-  // v23.1.359 — halo "ma position" pulsant, couleur du rôle.
   const userIcon = useMemo(
-    () => makeUserIcon(userHaloColor || "#2563EB", userAvatarUrl, userIsPremium),
-    [userHaloColor, userAvatarUrl, userIsPremium],
+    () => meIcon({ role: userRole, name: userName, avatar: userAvatarUrl, premium: userIsPremium, meLabel, friendsOnly: userFriendsOnly, boosted: userBoosted, pawFollow: userPawFollow }),
+    [userRole, userName, userAvatarUrl, userIsPremium, meLabel, userFriendsOnly, userBoosted, userPawFollow],
   );
-  // v404 — Daniel : "le dézoom marche mal". CAUSE : on REMONTAIT la MapContainer
-  // (via une key qui changeait dès que le centre bougeait de >0.1°) → la carte
-  // se réinitialisait au zoom 13. Or zoomé loin, un petit pan dépasse vite 0.1°
-  // → la carte se re-zoomait toute seule (impossible de rester dézoomé). FIX :
-  // plus de remount ; un composant RecenterMap recentre via setView en
-  // PRÉSERVANT le zoom, et seulement pour un vrai saut (recherche ville/géoloc).
 
-  // v551 — zoom courant, pour regrouper les points qui se chevauchent.
-  const [zoomLevel, setZoomLevel] = useState(13);
-  // Regroupement par couche : les lieux entre eux, les membres entre eux —
-  // un membre ne doit jamais être « avalé » par une pastille de lieux.
+  const [zoomLevel, setZoomLevel] = useState(initialZoom);
+  const handleZoom = (z: number) => {
+    setZoomLevel(z);
+    onZoomChange?.(z);
+  };
+  const showPrice = zoomLevel >= 15;
+
   const poiClusters = useMemo(
-    () =>
-      clusterize(pois, zoomLevel, (poi) =>
-        Array.isArray(poi.location?.coordinates) &&
-        poi.location.coordinates.length >= 2
-          ? [poi.location.coordinates[1], poi.location.coordinates[0]]
-          : null,
-      ),
+    () => clusterize(pois, zoomLevel, (poi) => (Array.isArray(poi.location?.coordinates) && poi.location.coordinates.length >= 2 ? [poi.location.coordinates[1], poi.location.coordinates[0]] : null)),
     [pois, zoomLevel],
   );
   const memberClusters = useMemo(
-    () =>
-      clusterize(members, zoomLevel, (m) =>
-        Array.isArray(m.location?.coordinates) &&
-        m.location.coordinates.length >= 2
-          ? [m.location.coordinates[1], m.location.coordinates[0]]
-          : null,
-      ),
+    () => clusterize(members, zoomLevel, (m) => (Array.isArray(m.location?.coordinates) && m.location.coordinates.length >= 2 ? [m.location.coordinates[1], m.location.coordinates[0]] : null)),
     [members, zoomLevel],
   );
+  const spotClusters = useMemo(() => clusterize(spots, zoomLevel, (s) => [s.lat, s.lng]), [spots, zoomLevel]);
 
+  // Suivi : point suivi + tracé violet (positions reçues, en mémoire de la session).
+  const trails = useRef<Map<string, [number, number][]>>(new Map());
+  const followed = followUserId ? friendPositions.find((p) => p.userId === followUserId) : undefined;
+  useEffect(() => {
+    if (!followed) return;
+    const arr = trails.current.get(followed.userId) || [];
+    const last = arr[arr.length - 1];
+    if (!last || Math.abs(last[0] - followed.lat) > 1e-6 || Math.abs(last[1] - followed.lng) > 1e-6) {
+      arr.push([followed.lat, followed.lng]);
+      if (arr.length > 500) arr.shift();
+      trails.current.set(followed.userId, arr);
+    }
+  }, [followed]);
+  const followTarget = followed ? { lat: followed.lat, lng: followed.lng, key: followed.userId } : null;
+  const trail = followUserId ? trails.current.get(followUserId) || [] : [];
 
-  const categoryIcons = useMemo(() => {
-    const map: Partial<Record<PoiCategory, L.DivIcon>> = {};
-    (Object.keys(POI_CATEGORY_LABELS) as PoiCategory[]).forEach((c) => {
-      map[c] = makeCategoryIcon(c);
-    });
-    return map as Record<PoiCategory, L.DivIcon>;
-  }, []);
+  const requestMineLabel = requestLabels?.mine || "";
 
   return (
-    <div className="relative h-[70vh] min-h-[450px] w-full overflow-hidden rounded-[28px]">
-      <MapContainer
-        center={center}
-        zoom={13}
-        minZoom={3}
-        maxZoom={19}
-        style={{ height: "100%", width: "100%" }}
-        scrollWheelZoom={true}
-        // v562 — le rail gauche de boutons occupe le coin bas-gauche : zoom en bas à droite.
-        zoomControl={false}
-      >
+    <div className="relative h-full min-h-[420px] w-full overflow-hidden rounded-[28px]">
+      <style dangerouslySetInnerHTML={{ __html: PAWMAP_KEYFRAMES }} />
+      <MapContainer center={center} zoom={initialZoom} minZoom={3} maxZoom={19} style={{ height: "100%", width: "100%" }} scrollWheelZoom zoomControl={false}>
         <ZoomControl position="bottomright" />
-        {/* v23.1.278 — Daniel : "rajoute la barre +/- , vue satellite, zoom
-            dans la rue" sur la PawMap du site. Le zoom +/- est le contrôle
-            Leaflet natif (haut-gauche) ; on ajoute un switcher de couches
-            (haut-droite) Plan / Satellite (Esri World Imagery, gratuit, sans
-            clé) ; maxZoom 19 permet de zoomer jusqu'au niveau de la rue. */}
-        <LayersControl position="bottomright">
-          <LayersControl.BaseLayer checked name="Plan">
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maxZoom={19}
-            />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Satellite">
-            <TileLayer
-              attribution='&copy; <a href="https://www.esri.com">Esri</a>, Maxar, Earthstar Geographics'
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              maxZoom={19}
-            />
-          </LayersControl.BaseLayer>
-        </LayersControl>
-
-        <MapMoveHandler onMove={onMapMove} />
-        <RecenterMap center={center} />
-
-        {userLocation && userAccuracy != null && userAccuracy > 25 && (
-          // v23.1.397 — cercle de précision : sur PC la géoloc navigateur
-          // (WiFi/IP) peut dévier de 30-300 m — on le montre honnêtement.
-          <Circle
-            center={[userLocation.lat, userLocation.lng]}
-            radius={userAccuracy}
-            pathOptions={{
-              color: userHaloColor || "#2563EB",
-              fillColor: userHaloColor || "#2563EB",
-              fillOpacity: 0.08,
-              weight: 1,
-              dashArray: "6 6",
-            }}
+        {dark ? (
+          <TileLayer
+            key="dark"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            maxZoom={19}
           />
+        ) : (
+          <TileLayer key="light" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
+        )}
+
+        <ViewWatcher onZoom={handleZoom} onMove={onMapMove} />
+        <RecenterMap center={center} />
+        <FlyToFocus target={focusTarget} />
+        <FollowController target={followTarget} onUserGesture={() => onFollowPause?.()} />
+
+        {/* Ma position : cercle de précision honnête + « Moi » (56 px). */}
+        {userLocation && userAccuracy != null && userAccuracy > 25 && (
+          <Circle center={[userLocation.lat, userLocation.lng]} radius={userAccuracy} pathOptions={{ color: ROLE_COLOR[roleKey(userRole)], fillColor: ROLE_COLOR[roleKey(userRole)], fillOpacity: 0.08, weight: 1, dashArray: "6 6" }} />
         )}
         {userLocation && (
-          <Marker
-            position={[userLocation.lat, userLocation.lng]}
-            icon={userIcon}
-          >
+          <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon} zIndexOffset={900}>
             <Popup>
-              <strong>Votre position</strong>
-              {userAccuracy != null && (
+              <strong>{positionLabel || meLabel}</strong>
+              {userAccuracy != null && accuracyLabel && (
                 <>
                   <br />
-                  <span className="text-xs opacity-70">
-                    Précision ±{userAccuracy} m (géoloc navigateur — le GPS du
-                    téléphone est plus précis)
-                  </span>
+                  <span className="text-xs text-ink-muted">{accuracyLabel.replace("{m}", String(userAccuracy))}</span>
                 </>
               )}
             </Popup>
           </Marker>
         )}
 
-        <ZoomWatcher onZoom={setZoomLevel} />
-
+        {/* LIEUX : goutte par type, carré blanc pour un groupe. */}
         {poiClusters.map((g, i) =>
           g.items.length > 1 ? (
-            <ClusterMarker
-              key={`pc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`}
-              center={g.center}
-              count={g.items.length}
-              rose={false}
-              category={
-                new Set(g.items.map((p) => p.category)).size === 1
-                  ? g.items[0].category
-                  : null
-              }
-            />
+            <PlaceCluster key={`pc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} count={g.items.length} category={new Set(g.items.map((p) => p.category)).size === 1 ? g.items[0].category : null} />
           ) : null,
         )}
-
-        {poiClusters
-          .filter((g) => g.items.length === 1)
-          .map((g) => g.items[0])
-          .map((poi) => {
+        {poiClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]).map((poi) => {
           const lng = poi.location.coordinates[0];
           const lat = poi.location.coordinates[1];
           const isSelected = selectedPoi?._id === poi._id;
           return (
-            <Marker
-              key={poi._id}
-              position={[lat, lng]}
-              icon={categoryIcons[poi.category] || categoryIcons.other}
-              eventHandlers={{
-                click: () => onSelectPoi?.(poi),
-              }}
-              zIndexOffset={isSelected ? 1000 : 0}
-            >
+            <Marker key={poi._id} position={[lat, lng]} icon={placeIcon(poi.category)} eventHandlers={{ click: () => onSelectPoi?.(poi) }} zIndexOffset={isSelected ? 1000 : 0}>
               <Popup>
                 <div className="text-sm">
                   <div className="mb-1 font-bold">{poi.title}</div>
-                  <div className="mb-1 text-xs text-ink-muted">
-                    {POI_CATEGORY_LABELS[poi.category]?.emoji}{" "}
-                    {POI_CATEGORY_LABELS[poi.category]?.label}
-                  </div>
-                  {poi.address && (
-                    <div className="text-xs text-ink-muted">📍 {poi.address}</div>
-                  )}
-                  {/* v559 — option A (Daniel) : statut ouvert/fermé + appel ;
-                      plus de lien vers le site du commerce (pas de pub
-                      gratuite, l'utilisateur reste sur HoPetSit). */}
+                  <div className="mb-1 text-xs font-semibold" style={{ color: "#6E4F48" }}>{POI_CATEGORY_LABELS[poi.category]?.label}</div>
+                  {poi.address && <div className="text-xs text-ink-muted">{poi.address}</div>}
                   {poi.openingHours && (() => {
                     const st = formatOpenStatus?.(poi.openingHours) ?? null;
                     return (
                       <div className="mt-1 text-xs">
-                        {st && (
-                          <div
-                            className="font-bold"
-                            style={{ color: st.open ? "#16A34A" : "#DC2626" }}
-                          >
-                            🕐 {st.label}
-                          </div>
-                        )}
-                        <div className="text-ink-muted">
-                          {st ? "" : "🕐 "}
-                          {poi.openingHours}
-                        </div>
+                        {st && <div className="font-bold" style={{ color: st.open ? "#16A34A" : "#B42318" }}>{st.label}</div>}
+                        <div className="text-ink-muted">{poi.openingHours}</div>
                       </div>
                     );
                   })()}
                   {poi.phone && (
                     <div className="mt-1 text-xs">
-                      <a
-                        href={`tel:${poi.phone.replace(/[^0-9+]/g, "")}`}
-                        className="font-semibold text-ink underline"
-                      >
-                        📞 {poi.phone}
-                        {callLabel ? ` · ${callLabel}` : ""}
+                      <a href={`tel:${poi.phone.replace(/[^0-9+]/g, "")}`} className="font-semibold text-ink underline">
+                        {poi.phone}{callLabel ? ` · ${callLabel}` : ""}
                       </a>
                     </div>
                   )}
-                  {/* v23.1 carte unique — bouton Itinéraire aussi sur les
-                      popups POI existants. */}
                   {onDirections && (
-                    <button
-                      type="button"
-                      onClick={() => onDirections({ lat, lng })}
-                      className="mt-2 rounded-full px-3 py-1 text-xs font-bold text-white"
-                      style={{ backgroundColor: "#C92A12" }}
-                    >
-                      🧭 {directionsLabel}
+                    <button type="button" onClick={() => onDirections({ lat, lng })} className="mt-2 rounded-full px-3 py-1 text-xs font-bold text-white" style={{ backgroundColor: "#C92A12" }}>
+                      {directionsLabel}
                     </button>
                   )}
                 </div>
@@ -715,57 +520,24 @@ export default function PoiMap({
           );
         })}
 
-        {/* v23.1 carte unique — couche PawSpots communautaires : patte 🐾
-            colorée par type (dorée + liseré si isGolden). Popup : nom, type,
-            ❤️ likes, ⭐ qualité, photo + bouton Itinéraire. */}
-        {spots.map((spot) => (
-          <Marker
-            key={`spot-${spot.id}`}
-            position={[spot.lat, spot.lng]}
-            icon={makeSpotIcon(spot.type, spot.isGolden)}
-            zIndexOffset={spot.isGolden ? 600 : 300}
-            eventHandlers={{
-              // v497 — ouvrir le popup d'un spot = une visite (comptée 1×/user
-              // côté backend), comme l'app.
-              popupopen: () => onSpotVisit?.(spot.id),
-            }}
-          >
+        {/* PAWSPOTS : goutte noire (or si doré), carré noir pour un groupe. */}
+        {spotClusters.map((g, i) =>
+          g.items.length > 1 ? <SpotCluster key={`sc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} count={g.items.length} /> : null,
+        )}
+        {spotClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]).map((spot) => (
+          <Marker key={`spot-${spot.id}`} position={[spot.lat, spot.lng]} icon={spotIcon(spot.type, spot.isGolden)} zIndexOffset={spot.isGolden ? 600 : 300} eventHandlers={{ popupopen: () => onSpotVisit?.(spot.id) }}>
             <Popup>
               <div className="text-sm" style={{ minWidth: 170 }}>
-                <div className="mb-1 font-bold">
-                  {spot.isGolden ? "🐾✨ " : ""}
-                  {spot.name}
-                </div>
-                <div className="mb-1 text-xs text-ink-muted">
-                  {spotTypeLabels?.[spot.type] || spot.type}
-                </div>
-                <div className="mb-1 text-xs text-ink-muted">
-                  ❤️ {spot.likesCount} · ⭐{" "}
-                  {Number(spot.quality || 0).toFixed(1)} · 👣 {spot.visitsCount}
-                </div>
+                <div className="mb-1 font-bold">{spot.name}</div>
+                <div className="mb-1 text-xs text-ink-muted">{spotTypeLabels?.[spot.type] || spot.type}</div>
+                <div className="mb-1 text-xs text-ink-muted">♥ {spot.likesCount} · ★ {Number(spot.quality || 0).toFixed(1)} · {spot.visitsCount}</div>
                 {spot.photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={spot.photoUrl}
-                    alt=""
-                    style={{
-                      width: "100%",
-                      maxHeight: 110,
-                      objectFit: "cover",
-                      borderRadius: 8,
-                    }}
-                  />
+                  <img src={spot.photoUrl} alt="" style={{ width: "100%", maxHeight: 110, objectFit: "cover", borderRadius: 8 }} />
                 ) : null}
                 {onDirections && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onDirections({ lat: spot.lat, lng: spot.lng })
-                    }
-                    className="mt-2 rounded-full px-3 py-1 text-xs font-bold text-white"
-                    style={{ backgroundColor: "#C92A12" }}
-                  >
-                    🧭 {directionsLabel}
+                  <button type="button" onClick={() => onDirections({ lat: spot.lat, lng: spot.lng })} className="mt-2 rounded-full px-3 py-1 text-xs font-bold text-white" style={{ backgroundColor: "#C92A12" }}>
+                    {directionsLabel}
                   </button>
                 )}
               </div>
@@ -773,126 +545,89 @@ export default function PoiMap({
           </Marker>
         ))}
 
-        {/* v497 — couche « Voir signaux » : markers emoji par type + popup
-            (note + confirmations). location.coordinates = [lng, lat]. */}
+        {/* SIGNALEMENTS : triangle rouge. */}
         {reports.map((r) => {
           const c = r.location?.coordinates;
           if (!Array.isArray(c) || c.length < 2) return null;
           return (
-            <Marker
-              key={`report-${r._id}`}
-              position={[c[1], c[0]]}
-              icon={makeReportIcon(r.type)}
-              zIndexOffset={250}
-            >
+            <Marker key={`report-${r._id}`} position={[c[1], c[0]]} icon={reportIcon()} zIndexOffset={250}>
               <Popup>
                 <div className="text-sm" style={{ minWidth: 150 }}>
-                  <div className="mb-1 font-bold">
-                    {REPORT_EMOJI[r.type] || "🔔"}{" "}
-                    {reportTypeLabels?.[r.type] || r.type}
-                  </div>
-                  {r.note ? (
-                    <div className="mb-1 text-xs text-ink-muted">{r.note}</div>
-                  ) : null}
-                  {typeof r.confirmationsCount === "number" ? (
-                    <div className="text-xs text-ink-muted">
-                      ✅ {r.confirmationsCount}
-                    </div>
-                  ) : null}
+                  <div className="mb-1 font-bold" style={{ color: "#D32F2F" }}>{reportTypeLabels?.[r.type] || r.type}</div>
+                  {r.note ? <div className="mb-1 text-xs text-ink-muted">{r.note}</div> : null}
+                  {typeof r.confirmationsCount === "number" ? <div className="text-xs text-ink-muted">✓ {r.confirmationsCount}</div> : null}
                 </div>
               </Popup>
             </Marker>
           );
         })}
 
-        {/* v497 — membres PawMap proches (badge ROSE) : abonnés actifs, tous
-            rôles, hors amis/famille. location.coordinates = [lng, lat]. */}
-        {memberClusters.map((g, i) =>
-          g.items.length > 1 ? (
-            <ClusterMarker
-              key={`mc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`}
-              center={g.center}
-              count={g.items.length}
-              rose
-            />
-          ) : null,
-        )}
+        {/* DEMANDES des propriétaires : bulle orange foncé, prix dedans. */}
+        {requests.map((r) => (
+          <Marker key={`req-${r.id}`} position={[r.lat, r.lng]} icon={requestIcon(r, requestMineLabel)} zIndexOffset={r.mine ? 700 : 500}>
+            <Popup>
+              <div className="text-sm" style={{ minWidth: 180 }}>
+                <div className="font-bold" style={{ color: ROLE_COLOR.owner }}>{r.mine ? requestLabels?.mine : requestLabels?.title}</div>
+                <div className="mt-0.5 text-xs font-semibold text-ink">
+                  {r.service === "walk" ? requestLabels?.walk : requestLabels?.sitting}
+                  {r.priceLabel ? ` · ${r.priceLabel}` : ""}
+                  {r.city ? ` · ${r.city}` : ""}
+                </div>
+                {r.body && <div className="mt-1 line-clamp-3 text-xs text-ink-muted">{r.body}</div>}
+                {!r.mine && onOfferService && requestLabels && (
+                  <button type="button" onClick={() => onOfferService(r.id)} className="mt-2 flex min-h-[40px] w-full items-center justify-center rounded-full px-3 text-xs font-bold text-white" style={{ background: `linear-gradient(90deg, #D83C28, #B92425)` }}>
+                    {requestLabels.offer}
+                  </button>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
 
-        {memberClusters
-          .filter((g) => g.items.length === 1)
-          .map((g) => g.items[0])
-          .map((m) => {
+        {/* MEMBRES : rond couleur du rôle + icône du rôle, pilule blanche pour un groupe. */}
+        {memberClusters.map((g, i) =>
+          g.items.length > 1 ? <MemberCluster key={`mc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} count={g.items.length} /> : null,
+        )}
+        {memberClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]).map((m) => {
           const c = m.location?.coordinates;
           if (!Array.isArray(c) || c.length < 2) return null;
+          const price = m.role !== "owner" ? formatPrice(m.priceFrom, m.currency) : null;
           return (
-            <Marker
-              key={`member-${m.id}`}
-              position={[c[1], c[0]]}
-              icon={makeMemberIcon(m)}
-              zIndexOffset={200}
-            >
+            <Marker key={`member-${m.id}`} position={[c[1], c[0]]} icon={memberIcon(m, showPrice ? price : null)} zIndexOffset={m.isBoosted ? 450 : 200}>
               <Popup>
-                <MemberPopup
-                  m={m}
-                  roleLabel={(memberRoleLabels && memberRoleLabels[m.role]) || m.role}
-                  labels={memberLabels}
-                  onAddFriend={onAddFriend}
-                />
+                <MemberPopup m={m} roleLabel={(memberRoleLabels && memberRoleLabels[m.role]) || m.role} labels={memberLabels} onAddFriend={onAddFriend} />
               </Popup>
             </Marker>
           );
         })}
 
-        {/* v23.1 carte unique — couche PawFollow amis/famille en direct :
-            halo couleur rôle + anneau violet famille + avatar (icônes
-            partagées avec FriendsLiveMap). */}
-        <FlyToFocus target={focusTarget} />
+        {/* AMIS en direct : photo + anneau rose ; tracé violet du suivi. */}
+        {trail.length > 1 && <Polyline positions={trail} pathOptions={{ color: PAWFOLLOW_VIOLET, weight: 5, opacity: 0.85, lineCap: "round" }} />}
         {friendPositions.map((p) => (
           <LiveFriendMarker
             key={`live-${p.userId}`}
             p={p}
             isFamily={familySet.has(p.userId)}
             isPremium={premiumSet.has(p.userId)}
-            hasPawFollow={pawFollowIds.includes(p.userId)}
-            hasPawSpot={pawSpotIds.includes(p.userId)}
             roleLabel={roleLabels?.[p.role] ?? p.role}
             onFocus={() => onFriendFocus?.(p)}
             onDirections={onDirections}
             directionsLabel={directionsLabel}
+            followLabel={followLabel}
           />
         ))}
 
-        {/* v23.1 carte unique — itinéraire (polyline). v559 : couleur par
-            mode (à pied orange, vélo vert, voiture bleu). */}
+        {/* ITINÉRAIRE : polyline couleur du mode + repères de virage. */}
         {routePoints && routePoints.length > 1 && (
-          <Polyline
-            positions={routePoints.map(
-              (p) => [p.lat, p.lng] as [number, number],
-            )}
-            pathOptions={{ color: routeColor, weight: 5, opacity: 0.9 }}
-          />
+          <Polyline positions={routePoints.map((p) => [p.lat, p.lng] as [number, number])} pathOptions={{ color: routeColor, weight: 5, opacity: 0.9 }} />
         )}
-        {/* v559 — mini-repères de virage : petit disque cerclé de la couleur
-            du mode, l'instruction (déjà traduite) en info-bulle au survol. */}
         {routeSteps &&
           routeSteps
             .filter((s) => s.type !== 1 && s.type !== 2 && s.type !== 3)
             .map((s, i) => (
-              <CircleMarker
-                key={`step-${i}`}
-                center={[s.lat, s.lng]}
-                radius={s.type >= 4 && s.type <= 6 ? 7 : 5}
-                pathOptions={{
-                  color: routeColor,
-                  weight: 2,
-                  fillColor: "#ffffff",
-                  fillOpacity: 1,
-                }}
-              >
+              <CircleMarker key={`step-${i}`} center={[s.lat, s.lng]} radius={s.type >= 4 && s.type <= 6 ? 7 : 5} pathOptions={{ color: routeColor, weight: 2, fillColor: "#ffffff", fillOpacity: 1 }}>
                 <Tooltip direction="top" offset={[0, -6]}>
-                  <span className="text-xs">
-                    {stepGlyph(s.type)} {s.instruction}
-                  </span>
+                  <span className="text-xs">{stepGlyph(s.type)} {s.instruction}</span>
                 </Tooltip>
               </CircleMarker>
             ))}
@@ -901,247 +636,60 @@ export default function PoiMap({
   );
 }
 
-// v551 — Daniel : « regrouper les points, la carte est illisible quand tout
-// se chevauche ». Regroupement maison (aucune dépendance ajoutée) : on projette
-// en pixels Web Mercator au zoom courant et on regroupe par cellule de 76 px —
-// exactement ce que l'œil perçoit comme « collé ».
-const CURRENCY_SYMBOL: Record<string, string> = {
-  EUR: "€",
-  USD: "$",
-  GBP: "£",
-  CHF: "CHF",
-  KRW: "₩",
-  JPY: "¥",
-};
-const CLUSTER_CELL_PX = 76;
-function mercX(lng: number) {
-  return ((lng + 180) / 360) * 256;
-}
-function mercY(lat: number) {
-  const s = Math.min(0.9999, Math.max(-0.9999, Math.sin((lat * Math.PI) / 180)));
-  return (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * 256;
-}
-export function clusterize<T>(
-  items: T[],
-  zoom: number,
-  posOf: (t: T) => [number, number] | null,
-): { items: T[]; center: [number, number] }[] {
-  const scale = Math.pow(2, zoom);
-  const cells = new Map<string, T[]>();
-  for (const it of items) {
-    const p = posOf(it);
-    if (!p) continue;
-    const x = Math.floor((mercX(p[1]) * scale) / CLUSTER_CELL_PX);
-    const y = Math.floor((mercY(p[0]) * scale) / CLUSTER_CELL_PX);
-    const key = `${x}_${y}`;
-    const arr = cells.get(key);
-    if (arr) arr.push(it);
-    else cells.set(key, [it]);
-  }
-  return [...cells.values()].map((group) => {
-    let la = 0;
-    let ln = 0;
-    let n = 0;
-    for (const g of group) {
-      const p = posOf(g);
-      if (!p) continue;
-      la += p[0];
-      ln += p[1];
-      n += 1;
-    }
-    return { items: group, center: [la / n, ln / n] as [number, number] };
-  });
-}
-
-function makeClusterIcon(
-  count: number,
-  rose: boolean,
-  category?: PoiCategory | null,
-): L.DivIcon {
-  const label = count > 99 ? "99+" : String(count);
-  const size = count >= 50 ? 46 : count >= 10 ? 42 : 38;
-  // v551 — Daniel : « les points avec numéro sont différenciés par couleur
-  // selon le thème ? ». Un groupe d'une SEULE catégorie prend la couleur de
-  // cette catégorie et affiche son emoji ; un groupe mixte reste bleu neutre.
-  const cat = category ? CATEGORY_COLOR[category] : null;
-  const bg = rose
-    ? "linear-gradient(135deg,#FF4FA3,#F01E86)"
-    : cat
-      ? `linear-gradient(135deg,${cat},${cat})`
-      : "linear-gradient(135deg,#3E9BE9,#2563EB)";
-  const glowColor = rose
-    ? "rgba(255,79,163,.45)"
-    : cat
-      ? `${cat}66`
-      : "rgba(62,155,233,.40)";
-  const emoji =
-    !rose && category ? POI_CATEGORY_LABELS[category]?.emoji ?? "" : "";
-  const inner = emoji
-    ? `<span style="font-size:13px;line-height:1">${emoji}</span><span style="font-size:${label.length > 2 ? 11 : 12}px;line-height:1">${label}</span>`
-    : `<span style="font-size:${label.length > 2 ? 12 : 14}px">${label}</span>`;
-  return L.divIcon({
-    className: "",
-    html: `<div style="width:${size}px;height:${size}px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:50%;background:${bg};border:3px solid #fff;box-shadow:0 0 12px 3px ${glowColor},0 1px 5px rgba(0,0,0,.3);color:#fff;font-weight:800;">${inner}</div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-  });
-}
-
-/** Remonte le zoom courant au parent pour piloter le regroupement. */
-function ZoomWatcher({ onZoom }: { onZoom: (z: number) => void }) {
-  const map = useMap();
-  useEffect(() => {
-    onZoom(map.getZoom());
-  }, [map, onZoom]);
-  useMapEvents({
-    zoomend(e) {
-      onZoom(e.target.getZoom());
-    },
-  });
-  return null;
-}
-
-/** Pastille de groupe : un clic zoome dessus et le groupe s'ouvre. */
-function ClusterMarker({
-  center,
-  count,
-  rose,
-  category,
-}: {
-  center: [number, number];
-  count: number;
-  rose: boolean;
-  category?: PoiCategory | null;
-}) {
-  const map = useMap();
-  return (
-    <Marker
-      position={center}
-      icon={makeClusterIcon(count, rose, category)}
-      zIndexOffset={rose ? 250 : 100}
-      eventHandlers={{
-        click: () => map.flyTo(center, Math.min(map.getZoom() + 2.2, 19)),
-      }}
-    />
-  );
-}
-
-// v548 — Daniel : « on peut cliquer sur les membres roses et demander en ami ».
-// Popup membre : nom, rôle, statut (ou « position approximative » pour la
-// couche monde), bouton Ajouter en ami (état envoyé / déjà / erreur) et, pour
-// un sitter/walker, lien Réserver vers sa fiche.
-function MemberPopup({
-  m,
-  roleLabel,
-  labels,
-  onAddFriend,
-}: {
+// v548 — fiche membre : nom, rôle, note, tarif, « Identité vérifiée », Ajouter
+// en ami, et pour un gardien/promeneur un gros bouton RÉSERVER à la couleur du
+// rôle (réserver en 2 clics : épingle → fiche → réservation).
+function MemberPopup({ m, roleLabel, labels, onAddFriend }: {
   m: NearbyMember;
   roleLabel: string;
-  labels?: {
-    addFriend: string; sent: string; already: string; failed: string; book: string; approx: string;
-    priceFrom?: string;
-  };
+  labels?: { addFriend: string; sent: string; already: string; failed: string; book: string; approx: string; priceFrom?: string; verified?: string };
   onAddFriend?: (m: NearbyMember) => Promise<"sent" | "already" | "error">;
 }) {
   const [state, setState] = useState<"idle" | "busy" | "sent" | "already" | "error">("idle");
-  const canBook = m.role === "sitter" || m.role === "walker";
+  const key = roleKey(m.role);
+  const color = ROLE_COLOR[key];
+  const canBook = key === "sitter" || key === "walker";
+  const price = formatPrice(m.priceFrom, m.currency);
   return (
-    <div className="text-sm" style={{ minWidth: 190 }}>
+    <div className="text-sm" style={{ minWidth: 200 }}>
       <div className="mb-1 flex items-center gap-2">
         {m.avatar ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={m.avatar} alt="" width={34} height={34} className="rounded-full object-cover" style={{ width: 34, height: 34 }} />
+          <img src={m.avatar} alt="" width={40} height={40} className="rounded-full object-cover" style={{ width: 40, height: 40, border: `2.5px solid ${color}` }} />
         ) : (
-          <span
-            className="inline-flex items-center justify-center rounded-full text-white"
-            style={{ width: 34, height: 34, background: "linear-gradient(135deg,#F06AA0,#E0568B)" }}
-          >
-            🐾
-          </span>
+          <span className="inline-flex items-center justify-center rounded-full" style={{ width: 40, height: 40, background: color }} dangerouslySetInnerHTML={{ __html: memberPinHtml({ role: m.role, size: 40 }) }} />
         )}
-        <div>
-          <div className="font-bold leading-tight">
-            {m.isPremium ? "👑 " : ""}
-            {m.name || "Membre"}
-          </div>
-          <div className="text-xs text-ink-muted">
+        <div className="min-w-0">
+          <div className="truncate font-bold leading-tight">{m.name || roleLabel}</div>
+          <div className="text-xs font-semibold" style={{ color }}>
             {roleLabel}
-            {m.approx ? "" : m.isOnline ? " · 🟢" : " · ⚪"}
+            {m.approx ? "" : m.isOnline ? " · ●" : ""}
           </div>
         </div>
       </div>
-      {/* v551 — note, avis et tarif d'entrée : de quoi donner envie de
-          cliquer sur Réserver depuis la carte. */}
-      {m.role !== "owner" && ((m.rating ?? 0) > 0 || (m.priceFrom ?? 0) > 0) ? (
-        <div className="mb-1 text-xs font-bold" style={{ color: "#E0568B" }}>
-          {[
-            (m.rating ?? 0) > 0
-              ? `⭐ ${(m.rating ?? 0).toFixed(1)}${
-                  (m.reviewsCount ?? 0) > 0 ? ` (${m.reviewsCount})` : ""
-                }`
-              : null,
-            (m.priceFrom ?? 0) > 0
-              ? `${labels?.priceFrom ?? ""} ${Math.round(m.priceFrom ?? 0)} ${
-                  CURRENCY_SYMBOL[m.currency ?? "EUR"] ?? "€"
-                }`.trim()
-              : null,
-          ]
-            .filter(Boolean)
-            .join("  ·  ")}
+      {key !== "owner" && ((m.rating ?? 0) > 0 || price) ? (
+        <div className="mb-1 text-xs font-bold text-ink">
+          {[(m.rating ?? 0) > 0 ? `★ ${(m.rating ?? 0).toFixed(1)}${(m.reviewsCount ?? 0) > 0 ? ` (${m.reviewsCount})` : ""}` : null, price ? `${labels?.priceFrom ?? ""} ${price}`.trim() : null].filter(Boolean).join("  ·  ")}
         </div>
       ) : null}
-      {m.approx && labels?.approx ? (
-        <div className="mb-2 text-[11px] text-ink-soft">
-          {/* v550 — le rayon affiché est celui que le backend garantit
-              (approxKm), plus un « ~1 km » écrit en dur qui ne correspondait
-              pas au floutage réel. */}
-          📍 {labels.approx.replace("{km}", String(m.approxKm ?? 1))}
-        </div>
+      {m.identityVerified && labels?.verified ? <div className="mb-1 text-xs font-semibold" style={{ color: "#16A34A" }}>✓ {labels.verified}</div> : null}
+      {m.approx && labels?.approx ? <div className="mb-2 text-[11px] text-ink-soft">{labels.approx.replace("{km}", String(m.approxKm ?? 1))}</div> : null}
+      {canBook && labels ? (
+        <a href={`/book/${key}/${m.id}`} className="mb-2 flex min-h-[42px] items-center justify-center rounded-[14px] px-4 text-sm font-bold text-white" style={{ background: `linear-gradient(90deg, ${color}, ${key === "sitter" ? "#1E4FB0" : "#15803D"})` }}>
+          {labels.book}{price ? ` · ${price}` : ""}
+        </a>
       ) : null}
-      <div className="flex flex-wrap gap-1.5">
-        {onAddFriend && labels ? (
-          <button
-            type="button"
-            disabled={state === "busy" || state === "sent" || state === "already"}
-            onClick={async () => {
-              setState("busy");
-              const r = await onAddFriend(m);
-              setState(r);
-            }}
-            className="rounded-full px-3 py-1 text-xs font-semibold text-white disabled:opacity-80"
-            style={{ background: state === "error" ? "#6E4F48" : "linear-gradient(135deg,#F06AA0,#E0568B)" }}
-          >
-            {state === "sent" ? labels.sent
-              : state === "already" ? labels.already
-              : state === "error" ? labels.failed
-              : state === "busy" ? "…"
-              : `➕ ${labels.addFriend}`}
-          </button>
-        ) : null}
-        {canBook && labels ? (
-          <a
-            href={`/book/${m.role}/${m.id}`}
-            className="rounded-full border border-ink/15 px-3 py-1 text-xs font-semibold text-ink"
-          >
-            {labels.book}
-          </a>
-        ) : null}
-      </div>
+      {onAddFriend && labels ? (
+        <button
+          type="button"
+          disabled={state === "busy" || state === "sent" || state === "already"}
+          onClick={async () => { setState("busy"); const r = await onAddFriend(m); setState(r); }}
+          className="rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-80"
+          style={{ background: "#FBE9E5", color: state === "error" ? "#B42318" : "#9E1F0B" }}
+        >
+          {state === "sent" ? labels.sent : state === "already" ? labels.already : state === "error" ? labels.failed : state === "busy" ? "…" : `+ ${labels.addFriend}`}
+        </button>
+      ) : null}
     </div>
   );
-}
-
-function MapMoveHandler({
-  onMove,
-}: {
-  onMove?: (c: { lat: number; lng: number }) => void;
-}) {
-  useMapEvents({
-    moveend(e) {
-      const c = e.target.getCenter();
-      onMove?.({ lat: c.lat, lng: c.lng });
-    },
-  });
-  return null;
 }

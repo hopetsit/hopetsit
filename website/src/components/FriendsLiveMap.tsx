@@ -25,6 +25,7 @@ import L from "leaflet";
 import { useSocketEvent } from "@/lib/useSocket";
 import type { PresenceUpdate } from "@/lib/usePresence";
 import type { FriendItem } from "@/lib/api";
+import { photoPinHtml } from "@/lib/pawmapLegend";
 
 // Hack standard Leaflet bundler-safe.
 // @ts-expect-error — Leaflet stocke ses defaults via _getIconUrl interne.
@@ -88,52 +89,26 @@ export function makeAvatarIcon(
   avatar?: string,
   isFamily?: boolean,
   isPremium?: boolean,
-  // v565 (point 10) — présence réelle : point vert / gris en bas à droite
-  // de l'avatar (rien si inconnue).
+  // v565 (point 10) — présence réelle : point vert / chaud en bas à droite.
   isOnline?: boolean | null,
 ): L.DivIcon {
-  const color = haloColor(role);
-  const onlineDot =
-    isOnline === undefined || isOnline === null
-      ? ""
-      : `<div style="position:absolute;bottom:2px;right:2px;width:14px;height:14px;border-radius:50%;border:2.5px solid #fff;background:${isOnline ? "#22C55E" : "#D6C3BE"};box-shadow:0 1px 3px rgba(0,0,0,.3);"></div>`;
-  // v23.1.399 — Daniel : couronne 👑 + anneau OR pour les membres Paw
-  // Premium (prioritaire sur le violet famille), comme dans l'app.
-  const GOLD = "#E8A00A";
-  const ringColor = isPremium ? GOLD : isFamily ? FAMILY_VIOLET : "white";
-  const ringWidth = isPremium || isFamily ? 4 : 3;
-  const haloColorEdge = isPremium ? GOLD : isFamily ? FAMILY_VIOLET : color;
-  const initials = (name || "?")
-    .split(/\s+/)
-    .map((w) => w[0] || "")
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-  const inner = avatar
-    ? `<img src="${avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
-    : `<span style="color:white;font-weight:700;font-size:18px;">${initials}</span>`;
-  const crown = isPremium
-    ? `<div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:22px;text-shadow:0 1px 3px rgba(0,0,0,0.4);">👑</div>`
-    : "";
-  // v23.1.359 — anneau pulsé ; v23.1.396 — 64 px ; v23.1.399 — couronne premium.
+  // 24/09/2026 — LOT B : LÉGENDE PAWMAP (validée par Daniel le 23/09).
+  // Ami = SA PHOTO dans un rond de 44 px avec l'ANNEAU ROSE, point vert si en
+  // ligne ; couronne or 22 px en haut à droite si Paw Premium ; la famille et
+  // PawFollow prennent la lueur violette. Dessin unique dans lib/pawmapLegend.
   return new L.DivIcon({
     className: "",
-    html: `<div style="position:relative;width:64px;height:64px;">
-      <div style="position:absolute;inset:-4px;border-radius:50%;
-        border:3px solid ${haloColorEdge};
-        animation:hps-pulse 2s ease-out infinite;"></div>
-      <div style="
-        width: 64px; height: 64px; border-radius: 50%;
-        background: ${color};
-        border: ${ringWidth}px solid ${ringColor};
-        box-shadow: 0 3px 10px rgba(0,0,0,0.3);
-        display: flex; align-items: center; justify-content: center;
-        overflow: hidden;">${inner}</div>
-      ${crown}
-      ${onlineDot}
-    </div>`,
-    iconSize: [64, 64],
-    iconAnchor: [32, 32],
+    html: photoPinHtml({
+      role,
+      name,
+      avatar,
+      premium: isPremium,
+      pawFollow: isFamily,
+      online: isOnline === undefined ? null : isOnline,
+    }),
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+    popupAnchor: [0, -24],
   });
 }
 

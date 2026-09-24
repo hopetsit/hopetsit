@@ -2207,6 +2207,9 @@ export type NearbyMember = {
   reviewsCount?: number;
   priceFrom?: number;
   currency?: string;
+  /** 24/09/2026 — légende : PawBoost (lueur turquoise) et « Identité vérifiée ». */
+  isBoosted?: boolean;
+  identityVerified?: boolean;
 };
 
 // v548 — Daniel : « quand on dézoome, voir TOUS les utilisateurs sur la carte
