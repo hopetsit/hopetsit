@@ -136,6 +136,13 @@ class PushNotificationService extends GetxService {
 
   bool _systemBannersAuthorized = false;
 
+  /// v583 (lot A, fenêtre ATT) — vrai dès que la fenêtre SYSTÈME des
+  /// notifications a été posée pendant cette session (démarrage d'un compte
+  /// connecté, ou question à l'entrée dans l'app). La demande de suivi
+  /// publicitaire d'Apple (MetaEventsService) ne se présente JAMAIS dans la
+  /// même session : une seule fenêtre système par lancement.
+  static bool systemPromptRequestedThisSession = false;
+
   /// v566 — vrai sur iOS quand la bannière SYSTÈME s'affiche déjà pour un push reçu
   /// app ouverte (autorisation accordée + setForegroundNotificationPresentationOptions).
   /// Sert à ne pas afficher EN PLUS le bandeau in-app (demandes d'ami / famille).
@@ -162,6 +169,9 @@ class PushNotificationService extends GetxService {
         _systemBannersAuthorized = false;
       } else {
         // iOS: request permission. Android 13+ also needs POST_NOTIFICATIONS.
+        if (current.authorizationStatus == AuthorizationStatus.notDetermined) {
+          systemPromptRequestedThisSession = true; // v583 — fenêtre posée
+        }
         final settings = await _messaging.requestPermission(
           alert: true,
           badge: true,
@@ -309,6 +319,7 @@ class PushNotificationService extends GetxService {
       );
       final ok = choice.isCompleted ? await choice.future : false;
       if (!ok) return;
+      systemPromptRequestedThisSession = true; // v583 — fenêtre posée
       final settings = await _messaging.requestPermission(
         alert: true,
         badge: true,

@@ -217,9 +217,15 @@ void main() async {
   // popup ATT iOS ne s'affiche pas par-dessus l'écran de lancement (Apple
   // refuse le prompt tant que l'app n'est pas au premier plan et active).
   // Fire-and-forget, non fatal.
+  // v583 (lot A, décision de Daniel du 23/09) — init() ne présente plus la
+  // fenêtre ATT ; requestTrackingAfterEntry() la pose seulement quand
+  // l'utilisateur est entré dans l'app ET que la fenêtre des notifications a
+  // déjà sa réponse (jamais deux fenêtres système dans la même session).
   WidgetsBinding.instance.addPostFrameCallback((_) {
     // ignore: discarded_futures
     MetaEventsService.instance.init();
+    // ignore: discarded_futures
+    MetaEventsService.instance.requestTrackingAfterEntry();
     // v532 — Firebase Analytics : canal par lequel Google Ads reçoit les events
     // in-app (sign_up). Sans lui, Google n'optimise que sur le volume d'installs.
     // ignore: discarded_futures
