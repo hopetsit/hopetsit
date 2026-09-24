@@ -777,6 +777,11 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     final rx = _bookingsRxForRole();
 
     return Obx(() {
+      // v585 (lot D) — l'Obx lit TOUJOURS un observable : quand aucun
+      // contrôleur de réservations / d'amis n'est encore enregistré, aucun
+      // `.value` n'était lu et GetX levait « improper use » → ErrorWidget GRIS
+      // en release (piège v557). Trouvé par le test « tout mon menu marche ».
+      navWrapperMounted.value;
       // v23.1 part 20 — owner banner now also reacts to ApplicationsController.
       // The walker/sitter sends an Application (NOT a Booking) when they tap
       // "Demander" on a publication. The Booking only exists *after* the owner

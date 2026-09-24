@@ -18,6 +18,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+// ignore: depend_on_referenced_packages
+import 'package:firebase_core_platform_interface/test.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,6 +30,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
@@ -42,6 +46,7 @@ import 'package:hopetsit/repositories/promo_repository.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
+import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 
@@ -113,6 +118,12 @@ Future<void> lotdSetUp({String role = 'owner'}) async {
   lotdResponder = null;
   await _mockPathProvider();
   await GetStorage.init();
+  // Firebase Core simulé (aucun réseau) : `AuthController` lit
+  // `FirebaseAuth.instance` dans un champ, qui exige une app Firebase.
+  if (Firebase.apps.isEmpty) {
+    setupFirebaseCoreMocks();
+    await Firebase.initializeApp();
+  }
 
   final storage = GetStorage();
   await storage.erase();
@@ -147,6 +158,22 @@ Future<void> lotdSetUp({String role = 'owner'}) async {
   Get.put<SitterRepository>(SitterRepository(api), permanent: true);
   Get.put<UserRepository>(UserRepository(api), permanent: true);
   Get.put<WalkerRepository>(WalkerRepository(api), permanent: true);
+  // Services que les onglets attendent (posés par les wrappers dans l'app) :
+  // la prise réseau (jamais connectée ici) et le contrôleur d'authentification
+  // (lit le rôle en stockage ; Google Sign-In absent en test = ignoré).
+  Get.put<SocketService>(_NoSocket(storage: storage), permanent: true);
+  Get.put<AuthController>(
+    AuthController(Get.find<AuthRepository>(), storage, Get.find<UserRepository>()),
+    permanent: true,
+  );
+}
+
+/// La prise réseau sans réseau : `connect()` ne fait rien (le faux HTTP des
+/// tests ne sait pas ouvrir un WebSocket, et aucun serveur n'est visé ici).
+class _NoSocket extends SocketService {
+  _NoSocket({super.storage});
+  @override
+  Future<void> connect({String? tokenOverride}) async {}
 }
 
 /// L'app de test : vraies traductions, taille de conception de l'app.

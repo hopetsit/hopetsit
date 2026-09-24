@@ -1,6 +1,6 @@
 Polices embarquées (lot D, 25/09/2026) — SIL Open Font License 1.1, fichiers identiques à
 ceux servis par fonts.gstatic.com (hachages de google_fonts 6.3.3) :
-  · Inter Regular 400, Medium 500, SemiBold 600, Bold 700 — le texte de toute l'app ;
+  · Inter Regular 400, Medium 500, SemiBold 600, Bold 700, ExtraBold 800, Black 900 — le texte de toute l'app ;
   · Poppins Regular 400, Medium 500, SemiBold 600, Bold 700, ExtraBold 800 — titres et boutons ;
   · Manrope ExtraBold 800 — libellés du menu du bas ;
   · Sora Medium 500, SemiBold 600, Bold 700, ExtraBold 800 — titres de la PawMap ;

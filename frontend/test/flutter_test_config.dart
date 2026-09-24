@@ -16,14 +16,14 @@ import 'package:google_fonts/google_fonts.dart';
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   TestWidgetsFlutterBinding.ensureInitialized();
   GoogleFonts.config.allowRuntimeFetching = false;
-  // Les graisses EMBARQUÉES (`assets/fonts/`, lot D) : Inter 400/500/600/700,
+  // Les graisses EMBARQUÉES (`assets/fonts/`, lot D) : Inter 400-900,
   // Poppins 400/500/600/700/800, Manrope 800, Sora 500-800 (PawMap), Fredoka
   // 400-700 (entrée) — google_fonts les charge depuis les assets, sans réseau.
   // Noto (PDF des factures) n'est pas demandée ici.
   for (final w in <FontWeight>[FontWeight.w400, FontWeight.w500, FontWeight.w600, FontWeight.w700, FontWeight.w800]) {
     GoogleFonts.poppins(fontWeight: w);
   }
-  for (final w in <FontWeight>[FontWeight.w400, FontWeight.w500, FontWeight.w600, FontWeight.w700]) {
+  for (final w in <FontWeight>[FontWeight.w400, FontWeight.w500, FontWeight.w600, FontWeight.w700, FontWeight.w800, FontWeight.w900]) {
     GoogleFonts.inter(fontWeight: w);
   }
   GoogleFonts.manrope(fontWeight: FontWeight.w800);
