@@ -3857,16 +3857,23 @@ router.get('/loyalty', requireAdmin, async (req, res) => {
 // ── v20.0.8 — BUG REPORTS ─────────────────────────────────────────────────────
 const BugReport = require('../models/BugReport');
 
+// v585 (lot D) — boîte à idées : filtre `?kind=idea|bug`, compteur d'idées
+// nouvelles, statut validé (nouvelle / retenue / faite pour une idée).
+const {
+  adminListFilter,
+  adminUpdateFromBody,
+} = require('../utils/bugReportKind');
+
 router.get('/bug-reports', requireAdmin, async (req, res) => {
   try {
-    const { status } = req.query;
-    const filter = status ? { status } : {};
-    const [reports, openCount, totalCount] = await Promise.all([
+    const { filter, bugOpenFilter, ideaOpenFilter } = adminListFilter(req.query);
+    const [reports, openCount, totalCount, ideaOpenCount] = await Promise.all([
       BugReport.find(filter).sort({ createdAt: -1 }).limit(300).lean(),
-      BugReport.countDocuments({ status: 'open' }),
+      BugReport.countDocuments(bugOpenFilter),
       BugReport.countDocuments({}),
+      BugReport.countDocuments(ideaOpenFilter),
     ]);
-    res.json({ reports, openCount, totalCount });
+    res.json({ reports, openCount, totalCount, ideaOpenCount });
   } catch (e) {
     logger.error('[admin/bug-reports]', e);
     res.status(500).json({ error: e.message });
@@ -3875,12 +3882,11 @@ router.get('/bug-reports', requireAdmin, async (req, res) => {
 
 router.patch('/bug-reports/:id', requireAdmin, async (req, res) => {
   try {
-    const { status, adminNote } = req.body || {};
-    const update = {};
-    if (status) update.status = status;
-    if (typeof adminNote === 'string') update.adminNote = adminNote;
+    const { error, update } = adminUpdateFromBody(req.body);
+    if (error) return res.status(400).json({ error });
     const doc = await BugReport.findByIdAndUpdate(req.params.id, update, {
       new: true,
+      runValidators: true,
     });
     if (!doc) return res.status(404).json({ error: 'Report not found.' });
     res.json({ report: doc });

@@ -25,10 +25,15 @@ const bugReportSchema = new mongoose.Schema(
     appVersion: { type: String, default: '' },
     platform: { type: String, default: '' }, // 'android' | 'ios'
 
-    // Admin workflow.
+    // v585 (lot D) — « Boîte à idées » : 'bug' (défaut, = un problème) ou
+    // 'idea'. Les documents antérieurs n'ont pas le champ → bug.
+    kind: { type: String, enum: ['bug', 'idea'], default: 'bug', index: true },
+
+    // Admin workflow. Bug : open / in_progress / fixed / wontfix / duplicate.
+    // Idée (v585) : open (nouvelle) / kept (retenue) / done (faite).
     status: {
       type: String,
-      enum: ['open', 'in_progress', 'fixed', 'wontfix', 'duplicate'],
+      enum: ['open', 'in_progress', 'fixed', 'wontfix', 'duplicate', 'kept', 'done'],
       default: 'open',
       index: true,
     },

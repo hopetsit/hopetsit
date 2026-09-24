@@ -12,6 +12,11 @@ const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const { sendEmail } = require('../services/emailService');
 const logger = require('../utils/logger');
+const {
+  normalizeKind,
+  minDescriptionLength,
+  mailSubject,
+} = require('../utils/bugReportKind');
 
 const router = express.Router();
 
@@ -23,11 +28,15 @@ const resolveModel = (role) =>
 
 router.post('/', requireAuth, async (req, res) => {
   try {
-    const { title, description, screen, appVersion, platform } = req.body || {};
+    const { title, description, screen, appVersion, platform, kind } =
+      req.body || {};
+    // v585 (lot D) — boîte à idées : même route, étiquette `kind`.
+    const reportKind = normalizeKind(kind);
+    const minLen = minDescriptionLength(reportKind);
     const text = String(description || '').trim();
-    if (text.length < 10) {
+    if (text.length < minLen) {
       return res.status(400).json({
-        error: 'Description too short (min 10 chars).',
+        error: `Description too short (min ${minLen} chars).`,
       });
     }
 
@@ -47,11 +56,14 @@ router.post('/', requireAuth, async (req, res) => {
       screen: String(screen || '').slice(0, 120),
       appVersion: String(appVersion || '').slice(0, 40),
       platform: String(platform || '').slice(0, 20),
+      kind: reportKind,
     });
 
     // Fire-and-forget email to the inbox.
-    const mailSubject = `[HoPetSit bug] ${doc.title || doc._id}`;
+    const subject = mailSubject(doc);
+    const kindLabel = reportKind === 'idea' ? 'Idée' : 'Problème';
     const mailBody =
+      `Type: ${kindLabel}\n` +
       `Role: ${doc.userRole}\n` +
       `User: ${doc.userName || '?'} <${doc.userEmail || '?'}>\n` +
       `Screen: ${doc.screen || '-'}\n` +
@@ -60,11 +72,13 @@ router.post('/', requireAuth, async (req, res) => {
       `Created: ${doc.createdAt.toISOString()}\n` +
       `Report ID: ${doc._id}\n\n` +
       `--- Description ---\n${doc.description}\n`;
+    const esc = (s) => String(s || '').replace(/</g, '&lt;');
     const mailHtml =
-      `<p><strong>Nouveau bug report HoPetSit</strong></p>` +
+      `<p><strong>${reportKind === 'idea' ? 'Nouvelle idée' : 'Nouveau bug report'} HoPetSit</strong></p>` +
       `<ul>` +
+      `<li>Type: <b>${kindLabel}</b></li>` +
       `<li>Role: <b>${doc.userRole}</b></li>` +
-      `<li>User: ${doc.userName || '?'} &lt;${doc.userEmail || '?'}&gt;</li>` +
+      `<li>User: ${esc(doc.userName) || '?'} &lt;${esc(doc.userEmail) || '?'}&gt;</li>` +
       `<li>Screen: ${doc.screen || '-'}</li>` +
       `<li>App version: ${doc.appVersion || '-'}</li>` +
       `<li>Platform: ${doc.platform || '-'}</li>` +
@@ -74,7 +88,7 @@ router.post('/', requireAuth, async (req, res) => {
       `<hr/>` +
       `<pre style="white-space:pre-wrap">${doc.description.replace(/</g, '&lt;')}</pre>`;
 
-    sendEmail(BUG_REPORT_INBOX, mailSubject, mailBody, mailHtml)
+    sendEmail(BUG_REPORT_INBOX, subject, mailBody, mailHtml)
       .then(() => {
         BugReport.updateOne({ _id: doc._id }, { emailDispatched: true }).catch(
           () => {},
