@@ -110,13 +110,9 @@ class PawMapScreen extends StatefulWidget {
 
 class _PawMapScreenState extends State<PawMapScreen>
     with WidgetsBindingObserver {
+  /// v584 — LE contrôleur de LA carte (une seule GoogleMap depuis la fusion
+  /// du lot C : plus de calque agrandi avec son propre contrôleur).
   final Completer<GoogleMapController> _mapCtl = Completer();
-  // v469 — Daniel : « quand la map est AGRANDIE je veux voir ET SUIVRE amis et
-  // famille ». Le calque plein écran possède sa PROPRE GoogleMap → il lui faut
-  // son propre contrôleur, sinon _startFollow animait la carte normale CACHÉE
-  // dessous (la caméra du calque restait figée). On garde ce ref tant que le
-  // calque est monté ; il est invalidé à la réduction.
-  GoogleMapController? _expandedCtl;
   late final PawMapController _poiController;
   late final MapReportController _reportController;
   late final FriendController _friendController;
@@ -2221,21 +2217,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
   }
 
-  /// v554 — recentrage sur une ville, quelle que soit la carte affichée.
-  /// v523 — Daniel : « carte agrandie + rechercher une ville ne marche pas ».
-  /// La recherche n'animait QUE _mapCtl (la carte normale, cachée SOUS le
-  /// calque agrandi) → aucun mouvement visible. On anime les DEUX : la carte
-  /// visible tout de suite, l'autre pour qu'elle soit déjà sur la ville au
-  /// moment de réduire / agrandir.
+  /// v554 — recentrage sur une ville. v584 : une seule carte, un seul
+  /// contrôleur (la v523 animait deux cartes, il n'y en a plus qu'une).
   Future<void> _goToCity(LatLng target) async {
     if (!mounted) return;
     setState(() => _currentCenter = target);
-    if (pawMapExpanded.value && _expandedCtl != null) {
-      try {
-        await _expandedCtl!
-            .animateCamera(CameraUpdate.newLatLngZoom(target, 13));
-      } catch (_) {/* calque pas prêt */}
-    }
     if (_mapCtl.isCompleted) {
       try {
         final ctl = await _mapCtl.future;
@@ -4767,8 +4753,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     // précédent. Un 2e retour dépile normalement.
     // v552 — Daniel (spec redesign v3, bug critique n°1) : « le bouton retour
     // d'Android ferme l'app quand la carte est en grand ». La carte agrandie
-    // est un CALQUE dans le même écran, pas une route : le retour tombait donc
-    // sur la racine de l'onglet et quittait l'app. Ordre attendu :
+    // est un ÉTAT du même écran, pas une route : le retour tombait donc sur la
+    // racine de l'onglet et quittait l'app. Ordre attendu :
     //   retour → sort d'un mode en cours (viseur, suivi)
     //          → sinon réduit la carte agrandie
     //          → sinon comportement système (quitter / dépiler).
@@ -4796,50 +4782,258 @@ class _PawMapScreenState extends State<PawMapScreen>
         }
         if (_mapExpanded.value) _mapExpanded.value = false;
       },
+      // v584 (lot C du chantier du 24/09) — UNE SEULE GoogleMap.
+      //
+      // Avant : deux cartes — la « normale » dans le corps du Scaffold et un
+      // calque « agrandi » plein écran avec SA propre GoogleMap et SON propre
+      // contrôleur (v463/v469). Chaque animation de caméra, chaque recherche
+      // de ville, chaque itinéraire devait viser « la bonne » carte, et le
+      // suivi d'un ami ne s'arrêtait pas au glissement sur la grande (pas de
+      // `onCameraMoveStarted`). La fusion, validée par Daniel (« JE GARDE
+      // TOUT ») : la carte occupe TOUT l'écran en permanence (le corps passe
+      // derrière la barre d'état et, côté menu, le wrapper est déjà en
+      // `extendBody`) ; « agrandir » ne change plus que les COMMANDES posées
+      // par-dessus (en-tête, panneau, rails, dock, bouton retour) et masque le
+      // menu du bas (`pawMapExpanded`, observé par le wrapper). La GoogleMap
+      // n'est donc jamais redimensionnée ni recréée : zéro carte blanche.
       child: Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        // v573 — Daniel : « en haut à gauche, moderniser et aligner le logo
-        // avec le titre PawMap ». Le logo (patte-épingle, doigts sortis) vit
-        // dans une tuile orange arrondie — la même scène que l'écran
-        // d'ouverture et le héro du site — parfaitement centrée sur la ligne
-        // du titre, qui passe en Poppins gras.
-        titleSpacing: 16.w,
-        centerTitle: false,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
+        backgroundColor: AppColors.scaffold(context),
+        extendBodyBehindAppBar: true,
+        body: Stack(
           children: [
-            // v575 — patte recentrée dans la tuile + animation discrète.
-            PawMapHeaderBadge(size: 38.w),
-            SizedBox(width: 10.w),
-            PoppinsText(
-              text: 'PawMap',
-              fontSize: 20.sp,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary(context),
+            // ── LA carte (unique) : toujours premier enfant, toujours à la
+            // même place dans l'arbre, avec une clé → jamais recréée.
+            Positioned.fill(
+              key: const ValueKey<String>('pawmap_google_map'),
+              child: _buildGoogleMap(),
             ),
+
+            // v23.1.263 — bannière "Suivi en direct" : visible tant qu'on
+            // suit un ami à la trace. Bouton Stop pour reprendre la main.
+            if (_followUserId != null)
+              Positioned(
+                top: MediaQuery.of(context).viewPadding.top + 64.h,
+                left: 12.w,
+                right: 12.w,
+                child: Center(child: _buildFollowingBanner()),
+              ),
+
+            // v456 — POINT ROUGE FIXE au centre (placement précis), pour les
+            // viseurs (Paw Spot, Signalement, Itinéraire). La carte bouge SOUS
+            // le repère ; à Valider il disparaît et seul l'emoji reste.
+            Obx(() => (_pickingSpotPos.value ||
+                    _pickingReportPos.value ||
+                    _pickingRoutePos.value)
+                ? _buildCenterReticle()
+                : const SizedBox.shrink()),
+            Obx(() => _pickingRoutePos.value
+                ? _buildRoutePickerOverlay()
+                : const SizedBox.shrink()),
+            Obx(() => _pickingSpotPos.value
+                ? _buildSpotPickerOverlay()
+                : const SizedBox.shrink()),
+            Obx(() => _pickingReportPos.value
+                ? _buildReportPickerOverlay()
+                : const SizedBox.shrink()),
+
+            // ── Rangée des rails (gauche : actions · droite : capsule) ──
+            // Baseline FIXE (point 20, v565) : petite carte au-dessus du menu
+            // flottant ; carte agrandie au-dessus du dock. Pendant un
+            // placement le rail gauche s'efface (ses boutons sont l'action en
+            // cours) et la rangée monte pour laisser respirer Annuler/Valider.
+            Obx(() {
+              final picking = _pickingSpotPos.value ||
+                  _pickingReportPos.value ||
+                  _pickingRoutePos.value;
+              final expanded = _mapExpanded.value;
+              return Positioned(
+                left: 12.w,
+                right: 12.w,
+                bottom: _railBottom(context,
+                    expanded: expanded, picking: picking),
+                child: Row(
+                  // v561 — Daniel : colonne de gauche alignée sur le BAS de la
+                  // capsule de droite (jamais centrée).
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (!picking)
+                      _railScroller(
+                        _buildMapActionsColumn(expanded: expanded),
+                        expanded: expanded,
+                      ),
+                    const Spacer(),
+                    _buildMapControlsStack(),
+                  ],
+                ),
+              );
+            }),
+
+            // v23.1.187 — carte « Autour de vous » (petite carte seulement) ;
+            // v554 — jamais pendant un placement ni quand un itinéraire est
+            // affiché (le bandeau distance + Effacer prend sa place).
+            Obx(() {
+              final picking = _pickingSpotPos.value ||
+                  _pickingReportPos.value ||
+                  _pickingRoutePos.value;
+              final expanded = _mapExpanded.value;
+              if (picking) return const SizedBox.shrink();
+              if (_routePolylines.isEmpty) {
+                if (expanded) return const SizedBox.shrink();
+                return Positioned(
+                  left: 72.w,
+                  right: 62.w,
+                  bottom: 132.h -
+                      _tabBarLift(context) +
+                      MediaQuery.of(context).viewPadding.bottom,
+                  child: _buildAroundYouCard(),
+                );
+              }
+              // Bandeau d'itinéraire : entre les deux rails (petite carte) ;
+              // en haut sous la rangée Partager/Réduire (carte agrandie, le
+              // bas est occupé par le dock et les rails — v554/v559).
+              if (expanded) {
+                return Positioned(
+                  top: MediaQuery.of(context).viewPadding.top + 64.h,
+                  left: 12.w,
+                  right: 12.w,
+                  child: Center(child: _buildDirectionsBanner()),
+                );
+              }
+              return Positioned(
+                left: 12.w,
+                right: 12.w,
+                bottom: 160.h -
+                    _tabBarLift(context) +
+                    MediaQuery.of(context).viewPadding.bottom,
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 52.w),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: _buildDirectionsBanner(),
+                    ),
+                  ),
+                ),
+              );
+            }),
+
+            // ── Haut de l'écran ──
+            // Petite carte : en-tête flottant (logo, titre, recherche,
+            // rafraîchir) + rangée Partager en direct / Agrandir + panneau.
+            // Carte agrandie : rangée Partager en direct / Réduire seulement.
+            // Masqué pendant un placement (la bulle d'aide doit rester seule).
+            Obx(() {
+              final picking = _pickingSpotPos.value ||
+                  _pickingReportPos.value ||
+                  _pickingRoutePos.value;
+              if (picking) return const SizedBox.shrink();
+              final expanded = _mapExpanded.value;
+              return Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  bottom: false,
+                  child: expanded
+                      ? Padding(
+                          padding: EdgeInsets.only(top: 8.h),
+                          child: Row(
+                            children: [
+                              Expanded(child: _buildLiveBroadcastBanner()),
+                              _buildExpandPill(expanded: true),
+                              SizedBox(width: 12.w),
+                            ],
+                          ),
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildFloatingHeader(),
+                            _buildTopArea(),
+                          ],
+                        ),
+                ),
+              );
+            }),
+
+            // ── Carte agrandie : bouton RETOUR (bas-gauche) + dock ──
+            // v565 point 20 : sur la grande carte le menu du bas a disparu →
+            // bouton Retour qui réduit la carte. v552 : dock (SOS animal,
+            // Partager la carte, Calques, Mode nuit, Historique). Les deux
+            // s'effacent pendant un placement (ils recouvraient Valider).
+            Obx(() {
+              final picking = _pickingSpotPos.value ||
+                  _pickingReportPos.value ||
+                  _pickingRoutePos.value;
+              if (!_mapExpanded.value || picking) {
+                return const SizedBox.shrink();
+              }
+              return Positioned(
+                left: 0,
+                right: 0,
+                bottom: _navInset(context) + 14.h,
+                child: Stack(
+                  children: [
+                    _buildMapDock(),
+                    Positioned(
+                      left: 12.w,
+                      bottom: 0,
+                      child: _buildExpandedBackButton(),
+                    ),
+                  ],
+                ),
+              );
+            }),
           ],
         ),
-        actions: [
-          // v23.1.189 — Daniel : "en haut le suivre et amis horizontale ne
-          // serve plus". Les 2 pills Suivre + Amis sont supprimees car les
-          // 4 grosses cartes ci-dessous (v184) remplissent deja ces actions.
-          // On ne garde que la loupe pour ouvrir la recherche ville + le
-          // refresh.
-          IconButton(
-            tooltip: 'pawmap_search_city'.tr,
-            icon: const Icon(Icons.search_rounded),
-            style: _pawMapHeaderButtonStyle(context),
-            onPressed: _onSearchCity,
+      ),
+    );
+  }
+
+  /// v584 — ligne de base (depuis le bas) de la rangée des rails.
+  ///  · petite carte : 168 au-dessus du menu flottant (v561), 284 pendant
+  ///    un placement (au-dessus de la carte Annuler/Valider) ;
+  ///  · carte agrandie : au-dessus du dock (14 + 46 + 22 = 82, v553), 136
+  ///    pendant un placement (le dock est masqué, la carte de placement prend
+  ///    sa place).
+  double _railBottom(BuildContext context,
+      {required bool expanded, required bool picking}) {
+    if (expanded) return _navInset(context) + (picking ? 136.h : 82.h);
+    return (picking ? 284.h : 168.h) -
+        _tabBarLift(context) +
+        MediaQuery.of(context).viewPadding.bottom;
+  }
+
+  /// v584 — en-tête flottant de la petite carte (remplace l'AppBar : la carte
+  /// passe dessous, il ne la redimensionne jamais). Logo patte-épingle dans
+  /// sa tuile (v573/v575), titre Poppins, recherche de ville, rafraîchir.
+  Widget _buildFloatingHeader() {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(12.w, 6.h, 12.w, 0),
+      child: Row(
+        children: [
+          PawMapHeaderBadge(size: 38.w),
+          SizedBox(width: 10.w),
+          PoppinsText(
+            text: 'PawMap',
+            fontSize: 20.sp,
+            fontWeight: FontWeight.w800,
+            color: PawMapTheme.inkOn(context),
           ),
-          SizedBox(width: 6.w),
-          // v554 — bouton « mettre à jour » avec retour visuel (spinner +
-          // confirmation), et double appui impossible pendant le chargement.
+          const Spacer(),
+          // v23.1.189 — recherche de ville (loupe) + mettre à jour (v554 :
+          // spinner à la place du bouton pendant le rechargement).
+          _headerRoundButton(
+            key: const ValueKey<String>('pawmap_header_search'),
+            icon: Icons.search_rounded,
+            label: 'pawmap_search_city'.tr,
+            onTap: _onSearchCity,
+          ),
+          SizedBox(width: 8.w),
           Obx(() => _refreshing.value
-              ? Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+              ? SizedBox(
+                  width: 40.w,
+                  height: 40.w,
                   child: Center(
                     child: SizedBox(
                       width: 18.w,
@@ -4851,377 +5045,133 @@ class _PawMapScreenState extends State<PawMapScreen>
                     ),
                   ),
                 )
-              : IconButton(
-                  tooltip: 'pawmap_appbar_refresh'.tr,
-                  icon: const Icon(Icons.refresh_rounded),
-                  style: _pawMapHeaderButtonStyle(context),
-                  onPressed: _manualRefresh,
+              : _headerRoundButton(
+                  key: const ValueKey<String>('pawmap_header_refresh'),
+                  icon: Icons.refresh_rounded,
+                  label: 'pawmap_appbar_refresh'.tr,
+                  onTap: _manualRefresh,
                 )),
-          SizedBox(width: 10.w),
         ],
-      ),
-      body: Stack(
-        children: [
-          // ── PawMap NORMALE (inchangée) ──────────────────────────────────
-          // v463 — tout le contenu d'origine reste DANS cette Column : la
-          // GoogleMap normale n'est jamais redimensionnée ni détruite. Le mode
-          // agrandi est un calque posé par-dessus (voir plus bas).
-          // v552 — redesign v3 : la CARTE occupe tout l'écran ; la ligne
-          // « Partager ma position + Agrandir » et le panneau en verre dépoli
-          // flottent PAR-DESSUS (voir le Positioned plus bas). Avant, ils
-          // étaient empilés au-dessus et mangeaient la moitié de la hauteur.
-          Column(
-        children: [
-          // Map
-          Expanded(
-            child: Stack(
-              children: [
-                Obx(() {
-                    // Force rebuild when either list changes
-                    _poiController.visiblePois.length;
-                    _reportController.reports.length;
-                    _showPois.value;
-                    _showReports.value;
-                    // v23.1 part 123 — rebuild every halo tick (~5 fps) so
-                    // le pulse Platinum reste fluide.
-                    _haloPhase.value;
-                    // v23.1.163 — VRAI ROOT CAUSE du bug "halo ne change pas
-                    // de couleur" : l'Obx ne declarait PAS _nearbyProviders
-                    // ni _showProviders comme dependance, donc le GoogleMap
-                    // rebuildait UNIQUEMENT au tick halo (5fps), pas quand
-                    // les providers chargeaient depuis l'API. Resultat :
-                    // _buildHaloCircles s'executait sur _nearbyProviders=[]
-                    // pendant des secondes, aucun halo n'apparaissait. Fix :
-                    // on lit explicitement la length + le show flag pour
-                    // forcer le rebuild a chaque assignAll().
-                    _nearbyProviders.length;
-                    _showProviders.value;
-                    // v550 — couche MONDE : sans cette dépendance, la carte
-                    // ne rebuildait pas quand /friends/members/world répondait
-                    // → aucun membre rose visible sur mobile.
-                    _worldMembers.length;
-                    _memberRoles.length; // v551 — filtre par type.
-                    // v23.1.353 — refonte PawSpot : rebuild quand la couche
-                    // spots 🐾 se toggle ou que les spots chargent.
-                    _showPawSpots.value;
-                    _pawSpotController.spots.length;
-                    // v23.1 part 248 — Daniel : "ds lapp sa marche tjr pas"
-                    // (halo violet famille). On declare explicitement
-                    // familyMembers.length comme dependance Obx pour que
-                    // dans le cas ou loadFamily() reussit APRES le premier
-                    // tick halo, la map rebuild immediatement avec le ring
-                    // violet visible.
-                    try {
-                      final fc = Get.isRegistered<FriendController>()
-                          ? Get.find<FriendController>()
-                          : null;
-                      // ignore: unused_local_variable
-                      final famLen = fc?.familyMembers.length ?? 0;
-                      // ignore: unused_local_variable
-                      final friLen = fc?.friends.length ?? 0;
-                    } catch (_) {/* defensive */}
-                    // v23.1 part 249 — rebuild quand un nouveau marker
-                    // custom (photo profil) finit de generer. Sans cette
-                    // dependance Obx, le marker reste sur le placeholder
-                    // par defaut jusqu'a la prochaine vraie data change.
-                    // ignore: unused_local_variable
-                    final markerRev = _friendMarkerService.rev.value;
-                    return GoogleMap(
-                      initialCameraPosition: CameraPosition(
-                        target: _currentCenter,
-                        zoom: 13,
-                      ),
-                      onMapCreated: (c) {
-                        if (!_mapCtl.isCompleted) _mapCtl.complete(c);
-                        // v23.1 part 213 — Si initialLat/Lng passés (clic
-                        // sur une alerte), on anime la camera dessus
-                        // immediatement (avant le _recenterOnUser auto).
-                        final lat = widget.initialLat;
-                        final lng = widget.initialLng;
-                        if (lat != null && lng != null) {
-                          // v23.1.263 — si on ouvre en mode suivi (focusUserId),
-                          // on zoome au plus près directement.
-                          final z = (widget.focusUserId ?? '').isNotEmpty
-                              ? _followZoom
-                              : 16.0;
-                          c.animateCamera(
-                            CameraUpdate.newCameraPosition(
-                              CameraPosition(target: LatLng(lat, lng), zoom: z),
-                            ),
-                          );
-                        }
-                      },
-                      // v23.1.363 — mode viseur : TAPER la carte place le
-                      // pin du futur spot exactement là (Daniel : "je ne
-                      // peux pas bien choisir ma position").
-                      onTap: (latLng) {
-                        // v449 — viseur spot OU signalement : taper la carte
-                        // déplace le pin du futur spot/signalement.
-                        if (_pickingSpotPos.value ||
-                            _pickingReportPos.value ||
-                            _pickingRoutePos.value) {
-                          setState(() => _pickedSpotPos = latLng);
-                        }
-                      },
-                      onCameraMove: _onCameraMove,
-                      // v23.1.263 — un drag MANUEL de la carte coupe le suivi
-                      // (sauf si c'est NOUS qui recentrons la caméra : flag
-                      // _suppressFollowAutoStop). L'user reprend la main quand
-                      // il veut, et retape l'ami pour resuivre.
-                      onCameraMoveStarted: () {
-                        if (_followUserId != null && !_suppressFollowAutoStop) {
-                          _stopFollow();
-                        }
-                      },
-                      onCameraIdle: _scheduleReload,
-                      myLocationEnabled: true,
-                      // v23.1 part 68 — Daniel : "cest derriere le bouton ma
-                      // position quil ya un autre bouton a effacer". Google
-                      // Maps' default location button overlapped our custom
-                      // geoloc pin in the top row. Disabled here ; keep our
-                      // own _recenterOnUser pin only.
-                      myLocationButtonEnabled: false,
-                      // v23.1 part 68 — disable Google's default zoom
-                      // controls (they appear bottom-right on Android and
-                      // overlap with the Signaler FAB). We provide our own
-                      // +/- pair under the geoloc pin.
-                      zoomControlsEnabled: false,
-                      // v23.1 part 243 round 3 — markers memoizes, voir
-                      // _cachedMarkers + _getMarkersFromCache plus haut.
-                      // Plus de _buildMarkers() sur chaque tick halo.
-                      mapType: _mapType,
-                      style: _nightMode.value ? _nightMapStyle : null,
-                      markers: _routeStepMarkers.isEmpty
-                          ? _getMarkersFromCache()
-                          : {..._getMarkersFromCache(), ..._routeStepMarkers},
-                      circles: _buildHaloCircles(),
-                      // v23.1.353 — polyline orange de l'itinéraire "Y aller"
-                      // (GET /pawspots/directions).
-                      polylines: _routePolylines,
-                    );
-                  }),
-
-                // v551 — Daniel : « quand on zoome ou bouge vite, un micro
-                // texte "chargement" apparaît, j'aimerais qu'il soit
-                // invisible ». La pastille s'affichait dès qu'une couche se
-                // rechargeait (même 200 ms) → clignotement permanent pendant
-                // les gestes. Supprimée : les points arrivent tout seuls.
-
-                // v23.1.263 — bannière "Suivi en direct" : visible tant qu'on
-                // suit un ami à la trace. Bouton Stop pour reprendre la main.
-                if (_followUserId != null)
-                  Positioned(
-                    top: 12.h,
-                    left: 12.w,
-                    right: 12.w,
-                    child: Center(child: _buildFollowingBanner()),
-                  ),
-
-                // v19.1.3 — compact upsell pins in the LEFT corner so they
-                // stop covering the map (users complained the wide banner at
-                // the bottom blocked freemium browsing). Premium = green
-                // circular icon, Map Boost = blue circular icon. Tapping opens
-                // the full CoinShop screen.
-                // v23.1 part 40 — Daniel : déplace PawFollow/PawSpot du
-                // BOTTOM-LEFT vers le HAUT-LEFT (sous la barre de recherche)
-                // pour libérer la zone du bas.
-                // v23.1.353 — refonte PawSpot : le pill bleu « PawSpot »
-                // (raccourci boutique map-boost) est SUPPRIMÉ — la couche
-                // spots communautaires 🐾 vit dans la barre de filtres.
-                // v23.1.364 — Daniel : "le badge bouton PawFollow sur la
-                // PawMap a réapparu, vire-le" — le pill flottant violet est
-                // SUPPRIMÉ : le switch PawFollow de la rangée rapide suffit.
-
-                // Barre de recherche ville (gauche) + bouton géoloc (droite)
-                // en haut de la map. Les deux sont visibles en permanence
-                // pour un accès rapide.
-                // v23.1.189 — Daniel : "geolocalicasation + et -" plus
-                // modernes. La search-bar est seule sur la 1ere ligne ;
-                // les boutons + / - / geoloc sont regroupes dans un
-                // pill vertical blanc plein a droite (style Google Maps
-                // moderne) avec un divider fin entre chaque action.
-                // v420 — Daniel : "enlève la barre rechercher sur la map, il y
-                // a déjà rechercher en haut à droite" (icône 🔍 de l'AppBar).
-                // La pill de recherche ville flottante est retirée. Les
-                // contrôles +/-/géoloc remontent en haut à droite.
-                // v553 (retour Daniel : « tu aurais pu centrer la barre de
-                // gauche avec celle de droite, celle de droite est parfaite »).
-                // Les deux rails vivent maintenant dans UNE SEULE rangée
-                // ancrée en bas : le Row les centre l'un sur l'autre quelles
-                // que soient leurs hauteurs — plus de réglage au pixel qui
-                // se décale dès qu'on ajoute un bouton.
-                // v554 (retour Daniel : « remonte les deux petites barres,
-                // elles ne doivent pas toucher le menu ») : 108 → 156, la
-                // rangée se pose franchement au-dessus de la barre d'onglets.
-                // Et pendant un placement (spot / signalement) elle monte
-                // encore pour laisser le bandeau Valider/Annuler respirer ;
-                // le rail GAUCHE disparaît alors — ses boutons « Marquer un
-                // lieu » et « Signaler » sont justement l'action en cours.
-                Obx(() {
-                  final picking = _pickingSpotPos.value ||
-                      _pickingReportPos.value ||
-                      _pickingRoutePos.value;
-                  // La carte « Autour de vous » occupe le bas de l'écran
-                  // jusqu'à ~200 : quand elle est là, les rails passent
-                  // au-dessus d'elle au lieu de la chevaucher.
-                  // v565 — point 20 (Daniel : « quand on bouge la carte, les
-                  // barres se masquent / passent sous le menu »). Les rails
-                  // montaient et descendaient de 60 px à chaque rechargement
-                  // des signalements (la carte « Autour de vous » apparaissait
-                  // ou disparaissait) → ils semblaient se masquer pendant le
-                  // déplacement. Baseline désormais FIXE (hors placement) ;
-                  // c'est la carte « Autour de vous » et le bandeau d'itinéraire
-                  // qui laissent la place aux rails (marges latérales).
-                  return Positioned(
-                    left: 12.w,
-                    right: 12.w,
-                    // v555 — Daniel : « barres à baisser légèrement » (elles
-                    // touchaient le panneau blanc) : 156 → 146, et les
-                    // boutons sont passés de 44 à 38. Pendant un placement :
-                    // au-dessus de la carte de placement (140 + ~110).
-                    // v561 — Daniel : « les deux barres sont trop basses, ça
-                    // ne doit ni toucher le menu ni passer derrière » : le
-                    // menu est désormais une pilule flottante (6 + 58) →
-                    // rails remontés de 22 px dans chaque état.
-                    bottom: (picking ? 284.h : 168.h) -
-                        _tabBarLift(context) +
-                        MediaQuery.of(context).viewPadding.bottom,
-                    child: Row(
-                      // v561 — Daniel : « plus la peine de centrer la colonne
-                      // de gauche » → alignée sur le BAS de la capsule de droite.
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        if (!picking) _railScroller(_buildMapActionsColumn()),
-                        const Spacer(),
-                        _buildMapControlsStack(),
-                      ],
-                    ),
-                  );
-                }),
-
-                // v456 — POINT ROUGE FIXE au centre (placement précis), pour
-                // les DEUX viseurs (Paw Spot ET Signalement). La carte bouge
-                // SOUS le repère ; à Valider il disparaît et seul l'emoji reste.
-                Obx(() => (_pickingSpotPos.value ||
-                        _pickingReportPos.value ||
-                        _pickingRoutePos.value)
-                    ? _buildCenterReticle()
-                    : const SizedBox.shrink()),
-
-                // v554 — viseur « destination de l'itinéraire ».
-                Obx(() => _pickingRoutePos.value
-                    ? _buildRoutePickerOverlay()
-                    : const SizedBox.shrink()),
-
-                // v23.1.360 — mode VISEUR « Taguer un lieu » : bandeau
-                // Valider/Annuler. La carte bouge SOUS le repère central.
-                Obx(() => _pickingSpotPos.value
-                    ? _buildSpotPickerOverlay()
-                    : const SizedBox.shrink()),
-
-                // v449 — viseur SIGNALEMENT (express) : bandeau « Signaler ici ».
-                Obx(() => _pickingReportPos.value
-                    ? _buildReportPickerOverlay()
-                    : const SizedBox.shrink()),
-
-                // v23.1.187 — Daniel mockup : carte "Autour de vous" flottante
-                // en bas de la PawMap. Liste compacte des 3 signalements les
-                // plus proches avec badge severite + tap → AlertsScreen.
-                // v23.1.353 — masquée pendant qu'un itinéraire est affiché
-                // (le bandeau distance + "Effacer" prend sa place).
-                // v554 — « Autour de vous » se retire aussi pendant un
-                // placement : c'est elle qui gênait les boutons du viseur.
-                if (_routePolylines.isEmpty &&
-                    !_pickingSpotPos.value &&
-                    !_pickingReportPos.value &&
-                    !_pickingRoutePos.value)
-                  Positioned(
-                    // v418 — le FAB Signaler est passé en bas à GAUCHE : on
-                    // décale la carte « Autour de vous » pour ne pas le couvrir.
-                    // v565 — point 20 : marge droite aussi (capsule), les rails
-                    // gardent une baseline fixe.
-                    left: 72.w,
-                    right: 62.w,
-                    // v470 — Daniel : « Autour de vous derrière le menu et trop
-                    // grand ». On relève la carte au-dessus du menu pleine
-                    // largeur (116) + inset ; la taille est réduite dans
-                    // _buildAroundYouCard (police + paddings + max 2 lignes).
-                    // v570 — nouveau menu « patte » : doigts déployés jusqu'à 124 px
-                    // au centre quand PawMap est actif → la carte passe à 132 pour
-                    // ne plus glisser de 8 px sous la patte (taps interceptés).
-                    bottom: 132.h - _tabBarLift(context) + MediaQuery.of(context).viewPadding.bottom,
-                    child: _buildAroundYouCard(),
-                  )
-                else if (!_pickingSpotPos.value &&
-                    !_pickingReportPos.value &&
-                    !_pickingRoutePos.value)
-                  // v555 — jamais pendant un placement : il flottait par-dessus
-                  // Valider/Annuler (capture Daniel).
-                  Positioned(
-                    left: 12.w,
-                    right: 12.w,
-                    // v401 — Daniel : "le bouton Effacer l'itinéraire trop bas,
-                    // il gêne". Le bandeau distance + Effacer passait sous la
-                    // barre de gestes Android. On le remonte de tout l'inset
-                    // système + une marge pour qu'il ne croise plus le FAB
-                    // Signaler (bottom-right, à 24.h + inset).
-                    // v470 — relevé franchement au-dessus de la barre de menu
-                    // pleine largeur.
-                    // v573 — nouveau menu « patte » : les 4 doigts dépassent
-                    // d'une trentaine de points au-dessus de la pilule et
-                    // chevauchaient ce bandeau (136 → 160).
-                    bottom: 160.h - _tabBarLift(context) + MediaQuery.of(context).viewPadding.bottom,
-                    // v565 — point 20 : le bandeau reste ENTRE les deux rails
-                    // (baseline fixe) au lieu de les faire remonter.
-                    child: Center(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 52.w),
-                        // v573 — « RIGHT OVERFLOWED BY 30 PIXELS » entre les
-                        // deux rails : le bandeau se réduit au lieu de déborder.
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: _buildDirectionsBanner(),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-
-          // v552 — panneaux flottants de la petite carte (au-dessus de la
-          // carte plein écran, comme la maquette). Masqués quand la carte est
-          // agrandie : le calque a ses propres commandes.
-          // v554 — pendant un placement, le panneau blanc et la ligne
-          // « Partager ma position » s'effacent : on voit la carte qu'on vise
-          // et la bulle d'aide n'est plus cachée derrière eux.
-          Obx(() => (_mapExpanded.value ||
-                  _pickingSpotPos.value ||
-                  _pickingReportPos.value ||
-                  _pickingRoutePos.value)
-              ? const SizedBox.shrink()
-              : Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: _buildTopArea(),
-                )),
-
-          // ── CALQUE « carte agrandie » (par-dessus la PawMap normale) ────
-          // La PawMap normale ci-dessus reste montée et INTACTE (sa GoogleMap
-          // n'est jamais redimensionnée ni détruite). Ce calque possède sa
-          // PROPRE GoogleMap plein écran ; à la réduction il disparaît et la
-          // carte normale réapparaît telle quelle → zéro risque de carte
-          // blanche (contrairement aux tentatives v451/v458).
-          Obx(() => _mapExpanded.value
-              ? Positioned.fill(child: _buildExpandedMapOverlay())
-              : const SizedBox.shrink()),
-        ],
-      ),
       ),
     );
+  }
+
+  /// Bouton rond de l'en-tête flottant : verre blanc (anthracite en sombre),
+  /// icône à l'orange de la marque, ombre douce.
+  Widget _headerRoundButton({
+    Key? key,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return PawPressable(
+      key: key,
+      label: label,
+      onTap: onTap,
+      child: PawGlassPill(
+        color: AppColors.primaryColor.withValues(alpha: 0.35),
+        height: 40.w,
+        width: 40.w,
+        padding: EdgeInsets.zero,
+        child: Icon(icon,
+            size: 21.sp,
+            color: AppColors.accentOn(context, AppColors.primaryColor)),
+      ),
+    );
+  }
+
+  /// v584 — LA GoogleMap unique (voir `build`). Un seul contrôleur
+  /// (`_mapCtl`), un seul jeu de rappels, mêmes couches quel que soit le
+  /// mode (normal / agrandi).
+  Widget _buildGoogleMap() {
+    return Obx(() {
+      // Dépendances observées : la carte se reconstruit quand une couche
+      // change vraiment (listes, interrupteurs, tick du halo, bitmaps prêts).
+      _poiController.visiblePois.length;
+      _reportController.reports.length;
+      _showPois.value;
+      _showReports.value;
+      // v23.1 part 123 — tick halo (~1,7 fps) : la pulsation reste fluide.
+      _haloPhase.value;
+      // v23.1.163 — providers + interrupteur (sinon aucun halo à l'arrivée).
+      _nearbyProviders.length;
+      _showProviders.value;
+      // v550 — couche MONDE ; v551 — filtre par type.
+      _worldMembers.length;
+      _memberRoles.length;
+      // v23.1.353 — couche PawSpot.
+      _showPawSpots.value;
+      _pawSpotController.spots.length;
+      // v23.1 part 248 — famille / amis (halo violet dès que la liste arrive).
+      _friendController.familyMembers.length;
+      _friendController.friends.length;
+      // v23.1 part 249 — un marqueur photo fini de générer → on le pose.
+      _friendMarkerService.rev.value;
+      // v552 — mode nuit ; v584 — agrandi (padding de la carte).
+      final night = _nightMode.value;
+      final expanded = _mapExpanded.value;
+      return GoogleMap(
+        initialCameraPosition: CameraPosition(
+          target: _currentCenter,
+          zoom: 13,
+        ),
+        onMapCreated: (c) {
+          if (!_mapCtl.isCompleted) _mapCtl.complete(c);
+          // v23.1 part 213 — centre initial demandé (alerte, ami, lien) :
+          // on y va tout de suite, avant le recentrage GPS.
+          final lat = widget.initialLat;
+          final lng = widget.initialLng;
+          if (lat != null && lng != null) {
+            // v23.1.263 — ouverture en mode suivi : zoom au plus près.
+            final z = (widget.focusUserId ?? '').isNotEmpty
+                ? _followZoom
+                : 16.0;
+            c.animateCamera(
+              CameraUpdate.newCameraPosition(
+                CameraPosition(target: LatLng(lat, lng), zoom: z),
+              ),
+            );
+          }
+        },
+        // v23.1.363 — mode viseur : TAPER la carte place le pin exactement
+        // là (spot, signalement, destination d'itinéraire).
+        onTap: (latLng) {
+          if (_pickingSpotPos.value ||
+              _pickingReportPos.value ||
+              _pickingRoutePos.value) {
+            setState(() => _pickedSpotPos = latLng);
+          }
+        },
+        onCameraMove: _onCameraMove,
+        // v23.1.263 — un geste MANUEL coupe le suivi (sauf si c'est nous qui
+        // recentrons : `_suppressFollowAutoStop`). Valait seulement sur la
+        // petite carte avant la fusion ; vaut partout désormais.
+        onCameraMoveStarted: () {
+          if (_followUserId != null && !_suppressFollowAutoStop) {
+            _stopFollow();
+          }
+        },
+        onCameraIdle: _scheduleReload,
+        myLocationEnabled: true,
+        // v23.1 part 68 — nos propres commandes (capsule droite).
+        myLocationButtonEnabled: false,
+        zoomControlsEnabled: false,
+        // v584 — le logo Google et les cibles de caméra évitent le menu du
+        // bas (petite carte) : la carte, elle, ne change pas de taille.
+        padding: EdgeInsets.only(
+          bottom: expanded ? 0 : 100.h - _tabBarLift(context),
+        ),
+        mapType: _mapType,
+        style: night ? _nightMapStyle : null,
+        // v23.1 part 243 round 3 — marqueurs mémoïsés (_getMarkersFromCache).
+        markers: _routeStepMarkers.isEmpty
+            ? _getMarkersFromCache()
+            : {..._getMarkersFromCache(), ..._routeStepMarkers},
+        circles: _buildHaloCircles(),
+        // v23.1.353 — polyline de l'itinéraire "Y aller".
+        polylines: _routePolylines,
+      );
+    });
   }
 
   /// v23.1 part 68 — Daniel : "mettre bouton + - en haut a droit".
@@ -5334,15 +5284,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Recentre la caméra sur [target]. Marque le mouvement comme "programmatique"
   /// pendant ~800 ms pour que onCameraMoveStarted ne coupe pas le suivi.
   Future<void> _animateFollowCamera(LatLng target, {double? zoom}) async {
-    // v469 — si la carte est AGRANDIE, on anime la caméra du calque (sa propre
-    // GoogleMap visible) ; sinon celle de la carte normale.
-    GoogleMapController? ctl;
-    if (pawMapExpanded.value && _expandedCtl != null) {
-      ctl = _expandedCtl;
-    } else {
-      if (!_mapCtl.isCompleted) return;
-      ctl = await _mapCtl.future;
-    }
+    // v584 — une seule carte : on anime LE contrôleur.
+    final ctl = await _activeMapCtl();
     if (ctl == null) return;
     _suppressFollowAutoStop = true;
     try {
@@ -5441,12 +5384,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   // zoomIn()/zoomOut() sautaient d'UN niveau entier (×2 d'un coup) -> effet
   // brusque/saccadé. On passe à un pas plus doux de ±0.8 niveau (zoomBy) pour
   // un zoom progressif et fluide, toujours animé.
-  /// v550 — Daniel : « quand la carte est en grand, rajoute le bouton ma
-  /// position ». Le calque plein écran a SA propre GoogleMap : zoom et
-  /// recentrage doivent viser _expandedCtl, sinon ils pilotaient la carte
-  /// cachée dessous (aucun effet visible).
+  /// v584 — LE contrôleur de la carte (null tant qu'elle n'est pas créée).
+  /// Gardé sous ce nom : tous les gestes de caméra passent par ici.
   Future<GoogleMapController?> _activeMapCtl() async {
-    if (_mapExpanded.value && _expandedCtl != null) return _expandedCtl;
     if (!_mapCtl.isCompleted) return null;
     return _mapCtl.future;
   }
@@ -6836,12 +6776,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       padding: EdgeInsets.only(top: fill ? 0 : 8.h),
       child: PawPressable(
         label: label,
-        onTap: () {
-          // v469 — en réduisant, on invalide le contrôleur du calque (sa
-          // GoogleMap va être démontée) → le suivi repasse sur _mapCtl.
-          if (expanded) _expandedCtl = null;
-          _mapExpanded.value = !expanded;
-        },
+        onTap: () => _mapExpanded.value = !expanded,
         child: PawGlassPill(
           color: pink,
           filled: expanded,
@@ -6883,202 +6818,6 @@ class _PawMapScreenState extends State<PawMapScreen>
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  /// Calque plein écran posé PAR-DESSUS la PawMap normale. Possède sa propre
-  /// GoogleMap (instance dédiée, plein écran). La carte normale en dessous
-  /// n'est JAMAIS redimensionnée → zéro carte blanche au retour.
-  Widget _buildExpandedMapOverlay() {
-    return Material(
-      // Fond opaque (couleur du rôle) → aucun flash blanc pendant le 1er rendu.
-      color: AppColors.scaffold(context),
-      child: Stack(
-        children: [
-          // Carte plein écran dédiée.
-          Positioned.fill(
-            child: Obx(() {
-              // Mêmes dépendances Obx que la carte normale (markers/halo/spots).
-              _poiController.visiblePois.length;
-              _reportController.reports.length;
-              _showPois.value;
-              _showReports.value;
-              _haloPhase.value;
-              _nearbyProviders.length;
-              _showProviders.value;
-              _worldMembers.length; // v550 — couche monde (membres roses).
-              _memberRoles.length; // v551 — filtre par type.
-              _showPawSpots.value;
-              _pawSpotController.spots.length;
-              // ignore: unused_local_variable
-              final markerRev = _friendMarkerService.rev.value;
-              return GoogleMap(
-                initialCameraPosition:
-                    CameraPosition(target: _currentCenter, zoom: 13),
-                // v469 — le calque a SON contrôleur (séparé de _mapCtl) pour que
-                // le suivi anime BIEN la carte agrandie visible, pas la carte
-                // normale cachée dessous.
-                onMapCreated: (c) {
-                  _expandedCtl = c;
-                  // Si on suit déjà quelqu'un au moment d'agrandir, on recolle
-                  // tout de suite la caméra du calque sur lui.
-                  final uid = _followUserId;
-                  if (uid != null) {
-                    final fp = _liveMap.friendPositions[uid];
-                    if (fp != null) {
-                      c.animateCamera(CameraUpdate.newLatLngZoom(
-                          LatLng(fp.latitude, fp.longitude), _followZoom));
-                    }
-                  }
-                },
-                onTap: (latLng) {
-                  if (_pickingSpotPos.value ||
-                      _pickingReportPos.value ||
-                      _pickingRoutePos.value) {
-                    setState(() => _pickedSpotPos = latLng);
-                  }
-                },
-                onCameraMove: _onCameraMove,
-                onCameraIdle: _scheduleReload,
-                myLocationEnabled: true,
-                myLocationButtonEnabled: false,
-                zoomControlsEnabled: false,
-                mapType: _mapType,
-                style: _nightMode.value ? _nightMapStyle : null,
-                markers: _routeStepMarkers.isEmpty
-                          ? _getMarkersFromCache()
-                          : {..._getMarkersFromCache(), ..._routeStepMarkers},
-                circles: _buildHaloCircles(),
-                polylines: _routePolylines,
-              );
-            }),
-          ),
-
-          // Repère central + bandeaux de validation (mêmes que la carte normale).
-          Obx(() => (_pickingSpotPos.value ||
-                  _pickingReportPos.value ||
-                  _pickingRoutePos.value)
-              ? _buildCenterReticle()
-              : const SizedBox.shrink()),
-          Obx(() => _pickingRoutePos.value
-              ? _buildRoutePickerOverlay()
-              : const SizedBox.shrink()),
-          Obx(() => _pickingSpotPos.value
-              ? _buildSpotPickerOverlay()
-              : const SizedBox.shrink()),
-          Obx(() => _pickingReportPos.value
-              ? _buildReportPickerOverlay()
-              : const SizedBox.shrink()),
-
-          // EN HAUT : [ Suivi en direct ON/OFF ] [ Réduire la carte ]
-          // v555 — masquée pendant un placement : elle passait DEVANT la bulle
-          // d'aide du viseur (capture Daniel : « …ouge à » coupé).
-          Obx(() => (_pickingSpotPos.value ||
-                  _pickingReportPos.value ||
-                  _pickingRoutePos.value)
-              ? const SizedBox.shrink()
-              : Positioned(
-                  top: 8.h,
-                  left: 0,
-                  right: 0,
-                  child: Row(
-                    children: [
-                      Expanded(child: _buildLiveBroadcastBanner()),
-                      _buildExpandPill(expanded: true),
-                      SizedBox(width: 12.w),
-                    ],
-                  ),
-                )),
-
-          // v488 — Daniel : MÊMES 4 boutons ronds qu'en petite carte (Voir
-          // spots / Tag spot / Voir signaux / Signaler), centrés verticalement
-          // à GAUCHE, en mode agrandi aussi.
-          // v554 — pendant un placement (spot / signalement), le rail gauche
-          // s'efface : ses boutons « Marquer un lieu » et « Signaler » sont
-          // l'action en cours, et ils masquaient le bandeau Valider/Annuler.
-          Obx(() => (_pickingSpotPos.value ||
-                  _pickingReportPos.value ||
-                  _pickingRoutePos.value)
-              ? const SizedBox.shrink()
-              : Positioned(
-                  left: 12.w,
-                  // v553 — au-dessus du dock (14 + hauteur du dock 46 + 22 de
-                  // respiration) : plus aucun chevauchement entre les rangées.
-                  bottom: _navInset(context) + 82.h,
-                  child: _railScroller(_buildMapActionsColumn(expanded: true),
-                      expanded: true),
-                )),
-
-          // v565 — point 20 : sur la grande carte le menu du bas a disparu →
-          // bouton RETOUR en bas à gauche (même hauteur que le dock), qui
-          // réduit la carte. Masqué pendant un placement (bandeau Valider).
-          Obx(() => (_pickingSpotPos.value ||
-                  _pickingReportPos.value ||
-                  _pickingRoutePos.value)
-              ? const SizedBox.shrink()
-              : Positioned(
-                  left: 12.w,
-                  bottom: _navInset(context) + 14.h,
-                  child: _buildExpandedBackButton(),
-                )),
-
-          // v554 — bandeau « distance + Effacer l'itinéraire » : il n'existait
-          // QUE sur la petite carte. Sur la grande, l'itinéraire se traçait
-          // sans aucun retour visible ni moyen de l'effacer → Daniel a conclu
-          // que le bouton n'était pas branché. Ici en HAUT : le bas est déjà
-          // occupé par le dock et les deux rails.
-          if (_routePolylines.isNotEmpty &&
-              !_pickingSpotPos.value &&
-              !_pickingReportPos.value &&
-              !_pickingRoutePos.value)
-            Positioned(
-              // v559 — Daniel : sous la rangée « Partager en direct / Réduire »
-              // (≈ 8 → 56) avec une vraie marge, centré, sans la toucher.
-              top: 100.h,
-              left: 12.w,
-              right: 12.w,
-              child: Center(child: _buildDirectionsBanner()),
-            ),
-
-          // v552 — dock bas (spec v3) : SOS animal, Partager la carte,
-          // Calques, Mode nuit, Historique — ancré au-dessus de la barre
-          // système (marge + 66).
-          // v554 — le dock disparaît pendant un placement : c'est lui qui
-          // recouvrait « Valider le spot » sur la capture de Daniel.
-          Obx(() => (_pickingSpotPos.value ||
-                  _pickingReportPos.value ||
-                  _pickingRoutePos.value)
-              ? const SizedBox.shrink()
-              : Positioned(
-                  left: 0,
-                  right: 0,
-                  // v553 (retour Daniel : « les boutons en slide en bas ne
-                  // sont pas bien placés ») : le dock se pose juste au-dessus
-                  // de la barre système, les rails passent au-dessus de lui.
-                  bottom: _navInset(context) + 14.h,
-                  child: _buildMapDock(),
-                )),
-
-          // v550 — Daniel : « quand la carte est en grand, rajoute le bouton
-          // ma position ». Même pilule blanche qu'en petite carte (ma
-          // position / + / -), à droite, au-dessus de la barre système.
-          // v554 — le rail droit (ma position / + / − / satellite / membres)
-          // reste utile pour viser précisément : il monte simplement de
-          // quelques pixels pendant le placement pour laisser passer le
-          // bandeau Valider/Annuler.
-          Obx(() => Positioned(
-                right: 12.w,
-                // v553 — même ligne de base que le rail gauche.
-                bottom: _navInset(context) +
-                    ((_pickingSpotPos.value ||
-                            _pickingReportPos.value ||
-                            _pickingRoutePos.value)
-                        ? 136.h
-                        : 82.h),
-                child: _buildMapControlsStack(),
-              )),
-        ],
       ),
     );
   }
@@ -7389,10 +7128,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v565 (18/09) — verre blanc translucide, liseré fin, appui animé.
     return PawPressable(
       label: 'pawmap_reduce_map'.tr,
-      onTap: () {
-        _expandedCtl = null;
-        _mapExpanded.value = false;
-      },
+      onTap: () => _mapExpanded.value = false,
       child: PawGlassPill(
         color: PawMapTheme.inkOn(context).withValues(alpha: 0.18),
         height: 44.h,
@@ -9528,13 +9264,3 @@ class _TtlBadgeState extends State<_TtlBadge> {
 
 
 
-/// v573 — boutons de l'en-tête PawMap : pastilles rondes teintées (même
-/// langage que les boutons d'en-tête de l'accueil).
-ButtonStyle _pawMapHeaderButtonStyle(BuildContext context) {
-  return IconButton.styleFrom(
-    foregroundColor: AppColors.accentOn(context, AppColors.primaryColor),
-    backgroundColor: AppColors.primaryColor.withValues(alpha: 0.10),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    minimumSize: const Size(40, 40),
-  );
-}
