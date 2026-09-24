@@ -13,6 +13,7 @@ import { AppIcon, type AppIconName } from "@/components/AppIcon";
 import { PageTitle } from "@/components/PageTitle";
 import { ROLE_COLOR } from "@/lib/pawmapLegend";
 import { FeedbackBox } from "@/components/FeedbackBox";
+import { SignatureButton } from "@/components/SignatureButton";
 
 // v493 — barre latérale + zone principale. v562 — orange pâle au survol.
 // 24/09/2026 — LOT B, étape 4 (plan de LEO validé par Daniel) : le tableau de
@@ -435,9 +436,10 @@ export default function DashboardPage() {
             </p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <input type="text" value={promoCode} onChange={(e) => setPromoCode(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleApplyPromo(); }} placeholder={t("promo_placeholder")} className="min-w-0 flex-1 rounded-full border border-[#EADFDC] bg-white px-4 py-2.5 text-sm uppercase tracking-wide outline-none focus:border-[#C92A12]" />
-              <button type="button" onClick={handleApplyPromo} disabled={promoBusy || !promoCode.trim()} className="min-h-[44px] shrink-0 rounded-full bg-[#231715] px-6 text-sm font-semibold text-white hover:bg-black disabled:opacity-60">
-                {promoBusy ? "…" : t("promo_apply")}
-              </button>
+              <div className="shrink-0 sm:w-44">
+                {/* 25/09 — LOT D : bouton signature (désactivé = teinte PÂLE du rôle, jamais gris). */}
+                <SignatureButton label={t("promo_apply")} icon="ticket" tone={role} onClick={handleApplyPromo} disabled={!promoCode.trim()} loading={promoBusy} />
+              </div>
             </div>
             {promoMsg && <p className={`mt-3 text-sm ${promoMsg.ok ? "text-[#0F7C37]" : "text-[#B42318]"}`}>{promoMsg.text}</p>}
           </div>
