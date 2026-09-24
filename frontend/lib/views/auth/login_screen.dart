@@ -502,7 +502,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             fontWeight: FontWeight.w700,
                             color: isDark
                                 ? const Color(0xFFF472B6)
-                                : const Color(0xFF9D6B85),
+                                : const Color(0xFFBE185D),
                           ),
                         ],
                       ),

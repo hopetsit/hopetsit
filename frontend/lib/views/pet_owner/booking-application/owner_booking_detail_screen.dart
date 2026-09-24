@@ -1117,7 +1117,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
       case 'paid': return Colors.green;
       case 'pending': return Colors.orange;
       case 'failed': return AppColors.errorColor;
-      case 'refunded': return Colors.blueGrey;
+      case 'refunded': return const Color(0xFF0F766E);
       default: return AppColors.greyColor;
     }
   }

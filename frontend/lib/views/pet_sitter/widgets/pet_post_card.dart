@@ -2470,7 +2470,7 @@ class _AssetPhotoViewerState extends State<_AssetPhotoViewer> {
                   height: 28,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.4,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 ),
               ),

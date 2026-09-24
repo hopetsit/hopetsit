@@ -59,7 +59,7 @@ Future<void> openChatMedia(BuildContext context, ChatAttachment a) async {
           minScale: PhotoViewComputedScale.contained,
           maxScale: PhotoViewComputedScale.covered * 3,
           loadingBuilder: (_, __) => const Center(
-            child: CircularProgressIndicator(color: Colors.white70),
+            child: CircularProgressIndicator(color: Colors.white),
           ),
         ),
         ),

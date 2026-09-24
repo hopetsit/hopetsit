@@ -20,6 +20,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 /// Ouvre la visionneuse sur [urls], en commençant par [initialIndex].
@@ -127,13 +128,13 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
                           child: CircularProgressIndicator(
                             strokeWidth: 2.4,
                             valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white70),
+                                AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         ),
                       ),
                       errorWidget: (BuildContext c, String _, Object __) =>
                           const Icon(Icons.broken_image_rounded,
-                              color: Colors.white38, size: 48),
+                              color: AppColors.textSecondaryDark, size: 48),
                     ),
                   ),
                 );
@@ -165,7 +166,7 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.16),
+                    color: AppColors.cardDark.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: InterText(
@@ -202,7 +203,7 @@ class _RoundGlassButton extends StatelessWidget {
       button: true,
       label: tooltip,
       child: Material(
-        color: Colors.white.withValues(alpha: 0.16),
+        color: AppColors.cardDark.withValues(alpha: 0.9),
         shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: InkWell(

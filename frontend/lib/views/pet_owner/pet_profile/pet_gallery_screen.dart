@@ -523,7 +523,7 @@ class _PetGalleryScreenState extends State<PetGalleryScreen> {
                 borderRadius: BorderRadius.circular(14.r),
                 child: isVideo
                     ? ColoredBox(
-                        color: Colors.black87,
+                        color: AppColors.backgroundDark,
                         child: Center(
                           child: Icon(Icons.play_circle_fill_rounded,
                               color: Colors.white, size: 34.sp),
