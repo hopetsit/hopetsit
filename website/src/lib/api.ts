@@ -2914,3 +2914,31 @@ export async function sendContactMessage(input: {
   }
   return { ok: true };
 }
+
+// ─── 25/09/2026 — LOT D : boîte à idées (Daniel) ────────────────────────────
+// « Une idée ? Un problème ? » : UNE entrée (tableau de bord connecté, et le
+// même formulaire dans l'app) qui passe par le circuit de signalement de bugs
+// DÉJÀ existant côté serveur (`POST /bug-reports`) avec l'étiquette `kind`
+// ('idea' | 'problem' → le serveur range 'problem' comme un bug). Aucune
+// nouvelle route. Le serveur répond `{ ok, reportId }` ; l'admin les voit dans
+// la section des signalements avec le filtre « Idées ».
+export type FeedbackKind = "idea" | "problem";
+
+export async function sendFeedback(opts: {
+  kind: FeedbackKind;
+  description: string;
+  title?: string;
+  screen?: string;
+}): Promise<{ ok: boolean; reportId: string }> {
+  return request<{ ok: boolean; reportId: string }>("/bug-reports", {
+    method: "POST",
+    body: JSON.stringify({
+      kind: opts.kind,
+      title: (opts.title || "").slice(0, 120),
+      description: opts.description.trim().slice(0, 4000),
+      screen: opts.screen || "web:dashboard",
+      appVersion: "web",
+      platform: "web",
+    }),
+  });
+}

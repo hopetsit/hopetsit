@@ -7,6 +7,7 @@ import { Footer } from "@/components/Footer";
 import { DownloadAppBanner } from "@/components/DownloadAppBanner";
 import { AppLinkOpener } from "@/components/AppLinkOpener";
 import SiteAnalytics from "@/components/SiteAnalytics";
+import { RoleWallpaper } from "@/components/RoleWallpaper";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -180,6 +181,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               stores. Sans cookie, sans stockage local, sans donnée
               personnelle → aucun bandeau de consentement requis. */}
           <SiteAnalytics />
+          {/* 25/09 — LOT D : fond « à mon animal » (rôle + espèce → globals.css). */}
+          <RoleWallpaper />
           <main>{children}</main>
           <Footer />
         </LanguageProvider>

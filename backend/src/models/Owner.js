@@ -186,6 +186,11 @@ const ownerSchema = new mongoose.Schema(
       // l'utilisateur active lui-même. Défaut false = rien ne change pour les
       // comptes existants.
       hideFromMap: { type: Boolean, default: false },
+      // v585 (lot D, 25/09) — « Mon fond » (NORME_DESIGN.md) : papier peint
+      // « à mon animal » sur l'app ET le site : auto (selon mon animal) /
+      // paws (pattes seules) / none. Enregistré sur le compte, suivi sur les
+      // 3 profils et le site. Défaut auto = le nouveau fond, sans réglage.
+      wallpaper: { type: String, enum: ['auto', 'paws', 'none'], default: 'auto' },
       // v584 (lot C, 24/09) — préférences de la PawMap enregistrées sur le
       // COMPTE (caméra, calques, rail, mode nuit…), validées par
       // controllers/mapPrefsController.normalizeMapPrefs, synchronisées sur

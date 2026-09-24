@@ -119,3 +119,113 @@ html.lang-switching body {
 @media (prefers-reduced-motion: reduce) {
   .hps-app-icon { animation: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   25/09/2026 — LOT D (NORME_DESIGN.md, validée par Daniel le 23/09)
+   1) FOND « À MON ANIMAL » : papier peint de pattes et de cœurs + les objets
+      de mon animal (chien = os / balle, chat = poisson / pelote, oiseau =
+      plume, lapin = carotte), teinté à la COULEUR DU RÔLE ACTIF (propriétaire
+      orange pâle, gardien bleu pâle, promeneur VERT pâle). Visiteur = pattes.
+      Le motif est un MASQUE SVG (mask-image) rempli par la variable --wp-ink :
+      une seule forme, la couleur suit le rôle. Il s'efface derrière les cartes
+      (elles ont leur fond) et ne capte aucun clic. `RoleWallpaper.tsx` pose
+      data-role / data-pet / data-wp sur <html>.
+   2) BOUTON SIGNATURE (`SignatureButton.tsx`) : reflet verre, reflet qui passe
+      toutes les 6 s (earns), empreinte de patte au clic, pilules de choix.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --wp-bg: #FFFBF9;      /* visiteur : crème très pâle, jamais gris */
+  --wp-ink: #C92A12;     /* motifs : couleur du rôle (orange par défaut) */
+  --wp-alpha: 0.075;
+}
+html[data-role="owner"]  { --wp-bg: #FFF1EC; --wp-ink: #C92A12; }
+html[data-role="sitter"] { --wp-bg: #EAF2FD; --wp-ink: #2563EB; }
+html[data-role="walker"] { --wp-bg: #EAF7EE; --wp-ink: #16A34A; }
+
+html, body { background: var(--wp-bg); }
+body { position: relative; z-index: 0; }
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--wp-ink);
+  opacity: var(--wp-alpha);
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  -webkit-mask-size: 220px 220px;
+  mask-size: 220px 220px;
+  /* pattes + cœurs (toujours) */
+  -webkit-mask-image: var(--wp-mask, var(--wp-paws));
+  mask-image: var(--wp-mask, var(--wp-paws));
+}
+html[data-wp="none"] body::before { display: none; }
+
+:root {
+  /* Une tuile 220×220 : 4 pattes, 2 cœurs, en quinconce, tailles variées. */
+  --wp-paws: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'><g id='p'><ellipse cx='0' cy='6' rx='9' ry='7.5'/><ellipse cx='-9' cy='-3' rx='4' ry='5.2' transform='rotate(-24 -9 -3)'/><ellipse cx='-3' cy='-9' rx='4' ry='5.4'/><ellipse cx='3' cy='-9' rx='4' ry='5.4'/><ellipse cx='9' cy='-3' rx='4' ry='5.2' transform='rotate(24 9 -3)'/></g><use href='%23p' transform='translate(40 40) rotate(-20) scale(1.1)'/><use href='%23p' transform='translate(150 30) rotate(30) scale(.85)'/><use href='%23p' transform='translate(95 125) rotate(10)'/><use href='%23p' transform='translate(185 170) rotate(-35) scale(.9)'/><use href='%23p' transform='translate(30 185) rotate(45) scale(.75)'/><path transform='translate(200 95) scale(.55)' d='M0 12 C-14 2,-8 -12,0 -6 C8 -12,14 2,0 12z'/><path transform='translate(80 200) scale(.5) rotate(-15)' d='M0 12 C-14 2,-8 -12,0 -6 C8 -12,14 2,0 12z'/></svg>");
+  /* chien : os + balle */
+  --wp-dog: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'><g id='p'><ellipse cx='0' cy='6' rx='9' ry='7.5'/><ellipse cx='-9' cy='-3' rx='4' ry='5.2' transform='rotate(-24 -9 -3)'/><ellipse cx='-3' cy='-9' rx='4' ry='5.4'/><ellipse cx='3' cy='-9' rx='4' ry='5.4'/><ellipse cx='9' cy='-3' rx='4' ry='5.2' transform='rotate(24 9 -3)'/></g><use href='%23p' transform='translate(40 40) rotate(-20)'/><use href='%23p' transform='translate(160 150) rotate(30) scale(.85)'/><g transform='translate(150 45) rotate(-30)'><circle cx='-16' cy='-5' r='5'/><circle cx='-16' cy='5' r='5'/><circle cx='16' cy='-5' r='5'/><circle cx='16' cy='5' r='5'/><rect x='-16' y='-4' width='32' height='8' rx='4'/></g><g transform='translate(60 150)'><circle r='11'/><path d='M-11 0 Q0 -8 11 0 Q0 8 -11 0z' fill='%23fff' opacity='.6'/></g><path transform='translate(110 100) scale(.5)' d='M0 12 C-14 2,-8 -12,0 -6 C8 -12,14 2,0 12z'/><g transform='translate(30 195) rotate(20) scale(.8)'><circle cx='-16' cy='-5' r='5'/><circle cx='-16' cy='5' r='5'/><circle cx='16' cy='-5' r='5'/><circle cx='16' cy='5' r='5'/><rect x='-16' y='-4' width='32' height='8' rx='4'/></g></svg>");
+  /* chat : poisson + pelote + lune */
+  --wp-cat: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'><g id='p'><ellipse cx='0' cy='6' rx='9' ry='7.5'/><ellipse cx='-9' cy='-3' rx='4' ry='5.2' transform='rotate(-24 -9 -3)'/><ellipse cx='-3' cy='-9' rx='4' ry='5.4'/><ellipse cx='3' cy='-9' rx='4' ry='5.4'/><ellipse cx='9' cy='-3' rx='4' ry='5.2' transform='rotate(24 9 -3)'/></g><use href='%23p' transform='translate(40 40) rotate(-20)'/><use href='%23p' transform='translate(160 150) rotate(30) scale(.85)'/><g transform='translate(150 45) rotate(-15)'><path d='M-18 0 Q-6 -12 8 -9 Q16 -4 18 0 Q16 4 8 9 Q-6 12 -18 0z'/><path d='M14 0 L24 -8 L24 8z'/></g><g transform='translate(60 150)'><circle r='11'/><path d='M-9 -5 Q0 4 9 -5 M-9 4 Q0 -4 9 4' fill='none' stroke='%23fff' stroke-width='1.6' opacity='.7'/></g><path transform='translate(110 100) scale(.5)' d='M0 12 C-14 2,-8 -12,0 -6 C8 -12,14 2,0 12z'/><path transform='translate(35 195) scale(.9)' d='M6 -10 A11 11 0 1 0 6 10 A8 8 0 1 1 6 -10z'/></svg>");
+  /* oiseau : plume */
+  --wp-bird: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'><g id='p'><ellipse cx='0' cy='6' rx='9' ry='7.5'/><ellipse cx='-9' cy='-3' rx='4' ry='5.2' transform='rotate(-24 -9 -3)'/><ellipse cx='-3' cy='-9' rx='4' ry='5.4'/><ellipse cx='3' cy='-9' rx='4' ry='5.4'/><ellipse cx='9' cy='-3' rx='4' ry='5.2' transform='rotate(24 9 -3)'/></g><use href='%23p' transform='translate(40 40) rotate(-20)'/><use href='%23p' transform='translate(160 150) rotate(30) scale(.85)'/><g transform='translate(150 45) rotate(35)'><path d='M0 -18 Q12 -6 10 8 Q6 16 0 20 Q-6 16 -10 8 Q-12 -6 0 -18z'/><path d='M0 -14 L0 20' stroke='%23fff' stroke-width='1.6' opacity='.7'/></g><path transform='translate(110 100) scale(.5)' d='M0 12 C-14 2,-8 -12,0 -6 C8 -12,14 2,0 12z'/><g transform='translate(50 160) rotate(-40) scale(.8)'><path d='M0 -18 Q12 -6 10 8 Q6 16 0 20 Q-6 16 -10 8 Q-12 -6 0 -18z'/></g></svg>");
+  /* lapin : carotte */
+  --wp-rabbit: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'><g id='p'><ellipse cx='0' cy='6' rx='9' ry='7.5'/><ellipse cx='-9' cy='-3' rx='4' ry='5.2' transform='rotate(-24 -9 -3)'/><ellipse cx='-3' cy='-9' rx='4' ry='5.4'/><ellipse cx='3' cy='-9' rx='4' ry='5.4'/><ellipse cx='9' cy='-3' rx='4' ry='5.2' transform='rotate(24 9 -3)'/></g><use href='%23p' transform='translate(40 40) rotate(-20)'/><use href='%23p' transform='translate(160 150) rotate(30) scale(.85)'/><g transform='translate(150 45) rotate(40)'><path d='M-6 -14 L6 -14 L0 18z'/><path d='M-6 -14 L-10 -24 M0 -14 L0 -25 M6 -14 L10 -24' stroke='%23000' stroke-width='3' stroke-linecap='round'/></g><path transform='translate(110 100) scale(.5)' d='M0 12 C-14 2,-8 -12,0 -6 C8 -12,14 2,0 12z'/><g transform='translate(50 165) rotate(-30) scale(.8)'><path d='M-6 -14 L6 -14 L0 18z'/></g></svg>");
+}
+html[data-wp="auto"][data-pet="dog"]    body::before { --wp-mask: var(--wp-dog); }
+html[data-wp="auto"][data-pet="cat"]    body::before { --wp-mask: var(--wp-cat); }
+html[data-wp="auto"][data-pet="bird"]   body::before { --wp-mask: var(--wp-bird); }
+html[data-wp="auto"][data-pet="rabbit"] body::before { --wp-mask: var(--wp-rabbit); }
+html[data-wp="auto"][data-pet="mix"]    body::before { --wp-mask: var(--wp-dog); }
+@media (prefers-color-scheme: dark) {
+  html[data-theme="dark"] { --wp-bg: #241916; --wp-alpha: 0.10; }
+}
+
+/* ── Bouton signature ────────────────────────────────────────────────────── */
+.hps-btn { -webkit-tap-highlight-color: transparent; }
+.hps-btn-label { white-space: normal; overflow-wrap: normal; text-wrap: balance; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: visible; }
+.hps-btn-gloss {
+  position: absolute; left: 0; right: 0; top: 0; height: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,0));
+  pointer-events: none;
+}
+@keyframes hps-sheen {
+  0%   { transform: translateX(-140%) skewX(-20deg); }
+  14%  { transform: translateX(240%)  skewX(-20deg); }
+  100% { transform: translateX(240%)  skewX(-20deg); }
+}
+.hps-btn-sheen {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 28%;
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.28), rgba(255,255,255,0));
+  animation: hps-sheen 6s linear infinite;
+  pointer-events: none;
+}
+@keyframes hps-pawprint {
+  0%   { transform: translate(-50%, -50%) scale(.6); opacity: .55; }
+  100% { transform: translate(-50%, -50%) scale(1.9); opacity: 0; }
+}
+.hps-pawprint {
+  position: absolute; width: 28px; height: 28px; pointer-events: none;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 28 28'><ellipse cx='0' cy='6' rx='9' ry='7.5'/><ellipse cx='-9' cy='-3' rx='4' ry='5.2' transform='rotate(-24 -9 -3)'/><ellipse cx='-3' cy='-9' rx='4' ry='5.4'/><ellipse cx='3' cy='-9' rx='4' ry='5.4'/><ellipse cx='9' cy='-3' rx='4' ry='5.2' transform='rotate(24 9 -3)'/></svg>") center / contain no-repeat;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 28 28'><ellipse cx='0' cy='6' rx='9' ry='7.5'/><ellipse cx='-9' cy='-3' rx='4' ry='5.2' transform='rotate(-24 -9 -3)'/><ellipse cx='-3' cy='-9' rx='4' ry='5.4'/><ellipse cx='3' cy='-9' rx='4' ry='5.4'/><ellipse cx='9' cy='-3' rx='4' ry='5.2' transform='rotate(24 9 -3)'/></svg>") center / contain no-repeat;
+  animation: hps-pawprint .55s ease-out forwards;
+}
+@keyframes hps-spin { to { transform: rotate(360deg); } }
+.hps-spin { animation: hps-spin .9s linear infinite; }
+.hps-btn-hint {
+  position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%);
+  white-space: nowrap; background: #231715; color: #fff; font-size: 12px; font-weight: 600;
+  padding: 6px 10px; border-radius: 10px; pointer-events: none;
+}
+.hps-pill { background: #FCE4DC; }
+.hps-pill[aria-pressed="true"] { background: linear-gradient(90deg, #D83C28, #B92425); }
+.hps-pill[data-tone="sitter"] { background: #DDEAFB; color: #173F8F; }
+.hps-pill[data-tone="sitter"][aria-pressed="true"] { background: linear-gradient(90deg, #2F6FD6, #1E4FB0); color: #fff; }
+.hps-pill[data-tone="walker"] { background: #DCEFE3; color: #0F6B33; }
+.hps-pill[data-tone="walker"][aria-pressed="true"] { background: linear-gradient(90deg, #2FAE4E, #15803D); color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  .hps-btn-sheen, .hps-pawprint { animation: none; display: none; }
+  .hps-btn { transition: none; }
+}

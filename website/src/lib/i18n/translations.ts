@@ -24,6 +24,18 @@ type Bundle = Record<Lang, Dict>;
 
 export const t: Bundle = {
   en: {
+    // 25/09/2026 — LOT D : boîte à idées (tableau de bord connecté).
+    fb_title: "An idea? A problem?",
+    fb_sub: "Tell us in a few words. It goes straight to the HoPetSit team.",
+    fb_kind_idea: "An idea",
+    fb_kind_problem: "A problem",
+    fb_placeholder_idea: "What would make HoPetSit better for you?",
+    fb_placeholder_problem: "What happened, and where in the app or site?",
+    fb_send: "Send",
+    fb_thanks: "Thank you, we read everything.",
+    fb_error: "It didn't go through. Please try again.",
+    fb_too_short_idea: "Write at least 3 characters.",
+    fb_too_short_problem: "Describe the problem in at least 10 characters.",
     // 24/09/2026 — LOT B (accueil, PawMap sans compte, légende, tableau de bord, titres).
     page_title_home: "Book a pet sitter or dog walker online",
     page_desc_home: "HoPetSit: book trusted pet sitters and dog walkers near you, from the website or the app. Live PawMap, secure payment, verified identities.",
@@ -1167,6 +1179,18 @@ export const t: Bundle = {
   },
 
   fr: {
+    // 25/09/2026 — LOT D : boîte à idées (tableau de bord connecté).
+    fb_title: "Une idée ? Un problème ?",
+    fb_sub: "Dis-le en quelques mots. Ça arrive directement à l'équipe HoPetSit.",
+    fb_kind_idea: "Une idée",
+    fb_kind_problem: "Un problème",
+    fb_placeholder_idea: "Qu'est-ce qui rendrait HoPetSit meilleur pour toi ?",
+    fb_placeholder_problem: "Que s'est-il passé, et à quel endroit de l'app ou du site ?",
+    fb_send: "Envoyer",
+    fb_thanks: "Merci, on lit tout.",
+    fb_error: "L'envoi n'a pas abouti. Réessaie dans un instant.",
+    fb_too_short_idea: "Écris au moins 3 caractères.",
+    fb_too_short_problem: "Décris le problème en 10 caractères au moins.",
     // 24/09/2026 — LOT B (accueil, PawMap sans compte, légende, tableau de bord, titres).
     page_title_home: "Réserver un pet-sitter ou un promeneur en ligne",
     page_desc_home: "HoPetSit : réservez des pet-sitters et promeneurs de confiance près de chez vous, depuis le site ou l'app. PawMap en direct, paiement sécurisé, identités vérifiées.",
@@ -2287,6 +2311,18 @@ export const t: Bundle = {
   },
 
   es: {
+    // 25/09/2026 — LOT D : boîte à idées (tableau de bord connecté).
+    fb_title: "¿Una idea? ¿Un problema?",
+    fb_sub: "Cuéntanoslo en pocas palabras. Llega directamente al equipo de HoPetSit.",
+    fb_kind_idea: "Una idea",
+    fb_kind_problem: "Un problema",
+    fb_placeholder_idea: "¿Qué haría que HoPetSit fuera mejor para ti?",
+    fb_placeholder_problem: "¿Qué ha pasado y en qué parte de la app o del sitio?",
+    fb_send: "Enviar",
+    fb_thanks: "Gracias, lo leemos todo.",
+    fb_error: "No se ha podido enviar. Inténtalo de nuevo en un momento.",
+    fb_too_short_idea: "Escribe al menos 3 caracteres.",
+    fb_too_short_problem: "Describe el problema con al menos 10 caracteres.",
     // 24/09/2026 — LOT B (accueil, PawMap sans compte, légende, tableau de bord, titres).
     page_title_home: "Reserva un cuidador o paseador en línea",
     page_desc_home: "HoPetSit: reserva cuidadores y paseadores de confianza cerca de ti, desde la web o la app. PawMap en vivo, pago seguro, identidades verificadas.",
@@ -3291,6 +3327,18 @@ export const t: Bundle = {
   },
 
   de: {
+    // 25/09/2026 — LOT D : boîte à idées (tableau de bord connecté).
+    fb_title: "Eine Idee? Ein Problem?",
+    fb_sub: "Sag es uns in wenigen Worten. Es geht direkt an das HoPetSit-Team.",
+    fb_kind_idea: "Eine Idee",
+    fb_kind_problem: "Ein Problem",
+    fb_placeholder_idea: "Was würde HoPetSit für dich besser machen?",
+    fb_placeholder_problem: "Was ist passiert, und wo in der App oder auf der Website?",
+    fb_send: "Senden",
+    fb_thanks: "Danke, wir lesen alles.",
+    fb_error: "Das Senden hat nicht geklappt. Bitte versuche es gleich noch einmal.",
+    fb_too_short_idea: "Schreibe mindestens 3 Zeichen.",
+    fb_too_short_problem: "Beschreibe das Problem mit mindestens 10 Zeichen.",
     // 24/09/2026 — LOT B (accueil, PawMap sans compte, légende, tableau de bord, titres).
     page_title_home: "Tiersitter oder Gassigeher online buchen",
     page_desc_home: "HoPetSit: Buche geprüfte Tiersitter und Gassigeher in deiner Nähe – auf der Website oder in der App. Live-PawMap, sichere Zahlung, verifizierte Identitäten.",
@@ -4294,6 +4342,18 @@ export const t: Bundle = {
   },
 
   it: {
+    // 25/09/2026 — LOT D : boîte à idées (tableau de bord connecté).
+    fb_title: "Un'idea? Un problema?",
+    fb_sub: "Dillo in poche parole. Arriva direttamente al team HoPetSit.",
+    fb_kind_idea: "Un'idea",
+    fb_kind_problem: "Un problema",
+    fb_placeholder_idea: "Cosa renderebbe HoPetSit migliore per te?",
+    fb_placeholder_problem: "Cos'è successo, e in quale punto dell'app o del sito?",
+    fb_send: "Invia",
+    fb_thanks: "Grazie, leggiamo tutto.",
+    fb_error: "L'invio non è riuscito. Riprova tra un istante.",
+    fb_too_short_idea: "Scrivi almeno 3 caratteri.",
+    fb_too_short_problem: "Descrivi il problema con almeno 10 caratteri.",
     // 24/09/2026 — LOT B (accueil, PawMap sans compte, légende, tableau de bord, titres).
     page_title_home: "Prenota un pet sitter o un dog walker online",
     page_desc_home: "HoPetSit: prenota pet sitter e dog walker di fiducia vicino a te, dal sito o dall'app. PawMap dal vivo, pagamento sicuro, identità verificate.",
@@ -5297,6 +5357,18 @@ export const t: Bundle = {
   },
 
   pt: {
+    // 25/09/2026 — LOT D : boîte à idées (tableau de bord connecté).
+    fb_title: "Uma ideia? Um problema?",
+    fb_sub: "Diz-nos em poucas palavras. Chega diretamente à equipa HoPetSit.",
+    fb_kind_idea: "Uma ideia",
+    fb_kind_problem: "Um problema",
+    fb_placeholder_idea: "O que tornaria a HoPetSit melhor para ti?",
+    fb_placeholder_problem: "O que aconteceu, e em que parte da app ou do site?",
+    fb_send: "Enviar",
+    fb_thanks: "Obrigado, lemos tudo.",
+    fb_error: "O envio não foi concluído. Tenta novamente daqui a pouco.",
+    fb_too_short_idea: "Escreve pelo menos 3 caracteres.",
+    fb_too_short_problem: "Descreve o problema com pelo menos 10 caracteres.",
     // 24/09/2026 — LOT B (accueil, PawMap sans compte, légende, tableau de bord, titres).
     page_title_home: "Reservar um pet sitter ou passeador online",
     page_desc_home: "HoPetSit: reserve pet sitters e passeadores de confiança perto de si, no site ou na app. PawMap ao vivo, pagamento seguro, identidades verificadas.",
@@ -6299,6 +6371,18 @@ export const t: Bundle = {
     sub_cta: "Descobrir",
   },
   ko: {
+    // 25/09/2026 — LOT D : boîte à idées (tableau de bord connecté).
+    fb_title: "아이디어가 있나요? 문제가 있나요?",
+    fb_sub: "몇 마디로 알려주세요. HoPetSit 팀에 바로 전달됩니다.",
+    fb_kind_idea: "아이디어",
+    fb_kind_problem: "문제",
+    fb_placeholder_idea: "HoPetSit이 어떻게 더 좋아질 수 있을까요?",
+    fb_placeholder_problem: "무슨 일이 있었고, 앱이나 사이트의 어디에서였나요?",
+    fb_send: "보내기",
+    fb_thanks: "감사합니다. 모두 읽고 있어요.",
+    fb_error: "전송되지 않았습니다. 잠시 후 다시 시도해 주세요.",
+    fb_too_short_idea: "3자 이상 입력해 주세요.",
+    fb_too_short_problem: "문제를 10자 이상으로 설명해 주세요.",
     // 24/09/2026 — LOT B (accueil, PawMap sans compte, légende, tableau de bord, titres).
     page_title_home: "펫시터·산책 도우미 온라인 예약",
     page_desc_home: "HoPetSit: 웹사이트나 앱에서 가까운 검증된 펫시터와 산책 도우미를 예약하세요. 실시간 PawMap, 안전 결제, 신원 확인.",
@@ -7405,6 +7489,18 @@ export const t: Bundle = {
     sub_cta: "알아보기",
   },
   ja: {
+    // 25/09/2026 — LOT D : boîte à idées (tableau de bord connecté).
+    fb_title: "アイデアはありますか？問題がありますか？",
+    fb_sub: "ひとことで教えてください。HoPetSitチームに直接届きます。",
+    fb_kind_idea: "アイデア",
+    fb_kind_problem: "問題",
+    fb_placeholder_idea: "HoPetSitがもっと良くなるには？",
+    fb_placeholder_problem: "何が起きましたか？アプリまたはサイトのどこでですか？",
+    fb_send: "送信",
+    fb_thanks: "ありがとうございます。すべて読んでいます。",
+    fb_error: "送信できませんでした。しばらくしてからもう一度お試しください。",
+    fb_too_short_idea: "3文字以上入力してください。",
+    fb_too_short_problem: "問題を10文字以上で説明してください。",
     // 24/09/2026 — LOT B (accueil, PawMap sans compte, légende, tableau de bord, titres).
     page_title_home: "ペットシッター・散歩代行をオンライン予約",
     page_desc_home: "HoPetSit：サイトまたはアプリから、近くの信頼できるペットシッター・散歩代行を予約。ライブPawMap、安全な決済、本人確認済み。",
@@ -8511,6 +8607,18 @@ export const t: Bundle = {
     sub_cta: "詳しく見る",
   },
   pl: {
+    // 25/09/2026 — LOT D : boîte à idées (tableau de bord connecté).
+    fb_title: "Masz pomysł? Masz problem?",
+    fb_sub: "Napisz w kilku słowach. Trafia prosto do zespołu HoPetSit.",
+    fb_kind_idea: "Pomysł",
+    fb_kind_problem: "Problem",
+    fb_placeholder_idea: "Co sprawiłoby, że HoPetSit byłby lepszy dla Ciebie?",
+    fb_placeholder_problem: "Co się stało i w którym miejscu aplikacji lub strony?",
+    fb_send: "Wyślij",
+    fb_thanks: "Dziękujemy, czytamy wszystko.",
+    fb_error: "Nie udało się wysłać. Spróbuj ponownie za chwilę.",
+    fb_too_short_idea: "Wpisz co najmniej 3 znaki.",
+    fb_too_short_problem: "Opisz problem w co najmniej 10 znakach.",
     // 24/09/2026 — LOT B (accueil, PawMap sans compte, légende, tableau de bord, titres).
     page_title_home: "Zarezerwuj opiekuna lub wyprowadzacza online",
     page_desc_home: "HoPetSit: rezerwuj zaufanych opiekunów i wyprowadzaczy w pobliżu, przez stronę lub aplikację. PawMap na żywo, bezpieczna płatność, zweryfikowana tożsamość.",

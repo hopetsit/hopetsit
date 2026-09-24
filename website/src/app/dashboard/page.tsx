@@ -12,6 +12,7 @@ import { PawMapLogo } from "@/components/PawMapLogo";
 import { AppIcon, type AppIconName } from "@/components/AppIcon";
 import { PageTitle } from "@/components/PageTitle";
 import { ROLE_COLOR } from "@/lib/pawmapLegend";
+import { FeedbackBox } from "@/components/FeedbackBox";
 
 // v493 — barre latérale + zone principale. v562 — orange pâle au survol.
 // 24/09/2026 — LOT B, étape 4 (plan de LEO validé par Daniel) : le tableau de
@@ -440,6 +441,9 @@ export default function DashboardPage() {
             </div>
             {promoMsg && <p className={`mt-3 text-sm ${promoMsg.ok ? "text-[#0F7C37]" : "text-[#B42318]"}`}>{promoMsg.text}</p>}
           </div>
+
+          {/* 25/09 — LOT D : « Une idée ? Un problème ? » (même formulaire que l'app). */}
+          <FeedbackBox tone={role} />
         </main>
       </div>
     </div>

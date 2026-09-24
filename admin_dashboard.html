@@ -185,7 +185,7 @@ td > span[style*="border-radius"] { white-space: nowrap; display: inline-block; 
 .filter-select:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
 table { width: 100%; border-collapse: separate; border-spacing: 0; }
 th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); background: #FDF8F7; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
-td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #F0F0F3; vertical-align: middle; }
+td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #F3E9E6; vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
 tbody tr { transition: background .12s; }
 tr:hover td { background: #FFF7F5; }
@@ -224,7 +224,7 @@ button { font-family: inherit; }
 .page-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 
 /* MODAL */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(29,29,31,.45); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(35,23,21,.45); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; }
 .modal-overlay.open { display: flex; }
 .modal { background: var(--surface); border: 0; border-radius: 24px; padding: 28px; width: 520px; max-width: 95vw; max-height: 92vh; overflow-y: auto; box-shadow: 0 40px 80px -30px rgba(0,0,0,.35); }
 .modal-title { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 18px; }
@@ -256,7 +256,7 @@ pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-si
 label { color: var(--text-muted); }
 label > input, label > select, label > textarea { color: var(--text); }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: #D2D2D7; border-radius: 999px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb { background: #D9C7C2; border-radius: 999px; border: 2px solid var(--bg); }
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* Responsive */
@@ -296,13 +296,13 @@ label > input, label > select, label > textarea { color: var(--text); }
 .btn-reject { background: rgba(217,48,37,.10); color: var(--red); }
 .btn-approve:hover, .btn-reject:hover { filter: brightness(.95); }
 .action-btn.primary { background: var(--primary); color: #fff; }
-.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid #F0F0F3; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid #F3E9E6; }
 .toggle-row:last-child { border-bottom: 0; }
 .toggle-row .tl { font-weight: 600; font-size: 14px; }
 .toggle-row .ts { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 .switch { position: relative; width: 46px; height: 28px; flex-shrink: 0; display: inline-block; }
 .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
-.switch .knob { position: absolute; inset: 0; background: #D2D2D7; border-radius: 999px; cursor: pointer; transition: background .15s; }
+.switch .knob { position: absolute; inset: 0; background: #D9C7C2; border-radius: 999px; cursor: pointer; transition: background .15s; }
 .switch .knob::before { content: ''; position: absolute; width: 22px; height: 22px; left: 3px; top: 3px; background: #fff; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,.2); transition: transform .15s; }
 .switch input:checked + .knob { background: var(--green); }
 .switch input:checked + .knob::before { transform: translateX(18px); }
@@ -311,7 +311,7 @@ label > input, label > select, label > textarea { color: var(--text); }
 .timeline li { position: relative; padding: 0 0 14px 28px; }
 .timeline li::before { content: ''; position: absolute; left: 7px; top: 18px; bottom: -4px; width: 2px; background: var(--border); }
 .timeline li:last-child::before { display: none; }
-.timeline li .dot { position: absolute; left: 0; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); border: 2px solid #D2D2D7; box-sizing: border-box; }
+.timeline li .dot { position: absolute; left: 0; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); border: 2px solid #D9C7C2; box-sizing: border-box; }
 .timeline li.done .dot { background: var(--green); border-color: var(--green); }
 .timeline li.done .dot::after { content: '✓'; color: #fff; font-size: 10px; font-weight: 700; position: absolute; left: 2px; top: -3px; }
 .timeline li.current .dot { border-color: var(--primary); background: var(--primary-light); }
@@ -1445,16 +1445,24 @@ function filterNav(q) {
       <div id="page-bugs" class="page">
         <div class="section-title">🐛 <span data-i18n="bugs_title">Bugs signalés</span></div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px" data-i18n="bugs_desc">
-          Tous les bugs signalés par les utilisateurs depuis leur profil. Un email part automatiquement à hopetsit@gmail.com à chaque signalement.
+          Tous les bugs et toutes les idées envoyés par les utilisateurs depuis « Une idée ? Un problème ? » (app et site). Un email part automatiquement à hopetsit@gmail.com à chaque envoi.
         </p>
         <div class="stats-grid" id="bugs-summary"></div>
         <div class="table-wrap" style="margin-top:16px">
           <div class="table-toolbar">
+            <!-- 25/09/2026 — lot D : boîte à idées → filtre par type (Idées / Problèmes). -->
+            <select class="filter-select" id="bug-kind-filter" onchange="loadBugReports()">
+              <option value="" data-i18n="bug_kind_all">Tous types</option>
+              <option value="idea" data-i18n="bug_kind_idea">💡 Idées</option>
+              <option value="bug" data-i18n="bug_kind_problem">🐛 Problèmes</option>
+            </select>
             <select class="filter-select" id="bug-status-filter" onchange="loadBugReports()">
               <option value="" data-i18n="filter_all_status_2">Tous statuts</option>
-              <option value="open" data-i18n="bug_status_open">🔴 Ouvert</option>
+              <option value="open" data-i18n="bug_status_open">🔴 Ouvert / nouvelle</option>
               <option value="in_progress" data-i18n="bug_status_in_progress">🟡 En cours</option>
               <option value="fixed" data-i18n="bug_status_fixed">✅ Corrigé</option>
+              <option value="kept" data-i18n="bug_status_kept">⭐ Idée retenue</option>
+              <option value="done" data-i18n="bug_status_done">🎉 Idée faite</option>
               <option value="wontfix" data-i18n="bug_status_wontfix">⚪ Ne sera pas corrigé</option>
               <option value="duplicate" data-i18n="bug_status_duplicate">📋 Doublon</option>
             </select>
@@ -3009,7 +3017,7 @@ async function loadSiteTraffic() {
           t('traffic_pageviews', 'Pages vues'), t('traffic_store_clicks', 'Clics store'), ''],
         (r) => [
           escapeHtml(r.day || ''), (r.visitors || 0), (r.pageviews || 0), (r.storeClicks || 0),
-          '<div style="background:rgba(110,110,115,.14);height:8px;border-radius:999px;width:160px;max-width:100%">' +
+          '<div style="background:rgba(201,42,18,.12);height:8px;border-radius:999px;width:160px;max-width:100%">' +
             '<div style="background:var(--primary);height:8px;border-radius:999px;width:' +
             Math.round(((r.pageviews || 0) / maxViews) * 100) + '%"></div></div>',
         ],
@@ -7768,27 +7776,42 @@ async function loadBugReports() {
   if (!sum || !tbl) return;
   tbl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   const status = document.getElementById('bug-status-filter')?.value || '';
+  // 25/09/2026 — lot D : filtre « Idées / Problèmes » (étiquette `kind`).
+  const kind = document.getElementById('bug-kind-filter')?.value || '';
   try {
-    const qs = status ? ('?status=' + encodeURIComponent(status)) : '';
+    const params = [];
+    if (status) params.push('status=' + encodeURIComponent(status));
+    if (kind) params.push('kind=' + encodeURIComponent(kind));
+    const qs = params.length ? ('?' + params.join('&')) : '';
     const d = await api('/admin/bug-reports' + qs);
     sum.innerHTML =
-      '<div class="stat-card" style="--accent:#EF4324"><div class="stat-label">Open</div><div class="stat-value">' + (d.openCount||0) + '</div></div>' +
+      '<div class="stat-card" style="--accent:#EF4324"><div class="stat-label">' + t('bugs_open_count', 'Bugs ouverts') + '</div><div class="stat-value">' + (d.openCount||0) + '</div></div>' +
+      '<div class="stat-card" style="--accent:#7C3AED"><div class="stat-label">' + t('bugs_ideas_open', 'Idées nouvelles') + '</div><div class="stat-value">' + (d.ideaOpenCount||0) + '</div></div>' +
       '<div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">' + (d.totalCount||0) + '</div></div>';
     // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep sur bug
     // reports. AVANT title/description user-controlled étaient injectés
     // tels quels → XSS si un user mal intentionné écrivait un bug avec
     // payload script.
     const rows = (d.reports||[]).map(r => {
-      const statusColor = r.status === 'open' ? '#EF4324' : r.status === 'in_progress' ? '#F59E0B' : r.status === 'fixed' ? '#16A34A' : '#6E4F48';
+      const isIdea = r.kind === 'idea';
+      const statusColor = r.status === 'open' ? (isIdea ? '#7C3AED' : '#EF4324') : r.status === 'in_progress' ? '#F59E0B' : (r.status === 'fixed' || r.status === 'done') ? '#16A34A' : r.status === 'kept' ? '#2563EB' : '#6E4F48';
+      const statusLabel = t('bug_status_' + (r.status||'open') + '_plain', r.status||'');
+      const kindBadge = isIdea
+        ? '<span style="background:#EDE9FE;color:#4C1FA3;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap">' + t('bug_kind_badge_idea', 'Idée') + '</span>'
+        : '<span style="background:#FCE4DC;color:#8A1D0C;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap">' + t('bug_kind_badge_problem', 'Problème') + '</span>';
+      const actions = isIdea
+        ? '<button class="action-btn" onclick="updateBugStatus(\''+r._id+'\',\'kept\')">' + t('bug_btn_kept', 'Retenue') + '</button>' +
+          '<button class="action-btn btn-verify" onclick="updateBugStatus(\''+r._id+'\',\'done\')">' + t('bug_btn_done', 'Faite') + '</button>'
+        : '<button class="action-btn" onclick="updateBugStatus(\''+r._id+'\',\'in_progress\')">In progress</button>' +
+          '<button class="action-btn btn-verify" onclick="updateBugStatus(\''+r._id+'\',\'fixed\')">Fixed</button>';
       return '<tr>' +
-        '<td style="font-size:11px;color:var(--text-muted)">'+fmtDate(r.createdAt)+'</td>' +
-        '<td><span style="background:'+statusColor+';color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">'+escapeHtml(r.status||'')+'</span></td>' +
+        '<td style="font-size:11px;color:var(--text-muted)">'+fmtDate(r.createdAt)+'<br>'+kindBadge+'</td>' +
+        '<td><span style="background:'+statusColor+';color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">'+escapeHtml(statusLabel)+'</span></td>' +
         '<td><strong>'+escapeHtml(r.userName||'-')+'</strong><br><span style="font-size:11px;color:var(--text-muted)">'+escapeHtml(r.userRole||'?')+' '+escapeHtml(r.userEmail||'-')+'</span></td>' +
         '<td><strong>'+escapeHtml(r.title||'(sans titre)')+'</strong><br><span style="font-size:12px;white-space:pre-wrap">'+escapeHtml((r.description||'').substring(0,300))+'</span></td>' +
         '<td style="font-size:11px;color:var(--text-muted)">'+escapeHtml(r.platform||'-')+' '+escapeHtml(r.appVersion||'')+'</td>' +
         '<td style="display:flex;gap:4px;flex-wrap:wrap">' +
-          '<button class="action-btn" onclick="updateBugStatus(\''+r._id+'\',\'in_progress\')">In progress</button>' +
-          '<button class="action-btn btn-verify" onclick="updateBugStatus(\''+r._id+'\',\'fixed\')">Fixed</button>' +
+          actions +
           '<button class="action-btn btn-delete" onclick="deleteBugReport(\''+r._id+'\')">Supprimer</button>' +
         '</td>' +
       '</tr>';
@@ -7982,6 +8005,9 @@ async function toggleStaff(role, userId, isStaff) {
         bugs_title: "Bugs signalés", bugs_desc: "Tous les bugs signalés par les utilisateurs depuis leur profil. Un email part automatiquement à hopetsit@gmail.com à chaque signalement.",
         bug_status_open: "🔴 Ouvert", bug_status_in_progress: "🟡 En cours", bug_status_fixed: "✅ Corrigé", bug_status_wontfix: "⚪ Ne sera pas corrigé", bug_status_duplicate: "📋 Doublon",
         bug_status_open_plain: "Ouvert", bug_status_in_progress_plain: "En cours", bug_status_fixed_plain: "Corrigé", bug_status_wontfix_plain: "Ne sera pas corrigé", bug_status_duplicate_plain: "Doublon",
+        bug_status_kept: "⭐ Idée retenue", bug_status_done: "🎉 Idée faite", bug_status_kept_plain: "Retenue", bug_status_done_plain: "Faite",
+        bug_kind_all: "Tous types", bug_kind_idea: "💡 Idées", bug_kind_problem: "🐛 Problèmes", bug_kind_badge_idea: "Idée", bug_kind_badge_problem: "Problème",
+        bugs_open_count: "Bugs ouverts", bugs_ideas_open: "Idées nouvelles", bug_btn_kept: "Retenue", bug_btn_done: "Faite",
         pawpremium_title: "PawPremium — bundle", pawpremium_desc: "PawPremium = PawFollow + PawSpot + exclusifs (badge 👑, points communauté ×2, priorité nouveautés). 7,99 €/mois · 59,99 €/an (-33% vs les deux séparés : 11,98 € et 89,98 €). Grille complète : PawFollow 6,99/mois · 49,99/an — PawFamily 9,99/mois · 69,99/an — PawSpot 4,99/mois · 39,99/an — PawBoost 4,99→24,99 €.", diag_account: "Diagnostic compte",
         boosts_title: "Activité boutique", boosts_desc: "Tous les achats boutique (PawBoost, PawSpot, PawFollow/PawFamily, 👑 PawPremium) pour pet-sitters, owners et walkers. Revenus, achats actifs, historique.", filter_all_products: "Tous les produits", boost_map_old: "🗺️ Map Boost (ancien)", filter_all_tiers: "Toutes formules", tier_monthly: "📆 Mensuel", tier_yearly: "📅 Annuel", tier_family: "👨‍👩‍👧 Famille",
         annonces_title: "Annonces & modération", annonces_desc: "Toutes les annonces (demandes de réservation et posts média). Ban masque l'annonce côté utilisateurs tout en gardant les données en DB (audit + analytics). Supprimer est définitif.", annonces_live: "En ligne", annonces_banned: "Bannis", filter_all_types: "Tous types", annonces_requests: "Demandes", annonces_media: "Media", annonces_search_ph: "🔍 Rechercher dans le texte...",
@@ -8144,9 +8170,12 @@ async function toggleStaff(role, userId, isStaff) {
         reward_kind_discount: "Discount", reward_kind_subscription: "Free subscription", reward_kind_boost: "Free PawBoost", reward_kind_badge: "Badge / title", reward_kind_goodie: "Goodie / other",
         redemptions_title: "Redemptions",
         payouts_title: "My revenue & withdrawals", payouts_desc: "Your HoPetSit commissions (20% on bookings) + shop payments (PawBoost, PawSpot, PawFollow/PawFamily, 👑 PawPremium). The green “Withdrawable balance” card below is the amount you can send to your company IBAN in one click.",
-        bugs_title: "Reported bugs", bugs_desc: "All bugs reported by users from their profile. An email is automatically sent to hopetsit@gmail.com on each report.",
+        bugs_title: "Reported bugs", bugs_desc: "All bugs and ideas sent by users from “An idea? A problem?” (app and website). An email is automatically sent to hopetsit@gmail.com on each submission.",
         bug_status_open: "🔴 Open", bug_status_in_progress: "🟡 In progress", bug_status_fixed: "✅ Fixed", bug_status_wontfix: "⚪ Won't fix", bug_status_duplicate: "📋 Duplicate",
         bug_status_open_plain: "Open", bug_status_in_progress_plain: "In progress", bug_status_fixed_plain: "Fixed", bug_status_wontfix_plain: "Won't fix", bug_status_duplicate_plain: "Duplicate",
+        bug_status_kept: "⭐ Idea kept", bug_status_done: "🎉 Idea done", bug_status_kept_plain: "Kept", bug_status_done_plain: "Done",
+        bug_kind_all: "All types", bug_kind_idea: "💡 Ideas", bug_kind_problem: "🐛 Problems", bug_kind_badge_idea: "Idea", bug_kind_badge_problem: "Problem",
+        bugs_open_count: "Open bugs", bugs_ideas_open: "New ideas", bug_btn_kept: "Keep", bug_btn_done: "Done",
         pawpremium_title: "PawPremium — bundle", pawpremium_desc: "PawPremium = PawFollow + PawSpot + exclusives (👑 badge, community points ×2, new-feature priority). €7.99/mo · €59.99/yr (-33% vs the two separately: €11.98 and €89.98). Full grid: PawFollow €6.99/mo · €49.99/yr — PawFamily €9.99/mo · €69.99/yr — PawSpot €4.99/mo · €39.99/yr — PawBoost €4.99→€24.99.", diag_account: "Account diagnostic",
         boosts_title: "Shop activity", boosts_desc: "All shop purchases (PawBoost, PawSpot, PawFollow/PawFamily, 👑 PawPremium, 🪪 ID verifications, 🎁 donations) for pet-sitters, owners and walkers. Revenue, active purchases, history.",
         finance_petsitting_title: "PetSitting activity", finance_petsitting_desc: "Paid bookings, platform commissions and provider payouts.", finance_shop_title: "Shop activity", finance_shop_desc: "Subscriptions & boosts, 🪪 ID verifications and 🎁 donations.", finance_shop_all: "View all", filter_all_products: "All products", boost_map_old: "🗺️ Map Boost (legacy)", filter_all_tiers: "All tiers", tier_monthly: "📆 Monthly", tier_yearly: "📅 Yearly", tier_family: "👨‍👩‍👧 Family",
@@ -8308,9 +8337,12 @@ async function toggleStaff(role, userId, isStaff) {
         reward_kind_discount: "Descuento", reward_kind_subscription: "Suscripción gratis", reward_kind_boost: "PawBoost gratis", reward_kind_badge: "Insignia / título", reward_kind_goodie: "Goodie / otro",
         redemptions_title: "Canjes",
         payouts_title: "Mis ingresos y retiros", payouts_desc: "Tus comisiones HoPetSit (20% sobre reservas) + pagos de tienda (PawBoost, PawSpot, PawFollow/PawFamily, 👑 PawPremium). La tarjeta verde «Saldo retirable» de abajo es el importe que puedes enviar a tu IBAN de empresa con un clic.",
-        bugs_title: "Errores reportados", bugs_desc: "Todos los errores reportados por los usuarios desde su perfil. Se envía automáticamente un email a hopetsit@gmail.com con cada reporte.",
+        bugs_title: "Errores reportados", bugs_desc: "Todos los errores e ideas enviados por los usuarios desde «¿Una idea? ¿Un problema?» (app y sitio). Se envía automáticamente un email a hopetsit@gmail.com con cada envío.",
         bug_status_open: "🔴 Abierto", bug_status_in_progress: "🟡 En curso", bug_status_fixed: "✅ Corregido", bug_status_wontfix: "⚪ No se corregirá", bug_status_duplicate: "📋 Duplicado",
         bug_status_open_plain: "Abierto", bug_status_in_progress_plain: "En curso", bug_status_fixed_plain: "Corregido", bug_status_wontfix_plain: "No se corregirá", bug_status_duplicate_plain: "Duplicado",
+        bug_status_kept: "⭐ Idea aceptada", bug_status_done: "🎉 Idea hecha", bug_status_kept_plain: "Aceptada", bug_status_done_plain: "Hecha",
+        bug_kind_all: "Todos los tipos", bug_kind_idea: "💡 Ideas", bug_kind_problem: "🐛 Problemas", bug_kind_badge_idea: "Idea", bug_kind_badge_problem: "Problema",
+        bugs_open_count: "Errores abiertos", bugs_ideas_open: "Ideas nuevas", bug_btn_kept: "Aceptar", bug_btn_done: "Hecha",
         pawpremium_title: "PawPremium — paquete", pawpremium_desc: "PawPremium = PawFollow + PawSpot + exclusivos (insignia 👑, puntos comunidad ×2, prioridad en novedades). 7,99 €/mes · 59,99 €/año (-33% vs los dos por separado: 11,98 € y 89,98 €). Tabla completa: PawFollow 6,99/mes · 49,99/año — PawFamily 9,99/mes · 69,99/año — PawSpot 4,99/mes · 39,99/año — PawBoost 4,99→24,99 €.", diag_account: "Diagnóstico de cuenta",
         boosts_title: "Actividad de la tienda", boosts_desc: "Todas las compras de tienda (PawBoost, PawSpot, PawFollow/PawFamily, 👑 PawPremium) para cuidadores, propietarios y paseadores. Ingresos, compras activas, historial.", filter_all_products: "Todos los productos", boost_map_old: "🗺️ Map Boost (antiguo)", filter_all_tiers: "Todas las fórmulas", tier_monthly: "📆 Mensual", tier_yearly: "📅 Anual", tier_family: "👨‍👩‍👧 Familia",
         annonces_title: "Anuncios y moderación", annonces_desc: "Todos los anuncios (solicitudes de reserva y publicaciones de medios). Banear oculta el anuncio del lado de los usuarios manteniendo los datos en la BD (auditoría + analítica). Eliminar es definitivo.", annonces_live: "En línea", annonces_banned: "Baneados", filter_all_types: "Todos los tipos", annonces_requests: "Solicitudes", annonces_media: "Medios", annonces_search_ph: "🔍 Buscar en el texto...",
