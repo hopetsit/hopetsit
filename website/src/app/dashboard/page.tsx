@@ -362,7 +362,7 @@ export default function DashboardPage() {
                 </Link>
               </div>
             ) : (
-              <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+              <ul className="mt-3 grid gap-2 lg:grid-cols-2">
                 {todo.map((it) => (
                   <li key={it.label}>
                     <Link href={it.href} className="flex items-center gap-3 rounded-2xl bg-white p-3 transition hover:-translate-y-0.5" style={{ boxShadow: `inset 0 0 0 1.5px ${it.color}33` }}>
@@ -385,7 +385,7 @@ export default function DashboardPage() {
           </section>
 
           {/* PawMap + Réservations : les deux grandes cartes. */}
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
             <Link href="/map" className={`group flex items-center gap-4 rounded-[24px] bg-[#FAF1EC] p-5 text-[#231715] transition ${tint.hoverBg}`}>
               <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-white"><PawMapLogo size={38} title={null} /></span>
               <span className="min-w-0 flex-1">
@@ -406,7 +406,7 @@ export default function DashboardPage() {
 
           <h2 className="mt-10 font-display text-2xl font-bold tracking-[-0.02em] text-[#231715]">{t("dash_account_section")}</h2>
           <p className="mt-1 text-[15px] text-[#6E4F48]">{t("dash_account_section_sub")}</p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
             <NavCard href="/posts" icon="megaphone" tint={tint} title={isOwner ? t("posts_my_title") : t("posts_feed_title")} subtitle={isOwner ? t("posts_create_cta") : t("posts_contact")} />
             <NavCard href="/chat" icon="chat" tint={tint} title={t("dash_card_messages_title")} subtitle={t("dash_card_messages_sub")} badge={unreadMsg} />
             {isOwner && <NavCard href="/pets" icon="pets" tint={tint} title={t("dash_card_pets_title")} subtitle={t("dash_card_pets_sub")} />}
