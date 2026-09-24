@@ -3,6 +3,8 @@
 // REST API that the mobile app already uses, so login/signup created here
 // work seamlessly inside the app and vice-versa.
 
+import { blurLatLng } from "@/lib/pawmapLegend";
+
 const BASE = process.env.NEXT_PUBLIC_API_BASE
   ?? "https://hopetsit-backend.onrender.com/api/v1";
 
@@ -1820,6 +1822,12 @@ export type RequestPost = {
   pets?: PostPet[];
   media?: Array<{ url: string; type?: string }>;
   images?: Array<{ url: string }>;
+  // 24/09/2026 — LOT B : la PawMap du site dessine les demandes des
+  // propriétaires en bulle orange (position FLOUTÉE ~1 km côté client,
+  // jamais l'adresse). Le serveur renvoie le bloc tel qu'il a été saisi.
+  location?: { city?: string; label?: string; lat?: number; lng?: number } | null;
+  budget?: number | null;
+  currency?: string;
 };
 
 export type CreatePostInput = {
@@ -2237,6 +2245,130 @@ export async function getNearbyMembers(opts: {
       Array.isArray(m.location?.coordinates) &&
       m.location.coordinates.length >= 2,
   );
+}
+
+// 24/09/2026 — LOT B : LA CARTE SANS COMPTE (/pawmap, accueil).
+// `GET /sitters/nearby` et `GET /walkers/nearby` sont publiques (optionalAuth).
+// ⚠️ Elles renvoient la position telle quelle : on la FLOUTE ICI, dans la
+// couche API, avec le port exact de l'algorithme serveur (~1 km), pour
+// qu'aucun composant du site ne manipule jamais une coordonnée exacte.
+// Aucune date de naissance, aucun e-mail, aucun téléphone dans ce type.
+export type PublicProvider = {
+  id: string;
+  role: "sitter" | "walker";
+  name: string;
+  avatar: string;
+  /** Position FLOUTÉE (~1 km). */
+  lat: number;
+  lng: number;
+  approxKm: number;
+  city: string;
+  rating: number;
+  reviewsCount: number;
+  priceFrom: number | null;
+  currency: string;
+  identityVerified: boolean;
+  /** PawBoost (profil ou carte) → lueur turquoise. */
+  boosted: boolean;
+  availableToday: boolean;
+};
+
+type RawProvider = {
+  _id?: string;
+  id?: string;
+  name?: string;
+  firstName?: string;
+  avatar?: { url?: string } | string | null;
+  location?: { coordinates?: number[] | null; city?: string } | null;
+  rating?: number;
+  averageRating?: number;
+  reviewsCount?: number;
+  hourlyRate?: number;
+  dailyRate?: number;
+  walkRates?: { basePrice?: number; enabled?: boolean; currency?: string }[];
+  currency?: string;
+  identityVerified?: boolean;
+  isBoosted?: boolean;
+  isMapBoosted?: boolean;
+  availableDates?: string[];
+};
+
+function normalizeProvider(r: RawProvider, role: "sitter" | "walker"): PublicProvider | null {
+  const id = String(r.id || r._id || "");
+  const c = r.location?.coordinates;
+  if (!id || !Array.isArray(c) || c.length < 2) return null;
+  // Les routes publiques ne retirent pas les comptes de test (« Test Sitter »,
+  // vu le 24/09) : garde-fou côté site en attendant le filtre serveur.
+  if (/\btest\b/i.test(String(r.name || ""))) return null;
+  const lng = Number(c[0]);
+  const lat = Number(c[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return null;
+  const [blat, blng] = blurLatLng(lat, lng, id);
+  const rates = (r.walkRates || []).filter((w) => w.enabled !== false && (w.basePrice || 0) > 0).map((w) => Number(w.basePrice));
+  const priceFrom =
+    role === "walker"
+      ? rates.length ? Math.min(...rates) : null
+      : (r.dailyRate || 0) > 0 ? Number(r.dailyRate) : (r.hourlyRate || 0) > 0 ? Number(r.hourlyRate) : null;
+  const today = new Date().toISOString().slice(0, 10);
+  const avatar = typeof r.avatar === "string" ? r.avatar : r.avatar?.url || "";
+  return {
+    id,
+    role,
+    name: (r.name || r.firstName || "").split(" ")[0] || "",
+    avatar,
+    lat: blat,
+    lng: blng,
+    approxKm: 1,
+    city: r.location?.city || "",
+    rating: Number(r.averageRating || r.rating || 0),
+    reviewsCount: Number(r.reviewsCount || 0),
+    priceFrom,
+    currency: (r.currency || (r.walkRates || [])[0]?.currency || "EUR").toUpperCase(),
+    identityVerified: r.identityVerified === true,
+    boosted: r.isBoosted === true || r.isMapBoosted === true,
+    availableToday: Array.isArray(r.availableDates) && r.availableDates.some((d) => String(d).slice(0, 10) === today),
+  };
+}
+
+export async function getPublicProviders(opts: {
+  lat: number;
+  lng: number;
+  radiusKm?: number;
+}): Promise<PublicProvider[]> {
+  const qs = new URLSearchParams({
+    lat: String(opts.lat),
+    lng: String(opts.lng),
+    radiusInMeters: String(Math.round((opts.radiusKm ?? 25) * 1000)),
+  });
+  const [s, w] = await Promise.allSettled([
+    request<{ sitters?: RawProvider[] }>(`/sitters/nearby?${qs.toString()}`),
+    request<{ walkers?: RawProvider[] }>(`/walkers/nearby?${qs.toString()}`),
+  ]);
+  const out: PublicProvider[] = [];
+  if (s.status === "fulfilled") for (const r of s.value.sitters || []) { const p = normalizeProvider(r, "sitter"); if (p) out.push(p); }
+  if (w.status === "fulfilled") for (const r of w.value.walkers || []) { const p = normalizeProvider(r, "walker"); if (p) out.push(p); }
+  return out;
+}
+
+/** Nombre de prestataires autour d'une ville (route publique, chiffres seuls). */
+export async function getCitySupply(opts: { city?: string; lat?: number; lng?: number; radiusKm?: number }): Promise<{ city: string; sitters: number; walkers: number; total: number; radiusKm: number } | null> {
+  const qs = new URLSearchParams();
+  if (opts.city) qs.set("city", opts.city);
+  if (typeof opts.lat === "number" && typeof opts.lng === "number") { qs.set("lat", String(opts.lat)); qs.set("lng", String(opts.lng)); }
+  if (opts.radiusKm) qs.set("radiusKm", String(opts.radiusKm));
+  try {
+    return await request(`/supply/city?${qs.toString()}`);
+  } catch {
+    return null;
+  }
+}
+
+/** Mode « visible par mes amis seulement » (même réglage que Préférences, synchronisé sur le compte). */
+export async function setHideFromMap(value: boolean): Promise<boolean> {
+  const p = await getMyProfile();
+  const prefs = { ...(p.preferences || {}), hideFromMap: value };
+  const u = await updateMyProfile({ preferences: prefs });
+  return u?.preferences?.hideFromMap === true;
 }
 
 // v497 — Daniel : « le compteur de visites du spot doit marcher sur le web ».
