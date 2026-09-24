@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -160,11 +161,8 @@ class GuestLandingScreen extends StatelessWidget {
                                   ),
                                   SizedBox(width: 4.w),
                                   HeartBeat(
-                                    child: InterText(
-                                      text: '❤',
-                                      fontSize: 22.sp,
-                                      color: brand,
-                                    ),
+                                    child: PawIconWidget(PawIcon.heart,
+                                        size: 22.sp, color: brand, fill: brand),
                                   ),
                                 ],
                               ),
@@ -299,7 +297,7 @@ class GuestLandingScreen extends StatelessWidget {
                       bgColor: Colors.transparent,
                       borderColor: brand,
                       textColor: brand,
-                      title: '🐾 ${'guest_discover_btn'.tr}',
+                      title: 'guest_discover_btn'.tr,
                       fontSize: 13.5,
                       fontWeight: FontWeight.w800,
                       radius: 16.r,
@@ -335,7 +333,7 @@ class GuestLandingScreen extends StatelessWidget {
                           ),
                           SizedBox(height: 4.h),
                           InterText(
-                            text: '${'guest_create_sub'.tr} 🔒',
+                            text: 'guest_create_sub'.tr,
                             fontSize: 11.5.sp,
                             color: muted,
                             textAlign: TextAlign.center,

@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -885,8 +886,8 @@ class PetPostCard extends StatelessWidget {
                       : null,
                 ),
                 SizedBox(width: 8.w),
-                Text(_speciesEmoji(p.category),
-                    style: TextStyle(fontSize: 13.sp)),
+                PawIconWidget(petSpeciesPawIcon(p.category),
+                    size: 15.sp, color: _accent),
                 SizedBox(width: 4.w),
                 InterText(
                   text: p.petName,
@@ -1091,30 +1092,6 @@ class PetPostCard extends StatelessWidget {
     );
   }
 
-  String _speciesEmoji(String category) {
-    switch (category.trim().toLowerCase()) {
-      case 'dog':
-      case 'chien':
-        return '🐕';
-      case 'cat':
-      case 'chat':
-        return '🐈';
-      case 'bird':
-      case 'oiseau':
-        return '🐦';
-      case 'small':
-      case 'small_animal':
-      case 'lapin':
-      case 'rongeur':
-      case 'petit':
-        return '🐹';
-      case 'nac':
-      case 'reptile':
-        return '🦎';
-      default:
-        return '🐾';
-    }
-  }
 
   /// Animaux ayant des données de caractère (bio OU traits OU infos clés
   /// — vaccins / stérilisé / compatibilité — v440).
@@ -1231,7 +1208,7 @@ class PetPostCard extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text(_speciesEmoji(p.category), style: TextStyle(fontSize: 18.sp)),
+            PawIconWidget(petSpeciesPawIcon(p.category), size: 20.sp, color: _accent),
             SizedBox(width: 6.w),
             Flexible(
               child: InterText(
@@ -2334,36 +2311,36 @@ class PetPostCard extends StatelessWidget {
   Widget _buildUrgentBanner() {
     String label;
     Color bg;
-    String emoji;
+    PawIcon emoji;
     // v442 — détail prestataire (maquettes) : ruban « 🚀 BOOST ACTIF » teinté
     // à l'accent du rôle (vert walker / bleu sitter) au lieu du ruban URGENT
     // rouge/orange par tier (qui reste côté owner / feed).
     if (_isProviderView) {
       label = 'post_boost_active'.tr;
       bg = _accent;
-      emoji = '🚀';
+      emoji = PawIcon.rocket;
     } else {
       switch (ownerBoostTier) {
         case 'platinum':
           label = 'post_urgent_platinum'.tr;
           bg = const Color(0xFFC81E1E);
-          emoji = '🔥';
+          emoji = PawIcon.bolt;
           break;
         case 'gold':
           label = 'post_urgent_gold'.tr;
           bg = const Color(0xFFE8472A);
-          emoji = '🚀';
+          emoji = PawIcon.rocket;
           break;
         case 'silver':
           label = 'post_urgent_silver'.tr;
           bg = const Color(0xFFEA580C);
-          emoji = '🚀';
+          emoji = PawIcon.rocket;
           break;
         case 'bronze':
         default:
           label = 'post_urgent_bronze'.tr;
           bg = const Color(0xFFF59E0B);
-          emoji = '🚀';
+          emoji = PawIcon.rocket;
       }
     }
     return Container(
@@ -2383,7 +2360,7 @@ class PetPostCard extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(emoji, style: TextStyle(fontSize: 14.sp)),
+          PawIconWidget(emoji, size: 16.sp, color: Colors.white, fill: Colors.white.withValues(alpha: 0.3)),
           SizedBox(width: 6.w),
           Text(
             label,

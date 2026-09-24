@@ -10,6 +10,7 @@
 // la couleur du rôle.
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
@@ -211,8 +212,8 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
                       as ImageProvider
                   : null,
               child: avatar.isEmpty
-                  ? Text(_speciesEmoji(pet.category),
-                      style: TextStyle(fontSize: 22.sp))
+                  ? PawIconWidget(petSpeciesPawIcon(pet.category),
+                      size: 24.sp, color: AppColors.primaryColor)
                   : null,
             ),
             SizedBox(width: 12.w),
@@ -222,8 +223,8 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
                 children: [
                   Row(
                     children: [
-                      Text(_speciesEmoji(pet.category),
-                          style: TextStyle(fontSize: 14.sp)),
+                      PawIconWidget(petSpeciesPawIcon(pet.category),
+                          size: 15.sp, color: AppColors.primaryColor),
                       SizedBox(width: 5.w),
                       Flexible(
                         child: InterText(
@@ -268,30 +269,6 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
       ? '$years ${'pet_year_unit'.tr}'
       : '$years ${'pet_years_unit'.tr}';
 
-  String _speciesEmoji(String category) {
-    switch (category.trim().toLowerCase()) {
-      case 'dog':
-      case 'chien':
-        return '🐕';
-      case 'cat':
-      case 'chat':
-        return '🐈';
-      case 'bird':
-      case 'oiseau':
-        return '🐦';
-      case 'small':
-      case 'small_animal':
-      case 'lapin':
-      case 'rongeur':
-      case 'petit':
-        return '🐹';
-      case 'nac':
-      case 'reptile':
-        return '🦎';
-      default:
-        return '🐾';
-    }
-  }
 
   /// Ouvre la fiche animal — MÊME chemin que sitter_homescreen._handleCardTap :
   /// PetRepository.getPetById → mapping → PetDetailScreen.

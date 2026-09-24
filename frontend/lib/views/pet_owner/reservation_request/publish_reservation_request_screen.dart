@@ -1,6 +1,7 @@
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/publish_reservation_request_controller.dart';
@@ -782,8 +783,8 @@ class _PublishReservationRequestScreenState
                     children: [
                       Row(
                         children: [
-                          Text(_speciesEmoji(p.category),
-                              style: TextStyle(fontSize: 14.sp)),
+                          PawIconWidget(petSpeciesPawIcon(p.category),
+                              size: 16.sp, color: AppColors.primaryColor),
                           SizedBox(width: 5.w),
                           Flexible(
                             child: InterText(
@@ -862,21 +863,15 @@ class _PublishReservationRequestScreenState
     );
   }
 
-  String _speciesEmoji(String category) {
-    switch (category.trim().toLowerCase()) {
-      case 'dog':
-        return '🐕';
-      case 'cat':
-        return '🐈';
-      case 'bird':
-        return '🐦';
-      case 'small':
-      case 'small_animal':
-        return '🐹';
-      case 'nac':
-        return '🦎';
+  /// v585 (lot D) — icône maison du type de service (plus d'emoji).
+  PawIcon _serviceIcon(String value) {
+    switch (value) {
+      case 'dog_walking':
+        return PawIcon.walker;
+      case 'day_care':
+        return PawIcon.sun;
       default:
-        return '🐾';
+        return PawIcon.house;
     }
   }
 
@@ -892,8 +887,8 @@ class _PublishReservationRequestScreenState
         children: [
           Row(
             children: [
-              Text(_speciesEmoji(p.category),
-                  style: TextStyle(fontSize: 14.sp)),
+              PawIconWidget(petSpeciesPawIcon(p.category),
+                  size: 16.sp, color: AppColors.primaryColor),
               SizedBox(width: 6.w),
               InterText(
                 text: p.petName,
@@ -1370,7 +1365,7 @@ class _PublishReservationRequestScreenState
               final value = t['value']!;
               final label = t['label']!;
               final description = t['description'] ?? '';
-              final icon = t['icon'] ?? '🐾';
+              final icon = _serviceIcon(value);
               final selected =
                   controller.selectedServiceType.value == value;
               final accent = _accentForService(value);
@@ -1407,7 +1402,7 @@ class _PublishReservationRequestScreenState
                             borderRadius: BorderRadius.circular(12.r),
                           ),
                           alignment: Alignment.center,
-                          child: Text(icon, style: TextStyle(fontSize: 22.sp)),
+                          child: PawIconWidget(icon, size: 24.sp, color: selected ? Colors.white : accent, fill: selected ? Colors.white.withValues(alpha: 0.3) : null),
                         ),
                         SizedBox(width: 12.w),
                         Expanded(

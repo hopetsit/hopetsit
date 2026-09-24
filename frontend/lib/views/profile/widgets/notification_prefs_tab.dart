@@ -2,6 +2,7 @@
 // Interrupteurs par catégorie + choix du son avec bouton d'écoute.
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
@@ -36,14 +37,14 @@ class NotificationPrefsTab extends StatelessWidget {
     'silent': Icons.notifications_off_rounded,
   };
 
-  static const Map<String, String> _soundEmoji = {
-    'default': '🔔',
-    'frog': '🐸',
-    'bark': '🐶',
-    'meow': '🐱',
-    'tweet': '🦉',
-    'vibrate': '📳',
-    'silent': '🔕',
+  static const Map<String, PawIcon> _soundEmoji = {
+    'default': PawIcon.bell,
+    'frog': PawIcon.paw,
+    'bark': PawIcon.dog,
+    'meow': PawIcon.cat,
+    'tweet': PawIcon.bird,
+    'vibrate': PawIcon.bolt,
+    'silent': PawIcon.bellOff,
   };
 
   @override
@@ -120,7 +121,7 @@ class NotificationPrefsTab extends StatelessWidget {
                 _SoundRow(
                   accent: accent,
                   label: 'notif_sound_$s'.tr,
-                  emoji: _soundEmoji[s] ?? '🔔',
+                  emoji: _soundEmoji[s] ?? PawIcon.bell,
                   icon: _soundIcons[s] ?? Icons.notifications_rounded,
                   selected: currentSound == s,
                   playing: previewing == s,
@@ -150,7 +151,7 @@ class NotificationPrefsTab extends StatelessWidget {
 class _SoundRow extends StatelessWidget {
   final Color accent;
   final String label;
-  final String emoji;
+  final PawIcon emoji;
   final IconData icon;
   final bool selected;
   final bool playing;
@@ -186,7 +187,10 @@ class _SoundRow extends StatelessWidget {
                 color: selected ? accent : accent.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(11.r),
               ),
-              child: Text(emoji, style: TextStyle(fontSize: 18.sp)),
+              child: PawIconWidget(emoji,
+                  size: 20.sp,
+                  color: selected ? Colors.white : accent,
+                  fill: selected ? Colors.white.withValues(alpha: 0.3) : null),
             ),
             SizedBox(width: 12.w),
             Expanded(

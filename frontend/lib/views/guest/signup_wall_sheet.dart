@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
@@ -106,21 +107,21 @@ class SignupWallSheet extends StatelessWidget {
         userType: 'pet_owner',
         titleKey: 'role_pet_owner',
         subtitleKey: 'guest_role_owner_sub',
-        emoji: '🐾',
+        icon: PawIcon.paw,
         color: AppColors.primaryColor,
       ),
       _WallRole(
         userType: 'pet_sitter',
         titleKey: 'role_pet_sitter',
         subtitleKey: 'guest_role_sitter_sub',
-        emoji: '🏠',
+        icon: PawIcon.house,
         color: AppColors.sitterAccent,
       ),
       _WallRole(
         userType: 'pet_walker',
         titleKey: 'role_pet_walker',
         subtitleKey: 'guest_role_walker_sub',
-        emoji: '🐕‍🦺',
+        icon: PawIcon.walker,
         color: AppColors.greenColor,
       ),
     ];
@@ -272,13 +273,13 @@ class _WallRole {
   final String userType;
   final String titleKey;
   final String subtitleKey;
-  final String emoji;
+  final PawIcon icon;
   final Color color;
   const _WallRole({
     required this.userType,
     required this.titleKey,
     required this.subtitleKey,
-    required this.emoji,
+    required this.icon,
     required this.color,
   });
 }
@@ -327,7 +328,7 @@ class _RoleCard extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
-                child: Text(role.emoji, style: TextStyle(fontSize: 20.sp)),
+                child: PawIconWidget(role.icon, size: 22.sp, color: c),
               ),
               SizedBox(width: 12.w),
               Expanded(

@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hopetsit/widgets/paw_icons.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. COULEURS PAR RÔLE — LE SEUL ENDROIT À MODIFIER
@@ -482,21 +483,6 @@ class PawMapLogo extends StatelessWidget {
 // 5. LA BARRE
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Chemins SVG au trait, repris du prototype (viewBox 24×24).
-class _PawIcons {
-  static const String paw =
-      'M12 20.5c-2.9 0-5-1.5-5-3.5 0-1.4 1.1-2.4 2.1-3.4.9-1 1.8-1.9 2.9-1.9s2 '
-      '.9 2.9 1.9c1 1 2.1 2 2.1 3.4 0 2-2.1 3.5-5 3.5zM4.8 10.5a1.8 1.8 0 1 0 '
-      '3.6 0 1.8 1.8 0 1 0-3.6 0zM15.6 10.5a1.8 1.8 0 1 0 3.6 0 1.8 1.8 0 1 '
-      '0-3.6 0zM7.7 6a1.8 1.8 0 1 0 3.6 0 1.8 1.8 0 1 0-3.6 0zM12.7 6a1.8 1.8 '
-      '0 1 0 3.6 0 1.8 1.8 0 1 0-3.6 0z';
-  static const String chat =
-      'M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.4A8 8 0 1 1 21 12zM8.5 12h.01M12 '
-      '12h.01M15.5 12h.01';
-  static const String cal =
-      'M4 7h16v13H4zM4 11h16M8 4v4M16 4v4M8 15h.01M12 15h.01M16 15h.01';
-  static const String user = 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0';
-}
 
 TextStyle _manrope({
   required double size,
@@ -683,11 +669,11 @@ class _PawTabBarState extends State<PawTabBar>
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Row(
                     children: <Widget>[
-                      _tab(0, _PawIcons.paw),
-                      _tab(1, _PawIcons.chat),
+                      _tab(0, PawIcon.paw),
+                      _tab(1, PawIcon.chat),
                       _centerSlot(),
-                      _tab(3, _PawIcons.cal),
-                      _tab(4, _PawIcons.user),
+                      _tab(3, PawIcon.calendar),
+                      _tab(4, PawIcon.user),
                     ],
                   ),
                 ),
@@ -733,7 +719,7 @@ class _PawTabBarState extends State<PawTabBar>
     );
   }
 
-  Widget _tab(int index, String path) {
+  Widget _tab(int index, PawIcon path) {
     final bool active = widget.currentIndex == index;
     final Color color =
         active ? Colors.white : Colors.white.withValues(alpha: 0.7);
@@ -784,14 +770,15 @@ class _PawTabBarState extends State<PawTabBar>
     );
   }
 
-  /// Trait blanc 100 % (actif) / 70 % (inactif), épaisseur 2.2 / 1.8.
-  String _strokeIcon(String path, bool active) {
-    final String opacity = active ? '1' : '0.7';
-    final String strokeWidth = active ? '2.2' : '1.8';
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" '
-        'fill="none" stroke="#ffffff" stroke-opacity="$opacity" '
-        'stroke-width="$strokeWidth" stroke-linecap="round" '
-        'stroke-linejoin="round"><path d="$path"/></svg>';
+  /// v585 (lot D) — icône de la FAMILLE MAISON (`paw_icons.dart`), bicolore :
+  /// trait blanc 100 % (actif) / 70 % (inactif) + aplat blanc 30 % (actif) /
+  /// 14 % (inactif). Mêmes tracés que le reste de l'app et le site.
+  String _strokeIcon(PawIcon icon, bool active) {
+    return pawIconSvg(
+      icon,
+      color: Colors.white.withValues(alpha: active ? 1 : 0.7),
+      fill: Colors.white.withValues(alpha: active ? 0.30 : 0.14),
+    );
   }
 
   /// Slot central : uniquement l'étiquette « PawMap » (la patte est au-dessus).

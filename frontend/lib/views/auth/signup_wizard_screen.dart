@@ -580,7 +580,7 @@ class SignupWizardScreen extends StatelessWidget {
                       children: [
                         Flexible(
                           child: PoppinsText(
-                            text: city.isEmpty ? '📍' : city,
+                            text: city.isEmpty ? '—' : city,
                             fontSize: 15.sp,
                             fontWeight: FontWeight.w800,
                             color: AppColors.textPrimary(context),
@@ -901,7 +901,7 @@ class SignupWizardScreen extends StatelessWidget {
                       Padding(
                         padding: EdgeInsets.only(top: 2.h, bottom: 2.h),
                         child: InterText(
-                          text: '⭐ ${'signup_new_profile'.tr}',
+                          text: 'signup_new_profile'.tr,
                           fontSize: 11.sp,
                           fontWeight: FontWeight.w600,
                           color: _accent,
@@ -909,7 +909,7 @@ class SignupWizardScreen extends StatelessWidget {
                       ),
                     if (c.cityController.text.trim().isNotEmpty)
                       InterText(
-                        text: '📍 ${c.cityController.text.trim()}',
+                        text: c.cityController.text.trim(),
                         fontSize: 12.sp,
                         color: AppColors.textSecondary(context),
                       ),

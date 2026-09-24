@@ -9,6 +9,7 @@
 // chaque mount + sur demande externe via refreshAfterPurchase().
 
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
@@ -206,7 +207,7 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
           : 0;
       // v444 — Daniel : badge discret = jours restants dans une pastille
       // pleine NOIRE (Premium = le plus prestigieux).
-      children.add(_badge(context, '👑', days, const Color(0xFF150F0D),
+      children.add(_badge(context, PawIcon.crown, days, const Color(0xFF150F0D),
           name: 'hero_benefit_premium'.tr));
     }
     if (hasIndividualPawFollow) {
@@ -214,20 +215,20 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
           ? pawFollowExpiry.difference(now).inDays
           : 0;
       // Violet PawFollow.
-      children.add(_badge(context, '📍', days, const Color(0xFF7C3AED),
+      children.add(_badge(context, PawIcon.route, days, const Color(0xFF7C3AED),
           name: 'hero_benefit_follow'.tr));
     }
     if (familyActive) {
       final days =
           familyExpiry != null ? familyExpiry.difference(now).inDays : 0;
       // Violet Famille (légèrement plus clair que PawFollow).
-      children.add(_badge(context, '👨‍👩‍👧', days, const Color(0xFF8B5CF6),
+      children.add(_badge(context, PawIcon.friends, days, const Color(0xFF8B5CF6),
           name: 'hero_benefit_family'.tr));
     }
     if (boostActive) {
       final days = boostExpiry.difference(now).inDays;
       // Rouge PawBoost.
-      children.add(_badge(context, '🚀', days, const Color(0xFFE8472A),
+      children.add(_badge(context, PawIcon.rocket, days, const Color(0xFFE8472A),
           name: 'hero_benefit_boost'.tr));
     }
     if (pawSpotActive) {
@@ -236,7 +237,7 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
           ? (pawspotExpiry.difference(now).inHours / 24).ceil()
           : 0;
       // Jaune/doré PawSpot.
-      children.add(_badge(context, '🐾', days, const Color(0xFFE8A00A),
+      children.add(_badge(context, PawIcon.coin, days, const Color(0xFFE8A00A),
           name: 'hero_benefit_spot'.tr));
     }
     if (children.isEmpty) {
@@ -278,7 +279,7 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
   /// dans une pastille PLEINE à la couleur de l'ABONNEMENT (noir Premium /
   /// violet PawFollow-Famille / jaune PawSpot / rouge PawBoost). Plus de nom
   /// d'abonnement ni de cadre couleur-rôle : l'emoji + la couleur identifient.
-  Widget _badge(BuildContext context, String emoji, int days, Color color,
+  Widget _badge(BuildContext context, PawIcon emoji, int days, Color color,
       {String name = ''}) {
     // v565 — un abonnement « à vie » (expiration très lointaine) affichait
     // « 26766 j » : au-delà de 10 ans on montre ∞.
@@ -289,7 +290,7 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
       // v565 — pilule de verre blanc translucide : icône + nom court + jours.
       final text = daysLabel.isEmpty ? name : '$name · $daysLabel';
       return _heroPill(
-        leading: Text(emoji, style: TextStyle(fontSize: 12.sp)),
+        leading: PawIconWidget(emoji, size: 13.sp, color: Colors.white, fill: Colors.white.withValues(alpha: 0.3)),
         text: text,
       );
     }
@@ -315,7 +316,7 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(emoji, style: TextStyle(fontSize: fs)),
+          PawIconWidget(emoji, size: fs + 3, color: onColor, fill: onColor.withValues(alpha: 0.3)),
           if (daysLabel.isNotEmpty) ...[
             SizedBox(width: 3.w),
             InterText(

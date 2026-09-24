@@ -1,0 +1,5 @@
+Poppins (Indian Type Foundry, SIL Open Font License 1.1) — les deux graisses que
+l'app utilise le plus (Regular 400, Bold 700), embarquées le 25/09/2026 (lot D) pour
+que les titres et les boutons s'affichent en Poppins DÈS la première image, même hors
+réseau. google_fonts détecte ces fichiers par leur nom et ne télécharge plus rien pour eux.
+Fichiers identiques à ceux servis par fonts.gstatic.com (hachage google_fonts 6.3.3).

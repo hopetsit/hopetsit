@@ -191,4 +191,5 @@ flutter:
     - assets/brand/web/
     - assets/brand/png/
     - assets/sounds/
+    - assets/fonts/
     - .env

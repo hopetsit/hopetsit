@@ -22,7 +22,7 @@ const Map<String, Map<String, String>> home571I18n =
     'home571_distance_away': '{km} km away',
     'home571_empty_title': 'All quiet around you for now',
     'home571_empty_body':
-        'We’ll ping you as soon as an owner posts near you 🔔',
+        'We’ll ping you as soon as an owner posts near you',
     'home571_card_profile_title': 'Complete your profile',
     'home571_card_profile_sub': 'Complete profiles get picked first.',
     'home571_card_invite_title': 'Invite an owner',
@@ -43,7 +43,7 @@ const Map<String, Map<String, String>> home571I18n =
     'home571_distance_away': 'à {km} km',
     'home571_empty_title': 'C’est calme autour de toi pour l’instant',
     'home571_empty_body':
-        'On te prévient dès qu’un propriétaire publie près de chez toi 🔔',
+        'On te prévient dès qu’un propriétaire publie près de chez toi',
     'home571_card_profile_title': 'Complète ton profil',
     'home571_card_profile_sub': 'Un profil complet est choisi en premier.',
     'home571_card_invite_title': 'Invite un propriétaire',
@@ -66,7 +66,7 @@ const Map<String, Map<String, String>> home571I18n =
     'home571_distance_away': 'a {km} km',
     'home571_empty_title': 'Por ahora hay calma a tu alrededor',
     'home571_empty_body':
-        'Te avisamos en cuanto un dueño publique cerca de ti 🔔',
+        'Te avisamos en cuanto un dueño publique cerca de ti',
     'home571_card_profile_title': 'Completa tu perfil',
     'home571_card_profile_sub': 'Los perfiles completos se eligen antes.',
     'home571_card_invite_title': 'Invita a un dueño',
@@ -88,7 +88,7 @@ const Map<String, Map<String, String>> home571I18n =
     'home571_distance_away': '{km} km entfernt',
     'home571_empty_title': 'Gerade ist es ruhig bei dir',
     'home571_empty_body':
-        'Wir sagen dir Bescheid, sobald jemand in deiner Nähe etwas einstellt 🔔',
+        'Wir sagen dir Bescheid, sobald jemand in deiner Nähe etwas einstellt',
     'home571_card_profile_title': 'Profil vervollständigen',
     'home571_card_profile_sub':
         'Vollständige Profile werden zuerst ausgewählt.',
@@ -111,7 +111,7 @@ const Map<String, Map<String, String>> home571I18n =
     'home571_distance_away': 'a {km} km',
     'home571_empty_title': 'Per ora è tutto tranquillo intorno a te',
     'home571_empty_body':
-        'Ti avvisiamo appena un proprietario pubblica vicino a te 🔔',
+        'Ti avvisiamo appena un proprietario pubblica vicino a te',
     'home571_card_profile_title': 'Completa il tuo profilo',
     'home571_card_profile_sub': 'I profili completi vengono scelti per primi.',
     'home571_card_invite_title': 'Invita un proprietario',
@@ -134,7 +134,7 @@ const Map<String, Map<String, String>> home571I18n =
     'home571_distance_away': 'a {km} km',
     'home571_empty_title': 'Está calmo à tua volta, por agora',
     'home571_empty_body':
-        'Avisamos-te assim que um dono publicar perto de ti 🔔',
+        'Avisamos-te assim que um dono publicar perto de ti',
     'home571_card_profile_title': 'Completa o teu perfil',
     'home571_card_profile_sub':
         'Os perfis completos são escolhidos primeiro.',
@@ -156,7 +156,7 @@ const Map<String, Map<String, String>> home571I18n =
     'home571_expand_to': '{km} km로 넓히기',
     'home571_distance_away': '{km} km 거리',
     'home571_empty_title': '지금은 주변이 조용해요',
-    'home571_empty_body': '근처에 새 요청이 올라오면 바로 알려드릴게요 🔔',
+    'home571_empty_body': '근처에 새 요청이 올라오면 바로 알려드릴게요',
     'home571_card_profile_title': '프로필 완성하기',
     'home571_card_profile_sub': '완성된 프로필이 먼저 선택돼요.',
     'home571_card_invite_title': '반려인 초대하기',
@@ -176,7 +176,7 @@ const Map<String, Map<String, String>> home571I18n =
     'home571_expand_to': '{km} km に広げる',
     'home571_distance_away': '{km} km先',
     'home571_empty_title': '今のところ周辺は静かです',
-    'home571_empty_body': '近くで新しい依頼が出たらすぐにお知らせします 🔔',
+    'home571_empty_body': '近くで新しい依頼が出たらすぐにお知らせします',
     'home571_card_profile_title': 'プロフィールを完成させる',
     'home571_card_profile_sub': '完成したプロフィールから選ばれます。',
     'home571_card_invite_title': '飼い主さんを招待する',
@@ -197,7 +197,7 @@ const Map<String, Map<String, String>> home571I18n =
     'home571_distance_away': '{km} km stąd',
     'home571_empty_title': 'Na razie jest u Ciebie spokojnie',
     'home571_empty_body':
-        'Damy znać, gdy ktoś opublikuje ogłoszenie w pobliżu 🔔',
+        'Damy znać, gdy ktoś opublikuje ogłoszenie w pobliżu',
     'home571_card_profile_title': 'Uzupełnij profil',
     'home571_card_profile_sub': 'Pełne profile są wybierane najpierw.',
     'home571_card_invite_title': 'Zaproś właściciela',

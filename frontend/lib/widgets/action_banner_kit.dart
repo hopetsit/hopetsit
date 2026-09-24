@@ -37,6 +37,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_button_kit.dart';
 
 // ─── Palette des états ──────────────────────────────────────────────────────
 
@@ -490,104 +491,36 @@ class _ActionPillButtonState extends State<ActionPillButton> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = _isDark(context);
-    final tone = widget.tone;
-
-    late final Color bg;
-    late final Color fg;
-    BoxBorder? border;
+    // v585 (lot D) — rendu par le kit signature (`PawButton`) : plein =
+    // principal (dégradé + disque + reflet), contour = secondaire, danger =
+    // rouge (supprimer / annuler), ghost = secondaire. Libellé JAMAIS coupé.
+    // Même callback, même « en cours », même haptique qu'avant.
+    final PawButtonKind kind;
     switch (widget.kind) {
       case ActionPillKind.filled:
-        bg = tone;
-        fg = Colors.white;
-        break;
-      case ActionPillKind.outlined:
-        bg = Colors.transparent;
-        fg = tone;
-        border = Border.all(
-          color: tone.withValues(alpha: dark ? 0.75 : 0.55),
-          width: 1.4,
-        );
+        kind = PawButtonKind.primary;
         break;
       case ActionPillKind.danger:
-        // Destructive : rouge TEXTE, jamais d'aplat. Un filet très fin garde
-        // l'affordance quand le bouton est seul sur une carte.
-        bg = Colors.transparent;
-        fg = ActionTone.danger;
-        border = Border.all(
-          color: ActionTone.danger.withValues(alpha: dark ? 0.45 : 0.30),
-          width: 1.2,
-        );
+        kind = PawButtonKind.danger;
         break;
+      case ActionPillKind.outlined:
       case ActionPillKind.ghost:
-        bg = tone.withValues(alpha: dark ? 0.24 : 0.10);
-        fg = tone;
+        kind = PawButtonKind.secondary;
         break;
     }
-
-    final radius = BorderRadius.circular(14.r);
-    final height = widget.compact ? 40.h : 48.h;
-    final fontSize = widget.compact ? 12.5 : 14.0;
-
-    final children = <Widget>[];
-    if (_busy) {
-      children.add(SizedBox(
-        width: 15.w,
-        height: 15.w,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(fg),
-        ),
-      ));
-      children.add(SizedBox(width: 8.w));
-    } else if (widget.icon != null) {
-      children.add(Icon(widget.icon, size: widget.compact ? 16.sp : 18.sp,
-          color: fg));
-      children.add(SizedBox(width: 7.w));
-    }
-    children.add(Flexible(
-      child: PoppinsText(
-        text: widget.label,
-        fontSize: fontSize,
-        fontWeight: FontWeight.w700,
-        color: fg,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-    ));
-
-    Widget pill = Opacity(
-      opacity: _enabled ? 1.0 : 0.62,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: radius,
-          border: border,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: radius,
-          child: InkWell(
-            onTap: _enabled ? _handleTap : null,
-            borderRadius: radius,
-            child: SizedBox(
-              height: height,
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                    horizontal: widget.compact ? 13.w : 18.w),
-                child: Row(
-                  mainAxisSize:
-                      widget.expand ? MainAxisSize.max : MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: children,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+    Widget pill = PawButton(
+      label: widget.label,
+      onTap: _enabled ? _handleTap : null,
+      color: widget.tone,
+      icon: widget.icon,
+      kind: kind,
+      loading: _busy,
+      enabled: widget.onPressed != null,
+      expand: widget.expand,
+      compact: true,
+      height: widget.compact ? 40.h : 48.h,
+      haptic: false,
     );
-
     if (widget.maxWidth != null) {
       pill = ConstrainedBox(
         constraints: BoxConstraints(maxWidth: widget.maxWidth!),

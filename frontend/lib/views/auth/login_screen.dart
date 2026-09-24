@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -203,10 +204,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       SizedBox(width: 8.w),
                       HeartBeat(
-                        child: Text('❤',
-                            style: TextStyle(
-                                fontSize: 24.sp,
-                                color: const Color(0xFFC92A12))),
+                        child: PawIconWidget(PawIcon.heart,
+                            size: 24.sp,
+                            color: const Color(0xFFC92A12),
+                            fill: const Color(0xFFC92A12)),
                       ),
                     ],
                   ),
@@ -494,7 +495,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text('🐭', style: TextStyle(fontSize: 15.sp)),
+                          PawIconWidget(PawIcon.paw, size: 16.sp, color: const Color(0xFFBE185D)),
                           SizedBox(width: 8.w),
                           PoppinsText(
                             text: 'guest_continue_without'.tr,
@@ -772,7 +773,7 @@ class _ResumeCard extends StatelessWidget {
   Widget _fallbackAvatar() => Container(
         color: const Color(0xFFFFF3EA),
         child: Center(
-          child: Text('🐾', style: TextStyle(fontSize: 18.sp)),
+          child: PawIconWidget(PawIcon.paw, size: 20.sp, color: const Color(0xFFC92A12)),
         ),
       );
 }

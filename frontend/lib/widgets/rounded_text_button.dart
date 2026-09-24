@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_button_kit.dart';
 
-/// Bouton principal de l'app.
+/// Bouton principal de l'app — MÊME API qu'avant (34 fichiers : connexion,
+/// inscription, mot de passe, réservation, paiement, code promo, dialogues…).
 ///
-/// v569 — Daniel : « tous les boutons de l'ancien style doivent être
-/// modernisés ». Même API qu'avant (19 écrans l'utilisent : connexion,
-/// inscription, mot de passe, réservation, paiement, code promo, dialogues…),
-/// seul le rendu change : dégradé vertical doux, coins 16, ombre colorée
-/// diffuse, onde au toucher bien découpée, léger enfoncement à l'appui,
-/// retour haptique, état désactivé lisible, variante « contour » quand une
-/// bordure est demandée sur fond clair.
-class CustomButton extends StatefulWidget {
+/// v585 (lot D) — rendu par le kit « signature HoPetSit »
+/// (`widgets/paw_button_kit.dart`, NORME_DESIGN.md) : dégradé HORIZONTAL de
+/// la couleur, reflet verre, empreinte de patte au toucher, libellé jamais
+/// coupé (2 lignes puis réduction), désactivé en teinte pâle pleine.
+/// `borderColor` sur fond clair = bouton secondaire (contour). `child` =
+/// contenu libre posé dans la coque. Aucune action ne change.
+class CustomButton extends StatelessWidget {
   final Widget? child;
   final String? title;
   final bool isGradient;
@@ -44,112 +43,40 @@ class CustomButton extends StatefulWidget {
   });
 
   @override
-  State<CustomButton> createState() => _CustomButtonState();
-}
-
-class _CustomButtonState extends State<CustomButton> {
-  bool _pressed = false;
-
-  void _setPressed(bool v) {
-    if (_pressed != v && mounted) setState(() => _pressed = v);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final bool enabled = widget.onTap != null;
-    final Color base = widget.bgColor ?? AppColors.primaryColor;
-    final double r = widget.radius ?? 16.0.r;
-    final BorderRadius br = BorderRadius.circular(r);
+    final bool enabled = onTap != null;
+    final Color base = bgColor ?? AppColors.primaryColor;
 
     // Fond clair / transparent + bordure = bouton « contour » (secondaire).
-    final bool outlined = widget.borderColor != null &&
-        !widget.isGradient &&
+    final bool outlined = borderColor != null &&
+        !isGradient &&
         (base.a < 0.05 || base.computeLuminance() > 0.85);
 
-    final Gradient? gradient = outlined
-        ? null
-        : widget.isGradient
-            ? AppColors.linearGradient
-            : LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color.lerp(base, Colors.white, 0.10)!,
-                  Color.lerp(base, Colors.black, 0.06)!,
-                ],
-              );
+    // Contenu libre : on garde exactement ce que l'écran a construit.
+    final Widget? custom = child;
 
-    final Color fg = widget.textColor ??
-        (outlined ? (widget.borderColor ?? base) : Colors.white);
-
-    return AnimatedScale(
-      scale: _pressed && enabled ? 0.975 : 1.0,
-      duration: const Duration(milliseconds: 110),
-      curve: Curves.easeOut,
-      child: AnimatedOpacity(
-        opacity: enabled ? 1.0 : 0.55,
-        duration: const Duration(milliseconds: 150),
-        child: Container(
-          height: widget.height ?? 52.h,
-          width: widget.width ?? double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: br,
-            boxShadow: enabled && !outlined
-                ? [
-                    BoxShadow(
-                      color: base.withValues(alpha: _pressed ? 0.16 : 0.28),
-                      blurRadius: _pressed ? 8 : 16,
-                      spreadRadius: -2,
-                      offset: Offset(0, _pressed ? 3 : 8),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Material(
-            color: outlined ? base : Colors.transparent,
-            borderRadius: br,
-            clipBehavior: Clip.antiAlias,
-            child: Ink(
-              decoration: BoxDecoration(
-                gradient: gradient,
-                borderRadius: br,
-                border: widget.borderColor != null
-                    ? Border.all(color: widget.borderColor!, width: 1.4)
-                    : null,
-              ),
-              child: InkWell(
-                borderRadius: br,
-                splashColor: fg.withValues(alpha: 0.16),
-                highlightColor: fg.withValues(alpha: 0.06),
-                onTapDown: enabled ? (_) => _setPressed(true) : null,
-                onTapCancel: enabled ? () => _setPressed(false) : null,
-                onTap: enabled
-                    ? () {
-                        _setPressed(false);
-                        HapticFeedback.selectionClick();
-                        widget.onTap!();
-                      }
-                    : null,
-                child: Center(
-                  child: widget.child ??
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 14.w),
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: InterText(
-                            text: widget.title ?? '',
-                            fontSize: widget.fontSize ?? 16,
-                            fontWeight: widget.fontWeight ?? FontWeight.w700,
-                            color: fg,
-                          ),
-                        ),
-                      ),
-                ),
+    final Widget button = PawButton(
+      label: title ?? '',
+      onTap: onTap,
+      color: outlined ? (borderColor ?? base) : base,
+      kind: outlined ? PawButtonKind.secondary : PawButtonKind.primary,
+      enabled: enabled,
+      expand: width == null || width == double.infinity,
+      height: height ?? 52.h,
+      textColor: outlined ? null : textColor,
+      child: custom == null
+          ? null
+          : DefaultTextStyle.merge(
+              style: TextStyle(color: textColor ?? (outlined ? (borderColor ?? base) : Colors.white)),
+              child: IconTheme.merge(
+                data: IconThemeData(color: textColor ?? (outlined ? (borderColor ?? base) : Colors.white)),
+                child: custom,
               ),
             ),
-          ),
-        ),
-      ),
     );
+    if (width != null && width != double.infinity) {
+      return SizedBox(width: width, child: button);
+    }
+    return button;
   }
 }

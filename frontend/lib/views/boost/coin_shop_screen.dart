@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hopetsit/widgets/paw_card_icons.dart';
 import 'package:hopetsit/widgets/promo_code_sheet.dart';
@@ -423,7 +424,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
           surfaceTintColor: Colors.transparent,
           title: Row(
             children: [
-              Text('🐕', style: TextStyle(fontSize: 22.sp)),
+              PawIconWidget(PawIcon.bag, size: 24.sp, color: AppColors.primaryColor),
               SizedBox(width: 8.w),
               Flexible(
                 child: InterText(
@@ -1175,12 +1176,25 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
   /// gros, prix par jour en petit, ruban « Le plus choisi » sur le palier mis
   /// en avant, sélection = bord 2 px + coche animée. Tap = SÉLECTION (l'achat
   /// part du bouton collant), appui long = payer avec le portefeuille.
+  /// v585 (lot D) — icône maison du palier (plus d'emoji de médaille).
+  PawIcon _tierIcon(String tier) {
+    switch (tier) {
+      case 'platinum':
+        return PawIcon.diamond;
+      case 'gold':
+        return PawIcon.crown;
+      case 'silver':
+        return PawIcon.medal;
+      default:
+        return PawIcon.rocket;
+    }
+  }
+
   Widget _buildPackageCard(BuildContext context, Map<String, dynamic> pkg) {
     final tier = pkg['tier'] as String;
     // Backend can return amount as double (e.g. 4.99) or int — coerce via num.
     final amount = ((pkg['amount'] as num?) ?? 0).toDouble();
     final days = ((pkg['days'] as num?) ?? 0).toInt();
-    final icon = pkg['icon'] as String;
     // v18.9.8 — label localisé via _durationLabel(days), plus de label EN.
     final label = _durationLabel(days);
     final isBuying = _selectedTier == tier && _purchasing;
@@ -1201,7 +1215,7 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
       footnote: (applePrice == null && days > 0)
           ? '${CurrencyHelper.format(currency, amount / days)}/${'boost_per_day'.tr}'
           : null,
-      leading: Text(icon, style: TextStyle(fontSize: 22.sp)),
+      leading: PawIconWidget(_tierIcon(tier), size: 24.sp, color: (pkg['color'] as Color?) ?? AppColors.primaryColor),
       // Ruban du palier mis en avant : on réutilise la clé existante
       // `boost_popular` (« Populaire ») plutôt que d'empiler deux pastilles
       // qui disent la même chose.
@@ -1410,7 +1424,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                     // Section 1 : Suis ton animal (PawFollow individuel).
                     _planSectionHeader(
                       context,
-                      emoji: '🐾',
+                      emoji: PawIcon.paw,
                       title: 'pawfollow_section_solo'.tr,
                       subtitle: 'pawfollow_section_solo_sub'.tr,
                       color: _violet,
@@ -1422,7 +1436,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                     // Section 2 : PawFamily (suivi en famille).
                     _planSectionHeader(
                       context,
-                      emoji: '👨‍👩‍👧',
+                      emoji: PawIcon.friends,
                       title: 'PawFamily',
                       subtitle: 'pawfollow_section_family_sub'.tr,
                       color: _violet,
@@ -1681,7 +1695,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
   /// v567 — même gabarit de titre de section que les autres onglets.
   Widget _planSectionHeader(
     BuildContext context, {
-    required String emoji,
+    required PawIcon emoji,
     required String title,
     required String subtitle,
     required Color color,
@@ -1690,7 +1704,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
       title: title,
       subtitle: subtitle,
       color: color,
-      leading: Text(emoji, style: TextStyle(fontSize: 18.sp)),
+      leading: PawIconWidget(emoji, size: 20.sp, color: color),
     );
   }
 
@@ -1763,13 +1777,14 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
           : null,
       savePct: savingsPct,
       ribbon: isYearly ? 'shop569_most_chosen'.tr : null,
-      leading: Text(
+      leading: PawIconWidget(
         isFamily
-            ? '👨‍👩‍👧'
+            ? PawIcon.friends
             : isYearly
-                ? '🏆'
-                : '⭐',
-        style: TextStyle(fontSize: 21.sp),
+                ? PawIcon.medal
+                : PawIcon.star,
+        size: 22.sp,
+        color: _violet,
       ),
       badges: [
         if (isYearly)
@@ -2863,7 +2878,7 @@ class _PawSpotTabState extends State<_PawSpotTab>
         children: [
           Row(
             children: [
-              const Text('🎁', style: TextStyle(fontSize: 18)),
+              PawIconWidget(PawIcon.gift, size: 20.sp, color: AppColors.primaryColor),
               SizedBox(width: 8.w),
               Expanded(
                 child: InterText(

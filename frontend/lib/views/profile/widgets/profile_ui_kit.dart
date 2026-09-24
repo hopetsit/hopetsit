@@ -15,6 +15,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_button_kit.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// Couleur d'accent d'un rôle (owner / sitter / walker).
@@ -368,12 +369,15 @@ class ProfileSubPageScaffold extends StatelessWidget {
 }
 
 /// Bouton principal plein (couleur du rôle), avec état chargement.
+/// v585 (lot D) — rendu par le kit signature (`PawButton`) : dégradé
+/// horizontal, disque blanc + icône, empreinte au toucher, libellé jamais
+/// coupé. Même API, même action.
 class ProfilePrimaryButton extends StatelessWidget {
   final String label;
   final Color accent;
   final VoidCallback? onTap;
   final bool loading;
-  final IconData? icon;
+  final Object? icon;
   const ProfilePrimaryButton({
     super.key,
     required this.label,
@@ -385,58 +389,24 @@ class ProfilePrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final enabled = onTap != null && !loading;
-    return SizedBox(
-      width: double.infinity,
+    return PawButton(
+      label: label,
+      onTap: onTap,
+      color: accent,
+      icon: icon,
+      loading: loading,
+      enabled: onTap != null,
       height: 52.h,
-      child: ElevatedButton(
-        onPressed: enabled ? onTap : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: accent,
-          disabledBackgroundColor: accent.withValues(alpha: 0.55),
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-        ),
-        child: loading
-            ? SizedBox(
-                width: 22.w,
-                height: 22.w,
-                child: const CircularProgressIndicator(
-                  strokeWidth: 2.4,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (icon != null) ...[
-                    Icon(icon, size: 18.sp, color: Colors.white),
-                    SizedBox(width: 8.w),
-                  ],
-                  Flexible(
-                    child: PoppinsText(
-                      text: label,
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-      ),
     );
   }
 }
 
-/// Bouton secondaire (fond pâle du rôle, texte couleur du rôle).
+/// Bouton secondaire (contour du rôle, texte couleur du rôle).
 class ProfileSecondaryButton extends StatelessWidget {
   final String label;
   final Color accent;
   final VoidCallback? onTap;
-  final IconData? icon;
+  final Object? icon;
   const ProfileSecondaryButton({
     super.key,
     required this.label,
@@ -447,36 +417,14 @@ class ProfileSecondaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
+    return PawButton(
+      label: label,
+      onTap: onTap,
+      color: accent,
+      icon: icon,
+      kind: PawButtonKind.secondary,
+      enabled: onTap != null,
       height: 48.h,
-      child: TextButton(
-        onPressed: onTap,
-        style: TextButton.styleFrom(
-          backgroundColor: accent.withValues(alpha: 0.10),
-          foregroundColor: accent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 18.sp, color: accent),
-              SizedBox(width: 8.w),
-            ],
-            Flexible(
-              child: PoppinsText(
-                text: label,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w700,
-                color: accent,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
