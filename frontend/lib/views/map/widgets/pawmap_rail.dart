@@ -187,12 +187,77 @@ List<String> normalizeRailOrder(List<String>? order) {
 }
 
 /// Explications des boutons du dock et de la capsule (appui long).
-const Map<String, String> kPawDockHelpKeys = <String, String>{
-  'share': 'pawmap_rail_help_share',
-  'sos': 'pawmap_rail_help_sos',
-  'layers': 'pawmap_rail_help_layers',
-  'night': 'pawmap_rail_help_night',
-  'history': 'pawmap_rail_help_history',
+/// Raccourcis du dock (feuille glissante / carte agrandie) : UNE seule source
+/// pour le libellé, l'icône, la couleur et l'explication — utilisée par
+/// l'appui long, par le menu de personnalisation et par l'écran d'aide
+/// (`PawMapHelpScreen`, Profil › Aide).
+class PawDockSpec {
+  const PawDockSpec({
+    required this.id,
+    required this.icon,
+    required this.color,
+    required this.labelKey,
+    required this.helpKey,
+  });
+
+  final String id;
+  final IconData icon;
+  final Color color;
+  final String labelKey;
+  final String helpKey;
+
+  String get label => labelKey.tr;
+  String get help => helpKey.tr;
+}
+
+const List<PawDockSpec> kPawDockSpecs = <PawDockSpec>[
+  PawDockSpec(
+    id: 'sos',
+    icon: Icons.sos_rounded,
+    color: PawMapTheme.danger,
+    labelKey: 'pawmap_dock_sos',
+    helpKey: 'pawmap_rail_help_sos',
+  ),
+  PawDockSpec(
+    id: 'share',
+    icon: Icons.ios_share_rounded,
+    color: PawMapTheme.sitter,
+    labelKey: 'pawmap_dock_share_map',
+    helpKey: 'pawmap_rail_help_share',
+  ),
+  PawDockSpec(
+    id: 'layers',
+    icon: Icons.layers_rounded,
+    color: PawMapTheme.pawFollow,
+    labelKey: 'pawmap_dock_layers',
+    helpKey: 'pawmap_rail_help_layers',
+  ),
+  PawDockSpec(
+    id: 'night',
+    icon: Icons.dark_mode_rounded,
+    color: PawMapTheme.ink,
+    labelKey: 'pawmap_dock_night',
+    helpKey: 'pawmap_rail_help_night',
+  ),
+  PawDockSpec(
+    id: 'history',
+    icon: Icons.timeline_rounded,
+    color: PawMapTheme.walker,
+    labelKey: 'pawmap_dock_history',
+    helpKey: 'pawmap_rail_help_history',
+  ),
+];
+
+PawDockSpec? pawDockSpecOf(String id) {
+  for (final d in kPawDockSpecs) {
+    if (d.id == id) return d;
+  }
+  return null;
+}
+
+/// id → clé d'explication (dérivé de [kPawDockSpecs]).
+final Map<String, String> kPawDockHelpKeys = <String, String>{
+  for (final d in kPawDockSpecs) d.id: d.helpKey,
 };
 
 class PawMapRail extends StatelessWidget {

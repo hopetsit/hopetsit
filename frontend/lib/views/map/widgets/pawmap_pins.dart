@@ -346,6 +346,7 @@ class PawMapPinPainter {
     bool selected = false,
     double? boostPhase,
     String? priceLabel,
+    double rating = 0,
   }) {
     final margin = memberMargin;
     final r = size / 2;
@@ -412,7 +413,7 @@ class PawMapPinPainter {
     }
     if (priceLabel != null && priceLabel.isNotEmpty) {
       _paintLabel(canvas, priceLabel, Offset(c.dx, c.dy + r + 9),
-          textColor: PawMapLegend.darken(color, 0.30));
+          textColor: PawMapLegend.darken(color, 0.30), rating: rating);
     }
   }
 
@@ -423,8 +424,10 @@ class PawMapPinPainter {
   static double memberBitmapSize(double size, {bool withLabel = false}) =>
       size + 2 * memberMargin + (withLabel ? 12 : 0);
 
+  /// Étiquette blanche sous une épingle : « 25 € », et, si une note est
+  /// fournie (idée 2, zoom rue), une petite étoile or + « 4,8 ».
   static void _paintLabel(Canvas canvas, String text, Offset topCenter,
-      {required Color textColor}) {
+      {required Color textColor, double rating = 0}) {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
@@ -436,10 +439,27 @@ class PawMapPinPainter {
       ),
       textDirection: TextDirection.ltr,
     )..layout();
+    TextPainter? rp;
+    const double star = 9;
+    if (rating > 0) {
+      rp = TextPainter(
+        text: TextSpan(
+          text: rating.toStringAsFixed(1),
+          style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: PawMapLegend.darken(PawMapLegend.gold, 0.35),
+              fontFamily: 'Roboto'),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+    }
+    final extra = rp == null ? 0.0 : 6 + star + 1 + rp.width;
+    final w = tp.width + 10 + extra;
     final rect = RRect.fromRectAndRadius(
       Rect.fromCenter(
         center: topCenter.translate(0, tp.height / 2 + 2),
-        width: tp.width + 10,
+        width: w,
         height: tp.height + 5,
       ),
       const Radius.circular(8),
@@ -451,7 +471,15 @@ class PawMapPinPainter {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
     );
     canvas.drawRRect(rect, Paint()..color = Colors.white);
-    tp.paint(canvas, Offset(topCenter.dx - tp.width / 2, topCenter.dy + 2));
+    final left = topCenter.dx - w / 2 + 5;
+    tp.paint(canvas, Offset(left, topCenter.dy + 2));
+    if (rp != null) {
+      final sx = left + tp.width + 6;
+      drawIcon(canvas, Icons.star_rounded,
+          Offset(sx + star / 2, topCenter.dy + 2 + tp.height / 2), star + 2,
+          PawMapLegend.gold);
+      rp.paint(canvas, Offset(sx + star + 1, topCenter.dy + 2));
+    }
   }
 
   /// Rond PHOTO : Moi (56, anneau à la couleur de mon rôle, étiquette « Moi »)

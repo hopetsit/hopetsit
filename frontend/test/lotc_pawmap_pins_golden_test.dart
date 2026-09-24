@@ -119,7 +119,7 @@ final Map<String, (double, double, void Function(Canvas))> _pins = {
     PawMapPinPainter.memberBitmapSize(PawMapLegend.memberSize),
     PawMapPinPainter.memberBitmapSize(PawMapLegend.memberSize, withLabel: true),
     (c) => PawMapPinPainter.paintMemberDot(c,
-        role: 'sitter', priceLabel: '25 €', selected: true),
+        role: 'sitter', priceLabel: '25 €', selected: true, rating: 4.8),
   ),
   'member_cluster': (
     PawMapPinPainter.memberClusterWidth(12) + 12,

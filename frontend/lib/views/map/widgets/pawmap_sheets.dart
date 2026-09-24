@@ -1037,75 +1037,10 @@ List<PawLegendEntry> pawLegendEntries() {
   ];
 }
 
-class PawMapLegendSheet extends StatelessWidget {
-  const PawMapLegendSheet({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final entries = pawLegendEntries();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(18.w, 12.h, 18.w, 6.h),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('pawmap_legend_title'.tr,
-                  style: PawMapTheme.fontOn(context,
-                      size: 18.sp, weight: FontWeight.w800)),
-              SizedBox(height: 6.h),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 9.h),
-                decoration: BoxDecoration(
-                  color: PawMapLegend.ink,
-                  borderRadius: BorderRadius.circular(14.r),
-                ),
-                child: Text(
-                  'pawmap_legend_memo'.tr,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w700,
-                    color: PawMapLegend.gold,
-                    height: 1.35,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Flexible(
-          child: ListView.separated(
-            shrinkWrap: true,
-            padding: EdgeInsets.fromLTRB(14.w, 4.h, 14.w, 14.h),
-            itemCount: entries.length + 1,
-            separatorBuilder: (_, __) => SizedBox(height: 6.h),
-            itemBuilder: (_, i) {
-              if (i == entries.length) {
-                // Signalement : inchangé (emoji du type), décrit sans image.
-                return _LegendRow(
-                  key: const ValueKey<String>('legend_report'),
-                  label: 'pawmap_legend_report'.tr,
-                  child: Icon(Icons.warning_amber_rounded,
-                      size: 26.sp, color: PawMapTheme.danger),
-                );
-              }
-              final e = entries[i];
-              return _LegendRow(
-                key: ValueKey<String>('legend_${e.key}'),
-                label: e.label,
-                child: PawPinPreview(entry: e),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LegendRow extends StatelessWidget {
-  const _LegendRow({super.key, required this.label, required this.child});
+/// Une ligne de légende : l'épingle dessinée à gauche, sa phrase à droite.
+/// Utilisée par l'écran « Comprendre la PawMap » (`PawMapHelpScreen`).
+class PawLegendRow extends StatelessWidget {
+  const PawLegendRow({super.key, required this.label, required this.child});
 
   final String label;
   final Widget child;

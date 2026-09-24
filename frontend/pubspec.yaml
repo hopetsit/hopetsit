@@ -131,6 +131,10 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # v584 — lot C : parcours PawMap joué SUR LE SIMULATEUR
+  # (`flutter test integration_test/pawmap_parcours_test.dart -d <udid>`).
+  integration_test:
+    sdk: flutter
 
   flutter_lints: ^5.0.0
   # Session v16-1b ??? official HopeTSIT logo integration. flutter_launcher_icons

@@ -17,7 +17,10 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hopetsit/localization/v565/lotc584_i18n.dart';
 import 'package:hopetsit/localization/v565/map_i18n.dart';
+import 'package:hopetsit/views/map/pawmap_help_screen.dart';
+import 'package:hopetsit/views/map/widgets/paw_rail_button.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_rail.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_pins.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheets.dart';
 
@@ -56,6 +59,20 @@ Widget _harness(Widget child, {Brightness brightness = Brightness.light}) {
       fallbackLocale: const Locale('en'),
       theme: ThemeData(brightness: brightness),
       home: Scaffold(body: SingleChildScrollView(child: child)),
+    ),
+  );
+}
+
+/// Écran complet (il a son propre Scaffold).
+Widget _page(Widget child) {
+  return ScreenUtilInit(
+    designSize: const Size(393, 852),
+    builder: (_, __) => GetMaterialApp(
+      translations: _T(),
+      locale: const Locale('fr'),
+      fallbackLocale: const Locale('en'),
+      theme: ThemeData(brightness: Brightness.light),
+      home: child,
     ),
   );
 }
@@ -337,14 +354,16 @@ void main() {
     });
   });
 
-  group('légende « ? »', () {
-    testWidgets('une ligne par épingle de LEGENDE_PAWMAP.md + le mémo', (tester) async {
-      await tester.pumpWidget(_harness(
-        SizedBox(height: 800, child: const PawMapLegendSheet()),
-      ));
+  group('légende « ? » = écran « Comprendre la PawMap » (réutilisable, Profil › Aide)', () {
+    testWidgets('une ligne par épingle de LEGENDE_PAWMAP.md, le mémo, chaque bouton du rail et du dock, « Voir sur la carte »',
+        (tester) async {
+      tester.view.physicalSize = const Size(393 * 3, 852 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_page(const PawMapHelpScreen()));
       await tester.pump(const Duration(milliseconds: 50));
       expect(tester.takeException(), isNull);
-      expect(find.text('Comprendre la carte'), findsOneWidget);
+      expect(find.text('Comprendre la PawMap'), findsOneWidget);
       expect(find.textContaining('Rond = une personne'), findsOneWidget);
       final entries = pawLegendEntries();
       expect(entries.map((e) => e.key).toList(), [
@@ -352,9 +371,35 @@ void main() {
         'member_group', 'place', 'place_group', 'spot', 'spot_gold',
         'spot_group', 'request', 'premium', 'boost', 'verified', 'friends_only',
       ]);
-      // Les premières lignes sont visibles ; les suivantes défilent.
-      expect(find.byKey(const ValueKey<String>('legend_me')), findsOneWidget);
-      expect(find.byKey(const ValueKey<String>('legend_friend')), findsOneWidget);
+      // Toutes les lignes existent (défilement simple, rien de paresseux).
+      for (final e in entries) {
+        expect(find.byKey(ValueKey<String>('legend_${e.key}'), skipOffstage: false),
+            findsOneWidget, reason: e.key);
+      }
+      expect(find.byKey(const ValueKey<String>('legend_report'), skipOffstage: false),
+          findsOneWidget);
+      // UNE source : chaque bouton du rail et du dock, avec son explication.
+      for (final spec in kPawRailSpecs) {
+        expect(find.byKey(ValueKey<String>('help_rail_${spec.id}'), skipOffstage: false),
+            findsOneWidget, reason: spec.id);
+        expect(find.text(spec.help, skipOffstage: false), findsWidgets, reason: spec.helpKey);
+      }
+      for (final d in kPawDockSpecs) {
+        expect(find.byKey(ValueKey<String>('help_dock_${d.id}'), skipOffstage: false),
+            findsOneWidget, reason: d.id);
+      }
+      // Un appui sur un bouton du rail = la MÊME explication que l'appui long.
+      final around = find.byKey(const ValueKey<String>('help_rail_around'), skipOffstage: false);
+      await tester.ensureVisible(around);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.descendant(of: around, matching: find.byType(PawRailButton)));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(PawRailHelpSheet), findsOneWidget);
+      expect(find.text(pawRailSpecOf('around')!.help), findsWidgets);
+      // Bouton du bas.
+      expect(find.byKey(const ValueKey<String>('pawmap_help_see_map'), skipOffstage: false),
+          findsOneWidget);
+      expect(find.textContaining('Voir sur', skipOffstage: false), findsOneWidget);
     });
   });
 

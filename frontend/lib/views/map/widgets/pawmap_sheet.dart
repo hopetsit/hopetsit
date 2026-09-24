@@ -105,7 +105,9 @@ class PawMapSheet extends StatelessWidget {
             ),
             SizedBox(height: 10.h),
             header,
-            SizedBox(height: 12.h),
+            // v584 — assez d'air pour qu'en position basse RIEN ne dépasse
+            // sous le bouton principal (au simulateur, « Je cherche » pointait).
+            SizedBox(height: 22.h),
             ...children,
           ],
         ),
@@ -409,7 +411,8 @@ class PawMapCoach extends StatelessWidget {
     // La bulle se pose près de sa cible : haut-droite (« ? »), gauche (rail),
     // bas (feuille).
     final Alignment align = switch (step) {
-      0 => const Alignment(0.6, -0.72),
+      // Sous la rangée Partager/Agrandir (≈ 110 px), à droite près du « ? ».
+      0 => const Alignment(0.6, -0.5),
       1 => const Alignment(-0.2, 0.15),
       _ => const Alignment(0, 0.55),
     };

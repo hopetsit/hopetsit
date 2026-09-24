@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
@@ -30,6 +31,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:hopetsit/utils/pawmap_theme.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
@@ -45,11 +47,13 @@ import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/views/map/widgets/paw_rail_button.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_pins.dart';
+import 'package:hopetsit/views/map/pawmap_help_screen.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheets.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_rail.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheet.dart';
 import 'package:hopetsit/services/map_prefs_service.dart';
+import 'package:hopetsit/widgets/paw_tab_bar.dart' show pawTabBarTotalHeight;
 import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
@@ -1181,7 +1185,8 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   /// Bouton « ? » : la légende en images (9 langues).
   void _openLegend() {
-    showPawMapSheet<void>(context, const PawMapLegendSheet());
+    // v584 (Daniel, 25/09) : écran réutilisable, aussi depuis Profil › Aide.
+    Get.to(() => const PawMapHelpScreen(fromMap: true));
   }
 
   /// v584 — idée 8 : « N membres autour de toi » → la liste (nom, rôle,
@@ -1716,7 +1721,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             18.w,
             12.h,
             18.w,
-            16.h + MediaQuery.of(ctx).viewPadding.bottom,
+            16.h + appBottomInset(ctx),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1884,7 +1889,11 @@ class _PawMapScreenState extends State<PawMapScreen>
       ),
     );
     debounce?.cancel();
-    ctrl.dispose();
+    // v584 — la feuille joue encore son animation de fermeture après le
+    // retour de showModalBottomSheet : le TextField serait reconstruit avec
+    // un contrôleur mort (« used after being disposed », vu au parcours
+    // simulateur). On libère après la fin de l'animation.
+    Future<void>.delayed(const Duration(milliseconds: 700), ctrl.dispose);
   }
 
   /// v554 — rechargement DEMANDÉ par l'utilisateur (loupe ↻ de l'AppBar).
@@ -2938,12 +2947,14 @@ class _PawMapScreenState extends State<PawMapScreen>
     required bool online,
     required bool selected,
     String? priceLabel,
+    double rating = 0,
   }) {
     final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
     final size = PawMapLegend.memberSize;
     final withLabel = priceLabel != null && priceLabel.isNotEmpty;
+    final r1 = withLabel ? (rating * 10).round() / 10 : 0.0;
     final key =
-        'member:$role:${crown ? 1 : 0}:$phase:${verified ? 1 : 0}:${online ? 1 : 0}:${selected ? 1 : 0}:${priceLabel ?? ''}';
+        'member:$role:${crown ? 1 : 0}:$phase:${verified ? 1 : 0}:${online ? 1 : 0}:${selected ? 1 : 0}:${priceLabel ?? ''}:$r1';
     final w = PawMapPinPainter.memberBitmapSize(size);
     final h = PawMapPinPainter.memberBitmapSize(size, withLabel: withLabel);
     return _pins.getOrBuild(
@@ -2960,6 +2971,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             selected: selected,
             boostPhase: boosted ? phase / kBoostPhases : null,
             priceLabel: priceLabel,
+            rating: r1,
           ),
         ) ??
         BitmapDescriptor.defaultMarkerWithHue(role == 'sitter'
@@ -3337,6 +3349,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             online: online && !approx,
             selected: selected,
             priceLabel: priceLabel,
+            rating: (p['rating'] as num?)?.toDouble() ?? 0,
           );
           anchor = _memberAnchor(withLabel: priceLabel.isNotEmpty);
         }
@@ -3918,7 +3931,14 @@ class _PawMapScreenState extends State<PawMapScreen>
       child: Scaffold(
         backgroundColor: AppColors.scaffold(context),
         extendBodyBehindAppBar: true,
-        body: Stack(
+        // ⚠️ Mesuré au simulateur (parcours integration_test, 24/09) : le
+        // corps du Scaffold reçoit des contraintes LÂCHES ; une Stack qui
+        // n'a que des enfants positionnés et des `SizedBox.shrink()` (les
+        // Obx éteints) prenait la taille de son plus grand enfant NON
+        // positionné : 0 × 0 → carte invisible. `SizedBox.expand` lui impose
+        // la taille de l'écran (ce que faisait l'ancien `Expanded`).
+        body: SizedBox.expand(
+          child: Stack(
           children: [
             // ── LA carte (unique) : toujours premier enfant, toujours à la
             // même place dans l'arbre, avec une clé → jamais recréée.
@@ -4012,14 +4032,6 @@ class _PawMapScreenState extends State<PawMapScreen>
               );
             }),
 
-            // ── v584 — découverte guidée (3 bulles, 3 premiers lancements) ──
-            if (_coachStep >= 0)
-              PawMapCoach(
-                step: _coachStep,
-                onNext: _coachNext,
-                onDone: _coachDone,
-              ),
-
             // v23.1.187 — carte « Autour de vous » (petite carte seulement) ;
             // v554 — jamais pendant un placement ni quand un itinéraire est
             // affiché (le bandeau distance + Effacer prend sa place).
@@ -4094,6 +4106,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                           ),
                         )
                       : Column(
+                          key: _topAreaKey,
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             _buildFloatingHeader(),
@@ -4132,7 +4145,19 @@ class _PawMapScreenState extends State<PawMapScreen>
                 ),
               );
             }),
+
+            // ── v584 — découverte guidée (3 bulles, 3 premiers lancements) ──
+            // En DERNIER : la bulle passe au-dessus de l'en-tête et de la
+            // rangée Partager/Agrandir (au parcours simulateur, la rangée la
+            // recouvrait et cachait son texte).
+            if (_coachStep >= 0)
+              PawMapCoach(
+                step: _coachStep,
+                onNext: _coachNext,
+                onDone: _coachDone,
+              ),
           ],
+          ),
         ),
       ),
     );
@@ -6046,18 +6071,12 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   /// Appui long sur une action du dock / de la feuille → son explication.
   void _showDockHelp(String id) {
-    final key = kPawDockHelpKeys[id];
-    if (key == null) return;
-    final (label, icon, color) = switch (id) {
-      'sos' => ('pawmap_dock_sos'.tr, Icons.sos_rounded, PawMapTheme.danger),
-      'share' => ('pawmap_dock_share_map'.tr, Icons.ios_share_rounded, PawMapLegend.sitter),
-      'layers' => ('pawmap_dock_layers'.tr, Icons.layers_rounded, PawMapLegend.pawFollow),
-      'night' => ('pawmap_dock_night'.tr, Icons.dark_mode_rounded, PawMapLegend.ink),
-      _ => ('pawmap_dock_history'.tr, Icons.timeline_rounded, PawMapLegend.walker),
-    };
+    // UNE seule source (kPawDockSpecs) : la même que l'écran d'aide.
+    final d = pawDockSpecOf(id);
+    if (d == null) return;
     showPawMapSheet<void>(
       context,
-      PawRailHelpSheet(title: label, help: key.tr, color: color, icon: icon),
+      PawRailHelpSheet(title: d.label, help: d.help, color: d.color, icon: d.icon),
     );
   }
 
@@ -6084,24 +6103,43 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Position courante de la feuille (fraction de la hauteur disponible) —
   /// les rails se retirent quand la feuille dépasse sa position basse.
   final RxDouble _sheetExtent = 0.0.obs;
-  static const double _sheetPeek = 118;
+  static const double _sheetPeek = 100;
   bool _sheetIsLow = true;
 
   /// 'all' | 'sitters' | 'walkers' | 'places' | 'friends' (idée 6).
   String _lookingFor = 'all';
 
-  /// Hauteur (px) du menu du bas sous la carte : dans les onglets, le
-  /// wrapper annonce sa hauteur utile dans `padding.bottom` ; empilée hors
-  /// onglets, seule la barre système reste.
+  /// Hauteur (px) du menu du bas sous la carte. Dans les onglets, la feuille
+  /// doit rester AU-DESSUS de toute la barre « patte » (pilule + saillie de la
+  /// patte, `pawTabBarTotalHeight`) : la zone tactile de la patte est
+  /// centrée, exactement là où vivent la poignée et le bouton principal, et
+  /// elle passe devant le corps (Daniel : « le menu ne doit gêner AUCUN
+  /// bouton »). Empilée hors onglets, seule la barre système reste.
   double _menuInset(BuildContext context) {
     final mq = MediaQuery.of(context);
     if (_tabBarLift(context) > 0) return mq.viewPadding.bottom;
-    return math.max(mq.padding.bottom, mq.viewPadding.bottom);
+    return pawTabBarTotalHeight(mq.viewPadding.bottom);
   }
 
   double _sheetAvailableHeight(BuildContext context) {
     final mq = MediaQuery.of(context);
     return math.max(200.0, mq.size.height - _menuInset(context));
+  }
+
+  /// v584 — clé de mesure du haut de l'écran (en-tête + rangée Partager /
+  /// Agrandir) : la feuille en position haute s'arrête DESSOUS, elle ne
+  /// passe jamais sous ces commandes (vu au parcours simulateur).
+  final GlobalKey _topAreaKey = GlobalKey();
+
+  double _sheetHighFraction(BuildContext context) {
+    final h = _sheetAvailableHeight(context);
+    final mq = MediaQuery.of(context);
+    final box = _topAreaKey.currentContext?.findRenderObject() as RenderBox?;
+    final topArea = (box != null && box.hasSize)
+        ? box.size.height
+        : PawMapTheme.pillHeight.h + 56.h;
+    final top = mq.viewPadding.top + topArea + 8.h;
+    return ((h - top) / h).clamp(0.55, 0.9).toDouble();
   }
 
   Future<void> _sheetTo(PawSheetStop stop) async {
@@ -6110,7 +6148,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     final size = switch (stop) {
       PawSheetStop.low => (_sheetPeek.h / h).clamp(0.08, 0.5).toDouble(),
       PawSheetStop.mid => 0.46,
-      PawSheetStop.high => 0.90,
+      PawSheetStop.high => _sheetHighFraction(context),
     };
     try {
       await _sheetCtl.animateTo(size,
@@ -6119,6 +6157,22 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   void _onSheetMoved() {
+    // v584 — le DraggableScrollableController notifie aussi PENDANT la mise
+    // en page (re-clamp de l'étendue) : écrire un Rx à ce moment-là lève
+    // « setState() called during build » (vu au parcours simulateur). On
+    // reporte alors la mise à jour à la fin de la frame.
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _applySheetMoved();
+      });
+      return;
+    }
+    _applySheetMoved();
+  }
+
+  void _applySheetMoved() {
     if (!_sheetCtl.isAttached) return;
     final size = _sheetCtl.size;
     _sheetExtent.value = size;
@@ -6137,6 +6191,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       controller: _sheetCtl,
       availableHeight: _sheetAvailableHeight(context),
       peekHeight: _sheetPeek.h,
+      highFraction: _sheetHighFraction(context),
       header: _buildPrimaryAction(),
       children: [
         PawMapLookingSelector(value: _lookingFor, onChanged: _applyLooking),
@@ -6719,7 +6774,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           18.w,
           14.h,
           18.w,
-          24.h + MediaQuery.of(ctx).viewPadding.bottom,
+          24.h + appBottomInset(ctx),
         ),
         child: Obx(() {
           Widget row(String label, bool value, VoidCallback onTap,
@@ -6910,7 +6965,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         final maxH = MediaQuery.of(ctx).size.height * 0.80;
         return Container(
           constraints: BoxConstraints(maxHeight: maxH),
-          margin: EdgeInsets.fromLTRB(10.w, 0, 10.w, 10.h + MediaQuery.of(ctx).viewPadding.bottom),
+          margin: EdgeInsets.fromLTRB(10.w, 0, 10.w, 10.h + appBottomInset(ctx)),
           decoration: BoxDecoration(
             color: AppColors.card(ctx),
             borderRadius: BorderRadius.circular(26.r),
@@ -7703,6 +7758,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     try {
       standalone = Navigator.of(context).canPop();
     } catch (_) {/* pas de Navigator */}
+    // v584 — sans AUCUN menu monté (écran hôte de test, lien profond avant
+    // le montage), il n'y a pas de barre d'onglets à dégager non plus.
+    if (!standalone && !navWrapperMounted.value) standalone = true;
     return standalone ? 100.h : 0;
   }
 
@@ -7830,9 +7888,8 @@ class _PawMapScreenState extends State<PawMapScreen>
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetCtx) {
-        final inset = MediaQuery.of(sheetCtx).viewPadding.bottom;
         return Padding(
-          padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 16.h + (inset > 0 ? inset : 48.h)),
+          padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 16.h + appBottomInset(sheetCtx)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
