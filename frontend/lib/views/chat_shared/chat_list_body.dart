@@ -253,7 +253,6 @@ class _ConversationTile extends StatelessWidget {
     return Material(
       color: AppColors.card(context),
       borderRadius: BorderRadius.circular(22.r),
-      clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(22.r),
         onTap: onTap,
