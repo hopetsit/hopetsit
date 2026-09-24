@@ -42,6 +42,7 @@ import 'package:hopetsit/views/friends/people_live_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_chat_screen.dart';
 import 'package:hopetsit/views/map/alerts_screen.dart';
+import 'package:hopetsit/views/map/pawmap_camera_memory.dart';
 import 'package:hopetsit/views/map/pawspot_sheets.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
@@ -130,35 +131,40 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// l'écran était reconstruit. On repart maintenant du DERNIER endroit
   /// regardé, enregistré sur l'appareil ; Paris ne sert plus qu'au tout
   /// premier lancement, avant toute position connue.
+  /// v584 (lot C, légende validée le 23/09) — le ZOOM est retenu avec le
+  /// centre, et Paris n'est plus qu'un ultime repli : avant toute position
+  /// connue, on part de la ville du profil (coordonnées enregistrées à
+  /// l'inscription) — donc jamais « Paris » pour quelqu'un de Dallas.
   LatLng _currentCenter = _restoreLastCenter();
 
-  static const LatLng _kFallbackCenter = LatLng(48.8566, 2.3522);
   static const String _kLastCenterKey = 'pawmap_last_center';
 
+  /// Règles pures dans `PawMapCameraMemory` (testées) ; ici on ne fait que
+  /// lire le stockage local.
   static LatLng _restoreLastCenter() {
+    dynamic raw;
+    Map<String, dynamic>? profile;
     try {
-      final dynamic raw = GetStorage().read(_kLastCenterKey);
-      if (raw is Map) {
-        final double? lat = (raw['lat'] as num?)?.toDouble();
-        final double? lng = (raw['lng'] as num?)?.toDouble();
-        if (lat != null &&
-            lng != null &&
-            lat.abs() <= 90 &&
-            lng.abs() <= 180 &&
-            !(lat == 0 && lng == 0)) {
-          return LatLng(lat, lng);
-        }
-      }
-    } catch (_) {/* stockage indisponible : on garde le repli */}
-    return _kFallbackCenter;
+      raw = GetStorage().read(_kLastCenterKey);
+      profile = GetStorage().read<Map<String, dynamic>>(StorageKeys.userProfile);
+    } catch (_) {/* stockage indisponible : repli */}
+    return PawMapCameraMemory.centerFrom(raw, profile);
   }
 
-  static void _saveLastCenter(LatLng c) {
+  static double _restoreLastZoom() {
+    dynamic raw;
     try {
-      GetStorage().write(
-        _kLastCenterKey,
-        <String, double>{'lat': c.latitude, 'lng': c.longitude},
-      );
+      raw = GetStorage().read(_kLastCenterKey);
+    } catch (_) {/* stockage indisponible */}
+    return PawMapCameraMemory.zoomFrom(raw);
+  }
+
+  /// Enregistre centre + zoom. Appelé quand la caméra S'ARRÊTE (jamais à
+  /// chaque image d'un glissement : consigne du 23/09) et après le recentrage
+  /// GPS du lancement.
+  static void _saveLastCamera(LatLng c, double zoom) {
+    try {
+      GetStorage().write(_kLastCenterKey, PawMapCameraMemory.encode(c, zoom));
     } catch (_) {/* best effort */}
   }
 
@@ -285,7 +291,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v550 — zoom courant, utilisé pour plafonner le nombre de membres de la
   /// couche monde affichés (au dézoom mondial, on garde les plus proches du
   /// centre : des milliers de markers figent Google Maps sur mobile).
-  double _zoomLevel = 13;
+  double _zoomLevel = _restoreLastZoom();
   /// v550 — dernier centre réellement rechargé (voir `_scheduleReload`).
   LatLng? _lastReloadCenter;
   /// v565 — point 8 : zoom à partir duquel les membres prennent la couleur
@@ -2291,7 +2297,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         // _currentCenter ne bouge que si on n'a pas de focus explicite.
         if (!hasInitialFocus) {
           _currentCenter = myCenter;
-          _saveLastCenter(myCenter);
+          _saveLastCamera(myCenter, _zoomLevel);
         }
       });
 
@@ -2306,7 +2312,10 @@ class _PawMapScreenState extends State<PawMapScreen>
             const Duration(seconds: 6),
             onTimeout: () => throw TimeoutException('map controller not ready'),
           );
-          await ctl.animateCamera(CameraUpdate.newLatLngZoom(myCenter, 13));
+          // v584 — ma position, au ZOOM retenu (plus un 13 en dur).
+          await ctl.animateCamera(
+              CameraUpdate.newLatLngZoom(
+                  myCenter, PawMapCameraMemory.launchZoom(_zoomLevel)));
         } catch (_) {
           // Controller never came up — _currentCenter is updated so the
           // next frame's initialCameraPosition is correct anyway.
@@ -2875,7 +2884,8 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   void _onCameraMove(CameraPosition pos) {
     _currentCenter = pos.target;
-    _saveLastCenter(pos.target);
+    // v584 — plus d'écriture à chaque image : centre + zoom sont enregistrés
+    // à l'arrêt de la caméra (`_scheduleReload`).
     // v550 — perf : tant que la caméra bouge, le halo ne pulse pas (sinon la
     // GoogleMap se reconstruit 1,7×/s pendant le pan → saccades sur mobile).
     _cameraMoving = true;
@@ -2895,6 +2905,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// POI / report / request layers refresh after the user stops panning.
   void _scheduleReload() {
     _cameraMoving = false; // v550 — geste terminé : le halo repulse.
+    // v584 — la caméra s'arrête : on retient l'endroit ET le zoom.
+    _saveLastCamera(_currentCenter, _zoomLevel);
     // v555 — pendant un placement, on résout l'adresse du point visé dès que
     // la carte s'immobilise (affichée dans la carte de placement).
     if (_pickingSpotPos.value ||
@@ -5113,7 +5125,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       return GoogleMap(
         initialCameraPosition: CameraPosition(
           target: _currentCenter,
-          zoom: 13,
+          zoom: _zoomLevel,
         ),
         onMapCreated: (c) {
           if (!_mapCtl.isCompleted) _mapCtl.complete(c);
