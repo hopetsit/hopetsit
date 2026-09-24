@@ -21,6 +21,15 @@ class NearbyRequestPost {
   final double lng;
   final double distanceKm;
   final DateTime? createdAt;
+  /// v584 — budget annoncé par le propriétaire (0 = non renseigné : la bulle
+  /// n'affiche alors que l'icône du service) et sa devise.
+  final double budget;
+  final String currency;
+  /// v584 — animaux de l'annonce (nécessaires pour « Proposer mes services »
+  /// en un appui : une candidature porte toujours au moins un animal).
+  final List<String> petIds;
+  /// v584 — position approximative (~1 km) renvoyée par le serveur.
+  final bool approx;
 
   const NearbyRequestPost({
     required this.id,
@@ -37,7 +46,33 @@ class NearbyRequestPost {
     required this.lng,
     required this.distanceKm,
     required this.createdAt,
+    this.budget = 0,
+    this.currency = 'EUR',
+    this.petIds = const <String>[],
+    this.approx = false,
   });
+
+  /// « 25 € » ou vide sans budget.
+  String get budgetLabel {
+    if (budget <= 0) return '';
+    final n = budget == budget.roundToDouble()
+        ? budget.toStringAsFixed(0)
+        : budget.toStringAsFixed(2);
+    switch (currency.toUpperCase()) {
+      case 'USD':
+        return '\$$n';
+      case 'GBP':
+        return '£$n';
+      case 'KRW':
+        return '₩$n';
+      case 'JPY':
+        return '¥$n';
+      case 'PLN':
+        return '$n zł';
+      default:
+        return '$n €';
+    }
+  }
 
   factory NearbyRequestPost.fromJson(Map<String, dynamic> j) {
     DateTime? parseDate(dynamic v) {
@@ -63,6 +98,13 @@ class NearbyRequestPost {
       lng: (loc['lng'] as num?)?.toDouble() ?? 0.0,
       distanceKm: (j['distanceKm'] as num?)?.toDouble() ?? 0.0,
       createdAt: parseDate(j['createdAt']),
+      budget: (j['budget'] as num?)?.toDouble() ?? 0.0,
+      currency: (j['currency'] ?? 'EUR').toString(),
+      petIds: ((j['petIds'] as List?) ?? const [])
+          .map((e) => e is Map ? (e['_id'] ?? e['id'] ?? '').toString() : e.toString())
+          .where((e) => e.isNotEmpty)
+          .toList(),
+      approx: j['approx'] == true || loc['approx'] == true,
     );
   }
 }

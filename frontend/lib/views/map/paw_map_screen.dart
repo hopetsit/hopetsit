@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
-import 'package:flutter/services.dart' show rootBundle;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -22,7 +21,6 @@ import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/opening_hours.dart';
 import 'package:intl/intl.dart' show DateFormat;
 import 'package:url_launcher/url_launcher.dart';
-import 'package:hopetsit/services/friend_marker_service.dart';
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -34,7 +32,6 @@ import 'package:hopetsit/utils/pawmap_theme.dart';
 import 'package:hopetsit/widgets/pawmap_panel_handle.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
-import 'package:hopetsit/widgets/golden_paw_coin.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
@@ -48,6 +45,16 @@ import 'package:hopetsit/views/service_provider/service_provider_detail_screen.d
 import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/views/map/widgets/paw_rail_button.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_pins.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_sheets.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
+import 'package:hopetsit/repositories/owner_repository.dart';
+import 'package:hopetsit/repositories/sitter_repository.dart';
+import 'package:hopetsit/repositories/walker_repository.dart';
+import 'package:hopetsit/views/guest/signup_wall_sheet.dart';
+import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
+import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
+import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/pawmap_header_badge.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -119,7 +126,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   late final FriendController _friendController;
   late final LiveMapService _liveMap;
   // v23.1 part 249 — service marker custom avec photo profil + ring.
-  late final FriendMarkerService _friendMarkerService;
+  /// v584 — cache des épingles de la légende (dessinées une fois) + photos.
+  late final PawMapPinCache _pins;
   // Paris fallback by default — guarantees the GoogleMap widget always has
   // a camera position on the very first frame, even before geolocation
   // resolves. This fixes the "need to tap twice to see the map" bug caused
@@ -218,24 +226,19 @@ class _PawMapScreenState extends State<PawMapScreen>
   // pins teardrop colorés.
   final Map<String, BitmapDescriptor> _reportEmojiMarkers = {};
   bool _emojiMarkersReady = false;
-  // v23.1.353 — refonte PawSpot : les POIs passent aussi en marqueurs EMOJI
-  // (même générateur canvas que les reports) avec un fond teinté couleur
-  // catégorie. Cache séparé par catégorie POI.
-  final Map<String, BitmapDescriptor> _poiEmojiMarkers = {};
-  // v23.1.353 — marqueurs emoji des spots communautaires PawSpot. Clé =
-  // type de spot ('path_walk'...) ou '__golden__' (empreinte dorée 🐾).
-  final Map<String, BitmapDescriptor> _spotEmojiMarkers = {};
-  // v489 — Daniel (maquette « Map User Avatar ») : MINI-BADGE ROSE pour les
-  // membres Paw Map proches (ni amis ni famille). Cercle rose + patte blanche
-  // (membre anonyme, pas de photo) + point en/hors ligne + 👑 si premium.
-  // Clé = 'pb_<online>_<premium>_<selected>'. Rendu bitmap canvas mis en cache.
-  final Map<String, BitmapDescriptor> _pawBadgeMarkers = {};
-  // Bump à chaque badge rose généré → invalide la clé de cache des markers
-  // pour que le vrai badge remplace le fallback rose temporaire.
-  int _pawBadgeRev = 0;
-  // Membre rose actuellement sélectionné (tap) → état « sélectionné » (badge
-  // surélevé/foncé). null = aucun.
+  // v584 — les lieux, spots, membres et groupes sont dessinés par
+  // `PawMapPinPainter` (légende du 23/09) et gardés dans `_pins`.
+  // Membre actuellement sélectionné (tap) → état « sélectionné ». null = aucun.
   String? _selectedNearbyId;
+  /// v584 — mes propres demandes (propriétaire) : bulles « Ma demande ».
+  final RxList<NearbyRequestPost> _myRequests = <NearbyRequestPost>[].obs;
+  /// v584 — mode « visible par mes amis seulement » (preferences.hideFromMap),
+  /// synchronisé sur le compte par MapPrefsService.
+  bool _friendsOnly = false;
+  /// v584 — idée 4 : filtre « Disponible aujourd'hui ».
+  final RxBool _availableTodayOnly = false.obs;
+  /// v584 — idée 8 : les membres à moins de 50 km (compteur cliquable).
+  List<Map<String, dynamic>> _aroundMembers = const [];
   final RxBool _showReports = true.obs;
   final RxBool _showFriends = true.obs;
   final RxBool _showRequests = true.obs;
@@ -257,7 +260,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   Worker? _followWorker;
   // v23.1.294 — worker de suivi de MA position quand « Me suivre » est actif.
   Worker? _myFollowWorker;
-  static const double _followZoom = 18.0;
+  /// v584 — zoom de suivi « joli » (Daniel, 23/09) : rue lisible, 16-17.
+  static const double _followZoom = 16.5;
+  /// Suivi mis en PAUSE par un geste (le tracé continue) ; « Reprendre ».
+  bool _followPaused = false;
+  /// Tracé violet PawFollow derrière la personne suivie.
+  List<LatLng> _followTrail = const <LatLng>[];
 
   // v23.1.266 — Daniel : "un bouton discret pour une vue satellite". Type de
   // carte togglable normal ↔ hybride (satellite + rues/labels).
@@ -294,21 +302,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   double _zoomLevel = _restoreLastZoom();
   /// v550 — dernier centre réellement rechargé (voir `_scheduleReload`).
   LatLng? _lastReloadCenter;
-  /// v565 — point 8 : zoom à partir duquel les membres prennent la couleur
-  /// de leur rôle (rose fluo en dessous).
-  /// v576 — Daniel : « quand on zoome, on voit la couleur par rôle un peu plus
-  /// vite, en zoomant moins ». Seuil 9 → 6,5 : à 6,5 on voit encore une
-  /// région entière, donc la couleur arrive bien avant l'échelle de la ville.
-  static const double _roleColorZoom = 6.5;
-
-  /// v576 — couleurs de rôle (INCHANGÉES : mêmes valeurs que les badges de
-  /// membre). Extraites ici pour que les pastilles de GROUPE puissent utiliser
-  /// exactement la même palette que les marqueurs individuels.
-  static const Map<String, List<Color>> _roleGradients = {
-    'owner': [Color(0xFFFF5A2E), Color(0xFFD83C28)],
-    'walker': [Color(0xFF2FD16B), Color(0xFF16A34A)],
-    'sitter': [Color(0xFF4F8DFF), Color(0xFF2563EB)],
-  };
+  // v584 — la couleur du rôle s'affiche À TOUS LES ZOOMS (légende du 23/09 :
+  // fini le rose fluo dézoomé). Plus de seuil `_roleColorZoom`.
   /// v551 — Daniel : « filtres par type, joli et minimaliste, pas de slide ».
   /// Rôles de membres affichés sur la carte (tous par défaut).
   final RxSet<String> _memberRoles = <String>{'sitter', 'walker', 'owner'}.obs;
@@ -408,28 +403,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   List<Worker> _backGuardWorkers = const [];
   final RxDouble _haloPhase = 0.0.obs;
 
-  // v23.1.444 — Daniel : "les amis/abonnés en HALO ANIMÉ coloré". Palette
-  // unique des halos vivants de la PawMap (cohérente avec la légende et le
-  // FriendMarkerService) : vert PawFollow / or PawSpot / violet PawFamily.
-  static const Color _greenPawFollow = Color(0xFF16A34A);
-  static const Color _goldPawSpot = Color(0xFFE8A00A);
-  static const Color _yellowPawSpotHalo = Color(0xFFF4D03F);
-
-  /// v556 — grille de couleurs des halos (décision Daniel) : Premium or
-  /// (contour noir + couronne), PawFollow / Famille violet, PawSpot jaune,
-  /// sinon la couleur du rôle (owner orange / walker vert / sitter bleu).
-  Color _haloColorFor({
-    required bool premium,
-    required bool pawFollow,
-    required bool pawSpot,
-    required String role,
-  }) {
-    if (premium) return const Color(0xFFF4C04A);
-    if (pawFollow) return const Color(0xFF7C3AED);
-    if (pawSpot) return _yellowPawSpotHalo;
-    return PawMapTheme.forRole(role);
-  }
-  static const Color _violetPawFamily = Color(0xFF8B5CF6);
+  // v584 — les halos or Premium / jaune PawSpot sont retirés (légende) : la
+  // couronne suffit ; PawFollow = violet fixe ; PawBoost = lueur turquoise
+  // dessinée dans l'épingle (PawMapPinPainter).
 
   /// v23.1 part 243 round 3 — perf : cache des markers (Daniel : "sur
   /// certain portable sa lague"). Le Obx GoogleMap rebuild a chaque tick
@@ -504,14 +480,12 @@ class _PawMapScreenState extends State<PawMapScreen>
     // un loadFamily() async au mount. Le halo se redessine ensuite tout
     // seul (Obx + halo tick).
     _friendController.loadFamily();
-    // v23.1 part 249 — service de generation de markers custom avec
-    // photo profil + cercle role color + ring violet famille (parite
-    // design website). Permanent : on partage le cache entre toutes
-    // les ouvertures PawMap pour eviter de regenerer les bitmaps a
-    // chaque navigation.
-    _friendMarkerService = Get.isRegistered<FriendMarkerService>()
-        ? Get.find<FriendMarkerService>()
-        : Get.put(FriendMarkerService(), permanent: true);
+    // v584 — cache des épingles (permanent : partagé entre les ouvertures de
+    // la carte, une épingle n'est dessinée qu'une fois par session).
+    _pins = Get.isRegistered<PawMapPinCache>()
+        ? Get.find<PawMapPinCache>()
+        : Get.put(PawMapPinCache(), permanent: true);
+    _friendsOnly = _readFriendsOnlyFromProfile();
     _liveMap = Get.isRegistered<LiveMapService>()
         ? Get.find<LiveMapService>()
         : Get.put(LiveMapService(), permanent: true);
@@ -554,13 +528,21 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (uid == null) return;
         final fp = positions[uid];
         if (fp == null) return;
-        // v23.1.270 — Daniel : "zoom fort + à la trace". On force _followZoom
-        // à chaque position pour rester collé en gros plan sur la personne
-        // (avant : newLatLng gardait le zoom courant → souvent trop large).
-        _animateFollowCamera(
-          LatLng(fp.latitude, fp.longitude),
-          zoom: _followZoom,
-        );
+        final p = LatLng(fp.latitude, fp.longitude);
+        // v584 — le tracé s'allonge (violet), même en pause.
+        if (_followTrail.isEmpty ||
+            _followTrail.last.latitude != p.latitude ||
+            _followTrail.last.longitude != p.longitude) {
+          _followTrail = <LatLng>[..._followTrail, p];
+          if (_followTrail.length > 600) {
+            _followTrail = _followTrail.sublist(_followTrail.length - 600);
+          }
+          if (mounted) setState(() {});
+        }
+        if (_followPaused) return;
+        // v584 — suivi SANS à-coups : la caméra glisse vers la nouvelle
+        // position en gardant le zoom (plus de re-zoom à chaque point).
+        _animateFollowCamera(p);
       },
     );
 
@@ -694,20 +676,6 @@ class _PawMapScreenState extends State<PawMapScreen>
         debugPrint('[PawMap] emoji marker $t failed: $e');
       }
     }
-    // v23.1.353 — refonte PawSpot : pré-warm aussi les marqueurs emoji des
-    // POIs (fond teinté couleur catégorie au lieu du pin teardrop).
-    for (final c in PoiCategories.all) {
-      try {
-        final color = _colorForPoi(c);
-        _poiEmojiMarkers[c] = await _buildEmojiBitmap(
-          PoiCategories.emoji(c),
-          bgColor: color.withValues(alpha: 0.30),
-          ringColor: color,
-        );
-      } catch (e) {
-        debugPrint('[PawMap] poi emoji marker $c failed: $e');
-      }
-    }
     if (mounted) {
       setState(() => _emojiMarkersReady = true);
     }
@@ -733,108 +701,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     });
   }
 
-  /// v23.1.353 — pendant du _ensureEmojiMarker pour les POIs : génère à la
-  /// volée le marqueur emoji d'une catégorie pas encore en cache (catégorie
-  /// inconnue renvoyée par le serveur, pré-warm en cours...).
-  void _ensurePoiEmojiMarker(String category) {
-    final key = 'poi_$category';
-    if (_poiEmojiMarkers.containsKey(category) ||
-        _emojiGenInProgress.contains(key)) {
-      return;
-    }
-    _emojiGenInProgress.add(key);
-    final color = _colorForPoi(category);
-    _buildEmojiBitmap(
-      PoiCategories.emoji(category),
-      bgColor: color.withValues(alpha: 0.30),
-      ringColor: color,
-    ).then((bd) {
-      _poiEmojiMarkers[category] = bd;
-      _emojiGenInProgress.remove(key);
-      if (mounted) setState(() {});
-    }).catchError((Object _) {
-      _emojiGenInProgress.remove(key);
-    });
-  }
-
-  /// v23.1.353 — marqueurs emoji des spots PawSpot. Un spot GOLDEN (validé
-  /// communauté / 50+ ❤️ / créateur Gold) affiche l'empreinte 🐾 sur fond
-  /// doré avec un anneau plus épais ; sinon emoji du type sur fond teinté.
-  void _ensureSpotEmojiMarker(String cacheKey) {
-    final genKey = 'spot_$cacheKey';
-    if (_spotEmojiMarkers.containsKey(cacheKey) ||
-        _emojiGenInProgress.contains(genKey)) {
-      return;
-    }
-    _emojiGenInProgress.add(genKey);
-    final bool golden = cacheKey.startsWith('__golden__');
-    // v23.1.361/373 — LA pièce-médaille officielle : dorée pour les spots
-    // golden (avec un ANNEAU à la couleur du TYPE, comme la légende —
-    // Daniel : "la pièce dorée juste avec le cercle de couleur"), sinon
-    // déclinée dans la couleur du type.
-    // v567 — Daniel : « une plus belle icône pour les PawSpots publiés sur la
-    // carte » → vrai repère de carte (goutte) à la couleur du type, emoji du
-    // type dans un disque blanc ; spot doré = repère noir et or + patte.
-    final String spotType =
-        golden ? cacheKey.substring('__golden__'.length) : cacheKey;
-    final future = _buildSpotPinBitmap(type: spotType, golden: golden)
-        .catchError((Object _) => golden
-            ? _buildCoinBitmap(typeRing: PawSpotTypes.color(spotType))
-            : _buildCoinBitmap(base: PawSpotTypes.color(spotType)));
-    future.then((bd) {
-      _spotEmojiMarkers[cacheKey] = bd;
-      _emojiGenInProgress.remove(genKey);
-      if (mounted) setState(() {});
-    }).catchError((Object _) {
-      _emojiGenInProgress.remove(genKey);
-    });
-  }
-
-  // ── v489 — MINI-BADGE ROSE « membre Paw Map proche » (maquette Map User
-  // Avatar) ───────────────────────────────────────────────────────────────
-  /// Pré-génère (async, en cache) le badge rose pour un état donné. Fallback
-  /// pin rose le temps que le bitmap se calcule, puis setState pour le poser.
-  /// v561 — clé du badge membre : état + couleur (rose fluo dézoomé, rôle
-  /// au zoom ≥ 12).
-  static String _pawBadgeKey(
-      bool online, bool premium, bool selected, String role, bool roleColored) {
-    final tint = roleColored && (role == 'owner' || role == 'walker' || role == 'sitter')
-        ? role
-        : 'pink';
-    return 'pb_${online ? 1 : 0}_${premium ? 1 : 0}_${selected ? 1 : 0}_$tint';
-  }
-
-  void _ensurePawBadgeMarker(bool online, bool premium, bool selected,
-      [String role = '', bool roleColored = false]) {
-    final key = _pawBadgeKey(online, premium, selected, role, roleColored);
-    if (_pawBadgeMarkers.containsKey(key) ||
-        _emojiGenInProgress.contains(key)) {
-      return;
-    }
-    _emojiGenInProgress.add(key);
-    _buildPawBadgeBitmap(
-      online: online,
-      premium: premium,
-      selected: selected,
-      role: role,
-      roleColored: roleColored,
-    ).then((bd) {
-      _pawBadgeMarkers[key] = bd;
-      _emojiGenInProgress.remove(key);
-      _pawBadgeRev++;
-      if (mounted) setState(() {});
-    }).catchError((Object _) {
-      _emojiGenInProgress.remove(key);
-    });
-  }
-
-
   // ─── v551 — REGROUPEMENT DES POINTS (clusters) ───────────────────────────
   // Daniel : « la carte est illisible quand tout se chevauche ». Les points
   // trop proches à l'écran fusionnent en UNE pastille avec le nombre ; un tap
   // zoome dessus et le groupe s'ouvre. Calcul en pixels Web Mercator au zoom
   // courant → le regroupement suit exactement ce que l'œil voit.
-  final Map<String, BitmapDescriptor> _clusterMarkers = {};
   static const double _clusterCellPx = 76;
   /// v576 — les MEMBRES se regroupent dans une cellule plus fine que les
   /// lieux : c'est le regroupement, pas le seuil de zoom, qui cachait la
@@ -877,157 +748,6 @@ class _PawMapScreenState extends State<PawMapScreen>
     return LatLng(la / group.length, ln / group.length);
   }
 
-  /// Pastille ronde avec le nombre. [rose] = couche membres, sinon lieux :
-  /// v551 (Daniel : « les points avec numéro sont différenciés par couleur
-  /// selon le thème ? ») — un groupe qui ne contient QU'UNE catégorie prend
-  /// la couleur de cette catégorie et affiche son emoji ; un groupe mixte
-  /// reste bleu neutre.
-  Future<BitmapDescriptor> _buildClusterBitmap(
-    int count,
-    bool rose, {
-    Color? themeColor,
-    String? emoji,
-    Map<String, int>? roleCounts,
-  }) async {
-    final label = count > 99 ? '99+' : '$count';
-    const double size = 128;
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    const center = Offset(64, 64);
-    final double r = count >= 50 ? 44 : (count >= 10 ? 40 : 36);
-    Color a = rose ? const Color(0xFFFF4FA3) : const Color(0xFF3E9BE9);
-    Color b = rose ? const Color(0xFFF01E86) : const Color(0xFF2563EB);
-    // v576 — Daniel : « on voit leur couleur par rôle en zoomant moins ».
-    // Tant que des membres restent groupés, la pastille prend la couleur du
-    // rôle DOMINANT du groupe (au lieu d'un rose uniforme qui ne dit rien) et
-    // porte un anneau découpé selon la composition réelle : trois arcs =
-    // trois familles présentes. Les couleurs de rôle sont inchangées.
-    String? dominantRole;
-    if (roleCounts != null && roleCounts.isNotEmpty) {
-      final entries = roleCounts.entries
-          .where((e) => e.value > 0 && _roleGradients.containsKey(e.key))
-          .toList()
-        ..sort((x, y) => y.value.compareTo(x.value));
-      if (entries.isNotEmpty) {
-        dominantRole = entries.first.key;
-        final g = _roleGradients[dominantRole]!;
-        a = g[0];
-        b = g[1];
-      }
-    }
-    if (themeColor != null) {
-      // Dégradé clair → foncé construit autour de la couleur du thème.
-      final hsl = HSLColor.fromColor(themeColor);
-      a = hsl.withLightness((hsl.lightness + 0.10).clamp(0.0, 1.0)).toColor();
-      b = hsl.withLightness((hsl.lightness - 0.10).clamp(0.0, 1.0)).toColor();
-    }
-    canvas.drawCircle(
-      center,
-      r + 9,
-      Paint()
-        ..color = a.withValues(alpha: 0.30)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-    );
-    canvas.drawCircle(
-      center,
-      r,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [a, b],
-        ).createShader(Rect.fromCircle(center: center, radius: r)),
-    );
-    canvas.drawCircle(
-      center,
-      r,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4
-        ..color = Colors.white,
-    );
-    // v576 — anneau de composition : un arc par rôle présent, proportionnel
-    // au nombre de membres de ce rôle dans le groupe. C'est le « petit
-    // repère » qui dit, sans zoomer, qu'il y a par exemple 2 gardiens et
-    // 1 propriétaire. Dessiné seulement pour les groupes de membres.
-    if (dominantRole != null && roleCounts != null) {
-      final present = ['owner', 'sitter', 'walker']
-          .where((k) => (roleCounts[k] ?? 0) > 0)
-          .toList();
-      if (present.length > 1) {
-        final total = present.fold<int>(0, (s, k) => s + (roleCounts[k] ?? 0));
-        double start = -math.pi / 2;
-        final rect = Rect.fromCircle(center: center, radius: r + 7);
-        for (final k in present) {
-          final sweep = (roleCounts[k]! / total) * 2 * math.pi;
-          canvas.drawArc(
-            rect,
-            start + 0.06,
-            math.max(0.0, sweep - 0.12),
-            false,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 7
-              ..strokeCap = StrokeCap.round
-              ..color = _roleGradients[k]![0],
-          );
-          start += sweep;
-        }
-      }
-    }
-    final tp = TextPainter(
-      text: TextSpan(
-        text: label,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: label.length > 2 ? 30 : 34,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    if (emoji != null && emoji.isNotEmpty) {
-      // Chiffre légèrement descendu + emoji du thème au-dessus : on sait d'un
-      // coup d'œil de QUOI il y a 12, sans ouvrir le groupe.
-      tp.paint(canvas, center.translate(-tp.width / 2, -tp.height / 2 + 8));
-      final ep = TextPainter(
-        text: TextSpan(text: emoji, style: const TextStyle(fontSize: 26)),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      ep.paint(canvas, center.translate(-ep.width / 2, -ep.height / 2 - 16));
-    } else {
-      tp.paint(canvas, center.translate(-tp.width / 2, -tp.height / 2));
-    }
-    final img =
-        await recorder.endRecording().toImage(size.toInt(), size.toInt());
-    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
-    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List(), width: 52);
-  }
-
-  void _ensureClusterMarker(int count, bool rose,
-      {String? category, Map<String, int>? roleCounts}) {
-    final key = _clusterKey(count, rose, category, roleCounts);
-    if (_clusterMarkers.containsKey(key) ||
-        _emojiGenInProgress.contains(key)) {
-      return;
-    }
-    _emojiGenInProgress.add(key);
-    _buildClusterBitmap(
-      count,
-      rose,
-      themeColor: category != null ? _colorForPoi(category) : null,
-      emoji: category != null ? PoiCategories.emoji(category) : null,
-      roleCounts: roleCounts,
-    ).then((bd) {
-      _clusterMarkers[key] = bd;
-      _emojiGenInProgress.remove(key);
-      _pawBadgeRev++;
-      if (mounted) setState(() {});
-    }).catchError((Object _) {
-      _emojiGenInProgress.remove(key);
-    });
-  }
-
   /// v552 — spec redesign v3, bug critique n°2 : « boutons masqués par la
   /// barre système ». Sur les Samsung à 3 boutons, la barre de navigation
   /// mange ~48 px : tout ce qui est ancré en bas doit partir de cette marge.
@@ -1037,15 +757,6 @@ class _PawMapScreenState extends State<PawMapScreen>
     return v > 0 ? v : 48.0;
   }
 
-  String _clusterKey(int count, bool rose, String? category,
-          [Map<String, int>? roleCounts]) =>
-      'cl_${rose ? 1 : 0}_${category ?? ''}_${count > 99 ? 100 : count}'
-      // v576 — la composition par rôle fait partie de l'identité du bitmap :
-      // sans elle, deux groupes de même taille mais de rôles différents
-      // partageraient la même pastille mise en cache.
-      '_${roleCounts == null ? '' : ['owner', 'sitter', 'walker']
-          .map((k) => '${k[0]}${roleCounts[k] ?? 0}').join()}';
-
   /// Tap sur une pastille de groupe : on zoome dessus, le groupe s'ouvre.
   Future<void> _zoomToCluster(LatLng target) async {
     final ctl = await _activeMapCtl();
@@ -1054,201 +765,37 @@ class _PawMapScreenState extends State<PawMapScreen>
     await ctl.animateCamera(CameraUpdate.newLatLngZoom(target, z));
   }
 
-  /// Cercle rose (dégradé) + patte blanche centrée + anneau blanc + point
-  /// en/hors ligne (vert/gris) + petit badge doré 👑 si premium. Hors ligne =
-  /// teinte désaturée. Sélectionné = cercle surélevé/foncé + liseré externe.
-  Future<BitmapDescriptor> _buildPawBadgeBitmap({
-    required bool online,
-    required bool premium,
-    required bool selected,
-    String role = '',
-    bool roleColored = false,
-  }) async {
-    // v550 — Daniel : « les utilisateurs, fais-les rose brillant qu'on les
-    // voie mieux ». Badge agrandi (42 → 48 px), rose plus vif et HALO
-    // lumineux rose autour du cercle : sur une carte saturée de POI bleus,
-    // les membres ressortent au premier coup d'œil.
-    // v561 — Daniel : « les utilisateurs : légèrement plus grands et beaucoup
-    // plus brillants ; dézoomé = rose fluo, zoomé = orange propriétaire /
-    // vert promeneur / bleu gardien, comme sur le web ». Badge 48 → 56 px,
-    // halo plus fort, couleur par rôle dès le zoom 12 (roleColored).
-    const double size = 112.0;
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    const center = Offset(56, 58);
-    final double r = selected ? 31 : 30;
-    Color pink = const Color(0xFFFF2D9B); // rose fluo
-    Color pinkDark = const Color(0xFFF0117F);
-    if (roleColored) {
-      switch (role) {
-        case 'owner':
-          pink = const Color(0xFFFF5A2E);
-          pinkDark = const Color(0xFFD83C28);
-          break;
-        case 'walker':
-          pink = const Color(0xFF2FD16B);
-          pinkDark = const Color(0xFF16A34A);
-          break;
-        case 'sitter':
-          pink = const Color(0xFF4F8DFF);
-          pinkDark = const Color(0xFF2563EB);
-          break;
-        default:
-          break;
-      }
-    }
-    final Color offTop = Color.lerp(pink, const Color(0xFFCBBDBA), 0.55)!;
-    final Color offBottom = Color.lerp(pinkDark, const Color(0xFFB9A7A2), 0.55)!;
-    final Color fillTop = !online ? offTop : (selected ? pinkDark : pink);
-    final Color fillBottom = online ? pinkDark : offBottom;
-
-    // Halo lumineux (2 couches floues) — c'est lui qui rend le badge
-    // « brillant ». Désaturé et discret quand le membre est hors ligne.
-    final double glowA = online ? 0.85 : 0.28;
-    canvas.drawCircle(
-      center,
-      r + 15,
-      Paint()
-        ..color = pink.withValues(alpha: glowA * 0.5)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
-    );
-    canvas.drawCircle(
-      center,
-      r + 6,
-      Paint()
-        ..color = pink.withValues(alpha: glowA)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-    );
-    // Ombre douce (lisibilité sur fond clair).
-    canvas.drawCircle(
-      center.translate(0, 2.5),
-      r,
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.20)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-    );
-    // Cercle rose dégradé.
-    final rect = Rect.fromCircle(center: center, radius: r);
-    canvas.drawCircle(
-      center,
-      r,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [fillTop, fillBottom],
-        ).createShader(rect),
-    );
-    // Reflet supérieur : donne l'effet « brillant » (pastille vernie).
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: center.translate(0, -r * 0.42),
-        width: r * 1.25,
-        height: r * 0.62,
-      ),
-      Paint()..color = Colors.white.withValues(alpha: online ? 0.30 : 0.16),
-    );
-    // Anneau blanc.
-    canvas.drawCircle(
-      center,
-      r,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.4
-        ..color = Colors.white,
-    );
-    // Liseré externe (état sélectionné).
-    if (selected) {
-      canvas.drawCircle(
-        center,
-        r + 3.5,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.4
-          ..color = pinkDark.withValues(alpha: 0.75),
-      );
-    }
-    // Patte blanche centrée (membre anonyme — pas de photo).
-    _drawWhitePaw(canvas, center, r * 1.5);
-    // Point en/hors ligne (bas-droite).
-    final dotC = Offset(center.dx + r * 0.72, center.dy + r * 0.72);
-    canvas.drawCircle(dotC, 8.5, Paint()..color = Colors.white);
-    canvas.drawCircle(
-      dotC,
-      6.5,
-      Paint()
-        ..color =
-            online ? const Color(0xFF2ECC71) : const Color(0xFFCEC1BE),
-    );
-    // Badge doré 👑 (haut-droite) si membre premium.
-    if (premium) {
-      final crownC = Offset(center.dx + r * 0.74, center.dy - r * 0.74);
-      canvas.drawCircle(crownC, 11, Paint()..color = Colors.white);
-      canvas.drawCircle(
-        crownC,
-        9.5,
-        Paint()
-          ..shader = const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFFBE3A1), Color(0xFFF4C04A)],
-          ).createShader(Rect.fromCircle(center: crownC, radius: 8)),
-      );
-      final tp = TextPainter(
-        text: const TextSpan(text: '👑', style: TextStyle(fontSize: 11)),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, crownC.translate(-tp.width / 2, -tp.height / 2));
-    }
-
-    final img =
-        await recorder.endRecording().toImage(size.toInt(), size.toInt());
-    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
-    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List(), width: 56);
-  }
-
-  /// Patte blanche (4 coussinets + paume) dessinée dans une boîte [paw] px
-  /// centrée sur [center]. Coordonnées calquées sur la patte SVG de la maquette
-  /// (viewBox 0..24).
-  void _drawWhitePaw(Canvas canvas, Offset center, double paw) {
-    final white = Paint()..color = Colors.white;
-    double sx(double vx) => center.dx + (vx - 12) / 24 * paw;
-    double sy(double vy) => center.dy + (vy - 12.5) / 24 * paw;
-    double sc(double v) => v / 24 * paw;
-    void toe(double vx, double vy, double rx, double ry) {
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(sx(vx), sy(vy)),
-          width: sc(rx) * 2,
-          height: sc(ry) * 2,
-        ),
-        white,
-      );
-    }
-
-    toe(6.4, 11, 2.0, 2.6);
-    toe(10.3, 7.4, 2.0, 2.7);
-    toe(14.7, 7.4, 2.0, 2.7);
-    toe(18.6, 11, 2.0, 2.6);
-    // Paume (coussinet central).
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(sx(12.5), sy(16.5)),
-        width: sc(11),
-        height: sc(8.5),
-      ),
-      white,
-    );
-  }
-
-  /// Tap sur un membre rose (badge OU halo) : marque l'état sélectionné +
-  /// ouvre l'info du membre (nom + rôle). Même comportement cliquable qu'avant.
-  // v548 — Daniel : « cliquer directement sur eux et demander en ami ».
-  // Avant : simple snackbar. Maintenant : fiche membre (photo/patte rose,
-  // nom, rôle, statut ou « position approximative ») + bouton Ajouter en
-  // ami (FriendController.sendRequest) avec retour envoyé / déjà / erreur.
-  /// v565 — relecture serveur des demandes, une fois par ouverture de fiche.
+  /// v584 — fiche COURTE d'un membre (LEGENDE_PAWMAP.md, « Réserver en
+  /// touchant un utilisateur ») : 1er appui = cette fiche (photo, prix,
+  /// étoiles, « Identité vérifiée », dispo aujourd'hui) avec un gros bouton
+  /// « Réserver » à sa couleur de rôle ; 2e appui = directement l'écran de
+  /// réservation (pas le profil), animal et service pré-remplis. « Voir le
+  /// profil » reste un lien. Propriétaire → « Proposer mes services » s'il a
+  /// une demande, sinon « Ajouter en ami » / « Message ». Sans compte →
+  /// inscription, puis retour.
+  /// v565 — l'état de la demande d'ami est relu depuis le serveur à
+  /// l'ouverture (jamais une liste périmée).
   bool _memberSheetRefreshed = false;
+
+  bool get _viewerLoggedIn =>
+      (SecureTokenStore.currentToken() ?? '').isNotEmpty;
+
+  PawFriendState _relationState(String uid) {
+    if (_friendController.isFriendWith(uid)) return PawFriendState.friends;
+    if (_friendController.hasPendingRequestTo(uid)) return PawFriendState.sent;
+    if (_friendController.incomingRequestFrom(uid) != null) {
+      return PawFriendState.incoming;
+    }
+    return PawFriendState.idle;
+  }
+
+  String _distanceLabelTo(double? lat, double? lng) {
+    final me = _userPosition;
+    if (me == null || lat == null || lng == null) return '';
+    final d = _distanceKm(me, LatLng(lat, lng));
+    if (d < 1) return '${(d * 1000).round()} m';
+    return '${d.toStringAsFixed(1)} km';
+  }
 
   void _onNearbyTap({
     required String id,
@@ -1265,344 +812,123 @@ class _PawMapScreenState extends State<PawMapScreen>
     int reviewsCount = 0,
     double priceFrom = 0,
     String currency = 'EUR',
+    bool verified = false,
+    bool boosted = false,
+    bool availableToday = false,
+    bool isFriend = false,
   }) {
     _selectedNearbyId = id;
     _memberSheetRefreshed = false;
     if (mounted) setState(() {});
-    final title = name.isNotEmpty
-        ? name
-        : (role == 'walker'
-            ? 'pawmap_default_walker'.tr
-            : 'pawmap_default_sitter'.tr);
-    final roleLabel = role == 'walker'
-        ? 'role_pet_walker'.tr
-        : (role == 'owner' ? 'role_pet_owner'.tr : 'role_pet_sitter'.tr);
-    const pink = Color(0xFFF06AA0);
-    const pinkDark = Color(0xFFE0568B);
-    // v565 — point 9 : l'état de la demande est PERSISTANT (relu depuis le
-    // serveur via FriendController, pas seulement en mémoire) : demande déjà
-    // envoyée → « Demande déjà envoyée · en attente de réponse » ; déjà amis ;
-    // demande REÇUE de ce membre → « Répondre » (ouvre l'onglet Amis).
-    // idle | busy | sent | already | friends | incoming | error
-    String relationState(String uid) {
-      if (_friendController.isFriendWith(uid)) return 'friends';
-      if (_friendController.hasPendingRequestTo(uid)) return 'sent';
-      if (_friendController.incomingRequestFrom(uid) != null) return 'incoming';
-      return 'idle';
-    }
-
-    String reqState = relationState(id);
-    // v565 — contrat §6 : présence temps réel si connue, sinon valeur chargée.
     final bool onlineNow = _liveMap.isOnline(id) ?? online;
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) => StatefulBuilder(
+    final bool hasOpenRequest = role == 'owner' &&
+        _requests.any((r) => r.ownerId == id);
+    final member = PawMapMemberData(
+      id: id,
+      role: role,
+      name: name,
+      avatar: avatar,
+      online: onlineNow,
+      premium: premium,
+      boosted: boosted,
+      verified: verified,
+      availableToday: availableToday,
+      isFriend: isFriend || _friendController.isFriendWith(id),
+      approx: approx,
+      approxKm: approxKm,
+      rating: rating,
+      reviewsCount: reviewsCount,
+      priceFrom: priceFrom,
+      currency: currency,
+      hasOpenRequest: hasOpenRequest,
+      distanceLabel: approx ? '' : _distanceLabelTo(lat, lng),
+    );
+    final priceLabel = priceFrom > 0
+        ? '${priceFrom.toStringAsFixed(0)} ${CurrencyHelper.symbol(currency)}'
+        : '';
+    PawFriendState reqState = _relationState(id);
+    showPawMapSheet<void>(
+      context,
+      StatefulBuilder(
         builder: (ctx, setSheet) {
-          // Relecture serveur à l'ouverture (une fois) : l'état affiché ne
-          // dépend jamais d'une liste périmée.
           if (!_memberSheetRefreshed) {
             _memberSheetRefreshed = true;
             unawaited(_friendController.loadRequests().then((_) {
               if (!ctx.mounted) return;
-              if (reqState == 'idle' || reqState == 'sent' ||
-                  reqState == 'friends' || reqState == 'incoming') {
-                setSheet(() => reqState = relationState(id));
+              if (reqState != PawFriendState.busy &&
+                  reqState != PawFriendState.error) {
+                setSheet(() => reqState = _relationState(id));
               }
             }));
           }
-          String btnLabel;
-          switch (reqState) {
-            case 'sent':
-              btnLabel = 'v565_member_request_pending'.tr;
-              break;
-            case 'already':
-              btnLabel = 'pawmap_member_already'.tr;
-              break;
-            case 'friends':
-              btnLabel = 'v565_member_already_friends'.tr;
-              break;
-            case 'incoming':
-              btnLabel = 'v565_member_request_reply'.tr;
-              break;
-            case 'error':
-              btnLabel = 'pawmap_member_request_failed'.tr;
-              break;
-            case 'busy':
-              btnLabel = '…';
-              break;
-            default:
-              btnLabel = 'pawmap_member_add_friend'.tr;
-          }
-          final bool btnEnabled = reqState == 'idle' ||
-              reqState == 'error' ||
-              reqState == 'incoming';
-          final bool btnMuted = reqState == 'sent' ||
-              reqState == 'already' ||
-              reqState == 'friends';
-          return SafeArea(
-            child: Container(
-              margin: EdgeInsets.fromLTRB(12.w, 0, 12.w, 12.h),
-              padding: EdgeInsets.fromLTRB(18.w, 14.h, 18.w, 18.h),
-              decoration: BoxDecoration(
-                color: AppColors.card(context),
-                borderRadius: BorderRadius.circular(22.r),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.18),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 38.w,
-                      height: 4.h,
-                      margin: EdgeInsets.only(bottom: 12.h),
-                      decoration: BoxDecoration(
-                        color: AppColors.textSecondary(context)
-                            .withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(2.r),
-                      ),
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Container(
-                        width: 54.w,
-                        height: 54.w,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            colors: [pink, pinkDark],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          border: Border.all(color: Colors.white, width: 2),
-                          image: avatar.isNotEmpty
-                              ? DecorationImage(
-                                  image: NetworkImage(avatar),
-                                  fit: BoxFit.cover,
-                                )
-                              : null,
-                        ),
-                        child: avatar.isEmpty
-                            ? const Icon(Icons.pets, color: Colors.white)
-                            : null,
-                      ),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${premium ? '👑 ' : ''}$title',
-                              style: TextStyle(
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textPrimary(context),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            SizedBox(height: 2.h),
-                            Text(
-                              approx
-                                  ? '$roleLabel · 📍 ${'pawmap_member_approx'.tr.replaceAll('{km}', _fmtKm(approxKm))}'
-                                  : '$roleLabel · ${onlineNow ? '🟢 ${'pawmap_member_online'.tr}' : '⚪ ${'pawmap_member_offline'.tr}'}',
-                              style: TextStyle(
-                                fontSize: 12.sp,
-                                color: AppColors.textSecondary(context),
-                              ),
-                              maxLines: 2,
-                            ),
-                            // v551 — Daniel : « fiche membre plus vendeuse ».
-                            // Note, nombre d'avis et tarif d'entrée pour les
-                            // gardiens / promeneurs : de quoi donner envie de
-                            // taper « Réserver » depuis la carte.
-                            if (role != 'owner' &&
-                                (rating > 0 || priceFrom > 0)) ...[
-                              SizedBox(height: 4.h),
-                              Text(
-                                [
-                                  if (rating > 0)
-                                    '⭐ ${rating.toStringAsFixed(1)}'
-                                        '${reviewsCount > 0 ? ' ${'reviews_count_short'.trParams({'count': '\$reviewsCount'})}' : ''}',
-                                  if (priceFrom > 0)
-                                    '${'pawmap_member_price_from'.tr} '
-                                        '${priceFrom.toStringAsFixed(0)} ${CurrencyHelper.symbol(currency)}',
-                                ].join('  ·  '),
-                                style: TextStyle(
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w700,
-                                  color: pinkDark,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 14.h),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: btnMuted
-                            ? AppColors.textSecondary(context)
-                                .withValues(alpha: 0.25)
-                            : (reqState == 'incoming'
-                                ? const Color(0xFF16A34A)
-                                : pinkDark),
-                        foregroundColor: btnMuted
-                            ? AppColors.textPrimary(context)
-                            : Colors.white,
-                        elevation: 0,
-                        padding: EdgeInsets.symmetric(vertical: 13.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14.r),
-                        ),
-                      ),
-                      onPressed: !btnEnabled
-                          ? null
-                          : () async {
-                              if (reqState == 'incoming') {
-                                // Demande reçue : on répond depuis l'onglet
-                                // Amis (Accepter / Refuser), même flux que
-                                // partout ailleurs dans l'app.
-                                Navigator.of(ctx).pop();
-                                _openScreen(
-                                    () => const FriendsScreen(initialIndex: 1));
-                                return;
-                              }
-                              setSheet(() => reqState = 'busy');
-                              // POST /friends/request (même route que l'onglet
-                              // Amis) ; FriendController recharge la liste des
-                              // demandes et rafraîchit la cloche.
-                              final err = await _friendController
-                                  .sendRequest(id, role);
-                              if (!ctx.mounted) return;
-                              setSheet(() {
-                                if (err.isEmpty) {
-                                  reqState = 'sent';
-                                } else if (err == 'ALREADY_ACCEPTED') {
-                                  reqState = 'friends';
-                                } else if (err.startsWith('ALREADY')) {
-                                  reqState = 'sent';
-                                } else {
-                                  reqState = 'error';
-                                }
-                              });
-                              if (err.isNotEmpty &&
-                                  !err.startsWith('ALREADY')) {
-                                CustomSnackbar.showError(
-                                  title: 'common_error'.tr,
-                                  message: err,
-                                );
-                              }
-                            },
-                      icon: Icon(
-                        reqState == 'sent'
-                            ? Icons.hourglass_top_rounded
-                            : (reqState == 'friends'
-                                ? Icons.check_rounded
-                                : (reqState == 'incoming'
-                                    ? Icons.mark_email_unread_rounded
-                                    : Icons.person_add_alt_1_rounded)),
-                        size: 18.sp,
-                      ),
-                      label: Text(
-                        btnLabel,
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // v550 — Daniel : « vérifie que l'ajout d'amis ET la
-                  // réservation directe via les utilisateurs marchent ». Le
-                  // web avait le bouton Réserver, pas l'app : on l'ajoute
-                  // pour les gardiens / promeneurs (owner = pas de fiche
-                  // réservable). Ferme la sheet puis ouvre la fiche.
-                  if (role == 'sitter' || role == 'walker') ...[
-                    SizedBox(height: 8.h),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: pinkDark,
-                          side: const BorderSide(color: pink, width: 1.4),
-                          padding: EdgeInsets.symmetric(vertical: 13.h),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14.r),
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.of(ctx).pop();
-                          if (role == 'walker') {
-                            Get.to(() => WalkerDetailScreen(walkerId: id));
-                          } else {
-                            Get.to(() => ServiceProviderDetailScreen(
-                                  sitterId: id,
-                                  status: 'available',
-                                ));
-                          }
-                        },
-                        icon: Icon(Icons.event_available_rounded, size: 18.sp),
-                        label: Text(
-                          'pawmap_member_book'.tr,
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                  // v559 — Daniel : itinéraire (à pied / vélo / voiture +
-                  // virages) aussi vers un membre ou un ami en direct.
-                  if (lat != null && lng != null) ...[
-                    SizedBox(height: 10.h),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF16A34A),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: EdgeInsets.symmetric(vertical: 13.h),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14.r),
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.of(ctx).pop();
-                          _startDirections(LatLng(lat, lng));
-                        },
-                        icon: Icon(Icons.directions_rounded, size: 18.sp),
-                        label: Text(
-                          'pawmap_btn_directions'.tr,
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+          return PawMapMemberSheet(
+            member: member,
+            viewerRole: _role,
+            viewerLoggedIn: _viewerLoggedIn,
+            friendState: reqState,
+            priceLabel: priceLabel,
+            onSignup: () {
+              Navigator.of(ctx).pop();
+              SignupWallSheet.show(
+                trigger: 'booking',
+                name: name,
+                recommendedRole: 'pet_owner',
+              );
+            },
+            onBook: () {
+              Navigator.of(ctx).pop();
+              _bookMember(id: id, role: role, name: name, currency: currency);
+            },
+            onProfile: () {
+              Navigator.of(ctx).pop();
+              _openMemberProfile(id: id, role: role);
+            },
+            onMessage: () {
+              Navigator.of(ctx).pop();
+              unawaited(_openConversationWith(
+                  id: id, role: role, name: name, avatar: avatar));
+            },
+            onPropose: () {
+              Navigator.of(ctx).pop();
+              final req = _requests.firstWhereOrNull((r) => r.ownerId == id);
+              if (req != null) _showRequestBottomSheet(req);
+            },
+            onDirections: lat != null && lng != null
+                ? () {
+                    Navigator.of(ctx).pop();
+                    _startDirections(LatLng(lat, lng));
+                  }
+                : null,
+            onFriend: () async {
+              if (reqState == PawFriendState.incoming) {
+                Navigator.of(ctx).pop();
+                _openScreen(() => const FriendsScreen(initialIndex: 1));
+                return;
+              }
+              if (reqState == PawFriendState.friends ||
+                  reqState == PawFriendState.sent) {
+                return;
+              }
+              setSheet(() => reqState = PawFriendState.busy);
+              // POST /friends/request (même route que l'onglet Amis).
+              final err = await _friendController.sendRequest(id, role);
+              if (!ctx.mounted) return;
+              setSheet(() {
+                if (err.isEmpty) {
+                  reqState = PawFriendState.sent;
+                } else if (err == 'ALREADY_ACCEPTED') {
+                  reqState = PawFriendState.friends;
+                } else if (err.startsWith('ALREADY')) {
+                  reqState = PawFriendState.sent;
+                } else {
+                  reqState = PawFriendState.error;
+                }
+              });
+              if (err.isNotEmpty && !err.startsWith('ALREADY')) {
+                CustomSnackbar.showError(
+                    title: 'common_error'.tr, message: err);
+              }
+            },
           );
         },
       ),
@@ -1612,6 +938,288 @@ class _PawMapScreenState extends State<PawMapScreen>
     });
   }
 
+  /// « Voir le profil » (lien secondaire) : la fiche complète.
+  void _openMemberProfile({required String id, required String role}) {
+    if (role == 'walker') {
+      Get.to(() => WalkerDetailScreen(walkerId: id));
+    } else if (role == 'sitter') {
+      Get.to(() => ServiceProviderDetailScreen(sitterId: id, status: 'available'));
+    } else {
+      // Un propriétaire n'a pas de fiche « réservable » : ses infos vivent
+      // dans la conversation / la liste d'amis.
+      _openScreen(() => const FriendsScreen());
+    }
+  }
+
+  /// 2e appui = l'écran de réservation, DIRECTEMENT (pas le profil), avec le
+  /// service par défaut (garde si gardien, promenade si promeneur) et mon
+  /// premier animal déjà cochés. Restent à choisir : dates et paiement.
+  /// Les tarifs viennent de la fiche du prestataire (un appel léger).
+  Future<void> _bookMember({
+    required String id,
+    required String role,
+    required String name,
+    required String currency,
+  }) async {
+    if (!_viewerLoggedIn) {
+      await SignupWallSheet.show(
+          trigger: 'booking', name: name, recommendedRole: 'pet_owner');
+      return;
+    }
+    if (_role != 'owner' && _role.isNotEmpty) {
+      // Un gardien / promeneur ne réserve pas un confrère : on ouvre sa fiche.
+      _openMemberProfile(id: id, role: role);
+      return;
+    }
+    double? daily, weekly, monthly, halfHour, hourly;
+    String cur = currency;
+    try {
+      if (role == 'walker' && Get.isRegistered<WalkerRepository>()) {
+        final w = await Get.find<WalkerRepository>().getWalkerProfile(id);
+        cur = w.currency;
+        for (final r in w.walkRates) {
+          if (!r.enabled || r.basePrice <= 0) continue;
+          if (r.durationMinutes == 30) halfHour = r.basePrice;
+          if (r.durationMinutes == 60) hourly = r.basePrice;
+        }
+      } else if (Get.isRegistered<SitterRepository>()) {
+        final p = await Get.find<SitterRepository>().getSitterProfile(id);
+        final data = (p['sitter'] as Map<String, dynamic>?) ??
+            (p['profile'] as Map<String, dynamic>?) ??
+            p;
+        daily = (data['dailyRate'] as num?)?.toDouble();
+        weekly = (data['weeklyRate'] as num?)?.toDouble();
+        monthly = (data['monthlyRate'] as num?)?.toDouble();
+        final c = (data['currency'] ?? '').toString();
+        if (c.isNotEmpty) cur = c;
+      }
+    } catch (e) {
+      debugPrint('[PawMap] tarifs du prestataire indisponibles : $e');
+    }
+    if (!mounted) return;
+    Get.to(() => SendRequestScreen(
+          serviceProviderName: name,
+          serviceProviderId: id,
+          serviceProviderRole: role == 'walker' ? 'walker' : 'sitter',
+          sitterDailyRate: daily,
+          sitterWeeklyRate: weekly,
+          sitterMonthlyRate: monthly,
+          walkerHalfHourRate: halfHour,
+          walkerHourlyRate: hourly,
+          currencyCode: cur,
+          initialServiceType: role == 'walker' ? 'dog_walking' : 'pet_sitting',
+          preselectFirstPet: true,
+        ));
+  }
+
+  /// « Message » depuis la fiche : ouvre (ou crée) la conversation, selon
+  /// mon rôle, puis l'écran de discussion — même chemin que les fiches
+  /// complètes.
+  Future<void> _openConversationWith({
+    required String id,
+    required String role,
+    required String name,
+    required String avatar,
+  }) async {
+    try {
+      Map<String, dynamic> res;
+      final viewer = _role;
+      if (viewer == 'sitter' && Get.isRegistered<SitterRepository>()) {
+        res = await Get.find<SitterRepository>()
+            .startConversationBySitter(ownerId: id);
+      } else if (viewer == 'walker' && Get.isRegistered<WalkerRepository>()) {
+        res = await Get.find<WalkerRepository>()
+            .startConversationByWalker(ownerId: id);
+      } else if (Get.isRegistered<OwnerRepository>()) {
+        res = await Get.find<OwnerRepository>().startConversation(
+          sitterId: role == 'sitter' ? id : null,
+          walkerId: role == 'walker' ? id : null,
+        );
+      } else {
+        _openCircleChat();
+        return;
+      }
+      final conv = res['conversation'] as Map<String, dynamic>?;
+      final convId = (conv?['id'] ?? conv?['_id'] ?? '').toString();
+      if (convId.isEmpty) throw Exception('conversation id missing');
+      if (!mounted) return;
+      if (viewer == 'sitter' || viewer == 'walker') {
+        Get.to(() => SitterIndividualChatScreen(
+              conversationId: convId,
+              contactName: name,
+              contactImage: avatar,
+            ));
+      } else {
+        Get.to(() => IndividualChatScreen(
+              conversationId: convId,
+              contactName: name,
+              contactImage: avatar,
+            ));
+      }
+    } catch (e) {
+      debugPrint('[PawMap] conversation impossible : $e');
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'sitter_detail_start_chat_failed'.tr,
+      );
+    }
+  }
+
+  // ── MOI : mode « visible par mes amis seulement » ─────────────────────────
+
+  /// Lecture locale de `preferences.hideFromMap` (copie du profil).
+  static bool _readFriendsOnlyFromProfile() {
+    try {
+      final profile =
+          GetStorage().read<Map<String, dynamic>>(StorageKeys.userProfile);
+      final prefs = profile?['preferences'];
+      if (prefs is Map) return prefs['hideFromMap'] == true;
+    } catch (_) {/* profil illisible */}
+    return false;
+  }
+
+  bool _visibilitySaving = false;
+
+  /// Tap sur MON rond → « Qui me voit sur la carte ? ».
+  void _onMeTap() => _openVisibilitySheet();
+
+  void _openVisibilitySheet() {
+    showPawMapSheet<void>(
+      context,
+      StatefulBuilder(
+        builder: (ctx, setSheet) => PawMapVisibilitySheet(
+          friendsOnly: _friendsOnly,
+          saving: _visibilitySaving,
+          onChanged: (v) async {
+            if (v == _friendsOnly) {
+              Navigator.of(ctx).pop();
+              return;
+            }
+            setSheet(() => _visibilitySaving = true);
+            final ok = await _setFriendsOnly(v);
+            if (!ctx.mounted) return;
+            setSheet(() => _visibilitySaving = false);
+            if (ok) Navigator.of(ctx).pop();
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Enregistre le réglage SUR LE COMPTE (même champ que Préférences :
+  /// `preferences.hideFromMap`, propagé aux 3 profils par le serveur) et
+  /// confirme. En cas d'échec, rien ne change localement.
+  Future<bool> _setFriendsOnly(bool friendsOnly) async {
+    final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
+    if (api == null) return false;
+    try {
+      await api.patch(
+        '/users/me/map-prefs',
+        body: {'hideFromMap': friendsOnly},
+        requiresAuth: true,
+      );
+      _friendsOnly = friendsOnly;
+      // Copie locale du profil : cohérente avec Préférences sans rechargement.
+      try {
+        final profile =
+            GetStorage().read<Map<String, dynamic>>(StorageKeys.userProfile);
+        if (profile != null) {
+          final prefs = Map<String, dynamic>.from(
+              (profile['preferences'] as Map?) ?? const {});
+          prefs['hideFromMap'] = friendsOnly;
+          profile['preferences'] = prefs;
+          GetStorage().write(StorageKeys.userProfile, profile);
+        }
+      } catch (_) {/* sans importance */}
+      if (mounted) setState(() {});
+      CustomSnackbar.showSuccess(
+        title: 'pawmap_visibility_title'.tr,
+        message: friendsOnly
+            ? 'pawmap_visibility_now_friends'.tr
+            : 'pawmap_visibility_now_all'.tr,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('[PawMap] visibilité : $e');
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'pawmap_visibility_failed'.tr,
+      );
+      return false;
+    }
+  }
+
+  /// Bouton « ? » : la légende en images (9 langues).
+  void _openLegend() {
+    showPawMapSheet<void>(context, const PawMapLegendSheet());
+  }
+
+  /// v584 — idée 8 : « N membres autour de toi » → la liste (nom, rôle,
+  /// distance, prix), triée du plus proche au plus loin ; tap = fiche.
+  void _openAroundList() {
+    final ref = _userPosition ?? _currentCenter;
+    LatLng? posOf(Map<String, dynamic> p) {
+      final loc = p['location'] is Map ? p['location'] as Map : null;
+      final c = loc != null && loc['coordinates'] is List
+          ? loc['coordinates'] as List
+          : null;
+      if (c == null || c.length < 2) return null;
+      return LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble());
+    }
+
+    final items = _aroundMembers
+        .where((p) => posOf(p) != null)
+        .map((p) => (p: p, d: _distanceKm(ref, posOf(p)!)))
+        .toList()
+      ..sort((a, b) => a.d.compareTo(b.d));
+    showPawMapSheet<void>(
+      context,
+      PawMapAroundList(
+        items: [
+          for (final it in items)
+            PawMapAroundItem(
+              id: (it.p['id'] ?? it.p['_id'] ?? '').toString(),
+              role: (it.p['_role'] ?? '').toString().toLowerCase(),
+              name: (it.p['name'] ?? '').toString(),
+              avatar: (it.p['avatar'] ?? '').toString(),
+              distanceLabel: it.d < 1
+                  ? '${(it.d * 1000).round()} m'
+                  : '${it.d.toStringAsFixed(1)} km',
+              priceLabel: _priceLabelFor(it.p),
+              premium: it.p['isPremium'] == true,
+              verified: it.p['kycVerified'] == true,
+              availableToday: it.p['availableToday'] == true,
+            ),
+        ],
+        onTap: (item) {
+          final p = _aroundMembers.firstWhereOrNull(
+              (m) => (m['id'] ?? m['_id'] ?? '').toString() == item.id);
+          if (p == null) return;
+          Navigator.of(context).pop();
+          final pos = posOf(p);
+          _onNearbyTap(
+            id: item.id,
+            role: item.role,
+            name: item.name,
+            online: p['isOnline'] != false && p['online'] != false,
+            premium: item.premium,
+            lat: pos?.latitude,
+            lng: pos?.longitude,
+            avatar: item.avatar,
+            approx: p['approx'] == true,
+            approxKm: (p['approxKm'] as num?)?.toDouble() ?? 1.0,
+            rating: (p['rating'] as num?)?.toDouble() ?? 0,
+            reviewsCount: (p['reviewsCount'] as num?)?.toInt() ?? 0,
+            priceFrom: (p['priceFrom'] as num?)?.toDouble() ?? 0,
+            currency: (p['currency'] ?? 'EUR').toString(),
+            verified: item.verified,
+            boosted: p['isBoosted'] == true,
+            availableToday: item.availableToday,
+          );
+        },
+      ),
+    );
+  }
   /// Renders a circular white-bg marker with the emoji centered inside.
   /// 120x120 pixels gives a crisp icon on retina screens. Returns a
   /// BitmapDescriptor ready to assign to Marker(icon: ...).
@@ -1676,346 +1284,6 @@ class _PawMapScreenState extends State<PawMapScreen>
     return BitmapDescriptor.bytes(
       bytes!.buffer.asUint8List(),
       width: 36,
-    );
-  }
-
-  /// v23.1.368 — Daniel : "colore mon emoji selon le thème du spot".
-  /// LA pièce-médaille officielle (emoji fourni : anneau brillant, patte en
-  /// relief, pointe-pin dans le coussinet, étincelles) déclinée dans la
-  /// COULEUR DU TYPE — sans `base` : la version OR (spots golden).
-  ui.Image? _pawspotCoinImage;
-
-  /// v561 — pièce PawSpot officielle (PNG) pour les spots DORÉS, avec
-  /// l'anneau à la couleur du type conservé autour.
-  Future<BitmapDescriptor?> _buildGoldenCoinFromAsset(Color? typeRing) async {
-    try {
-      if (_pawspotCoinImage == null) {
-        final data = await rootBundle.load(GoldenPawCoin.asset);
-        final codec = await ui.instantiateImageCodec(
-          data.buffer.asUint8List(),
-          targetWidth: 160,
-          targetHeight: 160,
-        );
-        _pawspotCoinImage = (await codec.getNextFrame()).image;
-      }
-      const double size = 136.0;
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-      const center = Offset(68, 68);
-      if (typeRing != null) {
-        canvas.drawCircle(
-          center,
-          64,
-          Paint()..color = typeRing.withValues(alpha: 0.35)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-        );
-        canvas.drawCircle(center, 61, Paint()..color = typeRing);
-      }
-      canvas.drawCircle(
-        center.translate(0, 3),
-        56,
-        Paint()..color = Colors.black.withValues(alpha: 0.22)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
-      );
-      final img = _pawspotCoinImage!;
-      canvas.drawImageRect(
-        img,
-        Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
-        Rect.fromCircle(center: center, radius: 56),
-        Paint()..filterQuality = FilterQuality.high,
-      );
-      final out = await recorder.endRecording().toImage(size.toInt(), size.toInt());
-      final bytes = await out.toByteData(format: ui.ImageByteFormat.png);
-      return BitmapDescriptor.bytes(bytes!.buffer.asUint8List(), width: 62);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// v567 — repère PawSpot « goutte » dessiné à 2× (net sur écrans 3×).
-  /// Pointe en bas = position exacte (ancre 0.5 / 1.0 sur le Marker).
-  Future<BitmapDescriptor> _buildSpotPinBitmap({
-    required String type,
-    required bool golden,
-  }) async {
-    const double w = 64, h = 82;
-    final Color base = PawSpotTypes.color(type);
-    final Color top = golden
-        ? const Color(0xFF3A3028)
-        : Color.lerp(base, Colors.white, 0.28)!;
-    final Color bottom = golden
-        ? const Color(0xFF0E0A09)
-        : Color.lerp(base, Colors.black, 0.18)!;
-    final Color rim = golden ? const Color(0xFFFFD34D) : Colors.white;
-
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    canvas.scale(2, 2);
-
-    Path drop(double cx, double cy, double r, double tipY) {
-      final p = Path();
-      p.moveTo(cx, tipY);
-      p.cubicTo(cx - r * 0.30, tipY - r * 0.62, cx - r * 1.02, cy + r * 0.78,
-          cx - r, cy);
-      p.arcToPoint(Offset(cx + r, cy),
-          radius: Radius.circular(r), clockwise: true);
-      p.cubicTo(cx + r * 1.02, cy + r * 0.78, cx + r * 0.30, tipY - r * 0.62,
-          cx, tipY);
-      p.close();
-      return p;
-    }
-
-    const double cx = 32, cy = 29, r = 25, tipY = 76;
-    // Ombre au sol sous la pointe + ombre portée du repère.
-    canvas.drawOval(
-      Rect.fromCenter(center: const Offset(cx, tipY + 1.5), width: 22, height: 7),
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.28)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
-    );
-    canvas.drawPath(
-      drop(cx, cy + 2.5, r, tipY + 1),
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.22)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.5),
-    );
-    // Liseré (blanc, ou or pour un spot doré) puis corps en dégradé.
-    canvas.drawPath(drop(cx, cy, r + 2.6, tipY + 3), Paint()..color = rim);
-    canvas.drawPath(
-      drop(cx, cy, r, tipY),
-      Paint()
-        ..shader = ui.Gradient.linear(
-          const Offset(cx - r, cy - r),
-          const Offset(cx + r, tipY),
-          [top, bottom],
-        ),
-    );
-    // Reflet en haut à gauche.
-    canvas.save();
-    canvas.clipPath(drop(cx, cy, r, tipY));
-    canvas.drawOval(
-      Rect.fromCenter(center: const Offset(cx - 8, cy - 15), width: 34, height: 20),
-      Paint()..color = Colors.white.withValues(alpha: golden ? 0.10 : 0.24),
-    );
-    canvas.restore();
-    // Disque central.
-    canvas.drawCircle(
-      const Offset(cx, cy + 1),
-      17.5,
-      Paint()..color = Colors.black.withValues(alpha: 0.18)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5),
-    );
-    canvas.drawCircle(
-      const Offset(cx, cy),
-      17.5,
-      Paint()
-        ..shader = ui.Gradient.linear(
-          const Offset(cx - 17, cy - 17),
-          const Offset(cx + 17, cy + 17),
-          golden
-              ? const [Color(0xFFFFE989), Color(0xFFE8A00A)]
-              : const [Colors.white, Color(0xFFF4EEED)],
-        ),
-    );
-    if (golden) {
-      canvas.drawCircle(
-        const Offset(cx, cy),
-        17.5,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.2
-          ..color = const Color(0xFFFFF4C2),
-      );
-    }
-    // Emoji du type (🐾 pour un spot doré).
-    final tp = TextPainter(
-      text: TextSpan(
-        text: golden ? '🐾' : PawSpotTypes.emoji(type),
-        style: const TextStyle(fontSize: 20, height: 1.0),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2 + 0.5));
-    // Étincelle du spot doré.
-    if (golden) {
-      final spark = Paint()..color = const Color(0xFFFFF4C2);
-      Path star(Offset c, double s) => Path()
-        ..moveTo(c.dx, c.dy - s)
-        ..quadraticBezierTo(c.dx, c.dy, c.dx + s, c.dy)
-        ..quadraticBezierTo(c.dx, c.dy, c.dx, c.dy + s)
-        ..quadraticBezierTo(c.dx, c.dy, c.dx - s, c.dy)
-        ..quadraticBezierTo(c.dx, c.dy, c.dx, c.dy - s)
-        ..close();
-      canvas.drawPath(star(const Offset(cx + 19, cy - 19), 6), spark);
-      canvas.drawPath(star(const Offset(cx - 21, cy - 12), 3.5), spark);
-    }
-
-    final img = await recorder
-        .endRecording()
-        .toImage((w * 2).toInt(), (h * 2).toInt());
-    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
-    return BitmapDescriptor.bytes(
-      bytes!.buffer.asUint8List(),
-      width: golden ? 50 : 44,
-    );
-  }
-
-  Future<BitmapDescriptor> _buildCoinBitmap({
-    Color? base,
-    Color? typeRing,
-  }) async {
-    if (base == null) {
-      final fromAsset = await _buildGoldenCoinFromAsset(typeRing);
-      if (fromAsset != null) return fromAsset;
-    }
-    // Palette : or officiel par défaut, sinon nuances dérivées du type.
-    final Color ringStart = base == null
-        ? const Color(0xFFFFE989)
-        : Color.lerp(base, Colors.white, 0.55)!;
-    final Color ringEnd = base == null
-        ? const Color(0xFFD99800)
-        : Color.lerp(base, Colors.black, 0.10)!;
-    final Color inner = base == null
-        ? const Color(0xFF9A6B00)
-        : Color.lerp(base, Colors.black, 0.38)!;
-    final Color pawStart = base == null
-        ? const Color(0xFFFFE066)
-        : Color.lerp(base, Colors.white, 0.45)!;
-    final Color pawEnd = base ?? const Color(0xFFE8A00A);
-
-    // v556 — Daniel : « l'icône des PawSpot plus premium ». La pièce était
-    // dessinée en 64 px puis étirée par l'écran (3× sur son Samsung) → bords
-    // flous. On dessine désormais à 2× (128 px, même géométrie grâce à
-    // canvas.scale) et on l'affiche un peu plus petite : net et fin.
-    const double size = 128.0;
-    const Offset c = Offset(32, 32);
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    canvas.scale(2, 2);
-
-    // Ombre douce.
-    canvas.drawCircle(
-      const Offset(32, 34),
-      29,
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.25)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
-    );
-    // v23.1.373 — anneau couleur du TYPE autour de la pièce OR (Daniel :
-    // "comme dans la légende — vert chemin, turquoise baignade...").
-    if (typeRing != null) {
-      canvas.drawCircle(
-        c,
-        30.4,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3.2
-          ..color = typeRing,
-      );
-    }
-    // Anneau extérieur brillant.
-    canvas.drawCircle(
-      c,
-      29,
-      Paint()
-        ..shader = ui.Gradient.linear(
-          const Offset(10, 8),
-          const Offset(54, 58),
-          [ringStart, ringEnd],
-        ),
-    );
-    // Fond intérieur + liseré clair.
-    canvas.drawCircle(c, 24.5, Paint()..color = inner);
-    canvas.drawCircle(
-      c,
-      24.5,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5
-        ..color = ringStart.withValues(alpha: 0.7),
-    );
-
-    // Patte en relief (4 doigts + coussinet), dégradé.
-    final pawPaint = Paint()
-      ..shader = ui.Gradient.linear(
-        const Offset(18, 14),
-        const Offset(46, 52),
-        [pawStart, pawEnd],
-      );
-    canvas.drawOval(
-        Rect.fromCenter(center: const Offset(20.5, 22), width: 9, height: 12),
-        pawPaint);
-    canvas.drawOval(
-        Rect.fromCenter(
-            center: const Offset(28.5, 17.5), width: 9.5, height: 13),
-        pawPaint);
-    canvas.drawOval(
-        Rect.fromCenter(center: const Offset(38, 18.5), width: 9.5, height: 13),
-        pawPaint);
-    canvas.drawOval(
-        Rect.fromCenter(
-            center: const Offset(45.5, 24.5), width: 9, height: 11.5),
-        pawPaint);
-    final pad = Path()
-      ..moveTo(20, 38)
-      ..cubicTo(20, 29, 26, 26, 32.5, 26)
-      ..cubicTo(39, 26, 45, 29, 45, 38)
-      ..cubicTo(45, 44, 40, 48.5, 32.5, 48.5)
-      ..cubicTo(25, 48.5, 20, 44, 20, 38)
-      ..close();
-    canvas.drawPath(pad, pawPaint);
-
-    // Pointe-PIN découpée dans le coussinet.
-    final hole = Paint()..color = inner;
-    canvas.drawCircle(const Offset(32.5, 36), 4.2, hole);
-    final tip = Path()
-      ..moveTo(27.8, 38.5)
-      ..lineTo(37.2, 38.5)
-      ..lineTo(32.5, 47)
-      ..close();
-    canvas.drawPath(tip, hole);
-    canvas.drawCircle(
-        const Offset(32.5, 36), 1.8, Paint()..color = pawStart);
-
-    // Étincelles ✨.
-    void sparkle(Offset p, double r) {
-      final sp = Paint()
-        ..color = Colors.white.withValues(alpha: 0.95)
-        ..strokeWidth = 1.6
-        ..strokeCap = StrokeCap.round;
-      canvas.drawLine(Offset(p.dx - r, p.dy), Offset(p.dx + r, p.dy), sp);
-      canvas.drawLine(Offset(p.dx, p.dy - r), Offset(p.dx, p.dy + r), sp);
-    }
-
-    sparkle(const Offset(50, 13), 4);
-    sparkle(const Offset(13, 49), 3);
-
-    // v556 — reflet glacé en haut de la pièce (effet métal poli).
-    canvas.save();
-    canvas.clipPath(Path()..addOval(Rect.fromCircle(center: c, radius: 24.5)));
-    canvas.drawOval(
-      Rect.fromLTWH(12, 6, 40, 20),
-      Paint()
-        ..shader = ui.Gradient.linear(
-          const Offset(32, 6),
-          const Offset(32, 26),
-          [
-            Colors.white.withValues(alpha: 0.30),
-            Colors.white.withValues(alpha: 0.0),
-          ],
-        ),
-    );
-    canvas.restore();
-
-    final img =
-        await recorder.endRecording().toImage(size.toInt(), size.toInt());
-    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
-    // v23.1.369 — Daniel : "l'emoji plus grand, comme la taille des
-    // utilisateurs, légèrement moins grand" — avatars amis = 96 px →
-    // pièces type 64, pièce OR 70 (le doré ressort toujours un peu).
-    // v556 — un peu plus petite qu'avant (70/64 → 62/56), l'or garde son
-    // léger avantage de taille.
-    return BitmapDescriptor.bytes(
-      bytes!.buffer.asUint8List(),
-      width: base == null ? 62 : 56,
     );
   }
 
@@ -2730,6 +1998,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     // owner sessions.
     if (_isSitterOrWalker) {
       futures.add(_loadNearbyRequests());
+    } else {
+      // v584 — le propriétaire voit SES demandes (« Ma demande »).
+      futures.add(_loadMyRequests());
     }
     // v497 — Daniel : « membres PawMap proches » (badge rose) doivent être vus
     // par TOUS les rôles (avant : owner uniquement). On charge la liste pour
@@ -3584,37 +2855,25 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
-  // v23.1 part 123 — Platinum halo pulse. Returns a Set<Circle> with one
-  // animated circle per Platinum-boosted provider visible on the map.
-  // The phase is read from _haloPhase (0..1) — Obx parent re-runs us at
-  // 5fps which is enough for a peaceful beacon feel without thrashing GL.
+  // ─── Halos (cercles en mètres) ───────────────────────────────────────────
+  // v584 — légende validée le 23/09 : « les halos restent une lueur extérieure
+  // autour du rond, jamais l'anneau », « un seul halo par rond : PawBoost
+  // (turquoise, dessiné DANS l'épingle) > PawFollow (violet) », et « la seule
+  // chose animée de la carte, c'est le boost (sauf Moi en suivi) ». Les halos
+  // or Premium, jaune PawSpot et les anneaux « rose » qui respiraient autour
+  // de chaque membre proche sont RETIRÉS : la couronne et la couleur du rôle
+  // suffisent, et la carte respire mieux (moins de cercles à redessiner).
+  // Restent : mon halo (couleur du rôle ; il ne pulse que quand je partage ma
+  // position), le halo violet des amis en direct, et l'anneau de suivi.
   Set<Circle> _buildHaloCircles() {
     final Set<Circle> circles = {};
-
-    // v23.1.149 — Daniel : "paw map rien napparait le point de
-    // geolocolisation ou le halo nest pas la". On dessine notre propre
-    // halo bleu pulsant autour de la position user dès qu'elle est
-    // résolue (indépendant de myLocationEnabled qui peut échouer
-    // silencieusement selon la permission OS).
     final userPos = _userPosition;
-    // v23.1.356 — switch PawFollow OFF → couche live masquée (mon halo aussi).
     if (userPos != null && _showLiveLayer.value) {
-      final phase = _haloPhase.value;
-      final userRadius = 25.0 + 75.0 * phase; // 25 → 100 m
+      final bool live = _liveMap.broadcasting.value;
+      final phase = live ? _haloPhase.value : 0.35;
+      final userRadius = 25.0 + 75.0 * phase;
       final userOpacity = (0.55 * (1.0 - phase)).clamp(0.0, 1.0);
-      // v23.1.352 — Daniel : "tu as mis un petit point bleu au lieu de me
-      // laisser mon halo selon rôle". Le halo perso prend la couleur du RÔLE
-      // (owner orange / sitter bleu / walker vert) au lieu du bleu générique.
-      // v556 — mon propre halo suit la même grille (Premium or, PawFollow
-      // violet, PawSpot jaune, sinon mon rôle).
-      final userColor = _haloColorFor(
-        premium: _pawSpotController.premiumActive.value,
-        pawFollow: _pawSpotController.followActive.value &&
-            !_pawSpotController.premiumActive.value,
-        pawSpot: _pawSpotController.pawspotActive.value &&
-            !_pawSpotController.premiumActive.value,
-        role: _role,
-      );
+      final userColor = PawMapLegend.roleColor(_role);
       circles.add(
         Circle(
           circleId: const CircleId('user_halo_outer'),
@@ -3625,307 +2884,33 @@ class _PawMapScreenState extends State<PawMapScreen>
           strokeWidth: 2,
         ),
       );
-      // Solid inner dot (radius 8m) — couleur rôle, visible même quand le
-      // pulse est à son apex (opacity faible).
-      circles.add(
-        Circle(
-          circleId: const CircleId('user_halo_dot'),
-          center: userPos,
-          radius: 8,
-          fillColor: userColor,
-          strokeColor: Colors.white,
-          strokeWidth: 2,
-        ),
-      );
     }
-
-    // v23.1.353 — refonte PawSpot : les halos "map boost" (self-halo +
-    // halos tier bronze/silver/gold/platinum des providers) sont SUPPRIMÉS.
-    // PawSpot = désormais les spots communautaires 🐾 (couche dédiée).
-    // On garde : halo user, anneau ROLE des providers, halos amis/famille.
-
-    // v449 — Daniel : « je vois encore des halos ». Le halo statique sous
-    // chaque POI (cercle teinté de la catégorie) est RETIRÉ : le marqueur
-    // emoji du POI porte déjà son anneau de couleur, le halo au sol faisait
-    // doublon et donnait l'impression d'un « halo » résiduel. (Les halos
-    // amis/famille/utilisateur restent, eux, volontaires.)
-
-    // v23.1.276 — Daniel : "unifie les halos des utilisateurs pour que tout
-    // soit plus fluide et compréhensible". Avant, un `return` ici (owner-only)
-    // empêchait les halos AMIS (plus bas) de s'afficher pour un sitter/walker.
-    // On enferme donc la boucle PROVIDER dans un `if` au lieu de couper, pour
-    // toujours atteindre le bloc amis. + DEDUP : un provider qui est AUSSI un
-    // ami live ne reçoit PAS de halo provider (son halo ami unifié le
-    // représente déjà) → fini les 2-3 halos empilés sur la même personne.
-    final friendLiveIds = _liveMap.friendPositions.keys
-        .map((k) => k.trim().toLowerCase())
-        .toSet();
-    // v489/v497 — halo ROSE des membres proches : visible si abonné PawSpot/
-    // PawPremium (gating VIEWER), pour TOUS les rôles (v497 — drop
-    // !_isSitterOrWalker, comme le badge rose dans _buildMarkers).
-    if (_showProviders.value &&
-        (_pawSpotController.pawspotActive.value ||
-            _pawSpotController.premiumActive.value)) {
-      for (final p in _nearbyProviders) {
-      final loc = p['location'] is Map ? p['location'] as Map : null;
-      final coords = loc != null && loc['coordinates'] is List
-          ? loc['coordinates'] as List
-          : null;
-      if (coords == null || coords.length < 2) continue;
-      final lng = (coords[0] as num).toDouble();
-      final lat = (coords[1] as num).toDouble();
-      final id = (p['id'] ?? p['_id'] ?? '').toString();
-      if (id.isEmpty) continue;
-      // v23.1.276 — dédup halos : ce provider est aussi un ami live → on saute
-      // son halo provider (anneau role + tier), son halo AMI unifié suffit.
-      if (friendLiveIds.contains(id.trim().toLowerCase())) continue;
-      // v23.1.161 — Daniel : "la couleur des halo marche pas". v159 mettait
-      // l'anneau role-color DANS le if(isMapBoosted), donc seuls les
-      // providers avec PawSpot actif l'avaient. Maintenant on dessine
-      // l'anneau role-color pour TOUS les providers visibles → Daniel
-      // voit toujours vert (walker) / bleu (sitter) autour de chaque pin
-      // sur la map, meme quand personne a PawSpot autour de lui.
-      final role = (p['_role'] ?? '').toString().toLowerCase();
-      // v23.1.444 — Daniel : "les amis/abonnés en HALO ANIMÉ au lieu de
-      // pins". Le PawSpot (provider map-boosté) prend un halo OR pulsant ;
-      // sinon couleur du rôle (walker vert / sitter bleu / owner orange).
-      // L'anneau RESPIRE désormais avec _haloPhase (effet beacon) au lieu
-      // d'être un cercle statique.
-      // v489 — Daniel (maquette « Map User Avatar ») : halo ROSE (membre Paw
-      // Map proche, inconnu) au lieu de la couleur de rôle. Le badge rose
-      // (patte blanche) est posé PAR-DESSUS dans _buildMarkers ; ce Circle =
-      // la pulsation rose animée. Tap → info du membre (idem badge).
-      final bool providerPremium =
-          p['isMapBoosted'] == true || p['isPremium'] == true;
-      // v556 — Daniel : « une couleur par utilisateur : owner orange, walker
-      // vert, sitter bleu ; Premium doré et noir avec couronne ; PawFollow
-      // violet ; PawSpot jaune ». Le halo rose uniforme disparaît.
-      final Color providerHalo = _haloColorFor(
-        premium: p['isPremiumOnly'] == true,
-        pawFollow: p['hasPawFollow'] == true,
-        pawSpot: p['hasPawSpot'] == true,
-        role: role,
-      );
-      final Color providerStroke =
-          p['isPremiumOnly'] == true ? const Color(0xFF150F0D) : providerHalo;
-      final bool providerOnline =
-          p['isOnline'] != false && p['online'] != false;
-      final providerHp = _haloPhase.value; // 0..1
-      final providerName = (p['name'] ?? '').toString();
-      circles.add(
-        Circle(
-          circleId: CircleId('halo_role_$id'),
-          center: LatLng(lat, lng),
-          radius: 25 + 35 * providerHp, // respiration 25 → 60m
-          fillColor: providerHalo.withValues(
-            alpha: (0.22 * (1 - providerHp)).clamp(0.0, 1.0),
-          ),
-          strokeColor: providerStroke.withValues(
-            alpha: (0.9 * (1 - providerHp) + 0.1).clamp(0.0, 1.0),
-          ),
-          strokeWidth: 3,
-          consumeTapEvents: true,
-          onTap: () => _onNearbyTap(
-            id: id,
-            role: role,
-            name: providerName,
-            online: providerOnline,
-            premium: providerPremium,
-            lat: lat,
-            lng: lng,
-          ),
-        ),
-      );
-      }
-    }
-
-    // v23.1.174 — Daniel : "halo argent sur les amis, halo rose sur les
-    // membres famille PawFollow". On lit la liste des family members du
-    // FriendController + les friend positions broadcastées via mapSocket.
-    //
-    // v23.1 part 225 — Daniel : "pour le suivi walker en vert et sitter
-    // en bleu, quand je suive animal sa me mette sur la map et halo vert
-    // ou bleu selon service". On override desormais la priorite couleur :
-    //   1. Walker actif (model=Walker) → VERT (greenColor) — il promene
-    //      mon animal, je le suis pour voir ou il est avec mon chien.
-    //   2. Sitter actif (model=Sitter) → BLEU (sitterAccent) — il garde
-    //      mon animal, meme logique.
-    //   3. Sinon, fallback historique : family ROSE / friend ARGENT.
+    if (!_showLiveLayer.value) return circles;
     try {
-      final friendCtl = Get.isRegistered<FriendController>()
-          ? Get.find<FriendController>()
-          : null;
-      // v23.1 part 248 — Daniel : "dans lapp sa marche tjr pas" (halo
-      // violet famille). Robustesse :
-      //   - on lit a la fois `id` ET `userId` cote chaque membre (l'API
-      //     renvoie `id`, mais on supporte aussi `userId` au cas ou
-      //     l'historique du backend changeait).
-      //   - on trim + lowercase pour matcher meme si la casse differe.
-      //   - on ignore le filtre par status (active/pending) : meme un
-      //     pending family member doit avoir son ring violet quand il
-      //     broadcast — Daniel le voit deja sur la PawMap, c'est just le
-      //     ring qui doit s'allumer.
-      final familyMemberIds = friendCtl?.familyMembers
-              .map((m) =>
-                  ((m['id'] ?? m['userId'] ?? '').toString()).trim().toLowerCase())
-              .where((id) => id.isNotEmpty)
-              .toSet() ??
-          <String>{};
-      // v23.1.398 — membres Paw Premium → grand halo OR (au lieu du violet
-      // famille). Champ isPremium poussé par GET /friends/family/members.
-      // v448 — Daniel : si la couche Premium est coupée manuellement
-      // (_showPremiumLayer OFF), on n'applique plus l'or → membres en violet.
-      // v469 — Daniel : couronne 👑 Paw Premium visible par TOUS (pas que la
-      // famille). On réunit les membres famille premium ET les AMIS premium
-      // (flag isPremium désormais renvoyé par le backend pour chaque contact).
-      final premiumMemberIds = !_showPremiumLayer.value
-          ? <String>{}
-          : (<String>{
-              ...((friendCtl?.familyMembers ?? const [])
-                  .where((m) => m['isPremium'] == true)
-                  .map((m) => ((m['id'] ?? m['userId'] ?? '')
-                      .toString())
-                      .trim()
-                      .toLowerCase())),
-              ...((friendCtl?.friends ?? const [])
-                  .where((f) => f.other?.isPremium == true)
-                  .map((f) => (f.other?.id ?? '').trim().toLowerCase())),
-            }..removeWhere((id) => id.isEmpty));
-      // v556 — amis abonnés PawFollow / PawSpot (drapeaux renvoyés par
-      // GET /friends pour chaque contact).
-      final pawFollowFriendIds = (friendCtl?.friends ?? const [])
-          .where((f) => f.other?.hasPawFollow == true)
-          .map((f) => (f.other?.id ?? '').trim().toLowerCase())
-          .where((id) => id.isNotEmpty)
-          .toSet();
-      final pawSpotFriendIds = (friendCtl?.friends ?? const [])
-          .where((f) => (f.other?.pawSpotTier ?? '').toString().isNotEmpty)
-          .map((f) => (f.other?.id ?? '').trim().toLowerCase())
-          .where((id) => id.isNotEmpty)
-          .toSet();
-      // v23.1 part 225 — Index userId → role (lowercase) tire de la
-      // liste d'amis acceptes pour pouvoir override la couleur halo
-      // selon le metier de l'ami qui broadcast.
-      final Map<String, String> friendIdToRole = {};
-      try {
-        for (final f in friendCtl?.friends ?? []) {
-          final id = f.other?.id ?? '';
-          final model = f.other?.model ?? '';
-          if (id.isNotEmpty && model.isNotEmpty) {
-            friendIdToRole[id] = model.toLowerCase();
-          }
-        }
-      } catch (_) {/* defensive */}
-
-      // v23.1 part 243 — halo color priority.
-      // v23.1.275 — Daniel : "si l'ami sitter/walker/owner passe a famille
-      // alors met un SEUL halo violet, pas la peine d'emettre 3 halos
-      // differents". On abandonne l'ancienne strategie (role + 2e anneau
-      // violet empile) au profit d'une PRIORITE FAMILLE : famille -> un
-      // unique halo violet ; sinon couleur du role (walker vert / sitter
-      // bleu / owner orange / ami argent). Un seul cercle par personne.
-      // v23.1.444 — palette unique des halos vivants (cf constantes de
-      // classe) : vert PawFollow / or PawSpot / violet PawFamily.
-      const familyViolet = _violetPawFamily;
-
+      final follow = _followUserId?.trim().toLowerCase();
       for (final pos in _liveMap.friendPositions.values) {
-        // v23.1.356 — switch PawFollow OFF → halos amis/famille masqués.
-        if (!_showLiveLayer.value) break;
-        // v23.1 part 240 — fallback sur FriendPosition.role quand le peer
-        // n'est pas dans la liste d'amis (ex: ouverture depuis un chat
-        // sitter/walker non-ami). Sinon halo neutre alors qu'on a le metier.
-        final role = (friendIdToRole[pos.userId] ?? pos.role).toLowerCase();
-        // v23.1 part 248 — normalisation symetrique pour le matching
-        // famille : trim + lowercase cote pos.userId comme on l'a fait
-        // sur familyMemberIds plus haut. Evite les ratés a cause d'un
-        // hex case mismatch sur certaines plateformes.
         final normUserId = pos.userId.trim().toLowerCase();
-        final isFamily = familyMemberIds.contains(normUserId);
-        // v23.1.275 — Daniel : "si l'ami sitter/walker/owner passe a famille
-        // alors met un SEUL halo violet, pas la peine d'emettre 3 halos
-        // differents". PRIORITE FAMILLE : si la personne est dans ma famille
-        // PawFollow, son halo est UNIQUEMENT violet (code couleur famille) —
-        // on n'empile plus halo-de-role + anneau violet (ca faisait 2 cercles).
-        // Sinon, couleur du role : walker VERT / sitter BLEU / owner ORANGE /
-        // ami ARGENT. Dans tous les cas le centre lit la position LIVE, donc
-        // le halo SUIT la personne a la trace pendant la promenade / la garde.
-        // v23.1.398 — Paw Premium PRIORITAIRE : halo OR (au lieu du violet
-        // famille / couleur rôle) pour signaler le bundle premium.
-        final isPremiumMember = premiumMemberIds.contains(normUserId);
-        // v556 — même grille de couleurs que les membres proches : Premium
-        // or (contour noir), PawFollow/Famille violet, PawSpot jaune, sinon
-        // couleur du rôle.
-        final bool friendPawFollow =
-            isFamily || pawFollowFriendIds.contains(normUserId);
-        final bool friendPawSpot = pawSpotFriendIds.contains(normUserId);
-        Color color;
-        String tag;
-        if (isPremiumMember) {
-          color = _goldPawSpot; // or Paw Premium
-          tag = 'premium';
-        } else if (friendPawFollow) {
-          color = familyViolet; // violet PawFollow / PawFamily
-          tag = 'family';
-        } else if (friendPawSpot) {
-          color = _yellowPawSpotHalo;
-          tag = 'pawspot';
-        } else if (role == 'walker') {
-          color = AppColors.greenColor;
-          tag = 'walker';
-        } else if (role == 'sitter') {
-          color = AppColors.sitterAccent;
-          tag = 'sitter';
-        } else if (role == 'owner') {
-          color = AppColors.primaryColor;
-          tag = 'owner';
-        } else {
-          // v23.1.444 — Daniel : "halo VERT pour les amis PawFollow qui
-          // partagent leur position" (au lieu de l'ancien argent neutre).
-          color = _greenPawFollow;
-          tag = 'friend';
-        }
-        // Halo UNIQUE — violet si famille, sinon couleur du role. Centre =
-        // position LIVE -> il se deplace avec la personne (suivi a la trace).
-        // v23.1.300 — Daniel : "halo orange (owner) animé sur iOS mais figé
-        // sur Android". Avant : Circle STATIQUE (radius 60) → rien ne bougeait.
-        // Maintenant il RESPIRE avec _haloPhase (comme le halo bleu user) → il
-        // pulse identiquement sur Android ET iOS (effet beacon).
-        final roleHp = _haloPhase.value; // 0..1
+        // Halo PawFollow violet, FIXE, sous l'ami en direct.
         circles.add(
           Circle(
-            circleId: CircleId('${tag}_halo_${pos.userId}'),
+            circleId: CircleId('live_halo_${pos.userId}'),
             center: LatLng(pos.latitude, pos.longitude),
-            radius: 45 + 35 * roleHp, // respiration 45 → 80m
-            fillColor: color.withValues(
-              alpha: (0.20 * (1 - roleHp)).clamp(0.0, 1.0),
-            ),
-            strokeColor: (isPremiumMember ? const Color(0xFF150F0D) : color)
-                .withValues(
-              alpha: (0.85 * (1 - roleHp) + 0.15).clamp(0.0, 1.0),
-            ),
+            radius: 55,
+            fillColor: PawMapLegend.pawFollow.withValues(alpha: 0.12),
+            strokeColor: PawMapLegend.pawFollow.withValues(alpha: 0.55),
             strokeWidth: 2,
           ),
         );
-        // v23.1.274 — Daniel : "le pin halo de paw follow doit suivre
-        // la personne qd y bouge". Quand on SUIT activement cette personne
-        // (_followUserId == son id), on rajoute un anneau "tracking" qui
-        // RESPIRE avec _haloPhase (30→70m) pour montrer sans ambiguite que
-        // le suivi est live et centre sur elle. Le centre lit la position
-        // LIVE (pos.latitude/longitude) exactement comme le halo principal,
-        // donc l'anneau se deplace a la trace : a chaque map:friend-position
-        // recue, l'Obx rebuild (signature coords v263) et ce cercle est
-        // recalcule au nouveau point. Compare en normalise (trim+lower) pour
-        // matcher meme si la casse de l'hex differe d'une plateforme.
-        final follow = _followUserId;
-        if (follow != null && normUserId == follow.trim().toLowerCase()) {
-          final phase = _haloPhase.value; // 0..1
+        // v23.1.274 — anneau de SUIVI (respire) sur la personne suivie.
+        if (follow != null && normUserId == follow) {
+          final phase = _haloPhase.value;
           circles.add(
             Circle(
               circleId: CircleId('follow_track_${pos.userId}'),
               center: LatLng(pos.latitude, pos.longitude),
-              radius: 30 + (phase * 40), // respiration 30→70m
-              fillColor: color.withValues(alpha: 0.10 * (1 - phase)),
-              strokeColor: color.withValues(alpha: 0.95),
+              radius: 30 + (phase * 40),
+              fillColor: PawMapLegend.pawFollow.withValues(alpha: 0.10 * (1 - phase)),
+              strokeColor: PawMapLegend.pawFollow.withValues(alpha: 0.95),
               strokeWidth: 4,
               zIndex: 5,
             ),
@@ -3933,24 +2918,26 @@ class _PawMapScreenState extends State<PawMapScreen>
         }
       }
     } catch (_) {/* defensive */}
-
     return circles;
   }
 
   // ─── Marker building ─────────────────────────────────────────────────────
-  // v23.1 part 243 round 3 — wrapper qui reutilise le cache si la cle
-  // d'invalidation n'a pas change. Sur low-end (Oppo/Samsung A-series)
-  // ca evite des centaines de _buildMarkers/sec quand le halo tick.
+  // v23.1 part 243 round 3 — cache des marqueurs : `_buildMarkers` ne tourne
+  // que quand la clé change (données, interrupteurs, zoom, épingles prêtes).
+  /// Index de phase PawBoost (0..3) dérivé du tick halo. N'entre dans la clé
+  /// que s'il y a au moins un membre boosté à l'écran.
+  int get _boostPhaseIdx => ((_haloPhase.value * kBoostPhases).floor()) % kBoostPhases;
+  bool _anyBoosted = false;
+
+  /// « Réduire les animations » du téléphone → lueur PawBoost FIXE.
+  bool get _reduceMotion =>
+      MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
   Set<Marker> _getMarkersFromCache() {
     final key = [
       _nearbyProviders.length,
       _poiController.visiblePois.length,
-      // v521 — BUG « les points n'apparaissent pas / je dois faire Rien puis
-      // Tous » : la clé n'utilisait que le NOMBRE de POI. Or le backend
-      // plafonne à 200 → Paris (200) et New York (200) donnaient la MÊME
-      // clé → le cache n'était jamais invalidé quand on déplaçait la carte
-      // ou après le 1er chargement (contenu différent, longueur identique).
-      // On ajoute l'IDENTITÉ des POI (1er + dernier id) dans la clé.
+      // v521 — identité des POI (le backend plafonne à 200 → même longueur).
       _poiController.visiblePois.isNotEmpty
           ? '${_poiController.visiblePois.first.id}:${_poiController.visiblePois.last.id}'
           : '',
@@ -3959,80 +2946,51 @@ class _PawMapScreenState extends State<PawMapScreen>
       _showPois.value ? 1 : 0,
       _showReports.value ? 1 : 0,
       _emojiMarkersReady ? 1 : 0,
-      // v23.1.300 — invalide le cache quand un nouvel emoji est généré à la
-      // volée (sinon le marqueur reste figé sur le pin coloré par défaut).
       _reportEmojiMarkers.length,
-      // v23.1.353 — refonte PawSpot : invalidation pour les caches emoji
-      // POI/spots et pour la couche des spots communautaires 🐾.
-      _poiEmojiMarkers.length,
-      _spotEmojiMarkers.length,
       _showPawSpots.value ? 1 : 0,
-      // v23.1.356 — switch PawFollow (couche live ON/OFF).
       _showLiveLayer.value ? 1 : 0,
-      // v448 — switch PawPremium (halos OR membres Premium ON/OFF).
       _showPremiumLayer.value ? 1 : 0,
-      // v23.1.373 — Daniel : "baignade pack traduction" — après un
-      // changement de langue en cours de session, les InfoWindows gardaient
-      // l'ancien libellé (cache marqueurs aveugle à la locale). La locale
-      // entre dans la clé de cache → re-render des snippets traduits.
       Get.locale?.languageCode ?? '',
-      // v23.1.363 — mode viseur (pin de placement tap/drag).
       _pickingSpotPos.value ? 1 : 0,
-      // v449 — viseur signalement (même pin, couleur rouge).
       _pickingReportPos.value ? 1 : 0,
-      // v554 — viseur destination d'itinéraire.
       _pickingRoutePos.value ? 1 : 0,
-      _pickedSpotPos == null
-          ? ''
-          : '${_pickedSpotPos!.latitude.toStringAsFixed(5)},${_pickedSpotPos!.longitude.toStringAsFixed(5)}',
       _pawSpotController.spots.length,
       _liveMap.friendPositions.length,
-      // v23.1.263 — Daniel : "le follow géolocalise mais ne suit pas à la
-      // trace". La clé n'incluait que le NOMBRE d'amis → un ami qui se
-      // déplace (même nombre) ne réinvalidait pas le cache → marker FIGÉ.
-      // On ajoute une signature des coordonnées (5 décimales ≈ 1 m) : le
-      // marker bouge désormais en temps réel à chaque position socket.
+      // v23.1.263 — signature des positions amis (un ami qui bouge).
       _liveMap.friendPositions.values
           .map((p) =>
-              '${p.latitude.toStringAsFixed(5)},${p.longitude.toStringAsFixed(5)}')
+              '${p.latitude.toStringAsFixed(5)},${p.longitude.toStringAsFixed(5)},${p.isStale ? 1 : 0}')
           .join('|'),
       _requests.length,
+      _myRequests.length,
       _showRequests.value ? 1 : 0,
       _showFriends.value ? 1 : 0,
-      // v23.1 part 249 — Invalide aussi le cache markers quand le
-      // FriendMarkerService genere un nouveau BitmapDescriptor (photo
-      // profil arrivee du CDN). Sans ca, le placeholder colore reste
-      // affiche jusqu'a la prochaine vraie data change.
-      _friendMarkerService.rev.value,
-      // v249 — invalidation aussi quand familyMembers change : un
-      // walker qui devient famille doit avoir son ring violet
-      // instantanement.
+      // v584 — épingles / photos prêtes, mode amis seulement, ma photo.
+      _pins.rev.value,
+      _friendsOnly ? 1 : 0,
       _friendController.familyMembers.length,
-      // v489 — badges roses « membres proches » : invalide le cache quand
-      // l'abonnement, la liste/état des membres, la sélection ou un nouveau
-      // bitmap badge changent.
+      _friendController.friends.length,
       _showProviders.value ? 1 : 0,
       _pawSpotController.pawspotActive.value ? 1 : 0,
       _pawSpotController.premiumActive.value ? 1 : 0,
       _selectedNearbyId ?? '',
-      _pawBadgeRev,
       _nearbyProviders
           .map((p) =>
-              '${p['id'] ?? p['_id']}:${p['isMapBoosted'] == true || p['isPremium'] == true ? 1 : 0}:${p['isOnline'] != false && p['online'] != false ? 1 : 0}')
+              '${p['id'] ?? p['_id']}:${p['isPremium'] == true ? 1 : 0}:${p['isOnline'] != false && p['online'] != false ? 1 : 0}:${p['isBoosted'] == true ? 1 : 0}')
           .join('|'),
-      // v550 — Daniel : « sur la map iOS/Android on ne voit pas les
-      // utilisateurs en rose comme sur le web ». LA cause : la couche MONDE
-      // n'entrait pas dans la clé → arrivée après le 1er build, elle ne
-      // réinvalidait jamais le cache. On ajoute la révision de la liste (int,
-      // pas une signature : la liste peut compter des milliers d'entrées) +
-      // le centre/zoom, qui pilotent le plafond d'affichage.
       _worldRev,
       _worldMembers.length,
-      // v551 — filtre par type de membre + clustering (dépend du zoom).
       _memberRoles.join(','),
+      _availableTodayOnly.value ? 1 : 0,
       _zoomLevel.round(),
+      _zoomLevel >= _priceZoom ? 1 : 0,
       '${_currentCenter.latitude.toStringAsFixed(1)},'
           '${_currentCenter.longitude.toStringAsFixed(1)}',
+      _userPosition == null
+          ? ''
+          : '${_userPosition!.latitude.toStringAsFixed(5)},${_userPosition!.longitude.toStringAsFixed(5)}',
+      // Respiration PawBoost : seulement si un boost est visible.
+      _anyBoosted && !_reduceMotion ? _boostPhaseIdx : -1,
     ].join('-');
     if (_cachedMarkers == null || _cachedMarkersKey != key) {
       _cachedMarkers = _buildMarkers();
@@ -4041,62 +2999,258 @@ class _PawMapScreenState extends State<PawMapScreen>
     return _cachedMarkers!;
   }
 
+  /// Zoom « rue » à partir duquel le prix s'affiche sous l'épingle (idée 2).
+  static const double _priceZoom = 15;
+
+  // ── fabriques d'épingles (cache PawMapPinCache) ──────────────────────────
+
+  BitmapDescriptor _memberIcon({
+    required String role,
+    required bool crown,
+    required bool boosted,
+    required bool verified,
+    required bool online,
+    required bool selected,
+    String? priceLabel,
+  }) {
+    final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
+    final size = PawMapLegend.memberSize;
+    final withLabel = priceLabel != null && priceLabel.isNotEmpty;
+    final key =
+        'member:$role:${crown ? 1 : 0}:$phase:${verified ? 1 : 0}:${online ? 1 : 0}:${selected ? 1 : 0}:${priceLabel ?? ''}';
+    final w = PawMapPinPainter.memberBitmapSize(size);
+    final h = PawMapPinPainter.memberBitmapSize(size, withLabel: withLabel);
+    return _pins.getOrBuild(
+          key,
+          w,
+          h,
+          (c) => PawMapPinPainter.paintMemberDot(
+            c,
+            role: role,
+            size: size,
+            crown: crown,
+            verified: verified,
+            online: online,
+            selected: selected,
+            boostPhase: boosted ? phase / kBoostPhases : null,
+            priceLabel: priceLabel,
+          ),
+        ) ??
+        BitmapDescriptor.defaultMarkerWithHue(role == 'sitter'
+            ? BitmapDescriptor.hueAzure
+            : role == 'walker'
+                ? BitmapDescriptor.hueGreen
+                : BitmapDescriptor.hueOrange);
+  }
+
+  /// Ancre d'un rond de membre : centre du cercle (le bitmap a une marge et,
+  /// au zoom rue, une étiquette de prix en dessous).
+  Offset _memberAnchor({bool withLabel = false}) {
+    final size = PawMapLegend.memberSize;
+    final h = PawMapPinPainter.memberBitmapSize(size, withLabel: withLabel);
+    return Offset(0.5, (PawMapPinPainter.memberMargin + size / 2) / h);
+  }
+
+  BitmapDescriptor _photoIcon({
+    required String keyPrefix,
+    required String avatarUrl,
+    required Color ring,
+    required double size,
+    String? label,
+    Color? labelColor,
+    bool crown = false,
+    double crownSize = PawMapLegend.crownFriend,
+    bool online = false,
+    bool dashedRing = false,
+    bool eyeOff = false,
+    bool boosted = false,
+    Color fallbackTint = PawMapLegend.owner,
+  }) {
+    final avatar = _pins.avatarFor(avatarUrl);
+    final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
+    final withLabel = label != null && label.isNotEmpty;
+    final key =
+        '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase';
+    final w = PawMapPinPainter.photoBitmapSize(size);
+    final h = PawMapPinPainter.photoBitmapSize(size, withLabel: withLabel);
+    return _pins.getOrBuild(
+          key,
+          w,
+          h,
+          (c) => PawMapPinPainter.paintPhotoDot(
+            c,
+            avatar: avatar,
+            ringColor: ring,
+            size: size,
+            label: label,
+            labelColor: labelColor,
+            crown: crown,
+            crownSize: crownSize,
+            online: online,
+            dashedRing: dashedRing,
+            eyeOff: eyeOff,
+            boostPhase: boosted ? phase / kBoostPhases : null,
+            fallbackTint: fallbackTint,
+          ),
+        ) ??
+        BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose);
+  }
+
+  Offset _photoAnchor(double size, {bool withLabel = false}) {
+    final h = PawMapPinPainter.photoBitmapSize(size, withLabel: withLabel);
+    return Offset(0.5, (PawMapPinPainter.photoMargin + size / 2) / h);
+  }
+
+  BitmapDescriptor _memberClusterIcon(int count, Map<String, int> roleCounts) {
+    final sig = ['owner', 'sitter', 'walker']
+        .map((k) => '${k[0]}${roleCounts[k] ?? 0}')
+        .join();
+    final w = PawMapPinPainter.memberClusterWidth(count > 99 ? 100 : count) + 12;
+    final h = PawMapLegend.memberClusterHeight + 12;
+    return _pins.getOrBuild(
+          'mcluster:${count > 99 ? 100 : count}:$sig',
+          w,
+          h,
+          (c) => PawMapPinPainter.paintMemberCluster(c, count,
+              roleCounts: roleCounts),
+        ) ??
+        BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose);
+  }
+
+  BitmapDescriptor _placeIcon(String category) {
+    final w = PawMapPinPainter.dropBitmapWidth(PawMapLegend.placeSize);
+    final h = PawMapPinPainter.dropHeight(PawMapLegend.placeSize);
+    return _pins.getOrBuild(
+          'place:$category',
+          w,
+          h,
+          (c) => PawMapPinPainter.paintPlaceDrop(c, category: category),
+        ) ??
+        BitmapDescriptor.defaultMarkerWithHue(_hueForPoi(category));
+  }
+
+  BitmapDescriptor _placeClusterIcon(int count, String? dominant) {
+    final tone = PawMapLegend.placeColor(dominant ?? 'other');
+    final s = PawMapPinPainter.squareClusterBitmapSize();
+    return _pins.getOrBuild(
+          'pcluster:${count > 99 ? 100 : count}:${dominant ?? ''}',
+          s,
+          s,
+          (c) => PawMapPinPainter.paintSquareCluster(c, count, tone: tone),
+        ) ??
+        BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
+  }
+
+  BitmapDescriptor _spotIcon(String type, bool golden) {
+    final size = golden ? PawMapLegend.spotGoldSize : PawMapLegend.spotSize;
+    final w = PawMapPinPainter.dropBitmapWidth(size);
+    final h = PawMapPinPainter.dropHeight(size);
+    return _pins.getOrBuild(
+          'spot:$type:${golden ? 1 : 0}',
+          w,
+          h,
+          (c) => PawMapPinPainter.paintPawSpotDrop(c, type: type, golden: golden),
+        ) ??
+        BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow);
+  }
+
+  BitmapDescriptor _spotClusterIcon(int count) {
+    final s = PawMapPinPainter.squareClusterBitmapSize();
+    return _pins.getOrBuild(
+          'scluster:${count > 99 ? 100 : count}',
+          s,
+          s,
+          (c) => PawMapPinPainter.paintSquareCluster(c, count,
+              tone: PawMapLegend.gold, black: true),
+        ) ??
+        BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow);
+  }
+
+  /// Ancre d'une goutte : la POINTE (bas du bitmap, hors marge).
+  Offset _dropAnchor(double width) {
+    final h = PawMapPinPainter.dropHeight(width);
+    return Offset(0.5, (PawMapPinPainter.dropMargin + width * 1.32) / h);
+  }
+
+  BitmapDescriptor _requestIcon({
+    String? priceLabel,
+    required bool walking,
+    String? mineLabel,
+  }) {
+    final w = PawMapPinPainter.requestBubbleBitmapWidth(
+        priceLabel: priceLabel, mineLabel: mineLabel);
+    final h = PawMapPinPainter.requestBubbleBitmapHeight();
+    return _pins.getOrBuild(
+          'request:${priceLabel ?? ''}:${walking ? 1 : 0}:${mineLabel ?? ''}',
+          w,
+          h,
+          (c) => PawMapPinPainter.paintRequestBubble(c,
+              priceLabel: priceLabel, walking: walking, mineLabel: mineLabel),
+        ) ??
+        BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+  }
+
+  /// Ancre de la bulle : sa pointe (bas du corps + pointe, hors marge basse).
+  Offset get _requestAnchor {
+    final h = PawMapPinPainter.requestBubbleBitmapHeight();
+    return Offset(0.5, (8 + PawMapLegend.requestBubbleHeight + 7) / h);
+  }
+
+  String _priceLabelFor(Map<String, dynamic> p) {
+    final price = (p['priceFrom'] as num?)?.toDouble() ?? 0;
+    if (price <= 0) return '';
+    final cur = (p['currency'] ?? 'EUR').toString();
+    return '${price.toStringAsFixed(0)} ${CurrencyHelper.symbol(cur)}';
+  }
+
   Set<Marker> _buildMarkers() {
     final Set<Marker> markers = {};
-    // v23.1.352 — Daniel : "au dézoom je ne me vois plus / petit point au
-    // lieu de mon halo". Mon PROPRE marqueur photo (même style que les amis :
-    // cercle couleur rôle + avatar), taille écran fixe → je me vois à
-    // n'importe quel zoom, en plus du halo rôle (cercles en mètres).
+    _anyBoosted = false;
+    // ── MOI : ma photo 56 px, anneau à la couleur de mon rôle, « Moi »,
+    // couronne si Premium ; mode « amis seulement » = anneau pointillé +
+    // œil barré (seul moi le vois : mes amis me voient normalement).
     final myPos = _userPosition;
-    // v23.1.356 — switch PawFollow OFF → mon marqueur photo masqué aussi.
     if (myPos != null && _showLiveLayer.value) {
       try {
-        final profile = GetStorage()
-            .read<Map<String, dynamic>>(StorageKeys.userProfile);
-        final myId = (profile?['id'] ?? 'me').toString();
+        final profile =
+            GetStorage().read<Map<String, dynamic>>(StorageKeys.userProfile);
         final rawAvatar = profile?['avatar'];
         final myAvatar = rawAvatar is Map
             ? (rawAvatar['url'] ?? '').toString()
             : (rawAvatar ?? '').toString();
-        final icon = _friendMarkerService.getOrPlaceholder(
-          userId: 'me_$myId',
-          avatarUrl: myAvatar,
-          role: _role,
-          isFamily: false,
-          // v23.1.395 — couronne 👑 + anneau or sur MON marqueur si Premium.
-          isPremium: _pawSpotController.premiumActive.value,
-        );
+        final roleColor = PawMapLegend.roleColor(_role);
         markers.add(
           Marker(
             markerId: const MarkerId('me'),
             position: myPos,
-            icon: icon,
-            anchor: const Offset(0.5, 0.5),
+            icon: _photoIcon(
+              keyPrefix: 'me',
+              avatarUrl: myAvatar,
+              ring: roleColor,
+              size: PawMapLegend.meSize,
+              label: 'pawmap_me_label'.tr,
+              labelColor: PawMapLegend.darken(roleColor, 0.25),
+              crown: _pawSpotController.premiumActive.value,
+              crownSize: PawMapLegend.crownMe,
+              dashedRing: _friendsOnly,
+              eyeOff: _friendsOnly,
+              fallbackTint: roleColor,
+            ),
+            anchor: _photoAnchor(PawMapLegend.meSize, withLabel: true),
             zIndexInt: 10,
-            infoWindow: InfoWindow(title: '📍 ${'pawmap_me_label'.tr}'),
+            onTap: _onMeTap,
           ),
         );
       } catch (_) {/* defensive — le halo rôle reste visible */}
     }
-    // v489 — Daniel (maquette « Map User Avatar ») : les prestataires proches
-    // (ni amis ni famille) = MINI-BADGE ROSE (cercle rose + patte blanche +
-    // point en/hors ligne + 👑 si premium), CLIQUABLE (tap → info du membre).
-    // Visible UNIQUEMENT si l'utilisateur courant est abonné PawSpot ou
-    // PawPremium (sinon RIEN). Le halo rose ANIMÉ est le Circle de
-    // _buildHaloCircles ; ici on pose le badge bitmap par-dessus.
-    // v497 — Daniel : badge rose « membres proches » visible pour TOUS les rôles
-    // (avant `!_isSitterOrWalker` → gardien/promeneur ne voyaient rien). Reste
-    // gardé sur l'abo du VIEWER (PawSpot/PawPremium) + le toggle _showProviders.
-    final bool nearbyVisible = _showProviders.value &&
-        (_pawSpotController.pawspotActive.value ||
-            _pawSpotController.premiumActive.value);
-    // v548 — la couche MONDE (approx.) est visible pour TOUT le monde dès que
-    // le toggle membres est actif ; la couche proche (exacte, abonnés) prend
-    // le dessus sur les mêmes ids.
+
+    // ── MEMBRES (proches exacts si abonné + couche monde ~1 km) ──
     if (_showProviders.value) {
       final friendLiveIds = _liveMap.friendPositions.keys
           .map((k) => k.trim().toLowerCase())
           .toSet();
+      final bool nearbyVisible = _pawSpotController.pawspotActive.value ||
+          _pawSpotController.premiumActive.value;
       final nearbyIds = <String>{};
       final combined = <Map<String, dynamic>>[];
       if (nearbyVisible) {
@@ -4105,12 +3259,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           combined.add(p);
         }
       }
-      // v550 — perf mobile : le backend peut renvoyer jusqu'à 3 000 membres,
-      // et Google Maps sature bien avant (des milliers de markers = carte
-      // figée sur Android d'entrée de gamme). On garde les N plus proches du
-      // centre courant ; N dépend du zoom (au dézoom mondial, quelques
-      // centaines de points donnent déjà la densité, au zoom quartier on veut
-      // tout ce qui est autour de l'utilisateur).
+      // v550 — plafond d'affichage de la couche monde (les plus proches).
       final worldPool = <Map<String, dynamic>>[];
       for (final p in _worldMembers) {
         final id = (p['id'] ?? '').toString();
@@ -4139,43 +3288,32 @@ class _PawMapScreenState extends State<PawMapScreen>
       } else {
         combined.addAll(worldPool);
       }
-      // v551 — regroupement : les membres qui se chevauchent à l'écran
-      // deviennent UNE pastille rose avec leur nombre (tap = zoom dessus).
       LatLng? posOfMember(Map<String, dynamic> p) {
         final loc = p['location'] is Map ? p['location'] as Map : null;
         final c = loc != null && loc['coordinates'] is List
             ? loc['coordinates'] as List
             : null;
         if (c == null || c.length < 2) return null;
-        final lng = (c[0] as num).toDouble();
-        final lat = (c[1] as num).toDouble();
-        return LatLng(lat, lng);
+        return LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble());
       }
 
-      // v551 — filtre « qui voir » (Gardiens / Promeneurs / Propriétaires).
-      final placeable = combined.where((p) {
-        if (posOfMember(p) == null) return false;
-        final r = (p['_role'] ?? p['role'] ?? '').toString().toLowerCase();
-        if (r.isEmpty) return true;
-        return _memberRoles.contains(r);
-      }).toList();
-      // Compteur « N membres autour de toi » (mis à jour hors frame de build).
-      // v554 — Daniel : « 28 membres autour de moi, ce n'est pas vrai ; autour
-      // de moi ça devrait être environ 50 km ». Le compteur reprenait le
-      // nombre de points DESSINÉS : en dézoomant il comptait des membres à
-      // l'autre bout du monde, et il changeait à chaque déplacement de la
-      // carte. Il compte désormais les membres réellement à moins de 50 km de
-      // L'UTILISATEUR (position GPS ; à défaut le centre de la carte), lus sur
-      // les listes brutes — donc indépendant du zoom et du plafond d'affichage.
-      const double aroundKm = 50.0;
-      final ref = _userPosition ?? _currentCenter;
-      final cosRef =
-          math.cos(ref.latitude * math.pi / 180).abs().clamp(0.05, 1.0);
       bool roleOk(Map<String, dynamic> p) {
         final r = (p['_role'] ?? p['role'] ?? '').toString().toLowerCase();
         return r.isEmpty || _memberRoles.contains(r);
       }
 
+      // Idée 4 — filtre « Disponible aujourd'hui » (drapeau serveur).
+      bool availableOk(Map<String, dynamic> p) =>
+          !_availableTodayOnly.value || p['availableToday'] == true;
+
+      final placeable = combined
+          .where((p) => posOfMember(p) != null && roleOk(p) && availableOk(p))
+          .toList();
+      // Compteur « N membres autour de toi » (< 50 km de l'utilisateur).
+      const double aroundKm = 50.0;
+      final ref = _userPosition ?? _currentCenter;
+      final cosRef =
+          math.cos(ref.latitude * math.pi / 180).abs().clamp(0.05, 1.0);
       bool within(Map<String, dynamic> p) {
         final pos = posOfMember(p);
         if (pos == null) return false;
@@ -4186,11 +3324,13 @@ class _PawMapScreenState extends State<PawMapScreen>
 
       final countedIds = <String>{};
       var around = 0;
+      final aroundList = <Map<String, dynamic>>[];
       for (final p in [..._nearbyProviders, ..._worldMembers]) {
-        if (!roleOk(p) || !within(p)) continue;
+        if (!roleOk(p) || !availableOk(p) || !within(p)) continue;
         final id = (p['id'] ?? p['_id'] ?? '').toString();
-        if (id.isNotEmpty && !countedIds.add(id)) continue; // déjà compté
+        if (id.isNotEmpty && !countedIds.add(id)) continue;
         around += 1;
+        aroundList.add(p);
       }
       if (_membersShown.value != around) {
         final n = around;
@@ -4198,37 +3338,29 @@ class _PawMapScreenState extends State<PawMapScreen>
           if (mounted) _membersShown.value = n;
         });
       }
+      _aroundMembers = aroundList;
+
       final groups = _clusterize<Map<String, dynamic>>(
         placeable,
         (p) => posOfMember(p)!,
-        // v576 — cellule plus fine pour les membres : les badges colorés se
-        // séparent plus tôt (cf. _memberClusterCellPx).
         cellPx: _memberClusterCellPx,
       );
+      final showPrice = _zoomLevel >= _priceZoom;
       for (final group in groups) {
         if (group.length > 1) {
           final target = _centroid<Map<String, dynamic>>(
               group, (p) => posOfMember(p)!);
-          // v576 — composition du groupe : la pastille prend la couleur du
-          // rôle dominant et un anneau découpé montre les autres.
           final roleCounts = <String, int>{'owner': 0, 'sitter': 0, 'walker': 0};
           for (final m in group) {
             final rr = (m['_role'] ?? '').toString().toLowerCase();
             if (roleCounts.containsKey(rr)) roleCounts[rr] = roleCounts[rr]! + 1;
-          }
-          final key = _clusterKey(group.length, true, null, roleCounts);
-          final icon = _clusterMarkers[key];
-          if (icon == null) {
-            _ensureClusterMarker(group.length, true, roleCounts: roleCounts);
           }
           markers.add(
             Marker(
               markerId: MarkerId('mcluster_${target.latitude.toStringAsFixed(4)}'
                   '_${target.longitude.toStringAsFixed(4)}_${group.length}'),
               position: target,
-              icon: icon ??
-                  BitmapDescriptor.defaultMarkerWithHue(
-                      BitmapDescriptor.hueRose),
+              icon: _memberClusterIcon(group.length, roleCounts),
               anchor: const Offset(0.5, 0.5),
               zIndexInt: 7,
               onTap: () => _zoomToCluster(target),
@@ -4238,66 +3370,84 @@ class _PawMapScreenState extends State<PawMapScreen>
         }
         final p = group.first;
         final pos = posOfMember(p)!;
-        final lat = pos.latitude;
-        final lng = pos.longitude;
         final id = (p['id'] ?? p['_id'] ?? '').toString();
         if (id.isEmpty) continue;
-        // Dédup : un membre qui est aussi un ami live garde son marqueur ami
-        // (photo) — pas de badge rose en double.
+        // Un membre qui est aussi un ami EN DIRECT garde son marqueur live.
         if (friendLiveIds.contains(id.trim().toLowerCase())) continue;
         final role = (p['_role'] ?? '').toString().toLowerCase();
         final name = (p['name'] ?? '').toString();
-        final bool premium =
-            p['isMapBoosted'] == true || p['isPremium'] == true;
+        final bool premium = p['isPremium'] == true;
+        final bool boosted = p['isBoosted'] == true;
+        if (boosted) _anyBoosted = true;
         final bool online = p['isOnline'] != false && p['online'] != false;
         final bool selected = _selectedNearbyId == id;
         final bool approx = p['approx'] == true;
-        // v550 — rayon d'imprécision annoncé par le backend.
         final double approxKm = (p['approxKm'] as num?)?.toDouble() ?? 1.0;
-        // v561 — rose fluo dézoomé, couleur du rôle en zoomant.
-        // v565 — point 8 (Daniel : « la couleur du rôle n'apparaît qu'en
-        // zoomant beaucoup ») : seuil 12 → 9 (échelle ville). Les bitmaps
-        // sont générés par clé (rôle + état), donc régénérés d'eux-mêmes.
-        final bool roleColored = _zoomLevel >= _roleColorZoom;
-        final icon = _pawBadgeMarkers[
-            _pawBadgeKey(online, premium, selected, role, roleColored)];
-        if (icon == null) {
-          _ensurePawBadgeMarker(online, premium, selected, role, roleColored);
+        final bool verified = p['kycVerified'] == true;
+        final avatar = (p['avatar'] ?? '').toString();
+        // Un AMI (liste d'amis) : sa photo + anneau rose, à tous les zooms.
+        final bool isFriend = _friendController.isFriendWith(id);
+        final priceLabel = role == 'owner' || !showPrice ? '' : _priceLabelFor(p);
+        final BitmapDescriptor icon;
+        final Offset anchor;
+        if (isFriend) {
+          icon = _photoIcon(
+            keyPrefix: 'friend:$id',
+            avatarUrl: avatar,
+            ring: PawMapLegend.friend,
+            size: PawMapLegend.friendSize,
+            crown: premium && _showPremiumLayer.value,
+            online: online && !approx,
+            boosted: boosted,
+            fallbackTint: PawMapLegend.friend,
+          );
+          anchor = _photoAnchor(PawMapLegend.friendSize);
+        } else {
+          icon = _memberIcon(
+            role: role,
+            crown: premium && _showPremiumLayer.value,
+            boosted: boosted,
+            verified: verified,
+            online: online && !approx,
+            selected: selected,
+            priceLabel: priceLabel,
+          );
+          anchor = _memberAnchor(withLabel: priceLabel.isNotEmpty);
         }
         markers.add(
           Marker(
             markerId: MarkerId('nearby_$id'),
-            position: LatLng(lat, lng),
-            icon: icon ??
-                BitmapDescriptor.defaultMarkerWithHue(
-                    BitmapDescriptor.hueRose),
-            anchor: const Offset(0.5, 0.5),
-            zIndexInt: selected ? 9 : 6,
+            position: pos,
+            icon: icon,
+            anchor: anchor,
+            zIndexInt: selected ? 9 : (isFriend ? 8 : 6),
             onTap: () => _onNearbyTap(
               id: id,
               role: role,
               name: name,
               online: online,
               premium: premium,
-              lat: lat,
-              lng: lng,
-              avatar: (p['avatar'] ?? '').toString(),
+              lat: pos.latitude,
+              lng: pos.longitude,
+              avatar: avatar,
               approx: approx,
               approxKm: approxKm,
               rating: (p['rating'] as num?)?.toDouble() ?? 0,
               reviewsCount: (p['reviewsCount'] as num?)?.toInt() ?? 0,
               priceFrom: (p['priceFrom'] as num?)?.toDouble() ?? 0,
               currency: (p['currency'] ?? 'EUR').toString(),
+              verified: verified,
+              boosted: boosted,
+              availableToday: p['availableToday'] == true,
+              isFriend: isFriend,
             ),
           ),
         );
       }
     }
+
+    // ── LIEUX : goutte à la couleur du type ; groupe = carré blanc ──
     if (_showPois.value) {
-      // v551 — regroupement : à Paris, 200 lieux se chevauchent et la carte
-      // devient illisible (les membres roses disparaissent dans la masse).
-      // Les lieux trop proches à l'écran deviennent une pastille bleue avec
-      // leur nombre ; un tap zoome et le groupe s'ouvre.
       final poiGroups = _clusterize<MapPOI>(
         _poiController.visiblePois.toList(),
         (poi) => LatLng(poi.latitude, poi.longitude),
@@ -4306,22 +3456,21 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (group.length > 1) {
           final target = _centroid<MapPOI>(
               group, (poi) => LatLng(poi.latitude, poi.longitude));
-          // Une seule catégorie dans le groupe → couleur + emoji du thème.
-          final cats = group.map((p) => p.category).toSet();
-          final String? cat = cats.length == 1 ? cats.first : null;
-          final key = _clusterKey(group.length, false, cat);
-          final icon = _clusterMarkers[key];
-          if (icon == null) {
-            _ensureClusterMarker(group.length, false, category: cat);
+          // Type DOMINANT du groupe → couleur du bord et du nombre.
+          final counts = <String, int>{};
+          for (final p in group) {
+            counts[p.category] = (counts[p.category] ?? 0) + 1;
           }
+          final dominant = (counts.entries.toList()
+                ..sort((a, b) => b.value.compareTo(a.value)))
+              .first
+              .key;
           markers.add(
             Marker(
               markerId: MarkerId('pcluster_${target.latitude.toStringAsFixed(4)}'
                   '_${target.longitude.toStringAsFixed(4)}_${group.length}'),
               position: target,
-              icon: icon ??
-                  BitmapDescriptor.defaultMarkerWithHue(
-                      BitmapDescriptor.hueAzure),
+              icon: _placeClusterIcon(group.length, dominant),
               anchor: const Offset(0.5, 0.5),
               zIndexInt: 4,
               onTap: () => _zoomToCluster(target),
@@ -4330,21 +3479,15 @@ class _PawMapScreenState extends State<PawMapScreen>
           continue;
         }
         final poi = group.first;
-        // v23.1.353 — refonte PawSpot : marqueur EMOJI (même générateur que
-        // les reports) avec fond teinté couleur catégorie, au lieu du pin
-        // teardrop. Fallback pin coloré le temps que le bitmap se génère.
-        final poiIcon = _poiEmojiMarkers[poi.category];
-        if (poiIcon == null) _ensurePoiEmojiMarker(poi.category);
         markers.add(
           Marker(
             markerId: MarkerId('poi_${poi.id}'),
             position: LatLng(poi.latitude, poi.longitude),
-            icon: poiIcon ??
-                BitmapDescriptor.defaultMarkerWithHue(
-                  _hueForPoi(poi.category),
-                ),
+            icon: _placeIcon(poi.category),
+            anchor: _dropAnchor(PawMapLegend.placeSize),
+            zIndexInt: 3,
             infoWindow: InfoWindow(
-              title: '${PoiCategories.emoji(poi.category)} ${poi.title}',
+              title: poi.title,
               snippet: poi.address.isNotEmpty
                   ? poi.address
                   : PoiCategories.label(poi.category),
@@ -4354,34 +3497,43 @@ class _PawMapScreenState extends State<PawMapScreen>
         );
       }
     }
-    // v456 — Daniel : plus de marqueur draggable au sol pour le placement.
-    // Le repère est un POINT ROUGE FIXE au centre de l'écran (overlay
-    // `_buildCenterReticle`) ; l'utilisateur déplace la carte SOUS ce repère,
-    // et la position choisie suit le centre (`_onCameraMove`).
-    // v23.1.353 — refonte PawSpot : couche des spots communautaires 🐾.
-    // Marqueur emoji du type (fond couleur type) ; spot GOLDEN → empreinte
-    // 🐾 sur fond doré avec anneau plus épais. Tap → sheet détail.
+
+    // ── PAWSPOTS : goutte noire liserée du type, dorée si golden ; groupe =
+    // carré noir chiffre or ──
     if (_showPawSpots.value) {
-      for (final spot in _pawSpotController.spots) {
-        // v23.1.373 — pièce OR avec ANNEAU couleur du type → cache par type.
-        final cacheKey =
-            spot.isGolden ? '__golden__${spot.type}' : spot.type;
-        final spotIcon = _spotEmojiMarkers[cacheKey];
-        if (spotIcon == null) _ensureSpotEmojiMarker(cacheKey);
+      final spotGroups = _clusterize<PawSpotModel>(
+        _pawSpotController.spots.toList(),
+        (s) => LatLng(s.lat, s.lng),
+      );
+      for (final group in spotGroups) {
+        if (group.length > 1) {
+          final target =
+              _centroid<PawSpotModel>(group, (s) => LatLng(s.lat, s.lng));
+          markers.add(
+            Marker(
+              markerId: MarkerId('scluster_${target.latitude.toStringAsFixed(4)}'
+                  '_${target.longitude.toStringAsFixed(4)}_${group.length}'),
+              position: target,
+              icon: _spotClusterIcon(group.length),
+              anchor: const Offset(0.5, 0.5),
+              zIndexInt: 4,
+              onTap: () => _zoomToCluster(target),
+            ),
+          );
+          continue;
+        }
+        final spot = group.first;
+        final size =
+            spot.isGolden ? PawMapLegend.spotGoldSize : PawMapLegend.spotSize;
         markers.add(
           Marker(
             markerId: MarkerId('pawspot_${spot.id}'),
             position: LatLng(spot.lat, spot.lng),
-            // v567 — repère « goutte » : la pointe désigne le lieu exact.
-            anchor: const Offset(0.5, 1.0),
-            zIndexInt: spot.isGolden ? 3 : 2,
-            icon: spotIcon ??
-                BitmapDescriptor.defaultMarkerWithHue(
-                  BitmapDescriptor.hueYellow,
-                ),
+            anchor: _dropAnchor(size),
+            zIndexInt: spot.isGolden ? 5 : 4,
+            icon: _spotIcon(spot.type, spot.isGolden),
             infoWindow: InfoWindow(
-              title:
-                  '${spot.isGolden ? '🐾' : PawSpotTypes.emoji(spot.type)} ${spot.name}',
+              title: spot.name,
               snippet: PawSpotTypes.label(spot.type),
             ),
             onTap: () => _showPawSpotDetail(spot),
@@ -4389,17 +3541,12 @@ class _PawMapScreenState extends State<PawMapScreen>
         );
       }
     }
+
+    // ── SIGNALEMENTS (inchangés : emoji du type, 48 h) ──
     if (_showReports.value) {
       for (final r in _reportController.reports) {
         if (r.isExpired) continue;
-        // v23.1.190 — Daniel : "pour les signalement au lieu de halo
-        // rouge emoji du signalement". On pioche dans le cache emoji
-        // pre-calcule, fallback sur le pin teardrop coloré si pas
-        // encore pret (pendant le pre-warm initial).
         final emojiIcon = _reportEmojiMarkers[r.type];
-        // v23.1.300 — si l'emoji de ce type n'est pas (encore) en cache, on le
-        // génère à la volée → le marqueur passera du pin coloré à l'emoji dès
-        // que le bitmap est prêt (setState + clé cache inclut la taille du map).
         if (emojiIcon == null) _ensureEmojiMarker(r.type);
         markers.add(
           Marker(
@@ -4417,27 +3564,17 @@ class _PawMapScreenState extends State<PawMapScreen>
         );
       }
     }
-    if (_showFriends.value) {
-      // Build a quick lookup of friend profile by id to get their name.
+
+    // ── AMIS EN DIRECT : leur photo, anneau rose, point vert ──
+    if (_showFriends.value && _showLiveLayer.value) {
       final friendById = {
         for (final f in _friendController.friends)
           if (f.other != null) f.other!.id: f,
       };
-      // v23.1 part 249 — Daniel : "la photo de profile avec le cercle vert
-      // si walker bleu si sitter orange si owner et violet si famille".
-      // On construit un Set des userIds membres famille (incluant pending)
-      // pour decider si le ring violet doit apparaitre.
-      final familyMemberIds = _friendController.familyMembers
-          .map((m) => ((m['id'] ?? m['userId'] ?? '').toString()).trim().toLowerCase())
-          .where((id) => id.isNotEmpty)
-          .toSet();
-      // v23.1.398 — Daniel : « mon frère a Paw Premium mais reste violet
-      // famille, pas de couronne ». Set des membres Premium (champ isPremium
-      // poussé par GET /friends/family/members) → couronne 👑 + anneau OR
-      // sur LEUR marqueur, prioritaire sur le violet famille.
-      // v448 — couche Premium coupée manuellement (_showPremiumLayer OFF) →
-      // set vide → pas d'or/couronne (membres en violet famille).
-      // v469 — couronne 👑 visible par TOUS : famille premium + AMIS premium.
+      final familyById = {
+        for (final m in _friendController.familyMembers)
+          ((m['id'] ?? m['userId'] ?? '').toString()).trim().toLowerCase(): m,
+      };
       final premiumMemberIds = !_showPremiumLayer.value
           ? <String>{}
           : (<String>{
@@ -4451,36 +3588,16 @@ class _PawMapScreenState extends State<PawMapScreen>
                   .where((f) => f.other?.isPremium == true)
                   .map((f) => (f.other?.id ?? '').trim().toLowerCase()),
             }..removeWhere((id) => id.isEmpty));
-      // v23.1.297 — Daniel : "compter famille ET amis". Le backend pousse
-      // désormais aussi la position des membres famille (mapSocket). Lookup
-      // id->map pour dessiner leur pin même s'ils ne sont PAS aussi des amis
-      // (sinon ils comptent dans "Mon cercle" mais n'ont aucun marqueur).
-      final familyById = {
-        for (final m in _friendController.familyMembers)
-          ((m['id'] ?? m['userId'] ?? '').toString()).trim().toLowerCase(): m,
-      };
       for (final pos in _liveMap.friendPositions.values) {
-        // v23.1.356 — switch PawFollow OFF → markers amis/famille masqués.
-        if (!_showLiveLayer.value) break;
         final friend = friendById[pos.userId];
-        // v23.1.297 — fallback membre famille (pas forcément un ami) : on le
-        // dessine quand même pour qu'il apparaisse sur la carte ET dans le
-        // compteur "Mon cercle".
         final famMember = friend == null
             ? familyById[pos.userId.trim().toLowerCase()]
             : null;
-        // v23.1.352 — Daniel : "quand je dézoome je vois pas mes amis". On ne
-        // SAUTE plus les positions non encore matchées dans les listes amis/
-        // famille (chargées en async) : toute FriendPosition reçue (elle a
-        // déjà passé les règles d'accès côté serveur) a son marqueur PHOTO —
-        // taille écran fixe, donc visible à N'IMPORTE quel zoom, contrairement
-        // aux halos (cercles en mètres) qui disparaissent au dézoom.
         final famName = (famMember?['name'] ?? '').toString();
         final displayName = friend?.other!.name ??
             (famName.isNotEmpty ? famName : null) ??
             widget.focusUserName ??
             '—';
-        // v249 — choix du role + avatar.
         final famRole = (famMember?['role'] ?? '').toString();
         final role = (friend?.other?.model ??
                 (famRole.isNotEmpty ? famRole : pos.role))
@@ -4489,35 +3606,27 @@ class _PawMapScreenState extends State<PawMapScreen>
         final avatarUrl = friend?.other?.avatar ??
             (famAvatar.isNotEmpty ? famAvatar : '');
         final normPosId = pos.userId.trim().toLowerCase();
-        final isFamily = familyMemberIds.contains(normPosId);
-        // v23.1.398 — couronne 👑 + anneau OR si ce membre est Paw Premium.
         final isPremiumMember = premiumMemberIds.contains(normPosId);
-        final icon = _friendMarkerService.getOrPlaceholder(
-          userId: pos.userId,
-          avatarUrl: avatarUrl,
-          role: role,
-          isFamily: isFamily,
-          isPremium: isPremiumMember,
-        );
         markers.add(
           Marker(
             markerId: MarkerId('friend_${pos.userId}'),
             position: LatLng(pos.latitude, pos.longitude),
-            icon: icon,
-            // v249 — ancre au centre du bitmap (carre 120px) pour que
-            // la photo soit centree pile sur la coord.
-            anchor: const Offset(0.5, 0.5),
+            icon: _photoIcon(
+              keyPrefix: 'live:${pos.userId}',
+              avatarUrl: avatarUrl,
+              ring: PawMapLegend.friend,
+              size: PawMapLegend.friendSize,
+              crown: isPremiumMember,
+              online: !pos.isStale,
+              fallbackTint: PawMapLegend.roleColor(role),
+            ),
+            anchor: _photoAnchor(PawMapLegend.friendSize),
+            zIndexInt: 8,
             infoWindow: InfoWindow(
-              title: '👤 $displayName',
-              // v565 — contrat §8 : « signal perdu · vu il y a X » si le
-              // serveur / le délai de 3 min le disent, sinon « en direct ».
+              title: displayName,
               snippet: pos.isStale
                   ? '${'v565_live_signal_lost'.tr} · ${'pawmap_seen_ago'.tr.replaceAll('{ago}', _timeAgo(pos.seenAt))}'
-                  : (isFamily
-                      ? '${'pawmap_quick_family'.tr} · ${'v565_live_active'.tr}'
-                      : '${'v565_live_active'.tr} · ${_timeAgo(pos.seenAt)}'),
-              // v559 — Daniel : un appui sur la bulle ouvre la fiche de l'ami
-              // avec « Itinéraire » (à pied / vélo / voiture + virages).
+                  : '${'v565_live_active'.tr} · ${_timeAgo(pos.seenAt)}',
               onTap: () => _onNearbyTap(
                 id: pos.userId,
                 role: role,
@@ -4527,10 +3636,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                 lat: pos.latitude,
                 lng: pos.longitude,
                 avatar: avatarUrl,
+                isFriend: true,
               ),
             ),
-            // v23.1.263 — taper un ami = zoom au plus près + suivi "à la
-            // trace" : la caméra reste collée à lui à chaque nouvelle position.
+            // v23.1.263 — taper un ami = suivi « à la trace » (vol doux).
             onTap: () => _startFollow(
               pos.userId,
               LatLng(pos.latitude, pos.longitude),
@@ -4540,157 +3649,249 @@ class _PawMapScreenState extends State<PawMapScreen>
         );
       }
     }
-    // Demandes layer — only sitters/walkers fetch & see these.
-    if (_showRequests.value && _isSitterOrWalker) {
-      for (final req in _requests) {
-        markers.add(
-          Marker(
-            markerId: MarkerId('req_${req.id}'),
-            position: LatLng(req.lat, req.lng),
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueYellow,
+
+    // ── DEMANDES DES PROPRIÉTAIRES : bulle orange foncé, ~1 km ──
+    if (_showRequests.value) {
+      if (_isSitterOrWalker) {
+        for (final req in _requests) {
+          final walking = req.serviceTypes.contains('dog_walking');
+          markers.add(
+            Marker(
+              markerId: MarkerId('req_${req.id}'),
+              position: LatLng(req.lat, req.lng),
+              icon: _requestIcon(
+                priceLabel: req.budgetLabel,
+                walking: walking,
+              ),
+              anchor: _requestAnchor,
+              zIndexInt: 7,
+              onTap: () => _showRequestBottomSheet(req),
             ),
-            infoWindow: InfoWindow(
-              title: '📣 ${req.ownerName.isNotEmpty ? req.ownerName : 'pawmap_default_request'.tr}',
-              snippet: _requestSnippet(req),
+          );
+        }
+      } else {
+        // Le propriétaire voit les SIENNES, marquées « Ma demande ».
+        for (final req in _myRequests) {
+          final walking = req.serviceTypes.contains('dog_walking');
+          markers.add(
+            Marker(
+              markerId: MarkerId('myreq_${req.id}'),
+              position: LatLng(req.lat, req.lng),
+              icon: _requestIcon(
+                walking: walking,
+                mineLabel: 'pawmap_request_mine'.tr,
+              ),
+              anchor: _requestAnchor,
+              zIndexInt: 7,
+              onTap: () => _showRequestBottomSheet(req, mine: true),
             ),
-            onTap: () => _showRequestBottomSheet(req),
-          ),
-        );
+          );
+        }
       }
     }
     return markers;
   }
 
-  String _requestSnippet(NearbyRequestPost r) {
-    final parts = <String>[];
-    if (r.city.isNotEmpty) parts.add(r.city);
-    parts.add('${r.distanceKm.toStringAsFixed(1)} km');
-    if (r.serviceTypes.isNotEmpty) parts.add(r.serviceTypes.first);
-    return parts.join(' · ');
+  /// Candidatures déjà envoyées depuis la carte (postId → état), pour ne pas
+  /// proposer deux fois et afficher « Déjà proposé » au réouvrement.
+  final Map<String, PawProposeState> _proposeStates = {};
+
+  String _requestDateLabel(NearbyRequestPost r) {
+    final locale = Get.locale?.toString();
+    String fmt(DateTime d) => DateFormat.MMMd(locale).format(d.toLocal());
+    final s = r.startDate;
+    final e = r.endDate;
+    if (s == null && e == null) return '';
+    if (s != null && e != null && !s.isAtSameMomentAs(e)) {
+      return 'pawmap_request_dates'.trParams({'from': fmt(s), 'to': fmt(e)});
+    }
+    return fmt(s ?? e!);
   }
 
-  /// Shows the details of a nearby reservation request and lets the
-  /// sitter/walker act on it. For now the action is a simple CTA that
-  /// pops the sheet and tells the user to open the full request from the
-  /// Home screen — proper deep-link to the request detail / send-request
-  /// flow will be wired in a follow-up when the backend exposes a
-  /// canonical detail-by-id endpoint.
-  void _showRequestBottomSheet(NearbyRequestPost r) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.card(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      useSafeArea: true,
-      builder: (sheetCtx) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20.w,
-          20.h,
-          20.w,
-          20.h + MediaQuery.of(sheetCtx).viewPadding.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text('📣', style: TextStyle(fontSize: 22.sp)),
-                SizedBox(width: 8.w),
-                Expanded(
-                  child: PoppinsText(
-                    text: r.ownerName.isNotEmpty
-                        ? r.ownerName
-                        : 'pawmap_request_default_title'.tr,
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary(context),
-                  ),
-                ),
-                InterText(
-                  text: '${r.distanceKm.toStringAsFixed(1)} km',
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primaryColor,
-                ),
-              ],
-            ),
-            if (r.city.isNotEmpty) ...[
-              SizedBox(height: 4.h),
-              InterText(
-                text: r.city,
-                fontSize: 12.sp,
-                color: AppColors.textSecondary(context),
-              ),
-            ],
-            if (r.serviceTypes.isNotEmpty) ...[
-              SizedBox(height: 10.h),
-              Wrap(
-                spacing: 6.w,
-                runSpacing: 6.h,
-                children: r.serviceTypes
-                    .map((s) => Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8.w,
-                            vertical: 4.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10.r),
-                          ),
-                          child: InterText(
-                            text: s,
-                            fontSize: 11.sp,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primaryColor,
-                          ),
-                        ))
-                    .toList(),
-              ),
-            ],
-            if (r.body.isNotEmpty) ...[
-              SizedBox(height: 12.h),
-              InterText(
-                text: r.body,
-                fontSize: 13.sp,
-                color: AppColors.textPrimary(context),
-              ),
-            ],
-            SizedBox(height: 16.h),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                  padding: EdgeInsets.symmetric(vertical: 12.h),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  CustomSnackbar.showSuccess(
-                    title: 'pawmap_snack_post_opened_title'.tr,
-                    message: 'pawmap_snack_post_opened_msg'.tr,
-                  );
-                },
-                icon: const Icon(Icons.open_in_new, color: Colors.white),
-                label: InterText(
-                  text: 'pawmap_btn_view_post'.tr,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
+  /// v584 — bulle orange d'une demande : « Proposer mes services » en UN
+  /// appui (idée 3 validée) ; le propriétaire est notifié tout de suite
+  /// (même route que l'accueil : POST /applications). [mine] = ma propre
+  /// demande (« Ma demande ») → « Voir mes annonces ».
+  void _showRequestBottomSheet(NearbyRequestPost r, {bool mine = false}) {
+    final walking = r.serviceTypes.contains('dog_walking');
+    showPawMapSheet<void>(
+      context,
+      StatefulBuilder(
+        builder: (ctx, setSheet) => PawMapRequestSheet(
+          ownerName: r.ownerName,
+          ownerAvatar: r.ownerAvatar,
+          walking: walking,
+          city: r.city,
+          distanceLabel: mine
+              ? ''
+              : (r.distanceKm > 0 ? '${r.distanceKm.toStringAsFixed(1)} km' : ''),
+          dateLabel: _requestDateLabel(r),
+          budgetLabel: r.budgetLabel,
+          body: r.body,
+          mine: mine,
+          approx: r.approx,
+          viewerRole: _role,
+          proposeState: _proposeStates[r.id] ?? PawProposeState.idle,
+          onOpenMine: () {
+            Navigator.of(ctx).pop();
+            openMainTabOr(0, () => const PawMapScreen());
+          },
+          onOwnerProfile: () {
+            Navigator.of(ctx).pop();
+            _onNearbyTap(
+              id: r.ownerId,
+              role: 'owner',
+              name: r.ownerName,
+              online: false,
+              premium: false,
+              avatar: r.ownerAvatar,
+              approx: true,
+            );
+          },
+          onPropose: () async {
+            if (!_viewerLoggedIn) {
+              Navigator.of(ctx).pop();
+              await SignupWallSheet.show(
+                  trigger: 'booking', recommendedRole: 'pet_sitter');
+              return;
+            }
+            setSheet(() => _proposeStates[r.id] = PawProposeState.busy);
+            final state = await _proposeServices(r);
+            if (!ctx.mounted) return;
+            setSheet(() => _proposeStates[r.id] = state);
+          },
         ),
       ),
     );
   }
 
+  /// Envoie la candidature (même contrat que le bouton de l'accueil
+  /// gardien / promeneur) : animal de l'annonce, service, date, créneau,
+  /// mon tarif de base ; `postId` pour retrouver la candidature.
+  Future<PawProposeState> _proposeServices(NearbyRequestPost r) async {
+    if (!Get.isRegistered<SitterRepository>()) return PawProposeState.idle;
+    if (r.petIds.isEmpty) {
+      CustomSnackbar.showError(
+          title: 'common_error'.tr, message: 'pawmap_request_no_pets'.tr);
+      return PawProposeState.idle;
+    }
+    try {
+      final repo = Get.find<SitterRepository>();
+      final basePrice = await _myBasePrice(repo);
+      if (basePrice <= 0) {
+        CustomSnackbar.showError(
+            title: 'common_error'.tr,
+            message: 'pawmap_request_pricing_missing'.tr);
+        return PawProposeState.idle;
+      }
+      final serviceType = r.serviceTypes.isNotEmpty
+          ? r.serviceTypes.first
+          : (_role == 'walker' ? 'dog_walking' : 'pet_sitting');
+      final start = r.startDate ?? r.endDate ?? DateTime.now();
+      final serviceDate = start
+          .toUtc()
+          .copyWith(hour: 0, minute: 0, second: 0, millisecond: 0)
+          .toIso8601String();
+      String timeSlot = 'All Day';
+      final ls = r.startDate?.toLocal();
+      if (ls != null) {
+        final h12 = ls.hour % 12 == 0 ? 12 : ls.hour % 12;
+        timeSlot =
+            '$h12:${ls.minute.toString().padLeft(2, '0')} ${ls.hour < 12 ? 'AM' : 'PM'}';
+      }
+      final res = await repo.createApplication(
+        ownerId: r.ownerId,
+        petIds: [r.petIds.first],
+        serviceType: serviceType,
+        serviceDate: serviceDate,
+        startDate: r.startDate?.toUtc().toIso8601String(),
+        endDate: r.endDate?.toUtc().toIso8601String(),
+        timeSlot: timeSlot,
+        basePrice: basePrice,
+        postId: r.id,
+      );
+      final dup = res['duplicatePrevented'] == true;
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: dup ? 'pawmap_request_already'.tr : 'request_send_success'.tr,
+      );
+      return dup ? PawProposeState.already : PawProposeState.sent;
+    } catch (e) {
+      final msg = e.toString();
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: msg.contains('ALREADY') || msg.contains('duplicate')
+            ? 'pawmap_request_already'.tr
+            : 'request_send_failed'.tr,
+      );
+      return msg.contains('ALREADY') || msg.contains('duplicate')
+          ? PawProposeState.already
+          : PawProposeState.idle;
+    }
+  }
+
+  /// Mon tarif de base (même règle que l'accueil : promeneur = grille de
+  /// promenades ramenée à l'heure ; gardien = horaire, sinon journalier…).
+  Future<double> _myBasePrice(SitterRepository repo) async {
+    try {
+      final profile =
+          GetStorage().read<Map<String, dynamic>>(StorageKeys.userProfile);
+      final myId = (profile?['id'] ?? '').toString();
+      if (myId.isEmpty) return 0;
+      if (_role == 'walker' && Get.isRegistered<WalkerRepository>()) {
+        final w = await Get.find<WalkerRepository>().getWalkerProfile(myId);
+        double? rate(int min) {
+          for (final r in w.walkRates) {
+            if (r.durationMinutes == min && r.enabled && r.basePrice > 0) {
+              return r.basePrice;
+            }
+          }
+          return null;
+        }
+
+        return rate(60) ??
+            (rate(30) != null ? rate(30)! * 2 : null) ??
+            (rate(90) != null ? rate(90)! * (60 / 90) : null) ??
+            (rate(120) != null ? rate(120)! / 2 : null) ??
+            0;
+      }
+      final p = await repo.getSitterProfile(myId);
+      final data = (p['sitter'] as Map<String, dynamic>?) ??
+          (p['profile'] as Map<String, dynamic>?) ??
+          p;
+      for (final k in const ['hourlyRate', 'dailyRate', 'weeklyRate', 'monthlyRate']) {
+        final v = (data[k] as num?)?.toDouble();
+        if (v != null && v > 0) return v;
+      }
+      final s = double.tryParse((data['rate'] ?? '').toString());
+      if (s != null && s > 0) return s;
+    } catch (e) {
+      debugPrint('[PawMap] tarif de base : $e');
+    }
+    return 0;
+  }
+
+  /// v584 — mes propres demandes ouvertes (propriétaire) : bulles « Ma
+  /// demande » à leur position (c'est moi, donc position exacte).
+  Future<void> _loadMyRequests() async {
+    try {
+      final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
+      if (api == null) return;
+      final res = await api.get('/posts/my', requiresAuth: true);
+      final list = ((res as Map?)?['posts'] as List?) ?? const [];
+      final out = <NearbyRequestPost>[];
+      for (final j in list) {
+        if (j is! Map) continue;
+        if ((j['postType'] ?? 'request').toString() != 'request') continue;
+        if ((j['status'] ?? 'open').toString() == 'closed') continue;
+        final p = NearbyRequestPost.fromJson(Map<String, dynamic>.from(j));
+        if (p.lat != 0 || p.lng != 0) out.add(p);
+      }
+      _myRequests.assignAll(out);
+    } catch (e) {
+      debugPrint('[PawMap] mes demandes : $e');
+    }
+  }
   String _timeAgo(DateTime at) {
     final diff = DateTime.now().difference(at);
     if (diff.inMinutes < 1) return 'pawmap_time_just_now'.tr;
@@ -4713,26 +3914,6 @@ class _PawMapScreenState extends State<PawMapScreen>
         return BitmapDescriptor.hueMagenta;
       default:
         return BitmapDescriptor.hueAzure;
-    }
-  }
-
-  /// v23.1.353 — couleur pleine par catégorie POI, alignée sur _hueForPoi
-  /// (vet rouge, park vert, water cyan, shop violet, groomer magenta,
-  /// reste azure). Sert au fond/anneau du marqueur emoji + au mini halo.
-  Color _colorForPoi(String category) {
-    switch (category) {
-      case PoiCategories.vet:
-        return const Color(0xFFDC2626); // rouge
-      case PoiCategories.park:
-        return const Color(0xFF16A34A); // vert
-      case PoiCategories.water:
-        return const Color(0xFF06B6D4); // cyan
-      case PoiCategories.shop:
-        return const Color(0xFF8B5CF6); // violet
-      case PoiCategories.groomer:
-        return const Color(0xFFD946EF); // magenta
-      default:
-        return const Color(0xFF3B82F6); // azure
     }
   }
 
@@ -5035,6 +4216,15 @@ class _PawMapScreenState extends State<PawMapScreen>
           const Spacer(),
           // v23.1.189 — recherche de ville (loupe) + mettre à jour (v554 :
           // spinner à la place du bouton pendant le rechargement).
+          // v584 — « ? » : la légende en images (Daniel : « que les gens
+          // comprennent ce qu'ils font »).
+          _headerRoundButton(
+            key: const ValueKey<String>('pawmap_header_legend'),
+            icon: Icons.question_mark_rounded,
+            label: 'pawmap_legend_btn'.tr,
+            onTap: _openLegend,
+          ),
+          SizedBox(width: 8.w),
           _headerRoundButton(
             key: const ValueKey<String>('pawmap_header_search'),
             icon: Icons.search_rounded,
@@ -5117,8 +4307,10 @@ class _PawMapScreenState extends State<PawMapScreen>
       // v23.1 part 248 — famille / amis (halo violet dès que la liste arrive).
       _friendController.familyMembers.length;
       _friendController.friends.length;
-      // v23.1 part 249 — un marqueur photo fini de générer → on le pose.
-      _friendMarkerService.rev.value;
+      // v584 — une épingle ou une photo finit de se dessiner → on la pose.
+      _pins.rev.value;
+      _myRequests.length;
+      _availableTodayOnly.value;
       // v552 — mode nuit ; v584 — agrandi (padding de la carte).
       final night = _nightMode.value;
       final expanded = _mapExpanded.value;
@@ -5159,8 +4351,9 @@ class _PawMapScreenState extends State<PawMapScreen>
         // recentrons : `_suppressFollowAutoStop`). Valait seulement sur la
         // petite carte avant la fusion ; vaut partout désormais.
         onCameraMoveStarted: () {
+          // v584 — un geste met le suivi en PAUSE (bouton « Reprendre »).
           if (_followUserId != null && !_suppressFollowAutoStop) {
-            _stopFollow();
+            _pauseFollow();
           }
         },
         onCameraIdle: _scheduleReload,
@@ -5180,8 +4373,9 @@ class _PawMapScreenState extends State<PawMapScreen>
             ? _getMarkersFromCache()
             : {..._getMarkersFromCache(), ..._routeStepMarkers},
         circles: _buildHaloCircles(),
-        // v23.1.353 — polyline de l'itinéraire "Y aller".
-        polylines: _routePolylines,
+        // v23.1.353 — polyline de l'itinéraire "Y aller" ; v584 — tracé
+        // violet du suivi.
+        polylines: {..._routePolylines, ..._followPolylines()},
       );
     });
   }
@@ -5313,39 +4507,82 @@ class _PawMapScreenState extends State<PawMapScreen>
     });
   }
 
-  /// Démarre le suivi d'un ami : zoom au plus près + recentrage auto ensuite.
+  /// Démarre le suivi d'un ami — zoom de suivi « joli » (Daniel, 23/09) : la
+  /// caméra VOLE en douceur jusqu'au point et s'arrête à un zoom de rue
+  /// lisible (16,5) ; ensuite elle suit le point sans re-zoomer (pas de
+  /// recentrage brutal), et le tracé se dessine en violet PawFollow.
   void _startFollow(String userId, LatLng pos, String name) {
     setState(() {
       _followUserId = userId;
       _followName = name;
+      _followPaused = false;
+      _followTrail = <LatLng>[pos];
     });
     _animateFollowCamera(pos, zoom: _followZoom);
   }
 
-  /// Arrête le suivi (bouton Stop ou drag manuel de la carte).
+  /// Un geste sur la carte met le suivi EN PAUSE (le tracé continue) ; le
+  /// bouton « Reprendre le suivi » recolle la caméra.
+  void _pauseFollow() {
+    if (_followUserId == null || _followPaused) return;
+    setState(() => _followPaused = true);
+  }
+
+  void _resumeFollow() {
+    final uid = _followUserId;
+    if (uid == null) return;
+    setState(() => _followPaused = false);
+    final fp = _liveMap.friendPositions[uid];
+    if (fp != null) {
+      _animateFollowCamera(LatLng(fp.latitude, fp.longitude), zoom: _followZoom);
+    }
+  }
+
+  /// Arrête le suivi (bouton Stop, retour Android).
   void _stopFollow() {
     if (_followUserId == null) return;
     setState(() {
       _followUserId = null;
       _followName = '';
+      _followPaused = false;
+      _followTrail = const <LatLng>[];
     });
   }
 
-  /// Bannière "Suivi en direct" affichée tant qu'on suit un ami à la trace.
+  /// Tracé violet PawFollow derrière la personne suivie.
+  Set<Polyline> _followPolylines() {
+    if (_followUserId == null || _followTrail.length < 2) return const {};
+    return {
+      Polyline(
+        polylineId: const PolylineId('follow_trail'),
+        points: List<LatLng>.unmodifiable(_followTrail),
+        color: PawMapLegend.pawFollow,
+        width: 4,
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
+        jointType: JointType.round,
+      ),
+    };
+  }
+
+  /// Bannière "Suivi en direct" affichée tant qu'on suit un ami à la trace ;
+  /// en pause : « Suivi en pause · Reprendre ».
   Widget _buildFollowingBanner() {
     final name = _followName.trim().isEmpty
         ? 'pawmap_following_default'.tr
         : _followName.trim();
+    final paused = _followPaused;
+    final Color tone = paused ? PawMapLegend.ink : PawMapLegend.pawFollow;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 9.h),
       decoration: BoxDecoration(
-        color: AppColors.primaryColor,
+        color: tone,
         borderRadius: BorderRadius.circular(24.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: tone.withValues(alpha: 0.30),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -5355,23 +4592,45 @@ class _PawMapScreenState extends State<PawMapScreen>
           Container(
             width: 9.w,
             height: 9.w,
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: paused ? PawMapLegend.gold : Colors.white,
               shape: BoxShape.circle,
             ),
           ),
           SizedBox(width: 8.w),
           Flexible(
             child: InterText(
-              text: 'pawmap_following_label'.trParams({'name': name}),
-              fontSize: 12.sp,
+              text: paused
+                  ? 'pawmap_follow_paused'.tr
+                  : 'pawmap_following_label'.trParams({'name': name}),
+              fontSize: 12,
               fontWeight: FontWeight.w700,
               color: Colors.white,
               maxLines: 1,
             ),
           ),
           SizedBox(width: 10.w),
+          if (paused)
+            GestureDetector(
+              key: const ValueKey<String>('follow_resume'),
+              onTap: _resumeFollow,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: PawMapLegend.gold,
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: InterText(
+                  text: 'pawmap_follow_resume'.tr,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: PawMapLegend.ink,
+                ),
+              ),
+            ),
+          if (paused) SizedBox(width: 6.w),
           GestureDetector(
+            key: const ValueKey<String>('follow_stop'),
             onTap: _stopFollow,
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 4.h),
@@ -5381,7 +4640,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               ),
               child: InterText(
                 text: 'pawmap_following_stop'.tr,
-                fontSize: 11.sp,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),
@@ -5844,13 +5103,6 @@ class _PawMapScreenState extends State<PawMapScreen>
         ),
       );
     });
-  }
-
-  /// v550 — formate le rayon d'imprécision de la couche monde : « 1 »,
-  /// « 0,5 »... sans décimale inutile.
-  String _fmtKm(double km) {
-    if (km >= 1 && km == km.roundToDouble()) return km.toStringAsFixed(0);
-    return km.toStringAsFixed(1);
   }
 
   double _approxKm(double lat, double lng) {
@@ -6343,15 +5595,23 @@ class _PawMapScreenState extends State<PawMapScreen>
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Flexible(
-              child: Text(
-                _membersShown.value > 0
-                    ? 'pawmap_members_around'
-                        .trParams({'count': '${_membersShown.value}'})
-                    : 'pawmap_quick_live_sub'.tr,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: PawMapTheme.fontOn(context,
-                    size: 11.5.sp, weight: FontWeight.w700),
+              // v584 — idée 8 : le compteur est CLIQUABLE → liste.
+              child: GestureDetector(
+                key: const ValueKey<String>('pawmap_counter_tap'),
+                behavior: HitTestBehavior.opaque,
+                onTap: _openAroundList,
+                child: Text(
+                  _membersShown.value > 0
+                      ? 'pawmap_members_around'
+                          .trParams({'count': '${_membersShown.value}'})
+                      : 'pawmap_quick_live_sub'.tr,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: PawMapTheme.fontOn(context,
+                      size: 11.5.sp,
+                      weight: FontWeight.w700,
+                      color: AppColors.accentOn(context, PawMapTheme.accent)),
+                ),
               ),
             ),
             GestureDetector(

@@ -666,6 +666,11 @@ router.patch('/me/app-locale', requireAuth, updateAppLocale);
 
 // v565 §2 — préférences de notification (son + catégories), synchronisées
 // sur les 3 profils de la personne. Corps partiel accepté au PATCH.
+// v584 (lot C, 24/09) — préférences de la PawMap sur le compte + mode
+// « visible par mes amis seulement » (même champ que Préférences).
+const { getMapPrefs, updateMapPrefs } = require('../controllers/mapPrefsController');
+router.get('/me/map-prefs', requireAuth, requireRole('owner', 'sitter', 'walker'), getMapPrefs);
+router.patch('/me/map-prefs', requireAuth, requireRole('owner', 'sitter', 'walker'), updateMapPrefs);
 router.get('/me/notification-prefs', requireAuth, requireRole('owner', 'sitter', 'walker'), getNotificationPrefs);
 router.patch('/me/notification-prefs', requireAuth, requireRole('owner', 'sitter', 'walker'), updateNotificationPrefs);
 

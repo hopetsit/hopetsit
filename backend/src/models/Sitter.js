@@ -343,6 +343,11 @@ const sitterSchema = new mongoose.Schema(
       // l'utilisateur active lui-même. Défaut false = rien ne change pour les
       // comptes existants.
       hideFromMap: { type: Boolean, default: false },
+      // v584 (lot C, 24/09) — préférences de la PawMap enregistrées sur le
+      // COMPTE (caméra, calques, rail, mode nuit…), validées par
+      // controllers/mapPrefsController.normalizeMapPrefs, synchronisées sur
+      // les 3 profils. Objet libre côté schéma : la validation est ailleurs.
+      pawMap: { type: mongoose.Schema.Types.Mixed, default: undefined },
     },
   },
   { timestamps: true }

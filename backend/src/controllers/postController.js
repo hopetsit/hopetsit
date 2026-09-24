@@ -1,4 +1,6 @@
 const Owner = require('../models/Owner');
+// v584 — floutage des demandes sur la PawMap (~1 km).
+const { blurLngLat, WORLD_APPROX_KM } = require('../utils/coarseLocation');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const Post = require('../models/Post');
@@ -1249,11 +1251,24 @@ const getNearbyRequestPosts = async (req, res) => {
       // v575 — audit P1-7 : durée de promenade voulue par le propriétaire.
       walkDurationMinutes:
         typeof post.walkDurationMinutes === 'number' ? post.walkDurationMinutes : null,
-      location: {
-        city: post.location.city || '',
-        lat: post.location.lat,
-        lng: post.location.lng,
-      },
+      // v584 (lot C, légende du 23/09) — bulle orange sur la PawMap : la
+      // position d'une demande est APPROXIMATIVE (~1 km), jamais l'adresse
+      // exacte du propriétaire (même floutage que la couche monde).
+      location: (() => {
+        const lat = Number(post.location.lat);
+        const lng = Number(post.location.lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0)) {
+          const [bLng, bLat] = blurLngLat(lat, lng, String(post._id));
+          return { city: post.location.city || '', lat: bLat, lng: bLng, approx: true, approxKm: WORLD_APPROX_KM };
+        }
+        return { city: post.location.city || '', lat: post.location.lat, lng: post.location.lng };
+      })(),
+      // v584 — « Proposer mes services » en un appui depuis la carte : une
+      // candidature porte un animal ; on renvoie les ids de l'annonce.
+      petIds: Array.isArray(post.petIds) && post.petIds.length
+        ? post.petIds.map((p) => String(p && p._id ? p._id : p))
+        : (post.petId ? [String(post.petId)] : []),
+      budget: Number(post.budget) > 0 ? Number(post.budget) : 0,
       distanceKm: Number(distanceKm.toFixed(2)),
       createdAt: post.createdAt,
     }));

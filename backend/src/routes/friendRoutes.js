@@ -29,6 +29,9 @@ const { identityGroup } = require('../utils/identityGroup');
 // deux côtés et on n'affiche qu'UNE entrée par humain (jamais une par rôle).
 // `personIndex` résout N personnes en 6 requêtes (voir utils/personScope.js).
 const { personIds, personIndex } = require('../utils/personScope');
+// v584 — règles de visibilité de la carte (amis seulement, floutage, test /
+// staff, drapeaux d'épingle), partagées avec /sitters/nearby, /walkers/nearby.
+const mapVisibility = require('../utils/mapVisibility');
 
 const router = express.Router();
 
@@ -156,41 +159,8 @@ router.post('/live-position', requireAuth, async (req, res) => {
 // aussi pour ses amis (v551 promettait l'inverse). On matche le groupe complet
 // des deux côtés : mes 3 ids, et TOUS les ids de rôle de chaque ami.
 async function _friendIdsOf(userId) {
-  try {
-    const Friendship = require('../models/Friendship');
-    const mine = await personIds(userId);
-    const mineSet = new Set(mine.map(String));
-    const rows = await Friendship.find({
-      status: 'accepted',
-      $or: [
-        { requesterId: { $in: mine } },
-        { addresseeId: { $in: mine } },
-      ],
-    })
-      .select('requesterId addresseeId')
-      .lean();
-    const others = [];
-    for (const r of rows) {
-      const a = String(r.requesterId);
-      const b = String(r.addresseeId);
-      const other = mineSet.has(a) ? b : a;
-      if (!mineSet.has(other)) others.push(other);
-    }
-    if (!others.length) return new Set();
-    // Un ami est visible quel que soit le profil sous lequel il se connecte :
-    // on renvoie TOUS ses ids de rôle (résolution en lot, 6 requêtes).
-    const idx = await personIndex(others);
-    const set = new Set();
-    for (const id of others) {
-      const e = idx.get(id);
-      if (e) e.ids.forEach((x) => set.add(x));
-      else set.add(id);
-    }
-    return set;
-  } catch (e) {
-    logger.warn(`[friends] friendIds lookup failed : ${e?.message || e}`);
-    return new Set();
-  }
+  // v584 — déplacé dans utils/mapVisibility.js (partagé, testé).
+  return mapVisibility.friendIdsOf(userId);
 }
 
 router.get('/members/nearby', requireAuth, async (req, res) => {
@@ -226,7 +196,10 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
     };
     const sel =
       'name avatar profilePicture location mapBoostExpiry mapBoostTier ' +
-      'isStaff isOnline oldId email preferences.hideFromMap lastSeenAt';
+      'isStaff isOnline oldId email preferences.hideFromMap lastSeenAt ' +
+      // v584 — drapeaux d'épingle (PawBoost, identité vérifiée, dispo du jour).
+      'boostExpiry kycStatus identityVerification.status availableDates ' +
+      'unavailableDates availableTimeSlots availableDays';
     // v565 §6 — présence RÉELLE (sockets connectés, identité complète), plus
     // le champ figé `isOnline` du doc. Index construit une fois par requête.
     let presenceIdx = null;
@@ -320,7 +293,8 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
       if (selfOldId && d.oldId != null && String(d.oldId) === selfOldId) continue;
 
       // v551 — « masquer mon profil sur la carte » (Profil → Préférences).
-      if (d.preferences?.hideFromMap === true && !friendIds.has(idStr)) continue;
+      // v584 — règle partagée (utils/mapVisibility) : visible pour ses amis.
+      if (!mapVisibility.visibleToViewer(d, { friendIds })) continue;
 
       const pawspot = d.mapBoostExpiry && new Date(d.mapBoostExpiry) > now;
       const premiumSub = subSet.has(idStr);
@@ -349,6 +323,9 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
         hasPawSpot: !!pawspot,
         isOnline: presenceIdx ? isIdentityOnline(d, presenceIdx) : false,
         lastSeenAt: d.lastSeenAt ? new Date(d.lastSeenAt).toISOString() : null,
+        // v584 — épingles de la légende : lueur turquoise PawBoost, coche
+        // « identité vérifiée », filtre « disponible aujourd'hui ».
+        ...mapVisibility.pinFlags(d, now),
       });
     }
     return res.json({ members, count: members.length });
@@ -456,7 +433,10 @@ router.get('/members/world', requireAuth, async (req, res) => {
       'preferences.hideFromMap': { $ne: true },
     };
     const sel = 'name avatar profilePicture location mapBoostExpiry isStaff '
-      + 'email oldId rating reviewsCount hourlyRate dailyRate walkRates currency';
+      + 'email oldId rating reviewsCount hourlyRate dailyRate walkRates currency '
+      // v584 — drapeaux d'épingle.
+      + 'boostExpiry kycStatus identityVerification.status availableDates '
+      + 'unavailableDates availableTimeSlots availableDays';
     const per = Math.floor(WORLD_LIMIT / 3);
     const [owners, sitters, walkers] = await Promise.all([
       Owner.find(filter).select(sel).sort({ createdAt: -1 }).limit(per).lean(),
@@ -507,7 +487,9 @@ router.get('/members/world', requireAuth, async (req, res) => {
       if (!Array.isArray(coords) || coords.length < 2) continue;
       const [lng, lat] = coords.map(Number);
       if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) continue;
-      if (/\+test/i.test(d.email || '')) continue;
+      // v584 — comptes de test, staff et masqués : jamais dans la couche
+      // publique (règle partagée).
+      if (mapVisibility.isTestOrStaff(d)) continue;
       const personKey = (d.email || '').toLowerCase() || String(d._id);
       if (seenPerson.has(personKey)) continue;
       seenPerson.add(personKey);
@@ -528,6 +510,7 @@ router.get('/members/world', requireAuth, async (req, res) => {
         reviewsCount: Number(d.reviewsCount) > 0 ? Number(d.reviewsCount) : 0,
         priceFrom: role === 'owner' ? 0 : priceFrom(d, role),
         currency: d.currency || 'EUR',
+        ...mapVisibility.pinFlags(d, nowDate),
       });
     }
     const payload = {

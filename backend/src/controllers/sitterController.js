@@ -16,6 +16,9 @@ const {
 // l'adresse ne sortent que pour la personne elle-même (cf. sitterSelfView.js).
 const { sitterSelfPrivateFields, isSelfProfile } = require('../utils/sitterSelfView');
 const { coarsenLocation } = require('../utils/coarseLocation');
+// v584 (lot C, 24/09) — règles de visibilité publiques partagées avec la
+// PawMap : amis seulement, floutage ~1 km pour les non-amis, test / staff exclus.
+const mapVisibility = require('../utils/mapVisibility');
 const {
   validatePriceAgainstRecommended,
   getRecommendedPriceRange,
@@ -297,8 +300,17 @@ const findNearbySitters = async (req, res) => {
     // promeneur apparaissent comme proposition ». Une personne = jusqu'à 3
     // documents (même e-mail) : on retire ceux du spectateur.
     const selfIds = await selfIdSet(req);
-    const sitters = Array.from(sittersById.values()).filter(
-      (s) => !selfIds.has(String(s._id)),
+    // v584 — fuite fermée (lot B du 24/09) : cette route PUBLIQUE renvoyait
+    // la position EXACTE, ignorait « visible par mes amis seulement » et
+    // laissait passer les comptes de test. Un ami (ou moi) garde l'exact ;
+    // tout autre lecteur reçoit une position floutée à ~1 km ; un gardien
+    // masqué n'apparaît que pour ses amis ; test / staff / masqués jamais.
+    const friendIdsForPrivacy = req.user?.id
+      ? await mapVisibility.friendIdsOf(req.user.id)
+      : new Set();
+    const sitters = mapVisibility.applyPublicPrivacy(
+      Array.from(sittersById.values()).filter((s) => !selfIds.has(String(s._id))),
+      { viewerIds: selfIds, friendIds: friendIdsForPrivacy },
     );
 
     // Format response with sitter details
@@ -361,6 +373,10 @@ const findNearbySitters = async (req, res) => {
         location: {
           coordinates: displayCoords,
           city: displayCity,
+          // v584 — présent quand la position est floutée (non-ami).
+          ...(sitter.location?.approxKm && !customCoords
+            ? { approxKm: sitter.location.approxKm }
+            : {}),
         },
         pawSpotLabel: customCoords ? (sitter.mapBoostLocation?.label || '') : null,
         distance: sitter.distance ? (sitter.distance / 1000).toFixed(2) : null,

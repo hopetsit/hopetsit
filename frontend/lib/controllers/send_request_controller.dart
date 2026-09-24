@@ -21,10 +21,16 @@ class SendRequestController extends GetxController {
   /// Defaults to 'sitter' to preserve legacy callers that don't pass a role.
   final String serviceProviderRole;
 
+  /// v584 — pré-remplissage depuis la PawMap (voir SendRequestScreen).
+  final String? initialServiceType;
+  final bool preselectFirstPet;
+
   SendRequestController({
     required this.serviceProviderName,
     required this.serviceProviderId,
     this.serviceProviderRole = 'sitter',
+    this.initialServiceType,
+    this.preselectFirstPet = false,
     OwnerRepository? ownerRepository,
     WalkerRepository? walkerRepository,
   })  : _ownerRepository = ownerRepository ?? Get.find<OwnerRepository>(),
@@ -128,6 +134,15 @@ class SendRequestController extends GetxController {
     if (serviceProviderRole == 'walker') {
       selectedServiceType.value = 'dog_walking';
       isAllDay.value = false;
+    }
+    // v584 — service pré-coché depuis la PawMap (gardien : garde par
+    // défaut). Le promeneur garde sa règle ci-dessus.
+    final init = initialServiceType;
+    if (init != null &&
+        init.isNotEmpty &&
+        serviceProviderRole != 'walker' &&
+        serviceTypes.any((t) => t['value'] == init)) {
+      selectServiceType(init);
     }
     // Fetch sitter details to get hourly rate for basePrice
     _loadSitterDetails();
@@ -243,6 +258,11 @@ class SendRequestController extends GetxController {
       final repo = Get.find<PetRepository>();
       final response = await repo.getMyPets();
       myPets.assignAll(response);
+      // v584 — PawMap « réserver en 2 appuis » : mon premier animal est
+      // déjà coché (l'utilisateur peut en changer).
+      if (preselectFirstPet && selectedPetIds.isEmpty && myPets.isNotEmpty) {
+        selectPet(myPets.first.id);
+      }
     } catch (e) {
       AppLogger.logError('Failed to load owner pets', error: e);
       myPets.clear();

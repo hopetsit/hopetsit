@@ -2,6 +2,8 @@ const Walker = require('../models/Walker');
 const { selfIdSet } = require('../utils/identityGroup');
 const { sanitizeUser } = require('../utils/sanitize');
 const { coarsenLocation } = require('../utils/coarseLocation');
+// v584 (lot C, 24/09) — règles de visibilité publiques partagées avec la PawMap.
+const mapVisibility = require('../utils/mapVisibility');
 const { uploadMedia } = require('../services/cloudinary');
 const { encrypt, decrypt } = require('../utils/encryption');
 const logger = require('../utils/logger');
@@ -250,8 +252,15 @@ const findNearbyWalkers = async (req, res) => {
     }
     // v573 — ne jamais proposer au spectateur ses propres profils (3 rôles).
     const selfIds = await selfIdSet(req);
-    const walkers = Array.from(byId.values())
-      .filter((w) => !selfIds.has(String(w._id)))
+    // v584 — même règle que /sitters/nearby : amis seulement respecté,
+    // position floutée à ~1 km pour les non-amis, test / staff exclus.
+    const friendIdsForPrivacy = req.user?.id
+      ? await mapVisibility.friendIdsOf(req.user.id)
+      : new Set();
+    const walkers = mapVisibility.applyPublicPrivacy(
+      Array.from(byId.values()).filter((w) => !selfIds.has(String(w._id))),
+      { viewerIds: selfIds, friendIds: friendIdsForPrivacy },
+    )
       .map((w) => {
       // Strip sensitive fields
       const { password, ibanNumber, insuranceCertUrl, paypalEmail, ...rest } = w;

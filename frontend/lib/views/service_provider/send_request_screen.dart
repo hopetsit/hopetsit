@@ -31,6 +31,13 @@ class SendRequestScreen extends StatefulWidget {
   final double? walkerHourlyRate;
   final String? currencyCode; // e.g. "EUR", defaults to EUR
 
+  /// v584 (PawMap, « réserver en 2 appuis ») — service déjà coché à
+  /// l'ouverture (`pet_sitting`, `day_care`, `dog_walking`) et mon premier
+  /// animal pré-sélectionné : il ne reste que les dates et le paiement.
+  /// Sans ces valeurs, l'écran se comporte exactement comme avant.
+  final String? initialServiceType;
+  final bool preselectFirstPet;
+
   const SendRequestScreen({
     super.key,
     required this.serviceProviderName,
@@ -42,6 +49,8 @@ class SendRequestScreen extends StatefulWidget {
     this.walkerHalfHourRate,
     this.walkerHourlyRate,
     this.currencyCode,
+    this.initialServiceType,
+    this.preselectFirstPet = false,
   });
 
   @override
@@ -71,6 +80,8 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
         serviceProviderName: widget.serviceProviderName,
         serviceProviderId: widget.serviceProviderId,
         serviceProviderRole: widget.serviceProviderRole,
+        initialServiceType: widget.initialServiceType,
+        preselectFirstPet: widget.preselectFirstPet,
       ),
       tag: tag,
     );
