@@ -342,17 +342,18 @@ class ChatMessageBubble extends StatelessWidget {
   }
 
   Widget _deleted(BuildContext context, Color textColor) {
+    // v583 — encre pleine (cf. _metaInk), plus de noir translucide.
+    final ink = _metaInk(context);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.block_rounded,
-            size: 13.sp, color: textColor.withValues(alpha: 0.7)),
+        Icon(Icons.block_rounded, size: 13.sp, color: ink),
         SizedBox(width: 6.w),
         Flexible(
           child: Text(
             'chat_message_deleted'.tr,
             style: TextStyle(
-              color: textColor.withValues(alpha: 0.75),
+              color: ink,
               fontSize: 13.sp,
               fontStyle: FontStyle.italic,
             ),
@@ -541,7 +542,7 @@ class ChatMessageBubble extends StatelessWidget {
           child: Text(
             'cs_translation_failed'.tr,
             style: TextStyle(
-              color: textColor.withValues(alpha: 0.6),
+              color: _metaInk(context), // v583 — encre pleine
               fontSize: 10.5.sp,
               fontStyle: FontStyle.italic,
             ),
@@ -573,9 +574,16 @@ class ChatMessageBubble extends StatelessWidget {
     });
   }
 
+  /// v583 (lot A, captures de Daniel du 23/09 : heure des messages grise
+  /// 144,144,144) — encre PLEINE pour les petits textes d'une bulle : blanc
+  /// sur ma bulle colorée, encre chaude secondaire (palette 578) sur une bulle
+  /// reçue. Plus jamais `textColor` à 70 % (noir translucide = gris).
+  Color _metaInk(BuildContext context) =>
+      mine ? Colors.white : AppColors.textSecondary(context);
+
   Widget _meta(BuildContext context, Color textColor) {
     final m = message;
-    final c = textColor.withValues(alpha: 0.7);
+    final c = _metaInk(context);
     // v566 — coches façon WhatsApp à droite de l'heure (messages envoyés).
     final showTicks = mine && !m.isDeleted && !m.isSystem;
     return Row(

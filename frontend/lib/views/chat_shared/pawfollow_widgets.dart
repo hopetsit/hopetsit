@@ -178,7 +178,7 @@ class PawFollowPill extends StatelessWidget {
                 },
                 child: Padding(
                   padding:
-                      EdgeInsets.symmetric(horizontal: 11.w, vertical: 7.h),
+                      EdgeInsets.symmetric(horizontal: 11.w, vertical: 6.h),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -188,13 +188,17 @@ class PawFollowPill extends StatelessWidget {
                         Icon(icon, size: 15.sp, color: Colors.white),
                       SizedBox(width: 5.w),
                       Flexible(
+                        // v583 (lot A, capture de Daniel : « Suivre en direct
+                        // m… ») — JAMAIS coupé : 2 lignes coupées à l'espace,
+                        // aucun « … » ; libellés courts cs_pf_pill_* (9 langues).
                         child: InterText(
                           text: text,
                           fontSize: 11.sp,
                           fontWeight: FontWeight.w800,
                           color: Colors.white,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.visible,
                         ),
                       ),
                     ],

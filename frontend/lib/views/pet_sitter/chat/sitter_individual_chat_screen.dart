@@ -519,7 +519,8 @@ class _SitterIndividualChatScreenState
                 pawFollowLiveMessage(chatController.currentChatMessages);
             return PawFollowPill(
               icon: Icons.share_location_rounded,
-              label: 'follow_share_position_button'.tr,
+              // v583 (lot A) — libellé court, jamais coupé (9 langues).
+              label: 'cs_pf_pill_share'.tr,
               live: live != null,
               onTap: live != null
                   ? () => Get.to(() => PawMapScreen(

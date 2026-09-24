@@ -15,6 +15,7 @@ import 'package:hopetsit/views/chat_shared/chat_states.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/views/chat_shared/chat_time.dart';
 import 'package:hopetsit/widgets/address_share_card.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:hopetsit/widgets/phone_share_card.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 
@@ -162,11 +163,9 @@ class _ChatConversationBodyState extends State<ChatConversationBody>
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
           decoration: BoxDecoration(
-            // Audit mode sombre — le gris clair d'origine donnait une pastille
-            // laiteuse sous un texte clair au milieu de la conversation.
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white.withValues(alpha: 0.08)
-                : AppColors.grey300Color.withValues(alpha: 0.45),
+            // v583 (lot A) — pastille système à la teinte PLEINE du rôle
+            // (jamais un gris translucide, règle « zéro gris »).
+            color: widget.theme.softTintStrong(context),
             borderRadius: BorderRadius.circular(14.r),
           ),
           child: Text(
@@ -252,9 +251,15 @@ class _ChatConversationBodyState extends State<ChatConversationBody>
   Widget build(BuildContext context) {
     final s = widget.session;
     final t = widget.theme;
+    // v583 (lot A, capture de Daniel du 23/09 : « aucun fond à pattes dans la
+    // conversation ») — ce conteneur OPAQUE recouvrait le motif posé par
+    // l'écran parent. Le semis de pattes est désormais posé DANS le
+    // conteneur, sur la teinte du rôle, sous les bulles.
     return Container(
       color: t.background(context),
-      child: Obx(() {
+      child: PawPatternBackground(
+        color: t.accent,
+        child: Obx(() {
         final msgs = s.messagesRx;
         final loading = s.isMessagesLoading.value;
         final error = s.errorMessage.value;
@@ -341,7 +346,8 @@ class _ChatConversationBodyState extends State<ChatConversationBody>
             ],
           ),
         );
-      }),
+        }),
+      ),
     );
   }
 }

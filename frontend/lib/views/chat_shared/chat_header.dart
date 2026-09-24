@@ -140,7 +140,7 @@ class ChatHeaderPill extends StatelessWidget {
           onTap: onTap,
           child: Container(
             constraints: BoxConstraints(maxWidth: 150.w),
-            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
             decoration: BoxDecoration(
               color: theme.accent,
               borderRadius: BorderRadius.circular(20.r),
@@ -151,13 +151,16 @@ class ChatHeaderPill extends StatelessWidget {
                 Icon(icon, size: 14.sp, color: Colors.white),
                 SizedBox(width: 5.w),
                 Flexible(
+                  // v583 (lot A) — libellé JAMAIS coupé (norme boutons) :
+                  // 2 lignes, coupure à l'espace, aucun « … ».
                   child: InterText(
                     text: label,
                     fontSize: 11.sp,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.visible,
                   ),
                 ),
               ],

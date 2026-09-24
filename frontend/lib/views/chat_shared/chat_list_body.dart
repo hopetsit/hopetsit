@@ -243,15 +243,23 @@ class _ConversationTile extends StatelessWidget {
         preview = preview.substring(youPrefix.length);
       }
     }
+    // v583 (lot A, captures de Daniel du 23/09) — la carte RESSORT à la
+    // couleur du rôle actif : liseré plein de 5 px à gauche + anneau d'avatar
+    // à la couleur du rôle ; conversation non lue = nom et aperçu dans
+    // l'accent du rôle (éclairci en sombre). Fond de carte blanc conservé
+    // (v578), ombre inchangée. Aucune logique touchée.
+    final roleAccent = theme.accent;
+    final roleInk = theme.accentOn(context);
     return Material(
       color: AppColors.card(context),
       borderRadius: BorderRadius.circular(22.r),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(22.r),
         onTap: onTap,
         onLongPress: onLongPress,
         child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 13.h),
+          padding: EdgeInsets.fromLTRB(16.w, 13.h, 14.w, 13.h),
           decoration: BoxDecoration(
             // v578 — Daniel : « les messages, cadres gris blanc ». La carte
             // n'avait PAS de fond : l'ombre (noir à 4 %) se peignait sur
@@ -260,13 +268,19 @@ class _ConversationTile extends StatelessWidget {
             color: AppColors.card(context),
             borderRadius: BorderRadius.circular(22.r),
             boxShadow: AppColors.cardShadow(context),
+            // Liseré du rôle : bordure gauche PLEINE (jamais translucide, une
+            // teinte à faible opacité sur blanc redeviendrait grise).
+            border: Border(left: BorderSide(color: roleAccent, width: 5)),
           ),
           child: Row(
             children: [
               ChatAvatar(
+                key: ValueKey<String>('conv_avatar_${c.id}'),
                 imageUrl: c.contactImage,
                 size: 52,
                 online: c.isOnline,
+                borderColor: roleAccent,
+                borderWidth: 2.5,
               ),
               SizedBox(width: 12.w),
               Expanded(
@@ -281,7 +295,10 @@ class _ConversationTile extends StatelessWidget {
                             fontSize: 15.sp,
                             fontWeight:
                                 unread ? FontWeight.w800 : FontWeight.w700,
-                            color: AppColors.textPrimary(context),
+                            // Non lu : nom à la couleur du rôle (v583).
+                            color: unread
+                                ? roleInk
+                                : AppColors.textPrimary(context),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -319,8 +336,10 @@ class _ConversationTile extends StatelessWidget {
                             fontSize: 12.5.sp,
                             fontWeight:
                                 unread ? FontWeight.w600 : FontWeight.w400,
+                            // Non lu : aperçu à la couleur du rôle (v583) ;
+                            // lu : encre chaude pleine (palette 578).
                             color: unread
-                                ? AppColors.textPrimary(context)
+                                ? roleInk
                                 : AppColors.textSecondary(context),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,

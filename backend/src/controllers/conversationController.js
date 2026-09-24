@@ -25,6 +25,8 @@ const { HttpError } = require('../utils/errors');
 const { emitToConversation, emitChatMessage } = require('../sockets/emitter');
 // v566 — accusés de réception / lecture (✓ ✓✓ ✓✓ bleu).
 const receipts = require('../services/messageReceiptService');
+// v583 (lot A) — conversation avec MOI-MÊME (mes autres profils) masquée.
+const { selfIdSet, excludeSelfConversations } = require('../utils/identityGroup');
 const logger = require('../utils/logger');
 
 const bufferToDataUri = (file) => `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
@@ -463,7 +465,15 @@ const getChatList = async (req, res) => {
 
     // v490 — retire les conversations dont l'autre participant a supprimé son
     // compte (entrées null ci-dessus) → plus de « Utilisateur supprimé » gris.
-    const cleanedConversations = enhancedConversations.filter(Boolean);
+    // v583 (lot A, validé par Daniel le 23/09) — retire aussi la conversation
+    // avec MOI-MÊME (l'autre participant est un de mes profils : « Daniel C »
+    // avec lui-même sur sa capture). Rien n'est supprimé en base.
+    let selfIds = new Set();
+    try { selfIds = await selfIdSet(req); } catch (_) { selfIds = new Set(); }
+    const cleanedConversations = excludeSelfConversations(
+      enhancedConversations.filter(Boolean),
+      selfIds,
+    );
 
     res.json({
       conversations: cleanedConversations,

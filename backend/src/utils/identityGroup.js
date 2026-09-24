@@ -86,4 +86,33 @@ async function selfIdSet(req) {
   }
 }
 
-module.exports = { identityGroup, selfIdSet };
+/**
+ * v583 (lot A du 24/09, validé par Daniel le 23/09) — une conversation dont
+ * l'AUTRE participant appartient à mon groupe d'identité (mes propres profils
+ * propriétaire / gardien / promeneur) est une conversation avec MOI-MÊME :
+ * elle ne doit pas s'afficher dans la liste. Rien n'est supprimé en base ;
+ * elle est seulement retirée de la réponse.
+ *
+ * @param {string|null|undefined} otherPartyId  id du correspondant
+ * @param {Set<string>} selfSet  ids de mes 3 rôles (selfIdSet)
+ */
+function isSelfConversation(otherPartyId, selfSet) {
+  if (!otherPartyId || !selfSet || typeof selfSet.has !== 'function') return false;
+  return selfSet.has(String(otherPartyId));
+}
+
+/**
+ * Filtre une liste de conversations enrichies ({ otherParty: { id } }) :
+ * retire celles avec moi-même, garde toutes les autres dans le même ordre.
+ * Une entrée sans otherParty est laissée telle quelle (c'est le filtre
+ * « compte supprimé » du contrôleur qui s'en charge).
+ */
+function excludeSelfConversations(conversations, selfSet) {
+  if (!Array.isArray(conversations)) return [];
+  return conversations.filter((c) => {
+    const otherId = c && c.otherParty && c.otherParty.id;
+    return !isSelfConversation(otherId, selfSet);
+  });
+}
+
+module.exports = { identityGroup, selfIdSet, isSelfConversation, excludeSelfConversations };

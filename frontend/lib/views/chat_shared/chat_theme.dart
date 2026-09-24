@@ -57,7 +57,11 @@ class ChatRoleTheme {
   );
 
   static const online = Color(0xFF22C55E);
-  static const offline = Color(0xFFB9A7A2);
+
+  /// v583 (lot A, captures de Daniel du 23/09) — pastille « hors ligne » et
+  /// « Vu il y a » : caramel chaud PLEIN (saturation 84 %), plus jamais le
+  /// beige-gris #B9A7A2 (saturation 12 %, mesuré gris sur ses captures).
+  static const offline = Color(0xFFB5651D);
 
   static ChatRoleTheme forRole(String? raw) {
     final r = (raw ?? '').toLowerCase();

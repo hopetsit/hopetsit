@@ -15,6 +15,7 @@ class ChatAvatar extends StatelessWidget {
     this.size = 48,
     this.online,
     this.borderColor,
+    this.borderWidth = 1.5,
   });
 
   final String imageUrl;
@@ -23,6 +24,10 @@ class ChatAvatar extends StatelessWidget {
   /// null = pas de pastille.
   final bool? online;
   final Color? borderColor;
+
+  /// v583 — épaisseur de l'anneau (liste des conversations : anneau à la
+  /// couleur du rôle, 2,5 px).
+  final double borderWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +43,7 @@ class ChatAvatar extends StatelessWidget {
             ? const Color(0xFF433431)
             : AppColors.lightGreyColor,
         border: borderColor != null
-            ? Border.all(color: borderColor!, width: 1.5)
+            ? Border.all(color: borderColor!, width: borderWidth)
             : null,
       ),
       clipBehavior: Clip.antiAlias,

@@ -716,7 +716,8 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                 pawFollowLiveMessage(chatController.currentChatMessages);
             return PawFollowPill(
               icon: Icons.my_location_rounded,
-              label: 'follow_button_live_my_pet'.tr,
+              // v583 (lot A) — libellé court, jamais coupé (9 langues).
+              label: 'cs_pf_pill_follow'.tr,
               live: live != null,
               onTap: live != null ? () => _openLiveMap(live) : _onSuivreTap,
             );
