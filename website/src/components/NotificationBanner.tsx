@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { AppIcon, type AppIconName } from "@/components/AppIcon";
 import { useSocketEvent } from "@/lib/useSocket";
 import {
   AppNotification,
@@ -65,17 +66,18 @@ function routeForNotification(n: AppNotification): string | null {
   return null;
 }
 
-function iconForType(type: string): string {
+// 24/09/2026 — LOT B : icônes maison (AppIcon) à la place des emojis (norme
+// NORME_DESIGN.md : zéro emoji dans l'interface), un sens par icône.
+function iconForType(type: string): AppIconName {
   const t = (type || "").toLowerCase();
-  if (t.includes("paid") || t.includes("payment") || t.includes("payout")) return "💰";
-  if (t.includes("accept")) return "✅";
-  if (t.includes("refus") || t.includes("declin") || t.includes("reject")) return "❌";
-  if (t.includes("tracking") || t.includes("follow")) return "📍";
-  if (t.includes("message") || t.includes("chat")) return "💬";
-  if (t.includes("application") || t.includes("request") || t.includes("friend"))
-    return "👋";
-  if (t.includes("review") || t.includes("rating")) return "⭐";
-  return "🔔";
+  if (t.includes("paid") || t.includes("payment") || t.includes("payout")) return "wallet";
+  if (t.includes("accept")) return "check";
+  if (t.includes("refus") || t.includes("declin") || t.includes("reject")) return "lock";
+  if (t.includes("tracking") || t.includes("follow")) return "pin";
+  if (t.includes("message") || t.includes("chat")) return "chat";
+  if (t.includes("application") || t.includes("request") || t.includes("friend")) return "friends";
+  if (t.includes("review") || t.includes("rating")) return "star";
+  return "bell";
 }
 
 export default function NotificationBanner() {
@@ -203,7 +205,7 @@ export default function NotificationBanner() {
         className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-bg-soft"
       >
         <span className="flex items-center gap-2 font-display text-base font-extrabold text-ink">
-          <span>🔔</span>
+          <AppIcon name="bell" size={18} color="#C92A12" />
           {t("notif_banner_title")}
           {unread.length > 0 && (
             <span className="rounded-full bg-owner px-2 py-0.5 text-xs font-bold text-white">
@@ -261,7 +263,7 @@ export default function NotificationBanner() {
                       : "border-owner/20 bg-owner-light/30"
                   }`}
                 >
-                  <span className="mt-0.5 text-xl">{iconForType(n.type)}</span>
+                  <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#FAF1EC]"><AppIcon name={iconForType(n.type)} size={16} color="#C92A12" /></span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
                       <span className="truncate font-semibold text-ink">{n.title}</span>
