@@ -48,11 +48,16 @@ class PawRailButton extends StatefulWidget {
     this.gradientBottom,
     this.active = false,
     this.size = PawMapTheme.railButtonSize,
+    this.onLongPress,
   });
 
   final Color color;
   final String label;
   final VoidCallback onTap;
+
+  /// v584 — appui LONG = l'explication du bouton (Daniel : « que les gens
+  /// comprennent à quoi ça sert »). Optionnel : sans lui, rien ne change.
+  final VoidCallback? onLongPress;
   final IconData? icon;
   final String? svg;
   final Widget? child;
@@ -109,6 +114,13 @@ class _PawRailButtonState extends State<PawRailButton> {
             HapticFeedback.selectionClick();
             widget.onTap();
           },
+          onLongPress: widget.onLongPress == null
+              ? null
+              : () {
+                  _setPressed(false);
+                  HapticFeedback.mediumImpact();
+                  widget.onLongPress!();
+                },
           child: SizedBox(
             width: tap,
             height: tap,
@@ -335,12 +347,16 @@ class PawPressable extends StatefulWidget {
     required this.onTap,
     this.scale = 0.96,
     this.label,
+    this.onLongPress,
   });
 
   final Widget child;
   final VoidCallback onTap;
   final double scale;
   final String? label;
+
+  /// v584 — appui long (explication d'un bouton du dock).
+  final VoidCallback? onLongPress;
 
   @override
   State<PawPressable> createState() => _PawPressableState();
@@ -365,6 +381,13 @@ class _PawPressableState extends State<PawPressable> {
         HapticFeedback.lightImpact();
         widget.onTap();
       },
+      onLongPress: widget.onLongPress == null
+          ? null
+          : () {
+              _set(false);
+              HapticFeedback.mediumImpact();
+              widget.onLongPress!();
+            },
       child: AnimatedScale(
         scale: _pressed ? widget.scale : 1.0,
         duration: const Duration(milliseconds: 110),

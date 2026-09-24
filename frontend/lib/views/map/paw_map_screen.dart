@@ -29,7 +29,6 @@ import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:hopetsit/utils/pawmap_theme.dart';
-import 'package:hopetsit/widgets/pawmap_panel_handle.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -47,6 +46,11 @@ import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/views/map/widgets/paw_rail_button.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_pins.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheets.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_rail.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_sheet.dart';
+import 'package:hopetsit/services/map_prefs_service.dart';
+import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
@@ -595,6 +599,19 @@ class _PawMapScreenState extends State<PawMapScreen>
       pawMapPendingRoute.value = null;
       unawaited(_startPendingRoute(v));
     });
+    // v584 — lien partagé / page de ville : la carte se centre sur l'endroit
+    // demandé (onglet conservé), au zoom demandé.
+    final pendingCenter = pawMapPendingCenter.value;
+    if (pendingCenter != null) {
+      pawMapPendingCenter.value = null;
+      _currentCenter = pendingCenter;
+      _zoomLevel = pawMapPendingZoom.value;
+    }
+    _pendingCenterWorker = ever<LatLng?>(pawMapPendingCenter, (v) {
+      if (v == null || !mounted) return;
+      pawMapPendingCenter.value = null;
+      unawaited(_goToCity(v, zoom: pawMapPendingZoom.value));
+    });
     // v23.1.353 — refonte PawSpot : les anciens halos "map boost" (tier
     // bronze/silver/gold/platinum + self-halo) sont SUPPRIMÉS de la carte.
     // PawSpot = désormais les spots communautaires 🐾 (couche dédiée,
@@ -647,6 +664,24 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (mounted) setState(() {});
       }),
     ];
+
+    // v584 — préférences de la carte : copie locale tout de suite, puis le
+    // compte (rail, calques, mode nuit, « je cherche »…), et tout changement
+    // repart vers le compte (MapPrefsService). Feuille glissante observée
+    // pour retirer les rails quand elle monte.
+    _applyPrefs(fromAccount: false);
+    _watchPrefs();
+    _sheetCtl.addListener(_onSheetMoved);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_prefs.loadFromAccount().then((remoteNewer) {
+        if (!mounted) return;
+        // Le mode « amis seulement » vient toujours du compte.
+        _friendsOnly = _prefs.hideFromMap.value;
+        if (remoteNewer) _applyPrefs(fromAccount: true);
+        if (mounted) setState(() {});
+      }));
+      _maybeStartCoach();
+    });
 
     // Paris fallback is the initial value — the map renders immediately
     // and _bootstrap() upgrades to real location in the background.
@@ -1110,14 +1145,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// `preferences.hideFromMap`, propagé aux 3 profils par le serveur) et
   /// confirme. En cas d'échec, rien ne change localement.
   Future<bool> _setFriendsOnly(bool friendsOnly) async {
-    final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
-    if (api == null) return false;
     try {
-      await api.patch(
-        '/users/me/map-prefs',
-        body: {'hideFromMap': friendsOnly},
-        requiresAuth: true,
-      );
+      final ok = await _prefs.setHideFromMap(friendsOnly);
+      if (!ok) throw Exception('map-prefs refused');
       _friendsOnly = friendsOnly;
       // Copie locale du profil : cohérente avec Préférences sans rechargement.
       try {
@@ -1290,7 +1320,14 @@ class _PawMapScreenState extends State<PawMapScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    for (final w in _prefWorkers) {
+      w.dispose();
+    }
+    _sheetCtl.removeListener(_onSheetMoved);
+    _sheetCtl.dispose();
+    unawaited(_prefs.flush());
     _pendingRouteWorker?.dispose();
+    _pendingCenterWorker?.dispose();
     _reloadDebounce?.cancel();
     for (final w in _backGuardWorkers) {
       w.dispose();
@@ -1354,121 +1391,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v561 — instant du passage en arrière-plan (recentrage au retour).
   DateTime? _pausedAt;
 
-  /// v19.1.3 — Modernized search bar: pill-shaped glassmorphic surface with
-  /// subtle green accent border, matching the Signaler FAB so the top and
-  /// bottom controls feel like one system.
-  /// v420 — retirée de la carte (recherche désormais dans l'AppBar) ; gardée
-  /// pour réutilisation éventuelle.
-  // ignore: unused_element
-  Widget _buildCitySearchBar(BuildContext context) {
-    // v21.1.1 — Search pill modernisée :
-    //   * BorderRadius 32 (vraie pill)
-    //   * 2 shadows pour profondeur (proche + ambiante)
-    //   * Pas de border, le shadow porte la séparation
-    //   * Icon loupe dans un cercle teinté primary (pas juste un Icon flat)
-    //   * Hauteur 50.h pour confort tap sur mobile
-    return Container(
-      height: 50.h,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(32.r),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          SizedBox(width: 6.w),
-          Container(
-            width: 36.w,
-            height: 36.w,
-            decoration: BoxDecoration(
-              color: AppColors.primaryColor.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.search_rounded,
-              size: 20.sp,
-              color: AppColors.primaryColor,
-            ),
-          ),
-          SizedBox(width: 10.w),
-          Expanded(
-            child: TextField(
-              controller: _cityCtrl,
-              textInputAction: TextInputAction.search,
-              onSubmitted: _searchCity,
-              onChanged: (_) => setState(() {}),
-              style: TextStyle(
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w500,
-                // v23.1.276 — Daniel : "vérifie les couleurs en dark mode sur la
-                // PawMap". La GoogleMap reste TOUJOURS claire (pas de style
-                // sombre), donc le pill de recherche est blanc : on FIXE le
-                // texte en sombre (sinon textPrimary=blanc en dark → invisible).
-                color: const Color(0xFF1F2937),
-              ),
-              decoration: InputDecoration(
-                hintText: 'paw_map_search_city_hint'.tr,
-                hintStyle: TextStyle(
-                  color: const Color(0xFFB69C95),
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w500,
-                ),
-                // v23.1.396 — Daniel : "en dark mode on voit rien". Le
-                // THÈME sombre injectait filled+fillColor sombre et une
-                // bordure focus → rectangle noir dans la pilule blanche.
-                // On neutralise TOUT héritage du thème : la pilule reste
-                // blanche, texte sombre, aucun fond ni bordure interne.
-                filled: false,
-                fillColor: Colors.transparent,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 14.h),
-              ),
-            ),
-          ),
-          if (_cityCtrl.text.isNotEmpty)
-            GestureDetector(
-              onTap: () {
-                _cityCtrl.clear();
-                setState(() {});
-              },
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10.w),
-                child: Container(
-                  width: 22.w,
-                  height: 22.w,
-                  decoration: BoxDecoration(
-                    color: AppColors.greyText.withValues(alpha: 0.18),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 14.sp,
-                    color: AppColors.greyText,
-                  ),
-                ),
-              ),
-            )
-          else
-            SizedBox(width: 14.w),
-        ],
-      ),
-    );
-  }
-
   Future<void> _searchCity(String query) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return;
@@ -1493,13 +1415,13 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   /// v554 — recentrage sur une ville. v584 : une seule carte, un seul
   /// contrôleur (la v523 animait deux cartes, il n'y en a plus qu'une).
-  Future<void> _goToCity(LatLng target) async {
+  Future<void> _goToCity(LatLng target, {double zoom = 13}) async {
     if (!mounted) return;
     setState(() => _currentCenter = target);
     if (_mapCtl.isCompleted) {
       try {
         final ctl = await _mapCtl.future;
-        await ctl.animateCamera(CameraUpdate.newLatLngZoom(target, 13));
+        await ctl.animateCamera(CameraUpdate.newLatLngZoom(target, zoom));
       } catch (_) {/* carte pas prête */}
     }
     await _reloadAtCenter();
@@ -2176,8 +2098,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// POI / report / request layers refresh after the user stops panning.
   void _scheduleReload() {
     _cameraMoving = false; // v550 — geste terminé : le halo repulse.
-    // v584 — la caméra s'arrête : on retient l'endroit ET le zoom.
+    // v584 — la caméra s'arrête : on retient l'endroit ET le zoom, sur
+    // l'appareil et sur le compte (« tout lié entre appareils »).
     _saveLastCamera(_currentCenter, _zoomLevel);
+    _prefs.update({
+      'camera': PawMapCameraMemory.encode(_currentCenter, _zoomLevel),
+    });
     // v555 — pendant un placement, on résout l'adresse du point visé dès que
     // la carte s'immobilise (affichée dans la carte de placement).
     if (_pickingSpotPos.value ||
@@ -2758,7 +2684,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     void follow() {
       Navigator.of(ctx).pop();
       // Point 3 : suivre SANS ouvrir le panneau déroulant → on le replie.
-      if (!_panelCollapsed.value) _panelCollapsed.value = true;
+      unawaited(_sheetTo(PawSheetStop.low));
       _startFollow(pos.userId, LatLng(pos.latitude, pos.longitude), name);
     }
 
@@ -4039,6 +3965,12 @@ class _PawMapScreenState extends State<PawMapScreen>
                   _pickingReportPos.value ||
                   _pickingRoutePos.value;
               final expanded = _mapExpanded.value;
+              // v584 — la feuille glissante recouvre les rails dès qu'elle
+              // dépasse sa position basse : ils s'effacent (elle porte les
+              // mêmes actions), et reviennent quand elle redescend.
+              final sheetUp = !expanded && !picking && _sheetExtent.value >
+                  (_sheetPeek.h / _sheetAvailableHeight(context)) + 0.03;
+              if (sheetUp) return const SizedBox.shrink();
               return Positioned(
                 left: 12.w,
                 right: 12.w,
@@ -4051,7 +3983,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   children: [
                     if (!picking)
                       _railScroller(
-                        _buildMapActionsColumn(expanded: expanded),
+                        _buildMapActionsColumn(),
                         expanded: expanded,
                       ),
                     const Spacer(),
@@ -4060,6 +3992,33 @@ class _PawMapScreenState extends State<PawMapScreen>
                 ),
               );
             }),
+
+            // ── v584 — FEUILLE GLISSANTE (petite carte) ──
+            // Trois positions : basse (poignée + bouton principal), moyenne
+            // (« Je cherche », compteur, filtres), haute (actions, calques,
+            // abonnements). Posée au-dessus du menu ; absente en carte
+            // agrandie (le dock la remplace) et pendant un placement.
+            Obx(() {
+              final picking = _pickingSpotPos.value ||
+                  _pickingReportPos.value ||
+                  _pickingRoutePos.value;
+              if (_mapExpanded.value || picking) return const SizedBox.shrink();
+              return Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: _menuInset(context),
+                child: _buildSheet(),
+              );
+            }),
+
+            // ── v584 — découverte guidée (3 bulles, 3 premiers lancements) ──
+            if (_coachStep >= 0)
+              PawMapCoach(
+                step: _coachStep,
+                onNext: _coachNext,
+                onDone: _coachDone,
+              ),
 
             // v23.1.187 — carte « Autour de vous » (petite carte seulement) ;
             // v554 — jamais pendant un placement ni quand un itinéraire est
@@ -4075,9 +4034,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 return Positioned(
                   left: 72.w,
                   right: 62.w,
-                  bottom: 132.h -
-                      _tabBarLift(context) +
-                      MediaQuery.of(context).viewPadding.bottom,
+                  bottom: _menuInset(context) + _sheetPeek.h + 8.h,
                   child: _buildAroundYouCard(),
                 );
               }
@@ -4095,9 +4052,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               return Positioned(
                 left: 12.w,
                 right: 12.w,
-                bottom: 160.h -
-                    _tabBarLift(context) +
-                    MediaQuery.of(context).viewPadding.bottom,
+                bottom: _menuInset(context) + _sheetPeek.h + 16.h,
                 child: Center(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 52.w),
@@ -4142,7 +4097,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             _buildFloatingHeader(),
-                            _buildTopArea(),
+                            _buildTopRow(),
                           ],
                         ),
                 ),
@@ -4192,9 +4147,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   double _railBottom(BuildContext context,
       {required bool expanded, required bool picking}) {
     if (expanded) return _navInset(context) + (picking ? 136.h : 82.h);
-    return (picking ? 284.h : 168.h) -
-        _tabBarLift(context) +
-        MediaQuery.of(context).viewPadding.bottom;
+    if (picking) {
+      return 284.h - _tabBarLift(context) +
+          MediaQuery.of(context).viewPadding.bottom;
+    }
+    // v584 — au-dessus de la feuille glissante en position basse.
+    return _menuInset(context) + _sheetPeek.h + 12.h;
   }
 
   /// v584 — en-tête flottant de la petite carte (remplace l'AppBar : la carte
@@ -5188,65 +5146,26 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
 
-  // ─── v552 — PANNEAU DE LA PETITE CARTE (redesign v3) ─────────────────────
-  // Maquette Claude Design : UN SEUL panneau « verre dépoli » (radius 26,
-  // padding 12) qui remplace la grille 2×2 de grosses cartes + la rangée de
-  // filtres + la rangée de toggles. Rien n'est supprimé : les 4 actions, les
-  // filtres, le compteur et les 3 abonnements sont tous là, en plus compact.
-  /// v554 — Daniel : « le cadre blanc où il y a toutes les options, tu peux
-  /// pas ajouter un mini bouton qui masquerait le cadre entier ? ». Le
-  /// panneau se replie sur une petite poignée : la carte est alors dégagée
-  /// sans avoir à l'agrandir, et rien n'est perdu (un appui le rouvre).
-  /// v554 — le choix est MÉMORISÉ (décision Daniel) : celui qui replie le
-  /// panneau veut voir la carte, il ne doit pas avoir à recommencer à chaque
-  /// retour sur l'onglet. Contrepartie assumée : le cadre contient les trois
-  /// interrupteurs d'abonnement (PawFollow / PawSpot / PawPremium), donc la
-  /// pastille de réouverture est ROSE et porte l'icône des filtres — on ne
-  /// veut pas que ces options disparaissent discrètement de l'écran.
-  final RxBool _panelCollapsed =
-      (GetStorage().read('pawmap_panel_collapsed') == true).obs;
-
-  /// v565 (18/09) — nombre de filtres actifs (catégories restreintes, rôles
-  /// de membres masqués, couches lieux / signalements coupées).
-  int _activeFilterCount() {
-    var n = 0;
-    final cats = _poiController.enabledCategories;
-    if (cats.isNotEmpty) n += cats.length;
-    n += (3 - _memberRoles.length).clamp(0, 3);
-    if (!_showReports.value) n += 1;
-    if (!_showPois.value) n += 1;
-    return n;
-  }
-
-  Widget _panelHandle({required bool collapsed, bool fill = false}) {
-    return PawMapPanelHandle(
-      collapsed: collapsed,
-      fill: fill,
-      badge: collapsed ? _activeFilterCount() : 0,
-      onTap: () {
-        _panelCollapsed.value = !collapsed;
-        try {
-          GetStorage().write('pawmap_panel_collapsed', _panelCollapsed.value);
-        } catch (_) {/* stockage plein : sans importance */}
-      },
+  // ─── v584 — HAUT DE LA PETITE CARTE ─────────────────────────────────────
+  // Le panneau blanc du haut (v552) est devenu la FEUILLE GLISSANTE du bas
+  // (`_buildSheet`). En haut ne restent que la rangée « Partager en direct /
+  // Agrandir » et, si je suis « visible par mes amis seulement », la
+  // pastille qui permet de rebasculer en un geste.
+  Widget _buildTopRow() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildTopShareRow(),
+        if (_friendsOnly)
+          Padding(
+            padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: PawMapFriendsOnlyPill(onTap: _openVisibilitySheet),
+            ),
+          ),
+      ],
     );
-  }
-
-  /// v558 — Daniel : « quand le menu est réduit, mets tout sur une ligne, et
-  /// que les 3 cadres du haut fassent la même largeur, assez fins ». Replié :
-  /// UNE rangée de trois cellules de largeur égale (filtres / Partager en
-  /// direct / Agrandir), même hauteur. Ouvert : la rangée bannière + Agrandir
-  /// d'avant, puis le panneau blanc avec sa poignée.
-  Widget _buildTopArea() {
-    return Obx(() => _panelCollapsed.value
-        ? _buildCollapsedTopRow()
-        : Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildTopShareRow(),
-              _buildGlassPanelBody(),
-            ],
-          ));
   }
 
   /// Hauteur commune des trois cadres de la rangée repliée.
@@ -5259,54 +5178,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// ⚠️ Valeur BRUTE : `InterText` applique `.sp` lui-même — l'écrire `12.sp`
   /// ici la mettait au carré et rendait le libellé minuscule à 320 dp.
   static const double _topPillFontSize = 12;
-
-  Widget _buildCollapsedTopRow() {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 0),
-      child: SizedBox(
-        height: _topRowHeight,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(child: _panelHandle(collapsed: true, fill: true)),
-            SizedBox(width: 8.w),
-            Expanded(child: _buildLiveBroadcastBanner(compact: true)),
-            SizedBox(width: 8.w),
-            Expanded(child: _buildExpandPill(expanded: false, fill: true)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGlassPanelBody() {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(14.w, 8.h, 14.w, 0),
-      child: Container(
-        // v552 (corrigé) — Daniel : « le cadre du fond doit être blanc, pas
-        // blanc translucide » : on garde la forme et l'ombre de la maquette,
-        // mais le fond devient opaque (la carte défilait derrière le texte).
-        decoration: PawMapTheme.glassOn(context, opacity: 1.0),
-        padding: EdgeInsets.all(12.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildPanelActions(),
-            SizedBox(height: 11.h),
-            Container(height: 1, color: PawMapTheme.borderOn(context)),
-            SizedBox(height: 11.h),
-            _buildPanelFilters(),
-            SizedBox(height: 11.h),
-            _buildPanelCounterRow(),
-            SizedBox(height: 9.h),
-            _buildPanelModules(),
-            SizedBox(height: 8.h),
-            _panelHandle(collapsed: false),
-          ],
-        ),
-      ),
-    );
-  }
 
   /// Les 4 raccourcis (puce 40×40 pastel + libellé 10px), badge compteur rose.
   Widget _buildPanelActions() {
@@ -5558,6 +5429,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                   () => toggleRole('walker'), tone: PawMapTheme.walker),
               chip('role_pet_owner'.tr, roles.contains('owner'),
                   () => toggleRole('owner'), tone: PawMapTheme.owner),
+              // v584 — idée 4 : « Disponible aujourd'hui » (drapeau serveur).
+              chip('pawmap_sheet_available_today'.tr, _availableTodayOnly.value,
+                  () => _availableTodayOnly.value = !_availableTodayOnly.value,
+                  tone: PawMapTheme.walker),
               chip('paw_map_filter_all'.tr, false, outlined: everythingOn, () {
                 _showPois.value = true;
                 _showReports.value = true;
@@ -6000,12 +5875,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                     trackOutlineColor: WidgetStateProperty.resolveWith(
                         (st) => st.contains(WidgetState.selected)
                             ? Colors.white.withValues(alpha: 0.9)
-                            // v578 — « aucun gris » : une encre chaude posee
-                            // a 28 % sur du blanc redevient GRISE. On passe
-                            // donc en teinte chaude PLEINE, qui se voit.
-                            : AppColors.greyColor.withValues(alpha: 0.6)),
+                            // v584 — « aucun gris » : rail à l'arrêt en
+                            // teinte chaude PLEINE (vert pâle), liseré vert.
+                            : green.withValues(alpha: 0.55)),
                     inactiveThumbColor: Colors.white,
-                    inactiveTrackColor: AppColors.grey300Color,
+                    inactiveTrackColor: const Color(0xFFBFE8CB),
                   ),
                 ),
               ),
@@ -6095,143 +5969,483 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
 
-  /// v488 — Daniel : 4 boutons RONDS à gauche (petite ET grande carte), de haut
-  /// en bas : Voir spots · Tag spot · Voir signaux · Signaler. Boutons Material
-  /// (PAS de FloatingActionButton → aucun conflit de Hero tag entre les 2
-  /// cartes coexistantes). Tag spot / Voir spots respectent l'abonnement
-  /// PawSpot (sinon → route boutique via _togglePawSpot). Signaler + Voir
-  /// signaux restent gratuits.
-  /// [expanded] : en carte agrandie, la maquette ajoute 3 boutons AU-DESSUS
-  /// des 4 habituels — Itinéraire (vert), Chat du cercle (bleu), Photo du
-  /// spot (orange). Daniel : « sur la grande map il n'y a pas les nouvelles
-  /// icônes chat, itinéraire, etc. ». Chacun est branché sur une brique qui
-  /// existe déjà : itinéraire vers le point visé, messagerie, création de
-  /// spot avec photo.
-  Widget _buildMapActionsColumn({bool expanded = false}) {
-    // v557 — BUG « grand rectangle gris » (Daniel, capture 12:11) : en v556
-    // j'ai retiré la variable `spotOk` (PawSpot devenu gratuit) et cet Obx
-    // ne lisait plus AUCUN observable → GetX lève « improper use of GetX » →
-    // ErrorWidget GRIS en release, qui s'étire sur toute la zone de la rangée
-    // des rails (et fait disparaître le rail gauche). Plus rien de réactif ici
-    // → plus d'Obx. Reproduit et confirmé en debug sur simulateur.
-    return Builder(builder: (context) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // v561 — Daniel : « un bouton violet : les endroits autour de moi
-          // par catégorie, je clique le lieu et ça me donne l'itinéraire ».
-          _roundMapBtn(
-            icon: Icons.navigation_rounded,
-            color: PawMapTheme.pawFollow,
-            svg: _fabSvgPlaces,
-            g1: const Color(0xFFA076FF),
-            g2: const Color(0xFF7040D6),
-            label: 'pawmap_btn_around'.tr,
-            onTap: () => unawaited(_openAroundMeSheet()),
-          ),
-          // v559 — Daniel : « ajoute sur la petite map le bouton Itinéraire
-          // comme sur la grande, pour utiliser les nouvelles fonctionnalités »
-          // (à pied / vélo / voiture, indications de virage). Sorti du bloc
-          // `expanded` : présent sur les deux cartes, en tête du rail.
-          _roundMapBtn(
-            icon: Icons.directions_rounded,
-            color: PawMapTheme.ok,
-            svg: _fabSvgRoute,
-            g1: const Color(0xFF3DBF6C),
-            g2: const Color(0xFF188A42),
-            label: 'pawmap_btn_directions'.tr,
-            active: _routePolylines.isNotEmpty,
-            onTap: () {
-              _pickedSpotPos = _currentCenter;
-              _pickAddress.value = '';
-              _pickingRoutePos.value = true;
-              unawaited(_refreshPickAddress());
-            },
-          ),
-          // v565 — point 3 : bouton ROSE « Amis en direct » (petite ET grande
-          // carte) → liste de qui est en direct → tap = suivre sur la carte,
-          // sans ouvrir le panneau déroulant.
-          _roundMapBtn(
-            icon: Icons.people_alt_rounded,
-            color: PawMapTheme.rose,
-            svg: _fabSvgLiveFriends,
-            g1: const Color(0xFFFF6EB4),
-            g2: PawMapTheme.roseDark,
-            label: 'v565_live_friends_title'.tr,
-            active: _followUserId != null,
-            onTap: () => unawaited(_openLiveFriendsSheet()),
-          ),
-          // v565 — point 3 : « chat direct avec les amis » aussi sur la MINI
-          // carte (avant : grande carte seulement).
-          _roundMapBtn(
-            icon: Icons.forum_rounded,
-            color: PawMapTheme.sitter,
-            svg: _fabSvgChat,
-            g1: const Color(0xFF5B9DFF),
-            g2: const Color(0xFF2358D6),
-            label: 'pawmap_btn_circle_chat'.tr,
-            onTap: _openCircleChat,
-          ),
-          if (expanded) ...[
-            _roundMapBtn(
-              icon: Icons.photo_camera_rounded,
-              color: PawMapTheme.pawSpot,
-              svg: _fabSvgPhoto,
-              g1: const Color(0xFFFFB067),
-              g2: const Color(0xFFE07A12),
-              label: 'pawmap_btn_spot_photo'.tr,
-              onTap: () =>
-                  unawaited(_startSpotPhoto()),
+  /// v584 — le rail gauche, construit depuis l'ORDRE choisi par l'utilisateur
+  /// (`_railOrder`, enregistré sur le compte). Chaque id garde EXACTEMENT son
+  /// action d'avant ; appui long = l'explication ; le petit bouton du bas =
+  /// le menu de personnalisation (ordre et choix).
+  List<String> _railOrder = kPawRailDefaultOrder;
+
+  Widget _buildMapActionsColumn() {
+    return PawMapRail(
+      order: _railOrder,
+      active: {
+        if (_routePolylines.isNotEmpty) 'directions',
+        if (_followUserId != null) 'live_friends',
+        if (_showPawSpots.value) 'spots',
+      },
+      onTap: _onRailTap,
+      onLongPress: _showRailHelp,
+      onCustomize: _openRailCustomize,
+    );
+  }
+
+  /// Les actions du rail — inchangées depuis la v561/v565 (mêmes briques).
+  void _onRailTap(String id) {
+    switch (id) {
+      case 'around':
+        unawaited(_openAroundMeSheet());
+      case 'directions':
+        _pickedSpotPos = _currentCenter;
+        _pickAddress.value = '';
+        _pickingRoutePos.value = true;
+        unawaited(_refreshPickAddress());
+      case 'live_friends':
+        unawaited(_openLiveFriendsSheet());
+      case 'chat':
+        _openCircleChat();
+      case 'photo':
+        unawaited(_startSpotPhoto());
+      case 'spots':
+        unawaited(_openSpotsList());
+      case 'tag':
+        _startSpotPicking();
+      case 'report':
+        _startReportPicking();
+      case 'feed':
+        _openScreen(() => const AlertsScreen());
+      default:
+        debugPrint('[PawMap] bouton de rail inconnu : $id');
+    }
+  }
+
+  /// Appui long sur un bouton du rail → sa bulle d'explication, avec
+  /// « Essayer » (fait l'action) et « Personnaliser ».
+  void _showRailHelp(String id) {
+    final spec = pawRailSpecOf(id);
+    if (spec == null) return;
+    showPawMapSheet<void>(
+      context,
+      Builder(
+        builder: (ctx) => PawRailHelpSheet(
+          title: spec.label,
+          help: spec.help,
+          color: spec.color,
+          icon: spec.icon,
+          onDo: () {
+            Navigator.of(ctx).pop();
+            _onRailTap(id);
+          },
+          onCustomize: () {
+            Navigator.of(ctx).pop();
+            _openRailCustomize();
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Appui long sur une action du dock / de la feuille → son explication.
+  void _showDockHelp(String id) {
+    final key = kPawDockHelpKeys[id];
+    if (key == null) return;
+    final (label, icon, color) = switch (id) {
+      'sos' => ('pawmap_dock_sos'.tr, Icons.sos_rounded, PawMapTheme.danger),
+      'share' => ('pawmap_dock_share_map'.tr, Icons.ios_share_rounded, PawMapLegend.sitter),
+      'layers' => ('pawmap_dock_layers'.tr, Icons.layers_rounded, PawMapLegend.pawFollow),
+      'night' => ('pawmap_dock_night'.tr, Icons.dark_mode_rounded, PawMapLegend.ink),
+      _ => ('pawmap_dock_history'.tr, Icons.timeline_rounded, PawMapLegend.walker),
+    };
+    showPawMapSheet<void>(
+      context,
+      PawRailHelpSheet(title: label, help: key.tr, color: color, icon: icon),
+    );
+  }
+
+  /// Menu de personnalisation : ordre et choix, enregistrés sur le compte.
+  void _openRailCustomize() {
+    showPawMapSheet<void>(
+      context,
+      PawRailCustomizeSheet(
+        order: _railOrder,
+        onChanged: (order) {
+          if (!mounted) return;
+          setState(() => _railOrder = order);
+          _prefs.update({'rail': order});
+        },
+      ),
+    );
+  }
+
+  // ─── v584 — FEUILLE GLISSANTE (3 positions) + bouton principal ───────────
+
+  late final DraggableScrollableController _sheetCtl =
+      DraggableScrollableController();
+
+  /// Position courante de la feuille (fraction de la hauteur disponible) —
+  /// les rails se retirent quand la feuille dépasse sa position basse.
+  final RxDouble _sheetExtent = 0.0.obs;
+  static const double _sheetPeek = 118;
+  bool _sheetIsLow = true;
+
+  /// 'all' | 'sitters' | 'walkers' | 'places' | 'friends' (idée 6).
+  String _lookingFor = 'all';
+
+  /// Hauteur (px) du menu du bas sous la carte : dans les onglets, le
+  /// wrapper annonce sa hauteur utile dans `padding.bottom` ; empilée hors
+  /// onglets, seule la barre système reste.
+  double _menuInset(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    if (_tabBarLift(context) > 0) return mq.viewPadding.bottom;
+    return math.max(mq.padding.bottom, mq.viewPadding.bottom);
+  }
+
+  double _sheetAvailableHeight(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    return math.max(200.0, mq.size.height - _menuInset(context));
+  }
+
+  Future<void> _sheetTo(PawSheetStop stop) async {
+    if (!_sheetCtl.isAttached) return;
+    final h = _sheetAvailableHeight(context);
+    final size = switch (stop) {
+      PawSheetStop.low => (_sheetPeek.h / h).clamp(0.08, 0.5).toDouble(),
+      PawSheetStop.mid => 0.46,
+      PawSheetStop.high => 0.90,
+    };
+    try {
+      await _sheetCtl.animateTo(size,
+          duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
+    } catch (_) {/* feuille démontée */}
+  }
+
+  void _onSheetMoved() {
+    if (!_sheetCtl.isAttached) return;
+    final size = _sheetCtl.size;
+    _sheetExtent.value = size;
+    final h = _sheetAvailableHeight(context);
+    final low = (_sheetPeek.h / h).clamp(0.08, 0.5).toDouble();
+    final isLow = size <= low + 0.03;
+    if (isLow != _sheetIsLow) {
+      _sheetIsLow = isLow;
+      _prefs.update({'panelCollapsed': isLow});
+      if (mounted) setState(() {});
+    }
+  }
+
+  Widget _buildSheet() {
+    return PawMapSheet(
+      controller: _sheetCtl,
+      availableHeight: _sheetAvailableHeight(context),
+      peekHeight: _sheetPeek.h,
+      header: _buildPrimaryAction(),
+      children: [
+        PawMapLookingSelector(value: _lookingFor, onChanged: _applyLooking),
+        SizedBox(height: 12.h),
+        _buildPanelCounterRow(),
+        Obx(() {
+          // Idée 1 — carte vide = une action (au zoom quartier, données lues).
+          final empty = _membersShown.value == 0 &&
+              _zoomLevel >= 12 &&
+              _worldMembers.isNotEmpty;
+          if (!empty) return const SizedBox.shrink();
+          return Padding(
+            padding: EdgeInsets.only(top: 10.h),
+            child: PawMapEmptyCard(
+              viewerRole: _role,
+              onAction: _onEmptyAction,
             ),
-            ],
-          _roundMapBtn(
-            icon: Icons.travel_explore_rounded,
-            color: const Color(0xFFE2981A),
-            svg: _fabSvgSpot,
-            g1: const Color(0xFFFAC346),
-            g2: const Color(0xFFE2981A),
-            label: 'pawmap_view_spots_btn'.tr,
-            active: _showPawSpots.value,
-            // v556 — voir les spots est GRATUIT (option C : « voir tous les
-            // PawSpots » ; seule la création au-delà de 3 est payante).
-            onTap: () => unawaited(_openSpotsList()),
+          );
+        }),
+        SizedBox(height: 12.h),
+        _sheetSection('pawmap_sheet_filters'.tr),
+        _buildPanelFilters(),
+        SizedBox(height: 14.h),
+        _sheetSection('pawmap_sheet_actions'.tr),
+        _buildPanelActions(),
+        SizedBox(height: 8.h),
+        Obx(() => PawMapDockRow(
+              wrap: true,
+              nightMode: _nightMode.value,
+              onSos: _openSosAnimal,
+              onShare: _shareCurrentMap,
+              onLayers: _openLayersSheet,
+              onNight: _toggleNightMode,
+              onHistory: _openHistory,
+              onLongPress: _showDockHelp,
+            )),
+        SizedBox(height: 14.h),
+        _sheetSection('pawmap_sheet_more'.tr),
+        _buildPanelModules(),
+        SizedBox(height: 6.h),
+        Align(
+          alignment: Alignment.centerRight,
+          child: GestureDetector(
+            onTap: _showPawMapToggleInfo,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 6.h),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.info_outline_rounded,
+                      size: 12.sp, color: PawMapTheme.subOn(context)),
+                  SizedBox(width: 4.w),
+                  Text(
+                    'pawmap_toggle_info_chip'.tr,
+                    style: PawMapTheme.font(
+                        size: 10.sp,
+                        weight: FontWeight.w600,
+                        color: PawMapTheme.subOn(context)),
+                  ),
+                ],
+              ),
+            ),
           ),
-          _roundMapBtn(
-            icon: Icons.add_location_alt_rounded,
-            color: const Color(0xFF18968A),
-            svg: _fabSvgAdd,
-            g1: const Color(0xFF48C8BA),
-            g2: const Color(0xFF18968A),
-            label: 'pawmap_tag_spot'.tr,
-            onTap: () =>
-                _startSpotPicking(),
-          ),
-          _roundMapBtn(
-            icon: Icons.add_moderator_rounded,
-            color: const Color(0xFFD63A28),
-            svg: _fabSvgReport,
-            g1: const Color(0xFFFF6E5C),
-            g2: const Color(0xFFD63A28),
-            label: 'pawmap_btn_send'.tr,
-            onTap: _startReportPicking,
-          ),
-          _roundMapBtn(
-            icon: Icons.notifications_active_rounded,
-            color: const Color(0xFF28201B),
-            svg: _fabSvgFeed,
-            g1: const Color(0xFF5A4E46),
-            g2: const Color(0xFF28201B),
-            label: 'pawmap_view_reports_btn'.tr,
-            onTap: () => _openScreen(() => const AlertsScreen()),
-          ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  Widget _sheetSection(String title) => Padding(
+        padding: EdgeInsets.only(bottom: 8.h, left: 2.w),
+        child: Text(
+          title.toUpperCase(),
+          style: PawMapTheme.fontOn(context,
+              size: 11.sp,
+              weight: FontWeight.w800,
+              letterSpacing: 0.6,
+              color: PawMapTheme.subOn(context)),
+        ),
+      );
+
+  /// Historique (dock) : avantage PawFollow (option C) ; sinon la boutique.
+  void _openHistory() {
+    if (_pawSpotController.followActive.value) {
+      _openScreen(() => const BookingsHistoryScreen());
+    } else {
+      unawaited(_promptSubscriptionRequired(1));
+    }
+  }
+
+  /// UN bouton principal, CONTEXTUEL (Daniel : « il change selon la
+  /// situation ») :
+  ///   · suivi en pause → Reprendre le suivi ;
+  ///   · sans compte → Crée ton compte ;
+  ///   · propriétaire sans demande → Publier ma demande ;
+  ///   · gardien / promeneur avec des demandes autour → Proposer mes services
+  ///     (la plus proche) ;
+  ///   · sinon → Partager ma position (ou la feuille de durée si déjà actif).
+  Widget _buildPrimaryAction() {
+    return Obx(() {
+      _requests.length;
+      _myRequests.length;
+      final live = _liveMap.broadcasting.value;
+      final role = _role;
+      final Color roleColor = PawMapLegend.roleColor(role.isEmpty ? 'owner' : role);
+      if (_followUserId != null && _followPaused) {
+        return PawSignatureButton(
+          key: const ValueKey<String>('pawmap_primary'),
+          label: 'pawmap_primary_resume_follow'.tr,
+          icon: Icons.play_arrow_rounded,
+          color: PawMapLegend.pawFollow,
+          onTap: _resumeFollow,
+        );
+      }
+      if (!_viewerLoggedIn) {
+        return PawSignatureButton(
+          key: const ValueKey<String>('pawmap_primary'),
+          label: 'pawmap_member_signup_to_book'.tr,
+          icon: Icons.person_add_alt_1_rounded,
+          color: roleColor,
+          onTap: () => SignupWallSheet.show(trigger: 'booking'),
+        );
+      }
+      if (role == 'owner' && _myRequests.isEmpty) {
+        return PawSignatureButton(
+          key: const ValueKey<String>('pawmap_primary'),
+          label: 'pawmap_primary_publish'.tr,
+          icon: Icons.campaign_rounded,
+          color: roleColor,
+          onTap: () => Get.to(() => const PublishReservationRequestScreen()),
+        );
+      }
+      if (_isSitterOrWalker && _requests.isNotEmpty) {
+        return PawSignatureButton(
+          key: const ValueKey<String>('pawmap_primary'),
+          label: 'pawmap_primary_propose'.tr,
+          icon: Icons.volunteer_activism_rounded,
+          color: roleColor,
+          onTap: () {
+            final sorted = _requests.toList()
+              ..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
+            _showRequestBottomSheet(sorted.first);
+          },
+        );
+      }
+      return PawSignatureButton(
+        key: const ValueKey<String>('pawmap_primary'),
+        label: live ? 'v565_live_active'.tr : 'pawmap_primary_share_live'.tr,
+        icon: live ? Icons.podcasts_rounded : Icons.share_location_rounded,
+        color: live ? PawMapLegend.walker : roleColor,
+        onTap: () => unawaited(_openLiveDurationSheet()),
       );
     });
   }
 
+  /// Idée 1 — carte vide : le propriétaire publie, le prestataire complète
+  /// son profil (onglet Profil).
+  void _onEmptyAction() {
+    if (_role == 'owner' || _role.isEmpty) {
+      Get.to(() => const PublishReservationRequestScreen());
+    } else {
+      openMainTabOr(4, () => const PawMapScreen());
+    }
+  }
 
+  /// Idée 6 — « Je cherche » : un préréglage des couches ; les réglages fins
+  /// (chips, calques) restent disponibles dessous.
+  void _applyLooking(String v) {
+    setState(() => _lookingFor = v);
+    switch (v) {
+      case 'sitters':
+        _memberRoles
+          ..clear()
+          ..add('sitter');
+        _showProviders.value = true;
+        _showPois.value = false;
+      case 'walkers':
+        _memberRoles
+          ..clear()
+          ..add('walker');
+        _showProviders.value = true;
+        _showPois.value = false;
+      case 'places':
+        _showPois.value = true;
+        _showProviders.value = false;
+      case 'friends':
+        _showProviders.value = false;
+        _showPois.value = false;
+        _showFriends.value = true;
+        _showLiveLayer.value = true;
+        unawaited(_openLiveFriendsSheet());
+      default:
+        _memberRoles.addAll({'sitter', 'walker', 'owner'});
+        _showProviders.value = true;
+        _showPois.value = true;
+        _showFriends.value = true;
+    }
+    _memberRoles.refresh();
+    _prefs.update({'lookingFor': v});
+    if (mounted) setState(() {});
+  }
 
+  // ─── v584 — préférences sur le COMPTE (MapPrefsService) ─────────────────
 
+  late final MapPrefsService _prefs = MapPrefsService.instance;
+  List<Worker> _prefWorkers = const [];
+
+  /// Applique les préférences (copie locale d'abord, puis le compte si plus
+  /// récent). [fromAccount] : la caméra du compte ne remplace la carte que si
+  /// l'appareil n'a aucune mémoire locale (premier lancement ici).
+  void _applyPrefs({required bool fromAccount}) {
+    final p = _prefs;
+    final rail = p.rail;
+    if (rail != null) _railOrder = normalizeRailOrder(rail);
+    final layers = p.layers;
+    if (layers.containsKey('places')) _showPois.value = layers['places']!;
+    if (layers.containsKey('reports')) _showReports.value = layers['reports']!;
+    if (layers.containsKey('members')) _showProviders.value = layers['members']!;
+    if (layers.containsKey('pawspots')) _showPawSpots.value = layers['pawspots']!;
+    if (layers.containsKey('live')) _showLiveLayer.value = layers['live']!;
+    if (layers.containsKey('requests')) _showRequests.value = layers['requests']!;
+    if (layers.containsKey('friends')) _showFriends.value = layers['friends']!;
+    if (layers.containsKey('premium')) _showPremiumLayer.value = layers['premium']!;
+    final roles = p.memberRoles;
+    if (roles != null && roles.isNotEmpty) {
+      _memberRoles
+        ..clear()
+        ..addAll(roles);
+      _memberRoles.refresh();
+    }
+    final night = p.nightMode;
+    if (night != null) _nightMode.value = night;
+    final avail = p.availableTodayOnly;
+    if (avail != null) _availableTodayOnly.value = avail;
+    final looking = p.lookingFor;
+    if (looking != null) _lookingFor = looking;
+    final mode = p.routeMode;
+    if (mode != null && _routeColors.containsKey(mode)) _routeMode = mode;
+    final radius = p.aroundRadiusKm;
+    if (radius != null) _aroundRadiusKm = radius;
+    if (fromAccount) {
+      final cam = p.camera;
+      final lat = (cam?['lat'] as num?)?.toDouble();
+      final lng = (cam?['lng'] as num?)?.toDouble();
+      final zoom = (cam?['zoom'] as num?)?.toDouble();
+      final localMemory = GetStorage().read(_kLastCenterKey);
+      if (lat != null && lng != null && localMemory == null && _userPosition == null) {
+        _currentCenter = LatLng(lat, lng);
+        if (zoom != null) _zoomLevel = zoom;
+        unawaited(_activeMapCtl().then((ctl) => ctl?.animateCamera(
+            CameraUpdate.newLatLngZoom(_currentCenter, _zoomLevel))));
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
+  Map<String, bool> _layersSnapshot() => {
+        'places': _showPois.value,
+        'reports': _showReports.value,
+        'members': _showProviders.value,
+        'pawspots': _showPawSpots.value,
+        'live': _showLiveLayer.value,
+        'requests': _showRequests.value,
+        'friends': _showFriends.value,
+        'premium': _showPremiumLayer.value,
+      };
+
+  void _watchPrefs() {
+    void pushLayers(dynamic _) => _prefs.update({'layers': _layersSnapshot()});
+    _prefWorkers = [
+      ever<bool>(_showPois, pushLayers),
+      ever<bool>(_showReports, pushLayers),
+      ever<bool>(_showProviders, pushLayers),
+      ever<bool>(_showPawSpots, pushLayers),
+      ever<bool>(_showLiveLayer, pushLayers),
+      ever<bool>(_showRequests, pushLayers),
+      ever<bool>(_showFriends, pushLayers),
+      ever<bool>(_showPremiumLayer, pushLayers),
+      ever<Set<String>>(_memberRoles,
+          (r) => _prefs.update({'memberRoles': r.toList()})),
+      ever<bool>(_nightMode, (v) => _prefs.update({'nightMode': v})),
+      ever<bool>(_availableTodayOnly,
+          (v) => _prefs.update({'availableTodayOnly': v})),
+    ];
+  }
+
+  // ─── v584 — découverte guidée (idée 7 : 3 bulles, 3 lancements max) ─────
+
+  static bool _coachShownThisSession = false;
+  int _coachStep = -1;
+
+  void _maybeStartCoach() {
+    if (_coachShownThisSession) return;
+    if (_prefs.coachShown >= 3) return;
+    _coachShownThisSession = true;
+    if (mounted) setState(() => _coachStep = 0);
+  }
+
+  void _coachNext() {
+    if (!mounted) return;
+    setState(() => _coachStep += 1);
+    if (_coachStep >= PawMapCoach.steps) _coachDone();
+  }
+
+  void _coachDone() {
+    if (!mounted) return;
+    setState(() => _coachStep = -1);
+    _prefs.update({'coachShown': _prefs.coachShown + 1});
+  }
   /// v552 — « Chat du cercle » : ouvre la messagerie du rôle courant.
   void _openCircleChat() {
     final role = (Get.isRegistered<AuthController>()
@@ -6292,12 +6506,23 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Partage un lien qui rouvre la carte EXACTEMENT ici (position + zoom).
   /// Daniel : « quand on partage un lien, que ça tombe sur la chose précise ».
   /// Le site sait lire ?lat/?lng/?z et l'app capte le lien universel.
+  /// v584 — acquisition : le lien porte aussi la VILLE (`city=`), pour
+  /// que le site ouvre la bonne page de ville sans compte et que l'app
+  /// retombe sur ses pieds même sans coordonnées.
   Future<void> _shareCurrentMap() async {
     final c = _currentCenter;
+    String city = '';
+    try {
+      final a = await LocationService()
+          .getAddressFromCoordinates(c.latitude, c.longitude)
+          .timeout(const Duration(seconds: 3), onTimeout: () => null);
+      city = (a?['city'] ?? '').toString().trim();
+    } catch (_) {/* sans ville */}
     final url = 'https://www.hopetsit.com/map'
         '?lat=${c.latitude.toStringAsFixed(5)}'
         '&lng=${c.longitude.toStringAsFixed(5)}'
-        '&z=${_zoomLevel.round()}';
+        '&z=${_zoomLevel.round()}'
+        '${city.isEmpty ? '' : '&city=${Uri.encodeQueryComponent(city)}'}';
     await SharePlus.instance.share(
       ShareParams(
         text: '${'pawmap_share_map_text'.tr}\n$url',
@@ -6422,7 +6647,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     // Grande carte : rangée Partager/Réduire (≈ 64) + baseline 82.
     final double maxH = expanded
         ? h - top - 72.h - _navInset(context) - 82.h - 12.h
-        : h - top - 130.h - 168.h - 24.h;
+        : h - top - 120.h - _railBottom(context, expanded: false, picking: false) - 12.h;
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxH.clamp(120.0, h)),
       child: SingleChildScrollView(
@@ -6434,105 +6659,19 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   Widget _buildMapDock() {
-    Widget pill({
-      required IconData icon,
-      required String label,
-      required VoidCallback onTap,
-      bool filled = false,
-      Color? color,
-    }) {
-      // v571 — lisibilité sombre : l'encre du libellé/icône suit le thème,
-      // la pilule de verre étant anthracite en sombre.
-      color ??= PawMapTheme.inkOn(context);
-      // v565 (18/09) — Daniel : dock modernisé, mêmes couleurs : verre blanc
-      // translucide + liseré fin (SOS reste rouge plein), coins 999, appui
-      // scale 0,96 + haptique, libellé jamais tronqué (FittedBox).
-      final Color tone = filled ? PawMapTheme.danger : color;
-      return Padding(
-        padding: EdgeInsets.only(right: 8.w),
-        child: PawPressable(
-          label: label,
-          onTap: onTap,
-          child: PawGlassPill(
-            color: filled ? PawMapTheme.danger : tone.withValues(alpha: 0.35),
-            filled: filled,
-            height: 44.h,
-            padding: EdgeInsets.symmetric(horizontal: 13.w),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon,
-                    size: 16.sp, color: filled ? Colors.white : color),
-                SizedBox(width: 6.w),
-                ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: 120.w),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      style: PawMapTheme.font(
-                        size: 12.sp,
-                        weight: FontWeight.w700,
-                        color: filled ? Colors.white : color,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: 46.h,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        // v565 — point 20 : le bouton Retour occupe le coin bas-gauche.
-        padding: EdgeInsets.only(left: 66.w, right: 12.w),
-        children: [
-          pill(
-            icon: Icons.sos_rounded,
-            label: 'pawmap_dock_sos'.tr,
-            filled: true,
-            onTap: _openSosAnimal,
-          ),
-          pill(
-            icon: Icons.ios_share_rounded,
-            label: 'pawmap_dock_share_map'.tr,
-            onTap: _shareCurrentMap,
-          ),
-          pill(
-            icon: Icons.layers_rounded,
-            label: 'pawmap_dock_layers'.tr,
-            onTap: _openLayersSheet,
-          ),
-          Obx(() => pill(
-                icon: _nightMode.value
-                    ? Icons.light_mode_rounded
-                    : Icons.dark_mode_rounded,
-                label: 'pawmap_dock_night'.tr,
-                onTap: _toggleNightMode,
-                color: _nightMode.value
-                    ? PawMapTheme.accent
-                    : PawMapTheme.inkOn(context),
-              )),
-          pill(
-            icon: Icons.timeline_rounded,
-            label: 'pawmap_dock_history'.tr,
-            // v555 — option C : l'historique de balade est un avantage
-            // PawFollow (le partage de base, lui, est gratuit pour tous).
-            onTap: () => _pawSpotController.followActive.value
-                ? _openScreen(() => const BookingsHistoryScreen())
-                : unawaited(_promptSubscriptionRequired(1)),
-          ),
-        ],
-      ),
-    );
+    // v584 — mêmes 5 actions (SOS, partager, calques, nuit, historique), en
+    // pilules de verre ; le bouton Retour occupe le coin bas-gauche.
+    return Obx(() => PawMapDockRow(
+          nightMode: _nightMode.value,
+          leftPadding: 66.w,
+          onSos: _openSosAnimal,
+          onShare: _shareCurrentMap,
+          onLayers: _openLayersSheet,
+          onNight: _toggleNightMode,
+          onHistory: _openHistory,
+          onLongPress: _showDockHelp,
+        ));
   }
-
 
   /// v552 — style sombre de la carte (mode nuit du dock). Palette calée sur
   /// les jetons de la maquette pour rester dans l'ambiance PawMap.
@@ -6841,6 +6980,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                       try {
                         GetStorage().write('pawmap_around_radius', r);
                       } catch (_) {/* noop */}
+                      _prefs.update({'aroundRadiusKm': r});
                       if (category != null) unawaited(load(category!));
                     }),
                   SizedBox(width: 6.w),
@@ -7005,66 +7145,6 @@ class _PawMapScreenState extends State<PawMapScreen>
           ),
         );
       }),
-    );
-  }
-
-  /// pilules avec libellé mangeaient la carte et cassaient l'alignement ; le
-  /// libellé reste accessible en appui long.
-  // v561 — handoff « Paw Buttons » (Daniel, 12/09) : boutons ronds verre
-  // dépoli — dégradé 165°, bord blanc translucide, reflet haut, ombre
-  // colorée, icône blanche PLEINE, aucun libellé visible (le libellé reste
-  // en Tooltip / sémantique). Design uniquement : mêmes actions, même ordre.
-  static const String _fabSvgPlaces =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 22s-7.5-6.5-7.5-12A7.5 7.5 0 0 1 19.5 10c0 5.5-7.5 12-7.5 12z"/><g fill="rgba(0,0,0,.34)"><circle cx="10.2" cy="7.2" r="1.1"/><circle cx="13.8" cy="7.2" r="1.1"/><circle cx="8.4" cy="9.4" r="1"/><circle cx="15.6" cy="9.4" r="1"/><path d="M12 9.3c-1.7 0-3.3 1.6-3.3 3.1 0 .9.8 1.7 1.7 1.7.6 0 1.1-.3 1.6-.3s1 .3 1.6.3c.9 0 1.7-.8 1.7-1.7 0-1.5-1.6-3.1-3.3-3.1z"/></g></svg>';
-  static const String _fabSvgRoute =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18c0-5 3-6 6-6s6-1 6-6" stroke-dasharray="3 2.6"/><circle cx="6" cy="18" r="2.6" fill="#FFFFFF" stroke="none"/><path d="M18 2.5c-1.8 0-3.2 1.4-3.2 3.2 0 2.2 3.2 5.3 3.2 5.3s3.2-3.1 3.2-5.3c0-1.8-1.4-3.2-3.2-3.2z" fill="#FFFFFF" stroke="none"/></svg>';
-  static const String _fabSvgSpot =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 22s-7.5-6.5-7.5-12A7.5 7.5 0 0 1 19.5 10c0 5.5-7.5 12-7.5 12z"/><path d="M12 5.4l1.4 2.9 3.1.4-2.3 2.2.6 3.1L12 12.5 9.2 14l.6-3.1-2.3-2.2 3.1-.4z" fill="rgba(0,0,0,.34)"/></svg>';
-  static const String _fabSvgAdd =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 22s-7.5-6.5-7.5-12A7.5 7.5 0 0 1 19.5 10c0 5.5-7.5 12-7.5 12z"/><path d="M10.9 6h2.2v2.9H16v2.2h-2.9V14h-2.2v-2.9H8V8.9h2.9z" fill="rgba(0,0,0,.34)"/></svg>';
-  static const String _fabSvgReport =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 2.8 22.6 21H1.4z"/><path d="M10.9 9h2.2v6h-2.2zM10.9 16.5h2.2v2.2h-2.2z" fill="rgba(0,0,0,.4)"/></svg>';
-  static const String _fabSvgFeed =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M5 2.5h2.2V21.5H5z"/><path d="M7.2 3.5h11.3l-2.4 4.5 2.4 4.5H7.2z"/><circle cx="18.5" cy="5" r="3.6" fill="#E24834" stroke="#fff" stroke-width="1.4"/></svg>';
-  // v565 — « Amis en direct » : deux silhouettes + point live.
-  static const String _fabSvgLiveFriends =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 18.5c0-3.3 2.9-5.5 6.5-5.5s6.5 2.2 6.5 5.5V20h-13z"/><circle cx="16.5" cy="9" r="2.5"/><path d="M15.2 13.4c3.2.2 6.3 2.1 6.3 5.1V20h-4.6v-1.5c0-1.9-.6-3.6-1.7-5.1z"/><circle cx="19.5" cy="4.5" r="2.2" fill="#7CFFB2"/></svg>';
-  static const String _fabSvgChat =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 3C6.9 3 3 6.3 3 10.4c0 2 1 3.9 2.6 5.2L4.8 20l4.6-1.9c.8.2 1.7.3 2.6.3 5.1 0 9-3.3 9-7.4S17.1 3 12 3z"/><g fill="rgba(0,0,0,.34)"><circle cx="8.6" cy="10.6" r="1.1"/><circle cx="12" cy="10.6" r="1.1"/><circle cx="15.4" cy="10.6" r="1.1"/></g></svg>';
-  static const String _fabSvgPhoto =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M9 4h6l1.4 2.2H20a1.6 1.6 0 0 1 1.6 1.6V18A1.6 1.6 0 0 1 20 19.6H4A1.6 1.6 0 0 1 2.4 18V7.8A1.6 1.6 0 0 1 4 6.2h3.6z"/><circle cx="12" cy="12.8" r="3.6" fill="rgba(0,0,0,.34)"/></svg>';
-
-  Widget _roundMapBtn({
-    required IconData icon, // conservé pour compatibilité (non affiché quand svg fourni)
-    required Color color,
-    required String label,
-    required VoidCallback onTap,
-    Widget? child,
-    String? svg,
-    Color? g1,
-    Color? g2,
-    bool active = false,
-  }) {
-    // v565 (18/09) — Daniel : « boutons plus beaux et design, mêmes
-    // couleurs ». Le rendu vit dans PawRailButton (dégradé doux vers la
-    // teinte foncée, liseré blanc translucide, ombre colorée, appui 0,92 +
-    // retour élastique + haptique, anneau et halo quand le bouton est actif).
-    // v573 — l'écart vertical vient du jeton commun : les huit boutons du rail
-    // sont espacés exactement pareil, et le dernier affleure la ligne de base
-    // de la capsule droite.
-    return Padding(
-      padding: EdgeInsets.only(top: PawMapTheme.railGap.h),
-      child: PawRailButton(
-        color: color,
-        label: label,
-        onTap: onTap,
-        icon: icon,
-        svg: svg,
-        gradientTop: g1,
-        gradientBottom: g2,
-        active: active,
-        child: child,
-      ),
     );
   }
 
@@ -7601,6 +7681,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v559 — itinéraire demandé à l'ouverture (routeToLat/Lng) : on réessaie
   /// chaque seconde tant que MA position n'est pas connue (max ~10 s).
   Worker? _pendingRouteWorker;
+  Worker? _pendingCenterWorker;
 
   Future<void> _startPendingRoute(LatLng dest) async {
     for (int i = 0; i < 10; i++) {
@@ -7644,6 +7725,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     try {
       GetStorage().write('pawmap_route_mode', mode);
     } catch (_) {/* sans importance */}
+    _prefs.update({'routeMode': mode});
     final dest = _routeDest;
     if (dest != null) _startDirections(dest);
   }

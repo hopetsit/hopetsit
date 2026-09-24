@@ -20,6 +20,7 @@ import 'package:hopetsit/localization/v565/fixes575_i18n.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
 // v532 — lien de partage d'un PawSpot (/spot/<id>) → ouvre la carte.
 import 'package:hopetsit/utils/map_ui_state.dart';
+import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -378,8 +379,15 @@ class DeepLinkService {
       // v559 — `&route=1` : ouvrir la carte avec l'itinéraire déjà lancé vers
       // ce point (modes à pied / vélo / voiture + virages).
       final route = uri.queryParameters['route'] == '1';
+      // v584 — acquisition : `?city=paris` (lien partagé, page de ville du
+      // site) → la carte s'ouvre sur cette ville, avec le menu.
+      final city = (uri.queryParameters['city'] ?? '').trim();
       if (route && lat != null && lng != null) {
         openPawMapWithRoute(lat, lng); // onglet PawMap (menu conservé) si possible
+      } else if (lat != null && lng != null && navWrapperMounted.value) {
+        openPawMapAt(lat, lng, zoom: z ?? 13);
+      } else if (lat == null && lng == null && city.isNotEmpty) {
+        await _openPawMapOnCity(city, zoom: z ?? 12);
       } else if (lat == null && lng == null && navWrapperMounted.value) {
         // v561 — /pawmap ou /map sans position : l'onglet PawMap (menu
         // conservé) au lieu d'une carte poussée sans menu.
@@ -426,6 +434,29 @@ class DeepLinkService {
       AppLogger.logInfo(
         'DeepLink path not handled (no-op): "${uri.path}"',
       );
+    }
+  }
+
+  /// v584 — ville d'un lien partagé → géocodage puis PawMap centrée ; ville
+  /// introuvable → la carte s'ouvre quand même (autour de l'utilisateur).
+  Future<void> _openPawMapOnCity(String city, {double zoom = 12}) async {
+    try {
+      final pos = await LocationService()
+          .getCoordinatesFromCity(city)
+          .timeout(const Duration(seconds: 6), onTimeout: () => null);
+      if (pos != null) {
+        openPawMapAt(pos.latitude, pos.longitude, zoom: zoom);
+        return;
+      }
+    } catch (e) {
+      AppLogger.logWarning('DeepLink city geocoding failed: $e');
+    }
+    CustomSnackbar.showInfo(
+      title: 'PawMap',
+      message: 'pawmap_link_city_unknown'.tr,
+    );
+    if (!_goToTab(kPawMapTabIndex)) {
+      Get.to(() => const PawMapScreen());
     }
   }
 

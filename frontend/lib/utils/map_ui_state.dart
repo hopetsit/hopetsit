@@ -28,6 +28,28 @@ final RxBool navWrapperMounted = false.obs;
 /// Onglet PawMap dans StackedNavigationWrapper.
 const int kPawMapTabIndex = 2;
 
+/// v584 — acquisition : un lien `hopetsit://pawmap?lat&lng&z` ou
+/// `?city=paris` ouvre l'ONGLET PawMap (menu conservé) centré sur cet
+/// endroit. La PawMap observe `pawMapPendingCenter` (zoom dans
+/// `pawMapPendingZoom`).
+final Rxn<LatLng> pawMapPendingCenter = Rxn<LatLng>();
+final RxDouble pawMapPendingZoom = 13.0.obs;
+
+/// Ouvre la PawMap centrée sur (lat, lng) : via l'onglet quand le menu est
+/// monté, sinon en écran poussé.
+void openPawMapAt(double lat, double lng, {double zoom = 13}) {
+  if (navWrapperMounted.value) {
+    try {
+      Get.until((route) => route.isFirst);
+    } catch (_) {/* pile déjà à la racine */}
+    pawMapPendingZoom.value = zoom;
+    pawMapPendingCenter.value = LatLng(lat, lng);
+    requestedTab.value = kPawMapTabIndex;
+    return;
+  }
+  Get.to(() => PawMapScreen(initialLat: lat, initialLng: lng, initialZoom: zoom));
+}
+
 /// Ouvre la PawMap avec un itinéraire vers (lat, lng) : via l'onglet quand le
 /// menu principal est monté (on revient d'abord à la racine de la pile),
 /// sinon en écran poussé (ex. app ouverte par un lien avant le menu).
