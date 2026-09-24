@@ -12,6 +12,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -278,6 +279,9 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
       ),
       body: SafeArea(
         top: false,
+        // v585 (lot D) — Samsung : SafeArea ne protège pas le bas → complément.
+        child: Padding(
+          padding: EdgeInsets.only(bottom: appBottomInsetInsideSafeArea(context)),
         child: Column(
           children: [
             // v566 — Émetteur / Client (feuille) + « Ajoute tes informations
@@ -340,6 +344,7 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

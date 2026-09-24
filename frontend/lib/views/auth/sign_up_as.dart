@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
@@ -52,7 +53,8 @@ class SignUpAsScreen extends StatelessWidget {
           child: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24.w),
+            // v585 (lot D) — Samsung : SafeArea ne protège pas le bas → complément.
+            padding: EdgeInsets.fromLTRB(24.w, 0, 24.w, appBottomInsetInsideSafeArea(context)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

@@ -274,13 +274,13 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
         children: [
           Row(
             children: [
-              Icon(icon, size: 13.sp, color: Colors.white70),
+              Icon(icon, size: 13.sp, color: Colors.white),
               SizedBox(width: 4.w),
               Flexible(
                 child: InterText(
                   text: label,
                   fontSize: 10.sp,
-                  color: Colors.white70,
+                  color: Colors.white,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

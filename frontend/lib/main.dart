@@ -1,4 +1,5 @@
 import 'dart:async' show TimeoutException;
+import 'package:hopetsit/widgets/paw_button_kit.dart';
 import 'dart:io'
     show HttpException, SocketException, TlsException, WebSocketException;
 
@@ -406,38 +407,13 @@ class MyApp extends StatelessWidget {
               // OutlinedButton, TextButton, FilledButton) : coins 14, hauteur
               // tactile 48, texte 15/700, plus d'ombre « Material » datée. Un
               // style local (styleFrom) garde la priorité.
-              elevatedButtonTheme: ElevatedButtonThemeData(
-                style: ElevatedButton.styleFrom(
-                  elevation: 0,
-                  minimumSize: const Size(64, 44),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                ),
-              ),
-              filledButtonTheme: FilledButtonThemeData(
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(64, 44),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                ),
-              ),
-              outlinedButtonTheme: OutlinedButtonThemeData(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(64, 44),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                ),
-              ),
-              textButtonTheme: TextButtonThemeData(
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(44, 40),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
-                ),
-              ),
+              // v585 (lot D) — mêmes 4 thèmes, sans UN gris : désactivé =
+              // teinte pâle pleine, ondulation teintée, contour couleur
+              // (`PawMaterialButtonThemes`, widgets/paw_button_kit.dart).
+              elevatedButtonTheme: PawMaterialButtonThemes(accent: AppColors.primaryColor, dark: false).elevated,
+              filledButtonTheme: PawMaterialButtonThemes(accent: AppColors.primaryColor, dark: false).filled,
+              outlinedButtonTheme: PawMaterialButtonThemes(accent: AppColors.primaryColor, dark: false).outlined,
+              textButtonTheme: PawMaterialButtonThemes(accent: AppColors.primaryColor, dark: false).text,
               dialogTheme: const DialogThemeData(
                 backgroundColor: AppColors.whiteColor,
                 surfaceTintColor: AppColors.whiteColor,
@@ -508,38 +484,13 @@ class MyApp extends StatelessWidget {
                 ),
               ),
               // v569 — mêmes défauts de boutons qu'en thème clair.
-              elevatedButtonTheme: ElevatedButtonThemeData(
-                style: ElevatedButton.styleFrom(
-                  elevation: 0,
-                  minimumSize: const Size(64, 44),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                ),
-              ),
-              filledButtonTheme: FilledButtonThemeData(
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(64, 44),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                ),
-              ),
-              outlinedButtonTheme: OutlinedButtonThemeData(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(64, 44),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                ),
-              ),
-              textButtonTheme: TextButtonThemeData(
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(44, 40),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
-                ),
-              ),
+              // v585 (lot D) — mêmes 4 thèmes, sans UN gris : désactivé =
+              // teinte pâle pleine, ondulation teintée, contour couleur
+              // (`PawMaterialButtonThemes`, widgets/paw_button_kit.dart).
+              elevatedButtonTheme: PawMaterialButtonThemes(accent: AppColors.primaryColor, dark: true).elevated,
+              filledButtonTheme: PawMaterialButtonThemes(accent: AppColors.primaryColor, dark: true).filled,
+              outlinedButtonTheme: PawMaterialButtonThemes(accent: AppColors.primaryColor, dark: true).outlined,
+              textButtonTheme: PawMaterialButtonThemes(accent: AppColors.primaryColor, dark: true).text,
               dialogTheme: const DialogThemeData(
                 backgroundColor: AppColors.cardDark,
                 surfaceTintColor: AppColors.cardDark,

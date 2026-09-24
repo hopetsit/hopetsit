@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:pinput/pinput.dart';
@@ -93,7 +94,8 @@ class OtpVerificationScreen extends StatelessWidget {
           color: AppColors.activeRoleAccent(),
           child: SafeArea(
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.w),
+            // v585 (lot D) — Samsung : SafeArea ne protège pas le bas → complément.
+            padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, appBottomInsetInsideSafeArea(context)),
             child: Column(
               children: [
                 SizedBox(height: 6.h),

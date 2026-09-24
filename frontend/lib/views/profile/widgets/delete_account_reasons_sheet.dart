@@ -9,10 +9,9 @@
 //
 // Règles maison respectées ici : aucun `Obx`, aucun `CrossAxisAlignment.stretch`
 // avec un `Expanded` dans un scroll, tous les textes via `.tr`.
-import 'dart:io' show Platform;
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -130,8 +129,9 @@ class _DeleteAccountReasonsSheetState
 
     // ⚠️ Bas d'écran Samsung : `viewPadding.bottom` peut valoir 0 alors que la
     // barre système couvre le bas de l'écran → repli sur une marge fixe.
-    final double raw = math.max(media.viewPadding.bottom, media.padding.bottom);
-    final double bottomInset = raw > 0 ? raw : (Platform.isAndroid ? 48.0 : 0.0);
+    // v585 (lot D) — règle unique de l'app : `appBottomInset` (Android = jamais
+    // moins de 48 px, même barre de gestes à 20 px ; iOS = inset réel).
+    final double bottomInset = appBottomInset(context);
 
     final double maxHeight = media.size.height * 0.88;
     final bool canContinue = _selected.isNotEmpty;

@@ -16,6 +16,7 @@ import 'package:hopetsit/widgets/role_chip.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
@@ -194,12 +195,11 @@ class ProfileHero extends StatelessWidget {
         child: IgnorePointer(
           child: Transform.rotate(
             angle: angle,
-            child: Text(
-              '🐾',
-              style: TextStyle(
-                fontSize: size,
-                color: Colors.white.withValues(alpha: alpha),
-              ),
+            child: PawIconWidget(
+              PawIcon.paw,
+              size: size,
+              color: Colors.white.withValues(alpha: alpha),
+              fill: Colors.white.withValues(alpha: alpha * 0.5),
             ),
           ),
         ),
@@ -645,10 +645,10 @@ class _OwnerPetPill extends StatelessWidget {
         leading: p.avatar.url.isNotEmpty
             ? CircleAvatar(
                 radius: 9.r,
-                backgroundColor: Colors.white24,
+                backgroundColor: const Color(0xFFFCE4DC),
                 backgroundImage: CachedNetworkImageProvider(p.avatar.url),
               )
-            : Text(petSpeciesEmoji(p.category), style: TextStyle(fontSize: 12.sp)),
+            : PawIconWidget(petSpeciesPawIcon(p.category), size: 14.sp, color: Colors.white, fill: Colors.white.withValues(alpha: 0.3)),
         text: text,
         onTap: () => Get.to(() => PetProfileScreen(
               pet: p,

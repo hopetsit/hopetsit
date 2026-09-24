@@ -1,8 +1,7 @@
-import 'dart:io' show Platform;
-import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -231,11 +230,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final mq = MediaQuery.of(context);
     // ⚠️ Samsung de Daniel : viewPadding.bottom = 0 alors que la barre système
     // couvre le bas de l'écran → repli sur 48 px en Android.
-    final double raw = math.max(mq.viewPadding.bottom, mq.padding.bottom);
-    final double bottomInset = raw > 0 ? raw : (Platform.isAndroid ? 48.0 : 0.0);
+    // v585 (lot D) — règle unique de l'app : `appBottomInset`.
+    final double bottomInset = appBottomInset(context);
 
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),

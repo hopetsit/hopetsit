@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/cancel_72h_sheet.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -275,7 +276,8 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
           color: AppColors.activeRoleAccent(),
           child: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: 20.w),
+          // v585 (lot D) — Samsung : SafeArea ne protège pas le bas → complément.
+          padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, appBottomInsetInsideSafeArea(context)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

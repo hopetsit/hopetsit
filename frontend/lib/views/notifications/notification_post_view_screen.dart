@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -391,7 +392,8 @@ class _NotificationPostViewScreenState
           color: AppColors.activeRoleAccent(),
           child: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 24.h),
+          // v585 (lot D) — Samsung : SafeArea ne protège pas le bas → complément.
+          padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 24.h + appBottomInsetInsideSafeArea(context)),
           child: Obx(() {
             postsController.posts;
             postsController.postsWithoutMedia;

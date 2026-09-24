@@ -4,7 +4,8 @@
 // saturation HSL est < 0,25 et sa luminosité entre 12 % et 92 % (les
 // blancs, noirs et encres très sombres ne sont pas des gris). Les
 // `Colors.grey`, `Colors.blueGrey`, `Colors.black12…87` et `Colors.white70…10`
-// (blancs / noirs translucides = gris sur fond) comptent aussi.
+// (blancs / noirs translucides = gris sur fond) comptent aussi. Règle de PAM :
+// saturation < 25 % ET teinte hors 340°–45° (les bruns chauds ne sont pas gris).
 //
 // Les gris encore présents sont listés dans `lotd_allowlist.dart` (compte par
 // fichier, figé) : ce test ÉCHOUE si un gris apparaît dans un fichier absent
@@ -20,14 +21,21 @@ final RegExp _hex = RegExp(r'Color\(0x([0-9A-Fa-f]{8})\)');
 final RegExp _named = RegExp(
     r'Colors\.(grey|blueGrey|black(12|26|38|45|54|87)|white(70|60|54|38|30|24|12|10))\b');
 
-/// Gris = saturation < 0,25 et luminosité 12–92 %, alpha ≥ 25 %.
+/// Gris = saturation < 0,25 ET teinte hors de la plage chaude 340°–45°
+/// (règle de PAM, `~/.claude/agents/pam.md`) ; luminosité 12–92 %, alpha ≥ 25 %.
+/// Les bruns / beiges chauds de la marque (#6E4F48, #342420…) sont des teintes
+/// chaudes à faible saturation : ce ne sont pas des gris.
 bool isGray(String hex8) {
   final int v = int.parse(hex8, radix: 16);
   final Color c = Color(v);
   if (c.a < 0.25) return false;
   final HSLColor hsl = HSLColor.fromColor(c);
   if (hsl.lightness < 0.12 || hsl.lightness > 0.92) return false;
-  return hsl.saturation < 0.25;
+  if (hsl.saturation < 0.05) return true; // gris pur : la teinte n'a pas de sens
+  if (hsl.saturation >= 0.25) return false;
+  final double h = hsl.hue;
+  final bool warm = h >= 340 || h <= 45;
+  return !warm;
 }
 
 Map<String, int> scanGrays(Directory lib) {
@@ -57,7 +65,11 @@ void main() {
     expect(isGray('FF17141F'), isFalse); // encre premium, très sombre
     expect(isGray('FFB5651D'), isFalse); // caramel chaud (saturation 0,84)
     expect(isGray('FFC92A12'), isFalse); // orange propriétaire
-    expect(isGray('FFB9A7A2'), isTrue); // beige-gris (saturation 0,12)
+    expect(isGray('FFB9A7A2'), isFalse); // beige chaud (teinte 13°, saturation 0,12)
+    expect(isGray('FF6E4F48'), isFalse); // brun chaud de la marque
+    expect(isGray('FF6B7280'), isTrue); // gris-bleu froid (Tailwind 500)
+    expect(isGray('FFE5E7EB'), isTrue); // gris clair froid (Tailwind 200)
+    expect(isGray('FF9CA3AF'), isTrue); // gris froid (Tailwind 400)
   });
 
   test('aucun gris nouveau dans lib/ (hors liste figée)', () {

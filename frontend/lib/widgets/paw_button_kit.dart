@@ -955,3 +955,90 @@ class PawChoicePill extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Thèmes des boutons Material BRUTS encore présents (108 dans des dialogues et
+// sous-pages, listés par le garde-fou) : le même langage, sans un seul gris.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Les 4 thèmes de boutons Material de l'app (clair ou sombre), à poser dans
+/// `ThemeData` : couleur d'accent pleine, DÉSACTIVÉ = teinte pâle PLEINE
+/// (jamais gris, jamais d'opacité), ondulation teintée (plus de vague grise),
+/// contour couleur, coins 14/16, hauteur tactile 44.
+class PawMaterialButtonThemes {
+  PawMaterialButtonThemes({required Color accent, required bool dark})
+      : _accent = accent,
+        _dark = dark;
+
+  final Color _accent;
+  final bool _dark;
+
+  Color get _pale => Color.lerp(_accent, _dark ? const Color(0xFF241916) : Colors.white, _dark ? 0.55 : 0.82)!;
+  Color get _ink => _dark ? Color.lerp(_accent, Colors.white, 0.30)! : Color.lerp(_accent, Colors.black, 0.30)!;
+
+  static const TextStyle _text = TextStyle(fontSize: 15, fontWeight: FontWeight.w700);
+
+  WidgetStateProperty<Color?> _bg() => WidgetStateProperty.resolveWith((s) =>
+      s.contains(WidgetState.disabled) ? _pale : _accent);
+  WidgetStateProperty<Color?> _fgOnAccent() => WidgetStateProperty.resolveWith((s) =>
+      s.contains(WidgetState.disabled) ? _ink : Colors.white);
+  WidgetStateProperty<Color?> _fgAccent() => WidgetStateProperty.resolveWith((s) =>
+      s.contains(WidgetState.disabled) ? Color.lerp(_ink, _pale, 0.45) : _ink);
+  WidgetStateProperty<Color?> _overlayWhite() => WidgetStateProperty.resolveWith((s) =>
+      s.contains(WidgetState.pressed) ? Colors.white.withValues(alpha: 0.18) : Colors.white.withValues(alpha: 0.08));
+  WidgetStateProperty<Color?> _overlayAccent() => WidgetStateProperty.resolveWith((s) =>
+      s.contains(WidgetState.pressed) ? _accent.withValues(alpha: 0.14) : _accent.withValues(alpha: 0.07));
+
+  ElevatedButtonThemeData get elevated => ElevatedButtonThemeData(
+        style: ButtonStyle(
+          elevation: const WidgetStatePropertyAll(0),
+          minimumSize: const WidgetStatePropertyAll(Size(64, 44)),
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
+          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+          textStyle: const WidgetStatePropertyAll(_text),
+          backgroundColor: _bg(),
+          foregroundColor: _fgOnAccent(),
+          iconColor: _fgOnAccent(),
+          overlayColor: _overlayWhite(),
+          shadowColor: WidgetStatePropertyAll(_accent.withValues(alpha: 0.3)),
+        ),
+      );
+
+  FilledButtonThemeData get filled => FilledButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(64, 44)),
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
+          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+          textStyle: const WidgetStatePropertyAll(_text),
+          backgroundColor: _bg(),
+          foregroundColor: _fgOnAccent(),
+          iconColor: _fgOnAccent(),
+          overlayColor: _overlayWhite(),
+        ),
+      );
+
+  OutlinedButtonThemeData get outlined => OutlinedButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(64, 44)),
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
+          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+          textStyle: const WidgetStatePropertyAll(_text),
+          foregroundColor: _fgAccent(),
+          iconColor: _fgAccent(),
+          overlayColor: _overlayAccent(),
+          side: WidgetStateProperty.resolveWith((s) => BorderSide(
+              color: s.contains(WidgetState.disabled) ? _pale : _accent, width: 1.5)),
+        ),
+      );
+
+  TextButtonThemeData get text => TextButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(44, 40)),
+          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700)),
+          foregroundColor: _fgAccent(),
+          iconColor: _fgAccent(),
+          overlayColor: _overlayAccent(),
+        ),
+      );
+}

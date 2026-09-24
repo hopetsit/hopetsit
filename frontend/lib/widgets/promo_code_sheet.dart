@@ -5,6 +5,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -600,8 +601,9 @@ class _PromoPopupState extends State<PromoPopup> with SingleTickerProviderStateM
     // sous le menu sur Android et le frôlait sur iPhone. Plancher de sécurité
     // si le menu est masqué (carte agrandie).
     final mq = MediaQuery.of(context);
+    // v585 (lot D) — hors onglets : `appBottomInset` (Android ≥ 48) + 96.
     final double clearance =
-        mq.padding.bottom > mq.viewPadding.bottom ? mq.padding.bottom : mq.viewPadding.bottom + 96;
+        mq.padding.bottom > mq.viewPadding.bottom ? mq.padding.bottom : appBottomInset(context) + 96;
     return Positioned(
       left: 14.w,
       right: 14.w,

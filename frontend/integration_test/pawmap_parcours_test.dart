@@ -276,7 +276,15 @@ void main() {
       if (f.evaluate().isEmpty) {
         // La liste est paresseuse : l'élément n'existe pas tant qu'il est
         // hors de la fenêtre → on fait défiler jusqu'à lui.
-        await tester.scrollUntilVisible(f, 120, scrollable: sheetScroll);
+        // v585 (lot D, émulateur Android) : selon l'appareil le geste de
+        // montée fait aussi défiler la liste, et l'élément peut être
+        // AU-DESSUS de la fenêtre → on cherche d'abord vers le haut.
+        try {
+          await tester.scrollUntilVisible(f, -120,
+              scrollable: sheetScroll, maxScrolls: 30);
+        } catch (_) {
+          await tester.scrollUntilVisible(f, 120, scrollable: sheetScroll);
+        }
       }
       await tester.ensureVisible(f);
       await tester.pump(const Duration(milliseconds: 300));
