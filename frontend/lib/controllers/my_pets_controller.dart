@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class MyPetsController extends GetxController {
   MyPetsController({PetRepository? petRepository})
@@ -28,6 +29,8 @@ class MyPetsController extends GetxController {
       // Clear and reassign to ensure observable updates
       pets.clear();
       pets.addAll(response);
+      // v585 (lot D) — les espèces de MES animaux servent au fond « à mon animal ».
+      PawWallpaperPrefs.rememberSpecies(response.map((p) => p.category).toList());
     } catch (e) {
       errorMessage.value = e.toString();
       CustomSnackbar.showError(

@@ -16,11 +16,22 @@ import 'package:google_fonts/google_fonts.dart';
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   TestWidgetsFlutterBinding.ensureInitialized();
   GoogleFonts.config.allowRuntimeFetching = false;
-  // Regular (400) et Bold (700) sont dans les assets ; les autres graisses ne
-  // sont pas demandées ici (sans asset, google_fonts n'a rien à charger et
-  // la police par défaut prend le relais, comme avant).
-  for (final w in <FontWeight>[FontWeight.w400, FontWeight.w700]) {
+  // Les graisses EMBARQUÉES (`assets/fonts/`, lot D) : Inter 400/500/600/700,
+  // Poppins 400/500/600/700/800, Manrope 800, Sora 500-800 (PawMap), Fredoka
+  // 400-700 (entrée) — google_fonts les charge depuis les assets, sans réseau.
+  // Noto (PDF des factures) n'est pas demandée ici.
+  for (final w in <FontWeight>[FontWeight.w400, FontWeight.w500, FontWeight.w600, FontWeight.w700, FontWeight.w800]) {
     GoogleFonts.poppins(fontWeight: w);
+  }
+  for (final w in <FontWeight>[FontWeight.w400, FontWeight.w500, FontWeight.w600, FontWeight.w700]) {
+    GoogleFonts.inter(fontWeight: w);
+  }
+  GoogleFonts.manrope(fontWeight: FontWeight.w800);
+  for (final w in <FontWeight>[FontWeight.w500, FontWeight.w600, FontWeight.w700, FontWeight.w800]) {
+    GoogleFonts.sora(fontWeight: w);
+  }
+  for (final w in <FontWeight>[FontWeight.w400, FontWeight.w500, FontWeight.w600, FontWeight.w700]) {
+    GoogleFonts.fredoka(fontWeight: w);
   }
   try {
     await GoogleFonts.pendingFonts();

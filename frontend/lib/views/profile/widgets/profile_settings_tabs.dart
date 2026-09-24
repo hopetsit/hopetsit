@@ -4,6 +4,9 @@ import 'package:get/get.dart';
 import 'package:hopetsit/models/profile_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_switch.dart';
+import 'package:hopetsit/widgets/paw_button_kit.dart';
+import 'package:hopetsit/widgets/paw_icons.dart';
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 /// v406 refonte — contenu de l'onglet « Préférences » du profil (maquette).
@@ -77,6 +80,12 @@ class ProfilePreferencesTab extends StatelessWidget {
           value: prefs.hideFromMap,
           onChanged: (v) => onSave(prefs.copyWith(hideFromMap: v)),
         ),
+        // v585 (lot D) — « Mon fond » (NORME_DESIGN.md) : auto selon mon animal /
+        // pattes seules / aucun, enregistré sur le compte ET copié en local
+        // (le fond change tout de suite, même hors réseau).
+        SizedBox(height: 18.h),
+        _header(context, 'pref_wallpaper_title'.tr),
+        _wallpaperRow(context),
         // v575 — Daniel : « il y a 2 fois "Langue préférée" ». C'ÉTAIT un vrai
         // doublon : ce bloc ouvrait le même sélecteur de LANGUE DE L'APP que
         // la section « Apparence & langue » affichée juste en dessous sur le
@@ -84,6 +93,51 @@ class ProfilePreferencesTab extends StatelessWidget {
         // conservée : « Langue de l'app », dans la section Apparence & langue.
         // `onLanguage` reste dans l'API du widget (appelé par d'autres écrans).
       ],
+    );
+  }
+
+  Widget _wallpaperRow(BuildContext context) {
+    final String current = prefs.wallpaper;
+    Widget pill(String value, PawIcon icon, String label) => PawChoicePill(
+          label: label,
+          icon: icon,
+          color: accent,
+          selected: current == value,
+          onTap: saving
+              ? null
+              : () {
+                  PawWallpaperPrefs.setMode(value);
+                  onSave(prefs.copyWith(wallpaper: value));
+                },
+        );
+    return Container(
+      margin: EdgeInsets.only(bottom: 8.h),
+      padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InterText(
+            text: 'pref_wallpaper_sub'.tr,
+            fontSize: 11.5.sp,
+            color: AppColors.textSecondary(context),
+          ),
+          SizedBox(height: 10.h),
+          Wrap(
+            spacing: 8.w,
+            runSpacing: 8.h,
+            children: [
+              pill('auto', PawIcon.paw, 'pref_wallpaper_auto'.tr),
+              pill('paws', PawIcon.heart, 'pref_wallpaper_paws'.tr),
+              pill('none', PawIcon.close, 'pref_wallpaper_none'.tr),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

@@ -254,6 +254,9 @@ class ProfilePreferences {
   /// continuent de le voir.
   final bool hideFromMap;
 
+  /// v585 (lot D) — « Mon fond » : auto (selon mon animal) / paws / none.
+  final String wallpaper;
+
   const ProfilePreferences({
     this.sendPhotosVideos = true,
     this.quickReplies = true,
@@ -261,6 +264,7 @@ class ProfilePreferences {
     this.pawMapInsurance = true,
     this.notifications = true,
     this.hideFromMap = false,
+    this.wallpaper = 'auto',
   });
 
   factory ProfilePreferences.fromJson(Map<String, dynamic> json) {
@@ -271,6 +275,7 @@ class ProfilePreferences {
       pawMapInsurance: json['pawMapInsurance'] as bool? ?? true,
       notifications: json['notifications'] as bool? ?? true,
       hideFromMap: json['hideFromMap'] as bool? ?? false,
+      wallpaper: (json['wallpaper'] as String?) ?? 'auto',
     );
   }
 
@@ -281,6 +286,7 @@ class ProfilePreferences {
         'pawMapInsurance': pawMapInsurance,
         'notifications': notifications,
         'hideFromMap': hideFromMap,
+        'wallpaper': wallpaper,
       };
 
   ProfilePreferences copyWith({
@@ -290,6 +296,7 @@ class ProfilePreferences {
     bool? pawMapInsurance,
     bool? notifications,
     bool? hideFromMap,
+    String? wallpaper,
   }) =>
       ProfilePreferences(
         sendPhotosVideos: sendPhotosVideos ?? this.sendPhotosVideos,
@@ -298,6 +305,7 @@ class ProfilePreferences {
         pawMapInsurance: pawMapInsurance ?? this.pawMapInsurance,
         notifications: notifications ?? this.notifications,
         hideFromMap: hideFromMap ?? this.hideFromMap,
+        wallpaper: wallpaper ?? this.wallpaper,
       );
 }
 

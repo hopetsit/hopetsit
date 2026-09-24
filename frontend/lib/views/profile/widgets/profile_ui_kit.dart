@@ -16,6 +16,7 @@ import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/paw_button_kit.dart';
+import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 /// Couleur d'accent d'un rôle (owner / sitter / walker).
@@ -103,7 +104,8 @@ class ProfileSectionTitle extends StatelessWidget {
 /// Une rangée de menu (icône teintée + titre + sous-titre + chevron /
 /// trailing). Utilisée DANS un [ProfileGroupCard].
 class ProfileRow extends StatelessWidget {
-  final IconData icon;
+  /// v585 (lot D) — [PawIcon] (famille maison) ou [IconData] (transition).
+  final Object icon;
   final String title;
   final String? subtitle;
   final Color color;
@@ -151,7 +153,12 @@ class ProfileRow extends StatelessWidget {
                 color: color.withValues(alpha: isDark ? 0.18 : 0.12),
                 borderRadius: BorderRadius.circular(11.r),
               ),
-              child: Icon(icon, size: 18.sp, color: iconColor),
+              child: Center(
+                child: pawIconAny(icon,
+                    size: 18.sp,
+                    color: iconColor,
+                    fill: iconColor.withValues(alpha: 0.18)),
+              ),
             ),
             SizedBox(width: 12.w),
             Expanded(

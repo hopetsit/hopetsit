@@ -31,8 +31,9 @@ import 'invoice576_i18n.dart';
 import 'neo583_i18n.dart';
 import 'lota583_i18n.dart';
 import 'lotc584_i18n.dart';
+import 'lotd585_i18n.dart';
 
-const List<Map<String, Map<String, String>>> v565Packs = <Map<String, Map<String, String>>>[chatI18n, mapI18n, profileI18n, homeI18n, coreI18n, friendsI18n, shop567I18n, ui567I18n, delete567I18n, pawspot567I18n, cards568I18n, chatdel569I18n, shop569I18n, agreement569I18n, pay569I18n, post569I18n, misc569I18n, auth569I18n, lists569I18n, home571I18n, ownerhome571I18n, bookings571I18n, location573I18n, profiles573I18n, lot3573I18n, profile575I18n, fixes575I18n, fixes576I18n, invoice576I18n, neo583I18n, lotA583I18n, lotC584I18n];
+const List<Map<String, Map<String, String>>> v565Packs = <Map<String, Map<String, String>>>[chatI18n, mapI18n, profileI18n, homeI18n, coreI18n, friendsI18n, shop567I18n, ui567I18n, delete567I18n, pawspot567I18n, cards568I18n, chatdel569I18n, shop569I18n, agreement569I18n, pay569I18n, post569I18n, misc569I18n, auth569I18n, lists569I18n, home571I18n, ownerhome571I18n, bookings571I18n, location573I18n, profiles573I18n, lot3573I18n, profile575I18n, fixes575I18n, fixes576I18n, invoice576I18n, neo583I18n, lotA583I18n, lotC584I18n, lotD585I18n];
 
 /// Fusionne toutes les clés v565 pour une langue (code court : fr, en, es…).
 Map<String, String> v565For(String lang) {

@@ -30,7 +30,8 @@ import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.d
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/profile/add_task_screen.dart';
 import 'package:hopetsit/views/profile/billing_info_screen.dart';
-import 'package:hopetsit/views/profile/bug_report_screen.dart';
+import 'package:hopetsit/views/map/pawmap_help_screen.dart';
+import 'package:hopetsit/views/profile/idea_box_screen.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
 import 'package:hopetsit/views/profile/my_pets_screen.dart';
 import 'package:hopetsit/views/profile/my_rates_screen.dart';
@@ -49,6 +50,7 @@ import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/loyalty_card.dart';
+import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:hopetsit/widgets/promo_code_sheet.dart';
 import 'package:hopetsit/widgets/top_sitter_card.dart';
 import 'package:hopetsit/widgets/top_walker_card.dart';
@@ -182,14 +184,14 @@ class ProfileCategories extends StatelessWidget {
         ProfileSectionTitle('profile_cat_account'.tr, icon: Icons.person_rounded),
         ProfileGroupCard(children: [
           ProfileRow(
-            icon: Icons.person_outline_rounded,
+            icon: PawIcon.user,
             title: 'profile_edit_profile'.tr,
             subtitle: 'profile_edit_profile_subtitle'.tr,
             color: accent,
             onTap: onEditProfile,
           ),
           ProfileRow(
-            icon: Icons.alternate_email_rounded,
+            icon: PawIcon.mail,
             title: 'change_email_title'.tr,
             subtitle: (p?.email ?? '').isNotEmpty ? p!.email : 'profile_no_email_added'.tr,
             color: accent,
@@ -197,7 +199,7 @@ class ProfileCategories extends StatelessWidget {
           ),
           if (_isOwner)
             ProfileRow(
-              icon: Icons.task_alt_rounded,
+              icon: PawIcon.check,
               title: 'profile_view_tasks'.tr,
               subtitle: 'profile_view_tasks_subtitle'.tr,
               color: AppColors.greenColor,
@@ -205,14 +207,14 @@ class ProfileCategories extends StatelessWidget {
             ),
           if (_isOwner)
             ProfileRow(
-              icon: Icons.add_task_rounded,
+              icon: PawIcon.plus,
               title: 'profile_add_tasks'.tr,
               subtitle: 'profile_add_tasks_subtitle'.tr,
               color: AppColors.greenColor,
               onTap: () => Get.to(() => const AddTaskScreen()),
             ),
           ProfileRow(
-            icon: Icons.map_rounded,
+            icon: PawIcon.map,
             title: 'profile_pawmap'.tr,
             subtitle: _isOwner ? 'profile_pawmap_subtitle'.tr : 'sitter_pawmap_subtitle'.tr,
             color: _purple,
@@ -231,14 +233,14 @@ class ProfileCategories extends StatelessWidget {
         ProfileSectionTitle('profile_cat_pets'.tr, icon: Icons.pets_rounded),
         ProfileGroupCard(children: [
           ProfileRow(
-            icon: Icons.pets_rounded,
+            icon: PawIcon.paw,
             title: 'my_pets_title'.tr,
             subtitle: 'profile_pets_subtitle'.tr,
             color: accent,
             onTap: () => Get.to(() => const MyPetsScreen()),
           ),
           ProfileRow(
-            icon: Icons.add_circle_outline_rounded,
+            icon: PawIcon.plus,
             title: 'my_pets_add_pet'.tr,
             subtitle: 'profile_add_pet_subtitle'.tr,
             color: accent,
@@ -260,35 +262,35 @@ class ProfileCategories extends StatelessWidget {
         ProfileGroupCard(children: [
           if (_isSitter)
             ProfileRow(
-              icon: Icons.event_rounded,
+              icon: PawIcon.calendar,
               title: 'bookings_tab_title'.tr,
               subtitle: 'bookings_tab_subtitle'.tr,
               color: accent,
               onTap: () => openMainTabOr(3, () => const SitterBookingsScreen()),
             ),
           ProfileRow(
-            icon: Icons.payments_rounded,
+            icon: PawIcon.wallet,
             title: 'my_rates_section_title'.tr,
             subtitle: _isSitter ? 'my_rates_sitter_hint'.tr : 'my_rates_walker_hint'.tr,
             color: accent,
             onTap: () => Get.to(() => MyRatesScreen(role: role)),
           ),
           ProfileRow(
-            icon: Icons.calendar_month_rounded,
+            icon: PawIcon.calendar,
             title: 'profile_my_availability'.tr,
             subtitle: 'profile_availability_subtitle'.tr,
             color: accent,
             onTap: () => Get.to(() => AvailabilityCalendarScreen(role: _isSitter ? null : 'walker')),
           ),
           ProfileRow(
-            icon: Icons.rate_review_rounded,
+            icon: PawIcon.star,
             title: 'reviews_title'.tr,
             subtitle: 'profile_reviews_subtitle'.tr,
             color: _gold,
             onTap: () => openMyReviews(role: role, accent: accent),
           ),
           ProfileRow(
-            icon: Icons.verified_rounded,
+            icon: PawIcon.shield,
             title: 'kyc_tile_title'.tr,
             subtitle: 'kyc_tile_subtitle'.tr,
             color: _blue,
@@ -312,7 +314,7 @@ class ProfileCategories extends StatelessWidget {
         ProfileGroupCard(children: [
           if (!_isOwner)
             ProfileRow(
-              icon: Icons.account_balance_wallet_rounded,
+              icon: PawIcon.wallet,
               title: 'wallet_menu_title'.tr,
               subtitle: 'wallet_menu_subtitle'.tr,
               color: _blue,
@@ -320,7 +322,7 @@ class ProfileCategories extends StatelessWidget {
             ),
           if (_isOwner)
             ProfileRow(
-              icon: Icons.receipt_long_rounded,
+              icon: PawIcon.doc,
               title: 'owner_payments_title'.tr == 'owner_payments_title'
                   ? 'owner_payments_fallback'.tr
                   : 'owner_payments_title'.tr,
@@ -330,14 +332,14 @@ class ProfileCategories extends StatelessWidget {
             )
           else
             ProfileRow(
-              icon: Icons.credit_card_rounded,
+              icon: PawIcon.card,
               title: 'payment_management_title'.tr,
               subtitle: 'payment_management_subtitle'.tr,
               color: accent,
               onTap: () => Get.to(() => const PaymentManagementScreen()),
             ),
           ProfileRow(
-            icon: Icons.credit_card_outlined,
+            icon: PawIcon.card,
             title: 'saved_cards_title'.tr,
             subtitle: 'profile_saved_cards_subtitle'.tr,
             color: accent,
@@ -345,7 +347,7 @@ class ProfileCategories extends StatelessWidget {
           ),
           if (!_isOwner)
             ProfileRow(
-              icon: Icons.account_balance_rounded,
+              icon: PawIcon.key,
               title: 'profile_quick_iban'.tr,
               subtitle: 'profile_iban_subtitle'.tr,
               color: accent,
@@ -367,7 +369,7 @@ class ProfileCategories extends StatelessWidget {
         ProfileGroupCard(children: [
           // v565 — point 27 : entrée « Code promo » VISIBLE en tête.
           ProfileRow(
-            icon: Icons.confirmation_number_rounded,
+            icon: PawIcon.gift,
             title: 'promo_screen_title'.tr,
             subtitle: 'promo_profile_tile_subtitle'.tr,
             color: _purple,
@@ -395,21 +397,21 @@ class ProfileCategories extends StatelessWidget {
             ),
           ),
           ProfileRow(
-            icon: Icons.storefront_rounded,
+            icon: PawIcon.bag,
             title: 'profile_shop'.tr,
             subtitle: 'profile_shop_subtitle'.tr,
             color: accent,
             onTap: () => Get.to(() => const CoinShopScreen()),
           ),
           ProfileRow(
-            icon: Icons.group_add_rounded,
+            icon: PawIcon.friends,
             title: 'referrals_title'.tr,
             subtitle: 'referrals_subtitle'.tr,
             color: _amber,
             onTap: () => Get.to(() => const MyReferralsScreen()),
           ),
           ProfileRow(
-            icon: Icons.emoji_events_rounded,
+            icon: PawIcon.medal,
             title: 'pawspot_profile_tile'.tr,
             subtitle: 'pawspot_profile_tile_sub'.tr,
             color: _gold,
@@ -428,14 +430,14 @@ class ProfileCategories extends StatelessWidget {
         ProfileSectionTitle('profile_cat_prefs'.tr, icon: Icons.tune_rounded),
         ProfileGroupCard(children: [
           ProfileRow(
-            icon: Icons.tune_rounded,
+            icon: PawIcon.gear,
             title: 'prefs_tab_general'.tr,
             subtitle: 'profile_prefs_general_subtitle'.tr,
             color: accent,
             onTap: () => Get.to(() => ProfilePreferencesScreen(host: host, accent: accent, initialTab: 0)),
           ),
           ProfileRow(
-            icon: Icons.notifications_active_rounded,
+            icon: PawIcon.bell,
             title: 'prefs_tab_notifications'.tr,
             subtitle: 'profile_prefs_notifications_subtitle'.tr,
             color: accent,
@@ -447,14 +449,14 @@ class ProfileCategories extends StatelessWidget {
           // qu'ailleurs (« Langue de l'app »), avec le sous-texte qui lève le
           // doute. Les « Langues parlées » vivent dans Modifier le profil.
           ProfileRow(
-            icon: Icons.translate_rounded,
+            icon: PawIcon.globe,
             title: 'pref_app_language'.tr,
             subtitle: 'pref_app_language_sub'.tr,
             color: _blue,
             onTap: host.showLanguageDialog,
           ),
           ProfileRow(
-            icon: Icons.brightness_6_rounded,
+            icon: PawIcon.moon,
             title: 'theme_setting_title'.tr,
             subtitle: 'theme_setting_subtitle'.tr,
             color: _purple,
@@ -473,28 +475,28 @@ class ProfileCategories extends StatelessWidget {
         ProfileSectionTitle('profile_cat_security'.tr, icon: Icons.shield_rounded),
         ProfileGroupCard(children: [
           ProfileRow(
-            icon: Icons.lock_outline_rounded,
+            icon: PawIcon.lock,
             title: 'profile_change_password'.tr,
             subtitle: 'profile_change_password_subtitle'.tr,
             color: accent,
             onTap: host.navigateToChangePassword,
           ),
           ProfileRow(
-            icon: Icons.verified_user_rounded,
+            icon: PawIcon.shield,
             title: 'profile_cat_security'.tr,
             subtitle: 'profile_security_subtitle'.tr,
             color: accent,
             onTap: () => Get.to(() => ProfileSecurityScreen(host: host, accent: accent)),
           ),
           ProfileRow(
-            icon: Icons.block_rounded,
+            icon: PawIcon.eyeOff,
             title: 'profile_blocked_users'.tr,
             subtitle: 'profile_blocked_users_subtitle'.tr,
             color: AppColors.errorColor,
             onTap: host.navigateToBlockedUsers,
           ),
           ProfileRow(
-            icon: Icons.delete_outline_rounded,
+            icon: PawIcon.trash,
             title: 'profile_delete_account'.tr,
             subtitle: 'profile_delete_account_subtitle'.tr,
             color: AppColors.errorColor,
@@ -507,6 +509,11 @@ class ProfileCategories extends StatelessWidget {
   }
 
   // ── Aide ──────────────────────────────────────────────────────────────
+  // v585 (lot D, demandes de Daniel du 25/09) : « Comprendre la PawMap » EN
+  // TÊTE (ouvre l'écran d'aide réutilisable du lot C), UNE seule entrée
+  // « Une idée ? Un problème ? » (boîte à idées), et « Tester les
+  // notifications » GARDÉ mais relégué tout en bas, dans une petite ligne
+  // « Dépannage », discrète.
   Widget _help(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,34 +521,63 @@ class ProfileCategories extends StatelessWidget {
         ProfileSectionTitle('profile_cat_help'.tr, icon: Icons.help_rounded),
         ProfileGroupCard(children: [
           ProfileRow(
-            icon: Icons.notifications_active_rounded,
-            title: 'notif_test_title'.tr,
-            subtitle: 'profile_notif_test_subtitle'.tr,
-            color: accent,
-            onTap: () => Get.to(() => const NotificationTestScreen()),
+            icon: PawIcon.map,
+            title: 'pawmap_help_title'.tr,
+            subtitle: 'help_pawmap_sub'.tr,
+            color: _purple,
+            onTap: () => Get.to(() => const PawMapHelpScreen()),
           ),
           ProfileRow(
-            icon: Icons.bug_report_rounded,
-            title: 'bug_report_title'.tr,
-            subtitle: 'bug_report_subtitle'.tr,
+            icon: PawIcon.bulb,
+            title: 'feedback_title'.tr,
+            subtitle: 'feedback_sub'.tr,
             color: _warn,
-            onTap: () => Get.to(() => const BugReportScreen()),
+            onTap: () => Get.to(() => const IdeaBoxScreen()),
           ),
           ProfileRow(
-            icon: Icons.description_outlined,
+            icon: PawIcon.doc,
             title: 'terms_read_button'.tr,
             subtitle: 'terms_read_subtitle'.tr,
             color: _slate,
             onTap: () => Get.to(() => const TermsAndConditionsScreen()),
           ),
           ProfileRow(
-            icon: Icons.privacy_tip_outlined,
+            icon: PawIcon.shield,
             title: 'profile_privacy'.tr,
             subtitle: 'profile_privacy_subtitle'.tr,
             color: _slate,
             onTap: () => Get.to(() => const PrivacyPolicyScreen()),
           ),
         ]),
+        // Dépannage : petite ligne discrète, tout en bas.
+        Padding(
+          padding: EdgeInsets.only(top: 6.h, left: 6.w, right: 6.w),
+          child: InkWell(
+            key: const ValueKey<String>('help_troubleshoot_row'),
+            borderRadius: BorderRadius.circular(12.r),
+            onTap: () => Get.to(() => const NotificationTestScreen()),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 8.h),
+              child: Row(
+                children: [
+                  PawIconWidget(PawIcon.bell,
+                      size: 14.sp, color: AppColors.textSecondary(context)),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: InterText(
+                      text: '${'help_troubleshoot'.tr} · ${'notif_test_title'.tr}',
+                      fontSize: 11.5.sp,
+                      color: AppColors.textSecondary(context),
+                      maxLines: 2,
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded,
+                      size: 16.sp, color: AppColors.textSecondary(context)),
+                ],
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
