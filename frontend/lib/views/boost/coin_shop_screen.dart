@@ -472,7 +472,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                     shadow: const Color(0xFFE0361F),
                     svg: PawCardIcons.boost,
                     title: 'shop_tab_boost'.tr,
-                    subtitle: 'shop_card_boost_sub'.tr,
+                    subtitle: 'pawmap584_boost_card_sub'.tr,
                   ),
                   _shopCardTab(
                     index: 1,
@@ -1033,7 +1033,7 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                     icon: SvgPicture.string(PawCardIcons.boost,
                         width: 28, height: 28),
                     title: 'shop_tab_boost'.tr,
-                    subtitle: 'shop_card_boost_sub'.tr,
+                    subtitle: 'pawmap584_boost_card_sub'.tr,
                     colors: _boostGradient,
                     status: ShopStatusPill(
                       label: 'shop_tab_boost'.tr,
@@ -1083,6 +1083,15 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                         icon: Icons.visibility_rounded,
                         title: 'shop569_boost_b2_title'.tr,
                         body: 'boost_step_4'.tr,
+                      ),
+                      // v584 (25/09, point 16) — Daniel : « expliquer que
+                      // ton profil sur la carte est boosté aussi » (épingle
+                      // turquoise + fusée, visible en premier — vrai dans
+                      // `paw_map_screen._memberIcon` / `_photoIcon`).
+                      ShopBenefit(
+                        icon: Icons.map_rounded,
+                        title: 'pawmap584_boost_map_title'.tr,
+                        body: 'pawmap584_boost_map_body'.tr,
                       ),
                       ShopBenefit(
                         icon: Icons.schedule_rounded,
