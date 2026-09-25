@@ -233,7 +233,7 @@ export default function HomePage() {
                 {logged ? t("home_dash_cta_open") : t("home_dash_cta_login")}
               </Link>
               {!logged && (
-                <Link href="/signup" className="mt-3 text-center text-sm font-semibold text-[#F4C04A] hover:underline">
+                <Link href="/signup" className="mt-3 text-center text-sm font-semibold text-[#F4C04A] hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center max-lg:justify-center">
                   {t("nav_signup")} →
                 </Link>
               )}
@@ -330,7 +330,7 @@ export default function HomePage() {
                 <li key={slug}><Link href={`/garde-animaux/${slug}`} className="inline-flex items-center rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark max-lg:min-h-[44px]">{name}</Link></li>
               ))}
             </ul>
-            <p className="mt-3 text-sm"><Link href="/devenir-petsitter/paris" className="font-semibold text-owner hover:underline">Devenir pet sitter à Paris →</Link></p>
+            <p className="mt-3 text-sm"><Link href="/devenir-petsitter/paris" className="font-semibold text-owner hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">Devenir pet sitter à Paris →</Link></p>
           </div>
           <div>
             <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[#231715] md:text-2xl">Pet sitters in the United States</h2>
@@ -339,7 +339,7 @@ export default function HomePage() {
                 <li key={slug}><Link href={`/pet-sitting/${slug}`} className="inline-flex items-center rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark max-lg:min-h-[44px]">{name}</Link></li>
               ))}
             </ul>
-            <p className="mt-3 text-sm"><Link href="/become-a-pet-sitter/dallas" className="font-semibold text-owner hover:underline">Become a pet sitter in Dallas →</Link> · <Link href="/villes" className="text-[#6E4F48] hover:underline">All cities</Link></p>
+            <p className="mt-3 text-sm"><Link href="/become-a-pet-sitter/dallas" className="font-semibold text-owner hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">Become a pet sitter in Dallas →</Link> · <Link href="/villes" className="text-[#6E4F48] hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">All cities</Link></p>
           </div>
         </div>
       </section>
@@ -351,8 +351,8 @@ export default function HomePage() {
         </h2>
         <div className="mt-8 divide-y divide-[#EADFDC] border-y border-[#EADFDC]">
           {faq.map((f, i) => (
-            <details key={f.q} className="group py-4" open={i === 0}>
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[16px] font-semibold text-[#231715] [&::-webkit-details-marker]:hidden">
+            <details key={f.q} className="group py-4 max-lg:py-2" open={i === 0}>
+              <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-4 text-[16px] font-semibold text-[#231715] [&::-webkit-details-marker]:hidden">
                 {f.q}
                 <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#FAF1EC] text-[#6E4F48] transition group-open:rotate-45">+</span>
               </summary>
@@ -360,7 +360,7 @@ export default function HomePage() {
             </details>
           ))}
         </div>
-        <p className="mt-4 text-center text-sm"><Link href="/faq" className="font-semibold text-owner hover:underline">{t("home_faq_more")} →</Link></p>
+        <p className="mt-4 text-center text-sm"><Link href="/faq" className="font-semibold text-owner hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">{t("home_faq_more")} →</Link></p>
       </section>
 
       {/* ── 8. CTA FINAL ── */}

@@ -100,7 +100,7 @@ export function Footer() {
 
   return (
     <footer className="border-t border-ink/5 bg-bg-soft">
-      <div className="mx-auto max-w-6xl px-4 py-12">
+      <div className="mx-auto max-w-6xl px-4 py-12 max-md:pb-24">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-6">
           <div className="col-span-2">
             <LogoWithText />
@@ -108,7 +108,7 @@ export function Footer() {
               {t("footer_company")}
             </p>
             <p className="mt-2 text-sm text-ink-muted">
-              <a href="mailto:contact@hopetsit.com" className="hover:text-ink">
+              <a href="mailto:contact@hopetsit.com" className="hover:text-ink max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">
                 contact@hopetsit.com
               </a>
             </p>
