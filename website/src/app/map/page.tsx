@@ -42,6 +42,8 @@ import { AppIcon, type AppIconName } from "@/components/AppIcon";
 import { PageTitle } from "@/components/PageTitle";
 import { PawMapLegendModal } from "@/components/PawMapLegendModal";
 import { SelectMenu } from "@/components/SelectMenu";
+import StoreBadges from "@/components/StoreBadges";
+import { EyeIcon, VisibilityPills } from "@/components/MapVisibility";
 import type { MapRequest, LiveLabels, CardLabels } from "@/components/PoiMap";
 import {
   ApiError,
@@ -73,7 +75,10 @@ import {
   getRequestPosts,
   getWorldMembers,
   sendFriendRequest,
-  setHideFromMap,
+  getMapVisibility,
+  setMapVisibility,
+  nextMapVisibility,
+  type MapVisibility,
   getNearbyPawSpots,
   getNearbyReports,
   getNearbyPois,
@@ -158,10 +163,29 @@ export default function MapPage() {
   const [premiumDays, setPremiumDays] = useState<number | null>(null);
   const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null);
   const [myName, setMyName] = useState("");
-  // 24/09 — mode « visible par mes amis seulement » (preferences.hideFromMap).
-  const [friendsOnly, setFriendsOnly] = useState(false);
+  // 25/09 (PawMap 586, point 3) — « qui me voit » à 3 états (Tous / Amis
+  // seulement / Masqué), UNE route : /users/me/map-prefs (lib/api.ts). Mon
+  // rond garde l'anneau pointillé + l'œil barré dès que je ne suis pas
+  // visible par tous.
+  const [visibility, setVisibility] = useState<MapVisibility>("all");
+  const friendsOnly = visibility !== "all";
   const [friendsOnlyBusy, setFriendsOnlyBusy] = useState(false);
   const [friendsOnlyMsg, setFriendsOnlyMsg] = useState<string | null>(null);
+  useEffect(() => {
+    if (!getStoredUser()) return;
+    getMapVisibility().then(setVisibility).catch(() => { /* repli : visible par tous */ });
+  }, []);
+  // 25/09 (586) — libellés d'aide (« Options », « Publier » / « Direct ») aux
+  // 3 premières visites de la carte, puis icônes seules (title/aria gardés).
+  const [showHelpLabels, setShowHelpLabels] = useState(false);
+  useEffect(() => {
+    try {
+      const n = (parseInt(localStorage.getItem("hopetsit:pawmap586Visits") || "0", 10) || 0) + 1;
+      localStorage.setItem("hopetsit:pawmap586Visits", String(n));
+      setShowHelpLabels(n <= 3);
+    } catch { setShowHelpLabels(true); }
+  }, []);
+  const [liveInfoOpen, setLiveInfoOpen] = useState(false);
   useEffect(() => {
     const me = getStoredUser();
     if (!me) return;
@@ -173,7 +197,6 @@ export default function MapPage() {
         const url = p?.avatar?.url || null;
         if (url) setMyAvatarUrl(url);
         if (p?.name) setMyName(p.name);
-        setFriendsOnly(p?.preferences?.hideFromMap === true);
       } catch { /* repli : initiales */ }
     })();
   }, []);
@@ -253,7 +276,53 @@ export default function MapPage() {
   const [followPaused, setFollowPaused] = useState(false);
   const [followSheet, setFollowSheet] = useState(false);
   const [liveToast, setLiveToast] = useState<string | null>(null);
-  const [sheet, setSheet] = useState<"peek" | "half" | "full">("peek");
+  // 25/09 (586, point 1) — au repos la feuille DISPARAÎT (« closed ») : seule
+  // reste la poignée « Options » en bas au centre de la carte.
+  const [sheet, setSheet] = useState<"closed" | "half" | "full">("closed");
+  const sheetDragRef = useRef<number | null>(null);
+  // 25/09 (586, point 4) — la carte bouge (glisser, molette, pincement) :
+  // rails, capsule, en-tête de la carte et poignée passent à 35 % ; retour à
+  // 100 % au relâchement + 1 s, ou au premier toucher d'un contrôle.
+  const [mapGesture, setMapGesture] = useState(false);
+  const gestureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mapReadyTick, setMapReadyTick] = useState(0);
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m) return;
+    const start = () => {
+      if (gestureTimerRef.current) { clearTimeout(gestureTimerRef.current); gestureTimerRef.current = null; }
+      setMapGesture(true);
+    };
+    const end = () => {
+      if (gestureTimerRef.current) clearTimeout(gestureTimerRef.current);
+      gestureTimerRef.current = setTimeout(() => setMapGesture(false), 1000);
+    };
+    const el = m.getContainer();
+    // Geste de l'UTILISATEUR seulement (glisser, molette, pincement) : un vol
+    // programmé (ma position, suivi) ne doit pas effacer les contrôles.
+    const onWheel = () => { start(); end(); };
+    const onTouch = (e: TouchEvent) => { if (e.touches.length >= 2) start(); };
+    m.on("dragstart", start);
+    m.on("dragend", end);
+    const onZoomEnd = () => { if (gestureTimerRef.current) end(); };
+    m.on("zoomend", onZoomEnd);
+    el.addEventListener("wheel", onWheel, { passive: true });
+    el.addEventListener("touchstart", onTouch, { passive: true });
+    el.addEventListener("touchend", end, { passive: true });
+    return () => {
+      m.off("dragstart", start);
+      m.off("dragend", end);
+      m.off("zoomend", onZoomEnd);
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchstart", onTouch);
+      el.removeEventListener("touchend", end);
+      if (gestureTimerRef.current) clearTimeout(gestureTimerRef.current);
+    };
+  }, [mapReadyTick]);
+  const revealControls = useCallback(() => {
+    if (gestureTimerRef.current) { clearTimeout(gestureTimerRef.current); gestureTimerRef.current = null; }
+    setMapGesture(false);
+  }, []);
   const [showRequests, setShowRequests] = useState(true);
   const [requests, setRequests] = useState<MapRequest[]>([]);
   const [catsOpen, setCatsOpen] = useState(false);
@@ -903,16 +972,22 @@ export default function MapPage() {
     };
     navigator.geolocation.getCurrentPosition(onFound, () => navigator.geolocation.getCurrentPosition(onFound, onFail, { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }), { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
   }
-  async function toggleFriendsOnly(next: boolean) {
+  const visToastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function flashVisibility(msg: string) {
+    setFriendsOnlyMsg(msg);
+    if (visToastRef.current) clearTimeout(visToastRef.current);
+    visToastRef.current = setTimeout(() => setFriendsOnlyMsg(null), 2000);
+  }
+  async function changeVisibility(next: MapVisibility) {
     if (friendsOnlyBusy) return;
     setFriendsOnlyBusy(true);
     try {
-      const v = await setHideFromMap(next);
-      setFriendsOnly(v);
-      setFriendsOnlyMsg(v ? t("map_friends_only_done") : t("map_visible_all_done"));
-      setTimeout(() => setFriendsOnlyMsg(null), 4000);
+      const v = await setMapVisibility(next);
+      setVisibility(v);
+      flashVisibility(t(v === "all" ? "m586_vis_all_toast" : v === "friends" ? "m586_vis_friends_toast" : "m586_vis_hidden_toast"));
     } catch (e) {
-      if (e instanceof ApiError && e.status === 401) router.replace("/login");
+      if (e instanceof ApiError && e.status === 401) { router.replace("/login"); return; }
+      flashVisibility(t("m586_vis_error"));
     } finally {
       setFriendsOnlyBusy(false);
     }
@@ -1040,8 +1115,24 @@ export default function MapPage() {
     setMemberRoles((prev) => (prev.includes(role) ? (prev.length === 1 ? ["sitter", "walker", "owner"] : prev.filter((r) => r !== role)) : [...prev, role]));
   }
 
-  const sheetH = sheet === "peek" ? "h-[58px]" : sheet === "half" ? "h-[50vh]" : "h-[86vh]";
-  const cycleSheet = () => setSheet((s) => (s === "peek" ? "half" : s === "half" ? "full" : "peek"));
+  const sheetH = sheet === "closed" ? "max-lg:hidden" : sheet === "half" ? "h-[50vh]" : "h-[86vh]";
+  const cycleSheet = () => setSheet((s) => (s === "half" ? "full" : "closed"));
+  // Glisser la poignée / l'en-tête de la feuille : vers le haut = ouvrir ou
+  // agrandir, vers le bas = réduire puis fermer (seuil 24 px).
+  const dragY = sheetDragRef;
+  const onSheetPointerDown = (e: React.PointerEvent) => { dragY.current = e.clientY; };
+  const sheetSwipe = (e: React.PointerEvent): "up" | "down" | null => {
+    const y0 = dragY.current;
+    dragY.current = null;
+    if (y0 === null) return null;
+    const dy = e.clientY - y0;
+    return dy < -24 ? "up" : dy > 24 ? "down" : null;
+  };
+  const isOwner = roleKey(myRole) === "owner";
+  // 25/09 (586, point 4) — effacement au geste : jamais pendant un placement
+  // (viseur) ni un suivi en direct.
+  const fadeAllowed = !createKind && !followUserId;
+  const fadeCls = `transition-opacity duration-150 ${mapGesture && fadeAllowed ? "opacity-[0.35]" : "opacity-100"}`;
 
   return (
     <div className="mx-auto max-w-[1400px] px-4 pb-24 pt-5 md:pt-8 lg:pb-8">
@@ -1076,13 +1167,13 @@ export default function MapPage() {
         <div className="relative h-[64vh] min-h-[530px] lg:h-[calc(100vh-230px)] lg:min-h-[560px]">
           {/* 25/09 (585, lot 2 — bug 15) — bouton « Amis » bien visible : amis,
               demandes, en direct et PawFamily (page /friends). */}
-          <Link href="/friends" className="absolute left-3 top-3 z-[1000] inline-flex min-h-[44px] items-center gap-2 rounded-full py-1 pl-1.5 pr-4 text-sm font-bold transition-transform hover:scale-[1.03] md:left-3" style={{ ...glassStyle(dark), color: dark ? "#FBEFE6" : "#231715" }}>
+          <Link href="/friends" onPointerDown={revealControls} className={`absolute left-3 top-3 z-[1000] inline-flex min-h-[44px] items-center gap-2 rounded-full py-1 pl-1.5 pr-4 text-sm font-bold hover:scale-[1.03] md:left-3 ${fadeCls}`} style={{ ...glassStyle(dark), color: dark ? "#FBEFE6" : "#231715" }}>
             <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#F48AB4,#E0568B)", border: "1.5px solid #fff" }}><AppIcon name="friends" size={17} color="#fff" /></span>
             {t("map_friends_btn")}
           </Link>
 
           {/* Coin haut-droit : « ? » légende et mode nuit, même verre que les rails. */}
-          <div className="absolute right-3 top-3 z-[1000] flex flex-col gap-2.5">
+          <div onPointerDown={revealControls} className={`absolute right-3 top-3 z-[1000] flex flex-col gap-2.5 ${fadeCls}`}>
             <GlassRound dark={dark} onClick={() => setLegendOpen(true)} label={t("legend_btn")}>
               <AppIcon name="question" size={21} color={dark ? "#FBEFE6" : "#3B2A26"} />
             </GlassRound>
@@ -1148,7 +1239,7 @@ export default function MapPage() {
               direct · 12 s », chevron) ; un clic ouvre une petite feuille
               Recentrer / Itinéraire / Message / Arrêter de suivre. */}
           {followed && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[1050] flex flex-col items-center gap-2 px-[72px]">
+            <div className="pointer-events-none absolute inset-x-0 bottom-[56px] z-[1050] flex flex-col items-center gap-2 px-[72px] lg:bottom-3">
               {followSheet && (
                 <div className="pointer-events-auto w-full max-w-[300px] rounded-[20px] bg-white p-2 shadow-[0_12px_32px_-8px_rgba(76,29,149,0.45)]" role="dialog" aria-label={t("live_sheet_title")}>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -1192,7 +1283,7 @@ export default function MapPage() {
             </div>
           )}
           {(liveToast || friendsOnlyMsg) && (
-            <div className={`pointer-events-none absolute inset-x-0 z-[1060] flex justify-center px-[72px] ${followed ? "bottom-[64px]" : "bottom-3"}`}>
+            <div className={`pointer-events-none absolute inset-x-0 z-[1060] flex justify-center px-[72px] ${followed ? "bottom-[112px] lg:bottom-[64px]" : "bottom-[56px] lg:bottom-3"}`}>
               <span className="rounded-full bg-[#17141F] px-3.5 py-2 text-center text-[12px] font-semibold text-white shadow-lg">{liveToast || friendsOnlyMsg}</span>
             </div>
           )}
@@ -1210,7 +1301,7 @@ export default function MapPage() {
               ombre chaude — jamais de gris), boutons 44 px espacés de 10 px,
               chacun un disque dégradé de sa couleur + reflet + icône blanche ;
               actif = anneau blanc + léger agrandissement. Même ordre que l'app. */}
-          <div className="absolute bottom-3 left-3 z-[1000] md:bottom-4">
+          <div onPointerDown={revealControls} className={`absolute bottom-3 left-3 z-[1000] md:bottom-4 ${fadeCls}`}>
             <div className="flex flex-col gap-2.5 rounded-[30px] p-[6px]" style={glassStyle(dark)}>
               {(
                 [
@@ -1267,7 +1358,7 @@ export default function MapPage() {
 
           {/* CAPSULE DROITE (même verre) : zoom, ma position (accent du rôle),
               satellite, membres. Alignée en bas sur le rail gauche. */}
-          <div className="absolute bottom-3 right-3 z-[1000] md:bottom-4">
+          <div onPointerDown={revealControls} className={`absolute bottom-3 right-3 z-[1000] md:bottom-4 ${fadeCls}`}>
             <div className="flex flex-col items-center rounded-[30px] p-[6px]" style={glassStyle(dark)}>
               <CapsuleBtn dark={dark} label={t("map_zoom_in")} onClick={() => { try { mapRef.current?.zoomIn(); } catch { /* */ } }}>
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
@@ -1296,8 +1387,80 @@ export default function MapPage() {
               <CapsuleBtn dark={dark} label={showMembers ? t("map_members_hide") : t("map_members_show")} pressed={showMembers} accent={roleColor} onClick={() => setShowMembers((v) => !v)}>
                 <AppIcon name="people" size={20} color="currentColor" />
               </CapsuleBtn>
+              {/* 25/09 (586, point 3) — ŒIL « qui me voit » : un clic = état
+                  suivant (Tous → Amis → Masqué → Tous), pastille 2 s. */}
+              {getStoredUser() && (
+                <>
+                  <CapsuleSep dark={dark} />
+                  <CapsuleBtn
+                    dark={dark}
+                    label={`${t("m586_vis_title")} : ${t(visibility === "all" ? "m586_vis_pill_all" : visibility === "friends" ? "m586_vis_pill_friends" : "m586_vis_pill_hidden")}`}
+                    pressed={visibility !== "all"}
+                    accent={roleColor}
+                    onClick={() => { void changeVisibility(nextMapVisibility(visibility)); }}
+                  >
+                    {friendsOnlyBusy ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <EyeIcon state={visibility} />}
+                  </CapsuleBtn>
+                </>
+              )}
+              {/* 25/09 (586, point 2) — un trait, puis l'ACTION DU RÔLE. */}
+              <span aria-hidden="true" className="my-1.5 block h-[2px] w-7 rounded-full" style={{ background: dark ? "#6B4F57" : "#E4C7B8" }} />
+              {isOwner ? (
+                <Link
+                  href="/posts/create"
+                  title={t("m586_publish_long")}
+                  aria-label={t("m586_publish_long")}
+                  className="grid h-11 w-11 place-items-center rounded-full text-white transition-transform duration-200 hover:scale-[1.05] active:scale-95"
+                  style={{ background: "linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)", border: "1.5px solid #FFFFFF", boxShadow: "0 6px 14px -6px #C92A12" }}
+                >
+                  <AppIcon name="megaphone" size={21} color="#fff" />
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setLiveInfoOpen(true)}
+                  title={t("m586_live_off")}
+                  aria-label={t("m586_live_off")}
+                  className="grid h-11 w-11 place-items-center rounded-full text-white transition-transform duration-200 hover:scale-[1.05] active:scale-95"
+                  style={{ background: "linear-gradient(165deg,#2C2533,#17141F)", border: "1.5px solid #FFFFFF", boxShadow: "0 6px 14px -6px rgba(23,20,31,0.7)" }}
+                >
+                  <LiveIcon />
+                </button>
+              )}
+              {showHelpLabels && (
+                <span className="mt-1 whitespace-nowrap px-1 text-[10px] font-bold leading-none" style={{ color: dark ? "#FBEFE6" : isOwner ? "#9E1F0B" : "#17141F" }}>
+                  {t(isOwner ? "m586_publish" : "m586_live")}
+                </span>
+              )}
             </div>
           </div>
+
+          {/* 25/09 (586, point 1) — POIGNÉE « Options » (téléphone, tablette) :
+              la feuille disparaît au repos ; un clic ou un glissement vers le
+              haut ouvre le panneau complet. */}
+          {sheet === "closed" && (
+            <div className={`pointer-events-none absolute inset-x-0 bottom-3 z-[1040] flex justify-center lg:hidden md:bottom-4 ${fadeCls}`}>
+              <button
+                type="button"
+                onClick={() => { revealControls(); setSheet("half"); }}
+                onPointerDown={(e) => { revealControls(); onSheetPointerDown(e); }}
+                onPointerUp={(e) => { if (sheetSwipe(e) === "up") setSheet("half"); }}
+                aria-expanded={false}
+                aria-label={t("m586_options_open")}
+                title={t("m586_options_open")}
+                className="pointer-events-auto inline-flex h-8 min-w-[120px] touch-none items-center justify-center gap-1.5 rounded-full px-3.5 transition-transform duration-200 hover:scale-[1.03] active:scale-95"
+                style={{
+                  background: dark ? "linear-gradient(180deg,#2C2533,#1E1A26)" : "linear-gradient(180deg,#FFFCF8,#FFF3EA)",
+                  border: dark ? "1px solid #4A3A40" : "1px solid #FFFFFF",
+                  boxShadow: `0 8px 20px -8px ${roleColor}, 0 2px 6px -2px ${roleColor}66`,
+                }}
+              >
+                <AppIcon name="paw" size={16} color={roleColor} />
+                {showHelpLabels && <span className="whitespace-nowrap text-[12px] font-bold" style={{ color: dark ? "#FBEFE6" : ROLE_TEXT_DARK[roleColor] || "#231715" }}>{t("m586_options")}</span>}
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke={roleColor} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6" /></svg>
+              </button>
+            </div>
+          )}
 
           <PoiMap
             center={center}
@@ -1319,7 +1482,7 @@ export default function MapPage() {
             cardLabels={cardLabels}
             wantedRoles={memberRoles}
             distanceFrom={distanceFrom}
-            onMapReady={(m) => { mapRef.current = m; }}
+            onMapReady={(m) => { mapRef.current = m; setMapReadyTick((n) => n + 1); }}
             satellite={satellite}
             onAddFriend={handleAddFriend}
             friendPositions={showFriends ? livePositionsList : []}
@@ -1377,25 +1540,51 @@ export default function MapPage() {
         <aside
           className={`fixed inset-x-0 bottom-0 z-[1500] flex flex-col rounded-t-[28px] bg-white shadow-[0_-10px_40px_-10px_rgba(35,23,21,0.35)] transition-[height] duration-300 ${sheetH} lg:static lg:z-auto lg:h-[calc(100vh-230px)] lg:min-h-[560px] lg:rounded-[28px] lg:bg-[#FAF1EC] lg:shadow-none`}
         >
-          {/* Poignée (téléphone seulement). */}
-          <button type="button" onClick={cycleSheet} aria-expanded={sheet !== "peek"} className="flex h-[58px] w-full shrink-0 flex-col items-center justify-center gap-1 lg:hidden" aria-label={sheet === "full" ? t("map_sheet_less") : t("map_sheet_more")}>
-            <span className="block h-1.5 w-12 rounded-full" style={{ background: roleColor }} />
-            <span className="text-[11px] font-semibold text-[#6E4F48]">
-              {sheet === "full" ? t("map_sheet_less") : t("map_sheet_more")}
-              {membersAround > 0 ? ` · ${t("map_members_around").replace("{count}", String(membersAround))}` : ""}
-            </span>
-          </button>
+          {/* En-tête de la feuille (téléphone, tablette) : un clic = agrandir
+              puis refermer ; glisser vers le bas = refermer ; « × » = refermer
+              (il ne reste alors que la poignée sur la carte). */}
+          <div className="flex h-[52px] w-full shrink-0 items-center lg:hidden">
+            <button
+              type="button"
+              onClick={cycleSheet}
+              onPointerDown={onSheetPointerDown}
+              onPointerUp={(e) => { const d = sheetSwipe(e); if (d === "down") setSheet((v) => (v === "full" ? "half" : "closed")); else if (d === "up") setSheet("full"); }}
+              aria-expanded={sheet !== "closed"}
+              className="flex h-full min-w-0 flex-1 touch-none flex-col items-center justify-center gap-1 pl-12"
+              aria-label={sheet === "full" ? t("map_sheet_less") : t("map_sheet_more")}
+            >
+              <span className="block h-1.5 w-12 rounded-full" style={{ background: roleColor }} />
+              <span className="text-[11px] font-semibold text-[#6E4F48]">
+                {sheet === "full" ? t("map_sheet_less") : t("map_sheet_more")}
+                {membersAround > 0 ? ` · ${t("map_members_around").replace("{count}", String(membersAround))}` : ""}
+              </span>
+            </button>
+            <button type="button" onClick={() => setSheet("closed")} aria-label={t("m586_options_close")} title={t("m586_options_close")} className="mr-2 grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#231715]">
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-[#FAF1EC]"><AppIcon name="close" size={15} color="#231715" /></span>
+            </button>
+          </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 lg:px-5 lg:pt-5">
             {/* « Je cherche » : une seule rangée de pilules. */}
             {/* 25/09 (point 12) — « amis seulement » : badge discret dans la
                 feuille (plus de pastille qui recouvre les boutons de la carte) ;
                 mon rond garde l'anneau pointillé + l'œil barré. */}
-            {friendsOnly && (
-              <button type="button" onClick={() => toggleFriendsOnly(false)} disabled={friendsOnlyBusy} className="mb-3 inline-flex min-h-[32px] max-w-full items-center gap-1.5 rounded-full bg-[#17141F] px-3 text-[11px] font-bold text-white">
-                <AppIcon name="eye-off" size={14} color="#fff" />
-                <span className="truncate">{t("friends_only_badge")}</span>
-                <span className="text-[#F4C04A]">›</span>
+            {/* 25/09 (586, point 2) — l'action du rôle a quitté le panneau pour
+                la capsule de la carte ; elle garde ici une ligne équivalente. */}
+            {isOwner ? (
+              <Link href="/posts/create" className="mb-3 flex min-h-[48px] items-center gap-3 rounded-2xl bg-white p-2.5 pr-3 text-left transition hover:bg-[#FDF8F7]">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)" }}><AppIcon name="megaphone" size={18} color="#fff" /></span>
+                <span className="min-w-0 flex-1 text-sm font-bold text-[#9E1F0B]">{t("m586_publish_long")}</span>
+                <AppIcon name="arrow-right" size={16} color="#C92A12" />
+              </Link>
+            ) : (
+              <button type="button" onClick={() => setLiveInfoOpen(true)} className="mb-3 flex min-h-[48px] w-full items-center gap-3 rounded-2xl bg-white p-2.5 pr-3 text-left transition hover:bg-[#FDF8F7]">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#2C2533,#17141F)" }}><LiveIcon size={18} /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold text-[#17141F]">{t("m586_live")}</span>
+                  <span className="block text-[11px] leading-snug text-[#6E4F48]">{t("m586_live_app_title")}</span>
+                </span>
+                <AppIcon name="arrow-right" size={16} color="#17141F" />
               </button>
             )}
             <p className="text-[11px] font-bold uppercase tracking-wide text-[#8A6B64]">{t("map_seek_label")}</p>
@@ -1466,12 +1655,12 @@ export default function MapPage() {
               )}
             </div>
 
-            {/* Mode « amis seulement » : interrupteur. */}
-            <button type="button" onClick={() => toggleFriendsOnly(!friendsOnly)} disabled={friendsOnlyBusy} aria-pressed={friendsOnly} className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left transition hover:bg-[#FDF8F7]">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white" style={{ background: friendsOnly ? "#17141F" : "#FBE9E5" }}><AppIcon name="eye-off" size={18} color={friendsOnly ? "#fff" : "#9E1F0B"} /></span>
-              <span className="min-w-0 flex-1 text-sm font-semibold text-[#231715]">{t("map_friends_only_on")}</span>
-              <span className={`relative inline-block h-6 w-11 shrink-0 rounded-full transition ${friendsOnly ? "bg-[#17141F]" : "bg-[#F0E3DF]"}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${friendsOnly ? "left-[22px]" : "left-0.5"}`} /></span>
-            </button>
+            {/* 25/09 (586, point 3) — « qui me voit » : les 3 mêmes états que
+                l'œil de la capsule et que /profile (une seule route). */}
+            <div className="mt-3 rounded-2xl bg-white p-3">
+              <p className="flex items-center gap-2 text-sm font-semibold text-[#231715]"><span className="text-[#17141F]"><EyeIcon state={visibility} size={18} /></span>{t("m586_vis_title")}</p>
+              <VisibilityPills value={visibility} busy={friendsOnlyBusy} onChange={(v) => { void changeVisibility(v); }} labels={{ all: t("m586_vis_pill_all"), friends: t("m586_vis_pill_friends"), hidden: t("m586_vis_pill_hidden") }} />
+            </div>
 
             {/* 25/09 (585, lot 2 — bug 15) — MES ABONNEMENTS SUR LA CARTE : une
                 ligne par abonnement (icône, nom, ce que ça active sur la carte),
@@ -1754,7 +1943,26 @@ export default function MapPage() {
         </div>
       )}
 
-      <PawMapLegendModal open={legendOpen} onClose={() => setLegendOpen(false)} />
+      <PawMapLegendModal open={legendOpen} onClose={() => setLegendOpen(false)} role={roleKey(myRole)} />
+      {/* 25/09 (586, point 2) — le site n'émet pas de position GPS en direct :
+          le rond « Direct » explique qu'il se lance depuis l'app. */}
+      {liveInfoOpen && (
+        <div className="fixed inset-0 z-[3000] flex items-end justify-center bg-[#231715]/55 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="live-info-title" onClick={() => setLiveInfoOpen(false)}>
+          <div className="w-full max-w-md rounded-t-[28px] bg-white p-5 shadow-2xl sm:rounded-[28px] sm:p-7" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#2C2533,#17141F)", boxShadow: "0 6px 14px -6px rgba(23,20,31,0.7)" }}><LiveIcon size={22} /></span>
+              <div className="min-w-0 flex-1">
+                <h2 id="live-info-title" className="font-display text-lg font-bold leading-snug tracking-[-0.01em] text-[#231715]">{t("m586_live_app_title")}</h2>
+                <p className="mt-1.5 text-sm leading-relaxed text-[#6E4F48]">{t("m586_live_app_body")}</p>
+              </div>
+            </div>
+            <StoreBadges center className="mt-5" />
+            <button type="button" onClick={() => setLiveInfoOpen(false)} className="mt-5 inline-flex min-h-[48px] w-full items-center justify-center rounded-[18px] px-5 text-sm font-bold" style={{ color: ROLE_TEXT_DARK[roleColor] || "#231715", boxShadow: `inset 0 0 0 1.5px ${roleColor}` }}>
+              {t("common_close")}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1892,4 +2100,14 @@ const ROLE_ON_FG: Record<string, string> = { "#C92A12": "#9E1F0B", "#2563EB": "#
 /** Séparateur à peine visible (teinte chaude pleine : pas de gris). */
 function CapsuleSep({ dark }: { dark: boolean }) {
   return <span aria-hidden="true" className="my-[3px] block h-px w-6" style={{ background: dark ? "#4A3A40" : "#EBD7CC" }} />;
+}
+
+/** 25/09 (586) — icône « Direct » : point central + ondes. */
+function LiveIcon({ size = 21 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="2.6" fill="#FFFFFF" stroke="none" />
+      <path d="M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6M5.3 5.3a9.5 9.5 0 0 0 0 13.4M18.7 5.3a9.5 9.5 0 0 1 0 13.4" />
+    </svg>
+  );
 }

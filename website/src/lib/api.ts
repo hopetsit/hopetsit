@@ -2402,13 +2402,8 @@ export async function getCitySupply(opts: { city?: string; lat?: number; lng?: n
   }
 }
 
-/** Mode « visible par mes amis seulement » (même réglage que Préférences, synchronisé sur le compte). */
-export async function setHideFromMap(value: boolean): Promise<boolean> {
-  const p = await getMyProfile();
-  const prefs = { ...(p.preferences || {}), hideFromMap: value };
-  const u = await updateMyProfile({ preferences: prefs });
-  return u?.preferences?.hideFromMap === true;
-}
+// 25/09 (586) — setHideFromMap retiré : il réécrivait TOUTES les préférences
+// (effaçait preferences.pawMap). Remplacé par setMapVisibility (plus bas).
 
 // v497 — Daniel : « le compteur de visites du spot doit marcher sur le web ».
 // POST /pawspots/:id/visit (1×/user, géré backend) → renvoie le nouveau total.
