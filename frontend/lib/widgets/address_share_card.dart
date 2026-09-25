@@ -18,7 +18,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:hopetsit/utils/address_route.dart';
 
 class AddressShareCard extends StatelessWidget {
   const AddressShareCard({
@@ -41,23 +41,11 @@ class AddressShareCard extends StatelessWidget {
   Color get _orangeBrand => ChatRoleTheme.current().accent;
   Color get _accentLight => ChatRoleTheme.current().accent.withValues(alpha: 0.75);
 
-  Future<void> _openInMaps() async {
-    // Prefer GPS coords (most accurate) ; fallback on address+city string.
-    Uri uri;
-    if (lat != null && lng != null) {
-      uri = Uri.parse(
-        'https://www.google.com/maps/search/?api=1&query=$lat,$lng',
-      );
-    } else {
-      final q = [address, city].where((s) => s.trim().isNotEmpty).join(', ');
-      uri = Uri.parse(
-        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(q)}',
-      );
-    }
-    try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {/* silent — let Maps fail naturally */}
-  }
+  // v585 — dans la PawMap (itinéraire maison), jamais Google Maps.
+  Future<void> _openInMaps() =>
+      openAddressInPawMap(lat: lat, lng: lng, address: [address, city]
+          .where((s) => s.trim().isNotEmpty)
+          .join(', '));
 
   @override
   Widget build(BuildContext context) {

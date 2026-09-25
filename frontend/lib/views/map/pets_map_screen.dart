@@ -47,6 +47,9 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                 child: userLoc == null
                     ? const Center(child: CircularProgressIndicator())
                     : GoogleMap(
+                        // v585 — jamais la barre native « ouvrir dans Google Maps » (Daniel :
+                        // « nos concurrents » ; Android : « Google Maps n'est pas installée »).
+                        mapToolbarEnabled: false,
                         initialCameraPosition: CameraPosition(
                           target: userLoc,
                           zoom: 13,

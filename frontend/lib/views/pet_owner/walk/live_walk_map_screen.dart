@@ -251,6 +251,9 @@ class _LiveWalkMapScreenState extends State<LiveWalkMapScreen> {
           : Stack(
               children: [
                 GoogleMap(
+                  // v585 — jamais la barre native « ouvrir dans Google Maps » (Daniel :
+                  // « nos concurrents » ; Android : « Google Maps n'est pas installée »).
+                  mapToolbarEnabled: false,
                   initialCameraPosition: CameraPosition(target: _current!, zoom: 16),
                   onMapCreated: (c) => _mapController = c,
                   myLocationButtonEnabled: false,

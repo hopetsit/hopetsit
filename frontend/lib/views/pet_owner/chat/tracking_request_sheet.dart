@@ -36,6 +36,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:hopetsit/models/booking_model.dart' show BookingModel;
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/address_route.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -416,16 +417,11 @@ class TrackingRequestSheet extends StatelessWidget {
             trailingTooltip: 'lists569_open_map'.tr,
             trailingBg: _orange.withValues(alpha: 0.10),
             trailingColor: _orange,
-            // v569 — bouton mort réparé : ouverture de l'adresse dans
-            // l'application de cartes du téléphone.
+            // v585 — l'adresse s'ouvre DANS la PawMap (itinéraire maison),
+            // jamais dans Google Maps (Daniel : « nos concurrents »).
             onTrailingTap: address.isEmpty
                 ? null
-                : () => _launch(
-                      Uri.parse(
-                        'https://www.google.com/maps/search/?api=1&query='
-                        '${Uri.encodeComponent(address)}',
-                      ),
-                    ),
+                : () => openAddressInPawMap(address: address),
           ),
         ],
       ),

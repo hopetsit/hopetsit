@@ -156,6 +156,9 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
           children: [
             // Map
             GoogleMap(
+              // v585 — jamais la barre native « ouvrir dans Google Maps » (Daniel :
+              // « nos concurrents » ; Android : « Google Maps n'est pas installée »).
+              mapToolbarEnabled: false,
               onMapCreated: (GoogleMapController controller) {
                 mapController = controller;
               },
