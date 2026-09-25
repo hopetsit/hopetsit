@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
@@ -164,13 +165,19 @@ class PushNotificationService extends GetxService {
       // explique d'abord pourquoi, puis pose la question système.
       // Un compte déjà connecté garde le comportement d'avant.
       final current = await _messaging.getNotificationSettings();
-      if (current.authorizationStatus == AuthorizationStatus.notDetermined &&
-          !_hasSession()) {
+      // v583 (BOB, 25/09) — Android ne renvoie JAMAIS `notDetermined`
+      // (« denied » avant toute demande) : la règle NEO ne tenait que sur
+      // iOS et la fenêtre système s'ouvrait dès l'écran visiteur sur Samsung
+      // (vu sur l'émulateur). `isUndecided` combine le statut et un drapeau
+      // « déjà demandé » mémorisé sur l'appareil.
+      final undecided = isUndecided(current.authorizationStatus);
+      if (undecided && !_hasSession()) {
         _systemBannersAuthorized = false;
       } else {
         // iOS: request permission. Android 13+ also needs POST_NOTIFICATIONS.
-        if (current.authorizationStatus == AuthorizationStatus.notDetermined) {
+        if (undecided) {
           systemPromptRequestedThisSession = true; // v583 — fenêtre posée
+          _markPromptAsked();
         }
         final settings = await _messaging.requestPermission(
           alert: true,
@@ -266,6 +273,37 @@ class PushNotificationService extends GetxService {
     return this;
   }
 
+  /// Clé locale : la fenêtre système des notifications a déjà été posée sur
+  /// cet appareil (Android ne sait pas le dire lui-même).
+  static const String promptAskedKey = 'notif_prompt_asked_v583';
+
+  static bool _promptAskedBefore() {
+    try {
+      return GetStorage().read(promptAskedKey) == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static void _markPromptAsked() {
+    try {
+      GetStorage().write(promptAskedKey, true);
+    } catch (_) {}
+  }
+
+  /// « Jamais répondu » : iOS = `notDetermined` ; Android = pas encore
+  /// autorisé ET fenêtre jamais posée sur cet appareil. Règle pure, testée.
+  static bool isUndecided(AuthorizationStatus status,
+      {bool? isAndroid, bool? askedBefore}) {
+    final android = isAndroid ?? (!kIsWeb && Platform.isAndroid);
+    if (!android) return status == AuthorizationStatus.notDetermined;
+    if (status == AuthorizationStatus.authorized ||
+        status == AuthorizationStatus.provisional) {
+      return false;
+    }
+    return !(askedBefore ?? _promptAskedBefore());
+  }
+
   bool _hasSession() {
     try {
       if (!Get.isRegistered<ApiClient>()) return false;
@@ -293,9 +331,7 @@ class PushNotificationService extends GetxService {
       // Laisse l'accueil s'afficher (Get.offAll) avant la fenêtre.
       await Future.delayed(const Duration(milliseconds: 1800));
       final current = await _messaging.getNotificationSettings();
-      if (current.authorizationStatus != AuthorizationStatus.notDetermined) {
-        return;
-      }
+      if (!isUndecided(current.authorizationStatus)) return;
       final r = (role ?? '').toLowerCase();
       final bodyKey = r.contains('walker')
           ? 'neo583_notif_walker'
@@ -320,6 +356,7 @@ class PushNotificationService extends GetxService {
       final ok = choice.isCompleted ? await choice.future : false;
       if (!ok) return;
       systemPromptRequestedThisSession = true; // v583 — fenêtre posée
+      _markPromptAsked();
       final settings = await _messaging.requestPermission(
         alert: true,
         badge: true,
