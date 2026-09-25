@@ -188,13 +188,13 @@ function requestIcon(r: MapRequest, mineLabel: string): L.DivIcon {
 }
 
 // ── Petits composants ────────────────────────────────────────────────────────
-function FlyToFocus({ target }: { target: { lat: number; lng: number; ts: number; zoom?: number } | null }) {
+function FlyToFocus({ target }: { target: { lat: number; lng: number; ts: number; zoom?: number; duration?: number } | null }) {
   const map = useMap();
   useEffect(() => {
     if (!target) return;
     // Zoom demandé (ville = 12, ma position = 14), sinon zoom de rue lisible
     // (~17) ; vol en douceur (0,9 s), jamais pendant une autre animation.
-    safeFly(map, [target.lat, target.lng], target.zoom ?? Math.max(map.getZoom(), 17));
+    safeFly(map, [target.lat, target.lng], target.zoom ?? Math.max(map.getZoom(), 17), target.duration ?? 0.9);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target?.ts]);
   return null;
@@ -258,7 +258,8 @@ function FollowController({ target, onUserGesture }: { target: { lat: number; ln
     programmatic.current = true;
     if (lastKey.current !== target.key) {
       lastKey.current = target.key;
-      safeFly(map, [target.lat, target.lng], Math.max(map.getZoom(), 16.5), 1);
+      // 588 — vol doux sur l'ami suivi : zoom 16, 0,8 s (comme un clic ami).
+      safeFly(map, [target.lat, target.lng], FRIEND_ZOOM, 0.8);
     } else {
       try { map.panTo([target.lat, target.lng], { animate: true, duration: 0.8, easeLinearity: 0.3 }); } catch { /* animation en cours */ }
     }
@@ -398,6 +399,9 @@ export type CardLabels = {
   lang?: string;
 };
 
+/** 588 — zoom d'un clic sur un ami (liste, pilule ou rond) : rue lisible. */
+const FRIEND_ZOOM = 16;
+
 /** Ce que la carte du bas montre. */
 type Sheet =
   | { kind: "person"; m: NearbyMember }
@@ -467,6 +471,7 @@ export default function PoiMap({
   now = 0,
   onMessage,
   onMessageMember,
+  focusFriend = null,
 }: {
   center: [number, number];
   /** Zoom d'ouverture (mémorisé par la page). */
@@ -513,7 +518,7 @@ export default function PoiMap({
   meLabel?: string;
   positionLabel?: string;
   accuracyLabel?: string;
-  focusTarget?: { lat: number; lng: number; ts: number } | null;
+  focusTarget?: { lat: number; lng: number; ts: number; zoom?: number; duration?: number } | null;
   onFriendFocus?: (p: FriendLivePosition) => void;
   /** Ami suivi en direct (zoom de suivi « joli »). */
   followUserId?: string | null;
@@ -546,6 +551,8 @@ export default function PoiMap({
   onMessage?: (who: { id: string; role: string; name: string }) => void;
   /** Message à un membre (non ami) : renvoie l'action, ou null si impossible. */
   onMessageMember?: (m: NearbyMember) => (() => void) | null;
+  /** 588 — ami (hors direct) choisi dans le panneau : vol doux + sa fiche. */
+  focusFriend?: { m: NearbyMember; ts: number } | null;
 }) {
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
   const friendSet = useMemo(() => new Set(friendIds), [friendIds]);
@@ -619,6 +626,39 @@ export default function PoiMap({
       mapObj.panInside(L.latLng(at[0], at[1]), { paddingTopLeft: L.point(60, 70), paddingBottomRight: L.point(narrow ? 60 : 420, narrow ? Math.min(340, mapObj.getSize().y * 0.62) : 60) });
     } catch { /* carte pas prête */ }
   };
+  // 588 — la fiche d'une personne : choix du rôle si elle en a plusieurs.
+  const sheetFor = (m: NearbyMember): Sheet => {
+    const wanted = rolesMatching(m, wantedRoles);
+    const roles = wanted.length ? [...wanted, ...rolesOf(m).filter((r) => !wanted.some((w) => w.id === r.id))] : rolesOf(m);
+    return roles.length > 1 ? { kind: "person", m } : { kind: "role", m, r: roles[0] };
+  };
+  // 588 — « quand je clic sur mon ami, ça ne zoome pas sur lui » : un ami
+  // cliqué = vol doux (flyTo, zoom 16, 0,8 s) ET sa fiche. Le point est posé
+  // au centre de ce que la fiche laisse VISIBLE (bas au téléphone, droite
+  // sur ordinateur), sinon la fiche le recouvrirait.
+  const flyToFriend = (m: NearbyMember) => {
+    const at = pointOf(m);
+    if (!at) return;
+    setSheet(sheetFor(m));
+    if (!mapObj) return;
+    try {
+      const size = mapObj.getSize();
+      const narrow = size.x < 640;
+      const px = mapObj.project(L.latLng(at[0], at[1]), FRIEND_ZOOM);
+      const dx = narrow ? 0 : Math.min(420, size.x * 0.4) / 2;
+      const dy = narrow ? Math.min(340, size.y * 0.62) / 2 : 0;
+      const c = mapObj.unproject(px.add(L.point(dx, dy)), FRIEND_ZOOM);
+      safeFly(mapObj, [c.lat, c.lng], FRIEND_ZOOM, 0.8);
+    } catch {
+      safeFly(mapObj, at, FRIEND_ZOOM, 0.8);
+    }
+  };
+  const flyToFriendRef = useRef(flyToFriend);
+  flyToFriendRef.current = flyToFriend;
+  useEffect(() => {
+    if (focusFriend) flyToFriendRef.current(focusFriend.m);
+  }, [focusFriend?.ts]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const dirClose = onDirections
     ? (target: { lat: number; lng: number }) => { try { mapObj?.closePopup(); } catch { /* */ } onDirections(target); }
     : undefined;
@@ -798,7 +838,7 @@ export default function PoiMap({
             const caption = liveLabels && Number.isFinite(seenMs)
               ? (now - seenMs < 60000 ? liveLabels.seenNow : liveLabels.seenAgo.replace("{ago}", liveLabels.ago(now - seenMs)))
               : null;
-            return <Marker key={`friend-${m.id}`} position={pt} icon={friendProfileIcon(m, prem, roles, caption)} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: open }} />;
+            return <Marker key={`friend-${m.id}`} position={pt} icon={friendProfileIcon(m, prem, roles, caption)} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: () => flyToFriend(m) }} />;
           }
           return (
             <Marker key={`member-${m.id}`} position={pt} icon={memberIcon(m, memberCaption({ ...m, role: roles[0].role, priceFrom: roles[0].priceFrom ?? m.priceFrom, currency: roles[0].currency ?? m.currency }), roles)} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: open }} />
@@ -815,7 +855,7 @@ export default function PoiMap({
             isPremium={premiumSet.has(p.userId)}
             followed={followHaloId === p.userId}
             labels={liveLabels}
-            onOpen={() => openSheet({ kind: "live", p }, [p.lat, p.lng])}
+            onOpen={() => { if (onFriendFocus) { setSheet(null); onFriendFocus(p); } else openSheet({ kind: "live", p }, [p.lat, p.lng]); }}
           />
         ))}
 

@@ -99,7 +99,7 @@ import { getSocket } from "@/lib/socket";
 import type { FriendLivePosition } from "@/components/FriendsLiveMap";
 import { haversineKm } from "@/lib/mapCluster";
 import { ROLE_COLOR, blurLatLng, formatPrice, placePinHtml, reportPinHtml, spotPinHtml, roleKey } from "@/lib/pawmapLegend";
-import { expandRows, formatKm, friendIdSetFrom, isFriendMember, mergePersons, personIdsOf, placeFriendsFromList, rolesMatching } from "@/lib/memberPersons";
+import { expandRows, formatKm, friendIdSetFrom, isFriendMember, locateFriend, mergePersons, personIdsOf, placeFriendsFromList, rolesMatching } from "@/lib/memberPersons";
 import type { Map as LeafletMap } from "leaflet";
 
 const roleChipColor = (role: string) => ROLE_COLOR[roleKey(role)];
@@ -498,7 +498,9 @@ export default function MapPage() {
   });
 
   const [myRole, setMyRole] = useState<string>("sitter");
-  const [focusTarget, setFocusTarget] = useState<{ lat: number; lng: number; ts: number; zoom?: number } | null>(null);
+  const [focusTarget, setFocusTarget] = useState<{ lat: number; lng: number; ts: number; zoom?: number; duration?: number } | null>(null);
+  // 588 — ami (position de profil floutée) choisi dans le panneau.
+  const [focusFriend, setFocusFriend] = useState<{ m: NearbyMember; ts: number } | null>(null);
   // 25/09 (point 5) — zone VISIBLE de la carte : compteur et état vide.
   const [viewBounds, setViewBounds] = useState<{ s: number; w: number; n: number; e: number } | null>(null);
   const [locating, setLocating] = useState(false);
@@ -1125,10 +1127,16 @@ export default function MapPage() {
       setFriendsOnlyBusy(false);
     }
   }
+  // 588 — « quand je clic sur mon ami, ça ne zoome pas sur lui ». Un ami en
+  // DIRECT cliqué (liste, pilule, rond, fiche) : suivi lancé, vol doux
+  // (zoom 16, 0,8 s, via FollowController) et sa petite fiche ouverte.
+  // Déjà suivi : on recentre quand même (avant, rien ne bougeait).
   function startFollow(p: FriendLivePosition) {
+    if (!showFriends) setFriendsLayer(true);
+    if (followUserId === p.userId) setFocusTarget({ lat: p.lat, lng: p.lng, ts: Date.now(), zoom: 16, duration: 0.8 });
     setFollowUserId(p.userId);
     setFollowPaused(false);
-    setFollowSheet(false);
+    setFollowSheet(true);
   }
   function stopFollow() {
     setFollowUserId(null);
@@ -1155,6 +1163,30 @@ export default function MapPage() {
     [allMembers, resolveOnline],
   );
   const followed = followUserId ? livePositionsList.find((p) => p.userId === followUserId) : undefined;
+  // 588 — clic sur un ami du panneau : son direct s'il partage, sinon sa
+  // position de profil floutée (couche amis 587, fusionnée dans les membres),
+  // sinon (Masqué) la pastille « Cet ami n'est pas visible sur la carte ».
+  function focusOnFriend(f: FriendItem) {
+    const o = f.other;
+    if (!o?.id) return;
+    const ids = [String(o.id), ...(o.personIds || []).map(String)];
+    const spot = locateFriend(ids, livePositionsList, mergedMembers, { hidden: o.mapVisibility === "hidden" });
+    if (!spot) { flashVisibility(t("map_friend_not_visible"), "hidden"); return; }
+    // Téléphone / tablette : la feuille du panneau se referme, on VOIT la carte.
+    if (typeof window !== "undefined" && window.innerWidth < 1024) setSheet("closed");
+    if (spot.kind === "live") { startFollow(spot.p); return; }
+    if (!showFriends) setFriendsLayer(true);
+    if (followUserId) stopFollow();
+    setFocusFriend({ m: spot.m, ts: Date.now() });
+  }
+  // Mes amis hors direct (liste « Amis » du panneau), ceux qui ont une position d'abord.
+  const friendsNotLive = useMemo(() => {
+    const live = new Set(livePositionsList.map((p) => p.userId));
+    return friendsForMap
+      .filter((f) => f.other?.id && !live.has(f.other.id))
+      .map((f) => ({ f, spot: locateFriend([String(f.other.id), ...(f.other.personIds || []).map(String)], [], mergedMembers, { hidden: f.other.mapVisibility === "hidden" }) }))
+      .sort((a, b) => Number(!a.spot) - Number(!b.spot) || (a.f.other.name || "").localeCompare(b.f.other.name || ""));
+  }, [friendsForMap, livePositionsList, mergedMembers]);
   // Le suivi se termine tout seul quand le partage cesse (plus de vieille
   // position gardée à l'écran) : petit message « X a arrêté de partager ».
   const followedNameRef = useRef("");
@@ -1437,7 +1469,12 @@ export default function MapPage() {
               )}
               <button
                 type="button"
-                onClick={() => setFollowSheet((v) => !v)}
+                onClick={() => {
+                  // 588 — la pilule recentre aussi sur l'ami (vol doux) et reprend le suivi.
+                  setFollowPaused(false);
+                  setFocusTarget({ lat: followed.lat, lng: followed.lng, ts: Date.now(), zoom: 16, duration: 0.8 });
+                  setFollowSheet((v) => !v);
+                }}
                 aria-expanded={followSheet}
                 aria-label={t("live_open_sheet")}
                 className="pointer-events-auto inline-flex min-h-[44px] max-w-full items-center gap-2 rounded-full bg-white/95 py-1 pl-1 pr-3 text-xs font-bold text-[#231715] shadow-[0_8px_24px_-6px_rgba(76,29,149,0.45)] ring-1 ring-[#DDD6FE] backdrop-blur"
@@ -1680,6 +1717,7 @@ export default function MapPage() {
             positionLabel={t("map_your_position")}
             accuracyLabel={t("map_accuracy_note")}
             focusTarget={focusTarget}
+            focusFriend={focusFriend}
             onFriendFocus={startFollow}
             followHaloId={followUserId}
             friendIds={[...friendIdSet]}
@@ -1855,6 +1893,21 @@ export default function MapPage() {
                     </button>
                   ))}
                 </div>
+              )}
+              {/* 588 — mes autres amis : un clic = vol doux sur sa position
+                  (floutée) + sa fiche ; Masqué = pastille « pas visible ». */}
+              {friendsNotLive.length > 0 && (
+                <>
+                  <p className="mt-3 text-xs font-bold text-[#9D174D]">{t("map_seek_friends")} · {friendsNotLive.length}</p>
+                  <div className="mt-1.5 flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
+                    {friendsNotLive.map(({ f, spot }) => (
+                      <button key={`fr-${f.id}`} type="button" onClick={() => focusOnFriend(f)} className="inline-flex min-h-[32px] items-center gap-1.5 rounded-full border bg-white px-2 text-[11px] font-semibold transition hover:shadow" style={{ borderColor: spot ? "#F06AA055" : "#F3C4BA", color: spot ? roleChipColor(roleFromModel(f.other.model)) : "#8A6B64" }}>
+                        <span className="grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: spot ? roleChipColor(roleFromModel(f.other.model)) : "#C9A79F" }}>{(f.other.name || "?").charAt(0).toUpperCase()}</span>
+                        {f.other.name || t("common_friend")}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
 

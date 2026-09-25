@@ -308,3 +308,38 @@ export function placeFriendsFromList(list: NearbyMember[], friends: FriendForPla
   for (const fp of points) if (!used.has(fp)) out.push(fp);
   return out;
 }
+
+/**
+ * 25/09 (588) — « quand je clic sur mon ami, ça ne zoome pas sur lui ».
+ * OÙ est cet ami sur la carte, dans l'ordre de la couche amis 587 :
+ *   1. son DIRECT (partage en cours) → `live` : la page lance le suivi ;
+ *   2. sinon son point de la carte (position de profil floutée de /friends,
+ *      fusionnée dans les membres) → `member` ;
+ *   3. sinon (Masqué, aucune position) → null : pastille « pas visible ».
+ * `ids` = tous les ids de la personne (other.id + other.personIds).
+ */
+export type FriendSpot<L extends { userId: string; lat: number; lng: number }> =
+  | { kind: "live"; p: L; lat: number; lng: number }
+  | { kind: "member"; m: NearbyMember; lat: number; lng: number };
+
+export function locateFriend<L extends { userId: string; lat: number; lng: number }>(
+  ids: string[],
+  live: L[],
+  members: NearbyMember[],
+  opts: { hidden?: boolean } = {},
+): FriendSpot<L> | null {
+  const want = new Set((ids || []).filter(Boolean).map(String));
+  if (!want.size) return null;
+  const p = (live || []).find((x) => want.has(String(x.userId)) && Number.isFinite(x.lat) && Number.isFinite(x.lng));
+  if (p) return { kind: "live", p, lat: p.lat, lng: p.lng };
+  if (opts.hidden) return null;
+  for (const m of members || []) {
+    if (!personIdsOf(m).some((x) => want.has(x))) continue;
+    const c = m.location && m.location.coordinates;
+    const lat = Number(c && c[1]);
+    const lng = Number(c && c[0]);
+    if (!Array.isArray(c) || c.length < 2 || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    return { kind: "member", m, lat, lng };
+  }
+  return null;
+}
