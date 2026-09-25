@@ -161,23 +161,47 @@ export type MemberPinOptions = {
   online?: boolean | null;
   /** Prix « dès » affiché sous le rond au zoom rue. */
   priceLabel?: string | null;
+  /** Zoom rue : « Prénom · rôle · prix » (remplace priceLabel s'il est donné). */
+  caption?: string | null;
+  /** Photo du membre (sinon l'icône du rôle). */
+  avatar?: string | null;
   size?: number;
 };
 
-/** Autre membre : rond à la couleur du rôle + icône blanche du rôle (34-36). */
+/**
+ * Autre membre : LE plus visible de la carte (25/09, PawMap 584 — même règle
+ * que l'app). Rond 46 px avec SA PHOTO quand elle existe (anneau 3 px à la
+ * couleur du rôle + liseré blanc), sinon la couleur du rôle et son icône
+ * blanche. Au zoom rue, « Prénom · rôle · prix » sous le rond.
+ */
 export function memberPinHtml(o: MemberPinOptions): string {
   const key = roleKey(o.role);
   const color = ROLE_COLOR[key];
-  const size = o.size ?? 36;
+  const size = o.size ?? 46;
   const glow = o.boosted
     ? boostGlowStyle(true)
     : o.pawFollow
-      ? `box-shadow:0 0 0 4px rgba(124,58,237,.35),0 0 14px 4px rgba(124,58,237,.55),0 2px 6px rgba(23,20,31,.35);`
-      : `box-shadow:0 2px 6px rgba(23,20,31,.35);`;
-  const price = o.priceLabel
-    ? `<span style="position:absolute;top:${size + 2}px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#fff;color:${color};border:1.5px solid ${color};border-radius:999px;padding:1px 7px;font:700 11px/1.3 Inter,system-ui,sans-serif;box-shadow:0 1px 4px rgba(23,20,31,.25);">${o.priceLabel}</span>`
+      ? `box-shadow:0 0 0 4px rgba(124,58,237,.35),0 0 14px 4px rgba(124,58,237,.55),0 3px 8px rgba(23,20,31,.35);`
+      : `box-shadow:0 3px 8px rgba(23,20,31,.35);`;
+  const captionText = o.caption || o.priceLabel || "";
+  const caption = captionText
+    ? `<span style="position:absolute;top:${size + 3}px;left:50%;transform:translateX(-50%);white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:clip;background:#fff;color:${color};border:1.5px solid ${color};border-radius:999px;padding:1px 8px;font:700 11px/1.35 Inter,system-ui,sans-serif;box-shadow:0 1px 4px rgba(23,20,31,.25);">${escapeHtml(captionText)}</span>`
     : "";
-  return `<div style="position:relative;width:${size}px;height:${size}px;"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2.5px solid #fff;${glow}display:flex;align-items:center;justify-content:center;padding:${Math.round(size * 0.2)}px;box-sizing:border-box;">${ROLE_GLYPH[key]}</div>${o.premium ? crownBadge(20) : ""}${o.boosted ? rocketBadge(16) : ""}${o.online === true || o.online === false ? onlineDot(11, o.online) : ""}${price}</div>`;
+  // L'icône du rôle reste DESSOUS la photo : si la photo tarde ou échoue,
+  // on voit l'icône, jamais un disque vide.
+  const glyphBox = `<span style="position:absolute;inset:${Math.round(size * 0.2)}px;display:block;">${ROLE_GLYPH[key]}</span>`;
+  const inner = o.avatar
+    ? `${glyphBox}<img src="${escapeHtml(o.avatar)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display='none'" />`
+    : ROLE_GLYPH[key];
+  const pad = o.avatar ? 0 : Math.round(size * 0.2);
+  // Photo : anneau du rôle (3 px) + liseré blanc extérieur ; icône : rond plein.
+  const ring = o.avatar ? `border:3px solid ${color};outline:2px solid #fff;` : `border:2.5px solid #fff;`;
+  return `<div style="position:relative;width:${size}px;height:${size}px;"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};${ring}${glow}display:flex;align-items:center;justify-content:center;padding:${pad}px;box-sizing:border-box;overflow:hidden;position:relative;">${inner}</div>${o.premium ? crownBadge(20) : ""}${o.boosted ? rocketBadge(18) : ""}${o.online === true || o.online === false ? onlineDot(12, o.online) : ""}${caption}</div>`;
+}
+
+/** Échappe une chaîne insérée dans le HTML d'une épingle (nom, URL). */
+export function escapeHtml(v: string): string {
+  return String(v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 }
 
 export type PhotoPinOptions = {
@@ -193,6 +217,12 @@ export type PhotoPinOptions = {
   meLabel?: string;
   /** Mode « amis seulement » (moi seulement) : anneau pointillé + œil barré. */
   friendsOnly?: boolean;
+  /** 25/09 — ami SUIVI en direct : auréole violette PawFollow qui respire. */
+  followed?: boolean;
+  /** 25/09 — partage actif mais 2-10 min sans signal : « signal perdu ». */
+  lost?: boolean;
+  /** Petite étiquette sous le rond (« signal perdu », « Prénom »). */
+  caption?: string | null;
 };
 
 function initials(name: string): string {
@@ -208,27 +238,48 @@ function initials(name: string): string {
 export function photoPinHtml(o: PhotoPinOptions): string {
   const key = roleKey(o.role);
   const color = ROLE_COLOR[key];
-  const size = o.me ? 56 : 44;
+  const size = o.me ? 56 : 50;
   const ring = o.me ? color : FRIEND_PINK;
   const ringStyle = o.friendsOnly ? "dashed" : "solid";
   const glow = o.boosted
     ? boostGlowStyle(true)
-    : o.pawFollow
-      ? `box-shadow:0 0 0 4px rgba(124,58,237,.35),0 0 16px 5px rgba(124,58,237,.55),0 3px 8px rgba(23,20,31,.35);`
-      : `box-shadow:0 3px 8px rgba(23,20,31,.35);`;
+    : o.followed
+      ? `box-shadow:0 0 0 3px rgba(124,58,237,.45),0 0 10px 3px rgba(124,58,237,.5);animation:hps-follow 1.8s ease-in-out infinite;`
+      : o.pawFollow
+        ? `box-shadow:0 0 0 4px rgba(124,58,237,.35),0 0 16px 5px rgba(124,58,237,.55),0 3px 8px rgba(23,20,31,.35);`
+        : `box-shadow:0 3px 8px rgba(23,20,31,.35);`;
   const inner = o.avatar
-    ? `<img src="${o.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" />`
-    : `<span style="color:#fff;font:700 ${o.me ? 18 : 15}px/1 Inter,system-ui,sans-serif;">${initials(o.name)}</span>`;
+    ? `<img src="${escapeHtml(o.avatar)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" />`
+    : `<span style="color:#fff;font:700 ${o.me ? 18 : 16}px/1 Inter,system-ui,sans-serif;">${escapeHtml(initials(o.name))}</span>`;
   const label = o.me
-    ? `<span style="position:absolute;top:${size + 3}px;left:50%;transform:translateX(-50%);background:${INK};color:#fff;border-radius:999px;padding:1px 8px;font:700 11px/1.3 Inter,system-ui,sans-serif;white-space:nowrap;">${o.meLabel || "Moi"}</span>`
-    : "";
+    ? `<span style="position:absolute;top:${size + 3}px;left:50%;transform:translateX(-50%);background:${INK};color:#fff;border-radius:999px;padding:1px 8px;font:700 11px/1.3 Inter,system-ui,sans-serif;white-space:nowrap;">${escapeHtml(o.meLabel || "Moi")}</span>`
+    : o.caption
+      ? `<span style="position:absolute;top:${size + 3}px;left:50%;transform:translateX(-50%);background:${o.lost ? "#FFF4E5" : "#fff"};color:${o.lost ? "#9A3412" : color};border:1.5px solid ${o.lost ? "#EA580C" : FRIEND_PINK};border-radius:999px;padding:1px 8px;font:700 11px/1.3 Inter,system-ui,sans-serif;white-space:nowrap;box-shadow:0 1px 4px rgba(23,20,31,.25);">${escapeHtml(o.caption)}</span>`
+      : "";
   return `<div style="position:relative;width:${size}px;height:${size}px;"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:3px ${ringStyle} ${ring};${glow}display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;">${inner}</div>${o.premium ? crownBadge(o.me ? 24 : 22) : ""}${o.boosted ? rocketBadge(o.me ? 20 : 18) : ""}${o.friendsOnly && o.me ? eyeOffBadge(20) : ""}${!o.me && (o.online === true || o.online === false) ? onlineDot(13, o.online) : ""}${label}</div>`;
 }
 
-/** Groupe de membres : pilule blanche, icône « personnes » + nombre (34 de haut). */
-export function memberClusterHtml(count: number): string {
+/**
+ * Groupe de MEMBRES (25/09, retour de Daniel : « les cadres des groupes et des
+ * lieux sont identiques ») : un ROND — comme une personne — plein à la
+ * couleur DOMINANTE du rôle, chiffre blanc gras, liseré blanc ; fin anneau
+ * rose s'il contient un ami. Jamais un carré (le carré = groupe de lieux).
+ */
+export function memberClusterHtml(count: number, dominantRole?: string | null, hasFriend = false): string {
   const label = count > 99 ? "99+" : String(count);
-  return `<div style="height:34px;min-width:52px;padding:0 10px 0 8px;border-radius:999px;background:#fff;border:2px solid ${INK};color:${INK};display:inline-flex;align-items:center;gap:5px;box-shadow:0 2px 6px rgba(23,20,31,.3);white-space:nowrap;"><svg viewBox="0 0 24 24" width="17" height="17" fill="${INK}" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M2.5 19c0-3.5 3-5.6 6.5-5.6s6.5 2.1 6.5 5.6v1h-13zM15.5 20v-1c0-1.6-.5-3-1.4-4.1 1-.3 1.7-.4 2.4-.4 2.7 0 5 1.6 5 4.3V20z"/></svg><span style="font:800 13px/1 Inter,system-ui,sans-serif;">${label}</span></div>`;
+  const key = roleKey(dominantRole || "sitter");
+  const c = ROLE_COLOR[key];
+  const dark = key === "sitter" ? "#1E4FB0" : key === "walker" ? "#15803D" : "#9E1F0B";
+  const size = count >= 10 ? 44 : 40;
+  const ring = hasFriend ? `box-shadow:0 0 0 2.5px ${FRIEND_PINK},0 3px 8px rgba(23,20,31,.35);` : `box-shadow:0 3px 8px rgba(23,20,31,.35);`;
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(160deg,${c},${dark});border:2.5px solid #fff;${ring}color:#fff;display:flex;align-items:center;justify-content:center;font:800 ${label.length > 2 ? 12 : 15}px/1 Inter,system-ui,sans-serif;box-sizing:border-box;">${label}</div>`;
+}
+
+/** Rôle le plus représenté d'un groupe (couleur du rond de groupe). */
+export function dominantRole(roles: (string | undefined | null)[]): RoleKey {
+  const n: Record<RoleKey, number> = { owner: 0, sitter: 0, walker: 0 };
+  for (const r of roles) n[roleKey(r)] += 1;
+  return (Object.keys(n) as RoleKey[]).sort((x, y) => n[y] - n[x])[0];
 }
 
 /** Lieu : GOUTTE entièrement à la couleur du type, icône blanche (30). */
@@ -243,7 +294,8 @@ export function placePinHtml(category: string, size = 30): string {
 export function placeClusterHtml(count: number, category?: string | null): string {
   const color = category ? PLACE_COLOR[category] || PLACE_COLOR.other : PLACE_COLOR.other;
   const label = count > 99 ? "99+" : String(count);
-  return `<div style="width:36px;height:36px;border-radius:10px;background:#fff;border:2.5px solid ${color};color:${color};display:flex;align-items:center;justify-content:center;font:800 ${label.length > 2 ? 11 : 13}px/1 Inter,system-ui,sans-serif;box-shadow:0 2px 6px rgba(23,20,31,.3);">${label}</div>`;
+  // Carré BLANC, bord FIN : discret, jamais confondu avec un groupe de membres (rond plein).
+  return `<div style="width:32px;height:32px;border-radius:8px;background:#fff;border:1.5px solid ${color};color:${color};display:flex;align-items:center;justify-content:center;font:800 ${label.length > 2 ? 10 : 12}px/1 Inter,system-ui,sans-serif;box-shadow:0 1px 4px rgba(23,20,31,.25);box-sizing:border-box;">${label}</div>`;
 }
 
 /** PawSpot : goutte NOIRE, liseré du type, icône blanche (32) ; doré = goutte OR 40, patte noire. */
@@ -256,7 +308,13 @@ export function spotPinHtml(type: string, golden: boolean): string {
   const glyph = golden
     ? `<g transform="translate(6.5 5.5) scale(0.7)" fill="${INK}">${ROLE_GLYPH_PATH_PAW}</g>`
     : `<g transform="translate(6.5 5.5) scale(0.7)" fill="#fff">${SPOT_GLYPH[type] || SPOT_GLYPH.other}</g>`;
-  return `<div style="position:relative;width:${size}px;height:${h}px;filter:drop-shadow(0 2px 3px rgba(23,20,31,.4));"><svg viewBox="0 0 30 39" width="${size}" height="${h}" aria-hidden="true"><path d="M15 1C7.3 1 1.5 6.8 1.5 14.2c0 9.6 11.2 21.6 12.6 23.1.5.5 1.3.5 1.8 0 1.4-1.5 12.6-13.5 12.6-23.1C28.5 6.8 22.7 1 15 1z" fill="${fill}" stroke="${stroke}" stroke-width="2.2"/>${glyph}</svg></div>`;
+  // Doré = éclat (petite étoile blanche à 4 branches + halo or) : le PawSpot
+  // spécial se voit de loin sans ressembler à un membre.
+  const sparkle = golden
+    ? `<svg viewBox="0 0 24 24" width="16" height="16" style="position:absolute;top:-5px;right:-6px;" aria-hidden="true"><path d="M12 1.5l2.2 7.3 7.3 2.2-7.3 2.2-2.2 7.3-2.2-7.3L2.5 11l7.3-2.2z" fill="#fff" stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"/></svg>`
+    : "";
+  const shadow = golden ? "drop-shadow(0 0 6px rgba(244,192,74,.95)) drop-shadow(0 2px 3px rgba(23,20,31,.4))" : "drop-shadow(0 2px 3px rgba(23,20,31,.4))";
+  return `<div style="position:relative;width:${size}px;height:${h}px;filter:${shadow};"><svg viewBox="0 0 30 39" width="${size}" height="${h}" aria-hidden="true"><path d="M15 1C7.3 1 1.5 6.8 1.5 14.2c0 9.6 11.2 21.6 12.6 23.1.5.5 1.3.5 1.8 0 1.4-1.5 12.6-13.5 12.6-23.1C28.5 6.8 22.7 1 15 1z" fill="${fill}" stroke="${stroke}" stroke-width="2.2"/>${glyph}</svg>${sparkle}</div>`;
 }
 const ROLE_GLYPH_PATH_PAW =
   '<ellipse cx="12" cy="15.6" rx="4.6" ry="3.7"/><ellipse cx="5.3" cy="10.9" rx="2" ry="2.6"/><ellipse cx="9.4" cy="7.4" rx="2" ry="2.7"/><ellipse cx="14.6" cy="7.4" rx="2" ry="2.7"/><ellipse cx="18.7" cy="10.9" rx="2" ry="2.6"/>';
@@ -284,14 +342,35 @@ export function requestBubbleHtml(o: { priceLabel?: string | null; service: "sit
   return `<div style="position:relative;display:inline-block;">${mine}<div style="position:relative;background:${color};color:#fff;border:2px solid #fff;border-radius:14px;padding:4px 9px;display:inline-flex;align-items:center;gap:5px;font:800 12px/1.2 Inter,system-ui,sans-serif;white-space:nowrap;${glow}">${icon}${o.priceLabel ? `<span>${o.priceLabel}</span>` : ""}</div><svg viewBox="0 0 16 10" width="16" height="10" style="display:block;margin:-2px auto 0;" aria-hidden="true"><path d="M0 0h16L8 9z" fill="${color}" stroke="#fff" stroke-width="1.2"/></svg>${o.boosted ? rocketBadge(16) : ""}</div>`;
 }
 
+/**
+ * Ordre d'empilement (25/09, PawMap 584) : les PERSONNES passent toujours
+ * au-dessus des lieux. Leaflet empile par `y écran + zIndexOffset` : des
+ * écarts de 1 000 dominent la hauteur de la carte.
+ */
+export const PIN_Z = {
+  place: 0,
+  placeSelected: 1500,
+  report: 1000,
+  request: 2000,
+  spot: 3000,
+  spotGolden: 3500,
+  member: 5000,
+  memberBoosted: 6000,
+  friend: 7000,
+  friendFollowed: 8000,
+  me: 9000,
+} as const;
+
 /** Feuille de style partagée par les cartes (lueur PawBoost qui respire). */
 export const PAWMAP_KEYFRAMES = `
 @keyframes hps-breathe { 0%,100% { box-shadow:0 0 0 3px rgba(6,182,212,.35),0 0 12px 4px rgba(6,182,212,.55),0 2px 6px rgba(23,20,31,.35); } 50% { box-shadow:0 0 0 6px rgba(6,182,212,.5),0 0 26px 10px rgba(6,182,212,.8),0 2px 6px rgba(23,20,31,.35); } }
+@keyframes hps-follow { 0%,100% { box-shadow:0 0 0 3px rgba(124,58,237,.45),0 0 10px 3px rgba(124,58,237,.5); } 50% { box-shadow:0 0 0 7px rgba(124,58,237,.28),0 0 26px 10px rgba(124,58,237,.7); } }
 @keyframes hps-pulse { 0% { transform:scale(1); opacity:.65; } 70% { transform:scale(2.1); opacity:0; } 100% { transform:scale(2.1); opacity:0; } }
 @media (prefers-reduced-motion: reduce) { .leaflet-marker-icon * { animation: none !important; } }
 .leaflet-container { font-family: Inter, system-ui, sans-serif; }
 .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: 0 10px 30px -10px rgba(23,20,31,.35); }
 .leaflet-popup-content { margin: 12px 14px; }
+.leaflet-popup-content a[class*="text-white"] { color: #fff !important; }
 `;
 
 export function formatPrice(amount?: number | null, currency?: string | null): string | null {

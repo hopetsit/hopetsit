@@ -19,7 +19,10 @@ export function Header() {
   const links = [
     { href: "/how-it-works", label: t("nav_how") },
     { href: "/pricing",      label: t("nav_pricing") },
-    { href: "/pawmap",       label: t("nav_pawmap") },
+    // 25/09 (PawMap 584, point 11) — connecté, « PawMap » = MA PawMap (/map :
+    // mes amis, les membres autour de moi, mes demandes, mon rond « Moi »).
+    // Sans compte : la carte publique floutée (/pawmap).
+    { href: ready && user ? "/map" : "/pawmap", label: t("nav_pawmap"), also: ["/pawmap", "/map"] },
     { href: "/faq",          label: t("nav_faq") },
     { href: "/contact",      label: t("nav_contact") },
   ];
@@ -56,7 +59,7 @@ export function Header() {
         <nav className="hidden items-center gap-1 lg:flex">
           {/* v562 — Daniel : page courante en orange pâle (pas de gris foncé). */}
           {links.map((l) => {
-            const current = pathname === l.href || pathname?.startsWith(l.href + "/");
+            const current = pathname === l.href || pathname?.startsWith(l.href + "/") || !!("also" in l && l.also?.includes(pathname || ""));
             return (
               <Link
                 key={l.href}
@@ -147,7 +150,7 @@ export function Header() {
           {/* v458 — bouton « Ouvrir la PawMap » retiré du menu (barre du haut)
               pour l'instant. */}
           {links.map((l) => {
-            const current = pathname === l.href || pathname?.startsWith(l.href + "/");
+            const current = pathname === l.href || pathname?.startsWith(l.href + "/") || !!("also" in l && l.also?.includes(pathname || ""));
             return (
               <Link
                 key={l.href}

@@ -4,6 +4,7 @@
 // partagé avec la carte sans compte (PublicPawMap) sans charger Leaflet.
 
 const CLUSTER_CELL_PX = 76;
+export const MEMBER_CELL_PX = 36;
 function mercX(lng: number) {
   return ((lng + 180) / 360) * 256;
 }
@@ -15,14 +16,17 @@ export function clusterize<T>(
   items: T[],
   zoom: number,
   posOf: (t: T) => [number, number] | null,
+  /** 25/09 — taille de cellule (px) : 36 pour les membres (ronds 46 px, on ne
+   *  regroupe qu'un vrai chevauchement), 76 pour les lieux. */
+  cellPx: number = CLUSTER_CELL_PX,
 ): { items: T[]; center: [number, number] }[] {
   const scale = Math.pow(2, zoom);
   const cells = new Map<string, T[]>();
   for (const it of items) {
     const p = posOf(it);
     if (!p) continue;
-    const x = Math.floor((mercX(p[1]) * scale) / CLUSTER_CELL_PX);
-    const y = Math.floor((mercY(p[0]) * scale) / CLUSTER_CELL_PX);
+    const x = Math.floor((mercX(p[1]) * scale) / cellPx);
+    const y = Math.floor((mercY(p[0]) * scale) / cellPx);
     const key = `${x}_${y}`;
     const arr = cells.get(key);
     if (arr) arr.push(it);

@@ -12,9 +12,10 @@ export type AppIconName =
   | "coins" | "megaphone" | "bell" | "rocket" | "crown" | "eye-off" | "people"
   | "pin" | "star" | "shield-check" | "wallet" | "arrow-right" | "question"
   | "moon" | "sun" | "locate" | "logout" | "check" | "lock" | "globe" | "clock"
-  | "phone" | "download" | "layers" | "route" | "play";
+  | "phone" | "download" | "layers" | "route" | "play" | "close";
 
 const PATHS: Record<AppIconName, string> = {
+  close: "M6.5 6.5l11 11M17.5 6.5l-11 11",
   paw: "M12 12.6c-2.6 0-4.8 2-4.8 4.1 0 1.3 1 2.3 2.3 2.3.9 0 1.6-.4 2.5-.4s1.6.4 2.5.4c1.3 0 2.3-1 2.3-2.3 0-2.1-2.2-4.1-4.8-4.1zM6.2 8.4a1.8 2.3 0 1 0 0 4.6 1.8 2.3 0 1 0 0-4.6zM17.8 8.4a1.8 2.3 0 1 0 0 4.6 1.8 2.3 0 1 0 0-4.6zM9.6 4.8a1.8 2.4 0 1 0 0 4.8 1.8 2.4 0 1 0 0-4.8zM14.4 4.8a1.8 2.4 0 1 0 0 4.8 1.8 2.4 0 1 0 0-4.8z",
   home: "M3.5 11 12 4l8.5 7M5.5 9.8V20h4.8v-5.4h3.4V20h4.8V9.8",
   walker: "M13.3 5.1a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2zM9.5 21.5l1.7-7 2.3 2.2v4.8M7.2 12.6V8.9l3.6-1.4c.8-.3 1.6 0 2 .7l1.1 1.8c.6 1 1.7 1.6 2.9 1.6M11.2 7.5l-1.6 8.3-3.4-.7",

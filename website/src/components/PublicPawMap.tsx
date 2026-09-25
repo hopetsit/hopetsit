@@ -18,70 +18,87 @@ import L from "leaflet";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
 import { getPublicProviders, type PublicProvider } from "@/lib/api";
-import { clusterize } from "@/lib/mapCluster";
+import { clusterize, MEMBER_CELL_PX } from "@/lib/mapCluster";
 import {
   memberPinHtml,
   memberClusterHtml,
+  dominantRole,
   formatPrice,
   ROLE_COLOR,
   PAWMAP_KEYFRAMES,
+  PIN_Z,
 } from "@/lib/pawmapLegend";
+import { safeFly } from "@/lib/safeFly";
 import { AppIcon } from "@/components/AppIcon";
 import { PawMapLegendModal } from "@/components/PawMapLegendModal";
 
-function memberIcon(p: PublicProvider, showPrice: boolean): L.DivIcon {
+function memberIcon(p: PublicProvider, caption: string | null): L.DivIcon {
   return L.divIcon({
     className: "",
     html: memberPinHtml({
       role: p.role,
       boosted: p.boosted,
-      priceLabel: showPrice ? formatPrice(p.priceFrom, p.currency) : null,
-      size: 36,
+      avatar: p.avatar || null,
+      caption,
+      size: 46,
     }),
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-    popupAnchor: [0, -20],
+    iconSize: [46, 46],
+    iconAnchor: [23, 23],
+    popupAnchor: [0, -26],
   });
 }
-function clusterIcon(count: number): L.DivIcon {
-  return L.divIcon({ className: "", html: memberClusterHtml(count), iconSize: [56, 34], iconAnchor: [28, 17] });
+function clusterIcon(items: PublicProvider[]): L.DivIcon {
+  const sz = items.length >= 10 ? 44 : 40;
+  return L.divIcon({ className: "", html: memberClusterHtml(items.length, dominantRole(items.map((p) => p.role))), iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
 }
 
-function Recenter({ center, zoom }: { center: [number, number]; zoom?: number }) {
+/**
+ * 25/09 (PawMap 584, point 5) — chaque recherche de ville / « ma position »
+ * CENTRE et ZOOME (≥ 12), même si la carte est déjà à peu près là. Avant :
+ * on ne volait que si le centre était « loin », sans toucher au zoom → une
+ * carte dézoomée sur la France restait sur la France après « paris ».
+ */
+function Recenter({ center, zoom, focusKey }: { center: [number, number]; zoom: number; focusKey: number }) {
   const map = useMap();
+  const first = useRef(true);
   useEffect(() => {
-    const c = map.getCenter();
-    const far = Math.abs(c.lat - center[0]) > 0.02 || Math.abs(c.lng - center[1]) > 0.02;
-    if (far) map.flyTo(center, zoom ?? map.getZoom(), { duration: 0.9 });
+    if (first.current) { first.current = false; return; }
+    safeFly(map, center, zoom);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center[0], center[1]]);
+  }, [center[0], center[1], focusKey]);
   return null;
 }
 
-function Watcher({ onChange }: { onChange: (c: { lat: number; lng: number; zoom: number }) => void }) {
+type View = { lat: number; lng: number; zoom: number; s: number; w: number; n: number; e: number };
+function Watcher({ onChange }: { onChange: (v: View) => void }) {
   const map = useMap();
-  useEffect(() => {
+  const emit = () => {
     const c = map.getCenter();
-    onChange({ lat: c.lat, lng: c.lng, zoom: map.getZoom() });
+    const b = map.getBounds();
+    onChange({ lat: c.lat, lng: c.lng, zoom: map.getZoom(), s: b.getSouth(), w: b.getWest(), n: b.getNorth(), e: b.getEast() });
+  };
+  useEffect(() => {
+    emit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  useMapEvents({
-    moveend(e) {
-      const c = e.target.getCenter();
-      onChange({ lat: c.lat, lng: c.lng, zoom: e.target.getZoom() });
-    },
-  });
+  useMapEvents({ moveend: emit, zoomend: emit });
   return null;
 }
 
-function ClusterMarker({ center, count }: { center: [number, number]; count: number }) {
+/** Groupe : clic = zoom doux ; déjà au zoom rue et toujours collés = liste. */
+function ClusterMarker({ center, items, onList }: { center: [number, number]; items: PublicProvider[]; onList: (l: PublicProvider[]) => void }) {
   const map = useMap();
   return (
     <Marker
       position={center}
-      icon={clusterIcon(count)}
-      zIndexOffset={250}
-      eventHandlers={{ click: () => map.flyTo(center, Math.min(map.getZoom() + 2.2, 18), { duration: 0.8 }) }}
+      icon={clusterIcon(items)}
+      zIndexOffset={PIN_Z.member}
+      eventHandlers={{
+        click: () => {
+          if (map.getZoom() >= 16) onList(items);
+          else safeFly(map, center, Math.min(map.getZoom() + 2.2, 18), 0.8);
+        },
+      }}
     />
   );
 }
@@ -93,14 +110,18 @@ export type PublicPawMapProps = {
   height?: string;
   /** Aperçu de l'accueil : moins de contrôles, un seul bouton « Ouvrir ». */
   compact?: boolean;
+  /** Change à CHAQUE recherche / « ma position » : force le vol + zoom. */
+  focusKey?: number;
   onProviders?: (list: PublicProvider[]) => void;
 };
 
-export default function PublicPawMap({ center, zoom = 12, height = "60vh", compact = false, onProviders }: PublicPawMapProps) {
+export default function PublicPawMap({ center, zoom = 12, height = "60vh", compact = false, focusKey = 0, onProviders }: PublicPawMapProps) {
   const { t } = useT();
   const { user, ready } = useAuth();
   const [providers, setProviders] = useState<PublicProvider[]>([]);
-  const [view, setView] = useState<{ lat: number; lng: number; zoom: number }>({ lat: center[0], lng: center[1], zoom });
+  const [view, setView] = useState<View>({ lat: center[0], lng: center[1], zoom, s: center[0] - 0.1, w: center[1] - 0.15, n: center[0] + 0.1, e: center[1] + 0.15 });
+  const [fetchedOnce, setFetchedOnce] = useState(false);
+  const [clusterList, setClusterList] = useState<PublicProvider[] | null>(null);
   const [legendOpen, setLegendOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dark, setDark] = useState(false);
@@ -126,17 +147,29 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
         onProviders?.(list);
       })
       .catch(() => {})
-      .finally(() => { if (seq === reqSeq.current) setLoading(false); });
+      .finally(() => { if (seq === reqSeq.current) { setLoading(false); setFetchedOnce(true); } });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view.lat, view.lng]);
 
   const clusters = useMemo(
-    () => clusterize(providers, view.zoom, (p) => [p.lat, p.lng]),
+    () => clusterize(providers, view.zoom, (p) => [p.lat, p.lng], MEMBER_CELL_PX),
     [providers, view.zoom],
   );
-  const showPrice = view.zoom >= 14;
+  const showCaption = view.zoom >= 14;
   const roleLabel: Record<string, string> = { sitter: t("role_sitter"), walker: t("role_walker"), owner: t("role_owner") };
-  const empty = !loading && providers.length === 0;
+  // Membres DANS la zone visible : l'état vide ne s'affiche que s'il n'y a
+  // vraiment personne à l'écran (avant : dès que la dernière requête, faite
+  // autour d'un autre centre, revenait vide).
+  const visibleCount = useMemo(
+    () => providers.filter((p) => p.lat >= view.s && p.lat <= view.n && p.lng >= view.w && p.lng <= view.e).length,
+    [providers, view.s, view.n, view.w, view.e],
+  );
+  const empty = fetchedOnce && !loading && visibleCount === 0;
+  const captionOf = (p: PublicProvider) => {
+    if (!showCaption) return null;
+    const first = (p.name || "").trim().split(/\s+/)[0];
+    return [first, roleLabel[p.role], formatPrice(p.priceFrom, p.currency)].filter(Boolean).join(" · ");
+  };
 
   return (
     <div className="relative w-full overflow-hidden rounded-[28px]" style={{ height }}>
@@ -148,11 +181,11 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
         ) : (
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
         )}
-        <Recenter center={center} zoom={zoom} />
+        <Recenter center={center} zoom={zoom} focusKey={focusKey} />
         <Watcher onChange={setView} />
         {clusters.map((g, i) =>
           g.items.length > 1 ? (
-            <ClusterMarker key={`c-${i}-${g.items.length}-${g.center[0].toFixed(3)}`} center={g.center} count={g.items.length} />
+            <ClusterMarker key={`c-${i}-${g.items.length}-${g.center[0].toFixed(3)}`} center={g.center} items={g.items} onList={setClusterList} />
           ) : null,
         )}
         {clusters.filter((g) => g.items.length === 1).map((g) => g.items[0]).map((p) => {
@@ -160,7 +193,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
           const bookHref = `/book/${p.role}/${p.id}`;
           const href = ready && user ? bookHref : `/signup?next=${encodeURIComponent(bookHref)}`;
           return (
-            <Marker key={`p-${p.id}`} position={[p.lat, p.lng]} icon={memberIcon(p, showPrice)} zIndexOffset={p.boosted ? 400 : 200}>
+            <Marker key={`p-${p.id}`} position={[p.lat, p.lng]} icon={memberIcon(p, captionOf(p))} zIndexOffset={p.boosted ? PIN_Z.memberBoosted : PIN_Z.member}>
               <Popup autoPan>
                 <div style={{ minWidth: 200 }}>
                   <div className="flex items-center gap-3">
@@ -195,7 +228,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
                   <Link
                     href={href}
                     className="mt-3 flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-bold text-white"
-                    style={{ background: `linear-gradient(90deg, ${color}, ${p.role === "sitter" ? "#1E4FB0" : "#15803D"})` }}
+                    style={{ background: `linear-gradient(90deg, ${p.role === "sitter" ? "#2563EB" : "#15803D"}, ${p.role === "sitter" ? "#1E4FB0" : "#166534"})`, color: "#fff" }}
                   >
                     <span className="grid h-7 w-7 place-items-center rounded-full bg-white"><AppIcon name="calendar" size={15} color={color} /></span>
                     {ready && user ? t("map_member_book") : t("pawmap_signup_to_contact")}
@@ -230,9 +263,9 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
             <AppIcon name={dark ? "sun" : "moon"} size={20} />
           </button>
         )}
-        {providers.length > 0 && (
+        {visibleCount > 0 && (
           <span className="rounded-full bg-white/95 px-3 py-2 text-xs font-bold text-[#231715] shadow-lg">
-            {t("map_members_around").replace("{count}", String(providers.length))}
+            {t("map_members_around").replace("{count}", String(visibleCount))}
           </span>
         )}
         {loading && <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#C92A12] border-t-transparent" />}
@@ -261,6 +294,44 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
           {t("cta_open_pawmap")}
           <AppIcon name="arrow-right" size={16} color="#fff" />
         </Link>
+      )}
+
+      {/* Groupe toujours superposé au zoom rue : la liste de ses membres. */}
+      {clusterList && (
+        <div className="absolute inset-x-3 bottom-3 z-[1100] max-h-[60%] overflow-y-auto rounded-[20px] bg-white p-3 shadow-xl sm:inset-x-auto sm:left-3 sm:w-80">
+          <div className="mb-2 flex items-center justify-between px-1">
+            <p className="text-sm font-bold text-[#231715]">{t("map_members_around").replace("{count}", String(clusterList.length))}</p>
+            <button type="button" onClick={() => setClusterList(null)} aria-label={t("common_close")} className="grid h-9 w-9 place-items-center rounded-full bg-[#FAF1EC] text-[#231715]">
+              <AppIcon name="close" size={16} />
+            </button>
+          </div>
+          <ul className="space-y-1.5">
+            {clusterList.map((p) => {
+              const color = ROLE_COLOR[p.role];
+              const bookHref = `/book/${p.role}/${p.id}`;
+              const href = ready && user ? bookHref : `/signup?next=${encodeURIComponent(bookHref)}`;
+              return (
+                <li key={`cl-${p.id}`}>
+                  <Link href={href} className="flex min-h-[52px] items-center gap-3 rounded-2xl px-2 py-1.5 transition hover:bg-[#FAF1EC]">
+                    <span className="h-10 w-10 shrink-0 overflow-hidden rounded-full" style={{ border: `2.5px solid ${color}`, background: color }}>
+                      {p.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.avatar} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="grid h-full w-full place-items-center"><AppIcon name={p.role === "walker" ? "walker" : "home"} size={18} color="#fff" /></span>
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold text-[#231715]">{p.name || roleLabel[p.role]}</span>
+                      <span className="block text-xs font-semibold" style={{ color }}>{roleLabel[p.role]}{formatPrice(p.priceFrom, p.currency) ? ` · ${t("map_member_price_from")} ${formatPrice(p.priceFrom, p.currency)}` : ""}</span>
+                    </span>
+                    <AppIcon name="arrow-right" size={16} color={color} />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
 
       <PawMapLegendModal open={legendOpen} onClose={() => setLegendOpen(false)} />

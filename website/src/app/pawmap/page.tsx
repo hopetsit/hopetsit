@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PawMapHeroBadge } from "@/components/PawMapHeroBadge";
 import { AppIcon } from "@/components/AppIcon";
 import { PageTitle } from "@/components/PageTitle";
@@ -42,6 +43,19 @@ export default function PawMapPage() {
   const [providers, setProviders] = useState<PublicProvider[]>([]);
   const [supply, setSupply] = useState<{ sitters: number; walkers: number } | null>(null);
   const [locating, setLocating] = useState(false);
+  const [focusKey, setFocusKey] = useState(0);
+  const router = useRouter();
+
+  // 25/09 (PawMap 584, point 11) — connecté, « PawMap » = MA PawMap : la carte
+  // connectée de /map (mes amis, les membres autour de moi, mes demandes, mon
+  // rond « Moi », le rail complet). La ville ou la position demandée suit.
+  const loggedIn = ready && !!user;
+  useEffect(() => {
+    if (!loggedIn) return;
+    let qs = "";
+    try { qs = window.location.search || ""; } catch { /* ignore */ }
+    router.replace(`/map${qs}`);
+  }, [loggedIn, router]);
 
   // Ville demandée par l'accueil (/pawmap?city=Lyon) ou lien partagé (?lat&lng).
   useEffect(() => {
@@ -84,6 +98,7 @@ export default function PawMapPage() {
       if (hit && Number.isFinite(parseFloat(hit.lat))) {
         setCenter([parseFloat(hit.lat), parseFloat(hit.lon)]);
         setCityLabel(q.trim());
+        setFocusKey((k) => k + 1);
       } else {
         setSearchError(true);
       }
@@ -101,6 +116,7 @@ export default function PawMapPage() {
       (pos) => {
         setCenter([pos.coords.latitude, pos.coords.longitude]);
         setCityLabel("");
+        setFocusKey((k) => k + 1);
         setLocating(false);
       },
       () => setLocating(false),
@@ -122,6 +138,15 @@ export default function PawMapPage() {
 
   const nearest = useMemo(() => providers.slice(0, 6), [providers]);
   const roleLabel: Record<string, string> = { sitter: t("role_sitter"), walker: t("role_walker") };
+
+  // Tous les hooks sont au-dessus (piège du 20/09) : on peut sortir ici.
+  if (loggedIn) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center bg-white">
+        <span className="h-7 w-7 animate-spin rounded-full border-2 border-[#C92A12] border-t-transparent" aria-label="PawMap" />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white">
@@ -183,7 +208,7 @@ export default function PawMapPage() {
 
       {/* ── 2. LA CARTE (vraie) ── */}
       <div className="mx-auto max-w-6xl px-4">
-        <PublicPawMap center={center} zoom={12} height="min(62vh, 620px)" onProviders={setProviders} />
+        <PublicPawMap center={center} zoom={12} focusKey={focusKey} height="min(62vh, 620px)" onProviders={setProviders} />
         <p className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-center text-xs text-[#6E4F48]">
           <span className="inline-flex items-center gap-1.5"><AppIcon name="lock" size={14} />{t("pawmap_public_privacy")}</span>
           {!(ready && user) && (
