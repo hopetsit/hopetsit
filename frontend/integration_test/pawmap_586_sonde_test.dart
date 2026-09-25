@@ -198,7 +198,7 @@ void main() {
         await hold(t, 1000);
       }
       await shot(t, '06_direct_noir');
-      await realTap(t, find.byKey(const ValueKey('pawmap_action_direct_off')), why: 'Direct on');
+      await realTap(t, find.byKey(const ValueKey('pawmap_direct_pill_off')), why: 'Direct on');
       // Première fois : une phrase d'explication (Continuer).
       if (find.byType(AppDialogPrimaryButton).evaluate().isNotEmpty) {
         await _confirmDialog(t, 'explication 1re fois');
@@ -206,14 +206,14 @@ void main() {
       await waitFor(t, () => live.broadcasting.value, seconds: 15);
       await hold(t, 1500);
       ok('Direct -> en direct (vert)', live.broadcasting.value &&
-          find.byKey(const ValueKey('pawmap_action_direct_on')).evaluate().isNotEmpty);
+          find.byKey(const ValueKey('pawmap_direct_pill_on')).evaluate().isNotEmpty);
       await shot(t, '07_direct_vert');
-      await realTap(t, find.byKey(const ValueKey('pawmap_action_direct_on')), why: 'Direct off');
+      await realTap(t, find.byKey(const ValueKey('pawmap_direct_pill_on')), why: 'Direct off');
       await _confirmDialog(t, 'confirmer l\'arret');
       await waitFor(t, () => !live.broadcasting.value, seconds: 10);
       await hold(t, 1200);
       ok('Direct -> arrete (noir) apres confirmation', !live.broadcasting.value &&
-          find.byKey(const ValueKey('pawmap_action_direct_off')).evaluate().isNotEmpty);
+          find.byKey(const ValueKey('pawmap_direct_pill_off')).evaluate().isNotEmpty);
       await shot(t, '08_direct_noir_apres');
       if (live.broadcasting.value) live.stopBroadcasting();
     }

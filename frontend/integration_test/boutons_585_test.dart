@@ -374,7 +374,10 @@ Future<void> _run(WidgetTester tester) async {
         var guarded = false;
         bool isGuard(Key? k) =>
             k is ValueKey<String> &&
-            (k.value == 'pawmap_eye' || k.value.startsWith('pawmap_action_direct'));
+            (k.value == 'pawmap_eye' ||
+                k.value.startsWith('pawmap_action_direct') ||
+                // v587 — le Direct est monté en haut à gauche (pilule).
+                k.value.startsWith('pawmap_direct_pill'));
         if (isGuard(next.widget.key)) guarded = true;
         next.visitAncestorElements((a) {
           if (isGuard(a.widget.key)) {
