@@ -23,6 +23,7 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
 import { API_BASE, startProviderConversation } from "@/lib/api";
 import { AppIcon } from "@/components/AppIcon";
+import { ensureOwnerProfile, isMyProfile, needsOwnerSwitch } from "@/lib/bookAsOwner";
 import { providerCurrency, providerFrom, providerRateLines, formatMoney, type ProviderRateSource } from "@/lib/providerRates";
 
 // 25/09/2026 (PawMap 584, point 8) — fiche refaite : bouton principal PLEIN
@@ -65,6 +66,17 @@ export default function ProviderSharePage() {
   const [fiche, setFiche] = useState<Fiche | null>(null);
   const [etat, setEtat] = useState<"chargement" | "ok" | "absent">("chargement");
   const [msgBusy, setMsgBusy] = useState(false);
+  // 25/09 (586, point 8) — Réserver TOUJOURS en premier, quel que soit le rôle
+  // du visiteur ; un gardien / promeneur réserve avec son profil propriétaire.
+  // Seul cas sans Réserver : ma propre fiche.
+  const [asOwnerNote, setAsOwnerNote] = useState(false);
+  const [mine, setMine] = useState(false);
+  const [bookBusy, setBookBusy] = useState(false);
+  const [switchErr, setSwitchErr] = useState(false);
+  useEffect(() => {
+    setAsOwnerNote(needsOwnerSwitch());
+    setMine(isMyProfile(id));
+  }, [user, id]);
 
   useEffect(() => {
     let vivant = true;
@@ -101,12 +113,22 @@ export default function ProviderSharePage() {
     ? t("prov_book_from").replace("{price}", `${formatMoney(des.value, devise, lang)}/${t(des.unitKey)}`)
     : t("prov_book");
 
+  async function onBook(e: React.MouseEvent) {
+    if (!connecte || !asOwnerNote) return; // lien normal
+    e.preventDefault();
+    if (bookBusy) return;
+    setBookBusy(true);
+    setSwitchErr(false);
+    if (await ensureOwnerProfile()) router.push(cible);
+    else { setSwitchErr(true); setBookBusy(false); }
+  }
   async function onMessage() {
     if (!connecte) {
       router.push(`/signup?role=owner&next=${encodeURIComponent(`/p/${type}/${id}`)}`);
       return;
     }
     setMsgBusy(true);
+    if (asOwnerNote && !(await ensureOwnerProfile())) { setSwitchErr(true); setMsgBusy(false); return; }
     try {
       const cid = await startProviderConversation(type, id);
       router.push(cid ? `/chat?c=${cid}` : "/chat");
@@ -172,15 +194,24 @@ export default function ProviderSharePage() {
           )}
         </div>
 
+        {!mine && (<>
         <Link
           href={lienReserver}
+          onClick={onBook}
+          aria-busy={bookBusy}
           className="relative mt-6 flex min-h-[56px] w-full items-center justify-center gap-3 overflow-hidden rounded-[18px] px-5 text-[15px] font-bold text-white shadow-[0_12px_28px_-10px_rgba(23,20,31,0.45)] transition active:scale-[0.97]"
           style={{ background: `linear-gradient(90deg, ${r.g1}, ${r.g2})`, color: "#fff" }}
         >
           <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-white/15" />
           <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white"><AppIcon name="calendar" size={18} color={r.c} /></span>
-          <span className="relative text-balance leading-tight">{libelleReserver}</span>
+          <span className="relative text-balance leading-tight">{bookBusy ? t("m586_switching_owner") : libelleReserver}</span>
         </Link>
+        {asOwnerNote && (
+          <p className="mt-2 inline-flex items-center justify-center gap-1.5 text-[12px] font-bold text-[#9E1F0B]">
+            <AppIcon name="paw" size={13} color="#C92A12" />{t("m586_book_as_owner")}
+          </p>
+        )}
+        {switchErr && <p className="mt-1 text-[12px] font-bold text-[#B42318]" role="alert">{t("m586_switch_owner_error")}</p>}
         <button
           type="button"
           onClick={onMessage}
@@ -191,6 +222,7 @@ export default function ProviderSharePage() {
           {msgBusy ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: r.c, borderTopColor: "transparent" }} /> : <AppIcon name="chat" size={17} color={r.c} />}
           {t("prov_message")}
         </button>
+        </>)}
         <p className="mt-3 text-xs leading-relaxed text-[#6E4F48]">{t("provider_reassure")}</p>
       </section>
 

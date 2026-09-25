@@ -65,6 +65,7 @@ import {
   ROLE_GLYPH,
 } from "@/lib/pawmapLegend";
 import { safeFly } from "@/lib/safeFly";
+import { ensureOwnerProfile, isMyProfile, needsOwnerSwitch } from "@/lib/bookAsOwner";
 import {
   expandRows,
   formatKm,
@@ -368,6 +369,10 @@ function LiveFriendMarker({ p, isFamily, isPremium, followed, labels, onOpen }: 
 
 /** Libellés de la fiche membre (9 langues, fournis par la page). */
 export type CardLabels = {
+  /** 586 (point 8) — réserver avec le profil propriétaire. */
+  bookAsOwner?: string;
+  switchingOwner?: string;
+  switchOwnerError?: string;
   book: string;
   priceFrom: string;
   addFriend: string;
@@ -1029,6 +1034,10 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
   onMessageMember?: (m: NearbyMember) => (() => void) | null;
 }) {
   const [state, setState] = useState<"idle" | "busy" | "sent" | "already" | "error">("idle");
+  const [bookState, setBookState] = useState<"idle" | "busy" | "error">("idle");
+  const [asOwner, setAsOwner] = useState(false);
+  const [mine, setMine] = useState(false);
+  useEffect(() => { setAsOwner(needsOwnerSwitch()); setMine(isMyProfile(r.id)); }, [r.id]);
   const k = roleKey(r.role);
   const provider = k === "sitter" || k === "walker";
   const price = provider ? formatPrice(r.priceFrom, r.currency) : null;
@@ -1070,31 +1079,72 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
       )}
       {m.approx && <p className="mt-1.5 text-[11px] text-[#8A6B64]">{labels.approx.replace("{km}", String(m.approxKm ?? 1))}</p>}
       <div className="mt-3 flex flex-col gap-2">
-        {provider && (
-          <a href={`/book/${k}/${r.id}`} className="relative flex min-h-[50px] items-center justify-center gap-2 overflow-hidden rounded-[16px] px-4 text-center text-[14px] font-bold leading-tight text-white shadow-[0_10px_22px_-10px_rgba(23,20,31,0.55)]" style={{ background: ROLE_GRAD[k], color: "#fff" }}>
-            <span className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/25 to-transparent" />
-            <span className="relative">{labels.book}{price ? ` · ${labels.priceFrom} ${price}` : ""}</span>
-          </a>
-        )}
-        <div className="grid grid-cols-2 gap-2">
-          {onDirections && pt && <SecondaryBtn color="#15803D" onClick={() => onDirections({ lat: pt[0], lng: pt[1] })}>{labels.directions}</SecondaryBtn>}
-          {friend && onMessage ? (
-            <SecondaryBtn color="#9D174D" onClick={() => onMessage({ id: r.id, role: k, name: m.name })}>{labels.message}</SecondaryBtn>
-          ) : msgMember ? (
-            <SecondaryBtn color={ROLE_DARK[k]} onClick={msgMember}>{labels.message}</SecondaryBtn>
-          ) : !friend && onAddFriend ? (
-            <button
-              type="button"
-              disabled={state === "busy" || state === "sent" || state === "already"}
-              onClick={async () => { setState("busy"); setState(await onAddFriend(asRole)); }}
-              className="flex min-h-[44px] min-w-0 items-center justify-center rounded-[14px] border-[1.5px] border-[#F06AA0] bg-white px-2 text-center text-[13px] font-bold leading-tight text-[#9D174D] disabled:opacity-90"
-            >
-              {state === "sent" ? labels.sent : state === "already" ? labels.already : state === "error" ? labels.failed : state === "busy" ? "…" : `+ ${labels.addFriend}`}
-            </button>
-          ) : null}
-        </div>
-        {(provider || (!friend && msgMember && onAddFriend)) && (
-          <div className="grid grid-cols-2 gap-2">
+        {provider ? (
+          <>
+            {/* 25/09 (586, point 8) — Réserver TOUJOURS en premier (sauf ma
+                propre fiche), « Message » en second, quel que soit mon rôle ;
+                un gardien / promeneur réserve avec son profil propriétaire. */}
+            {!mine && (
+              <a
+                href={`/book/${k}/${r.id}`}
+                onClick={async (e) => {
+                  if (!asOwner) return;
+                  e.preventDefault();
+                  if (bookState === "busy") return;
+                  setBookState("busy");
+                  if (await ensureOwnerProfile()) window.location.href = `/book/${k}/${r.id}`;
+                  else setBookState("error");
+                }}
+                className="relative flex min-h-[50px] items-center justify-center gap-2 overflow-hidden rounded-[16px] px-4 text-center text-[14px] font-bold leading-tight text-white shadow-[0_10px_22px_-10px_rgba(23,20,31,0.55)]"
+                style={{ background: ROLE_GRAD[k], color: "#fff" }}
+              >
+                <span className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/25 to-transparent" />
+                <span className="relative">{bookState === "busy" && labels.switchingOwner ? labels.switchingOwner : `${labels.book}${price ? ` · ${labels.priceFrom} ${price}` : ""}`}</span>
+              </a>
+            )}
+            {!mine && asOwner && labels.bookAsOwner && <p className="-mt-0.5 text-center text-[11px] font-bold text-[#9E1F0B]">{labels.bookAsOwner}</p>}
+            {bookState === "error" && labels.switchOwnerError && <p className="text-center text-[11px] font-bold text-[#B42318]" role="alert">{labels.switchOwnerError}</p>}
+            {!mine && (friend && onMessage ? (
+              <SecondaryBtn color="#9D174D" onClick={() => onMessage({ id: r.id, role: k, name: m.name })}>{labels.message}</SecondaryBtn>
+            ) : msgMember ? (
+              <SecondaryBtn color={ROLE_DARK[k]} onClick={msgMember}>{labels.message}</SecondaryBtn>
+            ) : null)}
+            <div className="grid grid-cols-2 gap-2">
+              {onDirections && pt && <SecondaryBtn color="#15803D" onClick={() => onDirections({ lat: pt[0], lng: pt[1] })}>{labels.directions}</SecondaryBtn>}
+              {!friend && !mine && onAddFriend && (
+                <button
+                  type="button"
+                  disabled={state === "busy" || state === "sent" || state === "already"}
+                  onClick={async () => { setState("busy"); setState(await onAddFriend(asRole)); }}
+                  className="flex min-h-[44px] min-w-0 items-center justify-center rounded-[14px] border-[1.5px] border-[#F06AA0] bg-white px-2 text-center text-[13px] font-bold leading-tight text-[#9D174D] disabled:opacity-90"
+                >
+                  {state === "sent" ? labels.sent : state === "already" ? labels.already : state === "error" ? labels.failed : state === "busy" ? "…" : `+ ${labels.addFriend}`}
+                </button>
+              )}
+            </div>
+            <a href={`/p/${k}/${r.id}`} className="flex min-h-[44px] items-center justify-center rounded-[14px] px-2 text-center text-[13px] font-bold leading-tight underline-offset-2 hover:underline" style={{ color: ROLE_DARK[k] }}>
+              {labels.viewProfile} ›
+            </a>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              {onDirections && pt && <SecondaryBtn color="#15803D" onClick={() => onDirections({ lat: pt[0], lng: pt[1] })}>{labels.directions}</SecondaryBtn>}
+              {friend && onMessage ? (
+                <SecondaryBtn color="#9D174D" onClick={() => onMessage({ id: r.id, role: k, name: m.name })}>{labels.message}</SecondaryBtn>
+              ) : msgMember ? (
+                <SecondaryBtn color={ROLE_DARK[k]} onClick={msgMember}>{labels.message}</SecondaryBtn>
+              ) : !friend && onAddFriend ? (
+                <button
+                  type="button"
+                  disabled={state === "busy" || state === "sent" || state === "already"}
+                  onClick={async () => { setState("busy"); setState(await onAddFriend(asRole)); }}
+                  className="flex min-h-[44px] min-w-0 items-center justify-center rounded-[14px] border-[1.5px] border-[#F06AA0] bg-white px-2 text-center text-[13px] font-bold leading-tight text-[#9D174D] disabled:opacity-90"
+                >
+                  {state === "sent" ? labels.sent : state === "already" ? labels.already : state === "error" ? labels.failed : state === "busy" ? "…" : `+ ${labels.addFriend}`}
+                </button>
+              ) : null}
+            </div>
             {!friend && msgMember && onAddFriend && (
               <button
                 type="button"
@@ -1105,12 +1155,7 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
                 {state === "sent" ? labels.sent : state === "already" ? labels.already : state === "error" ? labels.failed : state === "busy" ? "…" : `+ ${labels.addFriend}`}
               </button>
             )}
-            {provider && (
-              <a href={`/p/${k}/${r.id}`} className={`flex min-h-[44px] items-center justify-center rounded-[14px] px-2 text-center text-[13px] font-bold leading-tight underline-offset-2 hover:underline ${!friend && msgMember && onAddFriend ? "" : "col-span-2"}`} style={{ color: ROLE_DARK[k] }}>
-                {labels.viewProfile} ›
-              </a>
-            )}
-          </div>
+          </>
         )}
       </div>
     </>

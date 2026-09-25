@@ -9,6 +9,7 @@ type D = Record<string, string>;
 
 export const PAWMAP586: Record<Lang, D> = {
   fr: {
+    m586_book_as_owner: "Tu réserves avec ton profil propriétaire", m586_switching_owner: "Passage à ton profil propriétaire…", m586_switch_owner_error: "Impossible d'ouvrir ton profil propriétaire, réessaie.",
     m586_see_title: "Ce que je veux voir", m586_see_all: "Tout", m586_see_none: "Rien", m586_see_friends: "Amis", m586_see_owners: "Propriétaires", m586_see_sitters: "Gardiens", m586_see_walkers: "Promeneurs", m586_see_places: "Lieux", m586_see_spots: "PawSpots", m586_see_reports: "Signalements", m586_see_requests: "Demandes", m586_see_hint: "Chaque pastille allume ou éteint une seule famille ; « Moi » reste toujours visible.", m586_leg_see_t: "« Ce que je veux voir »", m586_leg_see_b: "Une pastille par famille, à sa couleur : éteindre les lieux ne cache jamais les personnes ni les amis. Choix gardés sur ton compte.",
     m586_options: "Options", m586_options_open: "Afficher les options de la carte", m586_options_close: "Masquer les options",
     m586_publish: "Publier", m586_publish_long: "Publier ma demande",
@@ -26,6 +27,7 @@ export const PAWMAP586: Record<Lang, D> = {
     m586_leg_eye_t: "Œil : qui me voit", m586_leg_eye_b: "Œil = visible par tous, œil + cœur = amis seulement, œil barré = masqué. Un toucher = état suivant.",
   },
   en: {
+    m586_book_as_owner: "You're booking with your owner profile", m586_switching_owner: "Switching to your owner profile…", m586_switch_owner_error: "Couldn't open your owner profile, please try again.",
     m586_see_title: "What I want to see", m586_see_all: "All", m586_see_none: "None", m586_see_friends: "Friends", m586_see_owners: "Owners", m586_see_sitters: "Sitters", m586_see_walkers: "Walkers", m586_see_places: "Places", m586_see_spots: "PawSpots", m586_see_reports: "Reports", m586_see_requests: "Requests", m586_see_hint: "Each chip turns one family on or off; “Me” always stays visible.", m586_leg_see_t: "“What I want to see”", m586_leg_see_b: "One chip per family, in its colour: hiding places never hides people or friends. Choices saved on your account.",
     m586_options: "Options", m586_options_open: "Show map options", m586_options_close: "Hide options",
     m586_publish: "Post", m586_publish_long: "Post my request",
@@ -43,6 +45,7 @@ export const PAWMAP586: Record<Lang, D> = {
     m586_leg_eye_t: "Eye: who sees me", m586_leg_eye_b: "Eye = visible to everyone, eye + heart = friends only, crossed-out eye = hidden. One tap = next state.",
   },
   es: {
+    m586_book_as_owner: "Reservas con tu perfil de dueño", m586_switching_owner: "Cambiando a tu perfil de dueño…", m586_switch_owner_error: "No se pudo abrir tu perfil de dueño, inténtalo de nuevo.",
     m586_see_title: "Lo que quiero ver", m586_see_all: "Todo", m586_see_none: "Nada", m586_see_friends: "Amigos", m586_see_owners: "Dueños", m586_see_sitters: "Cuidadores", m586_see_walkers: "Paseadores", m586_see_places: "Lugares", m586_see_spots: "PawSpots", m586_see_reports: "Avisos", m586_see_requests: "Solicitudes", m586_see_hint: "Cada pastilla enciende o apaga una sola familia; «Yo» siempre sigue visible.", m586_leg_see_t: "«Lo que quiero ver»", m586_leg_see_b: "Una pastilla por familia, con su color: ocultar los lugares nunca oculta a las personas ni a los amigos. Elecciones guardadas en tu cuenta.",
     m586_options: "Opciones", m586_options_open: "Mostrar las opciones del mapa", m586_options_close: "Ocultar las opciones",
     m586_publish: "Publicar", m586_publish_long: "Publicar mi solicitud",
@@ -60,6 +63,7 @@ export const PAWMAP586: Record<Lang, D> = {
     m586_leg_eye_t: "Ojo: quién me ve", m586_leg_eye_b: "Ojo = visible para todos, ojo + corazón = solo amigos, ojo tachado = oculto. Un toque = siguiente estado.",
   },
   de: {
+    m586_book_as_owner: "Du buchst mit deinem Halterprofil", m586_switching_owner: "Wechsel zu deinem Halterprofil…", m586_switch_owner_error: "Dein Halterprofil konnte nicht geöffnet werden, bitte erneut versuchen.",
     m586_see_title: "Was ich sehen will", m586_see_all: "Alle", m586_see_none: "Keine", m586_see_friends: "Freunde", m586_see_owners: "Halter", m586_see_sitters: "Sitter", m586_see_walkers: "Gassigeher", m586_see_places: "Orte", m586_see_spots: "PawSpots", m586_see_reports: "Meldungen", m586_see_requests: "Anfragen", m586_see_hint: "Jeder Chip schaltet genau eine Gruppe ein oder aus; „Ich“ bleibt immer sichtbar.", m586_leg_see_t: "„Was ich sehen will“", m586_leg_see_b: "Ein Chip pro Gruppe, in ihrer Farbe: Orte ausblenden versteckt nie Personen oder Freunde. Auswahl in deinem Konto gespeichert.",
     m586_options: "Optionen", m586_options_open: "Kartenoptionen anzeigen", m586_options_close: "Optionen ausblenden",
     m586_publish: "Posten", m586_publish_long: "Meine Anfrage veröffentlichen",
@@ -77,6 +81,7 @@ export const PAWMAP586: Record<Lang, D> = {
     m586_leg_eye_t: "Auge: wer mich sieht", m586_leg_eye_b: "Auge = für alle sichtbar, Auge + Herz = nur Freunde, durchgestrichenes Auge = verborgen. Ein Tipp = nächster Zustand.",
   },
   it: {
+    m586_book_as_owner: "Prenoti con il tuo profilo proprietario", m586_switching_owner: "Passaggio al tuo profilo proprietario…", m586_switch_owner_error: "Impossibile aprire il tuo profilo proprietario, riprova.",
     m586_see_title: "Cosa voglio vedere", m586_see_all: "Tutto", m586_see_none: "Niente", m586_see_friends: "Amici", m586_see_owners: "Proprietari", m586_see_sitters: "Pet sitter", m586_see_walkers: "Dog walker", m586_see_places: "Luoghi", m586_see_spots: "PawSpot", m586_see_reports: "Segnalazioni", m586_see_requests: "Richieste", m586_see_hint: "Ogni pastiglia accende o spegne una sola famiglia; «Io» resta sempre visibile.", m586_leg_see_t: "«Cosa voglio vedere»", m586_leg_see_b: "Una pastiglia per famiglia, del suo colore: nascondere i luoghi non nasconde mai persone o amici. Scelte salvate sul tuo account.",
     m586_options: "Opzioni", m586_options_open: "Mostra le opzioni della mappa", m586_options_close: "Nascondi le opzioni",
     m586_publish: "Pubblica", m586_publish_long: "Pubblica la mia richiesta",
@@ -94,6 +99,7 @@ export const PAWMAP586: Record<Lang, D> = {
     m586_leg_eye_t: "Occhio: chi mi vede", m586_leg_eye_b: "Occhio = visibile a tutti, occhio + cuore = solo amici, occhio barrato = nascosto. Un tocco = stato successivo.",
   },
   pt: {
+    m586_book_as_owner: "Reservas com o teu perfil de dono", m586_switching_owner: "A mudar para o teu perfil de dono…", m586_switch_owner_error: "Não foi possível abrir o teu perfil de dono, tenta de novo.",
     m586_see_title: "O que quero ver", m586_see_all: "Tudo", m586_see_none: "Nada", m586_see_friends: "Amigos", m586_see_owners: "Donos", m586_see_sitters: "Cuidadores", m586_see_walkers: "Passeadores", m586_see_places: "Locais", m586_see_spots: "PawSpots", m586_see_reports: "Alertas", m586_see_requests: "Pedidos", m586_see_hint: "Cada pastilha liga ou desliga uma só família; «Eu» fica sempre visível.", m586_leg_see_t: "«O que quero ver»", m586_leg_see_b: "Uma pastilha por família, na sua cor: ocultar os locais nunca oculta pessoas nem amigos. Escolhas guardadas na tua conta.",
     m586_options: "Opções", m586_options_open: "Mostrar as opções do mapa", m586_options_close: "Ocultar as opções",
     m586_publish: "Publicar", m586_publish_long: "Publicar o meu pedido",
@@ -111,6 +117,7 @@ export const PAWMAP586: Record<Lang, D> = {
     m586_leg_eye_t: "Olho: quem me vê", m586_leg_eye_b: "Olho = visível para todos, olho + coração = só amigos, olho riscado = oculto. Um toque = estado seguinte.",
   },
   ko: {
+    m586_book_as_owner: "보호자 프로필로 예약해요", m586_switching_owner: "보호자 프로필로 전환 중…", m586_switch_owner_error: "보호자 프로필을 열지 못했어요. 다시 시도해 주세요.",
     m586_see_title: "보고 싶은 것", m586_see_all: "전체", m586_see_none: "없음", m586_see_friends: "친구", m586_see_owners: "보호자", m586_see_sitters: "시터", m586_see_walkers: "워커", m586_see_places: "장소", m586_see_spots: "PawSpot", m586_see_reports: "신고", m586_see_requests: "요청", m586_see_hint: "칩 하나가 한 가지 항목만 켜고 꺼요. ‘나’는 항상 보여요.", m586_leg_see_t: "‘보고 싶은 것’", m586_leg_see_b: "항목마다 고유 색의 칩 하나: 장소를 꺼도 사람과 친구는 절대 숨겨지지 않아요. 선택은 계정에 저장돼요.",
     m586_options: "옵션", m586_options_open: "지도 옵션 보기", m586_options_close: "옵션 숨기기",
     m586_publish: "게시", m586_publish_long: "내 요청 게시하기",
@@ -128,6 +135,7 @@ export const PAWMAP586: Record<Lang, D> = {
     m586_leg_eye_t: "눈: 나를 보는 사람", m586_leg_eye_b: "눈 = 모두에게 보임, 눈 + 하트 = 친구만, 사선 그은 눈 = 숨김. 한 번 누르면 다음 상태로 바뀌어요.",
   },
   ja: {
+    m586_book_as_owner: "飼い主プロフィールで予約します", m586_switching_owner: "飼い主プロフィールに切り替え中…", m586_switch_owner_error: "飼い主プロフィールを開けませんでした。もう一度お試しください。",
     m586_see_title: "表示するもの", m586_see_all: "すべて", m586_see_none: "なし", m586_see_friends: "友だち", m586_see_owners: "飼い主", m586_see_sitters: "シッター", m586_see_walkers: "ウォーカー", m586_see_places: "場所", m586_see_spots: "PawSpot", m586_see_reports: "通報", m586_see_requests: "依頼", m586_see_hint: "チップ1つで1種類だけを表示・非表示にします。「自分」は常に表示されます。", m586_leg_see_t: "「表示するもの」", m586_leg_see_b: "種類ごとに色の付いたチップ：場所を消しても人や友だちは消えません。選択はアカウントに保存されます。",
     m586_options: "オプション", m586_options_open: "地図のオプションを表示", m586_options_close: "オプションを隠す",
     m586_publish: "投稿", m586_publish_long: "依頼を投稿する",
@@ -145,6 +153,7 @@ export const PAWMAP586: Record<Lang, D> = {
     m586_leg_eye_t: "目：自分が見える相手", m586_leg_eye_b: "目＝全員に表示、目＋ハート＝友だちのみ、斜線の目＝非表示。タップで次の状態へ。",
   },
   pl: {
+    m586_book_as_owner: "Rezerwujesz z profilu właściciela", m586_switching_owner: "Przełączanie na profil właściciela…", m586_switch_owner_error: "Nie udało się otworzyć profilu właściciela, spróbuj ponownie.",
     m586_see_title: "Co chcę widzieć", m586_see_all: "Wszystko", m586_see_none: "Nic", m586_see_friends: "Znajomi", m586_see_owners: "Właściciele", m586_see_sitters: "Opiekunowie", m586_see_walkers: "Wyprowadzacze", m586_see_places: "Miejsca", m586_see_spots: "PawSpoty", m586_see_reports: "Zgłoszenia", m586_see_requests: "Prośby", m586_see_hint: "Każda plakietka włącza lub wyłącza jedną grupę; „Ja” jest zawsze widoczne.", m586_leg_see_t: "„Co chcę widzieć”", m586_leg_see_b: "Jedna plakietka na grupę, w jej kolorze: ukrycie miejsc nigdy nie ukrywa osób ani znajomych. Wybór zapisany na twoim koncie.",
     m586_options: "Opcje", m586_options_open: "Pokaż opcje mapy", m586_options_close: "Ukryj opcje",
     m586_publish: "Opublikuj", m586_publish_long: "Opublikuj moją prośbę",

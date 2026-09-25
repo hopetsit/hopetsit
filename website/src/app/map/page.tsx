@@ -44,6 +44,7 @@ import { PawMapLegendModal } from "@/components/PawMapLegendModal";
 import { SelectMenu } from "@/components/SelectMenu";
 import StoreBadges from "@/components/StoreBadges";
 import { EyeIcon, VisibilityPills } from "@/components/MapVisibility";
+import { ensureOwnerProfile } from "@/lib/bookAsOwner";
 import type { MapRequest, LiveLabels, CardLabels } from "@/components/PoiMap";
 import {
   ApiError,
@@ -1068,6 +1069,7 @@ export default function MapPage() {
       sent: t("map_member_request_sent"), already: t("map_member_already"), failed: t("map_member_request_failed"),
       approx: t("map_member_approx"), verified: t("trust_id_title"), viewProfile: t("friend_view_profile"),
       directions: t("map_directions_btn"), message: t("live_message"), friend: t("map_friend_badge"),
+      bookAsOwner: t("m586_book_as_owner"), switchingOwner: t("m586_switching_owner"), switchOwnerError: t("m586_switch_owner_error"),
       chooseProfile: t("map_choose_profile"), profilesHere: t("map_profiles_here"), see: t("map_see"),
       // Sans ma position, la distance part du centre de la carte : on le dit.
       distance: userLocation ? t("map_distance_from_you") : t("map_distance_from_center"), back: t("map_back"), close: t("common_close"), lang,
@@ -1536,12 +1538,15 @@ export default function MapPage() {
             now={nowTs}
             onMessage={(w) => { void openMessage(w); }}
             onMessageMember={(m) => {
-              // Propriétaire → gardien / promeneur : la conversation « prestataire »
-              // (même route que l'app). Sinon, pas de bouton Message.
+              // Visiteur → gardien / promeneur : la conversation « prestataire »
+              // (même route que l'app). 25/09 (586, point 8) — quel que soit
+              // mon rôle : un gardien / promeneur écrit avec son profil
+              // propriétaire (passage automatique). Fiche propriétaire : non.
               const k = roleKey(m.role);
-              if (myRole !== "owner" || k === "owner") return null;
+              if (k === "owner") return null;
               return () => {
-                void startProviderConversation(k, m.id)
+                void ensureOwnerProfile()
+                  .then((ok) => { if (!ok) throw new Error("switch"); return startProviderConversation(k, m.id); })
                   .then((cid) => router.push(cid ? `/chat?c=${cid}` : "/chat"))
                   .catch(() => router.push(`/book/${k}/${m.id}`));
               };
