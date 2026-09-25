@@ -296,12 +296,29 @@ router.get(
         logger.warn(`[users/me/benefits] contacts lock check failed : ${e.message}`);
       }
 
+      // v585 (bug 11) — PawBoost vaut pour la PERSONNE : le boost acheté sous
+      // un autre rôle compte aussi (Daniel : « j'active PawBoost, mon rond
+      // garde la couleur du rôle » après un changement de rôle).
+      let personBoostRes = null;
+      try {
+        const { personIds: _pids } = require('../utils/personScope');
+        const { personBoost } = require('../utils/personMapPosition');
+        const ids = (await _pids(req.user.id)).map(String);
+        const O = require('../models/Owner');
+        const S = require('../models/Sitter');
+        const W = require('../models/Walker');
+        const sibs = (await Promise.all([O, S, W].map((M) => M.find({ _id: { $in: ids } })
+          .select('boostExpiry boostTier').lean()))).flat();
+        personBoostRes = personBoost([user, ...sibs]);
+      } catch (e) {
+        logger.warn(`[users/me/benefits] person boost failed : ${e.message}`);
+      }
       const payload = {
         role,
         isStaff,
         contactsLocked,
-        boostExpiry: user.boostExpiry || null,
-        boostTier: user.boostTier || null,
+        boostExpiry: (personBoostRes && personBoostRes.boostExpiry) || user.boostExpiry || null,
+        boostTier: (personBoostRes && personBoostRes.boostTier) || user.boostTier || null,
         mapBoostExpiry: user.mapBoostExpiry || null,
         mapBoostTier: user.mapBoostTier || null,
         pawspotActive: pawspotActive || isStaff,

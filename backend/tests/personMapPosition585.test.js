@@ -29,7 +29,9 @@ const DOCS = {
     // en direct (il y a 2 jours, à Valence) a écrasé `location`.
     { _id: 'john_owner', email: 'john@example.test', name: 'john C', updatedAt: DAYS(2),
       location: { coordinates: VALENCE, updatedAt: DAYS(2), liveShareActive: true },
-      homeLocation: { coordinates: MURCIE, city: 'Murcie', at: DAYS(30) }, preferences: {} },
+      homeLocation: { coordinates: MURCIE, city: 'Murcie', at: DAYS(30) }, preferences: {},
+      // PawBoost acheté sous le rôle PROPRIÉTAIRE (bug 11).
+      boostExpiry: new Date(Date.now() + 3 * 864e5), boostTier: 'gold' },
   ],
   Sitter: [
     { _id: 'dan_sitter', email: 'dan@example.test', name: 'Daniel', location: { coordinates: [-30.5, -35.5] }, preferences: {} },
@@ -232,5 +234,21 @@ describe('couche monde et proches : john C vu par Daniel', () => {
   test('homeLocation (position exacte de profil) ne sort jamais', async () => {
     const r = await call(world(), { id: 'dan_walker', role: 'walker' });
     expect(JSON.stringify(r.body)).not.toMatch(/homeLocation/);
+  });
+});
+
+describe('bug 11 — PawBoost vaut pour la personne', () => {
+  test('personBoost : le boost le plus lointain des profils, expiré ignoré', () => {
+    const b = P.personBoost([{ boostExpiry: DAYS(1) }, { boostExpiry: new Date(Date.now() + 864e5), boostTier: 'silver' }]);
+    expect(b.boostTier).toBe('silver');
+    expect(P.personBoost([{ boostExpiry: DAYS(1) }])).toBeNull();
+  });
+  test('couche monde et proches : john boosté (acheté en propriétaire) même si son point est gardien', async () => {
+    const w = await call(world(), { id: 'dan_walker', role: 'walker' });
+    const jw = w.body.members.find((m) => (m.personIds || []).includes('john_owner'));
+    expect(jw.isBoosted).toBe(true);
+    const n = await call(nearby(), { id: 'dan_walker', role: 'walker' }, Q);
+    const jn = n.body.members.find((m) => (m.personIds || []).includes('john_owner'));
+    expect(jn.isBoosted).toBe(true);
   });
 });

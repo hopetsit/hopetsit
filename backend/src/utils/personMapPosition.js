@@ -225,7 +225,25 @@ function homeLocationPlugin(schema) {
   schema.pre('updateMany', onUpdate);
 }
 
+/**
+ * v585 (bug 11, Daniel : « j'active PawBoost, mon rond garde la couleur du
+ * rôle ») — PawBoost est enregistré sur le SEUL profil qui l'a acheté ; il
+ * vaut pour la PERSONNE (ses 3 profils). Renvoie le boost le plus lointain
+ * de ces documents, ou null.
+ */
+function personBoost(docs, now = new Date()) {
+  let best = null;
+  for (const d of docs || []) {
+    if (!d || !d.boostExpiry) continue;
+    const t = new Date(d.boostExpiry).getTime();
+    if (!Number.isFinite(t) || t <= _t(now)) continue;
+    if (!best || t > best.t) best = { t, boostExpiry: new Date(t), boostTier: d.boostTier || null };
+  }
+  return best ? { boostExpiry: best.boostExpiry, boostTier: best.boostTier } : null;
+}
+
 module.exports = {
+  personBoost,
   LIVE_MAX_MS,
   validLngLat,
   isLiveNow,

@@ -356,6 +356,8 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
         // v584 — épingles de la légende : lueur turquoise PawBoost, coche
         // « identité vérifiée », filtre « disponible aujourd'hui ».
         ...mapVisibility.pinFlags(d, now),
+        // v585 (bug 11) — PawBoost de la personne (n'importe lequel de ses rôles).
+        isBoosted: entries.some((e) => mapVisibility.isBoosted(e.d, now)),
       });
     }
     return res.json({ members, count: members.length });
@@ -605,6 +607,8 @@ router.get('/members/world', requireAuth, async (req, res) => {
         priceFrom: role === 'owner' ? 0 : priceFrom(d, role),
         currency: d.currency || 'EUR',
         ...mapVisibility.pinFlags(d, nowDate),
+        // v585 (bug 11) — PawBoost acheté sous un autre rôle : vaut pour la personne.
+        isBoosted: entries.some((e) => mapVisibility.isBoosted(e.d, nowDate)),
       });
     }
     // Centres-villes manquants : résolus en tâche de fond pour la prochaine
