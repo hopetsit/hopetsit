@@ -504,11 +504,23 @@ class _Avatar extends StatelessWidget {
               shape: BoxShape.circle,
               color: ring,
               border: Border.all(color: ring, width: 3),
-              image: hasUrl
-                  ? DecorationImage(image: NetworkImage(url), fit: BoxFit.cover)
-                  : null,
             ),
-            child: hasUrl ? null : Icon(icon, color: Colors.white, size: 26.sp),
+            // BOB 25/09 — une photo absente ou qui ne charge pas laissait un
+            // disque de couleur vide (vu sur la fiche « Rhoda Mia ») : l'icône
+            // du rôle reste affichée tant que la photo n'est pas là.
+            child: ClipOval(
+              child: hasUrl
+                  ? Image.network(
+                      url,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          Icon(icon, color: Colors.white, size: 26.sp),
+                      loadingBuilder: (_, child, progress) => progress == null
+                          ? child
+                          : Icon(icon, color: Colors.white, size: 26.sp),
+                    )
+                  : Icon(icon, color: Colors.white, size: 26.sp),
+            ),
           ),
           if (online)
             Positioned(
