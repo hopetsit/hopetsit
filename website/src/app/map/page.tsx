@@ -41,7 +41,7 @@ import { PawMapLogo } from "@/components/PawMapLogo";
 import { AppIcon, type AppIconName } from "@/components/AppIcon";
 import { PageTitle } from "@/components/PageTitle";
 import { PawMapLegendModal } from "@/components/PawMapLegendModal";
-import type { MapRequest } from "@/components/PoiMap";
+import type { MapRequest, LiveLabels } from "@/components/PoiMap";
 import {
   ApiError,
   FriendItem,
@@ -58,7 +58,8 @@ import {
   createMapReport,
   createPawSpot,
   uploadImage,
-  getFriendLastPosition,
+  startFriendConversation,
+  startProviderConversation,
   getFriendsLivePositions,
   getMyBenefits,
   getMyFamily,
@@ -189,7 +190,8 @@ export default function MapPage() {
 
   // ── couches ──
   const [benefits, setBenefits] = useState<MyBenefits | null>(null);
-  const [showFriends, setShowFriends] = useState(false);
+  // 25/09 (point 11) — mes amis sont affichés dès l'ouverture (comme l'app).
+  const [showFriends, setShowFriends] = useState(true);
   const [showSpots, setShowSpots] = useState(false);
   const [spots, setSpots] = useState<PawSpot[]>([]);
   const [showReports, setShowReports] = useState(false);
@@ -214,6 +216,7 @@ export default function MapPage() {
   const [premiumIds, setPremiumIds] = useState<string[]>([]);
   const [livePositions, setLivePositions] = useState<Map<string, FriendLivePosition>>(new Map());
   const friendsLoadedRef = useRef(false);
+  const [friendSeen, setFriendSeen] = useState<Record<string, string | null>>({});
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const [routeMode, setRouteModeState] = useState<RouteMode>("walk");
@@ -236,6 +239,8 @@ export default function MapPage() {
   const [legendOpen, setLegendOpen] = useState(false);
   const [followUserId, setFollowUserId] = useState<string | null>(null);
   const [followPaused, setFollowPaused] = useState(false);
+  const [followSheet, setFollowSheet] = useState(false);
+  const [liveToast, setLiveToast] = useState<string | null>(null);
   const [sheet, setSheet] = useState<"peek" | "half" | "full">("peek");
   const [showRequests, setShowRequests] = useState(true);
   const [requests, setRequests] = useState<MapRequest[]>([]);
@@ -261,6 +266,9 @@ export default function MapPage() {
   );
   const [directionsLocked, setDirectionsLocked] = useState(false);
   const [directionsError, setDirectionsError] = useState(false);
+  // 25/09 (Itinéraire) — d'où part le trajet : ma position GPS, ou le centre
+  // de la carte quand le navigateur ne donne pas la position (dit à l'écran).
+  const [routeFrom, setRouteFrom] = useState<"gps" | "center" | null>(null);
 
   const { connected: socketConnected } = useSocket();
   useEffect(() => {
@@ -290,6 +298,9 @@ export default function MapPage() {
         lat: data.lat,
         lng: data.lng,
         at: data.at || new Date().toISOString(),
+        // Un point reçu par la socket = le partage est actif maintenant.
+        lastSeenAt: new Date().toISOString(),
+        state: "live",
         isOnline: prev.get(data.userId)?.isOnline ?? friend?.isOnline ?? friend?.other?.isOnline ?? true,
       });
       return next;
@@ -305,12 +316,33 @@ export default function MapPage() {
   });
 
   const [myRole, setMyRole] = useState<string>("sitter");
-  const [focusTarget, setFocusTarget] = useState<{ lat: number; lng: number; ts: number } | null>(null);
+  const [focusTarget, setFocusTarget] = useState<{ lat: number; lng: number; ts: number; zoom?: number } | null>(null);
+  // 25/09 (point 5) — zone VISIBLE de la carte : compteur et état vide.
+  const [viewBounds, setViewBounds] = useState<{ s: number; w: number; n: number; e: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [locateMsg, setLocateMsg] = useState<string | null>(null);
   const [cityQuery, setCityQuery] = useState("");
   const [citySearching, setCitySearching] = useState(false);
   const [cityError, setCityError] = useState(false);
+  // 25/09 (PawMap 584, point 5) — chercher une ville CENTRE et ZOOME dessus
+  // (zoom 12, vol en douceur), puis les membres de la zone se chargent
+  // (moveend → nouveau centre). Avant : le centre changeait sans le zoom → une
+  // carte dézoomée restait sur la France et la feuille disait « personne ».
+  async function geocodeCity(q: string): Promise<boolean> {
+    const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=${encodeURIComponent(lang)}&q=${encodeURIComponent(q)}`);
+    const results = (await resp.json()) as { lat: string; lon: string }[];
+    const hit = results?.[0];
+    if (!hit || !Number.isFinite(parseFloat(hit.lat))) return false;
+    const lat = parseFloat(hit.lat);
+    const lng = parseFloat(hit.lon);
+    setCenter([lat, lng]);
+    setFocusTarget({ lat, lng, ts: Date.now(), zoom: 12 });
+    try {
+      window.localStorage.setItem("hopetsit:lastMapCenter", JSON.stringify({ lat, lng }));
+      window.localStorage.setItem("hopetsit:lastMapZoom", "12");
+    } catch {/* ignore */}
+    return true;
+  }
   async function handleCitySearch(e: React.FormEvent) {
     e.preventDefault();
     const q = cityQuery.trim();
@@ -318,17 +350,7 @@ export default function MapPage() {
     setCitySearching(true);
     setCityError(false);
     try {
-      const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=${encodeURIComponent(typeof navigator !== "undefined" ? navigator.language : "fr")}&q=${encodeURIComponent(q)}`);
-      const results = (await resp.json()) as { lat: string; lon: string }[];
-      const hit = results?.[0];
-      if (hit && Number.isFinite(parseFloat(hit.lat))) {
-        const lat = parseFloat(hit.lat);
-        const lng = parseFloat(hit.lon);
-        setCenter([lat, lng]);
-        try { window.localStorage.setItem("hopetsit:lastMapCenter", JSON.stringify({ lat, lng })); } catch {/* ignore */}
-      } else {
-        setCityError(true);
-      }
+      if (!(await geocodeCity(q))) setCityError(true);
     } catch {
       setCityError(true);
     } finally {
@@ -336,11 +358,24 @@ export default function MapPage() {
     }
   }
 
+  // Ville demandée depuis l'accueil ou /pawmap (?city=Lyon) : connecté, on
+  // arrive ici avec la même recherche.
+  const cityParamDone = useRef(false);
+  useEffect(() => {
+    if (loading || cityParamDone.current) return;
+    cityParamDone.current = true;
+    try {
+      const c = new URLSearchParams(window.location.search).get("city");
+      if (c && c.trim()) { setCityQuery(c); void geocodeCity(c.trim()).catch(() => {}); }
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
   // Auth + géolocalisation au mount.
   useEffect(() => {
     const me = getStoredUser();
     if (!me) {
-      router.replace("/login");
+      router.replace("/login?redirect=%2Fmap");
       return;
     }
     setMyRole(me.role);
@@ -361,7 +396,9 @@ export default function MapPage() {
           try { window.localStorage.setItem("hopetsit:lastMapCenter", JSON.stringify(loc)); } catch {/* ignore */}
           if (firstFix) {
             firstFix = false;
-            setCenter([loc.lat, loc.lng]);
+            let asked = false;
+            try { const q = new URLSearchParams(window.location.search); asked = !!(q.get("city") || q.get("lat")); } catch { /* ignore */ }
+            if (!asked) setCenter([loc.lat, loc.lng]);
           }
         }
         setLoading(false);
@@ -438,7 +475,9 @@ export default function MapPage() {
 
   const membersSubscribed = !!(benefits?.pawspotActive || benefits?.premiumActive || benefits?.isPremium);
   useEffect(() => {
-    if (loading || !membersSubscribed) { setMembers([]); return; }
+    // 25/09 — la couche « proches » pour tous (le serveur décide ce qu'il
+    // renvoie), comme l'app : sinon un ami ou un gardien proche pouvait manquer.
+    if (loading) { setMembers([]); return; }
     const tid = setTimeout(async () => {
       try {
         setMembers(await getNearbyMembers({ lat: center[0], lng: center[1], radiusInMeters: 25000 }));
@@ -447,7 +486,7 @@ export default function MapPage() {
       }
     }, 400);
     return () => clearTimeout(tid);
-  }, [loading, membersSubscribed, center, router]);
+  }, [loading, center, router]);
 
   useEffect(() => {
     if (loading) return;
@@ -501,8 +540,10 @@ export default function MapPage() {
   }, [members, worldMembers, memberRoles]);
 
   // Membres à moins de 50 km (même règle que l'app) — liste + compteur.
+  // 25/09 (point 5) — la référence est ce qu'on REGARDE (centre de la
+  // carte), plus ma position GPS : après « paris », la liste parle de Paris.
   const membersNear = useMemo(() => {
-    const ref = userLocation ?? { lat: center[0], lng: center[1] };
+    const ref = { lat: center[0], lng: center[1] };
     return allMembers
       .map((m) => {
         const lat = m.location?.coordinates?.[1];
@@ -512,8 +553,18 @@ export default function MapPage() {
       })
       .filter((x): x is { m: NearbyMember; km: number; lat: number; lng: number } => !!x && x.km <= 50)
       .sort((a, b) => a.km - b.km);
-  }, [allMembers, userLocation, center]);
+  }, [allMembers, center]);
   const membersAround = membersNear.length;
+  // Personne DANS la zone visible (les 3 rôles, sans filtre) = état vide.
+  const membersInView = useMemo(() => {
+    if (!viewBounds) return membersAround;
+    const seen = new Set(members.map((m) => m.id));
+    return [...members, ...worldMembers.filter((m) => !seen.has(m.id))].filter((m) => {
+      const lat = m.location?.coordinates?.[1];
+      const lng = m.location?.coordinates?.[0];
+      return typeof lat === "number" && typeof lng === "number" && lat >= viewBounds.s && lat <= viewBounds.n && lng >= viewBounds.w && lng <= viewBounds.e;
+    }).length;
+  }, [members, worldMembers, viewBounds, membersAround]);
 
   const handleAddFriend = useCallback(
     async (m: NearbyMember): Promise<"sent" | "already" | "error"> => {
@@ -528,6 +579,69 @@ export default function MapPage() {
     },
     [router],
   );
+
+  // 25/09 (PawMap 584, points 4 + 9) — SUIVI EN DIRECT VRAI. On ne garde
+  // que les partages actifs et récents renvoyés par le serveur (drapeaux
+  // `sharing` / `state`, règle backend/src/utils/liveState.js) : `live` < 2
+  // min, `lost` 2-10 min. Plus AUCUNE « dernière position » de profil
+  // traitée comme un direct (avant : /friends/:id/last-position pour chaque
+  // ami → « Suivi en direct de Jose » sur une position de la veille). Un ami
+  // sans partage reste visible à sa position de PROFIL floutée (couche monde).
+  const infoRef = useRef<Map<string, { role: "walker" | "sitter" | "owner"; name: string; avatar: string }>>(new Map());
+  const refreshLive = useCallback(async (infoById?: Map<string, { role: "walker" | "sitter" | "owner"; name: string; avatar: string }>) => {
+    const info = infoById ?? infoRef.current;
+    const bulk = await getFriendsLivePositions();
+    const fresh = new Map<string, FriendLivePosition>();
+    const nowMs = Date.now();
+    for (const b of bulk) {
+      if (b.lat == null || b.lng == null) continue;
+      const st = liveStateOf(b, nowMs);
+      if (st === "seen") continue;
+      const i = info.get(b.userId);
+      fresh.set(b.userId, {
+        userId: b.userId,
+        role: roleFromModel(i ? i.role : b.role),
+        name: i?.name || t("common_friend"),
+        avatar: i?.avatar,
+        lat: b.lat,
+        lng: b.lng,
+        at: b.at || new Date().toISOString(),
+        lastSeenAt: b.lastSeenAt || b.at || null,
+        state: st,
+      });
+    }
+    setLivePositions((prev) => {
+      const next = new Map<string, FriendLivePosition>();
+      for (const [id, p] of fresh) {
+        const old = prev.get(id);
+        // Une position socket plus fraîche que la réponse HTTP est gardée.
+        const oldT = old?.lastSeenAt ? new Date(old.lastSeenAt).getTime() : 0;
+        const newT = p.lastSeenAt ? new Date(p.lastSeenAt).getTime() : 0;
+        next.set(id, old && oldT > newT ? { ...old, state: p.state } : { ...p, isOnline: old?.isOnline });
+      }
+      // Ceux qui viennent d'arriver par la socket (< 2 min) restent.
+      for (const [id, p] of prev) {
+        if (next.has(id)) continue;
+        const tt = p.lastSeenAt ? new Date(p.lastSeenAt).getTime() : 0;
+        if (nowMs - tt < 2 * 60 * 1000) next.set(id, p);
+      }
+      return next;
+    });
+  }, [t]);
+
+  // Horloge de la carte : âge « en direct · 12 s », passage live → signal
+  // perdu → disparition (10 min), sans attendre le serveur.
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTs(Date.now()), 5000);
+    return () => clearInterval(id);
+  }, []);
+  // Relecture de l'état vrai toutes les 30 s tant que la couche amis est là.
+  useEffect(() => {
+    if (!showFriends) return;
+    const id = setInterval(() => { void refreshLive().catch(() => {}); }, 30000);
+    return () => clearInterval(id);
+  }, [showFriends, refreshLive]);
 
   const loadFriends = useCallback(async () => {
     setFriendsLoading(true);
@@ -554,6 +668,9 @@ export default function MapPage() {
         });
       }
       setFriendsForMap(out);
+      const seenMap: Record<string, string | null> = {};
+      for (const f of accepted) if (f.other?.id) seenMap[f.other.id] = f.other.lastSeenAt ?? f.lastSeenAt ?? null;
+      setFriendSeen(seenMap);
 
       const infoById = new Map<string, { role: "walker" | "sitter" | "owner"; name: string; avatar: string }>();
       for (const f of accepted) {
@@ -564,40 +681,21 @@ export default function MapPage() {
         if (!m.id || infoById.has(m.id)) continue;
         infoById.set(m.id, { role: roleFromModel(m.role), name: m.name || t("common_family"), avatar: m.avatar || "" });
       }
-      const bulk = await getFriendsLivePositions();
-      const bulkRows: FriendLivePosition[] = [];
-      const seen = new Set<string>();
-      for (const b of bulk) {
-        if (b.lat == null || b.lng == null) continue;
-        const info = infoById.get(b.userId);
-        seen.add(b.userId);
-        bulkRows.push({ userId: b.userId, role: roleFromModel(info ? info.role : b.role), name: info?.name || t("common_friend"), avatar: info?.avatar, lat: b.lat, lng: b.lng, at: b.at || new Date().toISOString() });
-      }
-      const idArr = Array.from(infoById.keys()).filter((id) => !seen.has(id));
-      const posResults: (FriendLivePosition | null)[] = await Promise.all(
-        idArr.map(async (id): Promise<FriendLivePosition | null> => {
-          try {
-            const p = await getFriendLastPosition(id);
-            if (!p || p.lat == null || p.lng == null) return null;
-            const info = infoById.get(id);
-            if (!info) return null;
-            return { userId: id, role: info.role, name: info.name, avatar: info.avatar, lat: p.lat, lng: p.lng, at: new Date().toISOString() };
-          } catch {
-            return null;
-          }
-        }),
-      );
-      setLivePositions((prev) => {
-        const next = new Map(prev);
-        for (const p of [...bulkRows, ...posResults]) if (p && !next.has(p.userId)) next.set(p.userId, p);
-        return next;
-      });
+      infoRef.current = infoById;
+      await refreshLive(infoById);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) { router.replace("/login"); return; }
     } finally {
       setFriendsLoading(false);
     }
-  }, [router, t]);
+  }, [router, t, refreshLive]);
+
+  // Amis chargés dès l'ouverture (anneau rose sur leur point, direct vrai).
+  useEffect(() => {
+    if (loading || friendsLoadedRef.current) return;
+    friendsLoadedRef.current = true;
+    void loadFriends();
+  }, [loading, loadFriends]);
 
   const autoLayersRef = useRef(false);
   useEffect(() => {
@@ -676,7 +774,10 @@ export default function MapPage() {
       setRouteLoading(true);
       setRouteTarget(target);
       setShowSteps(false);
-      const go = async (from: { lat: number; lng: number }) => {
+      setRoute(null);
+      setRouteFrom(null);
+      const go = async (from: { lat: number; lng: number }, origin: "gps" | "center") => {
+        setRouteFrom(origin);
         try {
           setRoute(await getPawSpotDirections({ fromLat: from.lat, fromLng: from.lng, toLat: target.lat, toLng: target.lng, mode, lang }));
         } catch (e) {
@@ -687,11 +788,14 @@ export default function MapPage() {
           setRouteLoading(false);
         }
       };
-      const fallback = userLocation ?? { lat: center[0], lng: center[1] };
+      // Avant : sans position, départ silencieux du centre de la carte, et le
+      // résultat (ou le refus « abonnement requis ») n'apparaissait que dans
+      // le panneau — replié sur téléphone : « Itinéraire ne fait rien ».
+      const fallback = () => (userLocation ? go(userLocation, "gps") : go({ lat: center[0], lng: center[1] }, "center"));
       if (typeof navigator !== "undefined" && "geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition((pos) => void go({ lat: pos.coords.latitude, lng: pos.coords.longitude }), () => void go(fallback), { timeout: 5000 });
+        navigator.geolocation.getCurrentPosition((pos) => void go({ lat: pos.coords.latitude, lng: pos.coords.longitude }, "gps"), () => void fallback(), { timeout: 6000, maximumAge: 60000 });
       } else {
-        void go(fallback);
+        void fallback();
       }
     },
     [userLocation, center, router, routeMode, lang],
@@ -709,6 +813,8 @@ export default function MapPage() {
   }
   function clearRoute() {
     setRoute(null);
+    setRouteFrom(null);
+    setRouteLoading(false);
     setRouteTarget(null);
     setShowSteps(false);
     setDirectionsLocked(false);
@@ -742,20 +848,66 @@ export default function MapPage() {
     }
   }
   function startFollow(p: FriendLivePosition) {
-    setFocusTarget({ lat: p.lat, lng: p.lng, ts: Date.now() });
     setFollowUserId(p.userId);
     setFollowPaused(false);
+    setFollowSheet(false);
+  }
+  function stopFollow() {
+    setFollowUserId(null);
+    setFollowPaused(false);
+    setFollowSheet(false);
   }
 
   const livePositionsList = useMemo(
-    () => Array.from(livePositions.values()).map((p) => (presence.has(p.userId) ? { ...p, isOnline: !!presence.get(p.userId) } : p)),
-    [livePositions, presence],
+    () =>
+      Array.from(livePositions.values())
+        .map((p) => ({ ...p, state: liveStateOf({ lastSeenAt: p.lastSeenAt, at: p.at, sharing: true, state: p.state }, nowTs) }))
+        .filter((p): p is FriendLivePosition & { state: "live" | "lost" } => p.state !== "seen")
+        .map((p) => (presence.has(p.userId) ? { ...p, isOnline: !!presence.get(p.userId) } : p)),
+    [livePositions, presence, nowTs],
   );
   const membersWithPresence = useMemo(
     () => allMembers.map((m) => (m.approx ? m : { ...m, isOnline: resolveOnline(m.id, m.isOnline) })),
     [allMembers, resolveOnline],
   );
   const followed = followUserId ? livePositionsList.find((p) => p.userId === followUserId) : undefined;
+  // Le suivi se termine tout seul quand le partage cesse (plus de vieille
+  // position gardée à l'écran) : petit message « X a arrêté de partager ».
+  const followedNameRef = useRef("");
+  if (followed) followedNameRef.current = followed.name;
+  useEffect(() => {
+    if (followUserId && !followed) {
+      setFollowUserId(null);
+      setFollowPaused(false);
+      setFollowSheet(false);
+      setLiveToast(t("live_stopped_sharing").replace("{name}", followedNameRef.current || t("common_friend")));
+      const id = setTimeout(() => setLiveToast(null), 5000);
+      return () => clearTimeout(id);
+    }
+  }, [followUserId, followed, t]);
+  const liveLabels: LiveLabels = useMemo(
+    () => ({
+      live: t("live_state_live"),
+      lost: t("live_state_lost"),
+      follow: t("live_follow_cta"),
+      message: t("live_message"),
+      seenAgo: t("friend_seen_ago"),
+      seenNow: t("friend_seen_now"),
+      notSharing: t("friend_not_sharing"),
+      profileApprox: t("friend_profile_approx"),
+      viewProfile: t("friend_view_profile"),
+      ago: (ms: number) => formatAgo(ms, t),
+    }),
+    [t],
+  );
+  async function openMessage(who: { id: string; role: string; name: string }) {
+    try {
+      const r = await startFriendConversation({ targetUserId: who.id, targetUserRole: roleKey(who.role) });
+      router.push(r.conversationId ? `/chat?c=${r.conversationId}` : "/chat");
+    } catch {
+      router.push("/chat");
+    }
+  }
 
   if (loading) {
     return (
@@ -834,8 +986,9 @@ export default function MapPage() {
       <div className="mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5">
         {/* ── COLONNE CARTE ── */}
         <div className="relative h-[62vh] min-h-[420px] lg:h-[calc(100vh-190px)] lg:min-h-[560px]">
-          {/* Coin haut-gauche : « ? » légende, mode sombre. */}
-          <div className="absolute left-3 top-3 z-[1000] flex flex-col gap-2">
+          {/* Coin haut-DROIT (25/09) : ma position, « ? » légende, mode sombre —
+              à gauche, le rail montait jusque sur le bouton « nuit » à 375 px. */}
+          <div className="absolute right-3 top-[64px] z-[1000] flex flex-col gap-2">
             <button type="button" onClick={() => setLegendOpen(true)} aria-label={t("legend_btn")} title={t("legend_btn")} className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#231715] shadow-lg transition hover:scale-105">
               <AppIcon name="question" size={22} />
             </button>
@@ -843,20 +996,6 @@ export default function MapPage() {
               <AppIcon name={dark ? "sun" : "moon"} size={20} />
             </button>
           </div>
-
-          {/* Pastille « visible par tes amis seulement » (rebascule en 1 geste). */}
-          {(friendsOnly || friendsOnlyMsg) && (
-            <div className="absolute left-1/2 top-3 z-[1000] flex max-w-[calc(100%-130px)] -translate-x-1/2 flex-col items-center gap-1">
-              {friendsOnly && (
-                <button type="button" onClick={() => toggleFriendsOnly(false)} disabled={friendsOnlyBusy} className="inline-flex min-h-[40px] items-center gap-2 rounded-full bg-[#17141F] px-3.5 text-xs font-bold text-white shadow-lg">
-                  <AppIcon name="eye-off" size={16} color="#fff" />
-                  <span className="truncate">{t("map_friends_only_pill")}</span>
-                  <span className="text-[#F4C04A]">›</span>
-                </button>
-              )}
-              {friendsOnlyMsg && <span className="rounded-full bg-white/95 px-3 py-1 text-[11px] font-semibold text-[#231715] shadow">{friendsOnlyMsg}</span>}
-            </div>
-          )}
 
           {/* Coin haut-droit : me géolocaliser. */}
           <button
@@ -872,7 +1011,8 @@ export default function MapPage() {
               const onFound = (pos: GeolocationPosition) => {
                 const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                 setUserLocation(loc);
-                setFocusTarget({ ...loc, ts: Date.now() });
+                setCenter([loc.lat, loc.lng]);
+                setFocusTarget({ ...loc, ts: Date.now(), zoom: 14 });
                 setLocating(false);
               };
               const onFail = (err: GeolocationPositionError) => {
@@ -887,21 +1027,109 @@ export default function MapPage() {
             {locating ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <AppIcon name="locate" size={22} />}
           </button>
           {locateMsg && (
-            <div className="absolute right-3 top-16 z-[1100] max-w-[240px] rounded-xl bg-white/95 px-3 py-2 text-[12px] font-medium text-ink shadow-lg">
+            <div className="absolute right-[64px] top-3 z-[1100] max-w-[240px] rounded-xl bg-white/95 px-3 py-2 text-[12px] font-medium text-ink shadow-lg">
               {locateMsg}
               <button type="button" onClick={() => setLocateMsg(null)} className="ml-2 font-bold text-[#C92A12]" aria-label="OK">OK</button>
             </div>
           )}
 
-          {/* Bandeau de suivi en direct (zoom de suivi « joli »). */}
+          {/* 25/09 — ITINÉRAIRE visible SUR la carte (téléphone compris) :
+              calcul en cours, résultat (mode, distance, durée), refus
+              « abonnement requis » ou erreur — jamais un clic sans effet. */}
+          {(routeLoading || route || directionsLocked || directionsError) && (
+            <div className="absolute left-3 right-[64px] top-3 z-[1060] rounded-[18px] bg-white p-2.5 shadow-[0_10px_28px_-10px_rgba(35,23,21,0.45)] sm:right-auto sm:w-[340px]" role="status">
+              <div className="flex items-center gap-2">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={{ background: `${routeColor}1f` }}>
+                  {routeLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: routeColor, borderTopColor: "transparent" }} /> : <AppIcon name="route" size={17} color={directionsLocked ? "#6B21A8" : directionsError ? "#9E1F0B" : routeColor} />}
+                </span>
+                <div className="min-w-0 flex-1 text-[13px] font-bold leading-tight text-[#231715]">
+                  {routeLoading
+                    ? t("route_computing")
+                    : directionsLocked
+                      ? <span style={{ color: "#6B21A8" }}>{t("map_directions_locked")}</span>
+                      : directionsError
+                        ? <span style={{ color: "#9E1F0B" }}>{t("map_directions_error")}</span>
+                        : route && route.distanceMeters != null && route.durationSeconds != null
+                          ? t("map_route_distance").replace("{km}", (route.distanceMeters / 1000).toFixed(1)).replace("{min}", formatRouteDuration(route.durationSeconds))
+                          : t("map_route_ready")}
+                  {routeFrom === "center" && !directionsLocked && !directionsError && (
+                    <span className="mt-0.5 block text-[11px] font-semibold text-[#9A3412]">{t("route_from_center")}</span>
+                  )}
+                </div>
+                <button type="button" onClick={clearRoute} aria-label={t("common_close")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#FAF1EC]"><AppIcon name="close" size={15} color="#231715" /></button>
+              </div>
+              {directionsLocked ? (
+                <Link href="/boutique" className="mt-2 flex min-h-[40px] items-center justify-center gap-2 rounded-[12px] px-3 text-xs font-bold text-white" style={{ background: "linear-gradient(90deg,#7C3AED,#6D28D9)" }}>
+                  <AppIcon name="crown" size={15} color="#fff" />{t("map_directions_locked_cta")}
+                </Link>
+              ) : routeTarget && !directionsError ? (
+                <div className="mt-2 flex items-center gap-1.5">
+                  {(["walk", "bike", "car"] as RouteMode[]).map((m) => (
+                    <button key={m} type="button" onClick={() => setRouteMode(m)} aria-pressed={routeMode === m} className="min-h-[34px] flex-1 rounded-[10px] px-2 text-[11px] font-bold transition" style={routeMode === m ? { background: ROUTE_COLORS[m], color: "#fff" } : { background: "#fff", color: ROUTE_COLORS[m], boxShadow: `inset 0 0 0 1.5px ${ROUTE_COLORS[m]}66` }}>
+                      {t(m === "walk" ? "map_route_mode_walk" : m === "bike" ? "map_route_mode_bike" : "map_route_mode_car")}
+                    </button>
+                  ))}
+                  {route && route.steps.length > 1 && (
+                    <button type="button" onClick={() => { setShowSteps(true); setSheet("full"); }} className="min-h-[34px] shrink-0 rounded-[10px] px-2 text-[11px] font-bold" style={{ color: routeColor, boxShadow: `inset 0 0 0 1.5px ${routeColor}66` }}>
+                      {t("route_steps")}
+                    </button>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {/* 25/09 (points 4 + 9) — SUIVI EN DIRECT : plus de barre violette.
+              Une petite PILULE discrète en bas de la carte (photo, « Jose · en
+              direct · 12 s », chevron) ; un clic ouvre une petite feuille
+              Recentrer / Itinéraire / Message / Arrêter de suivre. */}
           {followed && (
-            <div className="absolute inset-x-3 top-16 z-[1000] flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-bold text-white shadow-lg sm:left-1/2 sm:right-auto sm:max-w-sm sm:-translate-x-1/2" style={{ background: "#7C3AED" }}>
-              <span className="relative flex h-2.5 w-2.5 shrink-0"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-70" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" /></span>
-              <span className="min-w-0 flex-1 truncate">{followPaused ? t("map_follow_paused") : t("map_following").replace("{name}", followed.name)}</span>
-              {followPaused && (
-                <button type="button" onClick={() => setFollowPaused(false)} className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-bold" style={{ color: "#7C3AED" }}>{t("map_follow_resume")}</button>
+            <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[1050] flex flex-col items-center gap-2 px-[64px]">
+              {followSheet && (
+                <div className="pointer-events-auto w-full max-w-[300px] rounded-[20px] bg-white p-2 shadow-[0_12px_32px_-8px_rgba(76,29,149,0.45)]" role="dialog" aria-label={t("live_sheet_title")}>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button type="button" onClick={() => { setFollowPaused(false); setFocusTarget({ lat: followed.lat, lng: followed.lng, ts: Date.now(), zoom: 16.5 }); setFollowSheet(false); }} className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-[14px] bg-[#EDE9FE] px-2 text-xs font-bold text-[#5B21B6]">
+                      <AppIcon name="locate" size={16} color="#6D28D9" />{t("live_recenter")}
+                    </button>
+                    <button type="button" onClick={() => { handleDirections({ lat: followed.lat, lng: followed.lng }); setFollowSheet(false); }} className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-[14px] bg-[#DCFCE7] px-2 text-xs font-bold text-[#15803D]">
+                      <AppIcon name="route" size={16} color="#15803D" />{t("map_directions_btn")}
+                    </button>
+                    <button type="button" onClick={() => { void openMessage({ id: followed.userId, role: followed.role, name: followed.name }); }} className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-[14px] bg-[#DBEAFE] px-2 text-xs font-bold text-[#1E4FB0]">
+                      <AppIcon name="chat" size={16} color="#1E4FB0" />{t("live_message")}
+                    </button>
+                    <button type="button" onClick={stopFollow} className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-[14px] px-2 text-xs font-bold text-[#9E1F0B] ring-1 ring-inset ring-[#F3C4BA]">
+                      <AppIcon name="close" size={16} color="#9E1F0B" />{t("live_stop_follow")}
+                    </button>
+                  </div>
+                </div>
               )}
-              <button type="button" onClick={() => { setFollowUserId(null); setFollowPaused(false); }} className="shrink-0 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-bold">{t("map_follow_stop")}</button>
+              <button
+                type="button"
+                onClick={() => setFollowSheet((v) => !v)}
+                aria-expanded={followSheet}
+                aria-label={t("live_open_sheet")}
+                className="pointer-events-auto inline-flex min-h-[44px] max-w-full items-center gap-2 rounded-full bg-white/95 py-1 pl-1 pr-3 text-xs font-bold text-[#231715] shadow-[0_8px_24px_-6px_rgba(76,29,149,0.45)] ring-1 ring-[#DDD6FE] backdrop-blur"
+              >
+                <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full" style={{ border: "2.5px solid #F06AA0", background: ROLE_COLOR[roleKey(followed.role)] }}>
+                  {followed.avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={followed.avatar} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="grid h-full w-full place-items-center text-[13px] font-bold text-white">{(followed.name || "?").charAt(0).toUpperCase()}</span>
+                  )}
+                </span>
+                <span className="min-w-0 truncate">{followed.name}</span>
+                <span className="inline-flex shrink-0 items-center gap-1" style={{ color: followed.state === "lost" ? "#C2410C" : "#6D28D9" }}>
+                  <span className={`inline-block h-2 w-2 rounded-full ${followed.state === "lost" ? "" : "animate-pulse"}`} style={{ background: followed.state === "lost" ? "#EA580C" : "#7C3AED" }} />
+                  {followed.state === "lost" ? t("live_state_lost") : t("live_state_live")} · {formatAgo(followed.lastSeenAt ? nowTs - new Date(followed.lastSeenAt).getTime() : 0, t)}
+                </span>
+                <span className={`shrink-0 text-[#6D28D9] transition-transform ${followSheet ? "rotate-90" : "-rotate-90"}`}><AppIcon name="arrow-right" size={14} color="#6D28D9" /></span>
+              </button>
+            </div>
+          )}
+          {(liveToast || friendsOnlyMsg) && (
+            <div className={`pointer-events-none absolute inset-x-0 z-[1060] flex justify-center px-[64px] ${followed ? "bottom-[64px]" : "bottom-3"}`}>
+              <span className="rounded-full bg-[#17141F] px-3.5 py-2 text-center text-[12px] font-semibold text-white shadow-lg">{liveToast || friendsOnlyMsg}</span>
             </div>
           )}
 
@@ -914,13 +1142,19 @@ export default function MapPage() {
           )}
 
           {/* RAIL GAUCHE (design « Paw Buttons », même ordre que l'app). */}
-          <div className="absolute bottom-3 left-2.5 z-[1000] flex flex-col gap-2 md:bottom-4 md:left-3 md:gap-2.5">
+          <div className="absolute bottom-3 left-2.5 z-[1000] flex flex-col gap-1.5 md:bottom-4 md:left-3 md:gap-2.5">
             {(
               [
                 { k: "around", g1: "#A076FF", g2: "#7040D6", label: t("map_around_title"), on: () => { setSheet("full"); document.getElementById("around-list")?.scrollIntoView({ behavior: "smooth", block: "start" }); } },
                 { k: "route", g1: "#3DBF6C", g2: "#188A42", label: t("map_directions_btn"), on: () => {
                   if (selectedPoi) { const [lng, lat] = selectedPoi.location.coordinates; handleDirections({ lat, lng }); }
-                  else { setSheet("full"); document.getElementById("around-list")?.scrollIntoView({ behavior: "smooth", block: "start" }); }
+                  else if (followed) handleDirections({ lat: followed.lat, lng: followed.lng });
+                  else {
+                    // Aucune destination choisie : on le DIT, puis la liste « autour de toi ».
+                    setLiveToast(t("route_pick_target"));
+                    setTimeout(() => setLiveToast(null), 4500);
+                    setSheet("full"); document.getElementById("around-list")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }
                 } },
                 { k: "chat", g1: "#5B9DFF", g2: "#2358D6", label: t("dash_card_messages_title"), on: () => router.push("/chat") },
                 { k: "photo", g1: "#FFB067", g2: "#E07A12", label: t("map_spot_photo_label"), on: () => openCreate("spot", true) },
@@ -945,7 +1179,7 @@ export default function MapPage() {
                 aria-label={b.label}
                 aria-pressed={b.active}
                 onClick={b.on}
-                className="grid h-11 w-11 place-items-center rounded-full transition-transform duration-300 ease-[cubic-bezier(.3,1.5,.4,1)] hover:scale-105 active:scale-90 active:duration-100"
+                className="grid h-10 w-10 place-items-center rounded-full transition-transform duration-300 ease-[cubic-bezier(.3,1.5,.4,1)] hover:scale-105 active:scale-90 active:duration-100 md:h-11 md:w-11"
                 style={{
                   background: `linear-gradient(165deg, ${b.g1}, ${b.g2})`,
                   border: "1.5px solid rgba(255,255,255,0.85)",
@@ -966,6 +1200,7 @@ export default function MapPage() {
             onSelectPoi={setSelectedPoi}
             onMapMove={handleMapMove}
             onZoomChange={handleZoomChange}
+            onBoundsChange={setViewBounds}
             spots={showSpots ? spots : []}
             spotTypeLabels={spotTypeLabels}
             onSpotVisit={handleSpotVisit}
@@ -976,7 +1211,7 @@ export default function MapPage() {
             memberLabels={{
               addFriend: t("map_member_add_friend"), sent: t("map_member_request_sent"), already: t("map_member_already"),
               failed: t("map_member_request_failed"), book: t("map_member_book"), approx: t("map_member_approx"),
-              priceFrom: t("map_member_price_from"), verified: t("trust_id_title"),
+              priceFrom: t("map_member_price_from"), verified: t("trust_id_title"), viewProfile: t("friend_view_profile"),
             }}
             onAddFriend={handleAddFriend}
             friendPositions={showFriends ? livePositionsList : []}
@@ -995,6 +1230,23 @@ export default function MapPage() {
             accuracyLabel={t("map_accuracy_note")}
             focusTarget={focusTarget}
             onFriendFocus={startFollow}
+            followHaloId={followUserId}
+            friendIds={friendsForMap.map((f) => f.other?.id).filter((x): x is string => !!x)}
+            friendSeen={friendSeen}
+            liveLabels={liveLabels}
+            now={nowTs}
+            onMessage={(w) => { void openMessage(w); }}
+            onMessageMember={(m) => {
+              // Propriétaire → gardien / promeneur : la conversation « prestataire »
+              // (même route que l'app). Sinon, pas de bouton Message.
+              const k = roleKey(m.role);
+              if (myRole !== "owner" || k === "owner") return null;
+              return () => {
+                void startProviderConversation(k, m.id)
+                  .then((cid) => router.push(cid ? `/chat?c=${cid}` : "/chat"))
+                  .catch(() => router.push(`/book/${k}/${m.id}`));
+              };
+            }}
             followUserId={followPaused ? null : followUserId}
             onFollowPause={() => setFollowPaused(true)}
             followLabel={t("map_follow_resume")}
@@ -1027,6 +1279,16 @@ export default function MapPage() {
 
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 lg:px-5 lg:pt-5">
             {/* « Je cherche » : une seule rangée de pilules. */}
+            {/* 25/09 (point 12) — « amis seulement » : badge discret dans la
+                feuille (plus de pastille qui recouvre les boutons de la carte) ;
+                mon rond garde l'anneau pointillé + l'œil barré. */}
+            {friendsOnly && (
+              <button type="button" onClick={() => toggleFriendsOnly(false)} disabled={friendsOnlyBusy} className="mb-3 inline-flex min-h-[32px] max-w-full items-center gap-1.5 rounded-full bg-[#17141F] px-3 text-[11px] font-bold text-white">
+                <AppIcon name="eye-off" size={14} color="#fff" />
+                <span className="truncate">{t("friends_only_badge")}</span>
+                <span className="text-[#F4C04A]">›</span>
+              </button>
+            )}
             <p className="text-[11px] font-bold uppercase tracking-wide text-[#8A6B64]">{t("map_seek_label")}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {seek.map((s) => (
@@ -1059,7 +1321,7 @@ export default function MapPage() {
             </button>
 
             {/* Carte vide = une action (idée 1). */}
-            {membersAround === 0 && (
+            {membersInView === 0 && (
               <div className="mt-3 rounded-2xl bg-white p-4 lg:bg-white">
                 <p className="text-sm font-bold text-[#231715]">{t("map_empty_title")}</p>
                 {myRole === "owner" ? (
@@ -1401,4 +1663,35 @@ function ModePicker({ mode, onChange, label, labels }: { mode: RouteMode; onChan
       ))}
     </div>
   );
+}
+
+// 25/09 (PawMap 584) — même règle que backend/src/utils/liveState.js,
+// recalculée ici à chaque tic : `live` (partage actif, < 2 min), `lost`
+// (2-10 min, « signal perdu »), `seen` (rien de direct). Compatible avec le
+// serveur v583 qui n'envoie pas encore `sharing` / `state` : on se fie alors
+// à l'âge du dernier signal.
+function liveStateOf(
+  p: { lastSeenAt?: string | null; at?: string | null; sharing?: boolean; state?: string },
+  now: number,
+): "live" | "lost" | "seen" {
+  if (p.sharing === false || p.state === "seen") return "seen";
+  const ref = p.lastSeenAt || p.at;
+  if (!ref) return "seen";
+  const tms = new Date(ref).getTime();
+  if (!Number.isFinite(tms)) return "seen";
+  const age = now - tms;
+  if (age <= 2 * 60 * 1000) return "live";
+  if (age <= 10 * 60 * 1000) return "lost";
+  return "seen";
+}
+
+/** « 12 s », « 4 min », « 3 h », « 2 j » dans la langue choisie. */
+function formatAgo(ms: number, t: (k: string) => string): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return t("ago_s").replace("{n}", String(s));
+  const m = Math.round(s / 60);
+  if (m < 60) return t("ago_min").replace("{n}", String(m));
+  const h = Math.round(m / 60);
+  if (h < 48) return t("ago_h").replace("{n}", String(h));
+  return t("ago_d").replace("{n}", String(Math.round(h / 24)));
 }

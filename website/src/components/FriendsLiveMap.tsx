@@ -122,6 +122,15 @@ export type FriendLivePosition = {
   at: string;
   /** v565 — présence réelle (socket `presence:update` / lecture `isOnline`). */
   isOnline?: boolean;
+  /**
+   * v584 (25/09) — état VRAI du partage (règle serveur utils/liveState.js) :
+   * `live` = partage actif et < 2 min, `lost` = 2-10 min sans signal. Un ami
+   * sans partage actif n'a PAS de position « en direct » (seulement sa
+   * position de profil floutée, couche monde).
+   */
+  state?: "live" | "lost";
+  /** Dernier signe de vie du partage (ISO). */
+  lastSeenAt?: string | null;
 };
 
 function FitBoundsOnChange({

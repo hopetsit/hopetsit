@@ -1122,6 +1122,13 @@ export type FriendBulkPosition = {
   lng: number;
   at?: string;
   city?: string;
+  /** v565 — dernier signe de vie du partage. */
+  lastSeenAt?: string | null;
+  stale?: boolean;
+  /** v584 (serveur 157e5b4) — un partage est actif ; état vrai du direct. */
+  sharing?: boolean;
+  state?: "live" | "lost" | "seen";
+  live?: boolean;
 };
 export async function getFriendsLivePositions(): Promise<FriendBulkPosition[]> {
   try {
@@ -1739,6 +1746,19 @@ export async function startFriendConversation(input: {
     conversationId: String(raw?.conversation?.id || ""),
     existed: !!raw?.existed,
   };
+}
+
+// 25/09/2026 (PawMap 584, point 8) — « Message » depuis la fiche d'un
+// prestataire : un propriétaire ouvre (ou retrouve) la conversation avec ce
+// gardien / promeneur. Même route que l'app : POST /conversations/start
+// (?sitterId=… ou walkerId dans le corps), message facultatif.
+export async function startProviderConversation(type: "sitter" | "walker", id: string): Promise<string> {
+  const path = type === "sitter" ? `/conversations/start?sitterId=${encodeURIComponent(id)}` : `/conversations/start`;
+  const raw = await request<{ conversation?: { id?: string; _id?: string } }>(path, {
+    method: "POST",
+    body: JSON.stringify(type === "walker" ? { walkerId: id } : {}),
+  });
+  return String(raw?.conversation?.id || raw?.conversation?._id || "");
 }
 
 // v23.1 part 248 — Daniel : "dans messag il manque le bouton pour effacer
