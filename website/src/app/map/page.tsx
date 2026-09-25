@@ -34,6 +34,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { locationDisplay } from "@/lib/i18n/publish587";
 import { evaluateOpeningHours } from "@/lib/openingHours";
 import type { RouteMode } from "@/lib/api";
 import BackLink from "@/components/BackLink";
@@ -704,13 +705,15 @@ export default function MapPage() {
             boosted: p.isOwnerBoosted === true,
             body: p.body || p.notes || "",
             city: p.location?.city || p.location?.label || "",
+            // v587 (point 8) — où se passe le service, lu par le prestataire.
+            locationLabel: locationDisplay(lang, p),
           });
         }
         setRequests(out);
       } catch { /* couche vide, la carte reste utilisable */ }
     })();
     return () => { cancelled = true; };
-  }, [loading, showRequests, isProviderRole]);
+  }, [loading, showRequests, isProviderRole, lang]);
 
   // 25/09 (PawMap 585) — UNE personne = UN point, même quand « proches » et
   // « monde » ont retenu deux profils différents (lib/memberPersons.ts). Une

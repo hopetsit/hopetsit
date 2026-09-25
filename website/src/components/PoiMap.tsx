@@ -118,6 +118,8 @@ export type MapRequest = {
   body?: string;
   ownerName?: string;
   city?: string;
+  /** v587 (point 8) — lieu du service déjà traduit (« Chez moi », « Point de rendez-vous · … »). */
+  locationLabel?: string;
 };
 
 // ── Icônes (un dessin par famille, dans lib/pawmapLegend) ────────────────────
@@ -762,6 +764,7 @@ export default function PoiMap({
                   {r.priceLabel ? ` · ${r.priceLabel}` : ""}
                   {r.city ? ` · ${r.city}` : ""}
                 </div>
+                {r.locationLabel && <div className="mt-0.5 text-xs font-semibold text-ink">📍 {r.locationLabel}</div>}
                 {r.body && <div className="mt-1 line-clamp-3 text-xs text-ink-muted">{r.body}</div>}
                 {!r.mine && onOfferService && requestLabels && (
                   <button type="button" onClick={() => onOfferService(r.id)} className="mt-2 flex min-h-[40px] w-full items-center justify-center rounded-full px-3 text-xs font-bold text-white" style={{ background: `linear-gradient(90deg, #D83C28, #B92425)` }}>
