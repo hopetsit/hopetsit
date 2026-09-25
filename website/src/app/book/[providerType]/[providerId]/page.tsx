@@ -26,6 +26,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import BackLink from "@/components/BackLink";
 import { AppIcon, type AppIconName } from "@/components/AppIcon";
+import ServiceLocationPicker587 from "@/components/ServiceLocationPicker587";
+import { locationComplete, locationOptions, locationToSend, p587, type ServiceLocation } from "@/lib/i18n/publish587";
 import { SelectMenu } from "@/components/SelectMenu";
 import { SignatureButton } from "@/components/SignatureButton";
 import {
@@ -88,7 +90,14 @@ export default function BookPage() {
 
   // ── Formulaire (pré-rempli : ?service= / ?duration= depuis la carte ou la fiche).
   const [service, setService] = useState<BookService>(providerType === "walker" ? "dog_walking" : "house_sitting");
-  const [venue, setVenue] = useState<"" | "owners_home" | "sitters_home">("owners_home");
+  // v587 (point 8 de Daniel) — lieu du service pour chaque service (avant :
+  // seulement la garde à domicile). houseSittingVenue s'en déduit.
+  const [svcLocation, setSvcLocation] = useState("");
+  const [meetingPoint, setMeetingPoint] = useState("");
+  const venue: "owners_home" | "sitters_home" = svcLocation === "at_sitter" ? "sitters_home" : "owners_home";
+  useEffect(() => {
+    setSvcLocation((cur) => (locationOptions(service, cur).includes(cur as ServiceLocation) ? cur : ""));
+  }, [service]);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [startTime, setStartTime] = useState("10:00");
@@ -192,7 +201,9 @@ export default function BookPage() {
     if (selectedPetIds.length === 0) return t("book_err_pick_pet");
     if (!startDate) return t("book_err_date");
     if (blockedDates.has(startDate)) return t("book_date_unavailable");
-    if (service === "house_sitting" && !venue) return t("book_err_venue");
+    if (!locationComplete(service, svcLocation, meetingPoint)) {
+      return p587(lang, svcLocation === "meeting_point" ? "svc587_meeting_required" : "svc587_required");
+    }
     if (multiDay && (!endDate || endDate <= startDate)) return t("book_err_dates");
     return null;
   }
@@ -217,7 +228,9 @@ export default function BookPage() {
         duration: durations.length ? duration : undefined,
         timeSlot: startTime,
         description: description.trim(),
-        houseSittingVenue: service === "house_sitting" ? venue || undefined : undefined,
+        houseSittingVenue: service === "house_sitting" ? venue : undefined,
+        serviceLocation: locationToSend(service, svcLocation),
+        meetingPoint: svcLocation === "meeting_point" ? meetingPoint.trim() : undefined,
       });
       router.push("/bookings");
     } catch (e) {
@@ -371,17 +384,17 @@ export default function BookPage() {
             <SelectMenu labelledBy="svc-label" value={service} onChange={(v) => setService(v as BookService)} options={serviceOptions} tone={providerType} />
           </Field>
 
-          {service === "house_sitting" && (
-            <Field label={`${t("book_venue_label")} *`}>
-              <div className="grid grid-cols-2 gap-2">
-                {(["owners_home", "sitters_home"] as const).map((vn) => (
-                  <button key={vn} type="button" onClick={() => setVenue(vn)} aria-pressed={venue === vn} className="min-h-[46px] rounded-[14px] border-[1.5px] px-3 text-sm font-bold transition" style={venue === vn ? { background: c.accent, borderColor: c.accent, color: "#fff" } : { background: "#fff", borderColor: "#EAD6CB", color: c.dark }}>
-                    {vn === "owners_home" ? t("book_venue_owner") : t("book_venue_sitter")}
-                  </button>
-                ))}
-              </div>
-            </Field>
-          )}
+          <ServiceLocationPicker587
+            lang={lang}
+            service={service}
+            value={svcLocation}
+            meetingPoint={meetingPoint}
+            onChange={(v) => setSvcLocation(v)}
+            onMeetingPoint={setMeetingPoint}
+            accent={c.accent}
+            dark={c.dark}
+            pale={c.pale}
+          />
 
           {durations.length > 0 && (
             <Field label={t("book_duration_label")}>

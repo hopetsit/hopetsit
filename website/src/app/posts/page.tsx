@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import BackLink from "@/components/BackLink";
 import { petTraitLabel } from "@/lib/petTraits";
+import { locationDisplay } from "@/lib/i18n/publish587";
 import {
   ApiError,
   RequestPost,
@@ -248,15 +249,9 @@ function PostCard({
 
   // Lieu de garde : combine serviceLocation (at_owner/at_sitter/both) et le
   // legacy houseSittingVenue (owners_home/sitters_home).
-  const locationLabel = (() => {
-    const sl = post.serviceLocation;
-    if (sl === "at_owner") return t("posts_loc_at_owner");
-    if (sl === "at_sitter") return t("posts_loc_at_sitter");
-    if (sl === "both") return t("posts_loc_both");
-    if (post.houseSittingVenue === "owners_home") return t("posts_loc_at_owner");
-    if (post.houseSittingVenue === "sitters_home") return t("posts_loc_at_sitter");
-    return "";
-  })();
+  // v587 (point 8) — + promenade : prise en charge / point de rendez-vous
+  // (avec l'adresse). Libellés neutres, communs à l'app.
+  const locationLabel = locationDisplay(lang, post);
 
   const pets = post.pets || [];
   const serviceLabels = (post.serviceTypes || []).map(svcLabel).join(" · ");

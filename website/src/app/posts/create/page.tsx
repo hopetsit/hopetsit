@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import ServiceLocationPicker587 from "@/components/ServiceLocationPicker587";
+import { locationComplete, locationOptions, locationToSend, p587, type ServiceLocation } from "@/lib/i18n/publish587";
 import {
   ApiError,
   createPost,
@@ -17,7 +19,7 @@ import {
 const DRAFT_KEY = "hopetsit_post_draft_v1";
 
 export default function CreatePostPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const router = useRouter();
 
   const [role, setRole] = useState<string | null>(null);
@@ -34,7 +36,10 @@ export default function CreatePostPage() {
   const [city, setCity] = useState("");
   const [body, setBody] = useState("");
   const [services, setServices] = useState<string[]>([]);
-  const [venue, setVenue] = useState<"owners_home" | "sitters_home">("owners_home");
+  // v587 (point 8 de Daniel) — lieu du service pour CHAQUE service (avant :
+  // seulement pour la garde à domicile ; rien pour la garderie ni la promenade).
+  const [svcLocation, setSvcLocation] = useState("");
+  const [meetingPoint, setMeetingPoint] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
@@ -89,7 +94,10 @@ export default function CreatePostPage() {
       const d = JSON.parse(brut) as Record<string, unknown>;
       if (typeof d.body === "string") setBody(d.body);
       if (Array.isArray(d.services)) setServices(d.services as string[]);
-      if (d.venue === "owners_home" || d.venue === "sitters_home") setVenue(d.venue);
+      if (typeof d.serviceLocation === "string") setSvcLocation(d.serviceLocation);
+      else if (d.venue === "owners_home") setSvcLocation("at_owner");
+      else if (d.venue === "sitters_home") setSvcLocation("at_sitter");
+      if (typeof d.meetingPoint === "string") setMeetingPoint(d.meetingPoint);
       if (typeof d.startDate === "string") setStartDate(d.startDate);
       if (typeof d.endDate === "string") setEndDate(d.endDate);
       if (typeof d.notes === "string") setNotes(d.notes);
@@ -110,10 +118,17 @@ export default function CreatePostPage() {
     // v404 — Daniel : UN SEUL service par annonce (avant on pouvait cocher les
     // 3). Évite aussi les annonces mixant dog_walking + autres qui brouillent
     // le filtrage walker/sitter. Re-cliquer le service actif le désélectionne.
-    setServices((prev) => (prev.includes(s) ? [] : [s]));
+    const next = services.includes(s) ? [] : [s];
+    setServices(next);
+    // v587 — un lieu qui ne va plus avec le nouveau service est vidé.
+    setSvcLocation((cur) => (locationOptions(next[0], cur).includes(cur as ServiceLocation) ? cur : ""));
   }
 
+  const service = services[0] || "";
   const needsVenue = services.includes("house_sitting");
+  // Le serveur exige encore houseSittingVenue pour la garde à domicile : il se
+  // déduit du lieu choisi (chez moi = owners_home, chez le gardien = sitters_home).
+  const venue: "owners_home" | "sitters_home" = svcLocation === "at_sitter" ? "sitters_home" : "owners_home";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -125,6 +140,10 @@ export default function CreatePostPage() {
       setErr(t("signup_city_required"));
       return;
     }
+    if (service && !locationComplete(service, svcLocation, meetingPoint)) {
+      setErr(p587(lang, svcLocation === "meeting_point" ? "svc587_meeting_required" : "svc587_required"));
+      return;
+    }
 
     // Invité : rien n'est envoyé au serveur (il refuserait, et c'est très
     // bien : aucune annonce d'un compte qui n'existe pas). On met la demande
@@ -132,7 +151,7 @@ export default function CreatePostPage() {
     if (invite) {
       try {
         window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
-          body, services, venue, startDate, endDate, notes,
+          body, services, serviceLocation: svcLocation, meetingPoint, startDate, endDate, notes,
           animalCount, animalTypes, city,
         }));
       } catch { /* navigation privée : on continue sans mémoriser */ }
@@ -150,6 +169,8 @@ export default function CreatePostPage() {
         body: body.trim(),
         serviceTypes: services,
         houseSittingVenue: needsVenue ? venue : undefined,
+        serviceLocation: service ? locationToSend(service, svcLocation) : undefined,
+        meetingPoint: svcLocation === "meeting_point" ? meetingPoint.trim() : undefined,
         startDate: startDate ? new Date(startDate).toISOString() : undefined,
         endDate: endDate ? new Date(endDate).toISOString() : undefined,
         notes: notes.trim() || undefined,
@@ -172,7 +193,7 @@ export default function CreatePostPage() {
         // personne plutôt que de le jeter avec elle vers /login.
         try {
           window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
-            body, services, venue, startDate, endDate, notes,
+            body, services, serviceLocation: svcLocation, meetingPoint, startDate, endDate, notes,
             animalCount, animalTypes, city,
           }));
         } catch { /* ignore */ }
@@ -248,26 +269,18 @@ export default function CreatePostPage() {
           </div>
         </div>
 
-        {needsVenue && (
-          <div>
-            <label className="block text-sm font-medium text-ink">{t("posts_venue_label")}</label>
-            <div className="mt-2 flex gap-2">
-              {(["owners_home", "sitters_home"] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setVenue(v)}
-                  className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition max-lg:min-h-[44px] ${
-                    venue === v
-                      ? "border-owner bg-owner-light text-owner-dark"
-                      : "border-ink/15 bg-white text-ink hover:border-ink/30"
-                  }`}
-                >
-                  {v === "owners_home" ? t("posts_venue_owner") : t("posts_venue_sitter")}
-                </button>
-              ))}
-            </div>
-          </div>
+        {service && (
+          <ServiceLocationPicker587
+            lang={lang}
+            service={service}
+            value={svcLocation}
+            meetingPoint={meetingPoint}
+            onChange={(v) => setSvcLocation(v)}
+            onMeetingPoint={setMeetingPoint}
+            accent="#C92A12"
+            dark="#9E1F0B"
+            pale="#FBE9E5"
+          />
         )}
 
         <div className="grid grid-cols-2 gap-3">

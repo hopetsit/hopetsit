@@ -1228,6 +1228,9 @@ export async function createBooking(input: {
   addOns?: string[];
   /** 25/09 (585) — obligatoire pour house_sitting (sinon 400 serveur). */
   houseSittingVenue?: "owners_home" | "sitters_home";
+  /** v587 (point 8) — lieu du service + adresse du rendez-vous (promenade). */
+  serviceLocation?: string;
+  meetingPoint?: string;
 }): Promise<Booking> {
   const queryKey =
     input.providerType === "walker" ? "walkerId" : "sitterId";
@@ -1243,6 +1246,8 @@ export async function createBooking(input: {
     locationType: input.locationType,
     addOns: input.addOns || [],
     ...(input.houseSittingVenue ? { houseSittingVenue: input.houseSittingVenue } : {}),
+    ...(input.serviceLocation ? { serviceLocation: input.serviceLocation } : {}),
+    ...(input.meetingPoint ? { meetingPoint: input.meetingPoint } : {}),
   };
   const raw = await request<{ booking: Booking }>(
     `/bookings?${queryKey}=${encodeURIComponent(input.providerId)}`,
@@ -1834,7 +1839,9 @@ export type RequestPost = {
   timeSlot?: string;
   houseSittingVenue?: string | null;
   // v436 — lieu de garde : at_owner | at_sitter | both.
+  // v587 — + pickup | meeting_point (promenade) et l'adresse du rendez-vous.
   serviceLocation?: string;
+  meetingPoint?: string;
   animalCount?: number;
   animalTypes?: string[];
   postType?: string;
@@ -1866,6 +1873,10 @@ export type CreatePostInput = {
   startDate?: string;
   endDate?: string;
   houseSittingVenue?: "owners_home" | "sitters_home";
+  // v587 (point 8) — lieu du service : at_owner | at_sitter | both | pickup |
+  // meeting_point (+ meetingPoint = adresse ou quartier du rendez-vous).
+  serviceLocation?: string;
+  meetingPoint?: string;
   petId?: string;
   notes?: string;
   location?: { city?: string; lat?: number; lng?: number };
@@ -1899,6 +1910,8 @@ export async function createPostWithMedia(input: CreatePostInput, files: File[])
   fd.append("postType", "request");
   (input.serviceTypes || []).forEach((s) => fd.append("serviceTypes", s));
   if (input.houseSittingVenue) fd.append("houseSittingVenue", input.houseSittingVenue);
+  if (input.serviceLocation) fd.append("serviceLocation", input.serviceLocation);
+  if (input.meetingPoint) fd.append("meetingPoint", input.meetingPoint);
   if (input.startDate) fd.append("startDate", input.startDate);
   if (input.endDate) fd.append("endDate", input.endDate);
   if (input.notes) fd.append("notes", input.notes);
