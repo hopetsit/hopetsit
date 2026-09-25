@@ -120,6 +120,13 @@ function normalizeMapPrefs(existing, patch) {
   const panelSrc = p.panelCollapsed !== undefined ? p.panelCollapsed : base.panelCollapsed;
   if (typeof panelSrc === 'boolean') out.panelCollapsed = panelSrc;
 
+  // v587 (point 3) — barres repliables : rail gauche et capsule droite
+  // rangées hors écran (languette), retenues sur le compte (app + site).
+  for (const k of ['railCollapsed', 'capsuleCollapsed']) {
+    const v = typeof p[k] === 'boolean' ? p[k] : base[k];
+    if (typeof v === 'boolean') out[k] = v;
+  }
+
   out.updatedAt = new Date().toISOString();
   return out;
 }
