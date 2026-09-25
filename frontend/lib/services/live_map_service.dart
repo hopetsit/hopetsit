@@ -50,8 +50,17 @@ class FriendPosition {
     this.sharing = false,
   });
 
-  factory FriendPosition.fromJson(Map<String, dynamic> j) {
+  factory FriendPosition.fromJson(Map<String, dynamic> j, {DateTime? now}) {
     final at = DateTime.tryParse(j['at']?.toString() ?? '') ?? DateTime.now();
+    // v587 (25/09) — Daniel : « le direct ne marche pas, je vois suspendu ».
+    // L'âge du dernier signe de vie était calculé avec l'HEURE DU TÉLÉPHONE
+    // contre un horodatage du SERVEUR : un téléphone en avance de 2 min
+    // voyait un direct bien vivant « signal perdu ». Le serveur v587 envoie
+    // `ageMs` (âge mesuré chez lui) : on le rapporte à l'heure locale.
+    final ageMs = (j['ageMs'] as num?)?.toInt();
+    final DateTime? seen = ageMs != null
+        ? (now ?? DateTime.now()).subtract(Duration(milliseconds: ageMs))
+        : DateTime.tryParse(j['lastSeenAt']?.toString() ?? '');
     return FriendPosition(
       userId: j['userId']?.toString() ?? '',
       role: (j['role'] as String?) ?? '',
@@ -59,7 +68,7 @@ class FriendPosition {
       longitude: ((j['lng'] as num?) ?? 0).toDouble(),
       at: at,
       city: (j['city'] as String?) ?? '',
-      lastSeenAt: DateTime.tryParse(j['lastSeenAt']?.toString() ?? '') ?? at,
+      lastSeenAt: seen ?? at,
       stale: j['stale'] == true,
       // Serveur v584 : `sharing` explicite. Un serveur plus ancien (v583) ne
       // le renvoie pas : on retombe sur son `stale` (false = signal < 3 min,
@@ -132,6 +141,13 @@ FriendLiveState friendLiveState({
   if (age <= kFriendLiveLost) return FriendLiveState.lost;
   return FriendLiveState.seen;
 }
+
+/// v587 — un événement `map:friend-position` reçu à [receivedAt] : c'est la
+/// preuve d'un partage actif, et son signe de vie est l'heure de RÉCEPTION
+/// (jamais l'horodatage du serveur comparé à l'horloge du téléphone). Pure,
+/// testée.
+FriendPosition applyLiveEvent(FriendPosition fp, DateTime receivedAt) =>
+    fp.copyWith(stale: false, lastSeenAt: receivedAt, sharing: true);
 
 /// v565 — durées de partage proposées au démarrage (contrat §8).
 /// Défaut : jusqu'à l'arrêt manuel.
@@ -223,6 +239,10 @@ class LiveMapService extends GetxService {
       LiveShareDuration.untilStop.obs;
   /// Échéance de la session (null = jusqu'à l'arrêt manuel).
   final Rxn<DateTime> sessionEndsAt = Rxn<DateTime>();
+  /// v587 — début du partage (pilule « En direct · 12 min »), gardé en local
+  /// pour survivre à une relance de l'app.
+  final Rxn<DateTime> sessionStartedAt = Rxn<DateTime>();
+  static const String _kStartedAt = 'bg_live_started_v587';
   /// État réel de mon partage (actif / signal perdu).
   final Rx<LiveShareStatus> liveStatus = LiveShareStatus.off.obs;
   /// Compteur bumpé toutes les 30 s : les Obx qui affichent « vu il y a X »
@@ -244,6 +264,8 @@ class LiveMapService extends GetxService {
   static const Duration _httpHeartbeatEvery = Duration(seconds: 60);
   /// Rafraîchissement des positions amis (stale / lastSeenAt) par HTTP.
   static const Duration _refreshEvery = Duration(minutes: 2);
+  /// v587 — relecture rapide quand au moins un ami partage.
+  static const Duration _refreshFastEvery = Duration(seconds: 30);
 
   /// v23.1 part 240 — Daniel (3eme tentative) : "personne en live sa marche
   /// toujour pas sa me donne ma geolocalisation au lieu de la geolocalisation
@@ -389,8 +411,11 @@ class LiveMapService extends GetxService {
         final fp = FriendPosition.fromJson(map);
         // v565 — une position live = signe de vie frais : jamais « stale ».
         // v584 — et c'est la preuve d'un PARTAGE actif.
-        friendPositions[fp.userId] =
-            fp.copyWith(stale: false, lastSeenAt: fp.at, sharing: true);
+        // v587 — l'événement arrive EN DIRECT : sa réception EST le signe de
+        // vie, mesuré à l'heure du téléphone (avant : `at` du serveur, faux
+        // si l'horloge du téléphone dérive, et faux pour un battement qui
+        // rejoue une position plus ancienne).
+        friendPositions[fp.userId] = applyLiveEvent(fp, DateTime.now());
       } catch (e) {
         debugPrint('[LiveMap] friend-position parse error: $e');
       }
@@ -469,9 +494,18 @@ class LiveMapService extends GetxService {
     if (!ok) _hydratedOnce = false; // retentera à la prochaine (re)connexion
     // v565 — puis rafraîchissement périodique : `stale` / `lastSeenAt` restent
     // justes même si la socket ne livre plus rien (signal perdu côté ami).
+    // v587 — toutes les 30 s dès qu'un ami partage (ou qu'on en suit un) :
+    // si la socket ne livre rien, la relecture garde l'ami « en direct »
+    // (seuil 2 min) au lieu de le faire clignoter en « signal perdu » ;
+    // sinon toutes les 2 min comme avant.
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(_refreshEvery, (_) {
-      unawaited(refreshFriendPositions());
+    var ticks = 0;
+    _refreshTimer = Timer.periodic(_refreshFastEvery, (_) {
+      ticks += 1;
+      final fast = friendPositions.values.any((p) => p.sharing);
+      if (fast || ticks % (_refreshEvery.inSeconds ~/ _refreshFastEvery.inSeconds) == 0) {
+        unawaited(refreshFriendPositions());
+      }
     });
   }
 
@@ -536,6 +570,16 @@ class LiveMapService extends GetxService {
     liveStatus.value = LiveShareStatus.active;
     _city = city;
     sessionDuration.value = duration;
+    // v587 — reprise d'une session persistée : on garde son vrai début.
+    final keptStart = endsAt != null || _storage.read(kBgLiveActive) == true
+        ? (_storage.read(_kStartedAt) as num?)?.toInt()
+        : null;
+    sessionStartedAt.value = keptStart != null && keptStart > 0
+        ? DateTime.fromMillisecondsSinceEpoch(keptStart)
+        : DateTime.now();
+    try {
+      _storage.write(_kStartedAt, sessionStartedAt.value!.millisecondsSinceEpoch);
+    } catch (_) {/* stockage plein */}
     final len = duration.length;
     sessionEndsAt.value = endsAt ?? (len == null ? null : DateTime.now().add(len));
 
@@ -616,9 +660,11 @@ class LiveMapService extends GetxService {
         final p = LatLng(pos.latitude, pos.longitude);
         _lastKnownGps = p;
         _lastGpsAt = DateTime.now();
+        _gpsError = false;
         myLivePosition.value = p; // la PawMap suit la caméra « à la trace »
       }, onError: (e) {
         debugPrint('[LiveMap] GPS stream error: $e');
+        _gpsError = true;
         _scheduleGpsRestart(degraded: true);
       }, onDone: () {
         if (broadcasting.value) _scheduleGpsRestart(degraded: _gpsDegraded);
@@ -654,7 +700,11 @@ class LiveMapService extends GetxService {
     final svc = Get.find<SocketService>();
     if (svc.isConnected && svc.socket != null) {
       if (pos != null) _emitPosition(pos, city: _city);
-      _setStatus(_gpsSilent ? LiveShareStatus.lost : LiveShareStatus.active);
+      // v587 — sans AUCUNE position GPS réelle, rien ne part : on ne se dit
+      // pas « en direct » (jamais le centre de la carte à la place).
+      _setStatus(_gpsSilent || pos == null
+          ? LiveShareStatus.lost
+          : LiveShareStatus.active);
       return;
     }
     // Socket coupée : on la relance et on passe par HTTP.
@@ -670,10 +720,16 @@ class LiveMapService extends GetxService {
     }
   }
 
-  /// GPS muet depuis plus de 3 min alors qu'on diffuse.
+  /// GPS en panne depuis plus de 3 min alors qu'on diffuse.
+  /// v587 — un téléphone IMMOBILE ne reçoit aucune nouvelle position (filtre
+  /// de 5 m) : ce n'est pas une panne. Avant, 3 min assis suffisaient pour
+  /// que MON direct s'affiche « signal perdu » alors que la position partait
+  /// bien toutes les 10 s. Seule une ERREUR du flux GPS compte désormais.
+  bool _gpsError = false;
   bool get _gpsSilent {
+    if (!_gpsError) return false;
     final at = _lastGpsAt;
-    if (at == null) return false; // pas encore de fix : pas un « perdu »
+    if (at == null) return true;
     return DateTime.now().difference(at) > const Duration(minutes: 3);
   }
 
@@ -700,7 +756,9 @@ class LiveMapService extends GetxService {
         requiresAuth: true,
       );
       _lastHttpOk = true;
-      _setStatus(_gpsSilent ? LiveShareStatus.lost : LiveShareStatus.active);
+      _setStatus(_gpsSilent || pos == null
+          ? LiveShareStatus.lost
+          : LiveShareStatus.active);
     } catch (e) {
       _lastHttpOk = false;
       _setStatus(LiveShareStatus.lost);
@@ -785,10 +843,15 @@ class LiveMapService extends GetxService {
     _gpsSub = null;
     _lastKnownGps = null;
     _lastGpsAt = null;
+    _gpsError = false;
     _lastHttpAt = null;
     _gpsDegraded = false;
     myLivePosition.value = null;
     sessionEndsAt.value = null;
+    sessionStartedAt.value = null;
+    try {
+      _storage.write(_kStartedAt, 0);
+    } catch (_) {/* stockage plein */}
     liveStatus.value = LiveShareStatus.off;
     // v532 — CE `return` RENDAIT L'ARRÊT IMPOSSIBLE APRÈS UN SWIPE-KILL.
     // `broadcasting` ne vit qu'en mémoire, alors que le service de fond, lui,
