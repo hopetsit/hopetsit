@@ -1,3 +1,4 @@
+import 'package:hopetsit/models/owner_active_request.dart';
 import 'dart:io';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
@@ -1003,6 +1004,30 @@ class SitterRepository {
       'Unexpected update sitter profile picture response.',
       details: response,
     );
+  }
+
+  /// v586 (point 9) — demandes ACTIVES d'un propriétaire (et de ses autres
+  /// profils), lues par un gardien / promeneur connecté. Lecture seule.
+  /// GET /posts/requests/by-owner/:ownerId[?lat&lng]
+  Future<List<OwnerActiveRequest>> getOwnerActiveRequests(
+    String ownerId, {
+    double? lat,
+    double? lng,
+  }) async {
+    final response = await _apiClient.get(
+      '/posts/requests/by-owner/$ownerId',
+      queryParameters: (lat != null && lng != null)
+          ? <String, dynamic>{'lat': lat.toString(), 'lng': lng.toString()}
+          : null,
+      requiresAuth: true,
+    );
+    final raw = response is Map ? response['posts'] : null;
+    if (raw is! List) return const <OwnerActiveRequest>[];
+    return raw
+        .whereType<Map>()
+        .map((m) => OwnerActiveRequest.fromJson(Map<String, dynamic>.from(m)))
+        .where((r) => r.id.isNotEmpty)
+        .toList();
   }
 
   /// Starts a new conversation with an owner (Sitter only).

@@ -24,6 +24,18 @@ import 'package:hopetsit/views/service_provider/widgets/public_profile_kit.dart'
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
+import 'package:hopetsit/models/owner_active_request.dart';
+import 'package:hopetsit/repositories/sitter_repository.dart';
+import 'package:hopetsit/repositories/walker_repository.dart';
+import 'package:hopetsit/services/propose_services_service.dart';
+import 'package:hopetsit/services/self_profiles_service.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_pins.dart';
+import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
+import 'package:hopetsit/views/service_provider/widgets/book_as_owner.dart';
+import 'package:hopetsit/views/service_provider/widgets/owner_requests_card.dart';
 
 /// #107 — Vue PROFIL PROPRIÉTAIRE en lecture seule, ouverte par un prestataire
 /// (promeneur / pet-sitter) depuis l'en-tête (avatar + nom) d'une annonce
@@ -46,7 +58,19 @@ class OwnerProfileViewScreen extends StatefulWidget {
     this.ownerCity,
     this.memberSince,
     this.pets = const <PostPet>[],
+    this.requestsLoader,
+    this.proposer,
   });
+
+  /// v586 (point 9) — injection pour les tests : lecture des demandes
+  /// actives et envoi de la candidature (null = réseau réel).
+  final Future<List<OwnerActiveRequest>> Function(String ownerId)?
+  requestsLoader;
+  final Future<OwnerRequestApplyState> Function(
+    OwnerActiveRequest r,
+    String role,
+  )?
+  proposer;
 
   final String ownerId;
   final String ownerName;
@@ -66,6 +90,141 @@ class OwnerProfileViewScreen extends StatefulWidget {
 
 class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
   static const PublicProfilePalette _palette = kOwnerProfilePalette;
+
+  // v586 (point 9) — demandes en cours + candidature en un appui.
+  List<OwnerActiveRequest> _requests = const <OwnerActiveRequest>[];
+  final Map<String, OwnerRequestApplyState> _states =
+      <String, OwnerRequestApplyState>{};
+  bool _startingChat = false;
+
+  /// Rôle du spectateur : seul un gardien / promeneur connecté, qui ne regarde
+  /// pas sa propre fiche, voit les demandes, la candidature et « Message ».
+  String get _viewerRole => viewerRoleNow();
+  bool get _providerViewer {
+    final String r = _viewerRole;
+    if (r != 'sitter' && r != 'walker') return false;
+    if (widget.ownerId.trim().isEmpty || SelfProfiles.isMe(widget.ownerId)) {
+      return false;
+    }
+    return widget.requestsLoader != null ||
+        (SecureTokenStore.currentToken() ?? '').isNotEmpty;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (_providerViewer) _loadRequests();
+  }
+
+  Future<void> _loadRequests() async {
+    try {
+      final List<OwnerActiveRequest> list;
+      if (widget.requestsLoader != null) {
+        list = await widget.requestsLoader!(widget.ownerId);
+      } else {
+        if (!Get.isRegistered<SitterRepository>()) return;
+        final Position? pos = await _lastKnownPosition();
+        list = await Get.find<SitterRepository>().getOwnerActiveRequests(
+          widget.ownerId,
+          lat: pos?.latitude,
+          lng: pos?.longitude,
+        );
+      }
+      if (!mounted) return;
+      setState(() => _requests = list);
+    } catch (e) {
+      // Pas de carte plutôt qu'une erreur : la fiche reste lisible.
+      AppLogger.logError('[owner profile] demandes en cours', error: e);
+    }
+  }
+
+  /// Dernière position connue SANS jamais demander l'autorisation (la
+  /// distance est un plus ; la ville suffit).
+  Future<Position?> _lastKnownPosition() async {
+    try {
+      final p = await Geolocator.checkPermission();
+      if (p != LocationPermission.always && p != LocationPermission.whileInUse) {
+        return null;
+      }
+      return await Geolocator.getLastKnownPosition().timeout(
+        const Duration(seconds: 2),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _propose(OwnerActiveRequest r) async {
+    final OwnerRequestApplyState current =
+        _states[r.id] ?? applyStateFromServer(r.myApplication);
+    if (current != OwnerRequestApplyState.idle) return;
+    setState(() => _states[r.id] = OwnerRequestApplyState.busy);
+    final String role = _viewerRole;
+    final OwnerRequestApplyState next = widget.proposer != null
+        ? await widget.proposer!(r, role)
+        : await proposeMyServices(r, role: role);
+    if (!mounted) return;
+    setState(() => _states[r.id] = next);
+  }
+
+  /// Message au propriétaire : route du prestataire (`start-by-sitter` /
+  /// `start-by-walker`), la même que depuis une candidature.
+  Future<void> _message() async {
+    if (_startingChat) return;
+    setState(() => _startingChat = true);
+    try {
+      final Map<String, dynamic> res;
+      if (_viewerRole == 'walker') {
+        res = await Get.find<WalkerRepository>().startConversationByWalker(
+          ownerId: widget.ownerId,
+        );
+      } else {
+        res = await Get.find<SitterRepository>().startConversationBySitter(
+          ownerId: widget.ownerId,
+        );
+      }
+      final conv = res['conversation'];
+      final String convId = conv is Map
+          ? (conv['id'] ?? conv['_id'] ?? '').toString()
+          : '';
+      if (convId.isEmpty) throw StateError('conversation id missing');
+      Get.to(
+        () => SitterIndividualChatScreen(
+          conversationId: convId,
+          contactName: widget.ownerName,
+          contactImage: widget.ownerAvatar ?? '',
+        ),
+      );
+    } catch (e) {
+      AppLogger.logError('[owner profile] message', error: e);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'sitter_chat_start_failed'.tr,
+      );
+    } finally {
+      if (mounted) setState(() => _startingChat = false);
+    }
+  }
+
+  Widget _actionBar() {
+    final Color color = PawMapLegend.roleColor(_viewerRole);
+    return PublicProfileActionBar(
+      key: const ValueKey<String>('owner_profile_action_bar'),
+      child: PawSignatureButton(
+        key: const ValueKey<String>('owner_profile_message'),
+        // Avec une demande active, l'action principale est la candidature
+        // (dans la carte) : Message passe en secondaire.
+        kind: _requests.isEmpty
+            ? PawButtonKind.primary
+            : PawButtonKind.secondary,
+        label: 'pawmap_profile_message'.tr,
+        icon: Icons.chat_bubble_rounded,
+        color: color,
+        loading: _startingChat,
+        onTap: _message,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,79 +249,104 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
         ),
       ),
       body: PawPatternBackground(
-          color: AppColors.activeRoleAccent(),
-          child: SafeArea(
-        bottom: false,
-        child: PublicProfileBackground(
-          accent: _palette.accent,
-          child: SingleChildScrollView(
-            padding: EdgeInsets.only(
-              bottom: publicProfileBottomPadding(context),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                PublicProfileHero(
-                  palette: _palette,
-                  role: 'owner',
-                  name: name,
-                  imageUrl: widget.ownerAvatar,
-                  location: city,
-                  subtitle: memberSince,
-                ),
-                SizedBox(height: 18.h),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      if (widget.pets.isNotEmpty) ...<Widget>[
-                        PublicProfileStatsRow(
-                          accent: _palette.accent,
-                          stats: <PublicProfileStat>[
-                            PublicProfileStat(
-                              icon: Icons.pets_rounded,
-                              value: '${widget.pets.length}',
-                              label: 'profiles573_stat_pets'.tr,
-                            ),
-                          ],
+        color: AppColors.activeRoleAccent(),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: <Widget>[
+              Expanded(
+                child: PublicProfileBackground(
+                  accent: _palette.accent,
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.only(
+                      bottom: publicProfileBottomPadding(
+                        context,
+                        hasActionBar: _providerViewer,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        PublicProfileHero(
+                          palette: _palette,
+                          role: 'owner',
+                          name: name,
+                          imageUrl: widget.ownerAvatar,
+                          location: city,
+                          subtitle: memberSince,
                         ),
-                        SizedBox(height: 14.h),
-                      ],
-                      if (bio.isNotEmpty) ...<Widget>[
-                        _buildAboutCard(context, bio),
-                        SizedBox(height: 14.h),
-                      ],
-                      if (widget.pets.isNotEmpty)
-                        PublicProfileSection(
-                          accent: _palette.accent,
-                          icon: Icons.pets_rounded,
-                          title: 'owner_profile_pets'.tr,
-                          trailing: InterText(
-                            text: '${widget.pets.length}',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textSecondary(context),
-                          ),
+                        SizedBox(height: 18.h),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16.w),
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
-                              for (int i = 0; i < widget.pets.length; i++)
-                                ...<Widget>[
-                                  if (i > 0) SizedBox(height: 10.h),
-                                  _buildPetCard(context, widget.pets[i]),
-                                ],
+                              // v586 (point 9) — demandes en cours du propriétaire,
+                              // candidature en un appui (gardien / promeneur).
+                              if (_providerViewer &&
+                                  _requests.isNotEmpty) ...<Widget>[
+                                OwnerRequestsCard(
+                                  requests: _requests,
+                                  viewerRole: _viewerRole,
+                                  states: _states,
+                                  onPropose: _propose,
+                                ),
+                                SizedBox(height: 14.h),
+                              ],
+                              if (widget.pets.isNotEmpty) ...<Widget>[
+                                PublicProfileStatsRow(
+                                  accent: _palette.accent,
+                                  stats: <PublicProfileStat>[
+                                    PublicProfileStat(
+                                      icon: Icons.pets_rounded,
+                                      value: '${widget.pets.length}',
+                                      label: 'profiles573_stat_pets'.tr,
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 14.h),
+                              ],
+                              if (bio.isNotEmpty) ...<Widget>[
+                                _buildAboutCard(context, bio),
+                                SizedBox(height: 14.h),
+                              ],
+                              if (widget.pets.isNotEmpty)
+                                PublicProfileSection(
+                                  accent: _palette.accent,
+                                  icon: Icons.pets_rounded,
+                                  title: 'owner_profile_pets'.tr,
+                                  trailing: InterText(
+                                    text: '${widget.pets.length}',
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textSecondary(context),
+                                  ),
+                                  child: Column(
+                                    children: <Widget>[
+                                      for (
+                                        int i = 0;
+                                        i < widget.pets.length;
+                                        i++
+                                      ) ...<Widget>[
+                                        if (i > 0) SizedBox(height: 10.h),
+                                        _buildPetCard(context, widget.pets[i]),
+                                      ],
+                                    ],
+                                  ),
+                                ),
                             ],
                           ),
                         ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
+              ),
+              if (_providerViewer) _actionBar(),
+            ],
           ),
         ),
       ),
-        ),
     );
   }
 
@@ -209,11 +393,14 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
               backgroundColor: _palette.accent.withValues(alpha: 0.12),
               backgroundImage: avatar.isNotEmpty
                   ? CachedNetworkImageProvider(avatar, maxWidth: 200)
-                      as ImageProvider
+                        as ImageProvider
                   : null,
               child: avatar.isEmpty
-                  ? PawIconWidget(petSpeciesPawIcon(pet.category),
-                      size: 24.sp, color: AppColors.primaryColor)
+                  ? PawIconWidget(
+                      petSpeciesPawIcon(pet.category),
+                      size: 24.sp,
+                      color: AppColors.primaryColor,
+                    )
                   : null,
             ),
             SizedBox(width: 12.w),
@@ -223,8 +410,11 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
                 children: [
                   Row(
                     children: [
-                      PawIconWidget(petSpeciesPawIcon(pet.category),
-                          size: 15.sp, color: AppColors.primaryColor),
+                      PawIconWidget(
+                        petSpeciesPawIcon(pet.category),
+                        size: 15.sp,
+                        color: AppColors.primaryColor,
+                      ),
                       SizedBox(width: 5.w),
                       Flexible(
                         child: InterText(
@@ -257,8 +447,11 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
               ),
             ),
             SizedBox(width: 8.w),
-            Icon(Icons.chevron_right_rounded,
-                size: 22.sp, color: AppColors.textTertiary(context)),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 22.sp,
+              color: AppColors.textTertiary(context),
+            ),
           ],
         ),
       ),
@@ -268,7 +461,6 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
   String _ageLabel(int years) => years <= 1
       ? '$years ${'pet_year_unit'.tr}'
       : '$years ${'pet_years_unit'.tr}';
-
 
   /// Ouvre la fiche animal — MÊME chemin que sitter_homescreen._handleCardTap :
   /// PetRepository.getPetById → mapping → PetDetailScreen.
@@ -290,8 +482,9 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
             children: [
               CircularProgressIndicator(
                 strokeWidth: 2.6,
-                valueColor:
-                    AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  AppColors.primaryColor,
+                ),
               ),
               SizedBox(height: 16.h),
               InterText(
@@ -320,8 +513,9 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
       final height = pet.height.isNotEmpty
           ? '${pet.height} cm'
           : 'label_not_available'.tr;
-      final description =
-          pet.bio.isNotEmpty ? pet.bio : 'pet_detail_no_description'.tr;
+      final description = pet.bio.isNotEmpty
+          ? pet.bio
+          : 'pet_detail_no_description'.tr;
 
       final List<String> galleryImages = [];
       if (pet.photos.isNotEmpty) {
@@ -354,11 +548,13 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
       final ownerCreatedAt = pet.owner?.createdAt;
       final ownerUpdatedAt = pet.owner?.updatedAt;
 
-      final passportNumber =
-          pet.passportNumber.isNotEmpty ? pet.passportNumber : null;
+      final passportNumber = pet.passportNumber.isNotEmpty
+          ? pet.passportNumber
+          : null;
       final chipNumber = pet.chipNumber.isNotEmpty ? pet.chipNumber : null;
-      final medicationAllergies =
-          pet.medicationAllergies.isNotEmpty ? pet.medicationAllergies : null;
+      final medicationAllergies = pet.medicationAllergies.isNotEmpty
+          ? pet.medicationAllergies
+          : null;
       final dob = pet.dob.isNotEmpty ? pet.dob : null;
       final category = pet.category.isNotEmpty ? pet.category : null;
 
