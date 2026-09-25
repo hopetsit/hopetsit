@@ -337,9 +337,10 @@ class MyApp extends StatelessWidget {
               // v585 (bug 9) — TOUS les menus déroulants et contextuels sur un
               // blanc chaud, coins 16, ombre teintée : plus jamais de gris.
               canvasColor: PawMenuColors.paperLight,
-              // Surlignage de la ligne focalisée / survolée d'un menu : teinte
-              // chaude de la marque au lieu du gris Material (0x1F000000).
-              focusColor: AppColors.primaryColor.withValues(alpha: 0.10),
+              // Ligne focalisée d'un menu : plus de voile gris Material (la
+              // valeur choisie a déjà sa teinte du rôle + coche) ; survol en
+              // teinte chaude.
+              focusColor: Colors.transparent,
               hoverColor: AppColors.primaryColor.withValues(alpha: 0.06),
               popupMenuTheme: PawMenuThemes(dark: false).popup,
               menuTheme: PawMenuThemes(dark: false).menu,
@@ -456,7 +457,7 @@ class MyApp extends StatelessWidget {
               menuTheme: PawMenuThemes(dark: true).menu,
               dropdownMenuTheme: PawMenuThemes(dark: true).dropdownMenu,
               canvasColor: PawMenuColors.paperDark,
-              focusColor: AppColors.primaryColor.withValues(alpha: 0.18),
+              focusColor: Colors.transparent,
               hoverColor: AppColors.primaryColor.withValues(alpha: 0.10),
               cardColor: AppColors.cardDark,
               dividerColor: AppColors.dividerDark,
