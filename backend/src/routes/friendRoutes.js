@@ -32,6 +32,8 @@ const { personIds, personIndex } = require('../utils/personScope');
 // v584 — règles de visibilité de la carte (amis seulement, floutage, test /
 // staff, drapeaux d'épingle), partagées avec /sitters/nearby, /walkers/nearby.
 const mapVisibility = require('../utils/mapVisibility');
+// v584 (25/09) — état vrai du direct d'un ami (live / signal perdu / vu il y a).
+const { liveState } = require('../utils/liveState');
 
 const router = express.Router();
 
@@ -295,6 +297,9 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
       // v551 — « masquer mon profil sur la carte » (Profil → Préférences).
       // v584 — règle partagée (utils/mapVisibility) : visible pour ses amis.
       if (!mapVisibility.visibleToViewer(d, { friendIds })) continue;
+      // v584 (25/09) — l'app affiche l'anneau rose d'un AMI depuis ce
+      // drapeau (et non plus par comparaison d'ids entre rôles).
+      const isFriend = friendIds.has(idStr);
 
       const pawspot = d.mapBoostExpiry && new Date(d.mapBoostExpiry) > now;
       const premiumSub = subSet.has(idStr);
@@ -323,6 +328,7 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
         hasPawSpot: !!pawspot,
         isOnline: presenceIdx ? isIdentityOnline(d, presenceIdx) : false,
         lastSeenAt: d.lastSeenAt ? new Date(d.lastSeenAt).toISOString() : null,
+        isFriend,
         // v584 — épingles de la légende : lueur turquoise PawBoost, coche
         // « identité vérifiée », filtre « disponible aujourd'hui ».
         ...mapVisibility.pinFlags(d, now),
@@ -371,6 +377,26 @@ async function _withHiddenFriends(req, payload) {
     const u = me(req);
     const friendIds = await _friendIdsOf(u.id);
     if (!friendIds.size) return payload;
+    // v584 (25/09) — Daniel : « les amis n'apparaissent pas ». La couche
+    // monde dédoublonne UNE personne = UN point (son premier rôle), alors que
+    // l'amitié référence un rôle précis : l'app comparait l'id du point à
+    // l'id de l'amitié et ratait l'ami dès que les deux différaient (ami en
+    // promeneur, point posé avec son id de propriétaire). On marque donc ici,
+    // pour CE viewer, chaque point qui appartient à l'une de ses personnes
+    // amies (`isFriend`), tous rôles confondus — et l'app lit ce drapeau.
+    let friendPersonIds = new Set(friendIds);
+    try {
+      const idx = await personIndex([...friendIds]);
+      for (const entry of idx.values()) {
+        for (const id of (entry.ids || [])) friendPersonIds.add(String(id));
+      }
+    } catch (_) { friendPersonIds = new Set(friendIds); }
+    payload = {
+      ...payload,
+      members: (payload.members || []).map((m) => (
+        friendPersonIds.has(String(m.id)) ? { ...m, isFriend: true } : m
+      )),
+    };
     const already = new Set((payload.members || []).map((m) => m.id));
     const missing = [...friendIds].filter((id) => !already.has(id));
     if (!missing.length) return payload;
@@ -402,6 +428,7 @@ async function _withHiddenFriends(req, payload) {
         approx: true,
         approxKm: WORLD_APPROX_KM,
         hiddenFromMap: true,
+        isFriend: true,
       });
     }
     if (!extra.length) return payload;
@@ -2225,7 +2252,11 @@ router.get('/live-positions', requireAuth, async (req, res) => {
       } catch (_) {/* */}
 
       // Position la plus fraîche (< 24h) parmi tous ses docs de rôle.
+      // v584 (25/09) — on note aussi si un PARTAGE est actif (drapeau posé
+      // par le service de fond Android) : sans partage, la position n'est
+      // qu'un « vu il y a X », jamais un direct.
       let best = null;
+      let docSharing = false;
       for (const d of otherDocs) {
         const Model = MODELS[d.model];
         if (!Model) continue;
@@ -2248,6 +2279,7 @@ router.get('/live-positions', requireAuth, async (req, res) => {
         if (at && now - at.getTime() > MAX_AGE_MS) continue; // trop vieille
         if (!at && doc.location?.liveShareActive !== true) continue;
         const t = at ? at.getTime() : 0;
+        if (doc.location?.liveShareActive === true) docSharing = true;
         if (!best || t > best.t) {
           best = { coords, at, t, city: doc.location?.city || '' };
         }
@@ -2266,6 +2298,16 @@ router.get('/live-positions', requireAuth, async (req, res) => {
 
       const lastSeen = best.lastSeenAt || best.at || null;
       const { LIVE_STALE_MS } = require('../sockets/mapSocket');
+      // v584 (25/09) — état VRAI : une session RAM (le diffuseur partage
+      // depuis son téléphone, la session disparaît quand il arrête) ou le
+      // drapeau `liveShareActive` = partage actif ; sinon « vu il y a X ».
+      const sharing = !!live || docSharing;
+      const state = liveState({ sharing, lastSeenAt: lastSeen, now });
+      // Daniel (25/09) : « si quelqu'un se déplace, on ne peut pas garder la
+      // vieille position ». Sans partage actif et récent (< 10 min), la
+      // position live n'est PAS renvoyée : il reste la position de profil
+      // (floutée, couche monde) et « vu il y a X » sur la fiche.
+      if (state === 'seen') continue;
       positions.push({
         // userId = l'id référencé dans l'amitié → l'app matche ses markers.
         userId: otherId,
@@ -2277,6 +2319,12 @@ router.get('/live-positions', requireAuth, async (req, res) => {
         // v565 (contrat §8) : « vu il y a X min » + « signal perdu ».
         lastSeenAt: lastSeen ? new Date(lastSeen).toISOString() : null,
         stale: !lastSeen || (now - new Date(lastSeen).getTime()) > LIVE_STALE_MS,
+        // v584 (25/09) — `sharing` : un partage est actif ; `state` :
+        // 'live' (partage actif ET < 2 min) · 'lost' (2–10 min) · 'seen'
+        // (pas de partage, ou plus de 10 min : rien de « direct »).
+        sharing,
+        state,
+        live: state === 'live',
       });
     }
 
