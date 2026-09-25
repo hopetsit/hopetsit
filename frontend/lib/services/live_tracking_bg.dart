@@ -196,13 +196,24 @@ void onLiveBgStart(ServiceInstance service) async {
         return;
       }
       final pos = await _readPosition();
-      if (pos == null) {
-        // v565 — pas de fix GPS : simple battement pour que le serveur garde
-        // la session vivante (« vu il y a X » côté amis, jamais coupé).
-        await _postHeartbeat();
-        return;
+      // v565 — pas de fix GPS : simple battement pour que le serveur garde
+      // la session vivante (« vu il y a X » côté amis, jamais coupé).
+      final bool stoppedElsewhere = pos == null
+          ? await _postHeartbeat()
+          : await _postPosition(pos.latitude, pos.longitude);
+      // v589 — la personne a arrêté son direct depuis un AUTRE téléphone : le
+      // serveur ignore nos envois ; on s'arrête ici aussi (sans ping offline,
+      // l'arrêt est déjà fait) au lieu de vider la batterie pour rien.
+      if (stoppedElsewhere) {
+        timer.cancel();
+        try {
+          await box.write(kBgLiveActive, false);
+          await box.write(kBgUntil, 0);
+        } catch (_) {}
+        try {
+          await service.stopSelf();
+        } catch (_) {}
       }
-      await _postPosition(pos.latitude, pos.longitude);
     } catch (e) {
       debugPrint('[bgLive] tick error: $e');
     }
@@ -217,7 +228,10 @@ Future<bool> onLiveIosBg(ServiceInstance service) async {
     final box = GetStorage();
     if (box.read(kBgLiveActive) != true) return true;
     final pos = await _readPosition();
-    if (pos != null) await _postPosition(pos.latitude, pos.longitude);
+    if (pos != null && await _postPosition(pos.latitude, pos.longitude)) {
+      // v589 — arrêté depuis un autre téléphone : plus d'envoi en fond.
+      await box.write(kBgLiveActive, false);
+    }
   } catch (_) {}
   return true;
 }
@@ -239,14 +253,25 @@ Future<Position?> _readPosition() async {
   }
 }
 
-Future<void> _postPosition(double lat, double lng) async {
+/// v589 — vrai quand le serveur répond que la personne a ARRÊTÉ son direct
+/// depuis un autre appareil (`{ignored: true, stopped: true}`).
+bool bgStoppedElsewhere(String body) {
+  try {
+    final j = jsonDecode(body);
+    return j is Map && j['stopped'] == true && j['ignored'] == true;
+  } catch (_) {
+    return false;
+  }
+}
+
+Future<bool> _postPosition(double lat, double lng) async {
   final box = GetStorage();
   final token = (box.read(kBgToken) ?? '').toString();
   final base = (box.read(kBgBaseUrl) ?? '').toString();
   final city = (box.read(kBgCity) ?? '').toString();
-  if (token.isEmpty || base.isEmpty) return;
+  if (token.isEmpty || base.isEmpty) return false;
   try {
-    await http
+    final r = await http
         .post(
           Uri.parse('$base/friends/live-position'),
           headers: {
@@ -262,8 +287,10 @@ Future<void> _postPosition(double lat, double lng) async {
           }),
         )
         .timeout(const Duration(seconds: 12));
+    return bgStoppedElsewhere(r.body);
   } catch (e) {
     debugPrint('[bgLive] post failed: $e');
+    return false;
   }
 }
 
@@ -276,13 +303,13 @@ String _bgDuration(GetStorage box) {
 /// v565 — battement sans position (contrat §8 : `heartbeat: true` sans
 /// lat/lng = simple signe de vie). Le serveur conserve la dernière position
 /// et ne coupe jamais de lui-même.
-Future<void> _postHeartbeat() async {
+Future<bool> _postHeartbeat() async {
   final box = GetStorage();
   final token = (box.read(kBgToken) ?? '').toString();
   final base = (box.read(kBgBaseUrl) ?? '').toString();
-  if (token.isEmpty || base.isEmpty) return;
+  if (token.isEmpty || base.isEmpty) return false;
   try {
-    await http
+    final r = await http
         .post(
           Uri.parse('$base/friends/live-position'),
           headers: {
@@ -292,8 +319,10 @@ Future<void> _postHeartbeat() async {
           body: jsonEncode({'heartbeat': true, 'duration': _bgDuration(box)}),
         )
         .timeout(const Duration(seconds: 10));
+    return bgStoppedElsewhere(r.body);
   } catch (e) {
     debugPrint('[bgLive] heartbeat failed: $e');
+    return false;
   }
 }
 

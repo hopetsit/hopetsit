@@ -4668,6 +4668,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                                   final live = _liveMap.broadcasting.value;
                                   return PawMapDirectPill(
                                     live: live,
+                                    elsewhere: !live && _liveMap.liveElsewhere.value,
                                     startedAt: _liveMap.sessionStartedAt.value,
                                     noGps: live &&
                                         _liveMap.liveStatus.value ==
@@ -5095,6 +5096,18 @@ class _PawMapScreenState extends State<PawMapScreen>
       final ok = await showPawStopLiveSheet(context);
       if (ok && mounted && _liveMap.broadcasting.value) {
         _toggleBroadcast();
+      }
+      return;
+    }
+    // v589 — mon direct tourne sur mon AUTRE téléphone : même feuille
+    // « Arrêter le direct ? » ; l'arrêt vaut pour tous mes appareils.
+    if (_liveMap.liveElsewhere.value) {
+      final ok = await showPawStopLiveSheet(context);
+      if (ok && mounted) {
+        await _liveMap.stopEverywhere();
+        if (mounted) {
+          PawSignal.show(context, PawSignalKind.liveOff, 'pawmap587_sig_live_off'.tr);
+        }
       }
       return;
     }

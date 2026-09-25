@@ -203,6 +203,35 @@ enum LiveShareStatus { off, active, lost }
 ///
 /// This service is a GetX service so we can inject it once at app boot and
 /// have the subscription outlive individual screens.
+/// v589 — décision prise à la lecture de `GET /friends/live-state`.
+///   · arrêté par la personne (n'importe quel appareil) alors que CE
+///     téléphone diffuse → on coupe ici ;
+///   · direct actif alors que ce téléphone ne diffuse pas → « autre téléphone ».
+/// Un direct simplement absent (serveur redémarré, session RAM perdue) ne
+/// coupe JAMAIS le téléphone qui diffuse : seul un arrêt voulu le fait.
+class LiveStateDecision {
+  const LiveStateDecision({required this.stopLocal, required this.elsewhere});
+  final bool stopLocal;
+  final bool elsewhere;
+}
+
+LiveStateDecision liveStateDecision(Map<String, dynamic> state,
+    {required bool broadcasting, DateTime? localStartedAt}) {
+  final bool active = state['active'] == true;
+  final bool stopped = state['stopped'] == true;
+  if (broadcasting) {
+    // Un arrêt ANTÉRIEUR à mon démarrage ici est périmé : je viens de relancer
+    // le direct et le serveur n'a pas encore reçu ma première position.
+    final DateTime? stoppedAt =
+        DateTime.tryParse((state['stoppedAt'] ?? '').toString());
+    final bool fresh = stoppedAt != null &&
+        (localStartedAt == null || stoppedAt.isAfter(localStartedAt));
+    return LiveStateDecision(
+        stopLocal: stopped && !active && fresh, elsewhere: false);
+  }
+  return LiveStateDecision(stopLocal: false, elsewhere: active);
+}
+
 class LiveMapService extends GetxService {
   LiveMapService({GetStorage? storage}) : _storage = storage ?? GetStorage();
 
@@ -214,6 +243,11 @@ class LiveMapService extends GetxService {
 
   /// Has the user agreed to broadcast their position at all.
   final RxBool broadcasting = false.obs;
+
+  /// v589 — mon direct tourne sur un AUTRE de mes téléphones (lu sur le
+  /// serveur : `GET /friends/live-state`, puis `map:self-live`). Ce téléphone
+  /// ne diffuse pas, mais la pilule le dit au lieu d'afficher « Direct » éteint.
+  final RxBool liveElsewhere = false.obs;
 
   Timer? _broadcastTicker;
   // v23.1 part 238 — Daniel : "suivre famille sa me donne pas la bonne
@@ -455,6 +489,17 @@ class LiveMapService extends GetxService {
       }
     });
 
+    // v589 — mon direct suit la PERSONNE : lancé ou arrêté depuis un autre
+    // de mes téléphones, le serveur prévient les autres (`map:self-live`).
+    socket.off('map:self-live');
+    socket.on('map:self-live', (raw) {
+      try {
+        final map = (raw as Map).cast<String, dynamic>();
+        _applyRemoteLive(active: map['active'] == true, announce: true);
+      } catch (_) {/* payload inattendu */}
+    });
+    unawaited(syncLiveState());
+
     // v565 — contrat §6 : présence « en ligne » en temps réel. On retire
     // UNIQUEMENT notre propre handler (d'autres écrans écoutent le même
     // event) avant de le remettre → idempotent à chaque reconnexion.
@@ -478,6 +523,55 @@ class LiveMapService extends GetxService {
 
   /// v565 — en ligne ? (null = inconnu → l'appelant garde sa valeur chargée).
   bool? isOnline(String userId) => presence[userId];
+
+  /// v589 — relit l'état du direct de la PERSONNE sur le serveur (3 profils,
+  /// tous appareils) : à l'ouverture, à chaque (re)connexion socket.
+  Future<void> syncLiveState() async {
+    try {
+      if (!Get.isRegistered<ApiClient>()) return;
+      final raw = await Get.find<ApiClient>()
+          .get('/friends/live-state', requiresAuth: true);
+      if (raw is! Map) return;
+      final d = liveStateDecision(raw.cast<String, dynamic>(),
+          broadcasting: broadcasting.value,
+          localStartedAt: sessionStartedAt.value);
+      if (d.stopLocal) {
+        _applyRemoteLive(active: false, announce: true);
+      } else {
+        liveElsewhere.value = d.elsewhere;
+      }
+    } catch (e) {
+      debugPrint('[LiveMap] live-state failed: $e');
+    }
+  }
+
+  void _applyRemoteLive({required bool active, bool announce = false}) {
+    if (active) {
+      // Mon propre démarrage revient aussi dans mon salon : rien à faire.
+      if (!broadcasting.value) liveElsewhere.value = true;
+      return;
+    }
+    liveElsewhere.value = false;
+    if (!broadcasting.value && _storage.read(kBgLiveActive) != true) return;
+    stopBroadcasting(notifyServer: false);
+    if (announce) {
+      CustomSnackbar.showInfo(
+        title: 'pawmap587_sig_live_off'.tr,
+        message: 'live589_stopped_elsewhere'.tr,
+      );
+    }
+  }
+
+  /// v589 — arrêter depuis CE téléphone un direct lancé sur un autre : le
+  /// serveur coupe les 3 profils et fait taire le service de fond de l'autre.
+  Future<void> stopEverywhere() async {
+    liveElsewhere.value = false;
+    if (broadcasting.value) {
+      stopBroadcasting();
+      return;
+    }
+    await _postOfflineHttp();
+  }
 
   // v23.1.351 — garde anti-spam : 1 hydratation par session (attach() est
   // ré-appelé à chaque reconnexion socket ; le live prend le relais ensuite).
@@ -567,6 +661,7 @@ class LiveMapService extends GetxService {
   }) {
     if (broadcasting.value) return;
     broadcasting.value = true;
+    liveElsewhere.value = false;
     liveStatus.value = LiveShareStatus.active;
     _city = city;
     sessionDuration.value = duration;
@@ -832,7 +927,9 @@ class LiveMapService extends GetxService {
     unawaited(_postHttp(_lastKnownGps));
   }
 
-  void stopBroadcasting() {
+  /// [notifyServer] = false quand l'arrêt vient DÉJÀ du serveur (arrêté
+  /// depuis un autre appareil, `map:self-live`) : rien à lui renvoyer.
+  void stopBroadcasting({bool notifyServer = true}) {
     _broadcastTicker?.cancel();
     _broadcastTicker = null;
     _durationTimer?.cancel();
@@ -860,7 +957,7 @@ class LiveMapService extends GetxService {
     // l'arrêt.
     final wasBroadcasting = broadcasting.value;
     broadcasting.value = false;
-    if (wasBroadcasting) {
+    if (wasBroadcasting && notifyServer) {
       final svc = Get.find<SocketService>();
       final socket = svc.socket;
       if (socket != null && svc.isConnected) {

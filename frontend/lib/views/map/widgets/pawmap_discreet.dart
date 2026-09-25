@@ -885,7 +885,10 @@ String pawDirectPillLabel({
   required DateTime? startedAt,
   required DateTime now,
   bool noGps = false,
+  bool elsewhere = false,
 }) {
+  // v589 — le direct tourne sur mon AUTRE téléphone.
+  if (!live && elsewhere) return 'live589_pill_elsewhere'.tr;
   if (!live) return 'pawmap587_direct_off'.tr;
   if (noGps) return 'pawmap587_direct_no_gps'.tr;
   final min = startedAt == null ? 0 : now.difference(startedAt).inMinutes;
@@ -903,6 +906,7 @@ class PawMapDirectPill extends StatefulWidget {
     required this.startedAt,
     required this.onTap,
     this.noGps = false,
+    this.elsewhere = false,
     this.onLongPress,
     this.now,
   });
@@ -910,6 +914,8 @@ class PawMapDirectPill extends StatefulWidget {
   final bool live;
   final DateTime? startedAt;
   final bool noGps;
+  /// v589 — en direct sur un autre de mes téléphones (vert, sans respiration).
+  final bool elsewhere;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
@@ -978,11 +984,15 @@ class _PawMapDirectPillState extends State<PawMapDirectPill>
       startedAt: widget.startedAt,
       now: now,
       noGps: widget.noGps,
+      elsewhere: widget.elsewhere,
     );
-    final Color base = !widget.live
+    // v589 — « autre téléphone » : vert du direct, mais la pilule ne respire
+    // pas (ce téléphone-ci n'envoie rien).
+    final bool greenLook = widget.live || widget.elsewhere;
+    final Color base = !greenLook
         ? PawMapDirectPill.ink
         : (widget.noGps ? PawMapDirectPill.amber : PawMapDirectPill.green);
-    final Gradient gradient = !widget.live
+    final Gradient gradient = !greenLook
         ? const LinearGradient(
             colors: [Color(0xFF33214A), PawMapDirectPill.ink],
             begin: Alignment.topLeft,
@@ -1041,8 +1051,8 @@ class _PawMapDirectPillState extends State<PawMapDirectPill>
                 height: 9.w,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: widget.live ? Colors.white : const Color(0xFFFF4D3D),
-                  border: widget.live
+                  color: greenLook ? Colors.white : const Color(0xFFFF4D3D),
+                  border: greenLook
                       ? null
                       : Border.all(color: Colors.white, width: 1.2),
                 ),
