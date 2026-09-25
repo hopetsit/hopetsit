@@ -108,6 +108,11 @@ const sanitizeUser = (userDoc, { includeCard = false, includeEmail = false, incl
       // Airwallex juste à côté.
       'airwallexBeneficiaryId', 'airwallexCustomerId', 'defaultCardConsentId',
       'fcmTokens', 'fcmToken',
+      // 25/09/2026 (BOB, build 584) — `fcmDevices` (plateformes des jetons
+      // push) et `firebaseUid` sortaient encore sur la fiche publique d'un
+      // promeneur (vérifié en production sans connexion) : identifiants
+      // techniques, jamais publics.
+      'fcmDevices', 'firebaseUid',
       'walletBalance', 'walletCurrency',
       'kycApplicantId', 'kycCheckId', 'kycPaymentIntentId',
       'kycWorkflowRunId', 'kycRejectionReason', 'kycPaidAt', 'kycVerifiedAt',
