@@ -4293,7 +4293,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               // dépasse sa position basse : ils s'effacent (elle porte les
               // mêmes actions), et reviennent quand elle redescend.
               final sheetUp = !picking && _sheetExtent.value >
-                  (_sheetPeekPx / _sheetAvailableHeight(context)) + 0.03;
+                  (_sheetLowPx / _sheetAvailableHeight(context)) + 0.03;
               if (sheetUp) return const SizedBox.shrink();
               return Positioned(
                 left: 12.w,
@@ -4326,7 +4326,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 left: 0,
                 right: 0,
                 top: 0,
-                bottom: _menuInset(context),
+                bottom: 0,
                 child: _buildSheet(),
               );
             }),
@@ -4347,7 +4347,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               // posé sur « Calques ») → cette zone s'efface avec les rails
               // dès que la feuille dépasse sa position basse.
               final sheetUp = _sheetExtent.value >
-                  (_sheetPeekPx / _sheetAvailableHeight(context)) + 0.03;
+                  (_sheetLowPx / _sheetAvailableHeight(context)) + 0.03;
               if (sheetUp) return const SizedBox.shrink();
               if (_followUserId != null) {
                 return Positioned(
@@ -6246,10 +6246,19 @@ class _PawMapScreenState extends State<PawMapScreen>
   double _systemBottomInset(BuildContext context) =>
       windowBottomViewPadding(context);
 
+  /// v585 (Daniel, émulateur : « tu vois, c'est coupé » — une bande de
+  /// carte entre le bas de la feuille et la pilule du menu) — la feuille
+  /// descend désormais JUSQU'AU BAS de l'écran, DERRIÈRE le menu (la zone
+  /// transparente autour de la pilule montre la feuille, pas la carte) ; son
+  /// contenu garde un air en bas = hauteur du menu + 16, pour que le dernier
+  /// élément défile au-dessus de la pilule. La hauteur « basse » visible
+  /// reste mesurée AU-DESSUS du menu (`_sheetLowPx`).
   double _sheetAvailableHeight(BuildContext context) {
     final mq = MediaQuery.of(context);
-    return math.max(200.0, mq.size.height - _menuInset(context));
+    return math.max(200.0, mq.size.height);
   }
+
+  double get _sheetLowPx => _sheetPeekPx + _menuInset(context);
 
   /// v584 — clé de mesure du haut de l'écran (en-tête + rangée Partager /
   /// Agrandir) : la feuille en position haute s'arrête DESSOUS, elle ne
@@ -6271,7 +6280,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (!_sheetCtl.isAttached) return;
     final h = _sheetAvailableHeight(context);
     final size = switch (stop) {
-      PawSheetStop.low => (_sheetPeekPx / h).clamp(0.08, 0.5).toDouble(),
+      PawSheetStop.low => (_sheetLowPx / h).clamp(0.08, 0.6).toDouble(),
       PawSheetStop.mid => 0.46,
       PawSheetStop.high => _sheetHighFraction(context),
     };
@@ -6302,7 +6311,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     final size = _sheetCtl.size;
     _sheetExtent.value = size;
     final h = _sheetAvailableHeight(context);
-    final low = (_sheetPeekPx / h).clamp(0.08, 0.5).toDouble();
+    final low = (_sheetLowPx / h).clamp(0.08, 0.6).toDouble();
     final isLow = size <= low + 0.03;
     if (isLow != _sheetIsLow) {
       _sheetIsLow = isLow;
@@ -6316,7 +6325,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     return PawMapSheet(
       controller: _sheetCtl,
       availableHeight: _sheetAvailableHeight(context),
-      peekHeight: _sheetPeekPx,
+      peekHeight: _sheetLowPx,
+      bottomPadding: _menuInset(context) + 16.h,
       highFraction: _sheetHighFraction(context),
       header: NotificationListener<SizeChangedLayoutNotification>(
         onNotification: (_) {

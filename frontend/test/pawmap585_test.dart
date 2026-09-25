@@ -268,13 +268,16 @@ void main() {
             return Scaffold(
               extendBody: true,
               body: LayoutBuilder(builder: (ctx, c) => Stack(children: [
+                    // v585 — composition de l'écran : feuille jusqu'en bas,
+                    // DERRIÈRE le menu, avec l'air du menu en bas du contenu.
                     Positioned(
-                      left: 0, right: 0, top: 0, bottom: menuH,
+                      left: 0, right: 0, top: 0, bottom: 0,
                       child: PawMapSheet(
                         controller: ctl,
-                        availableHeight: c.maxHeight - menuH,
-                        peekHeight: 130,
+                        availableHeight: c.maxHeight,
+                        peekHeight: 130 + menuH,
                         highFraction: 0.86,
+                        bottomPadding: menuH + 16,
                         header: const SizedBox(height: 52, child: Placeholder()),
                         children: [
                           for (var i = 0; i < 14; i++) const SizedBox(height: 60),

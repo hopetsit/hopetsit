@@ -56,9 +56,14 @@ class PawMapSheet extends StatefulWidget {
     this.peekHeight = 118,
     this.midFraction = 0.46,
     this.highFraction = 0.90,
+    this.bottomPadding = 0,
   });
 
   final DraggableScrollableController controller;
+
+  /// v585 — air en bas du contenu (hauteur du menu du bas + 16) quand la
+  /// feuille passe DERRIÈRE le menu : le dernier élément défile au-dessus.
+  final double bottomPadding;
 
   /// Zone toujours visible en position basse : le bouton principal.
   final Widget header;
@@ -71,7 +76,7 @@ class PawMapSheet extends StatefulWidget {
   final double highFraction;
 
   double get lowFraction =>
-      (peekHeight / availableHeight).clamp(0.08, 0.5).toDouble();
+      (peekHeight / availableHeight).clamp(0.08, 0.6).toDouble();
 
   /// Position (fraction) d'un cran.
   double fractionOf(PawSheetStop stop) => switch (stop) {
@@ -182,7 +187,7 @@ class _PawMapSheetState extends State<PawMapSheet> {
       ),
       child: ListView(
         controller: scroll,
-        padding: EdgeInsets.fromLTRB(14.w, 8.h, 14.w, 24.h),
+        padding: EdgeInsets.fromLTRB(14.w, 8.h, 14.w, 24.h + w.bottomPadding),
         children: [
           // Poignée (orange, jamais grise) — elle SEULE pilote le glissement
           // sur la zone basse ; la liste défile ensuite.
