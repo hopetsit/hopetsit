@@ -20,7 +20,8 @@ writeFileSync(
     .replace(/: NearbyMember\b/g, ": any")
     .replace(/NearbyMember\[\]/g, "any[]")
     .replace(/NonNullable<NearbyMember\["roles"\]>\[number\]/g, "any")
-    .replace(/NearbyMember\["roles"\]/g, "any"),
+    .replace(/NearbyMember\["roles"\]/g, "any")
+    .replace(/ as NearbyMember/g, ""),
 );
 const M = await import(join(dir, "memberPersons.ts"));
 
@@ -95,6 +96,27 @@ ok("listes : une ligne par rôle pertinent, filtre « Je cherche »", () => {
   assert.deepEqual(rows.map((r) => r.r.role), ["sitter", "owner"]);
   const onlyOwners = M.expandRows([john], { wanted: ["owner"] });
   assert.deepEqual(onlyOwners.map((r) => r.r.id), ["o-john"]);
+});
+
+ok("587 point 11 — amis placés depuis /friends : floutée, masqué absent, hors couche ajouté, une personne = un point", () => {
+  const friends = [
+    { status: "accepted", other: { id: "o-john", model: "Owner", name: "John", personIds: ["o-john", "s-john"], location: { coordinates: [2.34, 48.86] }, approxKm: 1, positionSource: "home", mapVisibility: "all" } },
+    { status: "accepted", other: { id: "w-ana", model: "Walker", name: "Ana", personIds: ["w-ana"], location: { coordinates: [2.40, 48.84] }, approxKm: 1, mapVisibility: "friends" } },
+    { status: "accepted", other: { id: "s-hid", model: "Sitter", name: "Hid", location: null, mapVisibility: "hidden" } },
+  ];
+  const pts = M.friendPointsFrom(friends);
+  assert.deepEqual(pts.map((p) => p.id), ["o-john", "w-ana"]);
+  const stranger = { id: "s-zed", role: "sitter", name: "Zed", location: { coordinates: [2.2, 48.8] } };
+  const out = M.placeFriendsFromList([john, stranger], friends);
+  const j = out.find((m) => M.personIdsOf(m).includes("s-john"));
+  assert.deepEqual(j.location.coordinates, [2.34, 48.86]); // position de /friends, pas celle de la couche
+  assert.equal(j.isFriend, true);
+  assert.equal(j.priceFrom, 22); // le point garde ses champs (tarif, rôles)
+  assert.equal(out.filter((m) => M.personIdsOf(m).includes("s-john")).length, 1);
+  assert.ok(out.find((m) => m.id === "w-ana" && m.approx === true)); // absent des couches → ajouté
+  assert.ok(!out.find((m) => m.id === "s-hid")); // masqué : aucun point
+  assert.deepEqual(out.find((m) => m.id === "s-zed").location.coordinates, [2.2, 48.8]); // inconnu intact
+  assert.equal(M.placeFriendsFromList([stranger], []).length, 1); // ancien serveur : inchangé
 });
 
 console.log(`\n${n} tests OK`);

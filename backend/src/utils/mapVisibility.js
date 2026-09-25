@@ -9,7 +9,7 @@
  *      du profil, synchronisé sur les 3 rôles) : la personne n'apparaît QUE
  *      pour ses amis acceptés (et pour elle-même) — y compris à travers un
  *      cache partagé, qui ne doit donc jamais la contenir ;
- *   2. position : EXACTE pour un ami et pour soi-même ; FLOUTÉE à ~1 km (grille
+ *   2. position : EXACTE pour soi-même et pour un ami EN DIRECT (v587) ; FLOUTÉE à ~1 km (grille
  *      en kilomètres + décalage stable, `coarseLocation.js`) pour tout autre
  *      lecteur, connecté ou non ;
  *   3. comptes de test (`+test` dans l'e-mail), staff et comptes masqués par
@@ -121,15 +121,22 @@ function visibleToViewer(doc, { viewerIds, friendIds } = {}) {
   return true;
 }
 
-/** Position à renvoyer : exacte pour un ami / soi-même, floutée sinon. */
+/**
+ * Position à renvoyer. v587 (décision de Daniel du 25/09) :
+ *   · soi-même → exacte ;
+ *   · un ami EN DIRECT → exacte (c'est son GPS partagé) ;
+ *   · un ami hors direct → position de profil FLOUTÉE ~1 km (avant : exacte) ;
+ *   · tout autre lecteur → floutée ~1 km.
+ */
 function publicLocationFor(doc, { viewerIds, friendIds } = {}) {
   if (!doc) return null;
   const id = String(doc._id || doc.id || '');
-  const exact = !!((viewerIds && viewerIds.has(id)) || (friendIds && friendIds.has(id)));
+  const { displayLocationOf, isLiveNow } = require('./personMapPosition');
+  const self = !!(viewerIds && viewerIds.has(id));
+  const friendLive = !!(friendIds && friendIds.has(id)) && isLiveNow(doc);
   // v585 — hors partage en direct actif, la position de PROFIL (inscription /
   // Modifier le profil), jamais la dernière position de partage.
-  const { displayLocationOf } = require('./personMapPosition');
-  return coarsenLocation(displayLocationOf(doc) || null, id, exact);
+  return coarsenLocation(displayLocationOf(doc) || null, id, self || friendLive);
 }
 
 function isBoosted(doc, now = new Date()) {

@@ -411,12 +411,22 @@ async function _withHiddenFriends(req, payload) {
     // pour CE viewer, chaque point qui appartient à l'une de ses personnes
     // amies (`isFriend`), tous rôles confondus — et l'app lit ce drapeau.
     let friendPersonIds = new Set(friendIds);
+    // v587 — les ids de chaque personne amie, pour réinjecter une personne
+    // ENTIÈRE (jamais un seul de ses profils à côté de son point du cache).
+    let friendGroups = [];
     try {
       const idx = await personIndex([...friendIds]);
+      const seenKeys = new Set();
       for (const entry of idx.values()) {
         for (const id of (entry.ids || [])) friendPersonIds.add(String(id));
+        const key = entry.key || (entry.ids || []).join(',');
+        if (seenKeys.has(key)) continue;
+        seenKeys.add(key);
+        friendGroups.push((entry.ids || []).map(String));
       }
-    } catch (_) { friendPersonIds = new Set(friendIds); }
+    } catch (_) { friendPersonIds = new Set(friendIds); friendGroups = []; }
+    const grouped = new Set(friendGroups.flat());
+    for (const id of friendIds) if (!grouped.has(String(id))) friendGroups.push([String(id)]);
     payload = {
       ...payload,
       members: (payload.members || []).map((m) => (
@@ -431,9 +441,11 @@ async function _withHiddenFriends(req, payload) {
       already.add(String(m.id));
       for (const x of (m.personIds || [])) already.add(String(x));
     }
-    const missing = [...friendIds].filter((id) => !already.has(id));
+    const missing = friendGroups
+      .filter((ids) => !ids.some((id) => already.has(id)))
+      .flat();
     if (!missing.length) return payload;
-    const sel = 'name avatar profilePicture location preferences.hideFromMap preferences.mapVisibility +homeLocation city updatedAt email';
+    const sel = 'name avatar profilePicture location preferences.hideFromMap preferences.mapVisibility +homeLocation city updatedAt createdAt email';
     const docs = (await Promise.all([
       Owner.find({ _id: { $in: missing } }).select(sel).lean()
         .then((r) => r.map((d) => ({ d, role: 'owner' }))),
@@ -445,29 +457,31 @@ async function _withHiddenFriends(req, payload) {
     const extra = [];
     const avatarUrl = (a) => (a && (typeof a === 'object' ? a.url : a)) || '';
     const { groupByPerson, pickPersonPosition } = require('../utils/personMapPosition');
-    // v586 — seuls les « amis seulement » sont réinjectés pour leurs amis ; un
-    // membre « masqué » ne sort pour personne, amis compris.
-    const hidden = docs.filter(({ d }) => mapVisibility.mapVisibilityOf(d) === 'friends'); // les autres sont dans le cache
-    for (const entries of groupByPerson(hidden).values()) {
-      const pos = pickPersonPosition(entries);
-      if (!pos) continue;
-      const { d, role } = pos.entry;
-      const [lng, lat] = pos.coordinates.map(Number);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    // v587 (point 11) — TOUT ami absent du cache est réinjecté pour ce viewer :
+    // « amis seulement » (jamais dans le cache partagé), mais aussi « visible
+    // par tous » au-delà du plafond de la couche monde, et les comptes de test
+    // (exclus de la vitrine publique, visibles de leurs propres amis). Seul
+    // « Masqué » (état le plus strict de ses profils) ne sort pour personne.
+    const { friendPositionOf } = require('../utils/friendPosition587');
+    for (const entries of groupByPerson(docs).values()) {
+      const fp = friendPositionOf(entries);
+      if (!fp.location) continue;
+      const first = entries[0];
+      const d = first.d;
       extra.push({
         id: String(d._id),
-        role,
+        role: first.role,
         roles: entries.map((e) => ({ id: String(e.d._id), role: e.role })),
         personIds: entries.map((e) => String(e.d._id)),
-        positionSource: pos.source,
+        positionSource: fp.positionSource,
         name: d.name || '',
-        avatar: avatarUrl(d.avatar) || avatarUrl(d.profilePicture),
-        location: { coordinates: _blur(lat, lng, String(d._id)) },
+        avatar: entries.map((e) => avatarUrl(e.d.avatar) || avatarUrl(e.d.profilePicture)).find(Boolean) || '',
+        location: fp.location,
         isPremium: false,
         isPawSpot: false,
         approx: true,
         approxKm: WORLD_APPROX_KM,
-        hiddenFromMap: true,
+        hiddenFromMap: fp.mapVisibility === 'friends',
         isFriend: true,
       });
     }
@@ -573,7 +587,15 @@ router.get('/members/world', requireAuth, async (req, res) => {
     // v586 — le cache est PARTAGÉ : n'y entre que « visible par tous ».
     const visible = tagged.filter(({ d }) => !mapVisibility.isTestOrStaff(d)
       && mapVisibility.mapVisibilityOf(d) === 'all');
-    for (const entries of groupByPerson(visible).values()) {
+    // v587 — état le plus strict de la PERSONNE : un profil « amis seulement »
+    // ou « masqué » retire la personne entière du cache partagé (ses amis la
+    // récupèrent dans _withHiddenFriends, sauf « masqué »).
+    const strictOut = new Set();
+    for (const [key, entries] of groupByPerson(tagged).entries()) {
+      if (mapVisibility.strictestVisibility(entries.map((e) => e.d)) !== 'all') strictOut.add(key);
+    }
+    for (const [key, entries] of groupByPerson(visible).entries()) {
+      if (strictOut.has(key)) continue;
       const pos = pickPersonPosition(entries, { now: nowDate, cityAnchor: anchorOf });
       if (!pos) continue;
       const [lng, lat] = pos.coordinates.map(Number);
@@ -1077,22 +1099,28 @@ router.get('/whoami', requireAuth, async (req, res) => {
 router.get('/diagnose', requireAuth, async (req, res) => {
   try {
     const user = me(req);
-    const all = await Friendship.find({
+    // v587 — Daniel : « je me suis connecté avec un autre profil et aucun ami
+    // n'apparaît ». L'app construit « Mes amis » et la couche amis de la
+    // PawMap depuis CETTE route, qui ne lisait que le profil connecté : une
+    // amitié nouée en propriétaire disparaissait en gardien / promeneur. On
+    // lit désormais sur TOUS mes profils (règle v576 : l'amitié appartient à
+    // la personne) et on garde une seule amitié par personne.
+    const g = await identityGroup(user.id);
+    const rawAll = await Friendship.find({
       $or: [
-        { requesterId: user.id },
-        { addresseeId: user.id },
+        { requesterId: { $in: g.ids } },
+        { addresseeId: { $in: g.ids } },
       ],
     }).lean();
+    let all = rawAll;
+    try {
+      all = (await dedupeFriendshipsByPerson(rawAll, g.set)).kept;
+    } catch (_) { all = rawAll; }
+    const iAmReq = (f) => g.set.has(String(f.requesterId));
     const enriched = await Promise.all(
       all.map(async (f) => {
-        const otherId =
-          String(f.requesterId) === String(user.id)
-            ? f.addresseeId
-            : f.requesterId;
-        const otherModel =
-          String(f.requesterId) === String(user.id)
-            ? f.addresseeModel
-            : f.requesterModel;
+        const otherId = iAmReq(f) ? f.addresseeId : f.requesterId;
+        const otherModel = iAmReq(f) ? f.addresseeModel : f.requesterModel;
         const OtherModel =
           MODEL_BY_NAME[otherModel] || MODEL_BY_NAME[
             otherModel
@@ -1171,7 +1199,9 @@ router.get('/diagnose', requireAuth, async (req, res) => {
         return {
           friendshipId: String(f._id),
           status: f.status,
-          iAmRequester: String(f.requesterId) === String(user.id),
+          iAmRequester: iAmReq(f),
+          // v587 — la demande m'est adressée (sur N'IMPORTE LEQUEL de mes profils).
+          iAmAddressee: !iAmReq(f) && g.set.has(String(f.addresseeId)),
           requesterId: String(f.requesterId),
           requesterModel: f.requesterModel,
           addresseeId: String(f.addresseeId),
@@ -1393,6 +1423,29 @@ router.get('/', requireAuth, async (req, res) => {
         || String(e.other.model || '').toLowerCase();
       e.other.roles = entry.roles;
       e.other.personIds = entry.ids;
+    }
+    // v587 (point 11, décision de Daniel du 25/09) — position de PROFIL de
+    // chaque ami, floutée ~1 km comme la couche monde ; aucune position s'il
+    // est « Masqué ». Calculée sur TOUS ses profils : le même ami, au même
+    // endroit, quel que soit le profil (propriétaire / gardien / promeneur)
+    // avec lequel JE suis connecté (le groupe `g` couvre mes 3 profils).
+    try {
+      const { friendPositionsFor } = require('../utils/friendPosition587');
+      const list = enriched.filter((e) => e.other && e.other.id && !e.other.deleted);
+      const positions = await friendPositionsFor(list.map((e) => (
+        (e.other.personIds && e.other.personIds.length)
+          ? e.other.personIds : [String(e.other.id)])));
+      list.forEach((e, i) => {
+        const p = positions[i];
+        e.other.mapVisibility = p.mapVisibility;
+        e.other.location = p.location;
+        e.other.approx = p.approx;
+        e.other.approxKm = p.approxKm;
+        e.other.positionSource = p.positionSource;
+        if (p.city && !e.other.city) e.other.city = p.city;
+      });
+    } catch (posErr) {
+      logger.warn(`[friends/list] positions failed : ${posErr?.message || posErr}`);
     }
     // v451 — Daniel : « les anciens amis au profil supprimé restaient dans ma
     // liste — quand on supprime un compte, tout doit disparaître ». On NE garde

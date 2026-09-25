@@ -99,7 +99,7 @@ import { getSocket } from "@/lib/socket";
 import type { FriendLivePosition } from "@/components/FriendsLiveMap";
 import { haversineKm } from "@/lib/mapCluster";
 import { ROLE_COLOR, blurLatLng, formatPrice, placePinHtml, reportPinHtml, spotPinHtml, roleKey } from "@/lib/pawmapLegend";
-import { expandRows, formatKm, friendIdSetFrom, isFriendMember, mergePersons, personIdsOf, rolesMatching } from "@/lib/memberPersons";
+import { expandRows, formatKm, friendIdSetFrom, isFriendMember, mergePersons, personIdsOf, placeFriendsFromList, rolesMatching } from "@/lib/memberPersons";
 import type { Map as LeafletMap } from "leaflet";
 
 const roleChipColor = (role: string) => ROLE_COLOR[roleKey(role)];
@@ -719,7 +719,9 @@ export default function MapPage() {
   // « monde » ont retenu deux profils différents (lib/memberPersons.ts). Une
   // personne reste visible si L'UN de ses rôles est coché dans « Je cherche ».
   const [showMembers, setShowMembers] = useState(true);
-  const mergedMembers = useMemo(() => placeFriendsAtProfile(mergePersons(members, worldMembers), worldMembers, friendIdSetFrom(friendsForMap)), [members, worldMembers, friendsForMap]);
+  // 587 (point 11) — puis la position de profil floutée renvoyée par /friends
+  // prime pour chaque ami (et ajoute ceux que les couches n'ont pas).
+  const mergedMembers = useMemo(() => placeFriendsFromList(placeFriendsAtProfile(mergePersons(members, worldMembers), worldMembers, friendIdSetFrom(friendsForMap)), friendsForMap), [members, worldMembers, friendsForMap]);
   // 25/09 (586, point 7) — familles INDÉPENDANTES : un ami ne dépend que de
   // la pastille « Amis », un autre membre que des pastilles de rôle.
   const allMembers = useMemo(() => {

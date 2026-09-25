@@ -222,3 +222,89 @@ export function expandRows(
   }
   return rows;
 }
+
+/**
+ * 587 (point 11, décision de Daniel du 25/09) — la couche AMIS se place depuis
+ * `GET /friends` : chaque ami porte sa position de PROFIL floutée ~1 km
+ * (`other.location.coordinates` = [lng, lat], `approxKm`, `positionSource`),
+ * absente s'il est « Masqué » (`other.mapVisibility === "hidden"`). Elle PRIME
+ * sur celle des couches proches / monde (le point garde rôles, note, tarif) ;
+ * un ami absent des deux couches (au-delà du plafond, compte de test) est
+ * ajouté. Le direct, lui, remplace ce point dans PoiMap (tous ses ids).
+ * Serveur sans position dans /friends : liste inchangée (repli placeFriendsAtProfile).
+ */
+export type FriendForPlacement = {
+  status?: string;
+  other?: {
+    id?: string;
+    model?: string;
+    name?: string;
+    avatar?: string;
+    personIds?: string[];
+    isPremium?: boolean;
+    location?: { coordinates?: [number, number] | number[] } | null;
+    approxKm?: number;
+    positionSource?: string | null;
+    mapVisibility?: string;
+    deleted?: boolean;
+  } | null;
+};
+
+export function friendPointsFrom(friends: FriendForPlacement[]): NearbyMember[] {
+  const out: NearbyMember[] = [];
+  const seen = new Set<string>();
+  for (const f of friends || []) {
+    const o = f && f.other;
+    if (!o || !o.id || o.deleted || (f.status && f.status !== "accepted")) continue;
+    if (o.mapVisibility === "hidden") continue;
+    const c = o.location && o.location.coordinates;
+    if (!Array.isArray(c) || c.length < 2 || !Number.isFinite(Number(c[0])) || !Number.isFinite(Number(c[1]))) continue;
+    const ids = [String(o.id), ...(o.personIds || []).map(String).filter((x) => x && x !== String(o.id))];
+    if (ids.some((x) => seen.has(x))) continue;
+    ids.forEach((x) => seen.add(x));
+    const role = normRole(String(o.model || "owner"));
+    out.push({
+      id: String(o.id),
+      role,
+      name: o.name || "",
+      avatar: o.avatar || "",
+      location: { coordinates: [Number(c[0]), Number(c[1])] },
+      isPremium: !!o.isPremium,
+      isPawSpot: false,
+      isOnline: false,
+      approx: true,
+      approxKm: typeof o.approxKm === "number" ? o.approxKm : 1,
+      personIds: ids,
+      isFriend: true,
+      positionSource: o.positionSource || undefined,
+    } as NearbyMember);
+  }
+  return out;
+}
+
+export function placeFriendsFromList(list: NearbyMember[], friends: FriendForPlacement[]): NearbyMember[] {
+  const points = friendPointsFrom(friends);
+  if (!points.length) return list;
+  const byId = new Map<string, NearbyMember>();
+  for (const fp of points) for (const x of personIdsOf(fp)) byId.set(x, fp);
+  const used = new Set<NearbyMember>();
+  const out: NearbyMember[] = [];
+  for (const m of list || []) {
+    const fp = personIdsOf(m).map((x) => byId.get(x)).find(Boolean);
+    if (!fp) { out.push(m); continue; }
+    if (used.has(fp)) continue; // une personne = UN point
+    used.add(fp);
+    out.push({
+      ...m,
+      location: { ...(m.location || {}), coordinates: fp.location.coordinates },
+      approx: true,
+      approxKm: fp.approxKm,
+      positionSource: fp.positionSource,
+      personIds: [...new Set([...personIdsOf(m), ...personIdsOf(fp)])],
+      isFriend: true,
+      avatar: m.avatar || fp.avatar,
+    } as NearbyMember);
+  }
+  for (const fp of points) if (!used.has(fp)) out.push(fp);
+  return out;
+}

@@ -1017,6 +1017,12 @@ export type FriendOther = {
   personIds?: string[];
   roles?: string[] | { id: string; role: string }[];
   activeRole?: string;
+  /** v587 (point 11) — position de PROFIL floutée ~1 km ([lng, lat]) ; null si « Masqué ». */
+  location?: { coordinates?: [number, number] | number[] } | null;
+  approx?: boolean;
+  approxKm?: number;
+  positionSource?: string | null;
+  mapVisibility?: "all" | "friends" | "hidden" | string;
 };
 
 export type FriendItem = {

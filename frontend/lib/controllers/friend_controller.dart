@@ -171,6 +171,13 @@ class FriendController extends GetxController {
   }
 
   Future<void> loadFriends() async {
+    // v587 — Daniel : « je me suis connecté avec un autre profil et aucun ami
+    // n'apparaît ». La liste venait de /friends/diagnose, qui ne lisait que le
+    // profil CONNECTÉ. Source principale désormais : GET /friends, calculé sur
+    // la PERSONNE (ses 3 profils, une entrée par ami) et qui porte la position
+    // de profil floutée de chaque ami (couche amis de la PawMap). L'ancien
+    // chemin reste en secours si la route échoue.
+    if (await _loadFriendsFromList()) return;
     // v23.1 part 218 — meme strategie que loadRequests : on appelle
     // /friends/diagnose (qui marche prouve) et on filtre les accepted
     // en Dart pour bypasser tout bug potentiel dans /friends GET.
@@ -208,6 +215,35 @@ class FriendController extends GetxController {
     } catch (e) {
       debugPrint('[Friends] loadFriends error: $e');
       loadFailed.value = true;
+    }
+  }
+
+  /// v587 — `GET /friends` comme source de la liste. Vrai si la route a
+  /// répondu (même avec 0 ami) ; faux → l'appelant passe par /diagnose.
+  Future<bool> _loadFriendsFromList() async {
+    try {
+      final api = Get.find<ApiClient>();
+      final r = await api.get('/friends', requiresAuth: true);
+      if (r is! Map || r['friends'] is! List) return false;
+      final list = <Friendship>[];
+      for (final raw in r['friends'] as List) {
+        if (raw is! Map) continue;
+        final f = Friendship.fromJson(Map<String, dynamic>.from(raw));
+        if (f.status != 'accepted' || f.other == null) continue;
+        final o = f.other!;
+        if (o.id.isNotEmpty) onlineById[o.id] = o.isOnline;
+        // PawFollow de l'ami = partage automatique (règle v222 conservée).
+        list.add(f.copyWith(
+            theirSharePosition: f.theirSharePosition || o.hasPawFollow));
+      }
+      friends.assignAll(list);
+      viewerHasPawFollow.value = list.any((f) => f.myShareAutoByPawFollow);
+      loadFailed.value = false;
+      debugPrint('[Friends] loadFriends (/friends) accepted=${list.length}');
+      return true;
+    } catch (e) {
+      debugPrint('[Friends] /friends error, repli /diagnose : $e');
+      return false;
     }
   }
 
@@ -285,8 +321,11 @@ class FriendController extends GetxController {
         if (f is! Map) continue;
         if ((f['status'] ?? '').toString() != 'pending') continue;
         final iAmRequester = f['iAmRequester'] == true;
+        // v587 — le serveur dit si la demande vise l'un de MES profils (une
+        // demande reçue en gardien reste visible connecté en propriétaire).
         final iAmAddressee = !iAmRequester &&
-            (f['addresseeId'] ?? '').toString() == myId;
+            (f['iAmAddressee'] == true ||
+                (f['addresseeId'] ?? '').toString() == myId);
         if (iAmAddressee) {
           incomingRaw.add(_diagToFriendshipPayload(f));
         } else if (iAmRequester) {

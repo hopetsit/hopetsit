@@ -71,10 +71,20 @@ describe('1. mode « visible par mes amis seulement »', () => {
 });
 
 describe('2. floutage de la position', () => {
-  test("l'ami reçoit la position EXACTE", () => {
+  // v587 (décision de Daniel du 25/09) : hors direct, l'ami reçoit la
+  // position FLOUTÉE comme tout le monde ; en direct, le GPS exact.
+  test("l'ami hors direct reçoit la position FLOUTÉE (v587)", () => {
     const loc = publicLocationFor(open, FRIEND);
+    expect(loc.coordinates).not.toEqual([LNG + 0.01, LAT]);
+    expect(loc.approxKm).toBe(1);
+  });
+  test("l'ami EN DIRECT reçoit la position exacte (v587)", () => {
+    const live = { ...open, location: { coordinates: [LNG + 0.01, LAT], liveShareActive: true, updatedAt: new Date() } };
+    const loc = publicLocationFor(live, FRIEND);
     expect(loc.coordinates).toEqual([LNG + 0.01, LAT]);
     expect(loc.approxKm).toBeUndefined();
+    // un inconnu, lui, reste flouté même quand la personne est en direct
+    expect(publicLocationFor(live, STRANGER).approxKm).toBe(1);
   });
   test("l'inconnu reçoit une position floutée, annoncée, à moins de 1 km", () => {
     const loc = publicLocationFor(open, STRANGER);
@@ -99,11 +109,12 @@ describe('3. comptes de test, staff, masqués', () => {
 
 describe('applyPublicPrivacy (les trois règles ensemble, comme /sitters/nearby)', () => {
   const all = [hidden, open, testAccount, staff, moderated];
-  test("l'ami voit le masqué ET l'ouvert, en position exacte ; jamais test / staff", () => {
+  test("l'ami voit le masqué ET l'ouvert, en position floutée hors direct (v587) ; jamais test / staff", () => {
     const out = applyPublicPrivacy(all, FRIEND);
     expect(out.map((d) => d._id)).toEqual(['sitterHidden', 'sitterOpen']);
-    expect(out[0].location.coordinates).toEqual([LNG, LAT]);
-    expect(out[1].location.coordinates).toEqual([LNG + 0.01, LAT]);
+    // v587 : hors direct, même l'ami reçoit la position floutée (~1 km).
+    expect(out[0].location.approxKm).toBe(1);
+    expect(out[1].location.approxKm).toBe(1);
   });
   test("l'inconnu ne voit que l'ouvert, flouté", () => {
     const out = applyPublicPrivacy(all, STRANGER);

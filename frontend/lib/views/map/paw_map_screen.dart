@@ -59,6 +59,7 @@ import 'package:hopetsit/views/map/widgets/pawmap_discreet.dart';
 import 'package:hopetsit/views/service_provider/widgets/book_as_owner.dart';
 import 'package:hopetsit/services/map_prefs_service.dart';
 import 'package:hopetsit/widgets/paw_tab_bar.dart' show pawTabBarTotalHeight;
+import 'package:hopetsit/views/map/pawmap_friends_layer.dart';
 import 'package:hopetsit/views/map/pawmap_person.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_subscriptions_section.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
@@ -3147,6 +3148,11 @@ class _PawMapScreenState extends State<PawMapScreen>
       _visibility,
       _friendController.familyMembers.length,
       _friendController.friends.length,
+      // v587 (point 11) — position de profil des amis (/friends).
+      _friendController.friends
+          .map((f) =>
+              '${f.other?.id}:${f.other?.mapLat?.toStringAsFixed(4)},${f.other?.mapLng?.toStringAsFixed(4)}')
+          .join('|'),
       _showProviders.value ? 1 : 0,
       _pawSpotController.pawspotActive.value ? 1 : 0,
       _pawSpotController.premiumActive.value ? 1 : 0,
@@ -3462,9 +3468,21 @@ class _PawMapScreenState extends State<PawMapScreen>
       // membres abonnés, amis en exact) n'était affichée QU'AUX abonnés : un
       // ami pouvait manquer pour un viewer sans abonnement. Le serveur décide
       // déjà de ce qu'il renvoie (règles de visibilité) : on affiche tout.
+      // v587 (point 11) — la couche amis se place depuis GET /friends
+      // (position de profil floutée ~1 km, absente si « Masqué ») ; elle
+      // prime sur les couches proches / monde et ajoute les amis qu'elles
+      // n'ont pas (au-delà du plafond, comptes de test).
+      final placed = pawMapPlaceFriends(
+        nearby: _nearbyProviders.toList(),
+        world: _worldMembers.toList(),
+        friendPoints: pawMapFriendPoints(_friendController.friends),
+      );
       final nearbyIds = <String>{};
-      final combined = <Map<String, dynamic>>[];
-      for (final p in _nearbyProviders) {
+      final combined = <Map<String, dynamic>>[...placed.extra];
+      for (final p in placed.extra) {
+        nearbyIds.addAll(pawMapPersonIds(p));
+      }
+      for (final p in placed.nearby) {
         // v585 — tous les ids de la personne : son point « monde » (posé
         // avec l'id d'un AUTRE de ses rôles) ne doit pas la dédoubler.
         nearbyIds.addAll(pawMapPersonIds(p));
@@ -3472,7 +3490,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       }
       // v550 — plafond d'affichage de la couche monde (les plus proches).
       final worldPool = <Map<String, dynamic>>[];
-      for (final p in _worldMembers) {
+      for (final p in placed.world) {
         final id = (p['id'] ?? '').toString();
         if (id.isEmpty || pawMapPersonIds(p).any(nearbyIds.contains)) continue;
         // v587 (point 2) — un AMI n'est jamais écarté par le plafond

@@ -24,6 +24,14 @@ class FriendProfile {
   // Ajouter en ami ». Une amitié vaut pour la PERSONNE : `GET /friends` renvoie
   // tous les ids de rôle de l'ami (`other.personIds`), on compare à chacun.
   final List<String> personIds;
+  // v587 (point 11, décision de Daniel du 25/09) — `GET /friends` renvoie la
+  // position de PROFIL de l'ami, floutée ~1 km (`location.coordinates` =
+  // [lng, lat], `approxKm`, `positionSource`) ; null s'il est « Masqué ».
+  final double? mapLat;
+  final double? mapLng;
+  final double approxKm;
+  final String positionSource;
+  final String mapVisibility; // 'all' | 'friends' | 'hidden'
 
   const FriendProfile({
     required this.id,
@@ -37,7 +45,16 @@ class FriendProfile {
     this.isOnline = false,
     this.lastSeenAt,
     this.personIds = const <String>[],
+    this.mapLat,
+    this.mapLng,
+    this.approxKm = 1.0,
+    this.positionSource = '',
+    this.mapVisibility = 'all',
   });
+
+  /// Position de profil floutée connue (et ami non « Masqué ») ?
+  bool get hasMapPosition =>
+      mapLat != null && mapLng != null && mapVisibility != 'hidden';
 
   /// Cet id (de n'importe quel rôle) est-il celui de cette personne ?
   bool matchesId(String other) {
@@ -52,6 +69,13 @@ class FriendProfile {
     String? city,
     bool? isOnline,
     DateTime? lastSeenAt,
+    double? mapLat,
+    double? mapLng,
+    double? approxKm,
+    String? positionSource,
+    String? mapVisibility,
+    List<String>? personIds,
+    bool clearMapPosition = false,
   }) =>
       FriendProfile(
         id: id,
@@ -64,8 +88,23 @@ class FriendProfile {
         isPremium: isPremium,
         isOnline: isOnline ?? this.isOnline,
         lastSeenAt: lastSeenAt ?? this.lastSeenAt,
-        personIds: personIds,
+        personIds: personIds ?? this.personIds,
+        mapLat: clearMapPosition ? null : (mapLat ?? this.mapLat),
+        mapLng: clearMapPosition ? null : (mapLng ?? this.mapLng),
+        approxKm: approxKm ?? this.approxKm,
+        positionSource: positionSource ?? this.positionSource,
+        mapVisibility: mapVisibility ?? this.mapVisibility,
       );
+
+  static List<double>? _lngLat(Object? loc) {
+    if (loc is! Map) return null;
+    final c = loc['coordinates'];
+    if (c is! List || c.length < 2 || c[0] is! num || c[1] is! num) return null;
+    final lng = (c[0] as num).toDouble();
+    final lat = (c[1] as num).toDouble();
+    if (lat == 0 && lng == 0) return null;
+    return [lng, lat];
+  }
 
   factory FriendProfile.fromJson(Map<String, dynamic> j) => FriendProfile(
         id: j['id']?.toString() ?? j['_id']?.toString() ?? '',
@@ -81,6 +120,14 @@ class FriendProfile {
         personIds: j['personIds'] is List
             ? (j['personIds'] as List).map((e) => e.toString()).toList()
             : const <String>[],
+        mapLat: _lngLat(j['location'])?[1],
+        mapLng: _lngLat(j['location'])?[0],
+        approxKm: (j['approxKm'] as num?)?.toDouble() ?? 1.0,
+        positionSource: (j['positionSource'] ?? '').toString(),
+        mapVisibility: const ['all', 'friends', 'hidden']
+                .contains((j['mapVisibility'] ?? '').toString())
+            ? j['mapVisibility'].toString()
+            : 'all',
       );
 
   String get roleLowercase => model.toLowerCase();
