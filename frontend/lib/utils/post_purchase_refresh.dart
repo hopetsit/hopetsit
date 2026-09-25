@@ -64,4 +64,6 @@ Future<void> refreshAfterPurchase() async {
   // v23.1 part 114 — déclenche le refresh des ActiveBenefitsRow visibles
   // (qui appellent /users/me/benefits indépendamment des controllers).
   ActiveBenefitsRow.notifyChanged();
+  // v585 (bug 11) — la lueur PawBoost de mon rond suit l'achat sans relancer.
+  await ActiveBenefitsRow.refreshBoostState();
 }

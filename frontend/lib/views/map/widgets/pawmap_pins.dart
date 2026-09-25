@@ -524,6 +524,11 @@ class PawMapPinPainter {
     // v584 (25/09) — icône du rôle quand il n'y a pas de photo.
     IconData fallbackIcon = Icons.pets_rounded,
     Color fallbackTint = PawMapLegend.owner,
+    // v585 (25/09) — une personne à PLUSIEURS rôles (propriétaire + gardien…)
+    // = UN rond au liseré partagé entre les couleurs de ses rôles (Daniel :
+    // « plus de pastille 2 qui zoome dans le vide »). Null / 1 couleur =
+    // anneau plein [ringColor].
+    List<Color>? ringColors,
   }) {
     final margin = photoMargin;
     final r = size / 2;
@@ -544,6 +549,28 @@ class PawMapPinPainter {
     if (dashedRing) {
       canvas.drawCircle(c, r, Paint()..color = Colors.white);
       drawDashedRing(canvas, c, r - ring / 2, ringPaint, ring);
+    } else if (ringColors != null && ringColors.length > 1) {
+      // Secteurs égaux, en partant du haut, séparés par un fin trait blanc.
+      final n = ringColors.length;
+      final sweep = 2 * math.pi / n;
+      final rect = Rect.fromCircle(center: c, radius: r);
+      for (var i = 0; i < n; i++) {
+        final col = dimmed
+            ? Color.lerp(ringColors[i], Colors.white, 0.45)!
+            : ringColors[i];
+        canvas.drawArc(rect, -math.pi / 2 + i * sweep, sweep, true,
+            Paint()..color = col);
+      }
+      for (var i = 0; i < n; i++) {
+        final a = -math.pi / 2 + i * sweep;
+        canvas.drawLine(
+          c + Offset(math.cos(a), math.sin(a)) * (r - ring - 0.5),
+          c + Offset(math.cos(a), math.sin(a)) * r,
+          Paint()
+            ..color = Colors.white
+            ..strokeWidth = 1.4,
+        );
+      }
     } else {
       canvas.drawCircle(c, r, Paint()..color = ringPaint);
     }

@@ -20,6 +20,10 @@ class FriendProfile {
   // (calcul en direct) et `other.lastSeenAt`. Point vert sur les cartes amis.
   final bool isOnline;
   final DateTime? lastSeenAt;
+  // v585 — Daniel : « john C est mon ami, mais en gardien la carte propose
+  // Ajouter en ami ». Une amitié vaut pour la PERSONNE : `GET /friends` renvoie
+  // tous les ids de rôle de l'ami (`other.personIds`), on compare à chacun.
+  final List<String> personIds;
 
   const FriendProfile({
     required this.id,
@@ -32,7 +36,16 @@ class FriendProfile {
     this.isPremium = false,
     this.isOnline = false,
     this.lastSeenAt,
+    this.personIds = const <String>[],
   });
+
+  /// Cet id (de n'importe quel rôle) est-il celui de cette personne ?
+  bool matchesId(String other) {
+    final o = other.trim().toLowerCase();
+    if (o.isEmpty) return false;
+    if (id.trim().toLowerCase() == o) return true;
+    return personIds.any((x) => x.trim().toLowerCase() == o);
+  }
 
   FriendProfile copyWith({
     String? avatar,
@@ -51,6 +64,7 @@ class FriendProfile {
         isPremium: isPremium,
         isOnline: isOnline ?? this.isOnline,
         lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+        personIds: personIds,
       );
 
   factory FriendProfile.fromJson(Map<String, dynamic> j) => FriendProfile(
@@ -64,6 +78,9 @@ class FriendProfile {
         isPremium: j['isPremium'] == true,
         isOnline: j['isOnline'] == true,
         lastSeenAt: DateTime.tryParse(j['lastSeenAt']?.toString() ?? ''),
+        personIds: j['personIds'] is List
+            ? (j['personIds'] as List).map((e) => e.toString()).toList()
+            : const <String>[],
       );
 
   String get roleLowercase => model.toLowerCase();

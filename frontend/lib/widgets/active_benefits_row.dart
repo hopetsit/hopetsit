@@ -53,6 +53,13 @@ class ActiveBenefitsRow extends StatefulWidget {
   static final RxBool _boostActive = false.obs;
   static RxBool get boostActiveAccessor => _boostActive;
 
+  /// v585 (bug 11) — PawBoost SEUL (le `boostExpiry` de /users/me/benefits,
+  /// désormais le plus lointain des 3 profils) : c'est lui qui fait briller
+  /// mon rond « Moi » en turquoise sur la PawMap. `_boostActive` mélange
+  /// PawSpot et Premium (cadre du profil) et ne convient pas ici.
+  static final RxBool _profileBoost = false.obs;
+  static RxBool get profileBoostAccessor => _profileBoost;
+
   /// v23.1.175 — Daniel : "le cadre boost napparait toujour pas sur le
   /// profile owner". Cause #1 (v175 initial) : _boostActive ne devenait true
   /// qu'après que le _ActiveBenefitsRowState s'exécute (montée du widget
@@ -99,6 +106,7 @@ class ActiveBenefitsRow extends StatefulWidget {
         // backend postController.js isSubscriptionActive.
         final isPremium = benefits['isPremium'] == true;
         _boostActive.value = boostActive || mapBoostActive || isPremium;
+        _profileBoost.value = boostActive;
       }
     } catch (_) {/* defensive */}
   }

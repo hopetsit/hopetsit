@@ -55,6 +55,9 @@ import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheet.dart';
 import 'package:hopetsit/services/map_prefs_service.dart';
 import 'package:hopetsit/widgets/paw_tab_bar.dart' show pawTabBarTotalHeight;
+import 'package:hopetsit/views/map/pawmap_person.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_subscriptions_section.dart';
+import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
@@ -807,8 +810,16 @@ class _PawMapScreenState extends State<PawMapScreen>
     List<MapPOI> places = const [],
     List<PawSpotModel> spots = const [],
   }) async {
-    if (_zoomLevel >= 17.5 && !mounted) return;
-    if (_zoomLevel >= 17.5) {
+    if (!mounted) return;
+    // v585 (25/09, Daniel : « ça zoome et c'est tout ; il faut que ça me
+    // montre les deux rôles ») — si le zoom ne séparerait rien (points
+    // superposés, ou une seule personne à plusieurs rôles), la liste tout de
+    // suite ; le zoom ne sert que si les points se séparent vraiment.
+    final superposed = pawMapClusterIsStacked(
+      members.map(pawMapMemberLatLng).whereType<LatLng>().toList(),
+      samePerson: pawMapSamePerson(members),
+    );
+    if (_zoomLevel >= 17.5 || (superposed && places.isEmpty && spots.isEmpty)) {
       _openClusterList(members: members, places: places, spots: spots);
       return;
     }
@@ -824,14 +835,21 @@ class _PawMapScreenState extends State<PawMapScreen>
     required List<PawSpotModel> spots,
   }) {
     final items = <PawMapClusterItem>[];
+    // v585 — une ligne PAR RÔLE pour une personne à plusieurs rôles.
+    members = [for (final m in members) ...pawMapExpandRoles(m)];
     for (final p in members) {
       final role = (p['_role'] ?? '').toString().toLowerCase();
       items.add(PawMapClusterItem(
         id: 'm:${p['id'] ?? p['_id'] ?? ''}',
         title: (p['name'] ?? '').toString(),
-        subtitle: role == 'walker'
-            ? 'pawmap_legend_walker'.tr
-            : (role == 'owner' ? 'pawmap_legend_owner'.tr : 'pawmap_legend_sitter'.tr),
+        subtitle: () {
+          final roleLabel = role == 'walker'
+              ? 'pawmap_legend_walker'.tr
+              : (role == 'owner' ? 'pawmap_legend_owner'.tr : 'pawmap_legend_sitter'.tr);
+          final ll = pawMapMemberLatLng(p);
+          final d = _distanceLabelTo(ll?.latitude, ll?.longitude);
+          return d.isEmpty ? roleLabel : '$roleLabel · $d';
+        }(),
         color: PawMapLegend.roleColor(role),
         avatar: (p['avatar'] ?? '').toString(),
         icon: PawMapLegend.roleIcon(role),
@@ -892,6 +910,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               boosted: p['isBoosted'] == true,
               availableToday: p['availableToday'] == true,
               isFriend: p['isFriend'] == true,
+              personIds: pawMapPersonIds(p),
             );
           } else if (it.id.startsWith('p:')) {
             final poi = places.firstWhereOrNull((x) => x.id == it.id.substring(2));
@@ -920,13 +939,18 @@ class _PawMapScreenState extends State<PawMapScreen>
   bool get _viewerLoggedIn =>
       (SecureTokenStore.currentToken() ?? '').isNotEmpty;
 
-  PawFriendState _relationState(String uid) {
-    if (_friendController.isFriendWith(uid)) return PawFriendState.friends;
-    if (_friendController.hasPendingRequestTo(uid)) return PawFriendState.sent;
-    if (_friendController.incomingRequestFrom(uid) != null) {
-      return PawFriendState.incoming;
-    }
-    return PawFriendState.idle;
+  /// v585 — [serverFriend] : drapeau `isFriend` du serveur (calculé sur TOUS
+  /// les profils des deux personnes), lu EN PREMIER ; [personIds] : tous les
+  /// ids de rôle du membre (l'amitié a pu être nouée sous un autre rôle).
+  PawFriendState _relationState(String uid,
+      {bool serverFriend = false, List<String> personIds = const []}) {
+    final ids = {uid, ...personIds}.where((x) => x.isNotEmpty).toList();
+    return pawMapRelationState(
+      serverFriend: serverFriend,
+      isFriend: _friendController.isFriendWithAny(ids),
+      sent: ids.any(_friendController.hasPendingRequestTo),
+      incoming: ids.any((x) => _friendController.incomingRequestFrom(x) != null),
+    );
   }
 
   String _distanceLabelTo(double? lat, double? lng) {
@@ -956,6 +980,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     bool boosted = false,
     bool availableToday = false,
     bool isFriend = false,
+    // v585 — tous les ids de rôle de la personne (amitié nouée sous un autre).
+    List<String> personIds = const [],
     // v584 (25/09) — ami en direct (`live` / `lost`) → « Suivre la balade ».
     PawFollowState? liveState,
     // Dernier signe de vie connu (ami sans partage) → « vu il y a X ».
@@ -965,7 +991,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     _memberSheetRefreshed = false;
     if (mounted) setState(() {});
     final bool onlineNow = _liveMap.isOnline(id) ?? online;
-    final bool friendNow = isFriend || _friendController.isFriendWith(id);
+    final bool friendNow = isFriend ||
+        _friendController.isFriendWithAny({id, ...personIds});
     // Un ami qui partage en ce moment : même sans passer par son rond live.
     final livePos = _liveMap.friendPositions[id];
     final PawFollowState? liveNow = liveState ??
@@ -987,7 +1014,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       boosted: boosted,
       verified: verified,
       availableToday: availableToday,
-      isFriend: isFriend || _friendController.isFriendWith(id),
+      isFriend: friendNow,
       approx: approx,
       approxKm: approxKm,
       rating: rating,
@@ -1000,7 +1027,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     final priceLabel = priceFrom > 0
         ? CurrencyHelper.formatCompact(currency, priceFrom)
         : '';
-    PawFriendState reqState = _relationState(id);
+    PawFriendState reqState =
+        _relationState(id, serverFriend: friendNow, personIds: personIds);
     showPawMapSheet<void>(
       context,
       StatefulBuilder(
@@ -1011,7 +1039,8 @@ class _PawMapScreenState extends State<PawMapScreen>
               if (!ctx.mounted) return;
               if (reqState != PawFriendState.busy &&
                   reqState != PawFriendState.error) {
-                setSheet(() => reqState = _relationState(id));
+                setSheet(() => reqState = _relationState(id,
+                    serverFriend: friendNow, personIds: personIds));
               }
             }));
             // v584 (25/09, point 8) — les tarifs du prestataire, dans SA
@@ -1633,6 +1662,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     // le timeout géoloc à 8s (4s était trop court sur GPS lent / iOS au
     // démarrage).
     unawaited(_reloadAtCenter());
+    // v585 (bug 11) — état PawBoost de MON rond, relu à chaque ouverture.
+    unawaited(ActiveBenefitsRow.refreshBoostState());
     // v500 — watchdog TOUJOURS armé (avant, il n'était posé qu'après une
     // géoloc réussie → sur installation fraîche, géoloc timeout = aucune
     // relance et carte vide jusqu'au toggle Rien/Tous).
@@ -2148,6 +2179,11 @@ class _PawMapScreenState extends State<PawMapScreen>
       for (final m in list) {
         if (m is Map) {
           merged.add({
+            // v585 — on GARDE tous les champs du serveur (`isFriend`,
+            // `roles`, `personIds`, `kycVerified`, `isBoosted`,
+            // `availableToday`, `lastSeenAt`…) : la v584 les jetait ici, d'où
+            // « Ajouter en ami » proposé pour un ami (bug 2).
+            ...Map<String, dynamic>.from(m),
             'id': (m['id'] ?? '').toString(),
             '_role': (m['role'] ?? '').toString(),
             'name': (m['name'] ?? '').toString(),
@@ -2205,6 +2241,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       for (final m in list) {
         if (m is Map) {
           out.add({
+            // v585 — tous les champs du serveur (voir _loadNearbyProviders).
+            ...Map<String, dynamic>.from(m),
             'id': (m['id'] ?? '').toString(),
             '_role': (m['role'] ?? '').toString(),
             'name': (m['name'] ?? '').toString(),
@@ -2212,7 +2250,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             'location': m['location'],
             'isPremium': m['isPremium'] == true,
             'isMapBoosted': false,
-            'isOnline': true,
+            'isOnline': m['isOnline'] == true,
             'approx': true,
             'approxKm': (m['approxKm'] as num?)?.toDouble() ??
                 (res?['approxKm'] as num?)?.toDouble() ??
@@ -3084,10 +3122,13 @@ class _PawMapScreenState extends State<PawMapScreen>
       _showProviders.value ? 1 : 0,
       _pawSpotController.pawspotActive.value ? 1 : 0,
       _pawSpotController.premiumActive.value ? 1 : 0,
+      // v585 (bug 11) — mon PawBoost : sans lui dans la clé, l'épingle ne se
+      // redessinait pas après l'activation.
+      ActiveBenefitsRow.profileBoostAccessor.value ? 1 : 0,
       _selectedNearbyId ?? '',
       _nearbyProviders
           .map((p) =>
-              '${p['id'] ?? p['_id']}:${p['isPremium'] == true ? 1 : 0}:${p['isOnline'] != false && p['online'] != false ? 1 : 0}:${p['isBoosted'] == true ? 1 : 0}')
+              '${p['id'] ?? p['_id']}:${p['isPremium'] == true ? 1 : 0}:${p['isOnline'] != false && p['online'] != false ? 1 : 0}:${p['isBoosted'] == true ? 1 : 0}:${p['isFriend'] == true ? 1 : 0}:${(p['roles'] is List) ? (p['roles'] as List).length : 0}')
           .join('|'),
       _worldRev,
       _worldMembers.length,
@@ -3182,12 +3223,16 @@ class _PawMapScreenState extends State<PawMapScreen>
     bool dimmed = false,
     IconData fallbackIcon = Icons.pets_rounded,
     Color fallbackTint = PawMapLegend.owner,
+    List<Color>? ringColors,
   }) {
     final avatar = _pins.avatarFor(avatarUrl);
+    final ringsKey = (ringColors ?? const <Color>[])
+        .map((c) => c.toARGB32())
+        .join('-');
     final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
     final withLabel = label != null && label.isNotEmpty;
     final key =
-        '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}';
+        '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}:$ringsKey';
     final w = PawMapPinPainter.photoBitmapSize(size);
     final h = PawMapPinPainter.photoBitmapSize(size, withLabel: withLabel);
     return _pins.getOrBuild(
@@ -3198,6 +3243,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             c,
             avatar: avatar,
             ringColor: ring,
+            ringColors: ringColors,
             size: size,
             label: label,
             labelColor: labelColor,
@@ -3339,6 +3385,8 @@ class _PawMapScreenState extends State<PawMapScreen>
             ? (rawAvatar['url'] ?? '').toString()
             : (rawAvatar ?? '').toString();
         final roleColor = PawMapLegend.roleColor(_role);
+        final bool myBoost = ActiveBenefitsRow.profileBoostAccessor.value;
+        if (myBoost) _anyBoosted = true;
         markers.add(
           Marker(
             markerId: const MarkerId('me'),
@@ -3352,6 +3400,10 @@ class _PawMapScreenState extends State<PawMapScreen>
               labelColor: PawMapLegend.darken(roleColor, 0.25),
               crown: _pawSpotController.premiumActive.value,
               crownSize: PawMapLegend.crownMe,
+              // v585 (bug 11) — PawBoost : lueur turquoise qui respire + fusée
+              // sur MON rond aussi (prime sur la couleur du rôle ; Premium
+              // garde sa couronne).
+              boosted: myBoost,
               dashedRing: _friendsOnly,
               eyeOff: _friendsOnly,
               fallbackTint: roleColor,
@@ -3376,14 +3428,16 @@ class _PawMapScreenState extends State<PawMapScreen>
       final nearbyIds = <String>{};
       final combined = <Map<String, dynamic>>[];
       for (final p in _nearbyProviders) {
-        nearbyIds.add((p['id'] ?? p['_id'] ?? '').toString());
+        // v585 — tous les ids de la personne : son point « monde » (posé
+        // avec l'id d'un AUTRE de ses rôles) ne doit pas la dédoubler.
+        nearbyIds.addAll(pawMapPersonIds(p));
         combined.add(p);
       }
       // v550 — plafond d'affichage de la couche monde (les plus proches).
       final worldPool = <Map<String, dynamic>>[];
       for (final p in _worldMembers) {
         final id = (p['id'] ?? '').toString();
-        if (id.isEmpty || nearbyIds.contains(id)) continue;
+        if (id.isEmpty || pawMapPersonIds(p).any(nearbyIds.contains)) continue;
         worldPool.add(p);
       }
       final int worldCap =
@@ -3490,6 +3544,8 @@ class _PawMapScreenState extends State<PawMapScreen>
           continue;
         }
         final p = group.first;
+        // v585 — une personne à plusieurs rôles (propriétaire + gardien…).
+        final List<Map<String, dynamic>> personRoles = pawMapExpandRoles(p);
         final pos = posOfMember(p)!;
         final id = (p['id'] ?? p['_id'] ?? '').toString();
         if (id.isEmpty) continue;
@@ -3509,8 +3565,8 @@ class _PawMapScreenState extends State<PawMapScreen>
         // Un AMI (liste d'amis) : sa photo + anneau rose, à tous les zooms.
         // v584 (25/09) — le serveur le dit (`isFriend`, tous rôles d'une même
         // personne), l'ancienne comparaison d'ids reste en secours.
-        final bool isFriend =
-            p['isFriend'] == true || _friendController.isFriendWith(id);
+        final bool isFriend = p['isFriend'] == true ||
+            _friendController.isFriendWithAny(pawMapPersonIds(p));
         final priceLabel = role == 'owner' || !showPrice ? '' : _priceLabelFor(p);
         // v584 (25/09) — au zoom rue : « Prénom · 25 € » sous le rond.
         final String firstName = pawMapShortName(name);
@@ -3534,6 +3590,29 @@ class _PawMapScreenState extends State<PawMapScreen>
             fallbackTint: PawMapLegend.roleColor(role),
           );
           anchor = _photoAnchor(PawMapLegend.friendSize,
+              withLabel: streetLabel.isNotEmpty);
+        } else if (personRoles.length > 1) {
+          // v585 (25/09, Daniel : « la pastille 2 zoome et c'est tout ») — UN
+          // rond pour la personne, liseré partagé entre ses rôles.
+          icon = _photoIcon(
+            keyPrefix: 'multi:$id',
+            avatarUrl: avatar,
+            ring: PawMapLegend.roleColor(role),
+            ringColors: [
+              for (final r in personRoles)
+                PawMapLegend.roleColor((r['_role'] ?? '').toString()),
+            ],
+            size: PawMapLegend.memberSize,
+            label: streetLabel.isEmpty ? null : streetLabel,
+            labelColor: PawMapLegend.darken(PawMapLegend.roleColor(role), 0.25),
+            crown: premium && _showPremiumLayer.value,
+            crownSize: PawMapLegend.crownMember,
+            online: online && !approx,
+            boosted: boosted,
+            fallbackIcon: PawMapLegend.roleIcon(role),
+            fallbackTint: PawMapLegend.roleColor(role),
+          );
+          anchor = _photoAnchor(PawMapLegend.memberSize,
               withLabel: streetLabel.isNotEmpty);
         } else if (avatar.startsWith('http')) {
           // v584 (25/09, Daniel : « mets plus en valeur les utilisateurs ») —
@@ -3575,7 +3654,11 @@ class _PawMapScreenState extends State<PawMapScreen>
             anchor: anchor,
             // v584 — boosté = visible en premier (point 16).
             zIndexInt: selected ? 9 : (isFriend ? 8 : (boosted ? 7 : 6)),
-            onTap: () => _onNearbyTap(
+            consumeTapEvents: personRoles.length > 1,
+            onTap: () => personRoles.length > 1
+                ? _openClusterList(
+                    members: personRoles, places: const [], spots: const [])
+                : _onNearbyTap(
               id: id,
               role: role,
               name: name,
@@ -3594,6 +3677,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               boosted: boosted,
               availableToday: p['availableToday'] == true,
               isFriend: isFriend,
+              personIds: pawMapPersonIds(p),
             ),
           ),
         );
@@ -4209,7 +4293,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               // dépasse sa position basse : ils s'effacent (elle porte les
               // mêmes actions), et reviennent quand elle redescend.
               final sheetUp = !picking && _sheetExtent.value >
-                  (_sheetPeek.h / _sheetAvailableHeight(context)) + 0.03;
+                  (_sheetPeekPx / _sheetAvailableHeight(context)) + 0.03;
               if (sheetUp) return const SizedBox.shrink();
               return Positioned(
                 left: 12.w,
@@ -4263,13 +4347,13 @@ class _PawMapScreenState extends State<PawMapScreen>
               // posé sur « Calques ») → cette zone s'efface avec les rails
               // dès que la feuille dépasse sa position basse.
               final sheetUp = _sheetExtent.value >
-                  (_sheetPeek.h / _sheetAvailableHeight(context)) + 0.03;
+                  (_sheetPeekPx / _sheetAvailableHeight(context)) + 0.03;
               if (sheetUp) return const SizedBox.shrink();
               if (_followUserId != null) {
                 return Positioned(
                   left: 72.w,
                   right: 62.w,
-                  bottom: _menuInset(context) + _sheetPeek.h + 10.h,
+                  bottom: _menuInset(context) + _sheetPeekPx + 10.h,
                   child: Center(child: _buildFollowPill()),
                 );
               }
@@ -4277,7 +4361,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 return Positioned(
                   left: 72.w,
                   right: 62.w,
-                  bottom: _menuInset(context) + _sheetPeek.h + 8.h,
+                  bottom: _menuInset(context) + _sheetPeekPx + 8.h,
                   child: _buildAroundYouCard(),
                 );
               }
@@ -4285,7 +4369,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               return Positioned(
                 left: 12.w,
                 right: 12.w,
-                bottom: _menuInset(context) + _sheetPeek.h + 16.h,
+                bottom: _menuInset(context) + _sheetPeekPx + 16.h,
                 child: Center(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 52.w),
@@ -4297,6 +4381,36 @@ class _PawMapScreenState extends State<PawMapScreen>
                 ),
               );
             }),
+
+            // v585 — voile blanc chaud (encre en sombre) derrière la barre
+            // d'état : ses icônes ne se mélangent plus à la carte. Ne capte
+            // aucun toucher.
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: math.max(MediaQuery.of(context).viewPadding.top, 28) + 18,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        (PawMapTheme.isDark(context)
+                                ? const Color(0xFF1E1513)
+                                : const Color(0xFFFFFBF7))
+                            .withValues(alpha: 0.82),
+                        (PawMapTheme.isDark(context)
+                                ? const Color(0xFF1E1513)
+                                : const Color(0xFFFFFBF7))
+                            .withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
             // ── Haut de l'écran : l'en-tête flottant SEUL (logo, titre,
             // « ? », recherche, rafraîchir). Daniel (25/09, point 12) : plus
@@ -4313,8 +4427,12 @@ class _PawMapScreenState extends State<PawMapScreen>
                 top: 0,
                 left: 0,
                 right: 0,
+                // v585 (Daniel, Samsung : « en haut à gauche c'est recouvert,
+                // l'icône ») — jamais contre la barre d'état : au moins 28 dp
+                // même si le téléphone annonce moins (voile : voir plus haut).
                 child: SafeArea(
                   bottom: false,
+                  minimum: const EdgeInsets.only(top: 28),
                   child: Column(
                     key: _topAreaKey,
                     mainAxisSize: MainAxisSize.min,
@@ -4346,11 +4464,10 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// (au-dessus de la carte Annuler/Valider). Une seule mise en page (25/09).
   double _railBottom(BuildContext context, {required bool picking}) {
     if (picking) {
-      return 284.h - _tabBarLift(context) +
-          MediaQuery.of(context).viewPadding.bottom;
+      return 284.h - _tabBarLift(context) + _systemBottomInset(context);
     }
     // v584 — au-dessus de la feuille glissante en position basse.
-    return _menuInset(context) + _sheetPeek.h + 12.h;
+    return _menuInset(context) + _sheetPeekPx + 12.h;
   }
 
   /// v584 — en-tête flottant de la petite carte (remplace l'AppBar : la carte
@@ -4390,8 +4507,8 @@ class _PawMapScreenState extends State<PawMapScreen>
           SizedBox(width: 8.w),
           Obx(() => _refreshing.value
               ? SizedBox(
-                  width: 40.w,
-                  height: 40.w,
+                  width: 42.w,
+                  height: 42.w,
                   child: Center(
                     child: SizedBox(
                       width: 18.w,
@@ -4422,18 +4539,52 @@ class _PawMapScreenState extends State<PawMapScreen>
     required String label,
     required VoidCallback onTap,
   }) {
+    // v585 (bugs 13 + Daniel : « les 3 petites icônes peuvent être plus en
+    // valeur ») — bouton signature : disque 42 dp au dégradé de l'accent
+    // PawMap (#D83C28 → #B92425), reflet en haut, icône BLANCHE pleine,
+    // liseré blanc, ombre teintée hors découpe (plus jamais rogné).
     return PawPressable(
       key: key,
       label: label,
       onTap: onTap,
-      child: PawGlassPill(
-        color: AppColors.primaryColor.withValues(alpha: 0.35),
-        height: 40.w,
-        width: 40.w,
-        padding: EdgeInsets.zero,
-        child: Icon(icon,
-            size: 21.sp,
-            color: AppColors.accentOn(context, AppColors.primaryColor)),
+      child: Container(
+        width: 42.w,
+        height: 42.w,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFE2503A), Color(0xFFD83C28), Color(0xFFB92425)],
+            stops: [0.0, 0.45, 1.0],
+          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 1.6),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB92425).withValues(alpha: 0.35),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              top: 3.w,
+              left: 8.w,
+              right: 8.w,
+              height: 14.w,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  color: Colors.white.withValues(alpha: 0.22),
+                ),
+              ),
+            ),
+            Icon(icon, size: 21.sp, color: Colors.white),
+          ],
+        ),
       ),
     );
   }
@@ -4470,6 +4621,9 @@ class _PawMapScreenState extends State<PawMapScreen>
       // v552 — mode nuit.
       final night = _nightMode.value;
       return GoogleMap(
+        // v585 — jamais la barre native « ouvrir dans Google Maps » (Daniel :
+        // « nos concurrents » ; Android : « Google Maps n'est pas installée »).
+        mapToolbarEnabled: false,
         initialCameraPosition: CameraPosition(
           target: _currentCenter,
           zoom: _zoomLevel,
@@ -4520,8 +4674,11 @@ class _PawMapScreenState extends State<PawMapScreen>
         // bas ET la feuille en position basse (vu au parcours Samsung : le
         // logo passait sous la feuille) : la carte, elle, ne change pas de
         // taille.
+        // v585 — et le logo Google (mention légale du SDK, à laisser
+        // VISIBLE) sort de sous le rail gauche : décalé à sa droite.
         padding: EdgeInsets.only(
-            bottom: _menuInset(context) + _sheetPeek.h + 6.h),
+            left: 70.w,
+            bottom: _menuInset(context) + _sheetPeekPx + 6.h),
         mapType: _mapType,
         style: night ? _nightMapStyle : null,
         // v23.1 part 243 round 3 — marqueurs mémoïsés (_getMarkersFromCache).
@@ -4550,10 +4707,13 @@ class _PawMapScreenState extends State<PawMapScreen>
     // membres), bouton actif teinté (satellite = orange de la marque).
     // Mêmes actions, même ordre, même largeur utile qu'avant.
     return PawGlassCapsule(
+      width: PawMapTheme.railButtonSize + 10,
       children: [
         PawCapsuleButton(
           icon: Icons.my_location_rounded,
           label: 'pawmap_quick_follow'.tr,
+          // v585 (bug 8) — « ma position » à l'accent du rôle.
+          tint: PawMapLegend.roleColor(_role.isEmpty ? 'owner' : _role),
           onTap: _recenterOnUser,
         ),
         PawCapsuleButton(
@@ -5014,8 +5174,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             // Petite carte : la barre d'onglets pleine largeur monte jusqu'à
             // ~125 (mesuré sur les captures de Daniel : 122 = SOUS la barre).
             // Carte agrandie : juste au-dessus de la barre système.
-            bottom: 140.h - _tabBarLift(context) +
-                MediaQuery.of(context).viewPadding.bottom,
+            bottom: 140.h - _tabBarLift(context) + _systemBottomInset(context),
             child: Material(
               color: Colors.transparent,
               child: Container(
@@ -5524,7 +5683,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                 : (active
                     ? tone.withValues(
                         alpha: PawMapTheme.isDark(context) ? 0.18 : 0.14)
-                    : PawMapTheme.veilOn(context, 0.05, darkAlpha: 0.10)),
+                    // v585 — zéro gris (captures Samsung : « Disponible
+                    // aujourd'hui » / « Rien » en gris) : pastille pêche.
+                    : PawMapTheme.accent.withValues(
+                        alpha: PawMapTheme.isDark(context) ? 0.14 : 0.07)),
             borderRadius: BorderRadius.circular(999),
             border: outlined
                 ? Border.all(color: PawMapTheme.rose, width: 2)
@@ -5533,7 +5695,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                         color: PawMapTheme.toneOn(context, tone)
                             .withValues(alpha: 0.35),
                         width: 1.4)
-                    : null),
+                    : Border.all(
+                        color: PawMapTheme.accent.withValues(alpha: 0.18),
+                        width: 1)),
             boxShadow: rose
                 ? [
                     BoxShadow(
@@ -5556,8 +5720,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                       ? Colors.white
                       : (active
                           ? PawMapTheme.toneOn(context, tone)
-                          : PawMapTheme.veilOn(context, 0.62,
-                              darkAlpha: 0.78)),
+                          : PawMapTheme.inkOn(context)
+                              .withValues(alpha: 0.82)),
                 ),
               ),
               if (trailing != null) ...[SizedBox(width: 5.w), trailing],
@@ -5703,82 +5867,88 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Les 3 abonnements en pilules égales. Le ON/OFF reflète l'ABONNEMENT RÉEL
   /// (PawSpotController lit /users/me/benefits) : sans abo, le toggle n'allume
   /// rien et route vers la boutique — logique inchangée depuis la v449.
+  /// v585 (bug 15) — « Mes abonnements sur la carte » : PawFollow (mon
+  /// cercle en direct), PawSpot (couche gratuite, interrupteur pour tous),
+  /// Premium (couronne + les deux couches). Non possédé → « Découvrir »
+  /// (boutique). L'état = les calques, enregistrés sur le compte.
   Widget _buildPanelModules() {
-    Widget module(String label, bool on, VoidCallback onTap, Color accent) {
-      return Expanded(
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 6.h),
-            decoration: BoxDecoration(
-              color: PawMapTheme.veilOn(context, 0.04, darkAlpha: 0.10),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  // v552 — « PawFollow » et « PawPremium » sont des marques :
-                  // on les réduit plutôt que de les tronquer en « PawFollo… ».
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      style: PawMapTheme.fontOn(context,
-                          size: 9.5.sp, weight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 6.w),
-                Container(
-                  width: 32.w,
-                  height: 19.h,
-                  padding: EdgeInsets.all(2.w),
-                  alignment:
-                      on ? Alignment.centerRight : Alignment.centerLeft,
-                  decoration: BoxDecoration(
-                    color: on
-                        ? accent
-                        : (PawMapTheme.isDark(context)
-                            ? const Color(0xFF664F4A)
-                            : const Color(0xFFDCD4C8)),
-                    borderRadius: BorderRadius.circular(10.r),
-                  ),
-                  child: Container(
-                    width: 15.w,
-                    height: 15.w,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
     return Obx(() {
       final followSub = _pawSpotController.followActive.value;
       final premiumOn = _pawSpotController.premiumActive.value;
-      return Row(
-        children: [
-          module('PawFollow', followSub && _showLiveLayer.value,
-              _togglePawFollow, PawMapTheme.pawFollow),
-          SizedBox(width: 6.w),
-          module('PawSpot', _showPawSpots.value, _togglePawSpot,
-              PawMapTheme.pawSpot),
-          SizedBox(width: 6.w),
-          module('PawPremium', premiumOn && _showPremiumLayer.value,
-              _togglePawPremium, PawMapTheme.ok),
-        ],
-      );
+      return PawMapSubscriptionsSection(lines: [
+        PawMapSubscriptionLine(
+          id: 'follow',
+          name: 'PawFollow',
+          subtitle: 'pawmap585_subs_follow_sub'.tr,
+          icon: Icons.podcasts_rounded,
+          color: PawMapTheme.pawFollow,
+          owned: followSub,
+          on: followSub && _showLiveLayer.value,
+          onToggle: () => unawaited(_togglePawFollow()),
+          onDiscover: () => unawaited(_promptSubscriptionRequired(1)),
+        ),
+        PawMapSubscriptionLine(
+          id: 'spot',
+          name: 'PawSpot',
+          subtitle: 'pawmap585_subs_spot_sub'.tr,
+          icon: Icons.stars_rounded,
+          color: PawMapTheme.pawSpot,
+          owned: true,
+          on: _showPawSpots.value,
+          onToggle: () => unawaited(_togglePawSpot()),
+          onDiscover: () => unawaited(_togglePawSpot()),
+        ),
+        PawMapSubscriptionLine(
+          id: 'premium',
+          name: 'PawPremium',
+          subtitle: 'pawmap585_subs_premium_sub'.tr,
+          icon: Icons.workspace_premium_rounded,
+          color: const Color(0xFFC9971C),
+          owned: premiumOn,
+          on: premiumOn && _showPremiumLayer.value,
+          onToggle: () => unawaited(_togglePawPremium()),
+          onDiscover: () => unawaited(_promptSubscriptionRequired(3)),
+        ),
+      ]);
     });
+  }
+
+  /// v585 — bouton « Mes abonnements » : la même section, en feuille.
+  void _openSubscriptionsSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: PawMapTheme.bgOn(ctx),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+        ),
+        padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 16.h + appBottomInset(ctx)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44.w,
+                height: 5.h,
+                decoration: BoxDecoration(
+                  color: PawMapTheme.accent,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+            SizedBox(height: 12.h),
+            Text('pawmap585_subs_title'.tr,
+                style: PawMapTheme.fontOn(ctx, size: 17.sp, weight: FontWeight.w800)),
+            SizedBox(height: 12.h),
+            _buildPanelModules(),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildCategoryChecklist(Set<String> selected) {
@@ -6024,6 +6194,30 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// les rails se retirent quand la feuille dépasse sa position basse.
   final RxDouble _sheetExtent = 0.0.obs;
   static const double _sheetPeek = 100;
+
+  /// v585 (Daniel, build 584 : puce « Amis seulement » coupée en bas de la
+  /// feuille sur son Samsung) — la position basse montre TOUT l'en-tête
+  /// (poignée + bouton principal + ligne d'état), mesuré, jamais moins de
+  /// 100 dp.
+  final GlobalKey _sheetHeaderKey = GlobalKey();
+  double _sheetHeaderH = 0;
+  double get _sheetPeekPx =>
+      math.max(_sheetPeek.h, 8.h + 5.h + 10.h + _sheetHeaderH + 12.h);
+
+  void _measureSheetHeader() {
+    final box =
+        _sheetHeaderKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final h = box.size.height;
+    if ((h - _sheetHeaderH).abs() > 0.5 && mounted) {
+      final wasLow = _sheetIsLow;
+      setState(() => _sheetHeaderH = h);
+      if (wasLow) {
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => unawaited(_sheetTo(PawSheetStop.low)));
+      }
+    }
+  }
   bool _sheetIsLow = true;
 
   /// 'all' | 'sitters' | 'walkers' | 'places' | 'friends' (idée 6).
@@ -6036,10 +6230,21 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// elle passe devant le corps (Daniel : « le menu ne doit gêner AUCUN
   /// bouton »). Empilée hors onglets, seule la barre système reste.
   double _menuInset(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    if (_tabBarLift(context) > 0) return mq.viewPadding.bottom;
-    return pawTabBarTotalHeight(mq.viewPadding.bottom);
+    final double sys = _systemBottomInset(context);
+    if (_tabBarLift(context) > 0) return sys;
+    return pawTabBarTotalHeight(sys);
   }
+
+  /// v585 — CAUSE du bug 1 de Daniel (puce « Amis seulement » sous le menu,
+  /// patte posée sur le bouton principal), mesurée sur l'émulateur avec la
+  /// barre à 3 boutons : la PawMap vit dans le `body` d'un Scaffold en
+  /// `extendBody`, qui RETIRE le bas de `viewPadding` à ses enfants → ici
+  /// `viewPadding.bottom` valait 0 alors que le menu (posé par le wrapper, qui
+  /// lit la vraie valeur, 48) était remonté de 48 : la feuille était posée
+  /// 48 dp TROP BAS, sous la pilule et la patte. On lit donc l'inset de la
+  /// FENÊTRE, exactement comme le menu du bas.
+  double _systemBottomInset(BuildContext context) =>
+      windowBottomViewPadding(context);
 
   double _sheetAvailableHeight(BuildContext context) {
     final mq = MediaQuery.of(context);
@@ -6066,7 +6271,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (!_sheetCtl.isAttached) return;
     final h = _sheetAvailableHeight(context);
     final size = switch (stop) {
-      PawSheetStop.low => (_sheetPeek.h / h).clamp(0.08, 0.5).toDouble(),
+      PawSheetStop.low => (_sheetPeekPx / h).clamp(0.08, 0.5).toDouble(),
       PawSheetStop.mid => 0.46,
       PawSheetStop.high => _sheetHighFraction(context),
     };
@@ -6097,7 +6302,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     final size = _sheetCtl.size;
     _sheetExtent.value = size;
     final h = _sheetAvailableHeight(context);
-    final low = (_sheetPeek.h / h).clamp(0.08, 0.5).toDouble();
+    final low = (_sheetPeekPx / h).clamp(0.08, 0.5).toDouble();
     final isLow = size <= low + 0.03;
     if (isLow != _sheetIsLow) {
       _sheetIsLow = isLow;
@@ -6107,13 +6312,55 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   Widget _buildSheet() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureSheetHeader());
     return PawMapSheet(
       controller: _sheetCtl,
       availableHeight: _sheetAvailableHeight(context),
-      peekHeight: _sheetPeek.h,
+      peekHeight: _sheetPeekPx,
       highFraction: _sheetHighFraction(context),
-      header: _buildPrimaryAction(),
+      header: NotificationListener<SizeChangedLayoutNotification>(
+        onNotification: (_) {
+          WidgetsBinding.instance
+              .addPostFrameCallback((_) => _measureSheetHeader());
+          return false;
+        },
+        child: SizeChangedLayoutNotifier(
+          child: KeyedSubtree(
+            key: _sheetHeaderKey,
+            child: _buildPrimaryAction(),
+          ),
+        ),
+      ),
       children: [
+        // v585 (bugs 14/15, Daniel : « rajoute deux boutons ») — deux accès
+        // évidents, juste sous le bouton principal : Amis (amis, demandes,
+        // en direct, PawFamily) et Mes abonnements (interrupteurs).
+        Row(
+          children: [
+            Expanded(
+              child: PawSignatureButton(
+                key: const ValueKey<String>('pawmap_btn_friends'),
+                kind: PawButtonKind.secondary,
+                label: 'pawmap585_btn_friends'.tr,
+                icon: Icons.favorite_rounded,
+                color: PawMapLegend.friend,
+                onTap: () => Get.to(() => const FriendsScreen()),
+              ),
+            ),
+            SizedBox(width: 8.w),
+            Expanded(
+              child: PawSignatureButton(
+                key: const ValueKey<String>('pawmap_btn_subs'),
+                kind: PawButtonKind.secondary,
+                label: 'pawmap585_btn_subs'.tr,
+                icon: Icons.workspace_premium_rounded,
+                color: PawMapTheme.pawFollow,
+                onTap: _openSubscriptionsSheet,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 14.h),
         PawMapLookingSelector(value: _lookingFor, onChanged: _applyLooking),
         SizedBox(height: 12.h),
         _buildPanelCounterRow(),
@@ -6149,7 +6396,9 @@ class _PawMapScreenState extends State<PawMapScreen>
               onLongPress: _showDockHelp,
             )),
         SizedBox(height: 14.h),
-        _sheetSection('pawmap_sheet_more'.tr),
+        // v585 (bug 15) — « Mes abonnements sur la carte » : une ligne claire
+        // par abonnement (avant : trois pilules minuscules « Plus »).
+        _sheetSection('pawmap585_subs_title'.tr),
         _buildPanelModules(),
         SizedBox(height: 6.h),
         Align(

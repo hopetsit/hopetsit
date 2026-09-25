@@ -119,18 +119,14 @@ class FriendController extends GetxController {
   // ── v565 — point 9 : état d'une relation avec un membre (PawMap) ─────────
   /// Demande envoyée par moi, en attente de réponse ?
   bool hasPendingRequestTo(String userId) {
-    final id = userId.trim().toLowerCase();
     return outgoingRequests.any((f) =>
-        f.status == 'pending' &&
-        (f.other?.id ?? '').trim().toLowerCase() == id);
+        f.status == 'pending' && (f.other?.matchesId(userId) ?? false));
   }
 
   /// Demande reçue de ce membre, à laquelle je n'ai pas encore répondu.
   Friendship? incomingRequestFrom(String userId) {
-    final id = userId.trim().toLowerCase();
     for (final f in incomingRequests) {
-      if (f.status == 'pending' &&
-          (f.other?.id ?? '').trim().toLowerCase() == id) {
+      if (f.status == 'pending' && (f.other?.matchesId(userId) ?? false)) {
         return f;
       }
     }
@@ -138,12 +134,14 @@ class FriendController extends GetxController {
   }
 
   /// Déjà amis (amitié acceptée) ?
+  /// v585 — tous les rôles de l'ami comptent (`FriendProfile.matchesId`).
   bool isFriendWith(String userId) {
-    final id = userId.trim().toLowerCase();
     return friends.any((f) =>
-        f.status == 'accepted' &&
-        (f.other?.id ?? '').trim().toLowerCase() == id);
+        f.status == 'accepted' && (f.other?.matchesId(userId) ?? false));
   }
+
+  /// v585 — l'un de ces ids (tous les rôles d'une personne) est-il un ami ?
+  bool isFriendWithAny(Iterable<String> ids) => ids.any(isFriendWith);
 
   /// v565 — rafraîchit la cloche / le bandeau (NotificationsController) sans
   /// dépendre de son import (évite un couplage dur entre lots).

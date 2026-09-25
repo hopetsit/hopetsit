@@ -219,6 +219,7 @@ class PawMapMemberSheet extends StatelessWidget {
     //   propriétaire avec demande → Proposer mes services ;
     //   sinon → Ajouter en ami.
     final Widget primary;
+    bool primaryIsMessage = false;
     final bool canFollow = liveState != null && onFollow != null;
     if (canFollow) {
       // v584 (25/09, point 14) — un ami qui partage sa balade : le bouton
@@ -250,6 +251,18 @@ class PawMapMemberSheet extends StatelessWidget {
         icon: Icons.volunteer_activism_rounded,
         color: viewerColor,
         onTap: viewerLoggedIn ? onPropose : onSignup,
+      );
+    } else if (viewerLoggedIn && friendState == PawFriendState.friends) {
+      // v585 (25/09, Daniel : « où sont passés Ajouter en ami, Message ? ») —
+      // un AMI : l'action utile est « Message », jamais « Ajouter en ami » ni
+      // un gros bouton « Déjà amis » inutile.
+      primaryIsMessage = true;
+      primary = PawSignatureButton(
+        key: const ValueKey<String>('member_primary_message'),
+        label: 'pawmap_member_message'.tr,
+        icon: Icons.chat_bubble_rounded,
+        color: PawMapLegend.friend,
+        onTap: onMessage,
       );
     } else {
       primary = PawSignatureButton(
@@ -412,6 +425,9 @@ class PawMapMemberSheet extends StatelessWidget {
               onTap: viewerLoggedIn ? onBook : onSignup,
             ),
           ],
+          // v585 — la rangée Ami / Message, sauf quand « Message » est déjà
+          // le bouton principal (ami propriétaire).
+          if (!primaryIsMessage) ...[
           SizedBox(height: 8.h),
           Row(
             children: [
@@ -444,6 +460,7 @@ class PawMapMemberSheet extends StatelessWidget {
               ),
             ],
           ),
+          ],
           if (onDirections != null) ...[
             SizedBox(height: 8.h),
             PawSignatureButton(

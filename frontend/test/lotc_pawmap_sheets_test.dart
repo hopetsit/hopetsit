@@ -185,7 +185,7 @@ void main() {
       expect(find.byKey(const ValueKey<String>('member_primary_book')), findsNothing);
     });
 
-    testWidgets('propriétaire sans demande : « Ajouter en ami » principal ; « déjà amis » désactivé',
+    testWidgets('propriétaire sans demande : « Ajouter en ami » principal ; ami → « Message » principal (v585)',
         (tester) async {
       final calls = <String>[];
       await tester.pumpWidget(_harness(PawMapMemberSheet(
@@ -207,7 +207,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 150));
       expect(calls, ['friend']);
 
-      // Déjà amis → le bouton reste visible (coche) et n'appelle plus rien.
+      // v585 (bug 4, Daniel) — déjà amis → « Message » devient le bouton
+      // principal ; plus jamais « Ajouter en ami » ni gros « Déjà amis ».
       await tester.pumpWidget(_harness(PawMapMemberSheet(
         member: const PawMapMemberData(id: 'o2', role: 'owner', name: 'Ana', isFriend: true),
         viewerRole: 'owner',
@@ -216,14 +217,17 @@ void main() {
         priceLabel: '',
         onBook: () {},
         onProfile: () {},
-        onMessage: () {},
+        onMessage: () => calls.add('message2'),
         onFriend: () => calls.add('friend2'),
         onDirections: null,
         onPropose: () {},
         onSignup: () {},
       )));
       await tester.pump(const Duration(milliseconds: 50));
-      expect(find.byIcon(Icons.check_rounded), findsWidgets);
+      expect(find.byKey(const ValueKey<String>('member_primary_friend')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey<String>('member_primary_message')));
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(calls, ['friend', 'message2']);
     });
 
     testWidgets('se construit en sombre sans exception', (tester) async {
