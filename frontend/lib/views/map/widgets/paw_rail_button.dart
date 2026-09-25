@@ -220,30 +220,42 @@ class PawGlassCapsule extends StatelessWidget {
       if (i > 0) {
         items.add(Container(
           height: 1,
-          margin: EdgeInsets.symmetric(horizontal: 9.w),
-          color: PawMapTheme.borderOn(context),
+          margin: EdgeInsets.symmetric(horizontal: 11.w),
+          color: PawMapTheme.borderOn(context).withValues(alpha: 0.45),
         ));
       }
       items.add(children[i]);
     }
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(22.r),
-      // v566 — fluidité : plus de flou (BackdropFilter) au-dessus de la carte
-      // (une vue native) : il force un calque par image pendant le déplacement.
-      // Blanc translucide sans flou = même rendu, zéro coût.
-      child: RepaintBoundary(
-        child: Container(
-          width: width.w,
-          decoration: BoxDecoration(
-            color: PawMapTheme.panelOn(context).withValues(alpha: 0.96),
-            borderRadius: BorderRadius.circular(22.r),
-            border: Border.all(
-              color: PawMapTheme.borderOn(context),
-              width: PawMapTheme.pillBorderWidth,
-            ),
-            boxShadow: PawMapTheme.pillShadowOn(context),
+    // v585 (bug 8) — même verre TEINTÉ que le rail gauche (PawRailGlass) :
+    // blanc chaud translucide, liseré blanc fin, ombre à l'encre chaude hors
+    // de la découpe (elle était rognée), coins 28.
+    final bool dark = PawMapTheme.isDark(context);
+    return Container(
+      width: width.w,
+      decoration: BoxDecoration(
+        color: dark
+            ? const Color(0xFF2D1F1B).withValues(alpha: 0.86)
+            : const Color(0xFFFFFBF7).withValues(alpha: 0.86),
+        borderRadius: BorderRadius.circular(28.r),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: dark ? 0.14 : 0.85),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2B1D19).withValues(alpha: dark ? 0.35 : 0.14),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
-          child: Column(mainAxisSize: MainAxisSize.min, children: items),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28.r),
+        child: RepaintBoundary(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 4.h),
+            child: Column(mainAxisSize: MainAxisSize.min, children: items),
+          ),
         ),
       ),
     );
@@ -265,7 +277,8 @@ class PawCapsuleButton extends StatelessWidget {
   });
 
   static const Color ink = Color(0xFF251A17);
-  static const Color grey = Color(0xFF82665E);
+  // v585 (bug 8) — plus de gris : encre chaude adoucie pour le secondaire.
+  static const Color grey = Color(0xFF6B3F33);
 
   final IconData icon;
   final String label;
@@ -280,13 +293,16 @@ class PawCapsuleButton extends StatelessWidget {
     final bool isDark = PawMapTheme.isDark(context);
     // v571 — sur capsule anthracite, l'encre #1D1D1F disparaît.
     final Color baseInk = isDark ? const Color(0xFFF5F0EF) : ink;
-    final Color baseGrey = isDark ? const Color(0xFFBBA9A5) : grey;
+    final Color baseGrey = isDark ? const Color(0xFFE9C9BD) : grey;
     final Color t = tint ?? baseInk;
     // v573 — l'état actif prend la couleur de marque, éclaircie en sombre
     // (AppColors.accentOn) pour rester lisible sur l'anthracite.
     final Color toneOn = AppColors.accentOn(context, t);
-    final Color iconColor =
-        active ? toneOn : (secondary ? baseGrey : baseInk);
+    // v585 (bug 8) — un bouton principal teinté (« ma position ») prend
+    // l'accent du rôle ; le reste reste à l'encre chaude.
+    final Color iconColor = active
+        ? toneOn
+        : (secondary ? baseGrey : (tint != null ? toneOn : baseInk));
     return Tooltip(
       message: label,
       child: Semantics(
@@ -437,44 +453,46 @@ class PawGlassPill extends StatelessWidget {
     // elle n'est pas « pleine ». Le liseré et le contenu gardent leur couleur.
     final bool isDark = PawMapTheme.isDark(context);
     final r = BorderRadius.circular(radius);
-    return ClipRRect(
-      borderRadius: r,
-      // v566 — fluidité : plus de flou (BackdropFilter) au-dessus de la carte
-      // (une vue native) : il force un calque par image pendant le déplacement.
-      // Blanc translucide sans flou = même rendu, zéro coût.
-      child: RepaintBoundary(
-        child: Container(
-          height: height,
-          width: width,
-          padding: padding ?? EdgeInsets.symmetric(horizontal: 12.w),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: filled
-                ? (gradient == null ? color : null)
-                : PawMapTheme.panelOn(context).withValues(alpha: 0.96),
-            gradient: filled ? gradient : null,
-            borderRadius: r,
-            border: Border.all(
+    // v585 (bug 13, Daniel : « barre des boutons du haut : ronds coupés ») —
+    // l'ombre était dessinée DANS un ClipRRect qui la rognait : bord dur, rond
+    // qui paraît coupé. L'ombre vit maintenant autour, la découpe seulement
+    // sur le contenu.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: r,
+        boxShadow: filled
+            ? [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.32),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
+                ),
+              ]
+            : PawMapTheme.pillShadowOn(context),
+      ),
+      child: ClipRRect(
+        borderRadius: r,
+        child: RepaintBoundary(
+          child: Container(
+            height: height,
+            width: width,
+            padding: padding ?? EdgeInsets.symmetric(horizontal: 12.w),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
               color: filled
-                  ? Colors.white.withValues(alpha: 0.55)
-                  // v573 — en sombre, le liseré de couleur pure manquait de
-                  // contraste sur l'anthracite : on l'éclaircit comme partout.
-                  : (isDark ? PawMapTheme.lighten(color, 0.2) : color),
-              width: borderWidth,
+                  ? (gradient == null ? color : null)
+                  : PawMapTheme.panelOn(context).withValues(alpha: 0.96),
+              gradient: filled ? gradient : null,
+              borderRadius: r,
+              border: Border.all(
+                color: filled
+                    ? Colors.white.withValues(alpha: 0.55)
+                    : (isDark ? PawMapTheme.lighten(color, 0.2) : color),
+                width: borderWidth,
+              ),
             ),
-            // v573 — pleine : halo à sa couleur ; vide : l'ombre commune des
-            // pilules flottantes (PawMapTheme.pillShadow), thémée.
-            boxShadow: filled
-                ? [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.32),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
-                    ),
-                  ]
-                : PawMapTheme.pillShadowOn(context),
+            child: child,
           ),
-          child: child,
         ),
       ),
     );

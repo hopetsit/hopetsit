@@ -154,10 +154,10 @@ class PawMapTheme {
   // par `.w` / `.h` / `.r` comme partout ailleurs.
 
   /// Diamètre d'un bouton rond du rail gauche.
-  static const double railButtonSize = 46;
+  static const double railButtonSize = 44; // v585 — 44 (bug 8)
 
   /// Écart vertical entre deux boutons du rail (identique partout).
-  static const double railGap = 8;
+  static const double railGap = 10; // v585 — 10 (bug 8)
 
   /// Part du diamètre occupée par le glyphe d'un bouton du rail — la même pour
   /// une icône Material et pour un SVG, sinon les poids optiques divergent.

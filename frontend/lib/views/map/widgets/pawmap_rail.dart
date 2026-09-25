@@ -279,7 +279,12 @@ class PawMapRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    // v585 (bug 8, Daniel : « ces deux barres, ça peut être plus joli ? ») —
+    // une seule capsule verticale en verre TEINTÉ (blanc chaud translucide,
+    // liseré blanc fin, ombre à l'encre chaude — jamais de gris), boutons
+    // espacés de 10 dp. Même verre que la capsule de droite.
+    return PawRailGlass(
+      child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         for (final id in order)
@@ -315,6 +320,44 @@ class PawMapRail extends StatelessWidget {
           ),
         ),
       ],
+      ),
+    );
+  }
+}
+
+/// v585 (bug 8) — le « verre » commun des deux rails : blanc chaud translucide
+/// (encre chaude en sombre), liseré blanc fin, coins 28, ombre teintée à
+/// l'encre, DEHORS de la découpe (avant, la capsule droite coupait sa propre
+/// ombre). Aucun flou (fluidité au-dessus de la carte native, v566).
+class PawRailGlass extends StatelessWidget {
+  const PawRailGlass({super.key, required this.child, this.padding});
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool dark = PawMapTheme.isDark(context);
+    return Container(
+      padding: padding ??
+          EdgeInsets.fromLTRB(5.w, 0, 5.w, 6.h),
+      decoration: BoxDecoration(
+        color: dark
+            ? const Color(0xFF2D1F1B).withValues(alpha: 0.78)
+            : const Color(0xFFFFFBF7).withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(28.r),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: dark ? 0.14 : 0.85),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2B1D19).withValues(alpha: dark ? 0.35 : 0.14),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: child,
     );
   }
 }
