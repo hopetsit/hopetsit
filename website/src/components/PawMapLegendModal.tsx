@@ -174,9 +174,8 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
             { html: eyesHtml(), title: t("m586_leg_eye_t"), body: t("h587_b_eye"), color: "#17141F" },
             // 587 — Daniel : les 3 réglages en clair, mêmes phrases que le réglage (vis587).
             { html: eyesHtml(), title: t("v587_title"), body: visExplained, color: "#17141F" },
-            ...(provider
-              ? [{ html: `<span style="display:flex;gap:4px">${roundHtml("linear-gradient(165deg,#2C2533,#17141F)", LIVE, "rgba(23,20,31,0.7)", 30)}${roundHtml("linear-gradient(165deg,#34B857,#16A34A)", LIVE, "#16A34A", 30)}</span>`, title: t("m586_live"), body: t("h587_b_direct"), color: "#17141F" }]
-              : []),
+            // 587 — le Direct existe pour les 3 profils (propriétaire compris).
+            { html: `<span style="display:flex;gap:4px">${roundHtml("linear-gradient(165deg,#2C2533,#17141F)", LIVE, "rgba(23,20,31,0.7)", 30)}${roundHtml("linear-gradient(165deg,#34B857,#16A34A)", LIVE, "#16A34A", 30)}</span>`, title: t("m586_live"), body: t("h587_b_direct"), color: "#17141F" },
           ],
         },
         {

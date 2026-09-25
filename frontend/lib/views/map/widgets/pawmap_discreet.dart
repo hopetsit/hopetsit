@@ -53,6 +53,21 @@ int pawMap586LaunchCount({bool bump = false}) {
 /// Libellés visibles aux 3 premières ouvertures (fonction pure, testée).
 bool pawMap586ShowLabels(int launches) => launches <= 3;
 
+/// v587 (Daniel, 25/09 : « mets le bouton en haut à gauche pour les 3
+/// profils ») — la pilule « ● Direct » est affichée pour le propriétaire, le
+/// gardien et le promeneur (un propriétaire promène aussi son chien) ; pas
+/// sans compte.
+bool pawMapShowsDirectPill(String role) =>
+    const <String>{'owner', 'sitter', 'walker'}.contains(role.trim().toLowerCase());
+
+/// v587 — la capsule de droite est la MÊME pour les 3 profils (position, +,
+/// −, satellite, membres, œil, flèche de repli) ; seul le propriétaire a en
+/// plus le rond « Publier » en bas.
+bool pawMapCapsuleHasPublish(String role) {
+  final r = role.trim().toLowerCase();
+  return r != 'sitter' && r != 'walker';
+}
+
 /// Une entrée d'explication (appui long, « Comprendre la PawMap »).
 class PawCapsuleSpec {
   const PawCapsuleSpec({

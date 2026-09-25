@@ -92,14 +92,14 @@ void main() {
         findsOneWidget);
   });
 
-  testWidgets('propriétaire : Publier décrit, pas Direct ; mode sombre sans erreur',
+  testWidgets('propriétaire : Publier ET Direct décrits (v587, 3 profils) ; mode sombre sans erreur',
       (tester) async {
     await _open(tester, const Locale('fr', 'FR'), 'owner', brightness: Brightness.dark);
     expect(tester.takeException(), isNull);
     expect(find.byKey(const ValueKey<String>('help_capsule_publish'), skipOffstage: false),
         findsOneWidget);
     expect(find.byKey(const ValueKey<String>('help_capsule_direct'), skipOffstage: false),
-        findsNothing);
+        findsOneWidget);
     // Chaque clé help587 utilisée existe dans les 9 langues.
     for (final l in const ['fr', 'en', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl']) {
       expect(help587I18n[l]!.keys.toSet(), help587I18n['fr']!.keys.toSet(), reason: l);

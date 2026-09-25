@@ -4613,10 +4613,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _fading(_buildFloatingHeader()),
-                          // v587 (point 1a) — gardien / promeneur : la pilule
-                          // « ● Direct » sous le logo PawMap (sortie de la
-                          // capsule de droite).
-                          if (_isSitterOrWalker)
+                          // v587 (point 1a) — la pilule « ● Direct » sous le
+                          // logo PawMap. Daniel (25/09) : « pour les 3 profils »
+                          // — un propriétaire promène aussi son chien et
+                          // partage avec ses amis.
+                          if (pawMapShowsDirectPill(_role))
                             Align(
                               alignment: Alignment.centerLeft,
                               child: Padding(
@@ -4995,10 +4996,11 @@ class _PawMapScreenState extends State<PawMapScreen>
       ],
       // v586 — l'action du rôle, sous un trait : Publier (propriétaire) ou
       // Direct (gardien / promeneur, noir = arrêté, vert = en direct).
-      // v587 (point 1a) — le Direct du gardien / promeneur est monté en haut
-      // à gauche (pilule sous le logo) : la capsule ne garde que « Publier »
+      // v587 (point 1a) — le Direct est monté en haut à gauche (pilule sous
+      // le logo, 3 profils) : la capsule, identique pour tous (position, +,
+      // −, satellite, membres, œil, flèche de repli), garde « Publier » en bas
       // pour le propriétaire.
-      footer: _isSitterOrWalker
+      footer: !pawMapCapsuleHasPublish(_role)
           ? null
           : PawCapsuleRoleAction(
               kind: PawRoleActionKind.publish,

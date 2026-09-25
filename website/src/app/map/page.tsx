@@ -201,7 +201,9 @@ export default function MapPage() {
   const [myLive, setMyLive] = useState<{ on: boolean; startedAt: number | null }>({ on: false, startedAt: null });
   useEffect(() => {
     const me = getStoredUser();
-    if (!me || !["sitter", "walker"].includes(String(me.role))) return;
+    // 587 (Daniel : « le bouton en haut à gauche pour les 3 profils ») — un
+    // propriétaire promène aussi son chien : son direct se lit comme les autres.
+    if (!me) return;
     let stop = false;
     const read = async () => {
       try {
@@ -1322,7 +1324,8 @@ export default function MapPage() {
               PawMap : pilule « ● Direct » (gardien / promeneur), puis « Amis ».
               Rangée qui passe à la ligne plutôt que de chevaucher « ? ». */}
           <div className={`pointer-events-none absolute left-3 right-[68px] top-3 z-[1000] flex flex-wrap items-start gap-2 ${fadeCls}`}>
-            {!isOwner && getStoredUser() && (
+            {/* 587 — pilule « ● Direct » pour les 3 profils (propriétaire compris). */}
+            {getStoredUser() && (
               <button
                 type="button"
                 onPointerDown={revealControls}
@@ -1759,13 +1762,15 @@ export default function MapPage() {
                 mon rond garde l'anneau pointillé + l'œil barré. */}
             {/* 25/09 (586, point 2) — l'action du rôle a quitté le panneau pour
                 la capsule de la carte ; elle garde ici une ligne équivalente. */}
-            {isOwner ? (
+            {/* 587 — propriétaire : « Publier » ET la ligne du direct (3 profils). */}
+            {isOwner && (
               <Link href="/posts/create" className="mb-3 flex min-h-[48px] items-center gap-3 rounded-2xl bg-white p-2.5 pr-3 text-left transition hover:bg-[#FDF8F7]">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)" }}><AppIcon name="megaphone" size={18} color="#fff" /></span>
                 <span className="min-w-0 flex-1 text-sm font-bold text-[#9E1F0B]">{t("m586_publish_long")}</span>
                 <AppIcon name="arrow-right" size={16} color="#C92A12" />
               </Link>
-            ) : (
+            )}
+            {(
               <button type="button" onClick={() => setLiveInfoOpen(true)} className="mb-3 flex min-h-[48px] w-full items-center gap-3 rounded-2xl bg-white p-2.5 pr-3 text-left transition hover:bg-[#FDF8F7]">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: myLive.on ? "linear-gradient(165deg,#22C55E,#16A34A 55%,#15803D)" : "linear-gradient(165deg,#2C2533,#17141F)" }}><LiveIcon size={18} /></span>
                 <span className="min-w-0 flex-1">

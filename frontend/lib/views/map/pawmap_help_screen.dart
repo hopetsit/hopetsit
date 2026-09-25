@@ -11,7 +11,7 @@
 // son icône, à quoi il sert, pourquoi, le geste exact (`help587_b_<id>`,
 // pack `help587_i18n.dart`, mêmes textes que la légende du site). Un exemple
 // par section, puis une FAQ. Seuls les boutons du rôle sont décrits (Direct =
-// gardien / promeneur, Publier = propriétaire), comme sur la carte.
+// 3 profils depuis le 25/09, Publier = propriétaire), comme sur la carte.
 // En bas, « Voir sur la carte » ouvre l'onglet PawMap.
 //
 // Noms, icônes et couleurs des boutons : UNE source, `kPawRailSpecs` /
@@ -136,8 +136,8 @@ class PawMapHelpScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final entries = pawLegendEntries();
     final role = _roleNow;
-    // Mêmes règles que la carte : gardien / promeneur = pilule « Direct » en
-    // haut à gauche ; sinon (propriétaire, sans compte) = « Publier ».
+    // Mêmes règles que la carte : pilule « Direct » en haut à gauche pour les
+    // 3 profils (v587) ; « Publier » en plus pour le propriétaire.
     final provider = role == 'sitter' || role == 'walker';
     final roleColor = PawMapLegend.roleColor(role.isEmpty ? 'owner' : role);
     return ProfileSubPageScaffold(
@@ -222,7 +222,8 @@ class PawMapHelpScreen extends StatelessWidget {
           _capsuleRow(context, 'eye'),
           // v587 — Daniel : les 3 réglages expliqués, mêmes phrases que le réglage.
           const _VisibilityCard(key: ValueKey<String>('help_visibility')),
-          if (provider) _capsuleRow(context, 'direct'),
+          // v587 — le Direct existe pour les 3 profils (Daniel, 25/09).
+          _capsuleRow(context, 'direct'),
           // v584 (25/09, point 14) — « Suivre ma promenade : Daniel ne sait
           // pas comment faire » : l'explication vit aussi ici.
           _LiveShareCard(key: const ValueKey<String>('help_live_share')),

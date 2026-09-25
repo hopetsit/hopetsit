@@ -179,6 +179,21 @@ void main() {
     });
   });
 
+  group('Direct pour les 3 profils (Daniel, 25/09)', () {
+    test('pilule « ● Direct » : propriétaire, gardien, promeneur ; pas sans compte', () {
+      for (final r in ['owner', 'sitter', 'walker', 'Owner']) {
+        expect(pawMapShowsDirectPill(r), isTrue, reason: r);
+      }
+      expect(pawMapShowsDirectPill(''), isFalse);
+      expect(pawMapShowsDirectPill('guest'), isFalse);
+    });
+    test('capsule : même capsule pour tous, « Publier » en plus pour le propriétaire', () {
+      expect(pawMapCapsuleHasPublish('owner'), isTrue);
+      expect(pawMapCapsuleHasPublish('sitter'), isFalse);
+      expect(pawMapCapsuleHasPublish('walker'), isFalse);
+    });
+  });
+
   group('3 — barres repliables', () {
     setUp(() async => lotdSetUp(role: 'owner'));
     for (final left in [true, false]) {
