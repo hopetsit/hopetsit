@@ -35,7 +35,9 @@ class ProviderActionBar extends StatelessWidget {
   final VoidCallback onBook;
   final VoidCallback? onMessage;
 
-  /// Un gardien / promeneur ne réserve pas un confrère : Message seul.
+  /// false = Message seul. v586 (point 8) : les écrans ne s'en servent plus —
+  /// Réserver est proposé à TOUS les spectateurs, sauf sur sa propre fiche
+  /// (où la barre n'est pas affichée du tout).
   final bool canBook;
 
   /// « Demander une réservation » quand il faut d'abord une demande acceptée.

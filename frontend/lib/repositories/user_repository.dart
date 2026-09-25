@@ -107,6 +107,24 @@ class UserRepository {
         .toList();
   }
 
+  /// v586 (point 8) — ids des profils de la personne connectée (propriétaire /
+  /// gardien / promeneur), renvoyés par `GET /users/me/roles` → `profiles`.
+  /// Sert à reconnaître SA propre fiche. Liste vide si le serveur ne les
+  /// renvoie pas (ancien serveur) : l'app retombe sur l'id du profil actif.
+  Future<List<String>> getMyProfileIds() async {
+    final response = await _apiClient.get(
+      '/users/me/roles',
+      requiresAuth: true,
+    );
+    final raw = response is Map ? response['profiles'] : null;
+    if (raw is! List) return const <String>[];
+    return raw
+        .map((e) => e is Map ? (e['id'] ?? e['_id'] ?? '').toString() : '')
+        .where((s) => s.isNotEmpty)
+        .toSet()
+        .toList();
+  }
+
   Future<Map<String, dynamic>> switchRole({String? targetRole}) async {
     final body = <String, dynamic>{};
     if (targetRole != null && targetRole.isNotEmpty) {

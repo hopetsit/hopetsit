@@ -15,7 +15,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/models/walker_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
@@ -24,6 +23,8 @@ import 'package:hopetsit/views/map/pawmap_rates.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 import 'package:hopetsit/views/service_provider/widgets/provider_action_bar.dart';
+import 'package:hopetsit/views/service_provider/widgets/book_as_owner.dart';
+import 'package:hopetsit/services/self_profiles_service.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -60,6 +61,8 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
   void initState() {
     super.initState();
     _loadWalker();
+    // v586 (point 8) — ids de mes profils (reconnaître ma propre fiche).
+    SelfProfiles.refresh();
   }
 
   Future<void> _loadWalker() async {
@@ -227,14 +230,18 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
       ),
           ),
         ),
-        ProviderActionBar(
-          role: 'walker',
-          rates: providerRates,
-          canBook: _viewerCanBook,
-          messageLoading: _startingChat,
-          onBook: () => _book(w),
-          onMessage: _viewerRole == 'owner' || _viewerRole.isEmpty ? () => _message(w) : null,
-        ),
+        // v586 (point 8, Daniel) — Réserver pour TOUS les spectateurs
+        // (gardien / promeneur : avec leur profil propriétaire) ; seule
+        // exception : sa propre fiche, sans barre d'action.
+        Obx(() => SelfProfiles.isMe(widget.walkerId) || SelfProfiles.isMe(w.id)
+            ? const SizedBox.shrink(key: ValueKey<String>('provider_self_no_actions'))
+            : ProviderActionBar(
+                role: 'walker',
+                rates: providerRates,
+                messageLoading: _startingChat,
+                onBook: () => _book(w),
+                onMessage: () => _message(w),
+              )),
       ],
     );
   }
@@ -257,20 +264,15 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
     );
   }
 
-  String get _viewerRole {
-    final auth = Get.isRegistered<AuthController>() ? Get.find<AuthController>() : null;
-    return (auth?.userRole.value ?? '').toLowerCase();
-  }
-
-  bool get _viewerCanBook => _viewerRole.isEmpty || _viewerRole == 'owner';
-
   void _book(WalkerModel w) {
     if ((SecureTokenStore.currentToken() ?? '').isEmpty) {
       SignupWallSheet.show(trigger: 'booking', name: w.name, recommendedRole: 'pet_owner');
       return;
     }
     final r = _ratesOf(w);
-    Get.to(() => SendRequestScreen(
+    // v586 (point 8) — gardien / promeneur : bascule vers le profil
+    // propriétaire d'abord (dialogue maison), puis MÊME écran pré-rempli.
+    runAsOwner(context, providerName: w.name, forMessage: false, then: () => Get.to(() => SendRequestScreen(
           serviceProviderName: w.name,
           serviceProviderId: widget.walkerId,
           serviceProviderRole: 'walker',
@@ -279,7 +281,7 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
           currencyCode: r.currency,
           initialServiceType: 'dog_walking',
           preselectFirstPet: true,
-        ));
+        )));
   }
 
   bool _startingChat = false;
@@ -291,6 +293,22 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
       return;
     }
     if (_startingChat) return;
+    // v586 (point 8) — gardien / promeneur : avec son profil propriétaire.
+    final String role = viewerRoleNow();
+    if (role.isNotEmpty && role != 'owner') {
+      await runAsOwner(
+        context,
+        providerName: w.name,
+        forMessage: true,
+        then: () => openOwnerChatWithProvider(
+          providerId: widget.walkerId,
+          providerRole: 'walker',
+          providerName: w.name,
+          providerAvatar: w.avatar.url,
+        ),
+      );
+      return;
+    }
     setState(() => _startingChat = true);
     try {
       final res = await Get.find<OwnerRepository>().startConversation(walkerId: widget.walkerId);

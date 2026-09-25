@@ -26,13 +26,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/sitter_detail_controller.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/views/guest/signup_wall_sheet.dart';
 import 'package:hopetsit/views/map/pawmap_rates.dart';
 import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 import 'package:hopetsit/views/service_provider/widgets/provider_action_bar.dart';
+import 'package:hopetsit/views/service_provider/widgets/book_as_owner.dart';
+import 'package:hopetsit/services/self_profiles_service.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/models/sitter_model.dart';
@@ -79,6 +80,8 @@ class ServiceProviderDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(SitterDetailController(sitterId: sitterId));
+    // v586 (point 8) — ids de mes profils (reconnaître ma propre fiche).
+    SelfProfiles.refresh();
 
     return _ServiceProviderDetailContent(
       controller: controller,
@@ -231,22 +234,22 @@ class _ServiceProviderDetailContent extends StatelessWidget {
               // v584 (25/09, point 8) — Réserver · dès X €/j EN PREMIER,
               // le chat en second (rond). Même parcours de réservation que
               // depuis l'épingle de la carte (SendRequestScreen pré-rempli).
+              // v586 (point 8, Daniel) — Réserver pour TOUS les spectateurs
+              // (gardien / promeneur : avec leur profil propriétaire) ; seule
+              // exception : sa propre fiche, sans barre d'action.
               Obx(() {
+                if (SelfProfiles.isMe(sitterId) || SelfProfiles.isMe(sitter.id)) {
+                  return const SizedBox.shrink(key: ValueKey<String>('provider_self_no_actions'));
+                }
                 final paymentStatus = booking?.paymentStatus?.toLowerCase().trim();
                 final bool isLocked = booking != null && paymentStatus != 'paid';
                 return ProviderActionBar(
                   role: 'sitter',
                   rates: _ratesOf(sitter),
-                  canBook: _viewerCanBook,
                   messageLocked: isLocked,
                   messageLoading: controller.isStartingChat.value,
                   onBook: () => _book(context, sitter),
-                  onMessage: () => _handleStartChat(
-                    controller,
-                    sitter.id,
-                    sitter.name,
-                    sitter.avatar.url,
-                  ),
+                  onMessage: () => _message(context, controller, sitter),
                 );
               }),
             ],
@@ -361,12 +364,30 @@ class _ServiceProviderDetailContent extends StatelessWidget {
         extraPet: sitter.extraPetRate > 0 ? sitter.extraPetRate : null,
       );
 
-  bool get _viewerCanBook {
-    final auth = Get.isRegistered<AuthController>() ? Get.find<AuthController>() : null;
-    final role = (auth?.userRole.value ?? '').toLowerCase();
-    // Invité (mur d'inscription au tap) ou propriétaire : oui ; un gardien /
-    // promeneur ne réserve pas un confrère.
-    return role.isEmpty || role == 'owner';
+  /// v586 (point 8) — Message : propriétaire → conversation directe (inchangé) ;
+  /// gardien / promeneur → avec son profil propriétaire (le serveur réserve
+  /// `/conversations/start` aux propriétaires).
+  void _message(BuildContext context, SitterDetailController controller, SitterModel sitter) {
+    if ((SecureTokenStore.currentToken() ?? '').isEmpty) {
+      SignupWallSheet.show(trigger: 'booking', name: sitter.name, recommendedRole: 'pet_owner');
+      return;
+    }
+    final String role = viewerRoleNow();
+    if (role.isEmpty || role == 'owner') {
+      _handleStartChat(controller, sitter.id, sitter.name, sitter.avatar.url);
+      return;
+    }
+    runAsOwner(
+      context,
+      providerName: sitter.name,
+      forMessage: true,
+      then: () => openOwnerChatWithProvider(
+        providerId: sitter.id,
+        providerRole: 'sitter',
+        providerName: sitter.name,
+        providerAvatar: sitter.avatar.url,
+      ),
+    );
   }
 
   void _book(BuildContext context, SitterModel sitter) {
@@ -375,7 +396,9 @@ class _ServiceProviderDetailContent extends StatelessWidget {
       return;
     }
     final r = _ratesOf(sitter);
-    Get.to(() => SendRequestScreen(
+    // v586 (point 8) — gardien / promeneur : bascule vers le profil
+    // propriétaire d'abord (dialogue maison), puis MÊME écran pré-rempli.
+    runAsOwner(context, providerName: sitter.name, forMessage: false, then: () => Get.to(() => SendRequestScreen(
           serviceProviderName: sitter.name,
           serviceProviderId: sitter.id,
           serviceProviderRole: 'sitter',
@@ -385,7 +408,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
           currencyCode: r.currency,
           initialServiceType: 'pet_sitting',
           preselectFirstPet: true,
-        ));
+        )));
   }
 
   Widget _buildRatesCard(BuildContext context, SitterModel sitter) {
