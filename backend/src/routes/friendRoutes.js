@@ -427,6 +427,19 @@ const { WORLD_APPROX_KM, blurLngLat: _blur } = require('../utils/coarseLocation'
  * en ne prenant que ses amis acceptés.
  */
 async function _withHiddenFriends(req, payload) {
+  // v589 — Daniel : « mon profil sort en double, je me suis connecté avec deux
+  // téléphones et j'apparais à deux endroits ». Le cache de la couche monde
+  // est PARTAGÉ : il contient aussi la personne qui regarde. Son rond « Moi »
+  // (GPS du téléphone) s'affichait donc à côté de son propre point de profil
+  // (autre endroit). On retire ici, pour CE viewer, tous les points de SA
+  // personne (ses 3 profils), avant toute autre chose.
+  try {
+    const { withoutViewer } = require('../utils/friendshipOrder589');
+    const members = withoutViewer(payload.members, await personIds(me(req).id));
+    if (members.length !== (payload.members || []).length) {
+      payload = { ...payload, members, count: members.length };
+    }
+  } catch (_) {/* lecture impossible : on garde la liste telle quelle */}
   try {
     const u = me(req);
     const friendIds = await _friendIdsOf(u.id);
@@ -2341,13 +2354,17 @@ router.get('/live-positions', requireAuth, async (req, res) => {
     // parmi ses 3 docs de rôle (il diffuse depuis son rôle COURANT, pas
     // forcément celui référencé dans l'amitié).
     const g = await identityGroup(user.id);
-    const friendships = await Friendship.find({
-      status: 'accepted',
-      $or: [
-        { requesterId: { $in: g.ids } },
-        { addresseeId: { $in: g.ids } },
-      ],
-    }).lean();
+    // v589 — même ordre que le direct (la plus récente d'abord) : le
+    // dédoublonnage par personne garde la même amitié, donc le même id.
+    const friendships = require('../utils/friendshipOrder589').friendshipsPreferredFirst(
+      await Friendship.find({
+        status: 'accepted',
+        $or: [
+          { requesterId: { $in: g.ids } },
+          { addresseeId: { $in: g.ids } },
+        ],
+      }).lean(),
+    );
 
     const MODELS = {
       Owner: require('../models/Owner'),

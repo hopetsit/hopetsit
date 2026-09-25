@@ -90,6 +90,7 @@ async function stopEverywhere(userId, { now = new Date(), notifyFriends = true }
             role,
             at: now.toISOString(),
             reason: 'user_stopped',
+            personIds: g.ids.map(String),
           });
         }
       } catch (e) {

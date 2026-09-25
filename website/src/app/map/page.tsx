@@ -458,15 +458,25 @@ export default function MapPage() {
   }, [friendsForMap]);
   const friendCanonRef = useRef(friendCanon);
   friendCanonRef.current = friendCanon;
-  const canonId = useCallback((id: string) => friendCanonRef.current.get(String(id)) || String(id), []);
+  // 26/09 (589) — le serveur envoie aussi TOUS les ids de la personne
+  // (`personIds`) : si l'id reçu est inconnu, on retrouve la personne par eux.
+  const canonId = useCallback((id: string, personIds?: string[]) => {
+    const direct = friendCanonRef.current.get(String(id));
+    if (direct) return direct;
+    for (const x of personIds || []) {
+      const hit = friendCanonRef.current.get(String(x));
+      if (hit) return hit;
+    }
+    return String(id);
+  }, []);
   const friendByUserId = useMemo(() => {
     const m = new Map<string, FriendItem>();
     for (const f of friendsForMap) if (f.other?.id) m.set(f.other.id, f);
     return m;
   }, [friendsForMap]);
 
-  useSocketEvent<{ userId: string; role: string; lat: number; lng: number; at?: string }>("map:friend-position", (raw) => {
-    const data = { ...raw, userId: canonId(raw.userId) };
+  useSocketEvent<{ userId: string; role: string; lat: number; lng: number; at?: string; personIds?: string[] }>("map:friend-position", (raw) => {
+    const data = { ...raw, userId: canonId(raw.userId, raw.personIds) };
     const friend = friendByUserId.get(data.userId);
     const baseRole = roleFromModel(friend?.other?.model || data.role || "owner");
     setLivePositions((prev) => {
@@ -487,8 +497,8 @@ export default function MapPage() {
       return next;
     });
   });
-  useSocketEvent<{ userId: string }>("map:friend-offline", (raw) => {
-    const data = { userId: canonId(raw.userId) };
+  useSocketEvent<{ userId: string; personIds?: string[] }>("map:friend-offline", (raw) => {
+    const data = { userId: canonId(raw.userId, raw.personIds) };
     setLivePositions((prev) => {
       if (!prev.has(data.userId)) return prev;
       const next = new Map(prev);
@@ -798,7 +808,7 @@ export default function MapPage() {
       // l'horloge de CE navigateur (une horloge décalée ne change plus l'état).
       // Repli (serveur de production sans ageMs) : lastSeenAt tel quel.
       const ageOk = typeof b0.ageMs === "number" && Number.isFinite(b0.ageMs) && b0.ageMs >= 0;
-      const b = { ...b0, userId: canonId(b0.userId), lastSeenAt: ageOk ? new Date(nowMs - (b0.ageMs as number)).toISOString() : b0.lastSeenAt };
+      const b = { ...b0, userId: canonId(b0.userId, (b0 as { personIds?: string[] }).personIds), lastSeenAt: ageOk ? new Date(nowMs - (b0.ageMs as number)).toISOString() : b0.lastSeenAt };
       const st = liveStateOf(b, nowMs);
       if (st === "seen") continue;
       const i = info.get(b.userId);

@@ -268,13 +268,13 @@ async function listPositionListeners(userId, role) {
     const { personMapVisibility } = require('../utils/mapVisibility');
     if ((await personMapVisibility(g.ids)) === 'hidden') return [];
   } catch (_) {/* lecture impossible : comportement d'avant */}
-  const friendships = await Friendship.find({
+  const friendships = require('../utils/friendshipOrder589').friendshipsPreferredFirst(await Friendship.find({
     status: 'accepted',
     $or: [
       { requesterId: { $in: g.ids } },
       { addresseeId: { $in: g.ids } },
     ],
-  }).lean();
+  }).lean());
 
   // v23.1.175 — Daniel : "fais le suivi famille". Le bypass famille
   // (PawFollow Famille €9.99) n'était pas câblé ici → un membre famille
@@ -393,8 +393,14 @@ async function listPositionListeners(userId, role) {
     logger.warn(`[mapSocket:listPositionListeners] family merge failed : ${e.message}`);
   }
 
-  return expandListenerRooms(listeners);
+  const out = await expandListenerRooms(listeners);
+  // v589 — tous les ids de la personne qui diffuse : l'app de l'ami range
+  // le direct PAR PERSONNE (jamais deux ronds pour la même personne).
+  // Propriété non énumérable : la liste reste une liste de destinataires.
+  Object.defineProperty(out, 'personIds', { value: g.ids.map(String), enumerable: false });
+  return out;
 }
+
 
 /**
  * v587 (25/09) — Daniel : « le direct ne marche pas, je vois suspendu ».
@@ -463,6 +469,7 @@ async function relayLivePosition({ userId, role, lat, lng, city, offline, durati
       at: new Date(s.at).toISOString(),
       lastSeenAt: new Date(s.lastSeenAt).toISOString(),
       heartbeat: true,
+      personIds: listeners.personIds || [],
     };
     for (const l of listeners) {
       emitToUser(l.role, l.userId, 'map:friend-position', {
@@ -528,6 +535,7 @@ async function relayLivePosition({ userId, role, lat, lng, city, offline, durati
   const event = {
     userId, role: r, lat, lng, at: new Date().toISOString(), city: city || '',
     lastSeenAt: new Date(session ? session.lastSeenAt : Date.now()).toISOString(),
+    personIds: listeners.personIds || [],
   };
   for (const l of listeners) {
     // v526 — id traduit par destinataire : son app matche le marker de l'ami
@@ -659,6 +667,7 @@ function registerMapHandlers(io, socket) {
         at: new Date().toISOString(),
         lastSeenAt: new Date(session ? session.lastSeenAt : now).toISOString(),
         city: payload.city || '',
+        personIds: listeners.personIds || [],
       };
 
       for (const l of listeners) {
