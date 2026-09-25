@@ -60,7 +60,7 @@ const PATHS: Record<AppIconName, string> = {
 };
 
 // Icônes remplies (pas de trait) : la patte et les petites pattes.
-const FILLED = new Set<AppIconName>(["paw", "pets", "walker", "star"]);
+const FILLED = new Set<AppIconName>(["paw", "pets", "star"]); // 26/09 : « walker » est un dessin au trait — rempli, il paraissait coupé
 
 export function AppIcon({
   name,

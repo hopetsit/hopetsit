@@ -138,9 +138,9 @@ export default function HomePage() {
                       type="button"
                       onClick={() => setService(s)}
                       aria-pressed={service === s}
-                      className={`inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-semibold transition sm:text-sm lg:flex-none ${service === s ? "bg-owner text-white" : "text-[#231715] hover:bg-[#FAF1EC]"}`}
+                      className={`inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-semibold transition sm:text-sm lg:flex-none ${service === s ? (s === "walk" ? "bg-walker text-white shadow-[0_4px_12px_-4px_rgba(22,163,74,0.55)]" : "bg-[#2563EB] text-white shadow-[0_4px_12px_-4px_rgba(37,99,235,0.55)]") : "text-[#231715] hover:bg-[#FAF1EC]"}`}
                     >
-                      <AppIcon name={s === "walk" ? "walker" : "home"} size={15} color={service === s ? "#fff" : "#231715"} />
+                      <AppIcon name={s === "walk" ? "walker" : "home"} size={16} className="shrink-0" style={{ overflow: "visible" }} color={service === s ? "#fff" : "#231715"} />
                       {s === "walk" ? t("home_service_walk") : t("home_service_sitting")}
                     </button>
                   ))}
