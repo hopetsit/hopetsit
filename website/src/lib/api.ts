@@ -3008,3 +3008,33 @@ export async function saveMapLayerPrefs(layers: MapLayerPrefs): Promise<boolean>
     return false;
   }
 }
+
+// 25/09/2026 (PawMap 586, point 3) — « QUI ME VOIT SUR LA CARTE », une seule
+// vérité à 3 états (serveur v586 : preferences.mapVisibility, écrite sur les
+// 3 profils). La carte (œil de la capsule) et /profile lisent et écrivent
+// CETTE route, et elle seule.
+// Ancien serveur (sans `mapVisibility`) : lecture = hideFromMap → 'friends',
+// sinon 'all' ; écriture = on envoie aussi `hideFromMap` (seul champ qu'il
+// connaît) et on garde localement l'état demandé ('hidden' vaut 'friends'
+// côté ancien serveur, accepté sans bruit).
+export type MapVisibility = "all" | "friends" | "hidden";
+const MAP_VIS: MapVisibility[] = ["all", "friends", "hidden"];
+function readVisibility(raw: { mapVisibility?: unknown; hideFromMap?: unknown } | null | undefined): MapVisibility | null {
+  if (!raw) return null;
+  if (MAP_VIS.includes(raw.mapVisibility as MapVisibility)) return raw.mapVisibility as MapVisibility;
+  return null;
+}
+export async function getMapVisibility(): Promise<MapVisibility> {
+  const raw = await request<{ mapVisibility?: string; hideFromMap?: boolean }>(`/users/me/map-prefs`);
+  return readVisibility(raw) ?? (raw?.hideFromMap === true ? "friends" : "all");
+}
+export async function setMapVisibility(v: MapVisibility): Promise<MapVisibility> {
+  const raw = await request<{ mapVisibility?: string; hideFromMap?: boolean }>(`/users/me/map-prefs`, {
+    method: "PATCH",
+    body: JSON.stringify({ mapVisibility: v, hideFromMap: v !== "all" }),
+  });
+  return readVisibility(raw) ?? v;
+}
+export function nextMapVisibility(v: MapVisibility): MapVisibility {
+  return v === "all" ? "friends" : v === "friends" ? "hidden" : "all";
+}

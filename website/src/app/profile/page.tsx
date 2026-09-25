@@ -11,8 +11,11 @@ import BackLink from "@/components/BackLink";
 import {
   ApiError,
   confirmEmailChange,
+  getMapVisibility,
   getMyProfile,
   getStoredUser,
+  setMapVisibility,
+  type MapVisibility,
   getSubscriptionStatus,
   requestEmailChange,
   resendEmailChange,
@@ -22,6 +25,7 @@ import {
 } from "@/lib/api";
 import { PromoCodeBox } from "@/components/PromoCodeBox";
 import { BillingInfoSection } from "@/components/BillingInfoSection";
+import { VisibilityPills } from "@/components/MapVisibility";
 
 // v402 — Daniel : "le badge avec le nombre de jours restants des abonnements
 // doit apparaître sur les 3 profils". Chip par abo actif (Premium / PawFollow /
@@ -50,9 +54,34 @@ export default function ProfilePage() {
     sendPhotosVideos: true,
     pawMapInsurance: true,
     flexibleCancellation: true,
-    // v551 — Daniel : « masquer mon profil sur la carte (on/off) ».
-    hideFromMap: false,
   });
+  // 25/09 (PawMap 586, point 3) — « masquer mon profil » devient « qui me voit
+  // sur la carte » à 3 états, lu et écrit sur la MÊME route que la carte
+  // (/users/me/map-prefs), tout de suite, hors du bouton Enregistrer. Les
+  // préférences du formulaire n'envoient plus que les clés modifiées (le
+  // serveur v586 fusionne clé par clé).
+  const loadedPrefsRef = useRef<Record<string, boolean> | null>(null);
+  const [mapVis, setMapVis] = useState<MapVisibility>("all");
+  const [mapVisBusy, setMapVisBusy] = useState(false);
+  const [mapVisMsg, setMapVisMsg] = useState<string | null>(null);
+  useEffect(() => {
+    if (!getStoredUser()) return;
+    getMapVisibility().then(setMapVis).catch(() => { /* repli : Tous */ });
+  }, []);
+  async function changeMapVis(v: MapVisibility) {
+    if (mapVisBusy) return;
+    setMapVisBusy(true);
+    try {
+      const got = await setMapVisibility(v);
+      setMapVis(got);
+      setMapVisMsg(t(got === "all" ? "m586_vis_all_toast" : got === "friends" ? "m586_vis_friends_toast" : "m586_vis_hidden_toast"));
+    } catch {
+      setMapVisMsg(t("m586_vis_error"));
+    } finally {
+      setMapVisBusy(false);
+      setTimeout(() => setMapVisMsg(null), 2000);
+    }
+  }
   const [twoFactor, setTwoFactor] = useState(false);
 
   // v23.1 part 146 — upload avatar.
@@ -105,14 +134,15 @@ export default function ProfilePage() {
         setBio(p.bio || "");
         // v413 — préférences (synchro avec l'app). Défauts = activé.
         const pr = p.preferences || {};
-        setPrefs({
+        const loaded = {
           notifications: pr.notifications !== false,
           quickReplies: pr.quickReplies !== false,
           sendPhotosVideos: pr.sendPhotosVideos !== false,
           pawMapInsurance: pr.pawMapInsurance !== false,
           flexibleCancellation: pr.flexibleCancellation !== false,
-          hideFromMap: pr.hideFromMap === true,
-        });
+        };
+        loadedPrefsRef.current = { ...loaded };
+        setPrefs(loaded);
         setTwoFactor(p.twoFactorEnabled === true);
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) {
@@ -231,9 +261,15 @@ export default function ProfilePage() {
         countryCode: countryCode.trim() || undefined,
         address: address.trim() || undefined,
         bio: bio.trim() || undefined,
-        preferences: prefs,
+        ...(() => {
+          const base = loadedPrefsRef.current;
+          const changed: Record<string, boolean> = {};
+          for (const [k, v] of Object.entries(prefs)) if (!base || base[k] !== v) changed[k] = v;
+          return Object.keys(changed).length ? { preferences: changed } : {};
+        })(),
         twoFactorEnabled: twoFactor,
       });
+      loadedPrefsRef.current = { ...prefs };
       setProfile(updated);
       setSavedAt(Date.now());
       setTimeout(() => setSavedAt(null), 3000);
@@ -544,13 +580,6 @@ export default function ProfilePage() {
             { key: "quickReplies" as const, label: "Réponses rapides", hint: "Suggestions dans la messagerie" },
             { key: "flexibleCancellation" as const, label: "Annulation flexible", hint: "Conditions d'annulation souples" },
             { key: "pawMapInsurance" as const, label: "Assurance PawMap", hint: "Couverture sur les trajets" },
-            // v551 — confidentialité : le membre disparaît de la PawMap
-            // publique ; ses amis continuent de le voir.
-            {
-              key: "hideFromMap" as const,
-              label: t("profile_hide_map"),
-              hint: t("profile_hide_map_hint"),
-            },
           ].map((row) => (
             <label
               key={row.key}
@@ -568,6 +597,15 @@ export default function ProfilePage() {
               />
             </label>
           ))}
+        </div>
+
+        {/* 25/09 (586, point 3) — qui me voit sur la carte : 3 pilules, même
+            route que l'œil de la PawMap, enregistré dès le toucher. */}
+        <div className="rounded-2xl border border-ink/10 bg-ink/[0.02] p-4">
+          <h3 className="text-sm font-semibold text-ink">{t("m586_vis_title")}</h3>
+          <VisibilityPills value={mapVis} busy={mapVisBusy} onChange={(v) => { void changeMapVis(v); }} labels={{ all: t("m586_vis_pill_all"), friends: t("m586_vis_pill_friends"), hidden: t("m586_vis_pill_hidden") }} />
+          <p className="mt-2 text-xs leading-snug text-[#6E4F48]">{t("m586_vis_hint")}</p>
+          {mapVisMsg && <p className="mt-2 text-xs font-bold text-[#17141F]" role="status">{mapVisMsg}</p>}
         </div>
 
         {/* v413 — Sécurité : double authentification. */}
