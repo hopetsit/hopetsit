@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -143,7 +144,8 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     // v465 — Daniel : « le menu doit être collé au menu Samsung ». On lit
     // l'inset PHYSIQUE (viewPadding, fiable même en navigation gestuelle) et on
     // colle le menu juste au-dessus de la barre système.
-    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
+    // v585 — la même source que la PawMap : l'inset de la FENÊTRE.
+    final bottomInset = windowBottomViewPadding(context);
     final role = _navRole();
     // v570 — la barre mesure `pawTabBarTotalHeight` (saillie de la patte
     // comprise, pour qu'elle reste cliquable), mais on n'annonce aux écrans

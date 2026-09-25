@@ -39,3 +39,11 @@ double appBottomInsetInsideSafeArea(BuildContext context) {
   if (_isAndroid) return math.max(0.0, 48.0 - applied);
   return 0.0;
 }
+
+/// v585 — inset bas de la FENÊTRE (barre système), jamais rogné par un
+/// ancêtre. Dans le `body` d'un Scaffold en `extendBody` (tous les onglets),
+/// `MediaQuery.viewPadding.bottom` vaut 0 même quand la barre à 3 boutons
+/// (48) est là : c'est ce qui posait la feuille de la PawMap 48 dp trop bas,
+/// sous le menu (bug 1 du build 584). Le menu du bas, lui, lit la fenêtre.
+double windowBottomViewPadding(BuildContext context) =>
+    MediaQueryData.fromView(View.of(context)).viewPadding.bottom;

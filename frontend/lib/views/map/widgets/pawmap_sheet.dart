@@ -29,7 +29,24 @@ import 'pawmap_pins.dart';
 /// Les trois crans de la feuille, en fraction de la hauteur disponible.
 enum PawSheetStop { low, mid, high }
 
-class PawMapSheet extends StatelessWidget {
+/// v585 (25/09/2026) — CAUSE EXACTE du bug 1 de Daniel (« la feuille ne
+/// glisse pas vers le haut », 3 rôles, Samsung) — mesurée sur l'émulateur
+/// avec de vrais `adb shell input swipe` : la feuille montait de quelques
+/// dizaines de dp puis, 100 ms plus tard, retombait EXACTEMENT à sa position
+/// basse. `DraggableScrollableSheet.didUpdateWidget` appelle `_replaceExtent`
+/// qui, en mode `snap`, lance `goBallistic(0)` à la frame suivante : ce
+/// « retour au cran le plus proche » ANNULE le glissement en cours. Or la
+/// PawMap se reconstruit sans arrêt (le passage sous le seuil « bas » pendant
+/// le geste lui-même, marqueurs, positions d'amis, sockets…) : chaque
+/// reconstruction pendant le geste renvoyait la feuille en bas. Plus le
+/// téléphone reçoit de données (le compte réel de Daniel), plus c'est
+/// systématique.
+///
+/// Correctif : la `DraggableScrollableSheet` est construite UNE fois et
+/// réutilisée à l'identique (Flutter ne rappelle pas `didUpdateWidget` pour
+/// un widget identique) tant que ses crans ne changent pas ; le CONTENU,
+/// lui, suit par un `ValueListenableBuilder`.
+class PawMapSheet extends StatefulWidget {
   const PawMapSheet({
     super.key,
     required this.controller,
@@ -64,56 +81,168 @@ class PawMapSheet extends StatelessWidget {
       };
 
   @override
+  State<PawMapSheet> createState() => _PawMapSheetState();
+}
+
+class _PawMapSheetState extends State<PawMapSheet> {
+  late final ValueNotifier<PawMapSheet> _content =
+      ValueNotifier<PawMapSheet>(widget);
+  DraggableScrollableSheet? _sheet;
+  String _cfg = '';
+
+  @override
+  void didUpdateWidget(covariant PawMapSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _content.value = widget;
+  }
+
+  @override
+  void dispose() {
+    _content.dispose();
+    super.dispose();
+  }
+
+  String _configKey() {
+    String r(double v) => v.toStringAsFixed(3);
+    return '${identityHashCode(widget.controller)}:${r(widget.lowFraction)}:'
+        '${r(widget.midFraction)}:${r(widget.highFraction)}';
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final low = lowFraction;
-    return DraggableScrollableSheet(
-      controller: controller,
-      initialChildSize: low,
-      minChildSize: low,
-      maxChildSize: highFraction,
-      snap: true,
-      snapSizes: [midFraction],
-      builder: (ctx, scroll) => Container(
-        decoration: BoxDecoration(
-          color: PawMapTheme.panelOn(ctx),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26.r)),
-          border: Border.all(color: PawMapTheme.borderOn(ctx)),
-          boxShadow: [
-            BoxShadow(
-              color: PawMapTheme.ink.withValues(alpha: 0.16),
-              blurRadius: 24,
-              offset: const Offset(0, -6),
-            ),
-          ],
+    final cfg = _configKey();
+    if (_sheet == null || cfg != _cfg) {
+      _cfg = cfg;
+      final low = widget.lowFraction;
+      _sheet = DraggableScrollableSheet(
+        controller: widget.controller,
+        initialChildSize: low,
+        minChildSize: low,
+        maxChildSize: widget.highFraction,
+        // v585 — crans gérés ici (voir [_settle]) : avec `snap` de Flutter,
+        // un glissement lâché sans élan (fréquent au doigt, et c'est ce que
+        // produit `adb input swipe`) revenait au cran le plus PROCHE, donc en
+        // bas dès qu'on n'avait pas dépassé la moitié du chemin.
+        snap: false,
+        builder: (ctx, scroll) => ValueListenableBuilder<PawMapSheet>(
+          valueListenable: _content,
+          builder: (ctx, w, _) => _body(ctx, scroll, w),
         ),
-        child: ListView(
-          controller: scroll,
-          padding: EdgeInsets.fromLTRB(14.w, 8.h, 14.w, 24.h),
-          children: [
-            // Poignée (orange, jamais grise) — elle SEULE pilote le glissement
-            // sur la zone basse ; la liste défile ensuite.
-            Center(
-              child: Container(
-                key: const ValueKey<String>('pawmap_sheet_grip'),
-                width: 44.w,
-                height: 5.h,
-                decoration: BoxDecoration(
-                  color: PawMapTheme.accent,
-                  borderRadius: BorderRadius.circular(999),
-                ),
+      );
+    }
+    return Listener(
+      onPointerDown: (_) {
+        _pointers++;
+        if (widget.controller.isAttached) _startSize = widget.controller.size;
+      },
+      onPointerUp: (_) => _release(),
+      onPointerCancel: (_) => _release(),
+      child: _sheet!,
+    );
+  }
+
+  int _pointers = 0;
+  double _startSize = 0;
+
+  void _release() {
+    _pointers = (_pointers - 1).clamp(0, 10);
+    if (_pointers > 0) return;
+    // Après l'élan éventuel (une frame), on se pose sur un cran.
+    Future<void>.delayed(const Duration(milliseconds: 60), _settle);
+  }
+
+  /// Cran visé : dans le SENS du geste — on a monté (même un peu, > 2 %) →
+  /// le cran suivant au-dessus du point de départ ; descendu → celui du
+  /// dessous. Un simple tap ne bouge rien.
+  void _settle() {
+    final c = widget.controller;
+    if (!mounted || !c.isAttached || _pointers > 0) return;
+    final stops = pawMapSheetStops(
+        widget.lowFraction, widget.midFraction, widget.highFraction);
+    final target = pawMapSheetSettle(
+        start: _startSize, now: c.size, stops: stops);
+    if (target == null || (target - c.size).abs() < 0.005) return;
+    c.animateTo(target,
+        duration: const Duration(milliseconds: 240), curve: Curves.easeOutCubic);
+  }
+
+  Widget _body(BuildContext ctx, ScrollController scroll, PawMapSheet w) {
+    return Container(
+      decoration: BoxDecoration(
+        color: PawMapTheme.panelOn(ctx),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26.r)),
+        border: Border.all(color: PawMapTheme.borderOn(ctx)),
+        boxShadow: [
+          BoxShadow(
+            color: PawMapTheme.ink.withValues(alpha: 0.16),
+            blurRadius: 24,
+            offset: const Offset(0, -6),
+          ),
+        ],
+      ),
+      child: ListView(
+        controller: scroll,
+        padding: EdgeInsets.fromLTRB(14.w, 8.h, 14.w, 24.h),
+        children: [
+          // Poignée (orange, jamais grise) — elle SEULE pilote le glissement
+          // sur la zone basse ; la liste défile ensuite.
+          Center(
+            child: Container(
+              key: const ValueKey<String>('pawmap_sheet_grip'),
+              width: 44.w,
+              height: 5.h,
+              decoration: BoxDecoration(
+                color: PawMapTheme.accent,
+                borderRadius: BorderRadius.circular(999),
               ),
             ),
-            SizedBox(height: 10.h),
-            header,
-            // v584 — assez d'air pour qu'en position basse RIEN ne dépasse
-            // sous le bouton principal (au simulateur, « Je cherche » pointait).
-            SizedBox(height: 22.h),
-            ...children,
-          ],
-        ),
+          ),
+          SizedBox(height: 10.h),
+          w.header,
+          // v584 — assez d'air pour qu'en position basse RIEN ne dépasse
+          // sous le bouton principal (au simulateur, « Je cherche » pointait).
+          SizedBox(height: 22.h),
+          ...w.children,
+        ],
       ),
     );
   }
+}
+
+/// v585 — crans triés et distincts de la feuille.
+List<double> pawMapSheetStops(double low, double mid, double high) {
+  final l = <double>{low, mid, high}.toList()..sort();
+  return l;
+}
+
+/// v585 — où poser la feuille quand le doigt se lève (fonction pure) :
+/// déplacement < 2 % → rien (tap) ; vers le haut → premier cran au-dessus du
+/// DÉPART ; vers le bas → premier cran en dessous du départ.
+double? pawMapSheetSettle({
+  required double start,
+  required double now,
+  required List<double> stops,
+}) {
+  final d = now - start;
+  if (d.abs() < 0.02) {
+    // Pas de geste : on se recale seulement si l'on est entre deux crans.
+    if (stops.any((x) => (x - now).abs() < 0.01)) return null;
+  }
+  // Un grand geste vers le haut (> 25 % de l'écran) va jusqu'en HAUT d'un
+  // coup (Daniel : « ça ne glisse pas assez haut, les icônes restent
+  // coupées ») ; un grand geste vers le bas redescend tout en bas.
+  if (d > 0.25) return stops.last;
+  if (d < -0.25) return stops.first;
+  if (d > 0) {
+    for (final x in stops) {
+      if (x > start + 0.01) return x < now - 0.08 ? stops.firstWhere((y) => y >= now - 0.01, orElse: () => stops.last) : x;
+    }
+    return stops.last;
+  }
+  for (final x in stops.reversed) {
+    if (x < start - 0.01) return x > now + 0.08 ? stops.lastWhere((y) => y <= now + 0.01, orElse: () => stops.first) : x;
+  }
+  return stops.first;
 }
 
 /// Idée 6 — un seul sélecteur en haut : « Je cherche : gardiens / promeneurs /
