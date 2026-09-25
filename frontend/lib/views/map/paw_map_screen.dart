@@ -4258,6 +4258,13 @@ class _PawMapScreenState extends State<PawMapScreen>
                   _pickingReportPos.value ||
                   _pickingRoutePos.value;
               if (picking) return const SizedBox.shrink();
+              // v584 (25/09, vu au parcours Samsung) : la feuille montée
+              // recouvrait le bandeau d'itinéraire (« 9,5 km · Étapes »
+              // posé sur « Calques ») → cette zone s'efface avec les rails
+              // dès que la feuille dépasse sa position basse.
+              final sheetUp = _sheetExtent.value >
+                  (_sheetPeek.h / _sheetAvailableHeight(context)) + 0.03;
+              if (sheetUp) return const SizedBox.shrink();
               if (_followUserId != null) {
                 return Positioned(
                   left: 72.w,
@@ -4510,8 +4517,11 @@ class _PawMapScreenState extends State<PawMapScreen>
         myLocationButtonEnabled: false,
         zoomControlsEnabled: false,
         // v584 — le logo Google et les cibles de caméra évitent le menu du
-        // bas (petite carte) : la carte, elle, ne change pas de taille.
-        padding: EdgeInsets.only(bottom: 100.h - _tabBarLift(context)),
+        // bas ET la feuille en position basse (vu au parcours Samsung : le
+        // logo passait sous la feuille) : la carte, elle, ne change pas de
+        // taille.
+        padding: EdgeInsets.only(
+            bottom: _menuInset(context) + _sheetPeek.h + 6.h),
         mapType: _mapType,
         style: night ? _nightMapStyle : null,
         // v23.1 part 243 round 3 — marqueurs mémoïsés (_getMarkersFromCache).
