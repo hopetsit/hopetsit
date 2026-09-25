@@ -228,7 +228,7 @@ const ADMIN_HTML_PATH = path.join(__dirname, '..', '..', 'admin_dashboard.html')
 // ⚠️ ADA 23/09 : Render ne redéploie QUE si un fichier de backend/ change. Une publication
 // de admin_dashboard.html seul (ex. aedfaab, traduction EN/ES) reste invisible en ligne :
 // toucher ce fichier. Garder un numéro en chiffres seuls (le contrôle de la page lit /v(\d+)/).
-const ADMIN_BUILD = 'v582';
+const ADMIN_BUILD = 'v583';
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
