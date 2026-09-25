@@ -523,11 +523,23 @@ router.get('/stats', requireAdmin, async (req, res) => {
       // best-effort : on n'empêche jamais le dashboard de charger.
     }
 
+    // v589 — compteurs utilisateurs JUSTES : même règle d'exclusion pour les
+    // 3 rôles (comptes de test / internes exclus, cf. utils/userCounts) +
+    // personnes uniques. totalOwners/Sitters/Walkers restent les comptes bruts.
+    let users = null;
+    try {
+      const { countUsers } = require('../utils/userCounts');
+      users = await countUsers({ Owner, Sitter, Walker, decrypt });
+    } catch (e) {
+      logger.warn(`[admin/stats] users count failed: ${e.message}`);
+    }
+
     res.json({
       totalBookings,
       totalSitters,
       totalWalkers,
       totalOwners,
+      users,
       totalPets,
       pendingBookings,
       paidBookings,
@@ -1331,11 +1343,19 @@ router.get('/platform-stats', requireAdmin, async (req, res) => {
         { $group: { _id: null, total: { $sum: '$pricing.commission' } } },
       ]).catch(() => []),
     ]);
+    // v589 — même règle que /admin/stats (utils/userCounts) : les chiffres
+    // affichés ici et sur le tableau de bord sont identiques.
+    let users = null;
+    try {
+      const { countUsers } = require('../utils/userCounts');
+      users = await countUsers({ Owner, Sitter, Walker, decrypt });
+    } catch (_) { /* repli : comptes bruts */ }
     res.json({
-      totalUsers: totalOwners + totalSitters + totalWalkers,
-      totalOwners,
-      totalSitters,
-      totalWalkers,
+      totalUsers: users ? users.total : totalOwners + totalSitters + totalWalkers,
+      totalOwners: users ? users.owners : totalOwners,
+      totalSitters: users ? users.sitters : totalSitters,
+      totalWalkers: users ? users.walkers : totalWalkers,
+      users,
       totalBookings,
       totalBookingsCompleted,
       premiumCount,
