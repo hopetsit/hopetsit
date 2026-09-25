@@ -386,8 +386,23 @@ class PawMapDockRow extends StatelessWidget {
   }
 }
 
-/// Idée 7 — UNE découverte guidée : 3 bulles au 1er lancement (jusqu'à 3
-/// lancements). Une seule bulle à la fois, « Suivant » / « Compris ».
+/// v584 (25/09, point 13) — Daniel : « les bulles reviennent à CHAQUE
+/// réouverture de la carte ». Règle PURE : la découverte guidée ne se montre
+/// qu'au PREMIER lancement — jamais si le compte OU l'appareil l'a déjà vue,
+/// jamais au retour d'un onglet (l'écran reste monté). Elle reste
+/// consultable par « ? » / « Comprendre la PawMap ».
+bool shouldShowPawMapCoach({
+  required int accountCount,
+  required int deviceCount,
+  required bool shownThisSession,
+}) {
+  if (shownThisSession) return false;
+  return accountCount < 1 && deviceCount < 1;
+}
+
+/// Idée 7 — UNE découverte guidée : 3 bulles au premier lancement seulement.
+/// Une seule bulle à la fois, « Suivant » / « Compris », et une croix
+/// « Ne plus montrer » qui marche.
 class PawMapCoach extends StatelessWidget {
   const PawMapCoach({
     super.key,
@@ -442,6 +457,7 @@ class PawMapCoach extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
                         width: 40.w,
@@ -455,10 +471,28 @@ class PawMapCoach extends StatelessWidget {
                       ),
                       SizedBox(width: 10.w),
                       Expanded(
-                        child: Text(
-                          texts[step.clamp(0, 2)],
-                          style: PawMapTheme.fontOn(context,
-                              size: 13.5.sp, weight: FontWeight.w700, height: 1.3),
+                        child: Padding(
+                          padding: EdgeInsets.only(top: 4.h),
+                          child: Text(
+                            texts[step.clamp(0, 2)],
+                            style: PawMapTheme.fontOn(context,
+                                size: 13.5.sp, weight: FontWeight.w700, height: 1.3),
+                          ),
+                        ),
+                      ),
+                      // Croix « Ne plus montrer » (point 13) : ferme pour de bon.
+                      Semantics(
+                        button: true,
+                        label: 'pawmap_coach_close'.tr,
+                        child: GestureDetector(
+                          key: const ValueKey<String>('coach_close'),
+                          behavior: HitTestBehavior.opaque,
+                          onTap: onDone,
+                          child: Padding(
+                            padding: EdgeInsets.all(4.w),
+                            child: Icon(Icons.close_rounded,
+                                size: 20.sp, color: PawMapTheme.subOn(context)),
+                          ),
                         ),
                       ),
                     ],

@@ -304,7 +304,9 @@ void main() {
     // La feuille haute s'arrête SOUS l'en-tête et la rangée Partager/Agrandir.
     final sheetTop = tester.getTopLeft(find.byType(DraggableScrollableSheet)).dy +
         (1 - sheetCtl.size) * tester.getSize(find.byType(DraggableScrollableSheet)).height;
-    final rowBottom = tester.getBottomLeft(find.text('pawmap_live_share_off'.tr).first).dy;
+    // v584 (25/09) — plus de rangée « Partager en direct / Agrandir » : la
+    // feuille haute s'arrête sous l'EN-TÊTE (logo + titre).
+    final rowBottom = tester.getBottomLeft(find.text('PawMap').first).dy;
     debugPrint('[PARCOURS] feuille haute: top=$sheetTop, bas de la rangee=$rowBottom');
     expect(sheetTop, greaterThanOrEqualTo(rowBottom - 1),
         reason: 'la feuille ne passe pas sous la rangée du haut');

@@ -33,6 +33,11 @@ class FriendPosition {
   final DateTime? lastSeenAt;
   final bool stale;
 
+  /// v584 (25/09) — un PARTAGE est actif chez cet ami (session en cours).
+  /// Sans partage, sa position n'est qu'un « vu il y a X » : jamais « en
+  /// direct », jamais de suivi proposé.
+  final bool sharing;
+
   const FriendPosition({
     required this.userId,
     required this.role,
@@ -42,6 +47,7 @@ class FriendPosition {
     this.city = '',
     this.lastSeenAt,
     this.stale = false,
+    this.sharing = false,
   });
 
   factory FriendPosition.fromJson(Map<String, dynamic> j) {
@@ -55,6 +61,10 @@ class FriendPosition {
       city: (j['city'] as String?) ?? '',
       lastSeenAt: DateTime.tryParse(j['lastSeenAt']?.toString() ?? '') ?? at,
       stale: j['stale'] == true,
+      // Serveur v584 : `sharing` explicite. Un serveur plus ancien (v583) ne
+      // le renvoie pas : on retombe sur son `stale` (false = signal < 3 min,
+      // donc un partage réellement actif) — jamais sur une position de profil.
+      sharing: j.containsKey('sharing') ? j['sharing'] == true : j['stale'] == false,
     );
   }
 
@@ -67,6 +77,20 @@ class FriendPosition {
   bool get isStale =>
       stale || DateTime.now().difference(seenAt) > const Duration(minutes: 3);
 
+  /// v584 (25/09) — état VRAI du direct, même règle que le serveur
+  /// (`utils/liveState.js`), recalculée en local entre deux rafraîchissements.
+  FriendLiveState get liveState => friendLiveState(
+        sharing: sharing,
+        seenAt: seenAt,
+        now: DateTime.now(),
+      );
+
+  /// « En direct » : partage actif ET signe de vie < 2 min.
+  bool get isLive => liveState == FriendLiveState.live;
+
+  /// « Signal perdu » : partage actif, muet depuis 2 à 10 min.
+  bool get isLost => liveState == FriendLiveState.lost;
+
   FriendPosition copyWith({
     double? latitude,
     double? longitude,
@@ -74,6 +98,7 @@ class FriendPosition {
     String? city,
     DateTime? lastSeenAt,
     bool? stale,
+    bool? sharing,
   }) =>
       FriendPosition(
         userId: userId,
@@ -84,7 +109,28 @@ class FriendPosition {
         city: city ?? this.city,
         lastSeenAt: lastSeenAt ?? this.lastSeenAt,
         stale: stale ?? this.stale,
+        sharing: sharing ?? this.sharing,
       );
+}
+
+/// v584 (25/09) — les trois états d'un ami sur la carte.
+enum FriendLiveState { live, lost, seen }
+
+const Duration kFriendLiveFresh = Duration(minutes: 2);
+const Duration kFriendLiveLost = Duration(minutes: 10);
+
+/// Règle PURE (testée) : « en direct » = partage actif ET < 2 min ; « signal
+/// perdu » = partage actif, 2 à 10 min ; sinon « vu il y a X ».
+FriendLiveState friendLiveState({
+  required bool sharing,
+  required DateTime? seenAt,
+  required DateTime now,
+}) {
+  if (!sharing || seenAt == null) return FriendLiveState.seen;
+  final age = now.difference(seenAt);
+  if (age <= kFriendLiveFresh) return FriendLiveState.live;
+  if (age <= kFriendLiveLost) return FriendLiveState.lost;
+  return FriendLiveState.seen;
 }
 
 /// v565 — durées de partage proposées au démarrage (contrat §8).
@@ -186,6 +232,9 @@ class LiveMapService extends GetxService {
   Timer? _staleTicker;
   Timer? _refreshTimer;
   Timer? _gpsRetryTimer;
+  /// v584 — nouvel essai de branchement socket (voir `attach`).
+  Timer? _attachRetry;
+  int _attachRetries = 0;
   String? _city;
   DateTime? _lastGpsAt;
   DateTime? _lastHttpAt;
@@ -295,12 +344,28 @@ class LiveMapService extends GetxService {
 
   /// Register socket listeners — idempotent.
   void attach() {
-    final svc = Get.find<SocketService>();
-    final socket = svc.socket;
+    // v584 (25/09) — Daniel : « les amis n'apparaissent pas sur le
+    // téléphone (ils apparaissent sur le site) ». Avant, TOUT ce qui suit
+    // — y compris l'hydratation HTTP des positions d'amis — attendait la
+    // socket : ouverte avant qu'elle ne soit prête, la carte restait sans
+    // aucun ami tant que rien ne bougeait. L'hydratation ne dépend pas de la
+    // socket : elle part tout de suite, et on retente `attach()` un peu plus
+    // tard pour brancher les événements live dès que la socket existe.
+    _hydrateLastKnownPositions();
+    final svc = Get.isRegistered<SocketService>() ? Get.find<SocketService>() : null;
+    final socket = svc?.socket;
     if (socket == null) {
-      debugPrint('[LiveMap] socket not ready yet');
+      debugPrint('[LiveMap] socket not ready yet — positions hydratées par HTTP, nouvel essai dans 3 s');
+      _attachRetry?.cancel();
+      if (_attachRetries < 10) {
+        _attachRetries += 1;
+        _attachRetry = Timer(const Duration(seconds: 3), attach);
+      }
       return;
     }
+    _attachRetries = 0;
+    _attachRetry?.cancel();
+    _attachRetry = null;
 
     // Identify on the map channel (separate from chat identify).
     final role = _storage.read<String>(StorageKeys.userRole);
@@ -323,8 +388,9 @@ class LiveMapService extends GetxService {
         final map = (raw as Map).cast<String, dynamic>();
         final fp = FriendPosition.fromJson(map);
         // v565 — une position live = signe de vie frais : jamais « stale ».
+        // v584 — et c'est la preuve d'un PARTAGE actif.
         friendPositions[fp.userId] =
-            fp.copyWith(stale: false, lastSeenAt: fp.at);
+            fp.copyWith(stale: false, lastSeenAt: fp.at, sharing: true);
       } catch (e) {
         debugPrint('[LiveMap] friend-position parse error: $e');
       }
@@ -335,7 +401,14 @@ class LiveMapService extends GetxService {
       try {
         final map = (raw as Map).cast<String, dynamic>();
         final uid = map['userId']?.toString();
-        if (uid != null) friendPositions.remove(uid);
+        // v584 (25/09) — l'ami a COUPÉ son partage : on garde sa dernière
+        // position (« vu il y a X »), mais plus rien de « direct ».
+        if (uid != null) {
+          final cur = friendPositions[uid];
+          if (cur != null) {
+            friendPositions[uid] = cur.copyWith(sharing: false, stale: true);
+          }
+        }
       } catch (_) {}
     });
 
@@ -427,6 +500,8 @@ class LiveMapService extends GetxService {
           friendPositions[fp.userId] = cur.copyWith(
             stale: fp.stale && cur.isStale,
             lastSeenAt: fp.seenAt.isAfter(cur.seenAt) ? fp.seenAt : cur.seenAt,
+            // v584 — le serveur fait foi sur « partage actif ou non ».
+            sharing: fp.sharing,
           );
         }
       }

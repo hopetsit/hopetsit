@@ -211,13 +211,16 @@ void main() {
       }
     });
 
-    test('tailles de la légende', () {
+    test('tailles de la légende (v584 25/09 : membres > PawSpots > lieux)', () {
       expect(PawMapLegend.meSize, 56);
-      expect(PawMapLegend.friendSize, 44);
-      expect(PawMapLegend.memberSize, 36);
+      expect(PawMapLegend.friendSize, 50);
+      expect(PawMapLegend.memberSize, 46);
       expect(PawMapLegend.placeSize, 30);
-      expect(PawMapLegend.spotSize, 32);
-      expect(PawMapLegend.spotGoldSize, 40);
+      expect(PawMapLegend.spotSize, 36);
+      expect(PawMapLegend.spotGoldSize, 44);
+      // Les membres sont les plus visibles, puis les PawSpots, puis les lieux.
+      expect(PawMapLegend.memberSize, greaterThan(PawMapLegend.spotSize));
+      expect(PawMapLegend.spotSize, greaterThan(PawMapLegend.placeSize));
       expect(PawMapLegend.crownMember, 20);
       expect(PawMapLegend.crownFriend, 22);
       expect(PawMapLegend.crownMe, 24);

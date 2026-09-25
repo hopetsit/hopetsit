@@ -42,13 +42,14 @@ import 'package:hopetsit/views/pet_sitter/chat/sitter_chat_screen.dart';
 import 'package:hopetsit/views/map/alerts_screen.dart';
 import 'package:hopetsit/views/map/pawmap_camera_memory.dart';
 import 'package:hopetsit/views/map/pawspot_sheets.dart';
-import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
-import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/views/map/widgets/paw_rail_button.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_pins.dart';
 import 'package:hopetsit/views/map/pawmap_help_screen.dart';
+import 'package:hopetsit/views/map/pawmap_member_profile_route.dart';
+import 'package:hopetsit/views/map/pawmap_rates.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheets.dart';
+import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_rail.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheet.dart';
@@ -195,7 +196,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   // v465 — réf. à l'état GLOBAL partagé : le wrapper de navigation l'observe
   // pour MASQUER le menu du bas en mode agrandi (sinon Signaler / Tag Spot /
   // bandeaux de validation restent cachés derrière le menu).
-  final RxBool _mapExpanded = pawMapExpanded;
+
 
   /// v23.1.149 — Daniel : "paw map rien napparait le point de geolocolisation
   /// ou le halo nest pas la". `myLocationEnabled: true` du GoogleMap dépend
@@ -266,6 +267,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   String _followName = '';
   bool _suppressFollowAutoStop = false;
   Worker? _followWorker;
+  Worker? _followEndWorker;
   // v23.1.294 — worker de suivi de MA position quand « Me suivre » est actif.
   Worker? _myFollowWorker;
   /// v584 — zoom de suivi « joli » (Daniel, 23/09) : rue lisible, 16-17.
@@ -535,7 +537,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         final uid = _followUserId;
         if (uid == null) return;
         final fp = positions[uid];
-        if (fp == null) return;
+        if (fp == null || fp.liveState == FriendLiveState.seen) {
+          _endFollowIfGone();
+          return;
+        }
         final p = LatLng(fp.latitude, fp.longitude);
         // v584 — le tracé s'allonge (violet), même en pause.
         if (_followTrail.isEmpty ||
@@ -553,6 +558,11 @@ class _PawMapScreenState extends State<PawMapScreen>
         _animateFollowCamera(p);
       },
     );
+
+    // v584 (25/09, règle c) — l'ami suivi coupe son partage (ou > 10 min
+    // sans signal) : le suivi se termine de lui-même, à chaque tick de
+    // fraîcheur (30 s) et à chaque changement de la liste.
+    _followEndWorker = ever<int>(_liveMap.staleTick, (_) => _endFollowIfGone());
 
     // v23.1.294 — « Me suivre » : suit MA position à la trace. Quand je diffuse
     // (broadcasting), chaque mise à jour GPS recentre la caméra sur moi, comme
@@ -655,9 +665,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     // agrandir la carte ne le recalculait pas et le retour Android quittait
     // quand même l'app (bug n°1 de la spec v3).
     _backGuardWorkers = [
-      ever<bool>(_mapExpanded, (_) {
-        if (mounted) setState(() {});
-      }),
+
       ever<bool>(_pickingSpotPos, (_) {
         if (mounted) setState(() {});
       }),
@@ -787,21 +795,114 @@ class _PawMapScreenState extends State<PawMapScreen>
     return LatLng(la / group.length, ln / group.length);
   }
 
-  /// v552 — spec redesign v3, bug critique n°2 : « boutons masqués par la
-  /// barre système ». Sur les Samsung à 3 boutons, la barre de navigation
-  /// mange ~48 px : tout ce qui est ancré en bas doit partir de cette marge.
-  /// Rails (gauche/droit) : marge + 126 · dock bas : marge + 66.
-  double _navInset(BuildContext context) {
-    final v = MediaQuery.of(context).viewPadding.bottom;
-    return v > 0 ? v : 48.0;
-  }
 
-  /// Tap sur une pastille de groupe : on zoome dessus, le groupe s'ouvre.
-  Future<void> _zoomToCluster(LatLng target) async {
+
+  /// Tap sur une pastille de groupe : zoom doux dessus jusqu'à séparer les
+  /// épingles ; v584 (25/09, point 15) — si elles restent superposées au
+  /// zoom max (≥ 17,5), une petite feuille liste le groupe (photo, prénom,
+  /// rôle / type, « Voir »).
+  Future<void> _zoomToCluster(
+    LatLng target, {
+    List<Map<String, dynamic>> members = const [],
+    List<MapPOI> places = const [],
+    List<PawSpotModel> spots = const [],
+  }) async {
+    if (_zoomLevel >= 17.5 && !mounted) return;
+    if (_zoomLevel >= 17.5) {
+      _openClusterList(members: members, places: places, spots: spots);
+      return;
+    }
     final ctl = await _activeMapCtl();
     if (ctl == null) return;
     final z = math.min(_zoomLevel + 2.2, 19.0);
     await ctl.animateCamera(CameraUpdate.newLatLngZoom(target, z));
+  }
+
+  void _openClusterList({
+    required List<Map<String, dynamic>> members,
+    required List<MapPOI> places,
+    required List<PawSpotModel> spots,
+  }) {
+    final items = <PawMapClusterItem>[];
+    for (final p in members) {
+      final role = (p['_role'] ?? '').toString().toLowerCase();
+      items.add(PawMapClusterItem(
+        id: 'm:${p['id'] ?? p['_id'] ?? ''}',
+        title: (p['name'] ?? '').toString(),
+        subtitle: role == 'walker'
+            ? 'pawmap_legend_walker'.tr
+            : (role == 'owner' ? 'pawmap_legend_owner'.tr : 'pawmap_legend_sitter'.tr),
+        color: PawMapLegend.roleColor(role),
+        avatar: (p['avatar'] ?? '').toString(),
+        icon: PawMapLegend.roleIcon(role),
+      ));
+    }
+    for (final poi in places) {
+      items.add(PawMapClusterItem(
+        id: 'p:${poi.id}',
+        title: poi.title,
+        subtitle: PoiCategories.label(poi.category),
+        color: PawMapLegend.placeColor(poi.category),
+        icon: Icons.place_rounded,
+      ));
+    }
+    for (final s in spots) {
+      items.add(PawMapClusterItem(
+        id: 's:${s.id}',
+        title: s.name,
+        subtitle: PawSpotTypes.label(s.type),
+        color: s.isGolden ? PawMapLegend.gold : PawMapLegend.ink,
+        icon: Icons.pets_rounded,
+      ));
+    }
+    if (items.isEmpty) return;
+    final n = items.length;
+    showPawMapSheet<void>(
+      context,
+      PawMapClusterList(
+        title: members.isNotEmpty
+            ? 'pawmap_cluster_members_title'.trParams({'n': '$n'})
+            : 'pawmap_cluster_places_title'.trParams({'n': '$n'}),
+        items: items,
+        onOpen: (it) {
+          Navigator.of(context).pop();
+          if (it.id.startsWith('m:')) {
+            final id = it.id.substring(2);
+            final p = members.firstWhereOrNull(
+                (m) => (m['id'] ?? m['_id'] ?? '').toString() == id);
+            if (p == null) return;
+            final loc = p['location'] is Map ? p['location'] as Map : null;
+            final c = loc != null && loc['coordinates'] is List ? loc['coordinates'] as List : null;
+            _onNearbyTap(
+              id: id,
+              role: (p['_role'] ?? '').toString().toLowerCase(),
+              name: (p['name'] ?? '').toString(),
+              online: p['isOnline'] != false && p['online'] != false,
+              premium: p['isPremium'] == true,
+              lat: c != null && c.length >= 2 ? (c[1] as num).toDouble() : null,
+              lng: c != null && c.length >= 2 ? (c[0] as num).toDouble() : null,
+              avatar: (p['avatar'] ?? '').toString(),
+              approx: p['approx'] == true,
+              approxKm: (p['approxKm'] as num?)?.toDouble() ?? 1.0,
+              rating: (p['rating'] as num?)?.toDouble() ?? 0,
+              reviewsCount: (p['reviewsCount'] as num?)?.toInt() ?? 0,
+              priceFrom: (p['priceFrom'] as num?)?.toDouble() ?? 0,
+              currency: (p['currency'] ?? 'EUR').toString(),
+              verified: p['kycVerified'] == true,
+              boosted: p['isBoosted'] == true,
+              availableToday: p['availableToday'] == true,
+              isFriend: p['isFriend'] == true,
+            );
+          } else if (it.id.startsWith('p:')) {
+            final poi = places.firstWhereOrNull((x) => x.id == it.id.substring(2));
+            if (poi != null) _showPoiBottomSheet(poi);
+          } else {
+            final s = spots.firstWhereOrNull((x) => x.id == it.id.substring(2));
+            if (s != null) _showPawSpotDetail(s);
+          }
+        },
+      ),
+    );
   }
 
   /// v584 — fiche COURTE d'un membre (LEGENDE_PAWMAP.md, « Réserver en
@@ -855,11 +956,25 @@ class _PawMapScreenState extends State<PawMapScreen>
     bool boosted = false,
     bool availableToday = false,
     bool isFriend = false,
+    // v584 (25/09) — ami en direct (`live` / `lost`) → « Suivre la balade ».
+    PawFollowState? liveState,
+    // Dernier signe de vie connu (ami sans partage) → « vu il y a X ».
+    DateTime? lastSeenAt,
   }) {
     _selectedNearbyId = id;
     _memberSheetRefreshed = false;
     if (mounted) setState(() {});
     final bool onlineNow = _liveMap.isOnline(id) ?? online;
+    final bool friendNow = isFriend || _friendController.isFriendWith(id);
+    // Un ami qui partage en ce moment : même sans passer par son rond live.
+    final livePos = _liveMap.friendPositions[id];
+    final PawFollowState? liveNow = liveState ??
+        (friendNow && livePos != null && livePos.liveState != FriendLiveState.seen
+            ? (livePos.isLost ? PawFollowState.lost : PawFollowState.live)
+            : null);
+    final DateTime? seenAt = lastSeenAt ?? livePos?.seenAt;
+    final String seenLabel = seenAt == null ? '' : _timeAgo(seenAt);
+    var rates = <PawMapRateLine>[];
     final bool hasOpenRequest = role == 'owner' &&
         _requests.any((r) => r.ownerId == id);
     final member = PawMapMemberData(
@@ -899,6 +1014,15 @@ class _PawMapScreenState extends State<PawMapScreen>
                 setSheet(() => reqState = _relationState(id));
               }
             }));
+            // v584 (25/09, point 8) — les tarifs du prestataire, dans SA
+            // devise, avant « Réserver » (un appel léger).
+            if (role == 'sitter' || role == 'walker') {
+              unawaited(_loadProviderRates(id: id, role: role, currency: currency)
+                  .then((r) {
+                if (!ctx.mounted) return;
+                setSheet(() => rates = r.lines);
+              }));
+            }
           }
           return PawMapMemberSheet(
             member: member,
@@ -906,6 +1030,23 @@ class _PawMapScreenState extends State<PawMapScreen>
             viewerLoggedIn: _viewerLoggedIn,
             friendState: reqState,
             priceLabel: priceLabel,
+            liveState: liveNow,
+            seenLabel: seenLabel,
+            rates: rates,
+            onFollow: liveNow == null
+                ? null
+                : () {
+                    Navigator.of(ctx).pop();
+                    unawaited(_sheetTo(PawSheetStop.low));
+                    final fp = _liveMap.friendPositions[id];
+                    _startFollow(
+                      id,
+                      fp != null ? LatLng(fp.latitude, fp.longitude) : LatLng(lat ?? 0, lng ?? 0),
+                      name,
+                      avatar: avatar,
+                      role: role,
+                    );
+                  },
             onSignup: () {
               Navigator.of(ctx).pop();
               SignupWallSheet.show(
@@ -920,7 +1061,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             },
             onProfile: () {
               Navigator.of(ctx).pop();
-              _openMemberProfile(id: id, role: role);
+              _openMemberProfile(id: id, role: role, name: name, avatar: avatar);
             },
             onMessage: () {
               Navigator.of(ctx).pop();
@@ -978,16 +1119,19 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   /// « Voir le profil » (lien secondaire) : la fiche complète.
-  void _openMemberProfile({required String id, required String role}) {
-    if (role == 'walker') {
-      Get.to(() => WalkerDetailScreen(walkerId: id));
-    } else if (role == 'sitter') {
-      Get.to(() => ServiceProviderDetailScreen(sitterId: id, status: 'available'));
-    } else {
-      // Un propriétaire n'a pas de fiche « réservable » : ses infos vivent
-      // dans la conversation / la liste d'amis.
-      _openScreen(() => const FriendsScreen());
-    }
+  /// v584 (25/09, point 19) — Daniel : « Voir le profil » d'un membre le
+  /// renvoyait vers SA page « Mes amis » quand le membre était propriétaire.
+  /// La fiche s'ouvre selon le rôle DU MEMBRE : gardien → fiche gardien,
+  /// promeneur → fiche promeneur, propriétaire (ou rôle inconnu) → fiche
+  /// propriétaire publique. Écran empilé : le retour ramène à la carte.
+  void _openMemberProfile({
+    required String id,
+    required String role,
+    String name = '',
+    String avatar = '',
+  }) {
+    final page = pawMapMemberProfilePage(id: id, role: role, name: name, avatar: avatar);
+    Get.to(() => page);
   }
 
   /// 2e appui = l'écran de réservation, DIRECTEMENT (pas le profil), avec le
@@ -1007,48 +1151,79 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
     if (_role != 'owner' && _role.isNotEmpty) {
       // Un gardien / promeneur ne réserve pas un confrère : on ouvre sa fiche.
-      _openMemberProfile(id: id, role: role);
+      _openMemberProfile(id: id, role: role, name: name);
       return;
     }
-    double? daily, weekly, monthly, halfHour, hourly;
+    final r = await _loadProviderRates(id: id, role: role, currency: currency);
+    if (!mounted) return;
+    Get.to(() => SendRequestScreen(
+          serviceProviderName: name,
+          serviceProviderId: id,
+          serviceProviderRole: role == 'walker' ? 'walker' : 'sitter',
+          sitterDailyRate: r.daily,
+          sitterWeeklyRate: r.weekly,
+          sitterMonthlyRate: r.monthly,
+          walkerHalfHourRate: r.halfHour,
+          walkerHourlyRate: r.hourly,
+          currencyCode: r.currency,
+          initialServiceType: role == 'walker' ? 'dog_walking' : 'pet_sitting',
+          preselectFirstPet: true,
+        ));
+  }
+
+  /// v584 (25/09, point 8) — tarifs COMPLETS d'un prestataire, dans SA
+  /// devise : gardien = heure / jour / semaine / mois (+ animal
+  /// supplémentaire) ; promeneur = 30 min / 1 h / 2 h. Les lignes non
+  /// renseignées n'existent pas (jamais « 0 € »). Sert la fiche courte ET la
+  /// réservation en 2 taps.
+  Future<PawProviderRates> _loadProviderRates({
+    required String id,
+    required String role,
+    required String currency,
+  }) async {
+    double? daily, weekly, monthly, hourly, halfHour, twoHours, extraPet;
     String cur = currency;
     try {
       if (role == 'walker' && Get.isRegistered<WalkerRepository>()) {
         final w = await Get.find<WalkerRepository>().getWalkerProfile(id);
-        cur = w.currency;
+        if (w.currency.isNotEmpty) cur = w.currency;
         for (final r in w.walkRates) {
           if (!r.enabled || r.basePrice <= 0) continue;
           if (r.durationMinutes == 30) halfHour = r.basePrice;
           if (r.durationMinutes == 60) hourly = r.basePrice;
+          if (r.durationMinutes == 120) twoHours = r.basePrice;
         }
       } else if (Get.isRegistered<SitterRepository>()) {
         final p = await Get.find<SitterRepository>().getSitterProfile(id);
         final data = (p['sitter'] as Map<String, dynamic>?) ??
             (p['profile'] as Map<String, dynamic>?) ??
             p;
-        daily = (data['dailyRate'] as num?)?.toDouble();
-        weekly = (data['weeklyRate'] as num?)?.toDouble();
-        monthly = (data['monthlyRate'] as num?)?.toDouble();
+        double? pos(dynamic v) {
+          final d = (v as num?)?.toDouble();
+          return d != null && d > 0 ? d : null;
+        }
+        hourly = pos(data['hourlyRate']);
+        daily = pos(data['dailyRate']);
+        weekly = pos(data['weeklyRate']);
+        monthly = pos(data['monthlyRate']);
+        extraPet = pos(data['extraPetRate']);
         final c = (data['currency'] ?? '').toString();
         if (c.isNotEmpty) cur = c;
       }
     } catch (e) {
       debugPrint('[PawMap] tarifs du prestataire indisponibles : $e');
     }
-    if (!mounted) return;
-    Get.to(() => SendRequestScreen(
-          serviceProviderName: name,
-          serviceProviderId: id,
-          serviceProviderRole: role == 'walker' ? 'walker' : 'sitter',
-          sitterDailyRate: daily,
-          sitterWeeklyRate: weekly,
-          sitterMonthlyRate: monthly,
-          walkerHalfHourRate: halfHour,
-          walkerHourlyRate: hourly,
-          currencyCode: cur,
-          initialServiceType: role == 'walker' ? 'dog_walking' : 'pet_sitting',
-          preselectFirstPet: true,
-        ));
+    return PawProviderRates(
+      currency: cur,
+      role: role,
+      hourly: hourly,
+      daily: daily,
+      weekly: weekly,
+      monthly: monthly,
+      extraPet: extraPet,
+      halfHour: halfHour,
+      twoHours: twoHours,
+    );
   }
 
   /// « Message » depuis la fiche : ouvre (ou crée) la conversation, selon
@@ -1339,6 +1514,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
     _haloTimer?.cancel();
     _followWorker?.dispose();
+    _followEndWorker?.dispose();
     _myFollowWorker?.dispose();
     // v414 — Daniel : "qd l'app se ferme le direct s'éteint, je veux qu'il
     // reste allumé". On NE coupe PLUS le broadcast quand l'écran PawMap est
@@ -3002,13 +3178,16 @@ class _PawMapScreenState extends State<PawMapScreen>
     bool dashedRing = false,
     bool eyeOff = false,
     bool boosted = false,
+    int followPhase = -1,
+    bool dimmed = false,
+    IconData fallbackIcon = Icons.pets_rounded,
     Color fallbackTint = PawMapLegend.owner,
   }) {
     final avatar = _pins.avatarFor(avatarUrl);
     final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
     final withLabel = label != null && label.isNotEmpty;
     final key =
-        '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase';
+        '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}';
     final w = PawMapPinPainter.photoBitmapSize(size);
     final h = PawMapPinPainter.photoBitmapSize(size, withLabel: withLabel);
     return _pins.getOrBuild(
@@ -3028,6 +3207,9 @@ class _PawMapScreenState extends State<PawMapScreen>
             dashedRing: dashedRing,
             eyeOff: eyeOff,
             boostPhase: boosted ? phase / kBoostPhases : null,
+            followPhase: followPhase >= 0 ? followPhase / kBoostPhases : null,
+            dimmed: dimmed,
+            fallbackIcon: fallbackIcon,
             fallbackTint: fallbackTint,
           ),
         ) ??
@@ -3187,15 +3369,15 @@ class _PawMapScreenState extends State<PawMapScreen>
       final friendLiveIds = _liveMap.friendPositions.keys
           .map((k) => k.trim().toLowerCase())
           .toSet();
-      final bool nearbyVisible = _pawSpotController.pawspotActive.value ||
-          _pawSpotController.premiumActive.value;
+      // v584 (25/09, point 1) — la couche « proches » (position exacte des
+      // membres abonnés, amis en exact) n'était affichée QU'AUX abonnés : un
+      // ami pouvait manquer pour un viewer sans abonnement. Le serveur décide
+      // déjà de ce qu'il renvoie (règles de visibilité) : on affiche tout.
       final nearbyIds = <String>{};
       final combined = <Map<String, dynamic>>[];
-      if (nearbyVisible) {
-        for (final p in _nearbyProviders) {
-          nearbyIds.add((p['id'] ?? p['_id'] ?? '').toString());
-          combined.add(p);
-        }
+      for (final p in _nearbyProviders) {
+        nearbyIds.add((p['id'] ?? p['_id'] ?? '').toString());
+        combined.add(p);
       }
       // v550 — plafond d'affichage de la couche monde (les plus proches).
       final worldPool = <Map<String, dynamic>>[];
@@ -3301,7 +3483,8 @@ class _PawMapScreenState extends State<PawMapScreen>
               icon: _memberClusterIcon(group.length, roleCounts),
               anchor: const Offset(0.5, 0.5),
               zIndexInt: 7,
-              onTap: () => _zoomToCluster(target),
+              consumeTapEvents: true,
+              onTap: () => _zoomToCluster(target, members: group),
             ),
           );
           continue;
@@ -3324,8 +3507,16 @@ class _PawMapScreenState extends State<PawMapScreen>
         final bool verified = p['kycVerified'] == true;
         final avatar = (p['avatar'] ?? '').toString();
         // Un AMI (liste d'amis) : sa photo + anneau rose, à tous les zooms.
-        final bool isFriend = _friendController.isFriendWith(id);
+        // v584 (25/09) — le serveur le dit (`isFriend`, tous rôles d'une même
+        // personne), l'ancienne comparaison d'ids reste en secours.
+        final bool isFriend =
+            p['isFriend'] == true || _friendController.isFriendWith(id);
         final priceLabel = role == 'owner' || !showPrice ? '' : _priceLabelFor(p);
+        // v584 (25/09) — au zoom rue : « Prénom · 25 € » sous le rond.
+        final String firstName = name.trim().split(' ').first;
+        final String streetLabel = !showPrice
+            ? ''
+            : (priceLabel.isEmpty ? firstName : '$firstName · $priceLabel');
         final BitmapDescriptor icon;
         final Offset anchor;
         if (isFriend) {
@@ -3334,12 +3525,35 @@ class _PawMapScreenState extends State<PawMapScreen>
             avatarUrl: avatar,
             ring: PawMapLegend.friend,
             size: PawMapLegend.friendSize,
+            label: streetLabel.isEmpty ? null : streetLabel,
+            labelColor: PawMapLegend.darken(PawMapLegend.friend, 0.25),
             crown: premium && _showPremiumLayer.value,
             online: online && !approx,
             boosted: boosted,
-            fallbackTint: PawMapLegend.friend,
+            fallbackIcon: PawMapLegend.roleIcon(role),
+            fallbackTint: PawMapLegend.roleColor(role),
           );
-          anchor = _photoAnchor(PawMapLegend.friendSize);
+          anchor = _photoAnchor(PawMapLegend.friendSize,
+              withLabel: streetLabel.isNotEmpty);
+        } else if (avatar.startsWith('http')) {
+          // v584 (25/09, Daniel : « mets plus en valeur les utilisateurs ») —
+          // la PHOTO du membre dans un rond à la couleur de son rôle.
+          icon = _photoIcon(
+            keyPrefix: 'member:$id',
+            avatarUrl: avatar,
+            ring: PawMapLegend.roleColor(role),
+            size: PawMapLegend.memberSize,
+            label: streetLabel.isEmpty ? null : streetLabel,
+            labelColor: PawMapLegend.darken(PawMapLegend.roleColor(role), 0.25),
+            crown: premium && _showPremiumLayer.value,
+            crownSize: PawMapLegend.crownMember,
+            online: online && !approx,
+            boosted: boosted,
+            fallbackIcon: PawMapLegend.roleIcon(role),
+            fallbackTint: PawMapLegend.roleColor(role),
+          );
+          anchor = _photoAnchor(PawMapLegend.memberSize,
+              withLabel: streetLabel.isNotEmpty);
         } else {
           icon = _memberIcon(
             role: role,
@@ -3348,10 +3562,10 @@ class _PawMapScreenState extends State<PawMapScreen>
             verified: verified,
             online: online && !approx,
             selected: selected,
-            priceLabel: priceLabel,
+            priceLabel: streetLabel,
             rating: (p['rating'] as num?)?.toDouble() ?? 0,
           );
-          anchor = _memberAnchor(withLabel: priceLabel.isNotEmpty);
+          anchor = _memberAnchor(withLabel: streetLabel.isNotEmpty);
         }
         markers.add(
           Marker(
@@ -3359,7 +3573,8 @@ class _PawMapScreenState extends State<PawMapScreen>
             position: pos,
             icon: icon,
             anchor: anchor,
-            zIndexInt: selected ? 9 : (isFriend ? 8 : 6),
+            // v584 — boosté = visible en premier (point 16).
+            zIndexInt: selected ? 9 : (isFriend ? 8 : (boosted ? 7 : 6)),
             onTap: () => _onNearbyTap(
               id: id,
               role: role,
@@ -3412,7 +3627,8 @@ class _PawMapScreenState extends State<PawMapScreen>
               icon: _placeClusterIcon(group.length, dominant),
               anchor: const Offset(0.5, 0.5),
               zIndexInt: 4,
-              onTap: () => _zoomToCluster(target),
+              consumeTapEvents: true,
+              onTap: () => _zoomToCluster(target, places: group),
             ),
           );
           continue;
@@ -3456,7 +3672,8 @@ class _PawMapScreenState extends State<PawMapScreen>
               icon: _spotClusterIcon(group.length),
               anchor: const Offset(0.5, 0.5),
               zIndexInt: 4,
-              onTap: () => _zoomToCluster(target),
+              consumeTapEvents: true,
+              onTap: () => _zoomToCluster(target, spots: group),
             ),
           );
           continue;
@@ -3528,6 +3745,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                   .map((f) => (f.other?.id ?? '').trim().toLowerCase()),
             }..removeWhere((id) => id.isEmpty));
       for (final pos in _liveMap.friendPositions.values) {
+        // v584 (25/09, Daniel) : « si quelqu'un se déplace, on ne peut pas
+        // garder la vieille position ». Sans partage actif et récent, PAS de
+        // rond « en direct » : il reste la position de profil (couche monde).
+        if (pos.liveState == FriendLiveState.seen) continue;
         final friend = friendById[pos.userId];
         final famMember = friend == null
             ? familyById[pos.userId.trim().toLowerCase()]
@@ -3556,33 +3777,38 @@ class _PawMapScreenState extends State<PawMapScreen>
               ring: PawMapLegend.friend,
               size: PawMapLegend.friendSize,
               crown: isPremiumMember,
-              online: !pos.isStale,
+              online: pos.isLive,
+              // Signal perdu : rond « éteint » à la couleur du rôle, jamais gris.
+              dimmed: pos.isLost,
+              // v584 — auréole violette qui respire sur la personne SUIVIE.
+              followPhase: _followUserId != null &&
+                      _followUserId!.trim().toLowerCase() == normPosId &&
+                      !_reduceMotion
+                  ? _boostPhaseIdx
+                  : (_followUserId != null &&
+                          _followUserId!.trim().toLowerCase() == normPosId
+                      ? 0
+                      : -1),
+              label: _zoomLevel >= _priceZoom ? displayName.split(' ').first : null,
               fallbackTint: PawMapLegend.roleColor(role),
             ),
-            anchor: _photoAnchor(PawMapLegend.friendSize),
+            anchor: _photoAnchor(PawMapLegend.friendSize,
+                withLabel: _zoomLevel >= _priceZoom),
             zIndexInt: 8,
-            infoWindow: InfoWindow(
-              title: displayName,
-              snippet: pos.isStale
-                  ? '${'v565_live_signal_lost'.tr} · ${'pawmap_seen_ago'.tr.replaceAll('{ago}', _timeAgo(pos.seenAt))}'
-                  : '${'v565_live_active'.tr} · ${_timeAgo(pos.seenAt)}',
-              onTap: () => _onNearbyTap(
-                id: pos.userId,
-                role: role,
-                name: displayName,
-                online: true,
-                premium: isPremiumMember,
-                lat: pos.latitude,
-                lng: pos.longitude,
-                avatar: avatarUrl,
-                isFriend: true,
-              ),
-            ),
-            // v23.1.263 — taper un ami = suivi « à la trace » (vol doux).
-            onTap: () => _startFollow(
-              pos.userId,
-              LatLng(pos.latitude, pos.longitude),
-              displayName,
+            // v584 (25/09, point 14) — taper un ami ouvre SA FICHE, avec
+            // « Suivre la balade · en direct » en bouton principal (plus de
+            // suivi lancé à l'insu de l'utilisateur).
+            onTap: () => _onNearbyTap(
+              id: pos.userId,
+              role: role,
+              name: displayName,
+              online: pos.isLive,
+              premium: isPremiumMember,
+              lat: pos.latitude,
+              lng: pos.longitude,
+              avatar: avatarUrl,
+              isFriend: true,
+              liveState: pos.isLost ? PawFollowState.lost : PawFollowState.live,
             ),
           ),
         );
@@ -3892,7 +4118,6 @@ class _PawMapScreenState extends State<PawMapScreen>
     //          → sinon comportement système (quitter / dépiler).
     return PopScope(
       canPop: _followUserId == null &&
-          !_mapExpanded.value &&
           !_pickingSpotPos.value &&
           !_pickingRoutePos.value &&
           !_pickingReportPos.value,
@@ -3912,7 +4137,6 @@ class _PawMapScreenState extends State<PawMapScreen>
           _stopFollow();
           return;
         }
-        if (_mapExpanded.value) _mapExpanded.value = false;
       },
       // v584 (lot C du chantier du 24/09) — UNE SEULE GoogleMap.
       //
@@ -3947,15 +4171,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               child: _buildGoogleMap(),
             ),
 
-            // v23.1.263 — bannière "Suivi en direct" : visible tant qu'on
-            // suit un ami à la trace. Bouton Stop pour reprendre la main.
-            if (_followUserId != null)
-              Positioned(
-                top: MediaQuery.of(context).viewPadding.top + 64.h,
-                left: 12.w,
-                right: 12.w,
-                child: Center(child: _buildFollowingBanner()),
-              ),
+
 
             // v456 — POINT ROUGE FIXE au centre (placement précis), pour les
             // viseurs (Paw Spot, Signalement, Itinéraire). La carte bouge SOUS
@@ -3980,32 +4196,31 @@ class _PawMapScreenState extends State<PawMapScreen>
             // flottant ; carte agrandie au-dessus du dock. Pendant un
             // placement le rail gauche s'efface (ses boutons sont l'action en
             // cours) et la rangée monte pour laisser respirer Annuler/Valider.
+            // v584 (25/09) — Daniel : « on avait dit UNE carte, il y a
+            // toujours les deux ». Le mode « Agrandir / Réduire » (rangée du
+            // haut, dock, bouton Retour, rails décalés — là où les boutons
+            // étaient COUPÉS sur son Samsung) est SUPPRIMÉ : une seule carte,
+            // un seul rail, une seule feuille, une seule mise en page.
             Obx(() {
               final picking = _pickingSpotPos.value ||
                   _pickingReportPos.value ||
                   _pickingRoutePos.value;
-              final expanded = _mapExpanded.value;
               // v584 — la feuille glissante recouvre les rails dès qu'elle
               // dépasse sa position basse : ils s'effacent (elle porte les
               // mêmes actions), et reviennent quand elle redescend.
-              final sheetUp = !expanded && !picking && _sheetExtent.value >
+              final sheetUp = !picking && _sheetExtent.value >
                   (_sheetPeek.h / _sheetAvailableHeight(context)) + 0.03;
               if (sheetUp) return const SizedBox.shrink();
               return Positioned(
                 left: 12.w,
                 right: 12.w,
-                bottom: _railBottom(context,
-                    expanded: expanded, picking: picking),
+                bottom: _railBottom(context, picking: picking),
                 child: Row(
                   // v561 — Daniel : colonne de gauche alignée sur le BAS de la
                   // capsule de droite (jamais centrée).
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    if (!picking)
-                      _railScroller(
-                        _buildMapActionsColumn(),
-                        expanded: expanded,
-                      ),
+                    if (!picking) _railScroller(_buildMapActionsColumn()),
                     const Spacer(),
                     _buildMapControlsStack(),
                   ],
@@ -4013,16 +4228,16 @@ class _PawMapScreenState extends State<PawMapScreen>
               );
             }),
 
-            // ── v584 — FEUILLE GLISSANTE (petite carte) ──
+            // ── v584 — FEUILLE GLISSANTE ──
             // Trois positions : basse (poignée + bouton principal), moyenne
             // (« Je cherche », compteur, filtres), haute (actions, calques,
-            // abonnements). Posée au-dessus du menu ; absente en carte
-            // agrandie (le dock la remplace) et pendant un placement.
+            // abonnements). Posée au-dessus du menu ; absente pendant un
+            // placement.
             Obx(() {
               final picking = _pickingSpotPos.value ||
                   _pickingReportPos.value ||
                   _pickingRoutePos.value;
-              if (_mapExpanded.value || picking) return const SizedBox.shrink();
+              if (picking) return const SizedBox.shrink();
               return Positioned(
                 left: 0,
                 right: 0,
@@ -4032,17 +4247,26 @@ class _PawMapScreenState extends State<PawMapScreen>
               );
             }),
 
-            // v23.1.187 — carte « Autour de vous » (petite carte seulement) ;
-            // v554 — jamais pendant un placement ni quand un itinéraire est
-            // affiché (le bandeau distance + Effacer prend sa place).
+            // ── Zone entre les rails, au-dessus de la feuille ──
+            // v584 (25/09) — par priorité : la PILULE DE SUIVI (quand je suis
+            // quelqu'un en direct : photo, « en direct · 12 s », chevron →
+            // feuille Suivre / Arrêter / Itinéraire / Message — plus aucune
+            // barre violette en haut), sinon le bandeau d'itinéraire, sinon
+            // la carte « Autour de vous ». Jamais pendant un placement.
             Obx(() {
               final picking = _pickingSpotPos.value ||
                   _pickingReportPos.value ||
                   _pickingRoutePos.value;
-              final expanded = _mapExpanded.value;
               if (picking) return const SizedBox.shrink();
+              if (_followUserId != null) {
+                return Positioned(
+                  left: 72.w,
+                  right: 62.w,
+                  bottom: _menuInset(context) + _sheetPeek.h + 10.h,
+                  child: Center(child: _buildFollowPill()),
+                );
+              }
               if (_routePolylines.isEmpty) {
-                if (expanded) return const SizedBox.shrink();
                 return Positioned(
                   left: 72.w,
                   right: 62.w,
@@ -4050,17 +4274,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   child: _buildAroundYouCard(),
                 );
               }
-              // Bandeau d'itinéraire : entre les deux rails (petite carte) ;
-              // en haut sous la rangée Partager/Réduire (carte agrandie, le
-              // bas est occupé par le dock et les rails — v554/v559).
-              if (expanded) {
-                return Positioned(
-                  top: MediaQuery.of(context).viewPadding.top + 64.h,
-                  left: 12.w,
-                  right: 12.w,
-                  child: Center(child: _buildDirectionsBanner()),
-                );
-              }
+              // Bandeau d'itinéraire : entre les deux rails.
               return Positioned(
                 left: 12.w,
                 right: 12.w,
@@ -4077,71 +4291,28 @@ class _PawMapScreenState extends State<PawMapScreen>
               );
             }),
 
-            // ── Haut de l'écran ──
-            // Petite carte : en-tête flottant (logo, titre, recherche,
-            // rafraîchir) + rangée Partager en direct / Agrandir + panneau.
-            // Carte agrandie : rangée Partager en direct / Réduire seulement.
+            // ── Haut de l'écran : l'en-tête flottant SEUL (logo, titre,
+            // « ? », recherche, rafraîchir). Daniel (25/09, point 12) : plus
+            // aucune pastille d'état posée sur les boutons — « visible par
+            // tes amis seulement », le partage en direct et le suivi vivent
+            // dans la feuille (ligne d'état) ou en pilule entre les rails.
             // Masqué pendant un placement (la bulle d'aide doit rester seule).
             Obx(() {
               final picking = _pickingSpotPos.value ||
                   _pickingReportPos.value ||
                   _pickingRoutePos.value;
               if (picking) return const SizedBox.shrink();
-              final expanded = _mapExpanded.value;
               return Positioned(
                 top: 0,
                 left: 0,
                 right: 0,
                 child: SafeArea(
                   bottom: false,
-                  child: expanded
-                      ? Padding(
-                          padding: EdgeInsets.only(top: 8.h),
-                          child: Row(
-                            children: [
-                              Expanded(child: _buildLiveBroadcastBanner()),
-                              _buildExpandPill(expanded: true),
-                              SizedBox(width: 12.w),
-                            ],
-                          ),
-                        )
-                      : Column(
-                          key: _topAreaKey,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildFloatingHeader(),
-                            _buildTopRow(),
-                          ],
-                        ),
-                ),
-              );
-            }),
-
-            // ── Carte agrandie : bouton RETOUR (bas-gauche) + dock ──
-            // v565 point 20 : sur la grande carte le menu du bas a disparu →
-            // bouton Retour qui réduit la carte. v552 : dock (SOS animal,
-            // Partager la carte, Calques, Mode nuit, Historique). Les deux
-            // s'effacent pendant un placement (ils recouvraient Valider).
-            Obx(() {
-              final picking = _pickingSpotPos.value ||
-                  _pickingReportPos.value ||
-                  _pickingRoutePos.value;
-              if (!_mapExpanded.value || picking) {
-                return const SizedBox.shrink();
-              }
-              return Positioned(
-                left: 0,
-                right: 0,
-                bottom: _navInset(context) + 14.h,
-                child: Stack(
-                  children: [
-                    _buildMapDock(),
-                    Positioned(
-                      left: 12.w,
-                      bottom: 0,
-                      child: _buildExpandedBackButton(),
-                    ),
-                  ],
+                  child: Column(
+                    key: _topAreaKey,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [_buildFloatingHeader()],
+                  ),
                 ),
               );
             }),
@@ -4163,15 +4334,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
-  /// v584 — ligne de base (depuis le bas) de la rangée des rails.
-  ///  · petite carte : 168 au-dessus du menu flottant (v561), 284 pendant
-  ///    un placement (au-dessus de la carte Annuler/Valider) ;
-  ///  · carte agrandie : au-dessus du dock (14 + 46 + 22 = 82, v553), 136
-  ///    pendant un placement (le dock est masqué, la carte de placement prend
-  ///    sa place).
-  double _railBottom(BuildContext context,
-      {required bool expanded, required bool picking}) {
-    if (expanded) return _navInset(context) + (picking ? 136.h : 82.h);
+  /// v584 — ligne de base (depuis le bas) de la rangée des rails : au-dessus
+  /// de la feuille glissante en position basse ; 284 pendant un placement
+  /// (au-dessus de la carte Annuler/Valider). Une seule mise en page (25/09).
+  double _railBottom(BuildContext context, {required bool picking}) {
     if (picking) {
       return 284.h - _tabBarLift(context) +
           MediaQuery.of(context).viewPadding.bottom;
@@ -4294,9 +4460,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       _pins.rev.value;
       _myRequests.length;
       _availableTodayOnly.value;
-      // v552 — mode nuit ; v584 — agrandi (padding de la carte).
+      // v552 — mode nuit.
       final night = _nightMode.value;
-      final expanded = _mapExpanded.value;
       return GoogleMap(
         initialCameraPosition: CameraPosition(
           target: _currentCenter,
@@ -4346,9 +4511,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         zoomControlsEnabled: false,
         // v584 — le logo Google et les cibles de caméra évitent le menu du
         // bas (petite carte) : la carte, elle, ne change pas de taille.
-        padding: EdgeInsets.only(
-          bottom: expanded ? 0 : 100.h - _tabBarLift(context),
-        ),
+        padding: EdgeInsets.only(bottom: 100.h - _tabBarLift(context)),
         mapType: _mapType,
         style: night ? _nightMapStyle : null,
         // v23.1 part 243 round 3 — marqueurs mémoïsés (_getMarkersFromCache).
@@ -4494,14 +4657,114 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// caméra VOLE en douceur jusqu'au point et s'arrête à un zoom de rue
   /// lisible (16,5) ; ensuite elle suit le point sans re-zoomer (pas de
   /// recentrage brutal), et le tracé se dessine en violet PawFollow.
-  void _startFollow(String userId, LatLng pos, String name) {
+  void _startFollow(String userId, LatLng pos, String name,
+      {String avatar = '', String role = ''}) {
+    // v584 (25/09, règle c) : on ne suit QUE quelqu'un qui partage sa
+    // position en ce moment (en direct ou signal perdu < 10 min).
+    final fp = _liveMap.friendPositions[userId];
+    if (fp == null || fp.liveState == FriendLiveState.seen) {
+      CustomSnackbar.showError(
+        title: 'pawmap_member_seen_no_share'
+            .trParams({'ago': fp == null ? '—' : _timeAgo(fp.seenAt)}),
+        message: 'pawmap_member_seen_explain'.trParams({'name': name}),
+      );
+      return;
+    }
     setState(() {
       _followUserId = userId;
       _followName = name;
+      _followAvatar = avatar;
+      _followRole = role;
       _followPaused = false;
       _followTrail = <LatLng>[pos];
     });
     _animateFollowCamera(pos, zoom: _followZoom);
+  }
+
+  String _followAvatar = '';
+  String _followRole = '';
+
+  /// v584 (25/09) — la PILULE de suivi (entre les rails, au-dessus de la
+  /// feuille) : photo, « Jose · en direct · 12 s », chevron → feuille.
+  Widget _buildFollowPill() {
+    return Obx(() {
+      _liveMap.staleTick.value; // « il y a X » se rafraîchit
+      final uid = _followUserId;
+      if (uid == null) return const SizedBox.shrink();
+      final fp = _liveMap.friendPositions[uid];
+      final state = _followPaused
+          ? PawFollowState.paused
+          : (fp != null && fp.isLost ? PawFollowState.lost : PawFollowState.live);
+      return PawMapFollowPill(
+        name: _followName.trim().isEmpty
+            ? 'pawmap_following_default'.tr
+            : _followName.trim(),
+        avatar: _followAvatar,
+        role: _followRole.isEmpty ? (fp?.role ?? 'owner') : _followRole,
+        state: state,
+        agoLabel: fp == null ? '' : _timeAgo(fp.seenAt),
+        onTap: _openFollowSheet,
+      );
+    });
+  }
+
+  /// Feuille du suivi : Reprendre / Recentrer · Arrêter · Itinéraire · Message.
+  void _openFollowSheet() {
+    final uid = _followUserId;
+    if (uid == null) return;
+    final fp = _liveMap.friendPositions[uid];
+    final name = _followName.trim().isEmpty
+        ? 'pawmap_following_default'.tr
+        : _followName.trim();
+    final role = _followRole.isEmpty ? (fp?.role ?? 'owner') : _followRole;
+    showPawMapSheet<void>(
+      context,
+      PawMapFollowSheet(
+        name: name,
+        avatar: _followAvatar,
+        role: role,
+        state: _followPaused
+            ? PawFollowState.paused
+            : (fp != null && fp.isLost ? PawFollowState.lost : PawFollowState.live),
+        agoLabel: fp == null ? '' : _timeAgo(fp.seenAt),
+        onResume: () {
+          Navigator.of(context).pop();
+          _resumeFollow();
+        },
+        onStop: () {
+          Navigator.of(context).pop();
+          _stopFollow();
+        },
+        onDirections: fp == null
+            ? null
+            : () {
+                Navigator.of(context).pop();
+                _startDirections(LatLng(fp.latitude, fp.longitude));
+              },
+        onMessage: () {
+          Navigator.of(context).pop();
+          unawaited(_openConversationWith(
+              id: uid, role: role, name: name, avatar: _followAvatar));
+        },
+      ),
+    );
+  }
+
+  /// v584 (25/09) — l'ami suivi a coupé son partage (ou plus de 10 min sans
+  /// signal) : le suivi s'arrête de lui-même, et on le dit.
+  void _endFollowIfGone() {
+    final uid = _followUserId;
+    if (uid == null) return;
+    final fp = _liveMap.friendPositions[uid];
+    if (fp != null && fp.liveState != FriendLiveState.seen) return;
+    final name = _followName.trim().isEmpty
+        ? 'pawmap_following_default'.tr
+        : _followName.trim();
+    _stopFollow();
+    CustomSnackbar.showSuccess(
+      title: 'pawmap_follow_pill_lost'.tr,
+      message: 'pawmap_follow_ended'.trParams({'name': name}),
+    );
   }
 
   /// Un geste sur la carte met le suivi EN PAUSE (le tracé continue) ; le
@@ -4514,11 +4777,14 @@ class _PawMapScreenState extends State<PawMapScreen>
   void _resumeFollow() {
     final uid = _followUserId;
     if (uid == null) return;
-    setState(() => _followPaused = false);
     final fp = _liveMap.friendPositions[uid];
-    if (fp != null) {
-      _animateFollowCamera(LatLng(fp.latitude, fp.longitude), zoom: _followZoom);
+    // Règle (c) : « Reprendre » n'existe que si le partage est encore actif.
+    if (fp == null || fp.liveState == FriendLiveState.seen) {
+      _endFollowIfGone();
+      return;
     }
+    setState(() => _followPaused = false);
+    _animateFollowCamera(LatLng(fp.latitude, fp.longitude), zoom: _followZoom);
   }
 
   /// Arrête le suivi (bouton Stop, retour Android).
@@ -4527,6 +4793,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     setState(() {
       _followUserId = null;
       _followName = '';
+      _followAvatar = '';
+      _followRole = '';
       _followPaused = false;
       _followTrail = const <LatLng>[];
     });
@@ -4548,98 +4816,17 @@ class _PawMapScreenState extends State<PawMapScreen>
     };
   }
 
-  /// Bannière "Suivi en direct" affichée tant qu'on suit un ami à la trace ;
-  /// en pause : « Suivi en pause · Reprendre ».
-  Widget _buildFollowingBanner() {
-    final name = _followName.trim().isEmpty
-        ? 'pawmap_following_default'.tr
-        : _followName.trim();
-    final paused = _followPaused;
-    final Color tone = paused ? PawMapLegend.ink : PawMapLegend.pawFollow;
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 9.h),
-      decoration: BoxDecoration(
-        color: tone,
-        borderRadius: BorderRadius.circular(24.r),
-        boxShadow: [
-          BoxShadow(
-            color: tone.withValues(alpha: 0.30),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 9.w,
-            height: 9.w,
-            decoration: BoxDecoration(
-              color: paused ? PawMapLegend.gold : Colors.white,
-              shape: BoxShape.circle,
-            ),
-          ),
-          SizedBox(width: 8.w),
-          Flexible(
-            child: InterText(
-              text: paused
-                  ? 'pawmap_follow_paused'.tr
-                  : 'pawmap_following_label'.trParams({'name': name}),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-              maxLines: 1,
-            ),
-          ),
-          SizedBox(width: 10.w),
-          if (paused)
-            GestureDetector(
-              key: const ValueKey<String>('follow_resume'),
-              onTap: _resumeFollow,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  color: PawMapLegend.gold,
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: InterText(
-                  text: 'pawmap_follow_resume'.tr,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: PawMapLegend.ink,
-                ),
-              ),
-            ),
-          if (paused) SizedBox(width: 6.w),
-          GestureDetector(
-            key: const ValueKey<String>('follow_stop'),
-            onTap: _stopFollow,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 4.h),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-              child: InterText(
-                text: 'pawmap_following_stop'.tr,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // v23.1.316 — Daniel : "le zoom de la PawMap tu peux améliorer ?". Avant :
   // zoomIn()/zoomOut() sautaient d'UN niveau entier (×2 d'un coup) -> effet
   // brusque/saccadé. On passe à un pas plus doux de ±0.8 niveau (zoomBy) pour
   // un zoom progressif et fluide, toujours animé.
   /// v584 — LE contrôleur de la carte (null tant qu'elle n'est pas créée).
   /// Gardé sous ce nom : tous les gestes de caméra passent par ici.
+  /// v584 (25/09) — pour le parcours `integration_test` (déplacer la caméra
+  /// sur un ami en direct avant d'ouvrir sa fiche).
+  @visibleForTesting
+  Future<GoogleMapController?> activeMapCtlForTest() => _activeMapCtl();
+
   Future<GoogleMapController?> _activeMapCtl() async {
     if (!_mapCtl.isCompleted) return null;
     return _mapCtl.future;
@@ -4817,9 +5004,8 @@ class _PawMapScreenState extends State<PawMapScreen>
             // Petite carte : la barre d'onglets pleine largeur monte jusqu'à
             // ~125 (mesuré sur les captures de Daniel : 122 = SOUS la barre).
             // Carte agrandie : juste au-dessus de la barre système.
-            bottom: pawMapExpanded.value
-                ? _navInset(context) + 12.h
-                : 140.h - _tabBarLift(context) + MediaQuery.of(context).viewPadding.bottom,
+            bottom: 140.h - _tabBarLift(context) +
+                MediaQuery.of(context).viewPadding.bottom,
             child: Material(
               color: Colors.transparent,
               child: Container(
@@ -5170,39 +5356,6 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
-
-  // ─── v584 — HAUT DE LA PETITE CARTE ─────────────────────────────────────
-  // Le panneau blanc du haut (v552) est devenu la FEUILLE GLISSANTE du bas
-  // (`_buildSheet`). En haut ne restent que la rangée « Partager en direct /
-  // Agrandir » et, si je suis « visible par mes amis seulement », la
-  // pastille qui permet de rebasculer en un geste.
-  Widget _buildTopRow() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildTopShareRow(),
-        if (_friendsOnly)
-          Padding(
-            padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 0),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: PawMapFriendsOnlyPill(onTap: _openVisibilitySheet),
-            ),
-          ),
-      ],
-    );
-  }
-
-  /// Hauteur commune des trois cadres de la rangée repliée.
-  /// v573 — jeton partagé : filtres, « Partager en direct » et « Agrandir »
-  /// tirent leur hauteur, leur rayon et leur épaisseur de bord du MÊME endroit
-  /// (PawMapTheme.pill*), sans quoi les trois pilules ne tombaient pas juste.
-  static double get _topRowHeight => PawMapTheme.pillHeight.h;
-
-  /// Corps de texte commun aux pilules du haut (InterText, graisse 800).
-  /// ⚠️ Valeur BRUTE : `InterText` applique `.sp` lui-même — l'écrire `12.sp`
-  /// ici la mettait au carré et rendait le libellé minuscule à 320 dp.
-  static const double _topPillFontSize = 12;
 
   /// Les 4 raccourcis (puce 40×40 pastel + libellé 10px), badge compteur rose.
   Widget _buildPanelActions() {
@@ -5751,249 +5904,6 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
-  // ─── Floating action button for creating reports ─────────────────────────
-  // v21.1.1 — corner button passé en pill extended : icône + label texte
-  // visible (ex "PawPass", "PawSpot") au lieu d'un cercle anonyme. Beaucoup
-  // plus parlant pour les freemium users qui découvrent la boutique.
-  // Shadow colorée pour profondeur, gradient subtle pour donner du relief.
-  /// v23.1.189 — Daniel : "paw follow et pawspot un design beaucoupl plus
-  /// moderne et jolie". Pastille glassy : fond blanc translucide, accent
-  /// vif a gauche (pastille couleur ronde + icone blanche dessus), label
-  /// en gras a droite, ombre douce + halo coloré soft.
-  /// pour que le user comprenne qu'il est visible par ses amis.
-  /// v558 — coupe un libellé en deux lignes à l'espace le plus proche du
-  /// milieu (« Partager en direct » → « Partager / en direct »). Sans espace
-  /// (japonais), le libellé reste sur une ligne et le FittedBox le réduit.
-  static String _twoLines(String s) {
-    final t = s.trim();
-    final mid = t.length ~/ 2;
-    int best = -1;
-    for (int i = 0; i < t.length; i++) {
-      if (t[i] == ' ' && (best < 0 || (i - mid).abs() < (best - mid).abs())) {
-        best = i;
-      }
-    }
-    if (best < 0) return t;
-    return '${t.substring(0, best)}\n${t.substring(best + 1)}';
-  }
-
-  /// v558 — `compact` : cellule de la rangée repliée (largeur = 1/3 de
-  /// l'écran, hauteur imposée par la rangée) : marges gérées par la rangée,
-  /// texte sur 2 lignes max, point et interrupteur réduits. Le texte n'est
-  /// jamais tronqué : il se réduit (FittedBox) si une langue est plus longue.
-  Widget _buildLiveBroadcastBanner({bool compact = false}) {
-    // v418 — maquette Daniel : bannière TOUJOURS visible avec interrupteur
-    // ON/OFF. C'est LE contrôle du partage en direct.
-    // v565 (18/09) — Daniel : pilule modernisée, mêmes couleurs : verre blanc
-    // translucide + liseré vert quand OFF ; vert plein (point blanc + « En
-    // direct · 3h58 », interrupteur vert) quand ON ; orange « Signal perdu »
-    // si le signal est coupé. Tap sur le libellé = sous-menu de durée.
-    const green = Color(0xFF16A34A);
-    const amber = Color(0xFFE8920A);
-    return Obx(() {
-      final on = _liveMap.broadcasting.value;
-      _liveMap.staleTick.value;
-      final lost = on && _liveMap.liveStatus.value == LiveShareStatus.lost;
-      final rem = _liveMap.remaining;
-      String label = on
-          ? (lost ? 'v565_live_signal_lost'.tr : 'v565_live_active'.tr)
-          : 'pawmap_live_share_off'.tr;
-      if (on && !lost && rem != null) {
-        final h = rem.inHours;
-        final m = rem.inMinutes % 60;
-        label =
-            '$label · ${h > 0 ? '${h}h${m.toString().padLeft(2, '0')}' : '${rem.inMinutes} min'}';
-      }
-      final Color tone = lost ? amber : green;
-      final Color fg = on ? Colors.white : AppColors.textPrimary(context);
-      final switchW = compact ? 36.w : 44.w;
-      return Padding(
-        padding: compact
-            ? EdgeInsets.zero
-            : EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 0),
-        child: PawGlassPill(
-          color: tone,
-          filled: on,
-          gradient: on
-              ? LinearGradient(
-                  colors: lost
-                      ? const [Color(0xFFE8920A), Color(0xFFD97706)]
-                      : const [Color(0xFF16A34A), Color(0xFF059669)],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                )
-              : null,
-          height: compact ? double.infinity : _topRowHeight,
-          padding: EdgeInsets.fromLTRB(10.w, 0, 4.w, 0),
-          child: Row(
-            children: [
-              // v573 — pastille d'état ANIMÉE : elle grossit et s'auréole
-              // quand le partage est actif (vert, ou ambre « signal perdu »),
-              // et redevient un point gris discret à l'arrêt. Le halo est
-              // blanc sur fond plein, teinté sur fond clair.
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOut,
-                width: (on ? 10 : 8).w,
-                height: (on ? 10 : 8).w,
-                decoration: BoxDecoration(
-                  color: on
-                      ? Colors.white
-                      : AppColors.textSecondary(context)
-                          .withValues(alpha: 0.75),
-                  shape: BoxShape.circle,
-                  boxShadow: on
-                      ? [
-                          BoxShadow(
-                            color: Colors.white.withValues(alpha: 0.75),
-                            blurRadius: 7,
-                            spreadRadius: 0.5,
-                          ),
-                        ]
-                      : null,
-                ),
-              ),
-              SizedBox(width: 7.w),
-              Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => unawaited(_openLiveDurationSheet()),
-                  child: Tooltip(
-                    message: 'pawmap_live_banner_msg'.tr,
-                    // Jamais de débordement (allemand / portugais) : deux
-                    // lignes max, réduit si besoin, jamais tronqué.
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: InterText(
-                        text: compact ? _twoLines(label) : label,
-                        // v573 — même corps et même graisse que « Agrandir » :
-                        // les trois pilules du haut partagent leur typo.
-                        fontSize: _topPillFontSize,
-                        fontWeight: FontWeight.w800,
-                        color: fg,
-                        maxLines: compact ? 2 : 1,
-                        overflow: TextOverflow.ellipsis,
-                        height: 1.05,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // v573 — interrupteur propre : sur la pilule PLEINE (partage
-              // actif) un rail vert sur fond vert ne se voyait pas → rail
-              // blanc translucide + liseré blanc ; à l'arrêt, rail gris et
-              // pastille blanche cerclée. Le vert « actif » suit la teinte
-              // courante (ambre quand le signal est perdu).
-              SizedBox(
-                width: switchW,
-                height: 24.h,
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  child: Switch(
-                    value: on,
-                    onChanged: (_) => _toggleBroadcast(),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    activeThumbColor: Colors.white,
-                    activeTrackColor:
-                        Colors.white.withValues(alpha: 0.34),
-                    trackOutlineColor: WidgetStateProperty.resolveWith(
-                        (st) => st.contains(WidgetState.selected)
-                            ? Colors.white.withValues(alpha: 0.9)
-                            // v584 — « aucun gris » : rail à l'arrêt en
-                            // teinte chaude PLEINE (vert pâle), liseré vert.
-                            : green.withValues(alpha: 0.55)),
-                    inactiveThumbColor: Colors.white,
-                    inactiveTrackColor: const Color(0xFFBFE8CB),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    });
-  }
-
-  // ─── v463 — Mode « carte agrandie » ──────────────────────────────────────
-
-  /// Barre du haut (mode normal) : la bannière « Suivi en direct ON/OFF »
-  /// (inchangée) + un bouton COMPACT « Agrandir » sur la même ligne.
-  Widget _buildTopShareRow() {
-    return Row(
-      children: [
-        // La bannière conserve ses marges L/R = 12 → elle gère le bord gauche
-        // et l'écart avant le bouton.
-        Expanded(child: _buildLiveBroadcastBanner()),
-        _buildExpandPill(expanded: false),
-        SizedBox(width: 12.w),
-      ],
-    );
-  }
-
-  /// Bouton compact Agrandir / Réduire (≈ 50 % plus petit, discret).
-  /// v465 — en mode AGRANDI, fond ROSE intense (Daniel) ; en mode normal,
-  /// pilule blanche discrète.
-  /// v558 — `fill` : cellule de la rangée repliée (remplit sa case, sans marge
-  /// haute, même rayon que ses deux voisines).
-  Widget _buildExpandPill({required bool expanded, bool fill = false}) {
-    // v565 (18/09) — Daniel : pilule modernisée, même rose : verre blanc +
-    // liseré rose (Agrandir) ; rose plein (Réduire, carte agrandie). Icône et
-    // libellé alignés, FittedBox → jamais de débordement.
-    const pink = Color(0xFFEC1E79); // rose intense
-    final fg = expanded ? Colors.white : pink;
-    final label = expanded ? 'pawmap_reduce_map'.tr : 'pawmap_expand_short'.tr;
-    return Padding(
-      padding: EdgeInsets.only(top: fill ? 0 : 8.h),
-      child: PawPressable(
-        label: label,
-        onTap: () => _mapExpanded.value = !expanded,
-        child: PawGlassPill(
-          color: pink,
-          filled: expanded,
-          height: fill ? double.infinity : _topRowHeight,
-          width: fill ? double.infinity : null,
-          padding: EdgeInsets.symmetric(horizontal: 10.w),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                expanded
-                    ? Icons.close_fullscreen_rounded
-                    : Icons.open_in_full_rounded,
-                size: 17.sp,
-                color: fg,
-              ),
-              SizedBox(width: 6.w),
-              // Pas de Flexible : la pilule vit aussi dans une Row à largeur
-              // libre (rangée du haut) → largeur bornée explicitement.
-              // v573 — pas de Flexible ici : hors rangée repliée la pilule vit
-              // dans une Row à largeur NON bornée (RenderFlex planterait). Le
-              // plafond de largeur + FittedBox + ellipsis suffisent à tenir à
-              // 320 dp, en allemand comme en polonais.
-              ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 88.w),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: InterText(
-                    text: label,
-                    fontSize: _topPillFontSize,
-                    fontWeight: FontWeight.w800,
-                    color: fg,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-
   /// v584 — le rail gauche, construit depuis l'ORDRE choisi par l'utilisateur
   /// (`_railOrder`, enregistré sur le compte). Chaque id garde EXACTEMENT son
   /// action d'avant ; appui long = l'explication ; le petit bouton du bas =
@@ -6294,38 +6204,50 @@ class _PawMapScreenState extends State<PawMapScreen>
     return Obx(() {
       _requests.length;
       _myRequests.length;
+      _liveMap.staleTick.value;
       final live = _liveMap.broadcasting.value;
       final role = _role;
       final Color roleColor = PawMapLegend.roleColor(role.isEmpty ? 'owner' : role);
+      final Widget button;
       if (_followUserId != null && _followPaused) {
-        return PawSignatureButton(
+        button = PawSignatureButton(
           key: const ValueKey<String>('pawmap_primary'),
           label: 'pawmap_primary_resume_follow'.tr,
           icon: Icons.play_arrow_rounded,
           color: PawMapLegend.pawFollow,
           onTap: _resumeFollow,
         );
-      }
-      if (!_viewerLoggedIn) {
-        return PawSignatureButton(
+      } else if (!_viewerLoggedIn) {
+        button = PawSignatureButton(
           key: const ValueKey<String>('pawmap_primary'),
           label: 'pawmap_member_signup_to_book'.tr,
           icon: Icons.person_add_alt_1_rounded,
           color: roleColor,
           onTap: () => SignupWallSheet.show(trigger: 'booking'),
         );
-      }
-      if (role == 'owner' && _myRequests.isEmpty) {
-        return PawSignatureButton(
+      } else if (live) {
+        // v584 (25/09, point 14) — je PARTAGE : le bouton le dit (violet
+        // PawFollow), un appui ouvre durée / arrêter. Plus d'interrupteur
+        // en haut : UNE action, UN libellé.
+        button = PawSignatureButton(
+          key: const ValueKey<String>('pawmap_primary'),
+          label: _isSitterOrWalker
+              ? 'pawmap_primary_live_on_walk'.tr
+              : 'pawmap_primary_live_on'.tr,
+          icon: Icons.podcasts_rounded,
+          color: PawMapLegend.pawFollow,
+          onTap: () => unawaited(_openLiveDurationSheet()),
+        );
+      } else if (role == 'owner' && _myRequests.isEmpty) {
+        button = PawSignatureButton(
           key: const ValueKey<String>('pawmap_primary'),
           label: 'pawmap_primary_publish'.tr,
           icon: Icons.campaign_rounded,
           color: roleColor,
-          onTap: () => Get.to(() => const PublishReservationRequestScreen()),
+          onTap: () => _openScreen(() => const PublishReservationRequestScreen()),
         );
-      }
-      if (_isSitterOrWalker && _requests.isNotEmpty) {
-        return PawSignatureButton(
+      } else if (_isSitterOrWalker && _requests.isNotEmpty) {
+        button = PawSignatureButton(
           key: const ValueKey<String>('pawmap_primary'),
           label: 'pawmap_primary_propose'.tr,
           icon: Icons.volunteer_activism_rounded,
@@ -6336,15 +6258,96 @@ class _PawMapScreenState extends State<PawMapScreen>
             _showRequestBottomSheet(sorted.first);
           },
         );
+      } else {
+        // Gardien / promeneur : « Partager ma balade en direct » (violet) ;
+        // propriétaire : « Partager ma position » (couleur du rôle).
+        button = PawSignatureButton(
+          key: const ValueKey<String>('pawmap_primary'),
+          label: _isSitterOrWalker
+              ? 'pawmap_primary_share_walk'.tr
+              : 'pawmap_primary_share_live'.tr,
+          icon: Icons.share_location_rounded,
+          color: _isSitterOrWalker ? PawMapLegend.pawFollow : roleColor,
+          onTap: _startLiveShareFromPrimary,
+        );
       }
-      return PawSignatureButton(
-        key: const ValueKey<String>('pawmap_primary'),
-        label: live ? 'v565_live_active'.tr : 'pawmap_primary_share_live'.tr,
-        icon: live ? Icons.podcasts_rounded : Icons.share_location_rounded,
-        color: live ? PawMapLegend.walker : roleColor,
-        onTap: () => unawaited(_openLiveDurationSheet()),
+      // v584 (25/09, point 3) — plus petit (52 dp) : Daniel le trouvait trop
+      // gros ; et la ligne d'état (amis seulement, en direct) sous le bouton,
+      // jamais posée sur les commandes de la carte (point 12).
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(height: 52.h, child: button),
+          _buildSheetStatusRow(live: live),
+        ],
       );
     });
+  }
+
+  /// v584 (25/09, point 12) — puces d'état SOUS le bouton principal :
+  /// « Amis seulement » (→ feuille de visibilité) et « En direct · 3h58 »
+  /// (→ durée / arrêter) quand le bouton principal dit autre chose.
+  Widget _buildSheetStatusRow({required bool live}) {
+    final chips = <Widget>[];
+    if (_friendsOnly) {
+      chips.add(PawMapStatusChip(
+        key: const ValueKey<String>('pawmap_status_friends_only'),
+        label: 'pawmap_status_friends_only'.tr,
+        icon: Icons.visibility_off_rounded,
+        color: PawMapLegend.ink,
+        onTap: _openVisibilitySheet,
+      ));
+    }
+    if (live) {
+      final rem = _liveMap.remaining;
+      String label = 'pawmap_status_live'.tr;
+      if (rem != null) {
+        final h = rem.inHours;
+        final m = rem.inMinutes % 60;
+        label = '$label · ${h > 0 ? '${h}h${m.toString().padLeft(2, '0')}' : '${rem.inMinutes} min'}';
+      }
+      chips.add(PawMapStatusChip(
+        key: const ValueKey<String>('pawmap_status_live'),
+        label: label,
+        icon: Icons.podcasts_rounded,
+        color: _liveMap.liveStatus.value == LiveShareStatus.lost
+            ? const Color(0xFFE8920A)
+            : PawMapLegend.pawFollow,
+        breathing: _liveMap.liveStatus.value != LiveShareStatus.lost,
+        onTap: () => unawaited(_openLiveDurationSheet()),
+      ));
+    }
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: EdgeInsets.only(top: 8.h),
+      child: Wrap(spacing: 6.w, runSpacing: 6.h, children: chips),
+    );
+  }
+
+  /// v584 (25/09, point 14) — premier usage : une phrase d'explication, puis
+  /// la durée, puis le partage démarre (même chemin qu'avant : `_toggleBroadcast`).
+  Future<void> _startLiveShareFromPrimary() async {
+    final seen = GetStorage().read('pawmap_live_hint_seen') == true;
+    if (!seen) {
+      try {
+        GetStorage().write('pawmap_live_hint_seen', true);
+      } catch (_) {/* stockage plein */}
+      final ok = await showAppConfirmDialog(
+        context,
+        title: _isSitterOrWalker
+            ? 'pawmap_primary_share_walk'.tr
+            : 'pawmap_primary_share_live'.tr,
+        message: 'pawmap_live_first_hint'.tr,
+        confirmLabel: 'common_continue'.tr,
+        cancelLabel: 'common_cancel'.tr,
+        icon: Icons.share_location_rounded,
+        accent: PawMapLegend.pawFollow,
+        onConfirm: () async {},
+      );
+      if (ok != true || !mounted) return;
+    }
+    _toggleBroadcast();
   }
 
   /// Idée 1 — carte vide : le propriétaire publie, le prestataire complète
@@ -6483,11 +6486,32 @@ class _PawMapScreenState extends State<PawMapScreen>
   static bool _coachShownThisSession = false;
   int _coachStep = -1;
 
+  /// v584 (25/09, point 13) — PREMIER lancement seulement : mémorisé sur le
+  /// compte (`coachShown`) ET l'appareil (`pawmap_intro_seen_count`), marqué
+  /// dès l'affichage (jamais re-posé au retour d'un onglet, à la réouverture
+  /// ni après une mise à jour). Reste consultable par « ? ».
   void _maybeStartCoach() {
-    if (_coachShownThisSession) return;
-    if (_prefs.coachShown >= 3) return;
+    int deviceCount = 0;
+    try {
+      deviceCount = (GetStorage().read('pawmap_intro_seen_count') as num?)?.toInt() ?? 0;
+    } catch (_) {/* stockage illisible : on ne re-montre pas pour autant */}
+    if (!shouldShowPawMapCoach(
+      accountCount: _prefs.coachShown,
+      deviceCount: deviceCount,
+      shownThisSession: _coachShownThisSession,
+    )) {
+      return;
+    }
     _coachShownThisSession = true;
+    _markCoachSeen();
     if (mounted) setState(() => _coachStep = 0);
+  }
+
+  void _markCoachSeen() {
+    try {
+      GetStorage().write('pawmap_intro_seen_count', 1);
+    } catch (_) {/* stockage plein */}
+    if (_prefs.coachShown < 1) _prefs.update({'coachShown': 1});
   }
 
   void _coachNext() {
@@ -6499,7 +6523,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   void _coachDone() {
     if (!mounted) return;
     setState(() => _coachStep = -1);
-    _prefs.update({'coachShown': _prefs.coachShown + 1});
+    _markCoachSeen();
   }
   /// v552 — « Chat du cercle » : ouvre la messagerie du rôle courant.
   void _openCircleChat() {
@@ -6675,34 +6699,17 @@ class _PawMapScreenState extends State<PawMapScreen>
   // brique qui existe déjà dans l'app quand il y en a une (mode nuit = style
   // sombre de la carte, historique = suivi de balade, calques = les couches
   // déjà présentes) ; SOS animal est la seule vraie nouveauté produit.
-  /// v565 — point 20 : bouton Retour de la grande carte (bas-gauche).
-  Widget _buildExpandedBackButton() {
-    // v565 (18/09) — verre blanc translucide, liseré fin, appui animé.
-    return PawPressable(
-      label: 'pawmap_reduce_map'.tr,
-      onTap: () => _mapExpanded.value = false,
-      child: PawGlassPill(
-        color: PawMapTheme.inkOn(context).withValues(alpha: 0.18),
-        height: 44.h,
-        width: 44.h,
-        padding: EdgeInsets.zero,
-        child: Icon(Icons.arrow_back_rounded,
-            size: 22.sp, color: PawMapTheme.inkOn(context)),
-      ),
-    );
-  }
+
 
   /// v565 — le rail gauche compte désormais 9 boutons : sur un petit écran il
   /// pourrait dépasser le haut de la carte. On le borne à la hauteur
   /// disponible et il défile (aligné en BAS, jamais collé au menu).
-  Widget _railScroller(Widget column, {bool expanded = false}) {
+  Widget _railScroller(Widget column) {
     final h = MediaQuery.of(context).size.height;
     final top = MediaQuery.of(context).viewPadding.top;
-    // Petite carte : AppBar + rangée du haut (≈ 56 + 62) + baseline 168.
-    // Grande carte : rangée Partager/Réduire (≈ 64) + baseline 82.
-    final double maxH = expanded
-        ? h - top - 72.h - _navInset(context) - 82.h - 12.h
-        : h - top - 120.h - _railBottom(context, expanded: false, picking: false) - 12.h;
+    // En-tête flottant (≈ 56) + marge, au-dessus de la ligne de base du rail.
+    final double maxH =
+        h - top - 72.h - _railBottom(context, picking: false) - 12.h;
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxH.clamp(120.0, h)),
       child: SingleChildScrollView(
@@ -6711,21 +6718,6 @@ class _PawMapScreenState extends State<PawMapScreen>
         child: column,
       ),
     );
-  }
-
-  Widget _buildMapDock() {
-    // v584 — mêmes 5 actions (SOS, partager, calques, nuit, historique), en
-    // pilules de verre ; le bouton Retour occupe le coin bas-gauche.
-    return Obx(() => PawMapDockRow(
-          nightMode: _nightMode.value,
-          leftPadding: 66.w,
-          onSos: _openSosAnimal,
-          onShare: _shareCurrentMap,
-          onLayers: _openLayersSheet,
-          onNight: _toggleNightMode,
-          onHistory: _openHistory,
-          onLongPress: _showDockHelp,
-        ));
   }
 
   /// v552 — style sombre de la carte (mode nuit du dock). Palette calée sur

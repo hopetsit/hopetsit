@@ -152,9 +152,24 @@ class PawMapMemberSheet extends StatelessWidget {
     required this.onDirections,
     required this.onPropose,
     required this.onSignup,
+    this.liveState,
+    this.seenLabel = '',
+    this.onFollow,
+    this.rates = const <PawMapRateLine>[],
   });
 
   final PawMapMemberData member;
+
+  /// v584 (25/09) — ami : `live` / `lost` = « Suivre la balade » possible ;
+  /// null = pas de partage en cours (« vu il y a X », explication).
+  final PawFollowState? liveState;
+
+  /// « 3 j », « 12 min » — dernier signe de vie connu (ami sans partage).
+  final String seenLabel;
+  final VoidCallback? onFollow;
+
+  /// v584 (25/09, point 8) — les 2-3 tarifs principaux, avant « Réserver ».
+  final List<PawMapRateLine> rates;
   final String viewerRole;
   final bool viewerLoggedIn;
   final PawFriendState friendState;
@@ -204,7 +219,20 @@ class PawMapMemberSheet extends StatelessWidget {
     //   propriétaire avec demande → Proposer mes services ;
     //   sinon → Ajouter en ami.
     final Widget primary;
-    if (member.isProvider) {
+    final bool canFollow = liveState != null && onFollow != null;
+    if (canFollow) {
+      // v584 (25/09, point 14) — un ami qui partage sa balade : le bouton
+      // principal est « Suivre la balade · en direct » (violet PawFollow).
+      primary = PawSignatureButton(
+        key: const ValueKey<String>('member_primary_follow'),
+        label: liveState == PawFollowState.lost
+            ? 'pawmap_member_follow_lost'.tr
+            : 'pawmap_member_follow_walk'.tr,
+        icon: Icons.directions_walk_rounded,
+        color: PawMapLegend.pawFollow,
+        onTap: onFollow,
+      );
+    } else if (member.isProvider) {
       primary = PawSignatureButton(
         key: const ValueKey<String>('member_primary_book'),
         label: viewerLoggedIn
@@ -344,8 +372,46 @@ class PawMapMemberSheet extends StatelessWidget {
               ],
             ),
           ],
+          if (member.isFriend && !canFollow && seenLabel.isNotEmpty) ...[
+            SizedBox(height: 10.h),
+            Container(
+              key: const ValueKey<String>('member_seen_line'),
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+              decoration: BoxDecoration(
+                color: PawMapLegend.friend.withValues(alpha: PawMapTheme.isDark(context) ? 0.16 : 0.08),
+                borderRadius: BorderRadius.circular(14.r),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('pawmap_member_seen_no_share'.trParams({'ago': seenLabel}),
+                      style: PawMapTheme.fontOn(context, size: 12.5.sp, weight: FontWeight.w800)),
+                  SizedBox(height: 2.h),
+                  Text('pawmap_member_seen_explain'.trParams({'name': member.name}),
+                      style: PawMapTheme.fontOn(context,
+                          size: 11.5.sp, weight: FontWeight.w500, color: PawMapTheme.subOn(context), height: 1.3)),
+                ],
+              ),
+            ),
+          ],
+          if (rates.isNotEmpty) ...[
+            SizedBox(height: 10.h),
+            PawMapRatesBlock(rates: rates, color: roleColor),
+          ],
           SizedBox(height: 14.h),
           primary,
+          if (canFollow && member.isProvider) ...[
+            SizedBox(height: 8.h),
+            PawSignatureButton(
+              key: const ValueKey<String>('member_book_secondary'),
+              kind: PawButtonKind.secondary,
+              label: 'pawmap_member_book'.tr,
+              price: viewerLoggedIn ? priceLabel : null,
+              icon: Icons.event_available_rounded,
+              color: roleColor,
+              onTap: viewerLoggedIn ? onBook : onSignup,
+            ),
+          ],
           SizedBox(height: 8.h),
           Row(
             children: [
@@ -1266,6 +1332,558 @@ class PawMapAroundList extends StatelessWidget {
                 ),
         ),
       ],
+    );
+  }
+}
+
+// ── v584 (25/09) — SUIVI EN DIRECT REFAIT : pilule discrète + feuille ──────
+// Daniel : « “arrêter de suivre en direct”, c'est nul, le système est moche,
+// la barre violette ». Plus de bandeau plein en haut de la carte : quand je
+// suis quelqu'un, une PETITE PILULE flottante entre les rails, au-dessus de
+// la feuille (sa photo en rond, « Jose · en direct · 12 s », un chevron) ;
+// un appui ouvre une feuille courte : Reprendre / Recentrer, Arrêter de
+// suivre, Itinéraire, Message. Jamais un bouton « Arrêter » criard.
+
+/// État d'un ami en direct, tel que la carte le montre (règle serveur v584).
+enum PawFollowState { live, lost, paused }
+
+class PawMapFollowPill extends StatelessWidget {
+  const PawMapFollowPill({
+    super.key,
+    required this.name,
+    required this.avatar,
+    required this.role,
+    required this.state,
+    required this.agoLabel,
+    required this.onTap,
+  });
+
+  final String name;
+  final String avatar;
+  final String role;
+  final PawFollowState state;
+
+  /// « 12 s », « 3 min » — âge du dernier signe de vie.
+  final String agoLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color tone = switch (state) {
+      PawFollowState.live => PawMapLegend.pawFollow,
+      PawFollowState.lost => const Color(0xFFE8920A),
+      PawFollowState.paused => PawMapLegend.ink,
+    };
+    final String stateLabel = switch (state) {
+      PawFollowState.live => 'pawmap_follow_pill_live'.tr,
+      PawFollowState.lost => 'pawmap_follow_pill_lost'.tr,
+      PawFollowState.paused => 'pawmap_follow_pill_paused'.tr,
+    };
+    final bool hasUrl = avatar.startsWith('http');
+    return Semantics(
+      button: true,
+      label: '$name · $stateLabel',
+      child: GestureDetector(
+        key: const ValueKey<String>('pawmap_follow_pill'),
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          constraints: BoxConstraints(minHeight: 44.h, maxWidth: 300.w),
+          padding: EdgeInsets.fromLTRB(5.w, 4.h, 10.w, 4.h),
+          decoration: BoxDecoration(
+            color: PawMapTheme.panelOn(context),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: tone.withValues(alpha: 0.55), width: 1.4),
+            boxShadow: [
+              BoxShadow(
+                color: tone.withValues(alpha: 0.28),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36.w,
+                height: 36.w,
+                padding: EdgeInsets.all(2.w),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: tone,
+                ),
+                child: ClipOval(
+                  child: hasUrl
+                      ? Image.network(avatar, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _roleGlyph(role))
+                      : _roleGlyph(role),
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: PawMapTheme.fontOn(context,
+                          size: 12.5.sp, weight: FontWeight.w800),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _LiveDot(color: tone, breathing: state == PawFollowState.live),
+                        SizedBox(width: 4.w),
+                        Flexible(
+                          child: Text(
+                            '$stateLabel · $agoLabel',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: PawMapTheme.font(
+                                size: 10.5.sp,
+                                weight: FontWeight.w700,
+                                color: AppColors.accentOn(context, tone)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: 4.w),
+              Icon(Icons.expand_less_rounded, size: 20.sp, color: AppColors.accentOn(context, tone)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _roleGlyph(String role) => ColoredBox(
+        color: PawMapLegend.roleColor(role),
+        child: Icon(PawMapLegend.roleIcon(role), color: Colors.white, size: 18.sp),
+      );
+}
+
+/// Point (rond) qui respire quand c'est en direct.
+class _LiveDot extends StatefulWidget {
+  const _LiveDot({required this.color, required this.breathing});
+  final Color color;
+  final bool breathing;
+  @override
+  State<_LiveDot> createState() => _LiveDotState();
+}
+
+class _LiveDotState extends State<_LiveDot> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1600));
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.breathing) _c.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant _LiveDot old) {
+    super.didUpdateWidget(old);
+    if (widget.breathing && !_c.isAnimating) _c.repeat(reverse: true);
+    if (!widget.breathing && _c.isAnimating) _c.stop();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        final t = reduce ? 0.5 : _c.value;
+        return Container(
+          width: 7.w,
+          height: 7.w,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: widget.color,
+            boxShadow: widget.breathing
+                ? [BoxShadow(color: widget.color.withValues(alpha: 0.35 + 0.35 * t), blurRadius: 4 + 5 * t, spreadRadius: 1 + 1.5 * t)]
+                : null,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Feuille du suivi : Reprendre / Recentrer · Arrêter de suivre · Itinéraire ·
+/// Message. Sobre, à la couleur PawFollow, jamais criarde.
+class PawMapFollowSheet extends StatelessWidget {
+  const PawMapFollowSheet({
+    super.key,
+    required this.name,
+    required this.avatar,
+    required this.role,
+    required this.state,
+    required this.agoLabel,
+    required this.onResume,
+    required this.onStop,
+    required this.onDirections,
+    required this.onMessage,
+  });
+
+  final String name;
+  final String avatar;
+  final String role;
+  final PawFollowState state;
+  final String agoLabel;
+  final VoidCallback onResume;
+  final VoidCallback onStop;
+  final VoidCallback? onDirections;
+  final VoidCallback onMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color tone = state == PawFollowState.lost ? const Color(0xFFE8920A) : PawMapLegend.pawFollow;
+    final String stateLabel = switch (state) {
+      PawFollowState.live => 'pawmap_follow_pill_live'.tr,
+      PawFollowState.lost => 'pawmap_follow_pill_lost'.tr,
+      PawFollowState.paused => 'pawmap_follow_pill_paused'.tr,
+    };
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(18.w, 12.h, 18.w, 16.h),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _Avatar(
+                url: avatar,
+                ring: PawMapLegend.friend,
+                icon: PawMapLegend.roleIcon(role),
+                crown: false,
+                online: state == PawFollowState.live,
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name,
+                        maxLines: 2,
+                        style: PawMapTheme.fontOn(context, size: 17.sp, weight: FontWeight.w800)),
+                    SizedBox(height: 3.h),
+                    Row(children: [
+                      _LiveDot(color: tone, breathing: state == PawFollowState.live),
+                      SizedBox(width: 6.w),
+                      Flexible(
+                        child: Text('$stateLabel · $agoLabel',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: PawMapTheme.font(
+                                size: 12.5.sp,
+                                weight: FontWeight.w700,
+                                color: AppColors.accentOn(context, tone))),
+                      ),
+                    ]),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          Text(
+            'pawmap_follow_sheet_hint'.trParams({'name': name}),
+            style: PawMapTheme.fontOn(context,
+                size: 12.sp, weight: FontWeight.w500, color: PawMapTheme.subOn(context), height: 1.35),
+          ),
+          SizedBox(height: 14.h),
+          PawSignatureButton(
+            key: const ValueKey<String>('follow_sheet_resume'),
+            label: state == PawFollowState.paused
+                ? 'pawmap_follow_resume'.tr
+                : 'pawmap_follow_sheet_recenter'.trParams({'name': name}),
+            icon: state == PawFollowState.paused ? Icons.play_arrow_rounded : Icons.my_location_rounded,
+            color: PawMapLegend.pawFollow,
+            onTap: onResume,
+          ),
+          SizedBox(height: 8.h),
+          Row(
+            children: [
+              if (onDirections != null) ...[
+                Expanded(
+                  child: PawSignatureButton(
+                    key: const ValueKey<String>('follow_sheet_directions'),
+                    kind: PawButtonKind.secondary,
+                    label: 'pawmap_btn_directions'.tr,
+                    icon: Icons.directions_rounded,
+                    color: PawMapLegend.walker,
+                    onTap: onDirections,
+                  ),
+                ),
+                SizedBox(width: 8.w),
+              ],
+              Expanded(
+                child: PawSignatureButton(
+                  key: const ValueKey<String>('follow_sheet_message'),
+                  kind: PawButtonKind.secondary,
+                  label: 'pawmap_member_message'.tr,
+                  icon: Icons.chat_bubble_rounded,
+                  color: PawMapLegend.sitter,
+                  onTap: onMessage,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 6.h),
+          Center(
+            child: PawSignatureButton(
+              key: const ValueKey<String>('follow_sheet_stop'),
+              kind: PawButtonKind.link,
+              label: 'pawmap_follow_sheet_stop'.tr,
+              icon: Icons.stop_circle_outlined,
+              color: PawMapLegend.ink,
+              expand: false,
+              onTap: onStop,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── v584 (25/09, point 12) — PUCES D'ÉTAT dans la feuille ─────────────────
+// Plus rien n'est posé sur les boutons du haut : « visible par tes amis
+// seulement » et « en direct » vivent ici, sous le bouton principal.
+class PawMapStatusChip extends StatelessWidget {
+  const PawMapStatusChip({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    this.breathing = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  final bool breathing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          constraints: BoxConstraints(minHeight: 30.h),
+          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: PawMapTheme.isDark(context) ? 0.22 : 0.10),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: color.withValues(alpha: 0.45)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (breathing)
+                _LiveDot(color: color, breathing: true)
+              else
+                Icon(icon, size: 14.sp, color: AppColors.accentOn(context, color)),
+              SizedBox(width: 6.w),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: PawMapTheme.font(
+                      size: 11.sp,
+                      weight: FontWeight.w800,
+                      color: AppColors.accentOn(context, color)),
+                ),
+              ),
+              SizedBox(width: 2.w),
+              Icon(Icons.chevron_right_rounded, size: 16.sp, color: AppColors.accentOn(context, color)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── v584 (25/09, point 15) — LISTE D'UN GROUPE (membres ou lieux) ──────────
+// Quand les épingles restent superposées au zoom max, le carré de groupe
+// ouvre cette feuille : photo / icône, nom, rôle ou type, « Voir ».
+class PawMapClusterItem {
+  const PawMapClusterItem({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    this.avatar = '',
+    this.icon,
+  });
+  final String id;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final String avatar;
+  final IconData? icon;
+}
+
+class PawMapClusterList extends StatelessWidget {
+  const PawMapClusterList({
+    super.key,
+    required this.title,
+    required this.items,
+    required this.onOpen,
+  });
+  final String title;
+  final List<PawMapClusterItem> items;
+  final ValueChanged<PawMapClusterItem> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(18.w, 12.h, 18.w, 6.h),
+          child: Text(title,
+              style: PawMapTheme.fontOn(context, size: 16.sp, weight: FontWeight.w800)),
+        ),
+        Flexible(
+          child: ListView.separated(
+            shrinkWrap: true,
+            padding: EdgeInsets.fromLTRB(12.w, 4.h, 12.w, 12.h),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => SizedBox(height: 6.h),
+            itemBuilder: (ctx, i) {
+              final it = items[i];
+              final bool hasUrl = it.avatar.startsWith('http');
+              return Semantics(
+                button: true,
+                label: it.title,
+                child: InkWell(
+                  key: ValueKey<String>('cluster_item_${it.id}'),
+                  borderRadius: BorderRadius.circular(16.r),
+                  onTap: () => onOpen(it),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+                    decoration: BoxDecoration(
+                      color: it.color.withValues(alpha: PawMapTheme.isDark(ctx) ? 0.16 : 0.07),
+                      borderRadius: BorderRadius.circular(16.r),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40.w,
+                          height: 40.w,
+                          padding: EdgeInsets.all(2.w),
+                          decoration: BoxDecoration(shape: BoxShape.circle, color: it.color),
+                          child: ClipOval(
+                            child: hasUrl
+                                ? Image.network(it.avatar, fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Icon(it.icon ?? Icons.place_rounded, color: Colors.white, size: 20.sp))
+                                : Icon(it.icon ?? Icons.place_rounded, color: Colors.white, size: 20.sp),
+                          ),
+                        ),
+                        SizedBox(width: 10.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(it.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: PawMapTheme.fontOn(ctx, size: 14.sp, weight: FontWeight.w800)),
+                              Text(it.subtitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: PawMapTheme.fontOn(ctx,
+                                      size: 11.5.sp, weight: FontWeight.w600, color: PawMapTheme.subOn(ctx))),
+                            ],
+                          ),
+                        ),
+                        SizedBox(width: 8.w),
+                        Text('pawmap_cluster_open'.tr,
+                            style: PawMapTheme.font(
+                                size: 12.sp, weight: FontWeight.w800, color: AppColors.accentOn(ctx, it.color))),
+                        Icon(Icons.chevron_right_rounded, size: 18.sp, color: AppColors.accentOn(ctx, it.color)),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── v584 (25/09, point 8) — TARIFS sur la fiche courte ─────────────────────
+/// Une ligne de tarif (« Prix / jour · 35 € ») déjà formatée par l'écran.
+class PawMapRateLine {
+  const PawMapRateLine({required this.label, required this.value});
+  final String label;
+  final String value;
+}
+
+class PawMapRatesBlock extends StatelessWidget {
+  const PawMapRatesBlock({super.key, required this.rates, required this.color});
+  final List<PawMapRateLine> rates;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    if (rates.isEmpty) return const SizedBox.shrink();
+    return Container(
+      key: const ValueKey<String>('member_rates'),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: PawMapTheme.isDark(context) ? 0.16 : 0.07),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          for (final r in rates)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 3.h),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(r.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: PawMapTheme.fontOn(context, size: 12.5.sp, weight: FontWeight.w600)),
+                  ),
+                  Text(r.value,
+                      style: PawMapTheme.font(
+                          size: 13.5.sp, weight: FontWeight.w800, color: AppColors.accentOn(context, color))),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

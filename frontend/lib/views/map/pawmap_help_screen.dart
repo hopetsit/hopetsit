@@ -157,6 +157,42 @@ class PawMapHelpScreen extends StatelessWidget {
               title: d.label,
               help: d.help,
             ),
+          SizedBox(height: 18.h),
+          // v584 (25/09, point 14) — « Suivre ma promenade : Daniel ne sait
+          // pas comment faire » : l'explication vit aussi ici.
+          _SectionTitle('pawmap_help_live_title'.tr),
+          SizedBox(height: 6.h),
+          Container(
+            key: const ValueKey<String>('help_live_share'),
+            padding: EdgeInsets.all(14.w),
+            decoration: BoxDecoration(
+              color: PawMapLegend.pawFollow.withValues(alpha: PawMapTheme.isDark(context) ? 0.18 : 0.08),
+              borderRadius: BorderRadius.circular(18.r),
+              border: Border.all(color: PawMapLegend.pawFollow.withValues(alpha: 0.35)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40.w,
+                  height: 40.w,
+                  decoration: const BoxDecoration(
+                    color: PawMapLegend.pawFollow,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.share_location_rounded, color: Colors.white, size: 22.sp),
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Text(
+                    'pawmap_help_live_body'.tr,
+                    style: PawMapTheme.fontOn(context,
+                        size: 12.5.sp, weight: FontWeight.w500, height: 1.35),
+                  ),
+                ),
+              ],
+            ),
+          ),
           SizedBox(height: 8.h),
         ],
       ),

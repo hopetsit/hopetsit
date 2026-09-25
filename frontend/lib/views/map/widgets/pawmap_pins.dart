@@ -52,14 +52,17 @@ class PawMapLegend {
   static const Color online = Color(0xFF22C55E);
 
   // Tailles logiques (px) de la légende.
+  // v584 (25/09, Daniel : « mets plus en valeur les utilisateurs et les
+  // PawSpots ») : les MEMBRES sont les plus visibles (48-56), les PawSpots
+  // ressortent (36 / 44 doré), les lieux ordinaires restent discrets (30).
   static const double meSize = 56;
-  static const double friendSize = 44;
-  static const double memberSize = 36;
-  static const double memberClusterHeight = 34;
+  static const double friendSize = 50;
+  static const double memberSize = 46;
+  static const double memberClusterHeight = 36;
   static const double placeSize = 30;
-  static const double placeClusterSize = 36;
-  static const double spotSize = 32;
-  static const double spotGoldSize = 40;
+  static const double placeClusterSize = 34;
+  static const double spotSize = 36;
+  static const double spotGoldSize = 44;
   static const double spotClusterSize = 36;
   static const double requestBubbleHeight = 34;
 
@@ -227,21 +230,27 @@ class PawMapPinPainter {
 
   /// Lueur TURQUOISE qui respire (PawBoost). [phase] 0..1 → sinus doux.
   static void drawBoostGlow(Canvas canvas, Offset center, double radius,
-      double phase) {
+      double phase) =>
+      drawGlow(canvas, center, radius, phase, PawMapLegend.boost);
+
+  /// Lueur qui respire (PawBoost turquoise, PawFollow violet pour la
+  /// personne suivie en direct — v584 25/09).
+  static void drawGlow(Canvas canvas, Offset center, double radius,
+      double phase, Color color) {
     final s = 0.5 + 0.5 * math.sin(phase * 2 * math.pi);
     final r = radius + 5 + 6 * s;
     canvas.drawCircle(
       center,
       r + 6,
       Paint()
-        ..color = PawMapLegend.boost.withValues(alpha: 0.28 + 0.22 * s)
+        ..color = color.withValues(alpha: 0.28 + 0.22 * s)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
     );
     canvas.drawCircle(
       center,
       r,
       Paint()
-        ..color = PawMapLegend.boost.withValues(alpha: 0.55 + 0.35 * s)
+        ..color = color.withValues(alpha: 0.55 + 0.35 * s)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3,
     );
@@ -497,22 +506,37 @@ class PawMapPinPainter {
     bool dashedRing = false,
     bool eyeOff = false,
     double? boostPhase,
+    // v584 (25/09) — auréole VIOLETTE qui respire : la personne que je suis
+    // en direct (PawFollow). Un seul halo par rond : PawBoost > PawFollow.
+    double? followPhase,
+    // v584 (25/09) — « signal perdu » : rond éteint à la couleur du rôle
+    // (anneau plus clair, photo voilée), jamais gris.
+    bool dimmed = false,
+    // v584 (25/09) — icône du rôle quand il n'y a pas de photo.
+    IconData fallbackIcon = Icons.pets_rounded,
     Color fallbackTint = PawMapLegend.owner,
   }) {
     final margin = photoMargin;
     final r = size / 2;
     final c = Offset(margin + r, margin + r);
-    if (boostPhase != null) drawBoostGlow(canvas, c, r, boostPhase);
+    if (boostPhase != null) {
+      drawBoostGlow(canvas, c, r, boostPhase);
+    } else if (followPhase != null) {
+      drawGlow(canvas, c, r, followPhase, PawMapLegend.pawFollow);
+    }
     final circle = Path()..addOval(Rect.fromCircle(center: c, radius: r));
     drawShadow(canvas, circle, blur: 3.5);
     // Anneau (plein ou pointillé) puis liseré blanc, puis la photo.
     const ring = 3.2;
     const white = 2.0;
+    final Color ringPaint = dimmed
+        ? Color.lerp(ringColor, Colors.white, 0.45)!
+        : ringColor;
     if (dashedRing) {
       canvas.drawCircle(c, r, Paint()..color = Colors.white);
-      drawDashedRing(canvas, c, r - ring / 2, ringColor, ring);
+      drawDashedRing(canvas, c, r - ring / 2, ringPaint, ring);
     } else {
-      canvas.drawCircle(c, r, Paint()..color = ringColor);
+      canvas.drawCircle(c, r, Paint()..color = ringPaint);
     }
     canvas.drawCircle(c, r - ring, Paint()..color = Colors.white);
     final photoR = r - ring - white;
@@ -528,7 +552,12 @@ class PawMapPinPainter {
       );
     } else {
       canvas.drawRect(photoRect, Paint()..color = fallbackTint);
-      drawIcon(canvas, Icons.pets_rounded, c, photoR * 1.05, Colors.white);
+      drawIcon(canvas, fallbackIcon, c, photoR * 1.05, Colors.white);
+    }
+    if (dimmed) {
+      // Voile chaud à la couleur du rôle (jamais gris) : « signal perdu ».
+      canvas.drawRect(photoRect,
+          Paint()..color = Color.lerp(ringColor, Colors.white, 0.35)!.withValues(alpha: 0.55));
     }
     // Reflet médaillon.
     canvas.drawOval(
