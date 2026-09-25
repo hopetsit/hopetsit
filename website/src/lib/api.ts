@@ -3053,6 +3053,32 @@ export async function saveMapSeekPrefs(layers: MapLayerPrefs, memberRoles?: stri
   }
 }
 
+// 25/09/2026 (PawMap 587, point 3) — barres repliables de la carte (rail
+// gauche, capsule droite) retenues sur le COMPTE : pawMap.railCollapsed /
+// pawMap.capsuleCollapsed (mêmes clés que l'app, serveur v587). Clé absente
+// (serveur plus ancien) = null → la page retombe sur cet appareil.
+export type MapBarPrefs = { railCollapsed: boolean | null; capsuleCollapsed: boolean | null };
+export async function getMapBarPrefs(): Promise<MapBarPrefs | null> {
+  try {
+    const raw = await request<{ pawMap?: { railCollapsed?: unknown; capsuleCollapsed?: unknown } }>(`/users/me/map-prefs`);
+    const pm = raw?.pawMap || {};
+    return {
+      railCollapsed: typeof pm.railCollapsed === "boolean" ? pm.railCollapsed : null,
+      capsuleCollapsed: typeof pm.capsuleCollapsed === "boolean" ? pm.capsuleCollapsed : null,
+    };
+  } catch {
+    return null;
+  }
+}
+export async function saveMapBarPrefs(patch: Partial<Record<"railCollapsed" | "capsuleCollapsed", boolean>>): Promise<boolean> {
+  try {
+    await request(`/users/me/map-prefs`, { method: "PATCH", body: JSON.stringify({ pawMap: patch }) });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // 25/09/2026 (PawMap 586, point 9) — « Demandes en cours » sur la fiche d'un
 // propriétaire vue par un gardien / promeneur : GET /posts/requests/by-owner/:id
 // (serveur v586 ; lecture seule, ville seulement). Serveur plus ancien (404) →

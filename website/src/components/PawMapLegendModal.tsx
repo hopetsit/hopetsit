@@ -44,6 +44,12 @@ function eyesHtml() {
   return `<span style="display:flex;flex-direction:column;align-items:center;gap:3px">${svg(eye)}${svg(eye + '<path d="M18.2 14.6c-.9-.9-2.4-.3-2.4.9 0 1.5 2.4 3 2.4 3s2.4-1.5 2.4-3c0-1.2-1.5-1.8-2.4-.9z" fill="#F06AA0" stroke="#fff" stroke-width="1.2"/>')}${svg('<path d="M3 3l18 18M10.6 5.3c.5-.1.9-.1 1.4-.1 5 0 8.6 4.2 9.6 6.8-.4 1-1.2 2.3-2.4 3.5M6.6 6.6C4.3 8.1 2.9 10.4 2.4 12c1 2.6 4.6 6.8 9.6 6.8 1.7 0 3.2-.4 4.5-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2"/>')}</span>`;
 }
 
+/** 587 (point 3) — languette des barres repliables (verre chaud + chevron). */
+function barTabHtml(side: "left" | "right") {
+  const d = side === "left" ? "M14 7l-5 5 5 5" : "M10 7l5 5-5 5";
+  return `<span style="display:grid;place-items:center;width:22px;height:38px;border-radius:12px;background:linear-gradient(180deg,#FFFBF7,#FFF2E8);border:1px solid #fff;box-shadow:0 6px 14px -8px rgba(146,64,14,.55)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#3B2A26" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg></span>`;
+}
+
 function seeChipsHtml() {
   const dot = (bg: string, ring = "#fff") => `<span style="width:14px;height:14px;border-radius:5px;background:${bg};border:1.5px solid ${ring}"></span>`;
   return `<span style="display:grid;grid-template-columns:repeat(4,14px);gap:3px">${["#F06AA0", "#C92A12", "#2563EB", "#16A34A", "#0E7490", "#17141F", "#D32F2F", "#C92A12"].map((c, i) => dot(c, i === 5 ? "#F4C04A" : "#fff")).join("")}</span>`;
@@ -81,6 +87,7 @@ export function PawMapLegendModal({ open, onClose, role = "owner" }: { open: boo
     { html: handleHtml(ROLE_COLOR[role]), title: t("m586_leg_handle_t"), body: t("m586_leg_handle_b") },
     { html: roundHtml("linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)", MEGAPHONE, "#C92A12"), title: t("m586_leg_publish_t"), body: t("m586_leg_publish_b"), color: ROLE_COLOR.owner },
     { html: `<span style="display:flex;gap:4px">${roundHtml("linear-gradient(165deg,#2C2533,#17141F)", LIVE, "rgba(23,20,31,0.7)", 30)}${roundHtml("linear-gradient(165deg,#34B857,#16A34A)", LIVE, "#16A34A", 30)}</span>`, title: t("m586_leg_live_t"), body: t("m587_leg_live_b"), color: "#17141F" },
+    { html: `<span style="display:flex;gap:4px">${barTabHtml("left")}${barTabHtml("right")}</span>`, title: t("m587_leg_bars_t"), body: t("m587_leg_bars_b"), color: "#17141F" },
     { html: eyesHtml(), title: t("m586_leg_eye_t"), body: t("m586_leg_eye_b"), color: "#17141F" },
     { html: seeChipsHtml(), title: t("m586_leg_see_t"), body: t("m586_leg_see_b") },
   ];

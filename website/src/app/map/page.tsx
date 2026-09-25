@@ -68,6 +68,8 @@ import {
   getFriendsLivePositions,
   getMyBenefits,
   getMapSeekPrefs,
+  getMapBarPrefs,
+  saveMapBarPrefs,
   saveMapSeekPrefs,
   saveMapLayerPrefs,
   type MapLayerPrefs,
@@ -295,6 +297,35 @@ export default function MapPage() {
     try { setDark(localStorage.getItem("hopetsit:mapDark") === "1"); } catch { /* ignore */ }
   }, []);
   const [legendOpen, setLegendOpen] = useState(false);
+  // 25/09 (587, point 3) — barres repliables : rail gauche et capsule droite
+  // glissent hors de l'écran (transform seul, 200 ms) en laissant une
+  // languette ; état retenu sur le COMPTE (pawMap.railCollapsed /
+  // capsuleCollapsed, mêmes clés que l'app), recopié sur l'appareil pour
+  // l'affichage immédiat et comme repli si le serveur ne le garde pas.
+  const [railCollapsed, setRailCollapsed] = useState(false);
+  const [capsuleCollapsed, setCapsuleCollapsed] = useState(false);
+  useEffect(() => {
+    try {
+      setRailCollapsed(localStorage.getItem("hopetsit:mapRailCollapsed") === "1");
+      setCapsuleCollapsed(localStorage.getItem("hopetsit:mapCapsuleCollapsed") === "1");
+    } catch { /* stockage indisponible */ }
+    if (!getStoredUser()) return;
+    let stop = false;
+    void getMapBarPrefs().then((p) => {
+      if (stop || !p) return;
+      if (p.railCollapsed !== null) { setRailCollapsed(p.railCollapsed); try { localStorage.setItem("hopetsit:mapRailCollapsed", p.railCollapsed ? "1" : "0"); } catch { /* */ } }
+      if (p.capsuleCollapsed !== null) { setCapsuleCollapsed(p.capsuleCollapsed); try { localStorage.setItem("hopetsit:mapCapsuleCollapsed", p.capsuleCollapsed ? "1" : "0"); } catch { /* */ } }
+    });
+    return () => { stop = true; };
+  }, []);
+  function toggleBar(key: "railCollapsed" | "capsuleCollapsed") {
+    const cur = key === "railCollapsed" ? railCollapsed : capsuleCollapsed;
+    const next = !cur;
+    if (key === "railCollapsed") setRailCollapsed(next); else setCapsuleCollapsed(next);
+    try { localStorage.setItem(key === "railCollapsed" ? "hopetsit:mapRailCollapsed" : "hopetsit:mapCapsuleCollapsed", next ? "1" : "0"); } catch { /* */ }
+    if (getStoredUser()) void saveMapBarPrefs({ [key]: next });
+  }
+
   // 25/09 (585) — capsule droite : zoom, ma position, satellite, membres.
   const mapRef = useRef<LeafletMap | null>(null);
   const [satellite, setSatellite] = useState(false);
@@ -1237,7 +1268,7 @@ export default function MapPage() {
       {/* ── 2 COLONNES sur ordinateur : carte | panneau ── */}
       <div className="mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5">
         {/* ── COLONNE CARTE ── */}
-        <div ref={mapColRef} className="relative -mx-4 h-[64vh] min-h-[420px] lg:mx-0 lg:h-[calc(100vh-230px)] lg:min-h-[560px]" style={fitH ? { height: fitH } : undefined}>
+        <div ref={mapColRef} className="relative -mx-4 overflow-x-clip h-[64vh] min-h-[420px] lg:mx-0 lg:h-[calc(100vh-230px)] lg:min-h-[560px]" style={fitH ? { height: fitH } : undefined}>
           {/* 25/09 (585, lot 2 — bug 15) — bouton « Amis » bien visible : amis,
               demandes, en direct et PawFamily (page /friends). */}
           {/* 25/09 (587, point 1a) — coin haut-gauche, juste sous le titre
@@ -1397,7 +1428,8 @@ export default function MapPage() {
               ombre chaude — jamais de gris), boutons 44 px espacés de 10 px,
               chacun un disque dégradé de sa couleur + reflet + icône blanche ;
               actif = anneau blanc + léger agrandissement. Même ordre que l'app. */}
-          <div onPointerDown={revealControls} className={`absolute bottom-6 left-3 z-[1000] ${fadeCls}`}>
+          <div className="absolute bottom-6 left-3 z-[1000]" style={{ transform: railCollapsed ? "translateX(calc(-100% - 12px))" : "translateX(0)", transition: "transform 200ms cubic-bezier(.2,.8,.2,1)" }}>
+          <div onPointerDown={revealControls} className={fadeCls} {...inertIf(railCollapsed)}>
             <div className="flex flex-col gap-2.5 rounded-[30px] p-[6px]" style={glassStyle(dark)}>
               {(
                 [
@@ -1451,10 +1483,13 @@ export default function MapPage() {
               ))}
             </div>
           </div>
+          <BarTab side="left" collapsed={railCollapsed} dark={dark} className={fadeCls} label={railCollapsed ? t("m587_rail_show") : t("m587_rail_hide")} onClick={() => { revealControls(); toggleBar("railCollapsed"); }} />
+          </div>
 
           {/* CAPSULE DROITE (même verre) : zoom, ma position (accent du rôle),
               satellite, membres. Alignée en bas sur le rail gauche. */}
-          <div onPointerDown={revealControls} className={`absolute bottom-6 right-3 z-[1000] ${fadeCls}`}>
+          <div className="absolute bottom-6 right-3 z-[1000]" style={{ transform: capsuleCollapsed ? "translateX(calc(100% + 12px))" : "translateX(0)", transition: "transform 200ms cubic-bezier(.2,.8,.2,1)" }}>
+          <div onPointerDown={revealControls} className={fadeCls} {...inertIf(capsuleCollapsed)}>
             <div className="flex flex-col items-center rounded-[30px] p-[6px]" style={glassStyle(dark)}>
               <CapsuleBtn dark={dark} label={t("map_zoom_in")} onClick={() => { try { mapRef.current?.zoomIn(); } catch { /* */ } }}>
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
@@ -1522,6 +1557,8 @@ export default function MapPage() {
                 </>
               )}
             </div>
+          </div>
+          <BarTab side="right" collapsed={capsuleCollapsed} dark={dark} className={fadeCls} label={capsuleCollapsed ? t("m587_caps_show") : t("m587_caps_hide")} onClick={() => { revealControls(); toggleBar("capsuleCollapsed"); }} />
           </div>
 
           {/* 25/09 (586, point 1) — POIGNÉE « Options » (téléphone, tablette) :
@@ -2181,6 +2218,35 @@ function GlassRound({ dark, onClick, label, pressed, children }: { dark: boolean
   return (
     <button type="button" onClick={onClick} aria-label={label} title={label} aria-pressed={pressed} className="grid h-11 w-11 place-items-center rounded-full transition-transform duration-200 hover:scale-[1.05] active:scale-95" style={glassStyle(dark)}>
       {children}
+    </button>
+  );
+}
+/** Barre rangée hors écran : ni focus clavier ni lecteur d'écran (React 18 : `inert` en attribut texte). */
+function inertIf(on: boolean): Record<string, string> {
+  return on ? { inert: "", "aria-hidden": "true" } : {};
+}
+/**
+ * 25/09 (587, point 3) — languette de repli d'une barre : petite flèche en
+ * verre teinté au bord INTÉRIEUR de la barre (elle suit la barre quand elle
+ * glisse et reste seule visible au bord de l'écran). Zone tactile 44 × 48.
+ */
+function BarTab({ side, collapsed, dark, label, onClick, className = "" }: { side: "left" | "right"; collapsed: boolean; dark: boolean; label: string; onClick: () => void; className?: string }) {
+  // Barre gauche : « < » la range, « > » la ramène ; barre droite : l'inverse.
+  const pointLeft = side === "left" ? !collapsed : collapsed;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      aria-expanded={!collapsed}
+      className={`absolute top-1/2 grid h-12 w-11 -translate-y-1/2 ${side === "left" ? "left-full justify-items-start pl-1" : "right-full justify-items-end pr-1"} items-center ${className}`}
+    >
+      <span className="grid h-11 w-6 place-items-center rounded-[12px] transition-transform duration-200 hover:scale-[1.06] active:scale-95" style={glassStyle(dark)}>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke={dark ? "#FBEFE6" : "#3B2A26"} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d={pointLeft ? "M14 7l-5 5 5 5" : "M10 7l5 5-5 5"} />
+        </svg>
+      </span>
     </button>
   );
 }
