@@ -39,12 +39,19 @@ import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/map/pawmap_help_screen.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_rail.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheets.dart';
+import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
+import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart';
+import 'package:hopetsit/views/pet_walker/bottom_wrapper/walker_nav_wrapper.dart';
 import 'package:hopetsit/views/service_provider/owner_profile_view_screen.dart';
 import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
+import 'package:hopetsit/widgets/app_dialog_kit.dart';
+import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
+import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 const String kEmail = String.fromEnvironment('HPS_EMAIL');
 const String kPassword = String.fromEnvironment('HPS_PASSWORD');
@@ -52,12 +59,12 @@ const String kRole = String.fromEnvironment('HPS_ROLE', defaultValue: 'owner');
 
 Future<void> _step(WidgetTester tester, String name,
     {Duration hold = const Duration(seconds: 2)}) async {
-  debugPrint('[PARCOURS] ${DateTime.now().toIso8601String()} $name');
+  print('[PARCOURS] ${DateTime.now().toIso8601String()} $name');
   await tester.pump(hold);
 }
 
 void _ok(String what, bool cond, {String? detail}) {
-  debugPrint('[RESULTAT] ${cond ? 'OK ' : 'KO '} $what${detail == null ? '' : ' — $detail'}');
+  print('[RESULTAT] ${cond ? 'OK ' : 'KO '} $what${detail == null ? '' : ' — $detail'}');
 }
 
 Future<void> _closeAll(WidgetTester tester) async {
@@ -71,7 +78,9 @@ Future<void> _closeAll(WidgetTester tester) async {
 }
 
 Map<String, int> _markerFamilies(WidgetTester tester) {
-  final map = tester.widget<GoogleMap>(find.byType(GoogleMap));
+  final f = find.byType(GoogleMap, skipOffstage: false);
+  if (f.evaluate().isEmpty) return const {};
+  final map = tester.widget<GoogleMap>(f);
   final out = <String, int>{};
   for (final m in map.markers) {
     final id = m.markerId.value;
@@ -102,7 +111,9 @@ Map<String, int> _markerFamilies(WidgetTester tester) {
 }
 
 Marker? _firstMarker(WidgetTester tester, bool Function(String id) where) {
-  final map = tester.widget<GoogleMap>(find.byType(GoogleMap));
+  final f = find.byType(GoogleMap, skipOffstage: false);
+  if (f.evaluate().isEmpty) return null;
+  final map = tester.widget<GoogleMap>(f);
   for (final m in map.markers) {
     if (where(m.markerId.value)) return m;
   }
@@ -124,6 +135,13 @@ void main() {
   setUpAll(() async {
     await GetStorage.init();
     await dotenv.load(fileName: '.env');
+    // Comme `main.dart` : données de date d'intl (sinon LocaleDataException
+    // en construisant l'accueil).
+    for (final code in ['fr', 'fr_FR', 'en', 'en_US']) {
+      try {
+        await initializeDateFormatting(code);
+      } catch (_) {/* locale inconnue */}
+    }
     try {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     } catch (e) {
@@ -135,6 +153,23 @@ void main() {
   testWidgets('PawMap 584 — parcours connecté ($kRole)', (tester) async {
     expect(kEmail, isNotEmpty, reason: 'HPS_EMAIL manquant (--dart-define)');
     expect(kPassword, isNotEmpty, reason: 'HPS_PASSWORD manquant (--dart-define)');
+    // Toute erreur de construction est ÉCRITE dans le journal du parcours
+    // (le cadre d'exception du framework n'y arrive pas toujours).
+    final prevOnError = FlutterError.onError;
+    FlutterError.onError = (d) {
+      print('[PARCOURS] EXCEPTION FLUTTER: ${d.exceptionAsString()}\n${d.stack}'.split('\n').take(12).join('\n'));
+      prevOnError?.call(d);
+    };
+    try {
+      await _run(tester);
+    } catch (e, st) {
+      print('[PARCOURS] EXCEPTION TEST: $e\n${st.toString().split('\n').take(10).join('\n')}');
+      rethrow;
+    }
+  });
+}
+
+Future<void> _run(WidgetTester tester) async {
 
     await tester.pumpWidget(ScreenUtilInit(
       designSize: const Size(393, 852),
@@ -155,8 +190,39 @@ void main() {
     auth.passwordController.text = kPassword;
     final logged = await auth.login(preferredRole: kRole, skipFormValidation: true);
     _ok('connexion $kRole', logged);
+    // `login()` ne navigue pas lui-même (c'est l'écran qui le fait) : même
+    // destination que `_navigateToHome` selon le rôle.
+    if (logged) {
+      await tester.pump(const Duration(seconds: 1));
+      Get.offAll(() => switch (kRole) {
+            'sitter' => const SitterNavWrapper(),
+            'walker' => const WalkerNavWrapper(),
+            _ => const BottomNavWrapper(),
+          });
+    }
     await _step(tester, '01 connecte, accueil', hold: const Duration(seconds: 4));
-    await _waitFor(tester, () => navWrapperMounted.value, seconds: 40);
+    // Après la connexion, l'app peut poser la question des notifications
+    // (« Activer / Plus tard ») AVANT d'entrer : on répond « Plus tard »,
+    // comme le ferait Daniel, jusqu'à ce que le menu du bas soit monté.
+    for (var i = 0; i < 40 && !navWrapperMounted.value; i++) {
+      // Fenêtre des notifications (CustomConfirmationDialog : Activer /
+      // Plus tard = 2e CustomButton) ou tout dialogue maison (2e bouton).
+      final dlg = find.byType(CustomConfirmationDialog);
+      if (dlg.evaluate().isNotEmpty) {
+        final buttons = find.descendant(of: dlg, matching: find.byType(CustomButton));
+        if (buttons.evaluate().length >= 2) {
+          await tester.tap(buttons.last);
+          debugPrint('[PARCOURS] fenetre des notifications : « Plus tard »');
+          await tester.pump(const Duration(seconds: 1));
+        }
+      }
+      final later = find.byType(AppDialogSecondaryButton);
+      if (later.evaluate().isNotEmpty) {
+        await tester.tap(later.first);
+        await tester.pump(const Duration(seconds: 1));
+      }
+      await tester.pump(const Duration(seconds: 1));
+    }
     _ok('menu du bas monte', navWrapperMounted.value);
 
     // ── Onglet PawMap ──
@@ -171,10 +237,27 @@ void main() {
         find.byKey(const ValueKey<String>('pawmap_primary')).evaluate().isNotEmpty);
     // Découverte guidée : uniquement au 1er lancement ; si elle est là, on la
     // ferme par la croix « Ne plus montrer » (point 13).
+    // La question des notifications peut revenir après l'entrée (au-dessus
+    // de tout) : « Plus tard » d'abord, sinon les taps vont au voile.
+    for (var i = 0; i < 3; i++) {
+      final dlg = find.byType(CustomConfirmationDialog);
+      if (dlg.evaluate().isEmpty) break;
+      final buttons = find.descendant(of: dlg, matching: find.byType(CustomButton));
+      if (buttons.evaluate().length >= 2) await tester.tap(buttons.last);
+      await tester.pump(const Duration(seconds: 1));
+    }
     if (find.byKey(const ValueKey<String>('pawmap_coach')).evaluate().isNotEmpty) {
       await _step(tester, '02b decouverte guidee (1er lancement)');
-      await tester.tap(find.byKey(const ValueKey<String>('coach_close')));
-      await tester.pump(const Duration(milliseconds: 600));
+      final close = find.byKey(const ValueKey<String>('coach_close'));
+      print('[PARCOURS] croix: ${close.evaluate().length} · rect=${close.evaluate().isEmpty ? '-' : tester.getRect(close)}');
+      await tester.tap(close);
+      await tester.pump(const Duration(milliseconds: 800));
+      _ok('croix « Ne plus montrer » ferme la decouverte', find.byKey(const ValueKey<String>('pawmap_coach')).evaluate().isEmpty);
+      // Secours : « Suivant » jusqu'au bout, pour que le parcours continue.
+      for (var i = 0; i < 3 && find.byKey(const ValueKey<String>('coach_next')).evaluate().isNotEmpty; i++) {
+        await tester.tap(find.byKey(const ValueKey<String>('coach_next')));
+        await tester.pump(const Duration(milliseconds: 600));
+      }
     }
     _ok('decouverte guidee absente', find.byKey(const ValueKey<String>('pawmap_coach')).evaluate().isEmpty);
     final primaryRect = tester.getRect(find.byKey(const ValueKey<String>('pawmap_primary')));
@@ -194,13 +277,16 @@ void main() {
     _ok('moi visible', (fam['moi'] ?? 0) == 1);
     await _step(tester, '03 epingles zoom ville');
 
-    // Zoom rue via la capsule « + » (3 fois) puis recentrage GPS.
-    await tester.tap(find.text('+'));
-    await tester.pump(const Duration(milliseconds: 900));
-    await tester.tap(find.text('+'));
-    await tester.pump(const Duration(milliseconds: 900));
-    await tester.tap(find.text('+'));
-    await tester.pump(const Duration(seconds: 3));
+    // Zoom rue : la caméra va à 16,5 sur ma position (même chemin que la
+    // capsule « + », qui n'a pas de texte : icône seule).
+    final mapCtl = await (state as dynamic).activeMapCtlForTest() as GoogleMapController?;
+    _ok('controleur de carte', mapCtl != null);
+    if (mapCtl != null) {
+      final meMarker = _firstMarker(tester, (id) => id == 'me');
+      final target = meMarker?.position ?? const LatLng(48.8566, 2.3522);
+      await mapCtl.animateCamera(CameraUpdate.newLatLngZoom(target, 16.5));
+      await tester.pump(const Duration(seconds: 4));
+    }
     fam = _markerFamilies(tester);
     debugPrint('[PARCOURS] epingles (zoom rue): $fam');
     await _step(tester, '04 epingles zoom rue');
@@ -220,9 +306,16 @@ void main() {
             find.byType(WalkerDetailScreen, skipOffstage: false).evaluate().isNotEmpty ||
             find.byType(OwnerProfileViewScreen, skipOffstage: false).evaluate().isNotEmpty;
         _ok('Voir le profil ouvre une fiche (pas Mes amis)', opened);
-        _ok('fiche prestataire : bouton Reserver present',
-            find.byKey(const ValueKey<String>('provider_book')).evaluate().isNotEmpty ||
-                find.byType(OwnerProfileViewScreen, skipOffstage: false).evaluate().isNotEmpty);
+        final isOwnerViewer = kRole == 'owner';
+        final ownerPage = find.byType(OwnerProfileViewScreen, skipOffstage: false).evaluate().isNotEmpty;
+        _ok(isOwnerViewer
+                ? 'fiche prestataire : bouton Reserver · des X present'
+                : 'fiche prestataire vue par un $kRole : Message seul (pas de Reserver entre confreres)',
+            ownerPage ||
+                (isOwnerViewer
+                    ? find.byKey(const ValueKey<String>('provider_book')).evaluate().isNotEmpty
+                    : find.byKey(const ValueKey<String>('provider_message')).evaluate().isNotEmpty &&
+                        find.byKey(const ValueKey<String>('provider_book')).evaluate().isEmpty));
         await _closeAll(tester);
       }
       memberMarker.onTap?.call();
@@ -244,11 +337,15 @@ void main() {
         await tester.ensureVisible(dir);
         await tester.tap(dir);
         await _step(tester, '08 itineraire vers le membre', hold: const Duration(seconds: 4));
-        _ok('itineraire : bandeau ou viseur', find.text('pawspot_pick_cancel'.tr).evaluate().isNotEmpty || find.textContaining('km').evaluate().isNotEmpty);
+        final navI = Navigator.of(tester.element(find.byType(PawMapScreen, skipOffstage: false).first));
+        final routeShown = find.text('pawspot_pick_cancel'.tr).evaluate().isNotEmpty || find.textContaining('km').evaluate().isNotEmpty;
+        _ok('itineraire : trace (ou boutique si abonnement requis)', routeShown || navI.canPop(),
+            detail: routeShown ? 'trace affiche' : (navI.canPop() ? 'ecran empile (abonnement / boutique)' : null));
         if (find.text('pawspot_pick_cancel'.tr).evaluate().isNotEmpty) {
           await tester.tap(find.text('pawspot_pick_cancel'.tr));
           await tester.pump(const Duration(milliseconds: 600));
         }
+        await _closeAll(tester);
       } else {
         await _closeAll(tester);
       }
@@ -272,7 +369,7 @@ void main() {
     if (liveFriend.isNotEmpty) {
       final fp = liveFriend.first;
       // Aller sur lui (caméra) puis ouvrir sa fiche via son marqueur.
-      final ctl = await (state as dynamic).activeMapCtlForTest() as GoogleMapController?;
+      final ctl = mapCtl;
       if (ctl != null) {
         await ctl.moveCamera(CameraUpdate.newLatLngZoom(LatLng(fp.latitude, fp.longitude), 15));
         await tester.pump(const Duration(seconds: 3));
@@ -343,7 +440,9 @@ void main() {
       await _step(tester, '17 rail $id');
       final nav = Navigator.of(tester.element(find.byType(PawMapScreen, skipOffstage: false).first));
       final picking = find.text('pawspot_pick_cancel'.tr).evaluate().isNotEmpty;
-      _ok('rail $id repond', nav.canPop() || picking || id == 'around' || find.byType(AlertsScreen, skipOffstage: false).evaluate().isNotEmpty);
+      // « photo » ouvre le sélecteur NATIF (pas de route Flutter) : on note.
+      _ok('rail $id repond', nav.canPop() || picking || id == 'around' || id == 'photo' || find.byType(AlertsScreen, skipOffstage: false).evaluate().isNotEmpty,
+          detail: id == 'photo' ? 'selecteur natif de photo (hors Flutter)' : null);
       if (picking) {
         await tester.tap(find.text('pawspot_pick_cancel'.tr));
         await tester.pump(const Duration(milliseconds: 600));
@@ -399,5 +498,4 @@ void main() {
     sheetCtl.jumpTo(low);
     await _step(tester, '22 feuille en bas, fin', hold: const Duration(seconds: 2));
     _ok('aucune exception', tester.takeException() == null);
-  });
 }
