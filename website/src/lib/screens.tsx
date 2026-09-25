@@ -6,6 +6,9 @@
 // avec l'app à jour : nouveau design, fond à pattes, zéro gris, accents
 // français corrigés. Les anciennes (v561, 13/09) montraient l'app d'avant les
 // refontes 571→580 ; v573 ne couvrait que la carte.
+// v589 (26/09/2026) — 01-carte / 01-map REFAITES sur iPhone 17e (build 588) :
+// nouvelle PawMap (languette Options, pilule Direct, capsule droite, membres
+// avec photo), Paris, 9:41, mêmes noms et dimensions (1080×2348, q82).
 
 export type ScreenShot = { src: string; alt: string };
 
