@@ -413,6 +413,10 @@ sitterSchema.pre('save', function encryptSensitive(next) {
 
 // Create geospatial index for location queries (e.g., finding nearby sitters)
 sitterSchema.index({ 'location': '2dsphere' });
+// v585 — position de PROFIL (`homeLocation`) mémorisée à part du partage en
+// direct : la carte pose une personne hors ligne là où elle s'est inscrite
+// (utils/personMapPosition.js).
+sitterSchema.plugin(require('../utils/personMapPosition').homeLocationPlugin);
 // v23.1 part 108 — 2dsphere sur mapBoostLocation (PawSpot custom).
 sitterSchema.index({ 'mapBoostLocation': '2dsphere' }, { sparse: true });
 

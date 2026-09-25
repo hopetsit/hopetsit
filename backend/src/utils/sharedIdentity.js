@@ -235,7 +235,7 @@ const buildSiblingSet = (payload, sibling, { allowEmpty = [] } = {}) => {
   return $set;
 };
 
-const SIBLING_SELECT = [...SHARED_IDENTITY_FIELDS, 'location', 'updatedAt', 'email', 'oldId'].join(' ');
+const SIBLING_SELECT = [...SHARED_IDENTITY_FIELDS, 'location', '+homeLocation', 'updatedAt', 'email', 'oldId'].join(' ');
 
 /**
  * Recopie vers les documents frères (même e-mail / même oldId) UNIQUEMENT les
@@ -355,14 +355,19 @@ async function fillMissingIdentityFromSiblings(account, role) {
     if (needsLocation) {
       for (const sib of siblings) {
         if (!hasValidCoordinates(sib.location)) continue;
+        // v585 — la position de PROFIL du frère (`homeLocation`), jamais sa
+        // dernière position de partage en direct (utils/personMapPosition.js).
+        const home = sib.homeLocation && hasValidCoordinates(sib.homeLocation)
+          ? sib.homeLocation.coordinates : null;
+        const coordsSrc = home || sib.location.coordinates;
         $set['location.type'] = 'Point';
-        $set['location.coordinates'] = sib.location.coordinates;
+        $set['location.coordinates'] = coordsSrc;
         if (!isEmptyValue(sib.location.city)) $set['location.city'] = sib.location.city;
         if (sib.location.locationType) $set['location.locationType'] = sib.location.locationType;
         account.location = {
           ...(account.location && typeof account.location === 'object' ? account.location : {}),
           type: 'Point',
-          coordinates: sib.location.coordinates,
+          coordinates: coordsSrc,
           city: sib.location.city || (account.location && account.location.city) || '',
           ...(sib.location.locationType ? { locationType: sib.location.locationType } : {}),
         };

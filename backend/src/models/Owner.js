@@ -271,6 +271,10 @@ const ownerSchema = new mongoose.Schema(
 
 // Create geospatial index for location queries (e.g., finding nearby sitters)
 ownerSchema.index({ 'location': '2dsphere' });
+// v585 — position de PROFIL (`homeLocation`) mémorisée à part du partage en
+// direct : la carte pose une personne hors ligne là où elle s'est inscrite
+// (utils/personMapPosition.js).
+ownerSchema.plugin(require('../utils/personMapPosition').homeLocationPlugin);
 // v23.1 part 108 — 2dsphere sur mapBoostLocation (PawSpot custom).
 ownerSchema.index({ 'mapBoostLocation': '2dsphere' }, { sparse: true });
 

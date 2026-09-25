@@ -201,7 +201,9 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
       'isStaff isOnline oldId email preferences.hideFromMap lastSeenAt ' +
       // v584 — drapeaux d'épingle (PawBoost, identité vérifiée, dispo du jour).
       'boostExpiry kycStatus identityVerification.status availableDates ' +
-      'unavailableDates availableTimeSlots availableDays';
+      'unavailableDates availableTimeSlots availableDays '
+      // v585 — position de profil + fraîcheur (utils/personMapPosition.js).
+      + '+homeLocation city updatedAt createdAt';
     // v565 §6 — présence RÉELLE (sockets connectés, identité complète), plus
     // le champ figé `isOnline` du doc. Index construit une fois par requête.
     let presenceIdx = null;
@@ -284,51 +286,73 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
 
     const avatarUrl = (a) =>
       (a && (typeof a === 'object' ? a.url : a)) || '';
-    const members = [];
-    const seen = new Set();
-    for (const { d, role } of tagged) {
+    // v585 (25/09) — une PERSONNE = UN point, posé là où elle est (direct
+    // actif, sinon position de profil — utils/personMapPosition.js), avec
+    // tous ses rôles (`roles`) : plus deux ronds superposés « 2 » pour la
+    // même personne propriétaire + gardienne.
+    const { groupByPerson, pickPersonPosition } = require('../utils/personMapPosition');
+    const eligible = [];
+    for (const t of tagged) {
+      const { d } = t;
       const idStr = String(d._id);
-      if (seen.has(idStr)) continue;
       // S'exclure soi-même (mêmes _id / email / oldId sur les 3 rôles).
       if (idStr === String(u.id)) continue;
       if (selfEmail && d.email && d.email === selfEmail) continue;
       if (selfOldId && d.oldId != null && String(d.oldId) === selfOldId) continue;
-
-      // v551 — « masquer mon profil sur la carte » (Profil → Préférences).
-      // v584 — règle partagée (utils/mapVisibility) : visible pour ses amis.
+      // v551 / v584 — « masquer mon profil sur la carte » : visible de ses amis.
       if (!mapVisibility.visibleToViewer(d, { friendIds })) continue;
-      // v584 (25/09) — l'app affiche l'anneau rose d'un AMI depuis ce
-      // drapeau (et non plus par comparaison d'ids entre rôles).
-      const isFriend = friendIds.has(idStr);
-
-      const pawspot = d.mapBoostExpiry && new Date(d.mapBoostExpiry) > now;
+      const coords = d.location?.coordinates;
+      if (!Array.isArray(coords) || coords.length < 2) continue;
+      eligible.push(t);
+    }
+    const flagsOf = (d) => {
+      const idStr = String(d._id);
+      const pawspot = !!(d.mapBoostExpiry && new Date(d.mapBoostExpiry) > now);
       const premiumSub = subSet.has(idStr);
       const staff = d.isStaff === true
         || (d.email && staffEmails.has(d.email))
         || (d.oldId != null && staffOldIds.has(String(d.oldId)));
-      // Membre actif = abonné PawSpot / Premium / PawFollow / staff. Sinon exclu.
-      if (!pawspot && !premiumSub && !staff) continue;
-
-      const coords = d.location?.coordinates;
-      if (!Array.isArray(coords) || coords.length < 2) continue;
-
-      seen.add(idStr);
+      return { idStr, pawspot, premiumSub, staff };
+    };
+    const members = [];
+    for (const entries of groupByPerson(eligible).values()) {
+      const flags = entries.map((e) => flagsOf(e.d));
+      // Membre actif = abonné PawSpot / Premium / PawFollow / staff (un rôle suffit).
+      if (!flags.some((f) => f.pawspot || f.premiumSub || f.staff)) continue;
+      const pos = pickPersonPosition(entries, { now });
+      if (!pos) continue;
+      const { d, role } = pos.entry;
+      const idStr = String(d._id);
+      const ids = entries.map((e) => String(e.d._id));
+      const anyStaff = flags.some((f) => f.staff);
+      const ordered = [pos.entry, ...entries.filter((e) => e !== pos.entry)];
       members.push({
         id: idStr,
         role,
+        roles: ordered.map((e) => ({ id: String(e.d._id), role: e.role })),
+        personIds: ids,
         name: d.name || '',
-        avatar: avatarUrl(d.avatar) || avatarUrl(d.profilePicture),
-        location: { coordinates: coords },
+        avatar: avatarUrl(d.avatar) || avatarUrl(d.profilePicture)
+          || entries.map((e) => avatarUrl(e.d.avatar) || avatarUrl(e.d.profilePicture)).find(Boolean) || '',
+        location: { coordinates: pos.coordinates },
+        positionSource: pos.source,
         // couronne 👑 si Premium/staff ; anneau/halo rose pour tous les membres.
-        isPremium: premiumSub || staff,
-        isPawSpot: !!pawspot,
+        isPremium: flags.some((f) => f.premiumSub) || anyStaff,
+        isPawSpot: flags.some((f) => f.pawspot),
         // v556 — pour la couleur du halo (voir paw_map_screen._haloColorFor).
-        isPremiumOnly: premiumOnlySet.has(idStr) || staff,
-        hasPawFollow: pawFollowSet.has(idStr),
-        hasPawSpot: !!pawspot,
-        isOnline: presenceIdx ? isIdentityOnline(d, presenceIdx) : false,
-        lastSeenAt: d.lastSeenAt ? new Date(d.lastSeenAt).toISOString() : null,
-        isFriend,
+        isPremiumOnly: ids.some((x) => premiumOnlySet.has(x)) || anyStaff,
+        hasPawFollow: ids.some((x) => pawFollowSet.has(x)),
+        hasPawSpot: flags.some((f) => f.pawspot),
+        isOnline: presenceIdx
+          ? entries.some((e) => isIdentityOnline(e.d, presenceIdx)) : false,
+        lastSeenAt: (() => {
+          const t = entries.map((e) => (e.d.lastSeenAt ? new Date(e.d.lastSeenAt).getTime() : 0))
+            .reduce((m, x) => Math.max(m, x), 0);
+          return t > 0 ? new Date(t).toISOString() : null;
+        })(),
+        // v585 — ami si L'UN de ses profils est ami de L'UN des miens
+        // (`friendIds` contient déjà tous les rôles des deux côtés).
+        isFriend: ids.some((x) => friendIds.has(x)),
         // v584 — épingles de la légende : lueur turquoise PawBoost, coche
         // « identité vérifiée », filtre « disponible aujourd'hui ».
         ...mapVisibility.pinFlags(d, now),
@@ -394,13 +418,20 @@ async function _withHiddenFriends(req, payload) {
     payload = {
       ...payload,
       members: (payload.members || []).map((m) => (
-        friendPersonIds.has(String(m.id)) ? { ...m, isFriend: true } : m
+        (friendPersonIds.has(String(m.id))
+          || (m.personIds || []).some((x) => friendPersonIds.has(String(x))))
+          ? { ...m, isFriend: true } : m
       )),
     };
-    const already = new Set((payload.members || []).map((m) => m.id));
+    // v585 — un point porte TOUS les ids de la personne (`personIds`).
+    const already = new Set();
+    for (const m of payload.members || []) {
+      already.add(String(m.id));
+      for (const x of (m.personIds || [])) already.add(String(x));
+    }
     const missing = [...friendIds].filter((id) => !already.has(id));
     if (!missing.length) return payload;
-    const sel = 'name avatar profilePicture location preferences.hideFromMap';
+    const sel = 'name avatar profilePicture location preferences.hideFromMap +homeLocation city updatedAt email';
     const docs = (await Promise.all([
       Owner.find({ _id: { $in: missing } }).select(sel).lean()
         .then((r) => r.map((d) => ({ d, role: 'owner' }))),
@@ -411,15 +442,20 @@ async function _withHiddenFriends(req, payload) {
     ])).flat();
     const extra = [];
     const avatarUrl = (a) => (a && (typeof a === 'object' ? a.url : a)) || '';
-    for (const { d, role } of docs) {
-      if (d.preferences?.hideFromMap !== true) continue; // déjà dans le cache
-      const c = d.location?.coordinates;
-      if (!Array.isArray(c) || c.length < 2) continue;
-      const [lng, lat] = c.map(Number);
+    const { groupByPerson, pickPersonPosition } = require('../utils/personMapPosition');
+    const hidden = docs.filter(({ d }) => d.preferences?.hideFromMap === true); // les autres sont dans le cache
+    for (const entries of groupByPerson(hidden).values()) {
+      const pos = pickPersonPosition(entries);
+      if (!pos) continue;
+      const { d, role } = pos.entry;
+      const [lng, lat] = pos.coordinates.map(Number);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
       extra.push({
         id: String(d._id),
         role,
+        roles: entries.map((e) => ({ id: String(e.d._id), role: e.role })),
+        personIds: entries.map((e) => String(e.d._id)),
+        positionSource: pos.source,
         name: d.name || '',
         avatar: avatarUrl(d.avatar) || avatarUrl(d.profilePicture),
         location: { coordinates: _blur(lat, lng, String(d._id)) },
@@ -461,6 +497,8 @@ router.get('/members/world', requireAuth, async (req, res) => {
     };
     const sel = 'name avatar profilePicture location mapBoostExpiry isStaff '
       + 'email oldId rating reviewsCount hourlyRate dailyRate walkRates currency '
+      // v585 — position de profil, ville, fraîcheur (personMapPosition).
+      + '+homeLocation city updatedAt createdAt '
       // v584 — drapeaux d'épingle.
       + 'boostExpiry kycStatus identityVerification.status availableDates '
       + 'unavailableDates availableTimeSlots availableDays';
@@ -507,29 +545,58 @@ router.get('/members/world', requireAuth, async (req, res) => {
       if (Number(d.dailyRate) > 0) nums.push(Number(d.dailyRate));
       return nums.length ? Math.min.apply(null, nums) : 0;
     };
+    // v585 (25/09) — UNE personne = UN point, mais :
+    //   · posé là où la personne EST (règle `pickPersonPosition` : direct
+    //     actif, sinon position de PROFIL / d'inscription, sinon centre de sa
+    //     ville) — avant : le 1er rôle lu (propriétaire) avec SA position,
+    //     d'où « john C vers Valence alors qu'il est vers Murcie » ;
+    //   · avec TOUS ses rôles (`roles`) : la PawMap dessine un double liseré
+    //     et, au tap, propose le rôle (fiche du bon rôle) — plus de pastille
+    //     « 2 » qui zoome dans le vide sur une seule personne ;
+    //   · floutage tiré vers le centre-ville (jamais au large, « il est dans
+    //     l'eau »).
+    const { groupByPerson, pickPersonPosition } = require('../utils/personMapPosition');
+    const { peekCity, warmCities } = require('../utils/geocodeCity');
+    const { blurTowardAnchor } = require('../utils/coarseLocation');
+    const anchorOf = (city) => {
+      const v = peekCity(city);
+      return v && Number.isFinite(v.lat) ? v : null;
+    };
+    const citiesToWarm = [];
     const members = [];
-    const seenPerson = new Set(); // une PERSONNE (email) = un point, rôle principal
-    for (const { d, role } of tagged) {
-      const coords = d.location?.coordinates;
-      if (!Array.isArray(coords) || coords.length < 2) continue;
-      const [lng, lat] = coords.map(Number);
+    const visible = tagged.filter(({ d }) => !mapVisibility.isTestOrStaff(d));
+    for (const entries of groupByPerson(visible).values()) {
+      const pos = pickPersonPosition(entries, { now: nowDate, cityAnchor: anchorOf });
+      if (!pos) continue;
+      const [lng, lat] = pos.coordinates.map(Number);
       if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) continue;
-      // v584 — comptes de test, staff et masqués : jamais dans la couche
-      // publique (règle partagée).
-      if (mapVisibility.isTestOrStaff(d)) continue;
-      const personKey = (d.email || '').toLowerCase() || String(d._id);
-      if (seenPerson.has(personKey)) continue;
-      seenPerson.add(personKey);
+      const { d, role } = pos.entry;
       const idStr = String(d._id);
+      if (pos.city && !anchorOf(pos.city)) citiesToWarm.push(pos.city);
       const pawspot = d.mapBoostExpiry && new Date(d.mapBoostExpiry) > nowDate;
+      // Rôles de la personne : le rôle du point d'abord, puis les autres.
+      const ordered = [pos.entry, ...entries.filter((e) => e !== pos.entry)];
+      const roles = ordered.map(({ d: rd, role: rr }) => ({
+        id: String(rd._id),
+        role: rr,
+        rating: Number(rd.rating) > 0 ? Number(rd.rating) : 0,
+        reviewsCount: Number(rd.reviewsCount) > 0 ? Number(rd.reviewsCount) : 0,
+        priceFrom: rr === 'owner' ? 0 : priceFrom(rd, rr),
+        currency: rd.currency || 'EUR',
+        isPremium: subSet.has(String(rd._id)) || rd.isStaff === true,
+      }));
       members.push({
         id: idStr,
         role,
+        roles,
+        personIds: roles.map((r) => r.id),
         name: d.name || '',
-        avatar: avatarUrl(d.avatar) || avatarUrl(d.profilePicture),
-        // grille de 1 km réel + décalage stable : jamais la position exacte
-        location: { coordinates: _blur(lat, lng, idStr) },
-        isPremium: subSet.has(idStr) || d.isStaff === true,
+        avatar: avatarUrl(d.avatar) || avatarUrl(d.profilePicture)
+          || entries.map((e) => avatarUrl(e.d.avatar) || avatarUrl(e.d.profilePicture)).find(Boolean) || '',
+        // jamais la position exacte : grille de 1 km tirée vers le centre-ville
+        location: { coordinates: blurTowardAnchor(lat, lng, idStr, pos.city ? anchorOf(pos.city) : null) },
+        positionSource: pos.source,
+        isPremium: roles.some((r) => r.isPremium),
         isPawSpot: !!pawspot,
         approx: true,
         approxKm: WORLD_APPROX_KM,
@@ -540,6 +607,9 @@ router.get('/members/world', requireAuth, async (req, res) => {
         ...mapVisibility.pinFlags(d, nowDate),
       });
     }
+    // Centres-villes manquants : résolus en tâche de fond pour la prochaine
+    // reconstruction (jamais d'attente réseau dans la requête).
+    if (citiesToWarm.length && process.env.NODE_ENV !== 'test') warmCities(citiesToWarm);
     const payload = {
       members,
       count: members.length,

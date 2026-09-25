@@ -517,6 +517,10 @@ walkerSchema.pre('save', function encryptSensitive(next) {
 
 // Geospatial index for "walkers nearby" queries.
 walkerSchema.index({ location: '2dsphere' });
+// v585 — position de PROFIL (`homeLocation`) mémorisée à part du partage en
+// direct : la carte pose une personne hors ligne là où elle s'est inscrite
+// (utils/personMapPosition.js).
+walkerSchema.plugin(require('../utils/personMapPosition').homeLocationPlugin);
 
 // v23.1 part 108 — index 2dsphere sur mapBoostLocation pour la 2e passe
 // du /walkers/nearby (PawSpot custom location).

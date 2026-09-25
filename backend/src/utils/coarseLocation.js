@@ -62,4 +62,47 @@ function coarsenLocation(location, idStr, isSelf) {
   return { ...location, coordinates: blurLngLat(lat, lng, idStr), approxKm: WORLD_APPROX_KM };
 }
 
-module.exports = { WORLD_APPROX_KM, KM_PER_DEG_LAT, jitterKm, blurLngLat, coarsenLocation };
+
+/**
+ * v585 (25/09) — Daniel : « regarde, il est dans l'eau ». Un point flouté
+ * pouvait tomber en mer (membre sur la côte : l'arrondi à 1 km + le décalage
+ * partaient au large). Quand on connaît le centre de la ville du membre
+ * (`anchor`), on part du nœud de grille (irréversible, donc toujours privé) et
+ * on le rapproche du centre-ville d'au plus 0,8 km : le point glisse vers
+ * l'intérieur des terres au lieu de s'en éloigner. Plus près du centre que
+ * 1 km → le centre-ville lui-même (+ petit décalage stable).
+ * Sans `anchor`, comportement inchangé (`blurLngLat`).
+ */
+function blurTowardAnchor(lat, lng, idStr, anchor) {
+  if (!anchor || !Number.isFinite(anchor.lat) || !Number.isFinite(anchor.lng)) {
+    return blurLngLat(lat, lng, idStr);
+  }
+  const cosLat = Math.max(0.05, Math.cos((lat * Math.PI) / 180));
+  const toKm = (dLat, dLng) => [dLat * KM_PER_DEG_LAT, dLng * KM_PER_DEG_LAT * cosLat];
+  const [kx, ky] = jitterKm(String(idStr || ''));
+  const small = (v) => v * 0.25; // ±0,05 km : ne sert qu'à ne pas empiler
+  const [dyC, dxC] = toKm(anchor.lat - lat, anchor.lng - lng);
+  const distCenter = Math.hypot(dyC, dxC);
+  // Loin de toute ville connue (> 30 km) : l'ancre ne veut rien dire ici.
+  if (distCenter > 30) return blurLngLat(lat, lng, idStr);
+  let outLat;
+  let outLng;
+  if (distCenter <= 1) {
+    outLat = anchor.lat + small(ky) / KM_PER_DEG_LAT;
+    outLng = anchor.lng + small(kx) / (KM_PER_DEG_LAT * cosLat);
+  } else {
+    const stepLat = WORLD_APPROX_KM / KM_PER_DEG_LAT;
+    const stepLng = WORLD_APPROX_KM / (KM_PER_DEG_LAT * cosLat);
+    const gLat = Math.round(lat / stepLat) * stepLat;
+    const gLng = Math.round(lng / stepLng) * stepLng;
+    const [dy, dx] = toKm(anchor.lat - gLat, anchor.lng - gLng);
+    const d = Math.hypot(dy, dx);
+    const move = Math.min(0.8, d);
+    const f = d > 0 ? move / d : 0;
+    outLat = gLat + (dy * f + small(ky)) / KM_PER_DEG_LAT;
+    outLng = gLng + (dx * f + small(kx)) / (KM_PER_DEG_LAT * cosLat);
+  }
+  return [Math.round(outLng * 1e5) / 1e5, Math.round(outLat * 1e5) / 1e5];
+}
+
+module.exports = { WORLD_APPROX_KM, KM_PER_DEG_LAT, jitterKm, blurLngLat, blurTowardAnchor, coarsenLocation };

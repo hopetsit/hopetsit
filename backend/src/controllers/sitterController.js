@@ -570,7 +570,9 @@ const getSitterProfile = async (req, res) => {
       // arrondit volontairement à ~1 km. Même règle partout maintenant ;
       // la personne elle-même continue de voir sa position exacte.
       location: sitter.location ? coarsenLocation({
-        coordinates: sitter.location.coordinates || null,
+        // v585 — hors direct actif : la position de PROFIL (personMapPosition).
+        coordinates: (isSelf ? sitter.location
+          : require('../utils/personMapPosition').displayLocationOf(sitter)).coordinates || null,
         city: sitter.location.city || '',
         locationType: sitter.location.locationType || 'standard',
       }, id, isSelf) : null,

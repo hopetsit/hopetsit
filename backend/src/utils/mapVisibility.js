@@ -58,7 +58,10 @@ function publicLocationFor(doc, { viewerIds, friendIds } = {}) {
   if (!doc) return null;
   const id = String(doc._id || doc.id || '');
   const exact = !!((viewerIds && viewerIds.has(id)) || (friendIds && friendIds.has(id)));
-  return coarsenLocation(doc.location || null, id, exact);
+  // v585 — hors partage en direct actif, la position de PROFIL (inscription /
+  // Modifier le profil), jamais la dernière position de partage.
+  const { displayLocationOf } = require('./personMapPosition');
+  return coarsenLocation(displayLocationOf(doc) || null, id, exact);
 }
 
 function isBoosted(doc, now = new Date()) {
@@ -120,7 +123,10 @@ function applyPublicPrivacy(docs, { viewerIds, friendIds } = {}) {
   for (const d of docs || []) {
     if (isTestOrStaff(d)) continue;
     if (!visibleToViewer(d, { viewerIds, friendIds })) continue;
-    out.push({ ...d, location: publicLocationFor(d, { viewerIds, friendIds }) });
+    // v585 — `homeLocation` (position de profil exacte) ne sort jamais :
+    // les agrégations ($geoNear) ignorent le `select: false` du schéma.
+    const { homeLocation, ...rest } = d;
+    out.push({ ...rest, location: publicLocationFor(d, { viewerIds, friendIds }) });
   }
   return out;
 }

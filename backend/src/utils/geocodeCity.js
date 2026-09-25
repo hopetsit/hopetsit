@@ -82,4 +82,38 @@ function baseCityName(city) {
   return sans || nom;
 }
 
-module.exports = { geocodeCity, baseCityName };
+/**
+ * v585 — lecture SANS réseau du cache (la couche monde ne doit jamais attendre
+ * Photon) : `undefined` = inconnu, `null` = introuvable, sinon { lat, lng }.
+ */
+function peekCity(city) {
+  const key = String(city || '').trim().toLowerCase();
+  if (!key) return undefined;
+  const hit = _cache.get(key);
+  if (!hit || Date.now() - hit.t >= TTL_MS) return undefined;
+  return hit.v;
+}
+
+/**
+ * v585 — remplit le cache en tâche de fond, par petits lots (jamais plus de
+ * `max` villes par appel, 4 à la fois) : la reconstruction suivante de la
+ * couche monde (5 min) trouvera les centres-villes.
+ */
+let _warming = false;
+function warmCities(cities, max = 40) {
+  if (_warming) return;
+  const todo = [...new Set((cities || []).map((c) => String(c || '').trim()).filter(Boolean))]
+    .filter((c) => peekCity(c) === undefined)
+    .slice(0, max);
+  if (!todo.length) return;
+  _warming = true;
+  (async () => {
+    try {
+      for (let i = 0; i < todo.length; i += 4) {
+        await Promise.all(todo.slice(i, i + 4).map((c) => geocodeCity(c)));
+      }
+    } catch (_) { /* jamais bloquant */ } finally { _warming = false; }
+  })();
+}
+
+module.exports = { geocodeCity, baseCityName, peekCity, warmCities };

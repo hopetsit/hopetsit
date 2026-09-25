@@ -150,6 +150,11 @@ const getWalkerProfile = async (req, res) => {
           && ids.has(String(req.params.id));
       } catch (_) { isSelfWalker = false; }
     }
+    // v585 — hors direct actif : la position de PROFIL (personMapPosition).
+    if (!isSelfWalker && payload.location) {
+      payload.location = require('../utils/personMapPosition').displayLocationOf(payload);
+    }
+    delete payload.homeLocation;
     payload.location = coarsenLocation(payload.location, req.params.id, isSelfWalker);
     payload.reviews = formattedReviews;
     // v23.1.296 — self-heal : recalcule le statut Top Walker à la lecture du
