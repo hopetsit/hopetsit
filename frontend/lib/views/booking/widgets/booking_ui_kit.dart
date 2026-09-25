@@ -1007,7 +1007,9 @@ class _BookingLoadingListState extends State<BookingLoadingList>
       width: w,
       height: h,
       decoration: BoxDecoration(
-        color: AppColors.textSecondary(context).withValues(alpha: 0.14),
+        // Lot D — os à la teinte du rôle (le brun translucide lisait « gris »
+        // sur les captures du flux promeneur).
+        color: widget.accent.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(8.r),
       ),
     );
