@@ -17,7 +17,6 @@
 // recherche de ville, Autour de moi, signalements, PawSpots, chat du cercle,
 // partage de carte, compteur. Rien n'est publié ni payé : la réservation
 // s'arrête sur l'écran de demande (fermé sans envoyer).
-import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
