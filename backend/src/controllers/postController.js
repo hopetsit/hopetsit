@@ -10,6 +10,7 @@ const Pet = require('../models/Pet');
 const { identityGroup, selfIdSet } = require('../utils/identityGroup');
 // v575 — audit P1-7 : durée de promenade portée par l'annonce.
 const { isValidWalkDuration } = require('../utils/walkDuration');
+const { resolveServiceLocation } = require('../utils/serviceLocation587');
 
 /** v573 — retire d'une liste d'annonces celles du spectateur gardien/promeneur. */
 async function hideOwnPostsForProviders(req, posts) {
@@ -368,7 +369,7 @@ const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner
 
 const createPost = async (req, res) => {
   try {
-    const { body, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, serviceLocation, animalCount, animalTypes, walkDurationMinutes } = req.body || {};
+    const { body, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, serviceLocation, meetingPoint, animalCount, animalTypes, walkDurationMinutes } = req.body || {};
     const ownerId = req.user?.id;
 
     if (!ownerId) {
@@ -505,9 +506,11 @@ const createPost = async (req, res) => {
     }
 
     // Sprint 5 step 2 — service location preference.
-    if (['at_owner', 'at_sitter', 'both'].includes(serviceLocation)) {
-      postPayload.serviceLocation = serviceLocation;
-    }
+    // v587 (point 8) — lieu selon le type de service (promenade : prise en
+    // charge / point de rendez-vous ; visites : chez le propriétaire).
+    Object.assign(postPayload, resolveServiceLocation({
+      serviceTypes: normalizedServices, serviceLocation, meetingPoint, houseSittingVenue,
+    }));
 
     // Sprint 4 step 6 — auto-translate body to all supported locales.
     try {
@@ -1236,6 +1239,7 @@ const getNearbyRequestPosts = async (req, res) => {
         .moderateText(post.body || '').clean,
       serviceTypes: post.serviceTypes || [],
       serviceLocation: post.serviceLocation || '',
+      meetingPoint: post.meetingPoint || '',
       startDate: post.startDate,
       endDate: post.endDate,
       // v575 — audit P1-7 : durée de promenade voulue par le propriétaire.
@@ -1579,7 +1583,7 @@ const createPostWithMedia = async (req, res) => {
   try {
     const ownerId = req.user?.id;
     const userRole = req.user?.role;
-    const { body, folder, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, postType: rawPostType, animalCount, animalTypes, walkDurationMinutes } = req.body || {};
+    const { body, folder, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, serviceLocation, meetingPoint, postType: rawPostType, animalCount, animalTypes, walkDurationMinutes } = req.body || {};
 
     if (!ownerId) {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
@@ -1808,6 +1812,14 @@ const createPostWithMedia = async (req, res) => {
       postPayload.showAnimalCharacter = !(sac === false || sac === 'false');
     }
 
+    // v587 (point 8) — le lieu du service n'était PAS lu ici : une demande
+    // publiée depuis l'app AVEC photo perdait « Chez moi / Chez le gardien ».
+    if (resolvedPostType === 'request') {
+      Object.assign(postPayload, resolveServiceLocation({
+        serviceTypes: normalizedServices, serviceLocation, meetingPoint, houseSittingVenue,
+      }));
+    }
+
     // Create the post
     const newPost = await Post.create(postPayload);
 
@@ -1895,6 +1907,7 @@ const updatePost = async (req, res) => {
       notes,
       houseSittingVenue,
       serviceLocation,
+      meetingPoint,
       showAnimalCharacter,
       // v575 — audit P1-7 : durée de promenade éditable comme les autres champs.
       walkDurationMinutes,
@@ -1983,9 +1996,17 @@ const updatePost = async (req, res) => {
     }
 
     // v441 — lieu de garde (at_owner / at_sitter / both).
-    if (serviceLocation !== undefined) {
-      if (['at_owner', 'at_sitter', 'both'].includes(serviceLocation)) {
-        post.serviceLocation = serviceLocation;
+    // v587 (point 8) — même règle que la création, selon le service (celui
+    // envoyé, sinon celui déjà enregistré) : promenade pickup / meeting_point.
+    if (serviceLocation !== undefined || meetingPoint !== undefined) {
+      const resolved = resolveServiceLocation({
+        serviceTypes: post.serviceTypes,
+        serviceLocation: serviceLocation !== undefined ? serviceLocation : post.serviceLocation,
+        meetingPoint: meetingPoint !== undefined ? meetingPoint : post.meetingPoint,
+      });
+      if (resolved.serviceLocation) {
+        post.serviceLocation = resolved.serviceLocation;
+        post.meetingPoint = resolved.meetingPoint;
       }
     }
 

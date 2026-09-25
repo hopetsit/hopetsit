@@ -135,6 +135,8 @@ const getOwnerActiveRequests = async (req, res) => {
         ownerId: String(p.ownerId),
         serviceTypes: services(p),
         serviceLocation: p.serviceLocation || '',
+        // v587 (point 8) — adresse du point de rendez-vous d'une promenade.
+        meetingPoint: p.meetingPoint || '',
         startDate: p.startDate || null,
         endDate: p.endDate || null,
         walkDurationMinutes: typeof p.walkDurationMinutes === 'number' ? p.walkDurationMinutes : null,

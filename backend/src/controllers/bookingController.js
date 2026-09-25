@@ -168,6 +168,9 @@ const createBooking = async (req, res) => {
       duration,
       addOns = [],
       locationType,
+      // v587 (point 8) — lieu du service (facultatif, rétrocompatible).
+      serviceLocation,
+      meetingPoint,
     } = body;
     const serviceDateRaw =
       body.serviceDate ??
@@ -574,6 +577,13 @@ const createBooking = async (req, res) => {
       timeSlot: trimmedTimeSlot,
       serviceType,
       houseSittingVenue: normalizedHouseSittingVenue || null,
+      // v587 (point 8) — chez moi / chez le gardien / prise en charge / RDV.
+      ...(require('../utils/serviceLocation587').resolveServiceLocation({
+        serviceTypes: serviceType == null ? [] : [String(serviceType)],
+        serviceLocation,
+        meetingPoint,
+        houseSittingVenue: normalizedHouseSittingVenue,
+      })),
       requestFingerprint,
       duration: durationNum,
       locationType: validLocationType,

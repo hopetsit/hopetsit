@@ -35,6 +35,7 @@ const {
 } = require('../utils/requestFingerprint');
 const { calculateTierBasePrice } = require('../utils/tierPricing');
 const logger = require('../utils/logger');
+const { copyServiceLocation } = require('../utils/serviceLocation587');
 
 const cancelApplication = async (req, res) => {
   try {
@@ -473,6 +474,23 @@ const createApplication = async (req, res) => {
       normalizedPostId = postId.trim();
     }
 
+    // v587 (point 8) — le lieu choisi par le propriétaire dans son annonce
+    // (chez moi / chez le gardien / récupérer chez moi / point de rendez-vous)
+    // suit la candidature puis la réservation. Lu côté serveur : aucune app
+    // installée n'a besoin de l'envoyer. Best-effort : jamais bloquant.
+    const locationFromPost = {};
+    if (normalizedPostId) {
+      try {
+        const Post = require('../models/Post');
+        const srcPost = await Post.findById(normalizedPostId)
+          .select('serviceLocation meetingPoint')
+          .lean();
+        copyServiceLocation(srcPost, locationFromPost);
+      } catch (e) {
+        logger.warn('[createApplication] lieu de l\'annonce illisible', e?.message || e);
+      }
+    }
+
     const application = await Application.create({
       // Session v16.3b - route to the correct provider field based on role.
       sitterId: providerRole === 'walker' ? null : sitterId,
@@ -489,6 +507,7 @@ const createApplication = async (req, res) => {
       postBody: trimmedDescription,
       serviceType,
       houseSittingVenue: normalizedHouseSittingVenue || null,
+      ...locationFromPost,
       requestFingerprint,
       duration: durationNum,
       locationType: validLocationType,
@@ -702,6 +721,8 @@ const respondToApplication = async (req, res) => {
           timeSlot: application.timeSlot || '',
           serviceType: application.serviceType,
           houseSittingVenue: application.houseSittingVenue || null,
+          // v587 (point 8) — lieu du service recopié de la candidature.
+          ...copyServiceLocation(application, {}),
           duration: application.duration || null,
           locationType: application.locationType || LOCATION_TYPES.STANDARD,
           pricing: {

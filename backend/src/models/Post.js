@@ -138,11 +138,14 @@ const postSchema = new mongoose.Schema(
     },
     sourceLanguage: { type: String, default: '' },
     // Sprint 5 step 2 — where the owner wants the service to happen.
+    // v587 (point 8) — promenade : 'pickup' (récupérer chez moi) ou
+    // 'meeting_point' (+ meetingPoint = adresse / quartier). Visites : at_owner.
     serviceLocation: {
       type: String,
-      enum: ['at_owner', 'at_sitter', 'both'],
+      enum: ['at_owner', 'at_sitter', 'both', 'pickup', 'meeting_point'],
       default: 'at_owner',
     },
+    meetingPoint: { type: String, trim: true, maxlength: 200, default: '' },
 
     // Session avril 2026 — moderation fields for the admin Annonces tab.
     // Soft-delete only so the historical dataset is preserved (same policy

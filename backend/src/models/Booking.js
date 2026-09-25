@@ -275,6 +275,14 @@ const bookingSchema = new mongoose.Schema(
       enum: ['owners_home', 'sitters_home'],
       default: null,
     },
+    // v587 (point 8) — lieu du service recopié de l'annonce (postId) :
+    // at_owner | at_sitter | both | pickup | meeting_point (+ meetingPoint).
+    serviceLocation: {
+      type: String,
+      enum: ['at_owner', 'at_sitter', 'both', 'pickup', 'meeting_point', null],
+      default: null,
+    },
+    meetingPoint: { type: String, trim: true, maxlength: 200, default: '' },
     requestFingerprint: {
       type: String,
       default: null,
