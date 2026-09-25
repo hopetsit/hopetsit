@@ -190,7 +190,10 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
             // v565 — pop-up promo (une fois, jamais à la 1re ouverture). Elle
             // reste HORS de l'override : elle est centrée en bas et doit donc
             // dégager la patte entière (hauteur totale).
-            const PromoPopup(),
+            // v585 — jamais par-dessus la feuille de la PawMap (elle cachait
+            // son bouton principal, vu sur iPhone) : la pop-up attend un
+            // autre onglet.
+            if (_currentIndex != kPawMapTabIndex) const PromoPopup(),
           ],
         ),
         // v465 — en mode « carte agrandie » (PawMap), on MASQUE le menu pour

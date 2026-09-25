@@ -62,6 +62,9 @@ const String kPassword = String.fromEnvironment('HPS_PASSWORD');
 const String kRole = String.fromEnvironment('HPS_ROLE', defaultValue: 'owner');
 const bool kInset0 = bool.fromEnvironment('HPS_INSET0');
 const bool kRealApp = bool.fromEnvironment('HPS_REAL_APP');
+// iOS : pas d'outil de gestes réels en session non surveillée → gestes
+// synthétisés par le test (même arène de gestes, mêmes reconstructions).
+const bool kSelfGestures = bool.fromEnvironment('HPS_SELF_GESTURES');
 
 Future<void> _step(WidgetTester tester, String name,
     {Duration hold = const Duration(seconds: 2)}) async {
@@ -269,6 +272,13 @@ Future<void> _run(WidgetTester tester) async {
     }
     _ok('decouverte guidee absente', find.byKey(const ValueKey<String>('pawmap_coach')).evaluate().isEmpty);
 
+    // La pop-up promo (une fois) peut recouvrir le bas : « Plus tard ».
+    final later = find.text('common_later'.tr);
+    if (later.evaluate().isNotEmpty) {
+      await tester.tap(later.last);
+      await tester.pump(const Duration(seconds: 1));
+      print('[SONDE] pop-up promo fermee (Plus tard)');
+    }
     // ── Mesures ──
     final ctx = tester.element(find.byType(PawMapScreen));
     final mq = MediaQuery.of(ctx);
@@ -312,9 +322,15 @@ Future<void> _run(WidgetTester tester) async {
     print('[SONDE] canPop initial=$basePop');
     double? lastGrip;
     var upFor = 0;
+    var selfTapped = false;
     String lastP = '';
     for (var i = 0; i < 700; i++) {
       await tester.pump(const Duration(milliseconds: 100));
+      if (kSelfGestures && i == 20) {
+        print('[SONDE] geste : glissement (test)');
+        await tester.timedDragFrom(r(grip).center, const Offset(0, -250),
+            const Duration(milliseconds: 300));
+      }
       {
         final d = tester.widget<DraggableScrollableSheet>(sheet);
         final cc = d.controller;
@@ -330,7 +346,15 @@ Future<void> _run(WidgetTester tester) async {
       if (c != null && c.isAttached && c.size > dss.minChildSize + 0.05) {
         upFor++;
         if (upFor == 1) print('[SONDE] t=${i / 10}s FEUILLE MONTEE par un vrai glissement (taille ${c.size.toStringAsFixed(2)})');
-        if (upFor >= 15) { c.jumpTo(dss.minChildSize); upFor = 0; print('[SONDE] feuille remise en bas'); }
+        if (upFor >= 15) {
+          c.jumpTo(dss.minChildSize); upFor = 0; print('[SONDE] feuille remise en bas');
+          if (kSelfGestures && !selfTapped) {
+            selfTapped = true;
+            await tester.pump(const Duration(seconds: 2));
+            print('[SONDE] geste : tap bouton (test)');
+            await tester.tapAt(r(primary).center);
+          }
+        }
       }
       final opened = find.byType(Dialog).evaluate().isNotEmpty ||
           find.byType(BottomSheet).evaluate().isNotEmpty || (nav.canPop() && !basePop);

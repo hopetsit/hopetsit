@@ -55,6 +55,8 @@ import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:hopetsit/views/profile/my_rates_screen.dart';
+import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart';
+import 'dart:async';
 import 'package:hopetsit/main.dart' as app;
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -193,6 +195,20 @@ Future<void> _run(WidgetTester tester) async {
     ));
     await _step(tester, '00 ecran de depart', hold: const Duration(seconds: 2));
 
+    // ── Bug 17 : sélecteur de langue du premier lancement, 3 langues ──
+    for (final code in ['fr', 'es', 'ja']) {
+      await LocalizationService.updateLocale(code);
+      await tester.pump(const Duration(seconds: 1));
+      final ctx0 = Get.context!;
+      unawaited(showAppLanguagePicker(ctx0, const Color(0xFFD83C28)));
+      await tester.pump(const Duration(seconds: 1));
+      print('[VITRINE] 00_langues_$code');
+      await tester.pump(const Duration(seconds: 4));
+      Get.back();
+      await tester.pump(const Duration(milliseconds: 800));
+    }
+    await LocalizationService.updateLocale('fr');
+    await tester.pump(const Duration(seconds: 1));
     // ── Connexion réelle par le contrôleur (mêmes champs que l'écran) ──
     final auth = Get.find<AuthController>();
     auth.emailController.text = kEmail;

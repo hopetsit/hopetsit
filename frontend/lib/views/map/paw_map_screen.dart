@@ -8017,7 +8017,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   double _tabBarLift(BuildContext context) {
     bool standalone = false;
     try {
-      standalone = Navigator.of(context).canPop();
+      // v585 — `Navigator.canPop()` disait « empilée » dès qu'une fenêtre
+      // (dialogue des notifications, feuille…) s'ouvrait AU-DESSUS de
+      // l'onglet : la feuille perdait alors le dégagement du menu et passait
+      // dessous (vu sur iPhone). Seule compte la route de la PawMap elle-même.
+      final route = ModalRoute.of(context);
+      standalone = route != null && !route.isFirst;
     } catch (_) {/* pas de Navigator */}
     // v584 — sans AUCUN menu monté (écran hôte de test, lien profond avant
     // le montage), il n'y a pas de barre d'onglets à dégager non plus.

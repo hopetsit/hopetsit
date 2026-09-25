@@ -185,7 +185,9 @@ class _PawMapSheetState extends State<PawMapSheet> {
           ),
         ],
       ),
-      child: ListView(
+      child: Stack(
+        children: [
+          Positioned.fill(child: ListView(
         controller: scroll,
         padding: EdgeInsets.fromLTRB(14.w, 8.h, 14.w, 24.h + w.bottomPadding),
         children: [
@@ -208,6 +210,35 @@ class _PawMapSheetState extends State<PawMapSheet> {
           // sous le bouton principal (au simulateur, « Je cherche » pointait).
           SizedBox(height: 22.h),
           ...w.children,
+        ],
+      )),
+          // v585 — sous le menu du bas, la feuille reste PLEINE (panneau)
+          // : le contenu qui défile passe derrière ce pied au lieu de
+          // dépasser sous la pilule (vu sur iPhone : « 21 membres » visible
+          // sous le menu). Fondu de 24 dp puis panneau plein ; ne capte rien.
+          if (w.bottomPadding > 0)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: w.bottomPadding + 8,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        PawMapTheme.panelOn(ctx).withValues(alpha: 0),
+                        PawMapTheme.panelOn(ctx),
+                        PawMapTheme.panelOn(ctx),
+                      ],
+                      stops: const [0.0, 0.22, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

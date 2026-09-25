@@ -660,11 +660,15 @@ class _PromoPopupState extends State<PromoPopup> with SingleTickerProviderStateM
                       ),
                       SizedBox(height: 2.h),
                       InterText(
-                        text: _message.isNotEmpty
-                            ? _message
-                            : _reward.isNotEmpty
-                                ? 'promo_popup_code_body_reward'
-                                    .trParams({'code': _code, 'reward': _reward})
+                        // v585 — la phrase TRADUITE d'abord : le message
+                        // saisi dans l'admin est dans une seule langue
+                        // (« 1 month of PawPremium for Free » sur un
+                        // téléphone en français, vu sur iPhone).
+                        text: _reward.isNotEmpty
+                            ? 'promo_popup_code_body_reward'
+                                .trParams({'code': _code, 'reward': _reward})
+                            : _message.isNotEmpty
+                                ? _message
                                 : 'promo_popup_code_body'.trParams({'code': _code}),
                         fontSize: 11.5.sp,
                         color: AppColors.textSecondary(context),
