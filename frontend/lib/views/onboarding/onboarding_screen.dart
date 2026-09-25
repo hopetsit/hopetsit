@@ -102,7 +102,7 @@ class OnboardingScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(32.r),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.20),
+                        color: AppColors.shadow(0.20),
                         blurRadius: 24,
                         offset: const Offset(0, 10),
                       ),
@@ -239,7 +239,7 @@ class OnboardingScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(18.r),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.16),
+                                  color: AppColors.shadow(0.16),
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 ),
@@ -392,7 +392,7 @@ class _FeatureCard extends StatelessWidget {
             ? null
             : [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
+                  color: AppColors.shadow(0.12),
                   blurRadius: 22,
                   offset: const Offset(0, 8),
                 ),

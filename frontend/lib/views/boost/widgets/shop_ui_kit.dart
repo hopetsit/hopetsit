@@ -227,7 +227,7 @@ class ShopHero extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.30),
+                            color: AppColors.shadow(0.30),
                             blurRadius: 14,
                             spreadRadius: -6,
                             offset: const Offset(0, 6),
@@ -1005,7 +1005,7 @@ class ShopPlanTile extends StatelessWidget {
                     BoxShadow(
                       color: selected
                           ? accent.withValues(alpha: 0.18)
-                          : Colors.black.withValues(alpha: 0.04),
+                          : AppColors.shadow(0.04),
                       blurRadius: selected ? 18 : 10,
                       spreadRadius: -6,
                       offset: const Offset(0, 8),
@@ -1344,7 +1344,7 @@ class ShopStickyBar extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.14),
+              color: AppColors.shadow(0.14),
               blurRadius: 24,
               spreadRadius: -8,
               offset: const Offset(0, 10),

@@ -208,7 +208,7 @@ class PublicProfileAvatar extends StatelessWidget {
         color: Colors.white,
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.16),
+            color: AppColors.shadow(0.16),
             blurRadius: 14,
             spreadRadius: -2,
             offset: const Offset(0, 6),
@@ -1014,7 +1014,7 @@ class PublicProfileActionBar extends StatelessWidget {
         border: Border(top: BorderSide(color: AppColors.divider(context))),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: AppColors.shadow(0.06),
             blurRadius: 12,
             offset: const Offset(0, -3),
           ),

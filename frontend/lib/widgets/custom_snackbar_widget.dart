@@ -478,8 +478,8 @@ class _BannerCardState extends State<_BannerCard>
                             boxShadow: [
                               BoxShadow(
                                 color: dark
-                                    ? const Color(0x66000000)
-                                    : const Color(0x1F000000),
+                                    ? const Color(0x667A2A16)
+                                    : const Color(0x1F7A2A16),
                                 blurRadius: 22,
                                 offset: const Offset(0, 8),
                               ),

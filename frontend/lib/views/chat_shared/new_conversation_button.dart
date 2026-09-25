@@ -12,6 +12,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 
 class NewConversationButton extends StatelessWidget {
   const NewConversationButton({
@@ -69,7 +70,7 @@ class NewConversationButton extends StatelessWidget {
               offset: const Offset(0, 8),
             ),
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
+              color: AppColors.shadow(0.08),
               blurRadius: 4,
               offset: const Offset(0, 1),
             ),

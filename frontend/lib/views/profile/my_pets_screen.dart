@@ -543,7 +543,8 @@ class _PetCardSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color bone = AppColors.divider(context).withValues(alpha: 0.6);
+    // Lot D — os du squelette teinté (le gris translucide lisait « gris »).
+    final Color bone = AppColors.primaryColor.withValues(alpha: 0.14);
     Widget bar(double w, double h) => Container(
           width: w,
           height: h,

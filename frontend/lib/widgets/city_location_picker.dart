@@ -396,7 +396,7 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
               border: Border.all(color: line, width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.07),
+                  color: AppColors.shadow(0.07),
                   blurRadius: 16,
                   spreadRadius: -2,
                   offset: const Offset(0, 6),

@@ -340,7 +340,7 @@ class ActionBanner extends StatelessWidget {
               ? const <BoxShadow>[]
               : [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: AppColors.shadow(0.05),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),

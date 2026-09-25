@@ -137,7 +137,7 @@ class _FullScreenMapScreenState extends State<FullScreenMapScreen> {
                 borderRadius: BorderRadius.circular(20.r),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
+                    color: AppColors.shadow(0.12),
                     blurRadius: 6,
                   ),
                 ],

@@ -191,7 +191,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
                   size: 40.sp,
                   shadows: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
+                      color: AppColors.shadow(0.3),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -213,7 +213,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
+                      color: AppColors.shadow(0.1),
                       blurRadius: 8,
                       offset: const Offset(0, -2),
                     ),

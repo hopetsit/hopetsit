@@ -355,7 +355,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.35),
+                                    color: AppColors.shadow(0.35),
                                     blurRadius: 14,
                                     spreadRadius: -6,
                                     offset: const Offset(0, 6),

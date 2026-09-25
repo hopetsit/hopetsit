@@ -685,7 +685,7 @@ class _ResumeCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: AppColors.shadow(0.05),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),

@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 
 import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/controllers/friend_controller.dart';
@@ -244,7 +245,7 @@ class ProfileHero extends StatelessWidget {
               border: Border.all(color: Colors.white, width: 4),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
+                  color: AppColors.shadow(0.18),
                   blurRadius: 14,
                   offset: const Offset(0, 5),
                 ),
@@ -289,7 +290,7 @@ class ProfileHero extends StatelessWidget {
                 border: Border.all(color: Colors.white, width: 2),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.22),
+                    color: AppColors.shadow(0.22),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),

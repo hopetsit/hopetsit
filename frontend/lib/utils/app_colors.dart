@@ -229,9 +229,16 @@ class AppColors {
   /// 3 reste visuellement subtle mais 11x moins de samples = scroll
   /// fluide sur Oppo / low-end GPU. Aussi on retourne const list pour
   /// permettre Flutter d'identifier les cards qui partagent ce shadow.
+  /// Lot D (25/09/2026) — OMBRES TEINTÉES : une ombre noire translucide sur un
+  /// fond pâle donne un gris (Daniel : « aucun gris, même dans les ombres »).
+  /// Toutes les ombres claires de l'app passent par cette encre chaude
+  /// (rouge-brun #7A2A16) à l'alpha d'origine : même profondeur, teinte chaude.
+  static const Color shadowInk = Color(0xFF7A2A16);
+  static Color shadow(double alpha) => shadowInk.withValues(alpha: alpha);
+
   static const List<BoxShadow> _lightCardShadow = [
     BoxShadow(
-      color: Color(0x0A000000), // alpha 0.04
+      color: Color(0x0A7A2A16), // alpha 0.04, encre chaude (lot D)
       blurRadius: 3,
       offset: Offset(0, 1),
     ),

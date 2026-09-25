@@ -204,7 +204,7 @@ const PawGlyphSpec kPawGlyphBar = PawGlyphSpec(
   ],
   eyeShadow: <BoxShadow>[
     BoxShadow(
-      color: Color(0x59000000), // rgba(0,0,0,.35)
+      color: Color(0x597A2A16), // rgba(0,0,0,.35)
       blurRadius: 6,
       offset: Offset(0, 2),
     ),
@@ -276,7 +276,7 @@ const PawGlyphSpec kPawGlyphSplash = PawGlyphSpec(
   ],
   eyeShadow: <BoxShadow>[
     BoxShadow(
-      color: Color(0x66000000), // rgba(0,0,0,.4)
+      color: Color(0x667A2A16), // rgba(0,0,0,.4)
       blurRadius: 12,
       offset: Offset(0, 4),
     ),
@@ -811,7 +811,7 @@ class _PawTabBarState extends State<PawTabBar>
                   boxShadow: active
                       ? <BoxShadow>[
                           const BoxShadow(
-                            color: Color(0x59000000),
+                            color: Color(0x597A2A16),
                             blurRadius: 12,
                             offset: Offset(0, 4),
                           ),

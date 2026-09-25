@@ -52,7 +52,7 @@ class ModernToast {
           backgroundColor: Colors.transparent,
           boxShadows: const [
             BoxShadow(
-              color: Color(0x33000000),
+              color: Color(0x337A2A16),
               blurRadius: 18,
               offset: Offset(0, 4),
             ),

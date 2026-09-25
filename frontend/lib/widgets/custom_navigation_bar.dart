@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/widgets/notification_badge.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 
 /// v459 — Daniel : NOUVEAU MENU (maquette Claude Design). Barre flottante
 /// blanche arrondie + icônes duotone modernes (paw / chat / calendrier / user)
@@ -293,7 +294,7 @@ class _CenterPawMapButtonState extends State<_CenterPawMapButton>
                     offset: const Offset(0, 8),
                   ),
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
+                    color: AppColors.shadow(0.12),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),

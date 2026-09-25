@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -307,7 +308,7 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
         borderRadius: BorderRadius.circular(20.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
+            color: AppColors.shadow(0.18),
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),

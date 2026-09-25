@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 
 /// v552 — jetons du redesign PawMap v3 (maquette Claude Design, spec
 /// `SPEC-CLAUDE-CODE.md`).
@@ -127,7 +128,7 @@ class PawMapTheme {
       border: Border.all(color: borderDarkTone),
       boxShadow: const [
         BoxShadow(
-          color: Color(0x66000000),
+          color: Color(0x667A2A16),
           blurRadius: 32,
           offset: Offset(0, 12),
         ),
@@ -210,7 +211,7 @@ class PawMapTheme {
           offset: Offset(0, pressed ? 3 : 6),
         ),
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.07),
+          color: AppColors.shadow(0.07),
           blurRadius: 3,
           offset: const Offset(0, 1),
         ),
@@ -221,7 +222,7 @@ class PawMapTheme {
   static List<BoxShadow> pillShadowOn(BuildContext context) => isDark(context)
       ? const [
           BoxShadow(
-            color: Color(0x73000000),
+            color: Color(0x737A2A16),
             blurRadius: 14,
             offset: Offset(0, 4),
           ),

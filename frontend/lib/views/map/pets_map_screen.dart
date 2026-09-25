@@ -269,12 +269,12 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
+                          color: AppColors.shadow(0.08),
                           blurRadius: 16,
                           offset: Offset(0, -4),
                         ),
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
+                          color: AppColors.shadow(0.04),
                           blurRadius: 6,
                           offset: Offset(0, -1),
                         ),

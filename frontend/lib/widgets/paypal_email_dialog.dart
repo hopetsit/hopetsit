@@ -73,7 +73,7 @@ class PayPalEmailDialog extends StatelessWidget {
                       : null,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: dark ? 0.5 : 0.16),
+                      color: AppColors.shadow(dark ? 0.5 : 0.16),
                       blurRadius: 28,
                       spreadRadius: -8,
                       offset: const Offset(0, 14),
