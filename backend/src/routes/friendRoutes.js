@@ -2366,9 +2366,15 @@ router.get('/live-positions', requireAuth, async (req, res) => {
         if (at && now - at.getTime() > MAX_AGE_MS) continue; // trop vieille
         if (!at && doc.location?.liveShareActive !== true) continue;
         const t = at ? at.getTime() : 0;
-        if (doc.location?.liveShareActive === true) docSharing = true;
-        if (!best || t > best.t) {
-          best = { coords, at, t, city: doc.location?.city || '' };
+        const docLive = doc.location?.liveShareActive === true;
+        if (docLive) docSharing = true;
+        // v587 (25/09) — Daniel : « mon frère est affiché dans l'eau au lieu
+        // de sa position ». Un partage en direct = la position GPS du
+        // document QUI PARTAGE, jamais celle d'un autre de ses rôles (point
+        // de profil, centre-ville, adresse d'inscription) même si ce dernier
+        // a un horodatage plus récent (il bouge à chaque ouverture de l'app).
+        if (!best || (docLive && !best.live) || (docLive === best.live && t > best.t)) {
+          best = { coords, at, t, city: doc.location?.city || '', live: docLive };
         }
       }
       if (otherHidden) continue;
@@ -2396,6 +2402,7 @@ router.get('/live-positions', requireAuth, async (req, res) => {
       // position live n'est PAS renvoyée : il reste la position de profil
       // (floutée, couche monde) et « vu il y a X » sur la fiche.
       if (state === 'seen') continue;
+      const lastSeenMs = lastSeen ? new Date(lastSeen).getTime() : null;
       positions.push({
         // userId = l'id référencé dans l'amitié → l'app matche ses markers.
         userId: otherId,
@@ -2413,6 +2420,11 @@ router.get('/live-positions', requireAuth, async (req, res) => {
         sharing,
         state,
         live: state === 'live',
+        // v587 — âge du dernier signe de vie mesuré par le SERVEUR : l'app
+        // recalcule « en direct / signal perdu » sans dépendre de l'heure de
+        // son téléphone (une horloge en avance de 2 min affichait « signal
+        // perdu » à un direct parfaitement vivant).
+        ageMs: lastSeenMs == null ? null : Math.max(0, now - lastSeenMs),
       });
     }
 

@@ -334,11 +334,20 @@ async function listPositionListeners(userId, role) {
       continue;
     }
 
+    if (!familyBypass && !myShare) {
+      // v587 (25/09) — MÊME RÈGLE que GET /friends/live-positions : un ami
+      // qui a SON PawFollow actif me suit (sauf opt-out explicite, traité plus
+      // haut). Avant, la route HTTP le lui montrait mais la socket ne lui
+      // envoyait rien : son écran ne recevait la position que toutes les
+      // 2 min, et entre deux relectures l'ami passait « signal perdu ».
+      let listenerPawFollow = false;
+      try { listenerPawFollow = await hasActivePawFollow(otherId); } catch (_) {/* */}
+      if (!listenerPawFollow) continue;
+    }
     if (!familyBypass) {
       // Sans abo ni famille : je diffuse à cet ami seulement si J'AI allumé
-      // « Partager » pour lui (Mes amis). Le drapeau vaut false par défaut
-      // dans le schéma → c'est un opt-in par ami.
-      if (!myShare) continue;
+      // « Partager » pour lui (Mes amis), ou s'il a son PawFollow (ci-dessus).
+      // Le drapeau vaut false par défaut dans le schéma → opt-in par ami.
       // v555 — Daniel : « vérifie si le suivi direct marche bien pour tout le
       // monde ». On exigeait AUSSI que l'ami ait allumé SON partage vers moi
       // (« UX symétrique ») : A partage avec B, B n'a rien touché → B ne
@@ -382,7 +391,48 @@ async function listPositionListeners(userId, role) {
     logger.warn(`[mapSocket:listPositionListeners] family merge failed : ${e.message}`);
   }
 
-  return listeners;
+  return expandListenerRooms(listeners);
+}
+
+/**
+ * v587 (25/09) — Daniel : « le direct ne marche pas, je vois suspendu ».
+ * CAUSE : l'événement partait dans le salon du document de rôle référencé
+ * par l'AMITIÉ (`user:owner:<id>`), alors que la socket de l'ami a rejoint le
+ * salon de son rôle COURANT (`map:identify` = rôle du jeton). Un ami inscrit
+ * en propriétaire qui regarde depuis son profil gardien (ou l'inverse) ne
+ * recevait donc AUCUNE position en direct : seule la relecture HTTP toutes
+ * les 2 min le rafraîchissait, et entre deux relectures le rond passait
+ * « signal perdu » / le suivi s'arrêtait. On émet désormais vers les salons
+ * des 3 rôles de la personne (une socket n'est que dans un seul : aucun
+ * doublon), en gardant `viewAsId` (l'id que SON app connaît).
+ */
+async function expandListenerRooms(listeners) {
+  if (!listeners.length) return listeners;
+  let index = null;
+  try {
+    const { personIndex } = require('../utils/personScope');
+    index = await personIndex(listeners.map((l) => String(l.userId)));
+  } catch (e) {
+    logger.warn(`[mapSocket:expandListenerRooms] ${e.message}`);
+  }
+  const out = [];
+  const rooms = new Set();
+  const push = (l) => {
+    const room = userRoom(l.role, l.userId);
+    if (rooms.has(room)) return;
+    rooms.add(room);
+    out.push(l);
+  };
+  for (const l of listeners) {
+    push(l);
+    const entry = index && index.get(String(l.userId));
+    for (const d of (entry && entry.docs) || []) {
+      const role = String(d.model || '').toLowerCase();
+      if (!role) continue;
+      push({ ...l, userId: String(d.id), role, viewAsId: l.viewAsId });
+    }
+  }
+  return out;
 }
 
 // v416 — Daniel : "le direct doit rester allumé même app fermée de force".
