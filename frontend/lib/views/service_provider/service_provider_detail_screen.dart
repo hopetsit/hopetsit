@@ -26,13 +26,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/sitter_detail_controller.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
+import 'package:hopetsit/views/guest/signup_wall_sheet.dart';
+import 'package:hopetsit/views/map/pawmap_rates.dart';
+import 'package:hopetsit/views/service_provider/send_request_screen.dart';
+import 'package:hopetsit/views/service_provider/widgets/provider_action_bar.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/models/sitter_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
@@ -42,7 +47,6 @@ import 'package:hopetsit/views/service_provider/widgets/public_profile_kit.dart'
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
-import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
@@ -224,9 +228,27 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                   ),
                 ),
               ),
-              PublicProfileActionBar(
-                child: _buildStartChatButton(context, sitter),
-              ),
+              // v584 (25/09, point 8) — Réserver · dès X €/j EN PREMIER,
+              // le chat en second (rond). Même parcours de réservation que
+              // depuis l'épingle de la carte (SendRequestScreen pré-rempli).
+              Obx(() {
+                final paymentStatus = booking?.paymentStatus?.toLowerCase().trim();
+                final bool isLocked = booking != null && paymentStatus != 'paid';
+                return ProviderActionBar(
+                  role: 'sitter',
+                  rates: _ratesOf(sitter),
+                  canBook: _viewerCanBook,
+                  messageLocked: isLocked,
+                  messageLoading: controller.isStartingChat.value,
+                  onBook: () => _book(context, sitter),
+                  onMessage: () => _handleStartChat(
+                    controller,
+                    sitter.id,
+                    sitter.name,
+                    sitter.avatar.url,
+                  ),
+                );
+              }),
             ],
           );
         }),
@@ -327,26 +349,59 @@ class _ServiceProviderDetailContent extends StatelessWidget {
     );
   }
 
+  /// v584 (25/09, point 8) — tarifs COMPLETS dans SA devise (heure / jour /
+  /// semaine / mois + animal supplémentaire), lignes vides jamais affichées.
+  PawProviderRates _ratesOf(SitterModel sitter) => PawProviderRates(
+        currency: sitter.currency.isEmpty ? 'EUR' : sitter.currency,
+        role: 'sitter',
+        hourly: sitter.hourlyRate > 0 ? sitter.hourlyRate : null,
+        daily: sitter.dailyRate > 0 ? sitter.dailyRate : null,
+        weekly: sitter.weeklyRate > 0 ? sitter.weeklyRate : null,
+        monthly: sitter.monthlyRate > 0 ? sitter.monthlyRate : null,
+        extraPet: sitter.extraPetRate > 0 ? sitter.extraPetRate : null,
+      );
+
+  bool get _viewerCanBook {
+    final auth = Get.isRegistered<AuthController>() ? Get.find<AuthController>() : null;
+    final role = (auth?.userRole.value ?? '').toLowerCase();
+    // Invité (mur d'inscription au tap) ou propriétaire : oui ; un gardien /
+    // promeneur ne réserve pas un confrère.
+    return role.isEmpty || role == 'owner';
+  }
+
+  void _book(BuildContext context, SitterModel sitter) {
+    if ((SecureTokenStore.currentToken() ?? '').isEmpty) {
+      SignupWallSheet.show(trigger: 'booking', name: sitter.name, recommendedRole: 'pet_owner');
+      return;
+    }
+    final r = _ratesOf(sitter);
+    Get.to(() => SendRequestScreen(
+          serviceProviderName: sitter.name,
+          serviceProviderId: sitter.id,
+          serviceProviderRole: 'sitter',
+          sitterDailyRate: r.daily,
+          sitterWeeklyRate: r.weekly,
+          sitterMonthlyRate: r.monthly,
+          currencyCode: r.currency,
+          initialServiceType: 'pet_sitting',
+          preselectFirstPet: true,
+        ));
+  }
+
   Widget _buildRatesCard(BuildContext context, SitterModel sitter) {
-    final List<Widget> rows = <Widget>[];
-    if (sitter.hourlyRate > 0) {
-      rows.add(_rate(context, 'price_per_hour'.tr, sitter.hourlyRate, sitter));
-    }
-    if (sitter.dailyRate > 0) {
-      rows.add(_rate(context, 'price_per_day'.tr, sitter.dailyRate, sitter));
-    }
-    if (sitter.weeklyRate > 0) {
-      rows.add(_rate(context, 'price_per_week'.tr, sitter.weeklyRate, sitter));
-    }
-    if (sitter.monthlyRate > 0) {
-      rows.add(
-          _rate(context, 'price_per_month'.tr, sitter.monthlyRate, sitter));
-    }
+    final List<Widget> rows = <Widget>[
+      for (final line in _ratesOf(sitter).lines)
+        PublicProfileRateRow(
+          label: line.label,
+          value: line.value,
+          accent: _palette.accent,
+        ),
+    ];
 
     return PublicProfileSection(
       accent: _palette.accent,
       icon: Icons.payments_rounded,
-      title: 'sitter_detail_availability_pricing_title'.tr,
+      title: 'pawmap_rates_title'.tr,
       child: rows.isEmpty
           ? PublicProfileEmptyLine(
               icon: Icons.payments_outlined,
@@ -359,18 +414,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
     );
   }
 
-  Widget _rate(
-    BuildContext context,
-    String label,
-    double value,
-    SitterModel sitter,
-  ) {
-    return PublicProfileRateRow(
-      label: label,
-      value: CurrencyHelper.format(sitter.currency, value),
-      accent: _palette.accent,
-    );
-  }
+
 
   Widget _buildAboutCard(BuildContext context, SitterModel sitter) {
     final String bio = (sitter.bio ?? '').trim();
@@ -543,69 +587,6 @@ class _ServiceProviderDetailContent extends StatelessWidget {
   }
 
   // ───────────────────────── Barre d'action ──────────────────────────
-
-  /// Action principale — MÊME logique qu'avant : verrouillée tant que la
-  /// réservation liée n'est pas payée, spinner pendant l'ouverture du chat.
-  Widget _buildStartChatButton(BuildContext context, SitterModel sitter) {
-    return Obx(() {
-      final bool isLoading = controller.isStartingChat.value;
-
-      // Check if payment status is paid
-      final paymentStatus = booking?.paymentStatus?.toLowerCase().trim();
-      final isPaid = paymentStatus == 'paid';
-      final isLocked = booking != null && !isPaid;
-
-      final IconData icon = isLocked
-          ? Icons.lock_rounded
-          : Icons.chat_bubble_rounded;
-      final String label = isLoading
-          ? 'sitter_detail_starting_chat'.tr
-          : isLocked
-              ? 'sitter_detail_unlock_after_payment'.tr
-              : 'sitter_detail_start_chat'.tr;
-
-      return CustomButton(
-        bgColor: isLocked ? AppColors.greyColor : _palette.accent,
-        onTap: (isLoading || isLocked)
-            ? null
-            : () => _handleStartChat(
-                  controller,
-                  sitter.id,
-                  sitter.name,
-                  sitter.avatar.url,
-                ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            if (isLoading)
-              SizedBox(
-                width: 18.w,
-                height: 18.w,
-                child: const CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            else
-              Icon(icon, color: Colors.white, size: 19.sp),
-            SizedBox(width: 9.w),
-            Flexible(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: InterText(
-                  text: label,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  maxLines: 1,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    });
-  }
 
   Future<void> _handleStartChat(
     SitterDetailController controller,

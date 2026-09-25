@@ -15,10 +15,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/models/walker_model.dart';
+import 'package:hopetsit/repositories/owner_repository.dart';
+import 'package:hopetsit/views/guest/signup_wall_sheet.dart';
+import 'package:hopetsit/views/map/pawmap_rates.dart';
+import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
+import 'package:hopetsit/views/service_provider/send_request_screen.dart';
+import 'package:hopetsit/views/service_provider/widgets/provider_action_bar.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/views/reviews/widgets/rating_stars.dart';
@@ -120,20 +128,17 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
     final String language = w.language.trim();
     final List<String> services =
         w.service.where((String s) => s.trim().isNotEmpty).toList();
-    // v472 — Daniel : « ce sont les ANCIENS tarifs, maintenant c'est
-    // 30 min / 1h / 2h ». On ne montre que les 3 paliers officiels.
-    final List<WalkRate> rates = w.walkRates
-        .where((WalkRate r) =>
-            r.enabled &&
-            r.basePrice > 0 &&
-            const <int>[30, 60, 120].contains(r.durationMinutes))
-        .toList();
-
-    return PublicProfileBackground(
+    // v584 (25/09, point 8) — tarifs HAUT placés (sous l'en-tête, avant la
+    // bio), dans SA devise, et barre du bas Réserver · dès X + Message.
+    final PawProviderRates providerRates = _ratesOf(w);
+    return Column(
+      children: <Widget>[
+        Expanded(
+          child: PublicProfileBackground(
       accent: _palette.accent,
       child: SingleChildScrollView(
         padding: EdgeInsets.only(
-          bottom: publicProfileBottomPadding(context),
+          bottom: publicProfileBottomPadding(context, hasActionBar: true),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,6 +152,25 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
                 children: <Widget>[
                   _buildStats(w),
                   SizedBox(height: 14.h),
+
+                  if (!providerRates.isEmpty) ...<Widget>[
+                    PublicProfileSection(
+                      accent: _palette.accent,
+                      icon: Icons.payments_rounded,
+                      title: 'pawmap_rates_title'.tr,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: providerRates.lines
+                            .map<Widget>((line) => PublicProfileRateRow(
+                                  label: line.label,
+                                  value: line.value,
+                                  accent: _palette.accent,
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                    SizedBox(height: 14.h),
+                  ],
 
                   // Bio — v471 : libellés i18n (étaient en dur FR).
                   if ((w.bio ?? '').trim().isNotEmpty) ...<Widget>[
@@ -170,26 +194,7 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
                     SizedBox(height: 14.h),
                   ],
 
-                  // Tarifs walking
-                  if (rates.isNotEmpty) ...<Widget>[
-                    PublicProfileSection(
-                      accent: _palette.accent,
-                      icon: Icons.payments_rounded,
-                      title: 'walker_detail_rates'.tr,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: rates
-                            .map<Widget>((WalkRate r) => PublicProfileRateRow(
-                                  label: _walkDurationLabel(r.durationMinutes),
-                                  value: CurrencyHelper.format(
-                                      w.currency, r.basePrice),
-                                  accent: _palette.accent,
-                                ))
-                            .toList(),
-                      ),
-                    ),
-                    SizedBox(height: 14.h),
-                  ],
+
 
                   // Services proposés — v23.1 : libellés lisibles via
                   // service_type_translator (ex. 'dog_walking' → « Promenade »).
@@ -220,7 +225,93 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
           ],
         ),
       ),
+          ),
+        ),
+        ProviderActionBar(
+          role: 'walker',
+          rates: providerRates,
+          canBook: _viewerCanBook,
+          messageLoading: _startingChat,
+          onBook: () => _book(w),
+          onMessage: _viewerRole == 'owner' || _viewerRole.isEmpty ? () => _message(w) : null,
+        ),
+      ],
     );
+  }
+
+  /// v584 (25/09, point 8) — tarifs 30 min / 1 h / 2 h dans SA devise.
+  PawProviderRates _ratesOf(WalkerModel w) {
+    double? half, hour, two;
+    for (final r in w.walkRates) {
+      if (!r.enabled || r.basePrice <= 0) continue;
+      if (r.durationMinutes == 30) half = r.basePrice;
+      if (r.durationMinutes == 60) hour = r.basePrice;
+      if (r.durationMinutes == 120) two = r.basePrice;
+    }
+    return PawProviderRates(
+      currency: w.currency.isEmpty ? 'EUR' : w.currency,
+      role: 'walker',
+      halfHour: half,
+      hourly: hour,
+      twoHours: two,
+    );
+  }
+
+  String get _viewerRole {
+    final auth = Get.isRegistered<AuthController>() ? Get.find<AuthController>() : null;
+    return (auth?.userRole.value ?? '').toLowerCase();
+  }
+
+  bool get _viewerCanBook => _viewerRole.isEmpty || _viewerRole == 'owner';
+
+  void _book(WalkerModel w) {
+    if ((SecureTokenStore.currentToken() ?? '').isEmpty) {
+      SignupWallSheet.show(trigger: 'booking', name: w.name, recommendedRole: 'pet_owner');
+      return;
+    }
+    final r = _ratesOf(w);
+    Get.to(() => SendRequestScreen(
+          serviceProviderName: w.name,
+          serviceProviderId: widget.walkerId,
+          serviceProviderRole: 'walker',
+          walkerHalfHourRate: r.halfHour,
+          walkerHourlyRate: r.hourly,
+          currencyCode: r.currency,
+          initialServiceType: 'dog_walking',
+          preselectFirstPet: true,
+        ));
+  }
+
+  bool _startingChat = false;
+
+  /// Message au promeneur (propriétaire) : même route que depuis la carte.
+  Future<void> _message(WalkerModel w) async {
+    if ((SecureTokenStore.currentToken() ?? '').isEmpty) {
+      SignupWallSheet.show(trigger: 'booking', name: w.name, recommendedRole: 'pet_owner');
+      return;
+    }
+    if (_startingChat) return;
+    setState(() => _startingChat = true);
+    try {
+      final res = await Get.find<OwnerRepository>().startConversation(walkerId: widget.walkerId);
+      final conv = res['conversation'] as Map<String, dynamic>?;
+      final convId = (conv?['id'] ?? conv?['_id'] ?? '').toString();
+      if (convId.isEmpty) throw Exception('conversation id missing');
+      if (!mounted) return;
+      Get.to(() => IndividualChatScreen(
+            conversationId: convId,
+            contactName: w.name,
+            contactImage: w.avatar.url,
+          ));
+    } catch (e) {
+      AppLogger.logError('walker chat failed', error: e);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'sitter_detail_start_chat_failed'.tr,
+      );
+    } finally {
+      if (mounted) setState(() => _startingChat = false);
+    }
   }
 
   Widget _buildHero(WalkerModel w) {
@@ -337,18 +428,4 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
   // v472 — Daniel : nouveaux paliers walking « 30 min / 1h / 2h » (fini le
   // 60/90/120). Libellé court et NEUTRE (h/min universels, pas besoin d'i18n)
   // au lieu de « Promenade X min » en dur FR.
-  String _walkDurationLabel(int minutes) {
-    switch (minutes) {
-      case 30:
-        return '30 min';
-      case 60:
-        return '1 h';
-      case 90:
-        return '1 h 30';
-      case 120:
-        return '2 h';
-      default:
-        return '$minutes min';
-    }
-  }
 }
