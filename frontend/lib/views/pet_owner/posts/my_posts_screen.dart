@@ -359,6 +359,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
           pets: post.pets,
           ownerBio: post.owner.bio,
           serviceLocation: post.serviceLocation,
+          meetingPoint: post.meetingPoint,
           postBody: post.body,
           petName: petName,
           serviceTypes: serviceTypesLabel.isEmpty ? null : serviceTypesLabel,
@@ -440,6 +441,7 @@ isOwnerBoosted: post.isOwnerBoosted ||
         pets: post.pets,
         ownerBio: post.owner.bio,
         serviceLocation: post.serviceLocation,
+        meetingPoint: post.meetingPoint,
         postBody: post.body,
         petName: post.pets.isNotEmpty ? post.pets.first.petName : null,
         serviceTypes: _serviceTypesDisplay(post.serviceTypes).isEmpty

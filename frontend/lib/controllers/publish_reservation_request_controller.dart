@@ -12,6 +12,7 @@ import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/service_location587.dart';
 // v575 — audit P1-7 : bornes de durée de promenade partagées avec le serveur.
 import 'package:hopetsit/utils/walk_duration.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -56,6 +57,9 @@ class PublishReservationRequestController extends GetxController {
   // Form fields
   final notesController = TextEditingController();
   final cityController = TextEditingController();
+  /// v587 (point 8) — adresse / quartier du point de rendez-vous (promenade).
+  final meetingPointController = TextEditingController();
+  final RxString meetingPointText = ''.obs;
   final addressController = TextEditingController();
 
   final Rxn<DateTime> startDate = Rxn<DateTime>();
@@ -137,9 +141,42 @@ class PublishReservationRequestController extends GetxController {
 
   /// The service-location radio (at_owner / at_sitter / both) shows for
   /// sitter services only. Promenade is implicitly outdoor.
+  ///
+  /// v587 (point 8 de Daniel) — le lieu se choisit pour TOUS les services :
+  /// garde (chez moi / chez le gardien), promenade (récupérer chez moi / point
+  /// de rendez-vous), visites (chez moi, fixé). Avant, la promenade n'avait
+  /// aucun choix et la valeur n'était jamais obligatoire.
   bool get shouldShowServiceLocation =>
-      selectedServiceType.value == 'day_care' ||
-      selectedServiceType.value == 'pet_sitting';
+      serviceLocationFamily(selectedServiceType.value) != null;
+
+  /// Le lieu est-il choisi et complet (adresse du RDV comprise) ?
+  bool get serviceLocationDone {
+    final st = selectedServiceType.value;
+    if (serviceLocationFamily(st) == ServiceLocationFamily.visit) return true;
+    if (!serviceLocationFits(st, serviceLocation.value)) return false;
+    if (serviceLocation.value == 'meeting_point') {
+      return meetingPointText.value.trim().isNotEmpty;
+    }
+    return true;
+  }
+
+  /// Valeur envoyée au serveur (null si rien de valable).
+  String? get serviceLocationToSend {
+    final st = selectedServiceType.value;
+    if (serviceLocationFamily(st) == ServiceLocationFamily.visit) {
+      return 'at_owner';
+    }
+    final v = serviceLocation.value?.trim();
+    return serviceLocationFits(st, v) ? v : null;
+  }
+
+  void selectServiceLocation(String value) {
+    serviceLocation.value = value;
+  }
+
+  void setMeetingPoint(String value) {
+    meetingPointText.value = value;
+  }
 
   // Legacy flag kept for backward-compat callers; house_sitting is no longer
   // a selectable type post-simplification, so this now always returns false.
@@ -251,10 +288,18 @@ class PublishReservationRequestController extends GetxController {
       }
     }
 
-    // Lieu de garde (at_owner / at_sitter / both).
+    // Lieu de garde (at_owner / at_sitter / both) ou de promenade
+    // (pickup / meeting_point) — v587 : seulement s'il va avec le service.
     final svcLoc = p.serviceLocation?.trim();
-    if (svcLoc != null && svcLoc.isNotEmpty) {
+    if (svcLoc != null &&
+        svcLoc.isNotEmpty &&
+        serviceLocationFits(selectedServiceType.value, svcLoc)) {
       serviceLocation.value = svcLoc;
+    }
+    final mp = p.meetingPoint?.trim() ?? '';
+    if (mp.isNotEmpty) {
+      meetingPointController.text = mp;
+      meetingPointText.value = mp;
     }
 
     // Lieu de house-sitting legacy (owners_home / sitters_home).
@@ -280,6 +325,7 @@ class PublishReservationRequestController extends GetxController {
   void onClose() {
     notesController.dispose();
     cityController.dispose();
+    meetingPointController.dispose();
     addressController.dispose();
     super.onClose();
   }
@@ -328,8 +374,9 @@ class PublishReservationRequestController extends GetxController {
     if (value != 'dog_walking') {
       selectedDuration.value = null;
     }
-    // Service location only applies to daycare / pet_sitting.
-    if (value != 'day_care' && value != 'pet_sitting') {
+    // v587 — le lieu dépend du service : on garde le choix s'il va encore
+    // (garderie ↔ garde multi-jours), sinon on le vide.
+    if (!serviceLocationFits(value, serviceLocation.value)) {
       serviceLocation.value = null;
     }
     // house_sitting was merged into pet_sitting in the 2026 simplification;
@@ -481,6 +528,7 @@ class PublishReservationRequestController extends GetxController {
       final v = houseSittingVenue.value;
       if (v == null || v.trim().isEmpty) return false;
     }
+    if (!serviceLocationDone) return false;
     return true;
   }
   bool get stepDatesDone =>
@@ -536,6 +584,11 @@ class PublishReservationRequestController extends GetxController {
       final venue = houseSittingVenue.value;
       if (venue == null || venue.trim().isEmpty) return 'venue';
     }
+    if (!serviceLocationDone) {
+      return serviceLocation.value == 'meeting_point'
+          ? 'meetingPoint'
+          : 'serviceLocation';
+    }
     final city = cityController.text.trim();
     if (city.isEmpty) return 'city';
     return null;
@@ -559,6 +612,10 @@ class PublishReservationRequestController extends GetxController {
         return 'publish_request_duration_required'.tr;
       case 'venue':
         return 'publish_request_venue_required'.tr;
+      case 'serviceLocation':
+        return 'svc587_required'.tr;
+      case 'meetingPoint':
+        return 'svc587_meeting_required'.tr;
       case 'city':
         return 'publish_request_city_required'.tr;
       default:
@@ -611,10 +668,10 @@ class PublishReservationRequestController extends GetxController {
     // pet-sitting (at_owner / at_sitter / both). Avant, la valeur était
     // sélectionnée dans le formulaire mais JAMAIS envoyée → l'annonce
     // n'affichait jamais le lieu de garde. On le transmet désormais.
-    final svcLocation = shouldShowServiceLocation
-        ? (serviceLocation.value?.trim().isNotEmpty == true
-            ? serviceLocation.value
-            : null)
+    final svcLocation = serviceLocationToSend;
+    // v587 (point 8) — adresse du point de rendez-vous (promenade seulement).
+    final meetingPoint = svcLocation == 'meeting_point'
+        ? meetingPointText.value.trim()
         : null;
 
     // v575 — audit P1-7 : la durée de promenade choisie ici n'était JAMAIS
@@ -648,6 +705,7 @@ class PublishReservationRequestController extends GetxController {
           notes: notes,
           houseSittingVenue: venue,
           serviceLocation: svcLocation,
+          meetingPoint: meetingPoint,
           showAnimalCharacter: showAnimalCharacter.value,
           walkDurationMinutes: walkMinutes,
         );
@@ -690,6 +748,7 @@ class PublishReservationRequestController extends GetxController {
           notes: notes,
           houseSittingVenue: venue,
           serviceLocation: svcLocation,
+          meetingPoint: meetingPoint,
           showAnimalCharacter: showAnimalCharacter.value,
           walkDurationMinutes: walkMinutes,
         );
@@ -706,6 +765,7 @@ class PublishReservationRequestController extends GetxController {
           notes: notes,
           houseSittingVenue: venue,
           serviceLocation: svcLocation,
+          meetingPoint: meetingPoint,
           showAnimalCharacter: showAnimalCharacter.value,
           walkDurationMinutes: walkMinutes,
           imageFiles: imageFiles.toList(),

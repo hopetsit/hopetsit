@@ -44,6 +44,8 @@ class OwnerRepository {
     String? notes,
     String? houseSittingVenue,
     String? serviceLocation,
+    // v587 (point 8) — adresse / quartier du point de rendez-vous (promenade).
+    String? meetingPoint,
     bool showAnimalCharacter = true,
     // v575 — audit P1-7 : durée de promenade choisie par le propriétaire.
     int? walkDurationMinutes,
@@ -71,6 +73,8 @@ class OwnerRepository {
         'houseSittingVenue': houseSittingVenue,
       if (serviceLocation != null && serviceLocation.isNotEmpty)
         'serviceLocation': serviceLocation,
+      if (meetingPoint != null && meetingPoint.trim().isNotEmpty)
+        'meetingPoint': meetingPoint.trim(),
       // v575 — audit P1-7 : envoyée seulement quand elle existe (promenade).
       if (walkDurationMinutes != null)
         'walkDurationMinutes': walkDurationMinutes,
@@ -111,6 +115,8 @@ class OwnerRepository {
     String? notes,
     String? houseSittingVenue,
     String? serviceLocation,
+    // v587 (point 8) — adresse / quartier du point de rendez-vous (promenade).
+    String? meetingPoint,
     bool showAnimalCharacter = true,
     // v575 — audit P1-7 : durée de promenade choisie par le propriétaire.
     int? walkDurationMinutes,
@@ -141,6 +147,8 @@ class OwnerRepository {
         'houseSittingVenue': houseSittingVenue,
       if (serviceLocation != null && serviceLocation.isNotEmpty)
         'serviceLocation': serviceLocation,
+      if (meetingPoint != null && meetingPoint.trim().isNotEmpty)
+        'meetingPoint': meetingPoint.trim(),
       // v575 — audit P1-7 : multipart → chaîne (le serveur fait Number()).
       if (walkDurationMinutes != null)
         'walkDurationMinutes': walkDurationMinutes.toString(),

@@ -188,6 +188,10 @@ class BookingModel {
   final String? cancellationReason; // Reason for cancellation
   final String? serviceType; // Type of service
   final String? houseSittingVenue; // owners_home or sitters_home
+  /// v587 (point 8) — lieu du service recopié de l'annonce :
+  /// at_owner | at_sitter | both | pickup | meeting_point (+ meetingPoint).
+  final String? serviceLocation;
+  final String? meetingPoint;
   final int? duration; // Walk duration in minutes (e.g. 30/60) when applicable
   final String? specialInstructions; // Special instructions for the booking
   // v23.1.170 — Daniel : bouton dynamique « Suivre walker » / « Suivre sitter ».
@@ -243,6 +247,8 @@ class BookingModel {
     this.cancellationReason,
     this.serviceType,
     this.houseSittingVenue,
+    this.serviceLocation,
+    this.meetingPoint,
     this.duration,
     this.specialInstructions,
     this.providerRole,
@@ -379,6 +385,8 @@ class BookingModel {
       houseSittingVenue:
           json['houseSittingVenue'] as String? ??
           json['house_sitting_venue'] as String?,
+      serviceLocation: json['serviceLocation'] as String?,
+      meetingPoint: json['meetingPoint'] as String?,
       duration: json['duration'] as int?,
       providerRole: inferredProviderRole,
       specialInstructions:

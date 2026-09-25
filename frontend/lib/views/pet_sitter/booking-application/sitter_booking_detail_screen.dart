@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/service_location587.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/cancel_72h_sheet.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -403,6 +404,18 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
                           ? _serviceTypeLabel(booking.serviceType)
                           : 'sitter_no_service_type'.tr,
                     ),
+                    // v587 (point 8) — lieu du service recopié de l'annonce.
+                    if (serviceLocationDisplay(booking.serviceLocation,
+                            meetingPoint: booking.meetingPoint)
+                        .isNotEmpty) ...[
+                      SizedBox(height: 12.h),
+                      _buildInfoRow(
+                        Icons.home_rounded,
+                        'svc587_field'.tr,
+                        serviceLocationDisplay(booking.serviceLocation,
+                            meetingPoint: booking.meetingPoint),
+                      ),
+                    ],
                     SizedBox(height: 12.h),
                     _buildInfoRow(
                       Icons.access_time,

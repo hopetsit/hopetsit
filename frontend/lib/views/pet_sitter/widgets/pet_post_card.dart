@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/models/post_model.dart';
+import 'package:hopetsit/utils/service_location587.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/post_price_estimator.dart';
@@ -82,6 +83,9 @@ class PetPostCard extends StatelessWidget {
   /// réservation. Null/vide ⇒ la case est masquée.
   final String? serviceLocation;
 
+  /// v587 (point 8) — adresse / quartier du point de rendez-vous (promenade).
+  final String? meetingPoint;
+
   /// v442 — détail annonce prestataire (maquettes walker/sitter) : libellé
   /// « Publié il y a 2 h » affiché sous le nom du propriétaire. Null/vide ⇒
   /// masqué.
@@ -153,6 +157,7 @@ class PetPostCard extends StatelessWidget {
     this.pets,
     this.ownerBio,
     this.serviceLocation,
+    this.meetingPoint,
     this.publishedLabel,
     this.distanceLabel,
     this.walkDurationMinutes,
@@ -1552,7 +1557,7 @@ class PetPostCard extends StatelessWidget {
       }
       final svcLoc = _localizedServiceLocation((serviceLocation ?? '').trim());
       if (svcLoc.isNotEmpty) {
-        add(Icons.home_rounded, 'post_field_service_location'.tr, svcLoc);
+        add(Icons.home_rounded, 'svc587_field'.tr, svcLoc);
       }
       return _gridWithTime(context, cells);
     }
@@ -1570,7 +1575,7 @@ class PetPostCard extends StatelessWidget {
     // v435 — Daniel : afficher le "Lieu de garde" choisi à la publication.
     final svcLoc = _localizedServiceLocation((serviceLocation ?? '').trim());
     if (svcLoc.isNotEmpty) {
-      add(Icons.home_rounded, 'post_field_service_location'.tr, svcLoc);
+      add(Icons.home_rounded, 'svc587_field'.tr, svcLoc);
     }
     // v569 — le corps de l'annonce a son propre bloc « La demande » (3 lignes
     // + « Voir plus »), il ne remplit plus une case de la grille.
@@ -1706,18 +1711,11 @@ class PetPostCard extends StatelessWidget {
 
   // v435 — mappe la valeur backend de serviceLocation vers un libellé court
   // (Chez moi / Chez le sitter / Les deux). Valeur inconnue ⇒ '' (case masquée).
-  String _localizedServiceLocation(String raw) {
-    switch (raw.toLowerCase()) {
-      case 'at_owner':
-        return 'post_field_service_location_at_owner'.tr;
-      case 'at_sitter':
-        return 'post_field_service_location_at_sitter'.tr;
-      case 'both':
-        return 'post_field_service_location_both'.tr;
-      default:
-        return '';
-    }
-  }
+  // v587 (point 8) — libellés NEUTRES (le prestataire lisait « Chez moi »
+  // alors qu'il s'agit du domicile du propriétaire) + promenade : prise en
+  // charge au domicile / point de rendez-vous (avec l'adresse).
+  String _localizedServiceLocation(String raw) =>
+      serviceLocationDisplay(raw, meetingPoint: meetingPoint);
 
 
   /// Session v17.1 — tiny "Reserved" pill rendered in the card header when

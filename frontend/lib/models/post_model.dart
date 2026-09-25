@@ -17,6 +17,8 @@ class PostModel {
   /// Sprint 5 / v435 — lieu de garde choisi par l'owner :
   /// 'at_owner' | 'at_sitter' | 'both'. Affiché sur la carte d'annonce.
   final String? serviceLocation;
+  /// v587 (point 8) — adresse / quartier du point de rendez-vous (promenade).
+  final String? meetingPoint;
   final String? petId;
   /// v441 — ids des animaux sélectionnés pour l'annonce (multi-animaux). Sert
   /// au pré-remplissage du formulaire « Modifier » côté owner.
@@ -69,6 +71,7 @@ class PostModel {
     required this.serviceTypes,
     this.houseSittingVenue,
     this.serviceLocation,
+    this.meetingPoint,
     this.petId,
     this.petIds = const <String>[],
     this.location,
@@ -158,6 +161,7 @@ class PostModel {
       serviceTypes: parseServiceTypes(json['serviceTypes']),
       houseSittingVenue: json['houseSittingVenue'] as String?,
       serviceLocation: json['serviceLocation'] as String?,
+      meetingPoint: json['meetingPoint'] as String?,
       petId: json['petId'] as String?,
       petIds: (json['petIds'] as List<dynamic>?)
               ?.map((e) => e.toString())
@@ -247,6 +251,7 @@ class PostModel {
       serviceTypes: serviceTypes,
       houseSittingVenue: houseSittingVenue,
       serviceLocation: serviceLocation,
+      meetingPoint: meetingPoint,
       petId: petId,
       petIds: petIds,
       location: location,

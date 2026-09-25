@@ -213,6 +213,8 @@ class PostRepository {
     String? notes,
     String? houseSittingVenue,
     String? serviceLocation,
+    // v587 (point 8) — point de rendez-vous d'une promenade.
+    String? meetingPoint,
     bool? showAnimalCharacter,
     // v575 — audit P1-7 : durée de promenade éditable comme les autres champs.
     int? walkDurationMinutes,
@@ -230,6 +232,7 @@ class PostRepository {
       payload['houseSittingVenue'] = houseSittingVenue;
     }
     if (serviceLocation != null) payload['serviceLocation'] = serviceLocation;
+    if (meetingPoint != null) payload['meetingPoint'] = meetingPoint;
     if (showAnimalCharacter != null) {
       payload['showAnimalCharacter'] = showAnimalCharacter;
     }

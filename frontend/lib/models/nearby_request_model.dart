@@ -16,6 +16,8 @@ class NearbyRequestPost {
   final String body;
   final List<String> serviceTypes;
   final String serviceLocation;
+  /// v587 (point 8) — point de rendez-vous d'une promenade ('' sinon).
+  final String meetingPoint;
   final DateTime? startDate;
   final DateTime? endDate;
   final String city;
@@ -41,6 +43,7 @@ class NearbyRequestPost {
     required this.body,
     required this.serviceTypes,
     required this.serviceLocation,
+    this.meetingPoint = '',
     required this.startDate,
     required this.endDate,
     required this.city,
@@ -78,6 +81,7 @@ class NearbyRequestPost {
       body: (j['body'] ?? '').toString(),
       serviceTypes: services.map((s) => s.toString()).toList(),
       serviceLocation: (j['serviceLocation'] ?? '').toString(),
+      meetingPoint: (j['meetingPoint'] ?? '').toString(),
       startDate: parseDate(j['startDate']),
       endDate: parseDate(j['endDate']),
       city: (loc['city'] ?? '').toString(),

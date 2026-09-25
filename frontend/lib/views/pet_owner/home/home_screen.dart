@@ -1253,6 +1253,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ownerBio: post.owner.bio,
               // v435 — lieu de garde affiché dans la grille.
               serviceLocation: post.serviceLocation,
+              meetingPoint: post.meetingPoint,
               postBody: post.body,
               serviceTypes: _serviceTypesDisplay(post.serviceTypes),
               dateRange: _postDateRangeLabel(post),

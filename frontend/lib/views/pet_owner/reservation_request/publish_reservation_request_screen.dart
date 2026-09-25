@@ -18,6 +18,7 @@ import 'package:hopetsit/views/profile/my_pets_screen.dart';
 import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/views/pet_owner/pet_profile/pet_profile_screen.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/utils/service_location587.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class PublishReservationRequestScreen extends StatefulWidget {
@@ -366,6 +367,10 @@ class _PublishReservationRequestScreenState
           : '';
       final city = controller.cityText.value.trim();
       final photos = controller.imageFiles.length;
+      final location = controller.serviceLocationDone
+          ? serviceLocationDisplay(controller.serviceLocationToSend,
+              meetingPoint: controller.meetingPointText.value)
+          : '';
       final duration = controller.shouldShowDuration
           ? (controller.selectedDuration.value ?? '')
           : '';
@@ -382,6 +387,8 @@ class _PublishReservationRequestScreenState
                 duration.isNotEmpty ? '$service · $duration min' : service),
             _summaryRow(Icons.calendar_today_rounded,
                 'send_request_dates_label'.tr, dates),
+            // v587 (point 8) — lieu du service dans le récapitulatif.
+            _summaryRow(Icons.home_rounded, 'svc587_field'.tr, location),
             _summaryRow(Icons.location_on_rounded,
                 'publish_request_city_label'.tr, city),
             _summaryRow(
@@ -1546,96 +1553,201 @@ class _PublishReservationRequestScreenState
     return '$hours h $rem';
   }
 
-  /// Service location radio — replaces the old "Lieu du house sitting" +
-  /// "Où doit se dérouler le service ?" duplicate, now a single clear
-  /// question surfaced for daycare + pet_sitting only.
+  /// v587 (point 8 de Daniel) — LIEU DU SERVICE, selon le service choisi :
+  ///   · garde multi-jours / garderie : Chez moi / Chez le gardien ;
+  ///   · promenade : Récupérer chez moi / Point de rendez-vous (+ adresse) ;
+  ///   · visites : chez moi, affiché et non modifiable.
+  /// Avant, la promenade n'avait aucun choix de lieu et la valeur choisie
+  /// n'était pas obligatoire (donc souvent absente de l'annonce).
   Widget _buildServiceLocationSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InterText(
-          text: 'service_location_label'.tr,
-          fontSize: 14.sp,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textSecondary(context),
-        ),
-        SizedBox(height: 8.h),
-        Obx(() {
-          final current = controller.serviceLocation.value;
-          Widget buildOption(String value, String labelKey) {
-            final selected = current == value;
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => controller.serviceLocation.value = value,
-              child: Container(
-                margin: EdgeInsets.only(bottom: 10.h),
-                padding: EdgeInsets.symmetric(
-                  horizontal: 14.w,
-                  vertical: 12.h,
+    return Obx(() {
+      final st = controller.selectedServiceType.value;
+      final current = controller.serviceLocation.value;
+      final meeting = controller.meetingPointText.value;
+      final accent = _accentForService(st ?? '');
+      final family = serviceLocationFamily(st);
+      final options = serviceLocationOptions(st, current: current);
+
+      Widget title() => InterText(
+            key: const Key('svc587_title'),
+            text: serviceLocationTitleKey(st).tr,
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondaryStrong(context),
+          );
+
+      if (family == ServiceLocationFamily.visit) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            title(),
+            SizedBox(height: 8.h),
+            _locationTile(
+              key: const Key('svc587_visit_fixed'),
+              icon: PawIcon.home,
+              label: 'svc587_visit_fixed'.tr,
+              sub: '',
+              selected: true,
+              accent: accent,
+              onTap: null,
+            ),
+          ],
+        );
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          title(),
+          SizedBox(height: 8.h),
+          for (final o in options)
+            _locationTile(
+              key: Key('svc587_opt_${o.value}'),
+              icon: o.icon,
+              label: o.labelKey.tr,
+              sub: o.subKey.isEmpty ? '' : o.subKey.tr,
+              selected: current == o.value,
+              accent: accent,
+              onTap: () => controller.selectServiceLocation(o.value),
+            ),
+          if (current == 'meeting_point') ...[
+            SizedBox(height: 2.h),
+            TextField(
+              key: const Key('svc587_meeting_field'),
+              controller: controller.meetingPointController,
+              onChanged: controller.setMeetingPoint,
+              maxLength: 200,
+              textCapitalization: TextCapitalization.sentences,
+              style: TextStyle(
+                fontSize: 14.sp,
+                color: AppColors.textPrimary(context),
+              ),
+              decoration: InputDecoration(
+                counterText: '',
+                hintText: 'svc587_meeting_hint'.tr,
+                hintStyle: TextStyle(
+                  fontSize: 13.sp,
+                  color: AppColors.textSecondary(context),
                 ),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? _sitterAccent.withValues(alpha: 0.08)
-                      : AppColors.inputFill(context),
+                prefixIcon: Padding(
+                  padding: EdgeInsets.all(12.w),
+                  child: PawIconWidget(PawIcon.pin, size: 18.sp, color: accent),
+                ),
+                filled: true,
+                fillColor: AppColors.inputFill(context),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+                border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14.r),
-                  border: Border.all(
-                    color:
-                        selected ? _sitterAccent : AppColors.divider(context),
-                    width: selected ? 1.5 : 1,
+                  borderSide: BorderSide(color: AppColors.divider(context)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14.r),
+                  borderSide: BorderSide(
+                    color: meeting.trim().isEmpty
+                        ? accent.withValues(alpha: 0.55)
+                        : AppColors.divider(context),
                   ),
                 ),
-                child: Row(
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14.r),
+                  borderSide: BorderSide(color: accent, width: 1.5),
+                ),
+              ),
+            ),
+          ],
+        ],
+      );
+    });
+  }
+
+  /// Tuile de choix du lieu : icône maison dans une pastille teintée, libellé,
+  /// sous-titre, coche à la couleur du service quand elle est choisie.
+  Widget _locationTile({
+    required Key key,
+    required PawIcon icon,
+    required String label,
+    required String sub,
+    required bool selected,
+    required Color accent,
+    required VoidCallback? onTap,
+  }) {
+    return Semantics(
+      button: onTap != null,
+      selected: selected,
+      label: label,
+      child: GestureDetector(
+        key: key,
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          margin: EdgeInsets.only(bottom: 10.h),
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 11.h),
+          decoration: BoxDecoration(
+            color: selected
+                ? accent.withValues(alpha: 0.08)
+                : AppColors.inputFill(context),
+            borderRadius: BorderRadius.circular(14.r),
+            border: Border.all(
+              color: selected ? accent : AppColors.divider(context),
+              width: selected ? 1.6 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38.w,
+                height: 38.w,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected ? accent : accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(11.r),
+                ),
+                child: PawIconWidget(icon,
+                    size: 20.sp, color: selected ? Colors.white : accent),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 20.w,
-                      height: 20.w,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: selected
-                              ? _sitterAccent
-                              : AppColors.textSecondary(context),
-                          width: 2,
-                        ),
-                      ),
-                      child: selected
-                          ? Center(
-                              child: Container(
-                                width: 10.w,
-                                height: 10.w,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: _sitterAccent,
-                                ),
-                              ),
-                            )
-                          : null,
+                    InterText(
+                      text: label,
+                      fontSize: 14.sp,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                      color: selected ? accent : AppColors.textPrimary(context),
                     ),
-                    SizedBox(width: 12.w),
-                    Expanded(
-                      child: InterText(
-                        text: labelKey.tr,
-                        fontSize: 14.sp,
-                        fontWeight:
-                            selected ? FontWeight.w600 : FontWeight.w500,
-                        color: AppColors.textPrimary(context),
+                    if (sub.isNotEmpty) ...[
+                      SizedBox(height: 2.h),
+                      InterText(
+                        text: sub,
+                        fontSize: 11.sp,
+                        color: AppColors.textSecondary(context),
+                        maxLines: 2,
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
-            );
-          }
-
-          return Column(
-            children: [
-              buildOption('at_owner', 'service_location_at_owner'),
-              buildOption('at_sitter', 'service_location_at_sitter'),
-              buildOption('both', 'service_location_both'),
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 180),
+                opacity: selected ? 1 : 0,
+                child: Container(
+                  width: 22.w,
+                  height: 22.w,
+                  alignment: Alignment.center,
+                  decoration:
+                      BoxDecoration(color: accent, shape: BoxShape.circle),
+                  child: Icon(Icons.check_rounded,
+                      size: 14.sp, color: Colors.white),
+                ),
+              ),
             ],
-          );
-        }),
-      ],
+          ),
+        ),
+      ),
     );
   }
 
