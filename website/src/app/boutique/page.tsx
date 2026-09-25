@@ -13,6 +13,7 @@
 // natif. Sur desktop sans app installée, on affiche un message "Téléchargez
 // l'app pour finaliser l'achat".
 
+import { memberPinHtml, PAWMAP_KEYFRAMES } from "@/lib/pawmapLegend";
 import Link from "next/link";
 import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
 import { PawMemberBadge } from "@/components/PawMemberBadge";
@@ -320,7 +321,7 @@ export default function BoutiquePage() {
         <div className="pointer-events-none absolute -left-16 -top-20 h-56 w-56 rounded-full bg-[#F7B9A6] opacity-80 blur-[50px]" />
         <div className="pointer-events-none absolute -right-16 -top-10 h-56 w-56 rounded-full bg-[#F2D68A] opacity-80 blur-[50px]" />
         <div className="pointer-events-none absolute -bottom-28 left-[35%] h-52 w-56 rounded-full bg-[#C9B5F5] opacity-90 blur-[50px]" />
-        <div className="relative grid max-w-[440px] grid-cols-4 gap-2">
+        <div className="relative grid max-w-[440px] grid-cols-2 gap-2 min-[400px]:grid-cols-4">
           <SectionTab
             label={t("shop_tab_boost").replace(/^[^A-Za-z]+/, "")}
             desc={t("shop_card_boost_sub")}
@@ -535,9 +536,9 @@ function SectionTab({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className="relative flex min-w-0 flex-col items-center gap-3 overflow-hidden rounded-[22px] px-1.5 pb-3.5 pt-4 text-center transition-[transform,box-shadow] duration-200 hover:-translate-y-[3px] active:scale-[.97]"
+      // 25/09 — sous 400 px : 2 colonnes, cartes moins hautes (titres jamais coupés).
+      className="relative flex aspect-[1/1.08] min-w-0 flex-col items-center gap-3 overflow-hidden rounded-[22px] px-1.5 pb-3.5 pt-4 text-center transition-[transform,box-shadow] duration-200 hover:-translate-y-[3px] active:scale-[.97] min-[400px]:aspect-[1/1.75]"
       style={{
-        aspectRatio: "1 / 1.75",
         background: `linear-gradient(165deg, ${g1} 0%, ${g2} 100%)`,
         border: "1px solid rgba(255,255,255,.45)",
         boxShadow: active
@@ -986,9 +987,24 @@ function BoostSection({
   return (
     <div className="mt-8 space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-ink">{title}</h2>
+        {/* Zéro emoji dans l'interface (norme de design) : on retire celui du titre. */}
+        <h2 className="text-2xl font-bold text-ink">{title.replace(/^[^\p{L}\p{N}]+/u, "")}</h2>
         <p className="mt-1 text-sm text-ink-muted">{subtitle}</p>
       </div>
+
+      {/* 25/09 (PawMap 584, point 16) — PawBoost met en avant l'annonce ET le
+          profil, y compris sur la PawMap (rond turquoise + fusée, devant les
+          autres). Même dessin que la carte, sans promesse chiffrée. */}
+      {purposeKey === "boost" && (
+        <div className="flex items-center gap-4 rounded-[24px] bg-[#E6FAFD] p-5 ring-1 ring-[#A5ECF6]">
+          <style dangerouslySetInnerHTML={{ __html: PAWMAP_KEYFRAMES }} />
+          <span className="relative shrink-0 p-2" aria-hidden dangerouslySetInnerHTML={{ __html: memberPinHtml({ role: "walker", boosted: true, size: 46 }) }} />
+          <div className="min-w-0">
+            <h3 className="font-display text-base font-bold text-[#0B4F5C]">{t("shop_boost_map_title")}</h3>
+            <p className="mt-1 text-sm leading-relaxed text-[#134E5A]">{t("shop_boost_map_body")}</p>
+          </div>
+        </div>
+      )}
 
       {/* Statut actuel */}
       {status?.isActive && (
