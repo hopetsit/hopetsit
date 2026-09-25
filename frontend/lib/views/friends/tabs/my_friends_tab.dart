@@ -311,18 +311,33 @@ class _FriendCardState extends State<FriendCard> {
       statusText = 'friends566_offline'.tr;
     }
 
+    // v588 — Daniel : « quand je clique sur sa photo, ça ne me renvoie pas
+    // vers lui sur la map ». Photo ou ligne → l'ami sur la PawMap ;
+    // « Profil » reste le bouton de la fiche complète.
+    void showOnMap() => focusFriendOnPawMap(context, other);
+
     return FriendsCard(
       tint: widget.isFamily ? kFamilyViolet : null,
+      onTap: hasId ? showOnMap : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              FriendAvatar(
-                imageUrl: other.avatar,
-                ringColor: ring,
-                online: hasId ? widget.online : null,
+              Semantics(
+                button: hasId,
+                label: hasId ? 'friends588_show_on_map'.tr : null,
+                child: GestureDetector(
+                  key: ValueKey('friend_photo_${other.id}'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: hasId ? showOnMap : null,
+                  child: FriendAvatar(
+                    imageUrl: other.avatar,
+                    ringColor: ring,
+                    online: hasId ? widget.online : null,
+                  ),
+                ),
               ),
               SizedBox(width: 12.w),
               Expanded(

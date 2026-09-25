@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
+import 'package:hopetsit/views/map/pawmap_friend_focus.dart';
 
 /// v465 — état partagé « carte PawMap agrandie ».
 ///
@@ -48,6 +49,29 @@ void openPawMapAt(double lat, double lng, {double zoom = 13}) {
     return;
   }
   Get.to(() => PawMapScreen(initialLat: lat, initialLng: lng, initialZoom: zoom));
+}
+
+/// v588 — Daniel : « dans la liste d'amis, quand je clique sur sa photo, ça
+/// ne me renvoie pas vers lui sur la map ». Ami à montrer : la PawMap
+/// observe `pawMapPendingFriend` (vol doux zoom 16, fiche courte, suivi s'il
+/// est en direct).
+final Rxn<PawMapFriendFocus> pawMapPendingFriend = Rxn<PawMapFriendFocus>();
+
+/// Ouvre l'ONGLET PawMap (menu conservé) sur [focus] ; sans menu monté
+/// (app ouverte par un lien), la carte est poussée et lit la même demande.
+void openPawMapOnFriend(PawMapFriendFocus focus) {
+  // Retour à la racine D'ABORD (sinon `Get.until` refermerait la fiche que
+  // la carte ouvre en réponse), puis la demande.
+  if (openMainTab(kPawMapTabIndex)) {
+    pawMapPendingFriend.value = focus;
+    return;
+  }
+  pawMapPendingFriend.value = focus;
+  Get.to(() => PawMapScreen(
+        initialLat: focus.lat,
+        initialLng: focus.lng,
+        initialZoom: kPawMapFriendFocusZoom,
+      ));
 }
 
 /// Ouvre la PawMap avec un itinéraire vers (lat, lng) : via l'onglet quand le

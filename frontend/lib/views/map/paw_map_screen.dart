@@ -59,6 +59,7 @@ import 'package:hopetsit/views/map/widgets/pawmap_discreet.dart';
 import 'package:hopetsit/views/service_provider/widgets/book_as_owner.dart';
 import 'package:hopetsit/services/map_prefs_service.dart';
 import 'package:hopetsit/widgets/paw_tab_bar.dart' show pawTabBarTotalHeight;
+import 'package:hopetsit/views/map/pawmap_friend_focus.dart';
 import 'package:hopetsit/views/map/pawmap_friends_layer.dart';
 import 'package:hopetsit/views/map/pawmap_person.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_subscriptions_section.dart';
@@ -634,6 +635,25 @@ class _PawMapScreenState extends State<PawMapScreen>
       if (v == null || !mounted) return;
       pawMapPendingCenter.value = null;
       unawaited(_goToCity(v, zoom: pawMapPendingZoom.value));
+    });
+    // v588 — un ami touché dans la liste d'amis (photo ou ligne) : la carte
+    // vole sur lui (zoom 16), ouvre sa fiche courte, le suit s'il est en
+    // direct. Le bootstrap ne recentre alors plus sur MA position.
+    final pendingFriend = pawMapPendingFriend.value;
+    if (pendingFriend != null) {
+      pawMapPendingFriend.value = null;
+      _friendFocusRequested = true;
+      _currentCenter = LatLng(pendingFriend.lat, pendingFriend.lng);
+      _zoomLevel = kPawMapFriendFocusZoom;
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => unawaited(_focusFriend(pendingFriend)));
+    }
+    _pendingFriendWorker = ever<PawMapFriendFocus?>(pawMapPendingFriend, (v) {
+      if (v == null || !mounted) return;
+      pawMapPendingFriend.value = null;
+      _friendFocusRequested = true;
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => unawaited(_focusFriend(v)));
     });
     // v23.1.353 — refonte PawSpot : les anciens halos "map boost" (tier
     // bronze/silver/gold/platinum + self-halo) sont SUPPRIMÉS de la carte.
@@ -1561,6 +1581,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     unawaited(_prefs.flush());
     _pendingRouteWorker?.dispose();
     _pendingCenterWorker?.dispose();
+    _pendingFriendWorker?.dispose();
     _reloadDebounce?.cancel();
     for (final w in _backGuardWorkers) {
       w.dispose();
@@ -1716,7 +1737,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       // (sitter, walker, ami). On set juste _userPosition pour pouvoir
       // afficher MON point bleu en plus, dans un coin de la carte.
       final hasInitialFocus =
-          widget.initialLat != null && widget.initialLng != null;
+          (widget.initialLat != null && widget.initialLng != null) ||
+              _friendFocusRequested;
       setState(() {
         // _userPosition reste toujours MA position (overlay perso).
         _userPosition = myCenter;
@@ -2935,9 +2957,29 @@ class _PawMapScreenState extends State<PawMapScreen>
         : '${'v565_live_active'.tr} · ${_timeAgo(pos.seenAt)}';
     void follow() {
       Navigator.of(ctx).pop();
-      // Point 3 : suivre SANS ouvrir le panneau déroulant → on le replie.
-      unawaited(_sheetTo(PawSheetStop.low));
-      _startFollow(pos.userId, LatLng(pos.latitude, pos.longitude), name);
+      // v588 — même geste que la liste d'amis : vol doux (zoom 16), fiche
+      // courte, suivi s'il est en direct ; Masqué / sans position → pastille.
+      final friend = _friendController.friends.firstWhereOrNull(
+          (f) => f.other != null && f.other!.matchesId(pos.userId));
+      final PawMapFriendFocus? focus = friend != null
+          ? pawMapFriendFocusFor(friend.other!, live: pos)
+          : (pos.liveState != FriendLiveState.seen
+              ? PawMapFriendFocus(
+                  userId: pos.userId,
+                  role: role,
+                  name: name,
+                  avatar: avatar,
+                  lat: pos.latitude,
+                  lng: pos.longitude,
+                  live: true,
+                  approxKm: 0,
+                )
+              : null);
+      if (focus == null) {
+        PawSignal.show(context, PawSignalKind.hidden, 'friends588_not_on_map'.tr);
+        return;
+      }
+      unawaited(_focusFriend(focus));
     }
 
     return Material(
@@ -5139,7 +5181,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// lisible (16,5) ; ensuite elle suit le point sans re-zoomer (pas de
   /// recentrage brutal), et le tracé se dessine en violet PawFollow.
   void _startFollow(String userId, LatLng pos, String name,
-      {String avatar = '', String role = ''}) {
+      {String avatar = '', String role = '', double? zoom}) {
     // v584 (25/09, règle c) : on ne suit QUE quelqu'un qui partage sa
     // position en ce moment (en direct ou signal perdu < 10 min).
     final fp = _liveMap.friendPositions[userId];
@@ -5159,7 +5201,52 @@ class _PawMapScreenState extends State<PawMapScreen>
       _followPaused = false;
       _followTrail = <LatLng>[pos];
     });
-    _animateFollowCamera(pos, zoom: _followZoom);
+    _animateFollowCamera(pos, zoom: zoom ?? _followZoom);
+  }
+
+  /// v588 — Daniel : « dans la liste d'amis, quand je clique sur sa photo, ça
+  /// ne me renvoie pas vers lui sur la map ». Vol doux jusqu'à l'ami (zoom
+  /// 16), sa fiche courte ouverte ; en direct, le suivi démarre.
+  Future<void> _focusFriend(PawMapFriendFocus f) async {
+    if (!mounted) return;
+    if (_followUserId != null &&
+        !{f.userId, ...f.personIds}.contains(_followUserId)) {
+      _stopFollow();
+    }
+    unawaited(_sheetTo(PawSheetStop.low));
+    // En direct : la position la plus fraîche connue de la carte.
+    final liveKey = [f.userId, ...f.personIds].firstWhere(
+        (id) => _liveMap.friendPositions[id] != null,
+        orElse: () => f.userId);
+    final fp = _liveMap.friendPositions[liveKey];
+    final bool liveNow = f.live && fp != null && fp.liveState != FriendLiveState.seen;
+    final LatLng at = liveNow ? LatLng(fp.latitude, fp.longitude) : LatLng(f.lat, f.lng);
+    _currentCenter = at;
+    try {
+      final ctl = await _mapCtl.future.timeout(const Duration(seconds: 8));
+      if (!mounted) return;
+      await ctl.animateCamera(
+          CameraUpdate.newLatLngZoom(at, kPawMapFriendFocusZoom));
+    } catch (_) {/* carte pas prête : initialCameraPosition fera foi */}
+    if (!mounted) return;
+    if (liveNow) {
+      _startFollow(liveKey, at, f.name,
+          avatar: f.avatar, role: f.role, zoom: kPawMapFriendFocusZoom);
+    }
+    _onNearbyTap(
+      id: f.userId,
+      role: f.role,
+      name: f.name,
+      online: f.online,
+      premium: f.premium,
+      lat: at.latitude,
+      lng: at.longitude,
+      avatar: f.avatar,
+      approx: !liveNow,
+      approxKm: f.approxKm,
+      isFriend: true,
+      personIds: f.personIds,
+    );
   }
 
   String _followAvatar = '';
@@ -8309,6 +8396,10 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// chaque seconde tant que MA position n'est pas connue (max ~10 s).
   Worker? _pendingRouteWorker;
   Worker? _pendingCenterWorker;
+  Worker? _pendingFriendWorker;
+
+  /// v588 — un ami a été demandé : le bootstrap garde la caméra sur lui.
+  bool _friendFocusRequested = false;
 
   Future<void> _startPendingRoute(LatLng dest) async {
     for (int i = 0; i < 10; i++) {

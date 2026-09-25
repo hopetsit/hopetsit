@@ -182,6 +182,7 @@ class _LivePersonCardState extends State<_LivePersonCard> {
         userId: _other.id,
         role: _other.model,
         name: _other.name,
+        avatar: _other.avatar,
       );
     } finally {
       if (mounted) setState(() => _followBusy = false);
@@ -233,13 +234,21 @@ class _LivePersonCardState extends State<_LivePersonCard> {
     final roleColor = friendRoleColor(other.model);
     final ring = pawSpotRingColor(other.pawSpotTier) ?? roleColor;
 
+    // v588 — photo ou ligne → l'ami sur la PawMap (onglet, menu conservé).
+    void showOnMap() => focusFriendOnPawMap(context, other);
+
     return FriendsCard(
-      onTap: _followBusy ? null : _follow,
+      onTap: showOnMap,
       child: Column(
         children: [
           Row(
             children: [
-              FriendAvatar(imageUrl: other.avatar, ringColor: ring),
+              GestureDetector(
+                key: ValueKey('friend_photo_${other.id}'),
+                behavior: HitTestBehavior.opaque,
+                onTap: showOnMap,
+                child: FriendAvatar(imageUrl: other.avatar, ringColor: ring),
+              ),
               SizedBox(width: 12.w),
               Expanded(
                 child: Column(

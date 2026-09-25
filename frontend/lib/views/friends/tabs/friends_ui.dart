@@ -17,7 +17,9 @@ import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/chat_shared/chat_avatar.dart';
-import 'package:hopetsit/views/map/paw_map_screen.dart';
+import 'package:hopetsit/utils/map_ui_state.dart';
+import 'package:hopetsit/views/map/pawmap_friend_focus.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_signal.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
@@ -795,21 +797,91 @@ Future<(double?, double?)> resolveFriendLatLng(String userId) async {
   return (lat, lng);
 }
 
-/// Ouvre la PawMap centrée sur un membre (halo + suivi). v23.1.400 —
-/// `Get.off` : la carte REMPLACE l'écran Amis, le retour ramène à la carte.
+/// v588 — pastille « Cet ami n'est pas visible sur la carte » (Masqué ou
+/// sans position connue).
+void showFriendNotOnMap([BuildContext? context]) {
+  final ctx = context ?? Get.overlayContext ?? Get.context;
+  if (ctx == null) return;
+  PawSignal.show(ctx, PawSignalKind.hidden, 'friends588_not_on_map'.tr);
+}
+
+LiveMapService? _liveMapOrNull() {
+  try {
+    return Get.isRegistered<LiveMapService>() ? Get.find<LiveMapService>() : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Profil d'ami connu de `/friends` pour [userId] (position de profil 587).
+FriendProfile? _knownFriendProfile(String userId) {
+  try {
+    if (!Get.isRegistered<FriendController>()) return null;
+    final f = Get.find<FriendController>().friends.firstWhereOrNull(
+        (f) => f.other != null && f.other!.matchesId(userId));
+    return f?.other;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// v588 — Daniel : « dans la liste d'amis de l'app, quand je clique sur sa
+/// photo, ça ne me renvoie pas vers lui sur la map ». Appui sur la photo ou
+/// la ligne d'un ami : ONGLET PawMap (menu conservé), vol doux zoom 16, sa
+/// fiche courte, suivi s'il est en direct. Position = couche amis 587
+/// (direct sinon position de profil) ; Masqué / sans position → pastille.
+void focusFriendOnPawMap(BuildContext context, FriendProfile other) {
+  if (other.id.isEmpty) return;
+  final positions =
+      _liveMapOrNull()?.friendPositions ?? const <String, FriendPosition>{};
+  final focus =
+      pawMapFriendFocusFor(other, live: pawMapLivePositionOf(other, positions));
+  if (focus == null) {
+    showFriendNotOnMap(context);
+    return;
+  }
+  openPawMapOnFriend(focus);
+}
+
+/// Ouvre la PawMap sur un membre (« Suivre ») : v588 — via l'ONGLET PawMap
+/// (menu conservé, plus d'écran empilé sans menu), vol doux zoom 16, fiche
+/// courte, suivi s'il est en direct. Position : direct, sinon position de
+/// profil (`/friends`), sinon `GET /friends/:id/last-position`.
 Future<void> openPawMapOnMember({
   required String userId,
   required String role,
   required String name,
+  String avatar = '',
 }) async {
-  final (lat, lng) = await resolveFriendLatLng(userId);
-  Get.off(() => PawMapScreen(
-        initialLat: lat,
-        initialLng: lng,
-        focusUserId: userId,
-        focusUserRole: role.toLowerCase(),
-        focusUserName: name,
-      ));
+  if (userId.isEmpty) return;
+  final known = _knownFriendProfile(userId);
+  final profile = known ??
+      FriendProfile(id: userId, model: role, name: name, avatar: avatar);
+  final positions =
+      _liveMapOrNull()?.friendPositions ?? const <String, FriendPosition>{};
+  var focus = pawMapFriendFocusFor(profile,
+      live: pawMapLivePositionOf(profile, positions));
+  // Un ami « Masqué » ne se montre qu'en direct (jamais sa dernière position).
+  if (focus == null && profile.mapVisibility != 'hidden') {
+    final (lat, lng) = await resolveFriendLatLng(userId);
+    if (lat != null && lng != null) {
+      focus = PawMapFriendFocus(
+        userId: userId,
+        role: role.toLowerCase(),
+        name: profile.name.isEmpty ? name : profile.name,
+        avatar: profile.avatar.isEmpty ? avatar : profile.avatar,
+        lat: lat,
+        lng: lng,
+        approxKm: 0,
+        personIds: <String>[userId, ...profile.personIds.where((x) => x != userId)],
+      );
+    }
+  }
+  if (focus == null) {
+    showFriendNotOnMap();
+    return;
+  }
+  openPawMapOnFriend(focus);
 }
 
 /// « Suivre en direct » un AMI : ouverture directe s'il partage sa position,

@@ -572,10 +572,33 @@ class _FamilyMemberCardState extends State<FamilyMemberCard> {
     setState(() => _followBusy = true);
     try {
       // v23.1.266 — la famille est toujours suivable (PawFollow Famille).
-      await openPawMapOnMember(userId: _id, role: _role, name: _name);
+      await openPawMapOnMember(
+        userId: _id,
+        role: _role,
+        name: _name,
+        avatar: (widget.member['avatar'] ?? '').toString(),
+      );
     } finally {
       if (mounted) setState(() => _followBusy = false);
     }
+  }
+
+  /// v588 — photo ou ligne → le membre sur la PawMap (position de la couche
+  /// amis : direct, sinon position de profil ; Masqué → pastille).
+  void _showOnMap() {
+    if (_id.isEmpty) return;
+    final known = widget.controller.friends.firstWhereOrNull(
+        (f) => f.other != null && f.other!.matchesId(_id));
+    focusFriendOnPawMap(
+      context,
+      known?.other ??
+          FriendProfile(
+            id: _id,
+            model: _role,
+            name: _name,
+            avatar: (widget.member['avatar'] ?? '').toString(),
+          ),
+    );
   }
 
   Future<void> _chat() async {
@@ -607,15 +630,20 @@ class _FamilyMemberCardState extends State<FamilyMemberCard> {
     final hasId = _id.isNotEmpty;
 
     return FriendsCard(
-      onTap: hasId && !isPending ? _follow : null,
+      onTap: hasId && !isPending ? _showOnMap : null,
       child: Column(
         children: [
           Row(
             children: [
-              FriendAvatar(
-                imageUrl: avatar,
-                ringColor: pawSpot ?? kFamilyViolet,
-                online: isPending ? null : widget.online,
+              GestureDetector(
+                key: ValueKey('friend_photo_$_id'),
+                behavior: HitTestBehavior.opaque,
+                onTap: hasId && !isPending ? _showOnMap : null,
+                child: FriendAvatar(
+                  imageUrl: avatar,
+                  ringColor: pawSpot ?? kFamilyViolet,
+                  online: isPending ? null : widget.online,
+                ),
               ),
               SizedBox(width: 12.w),
               Expanded(
