@@ -4,6 +4,7 @@ import 'package:animated_custom_dropdown/custom_dropdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart' show showAppLanguagePicker;
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -364,63 +365,11 @@ class SignUpScreen extends StatelessWidget {
                           // captured `currentCode` once at open-time and the
                           // check stayed stuck on English even after picking
                           // another language.
-                          String selectedCode =
-                              LocalizationService.getCurrentLanguageCode();
-                          final entries = LocalizationService
-                              .languageLabels
-                              .entries
-                              .toList();
-
-                          Get.defaultDialog(
-                            title: 'language_dialog_title'.tr,
-                            backgroundColor: AppColors.scaffold(context),
-                            content: StatefulBuilder(
-                              builder: (ctx, setDialogState) {
-                                return Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: entries.map((entry) {
-                                    final isSelected =
-                                        entry.key == selectedCode;
-                                    return ListTile(
-                                      title: InterText(
-                                        text: entry.value,
-                                        fontSize: 15.sp,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      trailing: isSelected
-                                          ? const Icon(
-                                              Icons.check,
-                                              color: Colors.green,
-                                            )
-                                          : null,
-                                      onTap: () async {
-                                        // 1. Move the check mark immediately
-                                        // so the user sees their choice.
-                                        setDialogState(() {
-                                          selectedCode = entry.key;
-                                        });
-                                        // 2. Apply the locale change.
-                                        await LocalizationService.updateLocale(
-                                          entry.key,
-                                        );
-                                        // 3. Brief pause so the visual
-                                        // confirmation registers before we
-                                        // close the dialog.
-                                        await Future.delayed(
-                                            const Duration(milliseconds: 250));
-                                        Get.back();
-                                        CustomSnackbar.showSuccess(
-                                          title: 'language_updated_title'.tr,
-                                          message: 'language_updated_message'.tr,
-                                        );
-                                      },
-                                    );
-                                  }).toList(),
-                                );
-                              },
-                            ),
-                            textCancel: 'common_cancel'.tr,
-                          );
+                          // v585 (bug 17) — le sélecteur signature de
+                          // l'app (traduit, langues écrites dans leur
+                          // langue, jamais gris) au lieu de Get.defaultDialog.
+                          showAppLanguagePicker(
+                              context, AppColors.activeRoleAccent());
                         },
                         child: Container(
                           height: 52.h,

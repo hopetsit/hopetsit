@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart' show showAppLanguagePicker;
 import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -586,61 +587,14 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // v585 (bug 17, Daniel : « le menu des langues qui apparaît la première
+  // fois : qu'il soit bien traduit ») — l'ancien `Get.defaultDialog`
+  // (ListTile Material, coche verte, bouton « Cancel » générique) est
+  // remplacé par LE sélecteur signature de l'app : titre traduit dans les
+  // 9 langues, nom de chaque langue écrit dans sa langue + drapeau, rangées
+  // maison, jamais gris.
   void _showLanguageDialog(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    // Track the selected language inside the dialog so the check mark moves
-    // when the user taps. Without StatefulBuilder, the check stayed frozen
-    // on whatever language was active at open-time.
-    String selectedCode = LocalizationService.getCurrentLanguageCode();
-    final entries = LocalizationService.languageLabels.entries.toList();
-
-    Get.defaultDialog(
-      title: 'language_dialog_title'.tr,
-      titleStyle: TextStyle(
-        fontWeight: FontWeight.w700,
-        color: isDark ? AppColors.textPrimaryDark : AppColors.blackColor,
-      ),
-      backgroundColor: isDark ? AppColors.surfaceDark : AppColors.whiteColor,
-      content: StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: entries.map((entry) {
-              final isSelected = entry.key == selectedCode;
-              return ListTile(
-                title: InterText(
-                  text:
-                      '${LocalizationService.languageFlags[entry.key] ?? ''} ${entry.value}'
-                          .trim(),
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w500,
-                  color:
-                      isDark ? AppColors.textPrimaryDark : AppColors.blackColor,
-                ),
-                trailing: isSelected
-                    ? Icon(Icons.check, color: AppColors.primaryColor)
-                    : null,
-                onTap: () async {
-                  setDialogState(() {
-                    selectedCode = entry.key;
-                  });
-                  await LocalizationService.updateLocale(entry.key);
-                  // Brief pause so the visual confirmation registers.
-                  await Future.delayed(const Duration(milliseconds: 250));
-                  Get.back();
-                  CustomSnackbar.showSuccess(
-                    title: 'language_updated_title'.tr,
-                    message: 'language_updated_message'.tr,
-                  );
-                },
-              );
-            }).toList(),
-          );
-        },
-      ),
-      textCancel: 'common_cancel'.tr,
-      cancelTextColor: AppColors.primaryColor,
-    );
+    showAppLanguagePicker(context, AppColors.primaryColor);
   }
 }
 

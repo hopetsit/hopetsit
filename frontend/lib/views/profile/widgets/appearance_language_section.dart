@@ -197,7 +197,8 @@ Future<void> showAppLanguagePicker(BuildContext context, Color accent) {
               width: 40.w,
               height: 4.h,
               decoration: BoxDecoration(
-                color: AppColors.divider(context),
+                // v585 — poignée à l'accent, jamais grise.
+                color: accent,
                 borderRadius: BorderRadius.circular(2.r),
               ),
             ),
