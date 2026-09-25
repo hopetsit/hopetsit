@@ -218,8 +218,17 @@ class PostRepository {
     bool? showAnimalCharacter,
     // v575 — audit P1-7 : durée de promenade éditable comme les autres champs.
     int? walkDurationMinutes,
+    // v587 — budget : 0 = effacé, null = inchangé.
+    double? budget,
+    String? budgetCurrency,
   }) async {
     final payload = <String, dynamic>{};
+    if (budget != null) {
+      payload['budget'] = budget > 0 ? budget : '';
+      if (budget > 0 && (budgetCurrency ?? '').isNotEmpty) {
+        payload['budgetCurrency'] = budgetCurrency;
+      }
+    }
     if (body != null) payload['body'] = body;
     if (startDate != null) payload['startDate'] = startDate.toIso8601String();
     if (endDate != null) payload['endDate'] = endDate.toIso8601String();

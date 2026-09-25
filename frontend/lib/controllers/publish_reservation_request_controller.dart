@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/home_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
@@ -11,9 +12,11 @@ import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/service_location587.dart';
 // v575 — audit P1-7 : bornes de durée de promenade partagées avec le serveur.
+import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/walk_duration.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:image_picker/image_picker.dart';
@@ -60,6 +63,33 @@ class PublishReservationRequestController extends GetxController {
   /// v587 (point 8) — adresse / quartier du point de rendez-vous (promenade).
   final meetingPointController = TextEditingController();
   final RxString meetingPointText = ''.obs;
+  // v587 (budget, option A de Daniel) — « Mon budget », facultatif : montant
+  // dans la devise du propriétaire. Vide = pas de budget (bulle = icône).
+  final budgetController = TextEditingController();
+  final RxString budgetText = ''.obs;
+
+  /// Montant saisi (virgule acceptée), ou null si vide / invalide / ≤ 0.
+  double? get budgetAmount {
+    final v = double.tryParse(
+        budgetText.value.trim().replaceAll(' ', '').replaceAll(',', '.'));
+    return (v != null && v > 0) ? v : null;
+  }
+
+  /// Devise du propriétaire (profil ; sinon celle de son pays ; sinon EUR).
+  String get budgetCurrency {
+    try {
+      final p = GetStorage().read(StorageKeys.userProfile);
+      if (p is Map) {
+        final c = (p['currency'] ?? '').toString().toUpperCase();
+        if (c.isNotEmpty) return c;
+        final country = (p['country'] ?? p['countryCode'] ?? '').toString();
+        if (country.isNotEmpty) return CurrencyHelper.fromCountry(country);
+      }
+    } catch (_) {}
+    return 'EUR';
+  }
+
+  void onBudgetChanged(String v) => budgetText.value = v;
   final addressController = TextEditingController();
 
   final Rxn<DateTime> startDate = Rxn<DateTime>();
@@ -301,6 +331,14 @@ class PublishReservationRequestController extends GetxController {
       meetingPointController.text = mp;
       meetingPointText.value = mp;
     }
+    // v587 — budget déjà saisi.
+    if (p.budget > 0) {
+      final txt = p.budget == p.budget.roundToDouble()
+          ? p.budget.toStringAsFixed(0)
+          : p.budget.toStringAsFixed(2);
+      budgetController.text = txt;
+      budgetText.value = txt;
+    }
 
     // Lieu de house-sitting legacy (owners_home / sitters_home).
     final venue = p.houseSittingVenue?.trim();
@@ -326,6 +364,7 @@ class PublishReservationRequestController extends GetxController {
     notesController.dispose();
     cityController.dispose();
     meetingPointController.dispose();
+    budgetController.dispose();
     addressController.dispose();
     super.onClose();
   }
@@ -708,6 +747,9 @@ class PublishReservationRequestController extends GetxController {
           meetingPoint: meetingPoint,
           showAnimalCharacter: showAnimalCharacter.value,
           walkDurationMinutes: walkMinutes,
+          // v587 — 0 = budget effacé.
+          budget: budgetAmount ?? 0,
+          budgetCurrency: budgetCurrency,
         );
 
         // v449 — Daniel : « modifier l'annonce MÊME les photos ». Si l'owner a
@@ -751,6 +793,8 @@ class PublishReservationRequestController extends GetxController {
           meetingPoint: meetingPoint,
           showAnimalCharacter: showAnimalCharacter.value,
           walkDurationMinutes: walkMinutes,
+          budget: budgetAmount,
+          budgetCurrency: budgetCurrency,
         );
       } else {
         await _ownerRepository.createReservationRequestWithMedia(
@@ -768,6 +812,8 @@ class PublishReservationRequestController extends GetxController {
           meetingPoint: meetingPoint,
           showAnimalCharacter: showAnimalCharacter.value,
           walkDurationMinutes: walkMinutes,
+          budget: budgetAmount,
+          budgetCurrency: budgetCurrency,
           imageFiles: imageFiles.toList(),
         );
       }

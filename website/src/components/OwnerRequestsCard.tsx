@@ -80,7 +80,7 @@ export function OwnerRequestsCard({ ownerId, from, onLoaded }: { ownerId: string
               <p className="mt-0.5 text-[12px] leading-snug text-[#6E4F48]">
                 {[dates, p.pets.map((x) => x.name).filter(Boolean).join(", "), where].filter(Boolean).join(" · ")}
               </p>
-              {(p.budget ?? 0) > 0 && <p className="mt-0.5 text-[12px] font-bold text-[#9E1F0B]">{t("m586_req_budget")} : {money(p.budget!, p.currency)}</p>}
+              {(p.budget ?? 0) > 0 && <p className="mt-0.5 text-[12px] font-bold text-[#9E1F0B]">{t("m586_req_budget")} : {money(p.budget!, p.budgetCurrency || p.currency)}</p>}
               {done || s === "rejected" ? (
                 <p className="mt-2 flex min-h-[40px] items-center justify-center gap-1.5 rounded-[14px] px-3 text-center text-[13px] font-bold" style={s === "rejected" ? { background: "#FBE9E5", color: "#9E1F0B" } : { background: role === "walker" ? "#E8F8EE" : "#EAF1FE", color: DARK[role] }}>
                   {s !== "rejected" && <AppIcon name="check" size={15} color={DARK[role]} />}

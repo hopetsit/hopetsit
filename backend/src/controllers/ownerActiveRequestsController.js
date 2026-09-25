@@ -142,7 +142,8 @@ const getOwnerActiveRequests = async (req, res) => {
         walkDurationMinutes: typeof p.walkDurationMinutes === 'number' ? p.walkDurationMinutes : null,
         city: String(p.location?.city || '').trim(),
         distanceKm,
-        budget: Number(p.budget) > 0 ? Number(p.budget) : 0,
+        // v587 — budget saisi par le propriétaire (0 / '' sans budget).
+        ...require('../utils/postBudget587').publicBudget(p, owner?.currency),
         currency: String(owner?.currency || 'EUR'),
         petIds: ids,
         pets: ids.map((id) => petById.get(id)).filter(Boolean)

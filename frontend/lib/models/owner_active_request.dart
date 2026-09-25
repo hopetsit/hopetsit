@@ -63,7 +63,11 @@ class OwnerActiveRequest {
       city: (j['city'] ?? '').toString(),
       distanceKm: (j['distanceKm'] as num?)?.round(),
       budget: (j['budget'] as num?)?.toDouble() ?? 0,
-      currency: (j['currency'] ?? 'EUR').toString(),
+      // v587 — devise du budget saisi (sinon celle du propriétaire).
+      currency: ((j['budgetCurrency'] ?? '').toString().isNotEmpty
+              ? j['budgetCurrency']
+              : (j['currency'] ?? 'EUR'))
+          .toString(),
       petIds: ((j['petIds'] as List?) ?? const []).map((e) => e.toString()).where((e) => e.isNotEmpty).toList(),
       pets: pets,
       myApplication: (app == null || app.isEmpty) ? null : app,

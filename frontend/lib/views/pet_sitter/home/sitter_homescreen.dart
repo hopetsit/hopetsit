@@ -1141,6 +1141,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         ownerBio: post.owner.bio,
         serviceLocation: post.serviceLocation,
         meetingPoint: post.meetingPoint,
+        budgetLabel: post.budgetLabel,
         postBody: post.body,
         petName: petName,
         serviceTypes: serviceTypesLabel.isEmpty

@@ -1,6 +1,7 @@
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -8,6 +9,7 @@ import 'package:hopetsit/controllers/publish_reservation_request_controller.dart
 import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
@@ -161,6 +163,16 @@ class _PublishReservationRequestScreenState
                       icon: Icons.location_on_rounded,
                       title: 'publish_request_city_label'.tr,
                       child: _buildLocationSection(),
+                    )),
+                SizedBox(height: 14.h),
+                // ── Mon budget (facultatif) — v587, option A de Daniel ──
+                Obx(() => _buildSectionCard(
+                      key: const Key('budget587_section'),
+                      optional: true,
+                      done: controller.budgetAmount != null,
+                      icon: Icons.payments_rounded,
+                      title: 'budget587_title'.tr,
+                      child: _buildBudgetSection(),
                     )),
                 SizedBox(height: 14.h),
                 // ── 5. Détails (facultatif) ──────────────────────────────
@@ -391,6 +403,14 @@ class _PublishReservationRequestScreenState
             _summaryRow(Icons.home_rounded, 'svc587_field'.tr, location),
             _summaryRow(Icons.location_on_rounded,
                 'publish_request_city_label'.tr, city),
+            // v587 — budget (facultatif) : « 35 € » ou « Aucun ».
+            _summaryRow(
+                Icons.payments_rounded,
+                'budget587_title'.tr,
+                controller.budgetAmount != null
+                    ? CurrencyHelper.formatCompact(
+                        controller.budgetCurrency, controller.budgetAmount!)
+                    : 'budget587_none'.tr),
             _summaryRow(
                 Icons.photo_library_rounded,
                 'publish_request_images_label'.tr,
@@ -546,7 +566,80 @@ class _PublishReservationRequestScreenState
   }
 
   /// Carte d'étape : numéro (ou icône), titre, état « fait » / « facultatif ».
+  /// v587 (budget, option A de Daniel) — « Mon budget », facultatif : un
+  /// montant dans la devise du propriétaire. Il s'affiche dans la bulle orange
+  /// de la PawMap (« 35 € »), sur la carte d'annonce et la fiche. Vide = rien
+  /// (la bulle montre l'icône du service, jamais « 0 € »).
+  Widget _buildBudgetSection() {
+    final accent = AppColors.primaryColor;
+    final cur = controller.budgetCurrency;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InterText(
+          text: 'budget587_sub'.tr,
+          fontSize: 12.sp,
+          color: AppColors.textSecondary(context),
+          maxLines: 3,
+        ),
+        SizedBox(height: 10.h),
+        TextField(
+          key: const Key('budget587_field'),
+          controller: controller.budgetController,
+          onChanged: controller.onBudgetChanged,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: <TextInputFormatter>[
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            LengthLimitingTextInputFormatter(8),
+          ],
+          style: TextStyle(
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
+          ),
+          decoration: InputDecoration(
+            hintText: 'budget587_hint'.tr,
+            hintStyle: TextStyle(
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w400,
+              color: AppColors.textSecondary(context),
+            ),
+            suffixIcon: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 14.w),
+              child: Center(
+                widthFactor: 1,
+                child: InterText(
+                  text: CurrencyHelper.symbol(cur),
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w800,
+                  color: accent,
+                ),
+              ),
+            ),
+            filled: true,
+            fillColor: AppColors.inputFill(context),
+            contentPadding:
+                EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14.r),
+              borderSide: BorderSide(color: AppColors.divider(context)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14.r),
+              borderSide: BorderSide(color: AppColors.divider(context)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14.r),
+              borderSide: BorderSide(color: accent, width: 1.5),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSectionCard({
+    Key? key,
     required IconData icon,
     required String title,
     required Widget child,
@@ -556,6 +649,7 @@ class _PublishReservationRequestScreenState
   }) {
     final accent = AppColors.primaryColor;
     return Container(
+      key: key,
       width: double.infinity,
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(

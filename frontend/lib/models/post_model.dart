@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:hopetsit/models/pet_model.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 
 class PostModel {
   final String id;
@@ -19,6 +20,10 @@ class PostModel {
   final String? serviceLocation;
   /// v587 (point 8) — adresse / quartier du point de rendez-vous (promenade).
   final String? meetingPoint;
+  /// v587 (budget, option A de Daniel) — « Mon budget » facultatif saisi par le
+  /// propriétaire (0 = aucun) et sa devise.
+  final double budget;
+  final String budgetCurrency;
   final String? petId;
   /// v441 — ids des animaux sélectionnés pour l'annonce (multi-animaux). Sert
   /// au pré-remplissage du formulaire « Modifier » côté owner.
@@ -58,6 +63,12 @@ class PostModel {
   /// et le backend refuse l'update). Faux par défaut (annonce éditable).
   final bool isPaidLocked;
 
+  /// v587 — « 35 € » (format de l'app) ou vide sans budget (jamais « 0 € »).
+  String get budgetLabel => budget > 0
+      ? CurrencyHelper.formatCompact(
+          budgetCurrency.isNotEmpty ? budgetCurrency : 'EUR', budget)
+      : '';
+
   /// v441 — l'owner peut éditer son annonce tant qu'elle n'est pas payée.
   bool get isEditableByOwner => !isPaidLocked;
 
@@ -72,6 +83,8 @@ class PostModel {
     this.houseSittingVenue,
     this.serviceLocation,
     this.meetingPoint,
+    this.budget = 0,
+    this.budgetCurrency = '',
     this.petId,
     this.petIds = const <String>[],
     this.location,
@@ -162,6 +175,8 @@ class PostModel {
       houseSittingVenue: json['houseSittingVenue'] as String?,
       serviceLocation: json['serviceLocation'] as String?,
       meetingPoint: json['meetingPoint'] as String?,
+      budget: (json['budget'] as num?)?.toDouble() ?? 0,
+      budgetCurrency: (json['budgetCurrency'] ?? '').toString(),
       petId: json['petId'] as String?,
       petIds: (json['petIds'] as List<dynamic>?)
               ?.map((e) => e.toString())
@@ -252,6 +267,8 @@ class PostModel {
       houseSittingVenue: houseSittingVenue,
       serviceLocation: serviceLocation,
       meetingPoint: meetingPoint,
+      budget: budget,
+      budgetCurrency: budgetCurrency,
       petId: petId,
       petIds: petIds,
       location: location,

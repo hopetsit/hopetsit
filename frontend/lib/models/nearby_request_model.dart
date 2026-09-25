@@ -90,7 +90,11 @@ class NearbyRequestPost {
       distanceKm: (j['distanceKm'] as num?)?.toDouble() ?? 0.0,
       createdAt: parseDate(j['createdAt']),
       budget: (j['budget'] as num?)?.toDouble() ?? 0.0,
-      currency: (j['currency'] ?? 'EUR').toString(),
+      // v587 — devise du budget saisi (sinon celle du propriétaire).
+      currency: ((j['budgetCurrency'] ?? '').toString().isNotEmpty
+              ? j['budgetCurrency']
+              : (j['currency'] ?? 'EUR'))
+          .toString(),
       petIds: ((j['petIds'] as List?) ?? const [])
           .map((e) => e is Map ? (e['_id'] ?? e['id'] ?? '').toString() : e.toString())
           .where((e) => e.isNotEmpty)

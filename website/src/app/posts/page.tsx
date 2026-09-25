@@ -7,6 +7,7 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import BackLink from "@/components/BackLink";
 import { petTraitLabel } from "@/lib/petTraits";
 import { locationDisplay } from "@/lib/i18n/publish587";
+import { formatPrice } from "@/lib/pawmapLegend";
 import {
   ApiError,
   RequestPost,
@@ -252,6 +253,7 @@ function PostCard({
   // v587 (point 8) — + promenade : prise en charge / point de rendez-vous
   // (avec l'adresse). Libellés neutres, communs à l'app.
   const locationLabel = locationDisplay(lang, post);
+  const budgetLabel = formatPrice(post.budget ?? null, post.budgetCurrency || post.currency);
 
   const pets = post.pets || [];
   const serviceLabels = (post.serviceTypes || []).map(svcLabel).join(" · ");
@@ -332,6 +334,8 @@ function PostCard({
           {animalsSummary && <ResCell icon="🐾" label={t("posts_field_animals")} value={animalsSummary} />}
           {serviceLabels && <ResCell icon="🛎️" label={t("posts_field_service")} value={serviceLabels} />}
           {timeLabel && <ResCell icon="🕑" label={t("posts_field_time")} value={timeLabel} />}
+          {/* v587 — budget saisi par le propriétaire (absent sans budget, jamais « 0 € »). */}
+          {budgetLabel && <ResCell icon="💶" label={t("b587_field")} value={budgetLabel} />}
           {post.notes && <ResCell icon="📝" label={t("posts_field_details")} value={post.notes} />}
         </div>
       </div>

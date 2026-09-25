@@ -11,6 +11,8 @@ const { identityGroup, selfIdSet } = require('../utils/identityGroup');
 // v575 — audit P1-7 : durée de promenade portée par l'annonce.
 const { isValidWalkDuration } = require('../utils/walkDuration');
 const { resolveServiceLocation } = require('../utils/serviceLocation587');
+// v587 (budget, option A de Daniel) — « Mon budget » facultatif.
+const { resolveBudget, publicBudget } = require('../utils/postBudget587');
 
 /** v573 — retire d'une liste d'annonces celles du spectateur gardien/promeneur. */
 async function hideOwnPostsForProviders(req, posts) {
@@ -511,6 +513,8 @@ const createPost = async (req, res) => {
     Object.assign(postPayload, resolveServiceLocation({
       serviceTypes: normalizedServices, serviceLocation, meetingPoint, houseSittingVenue,
     }));
+    // v587 — budget facultatif (devise du propriétaire par défaut).
+    Object.assign(postPayload, resolveBudget(req.body, owner && owner.currency));
 
     // Sprint 4 step 6 — auto-translate body to all supported locales.
     try {
@@ -1262,7 +1266,8 @@ const getNearbyRequestPosts = async (req, res) => {
       petIds: Array.isArray(post.petIds) && post.petIds.length
         ? post.petIds.map((p) => String(p && p._id ? p._id : p))
         : (post.petId ? [String(post.petId)] : []),
-      budget: Number(post.budget) > 0 ? Number(post.budget) : 0,
+      // v587 — budget saisi par le propriétaire (0 / '' sans budget).
+      ...publicBudget(post, post.ownerId && post.ownerId.currency),
       distanceKm: Number(distanceKm.toFixed(2)),
       createdAt: post.createdAt,
     }));
@@ -1818,6 +1823,8 @@ const createPostWithMedia = async (req, res) => {
       Object.assign(postPayload, resolveServiceLocation({
         serviceTypes: normalizedServices, serviceLocation, meetingPoint, houseSittingVenue,
       }));
+      // v587 — budget facultatif, aussi avec photo.
+      Object.assign(postPayload, resolveBudget(req.body, owner && owner.currency));
     }
 
     // Create the post
@@ -2007,6 +2014,15 @@ const updatePost = async (req, res) => {
       if (resolved.serviceLocation) {
         post.serviceLocation = resolved.serviceLocation;
         post.meetingPoint = resolved.meetingPoint;
+      }
+    }
+
+    // v587 — budget : envoyé = modifié (vide = effacé), absent = inchangé.
+    {
+      const b = resolveBudget(req.body, post.budgetCurrency || undefined);
+      if ('budget' in b) {
+        post.budget = b.budget;
+        post.budgetCurrency = b.budgetCurrency;
       }
     }
 

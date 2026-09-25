@@ -700,7 +700,8 @@ export default function MapPage() {
             lat: blat,
             lng: blng,
             service: types.some((s) => s.includes("walk")) ? "walk" : "sitting",
-            priceLabel: formatPrice(p.budget ?? null, p.currency),
+            // v587 — budget saisi par le propriétaire (« 35 € »), sinon l'icône.
+            priceLabel: formatPrice(p.budget ?? null, p.budgetCurrency || p.currency),
             mine: !isProviderRole,
             boosted: p.isOwnerBoosted === true,
             body: p.body || p.notes || "",

@@ -9,6 +9,7 @@ import {
   ApiError,
   createPost,
   createPostWithMedia,
+  getMyProfile,
   getStoredUser,
   POST_SERVICE_TYPES,
 } from "@/lib/api";
@@ -40,6 +41,13 @@ export default function CreatePostPage() {
   // seulement pour la garde à domicile ; rien pour la garderie ni la promenade).
   const [svcLocation, setSvcLocation] = useState("");
   const [meetingPoint, setMeetingPoint] = useState("");
+  // v587 (option A de Daniel) — « Mon budget », facultatif, devise du compte.
+  const [budget, setBudget] = useState("");
+  const [budgetCur, setBudgetCur] = useState("EUR");
+  const budgetAmount = (() => {
+    const n = Number(budget.replace(/\s/g, "").replace(",", "."));
+    return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+  })();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
@@ -79,6 +87,13 @@ export default function CreatePostPage() {
     const u = getStoredUser();
     setInvite(!u);
     if (u) setRole(u.role);
+    // v587 — devise du compte pour le budget (repli EUR ; le serveur applique
+    // de toute façon celle du propriétaire si rien n'est envoyé).
+    if (u) {
+      getMyProfile()
+        .then((p) => { const c = String((p as { currency?: string })?.currency || "").toUpperCase(); if (c) setBudgetCur(c); })
+        .catch(() => { /* hors ligne : EUR */ });
+    }
 
     // Ville pré-remplie par la page ville d'où l'on vient (?city=Paris).
     try {
@@ -98,6 +113,7 @@ export default function CreatePostPage() {
       else if (d.venue === "owners_home") setSvcLocation("at_owner");
       else if (d.venue === "sitters_home") setSvcLocation("at_sitter");
       if (typeof d.meetingPoint === "string") setMeetingPoint(d.meetingPoint);
+      if (typeof d.budget === "string") setBudget(d.budget);
       if (typeof d.startDate === "string") setStartDate(d.startDate);
       if (typeof d.endDate === "string") setEndDate(d.endDate);
       if (typeof d.notes === "string") setNotes(d.notes);
@@ -152,7 +168,7 @@ export default function CreatePostPage() {
       try {
         window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
           body, services, serviceLocation: svcLocation, meetingPoint, startDate, endDate, notes,
-          animalCount, animalTypes, city,
+          animalCount, animalTypes, city, budget,
         }));
       } catch { /* navigation privée : on continue sans mémoriser */ }
       router.push(
@@ -178,6 +194,9 @@ export default function CreatePostPage() {
         animalTypes: animalTypes.length ? animalTypes : undefined,
         // Sans ville, aucun gardien n'est prévenu (cf. le commentaire plus haut).
         location: { city: city.trim() },
+        // v587 — budget facultatif (rien envoyé sans montant).
+        budget: budgetAmount > 0 ? budgetAmount : undefined,
+        budgetCurrency: budgetAmount > 0 ? budgetCur : undefined,
       };
       // Avec photos → /posts/with-media (postType=request) ; sinon → /posts.
       if (photos.length > 0) {
@@ -194,7 +213,7 @@ export default function CreatePostPage() {
         try {
           window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
             body, services, serviceLocation: svcLocation, meetingPoint, startDate, endDate, notes,
-            animalCount, animalTypes, city,
+            animalCount, animalTypes, city, budget,
           }));
         } catch { /* ignore */ }
         router.replace(`/login?next=${encodeURIComponent("/posts/create")}`);
@@ -301,6 +320,25 @@ export default function CreatePostPage() {
               onChange={(e) => setEndDate(e.target.value)}
               className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-sm text-ink focus:border-owner focus:outline-none"
             />
+          </div>
+        </div>
+
+        {/* v587 (option A de Daniel) — « Mon budget », facultatif. */}
+        <div data-testid="budget587">
+          <label htmlFor="budget587" className="block text-sm font-medium text-ink">{t("b587_title")}</label>
+          <p className="mt-0.5 text-xs leading-snug text-[#6E4F48]">{t("b587_sub")}</p>
+          <div className="relative mt-1.5">
+            <input
+              id="budget587"
+              type="text"
+              inputMode="decimal"
+              maxLength={8}
+              value={budget}
+              onChange={(e) => setBudget(e.target.value.replace(/[^0-9.,]/g, ""))}
+              placeholder={t("b587_hint")}
+              className="w-full rounded-xl border border-ink/15 bg-bg-soft py-2.5 pl-3.5 pr-14 text-sm font-semibold text-ink focus:border-owner focus:outline-none"
+            />
+            <span className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-sm font-extrabold text-[#C92A12]">{({ EUR: "€", USD: "$", GBP: "£", CHF: "CHF", KRW: "₩", JPY: "¥" } as Record<string, string>)[budgetCur] || budgetCur}</span>
           </div>
         </div>
 

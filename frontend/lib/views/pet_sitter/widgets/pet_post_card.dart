@@ -85,6 +85,8 @@ class PetPostCard extends StatelessWidget {
 
   /// v587 (point 8) — adresse / quartier du point de rendez-vous (promenade).
   final String? meetingPoint;
+  /// v587 (budget, option A de Daniel) — « 35 € » ou vide (jamais « 0 € »).
+  final String budgetLabel;
 
   /// v442 — détail annonce prestataire (maquettes walker/sitter) : libellé
   /// « Publié il y a 2 h » affiché sous le nom du propriétaire. Null/vide ⇒
@@ -158,6 +160,7 @@ class PetPostCard extends StatelessWidget {
     this.ownerBio,
     this.serviceLocation,
     this.meetingPoint,
+    this.budgetLabel = '',
     this.publishedLabel,
     this.distanceLabel,
     this.walkDurationMinutes,
@@ -1542,6 +1545,7 @@ class PetPostCard extends StatelessWidget {
       }
       add(Icons.repeat_rounded, 'post_field_walk_frequency'.tr,
           _walkFrequencyLabel());
+      add(Icons.payments_rounded, 'budget587_field'.tr, budgetLabel);
       return _gridWithTime(context, cells);
     }
 
@@ -1559,6 +1563,7 @@ class PetPostCard extends StatelessWidget {
       if (svcLoc.isNotEmpty) {
         add(Icons.home_rounded, 'svc587_field'.tr, svcLoc);
       }
+      add(Icons.payments_rounded, 'budget587_field'.tr, budgetLabel);
       return _gridWithTime(context, cells);
     }
 
@@ -1583,6 +1588,8 @@ class PetPostCard extends StatelessWidget {
       add(Icons.pets_rounded, 'post_field_animals'.tr, petName!.trim());
     }
 
+    // v587 — budget du propriétaire (case absente sans budget).
+    add(Icons.payments_rounded, 'budget587_field'.tr, budgetLabel);
     return _gridWithTime(context, cells);
   }
 

@@ -1871,6 +1871,8 @@ export type RequestPost = {
   location?: { city?: string; label?: string; lat?: number; lng?: number } | null;
   budget?: number | null;
   currency?: string;
+  /** v587 — devise du budget saisi par le propriétaire ('' sans budget). */
+  budgetCurrency?: string;
 };
 
 export type CreatePostInput = {
@@ -1888,6 +1890,9 @@ export type CreatePostInput = {
   location?: { city?: string; lat?: number; lng?: number };
   animalCount?: number;
   animalTypes?: string[];
+  /** v587 (option A de Daniel) — « Mon budget » facultatif (montant > 0). */
+  budget?: number;
+  budgetCurrency?: string;
 };
 
 // Canonical service keys (match the app + backend filtering: dog_walking is
@@ -1918,6 +1923,8 @@ export async function createPostWithMedia(input: CreatePostInput, files: File[])
   if (input.houseSittingVenue) fd.append("houseSittingVenue", input.houseSittingVenue);
   if (input.serviceLocation) fd.append("serviceLocation", input.serviceLocation);
   if (input.meetingPoint) fd.append("meetingPoint", input.meetingPoint);
+  if (input.budget && input.budget > 0) fd.append("budget", String(input.budget));
+  if (input.budget && input.budget > 0 && input.budgetCurrency) fd.append("budgetCurrency", input.budgetCurrency);
   if (input.startDate) fd.append("startDate", input.startDate);
   if (input.endDate) fd.append("endDate", input.endDate);
   if (input.notes) fd.append("notes", input.notes);
@@ -3116,6 +3123,7 @@ export type OwnerActiveRequest = {
   distanceKm?: number | null;
   budget?: number;
   currency?: string;
+  budgetCurrency?: string;
   petIds: string[];
   pets: { id: string; name: string; category?: string }[];
   myApplication?: "pending" | "accepted" | "rejected" | string | null;

@@ -426,6 +426,7 @@ class _NotificationPostViewScreenState
               ownerBio: post.owner.bio,
               serviceLocation: post.serviceLocation,
               meetingPoint: post.meetingPoint,
+              budgetLabel: post.budgetLabel,
               postBody: post.body,
               petName: petName,
               serviceTypes: serviceTypesLabel.isEmpty

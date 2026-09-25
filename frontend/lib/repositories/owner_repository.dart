@@ -49,6 +49,9 @@ class OwnerRepository {
     bool showAnimalCharacter = true,
     // v575 — audit P1-7 : durée de promenade choisie par le propriétaire.
     int? walkDurationMinutes,
+    // v587 — « Mon budget » facultatif (montant + devise du propriétaire).
+    double? budget,
+    String? budgetCurrency,
   }) async {
     final effectiveIds = petIds.isNotEmpty
         ? petIds
@@ -78,6 +81,9 @@ class OwnerRepository {
       // v575 — audit P1-7 : envoyée seulement quand elle existe (promenade).
       if (walkDurationMinutes != null)
         'walkDurationMinutes': walkDurationMinutes,
+      if (budget != null && budget > 0) 'budget': budget,
+      if (budget != null && budget > 0 && (budgetCurrency ?? '').isNotEmpty)
+        'budgetCurrency': budgetCurrency,
     };
 
     final response = await _apiClient.post(
@@ -120,6 +126,9 @@ class OwnerRepository {
     bool showAnimalCharacter = true,
     // v575 — audit P1-7 : durée de promenade choisie par le propriétaire.
     int? walkDurationMinutes,
+    // v587 — « Mon budget » facultatif (montant + devise du propriétaire).
+    double? budget,
+    String? budgetCurrency,
     required List<File> imageFiles,
   }) async {
     final effectiveIds = petIds.isNotEmpty
@@ -152,6 +161,9 @@ class OwnerRepository {
       // v575 — audit P1-7 : multipart → chaîne (le serveur fait Number()).
       if (walkDurationMinutes != null)
         'walkDurationMinutes': walkDurationMinutes.toString(),
+      if (budget != null && budget > 0) 'budget': budget.toString(),
+      if (budget != null && budget > 0 && (budgetCurrency ?? '').isNotEmpty)
+        'budgetCurrency': budgetCurrency!,
     };
 
     final response = await _apiClient.postMultipart(

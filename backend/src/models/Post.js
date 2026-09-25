@@ -146,6 +146,10 @@ const postSchema = new mongoose.Schema(
       default: 'at_owner',
     },
     meetingPoint: { type: String, trim: true, maxlength: 200, default: '' },
+    // v587 (budget, option A de Daniel) — « Mon budget », facultatif : montant
+    // saisi par le propriétaire dans sa devise (utils/postBudget587.js).
+    budget: { type: Number, min: 0, default: null },
+    budgetCurrency: { type: String, trim: true, uppercase: true, default: '' },
 
     // Session avril 2026 — moderation fields for the admin Annonces tab.
     // Soft-delete only so the historical dataset is preserved (same policy
