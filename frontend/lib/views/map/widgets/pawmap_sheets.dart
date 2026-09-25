@@ -1156,23 +1156,27 @@ class PawLegendRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 88.w,
-          height: 76.h,
-          child: Center(child: child),
-        ),
-        SizedBox(width: 8.w),
-        Expanded(
-          child: Text(
-            label,
-            maxLines: 3,
-            style: PawMapTheme.fontOn(context,
-                size: 13.sp, weight: FontWeight.w600),
+    // v587 (point 10) — hauteur MINIMALE (plus de hauteur fixe ni de coupure
+    // à 3 lignes) : à 320 dp ou en grande police, le texte passe à la ligne.
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: 76.h),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 88.w,
+            height: 76.h,
+            child: Center(child: child),
           ),
-        ),
-      ],
+          SizedBox(width: 8.w),
+          Expanded(
+            child: Text(
+              label,
+              style: PawMapTheme.fontOn(context,
+                  size: 13.sp, weight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

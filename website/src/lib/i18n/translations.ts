@@ -9747,3 +9747,7 @@ for (const code of Object.keys(PAWMAP586) as Lang[]) Object.assign(t[code], PAWM
 // 25/09/2026 — PawMap 587 (site) : pilule « Direct » en haut à gauche, barres repliables.
 import { PAWMAP587 } from "./pawmap587";
 for (const code of Object.keys(PAWMAP587) as Lang[]) Object.assign(t[code], PAWMAP587[code]);
+
+// 25/09/2026 — PawMap 587 (point 10) : légende « ? » plus explicative (sections, gestes, FAQ).
+import { HELP587 } from "./help587";
+for (const code of Object.keys(HELP587) as Lang[]) Object.assign(t[code], HELP587[code]);

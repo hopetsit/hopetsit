@@ -15,6 +15,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hopetsit/localization/v565/help587_i18n.dart';
 import 'package:hopetsit/localization/v565/lotc584_i18n.dart';
 import 'package:hopetsit/localization/v565/map_i18n.dart';
 import 'package:hopetsit/views/map/pawmap_help_screen.dart';
@@ -33,6 +34,7 @@ class _T extends Translations {
           l: {
             ...mapI18n[l] ?? const <String, String>{},
             ...lotC584I18n[l]!,
+            ...help587I18n[l]!,
             'pawmap_member_book': 'Réserver',
             'pawmap_member_add_friend': 'Ajouter en ami',
             'pawmap_member_request_failed': 'Échec',
@@ -384,7 +386,9 @@ void main() {
       for (final spec in kPawRailSpecs) {
         expect(find.byKey(ValueKey<String>('help_rail_${spec.id}'), skipOffstage: false),
             findsOneWidget, reason: spec.id);
-        expect(find.text(spec.help, skipOffstage: false), findsWidgets, reason: spec.helpKey);
+        // v587 (point 10) — explication détaillée (à quoi, pourquoi, geste).
+        expect(find.text('help587_b_${spec.id}'.tr, skipOffstage: false), findsWidgets,
+            reason: spec.id);
       }
       for (final d in kPawDockSpecs) {
         expect(find.byKey(ValueKey<String>('help_dock_${d.id}'), skipOffstage: false),
@@ -397,7 +401,7 @@ void main() {
       await tester.tap(find.descendant(of: around, matching: find.byType(PawRailButton)));
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(PawRailHelpSheet), findsOneWidget);
-      expect(find.text(pawRailSpecOf('around')!.help), findsWidgets);
+      expect(find.text('help587_b_around'.tr), findsWidgets);
       // Bouton du bas.
       expect(find.byKey(const ValueKey<String>('pawmap_help_see_map'), skipOffstage: false),
           findsOneWidget);
