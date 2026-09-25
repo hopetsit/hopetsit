@@ -36,6 +36,8 @@ import 'package:hopetsit/views/profile/edit_pet_screen.dart';
 import 'package:hopetsit/views/profile/my_pets_screen.dart';
 import 'package:hopetsit/views/profile/my_rates_screen.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
+import 'package:hopetsit/controllers/friend_controller.dart';
+import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/profile/preferences_screen.dart';
 import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/views/profile/promo_code_screen.dart';
@@ -176,6 +178,31 @@ class ProfileCategories extends StatelessWidget {
     });
   }
 
+  /// v585 (bug 14) — « Mes amis » : N amis · N demandes (si le contrôleur
+  /// d'amis est chargé), sinon ce que contient l'écran.
+  Widget _friendsRow() {
+    Widget row(String subtitle) => ProfileRow(
+          key: const ValueKey<String>('profile_friends_row'),
+          icon: PawIcon.friends,
+          title: 'profile585_friends_title'.tr,
+          subtitle: subtitle,
+          color: const Color(0xFFE0457B),
+          onTap: () => Get.to(() => const FriendsScreen()),
+        );
+    if (!Get.isRegistered<FriendController>()) {
+      return row('profile585_friends_sub'.tr);
+    }
+    final fc = Get.find<FriendController>();
+    return Obx(() {
+      final n = fc.friends.where((f) => f.status == 'accepted').length;
+      final r = fc.incomingRequests.where((f) => f.status == 'pending').length;
+      return row(n + r == 0
+          ? 'profile585_friends_sub'.tr
+          : 'profile585_friends_count'
+              .trParams({'n': '$n', 'r': '$r'}));
+    });
+  }
+
   // ── Compte ────────────────────────────────────────────────────────────
   Widget _account(BuildContext context, ProfileModel? p) {
     return Column(
@@ -183,6 +210,18 @@ class ProfileCategories extends StatelessWidget {
       children: [
         ProfileSectionTitle('profile_cat_account'.tr, icon: Icons.person_rounded),
         ProfileGroupCard(children: [
+          // v585 (bug 14, Daniel : « où est la section Amis ? ») — en tête
+          // du Profil des 3 rôles : Mes amis (amis, demandes, en direct,
+          // PawFamily) avec un compteur, puis PawFamily.
+          _friendsRow(),
+          ProfileRow(
+            key: const ValueKey<String>('profile_family_row'),
+            icon: PawIcon.home,
+            title: 'profile585_family_title'.tr,
+            subtitle: 'profile585_family_sub'.tr,
+            color: const Color(0xFF7C3AED),
+            onTap: () => Get.to(() => const FriendsScreen(initialIndex: 3)),
+          ),
           ProfileRow(
             icon: PawIcon.user,
             title: 'profile_edit_profile'.tr,
@@ -404,7 +443,8 @@ class ProfileCategories extends StatelessWidget {
             onTap: () => Get.to(() => const CoinShopScreen()),
           ),
           ProfileRow(
-            icon: PawIcon.friends,
+            // v585 — icône « cadeau » : l'icône Amis appartient à Mes amis.
+            icon: PawIcon.coin,
             title: 'referrals_title'.tr,
             subtitle: 'referrals_subtitle'.tr,
             color: _amber,
