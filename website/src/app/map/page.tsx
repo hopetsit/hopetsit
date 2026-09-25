@@ -189,6 +189,32 @@ export default function MapPage() {
     } catch { setShowHelpLabels(true); }
   }, []);
   const [liveInfoOpen, setLiveInfoOpen] = useState(false);
+  // 25/09 (587, point 1a) — MON direct : le site n'envoie pas de GPS, il lit
+  // seulement l'état écrit par l'app sur mon profil (location.liveShareActive
+  // + dernier signe de vie location.updatedAt, règle serveur liveState : actif
+  // si le dernier signe de vie a moins de 10 min). La durée s'affiche quand le
+  // serveur donne l'heure de départ (liveShareStartedAt), sinon « En direct ».
+  const [myLive, setMyLive] = useState<{ on: boolean; startedAt: number | null }>({ on: false, startedAt: null });
+  useEffect(() => {
+    const me = getStoredUser();
+    if (!me || !["sitter", "walker"].includes(String(me.role))) return;
+    let stop = false;
+    const read = async () => {
+      try {
+        const { getMyProfile } = await import("@/lib/api");
+        const p = (await getMyProfile()) as unknown as { location?: { liveShareActive?: boolean; updatedAt?: string | null; liveShareStartedAt?: string | null }; liveShareStartedAt?: string | null };
+        const loc = p?.location || {};
+        const seen = loc.updatedAt ? new Date(loc.updatedAt).getTime() : NaN;
+        const on = loc.liveShareActive === true && Number.isFinite(seen) && Date.now() - seen <= 10 * 60 * 1000;
+        const st = loc.liveShareStartedAt || p?.liveShareStartedAt || null;
+        const startedAt = st && Number.isFinite(new Date(st).getTime()) ? new Date(st).getTime() : null;
+        if (!stop) setMyLive({ on, startedAt: on ? startedAt : null });
+      } catch { /* repli : arrêté */ }
+    };
+    void read();
+    const id = setInterval(() => { void read(); }, 60000);
+    return () => { stop = true; clearInterval(id); };
+  }, []);
   useEffect(() => {
     const me = getStoredUser();
     if (!me) return;
@@ -1214,10 +1240,33 @@ export default function MapPage() {
         <div ref={mapColRef} className="relative -mx-4 h-[64vh] min-h-[420px] lg:mx-0 lg:h-[calc(100vh-230px)] lg:min-h-[560px]" style={fitH ? { height: fitH } : undefined}>
           {/* 25/09 (585, lot 2 — bug 15) — bouton « Amis » bien visible : amis,
               demandes, en direct et PawFamily (page /friends). */}
-          <Link href="/friends" onPointerDown={revealControls} className={`absolute left-3 top-3 z-[1000] inline-flex min-h-[44px] items-center gap-2 rounded-full py-1 pl-1.5 pr-4 text-sm font-bold hover:scale-[1.03] md:left-3 ${fadeCls}`} style={{ ...glassStyle(dark), color: dark ? "#FBEFE6" : "#231715" }}>
-            <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#F48AB4,#E0568B)", border: "1.5px solid #fff" }}><AppIcon name="friends" size={17} color="#fff" /></span>
-            {t("map_friends_btn")}
-          </Link>
+          {/* 25/09 (587, point 1a) — coin haut-gauche, juste sous le titre
+              PawMap : pilule « ● Direct » (gardien / promeneur), puis « Amis ».
+              Rangée qui passe à la ligne plutôt que de chevaucher « ? ». */}
+          <div className={`pointer-events-none absolute left-3 right-[68px] top-3 z-[1000] flex flex-wrap items-start gap-2 ${fadeCls}`}>
+            {!isOwner && getStoredUser() && (
+              <button
+                type="button"
+                onPointerDown={revealControls}
+                onClick={() => setLiveInfoOpen(true)}
+                aria-label={myLive.on ? t("m586_live_on") : t("m586_live_off")}
+                title={myLive.on ? t("m586_live_on") : t("m586_live_off")}
+                className={`pointer-events-auto inline-flex min-h-[44px] items-center gap-2 whitespace-nowrap rounded-full py-1 pl-3.5 pr-4 text-sm font-bold text-white transition-transform duration-200 hover:scale-[1.03] active:scale-95 ${myLive.on ? "hps-live-breathe" : ""}`}
+                style={myLive.on
+                  ? { background: "linear-gradient(165deg,#22C55E,#16A34A 55%,#15803D)", border: "1.5px solid #FFFFFF", boxShadow: "0 0 0 3px rgba(22,163,74,.28), 0 0 16px 4px rgba(22,163,74,.5)" }
+                  : { background: "linear-gradient(165deg,#2C2533,#17141F)", border: "1.5px solid #FFFFFF", boxShadow: "0 8px 18px -8px rgba(23,20,31,0.75)" }}
+              >
+                <span aria-hidden="true" className="block h-2.5 w-2.5 rounded-full" style={{ background: myLive.on ? "#FFFFFF" : "#22C55E", boxShadow: myLive.on ? "0 0 0 3px rgba(255,255,255,.35)" : "0 0 0 3px rgba(34,197,94,.3)" }} />
+                {myLive.on
+                  ? (myLive.startedAt ? t("m587_live_since").replace("{d}", formatAgo(nowTs - myLive.startedAt, t)) : t("m586_live_on"))
+                  : t("m586_live")}
+              </button>
+            )}
+            <Link href="/friends" onPointerDown={revealControls} className="pointer-events-auto inline-flex min-h-[44px] items-center gap-2 whitespace-nowrap rounded-full py-1 pl-1.5 pr-4 text-sm font-bold hover:scale-[1.03]" style={{ ...glassStyle(dark), color: dark ? "#FBEFE6" : "#231715" }}>
+              <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#F48AB4,#E0568B)", border: "1.5px solid #fff" }}><AppIcon name="friends" size={17} color="#fff" /></span>
+              {t("map_friends_btn")}
+            </Link>
+          </div>
 
           {/* Coin haut-droit : « ? » légende et mode nuit, même verre que les rails. */}
           <div onPointerDown={revealControls} className={`absolute right-3 top-3 z-[1000] flex flex-col gap-2.5 ${fadeCls}`}>
@@ -1450,34 +1499,27 @@ export default function MapPage() {
                   </CapsuleBtn>
                 </>
               )}
-              {/* 25/09 (586, point 2) — un trait, puis l'ACTION DU RÔLE. */}
-              <span aria-hidden="true" className="my-1.5 block h-[2px] w-7 rounded-full" style={{ background: dark ? "#6B4F57" : "#E4C7B8" }} />
-              {isOwner ? (
-                <Link
-                  href="/posts/create"
-                  title={t("m586_publish_long")}
-                  aria-label={t("m586_publish_long")}
-                  className="grid h-11 w-11 place-items-center rounded-full text-white transition-transform duration-200 hover:scale-[1.05] active:scale-95"
-                  style={{ background: "linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)", border: "1.5px solid #FFFFFF", boxShadow: "0 6px 14px -6px #C92A12" }}
-                >
-                  <AppIcon name="megaphone" size={21} color="#fff" />
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setLiveInfoOpen(true)}
-                  title={t("m586_live_off")}
-                  aria-label={t("m586_live_off")}
-                  className="grid h-11 w-11 place-items-center rounded-full text-white transition-transform duration-200 hover:scale-[1.05] active:scale-95"
-                  style={{ background: "linear-gradient(165deg,#2C2533,#17141F)", border: "1.5px solid #FFFFFF", boxShadow: "0 6px 14px -6px rgba(23,20,31,0.7)" }}
-                >
-                  <LiveIcon />
-                </button>
-              )}
-              {showHelpLabels && (
-                <span className="mt-1 whitespace-nowrap px-1 text-[10px] font-bold leading-none" style={{ color: dark ? "#FBEFE6" : isOwner ? "#9E1F0B" : "#17141F" }}>
-                  {t(isOwner ? "m586_publish" : "m586_live")}
-                </span>
+              {/* 25/09 (586, point 2) — un trait, puis l'ACTION DU RÔLE.
+                  587 (point 1a) : le Direct du gardien / promeneur est passé en
+                  haut à gauche ; la capsule garde « Publier » (propriétaire). */}
+              {isOwner && (
+                <>
+                  <span aria-hidden="true" className="my-1.5 block h-[2px] w-7 rounded-full" style={{ background: dark ? "#6B4F57" : "#E4C7B8" }} />
+                  <Link
+                    href="/posts/create"
+                    title={t("m586_publish_long")}
+                    aria-label={t("m586_publish_long")}
+                    className="grid h-11 w-11 place-items-center rounded-full text-white transition-transform duration-200 hover:scale-[1.05] active:scale-95"
+                    style={{ background: "linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)", border: "1.5px solid #FFFFFF", boxShadow: "0 6px 14px -6px #C92A12" }}
+                  >
+                    <AppIcon name="megaphone" size={21} color="#fff" />
+                  </Link>
+                  {showHelpLabels && (
+                    <span className="mt-1 whitespace-nowrap px-1 text-[10px] font-bold leading-none" style={{ color: dark ? "#FBEFE6" : "#9E1F0B" }}>
+                      {t("m586_publish")}
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -1638,10 +1680,10 @@ export default function MapPage() {
               </Link>
             ) : (
               <button type="button" onClick={() => setLiveInfoOpen(true)} className="mb-3 flex min-h-[48px] w-full items-center gap-3 rounded-2xl bg-white p-2.5 pr-3 text-left transition hover:bg-[#FDF8F7]">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#2C2533,#17141F)" }}><LiveIcon size={18} /></span>
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: myLive.on ? "linear-gradient(165deg,#22C55E,#16A34A 55%,#15803D)" : "linear-gradient(165deg,#2C2533,#17141F)" }}><LiveIcon size={18} /></span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-bold text-[#17141F]">{t("m586_live")}</span>
-                  <span className="block text-[11px] leading-snug text-[#6E4F48]">{t("m586_live_app_title")}</span>
+                  <span className="block text-sm font-bold" style={{ color: myLive.on ? "#15803D" : "#17141F" }}>{myLive.on ? (myLive.startedAt ? t("m587_live_since").replace("{d}", formatAgo(nowTs - myLive.startedAt, t)) : t("m586_live_on")) : t("m586_live")}</span>
+                  <span className="block text-[11px] leading-snug text-[#6E4F48]">{myLive.on ? t("m587_live_on_title") : t("m587_live_app_title")}</span>
                 </span>
                 <AppIcon name="arrow-right" size={16} color="#17141F" />
               </button>
@@ -2012,6 +2054,8 @@ export default function MapPage() {
         </div>
       )}
 
+      {/* 25/09 (587) — lueur verte qui respire de la pilule « En direct » (fixe si « réduire les animations »). */}
+      <style>{`@keyframes hps-live-breathe{0%,100%{box-shadow:0 0 0 3px rgba(22,163,74,.28),0 0 14px 3px rgba(22,163,74,.45)}50%{box-shadow:0 0 0 6px rgba(22,163,74,.22),0 0 26px 9px rgba(22,163,74,.62)}}.hps-live-breathe{animation:hps-live-breathe 1.6s ease-in-out infinite}@media (prefers-reduced-motion: reduce){.hps-live-breathe{animation:none}}`}</style>
       <PawMapLegendModal open={legendOpen} onClose={() => setLegendOpen(false)} role={roleKey(myRole)} />
       {/* 25/09 (586, point 2) — le site n'émet pas de position GPS en direct :
           le rond « Direct » explique qu'il se lance depuis l'app. */}
@@ -2019,10 +2063,10 @@ export default function MapPage() {
         <div className="fixed inset-0 z-[3000] flex items-end justify-center bg-[#231715]/55 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="live-info-title" onClick={() => setLiveInfoOpen(false)}>
           <div className="w-full max-w-md rounded-t-[28px] bg-white p-5 shadow-2xl sm:rounded-[28px] sm:p-7" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start gap-3">
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#2C2533,#17141F)", boxShadow: "0 6px 14px -6px rgba(23,20,31,0.7)" }}><LiveIcon size={22} /></span>
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full" style={myLive.on ? { background: "linear-gradient(165deg,#22C55E,#16A34A 55%,#15803D)", boxShadow: "0 6px 14px -6px #16A34A" } : { background: "linear-gradient(165deg,#2C2533,#17141F)", boxShadow: "0 6px 14px -6px rgba(23,20,31,0.7)" }}><LiveIcon size={22} /></span>
               <div className="min-w-0 flex-1">
-                <h2 id="live-info-title" className="font-display text-lg font-bold leading-snug tracking-[-0.01em] text-[#231715]">{t("m586_live_app_title")}</h2>
-                <p className="mt-1.5 text-sm leading-relaxed text-[#6E4F48]">{t("m586_live_app_body")}</p>
+                <h2 id="live-info-title" className="font-display text-lg font-bold leading-snug tracking-[-0.01em] text-[#231715]">{t(myLive.on ? "m587_live_on_title" : "m587_live_app_title")}</h2>
+                <p className="mt-1.5 text-sm leading-relaxed text-[#6E4F48]">{t(myLive.on ? "m587_live_on_body" : "m586_live_app_body")}</p>
               </div>
             </div>
             <StoreBadges center className="mt-5" />

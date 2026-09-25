@@ -9743,3 +9743,7 @@ for (const code of Object.keys(BOOK585) as Lang[]) Object.assign(t[code], BOOK58
 // 25/09/2026 — PawMap 586 (site) : poignée, Publier / Direct, œil 3 états.
 import { PAWMAP586 } from "./pawmap586";
 for (const code of Object.keys(PAWMAP586) as Lang[]) Object.assign(t[code], PAWMAP586[code]);
+
+// 25/09/2026 — PawMap 587 (site) : pilule « Direct » en haut à gauche, barres repliables.
+import { PAWMAP587 } from "./pawmap587";
+for (const code of Object.keys(PAWMAP587) as Lang[]) Object.assign(t[code], PAWMAP587[code]);

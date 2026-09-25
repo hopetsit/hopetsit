@@ -80,7 +80,7 @@ export function PawMapLegendModal({ open, onClose, role = "owner" }: { open: boo
     // 25/09 (586) — les contrôles de la carte discrète.
     { html: handleHtml(ROLE_COLOR[role]), title: t("m586_leg_handle_t"), body: t("m586_leg_handle_b") },
     { html: roundHtml("linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)", MEGAPHONE, "#C92A12"), title: t("m586_leg_publish_t"), body: t("m586_leg_publish_b"), color: ROLE_COLOR.owner },
-    { html: `<span style="display:flex;gap:4px">${roundHtml("linear-gradient(165deg,#2C2533,#17141F)", LIVE, "rgba(23,20,31,0.7)", 30)}${roundHtml("linear-gradient(165deg,#34B857,#16A34A)", LIVE, "#16A34A", 30)}</span>`, title: t("m586_leg_live_t"), body: t("m586_leg_live_b"), color: "#17141F" },
+    { html: `<span style="display:flex;gap:4px">${roundHtml("linear-gradient(165deg,#2C2533,#17141F)", LIVE, "rgba(23,20,31,0.7)", 30)}${roundHtml("linear-gradient(165deg,#34B857,#16A34A)", LIVE, "#16A34A", 30)}</span>`, title: t("m586_leg_live_t"), body: t("m587_leg_live_b"), color: "#17141F" },
     { html: eyesHtml(), title: t("m586_leg_eye_t"), body: t("m586_leg_eye_b"), color: "#17141F" },
     { html: seeChipsHtml(), title: t("m586_leg_see_t"), body: t("m586_leg_see_b") },
   ];
