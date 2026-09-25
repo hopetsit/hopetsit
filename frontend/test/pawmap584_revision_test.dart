@@ -17,7 +17,6 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/services/live_map_service.dart';
-import 'package:hopetsit/utils/pawmap_theme.dart';
 import 'package:hopetsit/views/map/pawmap_member_profile_route.dart';
 import 'package:hopetsit/views/map/pawmap_rates.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
@@ -417,6 +416,16 @@ void main() {
       final ratesY = tester.getTopLeft(find.byKey(const ValueKey<String>('member_rates'))).dy;
       final bookY = tester.getTopLeft(find.byKey(const ValueKey<String>('member_primary_book'))).dy;
       expect(ratesY, lessThan(bookY), reason: 'les tarifs AVANT le bouton Réserver');
+    });
+  });
+
+  group('point 7 — prénom court sous le rond (jamais un nom qui déborde)', () {
+    test('premier mot, 12 caractères au plus, puis « … »', () {
+      expect(pawMapShortName('Camille Durand'), 'Camille');
+      expect(pawMapShortName('  Jose Martínez '), 'Jose');
+      expect(pawMapShortName('dadaciao84+testwalker'), 'dadaciao84+…');
+      expect(pawMapShortName('Anne-Sophie'), 'Anne-Sophie');
+      expect(pawMapShortName('').length, 0);
     });
   });
 

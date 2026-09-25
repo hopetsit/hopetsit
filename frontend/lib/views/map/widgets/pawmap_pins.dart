@@ -37,6 +37,15 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 
 /// Couleurs et tailles de la légende (LEGENDE_PAWMAP.md). NE JAMAIS les
+/// v584 (25/09) — prénom court sous un rond au zoom rue : le premier mot,
+/// 12 caractères au plus (« dadaciao84+testwalker » débordait de l'étiquette
+/// sur les captures du parcours), puis « … ». Pure, testée.
+String pawMapShortName(String name, {int max = 12}) {
+  final first = name.trim().split(RegExp(r'\s+')).first;
+  if (first.length <= max) return first;
+  return '${first.substring(0, max - 1)}…';
+}
+
 /// réutiliser pour autre chose sur la carte.
 class PawMapLegend {
   PawMapLegend._();

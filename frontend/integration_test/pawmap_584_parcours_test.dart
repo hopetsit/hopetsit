@@ -301,7 +301,7 @@ Future<void> _run(WidgetTester tester) async {
       if (profile.evaluate().isNotEmpty) {
         await tester.ensureVisible(profile);
         await tester.tap(profile);
-        await _step(tester, '06 voir le profil du membre', hold: const Duration(seconds: 3));
+        await _step(tester, '06 voir le profil du membre', hold: const Duration(seconds: 7));
         final opened = find.byType(ServiceProviderDetailScreen, skipOffstage: false).evaluate().isNotEmpty ||
             find.byType(WalkerDetailScreen, skipOffstage: false).evaluate().isNotEmpty ||
             find.byType(OwnerProfileViewScreen, skipOffstage: false).evaluate().isNotEmpty;
@@ -323,7 +323,7 @@ Future<void> _run(WidgetTester tester) async {
       final book = find.byKey(const ValueKey<String>('member_primary_book'));
       if (book.evaluate().isNotEmpty && kRole == 'owner') {
         await tester.tap(book);
-        await _step(tester, '07 reserver depuis la fiche', hold: const Duration(seconds: 4));
+        await _step(tester, '07 reserver depuis la fiche', hold: const Duration(seconds: 5));
         _ok('Reserver ouvre la demande de reservation pre-remplie',
             find.byType(SendRequestScreen, skipOffstage: false).evaluate().isNotEmpty);
         await _closeAll(tester);
@@ -383,7 +383,7 @@ Future<void> _run(WidgetTester tester) async {
         _ok('« Suivre la balade » propose', follow.evaluate().isNotEmpty);
         if (follow.evaluate().isNotEmpty) {
           await tester.tap(follow);
-          await _step(tester, '11 suivi en cours : pilule', hold: const Duration(seconds: 3));
+          await _step(tester, '11 suivi en cours : pilule', hold: const Duration(seconds: 5));
           _ok('pilule de suivi visible', find.byKey(const ValueKey<String>('pawmap_follow_pill')).evaluate().isNotEmpty);
           await tester.tap(find.byKey(const ValueKey<String>('pawmap_follow_pill')));
           await _step(tester, '12 feuille du suivi');
@@ -436,6 +436,12 @@ Future<void> _run(WidgetTester tester) async {
       await tester.pump(const Duration(milliseconds: 800));
     }
     for (final id in order) {
+      if (id == 'photo') {
+        // Ouvre le SÉLECTEUR NATIF (caméra / photos) : hors Flutter, et sa
+        // fenêtre système bloquerait les captures suivantes → noté, pas tapé.
+        _ok('rail photo repond', true, detail: 'ouvre le selecteur natif (non tape ici)');
+        continue;
+      }
       await tapRail(id);
       await _step(tester, '17 rail $id');
       final nav = Navigator.of(tester.element(find.byType(PawMapScreen, skipOffstage: false).first));

@@ -3513,7 +3513,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             p['isFriend'] == true || _friendController.isFriendWith(id);
         final priceLabel = role == 'owner' || !showPrice ? '' : _priceLabelFor(p);
         // v584 (25/09) — au zoom rue : « Prénom · 25 € » sous le rond.
-        final String firstName = name.trim().split(' ').first;
+        final String firstName = pawMapShortName(name);
         final String streetLabel = !showPrice
             ? ''
             : (priceLabel.isEmpty ? firstName : '$firstName · $priceLabel');
@@ -3789,7 +3789,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                           _followUserId!.trim().toLowerCase() == normPosId
                       ? 0
                       : -1),
-              label: _zoomLevel >= _priceZoom ? displayName.split(' ').first : null,
+              label: _zoomLevel >= _priceZoom ? pawMapShortName(displayName) : null,
               fallbackTint: PawMapLegend.roleColor(role),
             ),
             anchor: _photoAnchor(PawMapLegend.friendSize,
