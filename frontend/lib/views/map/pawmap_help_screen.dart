@@ -220,6 +220,8 @@ class PawMapHelpScreen extends StatelessWidget {
           _SectionTitle('help587_sec_live'.tr,
               key: const ValueKey<String>('help_sec_live')),
           _capsuleRow(context, 'eye'),
+          // v587 — Daniel : les 3 réglages expliqués, mêmes phrases que le réglage.
+          const _VisibilityCard(key: ValueKey<String>('help_visibility')),
           if (provider) _capsuleRow(context, 'direct'),
           // v584 (25/09, point 14) — « Suivre ma promenade : Daniel ne sait
           // pas comment faire » : l'explication vit aussi ici.
@@ -260,7 +262,8 @@ class PawMapHelpScreen extends StatelessWidget {
             _FaqCard(
               key: ValueKey<String>('help_faq_$n'),
               question: 'help587_q$n'.tr,
-              answer: 'help587_a$n'.tr,
+              // v587 — « Qui voit ma position ? » = les phrases du réglage.
+              answer: n == 2 ? pawMapVisibilityExplained() : 'help587_a$n'.tr,
             ),
           SizedBox(height: 8.h),
         ],
@@ -394,6 +397,77 @@ class _FaqCard extends StatelessWidget {
                   size: 12.5.sp,
                   weight: FontWeight.w500,
                   height: 1.35,
+                  color: _warmBody(context))),
+        ],
+      ),
+    );
+  }
+}
+
+/// v587 — les 3 réglages « Qui me voit sur la carte », mot pour mot comme
+/// dans l'œil, la feuille et Profil › Préférences (vis587_i18n).
+String pawMapVisibilityExplained() => [
+      '${'vis587_all_t'.tr} — ${'vis587_all_d'.tr}',
+      '${'vis587_friends_t'.tr} — ${'vis587_friends_d'.tr}',
+      '${'vis587_hidden_t'.tr} — ${'vis587_hidden_d'.tr}',
+      'vis587_live'.tr,
+      'vis587_where'.tr,
+    ].join('\n');
+
+class _VisibilityCard extends StatelessWidget {
+  const _VisibilityCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = PawMapTheme.isDark(context);
+    Widget line(IconData icon, Color c, String t, String d) => Padding(
+          padding: EdgeInsets.only(bottom: 8.h),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 18.sp, color: c),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(children: <InlineSpan>[
+                    TextSpan(
+                        text: '$t — ',
+                        style: const TextStyle(fontWeight: FontWeight.w800)),
+                    TextSpan(text: d),
+                  ]),
+                  style: PawMapTheme.fontOn(context,
+                      size: 12.5.sp, weight: FontWeight.w500, height: 1.35,
+                      color: _warmBody(context)),
+                ),
+              ),
+            ],
+          ),
+        );
+    return Container(
+      width: double.infinity,
+      margin: EdgeInsets.symmetric(vertical: 6.h),
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: dark ? PawMapTheme.panelDark : Colors.white,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: PawMapLegend.friend.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('vis587_title'.tr,
+              style: PawMapTheme.fontOn(context, size: 13.5.sp, weight: FontWeight.w800)),
+          SizedBox(height: 8.h),
+          line(Icons.visibility_rounded, PawMapLegend.sitter,
+              'vis587_all_t'.tr, 'vis587_all_d'.tr),
+          line(Icons.favorite_rounded, PawMapLegend.friend,
+              'vis587_friends_t'.tr, 'vis587_friends_d'.tr),
+          line(Icons.visibility_off_rounded,
+              dark ? const Color(0xFFF5F0EF) : PawMapLegend.ink,
+              'vis587_hidden_t'.tr, 'vis587_hidden_d'.tr),
+          Text('${'vis587_live'.tr}\n${'vis587_where'.tr}',
+              style: PawMapTheme.fontOn(context,
+                  size: 12.sp, weight: FontWeight.w700, height: 1.35,
                   color: _warmBody(context))),
         ],
       ),

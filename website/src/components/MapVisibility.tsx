@@ -24,9 +24,12 @@ export function EyeIcon({ state, size = 20 }: { state: MapVisibility; size?: num
   );
 }
 /** 25/09 (586) — 3 pilules Tous / Amis seulement / Masqué (carte et /profile). */
-export function VisibilityPills({ value, busy, onChange, labels }: { value: MapVisibility; busy?: boolean; onChange: (v: MapVisibility) => void; labels: Record<MapVisibility, string> }) {
+// 587 — Daniel : « ces options doivent être claires » : avec `descs`, chaque
+// option est aussi expliquée (titre + phrase, mêmes textes que l'app, vis587).
+export function VisibilityPills({ value, busy, onChange, labels, descs, notes }: { value: MapVisibility; busy?: boolean; onChange: (v: MapVisibility) => void; labels: Record<MapVisibility, string>; descs?: Record<MapVisibility, string>; notes?: string[] }) {
   const opts: MapVisibility[] = ["all", "friends", "hidden"];
   return (
+    <>
     <div className="mt-2 grid grid-cols-3 gap-1.5" role="radiogroup">
       {opts.map((o) => {
         const on = value === o;
@@ -47,6 +50,20 @@ export function VisibilityPills({ value, busy, onChange, labels }: { value: MapV
         );
       })}
     </div>
+    {descs && (
+      <ul className="mt-2 space-y-1.5" data-testid="vis587-explain">
+        {opts.map((o) => (
+          <li key={o} className="flex items-start gap-1.5 text-[12px] leading-snug" style={{ color: value === o ? "#231715" : "#6E4F48" }}>
+            <span className="mt-[1px] shrink-0" style={{ color: o === "friends" ? "#F06AA0" : o === "all" ? "#2563EB" : "#17141F" }}><EyeIcon state={o} size={14} /></span>
+            <span><strong className="font-extrabold" style={{ color: value === o ? "#C92A12" : "#231715" }}>{labels[o]}</strong> — {descs[o]}</span>
+          </li>
+        ))}
+        {(notes || []).map((n) => (
+          <li key={n} className="text-[11.5px] font-semibold leading-snug text-[#6E4F48]">{n}</li>
+        ))}
+      </ul>
+    )}
+    </>
   );
 }
 

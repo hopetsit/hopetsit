@@ -74,7 +74,7 @@ export default function ProfilePage() {
     try {
       const got = await setMapVisibility(v);
       setMapVis(got);
-      setMapVisMsg(t(got === "all" ? "m586_vis_all_toast" : got === "friends" ? "m586_vis_friends_toast" : "m586_vis_hidden_toast"));
+      setMapVisMsg(t(got === "all" ? "v587_all_d" : got === "friends" ? "v587_friends_d" : "v587_hidden_d"));
     } catch {
       setMapVisMsg(t("m586_vis_error"));
     } finally {
@@ -603,8 +603,7 @@ export default function ProfilePage() {
             route que l'œil de la PawMap, enregistré dès le toucher. */}
         <div className="rounded-2xl border border-ink/10 bg-ink/[0.02] p-4">
           <h3 className="text-sm font-semibold text-ink">{t("m586_vis_title")}</h3>
-          <VisibilityPills value={mapVis} busy={mapVisBusy} onChange={(v) => { void changeMapVis(v); }} labels={{ all: t("m586_vis_pill_all"), friends: t("m586_vis_pill_friends"), hidden: t("m586_vis_pill_hidden") }} />
-          <p className="mt-2 text-xs leading-snug text-[#6E4F48]">{t("m586_vis_hint")}</p>
+          <VisibilityPills value={mapVis} busy={mapVisBusy} onChange={(v) => { void changeMapVis(v); }} labels={{ all: t("v587_all_t"), friends: t("v587_friends_t"), hidden: t("v587_hidden_t") }} descs={{ all: t("v587_all_d"), friends: t("v587_friends_d"), hidden: t("v587_hidden_d") }} notes={[t("v587_live"), t("v587_where")]} />
           {mapVisMsg && <p className="mt-2 text-xs font-bold text-[#17141F]" role="status">{mapVisMsg}</p>}
         </div>
 

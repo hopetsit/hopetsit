@@ -367,10 +367,16 @@ class PawCapsuleEyeButton extends StatelessWidget {
   final VoidCallback? onLongPress;
   final double size;
 
+  // v587 — Daniel : « ces options doivent être claires » : titre + phrase.
   String get _label => switch (state) {
-        'friends' => 'pawmap586_vis_friends'.tr,
-        'hidden' => 'pawmap586_vis_hidden'.tr,
-        _ => 'pawmap586_vis_all'.tr,
+        'friends' => 'vis587_friends_t'.tr,
+        'hidden' => 'vis587_hidden_t'.tr,
+        _ => 'vis587_all_t'.tr,
+      };
+  String get _desc => switch (state) {
+        'friends' => 'vis587_friends_d'.tr,
+        'hidden' => 'vis587_hidden_d'.tr,
+        _ => 'vis587_all_d'.tr,
       };
 
   @override
@@ -379,10 +385,10 @@ class PawCapsuleEyeButton extends StatelessWidget {
     final Color ink = dark ? const Color(0xFFF5F0EF) : PawMapLegend.ink;
     final bool on = state != 'all';
     return Tooltip(
-      message: _label,
+      message: '$_label — $_desc',
       child: Semantics(
         button: true,
-        label: '${'pawmap586_vis_btn'.tr} : $_label',
+        label: '${'pawmap586_vis_btn'.tr} : $_label. $_desc',
         child: GestureDetector(
           key: const ValueKey<String>('pawmap_eye'),
           behavior: HitTestBehavior.opaque,

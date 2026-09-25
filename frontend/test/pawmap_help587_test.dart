@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 
 import 'package:hopetsit/localization/v565/help587_i18n.dart';
+import 'package:hopetsit/localization/v565/vis587_i18n.dart';
 import 'package:hopetsit/views/map/pawmap_help_screen.dart';
 
 import 'lotd_harness.dart';
@@ -48,8 +49,23 @@ void main() {
       expect(find.text(t['help587_faq_title']!, skipOffstage: false), findsOneWidget);
       for (final n in [1, 2, 3, 4]) {
         expect(find.text(t['help587_q$n']!, skipOffstage: false), findsOneWidget);
+        if (n == 2) continue; // v587 : réponse = les phrases du réglage (plus bas)
         expect(find.text(t['help587_a$n']!, skipOffstage: false), findsOneWidget);
       }
+      // v587 — « Qui voit ma position ? » : les 3 réglages mot pour mot, plus
+      // où le changer et ce que voient les amis en direct ; même carte dans
+      // la section « Être visible / en direct ».
+      final v = vis587I18n[lang]!;
+      final expected = [
+        '${v['vis587_all_t']} — ${v['vis587_all_d']}',
+        '${v['vis587_friends_t']} — ${v['vis587_friends_d']}',
+        '${v['vis587_hidden_t']} — ${v['vis587_hidden_d']}',
+        v['vis587_live'],
+        v['vis587_where'],
+      ].join('\n');
+      expect(find.text(expected, skipOffstage: false), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('help_visibility'), skipOffstage: false),
+          findsOneWidget);
       for (final ex in ['find', 'see', 'live', 'act', 'set']) {
         expect(find.byKey(ValueKey<String>('help_ex_$ex'), skipOffstage: false),
             findsOneWidget, reason: ex);

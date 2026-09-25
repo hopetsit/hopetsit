@@ -74,12 +74,15 @@ void main() {
     }))));
     PawSignal.visibility(ctx, 'friends');
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('Visible par tes amis seulement'), findsOneWidget);
+    // v587 — la pastille dit la même phrase que le réglage.
+    const friendsMsg = 'Seuls tes amis te voient sur la carte. Les autres membres ne te voient pas.';
+    const hiddenMsg = "Personne ne te voit sur la carte, même pas tes amis. Ton direct n'est envoyé à personne.";
+    expect(find.text(friendsMsg), findsOneWidget);
     // Une nouvelle pastille remplace la précédente : jamais d'empilement.
     PawSignal.visibility(ctx, 'hidden');
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('Visible par tes amis seulement'), findsNothing);
-    expect(find.text('Tu es masqué sur la carte'), findsOneWidget);
+    expect(find.text(friendsMsg), findsNothing);
+    expect(find.text(hiddenMsg), findsOneWidget);
     await tester.pump(const Duration(seconds: 2));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byKey(const ValueKey<String>('pawmap_signal_toast')), findsNothing);

@@ -927,29 +927,40 @@ class PawMapVisibilitySheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('pawmap_visibility_title'.tr,
+          Text('vis587_title'.tr,
               style: PawMapTheme.fontOn(context, size: 18.sp, weight: FontWeight.w800)),
           SizedBox(height: 12.h),
           option(
             key: const ValueKey<String>('visibility_all'),
             value: 'all',
             icon: Icons.visibility_rounded,
-            title: 'pawmap586_vis_all'.tr,
-            sub: 'pawmap586_vis_all_sub'.tr,
+            title: 'vis587_all_t'.tr,
+            sub: 'vis587_all_d'.tr,
           ),
           option(
             key: const ValueKey<String>('visibility_friends'),
             value: 'friends',
             icon: Icons.favorite_rounded,
-            title: 'pawmap586_vis_friends'.tr,
-            sub: 'pawmap_visibility_friends_sub'.tr,
+            title: 'vis587_friends_t'.tr,
+            sub: 'vis587_friends_d'.tr,
           ),
           option(
             key: const ValueKey<String>('visibility_hidden'),
             value: 'hidden',
             icon: Icons.visibility_off_rounded,
-            title: 'pawmap586_vis_hidden'.tr,
-            sub: 'pawmap586_vis_help'.tr,
+            title: 'vis587_hidden_t'.tr,
+            sub: 'vis587_hidden_d'.tr,
+          ),
+          // v587 — Daniel : « ces options doivent être claires » : où on change
+          // le réglage et ce que voient les amis en direct.
+          Padding(
+            padding: EdgeInsets.only(top: 2.h, bottom: 4.h),
+            child: Text(
+              '${'vis587_live'.tr}\n${'vis587_where'.tr}',
+              key: const ValueKey<String>('visibility_notes'),
+              style: PawMapTheme.fontOn(context, size: 12.sp, weight: FontWeight.w600)
+                  .copyWith(color: PawMapTheme.subOn(context), height: 1.35),
+            ),
           ),
           if (saving)
             Center(

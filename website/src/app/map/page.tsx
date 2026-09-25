@@ -1114,7 +1114,7 @@ export default function MapPage() {
     try {
       const v = await setMapVisibility(next);
       setVisibility(v);
-      flashVisibility(t(v === "all" ? "m586_vis_all_toast" : v === "friends" ? "m586_vis_friends_toast" : "m586_vis_hidden_toast"), v === "all" ? "all" : v === "friends" ? "friends" : "hidden");
+      flashVisibility(t(v === "all" ? "v587_all_d" : v === "friends" ? "v587_friends_d" : "v587_hidden_d"), v === "all" ? "all" : v === "friends" ? "friends" : "hidden");
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) { router.replace("/login"); return; }
       flashVisibility(t("m586_vis_error"), "error");
@@ -1573,7 +1573,7 @@ export default function MapPage() {
                   <CapsuleSep dark={dark} />
                   <CapsuleBtn
                     dark={dark}
-                    label={`${t("m586_vis_title")} : ${t(visibility === "all" ? "m586_vis_pill_all" : visibility === "friends" ? "m586_vis_pill_friends" : "m586_vis_pill_hidden")}`}
+                    label={`${t("m586_vis_title")} : ${t(visibility === "all" ? "v587_all_t" : visibility === "friends" ? "v587_friends_t" : "v587_hidden_t")} — ${t(visibility === "all" ? "v587_all_d" : visibility === "friends" ? "v587_friends_d" : "v587_hidden_d")}`}
                     pressed={visibility !== "all"}
                     accent={roleColor}
                     onClick={() => { void changeVisibility(nextMapVisibility(visibility)); }}
@@ -1856,7 +1856,7 @@ export default function MapPage() {
                 l'œil de la capsule et que /profile (une seule route). */}
             <div className="mt-3 rounded-2xl bg-white p-3">
               <p className="flex items-center gap-2 text-sm font-semibold text-[#231715]"><span className="text-[#17141F]"><EyeIcon state={visibility} size={18} /></span>{t("m586_vis_title")}</p>
-              <VisibilityPills value={visibility} busy={friendsOnlyBusy} onChange={(v) => { void changeVisibility(v); }} labels={{ all: t("m586_vis_pill_all"), friends: t("m586_vis_pill_friends"), hidden: t("m586_vis_pill_hidden") }} />
+              <VisibilityPills value={visibility} busy={friendsOnlyBusy} onChange={(v) => { void changeVisibility(v); }} labels={{ all: t("v587_all_t"), friends: t("v587_friends_t"), hidden: t("v587_hidden_t") }} descs={{ all: t("v587_all_d"), friends: t("v587_friends_d"), hidden: t("v587_hidden_d") }} notes={[t("v587_live"), t("v587_where")]} />
             </div>
 
             {/* 25/09 (585, lot 2 — bug 15) — MES ABONNEMENTS SUR LA CARTE : une

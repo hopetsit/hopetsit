@@ -136,21 +136,53 @@ class ProfilePreferencesTab extends StatelessWidget {
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary(context),
             ),
-            SizedBox(height: 4.h),
-            InterText(
-              text: 'pawmap586_pref_vis_sub'.tr,
-              fontSize: 11.5.sp,
-              color: AppColors.textSecondary(context),
-            ),
             SizedBox(height: 10.h),
             Wrap(
               spacing: 8.w,
               runSpacing: 8.h,
               children: [
-                pill('all', PawIcon.eye, 'pawmap586_vis_choice_all'.tr),
-                pill('friends', PawIcon.heart, 'pawmap586_vis_choice_friends'.tr),
-                pill('hidden', PawIcon.eyeOff, 'pawmap586_vis_choice_hidden'.tr),
+                pill('all', PawIcon.eye, 'vis587_all_t'.tr),
+                pill('friends', PawIcon.heart, 'vis587_friends_t'.tr),
+                pill('hidden', PawIcon.eyeOff, 'vis587_hidden_t'.tr),
               ],
+            ),
+            // v587 — Daniel : « ces options doivent être claires » : chaque
+            // option avec son titre ET sa phrase ; celle choisie est en avant.
+            SizedBox(height: 10.h),
+            for (final o in const <List<String>>[
+              <String>['all', 'vis587_all_t', 'vis587_all_d'],
+              <String>['friends', 'vis587_friends_t', 'vis587_friends_d'],
+              <String>['hidden', 'vis587_hidden_t', 'vis587_hidden_d'],
+            ])
+              Padding(
+                key: ValueKey<String>('pref_vis_explain_${o[0]}'),
+                padding: EdgeInsets.only(bottom: 6.h),
+                child: Text.rich(
+                  TextSpan(children: <InlineSpan>[
+                    TextSpan(
+                      text: '${o[1].tr} — ',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: current == o[0]
+                            ? accent
+                            : AppColors.textPrimary(context),
+                      ),
+                    ),
+                    TextSpan(text: o[2].tr),
+                  ]),
+                  style: TextStyle(
+                    fontSize: 11.5.sp,
+                    height: 1.35,
+                    color: current == o[0]
+                        ? AppColors.textPrimary(context)
+                        : AppColors.textSecondary(context),
+                  ),
+                ),
+              ),
+            InterText(
+              text: 'vis587_live'.tr,
+              fontSize: 11.sp,
+              color: AppColors.textSecondary(context),
             ),
           ],
         );

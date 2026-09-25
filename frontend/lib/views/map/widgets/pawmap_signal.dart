@@ -163,7 +163,8 @@ class PawSignalPill extends StatelessWidget {
               Flexible(
                 child: Text(
                   text,
-                  maxLines: 2,
+                  // v587 — les phrases de visibilité tiennent sur 3 lignes à 320 px.
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 13.sp,
@@ -299,10 +300,11 @@ class PawSignal {
       'hidden' => PawSignalKind.hidden,
       _ => PawSignalKind.all,
     };
+    // v587 — la même phrase que le réglage (vis587_i18n) : ce que ça veut dire.
     final key = switch (v) {
-      'friends' => 'pawmap587_sig_vis_friends',
-      'hidden' => 'pawmap587_sig_vis_hidden',
-      _ => 'pawmap587_sig_vis_all',
+      'friends' => 'vis587_friends_d',
+      'hidden' => 'vis587_hidden_d',
+      _ => 'vis587_all_d',
     };
     show(context, kind, key.tr, onTap: onTap);
   }

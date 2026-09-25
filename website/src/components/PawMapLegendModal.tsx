@@ -112,6 +112,13 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
   const full = role !== undefined;
   const roleK = role ?? "owner";
   const provider = roleK === "sitter" || roleK === "walker";
+  const visExplained = [
+    `${t("v587_all_t")} — ${t("v587_all_d")}`,
+    `${t("v587_friends_t")} — ${t("v587_friends_d")}`,
+    `${t("v587_hidden_t")} — ${t("v587_hidden_d")}`,
+    t("v587_live"),
+    t("v587_where"),
+  ].join("\n");
 
   const pins: Row[] = [
     { html: photoPinHtml({ role: "owner", name: "Moi", me: true, meLabel: t("legend_me_label") }), title: t("legend_me"), body: t("legend_me_body"), color: ROLE_COLOR.owner },
@@ -165,6 +172,8 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
           id: "live", title: t("h587_sec_live"), example: provider ? t("h587_ex_live_walker") : t("h587_ex_live_owner"),
           rows: [
             { html: eyesHtml(), title: t("m586_leg_eye_t"), body: t("h587_b_eye"), color: "#17141F" },
+            // 587 — Daniel : les 3 réglages en clair, mêmes phrases que le réglage (vis587).
+            { html: eyesHtml(), title: t("v587_title"), body: visExplained, color: "#17141F" },
             ...(provider
               ? [{ html: `<span style="display:flex;gap:4px">${roundHtml("linear-gradient(165deg,#2C2533,#17141F)", LIVE, "rgba(23,20,31,0.7)", 30)}${roundHtml("linear-gradient(165deg,#34B857,#16A34A)", LIVE, "#16A34A", 30)}</span>`, title: t("m586_live"), body: t("h587_b_direct"), color: "#17141F" }]
               : []),
@@ -194,7 +203,8 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
       ]
     : [{ id: "find", title: t("h587_sec_find"), rows: [{ node: <RoundIcon name="pin" color="#C92A12" />, title: t("h587_t_pins"), body: t("h587_b_pins") }, ...pins] }];
 
-  const faq = [1, 2, 3, 4].map((n) => ({ q: t(`h587_q${n}`), a: t(`h587_a${n}`) }));
+  // 587 — « Qui voit ma position ? » = les phrases du réglage, mot pour mot.
+  const faq = [1, 2, 3, 4].map((n) => ({ q: t(`h587_q${n}`), a: n === 2 ? visExplained : t(`h587_a${n}`) }));
 
   return (
     <div
@@ -242,7 +252,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
                     : <span className="grid h-14 w-14 shrink-0 place-items-center sm:h-16 sm:w-16" dangerouslySetInnerHTML={{ __html: r.html || "" }} />}
                   <span className="min-w-0 flex-1 pt-1">
                     <span className="block break-words text-sm font-bold dark:!text-[#FBEFE6]" style={{ color: r.color || "#231715" }}>{r.title}</span>
-                    {r.body && <span className="mt-0.5 block break-words text-[13px] leading-snug text-[#3B2A26] dark:text-[#EBDDD6]">{r.body}</span>}
+                    {r.body && <span className="mt-0.5 block whitespace-pre-line break-words text-[13px] leading-snug text-[#3B2A26] dark:text-[#EBDDD6]">{r.body}</span>}
                   </span>
                 </li>
               ))}
@@ -265,7 +275,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
             {faq.map((f) => (
               <details key={f.q} className="group rounded-2xl border border-[#C92A12]/25 bg-white px-3.5 py-3 dark:bg-[#2E201C]" open={full}>
                 <summary className="cursor-pointer list-none break-words text-sm font-extrabold text-[#231715] dark:text-[#FBEFE6]">{f.q}</summary>
-                <p className="mt-1.5 break-words text-[13px] leading-snug text-[#3B2A26] dark:text-[#EBDDD6]">{f.a}</p>
+                <p className="mt-1.5 whitespace-pre-line break-words text-[13px] leading-snug text-[#3B2A26] dark:text-[#EBDDD6]">{f.a}</p>
               </details>
             ))}
           </div>
