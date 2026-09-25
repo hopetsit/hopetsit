@@ -29,7 +29,35 @@ class MapPrefsService extends GetxService {
   final RxMap<String, dynamic> prefs = <String, dynamic>{}.obs;
 
   /// `preferences.hideFromMap` du compte (mode amis seulement).
+  /// v586 — dérivé de [mapVisibility] (vrai si ≠ 'all'), gardé pour
+  /// l'existant.
   final RxBool hideFromMap = false.obs;
+
+  /// v586 — LA vérité « qui me voit sur la carte » : 'all' | 'friends' |
+  /// 'hidden' (`preferences.mapVisibility`, les 3 profils). Lue et écrite au
+  /// même endroit par la carte (bouton œil), Profil › Préférences et le site.
+  final RxString mapVisibility = 'all'.obs;
+
+  static const List<String> visibilityStates = ['all', 'friends', 'hidden'];
+
+  /// État suivant au bouton œil : Tous → Amis → Masqué → Tous.
+  static String nextVisibility(String v) {
+    final i = visibilityStates.indexOf(v);
+    return visibilityStates[(i < 0 ? 0 : i + 1) % visibilityStates.length];
+  }
+
+  /// Lecture tolérante (nouveau champ, sinon l'ancien `hideFromMap` =
+  /// « amis seulement », comme le serveur).
+  static String visibilityFrom(Map? m) {
+    final v = m?['mapVisibility'];
+    if (v is String && visibilityStates.contains(v)) return v;
+    return m?['hideFromMap'] == true ? 'friends' : 'all';
+  }
+
+  void _setVisibilityLocal(String v) {
+    mapVisibility.value = v;
+    hideFromMap.value = v != 'all';
+  }
 
   /// Vrai une fois le compte lu (ou l'échec constaté) au démarrage.
   final RxBool loaded = false.obs;
@@ -48,6 +76,12 @@ class MapPrefsService extends GetxService {
       final raw = GetStorage().read(storageKey);
       if (raw is Map) prefs.assignAll(Map<String, dynamic>.from(raw));
     } catch (_) {/* stockage indisponible */}
+    // v586 — état de départ = copie locale du profil (avant le réseau).
+    try {
+      final profile = GetStorage().read<Map<String, dynamic>>('user_profile');
+      final p = profile?['preferences'];
+      if (p is Map) _setVisibilityLocal(visibilityFrom(p));
+    } catch (_) {/* profil illisible */}
   }
 
   bool get _loggedIn => (SecureTokenStore.currentToken() ?? '').isNotEmpty;
@@ -72,7 +106,7 @@ class MapPrefsService extends GetxService {
       final res = await _api!.get('/users/me/map-prefs', requiresAuth: true);
       final m = res is Map ? Map<String, dynamic>.from(res) : null;
       if (m == null) return false;
-      hideFromMap.value = m['hideFromMap'] == true;
+      _setVisibilityLocal(visibilityFrom(m));
       final remote = m['pawMap'] is Map
           ? Map<String, dynamic>.from(m['pawMap'] as Map)
           : <String, dynamic>{};
@@ -141,17 +175,42 @@ class MapPrefsService extends GetxService {
     }
   }
 
-  /// Mode « amis seulement » : écrit sur le compte SANS délai ; renvoie vrai
-  /// si le serveur a accepté.
-  Future<bool> setHideFromMap(bool value) async {
+  /// Mode « amis seulement » (ancienne API) : passe par [setMapVisibility].
+  Future<bool> setHideFromMap(bool value) =>
+      setMapVisibility(value ? 'friends' : 'all');
+
+  /// v586 — écrit l'état sur le compte SANS délai (réglage de vie privée) ;
+  /// renvoie vrai si le serveur a accepté. `hideFromMap` part avec, pour un
+  /// serveur plus ancien (il comprend alors « Masqué » comme « amis
+  /// seulement », jamais comme « visible par tous »). Copie locale du profil
+  /// mise à jour : Préférences et carte disent la même chose sans recharger.
+  Future<bool> setMapVisibility(String value) async {
+    if (!visibilityStates.contains(value)) return false;
     if (!_loggedIn || _api == null) return false;
     try {
-      await _api!.patch('/users/me/map-prefs',
-          body: {'hideFromMap': value}, requiresAuth: true);
-      hideFromMap.value = value;
+      final res = await _api!.patch('/users/me/map-prefs',
+          body: {'mapVisibility': value, 'hideFromMap': value != 'all'},
+          requiresAuth: true);
+      final m = res is Map ? res : null;
+      final server = m != null && m['mapVisibility'] is String
+          ? visibilityFrom(m)
+          : value;
+      _setVisibilityLocal(server);
+      try {
+        final box = GetStorage();
+        final profile = box.read<Map<String, dynamic>>('user_profile');
+        if (profile != null) {
+          final p = Map<String, dynamic>.from(
+              (profile['preferences'] as Map?) ?? const {});
+          p['mapVisibility'] = server;
+          p['hideFromMap'] = server != 'all';
+          profile['preferences'] = p;
+          box.write('user_profile', profile);
+        }
+      } catch (_) {/* sans importance */}
       return true;
     } catch (e) {
-      debugPrint('[MapPrefs] hideFromMap : $e');
+      debugPrint('[MapPrefs] mapVisibility : $e');
       return false;
     }
   }

@@ -6,6 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
 import 'package:hopetsit/models/profile_model.dart';
+import 'package:hopetsit/services/map_prefs_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart';
 import 'package:hopetsit/views/profile/widgets/notification_prefs_tab.dart';
@@ -35,6 +36,14 @@ class _ProfilePreferencesScreenState extends State<ProfilePreferencesScreen> {
   late int _tab = widget.initialTab.clamp(0, 1);
 
   @override
+  void initState() {
+    super.initState();
+    // v586 — relit l'état du compte (un autre appareil, le site ou la carte
+    // l'a peut-être changé).
+    MapPrefsService.instance.loadFromAccount();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final accent = widget.accent;
     return ProfileSubPageScaffold(
@@ -61,7 +70,14 @@ class _ProfilePreferencesScreenState extends State<ProfilePreferencesScreen> {
                     accent: accent,
                     prefs: p?.preferences ?? const ProfilePreferences(),
                     saving: saving,
-                    onSave: (u) => widget.host.savePreferences(u.toJson()),
+                    // v586 — la visibilité part toujours depuis la vérité
+                    // unique (bouton œil / map-prefs), jamais depuis une
+                    // copie du profil qui pourrait être en retard.
+                    onSave: (u) => widget.host.savePreferences(u
+                        .copyWith(
+                            mapVisibility:
+                                MapPrefsService.instance.mapVisibility.value)
+                        .toJson()),
                     onLanguage: widget.host.showLanguageDialog,
                   ),
                   SizedBox(height: 8.h),

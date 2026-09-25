@@ -257,6 +257,15 @@ class ProfilePreferences {
   /// v585 (lot D) — « Mon fond » : auto (selon mon animal) / paws / none.
   final String wallpaper;
 
+  /// v586 — « qui me voit sur la carte » : 'all' | 'friends' | 'hidden'
+  /// (vérité unique, `preferences.mapVisibility`). Absent = lu depuis
+  /// `hideFromMap` (qui voulait dire « amis seulement »).
+  final String mapVisibility;
+
+  /// v586 — vrai si le compte a RENVOYÉ `wallpaper` (sinon le défaut 'auto'
+  /// ne doit pas écraser le choix enregistré sur le téléphone).
+  final bool wallpaperKnown;
+
   const ProfilePreferences({
     this.sendPhotosVideos = true,
     this.quickReplies = true,
@@ -265,6 +274,8 @@ class ProfilePreferences {
     this.notifications = true,
     this.hideFromMap = false,
     this.wallpaper = 'auto',
+    this.mapVisibility = 'all',
+    this.wallpaperKnown = false,
   });
 
   factory ProfilePreferences.fromJson(Map<String, dynamic> json) {
@@ -276,6 +287,11 @@ class ProfilePreferences {
       notifications: json['notifications'] as bool? ?? true,
       hideFromMap: json['hideFromMap'] as bool? ?? false,
       wallpaper: (json['wallpaper'] as String?) ?? 'auto',
+      wallpaperKnown: json['wallpaper'] is String,
+      mapVisibility: const ['all', 'friends', 'hidden']
+              .contains(json['mapVisibility'])
+          ? json['mapVisibility'] as String
+          : ((json['hideFromMap'] as bool? ?? false) ? 'friends' : 'all'),
     );
   }
 
@@ -285,7 +301,10 @@ class ProfilePreferences {
         'flexibleCancellation': flexibleCancellation,
         'pawMapInsurance': pawMapInsurance,
         'notifications': notifications,
-        'hideFromMap': hideFromMap,
+        // v586 — la visibilité part TOUJOURS sous ses deux formes, dérivées
+        // de la vérité à 3 états (un ancien serveur remplace tout l'objet).
+        'mapVisibility': mapVisibility,
+        'hideFromMap': mapVisibility != 'all',
         'wallpaper': wallpaper,
       };
 
@@ -297,6 +316,7 @@ class ProfilePreferences {
     bool? notifications,
     bool? hideFromMap,
     String? wallpaper,
+    String? mapVisibility,
   }) =>
       ProfilePreferences(
         sendPhotosVideos: sendPhotosVideos ?? this.sendPhotosVideos,
@@ -306,6 +326,8 @@ class ProfilePreferences {
         notifications: notifications ?? this.notifications,
         hideFromMap: hideFromMap ?? this.hideFromMap,
         wallpaper: wallpaper ?? this.wallpaper,
+        mapVisibility: mapVisibility ?? this.mapVisibility,
+        wallpaperKnown: wallpaperKnown,
       );
 }
 

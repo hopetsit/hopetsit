@@ -315,28 +315,26 @@ void main() {
   });
 
   group('visibilité (amis seulement)', () {
-    testWidgets('les deux options appellent onChanged avec la bonne valeur', (tester) async {
-      final got = <bool>[];
+    // v586 — 3 états (Tous · Amis seulement · Masqué), vérité unique.
+    testWidgets('les trois options appellent onChanged avec la bonne valeur', (tester) async {
+      final got = <String>[];
       await tester.pumpWidget(_harness(PawMapVisibilitySheet(
-        friendsOnly: false,
+        state: 'all',
         saving: false,
         onChanged: got.add,
       )));
       await tester.pump(const Duration(milliseconds: 50));
       await tester.tap(find.byKey(const ValueKey<String>('visibility_friends')));
+      await tester.tap(find.byKey(const ValueKey<String>('visibility_hidden')));
       await tester.tap(find.byKey(const ValueKey<String>('visibility_all')));
       await tester.pump(const Duration(milliseconds: 200));
-      expect(got, [true, false]);
-      // Aucun gris : la surface active est noir encre (saturation 0 mais
-      // c'est l'encre de marque #17141F, pas un gris) ; l'option « tous » est
-      // verte pleine.
-      expect(find.text('Visible par mes amis seulement'), findsOneWidget);
+      expect(got, ['friends', 'hidden', 'all']);
     });
 
     testWidgets('pendant l\'enregistrement, plus aucun appui', (tester) async {
-      final got = <bool>[];
+      final got = <String>[];
       await tester.pumpWidget(_harness(PawMapVisibilitySheet(
-        friendsOnly: true,
+        state: 'friends',
         saving: true,
         onChanged: got.add,
       )));

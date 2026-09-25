@@ -40,6 +40,15 @@ class PawWallpaperPrefs {
   static List<String>? debugSpecies;
   static String? debugRole;
 
+  /// v586 — CAUSE du « Mon fond ne marche pas » (reproduit sur l'émulateur,
+  /// compte de test, 25/09) : le fond lisait le réglage UNE fois, à la
+  /// construction de l'écran. Les écrans déjà construits (onglets gardés
+  /// vivants comme l'Accueil, et la page Préférences elle-même) n'étaient
+  /// jamais redessinés : le choix était bien enregistré, mais rien ne
+  /// changeait à l'écran avant un redémarrage. Chaque changement (mode ou
+  /// espèces) incrémente désormais ce compteur, que TOUS les fonds écoutent.
+  static final ValueNotifier<int> revision = ValueNotifier<int>(0);
+
   static GetStorage? _box() {
     try {
       return GetStorage();
@@ -57,7 +66,30 @@ class PawWallpaperPrefs {
 
   static void setMode(String mode) {
     final m = (mode == 'paws' || mode == 'none') ? mode : 'auto';
-    _box()?.write(modeKey, m);
+    final before = _safeMode();
+    if (debugMode != null) {
+      debugMode = m; // tests : pas de stockage
+    } else {
+      _box()?.write(modeKey, m);
+    }
+    if (before != m) revision.value++;
+  }
+
+  static String _safeMode() {
+    try {
+      return mode();
+    } catch (_) {
+      return 'auto';
+    }
+  }
+
+  /// v586 — le compte fait foi : à chaque lecture du profil (connexion, autre
+  /// téléphone, changement de rôle), la copie locale suit la valeur du compte
+  /// quand il l'a renvoyée.
+  static void syncFromAccount(String? mode) {
+    if (mode == null) return;
+    if (mode != 'auto' && mode != 'paws' && mode != 'none') return;
+    if (_safeMode() != mode) setMode(mode);
   }
 
   static List<String> species() {
@@ -69,7 +101,9 @@ class PawWallpaperPrefs {
 
   static void rememberSpecies(List<String?> categories) {
     final list = categories.map(normalizeSpecies).where((s) => s.isNotEmpty).toSet().toList();
+    final before = species().toSet();
     _box()?.write(speciesKey, list);
+    if (before.length != list.length || !before.containsAll(list)) revision.value++;
   }
 
   /// « Dog », « chat », « pájaro »… → dog / cat / bird / rabbit / ''.
@@ -173,9 +207,17 @@ class PawPatternBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // v586 — se redessine dès que « Mon fond » ou les espèces changent.
+    if (motifs != null) return _build(context, motifs!);
+    return ValueListenableBuilder<int>(
+      valueListenable: PawWallpaperPrefs.revision,
+      builder: (ctx, _, __) => _build(ctx, PawWallpaperPrefs.motifs()),
+    );
+  }
+
+  Widget _build(BuildContext context, Set<PawMotif> set) {
     final bool dark = Theme.of(context).brightness == Brightness.dark;
     final double alpha = (opacity ?? (dark ? 0.10 : 0.09)).clamp(0.0, 1.0);
-    final Set<PawMotif> set = motifs ?? PawWallpaperPrefs.motifs();
     // Fond pâle du rôle (clair) / brun de la marque teinté du rôle (sombre).
     final Color? base = !paintBase
         ? null

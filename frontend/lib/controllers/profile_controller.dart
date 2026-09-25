@@ -1,3 +1,4 @@
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'dart:io';
 
 import 'package:get/get.dart';
@@ -141,6 +142,10 @@ class ProfileController extends GetxController implements ProfileSettingsHost {
       if (userController.profile.value != null) {
         final profileData = userController.profile.value!;
         profile.value = profileData;
+        // v586 — « Mon fond » : le compte fait foi (3 profils, site).
+        PawWallpaperPrefs.syncFromAccount(profileData.preferences.wallpaperKnown
+            ? profileData.preferences.wallpaper
+            : null);
         userName.value = profileData.name;
         email.value = profileData.email;
         phoneNumber.value = profileData.mobile;

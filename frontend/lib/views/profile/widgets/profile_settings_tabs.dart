@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/models/profile_model.dart';
+import 'package:hopetsit/services/map_prefs_service.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/widgets/paw_button_kit.dart';
@@ -72,14 +74,12 @@ class ProfilePreferencesTab extends StatelessWidget {
         // profil sur la carte (on/off), pour quelqu'un qui ne veut pas être
         // vu par les autres sauf ses amis ».
         _header(context, 'profile_pref_privacy'.tr),
-        _toggle(
-          context,
-          icon: Icons.visibility_off_rounded,
-          label: 'profile_pref_hide_map'.tr,
-          sub: 'profile_pref_hide_map_sub'.tr,
-          value: prefs.hideFromMap,
-          onChanged: (v) => onSave(prefs.copyWith(hideFromMap: v)),
-        ),
+        // v586 — Daniel : « masquer / visible par tous n'est pas synchro avec
+        // le menu de la PawMap ». UNE vérité à 3 états (Tous · Amis seulement
+        // · Masqué), lue et écrite au MÊME endroit que le bouton œil de la
+        // carte et le site (`MapPrefsService.mapVisibility`, route
+        // /users/me/map-prefs, les 3 profils).
+        _visibilityRow(context),
         // v585 (lot D) — « Mon fond » (NORME_DESIGN.md) : auto selon mon animal /
         // pattes seules / aucun, enregistré sur le compte ET copié en local
         // (le fond change tout de suite, même hors réseau).
@@ -96,14 +96,87 @@ class ProfilePreferencesTab extends StatelessWidget {
     );
   }
 
+  Widget _visibilityRow(BuildContext context) {
+    final svc = MapPrefsService.instance;
+    return Container(
+      key: const ValueKey<String>('pref_map_visibility'),
+      margin: EdgeInsets.only(bottom: 8.h),
+      padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Obx(() {
+        final current = svc.mapVisibility.value;
+        Widget pill(String value, PawIcon icon, String label) => PawChoicePill(
+              key: ValueKey<String>('pref_vis_$value'),
+              label: label,
+              icon: icon,
+              color: accent,
+              selected: current == value,
+              onTap: current == value
+                  ? null
+                  : () async {
+                      final ok = await svc.setMapVisibility(value);
+                      if (!ok) {
+                        CustomSnackbar.showError(
+                          title: 'common_error'.tr,
+                          message: 'pawmap_visibility_failed'.tr,
+                        );
+                      }
+                    },
+            );
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            PoppinsText(
+              text: 'pawmap586_pref_vis_title'.tr,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary(context),
+            ),
+            SizedBox(height: 4.h),
+            InterText(
+              text: 'pawmap586_pref_vis_sub'.tr,
+              fontSize: 11.5.sp,
+              color: AppColors.textSecondary(context),
+            ),
+            SizedBox(height: 10.h),
+            Wrap(
+              spacing: 8.w,
+              runSpacing: 8.h,
+              children: [
+                pill('all', PawIcon.eye, 'pawmap586_vis_choice_all'.tr),
+                pill('friends', PawIcon.heart, 'pawmap586_vis_choice_friends'.tr),
+                pill('hidden', PawIcon.eyeOff, 'pawmap586_vis_choice_hidden'.tr),
+              ],
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
   Widget _wallpaperRow(BuildContext context) {
-    final String current = prefs.wallpaper;
+    // v586 — le choix s'affiche TOUT DE SUITE (copie locale, qui redessine
+    // aussi tous les fonds), puis part sur le compte. Avant, la pilule restait
+    // sur l'ancienne valeur pendant l'enregistrement et tout appui pendant
+    // celui-ci était ignoré.
+    return ValueListenableBuilder<int>(
+      valueListenable: PawWallpaperPrefs.revision,
+      builder: (ctx, _, __) => _wallpaperCard(ctx, PawWallpaperPrefs.mode()),
+    );
+  }
+
+  Widget _wallpaperCard(BuildContext context, String current) {
     Widget pill(String value, PawIcon icon, String label) => PawChoicePill(
+          key: ValueKey<String>('pref_wallpaper_$value'),
           label: label,
           icon: icon,
           color: accent,
           selected: current == value,
-          onTap: saving
+          onTap: current == value
               ? null
               : () {
                   PawWallpaperPrefs.setMode(value);

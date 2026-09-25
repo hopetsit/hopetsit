@@ -794,29 +794,36 @@ class PawMapRequestSheet extends StatelessWidget {
 
 // ── VISIBILITÉ (mode amis seulement) ───────────────────────────────────────
 
+/// v586 — trois états (Tous · Amis seulement · Masqué), la même vérité que
+/// le bouton œil de la capsule et Profil › Préférences.
 class PawMapVisibilitySheet extends StatelessWidget {
   const PawMapVisibilitySheet({
     super.key,
-    required this.friendsOnly,
+    required this.state,
     required this.saving,
     required this.onChanged,
   });
 
-  final bool friendsOnly;
+  /// 'all' | 'friends' | 'hidden'.
+  final String state;
   final bool saving;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
     Widget option({
       required Key key,
-      required bool value,
+      required String value,
       required IconData icon,
       required String title,
       required String sub,
     }) {
-      final bool selected = friendsOnly == value;
-      final Color tone = value ? PawMapLegend.ink : PawMapLegend.walker;
+      final bool selected = state == value;
+      final Color tone = switch (value) {
+        'all' => PawMapLegend.walker,
+        'friends' => PawMapLegend.friend,
+        _ => PawMapLegend.ink,
+      };
       final bool isDark = PawMapTheme.isDark(context);
       final Color fg = selected
           ? Colors.white
@@ -880,8 +887,8 @@ class PawMapVisibilitySheet extends StatelessWidget {
                   ),
                   if (selected)
                     Icon(
-                      value ? Icons.visibility_off_rounded : Icons.check_rounded,
-                      color: value ? PawMapLegend.gold : Colors.white,
+                      Icons.check_rounded,
+                      color: value == 'hidden' ? PawMapLegend.gold : Colors.white,
                       size: 20.sp,
                     ),
                 ],
@@ -903,17 +910,24 @@ class PawMapVisibilitySheet extends StatelessWidget {
           SizedBox(height: 12.h),
           option(
             key: const ValueKey<String>('visibility_all'),
-            value: false,
-            icon: Icons.public_rounded,
-            title: 'pawmap_visibility_all'.tr,
-            sub: 'profile_pref_hide_map_sub'.tr,
+            value: 'all',
+            icon: Icons.visibility_rounded,
+            title: 'pawmap586_vis_all'.tr,
+            sub: 'pawmap586_vis_all_sub'.tr,
           ),
           option(
             key: const ValueKey<String>('visibility_friends'),
-            value: true,
-            icon: Icons.visibility_off_rounded,
-            title: 'pawmap_visibility_friends'.tr,
+            value: 'friends',
+            icon: Icons.favorite_rounded,
+            title: 'pawmap586_vis_friends'.tr,
             sub: 'pawmap_visibility_friends_sub'.tr,
+          ),
+          option(
+            key: const ValueKey<String>('visibility_hidden'),
+            value: 'hidden',
+            icon: Icons.visibility_off_rounded,
+            title: 'pawmap586_vis_hidden'.tr,
+            sub: 'pawmap586_vis_help'.tr,
           ),
           if (saving)
             Center(

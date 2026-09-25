@@ -1,3 +1,4 @@
+import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'dart:async' show unawaited;
 
@@ -172,6 +173,9 @@ class SitterProfileController extends GetxController implements ProfileSettingsH
       // Store the full profile data
       try {
         profile.value = ProfileModel.fromJson(profileData);
+        // v586 — « Mon fond » : le compte fait foi (3 profils, site).
+        final pr = profile.value!.preferences;
+        PawWallpaperPrefs.syncFromAccount(pr.wallpaperKnown ? pr.wallpaper : null);
       } catch (e) {
         AppLogger.logError('Failed to parse profile model', error: e);
         // Fallback: create a basic profile model with available data
