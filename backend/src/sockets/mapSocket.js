@@ -603,6 +603,18 @@ function registerMapHandlers(io, socket) {
           else if (identity.role === 'sitter') Model = require('../models/Sitter');
           else if (identity.role === 'owner') Model = require('../models/Owner');
           if (Model) {
+            // v589 — l'app ouverte (socket) relance le direct : l'arrêt
+            // noté ailleurs est levé sur les 3 profils, autres appareils prévenus.
+            try {
+              const liveDevices = require('../utils/liveDevices589');
+              const hadSession = !!getLiveSession(identity.userId);
+              const st = await liveDevices.markStartedByUser(identity.userId, { role: identity.role });
+              if (st.restarted || !hadSession) {
+                liveDevices.announceStarted(st.docs, { role: identity.role, userId: identity.userId });
+              }
+            } catch (e) {
+              logger.warn(`[mapSocket:position-update] live start sync failed : ${e.message}`);
+            }
             await markLiveShareStarted(Model, identity.userId);
             await Model.updateOne(
               { _id: identity.userId },
@@ -667,48 +679,12 @@ function registerMapHandlers(io, socket) {
     try {
       const identity = socket.data?.mapIdentity;
       if (!identity) return;
-      // v565 (contrat §8, point 11) — SEUL arrêt à l'initiative de
-      // l'utilisateur : on oublie la session RAM, on éteint le drapeau DB
-      // (ci-dessous) et on prévient les amis (map:friend-offline).
-      clearLiveSession(identity.userId);
-      // v23.1 part 243 — Daniel : "le bouton suivre si il est etain on
-      // peux plus nous voir sa desactive la position". Avant : on
-      // emettait map:friend-offline aux listeners → leur halo Rx
-      // disparaissait COTE socket en temps reel. MAIS la User.location
-      // persistee en DB par map:position-update (cf. ci-dessus) restait
-      // intacte → /friends/:id/last-position retournait quand meme la
-      // derniere position broadcastee. Daniel pouvait donc encore etre
-      // localise via PeopleLiveScreen apres avoir eteint le toggle.
-      // Fix : on UNSET location.coordinates en DB quand l'user va
-      // offline → le fallback DB retourne null lat/lng, l'ami ne voit
-      // plus aucun point.
-      try {
-        let Model = null;
-        if (identity.role === 'walker') Model = require('../models/Walker');
-        else if (identity.role === 'sitter') Model = require('../models/Sitter');
-        else if (identity.role === 'owner') Model = require('../models/Owner');
-        if (Model) {
-          await Model.updateOne(
-            { _id: identity.userId },
-            // v532 — cf. relayLivePosition : on n'efface plus les coordonnées
-            // (le prestataire disparaissait des résultats de recherche), on
-            // éteint seulement le partage en direct.
-            { $set: { ...LIVE_STOP_SET } },
-          );
-        }
-      } catch (e) {
-        logger.warn(`[mapSocket:go-offline] DB unset failed : ${e.message}`);
-      }
-      const listeners = await listPositionListeners(identity.userId, identity.role);
-      for (const l of listeners) {
-        emitToUser(l.role, l.userId, 'map:friend-offline', {
-          // v565 — id traduit par destinataire (cf. relayLivePosition).
-          userId: l.viewAsId || identity.userId,
-          role: identity.role,
-          at: new Date().toISOString(),
-          reason: 'user_stopped',
-        });
-      }
+      // v589 — SEUL arrêt à l'initiative de l'utilisateur : coupe le direct
+      // sur ses 3 profils (session RAM, drapeau DB, heure d'arrêt), prévient
+      // les amis (map:friend-offline) et ses autres appareils (map:self-live).
+      // Historique : v565 (contrat §8, point 11), part 243, v532 — on
+      // n'efface jamais les coordonnées (recherche de prestataires).
+      await require('../utils/liveDevices589').stopEverywhere(identity.userId);
     } catch (err) {
       logger.error('[mapSocket:go-offline] error', err);
     }

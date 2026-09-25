@@ -417,6 +417,9 @@ const walkerSchema = new mongoose.Schema(
       liveShareActive: { type: Boolean, default: false },
       // v587 — heure de départ du direct en cours (null hors direct).
       liveShareStartedAt: { type: Date, default: null },
+      // v589 — arrêt VOULU du direct (depuis n'importe quel appareil) : le service
+      // de fond Android d'un autre téléphone ne peut plus le rallumer.
+      liveShareStoppedAt: { type: Date, default: null },
       locationType: {
         type: String,
         enum: ['standard', 'large_city'],

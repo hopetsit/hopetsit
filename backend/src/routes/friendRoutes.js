@@ -104,15 +104,40 @@ function me(req) {
 // `heartbeat: true` (sans lat/lng = simple battement : prolonge `lastSeenAt`
 // et rejoue la dernière position aux amis). Le serveur ne coupe jamais le
 // partage de lui-même ; seule `offline:true` (ou la fin de la durée) l'arrête.
+// v589 — état du direct de la personne (3 profils, tous appareils). L'app le
+// lit à l'ouverture et au retour au premier plan : un direct lancé sur un
+// autre téléphone s'affiche allumé, un arrêt fait ailleurs s'affiche éteint.
+router.get('/live-state', requireAuth, async (req, res) => {
+  try {
+    const state = await require('../utils/liveDevices589').getMyLiveState(me(req).id);
+    return res.json(state);
+  } catch (e) {
+    logger.error('[friends/live-state]', e);
+    return res.status(500).json({ error: 'Unable to read live state.' });
+  }
+});
+
 router.post('/live-position', requireAuth, async (req, res) => {
   try {
     const { relayLivePosition, getLiveSession, describeLiveSession } = require('../sockets/mapSocket');
     const u = me(req);
     const { lat, lng, city, offline, duration, heartbeat } = req.body || {};
+    const liveDevices = require('../utils/liveDevices589');
     if (offline === true || offline === 'true') {
-      await relayLivePosition({ userId: u.id, role: u.role, offline: true });
+      // v589 — arrêt VOULU : coupe les 3 profils et prévient les autres
+      // appareils (avant : seul le profil actif, et Android le relançait).
+      await liveDevices.stopEverywhere(u.id);
       return res.json({ ok: true, offline: true });
     }
+    // v589 — le service de fond Android (aucun en-tête X-App-Version) ne peut
+    // plus rallumer un direct que la personne a arrêté sur un autre appareil.
+    const foreground = liveDevices.isForegroundRequest(req);
+    if (!foreground && await liveDevices.isStoppedByUser(u.id)) {
+      return res.json({ ok: true, ignored: true, stopped: true });
+    }
+    let started = null;
+    const hadSession = !!getLiveSession(u.id);
+    if (foreground) started = await liveDevices.markStartedByUser(u.id, { role: u.role });
     const la = Number(lat);
     const ln = Number(lng);
     const hasPos = Number.isFinite(la) && Number.isFinite(ln) && !(la === 0 && ln === 0);
@@ -133,6 +158,9 @@ router.post('/live-position', requireAuth, async (req, res) => {
     const listeners = await relayLivePosition({
       userId: u.id, role: u.role, lat: la, lng: ln, city, duration,
     });
+    if (started && (started.restarted || !hadSession)) {
+      liveDevices.announceStarted(started.docs, { role: u.role, userId: u.id });
+    }
     return res.json({
       ok: true,
       listeners,
