@@ -614,7 +614,7 @@ export default function PoiMap({
     : undefined;
 
   return (
-    <div className="relative h-full min-h-[420px] w-full overflow-hidden rounded-[28px]">
+    <div className="relative h-full min-h-[420px] w-full overflow-hidden rounded-[28px] max-lg:rounded-none">
       <style dangerouslySetInnerHTML={{ __html: PAWMAP_KEYFRAMES }} />
       <MapContainer ref={setMapObj} center={center} zoom={initialZoom} minZoom={3} maxZoom={19} style={{ height: "100%", width: "100%" }} scrollWheelZoom zoomControl={false}>
         {satellite ? (

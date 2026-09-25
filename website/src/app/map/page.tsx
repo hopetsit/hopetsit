@@ -283,6 +283,23 @@ export default function MapPage() {
   // reste la poignée « Options » en bas au centre de la carte.
   const [sheet, setSheet] = useState<"closed" | "half" | "full">("closed");
   const sheetDragRef = useRef<number | null>(null);
+  // 25/09 (586, point 1 suite) — téléphone / tablette : la carte descend
+  // jusqu'au BAS de l'écran, bord à bord (aucune bande sous la poignée).
+  const mapColRef = useRef<HTMLDivElement | null>(null);
+  const [fitH, setFitH] = useState<number | null>(null);
+  useEffect(() => {
+    if (loading) return;
+    const fit = () => {
+      const el = mapColRef.current;
+      if (!el) { setFitH(null); return; }
+      // Bureau aussi : carte (et panneau latéral) jusqu'au bas de l'écran.
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      setFitH(Math.max(window.innerWidth >= 1024 ? 560 : 420, Math.round(window.innerHeight - top)));
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [loading]);
   // 25/09 (586, point 4) — la carte bouge (glisser, molette, pincement) :
   // rails, capsule, en-tête de la carte et poignée passent à 35 % ; retour à
   // 100 % au relâchement + 1 s, ou au premier toucher d'un contrôle.
@@ -1165,7 +1182,7 @@ export default function MapPage() {
   const fadeCls = `transition-opacity duration-150 ${mapGesture && fadeAllowed ? "opacity-[0.35]" : "opacity-100"}`;
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 pb-24 pt-5 md:pt-8 lg:pb-8">
+    <div className="mx-auto max-w-[1400px] px-4 pb-24 pt-5 md:pt-8 lg:pb-0">
       <PageTitle titleKey="page_title_map" />
       {/* ── En-tête : retour, titre, recherche de ville ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1194,7 +1211,7 @@ export default function MapPage() {
       {/* ── 2 COLONNES sur ordinateur : carte | panneau ── */}
       <div className="mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5">
         {/* ── COLONNE CARTE ── */}
-        <div className="relative h-[64vh] min-h-[530px] lg:h-[calc(100vh-230px)] lg:min-h-[560px]">
+        <div ref={mapColRef} className="relative -mx-4 h-[64vh] min-h-[420px] lg:mx-0 lg:h-[calc(100vh-230px)] lg:min-h-[560px]" style={fitH ? { height: fitH } : undefined}>
           {/* 25/09 (585, lot 2 — bug 15) — bouton « Amis » bien visible : amis,
               demandes, en direct et PawFamily (page /friends). */}
           <Link href="/friends" onPointerDown={revealControls} className={`absolute left-3 top-3 z-[1000] inline-flex min-h-[44px] items-center gap-2 rounded-full py-1 pl-1.5 pr-4 text-sm font-bold hover:scale-[1.03] md:left-3 ${fadeCls}`} style={{ ...glassStyle(dark), color: dark ? "#FBEFE6" : "#231715" }}>
@@ -1269,7 +1286,7 @@ export default function MapPage() {
               direct · 12 s », chevron) ; un clic ouvre une petite feuille
               Recentrer / Itinéraire / Message / Arrêter de suivre. */}
           {followed && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-[56px] z-[1050] flex flex-col items-center gap-2 px-[72px] lg:bottom-3">
+            <div className="pointer-events-none absolute inset-x-0 bottom-[68px] z-[1050] flex flex-col items-center gap-2 px-[72px] lg:bottom-6">
               {followSheet && (
                 <div className="pointer-events-auto w-full max-w-[300px] rounded-[20px] bg-white p-2 shadow-[0_12px_32px_-8px_rgba(76,29,149,0.45)]" role="dialog" aria-label={t("live_sheet_title")}>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -1313,7 +1330,7 @@ export default function MapPage() {
             </div>
           )}
           {(liveToast || friendsOnlyMsg) && (
-            <div className={`pointer-events-none absolute inset-x-0 z-[1060] flex justify-center px-[72px] ${followed ? "bottom-[112px] lg:bottom-[64px]" : "bottom-[56px] lg:bottom-3"}`}>
+            <div className={`pointer-events-none absolute inset-x-0 z-[1060] flex justify-center px-[72px] ${followed ? "bottom-[124px] lg:bottom-[76px]" : "bottom-[68px] lg:bottom-6"}`}>
               <span className="rounded-full bg-[#17141F] px-3.5 py-2 text-center text-[12px] font-semibold text-white shadow-lg">{liveToast || friendsOnlyMsg}</span>
             </div>
           )}
@@ -1331,7 +1348,7 @@ export default function MapPage() {
               ombre chaude — jamais de gris), boutons 44 px espacés de 10 px,
               chacun un disque dégradé de sa couleur + reflet + icône blanche ;
               actif = anneau blanc + léger agrandissement. Même ordre que l'app. */}
-          <div onPointerDown={revealControls} className={`absolute bottom-3 left-3 z-[1000] md:bottom-4 ${fadeCls}`}>
+          <div onPointerDown={revealControls} className={`absolute bottom-6 left-3 z-[1000] ${fadeCls}`}>
             <div className="flex flex-col gap-2.5 rounded-[30px] p-[6px]" style={glassStyle(dark)}>
               {(
                 [
@@ -1388,7 +1405,7 @@ export default function MapPage() {
 
           {/* CAPSULE DROITE (même verre) : zoom, ma position (accent du rôle),
               satellite, membres. Alignée en bas sur le rail gauche. */}
-          <div onPointerDown={revealControls} className={`absolute bottom-3 right-3 z-[1000] md:bottom-4 ${fadeCls}`}>
+          <div onPointerDown={revealControls} className={`absolute bottom-6 right-3 z-[1000] ${fadeCls}`}>
             <div className="flex flex-col items-center rounded-[30px] p-[6px]" style={glassStyle(dark)}>
               <CapsuleBtn dark={dark} label={t("map_zoom_in")} onClick={() => { try { mapRef.current?.zoomIn(); } catch { /* */ } }}>
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
@@ -1469,7 +1486,7 @@ export default function MapPage() {
               la feuille disparaît au repos ; un clic ou un glissement vers le
               haut ouvre le panneau complet. */}
           {sheet === "closed" && (
-            <div className={`pointer-events-none absolute inset-x-0 bottom-3 z-[1040] flex justify-center lg:hidden md:bottom-4 ${fadeCls}`}>
+            <div className={`pointer-events-none absolute inset-x-0 bottom-6 z-[1040] flex justify-center lg:hidden ${fadeCls}`}>
               <button
                 type="button"
                 onClick={() => { revealControls(); setSheet("half"); }}
@@ -1581,7 +1598,7 @@ export default function MapPage() {
         {/* ── PANNEAU : colonne droite sur ordinateur, feuille glissante sur téléphone ── */}
         <aside
           className={`fixed inset-x-0 bottom-0 z-[1500] flex flex-col rounded-t-[28px] bg-white shadow-[0_-10px_40px_-10px_rgba(35,23,21,0.35)] transition-[height] duration-300 ${sheetH} lg:static lg:z-auto lg:h-[calc(100vh-230px)] lg:min-h-[560px] lg:rounded-[28px] lg:bg-[#FAF1EC] lg:shadow-none`}
-        >
+         style={fitH && typeof window !== "undefined" && window.innerWidth >= 1024 ? { height: fitH } : undefined}>
           {/* En-tête de la feuille (téléphone, tablette) : un clic = agrandir
               puis refermer ; glisser vers le bas = refermer ; « × » = refermer
               (il ne reste alors que la poignée sur la carte). */}
