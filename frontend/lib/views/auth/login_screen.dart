@@ -6,8 +6,6 @@ import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:hopetsit/localization/app_translations.dart';
-import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/guest/guest_landing_screen.dart';

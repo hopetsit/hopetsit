@@ -22,7 +22,6 @@ import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/localization/app_translations.dart';
-import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class SignUpScreen extends StatelessWidget {
