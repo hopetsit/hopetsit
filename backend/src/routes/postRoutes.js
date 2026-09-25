@@ -261,6 +261,16 @@ router.get('/requests', requireAuth, getRequestPosts);
 // Must sit BEFORE the '/:id' route so Express doesn't treat "nearby" as an id.
 router.get('/requests/nearby', requireAuth, getNearbyRequestPosts);
 
+// v586 (point 9) — demandes ACTIVES d'un propriétaire (et de ses autres
+// profils) pour la fiche propriétaire vue par un gardien / promeneur.
+// Lecture seule, ville seulement, jamais d'adresse. Avant '/:id'.
+router.get(
+  '/requests/by-owner/:ownerId',
+  requireAuth,
+  requireRole('sitter', 'walker'),
+  require('../controllers/ownerActiveRequestsController').getOwnerActiveRequests,
+);
+
 /**
  * @swagger
  * /posts:

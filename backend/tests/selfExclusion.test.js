@@ -117,6 +117,8 @@ describe('getMyRoles', () => {
     expect(status).toBe(200);
     expect(body.activeRole).toBe('owner');
     expect(body.availableRoles.sort()).toEqual(['owner', 'sitter', 'walker']);
+    // v586 (point 8) — ids de SES profils pour reconnaître sa propre fiche.
+    expect(body.profiles.map((p) => p.id).sort()).toEqual(['owner1', 'sitter1', 'walker1']);
   });
 
   test('autre personne → seulement son rôle', async () => {

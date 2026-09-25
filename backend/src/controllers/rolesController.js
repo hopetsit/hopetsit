@@ -31,6 +31,10 @@ const getMyRoles = async (req, res) => {
     return res.json({
       activeRole: req.user.role,
       availableRoles: found.map((r) => r.role),
+      // v586 (point 8) — ids des profils de la personne : l'app reconnaît
+      // SA propre fiche (gardien / promeneur) pour ne pas y proposer
+      // « Réserver ». Uniquement les ids de SES propres documents.
+      profiles: found.map((r) => ({ role: r.role, id: String(r._id) })),
     });
   } catch (error) {
     logger.error('[getMyRoles]', error);
