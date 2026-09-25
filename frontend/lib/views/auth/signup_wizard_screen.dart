@@ -1,5 +1,6 @@
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/paw_menu_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -1250,9 +1251,16 @@ class SignupWizardScreen extends StatelessWidget {
           items.contains(value) ? value : (items.isNotEmpty ? items.first : null),
       isExpanded: true,
       decoration: _roundedDec(),
-      items: items
-          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-          .toList(),
+      // v585 (bug 9) — menu blanc chaud, coins 16, choix coché.
+      dropdownColor: PawMenuColors.paper(Get.context!),
+      borderRadius: BorderRadius.circular(16),
+      selectedItemBuilder: pawDropdownSelected<String>(
+          items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList()),
+      items: pawDropdownItems<String>(
+          Get.context!,
+          items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          selected: items.contains(value) ? value : null,
+          accent: _accent),
       onChanged: onChanged,
     );
   }
@@ -1267,9 +1275,20 @@ class SignupWizardScreen extends StatelessWidget {
               : '20',
           isExpanded: true,
           decoration: _roundedDec(),
-          items: opts
+          dropdownColor: PawMenuColors.paper(Get.context!),
+          borderRadius: BorderRadius.circular(16),
+          selectedItemBuilder: pawDropdownSelected<String>(opts
               .map((e) => DropdownMenuItem(value: e, child: Text('$e km')))
-              .toList(),
+              .toList()),
+          items: pawDropdownItems<String>(
+              Get.context!,
+              opts
+                  .map((e) => DropdownMenuItem(value: e, child: Text('$e km')))
+                  .toList(),
+              selected: opts.contains(c.coverageRadius.value)
+                  ? c.coverageRadius.value
+                  : '20',
+              accent: _accent),
           onChanged: (v) => c.coverageRadius.value = v ?? '20',
         ));
   }

@@ -28,6 +28,7 @@ import 'package:hopetsit/routes/app_pages.dart';
 import 'package:hopetsit/views/splash/splash_screen.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
+import 'package:hopetsit/utils/paw_menu_theme.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/services/firebase_analytics_service.dart';
@@ -333,6 +334,16 @@ class MyApp extends StatelessWidget {
                 onSurface: AppColors.blackColor,
                 onSurfaceVariant: AppColors.grey700Color,
               ),
+              // v585 (bug 9) — TOUS les menus déroulants et contextuels sur un
+              // blanc chaud, coins 16, ombre teintée : plus jamais de gris.
+              canvasColor: PawMenuColors.paperLight,
+              // Surlignage de la ligne focalisée / survolée d'un menu : teinte
+              // chaude de la marque au lieu du gris Material (0x1F000000).
+              focusColor: AppColors.primaryColor.withValues(alpha: 0.10),
+              hoverColor: AppColors.primaryColor.withValues(alpha: 0.06),
+              popupMenuTheme: PawMenuThemes(dark: false).popup,
+              menuTheme: PawMenuThemes(dark: false).menu,
+              dropdownMenuTheme: PawMenuThemes(dark: false).dropdownMenu,
               primaryColor: AppColors.primaryColor,
               // v449 — fallback global teinté par RÔLE (owner orange pâle /
               // sitter bleu pâle / walker vert pâle). Les pages posent leur
@@ -440,7 +451,13 @@ class MyApp extends StatelessWidget {
               ),
               primaryColor: AppColors.primaryColor,
               scaffoldBackgroundColor: AppColors.backgroundDark,
-              canvasColor: AppColors.backgroundDark,
+              // v585 (bug 9) — menus en encre foncée chaude, jamais gris.
+              popupMenuTheme: PawMenuThemes(dark: true).popup,
+              menuTheme: PawMenuThemes(dark: true).menu,
+              dropdownMenuTheme: PawMenuThemes(dark: true).dropdownMenu,
+              canvasColor: PawMenuColors.paperDark,
+              focusColor: AppColors.primaryColor.withValues(alpha: 0.18),
+              hoverColor: AppColors.primaryColor.withValues(alpha: 0.10),
               cardColor: AppColors.cardDark,
               dividerColor: AppColors.dividerDark,
               appBarTheme: AppBarTheme(

@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/paw_menu_theme.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -513,7 +514,12 @@ class ProfileDropdownField<T> extends StatelessWidget {
                   maxLines: 1,
                 ),
           icon: Icon(Icons.expand_more_rounded, color: accent),
-          dropdownColor: AppColors.card(context),
+          // v585 (bug 9) — menu ouvert : blanc chaud (encre en sombre), coins
+          // 16, valeur choisie en teinte pâle du rôle avec coche.
+          dropdownColor: PawMenuColors.paper(context),
+          borderRadius: BorderRadius.circular(16),
+          elevation: 6,
+          selectedItemBuilder: pawDropdownSelected<T>(items),
           style: TextStyle(
             fontSize: 15.sp,
             fontWeight: FontWeight.w500,
@@ -528,7 +534,8 @@ class ProfileDropdownField<T> extends StatelessWidget {
             enabledBorder: border(AppColors.divider(context)),
             focusedBorder: border(accent, 1.6),
           ),
-          items: items,
+          items: pawDropdownItems<T>(context, items,
+              selected: value, accent: accent),
           onChanged: onChanged,
         ),
       ],

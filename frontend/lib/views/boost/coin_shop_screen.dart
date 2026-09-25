@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/paw_menu_theme.dart';
 import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hopetsit/widgets/paw_card_icons.dart';
@@ -1583,6 +1584,8 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                       : null),
           isDense: true,
           borderRadius: BorderRadius.circular(16),
+          // v585 (bug 9) — menu blanc chaud (encre en sombre), jamais gris.
+          dropdownColor: PawMenuColors.paper(context),
           icon: Icon(Icons.expand_more_rounded,
               size: 18.sp, color: AppColors.textSecondary(context)),
           items: controller.supportedCurrencies

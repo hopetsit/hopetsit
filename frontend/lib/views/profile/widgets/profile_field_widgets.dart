@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/paw_menu_theme.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -137,6 +138,9 @@ class ProfileRadiusDropdown extends StatelessWidget {
   });
 
   static const _opts = ['5', '10', '15', '20', '25', '30', '50', '100'];
+  static final List<DropdownMenuItem<String>> _items = _opts
+      .map((e) => DropdownMenuItem(value: e, child: Text('$e km')))
+      .toList();
 
   @override
   Widget build(BuildContext context) {
@@ -161,9 +165,13 @@ class ProfileRadiusDropdown extends StatelessWidget {
           borderSide: BorderSide(color: accent, width: 1.5),
         ),
       ),
-      items: _opts
-          .map((e) => DropdownMenuItem(value: e, child: Text('$e km')))
-          .toList(),
+      // v585 (bug 9) — menu blanc chaud, coins 16, choix coché.
+      dropdownColor: PawMenuColors.paper(context),
+      borderRadius: BorderRadius.circular(16),
+      icon: Icon(Icons.expand_more_rounded, color: accent),
+      selectedItemBuilder: pawDropdownSelected<String>(_items),
+      items: pawDropdownItems<String>(context, _items,
+          selected: _opts.contains(value) ? value : '20', accent: accent),
       onChanged: (v) => onChanged(v ?? '20'),
     );
   }
