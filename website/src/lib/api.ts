@@ -3033,3 +3033,22 @@ export async function setMapVisibility(v: MapVisibility): Promise<MapVisibility>
 export function nextMapVisibility(v: MapVisibility): MapVisibility {
   return v === "all" ? "friends" : v === "friends" ? "hidden" : "all";
 }
+
+// 25/09/2026 (PawMap 586, point 7) — « Ce que je veux voir » : calques ET rôles
+// de membres retenus sur le COMPTE (pawMap.layers + pawMap.memberRoles).
+export async function getMapSeekPrefs(): Promise<{ layers: MapLayerPrefs; memberRoles: string[] | null } | null> {
+  try {
+    const raw = await request<{ pawMap?: { layers?: MapLayerPrefs; memberRoles?: string[] } }>(`/users/me/map-prefs`);
+    return { layers: raw?.pawMap?.layers || {}, memberRoles: Array.isArray(raw?.pawMap?.memberRoles) ? raw!.pawMap!.memberRoles! : null };
+  } catch {
+    return null;
+  }
+}
+export async function saveMapSeekPrefs(layers: MapLayerPrefs, memberRoles?: string[]): Promise<boolean> {
+  try {
+    await request(`/users/me/map-prefs`, { method: "PATCH", body: JSON.stringify({ pawMap: { layers, ...(memberRoles ? { memberRoles } : {}) } }) });
+    return true;
+  } catch {
+    return false;
+  }
+}

@@ -65,7 +65,8 @@ import {
   startProviderConversation,
   getFriendsLivePositions,
   getMyBenefits,
-  getMapLayerPrefs,
+  getMapSeekPrefs,
+  saveMapSeekPrefs,
   saveMapLayerPrefs,
   type MapLayerPrefs,
   getMyFamily,
@@ -92,7 +93,7 @@ import { getSocket } from "@/lib/socket";
 import type { FriendLivePosition } from "@/components/FriendsLiveMap";
 import { haversineKm } from "@/lib/mapCluster";
 import { ROLE_COLOR, blurLatLng, formatPrice, placePinHtml, reportPinHtml, spotPinHtml, roleKey } from "@/lib/pawmapLegend";
-import { expandRows, formatKm, friendIdSetFrom, mergePersons, rolesMatching } from "@/lib/memberPersons";
+import { expandRows, formatKm, friendIdSetFrom, isFriendMember, mergePersons, rolesMatching } from "@/lib/memberPersons";
 import type { Map as LeafletMap } from "leaflet";
 
 const roleChipColor = (role: string) => ROLE_COLOR[roleKey(role)];
@@ -619,10 +620,13 @@ export default function MapPage() {
   // personne reste visible si L'UN de ses rôles est coché dans « Je cherche ».
   const [showMembers, setShowMembers] = useState(true);
   const mergedMembers = useMemo(() => mergePersons(members, worldMembers), [members, worldMembers]);
-  const allMembers = useMemo(
-    () => (showMembers ? mergedMembers.filter((m) => rolesMatching(m, memberRoles).length > 0) : []),
-    [mergedMembers, memberRoles, showMembers],
-  );
+  // 25/09 (586, point 7) — familles INDÉPENDANTES : un ami ne dépend que de
+  // la pastille « Amis », un autre membre que des pastilles de rôle.
+  const allMembers = useMemo(() => {
+    if (!showMembers) return [];
+    const fset = friendIdSetFrom(friendsForMap);
+    return mergedMembers.filter((m) => (isFriendMember(m, fset) ? showFriends : rolesMatching(m, memberRoles).length > 0));
+  }, [mergedMembers, memberRoles, showMembers, friendsForMap, showFriends]);
 
   // Membres à moins de 50 km (même règle que l'app) — liste + compteur.
   // 25/09 (point 5) — la référence est ce qu'on REGARDE (centre de la
@@ -808,10 +812,19 @@ export default function MapPage() {
     if (!benefits || layerPrefsRef.current) return;
     layerPrefsRef.current = true;
     (async () => {
-      let layers: MapLayerPrefs | null = await getMapLayerPrefs();
-      if (layers === null) {
+      const acc = await getMapSeekPrefs();
+      let layers: MapLayerPrefs;
+      let roles: string[] | null = acc ? acc.memberRoles : null;
+      if (acc) layers = acc.layers;
+      else {
         try { layers = JSON.parse(localStorage.getItem("hopetsit:mapLayers") || "{}") as MapLayerPrefs; } catch { layers = {}; }
+        try { const r = JSON.parse(localStorage.getItem("hopetsit:mapRoles") || "null"); roles = Array.isArray(r) ? r : null; } catch { roles = null; }
       }
+      // 25/09 (586, point 7) — « Ce que je veux voir » retrouvé à l'identique.
+      if (typeof layers.places === "boolean") { setNoneSelected(!layers.places); setSelectedCats([]); }
+      if (typeof layers.reports === "boolean") setShowReports(layers.reports);
+      if (typeof layers.requests === "boolean") setShowRequests(layers.requests);
+      if (roles) setMemberRoles(roles.filter((r) => ["owner", "sitter", "walker"].includes(r)));
       if (typeof layers.friends === "boolean") {
         setShowFriends(layers.friends);
         if (layers.friends && !friendsLoadedRef.current) { friendsLoadedRef.current = true; void loadFriends(); }
@@ -826,12 +839,13 @@ export default function MapPage() {
       setSpots((prev) => prev.map((s) => (s.id === id ? { ...s, visitsCount: vc } : s)));
     } catch { /* best-effort */ }
   }
-  function saveLayers(patch: MapLayerPrefs) {
+  function saveLayers(patch: MapLayerPrefs, roles?: string[]) {
     try {
       const cur = JSON.parse(localStorage.getItem("hopetsit:mapLayers") || "{}");
       localStorage.setItem("hopetsit:mapLayers", JSON.stringify({ ...cur, ...patch }));
+      if (roles) localStorage.setItem("hopetsit:mapRoles", JSON.stringify(roles));
     } catch { /* stockage indisponible */ }
-    void saveMapLayerPrefs(patch).then((ok) => setLayersLocalOnly(!ok));
+    void (roles ? saveMapSeekPrefs(patch, roles) : saveMapLayerPrefs(patch)).then((ok) => setLayersLocalOnly(!ok));
   }
   function setFriendsLayer(on: boolean) {
     setShowFriends(on);
@@ -1102,17 +1116,30 @@ export default function MapPage() {
   const roleLight = myRole === "owner" ? "bg-owner-light" : myRole === "walker" ? "bg-walker-light" : "bg-sitter-light";
   const roleTextDark = myRole === "owner" ? "text-owner-dark" : myRole === "walker" ? "text-walker-dark" : "text-sitter-dark";
 
-  // « Je cherche » : une seule rangée (multi-sélection), les réglages fins restent en dessous.
-  const seek: { k: string; icon: AppIconName; label: string; on: boolean; color: string; toggle: () => void }[] = [
-    { k: "sitter", icon: "home", label: t("role_sitter"), on: memberRoles.includes("sitter"), color: ROLE_COLOR.sitter, toggle: () => toggleRole("sitter") },
-    { k: "walker", icon: "walker", label: t("role_walker"), on: memberRoles.includes("walker"), color: ROLE_COLOR.walker, toggle: () => toggleRole("walker") },
-    { k: "owner", icon: "paw", label: t("role_owner"), on: memberRoles.includes("owner"), color: ROLE_COLOR.owner, toggle: () => toggleRole("owner") },
-    { k: "places", icon: "pin", label: t("map_seek_places"), on: !noneSelected, color: "#0F766E", toggle: () => { setNoneSelected((v) => !v); setSelectedCats([]); } },
-    { k: "friends", icon: "friends", label: t("map_seek_friends"), on: showFriends, color: "#F06AA0", toggle: toggleFriendsLayer },
-    { k: "requests", icon: "megaphone", label: t("map_seek_requests"), on: showRequests, color: ROLE_COLOR.owner, toggle: () => setShowRequests((v) => !v) },
-  ];
+  // 25/09 (586, point 7) — « CE QUE JE VEUX VOIR » : une pastille
+  // INDÉPENDANTE par famille, à sa couleur de légende. « Tout » / « Rien »
+  // n'agissent que sur cette liste ; « Moi » reste toujours visible ; choix
+  // retenus sur le compte (pawMap.layers + pawMap.memberRoles).
   function toggleRole(role: string) {
-    setMemberRoles((prev) => (prev.includes(role) ? (prev.length === 1 ? ["sitter", "walker", "owner"] : prev.filter((r) => r !== role)) : [...prev, role]));
+    const next = memberRoles.includes(role) ? memberRoles.filter((r) => r !== role) : [...memberRoles, role];
+    setMemberRoles(next);
+    saveLayers({ members: next.length > 0 }, next);
+  }
+  const seeChips: { k: string; label: string; on: boolean; fg: string; bg: string; icon: React.ReactNode; toggle: () => void }[] = [
+    { k: "friends", label: t("m586_see_friends"), on: showFriends, fg: "#FFFFFF", bg: "#F06AA0", icon: <AppIcon name="friends" size={15} color="currentColor" />, toggle: () => { const v = !showFriends; setFriendsLayer(v); saveLayers({ friends: v }); } },
+    { k: "owner", label: t("m586_see_owners"), on: memberRoles.includes("owner"), fg: "#FFFFFF", bg: ROLE_COLOR.owner, icon: <AppIcon name="paw" size={15} color="currentColor" />, toggle: () => toggleRole("owner") },
+    { k: "sitter", label: t("m586_see_sitters"), on: memberRoles.includes("sitter"), fg: "#FFFFFF", bg: ROLE_COLOR.sitter, icon: <AppIcon name="home" size={15} color="currentColor" />, toggle: () => toggleRole("sitter") },
+    { k: "walker", label: t("m586_see_walkers"), on: memberRoles.includes("walker"), fg: "#FFFFFF", bg: ROLE_COLOR.walker, icon: <AppIcon name="walker" size={15} color="currentColor" />, toggle: () => toggleRole("walker") },
+    { k: "places", label: t("m586_see_places"), on: !noneSelected, fg: "#FFFFFF", bg: "#0E7490", icon: <AppIcon name="pin" size={15} color="currentColor" />, toggle: () => { const v = noneSelected; setNoneSelected(!v); setSelectedCats([]); saveLayers({ places: v }); } },
+    { k: "spots", label: t("m586_see_spots"), on: showSpots, fg: "#F4C04A", bg: "#17141F", icon: <AppIcon name="star" size={15} color="currentColor" />, toggle: () => { const v = !showSpots; setShowSpots(v); saveLayers({ pawspots: v }); } },
+    { k: "reports", label: t("m586_see_reports"), on: showReports, fg: "#FFFFFF", bg: "#D32F2F", icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M12 2.8 22.6 21H1.4z" /><path d="M10.9 9h2.2v6h-2.2zM10.9 16.5h2.2v2.2h-2.2z" fill={showReports ? "#D32F2F" : "#FFFFFF"} /></svg>, toggle: () => { const v = !showReports; setShowReports(v); saveLayers({ reports: v }); } },
+    { k: "requests", label: t("m586_see_requests"), on: showRequests, fg: "#FFFFFF", bg: ROLE_COLOR.owner, icon: <AppIcon name="megaphone" size={15} color="currentColor" />, toggle: () => { const v = !showRequests; setShowRequests(v); saveLayers({ requests: v }); } },
+  ];
+  function seeAll(on: boolean) {
+    const roles = on ? ["owner", "sitter", "walker"] : [];
+    setFriendsLayer(on); setMemberRoles(roles); setNoneSelected(!on); setSelectedCats([]);
+    setShowSpots(on); setShowReports(on); setShowRequests(on);
+    saveLayers({ friends: on, members: on, places: on, pawspots: on, reports: on, requests: on }, roles);
   }
 
   const sheetH = sheet === "closed" ? "max-lg:hidden" : sheet === "half" ? "h-[50vh]" : "h-[86vh]";
@@ -1587,22 +1614,32 @@ export default function MapPage() {
                 <AppIcon name="arrow-right" size={16} color="#17141F" />
               </button>
             )}
-            <p className="text-[11px] font-bold uppercase tracking-wide text-[#8A6B64]">{t("map_seek_label")}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {seek.map((s) => (
-                <button
-                  key={s.k}
-                  type="button"
-                  onClick={s.toggle}
-                  aria-pressed={s.on}
-                  className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition"
-                  style={s.on ? { background: s.color, color: "#fff" } : { background: "#fff", color: s.color, boxShadow: `inset 0 0 0 1.5px ${s.color}55` }}
-                >
-                  <AppIcon name={s.icon} size={15} color={s.on ? "#fff" : s.color} />
-                  {s.label}
-                </button>
-              ))}
-            </div>
+            {/* 25/09 (586, point 7) — « Ce que je veux voir ». */}
+            <section className="rounded-2xl bg-white p-3" aria-labelledby="see-title">
+              <div className="flex items-center gap-2">
+                <h2 id="see-title" className="min-w-0 flex-1 font-display text-[15px] font-bold text-[#231715]">{t("m586_see_title")}</h2>
+                <button type="button" onClick={() => seeAll(true)} className="min-h-[34px] rounded-xl px-3 text-[12px] font-bold text-[#17141F] transition hover:bg-[#FAF1EC]" style={{ boxShadow: "inset 0 0 0 1.5px #E4C7B8" }}>{t("m586_see_all")}</button>
+                <button type="button" onClick={() => seeAll(false)} className="min-h-[34px] rounded-xl px-3 text-[12px] font-bold text-[#17141F] transition hover:bg-[#FAF1EC]" style={{ boxShadow: "inset 0 0 0 1.5px #E4C7B8" }}>{t("m586_see_none")}</button>
+              </div>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {seeChips.map((c) => (
+                  <button
+                    key={c.k}
+                    type="button"
+                    onClick={c.toggle}
+                    aria-pressed={c.on}
+                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl py-1 pl-1.5 pr-3 text-[12px] font-bold transition-all duration-200 ease-out active:scale-[0.97]"
+                    style={c.on
+                      ? { background: c.bg, color: c.fg, boxShadow: `0 6px 14px -8px ${c.bg}, inset 0 1px 0 rgba(255,255,255,0.25)` }
+                      : { background: "#FFFFFF", color: c.k === "spots" ? "#17141F" : c.bg, boxShadow: `inset 0 0 0 1.5px ${c.bg}` }}
+                  >
+                    <span className="grid h-6 w-6 place-items-center rounded-full" style={c.on ? { background: "rgba(255,255,255,0.22)" } : { background: c.k === "spots" ? "#FFF3D1" : `${c.bg}1A` }}>{c.icon}</span>
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] leading-snug text-[#6E4F48]">{t("m586_see_hint")}</p>
+            </section>
 
             {/* Compteur cliquable → liste des membres. */}
             <button
