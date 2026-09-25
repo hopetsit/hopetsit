@@ -200,11 +200,20 @@ class _PawRailButtonState extends State<PawRailButton> {
 
 /// Capsule blanche translucide (blur) du rail droit.
 class PawGlassCapsule extends StatelessWidget {
-  const PawGlassCapsule({super.key, required this.children, this.width = 42});
+  const PawGlassCapsule({
+    super.key,
+    required this.children,
+    this.width = 42,
+    this.footer,
+  });
 
   /// Boutons ([PawCapsuleButton]) — les séparateurs fins sont insérés ici.
   final List<Widget> children;
   final double width;
+
+  /// v586 — l'action du rôle (Publier / Direct), sous un trait plus marqué.
+  /// Hors de la découpe : sa lueur qui respire n'est jamais rognée.
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -249,14 +258,34 @@ class PawGlassCapsule extends StatelessWidget {
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28.r),
-        child: RepaintBoundary(
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 4.h),
-            child: Column(mainAxisSize: MainAxisSize.min, children: items),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(28.r),
+            child: RepaintBoundary(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 4.h),
+                child: Column(mainAxisSize: MainAxisSize.min, children: items),
+              ),
+            ),
           ),
-        ),
+          if (footer != null) ...[
+            Container(
+              key: const ValueKey<String>('pawmap_capsule_trait'),
+              height: 2,
+              margin: EdgeInsets.symmetric(horizontal: 9.w),
+              decoration: BoxDecoration(
+                color: PawMapTheme.borderOn(context),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(bottom: 2.h),
+              child: footer!,
+            ),
+          ],
+        ],
       ),
     );
   }

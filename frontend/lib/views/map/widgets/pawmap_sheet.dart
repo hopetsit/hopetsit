@@ -57,9 +57,13 @@ class PawMapSheet extends StatefulWidget {
     this.midFraction = 0.46,
     this.highFraction = 0.90,
     this.bottomPadding = 0,
+    this.onGripTap,
   });
 
   final DraggableScrollableController controller;
+
+  /// v586 — appui sur la poignée de la feuille ouverte (la ranger).
+  final VoidCallback? onGripTap;
 
   /// v585 — air en bas du contenu (hauteur du menu du bas + 16) quand la
   /// feuille passe DERRIÈRE le menu : le dernier élément défile au-dessus.
@@ -75,8 +79,10 @@ class PawMapSheet extends StatefulWidget {
   final double midFraction;
   final double highFraction;
 
+  /// v586 — 0 autorisé : au repos la feuille est rangée (seule la poignée
+  /// « Options » de l'écran reste visible).
   double get lowFraction =>
-      (peekHeight / availableHeight).clamp(0.08, 0.6).toDouble();
+      (peekHeight / availableHeight).clamp(0.0, 0.6).toDouble();
 
   /// Position (fraction) d'un cran.
   double fractionOf(PawSheetStop stop) => switch (stop) {
@@ -140,7 +146,10 @@ class _PawMapSheetState extends State<PawMapSheet> {
         _pointers++;
         if (widget.controller.isAttached) _startSize = widget.controller.size;
       },
-      onPointerUp: (_) => _release(),
+      onPointerUp: (_) {
+        if (widget.controller.isAttached) _upSize = widget.controller.size;
+        _release();
+      },
       onPointerCancel: (_) => _release(),
       child: _sheet!,
     );
@@ -148,6 +157,7 @@ class _PawMapSheetState extends State<PawMapSheet> {
 
   int _pointers = 0;
   double _startSize = 0;
+  double? _upSize;
 
   void _release() {
     _pointers = (_pointers - 1).clamp(0, 10);
@@ -162,6 +172,11 @@ class _PawMapSheetState extends State<PawMapSheet> {
   void _settle() {
     final c = widget.controller;
     if (!mounted || !c.isAttached || _pointers > 0) return;
+    // v586 — un simple APPUI (aucun glissement au lâcher) ne pose rien : il
+    // a peut-être lancé sa propre animation (poignée qui range la feuille).
+    final up = _upSize;
+    _upSize = null;
+    if (up != null && (up - _startSize).abs() < 0.02) return;
     final stops = pawMapSheetStops(
         widget.lowFraction, widget.midFraction, widget.highFraction);
     final target = pawMapSheetSettle(
@@ -172,8 +187,20 @@ class _PawMapSheetState extends State<PawMapSheet> {
   }
 
   Widget _body(BuildContext ctx, ScrollController scroll, PawMapSheet w) {
-    return Container(
-      decoration: BoxDecoration(
+    // v586 — rangée (hauteur ~0) : rien n'est peint, ni fond, ni liseré, ni
+    // ombre — aucune bande au-dessus du menu, la carte va jusqu'en bas.
+    // Même arbre dans les deux cas (sinon l'animation d'ouverture serait
+    // interrompue) : seule la décoration devient vide.
+    return LayoutBuilder(
+        builder: (ctx, c) => _panel(ctx, scroll, w, hidden: c.maxHeight < 2));
+  }
+
+  Widget _panel(BuildContext ctx, ScrollController scroll, PawMapSheet w,
+      {required bool hidden}) {
+    return DecoratedBox(
+      decoration: hidden
+          ? const BoxDecoration()
+          : BoxDecoration(
         color: PawMapTheme.panelOn(ctx),
         borderRadius: BorderRadius.vertical(top: Radius.circular(26.r)),
         border: Border.all(color: PawMapTheme.borderOn(ctx)),
@@ -189,22 +216,35 @@ class _PawMapSheetState extends State<PawMapSheet> {
         children: [
           Positioned.fill(child: ListView(
         controller: scroll,
-        padding: EdgeInsets.fromLTRB(14.w, 8.h, 14.w, 24.h + w.bottomPadding),
+        padding: EdgeInsets.fromLTRB(14.w, 2.h, 14.w, 24.h + w.bottomPadding),
         children: [
           // Poignée (orange, jamais grise) — elle SEULE pilote le glissement
           // sur la zone basse ; la liste défile ensuite.
           Center(
-            child: Container(
-              key: const ValueKey<String>('pawmap_sheet_grip'),
-              width: 44.w,
-              height: 5.h,
-              decoration: BoxDecoration(
-                color: PawMapTheme.accent,
-                borderRadius: BorderRadius.circular(999),
+            child: Semantics(
+              button: w.onGripTap != null,
+              label: 'pawmap586_sheet_close'.tr,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: w.onGripTap,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 6.h),
+                  child: Container(
+                    key: const ValueKey<String>('pawmap_sheet_grip'),
+                    width: 44.w,
+                    height: 5.h,
+                    decoration: BoxDecoration(
+                      color: PawMapTheme.accent,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
-          SizedBox(height: 10.h),
+          // v586 — zone tactile de la poignée (6 + 5 + 6) prise sur l'air
+          // d'avant (8 au-dessus, 10 en dessous) : la mise en page ne bouge pas.
+          SizedBox(height: 4.h),
           w.header,
           // v584 — assez d'air pour qu'en position basse RIEN ne dépasse
           // sous le bouton principal (au simulateur, « Je cherche » pointait).
@@ -216,7 +256,7 @@ class _PawMapSheetState extends State<PawMapSheet> {
           // : le contenu qui défile passe derrière ce pied au lieu de
           // dépasser sous la pilule (vu sur iPhone : « 21 membres » visible
           // sous le menu). Fondu de 24 dp puis panneau plein ; ne capte rien.
-          if (w.bottomPadding > 0)
+          if (w.bottomPadding > 0 && !hidden)
             Positioned(
               left: 0,
               right: 0,

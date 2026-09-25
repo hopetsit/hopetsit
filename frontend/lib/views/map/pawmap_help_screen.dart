@@ -25,6 +25,7 @@ import '../profile/widgets/profile_ui_kit.dart';
 import 'paw_map_screen.dart';
 import 'widgets/paw_rail_button.dart';
 import 'widgets/pawmap_buttons.dart';
+import 'widgets/pawmap_discreet.dart';
 import 'widgets/pawmap_pins.dart';
 import 'widgets/pawmap_rail.dart';
 import 'widgets/pawmap_sheets.dart';
@@ -156,6 +157,44 @@ class PawMapHelpScreen extends StatelessWidget {
               ),
               title: d.label,
               help: d.help,
+            ),
+          SizedBox(height: 18.h),
+          // v586 — la carte dégagée : poignée « Options », Publier / Direct,
+          // œil (qui me voit), effacement au geste. Même source que l'appui
+          // long sur la carte (`kPawCapsuleSpecs`).
+          _SectionTitle('pawmap586_help_capsule'.tr),
+          SizedBox(height: 8.h),
+          for (final c in kPawCapsuleSpecs)
+            _ButtonRow(
+              key: ValueKey<String>('help_capsule_${c.id}'),
+              icon: Container(
+                width: 44.w,
+                height: 44.w,
+                decoration: BoxDecoration(
+                  gradient: c.id == 'publish' || c.id == 'direct'
+                      ? LinearGradient(colors: [
+                          Color.lerp(c.color, Colors.white, 0.12)!,
+                          c.color,
+                        ])
+                      : null,
+                  color: c.id == 'publish' || c.id == 'direct'
+                      ? null
+                      : c.color.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: c.id == 'publish' || c.id == 'direct'
+                          ? Colors.white
+                          : c.color.withValues(alpha: 0.45),
+                      width: c.id == 'publish' || c.id == 'direct' ? 2 : 1),
+                ),
+                child: Icon(c.icon,
+                    size: 22.sp,
+                    color: c.id == 'publish' || c.id == 'direct'
+                        ? Colors.white
+                        : PawMapTheme.toneOn(context, c.color)),
+              ),
+              title: c.label,
+              help: c.help,
             ),
           SizedBox(height: 18.h),
           // v584 (25/09, point 14) — « Suivre ma promenade : Daniel ne sait

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -53,6 +54,8 @@ import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_rail.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheet.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_discreet.dart';
+import 'package:hopetsit/views/service_provider/widgets/book_as_owner.dart';
 import 'package:hopetsit/services/map_prefs_service.dart';
 import 'package:hopetsit/widgets/paw_tab_bar.dart' show pawTabBarTotalHeight;
 import 'package:hopetsit/views/map/pawmap_person.dart';
@@ -244,9 +247,11 @@ class _PawMapScreenState extends State<PawMapScreen>
   String? _selectedNearbyId;
   /// v584 — mes propres demandes (propriétaire) : bulles « Ma demande ».
   final RxList<NearbyRequestPost> _myRequests = <NearbyRequestPost>[].obs;
-  /// v584 — mode « visible par mes amis seulement » (preferences.hideFromMap),
-  /// synchronisé sur le compte par MapPrefsService.
-  bool _friendsOnly = false;
+  /// v586 — « qui me voit sur la carte » : UNE vérité à 3 états
+  /// ('all' | 'friends' | 'hidden'), `MapPrefsService.mapVisibility`, la même
+  /// que Profil › Préférences et le site. Plus de copie locale ici.
+  String get _visibility => _prefs.mapVisibility.value;
+  bool get _friendsOnly => _visibility != 'all';
   /// v584 — idée 4 : filtre « Disponible aujourd'hui ».
   final RxBool _availableTodayOnly = false.obs;
   /// v584 — idée 8 : les membres à moins de 50 km (compteur cliquable).
@@ -498,7 +503,6 @@ class _PawMapScreenState extends State<PawMapScreen>
     _pins = Get.isRegistered<PawMapPinCache>()
         ? Get.find<PawMapPinCache>()
         : Get.put(PawMapPinCache(), permanent: true);
-    _friendsOnly = _readFriendsOnlyFromProfile();
     _liveMap = Get.isRegistered<LiveMapService>()
         ? Get.find<LiveMapService>()
         : Get.put(LiveMapService(), permanent: true);
@@ -690,8 +694,6 @@ class _PawMapScreenState extends State<PawMapScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_prefs.loadFromAccount().then((remoteNewer) {
         if (!mounted) return;
-        // Le mode « amis seulement » vient toujours du compte.
-        _friendsOnly = _prefs.hideFromMap.value;
         if (remoteNewer) _applyPrefs(fromAccount: true);
         if (mounted) setState(() {});
       }));
@@ -1178,14 +1180,15 @@ class _PawMapScreenState extends State<PawMapScreen>
           trigger: 'booking', name: name, recommendedRole: 'pet_owner');
       return;
     }
-    if (_role != 'owner' && _role.isNotEmpty) {
-      // Un gardien / promeneur ne réserve pas un confrère : on ouvre sa fiche.
-      _openMemberProfile(id: id, role: role, name: name);
-      return;
-    }
+    // v586 (point 8, Daniel : « les 3 rôles doivent pouvoir réserver ») —
+    // un gardien / promeneur réserve avec son PROFIL PROPRIÉTAIRE : même
+    // dialogue et même bascule que la fiche complète (`runAsOwner`).
     final r = await _loadProviderRates(id: id, role: role, currency: currency);
     if (!mounted) return;
-    Get.to(() => SendRequestScreen(
+    await runAsOwner(context,
+        providerName: name,
+        forMessage: false,
+        then: () => Get.to(() => SendRequestScreen(
           serviceProviderName: name,
           serviceProviderId: id,
           serviceProviderRole: role == 'walker' ? 'walker' : 'sitter',
@@ -1197,7 +1200,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           currencyCode: r.currency,
           initialServiceType: role == 'walker' ? 'dog_walking' : 'pet_sitting',
           preselectFirstPet: true,
-        ));
+        )));
   }
 
   /// v584 (25/09, point 8) — tarifs COMPLETS d'un prestataire, dans SA
@@ -1264,6 +1267,36 @@ class _PawMapScreenState extends State<PawMapScreen>
     required String name,
     required String avatar,
   }) async {
+    // v586 (point 8) — gardien / promeneur → gardien / promeneur : aucune
+    // route serveur ne l'ouvre (start-by-sitter|walker attend un
+    // propriétaire) ; on écrit avec le PROFIL PROPRIÉTAIRE, comme la fiche.
+    // Un AMI : la conversation entre amis existe pour tous les rôles.
+    if (_friendController.isFriendWithAny([id])) {
+      final convId = await _friendController.startFriendChat(
+          targetUserId: id, targetUserRole: role);
+      if (convId != null && mounted) {
+        if (_role == 'sitter' || _role == 'walker') {
+          Get.to(() => SitterIndividualChatScreen(
+              conversationId: convId, contactName: name, contactImage: avatar));
+        } else {
+          Get.to(() => IndividualChatScreen(
+              conversationId: convId, contactName: name, contactImage: avatar));
+        }
+        return;
+      }
+    }
+    if ((_role == 'sitter' || _role == 'walker') &&
+        (role == 'sitter' || role == 'walker')) {
+      await runAsOwner(context,
+          providerName: name,
+          forMessage: true,
+          then: () => unawaited(openOwnerChatWithProvider(
+              providerId: id,
+              providerRole: role,
+              providerName: name,
+              providerAvatar: avatar)));
+      return;
+    }
     try {
       Map<String, dynamic> res;
       final viewer = _role;
@@ -1310,17 +1343,6 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   // ── MOI : mode « visible par mes amis seulement » ─────────────────────────
 
-  /// Lecture locale de `preferences.hideFromMap` (copie du profil).
-  static bool _readFriendsOnlyFromProfile() {
-    try {
-      final profile =
-          GetStorage().read<Map<String, dynamic>>(StorageKeys.userProfile);
-      final prefs = profile?['preferences'];
-      if (prefs is Map) return prefs['hideFromMap'] == true;
-    } catch (_) {/* profil illisible */}
-    return false;
-  }
-
   bool _visibilitySaving = false;
 
   /// Tap sur MON rond → « Qui me voit sur la carte ? ».
@@ -1331,15 +1353,15 @@ class _PawMapScreenState extends State<PawMapScreen>
       context,
       StatefulBuilder(
         builder: (ctx, setSheet) => PawMapVisibilitySheet(
-          friendsOnly: _friendsOnly,
+          state: _visibility,
           saving: _visibilitySaving,
           onChanged: (v) async {
-            if (v == _friendsOnly) {
+            if (v == _visibility) {
               Navigator.of(ctx).pop();
               return;
             }
             setSheet(() => _visibilitySaving = true);
-            final ok = await _setFriendsOnly(v);
+            final ok = await _setVisibility(v);
             if (!ctx.mounted) return;
             setSheet(() => _visibilitySaving = false);
             if (ok) Navigator.of(ctx).pop();
@@ -1349,43 +1371,59 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
-  /// Enregistre le réglage SUR LE COMPTE (même champ que Préférences :
-  /// `preferences.hideFromMap`, propagé aux 3 profils par le serveur) et
-  /// confirme. En cas d'échec, rien ne change localement.
-  Future<bool> _setFriendsOnly(bool friendsOnly) async {
-    try {
-      final ok = await _prefs.setHideFromMap(friendsOnly);
-      if (!ok) throw Exception('map-prefs refused');
-      _friendsOnly = friendsOnly;
-      // Copie locale du profil : cohérente avec Préférences sans rechargement.
-      try {
-        final profile =
-            GetStorage().read<Map<String, dynamic>>(StorageKeys.userProfile);
-        if (profile != null) {
-          final prefs = Map<String, dynamic>.from(
-              (profile['preferences'] as Map?) ?? const {});
-          prefs['hideFromMap'] = friendsOnly;
-          profile['preferences'] = prefs;
-          GetStorage().write(StorageKeys.userProfile, profile);
-        }
-      } catch (_) {/* sans importance */}
-      if (mounted) setState(() {});
-      CustomSnackbar.showSuccess(
-        title: 'pawmap_visibility_title'.tr,
-        message: friendsOnly
-            ? 'pawmap_visibility_now_friends'.tr
-            : 'pawmap_visibility_now_all'.tr,
-      );
-      return true;
-    } catch (e) {
-      debugPrint('[PawMap] visibilité : $e');
+  /// v586 — bouton ŒIL de la capsule : un appui = état suivant (Tous → Amis
+  /// seulement → Masqué → Tous), pastille 2 s qui dit le nouvel état.
+  Future<void> _cycleVisibility() async {
+    if (!_viewerLoggedIn) {
+      SignupWallSheet.show(trigger: 'pawmap');
+      return;
+    }
+    if (_visibilitySaving) return;
+    _visibilitySaving = true;
+    final next = MapPrefsService.nextVisibility(_visibility);
+    await _setVisibility(next, snack: false);
+    _visibilitySaving = false;
+  }
+
+  /// Pastille courte en haut de la carte (2 s) : le nouvel état de l'œil.
+  final RxString _visToast = ''.obs;
+  Timer? _visToastTimer;
+
+  void _showVisToast(String v) {
+    _visToast.value = v;
+    _visToastTimer?.cancel();
+    _visToastTimer = Timer(const Duration(seconds: 2), () => _visToast.value = '');
+  }
+
+  /// Enregistre l'état SUR LE COMPTE (même route que Préférences et le site,
+  /// les 3 profils) ; en cas d'échec, rien ne change.
+  Future<bool> _setVisibility(String v, {bool snack = true}) async {
+    final ok = await _prefs.setMapVisibility(v);
+    if (!ok) {
       CustomSnackbar.showError(
         title: 'common_error'.tr,
         message: 'pawmap_visibility_failed'.tr,
       );
       return false;
     }
+    if (mounted) setState(() {});
+    HapticFeedback.selectionClick();
+    if (snack) {
+      CustomSnackbar.showSuccess(
+        title: 'pawmap_visibility_title'.tr,
+        message: _visibilityLabel(_visibility),
+      );
+    } else {
+      _showVisToast(_visibility);
+    }
+    return true;
   }
+
+  static String _visibilityLabel(String v) => switch (v) {
+        'friends' => 'pawmap586_vis_friends'.tr,
+        'hidden' => 'pawmap586_vis_hidden'.tr,
+        _ => 'pawmap586_vis_all'.tr,
+      };
 
   /// Bouton « ? » : la légende en images (9 langues).
   void _openLegend() {
@@ -1534,6 +1572,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
     _sheetCtl.removeListener(_onSheetMoved);
     _sheetCtl.dispose();
+    _visToastTimer?.cancel();
+    _fade.dispose();
     unawaited(_prefs.flush());
     _pendingRouteWorker?.dispose();
     _pendingCenterWorker?.dispose();
@@ -2384,7 +2424,12 @@ class _PawMapScreenState extends State<PawMapScreen>
     // sur immobilité). Feuille fermée sans choix → on n'active rien.
     final chosen = await _pickLiveDuration();
     if (chosen == null || !mounted) return;
+    await _startBroadcastWith(chosen);
+  }
 
+  /// Démarre le partage en direct pour [chosen] (GPS frais d'abord, puis
+  /// zoom piéton) — chemin unique du bouton Direct et de la feuille.
+  Future<void> _startBroadcastWith(LiveShareDuration chosen) async {
     // v19.1.5 — refresh GPS FIRST, then zoom. Before this fix we used the
     // stale `_currentCenter` which could be the last panned position on the
     // map (parfois "à côté" de l'utilisateur réel).
@@ -3116,7 +3161,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       _showFriends.value ? 1 : 0,
       // v584 — épingles / photos prêtes, mode amis seulement, ma photo.
       _pins.rev.value,
-      _friendsOnly ? 1 : 0,
+      _visibility,
       _friendController.familyMembers.length,
       _friendController.friends.length,
       _showProviders.value ? 1 : 0,
@@ -3417,7 +3462,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
 
     // ── MEMBRES (proches exacts si abonné + couche monde ~1 km) ──
-    if (_showProviders.value) {
+    // v586 (point 7) — un AMI dépend de la pastille « Amis » seulement ; les
+    // autres membres de leur pastille de rôle. Couper les lieux ne touche
+    // plus jamais aux personnes.
+    if (_showProviders.value || _showFriends.value) {
       final friendLiveIds = _liveMap.friendPositions.keys
           .map((k) => k.trim().toLowerCase())
           .toSet();
@@ -3472,8 +3520,24 @@ class _PawMapScreenState extends State<PawMapScreen>
       }
 
       bool roleOk(Map<String, dynamic> p) {
+        if (!_showProviders.value) return false;
         final r = (p['_role'] ?? p['role'] ?? '').toString().toLowerCase();
-        return r.isEmpty || _memberRoles.contains(r);
+        if (r.isEmpty || _memberRoles.contains(r)) return true;
+        // Une personne à plusieurs rôles : visible si UN de ses rôles l'est.
+        final roles = p['roles'];
+        if (roles is List) {
+          for (final e in roles) {
+            final rr = (e is Map ? e['role'] : e)?.toString().toLowerCase();
+            if (rr != null && _memberRoles.contains(rr)) return true;
+          }
+        }
+        return false;
+      }
+
+      bool familyOk(Map<String, dynamic> p) {
+        final friend = p['isFriend'] == true ||
+            _friendController.isFriendWithAny(pawMapPersonIds(p));
+        return friend ? _showFriends.value : roleOk(p);
       }
 
       // Idée 4 — filtre « Disponible aujourd'hui » (drapeau serveur).
@@ -3481,7 +3545,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           !_availableTodayOnly.value || p['availableToday'] == true;
 
       final placeable = combined
-          .where((p) => posOfMember(p) != null && roleOk(p) && availableOk(p))
+          .where((p) => posOfMember(p) != null && familyOk(p) && availableOk(p))
           .toList();
       // Compteur « N membres autour de toi » (< 50 km de l'utilisateur).
       const double aroundKm = 50.0;
@@ -4200,13 +4264,35 @@ class _PawMapScreenState extends State<PawMapScreen>
     //   retour → sort d'un mode en cours (viseur, suivi)
     //          → sinon réduit la carte agrandie
     //          → sinon comportement système (quitter / dépiler).
-    return PopScope(
+    // v586 (précision de Daniel) — au repos, AUCUNE bande derrière la
+    // poignée ni derrière le menu : la CARTE va jusqu'en bas de l'écran. Sur
+    // l'onglet PawMap seulement, la barre système (3 boutons) devient
+    // transparente, sans voile de contraste ; les autres onglets gardent la
+    // barre teintée du rôle (v465/v469).
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness:
+            _nightMode.value ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
+        systemNavigationBarIconBrightness:
+            _nightMode.value ? Brightness.light : Brightness.dark,
+      ),
+      child: PopScope(
       canPop: _followUserId == null &&
+          _sheetIsLow &&
           !_pickingSpotPos.value &&
           !_pickingRoutePos.value &&
           !_pickingReportPos.value,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
+        // v586 — retour avec la feuille ouverte = la ranger.
+        if (!_sheetIsLow) {
+          unawaited(_sheetTo(PawSheetStop.low));
+          return;
+        }
         if (_pickingSpotPos.value ||
             _pickingReportPos.value ||
             _pickingRoutePos.value) {
@@ -4246,13 +4332,26 @@ class _PawMapScreenState extends State<PawMapScreen>
         // positionné : 0 × 0 → carte invisible. `SizedBox.expand` lui impose
         // la taille de l'écran (ce que faisait l'ancien `Expanded`).
         body: SizedBox.expand(
-          child: Stack(
+          // v586 — au PREMIER appui, où qu'il soit, les commandes effacées
+          // pendant un geste reviennent tout de suite.
+          child: Listener(
+            onPointerDown: (_) => _restoreChrome(),
+            behavior: HitTestBehavior.translucent,
+            child: Stack(
           children: [
             // ── LA carte (unique) : toujours premier enfant, toujours à la
             // même place dans l'arbre, avec une clé → jamais recréée.
+            // v586 — un vrai geste sur la carte (glisser, pincer) efface
+            // les commandes à 35 % ; elles reviennent 1 s après le lâcher.
             Positioned.fill(
               key: const ValueKey<String>('pawmap_google_map'),
-              child: _buildGoogleMap(),
+              child: Listener(
+                onPointerDown: _onMapPointerDown,
+                onPointerMove: _onMapPointerMove,
+                onPointerUp: _onMapPointerEnd,
+                onPointerCancel: _onMapPointerEnd,
+                child: _buildGoogleMap(),
+              ),
             ),
 
 
@@ -4292,14 +4391,13 @@ class _PawMapScreenState extends State<PawMapScreen>
               // v584 — la feuille glissante recouvre les rails dès qu'elle
               // dépasse sa position basse : ils s'effacent (elle porte les
               // mêmes actions), et reviennent quand elle redescend.
-              final sheetUp = !picking && _sheetExtent.value >
-                  (_sheetLowPx / _sheetAvailableHeight(context)) + 0.03;
+              final sheetUp = !picking && _sheetExtent.value > 0.03;
               if (sheetUp) return const SizedBox.shrink();
               return Positioned(
                 left: 12.w,
                 right: 12.w,
                 bottom: _railBottom(context, picking: picking),
-                child: Row(
+                child: _fading(Row(
                   // v561 — Daniel : colonne de gauche alignée sur le BAS de la
                   // capsule de droite (jamais centrée).
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -4308,6 +4406,29 @@ class _PawMapScreenState extends State<PawMapScreen>
                     const Spacer(),
                     _buildMapControlsStack(),
                   ],
+                )),
+              );
+            }),
+
+            // ── v586 — la POIGNÉE « Options » : seule chose en bas au repos.
+            // Appui ou glissement vers le haut = la feuille complète.
+            Obx(() {
+              final picking = _pickingSpotPos.value ||
+                  _pickingReportPos.value ||
+                  _pickingRoutePos.value;
+              final sheetUp = _sheetExtent.value > 0.03;
+              if (picking || sheetUp) return const SizedBox.shrink();
+              return Positioned(
+                left: 0,
+                right: 0,
+                bottom: _menuInset(context),
+                child: Center(
+                  child: _fading(PawMapOptionsHandle(
+                    roleColor:
+                        PawMapLegend.roleColor(_role.isEmpty ? 'owner' : _role),
+                    showLabel: pawMap586ShowLabels(_launches),
+                    onOpen: () => unawaited(_sheetTo(PawSheetStop.high)),
+                  )),
                 ),
               );
             }),
@@ -4346,8 +4467,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               // recouvrait le bandeau d'itinéraire (« 9,5 km · Étapes »
               // posé sur « Calques ») → cette zone s'efface avec les rails
               // dès que la feuille dépasse sa position basse.
-              final sheetUp = _sheetExtent.value >
-                  (_sheetLowPx / _sheetAvailableHeight(context)) + 0.03;
+              final sheetUp = _sheetExtent.value > 0.03;
               if (sheetUp) return const SizedBox.shrink();
               if (_followUserId != null) {
                 return Positioned(
@@ -4362,7 +4482,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   left: 72.w,
                   right: 62.w,
                   bottom: _menuInset(context) + _sheetPeekPx + 8.h,
-                  child: _buildAroundYouCard(),
+                  child: _fading(_buildAroundYouCard()),
                 );
               }
               // Bandeau d'itinéraire : entre les deux rails.
@@ -4434,9 +4554,42 @@ class _PawMapScreenState extends State<PawMapScreen>
                   bottom: false,
                   minimum: const EdgeInsets.only(top: 28),
                   child: Column(
-                    key: _topAreaKey,
                     mainAxisSize: MainAxisSize.min,
-                    children: [_buildFloatingHeader()],
+                    children: [
+                      Column(
+                        key: _topAreaKey,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [_fading(_buildFloatingHeader())],
+                      ),
+                      // v586 — pastille 2 s après un appui sur l'œil.
+                      Obx(() {
+                        final v = _visToast.value;
+                        return AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: v.isEmpty
+                              ? const SizedBox.shrink()
+                              : Padding(
+                                  key: ValueKey<String>('vis_toast_$v'),
+                                  padding: EdgeInsets.only(top: 8.h),
+                                  child: PawMapStatusChip(
+                                    key: const ValueKey<String>('pawmap_vis_toast'),
+                                    label: _visibilityLabel(v),
+                                    icon: v == 'hidden'
+                                        ? Icons.visibility_off_rounded
+                                        : (v == 'friends'
+                                            ? Icons.favorite_rounded
+                                            : Icons.visibility_rounded),
+                                    color: v == 'friends'
+                                        ? PawMapLegend.friend
+                                        : (v == 'hidden'
+                                            ? PawMapLegend.ink
+                                            : PawMapLegend.walker),
+                                    onTap: _openVisibilitySheet,
+                                  ),
+                                ),
+                        );
+                      }),
+                    ],
                   ),
                 ),
               );
@@ -4454,10 +4607,39 @@ class _PawMapScreenState extends State<PawMapScreen>
               ),
           ],
           ),
+          ),
         ),
+      ),
       ),
     );
   }
+
+  // ─── v586 — la carte s'efface quand on la manipule (point 5) ────────────
+
+  final PawChromeFade _fade = PawChromeFade();
+
+  /// Jamais pendant un placement (viseur) ni un suivi.
+  bool get _fadeAllowed =>
+      !_pickingSpotPos.value &&
+      !_pickingReportPos.value &&
+      !_pickingRoutePos.value &&
+      _followUserId == null;
+
+  void _onMapPointerDown(PointerDownEvent e) =>
+      _fade.down(e.position, allowed: _fadeAllowed);
+  void _onMapPointerMove(PointerMoveEvent e) =>
+      _fade.move(e.position, allowed: _fadeAllowed);
+  void _onMapPointerEnd(PointerEvent e) => _fade.end();
+  void _restoreChrome() => _fade.restore();
+
+  /// Enveloppe d'une commande posée sur la carte : 35 % pendant un geste
+  /// (fondu 150 ms), 100 % sinon. Reste touchable.
+  Widget _fading(Widget child) => Obx(() => AnimatedOpacity(
+        opacity: _fade.faded.value ? 0.35 : 1,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        child: child,
+      ));
 
   /// v584 — ligne de base (depuis le bas) de la rangée des rails : au-dessus
   /// de la feuille glissante en position basse ; 284 pendant un placement
@@ -4744,8 +4926,89 @@ class _PawMapScreenState extends State<PawMapScreen>
           secondary: true,
           onTap: _fitAllFriends,
         ),
+        // v586 — l'ŒIL : qui me voit (Tous · Amis seulement · Masqué), la
+        // même vérité que Profil › Préférences et le site.
+        Obx(() => PawCapsuleEyeButton(
+              state: _prefs.mapVisibility.value,
+              onTap: () => unawaited(_cycleVisibility()),
+              onLongPress: () => _showCapsuleHelp('eye'),
+            )),
       ],
+      // v586 — l'action du rôle, sous un trait : Publier (propriétaire) ou
+      // Direct (gardien / promeneur, noir = arrêté, vert = en direct).
+      footer: Obx(() {
+        final live = _liveMap.broadcasting.value;
+        final publish = !_isSitterOrWalker;
+        return PawCapsuleRoleAction(
+          kind: publish ? PawRoleActionKind.publish : PawRoleActionKind.direct,
+          live: live,
+          showLabel: pawMap586ShowLabels(_launches),
+          onTap: publish ? _onPublishAction : () => unawaited(_toggleDirect()),
+          onLongPress: () => _showCapsuleHelp(publish ? 'publish' : 'direct'),
+        );
+      }),
     );
+  }
+
+  /// v586 — nombre d'ouvertures de la PawMap (libellés aux 3 premières).
+  late final int _launches = pawMap586LaunchCount(bump: true);
+
+  /// Appui long sur un bouton de la capsule / la poignée → son explication.
+  void _showCapsuleHelp(String id) {
+    final spec = pawCapsuleSpecOf(id);
+    if (spec == null) return;
+    showPawMapSheet<void>(
+      context,
+      PawRailHelpSheet(
+          title: spec.label, help: spec.help, color: spec.color, icon: spec.icon),
+    );
+  }
+
+  /// v586 — rond « Publier » (propriétaire) : le même écran que le bouton
+  /// principal d'avant.
+  void _onPublishAction() {
+    if (!_viewerLoggedIn) {
+      SignupWallSheet.show(trigger: 'booking');
+      return;
+    }
+    _openScreen(() => const PublishReservationRequestScreen());
+  }
+
+  /// v586 — rond « Direct » (gardien / promeneur) : UN appui bascule le
+  /// partage en direct. UNE vérité : `LiveMapService.broadcasting` (la même
+  /// que la ligne « Partager ma balade » de la feuille et la puce d'état).
+  /// Démarrage sans question (durée « jusqu'à l'arrêt », modifiable par la
+  /// puce « En direct » de la feuille), sauf la toute première fois (une
+  /// phrase d'explication) ; confirmation courte à l'ARRÊT seulement.
+  Future<void> _toggleDirect() async {
+    if (!_viewerLoggedIn) {
+      SignupWallSheet.show(trigger: 'pawmap');
+      return;
+    }
+    if (_liveMap.broadcasting.value) {
+      final ok = await showAppConfirmDialog(
+        context,
+        title: 'pawmap586_direct_stop_title'.tr,
+        message: 'pawmap586_direct_stop_msg'.tr,
+        confirmLabel: 'pawmap586_direct_stop_btn'.tr,
+        cancelLabel: 'common_cancel'.tr,
+        icon: Icons.podcasts_rounded,
+        accent: PawMapLegend.ink,
+        onConfirm: () async {},
+      );
+      if (ok == true && mounted && _liveMap.broadcasting.value) {
+        _toggleBroadcast();
+      }
+      return;
+    }
+    if (!await _liveFirstHintOk()) return;
+    await _startBroadcastWith(LiveShareDuration.untilStop);
+    if (_visibility == 'hidden') {
+      CustomSnackbar.showInfo(
+        title: 'pawmap586_vis_hidden'.tr,
+        message: 'pawmap586_direct_hidden'.tr,
+      );
+    }
   }
 
   /// Bascule normal ↔ satellite (hybride : imagerie + rues/labels).
@@ -5654,167 +5917,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     });
   }
 
-  /// Chips de filtre : centrés, passent à la ligne, JAMAIS de défilement
-  /// horizontal (règle posée par Daniel en v447 et reprise par la maquette).
-  /// Signalements / Gardiens / Promeneurs / Propriétaires sont cumulables ;
-  /// « Tous » et « Rien » ne sont que des raccourcis.
-  Widget _buildPanelFilters() {
-    // v552 — Daniel : « autour de Tous ou Rien, un contour rose pour savoir
-    // lequel est sélectionné ». `outlined` entoure le raccourci actif.
-    // v552 — Daniel : « le fond noir des boutons, mets une couleur plus
-    // douce ». Un chip actif prend désormais la COULEUR DE SON TYPE en
-    // pastel (bleu gardien, vert promeneur, orange propriétaire, rouge
-    // signalement) : c'est plus doux que le noir de la maquette ET ça reprend
-    // le code couleur des points sur la carte — on lit le filtre d'un coup
-    // d'œil. Inactif = gris très clair.
-    Widget chip(String label, bool active, VoidCallback onTap,
-        {bool rose = false,
-        Widget? trailing,
-        bool outlined = false,
-        Color tone = PawMapTheme.ink}) {
-      return GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 13.w, vertical: 7.h),
-          decoration: BoxDecoration(
-            color: rose
-                ? PawMapTheme.rose
-                : (active
-                    ? tone.withValues(
-                        alpha: PawMapTheme.isDark(context) ? 0.18 : 0.14)
-                    // v585 — zéro gris (captures Samsung : « Disponible
-                    // aujourd'hui » / « Rien » en gris) : pastille pêche.
-                    : PawMapTheme.accent.withValues(
-                        alpha: PawMapTheme.isDark(context) ? 0.14 : 0.07)),
-            borderRadius: BorderRadius.circular(999),
-            border: outlined
-                ? Border.all(color: PawMapTheme.rose, width: 2)
-                : (active
-                    ? Border.all(
-                        color: PawMapTheme.toneOn(context, tone)
-                            .withValues(alpha: 0.35),
-                        width: 1.4)
-                    : Border.all(
-                        color: PawMapTheme.accent.withValues(alpha: 0.18),
-                        width: 1)),
-            boxShadow: rose
-                ? [
-                    BoxShadow(
-                      color: PawMapTheme.rose.withValues(alpha: 0.30),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: PawMapTheme.font(
-                  size: 11.5.sp,
-                  weight: active || rose ? FontWeight.w700 : FontWeight.w600,
-                  color: rose
-                      ? Colors.white
-                      : (active
-                          ? PawMapTheme.toneOn(context, tone)
-                          : PawMapTheme.inkOn(context)
-                              .withValues(alpha: 0.82)),
-                ),
-              ),
-              if (trailing != null) ...[SizedBox(width: 5.w), trailing],
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Obx(() {
-      final open = _showCatFilter.value;
-      final roles = _memberRoles;
-      void toggleRole(String r) {
-        if (roles.contains(r)) {
-          _memberRoles.remove(r);
-        } else {
-          _memberRoles.add(r);
-        }
-        _memberRoles.refresh();
-        if (mounted) setState(() {});
-      }
-
-      // Raccourcis : « Tous » est actif quand TOUT est affiché, « Rien »
-      // quand plus rien ne l'est — le contour rose montre lequel s'applique.
-      final everythingOn = _showPois.value &&
-          _showReports.value &&
-          roles.length >= 3;
-      final nothingOn =
-          !_showPois.value && !_showReports.value && roles.isEmpty;
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Wrap(
-            spacing: 6.w,
-            runSpacing: 6.h,
-            alignment: WrapAlignment.center,
-            children: [
-              chip(
-                'pawmap_filter_places'.tr,
-                _showPois.value,
-                () => _showCatFilter.value = !open,
-                rose: true,
-                trailing: Icon(
-                  open
-                      ? Icons.keyboard_arrow_up_rounded
-                      : Icons.keyboard_arrow_down_rounded,
-                  size: 13.sp,
-                  color: Colors.white,
-                ),
-              ),
-              chip('pawmap_filter_reports'.tr, _showReports.value,
-                  () => _showReports.value = !_showReports.value,
-                  tone: PawMapTheme.danger),
-              chip('role_pet_sitter'.tr, roles.contains('sitter'),
-                  () => toggleRole('sitter'), tone: PawMapTheme.sitter),
-              chip('role_pet_walker'.tr, roles.contains('walker'),
-                  () => toggleRole('walker'), tone: PawMapTheme.walker),
-              chip('role_pet_owner'.tr, roles.contains('owner'),
-                  () => toggleRole('owner'), tone: PawMapTheme.owner),
-              // v584 — idée 4 : « Disponible aujourd'hui » (drapeau serveur).
-              chip('pawmap_sheet_available_today'.tr, _availableTodayOnly.value,
-                  () => _availableTodayOnly.value = !_availableTodayOnly.value,
-                  tone: PawMapTheme.walker),
-              chip('paw_map_filter_all'.tr, false, outlined: everythingOn, () {
-                _showPois.value = true;
-                _showReports.value = true;
-                _poiController.selectAllCategories();
-                _memberRoles.addAll({'sitter', 'walker', 'owner'});
-                _memberRoles.refresh();
-                if (mounted) setState(() {});
-              }),
-              chip('pawmap_filter_none'.tr, false, outlined: nothingOn, () {
-                _showPois.value = false;
-                _showReports.value = false;
-                _memberRoles.clear();
-                _memberRoles.refresh();
-                if (mounted) setState(() {});
-              }),
-            ],
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-            child: open
-                ? _buildCategoryChecklist(_poiController.enabledCategories
-                    .where((c) => c != '__none__')
-                    .toSet())
-                : const SizedBox.shrink(),
-          ),
-        ],
-      );
-    });
-  }
+  // v586 (point 7) — les anciennes puces de filtre (menu « Lieux », Tous /
+  // Rien) sont remplacées par « Ce que je veux voir » (`_buildSeeSection`).
 
   /// « N membres autour de toi » + accès à l'explication des ON/OFF.
   Widget _buildPanelCounterRow() {
@@ -6193,7 +6297,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Position courante de la feuille (fraction de la hauteur disponible) —
   /// les rails se retirent quand la feuille dépasse sa position basse.
   final RxDouble _sheetExtent = 0.0.obs;
-  static const double _sheetPeek = 100;
 
   /// v585 (Daniel, build 584 : puce « Amis seulement » coupée en bas de la
   /// feuille sur son Samsung) — la position basse montre TOUT l'en-tête
@@ -6201,8 +6304,10 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// 100 dp.
   final GlobalKey _sheetHeaderKey = GlobalKey();
   double _sheetHeaderH = 0;
-  double get _sheetPeekPx =>
-      math.max(_sheetPeek.h, 8.h + 5.h + 10.h + _sheetHeaderH + 12.h);
+  /// v586 — au repos la feuille est RANGÉE : seule la poignée « Options »
+  /// (pilule 32 + air) occupe le bas. Rails, pilule de suivi et logo Google
+  /// se posent au-dessus d'elle.
+  double get _sheetPeekPx => 50.h;
 
   void _measureSheetHeader() {
     final box =
@@ -6220,8 +6325,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
   bool _sheetIsLow = true;
 
-  /// 'all' | 'sitters' | 'walkers' | 'places' | 'friends' (idée 6).
-  String _lookingFor = 'all';
 
   /// Hauteur (px) du menu du bas sous la carte. Dans les onglets, la feuille
   /// doit rester AU-DESSUS de toute la barre « patte » (pilule + saillie de la
@@ -6258,7 +6361,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     return math.max(200.0, mq.size.height);
   }
 
-  double get _sheetLowPx => _sheetPeekPx + _menuInset(context);
+  /// v586 — position basse de la feuille = 0 (rangée derrière la poignée).
+  double get _sheetLowPx => 0;
 
   /// v584 — clé de mesure du haut de l'écran (en-tête + rangée Partager /
   /// Agrandir) : la feuille en position haute s'arrête DESSOUS, elle ne
@@ -6280,7 +6384,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (!_sheetCtl.isAttached) return;
     final h = _sheetAvailableHeight(context);
     final size = switch (stop) {
-      PawSheetStop.low => (_sheetLowPx / h).clamp(0.08, 0.6).toDouble(),
+      PawSheetStop.low => (_sheetLowPx / h).clamp(0.0, 0.6).toDouble(),
       PawSheetStop.mid => 0.46,
       PawSheetStop.high => _sheetHighFraction(context),
     };
@@ -6311,7 +6415,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     final size = _sheetCtl.size;
     _sheetExtent.value = size;
     final h = _sheetAvailableHeight(context);
-    final low = (_sheetLowPx / h).clamp(0.08, 0.6).toDouble();
+    final low = (_sheetLowPx / h).clamp(0.0, 0.6).toDouble();
     final isLow = size <= low + 0.03;
     if (isLow != _sheetIsLow) {
       _sheetIsLow = isLow;
@@ -6328,6 +6432,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       peekHeight: _sheetLowPx,
       bottomPadding: _menuInset(context) + 16.h,
       highFraction: _sheetHighFraction(context),
+      // v586 — toucher la poignée de la feuille ouverte = la ranger.
+      onGripTap: () => unawaited(_sheetTo(PawSheetStop.low)),
       header: NotificationListener<SizeChangedLayoutNotification>(
         onNotification: (_) {
           WidgetsBinding.instance
@@ -6370,10 +6476,12 @@ class _PawMapScreenState extends State<PawMapScreen>
             ),
           ],
         ),
-        SizedBox(height: 14.h),
-        PawMapLookingSelector(value: _lookingFor, onChanged: _applyLooking),
-        SizedBox(height: 12.h),
-        _buildPanelCounterRow(),
+        SizedBox(height: 16.h),
+        // v586 (point 7, Daniel : « mettre ce que je veux voir ») — UNE
+        // section, une pastille INDÉPENDANTE par famille. Remplace le trio
+        // « Je cherche » / menu « Lieux » / Tous-Rien, où couper les lieux
+        // cachait aussi les membres et les amis.
+        _buildSeeSection(),
         Obx(() {
           // Idée 1 — carte vide = une action (au zoom quartier, données lues).
           final empty = _membersShown.value == 0 &&
@@ -6388,10 +6496,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             ),
           );
         }),
-        SizedBox(height: 12.h),
-        _sheetSection('pawmap_sheet_filters'.tr),
-        _buildPanelFilters(),
-        SizedBox(height: 14.h),
+        SizedBox(height: 16.h),
         _sheetSection('pawmap_sheet_actions'.tr),
         _buildPanelActions(),
         SizedBox(height: 8.h),
@@ -6562,7 +6667,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (_friendsOnly) {
       chips.add(PawMapStatusChip(
         key: const ValueKey<String>('pawmap_status_friends_only'),
-        label: 'pawmap_status_friends_only'.tr,
+        label: _visibility == 'hidden'
+            ? 'pawmap586_vis_choice_hidden'.tr
+            : 'pawmap_status_friends_only'.tr,
         icon: Icons.visibility_off_rounded,
         color: PawMapLegend.ink,
         onTap: _openVisibilitySheet,
@@ -6597,6 +6704,13 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v584 (25/09, point 14) — premier usage : une phrase d'explication, puis
   /// la durée, puis le partage démarre (même chemin qu'avant : `_toggleBroadcast`).
   Future<void> _startLiveShareFromPrimary() async {
+    if (!await _liveFirstHintOk()) return;
+    _toggleBroadcast();
+  }
+
+  /// La toute première fois : une phrase d'explication du direct (vrai =
+  /// on continue).
+  Future<bool> _liveFirstHintOk() async {
     final seen = GetStorage().read('pawmap_live_hint_seen') == true;
     if (!seen) {
       try {
@@ -6614,9 +6728,9 @@ class _PawMapScreenState extends State<PawMapScreen>
         accent: PawMapLegend.pawFollow,
         onConfirm: () async {},
       );
-      if (ok != true || !mounted) return;
+      if (ok != true || !mounted) return false;
     }
-    _toggleBroadcast();
+    return mounted;
   }
 
   /// Idée 1 — carte vide : le propriétaire publie, le prestataire complète
@@ -6629,41 +6743,182 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
   }
 
-  /// Idée 6 — « Je cherche » : un préréglage des couches ; les réglages fins
-  /// (chips, calques) restent disponibles dessous.
-  void _applyLooking(String v) {
-    setState(() => _lookingFor = v);
-    switch (v) {
-      case 'sitters':
-        _memberRoles
-          ..clear()
-          ..add('sitter');
-        _showProviders.value = true;
-        _showPois.value = false;
-      case 'walkers':
-        _memberRoles
-          ..clear()
-          ..add('walker');
-        _showProviders.value = true;
-        _showPois.value = false;
-      case 'places':
-        _showPois.value = true;
-        _showProviders.value = false;
-      case 'friends':
-        _showProviders.value = false;
-        _showPois.value = false;
-        _showFriends.value = true;
-        _showLiveLayer.value = true;
-        unawaited(_openLiveFriendsSheet());
-      default:
-        _memberRoles.addAll({'sitter', 'walker', 'owner'});
-        _showProviders.value = true;
-        _showPois.value = true;
-        _showFriends.value = true;
+  // ─── v586 (point 7) — « Ce que je veux voir » ────────────────────────────
+
+  /// Familles affichées, dérivées des calques (une seule vérité : les
+  /// calques enregistrés sur le compte, `pawMap.layers` + `memberRoles`).
+  Set<String> _seeOn() => {
+        if (_showFriends.value) 'friends',
+        if (_showProviders.value && _memberRoles.contains('owner')) 'owners',
+        if (_showProviders.value && _memberRoles.contains('sitter')) 'sitters',
+        if (_showProviders.value && _memberRoles.contains('walker')) 'walkers',
+        if (_showPois.value) 'places',
+        if (_showPawSpots.value) 'pawspots',
+        if (_showReports.value) 'reports',
+        if (_showRequests.value) 'requests',
+      };
+
+  void _setRole(String role, bool on) {
+    if (on) {
+      _memberRoles.add(role);
+      _showProviders.value = true;
+    } else {
+      _memberRoles.remove(role);
     }
     _memberRoles.refresh();
-    _prefs.update({'lookingFor': v});
+  }
+
+  /// Une pastille = UNE famille, rien d'autre.
+  void _toggleSee(String id) {
+    final on = _seeOn().contains(id);
+    switch (id) {
+      case 'friends':
+        _showFriends.value = !on;
+      case 'owners':
+        _setRole('owner', !on);
+      case 'sitters':
+        _setRole('sitter', !on);
+      case 'walkers':
+        _setRole('walker', !on);
+      case 'places':
+        _showPois.value = !on;
+        if (!on && _poiController.enabledCategories.contains('__none__')) {
+          _poiController.selectAllCategories();
+        }
+      case 'pawspots':
+        unawaited(_togglePawSpot());
+      case 'reports':
+        _showReports.value = !on;
+      case 'requests':
+        _showRequests.value = !on;
+    }
     if (mounted) setState(() {});
+  }
+
+  /// « Tout » / « Rien » : seulement les 8 familles de la section (jamais
+  /// le direct PawFollow, Premium ni « Disponible aujourd'hui »).
+  void _setAllSee(bool on) {
+    _showFriends.value = on;
+    if (on) {
+      _memberRoles.addAll({'owner', 'sitter', 'walker'});
+      _showProviders.value = true;
+    } else {
+      _memberRoles.clear();
+    }
+    _memberRoles.refresh();
+    _showPois.value = on;
+    if (on) _poiController.selectAllCategories();
+    if (_showPawSpots.value != on) unawaited(_togglePawSpot());
+    _showReports.value = on;
+    _showRequests.value = on;
+    if (mounted) setState(() {});
+  }
+
+  Widget _buildSeeSection() {
+    return Obx(() {
+      // Dépendances réactives de la section.
+      _showFriends.value;
+      _showProviders.value;
+      _memberRoles.length;
+      _showPois.value;
+      _showPawSpots.value;
+      _showReports.value;
+      _showRequests.value;
+      final avail = _availableTodayOnly.value;
+      final catsOpen = _showCatFilter.value;
+      Widget miniChip(String key, String label, IconData icon, bool active,
+              Color tone, VoidCallback onTap) =>
+          Semantics(
+            button: true,
+            selected: active,
+            label: label,
+            child: GestureDetector(
+              key: ValueKey<String>(key),
+              behavior: HitTestBehavior.opaque,
+              onTap: onTap,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                constraints: BoxConstraints(minHeight: 34.h),
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                decoration: BoxDecoration(
+                  color: tone.withValues(
+                      alpha: active
+                          ? (PawMapTheme.isDark(context) ? 0.30 : 0.16)
+                          : (PawMapTheme.isDark(context) ? 0.12 : 0.05)),
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(
+                      color: tone.withValues(alpha: active ? 0.7 : 0.3),
+                      width: 1.2),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 15.sp, color: PawMapTheme.toneOn(context, tone)),
+                    SizedBox(width: 5.w),
+                    Flexible(
+                      child: Text(label,
+                          style: PawMapTheme.font(
+                              size: 11.5.sp,
+                              weight: FontWeight.w700,
+                              color: PawMapTheme.toneOn(context, tone))),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+      return PawMapSeeSection(
+        on: _seeOn(),
+        onToggle: _toggleSee,
+        onAll: () => _setAllSee(true),
+        onNone: () => _setAllSee(false),
+        counter: _buildPanelCounterRow(),
+        footer: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 8.w,
+              runSpacing: 8.h,
+              children: [
+                // Idée 4 — « Disponible aujourd'hui » (filtre, pas une famille).
+                miniChip(
+                  'see_available_today',
+                  'pawmap_sheet_available_today'.tr,
+                  Icons.event_available_rounded,
+                  avail,
+                  PawMapTheme.walker,
+                  () => _availableTodayOnly.value = !avail,
+                ),
+                // Types de lieux (vétos, parcs…) : le réglage fin d'avant.
+                miniChip(
+                  'see_place_types',
+                  'pawmap586_see_place_types'.tr,
+                  catsOpen
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.tune_rounded,
+                  catsOpen,
+                  const Color(0xFF0E7490),
+                  () => _showCatFilter.value = !catsOpen,
+                ),
+              ],
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              child: catsOpen
+                  ? Padding(
+                      padding: EdgeInsets.only(top: 8.h),
+                      child: _buildCategoryChecklist(_poiController
+                          .enabledCategories
+                          .where((c) => c != '__none__')
+                          .toSet()),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   // ─── v584 — préférences sur le COMPTE (MapPrefsService) ─────────────────
@@ -6698,8 +6953,6 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (night != null) _nightMode.value = night;
     final avail = p.availableTodayOnly;
     if (avail != null) _availableTodayOnly.value = avail;
-    final looking = p.lookingFor;
-    if (looking != null) _lookingFor = looking;
     final mode = p.routeMode;
     if (mode != null && _routeColors.containsKey(mode)) _routeMode = mode;
     final radius = p.aroundRadiusKm;
@@ -6747,6 +7000,11 @@ class _PawMapScreenState extends State<PawMapScreen>
       ever<bool>(_nightMode, (v) => _prefs.update({'nightMode': v})),
       ever<bool>(_availableTodayOnly,
           (v) => _prefs.update({'availableTodayOnly': v})),
+      // v586 — l'état de visibilité peut changer ailleurs (Préférences,
+      // autre appareil relu) : la carte (rond « Moi », œil) suit.
+      ever<String>(_prefs.mapVisibility, (_) {
+        if (mounted) setState(() {});
+      }),
     ];
   }
 
