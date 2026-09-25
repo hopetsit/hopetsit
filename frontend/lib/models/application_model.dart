@@ -26,6 +26,10 @@ class ApplicationModel {
   /// `walker` field presence (sanitizeApplication exposes either
   /// `sitter` or `walker`).
   final String providerRole;
+  /// v587 (point 8) — lieu du service recopié de l'annonce par le serveur :
+  /// at_owner | at_sitter | both | pickup | meeting_point ('' = inconnu).
+  final String serviceLocation;
+  final String meetingPoint;
 
   ApplicationModel({
     required this.id,
@@ -43,6 +47,8 @@ class ApplicationModel {
     this.bookingId,
     this.postId,
     this.providerRole = 'sitter',
+    this.serviceLocation = '',
+    this.meetingPoint = '',
   });
 
   factory ApplicationModel.fromJson(Map<String, dynamic> json) {
@@ -82,6 +88,8 @@ class ApplicationModel {
           : null,
       bookingId: parsedBookingId,
       postId: json['postId']?.toString(),
+      serviceLocation: (json['serviceLocation'] ?? '').toString(),
+      meetingPoint: (json['meetingPoint'] ?? '').toString(),
       providerRole: providerRole,
     );
   }

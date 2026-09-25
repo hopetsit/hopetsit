@@ -275,6 +275,25 @@ void main() {
           onOwnerProfile: () => calls.add('owner_profile'),
         );
 
+    testWidgets('v587 point 8 : le lieu du service est affiché, et masqué s\'il est vide',
+        (tester) async {
+      final calls = <String>[];
+      await tester.pumpWidget(_harness(PawMapRequestSheet(
+        ownerName: 'Marc', ownerAvatar: '', walking: true, city: 'Zone test',
+        distanceLabel: '', dateLabel: '', budgetLabel: '', body: '',
+        mine: false, approx: true, viewerRole: 'walker',
+        proposeState: PawProposeState.idle,
+        onPropose: () => calls.add('p'), onOpenMine: () {}, onOwnerProfile: () {},
+        locationLabel: 'Point de rendez-vous · Parc Monceau',
+      )));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.byKey(const Key('pawmap_request_location')), findsOneWidget);
+      expect(find.text('Point de rendez-vous · Parc Monceau'), findsOneWidget);
+      await tester.pumpWidget(_harness(sheet(PawProposeState.idle, calls)));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.byKey(const Key('pawmap_request_location')), findsNothing);
+    });
+
     testWidgets('gardien : Proposer + profil du propriétaire ; prix et position approximative affichés',
         (tester) async {
       final calls = <String>[];

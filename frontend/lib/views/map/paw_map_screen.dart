@@ -9,6 +9,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:hopetsit/utils/service_location587.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/friend_controller.dart';
 import 'package:hopetsit/controllers/map_report_controller.dart';
@@ -4049,6 +4050,9 @@ class _PawMapScreenState extends State<PawMapScreen>
               ? ''
               : (r.distanceKm > 0 ? '${r.distanceKm.toStringAsFixed(1)} km' : ''),
           dateLabel: _requestDateLabel(r),
+          // v587 (point 8) — où se passe le service (chez moi, point de RDV…).
+          locationLabel: serviceLocationDisplay(r.serviceLocation,
+              meetingPoint: r.meetingPoint),
           budgetLabel: r.budgetLabel,
           body: r.body,
           mine: mine,

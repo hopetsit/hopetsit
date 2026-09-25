@@ -597,6 +597,7 @@ class PawMapRequestSheet extends StatelessWidget {
     required this.onPropose,
     required this.onOpenMine,
     required this.onOwnerProfile,
+    this.locationLabel = '',
   });
 
   final String ownerName;
@@ -614,6 +615,9 @@ class PawMapRequestSheet extends StatelessWidget {
   final VoidCallback onPropose;
   final VoidCallback onOpenMine;
   final VoidCallback onOwnerProfile;
+  /// v587 (point 8) — lieu du service : « Chez moi », « Point de rendez-vous ·
+  /// Parc Monceau »… ('' = non renseigné, ligne masquée).
+  final String locationLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -704,6 +708,24 @@ class PawMapRequestSheet extends StatelessWidget {
                 Expanded(
                   child: Text(dateLabel,
                       maxLines: 2,
+                      style: PawMapTheme.fontOn(context,
+                          size: 12.5.sp, weight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ],
+          if (locationLabel.isNotEmpty) ...[
+            SizedBox(height: 8.h),
+            Row(
+              key: const Key('pawmap_request_location'),
+              children: [
+                Icon(Icons.place_rounded,
+                    size: 16.sp, color: AppColors.accentOn(context, PawMapLegend.owner)),
+                SizedBox(width: 6.w),
+                Expanded(
+                  child: Text(locationLabel,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: PawMapTheme.fontOn(context,
                           size: 12.5.sp, weight: FontWeight.w700)),
                 ),

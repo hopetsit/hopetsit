@@ -11,6 +11,7 @@ import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/utils/service_location587.dart';
 
 /// v23.1 — B5 : bottom sheet listing every pending candidate for one of the
 /// owner's posts. The owner can choose one (auto-rejects the others on the
@@ -302,17 +303,47 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
                   ),
                 );
               }
+              // v587 (point 8) — lieu du service de l'annonce (le même pour
+              // tous les candidats) : rappelé au-dessus de la liste.
+              final String place = list
+                  .map((a) => serviceLocationDisplay(a.serviceLocation,
+                      meetingPoint: a.meetingPoint))
+                  .firstWhere((t) => t.isNotEmpty, orElse: () => '');
+              final int offset = place.isEmpty ? 0 : 1;
               return ListView.separated(
                 shrinkWrap: true,
                 padding: EdgeInsets.zero,
-                itemCount: list.length,
+                itemCount: list.length + offset,
                 separatorBuilder: (_, __) => SizedBox(height: 10.h),
-                itemBuilder: (_, i) => _CandidateCard(
-                  app: list[i],
-                  busy: _busy,
-                  onAccept: () => _accept(list[i]),
-                  onReject: () => _reject(list[i]),
-                ),
+                itemBuilder: (_, i) {
+                  if (offset == 1 && i == 0) {
+                    return Row(
+                      key: const Key('candidates_service_location'),
+                      children: [
+                        Icon(Icons.place_rounded,
+                            size: 16.sp,
+                            color: AppColors.accentOn(
+                                context, AppColors.primaryColor)),
+                        SizedBox(width: 6.w),
+                        Expanded(
+                          child: InterText(
+                            text: place,
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary(context),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  final app = list[i - offset];
+                  return _CandidateCard(
+                    app: app,
+                    busy: _busy,
+                    onAccept: () => _accept(app),
+                    onReject: () => _reject(app),
+                  );
+                },
               );
             }),
           ),

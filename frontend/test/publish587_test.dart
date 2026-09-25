@@ -10,6 +10,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/publish_reservation_request_controller.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/localization/v565/publish587_i18n.dart';
+import 'package:hopetsit/models/application_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/service_location587.dart';
 import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
@@ -158,5 +159,17 @@ void main() {
         expect(publish587I18n[lang]!.values.where((v) => v.trim().isEmpty), isEmpty, reason: lang);
       }
     });
+  });
+
+  test('candidature : le lieu recopié par le serveur est lu (feuille des candidats)', () {
+    final a = ApplicationModel.fromJson(<String, dynamic>{
+      'id': 'a1', 'status': 'pending', 'postId': 'p1',
+      'serviceLocation': 'meeting_point', 'meetingPoint': 'Parc Monceau',
+    });
+    expect(a.serviceLocation, 'meeting_point');
+    expect(a.meetingPoint, 'Parc Monceau');
+    final old = ApplicationModel.fromJson(<String, dynamic>{'id': 'a2'});
+    expect(old.serviceLocation, '');
+    expect(serviceLocationDisplay(old.serviceLocation), '');
   });
 }
