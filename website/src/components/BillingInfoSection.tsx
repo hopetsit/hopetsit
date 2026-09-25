@@ -9,6 +9,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { SelectMenu } from "@/components/SelectMenu";
 import {
   ApiError,
   BillingIdType,
@@ -191,25 +192,24 @@ export function BillingInfoSection({
           </BField>
 
           <BField label={t("billing_country")}>
-            <select value={info.country} onChange={(e) => set("country", e.target.value)} className={inputCls}>
-              <option value="">{t("billing_select")}</option>
-              {countries.map((c) => (
-                <option key={c.code} value={c.code}>{c.name}</option>
-              ))}
-            </select>
+            <SelectMenu
+              ariaLabel={t("billing_country")}
+              value={info.country}
+              onChange={(v) => set("country", v)}
+              placeholder={t("billing_select")}
+              searchPlaceholder={t("select_search_ph")}
+              options={[{ value: "", label: t("billing_select") }, ...countries.map((c) => ({ value: c.code, label: c.name }))]}
+            />
           </BField>
 
           <BField label={t("billing_id_type")}>
-            <select
+            <SelectMenu
+              ariaLabel={t("billing_id_type")}
               value={info.idType}
-              onChange={(e) => set("idType", e.target.value as BillingInfo["idType"])}
-              className={inputCls}
-            >
-              <option value="">{t("billing_select")}</option>
-              {idTypes.map((k) => (
-                <option key={k} value={k}>{t(`billing_id_${k}`)}</option>
-              ))}
-            </select>
+              onChange={(v) => set("idType", v as BillingInfo["idType"])}
+              placeholder={t("billing_select")}
+              options={[{ value: "", label: t("billing_select") }, ...idTypes.map((k) => ({ value: k, label: t(`billing_id_${k}`) }))]}
+            />
           </BField>
 
           <BField label={t("billing_id_number")}>

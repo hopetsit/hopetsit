@@ -109,6 +109,15 @@ export default function BoutiquePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<Section>("premium");
+  // 25/09 (585, lot 2) — ouverture directe sur un onglet (?tab=pawfollow |
+  // pawspot | premium | boost), depuis « Mes abonnements sur la carte ».
+  useEffect(() => {
+    try {
+      const tab = new URLSearchParams(window.location.search).get("tab");
+      const map: Record<string, Section> = { pawfollow: "premium", pawspot: "mapboost", premium: "pawpremium", boost: "boost" };
+      if (tab && map[tab]) setSection(map[tab]);
+    } catch { /* ignore */ }
+  }, []);
   const [purchasing, setPurchasing] = useState<string | null>(null);
 
 

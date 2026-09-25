@@ -287,9 +287,10 @@ export default function DashboardPage() {
               {isOwner && <SideLink href="/search" icon="search" label={t("dash_card_search_title")} tint={tint} />}
               {isProvider && <SideLink href="/sitter-setup" icon="settings" label={t("dash_card_setup_title")} tint={tint} />}
               <SideLink href="/chat" icon="chat" label={t("dash_card_messages_title")} badge={unreadMsg} tint={tint} />
+              {/* 25/09 (585, lot 2 — bug 14) — « Mes amis » remonté : amis, demandes, en direct, PawFamily. */}
+              <SideLink href="/friends" icon="friends" label={t("dash_my_friends")} tint={tint} />
               <SideLink href="/map" icon="map" label={t("dash_card_map_title")} tint={tint} />
               <SideLink href="/pawpoints" icon="coins" label={t("dash_card_pawpoints_title")} tint={tint} />
-              <SideLink href="/friends" icon="friends" label={t("friends_title")} tint={tint} />
               <SideLink href="/family" icon="family" label={t("family_title")} tint={tint} />
               <SideLink href="/boutique" icon="shop" label={t("dash_card_shop_title")} tint={tint} />
               <SideLink href="#promo" icon="ticket" label={t("promo_title")} tint={tint} />
@@ -386,7 +387,8 @@ export default function DashboardPage() {
             )}
           </section>
 
-          {/* PawMap + Réservations : les deux grandes cartes. */}
+          {/* PawMap + Réservations + Mes amis : les grandes cartes (25/09, bug 14 :
+              l'accès aux amis doit être évident, plus en 6e petite carte). */}
           <div className="mt-4 grid gap-3 lg:grid-cols-2">
             <Link href="/map" className={`group flex items-center gap-4 rounded-[24px] bg-[#FAF1EC] p-5 text-[#231715] transition ${tint.hoverBg}`}>
               <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-white"><PawMapLogo size={38} title={null} /></span>
@@ -404,6 +406,14 @@ export default function DashboardPage() {
               </span>
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white transition group-hover:translate-x-1"><AppIcon name="arrow-right" size={18} color={tint.dark} /></span>
             </Link>
+            <Link href="/friends" className="group flex items-center gap-4 rounded-[24px] bg-[#FDE7F0] p-5 lg:col-span-2 text-[#231715] transition hover:bg-[#FBD5E5]">
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#F48AB4,#E0568B)" }}><AppIcon name="friends" size={28} color="#fff" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-base font-semibold">{t("dash_my_friends")}</span>
+                <span className="block text-sm text-[#7A2E52]">{t("dash_my_friends_sub")}</span>
+              </span>
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white transition group-hover:translate-x-1"><AppIcon name="arrow-right" size={18} color="#9D174D" /></span>
+            </Link>
           </div>
 
           <h2 className="mt-10 font-display text-2xl font-bold tracking-[-0.02em] text-[#231715]">{t("dash_account_section")}</h2>
@@ -414,7 +424,6 @@ export default function DashboardPage() {
             {isOwner && <NavCard href="/pets" icon="pets" tint={tint} title={t("dash_card_pets_title")} subtitle={t("dash_card_pets_sub")} />}
             {isOwner && <NavCard href="/search" icon="search" tint={tint} title={t("dash_card_search_title")} subtitle={t("dash_card_search_sub")} />}
             {isProvider && <NavCard href="/sitter-setup" icon="settings" tint={tint} title={t("dash_card_setup_title")} subtitle={t("dash_card_setup_sub")} />}
-            <NavCard href="/friends" icon="friends" tint={tint} title={t("dash_card_friends_title")} subtitle={t("dash_card_friends_sub")} />
             <NavCard href="/pawpoints" icon="coins" tint={tint} title={t("dash_card_pawpoints_title")} subtitle={t("dash_card_pawpoints_sub")} />
             <NavCard href="/invoices" icon="invoice" tint={tint} title={t("dash_card_invoices_title")} subtitle={t("dash_card_invoices_sub")} />
             <NavCard href="/profile" icon="profile" tint={tint} title={t("dash_card_profile_title")} subtitle={t("dash_card_profile_sub")} />

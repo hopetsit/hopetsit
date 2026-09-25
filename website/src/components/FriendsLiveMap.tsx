@@ -61,11 +61,14 @@ function roleFromModel(model: string): "walker" | "sitter" | "owner" {
 export const HALO_GOLD = "#F4C04A";
 export const HALO_YELLOW = "#F4D03F";
 export function subscriptionHaloColor(opts: {
+  /** 25/09 (585, bug 11) — PawBoost passe DEVANT tout : turquoise. */
+  boosted?: boolean;
   premium?: boolean;
   pawFollow?: boolean;
   pawSpot?: boolean;
   role: Role | string;
 }): string {
+  if (opts.boosted) return "#06B6D4";
   if (opts.premium) return HALO_GOLD;
   if (opts.pawFollow) return FAMILY_VIOLET;
   if (opts.pawSpot) return HALO_YELLOW;

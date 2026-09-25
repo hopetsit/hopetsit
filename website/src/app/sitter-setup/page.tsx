@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { SelectMenu } from "@/components/SelectMenu";
 import BackLink from "@/components/BackLink";
 import {
   ApiError,
@@ -596,18 +597,17 @@ function HourSelect({
 }) {
   const options: number[] = [];
   for (let h = min; h <= max; h++) options.push(h);
+  // 25/09 (585, lot 2) — liste maison (le menu natif s'ouvrait en gris foncé).
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(parseInt(e.target.value, 10))}
-      className="rounded-lg border border-ink/15 px-2 py-1 text-xs focus:outline-none"
-    >
-      {options.map((h) => (
-        <option key={h} value={h}>
-          {String(h).padStart(2, "0")}h
-        </option>
-      ))}
-    </select>
+    <SelectMenu
+      size="sm"
+      ariaLabel="h"
+      className="w-[86px]"
+      value={String(value)}
+      onChange={(v) => onChange(parseInt(v, 10))}
+      tone="sitter"
+      options={options.map((h) => ({ value: String(h), label: `${String(h).padStart(2, "0")}h` }))}
+    />
   );
 }
 

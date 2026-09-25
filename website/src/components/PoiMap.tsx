@@ -157,7 +157,8 @@ function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[]
 function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[]): L.DivIcon {
   return L.divIcon({
     className: "",
-    html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, roles: roles.map((r) => r.role) }),
+    // 25/09 (585, bug 11) — un ami boosté garde sa lueur turquoise + fusée.
+    html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, boosted: !!m.isBoosted, roles: roles.map((r) => r.role) }),
     iconSize: [50, 50],
     iconAnchor: [25, 25],
     popupAnchor: [0, -28],

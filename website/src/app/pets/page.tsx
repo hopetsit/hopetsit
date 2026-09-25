@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { SelectMenu } from "@/components/SelectMenu";
 import BackLink from "@/components/BackLink";
 import {
   ApiError,
@@ -285,6 +286,7 @@ function PetFormModal({
   onClose: () => void;
   onSaved: (pet: Pet) => void;
 }) {
+  const { t } = useT();
   const [petName, setPetName] = useState(initial?.petName || "");
   const [category, setCategory] = useState(initial?.category || "Dog");
   const [breed, setBreed] = useState(initial?.breed || "");
@@ -372,18 +374,20 @@ function PetFormModal({
             />
           </Field>
           <Field label="Espèce *">
-            <select
+            <SelectMenu
+              ariaLabel="Espèce"
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
-            >
-              <option value="Dog">Chien</option>
-              <option value="Cat">Chat</option>
-              <option value="Bird">Oiseau</option>
-              <option value="Rabbit">Lapin</option>
-              <option value="Reptile">Reptile</option>
-              <option value="Other">Autre</option>
-            </select>
+              onChange={setCategory}
+              tone="owner"
+              options={[
+                { value: "Dog", label: t("posts_animal_dog") },
+                { value: "Cat", label: t("posts_animal_cat") },
+                { value: "Bird", label: t("posts_animal_bird") },
+                { value: "Rabbit", label: t("pet_cat_rabbit") },
+                { value: "Reptile", label: t("posts_animal_reptile") },
+                { value: "Other", label: t("posts_animal_other") },
+              ]}
+            />
           </Field>
           <Field label="Race">
             <input
@@ -416,27 +420,31 @@ function PetFormModal({
           {/* v413 — parité app : caractère / santé / habitudes (synchro). */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Sexe">
-              <select
+              <SelectMenu
+                ariaLabel="Sexe"
                 value={gender}
-                onChange={(e) => setGender(e.target.value)}
-                className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
-              >
-                <option value="">—</option>
-                <option value="male">Mâle</option>
-                <option value="female">Femelle</option>
-              </select>
+                onChange={setGender}
+                tone="owner"
+                options={[
+                  { value: "", label: "—" },
+                  { value: "male", label: t("pet_gender_male") },
+                  { value: "female", label: t("pet_gender_female") },
+                ]}
+              />
             </Field>
             <Field label="Statut vaccinal">
-              <select
+              <SelectMenu
+                ariaLabel="Statut vaccinal"
                 value={vaccinationStatus}
-                onChange={(e) => setVaccinationStatus(e.target.value)}
-                className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
-              >
-                <option value="">—</option>
-                <option value="up_to_date">À jour</option>
-                <option value="late">En retard</option>
-                <option value="unknown">Inconnu</option>
-              </select>
+                onChange={setVaccinationStatus}
+                tone="owner"
+                options={[
+                  { value: "", label: "—" },
+                  { value: "up_to_date", label: t("pet_vacc_up_to_date") },
+                  { value: "late", label: t("pet_vacc_late") },
+                  { value: "unknown", label: t("pet_vacc_unknown") },
+                ]}
+              />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">

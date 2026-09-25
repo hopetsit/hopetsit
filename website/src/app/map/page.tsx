@@ -41,6 +41,7 @@ import { PawMapLogo } from "@/components/PawMapLogo";
 import { AppIcon, type AppIconName } from "@/components/AppIcon";
 import { PageTitle } from "@/components/PageTitle";
 import { PawMapLegendModal } from "@/components/PawMapLegendModal";
+import { SelectMenu } from "@/components/SelectMenu";
 import type { MapRequest, LiveLabels, CardLabels } from "@/components/PoiMap";
 import {
   ApiError,
@@ -62,6 +63,9 @@ import {
   startProviderConversation,
   getFriendsLivePositions,
   getMyBenefits,
+  getMapLayerPrefs,
+  saveMapLayerPrefs,
+  type MapLayerPrefs,
   getMyFamily,
   getMyFriends,
   getMyPosts,
@@ -725,11 +729,44 @@ export default function MapPage() {
     if (premium || benefits.pawspotActive || staff) setShowSpots(true);
   }, [benefits, loadFriends]);
 
+  // 25/09 (585, lot 2 — bug 15) — « Mes abonnements sur la carte » : l'état
+  // des interrupteurs est enregistré sur le COMPTE (/users/me/map-prefs,
+  // calques friends / pawspots / premium, suivis par l'app) ; si le serveur
+  // ne répond pas, repli sur cet appareil (et on le dit).
+  const [layersLocalOnly, setLayersLocalOnly] = useState(false);
+  const layerPrefsRef = useRef(false);
+  useEffect(() => {
+    if (!benefits || layerPrefsRef.current) return;
+    layerPrefsRef.current = true;
+    (async () => {
+      let layers: MapLayerPrefs | null = await getMapLayerPrefs();
+      if (layers === null) {
+        try { layers = JSON.parse(localStorage.getItem("hopetsit:mapLayers") || "{}") as MapLayerPrefs; } catch { layers = {}; }
+      }
+      if (typeof layers.friends === "boolean") {
+        setShowFriends(layers.friends);
+        if (layers.friends && !friendsLoadedRef.current) { friendsLoadedRef.current = true; void loadFriends(); }
+      }
+      if (typeof layers.pawspots === "boolean") setShowSpots(layers.pawspots);
+    })();
+  }, [benefits, loadFriends]);
+
   async function handleSpotVisit(id: string) {
     try {
       const vc = await visitSpot(id);
       setSpots((prev) => prev.map((s) => (s.id === id ? { ...s, visitsCount: vc } : s)));
     } catch { /* best-effort */ }
+  }
+  function saveLayers(patch: MapLayerPrefs) {
+    try {
+      const cur = JSON.parse(localStorage.getItem("hopetsit:mapLayers") || "{}");
+      localStorage.setItem("hopetsit:mapLayers", JSON.stringify({ ...cur, ...patch }));
+    } catch { /* stockage indisponible */ }
+    void saveMapLayerPrefs(patch).then((ok) => setLayersLocalOnly(!ok));
+  }
+  function setFriendsLayer(on: boolean) {
+    setShowFriends(on);
+    if (on && !friendsLoadedRef.current) { friendsLoadedRef.current = true; void loadFriends(); }
   }
   function toggleFriendsLayer() {
     const next = !showFriends;
@@ -1024,8 +1061,9 @@ export default function MapPage() {
         <form onSubmit={handleCitySearch} className="flex min-w-0 basis-full items-center gap-2 rounded-full bg-[#FAF1EC] p-1.5 pl-3 sm:max-w-sm sm:flex-1 sm:basis-auto">
           <AppIcon name="pin" size={18} color="#C92A12" className="shrink-0" />
           <input value={cityQuery} onChange={(e) => { setCityQuery(e.target.value); setCityError(false); }} placeholder={t("map_search_city_ph")} aria-label={t("map_search_city_ph")} className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-ink-soft" />
-          <button type="submit" disabled={citySearching || !cityQuery.trim()} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#231715] text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40" aria-label={t("map_search_city_btn")} title={t("map_search_city_btn")}>
-            {citySearching ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <AppIcon name="search" size={18} color="#fff" />}
+          <button type="submit" disabled={citySearching || !cityQuery.trim()} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white transition disabled:cursor-not-allowed" style={cityQuery.trim() || citySearching ? { background: ROLE_GRAD_BTN[roleKey(myRole)], boxShadow: `0 6px 14px -6px ${roleColor}` } : { background: "#FBE3DC" }} aria-label={t("map_search_city_btn")} title={t("map_search_city_btn")}>
+            {/* 25/09 (585, lot 2) — plus de rond noir à 40 % (= gris) quand le champ est vide : teinte pâle PLEINE. */}
+            {citySearching ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <AppIcon name="search" size={18} color={cityQuery.trim() ? "#fff" : "#9E1F0B"} />}
           </button>
         </form>
       </div>
@@ -1035,9 +1073,16 @@ export default function MapPage() {
       {/* ── 2 COLONNES sur ordinateur : carte | panneau ── */}
       <div className="mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5">
         {/* ── COLONNE CARTE ── */}
-        <div className="relative h-[62vh] min-h-[480px] lg:h-[calc(100vh-230px)] lg:min-h-[560px]">
+        <div className="relative h-[64vh] min-h-[530px] lg:h-[calc(100vh-230px)] lg:min-h-[560px]">
+          {/* 25/09 (585, lot 2 — bug 15) — bouton « Amis » bien visible : amis,
+              demandes, en direct et PawFamily (page /friends). */}
+          <Link href="/friends" className="absolute left-3 top-3 z-[1000] inline-flex min-h-[44px] items-center gap-2 rounded-full py-1 pl-1.5 pr-4 text-sm font-bold transition-transform hover:scale-[1.03] md:left-3" style={{ ...glassStyle(dark), color: dark ? "#FBEFE6" : "#231715" }}>
+            <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#F48AB4,#E0568B)", border: "1.5px solid #fff" }}><AppIcon name="friends" size={17} color="#fff" /></span>
+            {t("map_friends_btn")}
+          </Link>
+
           {/* Coin haut-droit : « ? » légende et mode nuit, même verre que les rails. */}
-          <div className="absolute right-2.5 top-3 z-[1000] flex flex-col gap-2.5 md:right-3" >
+          <div className="absolute right-3 top-3 z-[1000] flex flex-col gap-2.5">
             <GlassRound dark={dark} onClick={() => setLegendOpen(true)} label={t("legend_btn")}>
               <AppIcon name="question" size={21} color={dark ? "#FBEFE6" : "#3B2A26"} />
             </GlassRound>
@@ -1165,7 +1210,7 @@ export default function MapPage() {
               ombre chaude — jamais de gris), boutons 44 px espacés de 10 px,
               chacun un disque dégradé de sa couleur + reflet + icône blanche ;
               actif = anneau blanc + léger agrandissement. Même ordre que l'app. */}
-          <div className="absolute bottom-3 left-2.5 z-[1000] md:bottom-4 md:left-3">
+          <div className="absolute bottom-3 left-3 z-[1000] md:bottom-4">
             <div className="flex flex-col gap-2.5 rounded-[30px] p-[6px]" style={glassStyle(dark)}>
               {(
                 [
@@ -1222,7 +1267,7 @@ export default function MapPage() {
 
           {/* CAPSULE DROITE (même verre) : zoom, ma position (accent du rôle),
               satellite, membres. Alignée en bas sur le rail gauche. */}
-          <div className="absolute bottom-3 right-2.5 z-[1000] md:bottom-4 md:right-3">
+          <div className="absolute bottom-3 right-3 z-[1000] md:bottom-4">
             <div className="flex flex-col items-center rounded-[30px] p-[6px]" style={glassStyle(dark)}>
               <CapsuleBtn dark={dark} label={t("map_zoom_in")} onClick={() => { try { mapRef.current?.zoomIn(); } catch { /* */ } }}>
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
@@ -1285,6 +1330,7 @@ export default function MapPage() {
             userName={myName}
             userAvatarUrl={myAvatarUrl}
             userIsPremium={premiumDays !== null || isStaffSub || benefits?.premiumActive === true}
+            userBoosted={benefits?.isBoosted === true}
             userPawFollow={benefits?.pawFollowActive === true || benefits?.familyActive === true}
             userFriendsOnly={friendsOnly}
             userAccuracy={userAccuracy}
@@ -1332,7 +1378,7 @@ export default function MapPage() {
           className={`fixed inset-x-0 bottom-0 z-[1500] flex flex-col rounded-t-[28px] bg-white shadow-[0_-10px_40px_-10px_rgba(35,23,21,0.35)] transition-[height] duration-300 ${sheetH} lg:static lg:z-auto lg:h-[calc(100vh-230px)] lg:min-h-[560px] lg:rounded-[28px] lg:bg-[#FAF1EC] lg:shadow-none`}
         >
           {/* Poignée (téléphone seulement). */}
-          <button type="button" onClick={cycleSheet} className="flex h-[58px] w-full shrink-0 flex-col items-center justify-center gap-1 lg:hidden" aria-label={sheet === "full" ? t("map_sheet_less") : t("map_sheet_more")}>
+          <button type="button" onClick={cycleSheet} aria-expanded={sheet !== "peek"} className="flex h-[58px] w-full shrink-0 flex-col items-center justify-center gap-1 lg:hidden" aria-label={sheet === "full" ? t("map_sheet_less") : t("map_sheet_more")}>
             <span className="block h-1.5 w-12 rounded-full" style={{ background: roleColor }} />
             <span className="text-[11px] font-semibold text-[#6E4F48]">
               {sheet === "full" ? t("map_sheet_less") : t("map_sheet_more")}
@@ -1427,39 +1473,52 @@ export default function MapPage() {
               <span className={`relative inline-block h-6 w-11 shrink-0 rounded-full transition ${friendsOnly ? "bg-[#17141F]" : "bg-[#F0E3DF]"}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${friendsOnly ? "left-[22px]" : "left-0.5"}`} /></span>
             </button>
 
-            {/* Abonnements actifs. */}
+            {/* 25/09 (585, lot 2 — bug 15) — MES ABONNEMENTS SUR LA CARTE : une
+                ligne par abonnement (icône, nom, ce que ça active sur la carte),
+                interrupteur à la couleur de l'abonnement s'il est possédé,
+                sinon « Découvrir » vers la boutique. */}
             {(() => {
-              const subs: { label: string; bg: string; fg: string }[] = [];
-              if (benefits?.premiumActive) subs.push({ label: "PawPremium", bg: "#231715", fg: "#FFD34D" });
-              if (benefits?.pawspotActive) subs.push({ label: "PawSpots", bg: "#FFFFFF", fg: "#231715" });
-              if (benefits?.familyActive) subs.push({ label: "PawFamily", bg: "#FFFFFF", fg: "#231715" });
-              if (benefits?.pawFollowActive) subs.push({ label: "PawFollow", bg: "#FFFFFF", fg: "#231715" });
-              if (!subs.length) return null;
+              const premiumOwned = benefits?.premiumActive === true || benefits?.isPremium === true || premiumDays !== null || isStaffSub;
+              const followOwned = premiumOwned || benefits?.pawFollowActive === true || benefits?.familyActive === true;
+              const spotOwned = premiumOwned || benefits?.pawspotActive === true;
+              const rows: { k: string; logo: string; name: string; sub: string; owned: boolean; on: boolean; color: string; toggle: () => void; shop: string }[] = [
+                { k: "follow", logo: "/pawfollow_logo.svg", name: "PawFollow", sub: t("map_sub_follow_sub"), owned: followOwned, on: showFriends, color: "#7C3AED", shop: "/boutique?tab=pawfollow",
+                  toggle: () => { const v = !showFriends; setFriendsLayer(v); saveLayers({ friends: v }); } },
+                { k: "spot", logo: "/pawspot_logo.svg", name: "PawSpot", sub: t("map_sub_spot_sub"), owned: spotOwned, on: showSpots, color: "#E8920A", shop: "/boutique?tab=pawspot",
+                  toggle: () => { const v = !showSpots; setShowSpots(v); saveLayers({ pawspots: v }); } },
+                { k: "premium", logo: "/pawpremium_logo.svg", name: "PawPremium",
+                  sub: isStaffSub ? t("map_premium_active_staff") : premiumDays !== null ? t("map_premium_active_days").replace("{days}", String(premiumDays)) : t("map_sub_premium_sub"),
+                  owned: premiumOwned, on: showFriends && showSpots, color: "#17141F", shop: "/boutique?tab=premium",
+                  toggle: () => { const v = !(showFriends && showSpots); setFriendsLayer(v); setShowSpots(v); saveLayers({ friends: v, pawspots: v, premium: v }); } },
+              ];
               return (
-                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-white px-3 py-2.5">
-                  <span className="text-sm font-semibold text-[#231715]">{t("map_active_subs")}</span>
-                  {subs.map((sb) => <span key={sb.label} className="rounded-full px-3 py-1 text-xs font-semibold" style={{ backgroundColor: sb.bg, color: sb.fg, boxShadow: sb.bg === "#FFFFFF" ? "inset 0 0 0 1px #EADFDC" : undefined }}>{sb.label}</span>)}
-                  <button type="button" onClick={() => router.push("/boutique")} className="ml-auto rounded-full bg-[#FAF1EC] px-3 py-1 text-xs font-semibold text-[#231715] transition hover:bg-[#F0E3DF]">{t("map_manage")}</button>
-                </div>
+                <section className="mt-3 rounded-2xl bg-white p-3" aria-labelledby="map-subs-title">
+                  <h2 id="map-subs-title" className="px-1 font-display text-[15px] font-bold text-[#231715]">{t("map_subs_title")}</h2>
+                  <ul className="mt-2 space-y-1.5">
+                    {rows.map((r) => (
+                      <li key={r.k} className="flex min-h-[56px] items-center gap-3 rounded-xl bg-[#FDF8F7] px-2.5 py-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={r.logo} alt="" width={36} height={36} className="h-9 w-9 shrink-0" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-bold text-[#231715]">{r.name}</span>
+                          <span className="block text-[11px] leading-snug text-[#6E4F48]">{r.sub}</span>
+                        </span>
+                        {r.owned ? (
+                          <button type="button" role="switch" aria-checked={r.on} aria-label={r.name} onClick={r.toggle} className="relative inline-block h-7 w-12 shrink-0 rounded-full transition" style={{ background: r.on ? r.color : "#F0E3DF" }}>
+                            <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${r.on ? "left-6" : "left-1"}`} style={r.k === "premium" && r.on ? { background: "#F4C04A" } : undefined} />
+                          </button>
+                        ) : (
+                          <Link href={r.shop} className="inline-flex min-h-[36px] shrink-0 items-center rounded-full px-3 text-xs font-bold" style={{ color: r.k === "premium" ? "#8A5A00" : r.color, background: r.k === "premium" ? "#FFF3D1" : r.k === "follow" ? "#EDE9FE" : "#FFF1DC" }}>
+                            {t("map_sub_discover")}
+                          </Link>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  {layersLocalOnly && <p className="mt-2 px-1 text-[11px] font-semibold text-[#9A3412]">{t("map_sub_saved_local")}</p>}
+                </section>
               );
             })()}
-
-            {/* PawPremium : achat ou état. */}
-            <div className="mt-3">
-              {premiumDays !== null || isStaffSub ? (
-                <span className="inline-flex items-center gap-2 rounded-full bg-[#231715] px-4 py-2 text-xs font-semibold text-[#FFD34D]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/pawpremium_logo.svg" alt="" width={18} height={18} />
-                  {isStaffSub ? t("map_premium_active_staff") : t("map_premium_active_days").replace("{days}", String(premiumDays))}
-                </span>
-              ) : (
-                <Link href="/boutique" className="inline-flex items-center gap-2 rounded-full bg-[#231715] px-4 py-2 text-xs font-semibold text-[#FFD34D] hover:bg-black">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/pawpremium_logo.svg" alt="" width={18} height={18} />
-                  {t("map_premium_buy_cta")} →
-                </Link>
-              )}
-            </div>
 
             {/* Itinéraire en cours. */}
             {route && (
@@ -1661,9 +1720,14 @@ export default function MapPage() {
             <h3 className="font-display text-lg font-semibold text-[#231715]">{createKind === "spot" ? t("map_tag_spot_cta") : t("map_report_cta")}</h3>
             <p className="mt-1 text-xs text-[#6E4F48]">{t("map_create_center_hint")}</p>
             <label className="mt-3 block text-xs font-semibold text-[#6E4F48]">{t("map_type_label")}</label>
-            <select value={createType} onChange={(e) => setCreateType(e.target.value)} className="mt-1 w-full rounded-xl border border-[#EADFDC] bg-white px-3 py-2 text-sm">
-              {createKind === "spot" ? spotOptions.map((tp) => <option key={tp} value={tp}>{spotTypeLabels[tp]}</option>) : reportOptions.map((tp) => <option key={tp} value={tp}>{reportTypeLabels[tp]}</option>)}
-            </select>
+            <SelectMenu
+              className="mt-1"
+              ariaLabel={t("map_type_label")}
+              value={createType}
+              onChange={setCreateType}
+              tone={roleKey(myRole)}
+              options={createKind === "spot" ? spotOptions.map((tp) => ({ value: tp, label: spotTypeLabels[tp] })) : reportOptions.map((tp) => ({ value: tp, label: reportTypeLabels[tp] || tp }))}
+            />
             {createKind === "spot" && (
               <>
                 <input value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder={t("map_spot_name_ph")} maxLength={80} className="mt-3 w-full rounded-xl border border-[#EADFDC] px-3 py-2 text-sm" />

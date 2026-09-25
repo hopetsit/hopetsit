@@ -1223,6 +1223,8 @@ export async function createBooking(input: {
   description?: string;
   locationType?: "owner_home" | "sitter_home";
   addOns?: string[];
+  /** 25/09 (585) — obligatoire pour house_sitting (sinon 400 serveur). */
+  houseSittingVenue?: "owners_home" | "sitters_home";
 }): Promise<Booking> {
   const queryKey =
     input.providerType === "walker" ? "walkerId" : "sitterId";
@@ -1237,6 +1239,7 @@ export async function createBooking(input: {
     description: input.description || "",
     locationType: input.locationType,
     addOns: input.addOns || [],
+    ...(input.houseSittingVenue ? { houseSittingVenue: input.houseSittingVenue } : {}),
   };
   const raw = await request<{ booking: Booking }>(
     `/bookings?${queryKey}=${encodeURIComponent(input.providerId)}`,
@@ -2525,6 +2528,9 @@ export type MyBenefits = {
   // v23.1.391 — PawPremium (bundle) + staff/abo individuel.
   premiumActive: boolean;
   isPremium: boolean;
+  /** v585 (bug 11) — PawBoost de la PERSONNE (le plus lointain de ses 3 profils). */
+  boostExpiry?: string | null;
+  isBoosted?: boolean;
 };
 
 export async function getMyBenefits(): Promise<MyBenefits | null> {
@@ -2535,8 +2541,13 @@ export async function getMyBenefits(): Promise<MyBenefits | null> {
       pawspotActive?: boolean;
       premiumActive?: boolean;
       isPremium?: boolean;
+      boostExpiry?: string | null;
+      isBoosted?: boolean;
     }>(`/users/me/benefits`);
+    const boostMs = raw?.boostExpiry ? new Date(raw.boostExpiry).getTime() : 0;
     return {
+      boostExpiry: raw?.boostExpiry || null,
+      isBoosted: raw?.isBoosted === true || (Number.isFinite(boostMs) && boostMs > Date.now()),
       premiumActive: !!raw?.premiumActive,
       isPremium: !!raw?.isPremium,
       pawFollowActive: !!raw?.pawFollowActive,
@@ -2974,4 +2985,26 @@ export async function sendFeedback(opts: {
       platform: "web",
     }),
   });
+}
+
+// 25/09/2026 (PawMap 585, lot 2 — bug 15) — préférences de la PawMap sur le
+// COMPTE (GET/PATCH /users/me/map-prefs, backend mapPrefsController, suivies
+// sur les 3 profils et l'app). Calques connus : friends, pawspots, premium…
+export type MapLayerPrefs = Partial<Record<"places" | "reports" | "members" | "pawspots" | "live" | "requests" | "friends" | "premium", boolean>>;
+export async function getMapLayerPrefs(): Promise<MapLayerPrefs | null> {
+  try {
+    const raw = await request<{ pawMap?: { layers?: MapLayerPrefs } }>(`/users/me/map-prefs`);
+    return raw?.pawMap?.layers || {};
+  } catch {
+    return null;
+  }
+}
+/** Enregistre des calques sur le compte ; false = échec (repli sur l'appareil). */
+export async function saveMapLayerPrefs(layers: MapLayerPrefs): Promise<boolean> {
+  try {
+    await request(`/users/me/map-prefs`, { method: "PATCH", body: JSON.stringify({ pawMap: { layers } }) });
+    return true;
+  } catch {
+    return false;
+  }
 }
