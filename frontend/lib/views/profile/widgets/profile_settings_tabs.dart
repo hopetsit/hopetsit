@@ -179,7 +179,8 @@ class ProfilePreferencesTab extends StatelessWidget {
           onTap: current == value
               ? null
               : () {
-                  PawWallpaperPrefs.setMode(value);
+                  // v587 — choix protégé des relectures périmées du compte.
+                  PawWallpaperPrefs.choose(value);
                   onSave(prefs.copyWith(wallpaper: value));
                 },
         );

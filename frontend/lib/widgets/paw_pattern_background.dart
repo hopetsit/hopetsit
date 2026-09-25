@@ -86,10 +86,50 @@ class PawWallpaperPrefs {
   /// v586 — le compte fait foi : à chaque lecture du profil (connexion, autre
   /// téléphone, changement de rôle), la copie locale suit la valeur du compte
   /// quand il l'a renvoyée.
-  static void syncFromAccount(String? mode) {
+  static void syncFromAccount(String? mode, {DateTime? now}) {
     if (mode == null) return;
     if (mode != 'auto' && mode != 'paws' && mode != 'none') return;
+    // v587 (25/09) — Daniel : « les 3 choix sautent d'un à l'autre ». Après
+    // chaque appui, l'app enregistre puis RELIT le profil ; avec 2-3 appuis
+    // rapides, la relecture du 1er enregistrement revenait avec l'ANCIEN
+    // choix et le remettait à l'écran, puis la suivante le corrigeait
+    // (auto → pattes → auto → aucun…). Un choix fait ici ne recule plus :
+    // tant que le compte n'a pas renvoyé la valeur choisie (ou 30 s au
+    // plus), une valeur différente venue du compte est une réponse PÉRIMÉE.
+    final pending = _pendingChoice;
+    if (pending != null) {
+      if (mode == pending) {
+        _pendingChoice = null; // le compte a rattrapé le choix
+        _pendingAt = null;
+        return;
+      }
+      final at = _pendingAt;
+      final t = now ?? DateTime.now();
+      if (at != null && t.difference(at) < pendingWindow) return;
+      _pendingChoice = null;
+      _pendingAt = null;
+    }
     if (_safeMode() != mode) setMode(mode);
+  }
+
+  /// v587 — dernier choix fait sur CE téléphone, pas encore relu du compte.
+  static String? _pendingChoice;
+  static DateTime? _pendingAt;
+  static const Duration pendingWindow = Duration(seconds: 30);
+
+  /// v587 — appui de l'utilisateur : affiché tout de suite, et protégé des
+  /// relectures du compte plus anciennes (voir [syncFromAccount]).
+  static void choose(String mode, {DateTime? now}) {
+    final m = (mode == 'paws' || mode == 'none') ? mode : 'auto';
+    _pendingChoice = m;
+    _pendingAt = now ?? DateTime.now();
+    setMode(m);
+  }
+
+  /// Tests seulement.
+  static void debugResetPending() {
+    _pendingChoice = null;
+    _pendingAt = null;
   }
 
   static List<String> species() {
