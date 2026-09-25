@@ -197,9 +197,10 @@ class AppDialogPrimaryButton extends StatelessWidget {
       bgColor: bg,
       textColor: Colors.white,
       onTap: busy ? null : onTap,
-      child: busy
-          ? const AppSpinner(size: 20, color: Colors.white, strokeWidth: 2.2)
-          : null,
+      // v584 (25/09, point 6) — « deux roues qui tournent » : le kit dessine
+      // déjà la roue de chargement dans son disque ; on ne lui en superpose
+      // plus une seconde.
+      isLoading: busy,
     );
   }
 }

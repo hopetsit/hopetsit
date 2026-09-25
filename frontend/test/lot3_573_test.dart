@@ -222,7 +222,8 @@ void main() {
       await tester.pump();
       // Pendant l'attente : message « busy », spinner, dialogue encore ouvert.
       expect(find.text('Changement de profil en cours…'), findsOneWidget);
-      expect(find.byType(AppSpinner), findsOneWidget);
+      // v584 (25/09, point 6) — UNE seule roue : celle du kit, dans le bouton.
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
       expect(find.byType(AppDialogCard), findsOneWidget);
 
       gate.complete();

@@ -26,6 +26,11 @@ class CustomButton extends StatelessWidget {
   final double? height;
   final VoidCallback? onTap;
 
+  /// v584 (25/09, point 6) — chargement : UN seul petit rond dans le disque
+  /// du bouton (le libellé reste). Avant, les dialogues posaient leur propre
+  /// roue en `child` pendant que le kit en dessinait une autre → deux roues.
+  final bool isLoading;
+
   const CustomButton({
     super.key,
     this.child,
@@ -40,6 +45,7 @@ class CustomButton extends StatelessWidget {
     this.width,
     this.height,
     this.onTap,
+    this.isLoading = false,
   });
 
   @override
@@ -60,7 +66,8 @@ class CustomButton extends StatelessWidget {
       onTap: onTap,
       color: outlined ? (borderColor ?? base) : base,
       kind: outlined ? PawButtonKind.secondary : PawButtonKind.primary,
-      enabled: enabled,
+      enabled: enabled || isLoading,
+      loading: isLoading,
       expand: width == null || width == double.infinity,
       height: height ?? 52.h,
       textColor: outlined ? null : textColor,
