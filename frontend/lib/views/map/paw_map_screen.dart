@@ -273,7 +273,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   // pour ne pas confondre un recentrage auto avec un drag manuel de l'user.
   String? _followUserId;
   String _followName = '';
-  bool _suppressFollowAutoStop = false;
   Worker? _followWorker;
   Worker? _followEndWorker;
   // v23.1.294 — worker de suivi de MA position quand « Me suivre » est actif.
@@ -2459,10 +2458,21 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v23.1 part 237 — broadcast suit _userPosition (GPS reel) au lieu de
     // _currentCenter (qui derive avec le pan). Les amis recoivent ainsi
     // VRAIMENT la position GPS de Daniel, pas son map center.
+    // v587 (25/09) — Daniel : « mon frère est affiché dans l'eau ». Sans
+    // fix GPS, le partage envoyait `_currentCenter` = le CENTRE DE LA CARTE
+    // (qui suit le doigt : glisser la carte vers la mer y « déplaçait » le
+    // direct). On n'envoie plus QUE de vraies positions GPS ; (0,0) = rien
+    // (ignoré par le service), le flux GPS prend le relais dès son 1er fix.
     _liveMap.startBroadcasting(
-      () => _userPosition ?? _currentCenter,
+      () => _userPosition ?? const LatLng(0, 0),
       duration: chosen,
     );
+    if (_userPosition == null) {
+      CustomSnackbar.showWarning(
+        title: 'pawmap_snack_no_loc_title'.tr,
+        message: 'pawmap_snack_no_loc_msg'.tr,
+      );
+    }
     CustomSnackbar.showSuccess(
       title: 'pawmap_snack_tracking_on_title'.tr,
       message: 'pawmap_snack_tracking_on_msg'.tr,
@@ -3466,9 +3476,15 @@ class _PawMapScreenState extends State<PawMapScreen>
     // autres membres de leur pastille de rôle. Couper les lieux ne touche
     // plus jamais aux personnes.
     if (_showProviders.value || _showFriends.value) {
-      final friendLiveIds = _liveMap.friendPositions.keys
-          .map((k) => k.trim().toLowerCase())
+      // v587 — seuls les amis qui PARTAGENT en ce moment (direct ou signal
+      // perdu < 10 min) ont un rond « direct » ; c'est lui qui prime.
+      final friendLiveIds = _liveMap.friendPositions.values
+          .where((p) => p.liveState != FriendLiveState.seen)
+          .map((p) => p.userId.trim().toLowerCase())
           .toSet();
+      bool isFriendMember(Map<String, dynamic> p) =>
+          p['isFriend'] == true ||
+          _friendController.isFriendWithAny(pawMapPersonIds(p));
       // v584 (25/09, point 1) — la couche « proches » (position exacte des
       // membres abonnés, amis en exact) n'était affichée QU'AUX abonnés : un
       // ami pouvait manquer pour un viewer sans abonnement. Le serveur décide
@@ -3486,6 +3502,12 @@ class _PawMapScreenState extends State<PawMapScreen>
       for (final p in _worldMembers) {
         final id = (p['id'] ?? '').toString();
         if (id.isEmpty || pawMapPersonIds(p).any(nearbyIds.contains)) continue;
+        // v587 (point 2) — un AMI n'est jamais écarté par le plafond
+        // d'affichage (les plus proches d'abord) : visible à tous les zooms.
+        if (isFriendMember(p)) {
+          combined.add(p);
+          continue;
+        }
         worldPool.add(p);
       }
       final int worldCap =
@@ -3578,10 +3600,18 @@ class _PawMapScreenState extends State<PawMapScreen>
       }
       _aroundMembers = aroundList;
 
-      final groups = _clusterize<Map<String, dynamic>>(
+      // v587 (point 2) — Daniel : « mes amis sont difficiles à trouver, il
+      // faut surzoomer ». Un ami était absorbé dans un groupe « 12 » avec des
+      // inconnus. Les amis ne sont plus JAMAIS regroupés : chacun garde son
+      // rond photo + anneau rose, à tous les zooms, au-dessus des autres.
+      final groups = pawGroupKeepingFriends<Map<String, dynamic>>(
         placeable,
-        (p) => posOfMember(p)!,
-        cellPx: _memberClusterCellPx,
+        isFriendMember,
+        (others) => _clusterize<Map<String, dynamic>>(
+          others,
+          (p) => posOfMember(p)!,
+          cellPx: _memberClusterCellPx,
+        ),
       );
       final showPrice = _zoomLevel >= _priceZoom;
       for (final group in groups) {
@@ -3614,7 +3644,15 @@ class _PawMapScreenState extends State<PawMapScreen>
         final id = (p['id'] ?? p['_id'] ?? '').toString();
         if (id.isEmpty) continue;
         // Un membre qui est aussi un ami EN DIRECT garde son marqueur live.
-        if (friendLiveIds.contains(id.trim().toLowerCase())) continue;
+        // v587 — comparé sur TOUS les ids de la personne : le direct est
+        // rangé sous l'id de l'amitié (souvent un AUTRE de ses rôles), et le
+        // rond de profil (position floutée ~1 km) restait affiché à côté du
+        // rond direct — deux ronds pour la même personne, dont un « dans
+        // l'eau ». Le direct prime et remplace l'autre.
+        if (pawMapPersonIds(p)
+            .any((x) => friendLiveIds.contains(x.trim().toLowerCase()))) {
+          continue;
+        }
         final role = (p['_role'] ?? '').toString().toLowerCase();
         final name = (p['name'] ?? '').toString();
         final bool premium = p['isPremium'] == true;
@@ -3942,7 +3980,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             ),
             anchor: _photoAnchor(PawMapLegend.friendSize,
                 withLabel: _zoomLevel >= _priceZoom),
-            zIndexInt: 8,
+            zIndexInt: 9, // v587 — le direct au-dessus de tout (sauf Moi)
             // v584 (25/09, point 14) — taper un ami ouvre SA FICHE, avec
             // « Suivre la balade · en direct » en bouton principal (plus de
             // suivi lancé à l'insu de l'utilisateur).
@@ -4391,7 +4429,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               // v584 — la feuille glissante recouvre les rails dès qu'elle
               // dépasse sa position basse : ils s'effacent (elle porte les
               // mêmes actions), et reviennent quand elle redescend.
-              final sheetUp = !picking && _sheetExtent.value > 0.03;
+              final sheetUp = !picking && _sheetUp.value;
               if (sheetUp) return const SizedBox.shrink();
               return Positioned(
                 left: 12.w,
@@ -4401,10 +4439,30 @@ class _PawMapScreenState extends State<PawMapScreen>
                   // v561 — Daniel : colonne de gauche alignée sur le BAS de la
                   // capsule de droite (jamais centrée).
                   crossAxisAlignment: CrossAxisAlignment.end,
+                  // v587 (point 3) — chaque barre se range hors écran d'un
+                  // appui sur sa flèche (languette au bord), état retenu sur
+                  // le compte (`pawMap.railCollapsed` / `capsuleCollapsed`).
                   children: [
-                    if (!picking) _railScroller(_buildMapActionsColumn()),
+                    if (!picking)
+                      PawCollapsibleBar(
+                        left: true,
+                        collapsed: _prefs.railCollapsed,
+                        tint: PawMapLegend.roleColor(_role.isEmpty ? 'owner' : _role),
+                        edgeGap: 12.w,
+                        onToggle: () => _prefs.update(
+                            {'railCollapsed': !_prefs.railCollapsed}),
+                        child: _railScroller(_buildMapActionsColumn()),
+                      ),
                     const Spacer(),
-                    _buildMapControlsStack(),
+                    PawCollapsibleBar(
+                      left: false,
+                      collapsed: _prefs.capsuleCollapsed,
+                      tint: PawMapLegend.roleColor(_role.isEmpty ? 'owner' : _role),
+                      edgeGap: 12.w,
+                      onToggle: () => _prefs.update(
+                          {'capsuleCollapsed': !_prefs.capsuleCollapsed}),
+                      child: _buildMapControlsStack(),
+                    ),
                   ],
                 )),
               );
@@ -4416,7 +4474,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               final picking = _pickingSpotPos.value ||
                   _pickingReportPos.value ||
                   _pickingRoutePos.value;
-              final sheetUp = _sheetExtent.value > 0.03;
+              final sheetUp = _sheetUp.value;
               if (picking || sheetUp) return const SizedBox.shrink();
               return Positioned(
                 left: 0,
@@ -4467,7 +4525,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               // recouvrait le bandeau d'itinéraire (« 9,5 km · Étapes »
               // posé sur « Calques ») → cette zone s'efface avec les rails
               // dès que la feuille dépasse sa position basse.
-              final sheetUp = _sheetExtent.value > 0.03;
+              final sheetUp = _sheetUp.value;
               if (sheetUp) return const SizedBox.shrink();
               if (_followUserId != null) {
                 return Positioned(
@@ -4559,7 +4617,32 @@ class _PawMapScreenState extends State<PawMapScreen>
                       Column(
                         key: _topAreaKey,
                         mainAxisSize: MainAxisSize.min,
-                        children: [_fading(_buildFloatingHeader())],
+                        children: [
+                          _fading(_buildFloatingHeader()),
+                          // v587 (point 1a) — gardien / promeneur : la pilule
+                          // « ● Direct » sous le logo PawMap (sortie de la
+                          // capsule de droite).
+                          if (_isSitterOrWalker)
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Padding(
+                                padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 0),
+                                child: _fading(Obx(() {
+                                  final live = _liveMap.broadcasting.value;
+                                  return PawMapDirectPill(
+                                    live: live,
+                                    startedAt: _liveMap.sessionStartedAt.value,
+                                    noGps: live &&
+                                        _liveMap.liveStatus.value ==
+                                            LiveShareStatus.lost &&
+                                        _liveMap.myLivePosition.value == null,
+                                    onTap: () => unawaited(_toggleDirect()),
+                                    onLongPress: () => _showCapsuleHelp('direct'),
+                                  );
+                                })),
+                              ),
+                            ),
+                        ],
                       ),
                       // v586 — pastille 2 s après un appui sur l'œil.
                       Obx(() {
@@ -4625,11 +4708,23 @@ class _PawMapScreenState extends State<PawMapScreen>
       !_pickingRoutePos.value &&
       _followUserId == null;
 
-  void _onMapPointerDown(PointerDownEvent e) =>
-      _fade.down(e.position, allowed: _fadeAllowed);
-  void _onMapPointerMove(PointerMoveEvent e) =>
-      _fade.move(e.position, allowed: _fadeAllowed);
-  void _onMapPointerEnd(PointerEvent e) => _fade.end();
+  /// v587 — vrai geste sur la carte (glisser > 12 px, pincer).
+  final PawMapDragWatch _dragWatch = PawMapDragWatch();
+
+  void _onMapPointerDown(PointerDownEvent e) {
+    if (_dragWatch.down(e.position)) _pauseFollow();
+    _fade.down(e.position, allowed: _fadeAllowed);
+  }
+
+  void _onMapPointerMove(PointerMoveEvent e) {
+    if (_dragWatch.move(e.position)) _pauseFollow();
+    _fade.move(e.position, allowed: _fadeAllowed);
+  }
+
+  void _onMapPointerEnd(PointerEvent e) {
+    _dragWatch.end();
+    _fade.end();
+  }
   void _restoreChrome() => _fade.restore();
 
   /// Enveloppe d'une commande posée sur la carte : 35 % pendant un geste
@@ -4841,12 +4936,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         // v23.1.263 — un geste MANUEL coupe le suivi (sauf si c'est nous qui
         // recentrons : `_suppressFollowAutoStop`). Valait seulement sur la
         // petite carte avant la fusion ; vaut partout désormais.
-        onCameraMoveStarted: () {
-          // v584 — un geste met le suivi en PAUSE (bouton « Reprendre »).
-          if (_followUserId != null && !_suppressFollowAutoStop) {
-            _pauseFollow();
-          }
-        },
+        // v587 — plus rien ici : un recentrage de Google Maps (appui sur le
+        // rond de l'ami, marge qui change) n'est pas un geste et mettait le
+        // suivi « en pause » tout seul. La pause vient du VRAI geste (glisser
+        // > 12 px ou pincer), lu par `_onMapPointer*` (PawMapDragWatch).
         onCameraIdle: _scheduleReload,
         myLocationEnabled: true,
         // v23.1 part 68 — nos propres commandes (capsule droite).
@@ -4936,17 +5029,18 @@ class _PawMapScreenState extends State<PawMapScreen>
       ],
       // v586 — l'action du rôle, sous un trait : Publier (propriétaire) ou
       // Direct (gardien / promeneur, noir = arrêté, vert = en direct).
-      footer: Obx(() {
-        final live = _liveMap.broadcasting.value;
-        final publish = !_isSitterOrWalker;
-        return PawCapsuleRoleAction(
-          kind: publish ? PawRoleActionKind.publish : PawRoleActionKind.direct,
-          live: live,
-          showLabel: pawMap586ShowLabels(_launches),
-          onTap: publish ? _onPublishAction : () => unawaited(_toggleDirect()),
-          onLongPress: () => _showCapsuleHelp(publish ? 'publish' : 'direct'),
-        );
-      }),
+      // v587 (point 1a) — le Direct du gardien / promeneur est monté en haut
+      // à gauche (pilule sous le logo) : la capsule ne garde que « Publier »
+      // pour le propriétaire.
+      footer: _isSitterOrWalker
+          ? null
+          : PawCapsuleRoleAction(
+              kind: PawRoleActionKind.publish,
+              live: false,
+              showLabel: pawMap586ShowLabels(_launches),
+              onTap: _onPublishAction,
+              onLongPress: () => _showCapsuleHelp('publish'),
+            ),
     );
   }
 
@@ -5066,13 +5160,12 @@ class _PawMapScreenState extends State<PawMapScreen>
 
 
   // ─── Suivi live d'un ami (v23.1.263) ────────────────────────────────────
-  /// Recentre la caméra sur [target]. Marque le mouvement comme "programmatique"
-  /// pendant ~800 ms pour que onCameraMoveStarted ne coupe pas le suivi.
+  /// Recentre la caméra sur [target] (v587 : un mouvement programmé ne met
+  /// jamais le suivi en pause, seul un vrai geste le fait).
   Future<void> _animateFollowCamera(LatLng target, {double? zoom}) async {
     // v584 — une seule carte : on anime LE contrôleur.
     final ctl = await _activeMapCtl();
     if (ctl == null) return;
-    _suppressFollowAutoStop = true;
     try {
       if (zoom != null) {
         await ctl.animateCamera(CameraUpdate.newLatLngZoom(target, zoom));
@@ -5081,9 +5174,6 @@ class _PawMapScreenState extends State<PawMapScreen>
         await ctl.animateCamera(CameraUpdate.newLatLng(target));
       }
     } catch (_) {/* map pas prête */}
-    Future.delayed(const Duration(milliseconds: 800), () {
-      _suppressFollowAutoStop = false;
-    });
   }
 
   /// Démarre le suivi d'un ami — zoom de suivi « joli » (Daniel, 23/09) : la
@@ -5268,24 +5358,14 @@ class _PawMapScreenState extends State<PawMapScreen>
   Future<void> _zoomIn() async {
     final ctl = await _activeMapCtl();
     if (ctl == null) return;
-    // Zoomer ne doit pas couper le suivi en cours.
-    if (_followUserId != null) _suppressFollowAutoStop = true;
+    // Zoomer ne coupe pas le suivi (seul un vrai geste le met en pause).
     await ctl.animateCamera(CameraUpdate.zoomBy(0.8));
-    if (_followUserId != null) {
-      Future.delayed(const Duration(milliseconds: 800),
-          () => _suppressFollowAutoStop = false);
-    }
   }
 
   Future<void> _zoomOut() async {
     final ctl = await _activeMapCtl();
     if (ctl == null) return;
-    if (_followUserId != null) _suppressFollowAutoStop = true;
     await ctl.animateCamera(CameraUpdate.zoomBy(-0.8));
-    if (_followUserId != null) {
-      Future.delayed(const Duration(milliseconds: 800),
-          () => _suppressFollowAutoStop = false);
-    }
   }
 
   /// Recenters the GoogleMap camera on the user's current GPS location.
@@ -6275,18 +6355,25 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   /// Menu de personnalisation : ordre et choix, enregistrés sur le compte.
-  void _openRailCustomize() {
-    showPawMapSheet<void>(
+  /// v587 (point 5) — Daniel : « réordonner les boutons de gauche, sur
+  /// certains Android c'est mou ». Chaque dépôt redessinait TOUT l'écran de
+  /// la carte (setState + marqueurs) et réveillait tous ses observateurs
+  /// (écriture des préférences) pendant que la liste bougeait encore. La
+  /// liste vit désormais seule ; le rail et le compte sont mis à jour UNE
+  /// fois, à la fermeture du menu.
+  Future<void> _openRailCustomize() async {
+    List<String>? chosen;
+    await showPawMapSheet<void>(
       context,
       PawRailCustomizeSheet(
         order: _railOrder,
-        onChanged: (order) {
-          if (!mounted) return;
-          setState(() => _railOrder = order);
-          _prefs.update({'rail': order});
-        },
+        onChanged: (order) => chosen = order,
       ),
     );
+    final order = chosen;
+    if (order == null || !mounted) return;
+    setState(() => _railOrder = order);
+    _prefs.update({'rail': order});
   }
 
   // ─── v584 — FEUILLE GLISSANTE (3 positions) + bouton principal ───────────
@@ -6297,6 +6384,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Position courante de la feuille (fraction de la hauteur disponible) —
   /// les rails se retirent quand la feuille dépasse sa position basse.
   final RxDouble _sheetExtent = 0.0.obs;
+  /// v587 — feuille ouverte au-delà de sa position rangée (seuil seulement).
+  final RxBool _sheetUp = false.obs;
 
   /// v585 (Daniel, build 584 : puce « Amis seulement » coupée en bas de la
   /// feuille sur son Samsung) — la position basse montre TOUT l'en-tête
@@ -6414,6 +6503,12 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (!_sheetCtl.isAttached) return;
     final size = _sheetCtl.size;
     _sheetExtent.value = size;
+    // v587 (point 5) — les barres et la poignée n'écoutent plus que le
+    // FRANCHISSEMENT du seuil (rangée / ouverte), pas chaque pixel du
+    // glissement : avant, la rangée des rails se reconstruisait à chaque
+    // image pendant que la feuille glissait (mou sur Android d'entrée de gamme).
+    final up = size > 0.03;
+    if (_sheetUp.value != up) _sheetUp.value = up;
     final h = _sheetAvailableHeight(context);
     final low = (_sheetLowPx / h).clamp(0.0, 0.6).toDouble();
     final isLow = size <= low + 0.03;

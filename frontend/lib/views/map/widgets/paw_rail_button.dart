@@ -199,6 +199,62 @@ class _PawRailButtonState extends State<PawRailButton> {
 }
 
 /// Capsule blanche translucide (blur) du rail droit.
+/// v587 (point 7) — Daniel : « la barre de droite de l'app n'est pas aussi
+/// belle que celle du site ». La MATIÈRE du site (`glassStyle` de /map) :
+/// verre chaud en dégradé (crème → pêche), liseré blanc net, reflet blanc en
+/// haut, ombre TEINTÉE ambre (et non plus brun neutre). Partagée par la
+/// capsule droite ET le rail gauche : mêmes coins, même matière.
+BoxDecoration pawSiteGlass(BuildContext context, {double radius = 28}) {
+  final bool dark = PawMapTheme.isDark(context);
+  return BoxDecoration(
+    gradient: LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: dark
+          ? [
+              const Color(0xFF2D1F1B).withValues(alpha: 0.90),
+              const Color(0xFF17141F).withValues(alpha: 0.86),
+            ]
+          : [
+              const Color(0xFFFFFBF7).withValues(alpha: 0.93),
+              const Color(0xFFFFF2E8).withValues(alpha: 0.88),
+            ],
+    ),
+    borderRadius: BorderRadius.circular(radius.r),
+    border: Border.all(
+      color: dark
+          ? const Color(0xFFFFE4D6).withValues(alpha: 0.22)
+          : Colors.white.withValues(alpha: 0.95),
+      width: 1,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: dark
+            ? const Color(0xFF0C0604).withValues(alpha: 0.55)
+            : const Color(0xFF92400E).withValues(alpha: 0.30),
+        blurRadius: 24,
+        spreadRadius: -6,
+        offset: const Offset(0, 12),
+      ),
+    ],
+  );
+}
+
+/// Séparateur du site : trait court (24 px) à la teinte chaude pleine.
+class PawSiteSeparator extends StatelessWidget {
+  const PawSiteSeparator({super.key});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 24.w,
+        height: 1,
+        margin: EdgeInsets.symmetric(vertical: 3.h),
+        color: PawMapTheme.isDark(context)
+            ? const Color(0xFF4A3530)
+            : const Color(0xFFEBD7CC),
+      );
+}
+
 class PawGlassCapsule extends StatelessWidget {
   const PawGlassCapsule({
     super.key,
@@ -226,38 +282,15 @@ class PawGlassCapsule extends StatelessWidget {
     // les panneaux et les pilules du haut, clair comme sombre.
     final items = <Widget>[];
     for (var i = 0; i < children.length; i++) {
-      if (i > 0) {
-        items.add(Container(
-          height: 1,
-          margin: EdgeInsets.symmetric(horizontal: 11.w),
-          color: PawMapTheme.borderOn(context).withValues(alpha: 0.45),
-        ));
-      }
+      if (i > 0) items.add(const PawSiteSeparator());
       items.add(children[i]);
     }
     // v585 (bug 8) — même verre TEINTÉ que le rail gauche (PawRailGlass) :
     // blanc chaud translucide, liseré blanc fin, ombre à l'encre chaude hors
     // de la découpe (elle était rognée), coins 28.
-    final bool dark = PawMapTheme.isDark(context);
     return Container(
       width: width.w,
-      decoration: BoxDecoration(
-        color: dark
-            ? const Color(0xFF2D1F1B).withValues(alpha: 0.86)
-            : const Color(0xFFFFFBF7).withValues(alpha: 0.86),
-        borderRadius: BorderRadius.circular(28.r),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: dark ? 0.14 : 0.85),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF2B1D19).withValues(alpha: dark ? 0.35 : 0.14),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+      decoration: pawSiteGlass(context),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -265,7 +298,7 @@ class PawGlassCapsule extends StatelessWidget {
             borderRadius: BorderRadius.circular(28.r),
             child: RepaintBoundary(
               child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 4.h),
+                padding: EdgeInsets.symmetric(vertical: 5.h),
                 child: Column(mainAxisSize: MainAxisSize.min, children: items),
               ),
             ),
@@ -305,9 +338,10 @@ class PawCapsuleButton extends StatelessWidget {
     this.size = 42,
   });
 
-  static const Color ink = Color(0xFF251A17);
-  // v585 (bug 8) — plus de gris : encre chaude adoucie pour le secondaire.
-  static const Color grey = Color(0xFF6B3F33);
+  // v587 (point 7) — l'encre chaude du site (#3B2A26), la même pour tous
+  // les boutons (le site n'a pas de « secondaire » plus pâle).
+  static const Color ink = Color(0xFF3B2A26);
+  static const Color grey = Color(0xFF3B2A26);
 
   final IconData icon;
   final String label;
@@ -321,8 +355,8 @@ class PawCapsuleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isDark = PawMapTheme.isDark(context);
     // v571 — sur capsule anthracite, l'encre #1D1D1F disparaît.
-    final Color baseInk = isDark ? const Color(0xFFF5F0EF) : ink;
-    final Color baseGrey = isDark ? const Color(0xFFE9C9BD) : grey;
+    final Color baseInk = isDark ? const Color(0xFFFBEFE6) : ink;
+    final Color baseGrey = isDark ? const Color(0xFFFBEFE6) : grey;
     final Color t = tint ?? baseInk;
     // v573 — l'état actif prend la couleur de marque, éclaircie en sombre
     // (AppColors.accentOn) pour rester lisible sur l'anthracite.
@@ -361,15 +395,17 @@ class PawCapsuleButton extends StatelessWidget {
                   width: (size - 10).w,
                   height: (size - 10).w,
                   decoration: BoxDecoration(
+                    // v587 — état actif du site : teinte PLEINE et claire du
+                    // rôle, anneau blanc intérieur.
                     color: active
-                        ? toneOn.withValues(alpha: isDark ? 0.22 : 0.12)
+                        ? (isDark
+                            ? toneOn.withValues(alpha: 0.24)
+                            : Color.alphaBlend(
+                                toneOn.withValues(alpha: 0.16), Colors.white))
                         : Colors.transparent,
                     shape: BoxShape.circle,
                     border: active
-                        ? Border.all(
-                            color: toneOn.withValues(alpha: 0.45),
-                            width: 1,
-                          )
+                        ? Border.all(color: Colors.white, width: 1.5)
                         : null,
                   ),
                   // Toutes les icônes de la capsule au même poids optique.

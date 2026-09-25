@@ -249,6 +249,9 @@ class MapPrefsService extends GetxService {
       prefs['availableTodayOnly'] is bool ? prefs['availableTodayOnly'] as bool : null;
   bool? get panelCollapsed =>
       prefs['panelCollapsed'] is bool ? prefs['panelCollapsed'] as bool : null;
+  /// v587 (point 3) — rail gauche / capsule droite rangés hors écran.
+  bool get railCollapsed => prefs['railCollapsed'] == true;
+  bool get capsuleCollapsed => prefs['capsuleCollapsed'] == true;
   String? get lookingFor => prefs['lookingFor'] is String ? prefs['lookingFor'] as String : null;
   String? get routeMode => prefs['routeMode'] is String ? prefs['routeMode'] as String : null;
   double? get aroundRadiusKm => (prefs['aroundRadiusKm'] as num?)?.toDouble();

@@ -16,6 +16,7 @@
 // exactement ce qu'il faisait avant (mêmes fonctions, mêmes couleurs).
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
@@ -336,27 +337,11 @@ class PawRailGlass extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool dark = PawMapTheme.isDark(context);
+    // v587 (point 7) — même matière que la capsule droite (celle du site).
     return Container(
       padding: padding ??
           EdgeInsets.fromLTRB(5.w, 0, 5.w, 6.h),
-      decoration: BoxDecoration(
-        color: dark
-            ? const Color(0xFF2D1F1B).withValues(alpha: 0.78)
-            : const Color(0xFFFFFBF7).withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(28.r),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: dark ? 0.14 : 0.85),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF2B1D19).withValues(alpha: dark ? 0.35 : 0.14),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+      decoration: pawSiteGlass(context),
       child: child,
     );
   }
@@ -511,6 +496,35 @@ class _PawRailCustomizeSheetState extends State<PawRailCustomizeSheet> {
             buildDefaultDragHandles: false,
             padding: EdgeInsets.fromLTRB(10.w, 6.h, 10.w, 6.h),
             itemCount: all.length,
+            // v587 (point 5) — prise et lâcher sentis au doigt ; la ligne
+            // soulevée est un simple agrandissement ombré (pas l'élévation
+            // Material animée par défaut, coûteuse sur Android d'entrée de
+            // gamme).
+            onReorderStart: (_) => HapticFeedback.mediumImpact(),
+            onReorderEnd: (_) => HapticFeedback.lightImpact(),
+            proxyDecorator: (child, index, animation) => AnimatedBuilder(
+              animation: animation,
+              child: child,
+              builder: (ctx, c) {
+                final t = Curves.easeOut.transform(animation.value);
+                return Transform.scale(
+                  scale: 1 + 0.03 * t,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16.r),
+                      boxShadow: [
+                        BoxShadow(
+                          color: PawMapTheme.accent.withValues(alpha: 0.22 * t),
+                          blurRadius: 14 * t,
+                          offset: Offset(0, 4 * t),
+                        ),
+                      ],
+                    ),
+                    child: Material(type: MaterialType.transparency, child: c),
+                  ),
+                );
+              },
+            ),
             onReorder: (oldIndex, newIndex) {
               // Seuls les boutons AFFICHÉS se réordonnent entre eux.
               if (oldIndex >= _shown.length) return;
@@ -526,8 +540,11 @@ class _PawRailCustomizeSheetState extends State<PawRailCustomizeSheet> {
               final id = all[i];
               final spec = pawRailSpecOf(id)!;
               final shown = i < _shown.length;
-              return Container(
+              // v587 — chaque ligne isolée : le glisser ne redessine que la
+              // ligne déplacée, jamais toute la liste.
+              return RepaintBoundary(
                 key: ValueKey<String>('rail_row_$id'),
+                child: Container(
                 margin: EdgeInsets.only(bottom: 6.h),
                 padding: EdgeInsets.fromLTRB(8.w, 8.h, 6.w, 8.h),
                 decoration: BoxDecoration(
@@ -604,7 +621,7 @@ class _PawRailCustomizeSheetState extends State<PawRailCustomizeSheet> {
                     ),
                   ],
                 ),
-              );
+              ));
             },
           ),
         ),

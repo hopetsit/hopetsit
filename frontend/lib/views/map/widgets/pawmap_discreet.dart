@@ -173,6 +173,45 @@ class PawChromeFade {
   void dispose() => _timer?.cancel();
 }
 
+/// v587 (25/09) — « le direct ne marche pas, je vois suspendu » : le suivi
+/// d'un ami se mettait EN PAUSE sur `onCameraMoveStarted`, que Google Maps
+/// déclenche aussi pour des mouvements qui ne sont PAS un geste (appui sur un
+/// rond : la carte se recentre dessus ; changement de marge ; animation plus
+/// longue que la fenêtre de 800 ms). Seul un VRAI geste compte désormais :
+/// un doigt qui glisse de plus de 12 px, ou deux doigts (pincer).
+class PawMapDragWatch {
+  int _pointers = 0;
+  Offset? _downAt;
+  bool _fired = false;
+
+  /// Vrai quand ce doigt fait du geste un vrai geste (2e doigt posé).
+  bool down(Offset at) {
+    _pointers++;
+    _downAt ??= at;
+    return _fire(_pointers > 1);
+  }
+
+  /// Vrai la 1re fois que le glissement dépasse 12 px.
+  bool move(Offset at) {
+    final start = _downAt;
+    return _fire(start != null && (at - start).distance > 12);
+  }
+
+  void end() {
+    _pointers = _pointers > 0 ? _pointers - 1 : 0;
+    if (_pointers == 0) {
+      _downAt = null;
+      _fired = false;
+    }
+  }
+
+  bool _fire(bool cond) {
+    if (!cond || _fired) return false;
+    _fired = true;
+    return true;
+  }
+}
+
 // ─── Poignée « Options » ──────────────────────────────────────────────────
 
 class PawMapOptionsHandle extends StatefulWidget {
@@ -814,3 +853,366 @@ class _SeePill extends StatelessWidget {
     );
   }
 }
+
+// ─── v587 (point 1a) — pilule « ● Direct » en haut à gauche ──────────────
+
+/// Libellé de la pilule : « Direct » (arrêté), « En direct » (< 1 min),
+/// « En direct · 12 min », « Direct · pas de GPS » (partage lancé mais aucune
+/// position réelle ne part). Pure, testée.
+String pawDirectPillLabel({
+  required bool live,
+  required DateTime? startedAt,
+  required DateTime now,
+  bool noGps = false,
+}) {
+  if (!live) return 'pawmap587_direct_off'.tr;
+  if (noGps) return 'pawmap587_direct_no_gps'.tr;
+  final min = startedAt == null ? 0 : now.difference(startedAt).inMinutes;
+  if (min < 1) return 'pawmap587_direct_on_now'.tr;
+  return 'pawmap587_direct_on'.trParams({'min': '$min'});
+}
+
+/// Gardien / promeneur : UN appui démarre ou arrête le direct. Noire (encre)
+/// quand arrêté ; verte lumineuse qui respire en direct (fixe si « réduire
+/// les animations ») ; orange si le partage tourne sans GPS.
+class PawMapDirectPill extends StatefulWidget {
+  const PawMapDirectPill({
+    super.key,
+    required this.live,
+    required this.startedAt,
+    required this.onTap,
+    this.noGps = false,
+    this.onLongPress,
+    this.now,
+  });
+
+  final bool live;
+  final DateTime? startedAt;
+  final bool noGps;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+
+  /// Tests : heure figée.
+  final DateTime Function()? now;
+
+  static const Color green = Color(0xFF16A34A);
+  static const Color amber = Color(0xFFE8920A);
+  static const Color ink = Color(0xFF17141F);
+
+  @override
+  State<PawMapDirectPill> createState() => _PawMapDirectPillState();
+}
+
+class _PawMapDirectPillState extends State<PawMapDirectPill>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _breath = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+  );
+  Timer? _minute;
+
+  @override
+  void initState() {
+    super.initState();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(covariant PawMapDirectPill old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  void _sync() {
+    if (widget.live && !widget.noGps) {
+      if (!_breath.isAnimating) _breath.repeat(reverse: true);
+    } else if (_breath.isAnimating) {
+      _breath.stop();
+      _breath.value = 0;
+    }
+    // La durée affichée avance toute seule (une fois par minute suffit).
+    if (widget.live) {
+      _minute ??= Timer.periodic(const Duration(seconds: 20), (_) {
+        if (mounted) setState(() {});
+      });
+    } else {
+      _minute?.cancel();
+      _minute = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _minute?.cancel();
+    _breath.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final DateTime now = (widget.now ?? DateTime.now)();
+    final String label = pawDirectPillLabel(
+      live: widget.live,
+      startedAt: widget.startedAt,
+      now: now,
+      noGps: widget.noGps,
+    );
+    final Color base = !widget.live
+        ? PawMapDirectPill.ink
+        : (widget.noGps ? PawMapDirectPill.amber : PawMapDirectPill.green);
+    final Gradient gradient = !widget.live
+        ? const LinearGradient(
+            colors: [Color(0xFF33214A), PawMapDirectPill.ink],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+        : LinearGradient(
+            colors: widget.noGps
+                ? const [Color(0xFFF5A524), PawMapDirectPill.amber]
+                : const [Color(0xFF22C55E), PawMapDirectPill.green],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          );
+    return Semantics(
+      button: true,
+      toggled: widget.live,
+      label: label,
+      child: GestureDetector(
+        key: ValueKey<String>(
+            widget.live ? 'pawmap_direct_pill_on' : 'pawmap_direct_pill_off'),
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          widget.onTap();
+        },
+        onLongPress: widget.onLongPress,
+        child: AnimatedBuilder(
+          animation: _breath,
+          builder: (ctx, child) {
+            final double t = reduce ? 0.5 : _breath.value;
+            final bool lit = widget.live && !widget.noGps;
+            return Container(
+              constraints: BoxConstraints(minHeight: 34.h),
+              padding: EdgeInsets.fromLTRB(10.w, 6.h, 13.w, 6.h),
+              decoration: BoxDecoration(
+                gradient: gradient,
+                borderRadius: BorderRadius.circular(40),
+                border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.9), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: base.withValues(alpha: lit ? 0.32 + 0.33 * t : 0.26),
+                    blurRadius: lit ? 10 + 10 * t : 10,
+                    spreadRadius: lit ? 1 + 2.5 * t : 0,
+                    offset: lit ? Offset.zero : const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: child,
+            );
+          },
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 9.w,
+                height: 9.w,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: widget.live ? Colors.white : const Color(0xFFFF4D3D),
+                  border: widget.live
+                      ? null
+                      : Border.all(color: Colors.white, width: 1.2),
+                ),
+              ),
+              SizedBox(width: 7.w),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── v587 (point 3) — barres repliables ──────────────────────────────────
+
+/// Petite flèche en verre teinté posée au bord INTÉRIEUR d'une barre (rail
+/// gauche : bord droit ; capsule droite : bord gauche). Barre rangée : la
+/// même pastille devient la LANGUETTE collée au bord de l'écran, flèche
+/// inversée. Cible tactile 40 × 48 (la pastille visible est plus fine).
+class PawBarCollapseTab extends StatelessWidget {
+  const PawBarCollapseTab({
+    super.key,
+    required this.left,
+    required this.collapsed,
+    required this.tint,
+    required this.onTap,
+  });
+
+  /// Barre de GAUCHE (rail) ; sinon capsule de droite.
+  final bool left;
+  final bool collapsed;
+  final Color tint;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    // Flèche : vers le bord qui range la barre ; inversée une fois rangée.
+    final bool pointsLeft = left ? !collapsed : collapsed;
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
+    final Color glass = dark
+        ? Color.alphaBlend(tint.withValues(alpha: 0.30), const Color(0xFF221A2E))
+        : Color.alphaBlend(tint.withValues(alpha: 0.16), Colors.white);
+    final BorderRadius radius = collapsed
+        ? (left
+            ? const BorderRadius.horizontal(right: Radius.circular(14))
+            : const BorderRadius.horizontal(left: Radius.circular(14)))
+        : BorderRadius.circular(14);
+    return Semantics(
+      button: true,
+      label: collapsed ? 'pawmap587_bar_show'.tr : 'pawmap587_bar_hide'.tr,
+      child: GestureDetector(
+        key: ValueKey<String>(
+            '${left ? 'pawmap_rail' : 'pawmap_capsule'}_${collapsed ? 'show' : 'hide'}'),
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: SizedBox(
+          width: 30.w,
+          height: 48.h,
+          child: Align(
+            alignment: collapsed
+                ? (left ? Alignment.centerLeft : Alignment.centerRight)
+                : Alignment.center,
+            child: Container(
+              width: collapsed ? 24.w : 22.w,
+              height: collapsed ? 44.h : 36.h,
+              decoration: BoxDecoration(
+                color: glass.withValues(alpha: 0.94),
+                borderRadius: radius,
+                border: Border.all(color: tint.withValues(alpha: 0.35), width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: tint.withValues(alpha: 0.22),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                pointsLeft
+                    ? Icons.chevron_left_rounded
+                    : Icons.chevron_right_rounded,
+                size: 20.sp,
+                color: dark ? Colors.white : PawMapLegend.darken(tint, 0.25),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// v587 (point 3) — une barre (rail gauche ou capsule droite) qui glisse hors
+/// écran en 200 ms en laissant sa languette collée au bord. Seule une
+/// translation est animée (ni mise en page ni redessin de la barre : elle
+/// est isolée dans un `RepaintBoundary`) : fluide sur un Android d'entrée de
+/// gamme.
+class PawCollapsibleBar extends StatefulWidget {
+  const PawCollapsibleBar({
+    super.key,
+    required this.left,
+    required this.collapsed,
+    required this.tint,
+    required this.onToggle,
+    required this.child,
+    this.edgeGap = 12,
+  });
+
+  final bool left;
+  final bool collapsed;
+  final Color tint;
+  final VoidCallback onToggle;
+  final Widget child;
+
+  /// Distance entre la barre et le bord de l'écran (marge du parent).
+  final double edgeGap;
+
+  static const Duration duration = Duration(milliseconds: 200);
+
+  @override
+  State<PawCollapsibleBar> createState() => _PawCollapsibleBarState();
+}
+
+class _PawCollapsibleBarState extends State<PawCollapsibleBar> {
+  final GlobalKey _barKey = GlobalKey();
+  double _barWidth = 0;
+
+  void _measure() {
+    final box = _barKey.currentContext?.findRenderObject() as RenderBox?;
+    final w = box != null && box.hasSize ? box.size.width : 0.0;
+    if (w > 0 && (w - _barWidth).abs() > 0.5 && mounted) {
+      setState(() => _barWidth = w);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
+    final Widget bar = RepaintBoundary(
+      child: KeyedSubtree(key: _barKey, child: widget.child),
+    );
+    final Widget tab = PawBarCollapseTab(
+      left: widget.left,
+      collapsed: widget.collapsed,
+      tint: widget.tint,
+      onTap: widget.onToggle,
+    );
+    final double shift = _barWidth + widget.edgeGap;
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: widget.collapsed ? 1 : 0),
+      duration: PawCollapsibleBar.duration,
+      curve: Curves.easeOutCubic,
+      builder: (ctx, t, child) => Transform.translate(
+        offset: Offset((widget.left ? -shift : shift) * t, 0),
+        child: child,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: widget.left ? [bar, tab] : [tab, bar],
+      ),
+    );
+  }
+}
+
+/// v587 (point 2) — regroupement des membres SANS jamais absorber un ami :
+/// chaque ami reste seul (son rond photo + anneau rose), seuls les autres
+/// passent par [cluster]. Pure, testée.
+List<List<T>> pawGroupKeepingFriends<T>(
+  List<T> items,
+  bool Function(T) isFriend,
+  List<List<T>> Function(List<T> others) cluster,
+) =>
+    <List<T>>[
+      for (final p in items)
+        if (isFriend(p)) <T>[p],
+      ...cluster(items.where((p) => !isFriend(p)).toList()),
+    ];
