@@ -259,6 +259,13 @@ async function listPositionListeners(userId, role) {
   // personne (docs Owner/Sitter/Walker reliés par email/oldId).
   const { identityGroup } = require('../utils/identityGroup');
   const g = await identityGroup(userId);
+  // v586 — « Masqué » sur la carte (preferences.mapVisibility = 'hidden') :
+  // ma position n'est relayée à AUCUN ami. Le suivi d'une prestation payée
+  // passe par /bookings/:id/provider-location, il n'est pas concerné.
+  try {
+    const { personMapVisibility } = require('../utils/mapVisibility');
+    if ((await personMapVisibility(g.ids)) === 'hidden') return [];
+  } catch (_) {/* lecture impossible : comportement d'avant */}
   const friendships = await Friendship.find({
     status: 'accepted',
     $or: [

@@ -260,9 +260,38 @@ const updateProfile = async (req, res) => {
     for (const k of [
       'dateOfBirth', 'experienceTags', 'acceptedPetTypes', 'availableDays',
       'coverageRadiusKm', 'responseTimeMinutes', 'twoFactorEnabled',
-      'preferences', 'searchPreferences',
+      'searchPreferences',
     ]) {
       if (_b[k] !== undefined) update[k] = _b[k];
+    }
+    // v586 (25/09/2026) — CAUSE de « masquer / visible par tous n'est pas
+    // synchro avec la PawMap » et du « Mon fond » qui ne tient pas : ce
+    // bloc écrivait `preferences` EN ENTIER, sur le SEUL profil du rôle
+    // courant. Il effaçait donc au passage `preferences.pawMap` (caméra,
+    // calques, rail de la carte) et laissait les deux autres profils avec
+    // l'ancienne valeur — alors que la carte, elle, lit et écrit les 3.
+    // Désormais : fusion clé par clé (chemins pointés) ; la visibilité passe
+    // par la vérité unique à 3 états ; visibilité et fond sont recopiés sur
+    // les 3 profils de la personne (`sharedPrefs`, plus bas).
+    let sharedPrefs = null;
+    if (_b.preferences && typeof _b.preferences === 'object' && !Array.isArray(_b.preferences)) {
+      const { MAP_VISIBILITY, mapVisibilitySet } = require('../utils/mapVisibility');
+      const src = _b.preferences;
+      const PREF_BOOL = ['sendPhotosVideos', 'quickReplies', 'flexibleCancellation', 'pawMapInsurance', 'notifications'];
+      for (const k of PREF_BOOL) {
+        if (typeof src[k] === 'boolean') update[`preferences.${k}`] = src[k];
+      }
+      sharedPrefs = {};
+      if (MAP_VISIBILITY.includes(src.mapVisibility)) {
+        Object.assign(sharedPrefs, mapVisibilitySet(src.mapVisibility));
+      } else if (typeof src.hideFromMap === 'boolean') {
+        Object.assign(sharedPrefs, mapVisibilitySet(src.hideFromMap ? 'friends' : 'all'));
+      }
+      if (['auto', 'paws', 'none'].includes(src.wallpaper)) {
+        sharedPrefs['preferences.wallpaper'] = src.wallpaper;
+      }
+      Object.assign(update, sharedPrefs);
+      if (!Object.keys(sharedPrefs).length) sharedPrefs = null;
     }
 
     // Process location if provided
@@ -347,6 +376,22 @@ const updateProfile = async (req, res) => {
     // tout ce qui est propre à un rôle restent sur le document courant, et une
     // valeur vide ne remplace jamais une valeur existante chez le frère.
     await propagateSharedIdentity(account, role, update);
+
+    // v586 — visibilité sur la carte et « Mon fond » : UNE valeur pour la
+    // personne, sur ses 3 profils (même règle que /users/me/map-prefs).
+    if (sharedPrefs) {
+      try {
+        const { identityGroup } = require('../utils/identityGroup');
+        const g = await identityGroup(String(account._id));
+        await Promise.all(g.docs.map((d) => {
+          const M = MODEL_BY_NAME[d.model];
+          if (!M || String(d.id) === String(account._id)) return null;
+          return M.updateOne({ _id: d.id }, { $set: sharedPrefs }).catch(() => null);
+        }));
+      } catch (e) {
+        logger.warn(`[updateProfile] préférences partagées : ${e?.message || e}`);
+      }
+    }
 
     const out = sanitizeUser(account, { includeEmail: true });
     out.city = out.city || (out.location && out.location.city) || '';

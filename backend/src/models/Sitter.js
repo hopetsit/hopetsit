@@ -343,6 +343,10 @@ const sitterSchema = new mongoose.Schema(
       // l'utilisateur active lui-même. Défaut false = rien ne change pour les
       // comptes existants.
       hideFromMap: { type: Boolean, default: false },
+      // v586 — LA vérité « qui me voit sur la carte » : all / friends / hidden
+      // (utils/mapVisibility.js). Absent = lu depuis hideFromMap (migration
+      // douce) ; pas de défaut pour distinguer « jamais réglé ».
+      mapVisibility: { type: String, enum: ['all', 'friends', 'hidden'] },
       // v585 (lot D, 25/09) — « Mon fond » (NORME_DESIGN.md) : papier peint
       // « à mon animal » sur l'app ET le site : auto (selon mon animal) /
       // paws (pattes seules) / none. Enregistré sur le compte, suivi sur les

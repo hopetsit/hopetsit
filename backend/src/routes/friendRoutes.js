@@ -198,7 +198,7 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
     };
     const sel =
       'name avatar profilePicture location mapBoostExpiry mapBoostTier ' +
-      'isStaff isOnline oldId email preferences.hideFromMap lastSeenAt ' +
+      'isStaff isOnline oldId email preferences.hideFromMap preferences.mapVisibility lastSeenAt ' +
       // v584 — drapeaux d'épingle (PawBoost, identité vérifiée, dispo du jour).
       'boostExpiry kycStatus identityVerification.status availableDates ' +
       'unavailableDates availableTimeSlots availableDays '
@@ -433,7 +433,7 @@ async function _withHiddenFriends(req, payload) {
     }
     const missing = [...friendIds].filter((id) => !already.has(id));
     if (!missing.length) return payload;
-    const sel = 'name avatar profilePicture location preferences.hideFromMap +homeLocation city updatedAt email';
+    const sel = 'name avatar profilePicture location preferences.hideFromMap preferences.mapVisibility +homeLocation city updatedAt email';
     const docs = (await Promise.all([
       Owner.find({ _id: { $in: missing } }).select(sel).lean()
         .then((r) => r.map((d) => ({ d, role: 'owner' }))),
@@ -445,7 +445,9 @@ async function _withHiddenFriends(req, payload) {
     const extra = [];
     const avatarUrl = (a) => (a && (typeof a === 'object' ? a.url : a)) || '';
     const { groupByPerson, pickPersonPosition } = require('../utils/personMapPosition');
-    const hidden = docs.filter(({ d }) => d.preferences?.hideFromMap === true); // les autres sont dans le cache
+    // v586 — seuls les « amis seulement » sont réinjectés pour leurs amis ; un
+    // membre « masqué » ne sort pour personne, amis compris.
+    const hidden = docs.filter(({ d }) => mapVisibility.mapVisibilityOf(d) === 'friends'); // les autres sont dans le cache
     for (const entries of groupByPerson(hidden).values()) {
       const pos = pickPersonPosition(entries);
       if (!pos) continue;
@@ -498,6 +500,8 @@ router.get('/members/world', requireAuth, async (req, res) => {
       'preferences.hideFromMap': { $ne: true },
     };
     const sel = 'name avatar profilePicture location mapBoostExpiry isStaff '
+      // v586 — visibilité à 3 états (relue aussi en JS, voir plus bas).
+      + 'preferences.hideFromMap preferences.mapVisibility '
       + 'email oldId rating reviewsCount hourlyRate dailyRate walkRates currency '
       // v585 — position de profil, ville, fraîcheur (personMapPosition).
       + '+homeLocation city updatedAt createdAt '
@@ -566,7 +570,9 @@ router.get('/members/world', requireAuth, async (req, res) => {
     };
     const citiesToWarm = [];
     const members = [];
-    const visible = tagged.filter(({ d }) => !mapVisibility.isTestOrStaff(d));
+    // v586 — le cache est PARTAGÉ : n'y entre que « visible par tous ».
+    const visible = tagged.filter(({ d }) => !mapVisibility.isTestOrStaff(d)
+      && mapVisibility.mapVisibilityOf(d) === 'all');
     for (const entries of groupByPerson(visible).values()) {
       const pos = pickPersonPosition(entries, { now: nowDate, cityAnchor: anchorOf });
       if (!pos) continue;
@@ -2331,11 +2337,18 @@ router.get('/live-positions', requireAuth, async (req, res) => {
       // qu'un « vu il y a X », jamais un direct.
       let best = null;
       let docSharing = false;
+      // v586 — « Masqué » : personne ne voit la personne sur la carte, même
+      // ses amis (ni position, ni direct). Lu sur TOUS ses documents.
+      let otherHidden = false;
       for (const d of otherDocs) {
         const Model = MODELS[d.model];
         if (!Model) continue;
         let doc = null;
-        try { doc = await Model.findById(d.id).select('location').lean(); } catch (_) {/* */}
+        try {
+          doc = await Model.findById(d.id)
+            .select('location preferences.mapVisibility preferences.hideFromMap').lean();
+        } catch (_) {/* */}
+        if (doc && mapVisibility.mapVisibilityOf(doc) === 'hidden') otherHidden = true;
         const coords = doc?.location?.coordinates;
         if (!Array.isArray(coords) || coords.length < 2) continue;
         // v532 — le partage éteint n'efface plus les coordonnées (sinon le
@@ -2358,6 +2371,7 @@ router.get('/live-positions', requireAuth, async (req, res) => {
           best = { coords, at, t, city: doc.location?.city || '' };
         }
       }
+      if (otherHidden) continue;
       // v565 — fusion RAM/base : on garde la plus fraîche des deux.
       if (live && (!best || live.at >= best.t)) {
         best = {

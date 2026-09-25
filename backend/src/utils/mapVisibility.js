@@ -25,6 +25,74 @@
 const logger = require('./logger');
 const { coarsenLocation } = require('./coarseLocation');
 
+/**
+ * v586 (25/09/2026) — UNE SEULE VÉRITÉ pour « qui me voit sur la carte ».
+ * Daniel : « masquer mes amis / visible par tous n'est pas synchro avec le
+ * menu de la PawMap ». Trois états, enregistrés dans
+ * `preferences.mapVisibility` et écrits sur les 3 profils de la personne :
+ *   · 'all'     — tout le monde me voit (position floutée ~1 km pour les
+ *                 non-amis, exacte pour mes amis) ;
+ *   · 'friends' — seuls mes amis acceptés me voient ;
+ *   · 'hidden'  — personne ne me voit sur la carte, même mes amis (et mon
+ *                 partage en direct n'est relayé à personne).
+ * Migration douce, sans script : un profil qui n'a pas encore le champ est lu
+ * depuis l'ancien `hideFromMap`. Ce réglage voulait déjà dire « mes amis
+ * continuent de me voir » (texte du Profil et règle serveur v551) → 'friends'.
+ * À chaque écriture, `hideFromMap` est recopié (= état ≠ 'all') pour les
+ * anciennes versions de l'app et du site.
+ */
+const MAP_VISIBILITY = Object.freeze(['all', 'friends', 'hidden']);
+
+function mapVisibilityOf(doc) {
+  const p = (doc && doc.preferences) || {};
+  if (MAP_VISIBILITY.includes(p.mapVisibility)) return p.mapVisibility;
+  return p.hideFromMap === true ? 'friends' : 'all';
+}
+
+/** Champs `$set` à écrire pour un état (les deux champs, toujours ensemble). */
+function mapVisibilitySet(v) {
+  const state = MAP_VISIBILITY.includes(v) ? v : 'all';
+  return {
+    'preferences.mapVisibility': state,
+    'preferences.hideFromMap': state !== 'all',
+  };
+}
+
+/** L'état le plus restrictif parmi plusieurs documents d'une même personne. */
+function strictestVisibility(docs) {
+  let best = 'all';
+  for (const d of docs || []) {
+    const v = mapVisibilityOf(d);
+    if (v === 'hidden') return 'hidden';
+    if (v === 'friends') best = 'friends';
+  }
+  return best;
+}
+
+/**
+ * État de visibilité d'une personne à partir de ses ids (tous rôles). Ne lève
+ * jamais : en cas d'échec de lecture, 'all' (comportement d'avant).
+ */
+async function personMapVisibility(ids) {
+  try {
+    const list = [...new Set((ids || []).map(String))];
+    if (!list.length) return 'all';
+    const models = [
+      require('../models/Owner'),
+      require('../models/Sitter'),
+      require('../models/Walker'),
+    ];
+    const rows = (await Promise.all(models.map((M) => M.find({ _id: { $in: list } })
+      .select('preferences.mapVisibility preferences.hideFromMap')
+      .lean()
+      .catch(() => [])))).flat();
+    return strictestVisibility(rows);
+  } catch (e) {
+    logger.warn(`[mapVisibility] personMapVisibility failed : ${e?.message || e}`);
+    return 'all';
+  }
+}
+
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 /** Compte de test, staff ou masqué par la modération → jamais en public. */
@@ -47,9 +115,9 @@ function visibleToViewer(doc, { viewerIds, friendIds } = {}) {
   if (!doc) return false;
   const id = String(doc._id || doc.id || '');
   if (viewerIds && viewerIds.has(id)) return true;
-  if (doc.preferences && doc.preferences.hideFromMap === true) {
-    return !!(friendIds && friendIds.has(id));
-  }
+  const v = mapVisibilityOf(doc);
+  if (v === 'hidden') return false;
+  if (v === 'friends') return !!(friendIds && friendIds.has(id));
   return true;
 }
 
@@ -174,6 +242,11 @@ async function friendIdsOf(userId) {
 }
 
 module.exports = {
+  MAP_VISIBILITY,
+  mapVisibilityOf,
+  mapVisibilitySet,
+  strictestVisibility,
+  personMapVisibility,
   isTestOrStaff,
   visibleToViewer,
   publicLocationFor,
@@ -183,5 +256,5 @@ module.exports = {
   pinFlags,
   applyPublicPrivacy,
   friendIdsOf,
-  PUBLIC_PRIVACY_SELECT: 'email isStaff hiddenFromPublic preferences.hideFromMap',
+  PUBLIC_PRIVACY_SELECT: 'email isStaff hiddenFromPublic preferences.hideFromMap preferences.mapVisibility',
 };

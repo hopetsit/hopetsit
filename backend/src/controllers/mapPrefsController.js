@@ -8,8 +8,12 @@
  * (`preferences.hideFromMap`), pour que la pastille de la carte et le réglage
  * du profil disent toujours la même chose.
  *
- *   GET   /users/me/map-prefs  → { hideFromMap, pawMap: {...}, updatedAt }
- *   PATCH /users/me/map-prefs  { hideFromMap?, pawMap?: {…partiel…} }
+ *   GET   /users/me/map-prefs  → { mapVisibility, hideFromMap, pawMap: {...}, updatedAt }
+ *   PATCH /users/me/map-prefs  { mapVisibility?, hideFromMap?, pawMap?: {…partiel…} }
+ *
+ * v586 — `mapVisibility` ('all' | 'friends' | 'hidden') est LA vérité
+ * (utils/mapVisibility.js) ; `hideFromMap` reste lu et écrit pour les
+ * anciennes versions (true → 'friends', false → 'all').
  *
  * `pawMap` est un petit objet libre mais VALIDÉ (`normalizeMapPrefs`) :
  * jamais plus de quelques centaines d'octets, jamais autre chose que ce que
@@ -135,8 +139,11 @@ const MODEL_BY_NAME = () => ({
 
 function present(doc) {
   const prefs = (doc && doc.preferences) || {};
+  const { mapVisibilityOf } = require('../utils/mapVisibility');
+  const mapVisibility = mapVisibilityOf(doc);
   return {
-    hideFromMap: prefs.hideFromMap === true,
+    mapVisibility,
+    hideFromMap: mapVisibility !== 'all',
     pawMap: prefs.pawMap && typeof prefs.pawMap === 'object' ? prefs.pawMap : {},
     updatedAt: (prefs.pawMap && prefs.pawMap.updatedAt) || null,
   };
@@ -163,6 +170,10 @@ const updateMapPrefs = async (req, res) => {
     if (body.hideFromMap !== undefined && typeof body.hideFromMap !== 'boolean') {
       return res.status(400).json({ error: 'hideFromMap must be a boolean.' });
     }
+    const { MAP_VISIBILITY, mapVisibilitySet } = require('../utils/mapVisibility');
+    if (body.mapVisibility !== undefined && !MAP_VISIBILITY.includes(body.mapVisibility)) {
+      return res.status(400).json({ error: 'mapVisibility must be all, friends or hidden.' });
+    }
     if (body.pawMap !== undefined && (typeof body.pawMap !== 'object' || body.pawMap === null)) {
       return res.status(400).json({ error: 'pawMap must be an object.' });
     }
@@ -170,7 +181,12 @@ const updateMapPrefs = async (req, res) => {
     if (!doc) return res.status(404).json({ error: 'User not found.' });
 
     const set = {};
-    if (body.hideFromMap !== undefined) set['preferences.hideFromMap'] = body.hideFromMap;
+    if (body.mapVisibility !== undefined) {
+      Object.assign(set, mapVisibilitySet(body.mapVisibility));
+    } else if (body.hideFromMap !== undefined) {
+      // Ancienne app / ancien site : l'interrupteur « amis seulement ».
+      Object.assign(set, mapVisibilitySet(body.hideFromMap ? 'friends' : 'all'));
+    }
     if (body.pawMap !== undefined) {
       set['preferences.pawMap'] = normalizeMapPrefs(doc.preferences && doc.preferences.pawMap, body.pawMap);
     }
