@@ -368,11 +368,21 @@ class PawStopLiveSheet extends StatelessWidget {
               onTap: () => Navigator.of(context).pop(true),
             ),
             SizedBox(height: 4.h),
-            TextButton(
-              key: const ValueKey<String>('pawmap_stop_live_keep'),
-              onPressed: () => Navigator.of(context).pop(false),
-              style: TextButton.styleFrom(foregroundColor: ink, minimumSize: Size(double.infinity, 44.h)),
-              child: Text('pawmap587_stop_keep'.tr, style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700, color: ink)),
+            Semantics(
+              button: true,
+              child: GestureDetector(
+                key: const ValueKey<String>('pawmap_stop_live_keep'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => Navigator.of(context).pop(false),
+                child: Container(
+                  width: double.infinity,
+                  constraints: BoxConstraints(minHeight: 44.h),
+                  alignment: Alignment.center,
+                  child: Text('pawmap587_stop_keep'.tr,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700, color: ink)),
+                ),
+              ),
             ),
           ],
         ),
