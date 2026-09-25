@@ -501,9 +501,11 @@ class _PawCapsuleRoleActionState extends State<PawCapsuleRoleAction>
     final Color glow = publish
         ? PawMapLegend.owner
         : (widget.live ? PawCapsuleRoleAction.green : PawCapsuleRoleAction.ink);
-    final String semantic = publish
+    // L'état (arrêté / en direct) passe par `toggled` ; en direct, le
+    // libellé le dit aussi.
+    final String semantic = publish || !widget.live
         ? label
-        : '$label : ${widget.live ? 'pawmap_status_live'.tr : 'pawmap586_direct_short'.tr}';
+        : '$label · ${'pawmap_status_live'.tr}';
     return Semantics(
       button: true,
       toggled: publish ? null : widget.live,

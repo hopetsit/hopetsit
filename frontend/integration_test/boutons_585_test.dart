@@ -236,13 +236,15 @@ Future<void> _run(WidgetTester tester) async {
     // ── Onglet PawMap ──
     requestedTab.value = kPawMapTabIndex;
     await tester.pump(const Duration(seconds: 1));
+    // v586 — au repos la feuille est rangée : la PawMap est prête quand la
+    // poignée « Options » est là (le bouton principal vit dans la feuille).
     await _waitFor(tester,
-        () => find.byKey(const ValueKey<String>('pawmap_sheet_grip')).evaluate().isNotEmpty,
+        () => find.byKey(const ValueKey<String>('pawmap_options_handle')).evaluate().isNotEmpty,
         seconds: 60);
     await _step(tester, '02 pawmap ouverte', hold: const Duration(seconds: 4));
     _ok('UNE seule GoogleMap', find.byType(GoogleMap).evaluate().length == 1);
-    _ok('feuille + bouton principal presents',
-        find.byKey(const ValueKey<String>('pawmap_primary')).evaluate().isNotEmpty);
+    _ok('poignee Options presente',
+        find.byKey(const ValueKey<String>('pawmap_options_handle')).evaluate().isNotEmpty);
     // Découverte guidée : uniquement au 1er lancement ; si elle est là, on la
     // ferme par la croix « Ne plus montrer » (point 13).
     // La question des notifications peut revenir après l'entrée (au-dessus
@@ -366,6 +368,25 @@ Future<void> _run(WidgetTester tester) async {
         }
         seen.add(nextKey!);
         final lbl = labelOf(next);
+        // v586 — l'œil (visibilité du COMPTE) et le rond Direct (partage de
+        // position) ne sont pas tapés par le robot : réglages du compte /
+        // position réelle ; ils ont leur propre sonde (pawmap_586).
+        var guarded = false;
+        bool isGuard(Key? k) =>
+            k is ValueKey<String> &&
+            (k.value == 'pawmap_eye' || k.value.startsWith('pawmap_action_direct'));
+        if (isGuard(next.widget.key)) guarded = true;
+        next.visitAncestorElements((a) {
+          if (isGuard(a.widget.key)) {
+            guarded = true;
+            return false;
+          }
+          return true;
+        });
+        if (guarded) {
+          print('[BOUTON] ${tabs[t]} | $lbl | NON TAPÉ (oeil / Direct : sonde 586)');
+          continue;
+        }
         if (deny.hasMatch(lbl)) {
           print('[BOUTON] ${tabs[t]} | $lbl | NON TAPÉ (action irréversible)');
           continue;
