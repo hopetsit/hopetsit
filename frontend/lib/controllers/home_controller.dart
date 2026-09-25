@@ -11,6 +11,7 @@ import 'package:hopetsit/models/walker_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
+import 'package:hopetsit/utils/home_radius_prefs.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -141,6 +142,9 @@ class HomeController extends GetxController {
     // que loadSitters() (full list sans distance). Daniel ne veut plus
     // de "toutes les distances" qui melangeait sitters loin + sans km
     // affiche sur la card.
+    // Lot D (25/09/2026) — rayon retenu pour le propriétaire (appareil, sinon
+    // compte), sinon 50 km : la liste repart là où l'utilisateur l'a laissée.
+    nearMeRadiusKm.value = HomeRadiusPrefs.resolve('owner', min: 10, max: 500, fallback: 50);
     loadNearbySitters(radiusKm: nearMeRadiusKm.value.round());
     loadNearbyWalkers(radiusKm: nearMeRadiusKm.value.round());
   }

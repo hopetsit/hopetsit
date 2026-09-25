@@ -1,3 +1,4 @@
+const { parseRadiusKm } = require('../utils/searchRadius');
 const Walker = require('../models/Walker');
 const { selfIdSet } = require('../utils/identityGroup');
 const { sanitizeUser } = require('../utils/sanitize');
@@ -179,10 +180,9 @@ const findNearbyWalkers = async (req, res) => {
   try {
     const lat = parseFloat(req.query.lat);
     const lng = parseFloat(req.query.lng);
-    const radiusInMeters = Math.min(
-      200000,
-      Math.max(100, parseInt(req.query.radiusInMeters, 10) || 10000)
-    );
+    // v585 (lot D) — règle UNIQUE du rayon (utils/searchRadius) : plafond
+    // 500 km comme les curseurs (avant : 200 000 m), défaut 10 km.
+    const radiusInMeters = parseRadiusKm(req.query, { defaultKm: 10 }) * 1000;
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       return res.status(400).json({ error: 'Query params `lat` and `lng` are required.' });
     }

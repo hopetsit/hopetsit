@@ -43,6 +43,7 @@ import 'package:hopetsit/widgets/expandable_post_input.dart';
 import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
+import 'package:hopetsit/utils/home_radius_prefs.dart';
 import 'package:hopetsit/views/shared/widgets/around_me_search_bar.dart';
 import 'package:hopetsit/views/shared/widgets/city_picker_sheet.dart';
 import 'package:share_plus/share_plus.dart';
@@ -231,6 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _homeController.offersNearMeEnabled.value = true;
     _homeController.loadNearbySitters(radiusKm: v.round());
     _homeController.loadNearbyWalkers(radiusKm: v.round());
+    HomeRadiusPrefs.write('owner', v);
   }
 
   /// Bandeau de confiance (3 mini-éléments) affiché sous le bloc recherche.
@@ -629,14 +631,18 @@ class _HomeScreenState extends State<HomeScreen> {
         minRadiusKm: _kMinRadiusKm,
         maxRadiusKm: _kMaxRadiusKm,
         onTapCity: () => _showCityPickerSheet(context),
-        onRadiusChanged: (v) {
-          _homeController.nearMeRadiusKm.value = v;
+        // Lot D — pendant le glissement la barre affiche la valeur toute
+        // seule (état local) : on n'écrit plus le Rx à chaque pixel.
+        onRadiusChanged: (_) {
           _homeController.offersNearMeEnabled.value = true;
         },
         onRadiusCommit: (v) {
-          // MÊMES appels que l'ancien slider → recherche intacte.
+          // MÊMES appels que l'ancien slider → recherche intacte ; la valeur
+          // entière affichée est celle envoyée (radiusInMeters = km × 1000).
+          _homeController.nearMeRadiusKm.value = v;
           _homeController.loadNearbySitters(radiusKm: v.round());
           _homeController.loadNearbyWalkers(radiusKm: v.round());
+          HomeRadiusPrefs.write('owner', v);
         },
       );
     });

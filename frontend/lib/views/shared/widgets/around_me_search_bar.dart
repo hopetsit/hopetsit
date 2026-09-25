@@ -32,7 +32,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 ///     avec ses 3 graduations.
 /// L'API publique et la logique (onRadiusChanged / onRadiusCommit, bornes,
 /// divisions) sont INCHANGÉES : l'accueil propriétaire continue de marcher.
-class AroundMeSearchBar extends StatelessWidget {
+class AroundMeSearchBar extends StatefulWidget {
   const AroundMeSearchBar({
     super.key,
     required this.accent,
@@ -60,12 +60,16 @@ class AroundMeSearchBar extends StatelessWidget {
   /// Tap sur la carte localisation → ouvre le picker de ville (appelant).
   final VoidCallback onTapCity;
 
-  /// Glissement du slider (mise à jour live de la valeur affichée).
+  /// Glissement du slider. Lot D : la valeur AFFICHÉE pendant le glissement
+  /// est locale au widget (seule la barre se redessine) — l'appelant n'a plus
+  /// besoin de faire un `setState` de tout l'écran ici ; il peut ignorer cet
+  /// appel ou s'en servir pour un effet léger (armer un drapeau).
   final ValueChanged<double> onRadiusChanged;
 
   /// Relâchement du slider → l'appelant applique le nouveau rayon (re-filtre /
   /// recharge). Séparé de [onRadiusChanged] pour ne déclencher la recherche
-  /// qu'une fois, pas à chaque pixel.
+  /// qu'une fois, pas à chaque pixel. La valeur transmise est ENTIÈRE (km) :
+  /// exactement celle affichée dans la barre.
   final ValueChanged<double> onRadiusCommit;
 
   /// Tick médian indicatif sous le slider. Si null, on prend le milieu
@@ -74,10 +78,27 @@ class AroundMeSearchBar extends StatelessWidget {
   final int? midTickKm;
 
   @override
+  State<AroundMeSearchBar> createState() => _AroundMeSearchBarState();
+}
+
+/// Lot D (25/09/2026) — « mini-lags » du curseur (Daniel) : pendant le
+/// glissement, la valeur vit ICI (`_dragKm`) et seul ce petit widget se
+/// redessine ; l'écran hôte n'est prévenu qu'au relâchement (`onRadiusCommit`).
+/// La valeur affichée est arrondie au km entier, comme celle envoyée.
+class _AroundMeSearchBarState extends State<AroundMeSearchBar> {
+  double? _dragKm;
+
+  double get _min => widget.minRadiusKm;
+  double get _max => widget.maxRadiusKm;
+
+  /// Valeur entière affichée ET transmise.
+  double _snap(double v) => v.clamp(_min, _max).roundToDouble();
+
+  @override
   Widget build(BuildContext context) {
-    final current = radiusKm.clamp(minRadiusKm, maxRadiusKm).toDouble();
+    final current = _snap(_dragKm ?? widget.radiusKm);
     // Tick médian indicatif : valeur fournie ou milieu mathématique.
-    final midTick = midTickKm ?? ((minRadiusKm + maxRadiusKm) / 2).round();
+    final midTick = widget.midTickKm ?? ((_min + _max) / 2).round();
     return Container(
       padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 10.h),
       decoration: BoxDecoration(
@@ -105,18 +126,18 @@ class AroundMeSearchBar extends StatelessWidget {
   /// Ligne 1 — pastille-bouton PLEINE LARGEUR, clairement cliquable.
   Widget _cityButton(BuildContext context) {
     return Material(
-      color: accent.withValues(alpha: 0.07),
+      color: widget.accent.withValues(alpha: 0.07),
       borderRadius: BorderRadius.circular(16.r),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         key: const ValueKey<String>('around_me_city_button'),
-        onTap: onTapCity,
+        onTap: widget.onTapCity,
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 9.h),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16.r),
             border: Border.all(
-              color: accent.withValues(alpha: 0.20),
+              color: widget.accent.withValues(alpha: 0.20),
               width: 1,
             ),
           ),
@@ -127,13 +148,13 @@ class AroundMeSearchBar extends StatelessWidget {
                 height: 34.w,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
+                  color: widget.accent.withValues(alpha: 0.14),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.location_on_rounded,
                   size: 18.sp,
-                  color: accent,
+                  color: widget.accent,
                 ),
               ),
               SizedBox(width: 10.w),
@@ -154,7 +175,7 @@ class AroundMeSearchBar extends StatelessWidget {
                     ),
                     SizedBox(height: 1.h),
                     PoppinsText(
-                      text: cityLabel,
+                      text: widget.cityLabel,
                       fontSize: 13.5.sp,
                       fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary(context),
@@ -173,7 +194,7 @@ class AroundMeSearchBar extends StatelessWidget {
                   text: 'home571_change'.tr,
                   fontSize: 11.5.sp,
                   fontWeight: FontWeight.w700,
-                  color: accent,
+                  color: widget.accent,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -181,7 +202,7 @@ class AroundMeSearchBar extends StatelessWidget {
               Icon(
                 Icons.chevron_right_rounded,
                 size: 18.sp,
-                color: accent,
+                color: widget.accent,
               ),
             ],
           ),
@@ -206,10 +227,11 @@ class AroundMeSearchBar extends StatelessWidget {
         ),
         SizedBox(width: 8.w),
         PoppinsText(
-          text: '${current.toInt()} km',
+          key: const ValueKey<String>('around_me_radius_value'),
+          text: '${current.round()} km',
           fontSize: 13.sp,
           fontWeight: FontWeight.w800,
-          color: accent,
+          color: widget.accent,
           maxLines: 1,
         ),
       ],
@@ -220,10 +242,10 @@ class AroundMeSearchBar extends StatelessWidget {
   Widget _slider(BuildContext context, double current) {
     return SliderTheme(
       data: SliderTheme.of(context).copyWith(
-        activeTrackColor: accent,
-        inactiveTrackColor: accent.withValues(alpha: 0.18),
-        thumbColor: accent,
-        overlayColor: accent.withValues(alpha: 0.15),
+        activeTrackColor: widget.accent,
+        inactiveTrackColor: widget.accent.withValues(alpha: 0.18),
+        thumbColor: widget.accent,
+        overlayColor: widget.accent.withValues(alpha: 0.15),
         trackHeight: 4,
         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
         // v494 — Daniel : la bulle « X km » qui apparaît en glissant
@@ -235,16 +257,22 @@ class AroundMeSearchBar extends StatelessWidget {
         ),
       ),
       child: Slider(
+        key: const ValueKey<String>('around_me_radius_slider'),
         value: current,
-        min: minRadiusKm,
-        max: maxRadiusKm,
-        divisions: ((maxRadiusKm - minRadiusKm) ~/ 10),
-        label: '${current.toInt()} km',
+        min: _min,
+        max: _max,
+        divisions: ((_max - _min) ~/ 10),
+        label: '${current.round()} km',
         onChanged: (value) {
-          onRadiusChanged(value.clamp(minRadiusKm, maxRadiusKm).toDouble());
+          // Valeur locale : seule la barre se redessine (pas tout l'écran).
+          final v = _snap(value);
+          if (v != _dragKm) setState(() => _dragKm = v);
+          widget.onRadiusChanged(v);
         },
         onChangeEnd: (value) {
-          onRadiusCommit(value.clamp(minRadiusKm, maxRadiusKm).toDouble());
+          final v = _snap(value);
+          setState(() => _dragKm = null);
+          widget.onRadiusCommit(v);
         },
       ),
     );
@@ -266,9 +294,9 @@ class AroundMeSearchBar extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 2.w),
       child: Row(
         children: [
-          tick('${minRadiusKm.toInt()} km', TextAlign.start),
+          tick('${_min.round()} km', TextAlign.start),
           tick('$midTick km', TextAlign.center),
-          tick('${maxRadiusKm.toInt()} km', TextAlign.end),
+          tick('${_max.round()} km', TextAlign.end),
         ],
       ),
     );

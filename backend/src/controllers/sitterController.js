@@ -1,3 +1,5 @@
+const searchRadius = require('../utils/searchRadius');
+const { parseRadiusKm } = searchRadius;
 const Sitter = require('../models/Sitter');
 const { selfIdSet } = require('../utils/identityGroup');
 const Review = require('../models/Review');
@@ -98,19 +100,14 @@ const findNearbySitters = async (req, res) => {
     // [0.1 ; 200] km au lieu de rejeter en 400 (l'app envoyait jusqu'à 500+ km),
     // et sans paramètre on applique un plafond par défaut de 200 km (fini le
     // « monde entier » silencieux) — aligné sur findNearbyWalkers.
+    // v585 (lot D) — règle UNIQUE du rayon (utils/searchRadius) : plafond
+    // 500 km comme les curseurs de l'app (avant : 200 km ici → « 250 km »
+    // affiché, 200 appliqué), défaut 200 km, borne inclusive.
     let radiusInMeters = null;
-    let radiusInKm = null;
-
-    if (radiusInMetersRaw !== undefined) {
-      const parsed = parseFloat(radiusInMetersRaw);
-      radiusInKm = Number.isFinite(parsed) && parsed > 0 ? parsed / 1000 : 200;
-    } else if (radius !== undefined) {
-      const parsed = parseFloat(radius);
-      radiusInKm = Number.isFinite(parsed) && parsed > 0 ? parsed : 200;
-    } else {
-      radiusInKm = 200; // défaut : plus jamais « toute la planète »
-    }
-    radiusInKm = Math.min(200, Math.max(0.1, radiusInKm));
+    let radiusInKm = parseRadiusKm(
+      { radiusInMeters: radiusInMetersRaw, radius },
+      { defaultKm: 200 },
+    );
     radiusInMeters = radiusInKm * 1000;
 
     // Build query filter
@@ -262,16 +259,7 @@ const findNearbySitters = async (req, res) => {
     // (Daniel les voulait visibles pour les sitters fraichement crees
     // sans coords), mais on les EXCLUT si leur vraie distance depasse
     // le radius demande — sinon on contredisait le filtre.
-    const haversineKm = (lat1, lon1, lat2, lon2) => {
-      const toRad = (d) => (d * Math.PI) / 180;
-      const R = 6371; // km
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-      return 2 * R * Math.asin(Math.sqrt(a));
-    };
+    const haversineKm = searchRadius.haversineKm; // v585 — un seul haversine
     for (const s of viaCity) {
       const id = String(s._id);
       if (sittersById.has(id)) continue;
@@ -285,7 +273,9 @@ const findNearbySitters = async (req, res) => {
           const km = haversineKm(latitude, longitude, sLat, sLng);
           realDistanceMeters = km * 1000;
           // Respecter le filtre radius si l'owner en a demande un.
-          if (radiusInMeters !== null && realDistanceMeters > radiusInMeters) {
+          // v585 — borne INCLUSIVE (« à 4 km » reste visible à 4 km).
+          if (radiusInMeters !== null &&
+              !searchRadius.withinRadiusKm(realDistanceMeters / 1000, radiusInMeters / 1000)) {
             continue;
           }
         }

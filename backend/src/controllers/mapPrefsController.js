@@ -94,6 +94,18 @@ function normalizeMapPrefs(existing, patch) {
   const radius = num(radiusSrc, 1, 50);
   if (radius !== undefined) out.aroundRadiusKm = radius;
 
+  // Lot D (25/09/2026) — rayon des listes « Autour de moi » retenu PAR RÔLE
+  // (curseur des 3 accueils, 10–500 km, entier). Fusion clé par clé : le
+  // gardien qui choisit 70 km ne touche pas au rayon du propriétaire.
+  const HOME_ROLES = ['owner', 'sitter', 'walker'];
+  const homeSrc = { ...(base.homeRadiusKm || {}), ...(p.homeRadiusKm || {}) };
+  const homeRadius = {};
+  for (const role of HOME_ROLES) {
+    const km = num(homeSrc[role], 10, 500);
+    if (km !== undefined) homeRadius[role] = Math.round(km);
+  }
+  if (Object.keys(homeRadius).length) out.homeRadiusKm = homeRadius;
+
   const modeSrc = p.routeMode !== undefined ? p.routeMode : base.routeMode;
   if (['walk', 'bike', 'car'].includes(modeSrc)) out.routeMode = modeSrc;
 

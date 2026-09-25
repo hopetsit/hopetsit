@@ -1,3 +1,5 @@
+const searchRadius = require('../utils/searchRadius');
+const { parseRadiusKm } = searchRadius;
 const Owner = require('../models/Owner');
 // v584 — floutage des demandes sur la PawMap (~1 km).
 const { blurLngLat, WORLD_APPROX_KM } = require('../utils/coarseLocation');
@@ -1120,10 +1122,9 @@ const getNearbyRequestPosts = async (req, res) => {
   try {
     const lat = parseFloat(req.query.lat);
     const lng = parseFloat(req.query.lng);
-    const maxDistanceKm = Math.min(
-      parseFloat(req.query.maxDistance || '25'),
-      200,
-    );
+    // v585 (lot D) — règle UNIQUE du rayon (utils/searchRadius) : plafond
+    // 500 km comme les curseurs (avant : 200), défaut 25 km.
+    const maxDistanceKm = parseRadiusKm(req.query, { defaultKm: 25 });
 
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       return res
@@ -1174,18 +1175,7 @@ const getNearbyRequestPosts = async (req, res) => {
       .lean();
 
     // Haversine great-circle distance in kilometers.
-    const toRad = (x) => (x * Math.PI) / 180;
-    const R = 6371;
-    const haversine = (lat1, lng1, lat2, lng2) => {
-      const dLat = toRad(lat2 - lat1);
-      const dLng = toRad(lng2 - lng1);
-      const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos(toRad(lat1)) *
-          Math.cos(toRad(lat2)) *
-          Math.sin(dLng / 2) ** 2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    };
+    const haversine = searchRadius.haversineKm; // v585 — un seul haversine
 
     // v23.1 part 220 — fallback city-match si pas de coordonnees valides.
     // Recupere la city du viewer pour le match string.
@@ -1228,7 +1218,7 @@ const getNearbyRequestPosts = async (req, res) => {
             postCity.includes(viewerCity) ||
             viewerCity.includes(postCity));
         const isNearby =
-          (distanceKm !== null && distanceKm <= maxDistanceKm) || sameCity;
+          (distanceKm !== null && searchRadius.withinRadiusKm(distanceKm, maxDistanceKm)) || sameCity;
         return { post: p, distanceKm: distanceKm ?? 0, isNearby };
       })
       .filter((x) => x.isNearby)

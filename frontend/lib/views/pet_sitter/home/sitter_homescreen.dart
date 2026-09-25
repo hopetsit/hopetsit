@@ -28,6 +28,8 @@ import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/reservation_request_filter_dialog.dart';
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
 import 'package:hopetsit/views/service_provider/owner_profile_view_screen.dart';
+import 'package:hopetsit/utils/home_radius_prefs.dart';
+import 'package:hopetsit/utils/search_radius.dart';
 import 'package:hopetsit/views/shared/widgets/around_me_search_bar.dart';
 import 'package:hopetsit/views/shared/widgets/city_picker_sheet.dart';
 import 'package:hopetsit/views/shared/widgets/home_empty_kit.dart';
@@ -110,6 +112,13 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   @override
   void initState() {
     super.initState();
+    // Lot D — rayon retenu pour ce rôle (appareil, sinon compte), sinon 50 km.
+    _radiusKm = HomeRadiusPrefs.resolve(
+      _isWalkerViewer ? 'walker' : 'sitter',
+      min: _kMinRadiusKm,
+      max: _kMaxRadiusKm,
+      fallback: _kDefaultRadiusKm,
+    );
     _seedAnchorFromProfile();
     _loadPendingApplications();
     _loadUserPosition();
@@ -303,13 +312,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       final lat = post.location?.lat;
       final lng = post.location?.lng;
       if (lat == null || lng == null) return true; // tolérance sans coords.
-      final meters = Geolocator.distanceBetween(
-        anchor.lat,
-        anchor.lng,
-        lat,
-        lng,
-      );
-      return (meters / 1000) <= radiusKm;
+      // Lot D — même règle que le serveur (haversine, borne inclusive).
+      return withinRadiusKm(haversineKm(anchor.lat, anchor.lng, lat, lng), radiusKm);
     }).toList();
   }
 
@@ -324,12 +328,22 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       minRadiusKm: _kMinRadiusKm,
       maxRadiusKm: _kMaxRadiusKm,
       onTapCity: () => _showAroundMeCityPicker(context),
-      // Glissement : mise à jour LOCALE de la valeur affichée seulement (pas
-      // de re-filtre à chaque pixel — le feed ne recalcule qu'au relâchement).
-      onRadiusChanged: (v) => setState(() => _radiusKm = v),
-      // Relâchement : on garde la valeur (le feed se re-filtre via setState).
-      onRadiusCommit: (v) => setState(() => _radiusKm = v),
+      // Glissement : la barre affiche la valeur toute seule (état local du
+      // widget) — AUCUN setState ici : avant le lot D, tout l'écran (et ses
+      // dizaines de cartes) était reconstruit à chaque pixel = les mini-lags.
+      onRadiusChanged: (_) {},
+      // Relâchement : on applique la valeur (le feed se re-filtre une fois)
+      // et on la mémorise pour ce rôle.
+      onRadiusCommit: _applyRadius,
     );
+  }
+
+  /// Lot D — applique un rayon (relâchement du curseur, « Élargir ») : une
+  /// seule reconstruction du flux, valeur entière, mémorisée par rôle.
+  void _applyRadius(double km) {
+    final v = clampRadiusKm(km, min: _kMinRadiusKm, max: _kMaxRadiusKm);
+    if (v != _radiusKm && mounted) setState(() => _radiusKm = v);
+    HomeRadiusPrefs.write(_isWalkerViewer ? 'walker' : 'sitter', v);
   }
 
   /// v441 — compteur résultats : « N résultats trouvés » (clé existante
@@ -964,7 +978,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     final lat = post.location?.lat;
     final lng = post.location?.lng;
     if (lat == null || lng == null) return null;
-    return Geolocator.distanceBetween(anchor.lat, anchor.lng, lat, lng) / 1000;
+    return haversineKm(anchor.lat, anchor.lng, lat, lng); // Lot D : même règle que le filtre
   }
 
   /// v571 — écran de modification du profil DU RÔLE (même écran que l'onglet
@@ -1029,7 +1043,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
           currentKm: currentKm,
           suggestedKm: suggested,
           onExpand: suggested > currentKm
-              ? () => setState(() => _radiusKm = suggested.toDouble())
+              ? () => _applyRadius(suggested.toDouble())
               : null,
         ),
         PoppinsText(
@@ -1945,8 +1959,11 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   // _buildInlineDistanceSlider + le StatefulWidget _InlineDistanceSlider ont
   // été supprimés : le rayon est maintenant porté par la barre partagée
   // AroundMeSearchBar (cf _buildAroundMeBar).
-  static const double _kMinRadiusKm = 50.0;
+  // Lot D (25/09/2026) — mêmes bornes que l'accueil propriétaire (10–500 km,
+  // pas de 10) : un gardien en ville veut aussi les annonces à moins de 50 km.
+  static const double _kMinRadiusKm = 10.0;
   static const double _kMaxRadiusKm = 500.0;
+  static const double _kDefaultRadiusKm = 50.0;
 
   /// Stub — report post flow. The real implementation opens ReportDialog.
   /// Kept lightweight so the feed still compiles while the report UI is

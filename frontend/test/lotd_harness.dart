@@ -51,10 +51,12 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 
 class LotdRequest {
-  LotdRequest(this.method, this.path, this.body);
+  LotdRequest(this.method, this.path, this.body, [this.query = const <String, String>{}]);
   final String method;
   final String path;
   final Map<String, dynamic>? body;
+  /// Paramètres d'URL (`?radiusInMeters=30000`), vides s'il n'y en a pas.
+  final Map<String, String> query;
   @override
   String toString() => '$method $path $body';
 }
@@ -74,7 +76,7 @@ http.Client lotdFakeHttp() => MockClient((http.Request req) async {
           body = <String, dynamic>{'raw': req.body};
         }
       }
-      lotdRequests.add(LotdRequest(req.method, req.url.path, body));
+      lotdRequests.add(LotdRequest(req.method, req.url.path, body, req.url.queryParameters));
       final custom = lotdResponder?.call(req);
       final payload = custom ?? const <String, dynamic>{};
       return http.Response(jsonEncode(payload), 200,
@@ -178,6 +180,12 @@ class _NoSocket extends SocketService {
 
 /// L'app de test : vraies traductions, taille de conception de l'app.
 Widget lotdApp(Widget home, {Locale locale = const Locale('fr', 'FR'), Brightness brightness = Brightness.light}) {
+  // Après un `Get.reset()` (écran précédent), GetX a perdu ses traductions et
+  // sa langue : on les repose explicitement (sinon des CLÉS BRUTES s'affichent
+  // dès le 2e écran sur l'appareil — vu sur les captures iOS du 25/09).
+  Get.addTranslations(AppTranslations().keys);
+  Get.locale = locale;
+  Get.fallbackLocale = const Locale('en', 'US');
   return ScreenUtilInit(
     designSize: const Size(393, 852),
     builder: (_, __) => GetMaterialApp(
