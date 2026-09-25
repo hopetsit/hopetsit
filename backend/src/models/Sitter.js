@@ -280,6 +280,8 @@ const sitterSchema = new mongoose.Schema(
       // resultats jusqu'a ce qu'il ressaisisse son adresse. On garde donc les
       // coordonnees et on eteint le direct avec ce drapeau.
       liveShareActive: { type: Boolean, default: false },
+      // v587 — heure de départ du direct en cours (null hors direct).
+      liveShareStartedAt: { type: Date, default: null },
       locationType: { type: String, enum: ['standard', 'large_city'], default: 'standard' },
     },
     servicePricing: {

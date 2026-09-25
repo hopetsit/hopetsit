@@ -28,6 +28,8 @@
 const Friendship = require('../models/Friendship');
 const { userRoom, emitToUser } = require('./emitter');
 const logger = require('../utils/logger');
+// v587 — heure de départ du direct (posée au démarrage, effacée à l'arrêt).
+const { markLiveShareStarted, LIVE_STOP_SET } = require('../utils/liveShareStart');
 
 const MIN_EMIT_INTERVAL_MS = 3000;
 const ROLE_TO_MODEL_NAME = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' };
@@ -155,7 +157,7 @@ async function endLiveSessionByDuration(s) {
     try {
       await require(`../models/${model}`).updateOne(
         { _id: s.userId },
-        { $set: { 'location.liveShareActive': false } },
+        { $set: { ...LIVE_STOP_SET } },
       );
     } catch (e) {
       logger.warn(`[live] offline flag (duration end) failed : ${e.message}`);
@@ -482,7 +484,7 @@ async function relayLivePosition({ userId, role, lat, lng, city, offline, durati
       // drapeau dédié (les lecteurs du live le respectent).
       await Model.updateOne(
         { _id: userId },
-        { $set: { 'location.liveShareActive': false } },
+        { $set: { ...LIVE_STOP_SET } },
       );
     } catch (e) {
       logger.warn(`[relayLivePosition] offline flag failed : ${e.message}`);
@@ -502,6 +504,7 @@ async function relayLivePosition({ userId, role, lat, lng, city, offline, durati
     // chaque position reçue : `locationType` ('large_city') repassait à
     // 'standard' — il pilote la tarification — et `city` était vidée quand le
     // client ne l'envoyait pas. On écrit désormais champ par champ.
+    await markLiveShareStarted(Model, userId);
     await Model.updateOne(
       { _id: userId },
       {
@@ -600,6 +603,7 @@ function registerMapHandlers(io, socket) {
           else if (identity.role === 'sitter') Model = require('../models/Sitter');
           else if (identity.role === 'owner') Model = require('../models/Owner');
           if (Model) {
+            await markLiveShareStarted(Model, identity.userId);
             await Model.updateOne(
               { _id: identity.userId },
               {
@@ -689,7 +693,7 @@ function registerMapHandlers(io, socket) {
             // v532 — cf. relayLivePosition : on n'efface plus les coordonnées
             // (le prestataire disparaissait des résultats de recherche), on
             // éteint seulement le partage en direct.
-            { $set: { 'location.liveShareActive': false } },
+            { $set: { ...LIVE_STOP_SET } },
           );
         }
       } catch (e) {

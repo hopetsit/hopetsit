@@ -927,6 +927,11 @@ const getOwnerProfile = async (req, res) => {
       // v565 — ville plate (point 1) ; countryCode renvoyé tel quel (point 12).
       p.city = p.city || (p.location && p.location.city) || '';
       p.countryCode = p.countryCode || '';
+      // v587 — heure de départ du direct en cours (null hors direct) : le site
+      // affiche « En direct · X min ».
+      // (sanitizeUser reformate `location` : on relit le document brut.)
+      p.liveShareStartedAt = (account.location && account.location.liveShareStartedAt) || null;
+      if (p.location) p.location.liveShareStartedAt = p.liveShareStartedAt;
       return res.json({ profile: p });
     }
 
@@ -966,6 +971,9 @@ const getOwnerProfile = async (req, res) => {
     const ownerOut = sanitizeUser(owner, { includeEmail: true });
     // v565 — ville plate (point 1) ; countryCode renvoyé tel quel (point 12).
     ownerOut.city = ownerOut.city || (ownerOut.location && ownerOut.location.city) || '';
+    // v587 — heure de départ du direct en cours (null hors direct).
+    ownerOut.liveShareStartedAt = (owner.location && owner.location.liveShareStartedAt) || null;
+    if (ownerOut.location) ownerOut.location.liveShareStartedAt = ownerOut.liveShareStartedAt;
     ownerOut.countryCode = ownerOut.countryCode || '';
     const profile = {
       ...ownerOut,
