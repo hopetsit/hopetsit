@@ -2386,15 +2386,29 @@ const respondBooking = async (req, res) => {
       ? { _id: id, status: 'pending', walkerId: userId }
       : { _id: id, status: 'pending', sitterId: userId };
 
-    const updatedBooking = await Booking.findOneAndUpdate(
+    // v584 (25/09, point 20) — vu en vrai avec les comptes de test : le
+    // gardien acceptait (statut bien passé à « accepted ») mais recevait
+    // « RESPOND_BOOKING_FAILED — Cannot populate path `petIds` » : la
+    // réponse échouait APRÈS l'écriture. Le peuplement ne doit jamais faire
+    // échouer une acceptation : on écrit d'abord, on peuple ensuite, et un
+    // peuplement qui casse est simplement ignoré (le document nu suffit).
+    let updatedBooking = await Booking.findOneAndUpdate(
       ownershipFilter,
       { $set: { status: newStatus, [timestampField]: new Date() } },
       { new: true },
-    )
-      .populate('ownerId')
-      .populate('sitterId')
-      .populate('walkerId')
-      .populate('petIds');
+    );
+    if (updatedBooking) {
+      try {
+        updatedBooking = await updatedBooking.populate(['ownerId', 'sitterId', 'walkerId']);
+      } catch (popErr) {
+        logger.warn(`[respondBooking] populate acteurs impossible : ${popErr?.message || popErr}`);
+      }
+      try {
+        updatedBooking = await updatedBooking.populate('petIds');
+      } catch (popErr) {
+        logger.warn(`[respondBooking] populate petIds impossible : ${popErr?.message || popErr}`);
+      }
+    }
 
     if (!updatedBooking) {
       // Soit la booking n'existe pas, soit elle n'est plus pending,
