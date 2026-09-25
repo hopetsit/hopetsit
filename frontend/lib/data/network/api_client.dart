@@ -27,7 +27,7 @@ class ApiClient {
   // depuis package_info_plus, sinon constante) et `X-App-Platform` : le
   // serveur s'en sert pour exiger la ville à l'inscription (build ≥ 565)
   // sans casser les anciennes apps.
-  static const String _fallbackAppVersion = '23.1.577+585';
+  static const String _fallbackAppVersion = '23.1.577+586';
   static String _appVersion = _fallbackAppVersion;
   static bool _versionLoading = false;
   static String get appVersion => _appVersion;
