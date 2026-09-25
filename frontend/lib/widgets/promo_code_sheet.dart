@@ -455,17 +455,24 @@ class _PromoPopupState extends State<PromoPopup> with SingleTickerProviderStateM
   // v565 — Daniel : « précise 1 mois de PawPremium gratuit » : la récompense
   // réelle du code (lue via /promo/check, sans le consommer) est affichée.
   String _reward = '';
-  late final AnimationController _anim = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 420),
-  );
-  late final Animation<Offset> _slide =
-      Tween<Offset>(begin: const Offset(0, 1.2), end: Offset.zero)
-          .animate(CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic));
+  // Lot D (25/09/2026) — BUG vu sur l'app réelle (test du menu du bas) :
+  // ces deux champs étaient `late final` INITIALISÉS PARESSEUSEMENT. Quand le
+  // pop-up décidait de ne pas s'afficher puis était retiré (changement
+  // d'écran), `dispose()` touchait `_anim` pour la première fois → le
+  // contrôleur se créait sur un widget déjà désactivé (« Looking up a
+  // deactivated widget's ancestor is unsafe »). Création dans `initState`.
+  late final AnimationController _anim;
+  late final Animation<Offset> _slide;
 
   @override
   void initState() {
     super.initState();
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
+    _slide = Tween<Offset>(begin: const Offset(0, 1.2), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic));
     _decide();
   }
 
