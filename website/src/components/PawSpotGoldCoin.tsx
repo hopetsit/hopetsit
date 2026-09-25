@@ -91,7 +91,7 @@ export default function PawSpotGoldCoin({
       width={size}
       height={size}
       className={`inline-block align-middle ${className}`}
-      style={{ width: size, height: size, filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.25))" }}
+      style={{ width: size, height: size, filter: "drop-shadow(0 2px 4px rgba(201,42,18,0.25))" }}
     />
   );
 }

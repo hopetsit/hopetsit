@@ -467,7 +467,7 @@ function SideLink({ href, icon, label, badge, tint }: { href: string; icon: AppI
           <span className="absolute -right-2 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#C92A12] px-1 text-[10px] font-bold text-white">{badge > 99 ? "99+" : badge}</span>
         ) : null}
       </span>
-      <span className="flex-1 truncate">{label}</span>
+      <span className="flex-1 leading-tight">{label}</span>
       <span className="text-ink-soft transition group-hover:translate-x-0.5">›</span>
     </Link>
   );

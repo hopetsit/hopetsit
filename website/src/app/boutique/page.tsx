@@ -361,7 +361,7 @@ export default function BoutiquePage() {
             onClick={() => setSection("pawpremium")}
             g1="#3A3028"
             g2="#0F0B08"
-            shadow="rgba(0,0,0,.55)"
+            shadow="rgba(35,23,21,.55)"
             titleColor="#FFD34D"
             icon={CARD_ICONS.premium}
           />
@@ -549,7 +549,7 @@ function SectionTab({
       <span className="pointer-events-none absolute inset-x-0 top-0 h-[45%] bg-gradient-to-b from-white/20 to-transparent" />
       <span
         className="relative grid h-14 w-14 flex-none place-items-center rounded-full bg-white"
-        style={{ boxShadow: "0 6px 14px -6px rgba(0,0,0,.35)" }}
+        style={{ boxShadow: "0 6px 14px -6px rgba(201,42,18,.35)" }}
       >
         {icon}
       </span>
