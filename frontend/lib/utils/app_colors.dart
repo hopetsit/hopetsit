@@ -109,7 +109,18 @@ class AppColors {
     return '';
   }
 
+  /// Dernier rôle lu par [_activeRole] : sert aux ombres, qui ne doivent pas
+  /// toucher au stockage (un `GetStorage()` non initialisé laisse un minuteur
+  /// en suspens dans les tests de widgets).
+  static String? _lastKnownRole;
+
   static String _activeRole() {
+    final r = _activeRoleRead();
+    _lastKnownRole = r;
+    return r;
+  }
+
+  static String _activeRoleRead() {
     try {
       final box = GetStorage();
       // 1) Rôle canonique mutable (mis à jour à chaque bascule de profil).
@@ -233,17 +244,27 @@ class AppColors {
   /// fond pâle donne un gris (Daniel : « aucun gris, même dans les ombres »).
   /// Toutes les ombres claires de l'app passent par cette encre chaude
   /// (rouge-brun #7A2A16) à l'alpha d'origine : même profondeur, teinte chaude.
+  /// Encre des ombres = la couleur du RÔLE actif assombrie (rouge-brun chez le
+  /// propriétaire, bleu nuit chez le gardien, vert sombre chez le promeneur) :
+  /// une ombre chaude sur le fond bleu pâle du gardien redonnait un gris
+  /// (mesure sur les captures du 25/09) ; de la même teinte que le fond, elle
+  /// reste colorée.
   static const Color shadowInk = Color(0xFF7A2A16);
-  static Color shadow(double alpha) => shadowInk.withValues(alpha: alpha);
+  static Color shadowInkForRole() {
+    final role = _lastKnownRole ?? _normalizeRole(activeRoleOverride);
+    if (role.isEmpty) return shadowInk;
+    return Color.lerp(roleAccent(role), const Color(0xFF000000), 0.45)!;
+  }
+  static Color shadow(double alpha) => shadowInkForRole().withValues(alpha: alpha);
 
-  static const List<BoxShadow> _lightCardShadow = [
-    BoxShadow(
-      color: Color(0x0A7A2A16), // alpha 0.04, encre chaude (lot D)
-      blurRadius: 3,
-      offset: Offset(0, 1),
-    ),
-  ];
   static const List<BoxShadow> _emptyCardShadow = [];
-  static List<BoxShadow> cardShadow(BuildContext context) =>
-      _isDark(context) ? _emptyCardShadow : _lightCardShadow;
+  static List<BoxShadow> cardShadow(BuildContext context) => _isDark(context)
+      ? _emptyCardShadow
+      : <BoxShadow>[
+          BoxShadow(
+            color: shadow(0.04), // alpha 0.04, encre du rôle (lot D)
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ];
 }

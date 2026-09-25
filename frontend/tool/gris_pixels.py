@@ -2,7 +2,8 @@
 """v585 (lot D) — ZÉRO GRIS, preuve par les PIXELS (règle de Daniel du 25/09).
 
 Mesure, sur des captures d'écran (iPhone / Android / site), la part de pixels
-GRIS : saturation quasi nulle (S < 0,08 en HSV) hors blancs (V > 0,93) et noirs
+GRIS : S < 0,05, ou S < 0,08 avec une teinte froide (hors 340°–45°) — règle de PAM —
+hors blancs (V > 0,93) et noirs
 (V < 0,15), hors bandes du haut / du bas (barre d'état, barre système) et hors
 rectangles à exclure (photos, carte). Les contours anti-crénelés du texte noir
 sur blanc donnent des pixels gris d'1 px de large : ils ne sont PAS des zones
@@ -22,11 +23,16 @@ def mesure(path, haut, bas, exclure, sortie=None):
     im = Image.open(path).convert('RGB')
     w, h = im.size
     hsv = im.convert('HSV')
-    _, s, v = hsv.split()
-    # gris candidat : S < 0,08 (≈ 20/255) ET 0,15 < V < 0,93 (≈ 38..237)
-    sat_low = s.point(lambda p: 255 if p < 20 else 0)
+    hh, s, v = hsv.split()
+    # gris candidat — MÊME règle que le contrôle du code source (règle de PAM,
+    # lot D) : gris pur si S < 0,05 ; sinon gris si S < 0,08 ET teinte FROIDE
+    # (hors 340°–45°, les bruns / roses chauds ne sont pas des gris : une ombre
+    # légère sur le fond pâle du rôle reste chaude). Toujours 0,15 < V < 0,93.
+    sat_pure = s.point(lambda p: 255 if p < 13 else 0)          # < 5 %
+    sat_low = s.point(lambda p: 255 if p < 20 else 0)           # < 8 %
+    cold = hh.point(lambda p: 255 if 32 < p < 241 else 0)       # hors 340°–45°
     v_mid = v.point(lambda p: 255 if 38 < p < 237 else 0)
-    cand = ImageChops.multiply(sat_low, v_mid)
+    cand = ImageChops.multiply(ImageChops.add(sat_pure, ImageChops.multiply(sat_low, cold)), v_mid)
     # zone mesurée : hors bandes haut / bas et hors rectangles exclus
     zone = Image.new('L', (w, h), 255)
     zone.paste(0, (0, 0, w, haut))

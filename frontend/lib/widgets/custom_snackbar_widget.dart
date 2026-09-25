@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:hopetsit/utils/app_colors.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -429,8 +430,9 @@ class _BannerCardState extends State<_BannerCard>
         dark ? const Color(0xFFF8F5F4) : const Color(0xFF201613);
     final Color messageColor =
         dark ? const Color(0xFFAF9B96) : const Color(0xFF82665E);
+    // Lot D — liseré à l'encre du rôle (le noir à 8 % lisait « gris »).
     final Color borderColor =
-        dark ? const Color(0x26FFFFFF) : const Color(0x14000000);
+        dark ? const Color(0x26FFFFFF) : AppColors.shadow(0.10);
 
     final curved = CurvedAnimation(
       parent: _enter,

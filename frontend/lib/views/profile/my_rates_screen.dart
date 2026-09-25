@@ -184,7 +184,8 @@ class _WalkerRates extends StatelessWidget {
           accent: accent,
           children: [
             Obx(() => _RateField(
-                  label: 'rates_extra_pet_label'.tr,
+                  // Lot D — « (€) » du libellé remplacé par la devise choisie.
+                  label: 'rates_extra_pet_label'.tr.replaceAll('(€)', '(${CurrencyHelper.symbol(controller.selectedCurrency.value).trim()})'),
                   hint: '0',
                   controller: controller.extraPetRateController,
                   accent: accent,
@@ -266,7 +267,8 @@ class _SitterRates extends StatelessWidget {
           accent: accent,
           children: [
             Obx(() => _RateField(
-                  label: 'rates_extra_pet_label'.tr,
+                  // Lot D — « (€) » du libellé remplacé par la devise choisie.
+                  label: 'rates_extra_pet_label'.tr.replaceAll('(€)', '(${CurrencyHelper.symbol(controller.selectedCurrency.value).trim()})'),
                   hint: '0.00',
                   controller: controller.extraPetRateController,
                   accent: accent,
