@@ -15,6 +15,7 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:hopetsit/widgets/photo_viewer_screen.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 
 class PetPostCard extends StatelessWidget {
   final String userName;
@@ -1983,29 +1984,9 @@ class PetPostCard extends StatelessWidget {
     );
   }
 
-  String _formatMoneyShort(double amount, String currency) {
-    final symbol = _symbolFor(currency);
-    final isInt = amount == amount.roundToDouble();
-    final formatted = isInt
-        ? amount.toInt().toString()
-        : amount.toStringAsFixed(2);
-    return '$symbol$formatted';
-  }
-
-  String _symbolFor(String code) {
-    switch (code.toUpperCase()) {
-      case 'EUR':
-        return '€';
-      case 'USD':
-      case 'CAD':
-      case 'AUD':
-        return '\$';
-      case 'GBP':
-        return '£';
-      default:
-        return '$code ';
-    }
-  }
+  /// Lot D — même format monétaire que partout (langue de l'app).
+  String _formatMoneyShort(double amount, String currency) =>
+      CurrencyHelper.formatCompact(currency, amount);
 
   // v425 — remplacé par _buildHeroBanner (maquette 221). Conservé au cas où.
   // ignore: unused_element

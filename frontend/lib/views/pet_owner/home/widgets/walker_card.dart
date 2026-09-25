@@ -8,6 +8,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/reviews/widgets/rating_stars.dart';
 import 'package:hopetsit/widgets/boost_badge.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 
 /// Premium dog-walker card for the Owner's "Promeneurs" tab.
 ///
@@ -95,30 +96,32 @@ class WalkerCard extends StatelessWidget {
     final hourRate = _hourlyRate;
     final twoHourRate = _twoHourRate;
 
-    // Tariff cells — only configured durations are shown. Currency kept as "€".
+    // Tariff cells — only configured durations are shown. Lot D : devise du
+    // promeneur (avant : « € » en dur, faux pour un promeneur en USD / GBP).
+    String money(double v) => CurrencyHelper.formatCompact(walker.currency, v);
     final cells = <_TariffCell>[
       if (halfHourRate != null)
         _TariffCell(
           label: 'card_tariff_30min'.tr,
-          value: '${halfHourRate.toStringAsFixed(0)}€',
+          value: money(halfHourRate),
           sub: '',
         ),
       if (hourRate != null)
         _TariffCell(
           label: 'card_tariff_1h'.tr,
-          value: '${hourRate.toStringAsFixed(0)}€',
+          value: money(hourRate),
           sub: '',
         ),
       if (twoHourRate != null)
         _TariffCell(
           label: 'card_tariff_2h'.tr,
-          value: '${twoHourRate.toStringAsFixed(0)}€',
+          value: money(twoHourRate),
           sub: '',
         ),
       if (walker.extraPetRate > 0)
         _TariffCell(
           label: 'card_extra_pet'.tr,
-          value: '+ ${walker.extraPetRate.toStringAsFixed(0)}€',
+          value: '+ ${money(walker.extraPetRate)}',
           sub: 'card_per_animal'.tr,
         ),
     ];
@@ -140,7 +143,7 @@ class WalkerCard extends StatelessWidget {
                 spreadRadius: 1,
               ),
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: AppColors.shadow(0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),

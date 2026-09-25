@@ -426,8 +426,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                     ? Padding(
                         padding: EdgeInsets.all(8.w),
                         child: PoppinsText(
-                          text:
-                              '${CurrencyHelper.symbol(widget.currencyCode)}${widget.pricePerHour}',
+                          text: _money(widget.pricePerHour),
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary(context),
@@ -664,7 +663,6 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
     final hasRating =
         widget.rating > 0 && (widget.reviewsCount ?? 0) > 0;
     final hasLocation = widget.location.trim().isNotEmpty;
-    final currencySym = CurrencyHelper.symbol(widget.currencyCode);
     final price = widget.pricePerHour.trim();
     final showPrice = price.isNotEmpty && price != '0';
 
@@ -819,7 +817,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                         borderRadius: BorderRadius.circular(14.r),
                       ),
                       child: PoppinsText(
-                        text: '$currencySym$price/${'price_per_hour_short'.tr}',
+                        text: '${_money(price)}/${'price_per_hour_short'.tr}',
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w700,
                         color: accent,
@@ -1108,21 +1106,28 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
     return AppColors.primaryColor;
   }
 
+  /// Lot D — un prix reçu en texte (« 12 », « 12.5 ») rendu dans la devise de
+  /// la carte, au format de la langue de l'app (« 12 € », « \$12 »).
+  String _money(String raw) {
+    final v = double.tryParse(raw.trim().replaceAll(',', '.'));
+    if (v == null) return raw.trim();
+    return CurrencyHelper.formatCompact(widget.currencyCode, v);
+  }
+
   Widget _buildActionButtons() {
     switch (widget.cardType) {
       case ServiceProviderCardType.home:
-        final sym = CurrencyHelper.symbol(widget.currencyCode);
         final rates = <String>[
           if (widget.pricePerHour.isNotEmpty && widget.pricePerHour != '0')
-            '$sym${widget.pricePerHour}/${'price_per_hour_short'.tr}',
+            '${_money(widget.pricePerHour)}/${'price_per_hour_short'.tr}',
           if (widget.pricePerDay != null && widget.pricePerDay!.isNotEmpty && widget.pricePerDay != '0')
-            '$sym${widget.pricePerDay}/${'price_per_day_short'.tr}',
+            '${_money(widget.pricePerDay!)}/${'price_per_day_short'.tr}',
           if (widget.pricePerWeek != null && widget.pricePerWeek!.isNotEmpty && widget.pricePerWeek != '0')
-            '$sym${widget.pricePerWeek}/${'price_per_week_short'.tr}',
+            '${_money(widget.pricePerWeek!)}/${'price_per_week_short'.tr}',
           if (widget.pricePerMonth != null && widget.pricePerMonth!.isNotEmpty && widget.pricePerMonth != '0')
-            '$sym${widget.pricePerMonth}/${'price_per_month_short'.tr}',
+            '${_money(widget.pricePerMonth!)}/${'price_per_month_short'.tr}',
         ];
-        final priceLabel = rates.isNotEmpty ? rates.join(' · ') : '$sym${widget.pricePerHour}/${'price_per_hour_short'.tr}';
+        final priceLabel = rates.isNotEmpty ? rates.join(' · ') : '${_money(widget.pricePerHour)}/${'price_per_hour_short'.tr}';
         return Column(
           children: [
             // Price row
@@ -1158,7 +1163,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                     Icon(Icons.calculate_outlined, size: 16.sp, color: AppColors.primaryColor),
                     SizedBox(width: 6.w),
                     InterText(
-                      text: '${'estimated_cost_label'.tr}: ${CurrencyHelper.symbol(widget.currencyCode)}${widget.estimatedCost!.toStringAsFixed(0)}',
+                      text: '${'estimated_cost_label'.tr}: ${CurrencyHelper.formatCompact(widget.currencyCode, widget.estimatedCost!)}',
                       fontSize: 13.sp,
                       fontWeight: FontWeight.w700,
                       color: AppColors.primaryColor,

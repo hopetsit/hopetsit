@@ -8,6 +8,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/reviews/widgets/rating_stars.dart';
 import 'package:hopetsit/widgets/boost_badge.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 
 /// Premium pet-sitter card for the Owner's "Pet-sitters" tab.
 ///
@@ -51,21 +52,6 @@ class SitterCard extends StatelessWidget {
   /// Sitter segment accent — premium mockup blue.
   static const Color _sitterBlue = Color(0xFF2563EB);
 
-  /// Currency symbol helper — keeps the card footprint small.
-  String _currencySymbol(String code) {
-    switch (code.toUpperCase()) {
-      case 'USD':
-        return '\$';
-      case 'GBP':
-        return '£';
-      case 'CHF':
-        return 'CHF';
-      case 'EUR':
-      default:
-        return '€';
-    }
-  }
-
   /// True when the sitter has configured NO availability at all (no calendar
   /// dates and no recurring weekly slots). Drives the "Indisponible" label.
   bool get _hasNoAvailability =>
@@ -95,7 +81,8 @@ class SitterCard extends StatelessWidget {
         sitter.averageRating > 0 ? sitter.averageRating : sitter.rating;
     final city = sitter.displayCity;
     final distance = sitter.distanceKm;
-    final currency = _currencySymbol(sitter.currency);
+    // Lot D — même format monétaire que partout (devise du gardien).
+    String money(double v) => CurrencyHelper.formatCompact(sitter.currency, v);
     final bio = sitter.bio?.trim() ?? '';
 
     final bool isBoosted = sitter.isBoosted;
@@ -106,25 +93,25 @@ class SitterCard extends StatelessWidget {
       if (sitter.dailyRate > 0)
         _TariffCell(
           label: 'card_tariff_day'.tr,
-          value: '${sitter.dailyRate.toStringAsFixed(0)}$currency',
+          value: money(sitter.dailyRate),
           sub: 'card_sub_over_10h'.tr,
         ),
       if (sitter.weeklyRate > 0)
         _TariffCell(
           label: 'card_tariff_week'.tr,
-          value: '${sitter.weeklyRate.toStringAsFixed(0)}$currency',
+          value: money(sitter.weeklyRate),
           sub: 'card_sub_7_days'.tr,
         ),
       if (sitter.monthlyRate > 0)
         _TariffCell(
           label: 'card_tariff_month'.tr,
-          value: '${sitter.monthlyRate.toStringAsFixed(0)}$currency',
+          value: money(sitter.monthlyRate),
           sub: 'card_sub_30_days'.tr,
         ),
       if (sitter.extraPetRate > 0)
         _TariffCell(
           label: 'card_extra_pet'.tr,
-          value: '+ ${sitter.extraPetRate.toStringAsFixed(0)}$currency',
+          value: '+ ${money(sitter.extraPetRate)}',
           sub: 'card_per_animal'.tr,
         ),
     ];
@@ -146,7 +133,7 @@ class SitterCard extends StatelessWidget {
                 spreadRadius: 1,
               ),
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: AppColors.shadow(0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),

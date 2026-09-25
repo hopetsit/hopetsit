@@ -15,6 +15,7 @@ import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 
 /// v409 refonte — inscription en wizard 5 étapes (maquette « S'INSCRIRE COMME …
 /// »). Réutilise SignUpController (tag: userType) → l'auth/OTP existante n'est
@@ -823,7 +824,7 @@ class SignupWizardScreen extends StatelessWidget {
               )),
         ],
         _field(c.extraAnimalController, 'signup_rate_extra_animal'.tr,
-            kb: TextInputType.number, suffix: '€'),
+            kb: TextInputType.number, suffix: c.currencySymbol),
         // v444 — « Temps de réponse » (minutes), identique à my_rates_screen
         // (sitter + walker). Persisté en responseTimeMinutes → cohérent avec
         // ce qu'affiche l'onglet Tarifs du profil après l'inscription.
@@ -1084,7 +1085,7 @@ class SignupWizardScreen extends StatelessWidget {
           Padding(
             padding: EdgeInsets.only(top: 2.h),
             child: InterText(
-              text: '+ ${c.extraAnimalController.text.trim().isEmpty ? '8' : c.extraAnimalController.text.trim()} € ${'signup_per_extra_animal'.tr}',
+              text: '+ ${CurrencyHelper.formatCompact(c.selectedCurrency.value, double.tryParse(c.extraAnimalController.text.trim().replaceAll(',', '.')) ?? 8)} ${'signup_per_extra_animal'.tr}',
               fontSize: 12.sp,
               fontWeight: FontWeight.w600,
               color: AppColors.textSecondary(context),

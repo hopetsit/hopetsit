@@ -6,6 +6,8 @@
 /// pets details, no photos) so the map stays fast. When the user taps a
 /// marker we navigate to the full request detail screen which will load the
 /// richer PostModel separately.
+import 'package:hopetsit/utils/currency_helper.dart';
+
 class NearbyRequestPost {
   final String id;
   final String ownerId;
@@ -52,26 +54,11 @@ class NearbyRequestPost {
     this.approx = false,
   });
 
-  /// « 25 € » ou vide sans budget.
+  /// « 25 € » (ou « $25 » en anglais) ou vide sans budget — lot D : même
+  /// helper que partout ailleurs (`CurrencyHelper.formatCompact`).
   String get budgetLabel {
     if (budget <= 0) return '';
-    final n = budget == budget.roundToDouble()
-        ? budget.toStringAsFixed(0)
-        : budget.toStringAsFixed(2);
-    switch (currency.toUpperCase()) {
-      case 'USD':
-        return '\$$n';
-      case 'GBP':
-        return '£$n';
-      case 'KRW':
-        return '₩$n';
-      case 'JPY':
-        return '¥$n';
-      case 'PLN':
-        return '$n zł';
-      default:
-        return '$n €';
-    }
+    return CurrencyHelper.formatCompact(currency, budget);
   }
 
   factory NearbyRequestPost.fromJson(Map<String, dynamic> j) {

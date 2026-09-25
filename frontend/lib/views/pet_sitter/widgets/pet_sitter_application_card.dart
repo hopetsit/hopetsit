@@ -26,7 +26,7 @@ import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/post_card_kit.dart';
 import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:intl/intl.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 
 class PetSitterApplication {
   final String id;
@@ -215,17 +215,8 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
 
   /// Montant dans la devise de la DONNÉE (plus de symbole vide hors
   /// EUR / GBP / USD), formaté selon la langue de l'app.
-  String _money(double v) {
-    final code = (application.currency ?? 'EUR').toUpperCase();
-    try {
-      return NumberFormat.simpleCurrency(
-        locale: Get.locale?.toLanguageTag(),
-        name: code,
-      ).format(v);
-    } catch (_) {
-      return '${v.toStringAsFixed(2)} $code';
-    }
-  }
+  String _money(double v) =>
+      CurrencyHelper.format((application.currency ?? 'EUR').toUpperCase(), v);
 
   @override
   Widget build(BuildContext context) {

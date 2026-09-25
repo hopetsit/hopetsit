@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'dart:math' as math;
 import 'package:hopetsit/models/post_model.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 
 /// Estimated earning for a walker/sitter looking at an owner's post.
 ///
@@ -303,23 +304,6 @@ PostPriceEstimate? estimatePostPrice({
   return null;
 }
 
-String _money(double amount, String currency) {
-  final symbol = _currencySymbol(currency);
-  final rounded = amount.toStringAsFixed(amount == amount.roundToDouble() ? 0 : 2);
-  return '$symbol$rounded';
-}
-
-String _currencySymbol(String code) {
-  switch (code.toUpperCase()) {
-    case 'EUR':
-      return '€';
-    case 'USD':
-    case 'CAD':
-    case 'AUD':
-      return '\$';
-    case 'GBP':
-      return '£';
-    default:
-      return '$code ';
-  }
-}
+/// Lot D — même format monétaire que partout (langue de l'app).
+String _money(double amount, String currency) =>
+    CurrencyHelper.formatCompact(currency, amount);

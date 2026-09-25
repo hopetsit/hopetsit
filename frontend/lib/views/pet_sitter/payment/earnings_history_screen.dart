@@ -184,6 +184,10 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
   }
 
   Widget _buildSummary(Color accent) {
+    // Lot D — devise du résumé (serveur) sinon celle des lignes, jamais « EUR »
+    // en dur : un promeneur en USD voyait ses totaux en euros.
+    final String cur = (_summary['currency'] as String?)?.toUpperCase() ??
+        (_earnings.isNotEmpty ? ((_earnings.first as Map)['currency'] ?? 'EUR').toString() : 'EUR');
     final earned = (_summary['totalEarned'] ?? 0).toDouble();
     final paidOut = (_summary['totalPaidOut'] ?? 0).toDouble();
     final pending = (_summary['pendingPayout'] ?? 0).toDouble();
@@ -224,7 +228,7 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
           ),
           SizedBox(height: 6.h),
           PoppinsText(
-            text: CurrencyHelper.format('EUR', earned),
+            text: CurrencyHelper.format(cur, earned),
             fontSize: 30.sp,
             fontWeight: FontWeight.w800,
             color: Colors.white,
@@ -235,7 +239,7 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
               Expanded(
                 child: _summaryItem(
                   'earnings_paid_out'.tr,
-                  CurrencyHelper.format('EUR', paidOut),
+                  CurrencyHelper.format(cur, paidOut),
                   Icons.check_circle_outline,
                 ),
               ),
@@ -243,7 +247,7 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
               Expanded(
                 child: _summaryItem(
                   'earnings_pending'.tr,
-                  CurrencyHelper.format('EUR', pending),
+                  CurrencyHelper.format(cur, pending),
                   Icons.schedule,
                 ),
               ),
@@ -251,7 +255,7 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
               Expanded(
                 child: _summaryItem(
                   'earnings_commission'.tr,
-                  CurrencyHelper.format('EUR', commission),
+                  CurrencyHelper.format(cur, commission),
                   Icons.percent,
                 ),
               ),

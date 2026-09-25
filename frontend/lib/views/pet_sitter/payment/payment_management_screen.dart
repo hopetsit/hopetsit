@@ -12,6 +12,7 @@ import 'package:hopetsit/views/invoices/invoices_screen.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/services/donation_service.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 
 /// v20.1 — Unified payment management screen pour walker + petsitter.
 ///
@@ -304,13 +305,13 @@ class PaymentManagementScreen extends StatelessWidget {
           SizedBox(height: 14.h),
           Row(
             children: [
-              _donationAmountChip(context, '2€'),
+              _donationAmountChip(context, 2),
               SizedBox(width: 8.w),
-              _donationAmountChip(context, '5€'),
+              _donationAmountChip(context, 5),
               SizedBox(width: 8.w),
-              _donationAmountChip(context, '10€'),
+              _donationAmountChip(context, 10),
               SizedBox(width: 8.w),
-              _donationAmountChip(context, '20€'),
+              _donationAmountChip(context, 20),
             ],
           ),
         ],
@@ -318,16 +319,15 @@ class PaymentManagementScreen extends StatelessWidget {
     );
   }
 
-  Widget _donationAmountChip(BuildContext context, String amount) {
+  Widget _donationAmountChip(BuildContext context, int euros) {
+    // Lot D — libellé au format de la langue (« 2 € » / « €2 ») ; le don est
+    // toujours en euros côté serveur.
+    final amount = CurrencyHelper.formatCompact('EUR', euros.toDouble());
     return Expanded(
       child: GestureDetector(
         onTap: () {
           // v18.9.3 — don réel via provider actif (Stripe ou Airwallex).
-          // Parse "5€" → 5.0.
-          final parsed = double.tryParse(
-                amount.replaceAll('€', '').replaceAll(',', '.').trim(),
-              ) ??
-              0;
+          final parsed = euros.toDouble();
           if (parsed <= 0) return;
           DonationService.donate(
             context: context,

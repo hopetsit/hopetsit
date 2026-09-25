@@ -16,6 +16,7 @@ import 'package:hopetsit/models/invoice_model.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 
 class InvoicePdfGenerator {
   InvoicePdfGenerator._();
@@ -65,8 +66,8 @@ class InvoicePdfGenerator {
     final muted = PdfColor.fromInt(0xFF8A6C64);
     final isRefunded = inv.status.toLowerCase() == 'refunded';
     final accent = isRefunded ? PdfColor.fromInt(0xFFC62828) : orange;
-    final symbol = _symbolFor(inv.currency);
-    String fmtAmount(double v) => '$symbol${v.toStringAsFixed(2)}';
+    // Lot D — même format que l'écran des factures (langue de l'app).
+    String fmtAmount(double v) => CurrencyHelper.format(inv.currency, v);
     String fmtDate(DateTime? d) {
       if (d == null) return '—';
       final mm = d.month.toString().padLeft(2, '0');
@@ -466,13 +467,4 @@ class InvoicePdfGenerator {
     return fmt(inv.serviceDate ?? inv.startDate ?? inv.issuedAt);
   }
 
-  static String _symbolFor(String currency) {
-    switch (currency.toUpperCase()) {
-      case 'EUR': return '€';
-      case 'GBP': return '£';
-      case 'CHF': return 'CHF ';
-      case 'USD': return '\$';
-      default:    return '$currency ';
-    }
-  }
 }

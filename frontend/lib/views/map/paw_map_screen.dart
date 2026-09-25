@@ -883,7 +883,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       distanceLabel: approx ? '' : _distanceLabelTo(lat, lng),
     );
     final priceLabel = priceFrom > 0
-        ? '${priceFrom.toStringAsFixed(0)} ${CurrencyHelper.symbol(currency)}'
+        ? CurrencyHelper.formatCompact(currency, priceFrom)
         : '';
     PawFriendState reqState = _relationState(id);
     showPawMapSheet<void>(
@@ -3138,7 +3138,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     final price = (p['priceFrom'] as num?)?.toDouble() ?? 0;
     if (price <= 0) return '';
     final cur = (p['currency'] ?? 'EUR').toString();
-    return '${price.toStringAsFixed(0)} ${CurrencyHelper.symbol(cur)}';
+    return CurrencyHelper.formatCompact(cur, price);
   }
 
   Set<Marker> _buildMarkers() {
@@ -5025,7 +5025,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           borderRadius: BorderRadius.circular(16.r),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.10),
+              color: AppColors.shadow(0.10),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
@@ -7324,7 +7324,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                       border: Border.all(color: Colors.white, width: 2.5),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.30),
+                          color: AppColors.shadow(0.30),
                           blurRadius: 4,
                           offset: const Offset(0, 1),
                         ),
