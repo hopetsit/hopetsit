@@ -21,7 +21,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
-import { API_BASE, startProviderConversation } from "@/lib/api";
+import { API_BASE, startConversationWithOwner, startProviderConversation } from "@/lib/api";
+import { OwnerRequestsCard } from "@/components/OwnerRequestsCard";
 import { AppIcon } from "@/components/AppIcon";
 import { ensureOwnerProfile, isMyProfile, needsOwnerSwitch } from "@/lib/bookAsOwner";
 import { providerCurrency, providerFrom, providerRateLines, formatMoney, type ProviderRateSource } from "@/lib/providerRates";
@@ -55,7 +56,51 @@ const ROLE = {
   walker: { c: "#16A34A", dark: "#15803D", g1: "#15803D", g2: "#166534", light: "#E8F8EE", ink: "#0F5C2B", icon: "walker" as const },
 };
 
-export default function ProviderSharePage() {
+// 25/09 (586, point 9) — /p/owner/:id : fiche propriétaire (demandes en cours
+// vues par un gardien / promeneur). Aiguillage AVANT tout hook des fiches.
+export default function SharePage() {
+  const params = useParams<{ type: string; id: string }>();
+  return params.type === "owner" ? <OwnerSharePage id={params.id} /> : <ProviderSharePage />;
+}
+
+function OwnerSharePage({ id }: { id: string }) {
+  const { t } = useT();
+  const { user, ready } = useAuth();
+  const router = useRouter();
+  const [count, setCount] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const provider = !!user && (user.role === "sitter" || user.role === "walker");
+  async function onMessage() {
+    if (!user || !provider) { router.push(`/login?redirect=${encodeURIComponent(`/p/owner/${id}`)}`); return; }
+    setBusy(true);
+    try {
+      const cid = await startConversationWithOwner(user.role as "sitter" | "walker", id);
+      router.push(cid ? `/chat?c=${cid}` : "/chat");
+    } catch { router.push("/chat"); } finally { setBusy(false); }
+  }
+  return (
+    <div className="mx-auto max-w-lg px-4 py-8 md:py-14">
+      <section className="rounded-[28px] bg-white p-6 text-center shadow-[0_18px_50px_-22px_rgba(35,23,21,0.35)] ring-1 ring-[#F3E6E1]">
+        <span className="mx-auto grid h-20 w-20 place-items-center rounded-full" style={{ background: "linear-gradient(160deg,#D83C28,#B92425)", boxShadow: "0 0 0 3px #fff, 0 0 0 6px #C92A12" }}>
+          <AppIcon name="paw" size={34} color="#fff" />
+        </span>
+        <h1 className="mt-4 font-display text-[1.5rem] font-bold leading-tight tracking-[-0.02em] text-[#231715]">{t("m586_owner_title")}</h1>
+        <div className="mt-5 text-left">
+          {ready && provider && <OwnerRequestsCard ownerId={id} onLoaded={setCount} />}
+        </div>
+        {ready && !provider && <p className="mt-2 text-sm text-[#6E4F48]">{t("m586_req_login")}</p>}
+        {ready && provider && count === 0 && <p className="mt-1 text-sm text-[#6E4F48]">{t("m586_req_none")}</p>}
+        {ready && (count === 0 || !provider) && (
+          <button type="button" onClick={onMessage} disabled={busy} className="mx-auto mt-4 flex min-h-[44px] items-center justify-center gap-2 rounded-[16px] border-[1.5px] border-[#C92A12] bg-white px-5 text-sm font-bold text-[#9E1F0B] transition active:scale-[0.97]">
+            <AppIcon name="chat" size={17} color="#C92A12" />{t("prov_message")}
+          </button>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function ProviderSharePage() {
   const params = useParams<{ type: string; id: string }>();
   const type: "sitter" | "walker" = params.type === "walker" ? "walker" : "sitter";
   const id = params.id;

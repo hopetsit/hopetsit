@@ -66,6 +66,7 @@ import {
 } from "@/lib/pawmapLegend";
 import { safeFly } from "@/lib/safeFly";
 import { ensureOwnerProfile, isMyProfile, needsOwnerSwitch } from "@/lib/bookAsOwner";
+import { OwnerRequestsCard } from "@/components/OwnerRequestsCard";
 import {
   expandRows,
   formatKm,
@@ -1038,6 +1039,8 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
   const [asOwner, setAsOwner] = useState(false);
   const [mine, setMine] = useState(false);
   useEffect(() => { setAsOwner(needsOwnerSwitch()); setMine(isMyProfile(r.id)); }, [r.id]);
+  // 25/09 (586, point 9) — fiche propriétaire : ses demandes en cours.
+  const [reqCount, setReqCount] = useState(0);
   const k = roleKey(r.role);
   const provider = k === "sitter" || k === "walker";
   const price = provider ? formatPrice(r.priceFrom, r.currency) : null;
@@ -1128,11 +1131,12 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
           </>
         ) : (
           <>
+            {k === "owner" && !mine && <OwnerRequestsCard ownerId={r.id} onLoaded={setReqCount} />}
             <div className="grid grid-cols-2 gap-2">
               {onDirections && pt && <SecondaryBtn color="#15803D" onClick={() => onDirections({ lat: pt[0], lng: pt[1] })}>{labels.directions}</SecondaryBtn>}
               {friend && onMessage ? (
                 <SecondaryBtn color="#9D174D" onClick={() => onMessage({ id: r.id, role: k, name: m.name })}>{labels.message}</SecondaryBtn>
-              ) : msgMember ? (
+              ) : msgMember && reqCount === 0 ? (
                 <SecondaryBtn color={ROLE_DARK[k]} onClick={msgMember}>{labels.message}</SecondaryBtn>
               ) : !friend && onAddFriend ? (
                 <button
@@ -1145,7 +1149,7 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
                 </button>
               ) : null}
             </div>
-            {!friend && msgMember && onAddFriend && (
+            {!friend && msgMember && reqCount === 0 && onAddFriend && (
               <button
                 type="button"
                 disabled={state === "busy" || state === "sent" || state === "already"}

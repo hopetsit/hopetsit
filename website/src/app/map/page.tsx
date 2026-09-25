@@ -64,6 +64,7 @@ import {
   uploadImage,
   startFriendConversation,
   startProviderConversation,
+  startConversationWithOwner,
   getFriendsLivePositions,
   getMyBenefits,
   getMapSeekPrefs,
@@ -1543,7 +1544,16 @@ export default function MapPage() {
               // mon rôle : un gardien / promeneur écrit avec son profil
               // propriétaire (passage automatique). Fiche propriétaire : non.
               const k = roleKey(m.role);
-              if (k === "owner") return null;
+              if (k === "owner") {
+                // 25/09 (586, point 9) — gardien / promeneur → propriétaire.
+                const me = roleKey(myRole);
+                if (me === "owner") return null;
+                return () => {
+                  void startConversationWithOwner(me as "sitter" | "walker", m.id)
+                    .then((cid) => router.push(cid ? `/chat?c=${cid}` : "/chat"))
+                    .catch(() => router.push("/chat"));
+                };
+              }
               return () => {
                 void ensureOwnerProfile()
                   .then((ok) => { if (!ok) throw new Error("switch"); return startProviderConversation(k, m.id); })

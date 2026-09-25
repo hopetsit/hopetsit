@@ -3052,3 +3052,87 @@ export async function saveMapSeekPrefs(layers: MapLayerPrefs, memberRoles?: stri
     return false;
   }
 }
+
+// 25/09/2026 (PawMap 586, point 9) — « Demandes en cours » sur la fiche d'un
+// propriétaire vue par un gardien / promeneur : GET /posts/requests/by-owner/:id
+// (serveur v586 ; lecture seule, ville seulement). Serveur plus ancien (404) →
+// `available: false` : la fiche retombe sur « Message ».
+export type OwnerActiveRequest = {
+  id: string;
+  ownerId: string;
+  serviceTypes: string[];
+  serviceLocation?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  city?: string;
+  distanceKm?: number | null;
+  budget?: number;
+  currency?: string;
+  petIds: string[];
+  pets: { id: string; name: string; category?: string }[];
+  myApplication?: "pending" | "accepted" | "rejected" | string | null;
+};
+export async function getOwnerActiveRequests(ownerId: string, from?: { lat: number; lng: number } | null): Promise<{ available: boolean; posts: OwnerActiveRequest[] }> {
+  const qs = from ? `?lat=${from.lat.toFixed(3)}&lng=${from.lng.toFixed(3)}` : "";
+  try {
+    const raw = await request<{ posts?: OwnerActiveRequest[] }>(`/posts/requests/by-owner/${encodeURIComponent(ownerId)}${qs}`);
+    return { available: true, posts: Array.isArray(raw?.posts) ? raw.posts : [] };
+  } catch {
+    return { available: false, posts: [] };
+  }
+}
+/** Mon tarif de base (même règle que l'app, propose_services_service.dart). */
+export async function myBasePrice(role: "sitter" | "walker", myId: string): Promise<number> {
+  try {
+    const d = await request<Record<string, unknown>>(`/${role}s/${encodeURIComponent(myId)}`);
+    const p = ((d[role] as Record<string, unknown>) || d) as Record<string, unknown>;
+    if (role === "walker") {
+      const rates = (Array.isArray(p.walkRates) ? p.walkRates : []) as { durationMinutes?: number; enabled?: boolean; basePrice?: number }[];
+      const rate = (min: number) => { const r = rates.find((x) => x.durationMinutes === min && x.enabled !== false && (x.basePrice || 0) > 0); return r ? Number(r.basePrice) : null; };
+      const r60 = rate(60), r30 = rate(30), r90 = rate(90), r120 = rate(120);
+      return r60 ?? (r30 != null ? r30 * 2 : null) ?? (r90 != null ? r90 * (60 / 90) : null) ?? (r120 != null ? r120 / 2 : null) ?? 0;
+    }
+    for (const k of ["hourlyRate", "dailyRate", "weeklyRate", "monthlyRate"]) {
+      const v = Number(p[k]);
+      if (Number.isFinite(v) && v > 0) return v;
+    }
+    const s = parseFloat(String(p.rate ?? ""));
+    return Number.isFinite(s) && s > 0 ? s : 0;
+  } catch {
+    return 0;
+  }
+}
+/** « Proposer mes services » : même contrat que l'app (POST /applications?ownerId=). */
+export async function proposeMyServices(r: OwnerActiveRequest, role: "sitter" | "walker", basePrice: number): Promise<"sent" | "already"> {
+  const serviceType = r.serviceTypes[0] || (role === "walker" ? "dog_walking" : "pet_sitting");
+  const start = r.startDate || r.endDate || new Date().toISOString();
+  const d0 = new Date(start);
+  const serviceDate = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth(), d0.getUTCDate())).toISOString();
+  let timeSlot = "All Day";
+  if (r.startDate) {
+    const l = new Date(r.startDate);
+    const h12 = l.getHours() % 12 === 0 ? 12 : l.getHours() % 12;
+    timeSlot = `${h12}:${String(l.getMinutes()).padStart(2, "0")} ${l.getHours() < 12 ? "AM" : "PM"}`;
+  }
+  const venue = r.serviceLocation === "owners_home" || r.serviceLocation === "sitters_home" ? r.serviceLocation : undefined;
+  const raw = await request<{ duplicatePrevented?: boolean }>(`/applications?ownerId=${encodeURIComponent(r.ownerId)}`, {
+    method: "POST",
+    body: JSON.stringify({
+      petIds: r.petIds.slice(0, 1),
+      serviceType,
+      ...(serviceType === "house_sitting" && venue ? { houseSittingVenue: venue } : {}),
+      serviceDate,
+      ...(r.startDate ? { startDate: r.startDate } : {}),
+      ...(r.endDate ? { endDate: r.endDate } : {}),
+      timeSlot,
+      basePrice,
+      postId: r.id,
+    }),
+  });
+  return raw?.duplicatePrevented ? "already" : "sent";
+}
+/** Gardien / promeneur → propriétaire (routes existantes start-by-sitter / start-by-walker). */
+export async function startConversationWithOwner(role: "sitter" | "walker", ownerId: string): Promise<string> {
+  const raw = await request<{ conversation?: { id?: string; _id?: string } }>(`/conversations/start-by-${role}?ownerId=${encodeURIComponent(ownerId)}`, { method: "POST", body: JSON.stringify({}) });
+  return String(raw?.conversation?.id || raw?.conversation?._id || "");
+}
