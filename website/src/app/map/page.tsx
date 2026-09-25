@@ -41,6 +41,7 @@ import { PawMapLogo } from "@/components/PawMapLogo";
 import { AppIcon, type AppIconName } from "@/components/AppIcon";
 import { PageTitle } from "@/components/PageTitle";
 import { PawMapLegendModal } from "@/components/PawMapLegendModal";
+import { StatusToast, type StatusToastKind } from "@/components/StatusToast";
 import { SelectMenu } from "@/components/SelectMenu";
 import StoreBadges from "@/components/StoreBadges";
 import { EyeIcon, VisibilityPills } from "@/components/MapVisibility";
@@ -175,7 +176,7 @@ export default function MapPage() {
   const [visibility, setVisibility] = useState<MapVisibility>("all");
   const friendsOnly = visibility !== "all";
   const [friendsOnlyBusy, setFriendsOnlyBusy] = useState(false);
-  const [friendsOnlyMsg, setFriendsOnlyMsg] = useState<string | null>(null);
+  const [friendsOnlyMsg, setFriendsOnlyMsg] = useState<{ kind: StatusToastKind; text: string } | null>(null);
   useEffect(() => {
     if (!getStoredUser()) return;
     getMapVisibility().then(setVisibility).catch(() => { /* repli : visible par tous */ });
@@ -1096,8 +1097,9 @@ export default function MapPage() {
     navigator.geolocation.getCurrentPosition(onFound, () => navigator.geolocation.getCurrentPosition(onFound, onFail, { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }), { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
   }
   const visToastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  function flashVisibility(msg: string) {
-    setFriendsOnlyMsg(msg);
+  // 587 (point 9) — pastille signature (même dessin que l'app), 2 s.
+  function flashVisibility(msg: string, kind: StatusToastKind) {
+    setFriendsOnlyMsg({ kind, text: msg });
     if (visToastRef.current) clearTimeout(visToastRef.current);
     visToastRef.current = setTimeout(() => setFriendsOnlyMsg(null), 2000);
   }
@@ -1107,10 +1109,10 @@ export default function MapPage() {
     try {
       const v = await setMapVisibility(next);
       setVisibility(v);
-      flashVisibility(t(v === "all" ? "m586_vis_all_toast" : v === "friends" ? "m586_vis_friends_toast" : "m586_vis_hidden_toast"));
+      flashVisibility(t(v === "all" ? "m586_vis_all_toast" : v === "friends" ? "m586_vis_friends_toast" : "m586_vis_hidden_toast"), v === "all" ? "all" : v === "friends" ? "friends" : "hidden");
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) { router.replace("/login"); return; }
-      flashVisibility(t("m586_vis_error"));
+      flashVisibility(t("m586_vis_error"), "error");
     } finally {
       setFriendsOnlyBusy(false);
     }
@@ -1450,7 +1452,9 @@ export default function MapPage() {
           )}
           {(liveToast || friendsOnlyMsg) && (
             <div className={`pointer-events-none absolute inset-x-0 z-[1060] flex justify-center px-[72px] ${followed ? "bottom-[124px] lg:bottom-[76px]" : "bottom-[68px] lg:bottom-6"}`}>
-              <span className="rounded-full bg-[#17141F] px-3.5 py-2 text-center text-[12px] font-semibold text-white shadow-lg">{liveToast || friendsOnlyMsg}</span>
+              {liveToast
+                ? <StatusToast key={`lt-${liveToast}`} kind={liveToast === t("route_pick_target") ? "follow" : "liveOff"} text={liveToast} dark={dark} />
+                : friendsOnlyMsg && <StatusToast key={`vt-${friendsOnlyMsg.kind}-${friendsOnlyMsg.text}`} kind={friendsOnlyMsg.kind} text={friendsOnlyMsg.text} dark={dark} />}
             </div>
           )}
 
