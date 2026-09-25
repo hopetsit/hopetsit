@@ -97,7 +97,7 @@ import { getSocket } from "@/lib/socket";
 import type { FriendLivePosition } from "@/components/FriendsLiveMap";
 import { haversineKm } from "@/lib/mapCluster";
 import { ROLE_COLOR, blurLatLng, formatPrice, placePinHtml, reportPinHtml, spotPinHtml, roleKey } from "@/lib/pawmapLegend";
-import { expandRows, formatKm, friendIdSetFrom, isFriendMember, mergePersons, rolesMatching } from "@/lib/memberPersons";
+import { expandRows, formatKm, friendIdSetFrom, isFriendMember, mergePersons, personIdsOf, rolesMatching } from "@/lib/memberPersons";
 import type { Map as LeafletMap } from "leaflet";
 
 const roleChipColor = (role: string) => ROLE_COLOR[roleKey(role)];
@@ -437,13 +437,32 @@ export default function MapPage() {
   }, [socketConnected]);
   const { presence, resolveOnline } = usePresence();
 
+  // 25/09 (587, point 6) — UNE personne = UN id canonique (celui de
+  // l'amitié, `other.id`), quel que soit le rôle qui partage : la socket et
+  // /friends/live-positions peuvent parler du profil gardien d'un ami dont
+  // l'amitié est portée par son profil propriétaire. Sans cela : deux points
+  // pour la même personne.
+  const friendCanon = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const f of friendsForMap) {
+      const o = f.other;
+      if (!o?.id) continue;
+      m.set(String(o.id), String(o.id));
+      for (const x of (o as { personIds?: string[] }).personIds || []) if (x) m.set(String(x), String(o.id));
+    }
+    return m;
+  }, [friendsForMap]);
+  const friendCanonRef = useRef(friendCanon);
+  friendCanonRef.current = friendCanon;
+  const canonId = useCallback((id: string) => friendCanonRef.current.get(String(id)) || String(id), []);
   const friendByUserId = useMemo(() => {
     const m = new Map<string, FriendItem>();
     for (const f of friendsForMap) if (f.other?.id) m.set(f.other.id, f);
     return m;
   }, [friendsForMap]);
 
-  useSocketEvent<{ userId: string; role: string; lat: number; lng: number; at?: string }>("map:friend-position", (data) => {
+  useSocketEvent<{ userId: string; role: string; lat: number; lng: number; at?: string }>("map:friend-position", (raw) => {
+    const data = { ...raw, userId: canonId(raw.userId) };
     const friend = friendByUserId.get(data.userId);
     const baseRole = roleFromModel(friend?.other?.model || data.role || "owner");
     setLivePositions((prev) => {
@@ -464,7 +483,8 @@ export default function MapPage() {
       return next;
     });
   });
-  useSocketEvent<{ userId: string }>("map:friend-offline", (data) => {
+  useSocketEvent<{ userId: string }>("map:friend-offline", (raw) => {
+    const data = { userId: canonId(raw.userId) };
     setLivePositions((prev) => {
       if (!prev.has(data.userId)) return prev;
       const next = new Map(prev);
@@ -695,7 +715,7 @@ export default function MapPage() {
   // « monde » ont retenu deux profils différents (lib/memberPersons.ts). Une
   // personne reste visible si L'UN de ses rôles est coché dans « Je cherche ».
   const [showMembers, setShowMembers] = useState(true);
-  const mergedMembers = useMemo(() => mergePersons(members, worldMembers), [members, worldMembers]);
+  const mergedMembers = useMemo(() => placeFriendsAtProfile(mergePersons(members, worldMembers), worldMembers, friendIdSetFrom(friendsForMap)), [members, worldMembers, friendsForMap]);
   // 25/09 (586, point 7) — familles INDÉPENDANTES : un ami ne dépend que de
   // la pastille « Amis », un autre membre que des pastilles de rôle.
   const allMembers = useMemo(() => {
@@ -761,11 +781,19 @@ export default function MapPage() {
     const bulk = await getFriendsLivePositions();
     const fresh = new Map<string, FriendLivePosition>();
     const nowMs = Date.now();
-    for (const b of bulk) {
-      if (b.lat == null || b.lng == null) continue;
+    for (const b0 of bulk) {
+      if (b0.lat == null || b0.lng == null) continue;
+      // 587 — âge mesuré par le serveur : dernier signe de vie ramené sur
+      // l'horloge de CE navigateur (une horloge décalée ne change plus l'état).
+      // Repli (serveur de production sans ageMs) : lastSeenAt tel quel.
+      const ageOk = typeof b0.ageMs === "number" && Number.isFinite(b0.ageMs) && b0.ageMs >= 0;
+      const b = { ...b0, userId: canonId(b0.userId), lastSeenAt: ageOk ? new Date(nowMs - (b0.ageMs as number)).toISOString() : b0.lastSeenAt };
       const st = liveStateOf(b, nowMs);
       if (st === "seen") continue;
       const i = info.get(b.userId);
+      const prevFresh = fresh.get(b.userId);
+      // Deux rôles de la même personne : on garde le signe de vie le plus récent.
+      if (prevFresh && prevFresh.lastSeenAt && b.lastSeenAt && new Date(prevFresh.lastSeenAt).getTime() >= new Date(b.lastSeenAt).getTime()) continue;
       fresh.set(b.userId, {
         userId: b.userId,
         role: roleFromModel(i ? i.role : b.role),
@@ -774,7 +802,7 @@ export default function MapPage() {
         lat: b.lat,
         lng: b.lng,
         at: b.at || new Date().toISOString(),
-        lastSeenAt: b.lastSeenAt || b.at || null,
+        lastSeenAt: b.lastSeenAt || (ageOk ? null : b.at) || null,
         state: st,
       });
     }
@@ -795,7 +823,7 @@ export default function MapPage() {
       }
       return next;
     });
-  }, [t]);
+  }, [t, canonId]);
 
   // Horloge de la carte : âge « en direct · 12 s », passage live → signal
   // perdu → disparition (10 min), sans attendre le serveur.
@@ -837,7 +865,12 @@ export default function MapPage() {
       }
       setFriendsForMap(out);
       const seenMap: Record<string, string | null> = {};
-      for (const f of accepted) if (f.other?.id) seenMap[f.other.id] = f.other.lastSeenAt ?? f.lastSeenAt ?? null;
+      for (const f of accepted) {
+        if (!f.other?.id) continue;
+        const seen = f.other.lastSeenAt ?? f.lastSeenAt ?? null;
+        // 587 — « vu il y a X » retrouvé quel que soit le rôle affiché de l'ami.
+        for (const x of [f.other.id, ...((f.other as { personIds?: string[] }).personIds || [])]) if (x) seenMap[x] = seen;
+      }
       setFriendSeen(seenMap);
 
       const infoById = new Map<string, { role: "walker" | "sitter" | "owner"; name: string; avatar: string }>();
@@ -1101,6 +1134,12 @@ export default function MapPage() {
         .map((p) => (presence.has(p.userId) ? { ...p, isOnline: !!presence.get(p.userId) } : p)),
     [livePositions, presence, nowTs],
   );
+  // 587 — tous les ids (3 rôles) des amis qui partagent : leur point de profil disparaît.
+  const liveIdsAll = useMemo(() => {
+    const set = new Set(livePositionsList.map((p) => p.userId));
+    for (const [id, c] of friendCanon) if (set.has(c)) set.add(id);
+    return [...set];
+  }, [livePositionsList, friendCanon]);
   const membersWithPresence = useMemo(
     () => allMembers.map((m) => (m.approx ? m : { ...m, isOnline: resolveOnline(m.id, m.isOnline) })),
     [allMembers, resolveOnline],
@@ -1612,6 +1651,7 @@ export default function MapPage() {
             satellite={satellite}
             onAddFriend={handleAddFriend}
             friendPositions={showFriends ? livePositionsList : []}
+            liveIdsAll={showFriends ? liveIdsAll : []}
             familyIds={familyIds}
             premiumIds={premiumIds}
             roleLabels={{ owner: t("role_owner"), sitter: t("role_sitter"), walker: t("role_walker") }}
@@ -2153,6 +2193,27 @@ function ModePicker({ mode, onChange, label, labels }: { mode: RouteMode; onChan
       ))}
     </div>
   );
+}
+
+// 25/09 (587, point 6) — un ami qui NE partage PAS est posé à sa position de
+// PROFIL (couche monde, floutée ~1 km, comme l'app), jamais à la position
+// exacte de la couche « proches » (dernier GPS d'ouverture de l'app ou
+// centre-ville). S'il n'est pas dans la couche monde : même floutage ~1 km
+// sur place. Son direct, lui, remplace ce point (PoiMap, tous ses ids).
+function placeFriendsAtProfile(list: NearbyMember[], world: NearbyMember[], friendIds: Set<string>): NearbyMember[] {
+  const worldById = new Map<string, NearbyMember>();
+  for (const w of world || []) for (const x of personIdsOf(w)) worldById.set(x, w);
+  return list.map((m) => {
+    if (!isFriendMember(m, friendIds) || m.approx) return m;
+    const w = personIdsOf(m).map((x) => worldById.get(x)).find(Boolean);
+    if (w && Array.isArray(w.location?.coordinates)) {
+      return { ...m, location: { ...(m.location || {}), coordinates: w.location!.coordinates }, approx: true, approxKm: w.approxKm ?? 1 } as NearbyMember;
+    }
+    const c = m.location?.coordinates;
+    if (!Array.isArray(c) || c.length < 2) return m;
+    const [blat, blng] = blurLatLng(c[1], c[0], String(m.id));
+    return { ...m, location: { ...(m.location || {}), coordinates: [blng, blat] }, approx: true, approxKm: 1 } as NearbyMember;
+  });
 }
 
 // 25/09 (PawMap 584) — même règle que backend/src/utils/liveState.js,

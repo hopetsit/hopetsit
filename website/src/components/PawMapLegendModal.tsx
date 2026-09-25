@@ -75,7 +75,7 @@ export function PawMapLegendModal({ open, onClose, role = "owner" }: { open: boo
     { html: memberPinHtml({ role: "walker", boosted: true }), title: t("legend_boost"), body: t("legend_boost_body"), color: PAWBOOST_TURQUOISE },
     { html: memberPinHtml({ role: "walker", pawFollow: true }), title: t("legend_follow"), body: t("legend_follow_body"), color: PAWFOLLOW_VIOLET },
     { html: memberClusterHtml(4, "sitter"), title: t("legend_member_group"), body: t("legend_member_group_body"), color: ROLE_COLOR.sitter },
-    { html: memberClusterHtml(3, "walker", true), title: t("legend_member_group_friend"), body: t("legend_member_group_friend_body"), color: FRIEND_PINK },
+    // 587 (point 6) — un ami n'entre plus jamais dans un groupe : la ligne « groupe avec un ami » est retirée.
     { html: requestBubbleHtml({ service: "sitting", priceLabel: "25 €" }), title: t("legend_request"), body: t("legend_request_body"), color: ROLE_COLOR.owner },
     { html: placePinHtml("vet"), title: t("legend_place"), body: t("legend_place_body") },
     { html: placeClusterHtml(6, "park"), title: t("legend_place_group"), body: t("legend_place_group_body") },

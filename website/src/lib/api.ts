@@ -1133,6 +1133,9 @@ export type FriendBulkPosition = {
   sharing?: boolean;
   state?: "live" | "lost" | "seen";
   live?: boolean;
+  /** v587 — âge du dernier signe de vie mesuré par le SERVEUR (ms) : on
+   *  calcule l'état avec lui plutôt qu'avec l'horloge du navigateur. */
+  ageMs?: number | null;
 };
 export async function getFriendsLivePositions(): Promise<FriendBulkPosition[]> {
   try {

@@ -156,11 +156,11 @@ function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[]
   });
 }
 /** Ami à sa position de PROFIL (floutée) : photo, anneau rose, pas de direct. */
-function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[]): L.DivIcon {
+function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[], caption?: string | null): L.DivIcon {
   return L.divIcon({
     className: "",
     // 25/09 (585, bug 11) — un ami boosté garde sa lueur turquoise + fusée.
-    html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, boosted: !!m.isBoosted, roles: roles.map((r) => r.role) }),
+    html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, boosted: !!m.isBoosted, roles: roles.map((r) => r.role), caption }),
     iconSize: [50, 50],
     iconAnchor: [25, 25],
     popupAnchor: [0, -28],
@@ -426,6 +426,7 @@ export default function PoiMap({
   onAddFriend,
   onSpotVisit,
   friendPositions = [],
+  liveIdsAll = [],
   familyIds = [],
   premiumIds = [],
   roleLabels,
@@ -493,6 +494,8 @@ export default function PoiMap({
   onAddFriend?: (m: NearbyMember) => Promise<"sent" | "already" | "error">;
   onSpotVisit?: (id: string) => void;
   friendPositions?: FriendLivePosition[];
+  /** 587 — ids (tous rôles) des amis qui partagent en direct. */
+  liveIdsAll?: string[];
   familyIds?: string[];
   premiumIds?: string[];
   roleLabels?: Partial<Record<Role, string>>;
@@ -544,7 +547,7 @@ export default function PoiMap({
 }) {
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
   const friendSet = useMemo(() => new Set(friendIds), [friendIds]);
-  const liveIdSet = useMemo(() => new Set(friendPositions.map((p) => p.userId)), [friendPositions]);
+  const liveIdSet = useMemo(() => new Set([...friendPositions.map((p) => p.userId), ...liveIdsAll]), [friendPositions, liveIdsAll]);
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const premiumSet = useMemo(() => new Set(premiumIds), [premiumIds]);
   const userIcon = useMemo(
@@ -569,9 +572,14 @@ export default function PoiMap({
     () => clusterize(pois, zoomLevel, (poi) => (Array.isArray(poi.location?.coordinates) && poi.location.coordinates.length >= 2 ? [poi.location.coordinates[1], poi.location.coordinates[0]] : null)),
     [pois, zoomLevel],
   );
+  // 587 (point 6) — les AMIS ne sont jamais regroupés avec des inconnus :
+  // exclus du regroupement, dessinés un par un au-dessus des membres, à
+  // tous les zooms, sans plafond.
+  const friendMembers = useMemo(() => members.filter((m) => isFriendMember(m, friendSet)), [members, friendSet]);
+  const otherMembers = useMemo(() => members.filter((m) => !isFriendMember(m, friendSet)), [members, friendSet]);
   const memberClusters = useMemo(
-    () => clusterize(members, zoomLevel, (m) => (Array.isArray(m.location?.coordinates) && m.location.coordinates.length >= 2 ? [m.location.coordinates[1], m.location.coordinates[0]] : null), MEMBER_CELL_PX),
-    [members, zoomLevel],
+    () => clusterize(otherMembers, zoomLevel, (m) => (Array.isArray(m.location?.coordinates) && m.location.coordinates.length >= 2 ? [m.location.coordinates[1], m.location.coordinates[0]] : null), MEMBER_CELL_PX),
+    [otherMembers, zoomLevel],
   );
   const spotClusters = useMemo(() => clusterize(spots, zoomLevel, (s) => [s.lat, s.lng]), [spots, zoomLevel]);
 
@@ -770,7 +778,7 @@ export default function PoiMap({
         {memberClusters.map((g, i) =>
           g.items.length > 1 ? <MemberCluster key={`mc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} items={g.items} onList={(items) => openSheet({ kind: "list", items }, g.center)} friendSet={friendSet} /> : null,
         )}
-        {memberClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]).map((m) => {
+        {[...memberClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]), ...friendMembers].map((m) => {
           const pt = pointOf(m);
           if (!pt) return null;
           const isFriend = isFriendMember(m, friendSet);
@@ -781,7 +789,13 @@ export default function PoiMap({
           const open = () => openSheet(roles.length > 1 ? { kind: "person", m } : { kind: "role", m, r: roles[0] }, pt);
           if (isFriend) {
             const prem = personIdsOf(m).some((x) => premiumSet.has(x)) || !!m.isPremium;
-            return <Marker key={`friend-${m.id}`} position={pt} icon={friendProfileIcon(m, prem, roles)} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: open }} />;
+            // « Vu il y a X » sous son rond (dernier signe de vie connu).
+            const seenIso = personIdsOf(m).map((x) => friendSeen?.[x]).find(Boolean) || null;
+            const seenMs = seenIso ? new Date(seenIso).getTime() : NaN;
+            const caption = liveLabels && Number.isFinite(seenMs)
+              ? (now - seenMs < 60000 ? liveLabels.seenNow : liveLabels.seenAgo.replace("{ago}", liveLabels.ago(now - seenMs)))
+              : null;
+            return <Marker key={`friend-${m.id}`} position={pt} icon={friendProfileIcon(m, prem, roles, caption)} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: open }} />;
           }
           return (
             <Marker key={`member-${m.id}`} position={pt} icon={memberIcon(m, memberCaption({ ...m, role: roles[0].role, priceFrom: roles[0].priceFrom ?? m.priceFrom, currency: roles[0].currency ?? m.currency }), roles)} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: open }} />
