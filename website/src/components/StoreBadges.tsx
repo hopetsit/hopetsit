@@ -49,7 +49,9 @@ const APPLE_LABEL: Record<string, string> = {
 // En japonais la petite ligne se lit APRÈS le nom du store.
 const LABEL_AFTER = new Set(["ja"]);
 
-export default function StoreBadges({ center = false }: { center?: boolean }) {
+// v585 — `className` : l'accueil centre les badges sur téléphone (ils étaient
+// collés à gauche sous un bloc centré) et les aligne à gauche sur ordinateur.
+export default function StoreBadges({ center = false, className = "" }: { center?: boolean; className?: string }) {
   const { lang } = useT();
 
   const badge =
@@ -62,7 +64,7 @@ export default function StoreBadges({ center = false }: { center?: boolean }) {
 
   return (
     <div
-      className={`flex flex-wrap items-center gap-3 ${center ? "justify-center" : ""}`}
+      className={`flex flex-wrap items-center gap-3 ${center ? "justify-center" : ""} ${className}`}
     >
       {/* Google Play — EN LIGNE */}
       <a

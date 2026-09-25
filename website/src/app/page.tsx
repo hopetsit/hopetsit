@@ -33,6 +33,17 @@ const PublicPawMap = dynamic(() => import("@/components/PublicPawMap"), {
 
 const PARIS: [number, number] = [48.8566, 2.3522];
 
+// v585 — mobile (Bob, 25/09) : à 375 px le titre coupait « pet-/sitter » et
+// laissait « 2 » seul en bout de ligne. Les mots à trait d'union restent
+// entiers et un nombre reste collé au mot suivant. Fonction simple (pas un
+// hook), sans effet sur les langues sans espaces (ja, ko).
+function keepTogether(text: string) {
+  const joined = text.replace(/(\d+) (?=\S)/g, "$1\u00A0");
+  return joined.split(/(\S*-\S*)/).map((part, i) =>
+    part.includes("-") && !/\s/.test(part) ? <span key={i} className="whitespace-nowrap">{part}</span> : part,
+  );
+}
+
 export default function HomePage() {
   const { t, lang } = useT();
   const router = useRouter();
@@ -101,14 +112,14 @@ export default function HomePage() {
               {t("hero_badge")}
             </span>
             <h1 className="mt-5 font-display text-[2.4rem] font-bold leading-[1.05] tracking-[-0.03em] text-[#231715] md:text-6xl">
-              {t("home_hero_title_book")}
+              {keepTogether(t("home_hero_title_book"))}
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[#6E4F48] md:text-xl lg:mx-0">
               {t("home_hero_sub_book")}
             </p>
 
             {/* Recherche : ville + service → la carte publique centrée sur la ville. */}
-            <form onSubmit={submitSearch} className="mt-7 flex w-full max-w-xl flex-col gap-2 rounded-[22px] bg-[#FAF1EC] p-2 sm:flex-row sm:items-center sm:rounded-full lg:max-w-none" role="search" aria-label={t("home_search_aria")}>
+            <form onSubmit={submitSearch} className="mx-auto mt-7 flex w-full max-w-xl flex-col gap-2 rounded-[22px] bg-[#FAF1EC] p-2 lg:mx-0 lg:max-w-none lg:flex-row lg:items-center lg:rounded-full" role="search" aria-label={t("home_search_aria")}>
               <label className="flex min-h-[48px] min-w-0 flex-1 items-center gap-2 rounded-full bg-white px-4">
                 <AppIcon name="pin" size={18} color="#C92A12" className="shrink-0" />
                 <input
@@ -120,21 +131,21 @@ export default function HomePage() {
                 />
               </label>
               <div className="flex flex-wrap gap-2">
-                <div className="flex min-h-[48px] basis-full items-center rounded-full bg-white px-1 sm:basis-auto">
+                <div className="flex min-h-[52px] basis-full items-center rounded-full bg-white p-1 sm:flex-1 sm:basis-0 lg:flex-none lg:basis-auto">
                   {(["sitting", "walk"] as const).map((s) => (
                     <button
                       key={s}
                       type="button"
                       onClick={() => setService(s)}
                       aria-pressed={service === s}
-                      className={`inline-flex min-h-[40px] flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-semibold transition sm:flex-none sm:text-sm ${service === s ? "bg-owner text-white" : "text-[#231715] hover:bg-[#FAF1EC]"}`}
+                      className={`inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-semibold transition sm:text-sm lg:flex-none ${service === s ? "bg-owner text-white" : "text-[#231715] hover:bg-[#FAF1EC]"}`}
                     >
                       <AppIcon name={s === "walk" ? "walker" : "home"} size={15} color={service === s ? "#fff" : "#231715"} />
                       {s === "walk" ? t("home_service_walk") : t("home_service_sitting")}
                     </button>
                   ))}
                 </div>
-                <button type="submit" className="inline-flex min-h-[48px] basis-full items-center justify-center gap-2 rounded-full bg-[#231715] px-5 text-sm font-semibold text-white transition hover:bg-black sm:basis-auto">
+                <button type="submit" className="inline-flex min-h-[52px] basis-full items-center justify-center gap-2 rounded-full bg-[#231715] px-5 text-sm font-semibold text-white transition hover:bg-black sm:flex-1 sm:basis-0 lg:min-h-[48px] lg:flex-none lg:basis-auto">
                   <AppIcon name="search" size={16} color="#fff" />
                   <span className="whitespace-nowrap">{t("home_search_btn")}</span>
                 </button>
@@ -146,7 +157,7 @@ export default function HomePage() {
                 <AppIcon name="download" size={16} />
                 {t("hero_cta_app")}
               </Link>
-              <StoreBadges />
+              <StoreBadges className="justify-center lg:justify-start" />
             </div>
 
             <ul className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 text-[13px] font-medium text-[#6E4F48] lg:justify-start">
@@ -313,10 +324,10 @@ export default function HomePage() {
             <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[#231715] md:text-2xl">Pet sitters à Paris et en Île-de-France</h2>
             <ul className="mt-3 flex flex-wrap gap-1.5 text-sm">
               {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
-                <li key={`p${n}`}><Link href={`/garde-animaux/paris-${n}`} className="inline-block rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark max-lg:py-2">Paris {n}{n === 1 ? "er" : "e"}</Link></li>
+                <li key={`p${n}`}><Link href={`/garde-animaux/paris-${n}`} className="inline-flex items-center rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark max-lg:min-h-[44px]">Paris {n}{n === 1 ? "er" : "e"}</Link></li>
               ))}
               {[["boulogne-billancourt","Boulogne"],["neuilly-sur-seine","Neuilly"],["levallois-perret","Levallois"],["issy-les-moulineaux","Issy"],["vincennes","Vincennes"],["montreuil","Montreuil"],["versailles","Versailles"]].map(([slug, name]) => (
-                <li key={slug}><Link href={`/garde-animaux/${slug}`} className="inline-block rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark max-lg:py-2">{name}</Link></li>
+                <li key={slug}><Link href={`/garde-animaux/${slug}`} className="inline-flex items-center rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark max-lg:min-h-[44px]">{name}</Link></li>
               ))}
             </ul>
             <p className="mt-3 text-sm"><Link href="/devenir-petsitter/paris" className="font-semibold text-owner hover:underline">Devenir pet sitter à Paris →</Link></p>
@@ -325,7 +336,7 @@ export default function HomePage() {
             <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[#231715] md:text-2xl">Pet sitters in the United States</h2>
             <ul className="mt-3 flex flex-wrap gap-1.5 text-sm">
               {[["dallas","Dallas"],["fort-worth","Fort Worth"],["plano","Plano"],["frisco","Frisco"],["houston","Houston"],["austin","Austin"],["new-york","New York"],["los-angeles","Los Angeles"],["chicago","Chicago"],["miami","Miami"],["san-francisco","San Francisco"],["seattle","Seattle"],["boston","Boston"],["atlanta","Atlanta"],["denver","Denver"],["phoenix","Phoenix"]].map(([slug, name]) => (
-                <li key={slug}><Link href={`/pet-sitting/${slug}`} className="inline-block rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark max-lg:py-2">{name}</Link></li>
+                <li key={slug}><Link href={`/pet-sitting/${slug}`} className="inline-flex items-center rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark max-lg:min-h-[44px]">{name}</Link></li>
               ))}
             </ul>
             <p className="mt-3 text-sm"><Link href="/become-a-pet-sitter/dallas" className="font-semibold text-owner hover:underline">Become a pet sitter in Dallas →</Link> · <Link href="/villes" className="text-[#6E4F48] hover:underline">All cities</Link></p>

@@ -119,7 +119,10 @@ export function Header() {
               </Link>
               <Link
                 href="/signup"
-                className="rounded-full bg-owner px-4 py-1.5 text-[13px] font-semibold text-white transition hover:bg-owner-dark"
+                /* v585 — pouce (Bob, 25/09) : la pastille mesurait 32 px de haut.
+                   Zone de toucher portée à 44 px par un calque invisible,
+                   pastille visuellement inchangée. */
+                className="relative rounded-full bg-owner px-4 py-1.5 text-[13px] font-semibold text-white transition after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] hover:bg-owner-dark"
               >
                 {t("nav_signup")}
               </Link>
