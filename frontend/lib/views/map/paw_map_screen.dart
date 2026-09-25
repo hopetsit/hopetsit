@@ -73,6 +73,7 @@ import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/pawmap_header_badge.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_signal.dart';
 
 /// PawMap — Phase 2 Couche 1 (POIs) + Phase 3 Couche 2 (reports 48h).
 ///
@@ -1384,45 +1385,28 @@ class _PawMapScreenState extends State<PawMapScreen>
     _visibilitySaving = false;
   }
 
-  /// Pastille courte en haut de la carte (2 s) : le nouvel état de l'œil.
-  final RxString _visToast = ''.obs;
-  Timer? _visToastTimer;
-
-  void _showVisToast(String v) {
-    _visToast.value = v;
-    _visToastTimer?.cancel();
-    _visToastTimer = Timer(const Duration(seconds: 2), () => _visToast.value = '');
-  }
-
   /// Enregistre l'état SUR LE COMPTE (même route que Préférences et le site,
   /// les 3 profils) ; en cas d'échec, rien ne change.
   Future<bool> _setVisibility(String v, {bool snack = true}) async {
     final ok = await _prefs.setMapVisibility(v);
     if (!ok) {
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: 'pawmap_visibility_failed'.tr,
-      );
+      if (mounted) {
+        PawSignal.show(context, PawSignalKind.error, 'pawmap587_sig_vis_failed'.tr);
+      }
       return false;
     }
     if (mounted) setState(() {});
     HapticFeedback.selectionClick();
-    if (snack) {
-      CustomSnackbar.showSuccess(
-        title: 'pawmap_visibility_title'.tr,
-        message: _visibilityLabel(_visibility),
-      );
-    } else {
-      _showVisToast(_visibility);
+    // v587 (point 9) — une seule pastille signature (verre chaud, maison à
+    // la couleur de l'état, 2 s) au lieu du snackbar gris ; un appui dessus
+    // rouvre « Qui me voit ? » quand on vient de l'œil.
+    if (mounted) {
+      PawSignal.visibility(context, _visibility,
+          onTap: snack ? null : _openVisibilitySheet);
     }
     return true;
   }
 
-  static String _visibilityLabel(String v) => switch (v) {
-        'friends' => 'pawmap586_vis_friends'.tr,
-        'hidden' => 'pawmap586_vis_hidden'.tr,
-        _ => 'pawmap586_vis_all'.tr,
-      };
 
   /// Bouton « ? » : la légende en images (9 langues).
   void _openLegend() {
@@ -1571,7 +1555,6 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
     _sheetCtl.removeListener(_onSheetMoved);
     _sheetCtl.dispose();
-    _visToastTimer?.cancel();
     _fade.dispose();
     unawaited(_prefs.flush());
     _pendingRouteWorker?.dispose();
@@ -2410,10 +2393,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   void _toggleBroadcast() async {
     if (_liveMap.broadcasting.value) {
       _liveMap.stopBroadcasting();
-      CustomSnackbar.showSuccess(
-        title: 'pawmap_snack_tracking_off_title'.tr,
-        message: 'pawmap_snack_tracking_off_msg'.tr,
-      );
+      PawSignal.show(context, PawSignalKind.liveOff, 'pawmap587_sig_live_off'.tr);
       return;
     }
 
@@ -2467,16 +2447,13 @@ class _PawMapScreenState extends State<PawMapScreen>
       () => _userPosition ?? const LatLng(0, 0),
       duration: chosen,
     );
-    if (_userPosition == null) {
-      CustomSnackbar.showWarning(
-        title: 'pawmap_snack_no_loc_title'.tr,
-        message: 'pawmap_snack_no_loc_msg'.tr,
-      );
+    if (mounted) {
+      if (_userPosition == null) {
+        PawSignal.show(context, PawSignalKind.noGps, 'pawmap587_sig_no_gps'.tr);
+      } else {
+        PawSignal.show(context, PawSignalKind.live, 'pawmap587_sig_live_on'.tr);
+      }
     }
-    CustomSnackbar.showSuccess(
-      title: 'pawmap_snack_tracking_on_title'.tr,
-      message: 'pawmap_snack_tracking_on_msg'.tr,
-    );
 
     // Zoom "piéton" (street level ~17) centré sur la position GPS fraîche.
     try {
@@ -2697,10 +2674,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                     onPressed: () {
                       Navigator.of(ctx).pop();
                       _liveMap.stopBroadcasting();
-                      CustomSnackbar.showSuccess(
-                        title: 'pawmap_snack_tracking_off_title'.tr,
-                        message: 'pawmap_snack_tracking_off_msg'.tr,
-                      );
+                      PawSignal.show(context, PawSignalKind.liveOff,
+                          'pawmap587_sig_live_off'.tr);
                     },
                     icon: Icon(Icons.stop_circle_rounded, size: 18.sp),
                     label: Text('v565_live_stop'.tr,
@@ -2739,10 +2714,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (!_liveMap.broadcasting.value) return; // arrêté depuis la feuille
     if (chosen != _liveMap.sessionDuration.value) {
       _liveMap.changeDuration(chosen);
-      CustomSnackbar.showSuccess(
-        title: 'pawmap_snack_tracking_on_title'.tr,
-        message: 'v565_live_duration_changed'.tr,
-      );
+      PawSignal.show(context, PawSignalKind.live, 'pawmap587_sig_duration'.tr);
     }
   }
 
@@ -4644,34 +4616,6 @@ class _PawMapScreenState extends State<PawMapScreen>
                             ),
                         ],
                       ),
-                      // v586 — pastille 2 s après un appui sur l'œil.
-                      Obx(() {
-                        final v = _visToast.value;
-                        return AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: v.isEmpty
-                              ? const SizedBox.shrink()
-                              : Padding(
-                                  key: ValueKey<String>('vis_toast_$v'),
-                                  padding: EdgeInsets.only(top: 8.h),
-                                  child: PawMapStatusChip(
-                                    key: const ValueKey<String>('pawmap_vis_toast'),
-                                    label: _visibilityLabel(v),
-                                    icon: v == 'hidden'
-                                        ? Icons.visibility_off_rounded
-                                        : (v == 'friends'
-                                            ? Icons.favorite_rounded
-                                            : Icons.visibility_rounded),
-                                    color: v == 'friends'
-                                        ? PawMapLegend.friend
-                                        : (v == 'hidden'
-                                            ? PawMapLegend.ink
-                                            : PawMapLegend.walker),
-                                    onTap: _openVisibilitySheet,
-                                  ),
-                                ),
-                        );
-                      }),
                     ],
                   ),
                 ),
@@ -5080,28 +5024,18 @@ class _PawMapScreenState extends State<PawMapScreen>
       return;
     }
     if (_liveMap.broadcasting.value) {
-      final ok = await showAppConfirmDialog(
-        context,
-        title: 'pawmap586_direct_stop_title'.tr,
-        message: 'pawmap586_direct_stop_msg'.tr,
-        confirmLabel: 'pawmap586_direct_stop_btn'.tr,
-        cancelLabel: 'common_cancel'.tr,
-        icon: Icons.podcasts_rounded,
-        accent: PawMapLegend.ink,
-        onConfirm: () async {},
-      );
-      if (ok == true && mounted && _liveMap.broadcasting.value) {
+      // v587 (point 9) — petite feuille « Arrêter le direct ? » (verre
+      // chaud, bouton signature) au lieu du dialogue gris.
+      final ok = await showPawStopLiveSheet(context);
+      if (ok && mounted && _liveMap.broadcasting.value) {
         _toggleBroadcast();
       }
       return;
     }
     if (!await _liveFirstHintOk()) return;
     await _startBroadcastWith(LiveShareDuration.untilStop);
-    if (_visibility == 'hidden') {
-      CustomSnackbar.showInfo(
-        title: 'pawmap586_vis_hidden'.tr,
-        message: 'pawmap586_direct_hidden'.tr,
-      );
+    if (_visibility == 'hidden' && mounted) {
+      PawSignal.show(context, PawSignalKind.hidden, 'pawmap587_sig_live_hidden'.tr);
     }
   }
 
