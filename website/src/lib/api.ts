@@ -1013,6 +1013,10 @@ export type FriendOther = {
   /** v565 — présence réelle (certaines réponses la portent sur `other`). */
   isOnline?: boolean;
   lastSeenAt?: string | null;
+  /** v576 (serveur) — tous les profils de l'ami (une entrée par humain). */
+  personIds?: string[];
+  roles?: string[] | { id: string; role: string }[];
+  activeRole?: string;
 };
 
 export type FriendItem = {
@@ -2230,6 +2234,15 @@ export type NearbyMember = {
   /** 24/09/2026 — légende : PawBoost (lueur turquoise) et « Identité vérifiée ». */
   isBoosted?: boolean;
   identityVerified?: boolean;
+  /** v585 (serveur) — une PERSONNE = UN point : tous ses profils. Couche
+   *  monde : note/prix par rôle ; couche proches : {id, role} seulement.
+   *  Absents sur un ancien serveur (lib/memberPersons.ts gère le repli). */
+  roles?: { id: string; role: string; rating?: number; reviewsCount?: number; priceFrom?: number; currency?: string; isPremium?: boolean }[];
+  personIds?: string[];
+  /** v585 — l'un de ses profils est ami de l'un des miens (à lire en priorité). */
+  isFriend?: boolean;
+  /** v585 — 'live' | 'home' | 'city' | 'last' (d'où vient la position). */
+  positionSource?: string;
 };
 
 // v548 — Daniel : « quand on dézoome, voir TOUS les utilisateurs sur la carte

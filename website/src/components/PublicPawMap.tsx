@@ -18,7 +18,7 @@ import L from "leaflet";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
 import { getPublicProviders, type PublicProvider } from "@/lib/api";
-import { clusterize, MEMBER_CELL_PX } from "@/lib/mapCluster";
+import { clusterize, haversineKm, MEMBER_CELL_PX } from "@/lib/mapCluster";
 import {
   memberPinHtml,
   memberClusterHtml,
@@ -85,7 +85,11 @@ function Watcher({ onChange }: { onChange: (v: View) => void }) {
   return null;
 }
 
-/** Groupe : clic = zoom doux ; déjà au zoom rue et toujours collés = liste. */
+/**
+ * Groupe : points superposés (même position à ~25 m près — un gardien qui est
+ * aussi promeneur, deux voisins) = la LISTE tout de suite, zoomer ne les
+ * séparerait pas (PawMap 585) ; sinon on cadre le groupe ; zoom rue = liste.
+ */
 function ClusterMarker({ center, items, onList }: { center: [number, number]; items: PublicProvider[]; onList: (l: PublicProvider[]) => void }) {
   const map = useMap();
   return (
@@ -95,8 +99,18 @@ function ClusterMarker({ center, items, onList }: { center: [number, number]; it
       zIndexOffset={PIN_Z.member}
       eventHandlers={{
         click: () => {
-          if (map.getZoom() >= 16) onList(items);
-          else safeFly(map, center, Math.min(map.getZoom() + 2.2, 18), 0.8);
+          let far = 0;
+          for (let i = 0; i < items.length; i += 1) for (let j = i + 1; j < items.length; j += 1) far = Math.max(far, haversineKm(items[i].lat, items[i].lng, items[j].lat, items[j].lng) * 1000);
+          // Même personne (gardien ET promeneur) : même prénom et même photo —
+          // la route publique n'envoie pas d'identifiant de personne.
+          const samePerson = items.every((p) => p.avatar && p.avatar === items[0].avatar && p.name === items[0].name);
+          if (far <= 25 || samePerson || map.getZoom() >= 16) { onList(items); return; }
+          try {
+            map.stop();
+            map.flyToBounds(L.latLngBounds(items.map((p) => [p.lat, p.lng] as [number, number])), { padding: [60, 60], maxZoom: 18, duration: 0.8 });
+          } catch {
+            safeFly(map, center, Math.min(map.getZoom() + 2.2, 18), 0.8);
+          }
         },
       }}
     />
@@ -177,7 +191,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
       <MapContainer center={center} zoom={zoom} minZoom={3} maxZoom={18} style={{ height: "100%", width: "100%" }} scrollWheelZoom={!compact} zoomControl={false}>
         {!compact && <ZoomControl position="bottomright" />}
         {dark ? (
-          <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>' url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" maxZoom={19} />
+          <TileLayer key="dark" className="hps-dark-tiles" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
         ) : (
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
         )}

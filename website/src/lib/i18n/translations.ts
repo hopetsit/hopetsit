@@ -9731,3 +9731,7 @@ export const t: Bundle = {
 // 25/09/2026 — PawMap 584 (site) : clés ajoutées dans un fichier dédié.
 import { PAWMAP584 } from "./pawmap584";
 for (const code of Object.keys(PAWMAP584) as Lang[]) Object.assign(t[code], PAWMAP584[code]);
+
+// 25/09/2026 — PawMap 585 (site) : choix du rôle, fiche du bas, capsule droite.
+import { PAWMAP585 } from "./pawmap585";
+for (const code of Object.keys(PAWMAP585) as Lang[]) Object.assign(t[code], PAWMAP585[code]);

@@ -41,7 +41,7 @@ import { PawMapLogo } from "@/components/PawMapLogo";
 import { AppIcon, type AppIconName } from "@/components/AppIcon";
 import { PageTitle } from "@/components/PageTitle";
 import { PawMapLegendModal } from "@/components/PawMapLegendModal";
-import type { MapRequest, LiveLabels } from "@/components/PoiMap";
+import type { MapRequest, LiveLabels, CardLabels } from "@/components/PoiMap";
 import {
   ApiError,
   FriendItem,
@@ -83,6 +83,8 @@ import { getSocket } from "@/lib/socket";
 import type { FriendLivePosition } from "@/components/FriendsLiveMap";
 import { haversineKm } from "@/lib/mapCluster";
 import { ROLE_COLOR, blurLatLng, formatPrice, placePinHtml, reportPinHtml, spotPinHtml, roleKey } from "@/lib/pawmapLegend";
+import { expandRows, formatKm, friendIdSetFrom, mergePersons, rolesMatching } from "@/lib/memberPersons";
+import type { Map as LeafletMap } from "leaflet";
 
 const roleChipColor = (role: string) => ROLE_COLOR[roleKey(role)];
 
@@ -237,6 +239,12 @@ export default function MapPage() {
     try { setDark(localStorage.getItem("hopetsit:mapDark") === "1"); } catch { /* ignore */ }
   }, []);
   const [legendOpen, setLegendOpen] = useState(false);
+  // 25/09 (585) — capsule droite : zoom, ma position, satellite, membres.
+  const mapRef = useRef<LeafletMap | null>(null);
+  const [satellite, setSatellite] = useState(false);
+  useEffect(() => {
+    try { setSatellite(localStorage.getItem("hopetsit:mapSat") === "1"); } catch { /* ignore */ }
+  }, []);
   const [followUserId, setFollowUserId] = useState<string | null>(null);
   const [followPaused, setFollowPaused] = useState(false);
   const [followSheet, setFollowSheet] = useState(false);
@@ -533,15 +541,23 @@ export default function MapPage() {
     return () => { cancelled = true; };
   }, [loading, showRequests, isProviderRole]);
 
-  const allMembers = useMemo(() => {
-    const seen = new Set(members.map((m) => m.id));
-    const merged = [...members, ...worldMembers.filter((m) => !seen.has(m.id))];
-    return merged.filter((m) => (m.role ? memberRoles.includes(String(m.role).toLowerCase()) : true));
-  }, [members, worldMembers, memberRoles]);
+  // 25/09 (PawMap 585) — UNE personne = UN point, même quand « proches » et
+  // « monde » ont retenu deux profils différents (lib/memberPersons.ts). Une
+  // personne reste visible si L'UN de ses rôles est coché dans « Je cherche ».
+  const [showMembers, setShowMembers] = useState(true);
+  const mergedMembers = useMemo(() => mergePersons(members, worldMembers), [members, worldMembers]);
+  const allMembers = useMemo(
+    () => (showMembers ? mergedMembers.filter((m) => rolesMatching(m, memberRoles).length > 0) : []),
+    [mergedMembers, memberRoles, showMembers],
+  );
 
   // Membres à moins de 50 km (même règle que l'app) — liste + compteur.
   // 25/09 (point 5) — la référence est ce qu'on REGARDE (centre de la
   // carte), plus ma position GPS : après « paris », la liste parle de Paris.
+  // 25/09 (585, point 3) — la distance AFFICHÉE part de ma position (sinon du
+  // centre regardé) jusqu'au point AFFICHÉ de la personne, jamais d'une autre
+  // position de profil.
+  const distanceFrom = useMemo(() => userLocation ?? { lat: center[0], lng: center[1] }, [userLocation, center]);
   const membersNear = useMemo(() => {
     const ref = { lat: center[0], lng: center[1] };
     return allMembers
@@ -549,22 +565,21 @@ export default function MapPage() {
         const lat = m.location?.coordinates?.[1];
         const lng = m.location?.coordinates?.[0];
         if (typeof lat !== "number" || typeof lng !== "number") return null;
-        return { m, km: haversineKm(ref.lat, ref.lng, lat, lng), lat, lng };
+        return { m, km: haversineKm(ref.lat, ref.lng, lat, lng), shownKm: haversineKm(distanceFrom.lat, distanceFrom.lng, lat, lng), lat, lng };
       })
-      .filter((x): x is { m: NearbyMember; km: number; lat: number; lng: number } => !!x && x.km <= 50)
-      .sort((a, b) => a.km - b.km);
-  }, [allMembers, center]);
+      .filter((x): x is { m: NearbyMember; km: number; shownKm: number; lat: number; lng: number } => !!x && x.km <= 50)
+      .sort((a, b) => a.shownKm - b.shownKm);
+  }, [allMembers, center, distanceFrom]);
   const membersAround = membersNear.length;
   // Personne DANS la zone visible (les 3 rôles, sans filtre) = état vide.
   const membersInView = useMemo(() => {
     if (!viewBounds) return membersAround;
-    const seen = new Set(members.map((m) => m.id));
-    return [...members, ...worldMembers.filter((m) => !seen.has(m.id))].filter((m) => {
+    return mergedMembers.filter((m) => {
       const lat = m.location?.coordinates?.[1];
       const lng = m.location?.coordinates?.[0];
       return typeof lat === "number" && typeof lng === "number" && lat >= viewBounds.s && lat <= viewBounds.n && lng >= viewBounds.w && lng <= viewBounds.e;
     }).length;
-  }, [members, worldMembers, viewBounds, membersAround]);
+  }, [mergedMembers, viewBounds, membersAround]);
 
   const handleAddFriend = useCallback(
     async (m: NearbyMember): Promise<"sent" | "already" | "error"> => {
@@ -833,6 +848,24 @@ export default function MapPage() {
       return !d;
     });
   }
+  function locateMe() {
+    if (locating) return;
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) { setLocateMsg(t("map_locate_unsupported")); return; }
+    setLocateMsg(null);
+    setLocating(true);
+    const onFound = (pos: GeolocationPosition) => {
+      const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setUserLocation(loc);
+      setCenter([loc.lat, loc.lng]);
+      setFocusTarget({ ...loc, ts: Date.now(), zoom: 14 });
+      setLocating(false);
+    };
+    const onFail = (err: GeolocationPositionError) => {
+      setLocating(false);
+      setLocateMsg(err && err.code === 1 ? t("map_locate_denied") : t("map_locate_failed"));
+    };
+    navigator.geolocation.getCurrentPosition(onFound, () => navigator.geolocation.getCurrentPosition(onFound, onFail, { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }), { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+  }
   async function toggleFriendsOnly(next: boolean) {
     if (friendsOnlyBusy) return;
     setFriendsOnlyBusy(true);
@@ -900,9 +933,26 @@ export default function MapPage() {
     }),
     [t],
   );
+  // 25/09 (585) — l'amitié a pu être nouée sous un AUTRE profil de la
+  // personne : on écrit au profil qui porte l'amitié (other.id de /friends).
+  const friendIdSet = useMemo(() => friendIdSetFrom(friendsForMap), [friendsForMap]);
+  const cardLabels: CardLabels = useMemo(
+    () => ({
+      book: t("map_member_book"), priceFrom: t("map_member_price_from"), addFriend: t("map_member_add_friend"),
+      sent: t("map_member_request_sent"), already: t("map_member_already"), failed: t("map_member_request_failed"),
+      approx: t("map_member_approx"), verified: t("trust_id_title"), viewProfile: t("friend_view_profile"),
+      directions: t("map_directions_btn"), message: t("live_message"), friend: t("map_friend_badge"),
+      chooseProfile: t("map_choose_profile"), profilesHere: t("map_profiles_here"), see: t("map_see"),
+      // Sans ma position, la distance part du centre de la carte : on le dit.
+      distance: userLocation ? t("map_distance_from_you") : t("map_distance_from_center"), back: t("map_back"), close: t("common_close"), lang,
+    }),
+    [t, lang, userLocation],
+  );
   async function openMessage(who: { id: string; role: string; name: string }) {
+    const f = friendsForMap.find((x) => x.other && (x.other.id === who.id || (x.other.personIds || []).includes(who.id)));
+    const target = f?.other?.id && !f.id.startsWith("family-") ? { id: f.other.id, role: roleFromModel(f.other.model) } : { id: who.id, role: roleKey(who.role) };
     try {
-      const r = await startFriendConversation({ targetUserId: who.id, targetUserRole: roleKey(who.role) });
+      const r = await startFriendConversation({ targetUserId: target.id, targetUserRole: target.role });
       router.push(r.conversationId ? `/chat?c=${r.conversationId}` : "/chat");
     } catch {
       router.push("/chat");
@@ -985,49 +1035,18 @@ export default function MapPage() {
       {/* ── 2 COLONNES sur ordinateur : carte | panneau ── */}
       <div className="mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5">
         {/* ── COLONNE CARTE ── */}
-        <div className="relative h-[62vh] min-h-[420px] lg:h-[calc(100vh-190px)] lg:min-h-[560px]">
-          {/* Coin haut-DROIT (25/09) : ma position, « ? » légende, mode sombre —
-              à gauche, le rail montait jusque sur le bouton « nuit » à 375 px. */}
-          <div className="absolute right-3 top-[64px] z-[1000] flex flex-col gap-2">
-            <button type="button" onClick={() => setLegendOpen(true)} aria-label={t("legend_btn")} title={t("legend_btn")} className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#231715] shadow-lg transition hover:scale-105">
-              <AppIcon name="question" size={22} />
-            </button>
-            <button type="button" onClick={toggleDark} aria-label={t("map_dark_mode")} title={t("map_dark_mode")} aria-pressed={dark} className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#231715] shadow-lg transition hover:scale-105">
-              <AppIcon name={dark ? "sun" : "moon"} size={20} />
-            </button>
+        <div className="relative h-[62vh] min-h-[480px] lg:h-[calc(100vh-230px)] lg:min-h-[560px]">
+          {/* Coin haut-droit : « ? » légende et mode nuit, même verre que les rails. */}
+          <div className="absolute right-2.5 top-3 z-[1000] flex flex-col gap-2.5 md:right-3" >
+            <GlassRound dark={dark} onClick={() => setLegendOpen(true)} label={t("legend_btn")}>
+              <AppIcon name="question" size={21} color={dark ? "#FBEFE6" : "#3B2A26"} />
+            </GlassRound>
+            <GlassRound dark={dark} onClick={toggleDark} label={t("map_dark_mode")} pressed={dark}>
+              <AppIcon name={dark ? "sun" : "moon"} size={20} color={dark ? "#FBD38D" : "#3B2A26"} />
+            </GlassRound>
           </div>
-
-          {/* Coin haut-droit : me géolocaliser. */}
-          <button
-            type="button"
-            title={t("map_locate_btn")}
-            aria-label={t("map_locate_btn")}
-            disabled={locating}
-            onClick={() => {
-              if (locating) return;
-              if (typeof navigator === "undefined" || !("geolocation" in navigator)) { setLocateMsg(t("map_locate_unsupported")); return; }
-              setLocateMsg(null);
-              setLocating(true);
-              const onFound = (pos: GeolocationPosition) => {
-                const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                setUserLocation(loc);
-                setCenter([loc.lat, loc.lng]);
-                setFocusTarget({ ...loc, ts: Date.now(), zoom: 14 });
-                setLocating(false);
-              };
-              const onFail = (err: GeolocationPositionError) => {
-                setLocating(false);
-                setLocateMsg(err && err.code === 1 ? t("map_locate_denied") : t("map_locate_failed"));
-              };
-              navigator.geolocation.getCurrentPosition(onFound, () => navigator.geolocation.getCurrentPosition(onFound, onFail, { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }), { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
-            }}
-            className="absolute right-3 top-3 z-[1000] grid h-11 w-11 place-items-center rounded-full bg-white shadow-lg transition hover:scale-105"
-            style={{ color: roleColor }}
-          >
-            {locating ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <AppIcon name="locate" size={22} />}
-          </button>
           {locateMsg && (
-            <div className="absolute right-[64px] top-3 z-[1100] max-w-[240px] rounded-xl bg-white/95 px-3 py-2 text-[12px] font-medium text-ink shadow-lg">
+            <div className="absolute bottom-[270px] right-[72px] z-[1100] max-w-[230px] rounded-2xl bg-white px-3 py-2 text-[12px] font-medium text-[#231715] shadow-[0_10px_26px_-10px_rgba(120,53,15,0.45)]">
               {locateMsg}
               <button type="button" onClick={() => setLocateMsg(null)} className="ml-2 font-bold text-[#C92A12]" aria-label="OK">OK</button>
             </div>
@@ -1084,7 +1103,7 @@ export default function MapPage() {
               direct · 12 s », chevron) ; un clic ouvre une petite feuille
               Recentrer / Itinéraire / Message / Arrêter de suivre. */}
           {followed && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[1050] flex flex-col items-center gap-2 px-[64px]">
+            <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[1050] flex flex-col items-center gap-2 px-[72px]">
               {followSheet && (
                 <div className="pointer-events-auto w-full max-w-[300px] rounded-[20px] bg-white p-2 shadow-[0_12px_32px_-8px_rgba(76,29,149,0.45)]" role="dialog" aria-label={t("live_sheet_title")}>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -1128,7 +1147,7 @@ export default function MapPage() {
             </div>
           )}
           {(liveToast || friendsOnlyMsg) && (
-            <div className={`pointer-events-none absolute inset-x-0 z-[1060] flex justify-center px-[64px] ${followed ? "bottom-[64px]" : "bottom-3"}`}>
+            <div className={`pointer-events-none absolute inset-x-0 z-[1060] flex justify-center px-[72px] ${followed ? "bottom-[64px]" : "bottom-3"}`}>
               <span className="rounded-full bg-[#17141F] px-3.5 py-2 text-center text-[12px] font-semibold text-white shadow-lg">{liveToast || friendsOnlyMsg}</span>
             </div>
           )}
@@ -1141,54 +1160,98 @@ export default function MapPage() {
             </div>
           )}
 
-          {/* RAIL GAUCHE (design « Paw Buttons », même ordre que l'app). */}
-          <div className="absolute bottom-3 left-2.5 z-[1000] flex flex-col gap-1.5 md:bottom-4 md:left-3 md:gap-2.5">
-            {(
-              [
-                { k: "around", g1: "#A076FF", g2: "#7040D6", label: t("map_around_title"), on: () => { setSheet("full"); document.getElementById("around-list")?.scrollIntoView({ behavior: "smooth", block: "start" }); } },
-                { k: "route", g1: "#3DBF6C", g2: "#188A42", label: t("map_directions_btn"), on: () => {
-                  if (selectedPoi) { const [lng, lat] = selectedPoi.location.coordinates; handleDirections({ lat, lng }); }
-                  else if (followed) handleDirections({ lat: followed.lat, lng: followed.lng });
-                  else {
-                    // Aucune destination choisie : on le DIT, puis la liste « autour de toi ».
-                    setLiveToast(t("route_pick_target"));
-                    setTimeout(() => setLiveToast(null), 4500);
-                    setSheet("full"); document.getElementById("around-list")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }
-                } },
-                { k: "chat", g1: "#5B9DFF", g2: "#2358D6", label: t("dash_card_messages_title"), on: () => router.push("/chat") },
-                { k: "photo", g1: "#FFB067", g2: "#E07A12", label: t("map_spot_photo_label"), on: () => openCreate("spot", true) },
-                { k: "spot", g1: "#FAC346", g2: "#E2981A", label: t("map_panel_spots_title"), on: () => {
-                  if (sidePanel === "spots") { setSidePanel(null); return; }
-                  setShowSpots(true); setSidePanel("spots"); setSheet("full");
-                  setTimeout(() => document.getElementById("side-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-                }, active: sidePanel === "spots" },
-                { k: "add", g1: "#48C8BA", g2: "#18968A", label: t("map_tag_spot_cta"), on: () => openCreate("spot") },
-                { k: "report", g1: "#FF6E5C", g2: "#D63A28", label: t("map_report_cta"), on: () => openCreate("report") },
-                { k: "feed", g1: "#5A4E46", g2: "#28201B", label: t("map_panel_reports_title"), on: () => {
-                  if (sidePanel === "reports") { setSidePanel(null); return; }
-                  setShowReports(true); setSidePanel("reports"); setSheet("full");
-                  setTimeout(() => document.getElementById("side-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-                }, active: sidePanel === "reports" },
-              ] as { k: keyof typeof RAIL_SVG; g1: string; g2: string; label: string; on: () => void; active?: boolean }[]
-            ).map((b) => (
+          {/* RAIL GAUCHE (25/09, PawMap 585 — « ça peut être plus joli ? ») :
+              une CAPSULE de verre dépoli teinté (blanc chaud, liseré blanc fin,
+              ombre chaude — jamais de gris), boutons 44 px espacés de 10 px,
+              chacun un disque dégradé de sa couleur + reflet + icône blanche ;
+              actif = anneau blanc + léger agrandissement. Même ordre que l'app. */}
+          <div className="absolute bottom-3 left-2.5 z-[1000] md:bottom-4 md:left-3">
+            <div className="flex flex-col gap-2.5 rounded-[30px] p-[6px]" style={glassStyle(dark)}>
+              {(
+                [
+                  { k: "around", g1: "#A076FF", g2: "#7040D6", label: t("map_around_title"), on: () => { setSheet("full"); document.getElementById("around-list")?.scrollIntoView({ behavior: "smooth", block: "start" }); } },
+                  { k: "route", g1: "#3DBF6C", g2: "#188A42", label: t("map_directions_btn"), on: () => {
+                    if (selectedPoi) { const [lng, lat] = selectedPoi.location.coordinates; handleDirections({ lat, lng }); }
+                    else if (followed) handleDirections({ lat: followed.lat, lng: followed.lng });
+                    else {
+                      // Aucune destination choisie : on le DIT, puis la liste « autour de toi ».
+                      setLiveToast(t("route_pick_target"));
+                      setTimeout(() => setLiveToast(null), 4500);
+                      setSheet("full"); document.getElementById("around-list")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }
+                  } },
+                  { k: "chat", g1: "#5B9DFF", g2: "#2358D6", label: t("dash_card_messages_title"), on: () => router.push("/chat") },
+                  { k: "photo", g1: "#FFB067", g2: "#E07A12", label: t("map_spot_photo_label"), on: () => openCreate("spot", true) },
+                  { k: "spot", g1: "#FAC346", g2: "#E2981A", label: t("map_panel_spots_title"), on: () => {
+                    if (sidePanel === "spots") { setSidePanel(null); return; }
+                    setShowSpots(true); setSidePanel("spots"); setSheet("full");
+                    setTimeout(() => document.getElementById("side-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+                  }, active: sidePanel === "spots" },
+                  { k: "add", g1: "#48C8BA", g2: "#18968A", label: t("map_tag_spot_cta"), on: () => openCreate("spot") },
+                  { k: "report", g1: "#FF6E5C", g2: "#D63A28", label: t("map_report_cta"), on: () => openCreate("report") },
+                  { k: "feed", g1: "#6B5A50", g2: "#2E231D", label: t("map_panel_reports_title"), on: () => {
+                    if (sidePanel === "reports") { setSidePanel(null); return; }
+                    setShowReports(true); setSidePanel("reports"); setSheet("full");
+                    setTimeout(() => document.getElementById("side-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+                  }, active: sidePanel === "reports" },
+                ] as { k: keyof typeof RAIL_SVG; g1: string; g2: string; label: string; on: () => void; active?: boolean }[]
+              ).map((b) => (
+                <button
+                  key={`rail-${b.k}`}
+                  type="button"
+                  title={b.label}
+                  aria-label={b.label}
+                  aria-pressed={b.active}
+                  onClick={b.on}
+                  className="relative grid h-11 w-11 place-items-center overflow-hidden rounded-full transition-transform duration-300 ease-[cubic-bezier(.3,1.5,.4,1)] hover:scale-[1.06] active:scale-95 active:duration-100"
+                  style={{
+                    background: `linear-gradient(165deg, ${b.g1}, ${b.g2})`,
+                    border: "1.5px solid #FFFFFF",
+                    transform: b.active ? "scale(1.08)" : undefined,
+                    boxShadow: b.active
+                      ? `0 0 0 3px #FFFFFF, 0 0 0 5px ${b.g1}, 0 8px 18px -6px ${b.g2}`
+                      : `0 6px 14px -6px ${b.g2}, inset 0 -2px 4px ${b.g2}`,
+                  }}
+                >
+                  <span className="pointer-events-none absolute inset-x-[5px] top-[2px] h-[46%] rounded-full" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0))" }} />
+                  <span className="relative block h-[22px] w-[22px]" dangerouslySetInnerHTML={{ __html: RAIL_SVG[b.k] }} />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* CAPSULE DROITE (même verre) : zoom, ma position (accent du rôle),
+              satellite, membres. Alignée en bas sur le rail gauche. */}
+          <div className="absolute bottom-3 right-2.5 z-[1000] md:bottom-4 md:right-3">
+            <div className="flex flex-col items-center rounded-[30px] p-[6px]" style={glassStyle(dark)}>
+              <CapsuleBtn dark={dark} label={t("map_zoom_in")} onClick={() => { try { mapRef.current?.zoomIn(); } catch { /* */ } }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+              </CapsuleBtn>
+              <CapsuleSep dark={dark} />
+              <CapsuleBtn dark={dark} label={t("map_zoom_out")} onClick={() => { try { mapRef.current?.zoomOut(); } catch { /* */ } }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>
+              </CapsuleBtn>
+              <CapsuleSep dark={dark} />
               <button
-                key={`rail-${b.k}`}
                 type="button"
-                title={b.label}
-                aria-label={b.label}
-                aria-pressed={b.active}
-                onClick={b.on}
-                className="grid h-10 w-10 place-items-center rounded-full transition-transform duration-300 ease-[cubic-bezier(.3,1.5,.4,1)] hover:scale-105 active:scale-90 active:duration-100 md:h-11 md:w-11"
-                style={{
-                  background: `linear-gradient(165deg, ${b.g1}, ${b.g2})`,
-                  border: "1.5px solid rgba(255,255,255,0.85)",
-                  boxShadow: b.active ? `0 0 0 3px rgba(255,255,255,0.95), 0 0 18px ${b.g1}, 0 6px 14px ${b.g2}66, inset 0 1px 0 rgba(255,255,255,0.35)` : `0 6px 14px ${b.g2}66, inset 0 1px 0 rgba(255,255,255,0.35)`,
-                }}
+                title={t("map_locate_btn")}
+                aria-label={t("map_locate_btn")}
+                disabled={locating}
+                onClick={locateMe}
+                className="my-1 grid h-11 w-11 place-items-center rounded-full text-white transition-transform duration-200 hover:scale-[1.05] active:scale-95"
+                style={{ background: ROLE_GRAD_BTN[roleKey(myRole)], border: "1.5px solid #FFFFFF", boxShadow: `0 6px 14px -6px ${roleColor}` }}
               >
-                <span className="block h-[22px] w-[22px]" dangerouslySetInnerHTML={{ __html: RAIL_SVG[b.k] }} />
+                {locating ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <AppIcon name="locate" size={21} color="#fff" />}
               </button>
-            ))}
+              <CapsuleSep dark={dark} />
+              <CapsuleBtn dark={dark} label={satellite ? t("map_layer_plan") : t("map_layer_satellite")} pressed={satellite} accent={roleColor} onClick={() => setSatellite((v) => { try { localStorage.setItem("hopetsit:mapSat", v ? "0" : "1"); } catch { /* */ } return !v; })}>
+                <AppIcon name={satellite ? "map" : "globe"} size={20} color="currentColor" />
+              </CapsuleBtn>
+              <CapsuleSep dark={dark} />
+              <CapsuleBtn dark={dark} label={showMembers ? t("map_members_hide") : t("map_members_show")} pressed={showMembers} accent={roleColor} onClick={() => setShowMembers((v) => !v)}>
+                <AppIcon name="people" size={20} color="currentColor" />
+              </CapsuleBtn>
+            </div>
           </div>
 
           <PoiMap
@@ -1208,11 +1271,11 @@ export default function MapPage() {
             reportTypeLabels={reportTypeLabels}
             members={membersWithPresence}
             memberRoleLabels={{ owner: t("role_owner"), sitter: t("role_sitter"), walker: t("role_walker") }}
-            memberLabels={{
-              addFriend: t("map_member_add_friend"), sent: t("map_member_request_sent"), already: t("map_member_already"),
-              failed: t("map_member_request_failed"), book: t("map_member_book"), approx: t("map_member_approx"),
-              priceFrom: t("map_member_price_from"), verified: t("trust_id_title"), viewProfile: t("friend_view_profile"),
-            }}
+            cardLabels={cardLabels}
+            wantedRoles={memberRoles}
+            distanceFrom={distanceFrom}
+            onMapReady={(m) => { mapRef.current = m; }}
+            satellite={satellite}
             onAddFriend={handleAddFriend}
             friendPositions={showFriends ? livePositionsList : []}
             familyIds={familyIds}
@@ -1231,7 +1294,7 @@ export default function MapPage() {
             focusTarget={focusTarget}
             onFriendFocus={startFollow}
             followHaloId={followUserId}
-            friendIds={friendsForMap.map((f) => f.other?.id).filter((x): x is string => !!x)}
+            friendIds={[...friendIdSet]}
             friendSeen={friendSeen}
             liveLabels={liveLabels}
             now={nowTs}
@@ -1266,7 +1329,7 @@ export default function MapPage() {
 
         {/* ── PANNEAU : colonne droite sur ordinateur, feuille glissante sur téléphone ── */}
         <aside
-          className={`fixed inset-x-0 bottom-0 z-[1500] flex flex-col rounded-t-[28px] bg-white shadow-[0_-10px_40px_-10px_rgba(35,23,21,0.35)] transition-[height] duration-300 ${sheetH} lg:static lg:z-auto lg:h-[calc(100vh-190px)] lg:min-h-[560px] lg:rounded-[28px] lg:bg-[#FAF1EC] lg:shadow-none`}
+          className={`fixed inset-x-0 bottom-0 z-[1500] flex flex-col rounded-t-[28px] bg-white shadow-[0_-10px_40px_-10px_rgba(35,23,21,0.35)] transition-[height] duration-300 ${sheetH} lg:static lg:z-auto lg:h-[calc(100vh-230px)] lg:min-h-[560px] lg:rounded-[28px] lg:bg-[#FAF1EC] lg:shadow-none`}
         >
           {/* Poignée (téléphone seulement). */}
           <button type="button" onClick={cycleSheet} className="flex h-[58px] w-full shrink-0 flex-col items-center justify-center gap-1 lg:hidden" aria-label={sheet === "full" ? t("map_sheet_less") : t("map_sheet_more")}>
@@ -1456,7 +1519,7 @@ export default function MapPage() {
             {/* PANNEAU : signalements / spots / membres. */}
             {sidePanel && (() => {
               const from = userLocation ?? { lat: center[0], lng: center[1] };
-              type Row = { id: string; lat: number; lng: number; km: number; pin: string; title: string; sub: string; photo: string; meta: string; color?: string; book?: string };
+              type Row = { id: string; lat: number; lng: number; km: number; pin: string; title: string; sub: string; photo: string; meta: string; color?: string; book?: string; friend?: boolean };
               let rows: Row[] = [];
               let title = "";
               if (sidePanel === "reports") {
@@ -1467,10 +1530,15 @@ export default function MapPage() {
                 rows = spots.map((sp) => ({ id: sp.id, lat: sp.lat, lng: sp.lng, km: haversineKm(from.lat, from.lng, sp.lat, sp.lng), pin: spotPinHtml(sp.type, sp.isGolden).replace(/width:\d+px;height:\d+px/, "width:22px;height:29px"), title: sp.name, sub: `${spotTypeLabels[sp.type] || sp.type}${sp.description ? ` · ${sp.description}` : ""}`, photo: sp.photoUrl || "", meta: `♥ ${sp.likesCount} · ${t("map_spot_visits").replace("{count}", String(sp.visitsCount))}` }));
               } else {
                 title = t("map_panel_members_title");
-                rows = membersNear.map(({ m, km, lat, lng }) => {
-                  const key = roleKey(m.role);
-                  const price = key !== "owner" ? formatPrice(m.priceFrom, m.currency) : null;
-                  return { id: m.id, lat, lng, km, pin: "", title: m.name || t("common_member"), sub: `${t(`role_${key}`)}${price ? ` · ${t("map_member_price_from")} ${price}` : ""}${(m.rating ?? 0) > 0 ? ` · ★ ${(m.rating ?? 0).toFixed(1)}` : ""}`, photo: m.avatar || "", meta: m.approx ? t("map_member_approx").replace("{km}", String(m.approxKm ?? 1)) : "", color: ROLE_COLOR[key], book: key !== "owner" ? `/book/${key}/${m.id}` : undefined };
+                // 25/09 (585) — une personne à deux rôles = une ligne PAR rôle
+                // coché dans « Je cherche », étiquetée ; distance depuis ma
+                // position jusqu'au point affiché.
+                const byId = new Map(membersNear.map((x) => [x.m.id, x]));
+                rows = expandRows(membersNear.map((x) => x.m), { wanted: memberRoles, friendIds: friendIdSet }).map(({ m, r, friend }) => {
+                  const x = byId.get(m.id)!;
+                  const key = roleKey(r.role);
+                  const price = key !== "owner" ? formatPrice(r.priceFrom, r.currency) : null;
+                  return { id: `${m.id}-${r.id}`, lat: x.lat, lng: x.lng, km: x.shownKm, pin: "", title: m.name || t("common_member"), sub: `${t(`role_${key}`)}${price ? ` · ${t("map_member_price_from")} ${price}` : ""}${(r.rating ?? 0) > 0 ? ` · ★ ${(r.rating ?? 0).toFixed(1)}` : ""}`, photo: m.avatar || "", meta: m.approx ? t("map_member_approx").replace("{km}", String(m.approxKm ?? 1)) : "", color: ROLE_COLOR[key], book: key !== "owner" ? `/book/${key}/${r.id}` : undefined, friend };
                 });
               }
               rows.sort((a, b) => a.km - b.km);
@@ -1498,9 +1566,9 @@ export default function MapPage() {
                               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white" style={{ background: r.color || "#6E4F48" }}><AppIcon name="profile" size={16} color="#fff" /></span>
                             )}
                             <span className="min-w-0">
-                              <span className="block truncate text-sm font-semibold text-[#231715]">{r.title}</span>
-                              {r.sub && <span className="block truncate text-xs" style={{ color: r.color || "#6E4F48" }}>{r.sub}</span>}
-                              <span className="block truncate text-[11px] text-[#8A6B64]">{r.km < 1 ? `${Math.round(r.km * 1000)} m` : `${r.km.toFixed(1)} km`}{r.meta ? ` · ${r.meta}` : ""}</span>
+                              <span className="flex min-w-0 items-center gap-1.5"><span className="truncate text-sm font-semibold text-[#231715]">{r.title}</span>{r.friend && <span className="shrink-0 rounded-full bg-[#FDE7F0] px-1.5 py-px text-[10px] font-bold text-[#9D174D]">{t("map_friend_badge")}</span>}</span>
+                              {r.sub && <span className="block truncate text-xs font-semibold" style={{ color: r.color ? ROLE_TEXT_DARK[r.color] || r.color : "#6E4F48" }}>{r.sub}</span>}
+                              <span className="block truncate text-[11px] text-[#8A6B64]">{formatKm(r.km, lang)}{r.meta ? ` · ${r.meta}` : ""}</span>
                             </span>
                           </button>
                           {r.book ? (
@@ -1694,4 +1762,70 @@ function formatAgo(ms: number, t: (k: string) => string): string {
   const h = Math.round(m / 60);
   if (h < 48) return t("ago_h").replace("{n}", String(h));
   return t("ago_d").replace("{n}", String(Math.round(h / 24)));
+}
+
+// ── 25/09/2026 (PawMap 585) — verre des rails ────────────────────────────────
+// Blanc CHAUD très translucide + liseré blanc fin + ombre teintée (brun
+// ambré, jamais grise) ; mode nuit : encre foncée chaude, jamais du gris.
+function glassStyle(dark: boolean): React.CSSProperties {
+  return dark
+    ? {
+        background: "linear-gradient(180deg, rgba(44,33,42,0.82), rgba(23,20,31,0.78))",
+        border: "1px solid rgba(255,228,214,0.22)",
+        boxShadow: "0 16px 36px -12px rgba(12,6,4,0.7), inset 0 1px 0 rgba(255,228,214,0.14)",
+        backdropFilter: "blur(14px) saturate(1.4)",
+        WebkitBackdropFilter: "blur(14px) saturate(1.4)",
+      }
+    : {
+        // Assez opaque pour rester CHAUD même sur la vue satellite (sinon le
+        // flou d'une photo sombre donne un verre gris).
+        background: "linear-gradient(180deg, rgba(255,251,247,0.86), rgba(255,242,232,0.78))",
+        border: "1px solid rgba(255,255,255,0.95)",
+        boxShadow: "0 16px 34px -14px rgba(146,64,14,0.45), inset 0 1px 0 rgba(255,255,255,0.95)",
+        backdropFilter: "blur(14px) saturate(1.5)",
+        WebkitBackdropFilter: "blur(14px) saturate(1.5)",
+      };
+}
+const ROLE_GRAD_BTN: Record<string, string> = {
+  owner: "linear-gradient(165deg,#E0553F,#B92425)",
+  sitter: "linear-gradient(165deg,#3B7BE6,#1E4FB0)",
+  walker: "linear-gradient(165deg,#34B857,#15803D)",
+};
+/** Rond de verre (« ? », mode nuit) : même matière que les capsules. */
+function GlassRound({ dark, onClick, label, pressed, children }: { dark: boolean; onClick: () => void; label: string; pressed?: boolean; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} aria-label={label} title={label} aria-pressed={pressed} className="grid h-11 w-11 place-items-center rounded-full transition-transform duration-200 hover:scale-[1.05] active:scale-95" style={glassStyle(dark)}>
+      {children}
+    </button>
+  );
+}
+/** Bouton de la capsule droite : icône à l'encre chaude, actif = teinte du rôle. */
+function CapsuleBtn({ dark, label, onClick, pressed, accent, children }: { dark: boolean; label: string; onClick: () => void; pressed?: boolean; accent?: string; children: React.ReactNode }) {
+  const on = pressed && accent;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      aria-pressed={pressed}
+      className="grid h-11 w-11 place-items-center rounded-full transition duration-200 hover:scale-[1.05] active:scale-95"
+      style={{
+        color: on ? ROLE_ON_FG[accent!] || "#3B2A26" : dark ? "#FBEFE6" : "#3B2A26",
+        background: on ? ROLE_ON_BG[accent!] || "#FBE9E5" : "transparent",
+        boxShadow: on ? "inset 0 0 0 1.5px #FFFFFF" : undefined,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+// État « actif » d'un interrupteur de la capsule : teinte PLEINE et claire du
+// rôle + icône dans le foncé du rôle (clé = couleur du rôle).
+const ROLE_ON_BG: Record<string, string> = { "#C92A12": "#FBE3DC", "#2563EB": "#DCE8FD", "#16A34A": "#D9F5E3" };
+const ROLE_TEXT_DARK: Record<string, string> = { "#C92A12": "#9E1F0B", "#2563EB": "#1E4FB0", "#16A34A": "#15803D" };
+const ROLE_ON_FG: Record<string, string> = { "#C92A12": "#9E1F0B", "#2563EB": "#1E4FB0", "#16A34A": "#15803D" };
+/** Séparateur à peine visible (teinte chaude pleine : pas de gris). */
+function CapsuleSep({ dark }: { dark: boolean }) {
+  return <span aria-hidden="true" className="my-[3px] block h-px w-6" style={{ background: dark ? "#4A3A40" : "#EBD7CC" }} />;
 }

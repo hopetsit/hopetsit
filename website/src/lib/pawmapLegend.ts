@@ -166,7 +166,28 @@ export type MemberPinOptions = {
   /** Photo du membre (sinon l'icône du rôle). */
   avatar?: string | null;
   size?: number;
+  /** 25/09 (PawMap 585) — TOUS les rôles de la personne, celui du point
+   *  d'abord : 2 ou 3 rôles = double (triple) liseré aux couleurs des rôles. */
+  roles?: string[] | null;
 };
+
+/**
+ * Liserés supplémentaires d'une personne à plusieurs rôles : un anneau
+ * blanc fin puis un anneau plein à la couleur de chaque rôle suivant
+ * (propriétaire orange foncé, gardien bleu, promeneur vert). Rien pour un
+ * seul rôle. Couleurs PLEINES (jamais d'opacité : zéro gris).
+ */
+export function extraRoleRings(roles: string[] | null | undefined, all = false): string {
+  const keys = [...new Set((roles || []).map(roleKey))];
+  if (keys.length < 2) return "";
+  const parts: string[] = [];
+  let r = 0;
+  for (const k of all ? keys : keys.slice(1)) {
+    parts.push(`0 0 0 ${r + 2}px #fff`, `0 0 0 ${r + 5}px ${ROLE_COLOR[k]}`);
+    r += 5;
+  }
+  return parts.join(",");
+}
 
 /**
  * Autre membre : LE plus visible de la carte (25/09, PawMap 584 — même règle
@@ -195,8 +216,14 @@ export function memberPinHtml(o: MemberPinOptions): string {
     : ROLE_GLYPH[key];
   const pad = o.avatar ? 0 : Math.round(size * 0.2);
   // Photo : anneau du rôle (3 px) + liseré blanc extérieur ; icône : rond plein.
-  const ring = o.avatar ? `border:3px solid ${color};outline:2px solid #fff;` : `border:2.5px solid #fff;`;
-  return `<div style="position:relative;width:${size}px;height:${size}px;"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};${ring}${glow}display:flex;align-items:center;justify-content:center;padding:${pad}px;box-sizing:border-box;overflow:hidden;position:relative;">${inner}</div>${o.premium ? crownBadge(20) : ""}${o.boosted ? rocketBadge(18) : ""}${o.online === true || o.online === false ? onlineDot(12, o.online) : ""}${caption}</div>`;
+  // Plusieurs rôles : liserés concentriques aux couleurs des autres rôles,
+  // posés sur un calque à part (la lueur PawBoost anime box-shadow).
+  const rings = extraRoleRings(o.roles);
+  const ring = rings
+    ? (o.avatar ? `border:3px solid ${color};` : `border:2.5px solid #fff;`)
+    : o.avatar ? `border:3px solid ${color};outline:2px solid #fff;` : `border:2.5px solid #fff;`;
+  const ringLayer = rings ? `<div style="position:absolute;inset:0;border-radius:50%;box-shadow:${rings};pointer-events:none;"></div>` : "";
+  return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};${ring}${glow}display:flex;align-items:center;justify-content:center;padding:${pad}px;box-sizing:border-box;overflow:hidden;position:relative;">${inner}</div>${o.premium ? crownBadge(20) : ""}${o.boosted ? rocketBadge(18) : ""}${o.online === true || o.online === false ? onlineDot(12, o.online) : ""}${caption}</div>`;
 }
 
 /** Échappe une chaîne insérée dans le HTML d'une épingle (nom, URL). */
@@ -223,6 +250,8 @@ export type PhotoPinOptions = {
   lost?: boolean;
   /** Petite étiquette sous le rond (« signal perdu », « Prénom »). */
   caption?: string | null;
+  /** 25/09 (585) — ami à plusieurs rôles : liserés des rôles autour du rose. */
+  roles?: string[] | null;
 };
 
 function initials(name: string): string {
@@ -256,7 +285,9 @@ export function photoPinHtml(o: PhotoPinOptions): string {
     : o.caption
       ? `<span style="position:absolute;top:${size + 3}px;left:50%;transform:translateX(-50%);background:${o.lost ? "#FFF4E5" : "#fff"};color:${o.lost ? "#9A3412" : color};border:1.5px solid ${o.lost ? "#EA580C" : FRIEND_PINK};border-radius:999px;padding:1px 8px;font:700 11px/1.3 Inter,system-ui,sans-serif;white-space:nowrap;box-shadow:0 1px 4px rgba(23,20,31,.25);">${escapeHtml(o.caption)}</span>`
       : "";
-  return `<div style="position:relative;width:${size}px;height:${size}px;"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:3px ${ringStyle} ${ring};${glow}display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;">${inner}</div>${o.premium ? crownBadge(o.me ? 24 : 22) : ""}${o.boosted ? rocketBadge(o.me ? 20 : 18) : ""}${o.friendsOnly && o.me ? eyeOffBadge(20) : ""}${!o.me && (o.online === true || o.online === false) ? onlineDot(13, o.online) : ""}${label}</div>`;
+  const rings = o.me ? "" : extraRoleRings(o.roles, true); // ami : le rose d'abord, puis TOUS ses rôles
+  const ringLayer = rings ? `<div style="position:absolute;inset:0;border-radius:50%;box-shadow:${rings};pointer-events:none;"></div>` : "";
+  return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:3px ${ringStyle} ${ring};${glow}display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;">${inner}</div>${o.premium ? crownBadge(o.me ? 24 : 22) : ""}${o.boosted ? rocketBadge(o.me ? 20 : 18) : ""}${o.friendsOnly && o.me ? eyeOffBadge(20) : ""}${!o.me && (o.online === true || o.online === false) ? onlineDot(13, o.online) : ""}${label}</div>`;
 }
 
 /**
@@ -368,6 +399,7 @@ export const PAWMAP_KEYFRAMES = `
 @keyframes hps-pulse { 0% { transform:scale(1); opacity:.65; } 70% { transform:scale(2.1); opacity:0; } 100% { transform:scale(2.1); opacity:0; } }
 @media (prefers-reduced-motion: reduce) { .leaflet-marker-icon * { animation: none !important; } }
 .leaflet-container { font-family: Inter, system-ui, sans-serif; }
+.hps-dark-tiles { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) saturate(0.75) sepia(0.18); }
 .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: 0 10px 30px -10px rgba(23,20,31,.35); }
 .leaflet-popup-content { margin: 12px 14px; }
 .leaflet-popup-content a[class*="text-white"] { color: #fff !important; }

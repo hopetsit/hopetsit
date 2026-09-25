@@ -1,0 +1,224 @@
+// 25/09/2026 — PawMap 585 (site) : UNE PERSONNE = UN POINT, avec tous ses rôles.
+//
+// Contrat serveur 585 (backend/src/routes/friendRoutes.js, /members/world et
+// /members/nearby) : `id` / `role` = le profil dont la position est retenue ;
+// `roles` = TOUS les profils de la personne ; `personIds` = leurs ids ;
+// `isFriend` = l'un de ses profils est ami de l'un des miens (à lire EN
+// PRIORITÉ). Compatible avec l'ancien serveur : champs absents → la personne
+// n'a qu'un rôle, ses ids = [id], l'amitié se déduit de la liste d'amis (qui
+// porte `other.personIds` depuis v576).
+//
+// Module PUR (aucun React, aucun Leaflet) : testé par
+// scripts/test-memberPersons.mjs.
+
+import type { NearbyMember } from "@/lib/api";
+import { haversineKm } from "@/lib/mapCluster";
+
+export type RoleName = "owner" | "sitter" | "walker";
+
+export type PersonRole = {
+  id: string;
+  role: RoleName;
+  rating?: number;
+  reviewsCount?: number;
+  priceFrom?: number;
+  currency?: string;
+  isPremium?: boolean;
+};
+
+export function normRole(r: string | undefined | null): RoleName {
+  const s = String(r || "").toLowerCase();
+  if (s === "sitter") return "sitter";
+  if (s === "walker") return "walker";
+  return "owner";
+}
+
+/** Tous les ids de la personne (profil affiché compris, sans doublon). */
+export function personIdsOf(m: NearbyMember): string[] {
+  const out = new Set<string>();
+  if (m.id) out.add(String(m.id));
+  for (const x of m.personIds || []) if (x) out.add(String(x));
+  for (const r of m.roles || []) if (r && r.id) out.add(String(r.id));
+  return [...out];
+}
+
+/**
+ * Les rôles de la personne, le rôle du point d'abord. Les infos d'un rôle
+ * absentes de `roles` (la couche « proches » n'envoie que {id, role}) sont
+ * complétées par celles du point quand il s'agit du même profil.
+ */
+export function rolesOf(m: NearbyMember): PersonRole[] {
+  const list: PersonRole[] = [];
+  const seen = new Set<string>();
+  const push = (r: PersonRole) => {
+    if (!r.id || seen.has(r.id)) return;
+    seen.add(r.id);
+    list.push(r);
+  };
+  const self: PersonRole = {
+    id: String(m.id),
+    role: normRole(m.role),
+    rating: m.rating,
+    reviewsCount: m.reviewsCount,
+    priceFrom: m.priceFrom,
+    currency: m.currency,
+    isPremium: m.isPremium,
+  };
+  const raw = Array.isArray(m.roles) ? m.roles : [];
+  const first = raw.find((r) => r && String(r.id) === String(m.id));
+  push(first ? { ...self, ...cleanRole(first), id: String(first.id), role: normRole(first.role) } : self);
+  for (const r of raw) {
+    if (!r || !r.id) continue;
+    push({ ...cleanRole(r), id: String(r.id), role: normRole(r.role) });
+  }
+  return list;
+}
+
+function cleanRole(r: NonNullable<NearbyMember["roles"]>[number]): Partial<PersonRole> {
+  const o: Partial<PersonRole> = {};
+  if (typeof r.rating === "number") o.rating = r.rating;
+  if (typeof r.reviewsCount === "number") o.reviewsCount = r.reviewsCount;
+  if (typeof r.priceFrom === "number") o.priceFrom = r.priceFrom;
+  if (r.currency) o.currency = r.currency;
+  if (typeof r.isPremium === "boolean") o.isPremium = r.isPremium;
+  return o;
+}
+
+/**
+ * Ensemble des ids « amis » à partir de /friends : `other.id` et, depuis
+ * v576, `other.personIds` (tous les profils de l'ami).
+ */
+export function friendIdSetFrom(friends: { other?: { id?: string; personIds?: string[] } | null }[]): Set<string> {
+  const s = new Set<string>();
+  for (const f of friends || []) {
+    const o = f && f.other;
+    if (!o) continue;
+    if (o.id) s.add(String(o.id));
+    for (const x of o.personIds || []) if (x) s.add(String(x));
+  }
+  return s;
+}
+
+/** Ami ? `isFriend` du serveur d'abord, sinon l'un de ses ids est dans ma liste d'amis. */
+export function isFriendMember(m: NearbyMember, friendIds: Set<string>): boolean {
+  if (m.isFriend === true) return true;
+  return personIdsOf(m).some((x) => friendIds.has(x));
+}
+
+/**
+ * Fusion « proches » (position exacte, abonnés) + « monde » (floutée) : une
+ * personne n'apparaît qu'UNE fois, même si les deux couches ont retenu des
+ * profils différents. Les rôles du monde (note, prix) complètent ceux des
+ * proches.
+ */
+export function mergePersons(nearby: NearbyMember[], world: NearbyMember[]): NearbyMember[] {
+  const out: NearbyMember[] = [];
+  const idx = new Map<string, number>();
+  const add = (m: NearbyMember) => {
+    const ids = personIdsOf(m);
+    const hit = ids.map((x) => idx.get(x)).find((i) => i !== undefined);
+    if (hit !== undefined) {
+      const cur = out[hit];
+      // Compléter les rôles (note, prix) sans déplacer le point.
+      const byId = new Map(rolesOf(m).map((r) => [r.id, r]));
+      const merged: PersonRole[] = rolesOf(cur).map((r) => ({ ...(byId.get(r.id) || {}), ...stripUndef(r), id: r.id, role: r.role }));
+      for (const r of rolesOf(m)) if (!merged.some((x) => x.id === r.id)) merged.push(r);
+      const allIds = [...new Set([...personIdsOf(cur), ...ids])];
+      out[hit] = {
+        ...cur,
+        roles: merged,
+        personIds: allIds,
+        isFriend: cur.isFriend === true || m.isFriend === true || undefined,
+        rating: cur.rating ?? m.rating,
+        reviewsCount: cur.reviewsCount ?? m.reviewsCount,
+        priceFrom: cur.priceFrom ?? m.priceFrom,
+        currency: cur.currency ?? m.currency,
+        avatar: cur.avatar || m.avatar,
+        identityVerified: cur.identityVerified ?? m.identityVerified,
+        isBoosted: cur.isBoosted ?? m.isBoosted,
+      };
+      for (const x of allIds) idx.set(x, hit);
+      return;
+    }
+    const i = out.length;
+    out.push(m);
+    for (const x of ids) idx.set(x, i);
+  };
+  for (const m of nearby || []) add(m);
+  for (const m of world || []) add(m);
+  return out;
+}
+
+function stripUndef<T extends object>(o: T): Partial<T> {
+  const r: Partial<T> = {};
+  for (const [k, v] of Object.entries(o)) if (v !== undefined) (r as Record<string, unknown>)[k] = v;
+  return r;
+}
+
+/** Rôles de la personne retenus par le filtre « Je cherche » (ordre conservé). */
+export function rolesMatching(m: NearbyMember, wanted: string[]): PersonRole[] {
+  const set = new Set(wanted.map((w) => normRole(w)));
+  return rolesOf(m).filter((r) => set.has(r.role));
+}
+
+/** Position affichée [lat, lng] du point (ou null). */
+export function pointOf(m: NearbyMember): [number, number] | null {
+  const c = m.location?.coordinates;
+  if (!Array.isArray(c) || c.length < 2) return null;
+  const lat = Number(c[1]);
+  const lng = Number(c[0]);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null;
+}
+
+/** Distance (km) depuis `from` jusqu'au point AFFICHÉ de la personne. */
+export function distanceKmTo(m: NearbyMember, from: { lat: number; lng: number } | null | undefined): number | null {
+  const p = pointOf(m);
+  if (!p || !from) return null;
+  return haversineKm(from.lat, from.lng, p[0], p[1]);
+}
+
+export function formatKm(km: number | null | undefined, lang?: string): string {
+  if (km == null || !Number.isFinite(km)) return "";
+  if (km < 1) return `${Math.max(10, Math.round((km * 1000) / 10) * 10)} m`;
+  if (km >= 10) return `${Math.round(km)} km`;
+  if (!lang) return `${km.toFixed(1)} km`;
+  try { return `${km.toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`; } catch { return `${km.toFixed(1)} km`; }
+}
+
+/**
+ * Un groupe dont les points ne se sépareront pas en zoomant (même position à
+ * ~25 m près, ou la même personne sur plusieurs points) : le clic ouvre la
+ * liste au lieu de zoomer dans le vide.
+ */
+export function isStackedGroup(items: NearbyMember[], maxMeters = 25): boolean {
+  if (items.length < 2) return false;
+  const pts = items.map(pointOf).filter((p): p is [number, number] => !!p);
+  if (pts.length < 2) return false;
+  let far = 0;
+  for (let i = 0; i < pts.length; i += 1) {
+    for (let j = i + 1; j < pts.length; j += 1) {
+      far = Math.max(far, haversineKm(pts[i][0], pts[i][1], pts[j][0], pts[j][1]) * 1000);
+    }
+  }
+  if (far <= maxMeters) return true;
+  // Même personne sur plusieurs points : tous les points partagent un id.
+  const first = new Set(personIdsOf(items[0]));
+  return items.every((m) => personIdsOf(m).some((x) => first.has(x)));
+}
+
+/** Une ligne par (personne, rôle) : listes « Autour de toi », groupes superposés. */
+export type PersonRoleRow = { m: NearbyMember; r: PersonRole; km: number | null; friend: boolean };
+
+export function expandRows(
+  items: NearbyMember[],
+  opts: { wanted?: string[]; from?: { lat: number; lng: number } | null; friendIds?: Set<string> } = {},
+): PersonRoleRow[] {
+  const rows: PersonRoleRow[] = [];
+  for (const m of items) {
+    const roles = opts.wanted ? rolesMatching(m, opts.wanted) : rolesOf(m);
+    const km = distanceKmTo(m, opts.from ?? null);
+    const friend = isFriendMember(m, opts.friendIds || new Set());
+    for (const r of roles.length ? roles : rolesOf(m).slice(0, 1)) rows.push({ m, r, km, friend });
+  }
+  return rows;
+}

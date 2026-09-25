@@ -28,7 +28,6 @@ import {
   Tooltip,
   useMap,
   useMapEvents,
-  ZoomControl,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -63,8 +62,21 @@ import {
   PAWMAP_KEYFRAMES,
   PIN_Z,
   roleKey,
+  ROLE_GLYPH,
 } from "@/lib/pawmapLegend";
 import { safeFly } from "@/lib/safeFly";
+import {
+  expandRows,
+  formatKm,
+  isFriendMember,
+  isStackedGroup,
+  personIdsOf,
+  pointOf,
+  rolesMatching,
+  rolesOf,
+  distanceKmTo,
+  type PersonRole,
+} from "@/lib/memberPersons";
 
 export { clusterize } from "@/lib/mapCluster";
 
@@ -122,11 +134,12 @@ function spotIcon(type: PawSpotType, golden: boolean): L.DivIcon {
   return L.divIcon({ className: "", html: spotPinHtml(type, golden), iconSize: [size, Math.round(size * 1.3)], iconAnchor: [size / 2, Math.round(size * 1.3) - 1], popupAnchor: [0, -Math.round(size * 1.2)] });
 }
 const reportIcon = () => L.divIcon({ className: "", html: reportPinHtml(30), iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -14] });
-function memberIcon(m: NearbyMember, caption: string | null): L.DivIcon {
+function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[]): L.DivIcon {
   return L.divIcon({
     className: "",
     html: memberPinHtml({
-      role: m.role,
+      role: roles[0]?.role || m.role,
+      roles: roles.map((r) => r.role),
       premium: !!(m.isPremiumOnly ?? m.isPremium),
       boosted: !!m.isBoosted,
       pawFollow: !!m.hasPawFollow,
@@ -141,10 +154,10 @@ function memberIcon(m: NearbyMember, caption: string | null): L.DivIcon {
   });
 }
 /** Ami à sa position de PROFIL (floutée) : photo, anneau rose, pas de direct. */
-function friendProfileIcon(m: NearbyMember, premium: boolean): L.DivIcon {
+function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[]): L.DivIcon {
   return L.divIcon({
     className: "",
-    html: photoPinHtml({ role: m.role, name: m.name, avatar: m.avatar, premium }),
+    html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, roles: roles.map((r) => r.role) }),
     iconSize: [50, 50],
     iconAnchor: [25, 25],
     popupAnchor: [0, -28],
@@ -280,22 +293,30 @@ function PlaceCluster({ center, count, category }: { center: [number, number]; c
   const icon = useMemo(() => L.divIcon({ className: "", html: placeClusterHtml(count, category), iconSize: [32, 32], iconAnchor: [16, 16] }), [count, category]);
   return <Marker position={center} icon={icon} zIndexOffset={PIN_Z.place + 50} eventHandlers={{ click: () => safeFly(map, center, Math.min(map.getZoom() + 2.2, 19), 0.8) }} />;
 }
-/** Groupe de membres : zoom doux ; au zoom rue et toujours collés = liste. */
+/**
+ * Groupe de membres (25/09, PawMap 585) : si les points sont SUPERPOSÉS (même
+ * position à ~25 m près, ou la même personne) le clic ouvre directement la
+ * liste — zoomer ne les séparerait jamais. Sinon on cadre le groupe pour que
+ * ses points se séparent vraiment ; déjà au zoom rue = liste.
+ */
 function MemberCluster({ center, items, onList, friendSet }: { center: [number, number]; items: NearbyMember[]; onList: (l: NearbyMember[]) => void; friendSet: Set<string> }) {
   const map = useMap();
   const count = items.length;
   const dom = dominantRole(items.map((m) => m.role));
-  const hasFriend = items.some((m) => friendSet.has(m.id) || (m as NearbyMember & { isFriend?: boolean }).isFriend === true);
+  const hasFriend = items.some((m) => isFriendMember(m, friendSet));
   const sz = count >= 10 ? 44 : 40;
   const icon = useMemo(() => L.divIcon({ className: "", html: memberClusterHtml(count, dom, hasFriend), iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] }), [count, dom, hasFriend, sz]);
-  return (
-    <Marker
-      position={center}
-      icon={icon}
-      zIndexOffset={PIN_Z.member}
-      eventHandlers={{ click: () => (map.getZoom() >= 17 ? onList(items) : safeFly(map, center, Math.min(map.getZoom() + 2.2, 19), 0.8)) }}
-    />
-  );
+  const onClick = () => {
+    if (isStackedGroup(items) || map.getZoom() >= 17) { onList(items); return; }
+    const pts = items.map(pointOf).filter((p): p is [number, number] => !!p);
+    try {
+      map.stop();
+      map.flyToBounds(L.latLngBounds(pts), { padding: [70, 70], maxZoom: 18, duration: 0.8 });
+    } catch {
+      safeFly(map, center, Math.min(map.getZoom() + 2.2, 18), 0.8);
+    }
+  };
+  return <Marker position={center} icon={icon} zIndexOffset={PIN_Z.member} eventHandlers={{ click: onClick }} />;
 }
 function SpotCluster({ center, count }: { center: [number, number]; count: number }) {
   const map = useMap();
@@ -320,21 +341,16 @@ export type LiveLabels = {
 /**
  * Ami qui PARTAGE (état vrai du serveur) : sa photo, anneau rose ; « signal
  * perdu » sous le rond entre 2 et 10 min ; auréole violette qui respire s'il
- * est suivi. Un clic ouvre SA fiche (jamais un suivi lancé sans le dire) :
- * « Suivre la balade · en direct », Itinéraire, Message.
+ * est suivi. Un clic ouvre SA fiche (carte du bas, jamais une bulle rognée à
+ * 375 px) : « Suivre la balade · en direct », Itinéraire, Message.
  */
-function LiveFriendMarker({ p, isFamily, isPremium, roleLabel, followed, now, labels, onFollow, onDirections, directionsLabel, onMessage }: {
+function LiveFriendMarker({ p, isFamily, isPremium, followed, labels, onOpen }: {
   p: FriendLivePosition;
   isFamily: boolean;
   isPremium?: boolean;
-  roleLabel: string;
   followed: boolean;
-  now: number;
   labels?: LiveLabels;
-  onFollow?: () => void;
-  onDirections?: (target: { lat: number; lng: number }) => void;
-  directionsLabel?: string;
-  onMessage?: () => void;
+  onOpen: () => void;
 }) {
   const lost = p.state === "lost";
   const icon = useMemo(
@@ -343,58 +359,42 @@ function LiveFriendMarker({ p, isFamily, isPremium, roleLabel, followed, now, la
       html: photoPinHtml({ role: p.role, name: p.name, avatar: p.avatar, premium: isPremium, pawFollow: isFamily && !followed, followed, lost, caption: lost ? labels?.lost : null, online: lost ? false : true }),
       iconSize: [50, 50],
       iconAnchor: [25, 25],
-      popupAnchor: [0, -28],
     }),
     [p.role, p.name, p.avatar, isPremium, isFamily, followed, lost, labels?.lost],
   );
-  const age = p.lastSeenAt ? Math.max(0, now - new Date(p.lastSeenAt).getTime()) : 0;
-  const color = ROLE_COLOR[roleKey(p.role)];
-  return (
-    <Marker position={[p.lat, p.lng]} icon={icon} zIndexOffset={followed ? PIN_Z.friendFollowed : PIN_Z.friend}>
-      <Popup autoPan>
-        <div style={{ minWidth: 210 }}>
-          <div className="flex items-center gap-3">
-            <span className="h-11 w-11 shrink-0 overflow-hidden rounded-full" style={{ border: "3px solid #F06AA0", background: color }}>
-              {p.avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.avatar} alt="" className="h-full w-full object-cover" />
-              ) : null}
-            </span>
-            <div className="min-w-0">
-              <div className="truncate text-[15px] font-bold text-[#231715]">{p.name}</div>
-              <div className="text-xs font-semibold" style={{ color }}>{roleLabel}</div>
-            </div>
-          </div>
-          {labels && (
-            <div className="mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold" style={lost ? { background: "#FFF4E5", color: "#9A3412" } : { background: "#EDE9FE", color: "#5B21B6" }}>
-              <span className="inline-block h-2 w-2 rounded-full" style={{ background: lost ? "#EA580C" : "#7C3AED" }} />
-              {lost ? labels.lost : labels.live} · {labels.ago(age)}
-            </div>
-          )}
-          <div className="mt-3 flex flex-col gap-2">
-            {onFollow && labels && (
-              <button type="button" onClick={onFollow} className="flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-bold text-white" style={{ background: "linear-gradient(90deg,#7C3AED,#6D28D9)" }}>
-                {labels.follow}
-              </button>
-            )}
-            <div className="flex gap-2">
-              {onDirections && (
-                <button type="button" onClick={() => onDirections({ lat: p.lat, lng: p.lng })} className="flex min-h-[40px] flex-1 items-center justify-center rounded-[12px] border-[1.5px] px-3 text-xs font-bold" style={{ borderColor: "#16A34A", color: "#15803D" }}>
-                  {directionsLabel || "→"}
-                </button>
-              )}
-              {onMessage && labels && (
-                <button type="button" onClick={onMessage} className="flex min-h-[40px] flex-1 items-center justify-center rounded-[12px] border-[1.5px] px-3 text-xs font-bold" style={{ borderColor: "#2563EB", color: "#1E4FB0" }}>
-                  {labels.message}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </Popup>
-    </Marker>
-  );
+  return <Marker position={[p.lat, p.lng]} icon={icon} zIndexOffset={followed ? PIN_Z.friendFollowed : PIN_Z.friend} eventHandlers={{ click: onOpen }} />;
 }
+
+/** Libellés de la fiche membre (9 langues, fournis par la page). */
+export type CardLabels = {
+  book: string;
+  priceFrom: string;
+  addFriend: string;
+  sent: string;
+  already: string;
+  failed: string;
+  approx: string;
+  verified: string;
+  viewProfile: string;
+  directions: string;
+  message: string;
+  friend: string;
+  chooseProfile: string;
+  profilesHere: string;
+  see: string;
+  distance: string;
+  back: string;
+  close: string;
+  /** Langue du site (séparateur décimal des distances). */
+  lang?: string;
+};
+
+/** Ce que la carte du bas montre. */
+type Sheet =
+  | { kind: "person"; m: NearbyMember }
+  | { kind: "role"; m: NearbyMember; r: PersonRole; back?: Sheet }
+  | { kind: "list"; items: NearbyMember[] }
+  | { kind: "live"; p: FriendLivePosition };
 
 export default function PoiMap({
   center,
@@ -411,7 +411,11 @@ export default function PoiMap({
   reportTypeLabels,
   members = [],
   memberRoleLabels,
-  memberLabels,
+  cardLabels,
+  wantedRoles = ["sitter", "walker", "owner"],
+  distanceFrom = null,
+  onMapReady,
+  satellite = false,
   onAddFriend,
   onSpotVisit,
   friendPositions = [],
@@ -469,7 +473,16 @@ export default function PoiMap({
   reportTypeLabels?: Partial<Record<MapReportType, string>>;
   members?: NearbyMember[];
   memberRoleLabels?: Record<string, string>;
-  memberLabels?: { priceFrom?: string; addFriend: string; sent: string; already: string; failed: string; book: string; approx: string; verified?: string; viewProfile?: string };
+  /** 25/09 (585) — fiche membre / choix du rôle / liste d'un groupe. */
+  cardLabels?: CardLabels;
+  /** Rôles cochés dans « Je cherche » (le liseré principal et les listes). */
+  wantedRoles?: string[];
+  /** D'où l'on mesure les distances (ma position, sinon le centre regardé). */
+  distanceFrom?: { lat: number; lng: number } | null;
+  /** La page garde la carte pour ses propres boutons (zoom, ma position). */
+  onMapReady?: (map: L.Map) => void;
+  /** Fond satellite (Esri World Imagery, sans clé). */
+  satellite?: boolean;
   onAddFriend?: (m: NearbyMember) => Promise<"sent" | "already" | "error">;
   onSpotVisit?: (id: string) => void;
   friendPositions?: FriendLivePosition[];
@@ -525,7 +538,7 @@ export default function PoiMap({
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
   const friendSet = useMemo(() => new Set(friendIds), [friendIds]);
   const liveIdSet = useMemo(() => new Set(friendPositions.map((p) => p.userId)), [friendPositions]);
-  const [memberList, setMemberList] = useState<NearbyMember[] | null>(null);
+  const [sheet, setSheet] = useState<Sheet | null>(null);
   const premiumSet = useMemo(() => new Set(premiumIds), [premiumIds]);
   const userIcon = useMemo(
     () => meIcon({ role: userRole, name: userName, avatar: userAvatarUrl, premium: userIsPremium, meLabel, friendsOnly: userFriendsOnly, boosted: userBoosted, pawFollow: userPawFollow }),
@@ -579,6 +592,16 @@ export default function PoiMap({
   // 25/09 — « Itinéraire » ferme la fiche ouverte : le trajet et sa carte
   // de résumé restent visibles (avant, la fiche les recouvrait à 375 px).
   const [mapObj, setMapObj] = useState<L.Map | null>(null);
+  useEffect(() => { if (mapObj) onMapReady?.(mapObj); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [mapObj]);
+  // Ouvrir une fiche : le point reste visible au-dessus de la carte du bas.
+  const openSheet = (next: Sheet | null, at?: [number, number] | null) => {
+    setSheet(next);
+    if (!next || !at || !mapObj) return;
+    try {
+      const narrow = mapObj.getSize().x < 640;
+      mapObj.panInside(L.latLng(at[0], at[1]), { paddingTopLeft: L.point(60, 70), paddingBottomRight: L.point(narrow ? 60 : 420, narrow ? Math.min(340, mapObj.getSize().y * 0.62) : 60) });
+    } catch { /* carte pas prête */ }
+  };
   const dirClose = onDirections
     ? (target: { lat: number; lng: number }) => { try { mapObj?.closePopup(); } catch { /* */ } onDirections(target); }
     : undefined;
@@ -587,14 +610,18 @@ export default function PoiMap({
     <div className="relative h-full min-h-[420px] w-full overflow-hidden rounded-[28px]">
       <style dangerouslySetInnerHTML={{ __html: PAWMAP_KEYFRAMES }} />
       <MapContainer ref={setMapObj} center={center} zoom={initialZoom} minZoom={3} maxZoom={19} style={{ height: "100%", width: "100%" }} scrollWheelZoom zoomControl={false}>
-        <ZoomControl position="bottomright" />
-        {dark ? (
+        {satellite ? (
           <TileLayer
-            key="dark"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            key="sat"
+            attribution="&copy; Esri, Maxar, Earthstar Geographics"
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             maxZoom={19}
           />
+        ) : dark ? (
+          // 25/09 (585) — CARTO « dark_all » exige désormais une clé (tuile
+          // « API KEY REQUIRED », vérifiée aussi avec le référent hopetsit.com) :
+          // mode nuit = tuiles OpenStreetMap assombries par un filtre chaud.
+          <TileLayer key="dark" className="hps-dark-tiles" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
         ) : (
           <TileLayer key="light" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
         )}
@@ -731,41 +758,26 @@ export default function PoiMap({
           </Marker>
         ))}
 
-        {/* MEMBRES : rond couleur du rôle + icône du rôle, pilule blanche pour un groupe. */}
+        {/* MEMBRES : UNE personne = UN rond (liseré de chacun de ses rôles),
+            rond de groupe à la couleur dominante. Clic = fiche du bas. */}
         {memberClusters.map((g, i) =>
-          g.items.length > 1 ? <MemberCluster key={`mc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} items={g.items} onList={setMemberList} friendSet={friendSet} /> : null,
+          g.items.length > 1 ? <MemberCluster key={`mc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} items={g.items} onList={(items) => openSheet({ kind: "list", items }, g.center)} friendSet={friendSet} /> : null,
         )}
         {memberClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]).map((m) => {
-          const c = m.location?.coordinates;
-          if (!Array.isArray(c) || c.length < 2) return null;
-          const isFriend = friendSet.has(m.id) || (m as NearbyMember & { isFriend?: boolean }).isFriend === true;
+          const pt = pointOf(m);
+          if (!pt) return null;
+          const isFriend = isFriendMember(m, friendSet);
           // Un ami qui partage en direct a déjà son rond « en direct » : pas de doublon.
-          if (isFriend && liveIdSet.has(m.id)) return null;
+          if (isFriend && personIdsOf(m).some((x) => liveIdSet.has(x))) return null;
+          const wanted = rolesMatching(m, wantedRoles);
+          const roles = wanted.length ? [...wanted, ...rolesOf(m).filter((r) => !wanted.some((w) => w.id === r.id))] : rolesOf(m);
+          const open = () => openSheet(roles.length > 1 ? { kind: "person", m } : { kind: "role", m, r: roles[0] }, pt);
           if (isFriend) {
-            const seen = friendSeen[m.id];
-            return (
-              <Marker key={`friend-${m.id}`} position={[c[1], c[0]]} icon={friendProfileIcon(m, premiumSet.has(m.id) || !!m.isPremium)} zIndexOffset={PIN_Z.friend}>
-                <Popup>
-                  <FriendProfilePopup m={m} roleLabel={(memberRoleLabels && memberRoleLabels[m.role]) || m.role} seen={seen} now={now} labels={liveLabels} bookLabel={memberLabels?.book} onMessage={onMessage} />
-                </Popup>
-              </Marker>
-            );
+            const prem = personIdsOf(m).some((x) => premiumSet.has(x)) || !!m.isPremium;
+            return <Marker key={`friend-${m.id}`} position={pt} icon={friendProfileIcon(m, prem, roles)} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: open }} />;
           }
           return (
-            <Marker key={`member-${m.id}`} position={[c[1], c[0]]} icon={memberIcon(m, memberCaption(m))} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member}>
-              <Popup>
-                <MemberPopup
-                  m={m}
-                  roleLabel={(memberRoleLabels && memberRoleLabels[m.role]) || m.role}
-                  labels={memberLabels}
-                  onAddFriend={onAddFriend}
-                  onDirections={dirClose}
-                  directionsLabel={directionsLabel}
-                  onMessage={onMessageMember && onMessageMember(m) ? () => onMessageMember(m)?.() : undefined}
-                  messageLabel={liveLabels?.message}
-                />
-              </Popup>
-            </Marker>
+            <Marker key={`member-${m.id}`} position={pt} icon={memberIcon(m, memberCaption({ ...m, role: roles[0].role, priceFrom: roles[0].priceFrom ?? m.priceFrom, currency: roles[0].currency ?? m.currency }), roles)} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: open }} />
           );
         })}
 
@@ -777,14 +789,9 @@ export default function PoiMap({
             p={p}
             isFamily={familySet.has(p.userId)}
             isPremium={premiumSet.has(p.userId)}
-            roleLabel={roleLabels?.[p.role] ?? p.role}
             followed={followHaloId === p.userId}
-            now={now}
             labels={liveLabels}
-            onFollow={onFriendFocus ? () => onFriendFocus(p) : undefined}
-            onDirections={dirClose}
-            directionsLabel={directionsLabel}
-            onMessage={onMessage ? () => onMessage({ id: p.userId, role: p.role, name: p.name }) : undefined}
+            onOpen={() => openSheet({ kind: "live", p }, [p.lat, p.lng])}
           />
         ))}
 
@@ -804,189 +811,307 @@ export default function PoiMap({
             ))}
       </MapContainer>
 
-      {/* Groupe toujours superposé au zoom rue : la liste de ses membres. */}
-      {memberList && (
-        <div className="absolute inset-x-3 top-16 z-[1100] max-h-[55%] overflow-y-auto rounded-[20px] bg-white p-3 shadow-xl sm:left-auto sm:right-3 sm:w-80">
-          <div className="mb-1 flex items-center justify-between px-1">
-            <p className="text-sm font-bold text-[#231715]">{memberList.length}</p>
-            <button type="button" onClick={() => setMemberList(null)} aria-label="×" className="grid h-9 w-9 place-items-center rounded-full bg-[#FAF1EC] text-lg font-bold text-[#231715]">×</button>
-          </div>
-          <ul className="space-y-1">
-            {memberList.map((m) => {
-              const key = roleKey(m.role);
-              const color = ROLE_COLOR[key];
-              const price = key !== "owner" ? formatPrice(m.priceFrom, m.currency) : null;
-              const href = key === "owner" ? null : `/book/${key}/${m.id}`;
-              const body = (
-                <>
-                  <span className="h-10 w-10 shrink-0 overflow-hidden rounded-full" style={{ border: `2.5px solid ${color}`, background: color }}>
-                    {m.avatar ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={m.avatar} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="block h-full w-full p-2" dangerouslySetInnerHTML={{ __html: memberPinHtml({ role: m.role, size: 36 }) }} />
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-bold text-[#231715]">{m.name || memberRoleLabels?.[m.role] || m.role}</span>
-                    <span className="block text-xs font-semibold" style={{ color }}>{memberRoleLabels?.[m.role] || m.role}{price ? ` · ${price}` : ""}</span>
-                  </span>
-                </>
-              );
-              return (
-                <li key={`ml-${m.id}`}>
-                  {href ? (
-                    <a href={href} className="flex min-h-[52px] items-center gap-3 rounded-2xl px-2 py-1.5 hover:bg-[#FAF1EC]">{body}</a>
-                  ) : (
-                    <div className="flex min-h-[52px] items-center gap-3 rounded-2xl px-2 py-1.5">{body}</div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+      {/* 25/09 (585) — FICHE DU BAS : choix du rôle, fiche du bon rôle, liste
+          d'un groupe superposé, ami en direct. Au-dessus des rails, jamais
+          rognée : pleine largeur à 375 px, 344 px à droite sur ordinateur. */}
+      {sheet && cardLabels && (
+        <PersonSheet
+          sheet={sheet}
+          setSheet={setSheet}
+          labels={cardLabels}
+          roleLabels={memberRoleLabels || {}}
+          wantedRoles={wantedRoles}
+          distanceFrom={distanceFrom}
+          friendSet={friendSet}
+          friendSeen={friendSeen}
+          now={now}
+          liveLabels={liveLabels}
+          onAddFriend={onAddFriend}
+          onDirections={dirClose ? (t) => { setSheet(null); dirClose(t); } : undefined}
+          onMessage={onMessage}
+          onMessageMember={onMessageMember}
+          onFollow={onFriendFocus ? (p) => { setSheet(null); onFriendFocus(p); } : undefined}
+        />
       )}
     </div>
   );
 }
 
-/** Ami sans partage actif : position de PROFIL floutée, « vu il y a X ». */
-function FriendProfilePopup({ m, roleLabel, seen, now, labels, bookLabel, onMessage }: {
-  m: NearbyMember;
-  roleLabel: string;
-  seen?: string | null;
-  now: number;
-  labels?: LiveLabels;
-  bookLabel?: string;
-  onMessage?: (who: { id: string; role: string; name: string }) => void;
-}) {
-  const key = roleKey(m.role);
+
+// ── 25/09/2026 (PawMap 585) — la FICHE DU BAS ────────────────────────────────
+// Remplace les bulles Leaflet des membres : à 375 px elles passaient sous les
+// boutons de droite (« Itinéraire » caché par le mode nuit). Une seule carte
+// blanche, posée AU-DESSUS des rails, qui ne déborde jamais.
+
+const ROLE_DARK: Record<string, string> = { owner: "#9E1F0B", sitter: "#1E4FB0", walker: "#15803D" };
+const ROLE_GRAD: Record<string, string> = {
+  owner: "linear-gradient(90deg,#D83C28,#B92425)",
+  sitter: "linear-gradient(90deg,#2F6FD6,#1E4FB0)",
+  walker: "linear-gradient(90deg,#2FAE4E,#15803D)",
+};
+
+function Avatar({ src, name, role, size, friend }: { src?: string | null; name: string; role: string; size: number; friend?: boolean }) {
+  const key = roleKey(role);
   const color = ROLE_COLOR[key];
-  const age = seen ? Math.max(0, now - new Date(seen).getTime()) : null;
-  const price = key !== "owner" ? formatPrice(m.priceFrom, m.currency) : null;
   return (
-    <div style={{ minWidth: 210 }}>
-      <div className="flex items-center gap-3">
-        <span className="h-11 w-11 shrink-0 overflow-hidden rounded-full" style={{ border: "3px solid #F06AA0", background: color }}>
-          {m.avatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={m.avatar} alt="" className="h-full w-full object-cover" />
-          ) : null}
-        </span>
-        <div className="min-w-0">
-          <div className="truncate text-[15px] font-bold text-[#231715]">{m.name || roleLabel}</div>
-          <div className="text-xs font-semibold" style={{ color }}>{roleLabel}</div>
-        </div>
-      </div>
-      {labels && (
-        <div className="mt-2 text-xs text-[#6E4F48]">
-          {age !== null && <div className="font-semibold text-[#231715]">{age < 60_000 ? labels.seenNow : labels.seenAgo.replace("{ago}", labels.ago(age))}</div>}
-          <div>{labels.notSharing}</div>
-          <div className="mt-0.5 text-[11px] text-[#8A6B64]">{labels.profileApprox}</div>
-        </div>
-      )}
-      <div className="mt-3 flex flex-col gap-2">
-        {key !== "owner" && bookLabel && (
-          <a href={`/book/${key}/${m.id}`} className="flex min-h-[44px] items-center justify-center rounded-[14px] px-4 text-sm font-bold text-white" style={{ background: `linear-gradient(90deg, ${key === "sitter" ? "#2563EB" : "#15803D"}, ${key === "sitter" ? "#1E4FB0" : "#166534"})`, color: "#fff" }}>
-            {bookLabel}{price ? ` · ${price}` : ""}
-          </a>
-        )}
-        <div className="flex gap-2">
-          {onMessage && labels && (
-            <button type="button" onClick={() => onMessage({ id: m.id, role: m.role, name: m.name })} className="flex min-h-[40px] flex-1 items-center justify-center rounded-[12px] border-[1.5px] px-3 text-xs font-bold" style={{ borderColor: "#F06AA0", color: "#9D174D" }}>
-              {labels.message}
-            </button>
-          )}
-          {key !== "owner" && labels && (
-            <a href={`/p/${key}/${m.id}`} className="flex min-h-[40px] flex-1 items-center justify-center rounded-[12px] border-[1.5px] px-3 text-xs font-bold" style={{ borderColor: color, color }}>
-              {labels.viewProfile}
-            </a>
-          )}
-        </div>
-      </div>
-    </div>
+    <span className="relative grid shrink-0 place-items-center overflow-hidden rounded-full" style={{ width: size, height: size, background: color, border: `3px solid ${friend ? "#F06AA0" : color}`, boxShadow: "0 0 0 2px #fff" }}>
+      <span className="absolute inset-[18%] block" dangerouslySetInnerHTML={{ __html: ROLE_GLYPH[key] }} />
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt="" className="relative h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+      ) : null}
+      <span className="sr-only">{name}</span>
+    </span>
   );
 }
 
-// v548 — fiche membre : nom, rôle, note, tarif, « Identité vérifiée », Ajouter
-// en ami, et pour un gardien/promeneur un gros bouton RÉSERVER à la couleur du
-// rôle (réserver en 2 clics : épingle → fiche → réservation).
-function MemberPopup({ m, roleLabel, labels, onAddFriend, onDirections, directionsLabel, onMessage, messageLabel }: {
-  m: NearbyMember;
-  roleLabel: string;
-  labels?: { addFriend: string; sent: string; already: string; failed: string; book: string; approx: string; priceFrom?: string; verified?: string; viewProfile?: string };
+function firstName(name: string): string {
+  return (name || "").trim().split(/\s+/)[0] || name;
+}
+
+function PersonSheet({ sheet, setSheet, labels, roleLabels, wantedRoles, distanceFrom, friendSet, friendSeen, now, liveLabels, onAddFriend, onDirections, onMessage, onMessageMember, onFollow }: {
+  sheet: Sheet;
+  setSheet: (s: Sheet | null) => void;
+  labels: CardLabels;
+  roleLabels: Record<string, string>;
+  wantedRoles: string[];
+  distanceFrom: { lat: number; lng: number } | null;
+  friendSet: Set<string>;
+  friendSeen: Record<string, string | null | undefined>;
+  now: number;
+  liveLabels?: LiveLabels;
   onAddFriend?: (m: NearbyMember) => Promise<"sent" | "already" | "error">;
   onDirections?: (target: { lat: number; lng: number }) => void;
-  directionsLabel?: string;
-  onMessage?: () => void;
-  messageLabel?: string;
+  onMessage?: (who: { id: string; role: string; name: string }) => void;
+  onMessageMember?: (m: NearbyMember) => (() => void) | null;
+  onFollow?: (p: FriendLivePosition) => void;
 }) {
-  const [state, setState] = useState<"idle" | "busy" | "sent" | "already" | "error">("idle");
-  const key = roleKey(m.role);
-  const color = ROLE_COLOR[key];
-  const canBook = key === "sitter" || key === "walker";
-  const price = formatPrice(m.priceFrom, m.currency);
-  return (
-    <div className="text-sm" style={{ minWidth: 200 }}>
-      <div className="mb-1 flex items-center gap-2">
-        {m.avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={m.avatar} alt="" width={40} height={40} className="rounded-full object-cover" style={{ width: 40, height: 40, border: `2.5px solid ${color}` }} />
-        ) : (
-          <span className="inline-flex items-center justify-center rounded-full" style={{ width: 40, height: 40, background: color }} dangerouslySetInnerHTML={{ __html: memberPinHtml({ role: m.role, size: 40 }) }} />
+  const dist = (m: NearbyMember) => {
+    const d = formatKm(distanceKmTo(m, distanceFrom), labels.lang);
+    return d ? labels.distance.replace("{d}", d) : "";
+  };
+  const roleName = (r: string) => roleLabels[roleKey(r)] || r;
+  const close = (
+    <button type="button" onClick={() => setSheet(null)} aria-label={labels.close} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#FAF1EC] text-[#231715] transition hover:bg-[#F3E3DC]">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#231715" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+    </button>
+  );
+  const back = (to: Sheet) => (
+    <button type="button" onClick={() => setSheet(to)} aria-label={labels.back} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#FAF1EC] transition hover:bg-[#F3E3DC]">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#231715" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+  );
+
+  // Une ligne « photo · prénom · rôle coloré · distance · Voir ».
+  const RoleRow = ({ m, r, friend, onSee }: { m: NearbyMember; r: PersonRole; friend: boolean; onSee: () => void }) => {
+    const k = roleKey(r.role);
+    const price = k !== "owner" ? formatPrice(r.priceFrom, r.currency) : null;
+    return (
+      <li>
+        <button type="button" onClick={onSee} className="flex min-h-[60px] w-full items-center gap-3 rounded-2xl bg-[#FDF8F7] px-2.5 py-2 text-left transition hover:bg-[#FAF1EC]">
+          <Avatar src={m.avatar} name={m.name} role={k} size={42} friend={friend} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[14px] font-bold text-[#231715]">{firstName(m.name) || roleName(k)}</span>
+            <span className="block truncate text-[12px] font-bold" style={{ color: ROLE_DARK[k] }}>
+              {roleName(k)}{price ? ` · ${labels.priceFrom} ${price}` : ""}
+            </span>
+            {dist(m) && <span className="block truncate text-[11px] font-semibold text-[#8A6B64]">{dist(m)}</span>}
+          </span>
+          <span className="inline-flex min-h-[36px] shrink-0 items-center rounded-full px-3.5 text-[12px] font-bold text-white" style={{ background: ROLE_GRAD[k] }}>{labels.see}</span>
+        </button>
+      </li>
+    );
+  };
+
+  let body: React.ReactNode = null;
+  if (sheet.kind === "person") {
+    const m = sheet.m;
+    const friend = isFriendMember(m, friendSet);
+    const wanted = rolesMatching(m, wantedRoles);
+    const roles = [...wanted, ...rolesOf(m).filter((r) => !wanted.some((w) => w.id === r.id))];
+    body = (
+      <>
+        <div className="flex items-center gap-3">
+          <Avatar src={m.avatar} name={m.name} role={roles[0]?.role || m.role} size={48} friend={friend} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-[16px] font-bold text-[#231715]">{m.name}</p>
+            <p className="text-[12px] font-semibold text-[#6E4F48]">{labels.chooseProfile}{friend ? <span className="ml-1.5 rounded-full bg-[#FDE7F0] px-2 py-0.5 text-[11px] font-bold text-[#9D174D]">{labels.friend}</span> : null}</p>
+          </div>
+          {close}
+        </div>
+        <ul className="mt-3 space-y-1.5">
+          {roles.map((r) => <RoleRow key={`pr-${r.id}`} m={m} r={r} friend={friend} onSee={() => setSheet({ kind: "role", m, r, back: sheet })} />)}
+        </ul>
+      </>
+    );
+  } else if (sheet.kind === "list") {
+    const rows = expandRows(sheet.items, { wanted: wantedRoles, from: distanceFrom, friendIds: friendSet });
+    body = (
+      <>
+        <div className="flex items-center gap-3">
+          <p className="min-w-0 flex-1 font-display text-[16px] font-bold text-[#231715]">{labels.profilesHere.replace("{count}", String(rows.length))}</p>
+          {close}
+        </div>
+        <ul className="mt-3 space-y-1.5">
+          {rows.map((row) => <RoleRow key={`lr-${row.m.id}-${row.r.id}`} m={row.m} r={row.r} friend={row.friend} onSee={() => setSheet({ kind: "role", m: row.m, r: row.r, back: sheet })} />)}
+        </ul>
+      </>
+    );
+  } else if (sheet.kind === "role") {
+    body = <RoleCard key={`rc-${sheet.r.id}`} m={sheet.m} r={sheet.r} backBtn={sheet.back ? back(sheet.back) : null} closeBtn={close} labels={labels} roleName={roleName} dist={dist(sheet.m)} friend={isFriendMember(sheet.m, friendSet)} friendSeen={friendSeen} now={now} liveLabels={liveLabels} onAddFriend={onAddFriend} onDirections={onDirections} onMessage={onMessage} onMessageMember={onMessageMember} />;
+  } else {
+    const p = sheet.p;
+    const k = roleKey(p.role);
+    const lost = p.state === "lost";
+    const age = p.lastSeenAt ? Math.max(0, now - new Date(p.lastSeenAt).getTime()) : 0;
+    body = (
+      <>
+        <div className="flex items-center gap-3">
+          <Avatar src={p.avatar} name={p.name} role={k} size={48} friend />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-[16px] font-bold text-[#231715]">{p.name}</p>
+            <p className="text-[12px] font-bold" style={{ color: ROLE_DARK[k] }}>{roleName(k)} <span className="ml-1 rounded-full bg-[#FDE7F0] px-2 py-0.5 text-[11px] font-bold text-[#9D174D]">{labels.friend}</span></p>
+          </div>
+          {close}
+        </div>
+        {liveLabels && (
+          <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold" style={lost ? { background: "#FFF4E5", color: "#9A3412" } : { background: "#EDE9FE", color: "#5B21B6" }}>
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: lost ? "#EA580C" : "#7C3AED" }} />
+            {lost ? liveLabels.lost : liveLabels.live} · {liveLabels.ago(age)}
+          </div>
         )}
-        <div className="min-w-0">
-          <div className="truncate font-bold leading-tight">{m.name || roleLabel}</div>
-          <div className="text-xs font-semibold" style={{ color }}>
-            {roleLabel}
-            {m.approx ? "" : m.isOnline ? " · ●" : ""}
+        <div className="mt-3 flex flex-col gap-2">
+          {onFollow && liveLabels && (
+            <button type="button" onClick={() => onFollow(p)} className="flex min-h-[48px] items-center justify-center rounded-[16px] px-4 text-[14px] font-bold text-white" style={{ background: "linear-gradient(90deg,#8B5CF6,#6D28D9)" }}>{liveLabels.follow}</button>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            {onDirections && <SecondaryBtn color="#15803D" onClick={() => onDirections({ lat: p.lat, lng: p.lng })}>{labels.directions}</SecondaryBtn>}
+            {onMessage && <SecondaryBtn color="#9D174D" onClick={() => onMessage({ id: p.userId, role: p.role, name: p.name })}>{labels.message}</SecondaryBtn>}
           </div>
         </div>
-      </div>
-      {key !== "owner" && ((m.rating ?? 0) > 0 || price) ? (
-        <div className="mb-1 text-xs font-bold text-ink">
-          {[(m.rating ?? 0) > 0 ? `★ ${(m.rating ?? 0).toFixed(1)}${(m.reviewsCount ?? 0) > 0 ? ` (${m.reviewsCount})` : ""}` : null, price ? `${labels?.priceFrom ?? ""} ${price}`.trim() : null].filter(Boolean).join("  ·  ")}
+      </>
+    );
+  }
+  return (
+    <div
+      role="dialog"
+      aria-modal="false"
+      className="absolute inset-x-2 bottom-2 z-[1200] max-h-[calc(100%-16px)] overflow-y-auto overscroll-contain rounded-[22px] bg-white p-3.5 shadow-[0_18px_44px_-14px_rgba(120,53,15,0.45)] ring-1 ring-[#F3E3DC] sm:inset-x-auto sm:bottom-3 sm:right-[76px] sm:w-[348px]"
+    >
+      {body}
+    </div>
+  );
+}
+
+function SecondaryBtn({ color, onClick, href, children }: { color: string; onClick?: () => void; href?: string; children: React.ReactNode }) {
+  const cls = "flex min-h-[44px] min-w-0 items-center justify-center rounded-[14px] border-[1.5px] bg-white px-2 text-center text-[13px] font-bold leading-tight transition hover:bg-[#FDF8F7]";
+  if (href) return <a href={href} className={cls} style={{ borderColor: color, color }}>{children}</a>;
+  return <button type="button" onClick={onClick} className={cls} style={{ borderColor: color, color }}>{children}</button>;
+}
+
+/** La fiche d'UN rôle d'une personne : Réserver / ami / Itinéraire / profil. */
+function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, friendSeen, now, liveLabels, onAddFriend, onDirections, onMessage, onMessageMember }: {
+  m: NearbyMember;
+  r: PersonRole;
+  backBtn: React.ReactNode;
+  closeBtn: React.ReactNode;
+  labels: CardLabels;
+  roleName: (r: string) => string;
+  dist: string;
+  friend: boolean;
+  friendSeen: Record<string, string | null | undefined>;
+  now: number;
+  liveLabels?: LiveLabels;
+  onAddFriend?: (m: NearbyMember) => Promise<"sent" | "already" | "error">;
+  onDirections?: (target: { lat: number; lng: number }) => void;
+  onMessage?: (who: { id: string; role: string; name: string }) => void;
+  onMessageMember?: (m: NearbyMember) => (() => void) | null;
+}) {
+  const [state, setState] = useState<"idle" | "busy" | "sent" | "already" | "error">("idle");
+  const k = roleKey(r.role);
+  const provider = k === "sitter" || k === "walker";
+  const price = provider ? formatPrice(r.priceFrom, r.currency) : null;
+  // Le membre « vu sous ce rôle » : id et rôle du profil choisi (fiche,
+  // réservation, demande d'ami, conversation prestataire).
+  const asRole: NearbyMember = { ...m, id: r.id, role: k, priceFrom: r.priceFrom, currency: r.currency, rating: r.rating, reviewsCount: r.reviewsCount };
+  const pt = pointOf(m);
+  const seenIso = personIdsOf(m).map((x) => friendSeen[x]).find(Boolean) || null;
+  const age = seenIso ? Math.max(0, now - new Date(seenIso).getTime()) : null;
+  const msgMember = !friend && onMessageMember ? onMessageMember(asRole) : null;
+  const rating = (r.rating ?? 0) > 0 ? `★ ${(r.rating ?? 0).toFixed(1)}${(r.reviewsCount ?? 0) > 0 ? ` (${r.reviewsCount})` : ""}` : null;
+  return (
+    <>
+      <div className="flex items-center gap-3">
+        {backBtn}
+        <Avatar src={m.avatar} name={m.name} role={k} size={52} friend={friend} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-display text-[16px] font-bold leading-tight text-[#231715]">{m.name || roleName(k)}</p>
+          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12px] font-bold" style={{ color: ROLE_DARK[k] }}>
+            {roleName(k)}
+            {friend && <span className="rounded-full bg-[#FDE7F0] px-2 py-0.5 text-[11px] font-bold text-[#9D174D]">{labels.friend}</span>}
+          </p>
+          {dist && <p className="mt-0.5 text-[11px] font-semibold text-[#8A6B64]">{dist}</p>}
         </div>
-      ) : null}
-      {m.identityVerified && labels?.verified ? <div className="mb-1 text-xs font-semibold" style={{ color: "#16A34A" }}>✓ {labels.verified}</div> : null}
-      {m.approx && labels?.approx ? <div className="mb-2 text-[11px] text-ink-soft">{labels.approx.replace("{km}", String(m.approxKm ?? 1))}</div> : null}
-      {canBook && labels ? (
-        <>
-          <a href={`/book/${key}/${m.id}`} className="mb-2 flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-bold text-white shadow-[0_8px_18px_-8px_rgba(23,20,31,0.45)]" style={{ background: `linear-gradient(90deg, ${key === "sitter" ? "#2563EB" : "#15803D"}, ${key === "sitter" ? "#1E4FB0" : "#166534"})`, color: "#fff" }}>
-            {labels.book}{price ? ` · ${labels.priceFrom ?? ""} ${price}`.replace(/ {2,}/g, " ") : ""}
-          </a>
-          {labels.viewProfile && (
-            <a href={`/p/${key}/${m.id}`} className="mb-2 flex min-h-[38px] items-center justify-center rounded-[12px] border-[1.5px] bg-white px-3 text-xs font-bold" style={{ borderColor: color, color: key === "sitter" ? "#1E4FB0" : "#15803D" }}>
-              {labels.viewProfile}
-            </a>
-          )}
-        </>
-      ) : null}
-      {(onDirections || onMessage) && (
-        <div className="mb-2 flex gap-2">
-          {onDirections && Array.isArray(m.location?.coordinates) && (
-            <button type="button" onClick={() => onDirections({ lat: m.location.coordinates[1], lng: m.location.coordinates[0] })} className="flex min-h-[38px] flex-1 items-center justify-center rounded-[12px] border-[1.5px] bg-white px-2 text-xs font-bold" style={{ borderColor: "#16A34A", color: "#15803D" }}>
-              {directionsLabel || "→"}
-            </button>
-          )}
-          {onMessage && messageLabel && (
-            <button type="button" onClick={onMessage} className="flex min-h-[38px] flex-1 items-center justify-center rounded-[12px] border-[1.5px] bg-white px-2 text-xs font-bold" style={{ borderColor: "#2563EB", color: "#1E4FB0" }}>
-              {messageLabel}
-            </button>
-          )}
+        {closeBtn}
+      </div>
+      {(rating || price || m.identityVerified) && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] font-bold text-[#231715]">
+          {rating && <span className="text-[#8A5A00]">{rating}</span>}
+          {price && <span>{labels.priceFrom} {price}</span>}
+          {m.identityVerified && <span className="text-[#15803D]">✓ {labels.verified}</span>}
         </div>
       )}
-      {onAddFriend && labels ? (
-        <button
-          type="button"
-          disabled={state === "busy" || state === "sent" || state === "already"}
-          onClick={async () => { setState("busy"); const r = await onAddFriend(m); setState(r); }}
-          className="rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-80"
-          style={{ background: "#FBE9E5", color: state === "error" ? "#B42318" : "#9E1F0B" }}
-        >
-          {state === "sent" ? labels.sent : state === "already" ? labels.already : state === "error" ? labels.failed : state === "busy" ? "…" : `+ ${labels.addFriend}`}
-        </button>
-      ) : null}
-    </div>
+      {friend && liveLabels && (
+        <div className="mt-2 text-[12px] leading-snug text-[#6E4F48]">
+          {age !== null && <span className="block font-semibold text-[#231715]">{age < 60_000 ? liveLabels.seenNow : liveLabels.seenAgo.replace("{ago}", liveLabels.ago(age))}</span>}
+          <span className="block">{liveLabels.notSharing}</span>
+        </div>
+      )}
+      {m.approx && <p className="mt-1.5 text-[11px] text-[#8A6B64]">{labels.approx.replace("{km}", String(m.approxKm ?? 1))}</p>}
+      <div className="mt-3 flex flex-col gap-2">
+        {provider && (
+          <a href={`/book/${k}/${r.id}`} className="relative flex min-h-[50px] items-center justify-center gap-2 overflow-hidden rounded-[16px] px-4 text-center text-[14px] font-bold leading-tight text-white shadow-[0_10px_22px_-10px_rgba(23,20,31,0.55)]" style={{ background: ROLE_GRAD[k], color: "#fff" }}>
+            <span className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/25 to-transparent" />
+            <span className="relative">{labels.book}{price ? ` · ${labels.priceFrom} ${price}` : ""}</span>
+          </a>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          {onDirections && pt && <SecondaryBtn color="#15803D" onClick={() => onDirections({ lat: pt[0], lng: pt[1] })}>{labels.directions}</SecondaryBtn>}
+          {friend && onMessage ? (
+            <SecondaryBtn color="#9D174D" onClick={() => onMessage({ id: r.id, role: k, name: m.name })}>{labels.message}</SecondaryBtn>
+          ) : msgMember ? (
+            <SecondaryBtn color={ROLE_DARK[k]} onClick={msgMember}>{labels.message}</SecondaryBtn>
+          ) : !friend && onAddFriend ? (
+            <button
+              type="button"
+              disabled={state === "busy" || state === "sent" || state === "already"}
+              onClick={async () => { setState("busy"); setState(await onAddFriend(asRole)); }}
+              className="flex min-h-[44px] min-w-0 items-center justify-center rounded-[14px] border-[1.5px] border-[#F06AA0] bg-white px-2 text-center text-[13px] font-bold leading-tight text-[#9D174D] disabled:opacity-90"
+            >
+              {state === "sent" ? labels.sent : state === "already" ? labels.already : state === "error" ? labels.failed : state === "busy" ? "…" : `+ ${labels.addFriend}`}
+            </button>
+          ) : null}
+        </div>
+        {(provider || (!friend && msgMember && onAddFriend)) && (
+          <div className="grid grid-cols-2 gap-2">
+            {!friend && msgMember && onAddFriend && (
+              <button
+                type="button"
+                disabled={state === "busy" || state === "sent" || state === "already"}
+                onClick={async () => { setState("busy"); setState(await onAddFriend(asRole)); }}
+                className="flex min-h-[44px] min-w-0 items-center justify-center rounded-[14px] border-[1.5px] border-[#F06AA0] bg-white px-2 text-center text-[13px] font-bold leading-tight text-[#9D174D] disabled:opacity-90"
+              >
+                {state === "sent" ? labels.sent : state === "already" ? labels.already : state === "error" ? labels.failed : state === "busy" ? "…" : `+ ${labels.addFriend}`}
+              </button>
+            )}
+            {provider && (
+              <a href={`/p/${k}/${r.id}`} className={`flex min-h-[44px] items-center justify-center rounded-[14px] px-2 text-center text-[13px] font-bold leading-tight underline-offset-2 hover:underline ${!friend && msgMember && onAddFriend ? "" : "col-span-2"}`} style={{ color: ROLE_DARK[k] }}>
+                {labels.viewProfile} ›
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
