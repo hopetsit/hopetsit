@@ -400,6 +400,21 @@ describe('agrégat admin', () => {
     }
   });
 
+  test('par bouton : chaque libellé compté séparément, avec la part venue de la pub', () => {
+    const clics = buildAnalytics([
+      ev({ visitor: 'a', type: 'cta_click', label: 'signup_web', path: '/garde-animaux/paris', utmCampaign: 'paris_owners' }),
+      ev({ visitor: 'b', type: 'cta_click', label: 'face_sitter', path: '/garde-animaux/paris', utmCampaign: 'paris_owners' }),
+      ev({ visitor: 'b', type: 'cta_click', label: 'face_sitter', path: '/garde-animaux/paris' }),
+      ev({ visitor: 'c', type: 'store_click', path: '/download' }),
+      ev({ visitor: 'd', path: '/garde-animaux/paris' }),
+    ], { days: 7, now: NOW }).byCta;
+    expect(clics[0]).toEqual({ path: '/garde-animaux/paris', label: 'face_sitter', clicks: 2, fromAds: 1, visitors: 1 });
+    expect(clics.find((c) => c.label === 'signup_web')).toMatchObject({ clicks: 1, fromAds: 1 });
+    expect(clics.find((c) => c.label === 'store')).toMatchObject({ path: '/download', clicks: 1, fromAds: 0 });
+    expect(clics).toHaveLength(3); // les pages vues n'y entrent pas
+    expect(JSON.stringify(clics)).not.toContain('_v');
+  });
+
   test('sans aucun événement, la réponse garde la même forme', () => {
     const empty = buildAnalytics([], { days: 30, now: NOW });
     expect(empty.days).toBe(30);
@@ -407,6 +422,7 @@ describe('agrégat admin', () => {
     expect(empty.totals).toMatchObject({ pageviews: 0, visitors: 0, storeClicks: 0, storeClickRate: 0 });
     expect(empty.bySource).toEqual([]);
     expect(empty.topPages).toEqual([]);
+    expect(empty.byCta).toEqual([]);
     expect(empty.change).toMatchObject({ pageviews: 0, visitors: 0, storeClicks: 0 });
   });
 });

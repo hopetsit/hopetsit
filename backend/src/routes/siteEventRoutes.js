@@ -192,6 +192,26 @@ function buildAnalytics(events, { days = 7, now = new Date() } = {}) {
     .map(finish)
     .sort((a, b) => b.visitors - a.visitors);
 
+  // 26/09/2026 (SAM) — quel BOUTON est cliqué, sur quelle page, et combien
+  // de ces clics viennent de la pub. Sans ça, « ctaClicks » mélange le bouton
+  // « Publier ma demande », les 3 visages de gardiens et le lien vers la carte :
+  // impossible de juger un changement de la page Paris.
+  const clicks = new Map();
+  for (const ev of current) {
+    if (ev.type !== 'cta_click' && ev.type !== 'store_click') continue;
+    const label = ev.type === 'store_click' ? 'store' : (ev.label || '—');
+    const k = `${ev.path || '/'}\u0000${label}`;
+    if (!clicks.has(k)) clicks.set(k, { path: ev.path || '/', label, clicks: 0, fromAds: 0, _v: new Set() });
+    const c = clicks.get(k);
+    c.clicks += 1;
+    if (ev.utmCampaign) c.fromAds += 1;
+    if (ev.visitor) c._v.add(ev.visitor);
+  }
+  const byCta = [...clicks.values()]
+    .map(({ _v, ...c }) => ({ ...c, visitors: _v.size }))
+    .sort((x, y) => y.clicks - x.clicks)
+    .slice(0, 30);
+
   return {
     days: nbDays,
     from,
@@ -211,6 +231,7 @@ function buildAnalytics(events, { days = 7, now = new Date() } = {}) {
     byCampaign,
     byDevice,
     byLang,
+    byCta,
   };
 }
 
@@ -222,7 +243,7 @@ adminRouter.get('/', requireAdmin, async (req, res) => {
     const now = new Date();
     const since = SiteEvent.shiftDay(SiteEvent.dayKey(now), -(2 * days - 1));
     const events = await SiteEvent.find({ day: { $gte: since } })
-      .select('type path lang device source utmCampaign day visitor -_id')
+      .select('type path lang device source utmCampaign day visitor label -_id')
       .limit(400000)
       .lean();
     res.json(buildAnalytics(events, { days, now }));
