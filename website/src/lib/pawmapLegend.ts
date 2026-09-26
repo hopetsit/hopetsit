@@ -32,6 +32,70 @@ export function roleKey(role: string | undefined | null): RoleKey {
   return "owner";
 }
 
+// ── 26/09/2026 (PawMap 590, handoff « boutons et profil PawMap ») ───────────
+// Mêmes valeurs que l'app (frontend/lib/views/map/widgets/pawmap_pins.dart,
+// pawmap_jewel.dart, pawmap_discreet.dart).
+
+/** Anneau des photos : dégradé clair → foncé de la couleur du rôle (§4). */
+export const RING_GRAD: Record<RoleKey | "friend", [string, string]> = {
+  sitter: ["#4A86F0", "#2458C9"],
+  walker: ["#43B862", "#1F7A37"],
+  owner: ["#FFA94D", "#D63D1F"],
+  friend: ["#F47BB2", "#D6377F"],
+};
+export function ringGradient(k: RoleKey | "friend"): string {
+  const [a, b] = RING_GRAD[k];
+  return `linear-gradient(170deg,${a},${b})`;
+}
+/** Couleur « solide » du rôle (§9) : tracé de balade, libellés, chevrons. */
+export const ROLE_SOLID: Record<RoleKey, string> = { owner: "#D8352A", sitter: "#2F6FE0", walker: "#2A9A48" };
+
+/**
+ * Règle des prix (§1) : chacun ne voit que les prix de L'AUTRE côté du
+ * marché. Propriétaire (ou visiteur) → tarifs des gardiens / promeneurs ;
+ * gardien / promeneur → budgets des demandes des propriétaires. Même règle
+ * que `pawMapShowsPriceBubble` de l'app.
+ */
+export function showsPriceBubble(viewerRole: string | null | undefined, targetRole: string | null | undefined): boolean {
+  const v = (viewerRole || "").toLowerCase();
+  const t = (targetRole || "").toLowerCase();
+  const viewerProvider = v === "sitter" || v === "walker";
+  if (t === "owner") return viewerProvider;
+  if (t === "sitter" || t === "walker") return !viewerProvider;
+  return false;
+}
+
+// Icônes Material (maison, marcheur) en SVG : dessinées dans les épingles
+// sans attendre la police d'icônes.
+const MS_HOME = '<path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z"/>';
+const MS_WALK = '<path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9 7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/>';
+export const POPPINS = "Poppins,Inter,system-ui,sans-serif";
+
+/**
+ * Bulle de prix (§1) posée AU-DESSUS d'un rond de `discSize` px : couleur du
+ * service (gardien bleu + maison, promeneur vert + marcheur, demande orange +
+ * maison), 22 px de haut, contour blanc 2 px, pointe 10 × 6 foncée.
+ */
+export function priceBubbleHtml(text: string, service: string, discSize: number): string {
+  const k = roleKey(service);
+  const [a, b] = RING_GRAD[k];
+  const icon = k === "walker" ? MS_WALK : MS_HOME;
+  return `<span style="position:absolute;bottom:${discSize + 3}px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;">`
+    + `<span style="height:22px;padding:0 8px;border-radius:8px;background:linear-gradient(170deg,${a},${b});color:#fff;display:inline-flex;align-items:center;gap:4px;font:700 11.5px/1 ${POPPINS};white-space:nowrap;box-shadow:0 0 0 2px #fff,0 5px 10px -4px rgba(23,20,31,.45);">`
+    + `<svg viewBox="0 0 24 24" width="11" height="11" fill="#fff" aria-hidden="true">${icon}</svg>${escapeHtml(text)}</span>`
+    + `<svg viewBox="0 0 10 6" width="10" height="6" style="display:block;margin-top:1px;" aria-hidden="true"><path d="M0 0h10L5 6z" fill="${b}"/></svg></span>`;
+}
+
+/** Étiquette du prénom sous un rond (§4) : 20 px, fond blanc (sombre : encre chaude). */
+function nameTagHtml(text: string, top: number, dark?: boolean): string {
+  return `<span style="position:absolute;top:${top}px;left:50%;transform:translateX(-50%);height:20px;display:inline-flex;align-items:center;padding:0 8px;border-radius:10px;white-space:nowrap;max-width:160px;overflow:hidden;background:${dark ? "rgba(32,29,35,.95)" : "#fff"};color:${dark ? "#F6F1EE" : "#1B1616"};font:600 10.5px/1 ${POPPINS};box-shadow:0 2px 6px -1px rgba(23,20,31,.35);">${escapeHtml(text)}</span>`;
+}
+
+/** Coche bleue « identité vérifiée » (15 px, en bas à gauche). */
+function verifiedBadge(): string {
+  return `<span style="position:absolute;bottom:-1px;left:-2px;width:15px;height:15px;border-radius:50%;background:#2F6FE0;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;box-sizing:border-box;"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>`;
+}
+
 // ── Icônes blanches des rôles (mêmes sens que l'accueil de l'app) ──────────
 // propriétaire = patte · gardien = maison · promeneur = personnage qui marche.
 // Trait/formes sur grille 24, remplies en blanc (lisibles à 34 px).
@@ -169,6 +233,12 @@ export type MemberPinOptions = {
   /** 25/09 (PawMap 585) — TOUS les rôles de la personne, celui du point
    *  d'abord : 2 ou 3 rôles = double (triple) liseré aux couleurs des rôles. */
   roles?: string[] | null;
+  /** 590 — bulle de prix au-dessus du rond (règle §1 appliquée par l'appelant). */
+  priceBubble?: string | null;
+  /** 590 — étiquette sous le rond sur fond sombre (mode nuit). */
+  dark?: boolean;
+  /** 590 — coche bleue « identité vérifiée ». */
+  verified?: boolean;
 };
 
 /**
@@ -197,33 +267,33 @@ export function extraRoleRings(roles: string[] | null | undefined, all = false):
  */
 export function memberPinHtml(o: MemberPinOptions): string {
   const key = roleKey(o.role);
-  const color = ROLE_COLOR[key];
   const size = o.size ?? 46;
+  const grad = ringGradient(key);
   const glow = o.boosted
     ? boostGlowStyle(true)
     : o.pawFollow
       ? `box-shadow:0 0 0 4px rgba(124,58,237,.35),0 0 14px 4px rgba(124,58,237,.55),0 3px 8px rgba(23,20,31,.35);`
-      : `box-shadow:0 3px 8px rgba(23,20,31,.35);`;
-  const captionText = o.caption || o.priceLabel || "";
-  const caption = captionText
-    ? `<span style="position:absolute;top:${size + 3}px;left:50%;transform:translateX(-50%);white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:clip;background:#fff;color:${color};border:1.5px solid ${color};border-radius:999px;padding:1px 8px;font:700 11px/1.35 Inter,system-ui,sans-serif;box-shadow:0 1px 4px rgba(23,20,31,.25);">${escapeHtml(captionText)}</span>`
-    : "";
+      : `box-shadow:0 5px 12px -4px rgba(23,20,31,.5);`;
+  // 590 — sous le rond : le PRÉNOM seul (le prix part dans la bulle au-dessus).
+  const captionText = o.caption || (o.priceBubble ? "" : o.priceLabel || "");
+  const caption = captionText ? nameTagHtml(captionText, size + 4, o.dark) : "";
+  const bubble = o.priceBubble ? priceBubbleHtml(o.priceBubble, key, size) : "";
   // L'icône du rôle reste DESSOUS la photo : si la photo tarde ou échoue,
   // on voit l'icône, jamais un disque vide.
-  const glyphBox = `<span style="position:absolute;inset:${Math.round(size * 0.2)}px;display:block;">${ROLE_GLYPH[key]}</span>`;
-  const inner = o.avatar
-    ? `${glyphBox}<img src="${escapeHtml(o.avatar)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display='none'" />`
+  const glyphBox = `<span style="position:absolute;inset:${Math.round(size * 0.18)}px;display:block;">${ROLE_GLYPH[key]}</span>`;
+  // 590 (§4) — photo : anneau 3 px en DÉGRADÉ du rôle, liseré blanc 2 px,
+  // puis la photo ; sans photo : disque en dégradé du rôle + icône blanche.
+  const body = o.avatar
+    ? `<div style="position:relative;width:100%;height:100%;border-radius:50%;border:2px solid #fff;background:${grad};overflow:hidden;box-sizing:border-box;">${glyphBox}<img src="${escapeHtml(o.avatar)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none'" /></div>`
     : ROLE_GLYPH[key];
-  const pad = o.avatar ? 0 : Math.round(size * 0.2);
-  // Photo : anneau du rôle (3 px) + liseré blanc extérieur ; icône : rond plein.
+  const disc = o.avatar
+    ? `padding:3px;`
+    : `padding:${Math.round(size * 0.2)}px;border:2.5px solid #fff;`;
   // Plusieurs rôles : liserés concentriques aux couleurs des autres rôles,
   // posés sur un calque à part (la lueur PawBoost anime box-shadow).
   const rings = extraRoleRings(o.roles);
-  const ring = rings
-    ? (o.avatar ? `border:3px solid ${color};` : `border:2.5px solid #fff;`)
-    : o.avatar ? `border:3px solid ${color};outline:2px solid #fff;` : `border:2.5px solid #fff;`;
   const ringLayer = rings ? `<div style="position:absolute;inset:0;border-radius:50%;box-shadow:${rings};pointer-events:none;"></div>` : "";
-  return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};${ring}${glow}display:flex;align-items:center;justify-content:center;padding:${pad}px;box-sizing:border-box;overflow:hidden;position:relative;">${inner}</div>${o.premium ? crownBadge(20) : ""}${o.boosted ? rocketBadge(18) : ""}${o.online === true || o.online === false ? onlineDot(12, o.online) : ""}${caption}</div>`;
+  return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}<div style="width:${size}px;height:${size}px;border-radius:50%;background:${grad};${disc}${glow}display:flex;align-items:center;justify-content:center;box-sizing:border-box;position:relative;overflow:hidden;">${body}</div>${o.premium ? crownBadge(20) : ""}${o.boosted ? rocketBadge(18) : o.verified ? verifiedBadge() : ""}${o.online === true || o.online === false ? onlineDot(12, o.online) : ""}${caption}${bubble}</div>`;
 }
 
 /** Échappe une chaîne insérée dans le HTML d'une épingle (nom, URL). */
@@ -252,6 +322,10 @@ export type PhotoPinOptions = {
   caption?: string | null;
   /** 25/09 (585) — ami à plusieurs rôles : liserés des rôles autour du rose. */
   roles?: string[] | null;
+  /** 590 — bulle de prix au-dessus du rond (règle §1 appliquée par l'appelant). */
+  priceBubble?: string | null;
+  /** 590 — étiquette sur fond sombre (mode nuit). */
+  dark?: boolean;
 };
 
 function initials(name: string): string {
@@ -287,7 +361,15 @@ export function photoPinHtml(o: PhotoPinOptions): string {
       : "";
   const rings = o.me ? "" : extraRoleRings(o.roles, true); // ami : le rose d'abord, puis TOUS ses rôles
   const ringLayer = rings ? `<div style="position:absolute;inset:0;border-radius:50%;box-shadow:${rings};pointer-events:none;"></div>` : "";
-  return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:3px ${ringStyle} ${ring};${glow}display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;">${inner}</div>${o.premium ? crownBadge(o.me ? 24 : 22) : ""}${o.boosted ? rocketBadge(o.me ? 20 : 18) : ""}${o.friendsOnly && o.me ? eyeOffBadge(20) : ""}${!o.me && (o.online === true || o.online === false) ? onlineDot(13, o.online) : ""}${label}</div>`;
+  const bubble = o.priceBubble ? priceBubbleHtml(o.priceBubble, key, size) : "";
+  // 590 (§4) — anneau 3 px en DÉGRADÉ (rose pour un ami, rôle pour moi),
+  // liseré blanc 2 px, puis la photo. Mode « amis seulement » : anneau
+  // pointillé plein, comme avant (il doit se lire d'un coup d'œil).
+  const grad = ringGradient(o.me ? key : "friend");
+  const disc = o.friendsOnly
+    ? `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:3px ${ringStyle} ${ring};${glow}display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;">${inner}</div>`
+    : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${grad};padding:3px;${glow}box-sizing:border-box;"><div style="width:100%;height:100%;border-radius:50%;border:2px solid #fff;background:${ringGradient(key)};display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;">${inner}</div></div>`;
+  return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}${disc}${o.premium ? crownBadge(o.me ? 24 : 22) : ""}${o.boosted ? rocketBadge(o.me ? 20 : 18) : ""}${o.friendsOnly && o.me ? eyeOffBadge(20) : ""}${!o.me && (o.online === true || o.online === false) ? onlineDot(13, o.online) : ""}${label}${bubble}</div>`;
 }
 
 /**
@@ -329,23 +411,37 @@ export function placeClusterHtml(count: number, category?: string | null): strin
   return `<div style="width:32px;height:32px;border-radius:8px;background:#fff;border:1.5px solid ${color};color:${color};display:flex;align-items:center;justify-content:center;font:800 ${label.length > 2 ? 10 : 12}px/1 Inter,system-ui,sans-serif;box-shadow:0 1px 4px rgba(23,20,31,.25);box-sizing:border-box;">${label}</div>`;
 }
 
-/** PawSpot : goutte NOIRE, liseré du type, icône blanche (32) ; doré = goutte OR 40, patte noire. */
-export function spotPinHtml(type: string, golden: boolean): string {
-  const ring = SPOT_COLOR[type] || SPOT_COLOR.other;
-  const size = golden ? 40 : 32;
-  const h = Math.round(size * 1.3);
-  const fill = golden ? PREMIUM_GOLD : INK;
-  const stroke = golden ? INK : ring;
-  const glyph = golden
-    ? `<g transform="translate(6.5 5.5) scale(0.7)" fill="${INK}">${ROLE_GLYPH_PATH_PAW}</g>`
-    : `<g transform="translate(6.5 5.5) scale(0.7)" fill="#fff">${SPOT_GLYPH[type] || SPOT_GLYPH.other}</g>`;
-  // Doré = éclat (petite étoile blanche à 4 branches + halo or) : le PawSpot
-  // spécial se voit de loin sans ressembler à un membre.
+/**
+ * PawSpot (590, §6 — « plus visibles ») : GOUTTE 40 px (coin bas pointu,
+ * tournée de −45°), patte au centre, halo or autour.
+ *   PawSpot : fond noir #3A3232 → #171212, patte or, contour or 2,5 px.
+ *   PawSpot doré (validé) : fond or #FFE08A → #F0B323 → #C98A08, patte
+ *   noire, contour blanc, éclat.
+ * Taille constante à l'écran ; au zoom rue, étiquette noire liseré or.
+ */
+export function spotPinHtml(type: string, golden: boolean, opts: { size?: number; label?: string | null } = {}): string {
+  void type;
+  const size = opts.size ?? 40;
+  const k = size / 40;
+  const px = (n: number) => `${Math.round(n * k * 10) / 10}px`;
+  const bg = golden ? "linear-gradient(170deg,#FFE08A,#F0B323 50%,#C98A08)" : "linear-gradient(170deg,#3A3232,#171212)";
+  const rim = golden ? "#FFFFFF" : "#F0B323";
+  const paw = golden ? "#171212" : "#F0B323";
+  const halo = `0 0 0 ${px(7)} rgba(240,179,35,${golden ? 0.28 : 0.22}),0 ${px(6)} ${px(12)} -${px(4)} rgba(23,20,31,.55)`;
   const sparkle = golden
-    ? `<svg viewBox="0 0 24 24" width="16" height="16" style="position:absolute;top:-5px;right:-6px;" aria-hidden="true"><path d="M12 1.5l2.2 7.3 7.3 2.2-7.3 2.2-2.2 7.3-2.2-7.3L2.5 11l7.3-2.2z" fill="#fff" stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"/></svg>`
+    ? `<svg viewBox="0 0 24 24" width="${px(15)}" height="${px(15)}" style="position:absolute;top:-${px(4)};right:-${px(5)};" aria-hidden="true"><path d="M12 1.5l2.2 7.3 7.3 2.2-7.3 2.2-2.2 7.3-2.2-7.3L2.5 11l7.3-2.2z" fill="#fff" stroke="#171212" stroke-width="1.2" stroke-linejoin="round"/></svg>`
     : "";
-  const shadow = golden ? "drop-shadow(0 0 6px rgba(244,192,74,.95)) drop-shadow(0 2px 3px rgba(23,20,31,.4))" : "drop-shadow(0 2px 3px rgba(23,20,31,.4))";
-  return `<div style="position:relative;width:${size}px;height:${h}px;filter:${shadow};"><svg viewBox="0 0 30 39" width="${size}" height="${h}" aria-hidden="true"><path d="M15 1C7.3 1 1.5 6.8 1.5 14.2c0 9.6 11.2 21.6 12.6 23.1.5.5 1.3.5 1.8 0 1.4-1.5 12.6-13.5 12.6-23.1C28.5 6.8 22.7 1 15 1z" fill="${fill}" stroke="${stroke}" stroke-width="2.2"/>${glyph}</svg>${sparkle}</div>`;
+  const label = opts.label
+    ? `<span style="position:absolute;top:${px(52)};left:50%;transform:translateX(-50%);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#171212;border:1.5px solid #F0B323;color:#F5C542;border-radius:9px;padding:2px 7px;font:700 10px/1.25 ${POPPINS};">${escapeHtml(opts.label)}</span>`
+    : "";
+  return `<div style="position:relative;width:${px(40)};height:${px(50)};">`
+    + `<div style="position:absolute;left:0;top:0;width:${px(40)};height:${px(40)};border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${bg};border:${px(2.5)} solid ${rim};box-shadow:${halo};box-sizing:border-box;"></div>`
+    + `<svg viewBox="0 0 24 24" width="${px(20)}" height="${px(20)}" style="position:absolute;left:${px(10)};top:${px(10)};" fill="${paw}" aria-hidden="true">${ROLE_GLYPH_PATH_PAW}</svg>`
+    + `${sparkle}${label}</div>`;
+}
+/** Point d'ancrage (pointe de la goutte) d'une épingle PawSpot de `size` px. */
+export function spotPinAnchor(size = 40): [number, number] {
+  return [size / 2, Math.round(size * 1.2)];
 }
 const ROLE_GLYPH_PATH_PAW =
   '<ellipse cx="12" cy="15.6" rx="4.6" ry="3.7"/><ellipse cx="5.3" cy="10.9" rx="2" ry="2.6"/><ellipse cx="9.4" cy="7.4" rx="2" ry="2.7"/><ellipse cx="14.6" cy="7.4" rx="2" ry="2.7"/><ellipse cx="18.7" cy="10.9" rx="2" ry="2.6"/>';
@@ -361,16 +457,18 @@ export function reportPinHtml(size = 30): string {
   return `<div style="width:${size}px;height:${size}px;filter:drop-shadow(0 2px 3px rgba(23,20,31,.35));"><svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true"><path d="M12 2.5 22.8 21H1.2z" fill="${REPORT_RED}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><path d="M10.9 9h2.2v6h-2.2zM10.9 16.5h2.2v2.2h-2.2z" fill="#fff"/></svg></div>`;
 }
 
-/** Demande d'un propriétaire : BULLE orange foncé, pointe vers le bas, prix ou icône du service. */
+/**
+ * Demande d'un propriétaire (590, §1) : BULLE en dégradé orange du service
+ * (#FFA94D → #D63D1F), contour blanc, pointe foncée, icône maison (garde) ou
+ * marcheur (promenade) + budget. Le propriétaire ne voit que les siennes,
+ * sans budget, avec « Ma demande ».
+ */
 export function requestBubbleHtml(o: { priceLabel?: string | null; service: "sitting" | "walk"; boosted?: boolean; mine?: boolean; mineLabel?: string }): string {
-  const color = ROLE_COLOR.owner;
-  const icon =
-    o.service === "walk"
-      ? `<svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" aria-hidden="true">${ROLE_GLYPH.walker.replace(/<\/?svg[^>]*>/g, "")}</svg>`
-      : `<svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" aria-hidden="true">${ROLE_GLYPH.sitter.replace(/<\/?svg[^>]*>/g, "")}</svg>`;
-  const glow = o.boosted ? boostGlowStyle(true) : "box-shadow:0 2px 6px rgba(23,20,31,.35);";
-  const mine = o.mine ? `<span style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:${INK};color:#fff;border-radius:999px;padding:0 6px;font:700 10px/1.5 Inter,system-ui,sans-serif;white-space:nowrap;">${o.mineLabel || "Ma demande"}</span>` : "";
-  return `<div style="position:relative;display:inline-block;">${mine}<div style="position:relative;background:${color};color:#fff;border:2px solid #fff;border-radius:14px;padding:4px 9px;display:inline-flex;align-items:center;gap:5px;font:800 12px/1.2 Inter,system-ui,sans-serif;white-space:nowrap;${glow}">${icon}${o.priceLabel ? `<span>${o.priceLabel}</span>` : ""}</div><svg viewBox="0 0 16 10" width="16" height="10" style="display:block;margin:-2px auto 0;" aria-hidden="true"><path d="M0 0h16L8 9z" fill="${color}" stroke="#fff" stroke-width="1.2"/></svg>${o.boosted ? rocketBadge(16) : ""}</div>`;
+  const [a, b] = RING_GRAD.owner;
+  const icon = `<svg viewBox="0 0 24 24" width="14" height="14" fill="#fff" aria-hidden="true">${o.service === "walk" ? MS_WALK : MS_HOME}</svg>`;
+  const glow = o.boosted ? boostGlowStyle(true) : "box-shadow:0 0 0 2px #fff,0 6px 12px -4px rgba(23,20,31,.5);";
+  const mine = o.mine ? `<span style="position:absolute;top:-17px;left:50%;transform:translateX(-50%);background:${INK};color:#fff;border-radius:999px;padding:0 7px;font:700 10px/1.6 ${POPPINS};white-space:nowrap;">${escapeHtml(o.mineLabel || "Ma demande")}</span>` : "";
+  return `<div style="position:relative;width:100%;display:flex;flex-direction:column;align-items:center;">${mine}<div style="position:relative;height:26px;background:linear-gradient(170deg,${a},${b});color:#fff;border-radius:9px;padding:0 ${o.priceLabel ? 9 : 7}px;display:inline-flex;align-items:center;gap:4px;font:700 12px/1 ${POPPINS};white-space:nowrap;${glow}">${icon}${o.priceLabel ? `<span>${escapeHtml(o.priceLabel)}</span>` : ""}</div><svg viewBox="0 0 12 7" width="12" height="7" style="display:block;margin-top:1px;" aria-hidden="true"><path d="M0 0h12L6 7z" fill="${b}"/></svg>${o.boosted ? rocketBadge(16) : ""}</div>`;
 }
 
 /**
@@ -383,8 +481,10 @@ export const PIN_Z = {
   placeSelected: 1500,
   report: 1000,
   request: 2000,
-  spot: 3000,
-  spotGolden: 3500,
+  // 590 (§6) — les PawSpots passent au-dessus des lieux, signalements et
+  // demandes (les personnes restent devant, comme dans l'app).
+  spot: 4000,
+  spotGolden: 4500,
   member: 5000,
   memberBoosted: 6000,
   friend: 7000,
@@ -399,6 +499,10 @@ export const PAWMAP_KEYFRAMES = `
 @keyframes hps-pulse { 0% { transform:scale(1); opacity:.65; } 70% { transform:scale(2.1); opacity:0; } 100% { transform:scale(2.1); opacity:0; } }
 @media (prefers-reduced-motion: reduce) { .leaflet-marker-icon * { animation: none !important; } }
 .leaflet-container { font-family: Inter, system-ui, sans-serif; }
+@keyframes hps-walk { to { stroke-dashoffset: -40; } }
+.hps-walk-trail { animation: hps-walk 1.6s linear infinite; }
+@keyframes hps-focus-in { from { opacity: 0; transform: translateY(-8px) scale(.97); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .hps-walk-trail { animation: none; } }
 .hps-dark-tiles { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) saturate(0.75) sepia(0.18); }
 .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: 0 10px 30px -10px rgba(23,20,31,.35); }
 .leaflet-popup-content { margin: 12px 14px; }

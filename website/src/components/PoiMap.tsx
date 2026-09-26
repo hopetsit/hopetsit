@@ -63,6 +63,10 @@ import {
   PIN_Z,
   roleKey,
   ROLE_GLYPH,
+  showsPriceBubble,
+  spotPinAnchor,
+  ROLE_SOLID,
+  POPPINS,
 } from "@/lib/pawmapLegend";
 import { safeFly } from "@/lib/safeFly";
 import { ensureOwnerProfile, isMyProfile, needsOwnerSwitch } from "@/lib/bookAsOwner";
@@ -120,6 +124,8 @@ export type MapRequest = {
   city?: string;
   /** v587 (point 8) — lieu du service déjà traduit (« Chez moi », « Point de rendez-vous · … »). */
   locationLabel?: string;
+  /** 590 — photo du propriétaire (carte focus). */
+  ownerAvatar?: string;
 };
 
 // ── Icônes (un dessin par famille, dans lib/pawmapLegend) ────────────────────
@@ -133,12 +139,12 @@ function placeIcon(category: PoiCategory): L.DivIcon {
   }
   return ic;
 }
-function spotIcon(type: PawSpotType, golden: boolean): L.DivIcon {
-  const size = golden ? 40 : 32;
-  return L.divIcon({ className: "", html: spotPinHtml(type, golden), iconSize: [size, Math.round(size * 1.3)], iconAnchor: [size / 2, Math.round(size * 1.3) - 1], popupAnchor: [0, -Math.round(size * 1.2)] });
+// 590 (§6) — goutte 40 px noir / or à TOUS les zooms, pointe = position.
+function spotIcon(type: PawSpotType, golden: boolean, label?: string | null): L.DivIcon {
+  return L.divIcon({ className: "", html: spotPinHtml(type, golden, { label }), iconSize: [40, 50], iconAnchor: spotPinAnchor(40), popupAnchor: [0, -44] });
 }
 const reportIcon = () => L.divIcon({ className: "", html: reportPinHtml(30), iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -14] });
-function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[]): L.DivIcon {
+function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[], bubble: string | null, dark: boolean): L.DivIcon {
   return L.divIcon({
     className: "",
     html: memberPinHtml({
@@ -150,6 +156,9 @@ function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[]
       online: m.approx ? null : m.isOnline !== false,
       avatar: m.avatar || null,
       caption,
+      priceBubble: bubble,
+      verified: !!m.identityVerified,
+      dark,
       size: 46,
     }),
     iconSize: [46, 46],
@@ -158,11 +167,11 @@ function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[]
   });
 }
 /** Ami à sa position de PROFIL (floutée) : photo, anneau rose, pas de direct. */
-function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[], caption?: string | null): L.DivIcon {
+function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[], caption?: string | null, bubble?: string | null): L.DivIcon {
   return L.divIcon({
     className: "",
     // 25/09 (585, bug 11) — un ami boosté garde sa lueur turquoise + fusée.
-    html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, boosted: !!m.isBoosted, roles: roles.map((r) => r.role), caption }),
+    html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, boosted: !!m.isBoosted, roles: roles.map((r) => r.role), caption, priceBubble: bubble }),
     iconSize: [50, 50],
     iconAnchor: [25, 25],
     popupAnchor: [0, -28],
@@ -181,9 +190,10 @@ function requestIcon(r: MapRequest, mineLabel: string): L.DivIcon {
   return L.divIcon({
     className: "",
     html: requestBubbleHtml({ service: r.service, priceLabel: r.priceLabel, boosted: r.boosted, mine: r.mine, mineLabel }),
-    iconSize: [80, 44],
-    iconAnchor: [40, 42],
-    popupAnchor: [0, -40],
+    // 590 — bulle 26 + pointe 7 : la pointe touche la position (floutée).
+    iconSize: [96, 34],
+    iconAnchor: [48, 34],
+    popupAnchor: [0, -32],
   });
 }
 
@@ -399,6 +409,69 @@ export type CardLabels = {
   lang?: string;
 };
 
+/** 590 — libellés de la carte focus (9 langues, fournis par la page). */
+export type FocusLabels = {
+  profile: string;
+  close: string;
+  request: string;
+  walking: string;
+  roles: Record<string, string>;
+  sitting: string;
+  walk: string;
+};
+
+/** 590 (§4) — la carte focus : 1er clic sur une personne ou une demande. */
+type Focus = {
+  key: string;
+  lat: number;
+  lng: number;
+  name: string;
+  /** owner | sitter | walker (anneau + bouton « Profil »). */
+  role: string;
+  avatar?: string | null;
+  info: string;
+  live?: boolean;
+  friend?: boolean;
+  icon?: "home" | "walk" | "paw";
+  /** Ami en direct : son tracé de balade s'affiche. */
+  liveId?: string;
+  open: () => void;
+};
+
+// §9 — palettes « bijou » des rôles (clair, moyen, foncé) + rose ami.
+const JEWEL_ROLE: Record<string, [string, string, string]> = {
+  owner: ["#FF8A66", "#E8452F", "#B8231A"],
+  sitter: ["#8AB8FF", "#3B78E8", "#1F4FBF"],
+  walker: ["#7FE39A", "#2E9E48", "#1D7A34"],
+  friend: ["#F47BB2", "#E35A9A", "#D6377F"],
+};
+const jewelGrad = (p: [string, string, string]) => `linear-gradient(170deg,${p[0]},${p[1]} 50%,${p[2]})`;
+
+/** Efface la carte focus au clic sur la carte vide ou au début d'un glisser. */
+function FocusWatcher({ onClear }: { onClear: () => void }) {
+  useMapEvents({ click: onClear, dragstart: onClear });
+  return null;
+}
+
+/**
+ * 590 — fiche d'une DEMANDE, ouverte au 2e clic (popup Leaflet posée seule
+ * sur la carte ; position mémorisée sinon react-leaflet la rouvre à chaque
+ * rendu).
+ */
+function RequestPopup({ r, onClose, children }: { r: MapRequest; onClose: () => void; children: React.ReactNode }) {
+  const map = useMap();
+  const ref = useRef<L.Popup | null>(null);
+  const pos = useMemo(() => [r.lat, r.lng] as [number, number], [r.lat, r.lng]);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const h = (e: L.PopupEvent) => { if (e.popup === ref.current) closeRef.current(); };
+    map.on("popupclose", h);
+    return () => { map.off("popupclose", h); };
+  }, [map]);
+  return <Popup ref={ref} position={pos} offset={[0, -36]}>{children}</Popup>;
+}
+
 /** 588 — zoom d'un clic sur un ami (liste, pilule ou rond) : rue lisible. */
 const FRIEND_ZOOM = 16;
 
@@ -472,6 +545,9 @@ export default function PoiMap({
   onMessage,
   onMessageMember,
   focusFriend = null,
+  focusLabels,
+  focusTop = 64,
+  uiFade = false,
 }: {
   center: [number, number];
   /** Zoom d'ouverture (mémorisé par la page). */
@@ -553,6 +629,11 @@ export default function PoiMap({
   onMessageMember?: (m: NearbyMember) => (() => void) | null;
   /** 588 — ami (hors direct) choisi dans le panneau : vol doux + sa fiche. */
   focusFriend?: { m: NearbyMember; ts: number } | null;
+  /** 590 — carte focus (1er clic) : libellés, hauteur sous la rangée du haut. */
+  focusLabels?: FocusLabels;
+  focusTop?: number;
+  /** 590 — la carte bouge : la carte focus passe à 20 % comme les barres. */
+  uiFade?: boolean;
 }) {
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
   const friendSet = useMemo(() => new Set(friendIds), [friendIds]);
@@ -570,12 +651,21 @@ export default function PoiMap({
     onZoomChange?.(z);
   };
   const showPrice = zoomLevel >= 15;
+  // 590 (§1, §4) — au zoom rue : le PRÉNOM sous le rond ; le prix part dans
+  // une bulle à la couleur du service AU-DESSUS du rond, seulement s'il est
+  // de l'autre côté du marché (propriétaire → tarifs ; prestataire → rien).
   const memberCaption = (m: NearbyMember): string | null => {
     if (!showPrice) return null;
     const first = (m.name || "").trim().split(/\s+/)[0];
-    const price = m.role !== "owner" ? formatPrice(m.priceFrom, m.currency) : null;
-    return [first, memberRoleLabels?.[m.role] || null, price].filter(Boolean).join(" · ") || null;
+    return first || memberRoleLabels?.[m.role] || null;
   };
+  const priceFor = (role: string, amount?: number | null, currency?: string | null): string | null => {
+    const k = roleKey(role);
+    if (k === "owner" || !showsPriceBubble(userRole, k)) return null;
+    return formatPrice(amount, currency);
+  };
+  const memberBubble = (role: string, amount?: number | null, currency?: string | null): string | null =>
+    showPrice ? priceFor(role, amount, currency) : null;
 
   const poiClusters = useMemo(
     () => clusterize(pois, zoomLevel, (poi) => (Array.isArray(poi.location?.coordinates) && poi.location.coordinates.length >= 2 ? [poi.location.coordinates[1], poi.location.coordinates[0]] : null)),
@@ -663,6 +753,96 @@ export default function PoiMap({
     ? (target: { lat: number; lng: number }) => { try { mapObj?.closePopup(); } catch { /* */ } onDirections(target); }
     : undefined;
 
+  // ── 590 (§2, §4) — 1er clic = la carte vole sur la personne (≈ +1,5
+  // niveau, point un peu au-dessus du centre) et la CARTE FOCUS apparaît en
+  // haut ; 2e clic (ou « Profil › ») = la fiche existante ; ✕ = retour au
+  // cadrage d'avant. Clic sur la carte vide / glisser = la carte focus part.
+  const [focus, setFocus] = useState<Focus | null>(null);
+  const focusKeyRef = useRef<string | null>(null);
+  focusKeyRef.current = focus?.key ?? null;
+  const prevViewRef = useRef<{ c: [number, number]; z: number } | null>(null);
+  const [openReq, setOpenReq] = useState<MapRequest | null>(null);
+  const clearFocus = () => {
+    if (!focusKeyRef.current) return;
+    setFocus(null);
+    prevViewRef.current = null;
+  };
+  const closeFocus = () => {
+    const pv = prevViewRef.current;
+    setFocus(null);
+    prevViewRef.current = null;
+    if (pv && mapObj) safeFly(mapObj, pv.c, pv.z, 0.6);
+  };
+  const tapFocus = (f: Focus) => {
+    if (!focusLabels || !mapObj) { f.open(); return; }
+    if (focusKeyRef.current === f.key) {
+      setFocus(null);
+      prevViewRef.current = null;
+      f.open();
+      return;
+    }
+    if (!prevViewRef.current) {
+      const c = mapObj.getCenter();
+      prevViewRef.current = { c: [c.lat, c.lng], z: mapObj.getZoom() };
+    }
+    setSheet(null);
+    setOpenReq(null);
+    setFocus(f);
+    try {
+      const z = Math.min(18, Math.max(mapObj.getZoom() + 1.5, 15));
+      const px = mapObj.project(L.latLng(f.lat, f.lng), z);
+      // Le point ~60 px au-dessus du centre, mais toujours SOUS la carte
+      // focus (et sa bulle de prix) quand la carte est basse.
+      const h = mapObj.getSize().y;
+      const want = Math.max(h / 2 - 60, focusTop + 130);
+      const c = mapObj.unproject(px.add(L.point(0, h / 2 - want)), z);
+      safeFly(mapObj, [c.lat, c.lng], z, 0.45);
+    } catch {
+      safeFly(mapObj, [f.lat, f.lng], Math.max(mapObj.getZoom(), 15), 0.45);
+    }
+  };
+  const kmFrom = (at: [number, number] | null): string => {
+    if (!at || !distanceFrom) return "";
+    const R = 6371;
+    const dLat = ((at[0] - distanceFrom.lat) * Math.PI) / 180;
+    const dLng = ((at[1] - distanceFrom.lng) * Math.PI) / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos((distanceFrom.lat * Math.PI) / 180) * Math.cos((at[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+    return formatKm(2 * R * Math.asin(Math.min(1, Math.sqrt(a))), cardLabels?.lang) || "";
+  };
+  const firstOf = (name: string) => (name || "").trim().split(/\s+/)[0] || name;
+  const personFocus = (m: NearbyMember, role: string, price: number | null | undefined, currency: string | null | undefined, open: () => void, friend: boolean): Focus | null => {
+    const at = pointOf(m);
+    if (!at) return null;
+    const k = roleKey(role);
+    const pr = priceFor(k, price, currency);
+    const km = kmFrom(at);
+    return {
+      key: `p:${m.id}`,
+      lat: at[0],
+      lng: at[1],
+      name: m.name || focusLabels?.roles[k] || "",
+      role: k,
+      avatar: m.avatar,
+      info: [pr, km].filter(Boolean).join(" · ") || focusLabels?.roles[k] || "",
+      friend,
+      icon: k === "walker" ? "walk" : k === "sitter" ? "home" : "paw",
+      open,
+    };
+  };
+  // Tracé de la balade (§5) : ami en direct sous la carte focus, ou suivi.
+  const walkId = focus?.liveId ?? followHaloId ?? null;
+  const walkPos = walkId ? friendPositions.find((p) => p.userId === walkId) : undefined;
+  const walkTrail = useMemo(() => {
+    if (!walkPos) return [] as [number, number][];
+    const pts = (Array.isArray(walkPos.trail) ? walkPos.trail : []).filter(
+      (q): q is [number, number] => Array.isArray(q) && Number.isFinite(q[0]) && Number.isFinite(q[1]),
+    ).map((q) => [q[0], q[1]] as [number, number]);
+    const last = pts[pts.length - 1];
+    if (!last || Math.abs(last[0] - walkPos.lat) > 1e-6 || Math.abs(last[1] - walkPos.lng) > 1e-6) pts.push([walkPos.lat, walkPos.lng]);
+    return pts;
+  }, [walkPos]);
+  const walkColor = walkPos ? ROLE_SOLID[roleKey(walkPos.role)] : ROLE_SOLID.owner;
+
   return (
     <div className="relative h-full min-h-[420px] w-full overflow-hidden rounded-[28px] max-lg:rounded-none">
       <style dangerouslySetInnerHTML={{ __html: PAWMAP_KEYFRAMES }} />
@@ -688,6 +868,7 @@ export default function PoiMap({
         <FlyToFocus target={focusTarget} />
         <RouteFit points={routePoints} />
         <FollowController target={followTarget} onUserGesture={() => onFollowPause?.()} />
+        <FocusWatcher onClear={clearFocus} />
 
         {/* Ma position : cercle de précision honnête + « Moi » (56 px). */}
         {userLocation && userAccuracy != null && userAccuracy > 25 && (
@@ -756,7 +937,7 @@ export default function PoiMap({
           g.items.length > 1 ? <SpotCluster key={`sc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} count={g.items.length} /> : null,
         )}
         {spotClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]).map((spot) => (
-          <Marker key={`spot-${spot.id}`} position={[spot.lat, spot.lng]} icon={spotIcon(spot.type, spot.isGolden)} zIndexOffset={spot.isGolden ? PIN_Z.spotGolden : PIN_Z.spot} eventHandlers={{ popupopen: () => onSpotVisit?.(spot.id) }}>
+          <Marker key={`spot-${spot.id}`} position={[spot.lat, spot.lng]} icon={spotIcon(spot.type, spot.isGolden, showPrice ? spot.name : null)} zIndexOffset={spot.isGolden ? PIN_Z.spotGolden : PIN_Z.spot} eventHandlers={{ popupopen: () => onSpotVisit?.(spot.id) }}>
             <Popup>
               <div className="text-sm" style={{ minWidth: 170 }}>
                 <div className="mb-1 font-bold">{spot.name}</div>
@@ -793,28 +974,51 @@ export default function PoiMap({
           );
         })}
 
-        {/* DEMANDES des propriétaires : bulle orange foncé, prix dedans. */}
+        {/* DEMANDES des propriétaires : bulle orange du service, budget
+            dedans. 590 — 1er clic = carte focus, 2e clic = la fiche. */}
         {requests.map((r) => (
-          <Marker key={`req-${r.id}`} position={[r.lat, r.lng]} icon={requestIcon(r, requestMineLabel)} zIndexOffset={PIN_Z.request + (r.mine ? 200 : 0)}>
-            <Popup>
-              <div className="text-sm" style={{ minWidth: 180 }}>
-                <div className="font-bold" style={{ color: ROLE_COLOR.owner }}>{r.mine ? requestLabels?.mine : requestLabels?.title}</div>
-                <div className="mt-0.5 text-xs font-semibold text-ink">
-                  {r.service === "walk" ? requestLabels?.walk : requestLabels?.sitting}
-                  {r.priceLabel ? ` · ${r.priceLabel}` : ""}
-                  {r.city ? ` · ${r.city}` : ""}
-                </div>
-                {r.locationLabel && <div className="mt-0.5 text-xs font-semibold text-ink">📍 {r.locationLabel}</div>}
-                {r.body && <div className="mt-1 line-clamp-3 text-xs text-ink-muted">{r.body}</div>}
-                {!r.mine && onOfferService && requestLabels && (
-                  <button type="button" onClick={() => onOfferService(r.id)} className="mt-2 flex min-h-[40px] w-full items-center justify-center rounded-full px-3 text-xs font-bold text-white" style={{ background: `linear-gradient(90deg, #D83C28, #B92425)` }}>
-                    {requestLabels.offer}
-                  </button>
-                )}
-              </div>
-            </Popup>
-          </Marker>
+          <Marker
+            key={`req-${r.id}`}
+            position={[r.lat, r.lng]}
+            icon={requestIcon(r, requestMineLabel)}
+            zIndexOffset={PIN_Z.request + (r.mine ? 200 : 0)}
+            eventHandlers={{
+              click: () => {
+                if (r.mine || !focusLabels) { clearFocus(); setOpenReq(r); return; }
+                tapFocus({
+                  key: `req:${r.id}`,
+                  lat: r.lat,
+                  lng: r.lng,
+                  name: r.ownerName ? `${firstOf(r.ownerName)} · ${focusLabels.request}` : requestLabels?.title || focusLabels.request,
+                  role: "owner",
+                  avatar: r.ownerAvatar || null,
+                  info: [r.service === "walk" ? focusLabels.walk : focusLabels.sitting, r.priceLabel].filter(Boolean).join(" · "),
+                  icon: r.service === "walk" ? "walk" : "home",
+                  open: () => setOpenReq(r),
+                });
+              },
+            }}
+          />
         ))}
+        {openReq && (
+          <RequestPopup key={`rp-${openReq.id}`} r={openReq} onClose={() => setOpenReq(null)}>
+            <div className="text-sm" style={{ minWidth: 180 }}>
+              <div className="font-bold" style={{ color: ROLE_COLOR.owner }}>{openReq.mine ? requestLabels?.mine : requestLabels?.title}</div>
+              <div className="mt-0.5 text-xs font-semibold text-ink">
+                {openReq.service === "walk" ? requestLabels?.walk : requestLabels?.sitting}
+                {openReq.priceLabel ? ` · ${openReq.priceLabel}` : ""}
+                {openReq.city ? ` · ${openReq.city}` : ""}
+              </div>
+              {openReq.locationLabel && <div className="mt-0.5 text-xs font-semibold text-ink">📍 {openReq.locationLabel}</div>}
+              {openReq.body && <div className="mt-1 line-clamp-3 text-xs text-ink-muted">{openReq.body}</div>}
+              {!openReq.mine && onOfferService && requestLabels && (
+                <button type="button" onClick={() => onOfferService(openReq.id)} className="mt-2 flex min-h-[40px] w-full items-center justify-center rounded-full px-3 text-xs font-bold text-white" style={{ background: `linear-gradient(90deg, #D83C28, #B92425)` }}>
+                  {requestLabels.offer}
+                </button>
+              )}
+            </div>
+          </RequestPopup>
+        )}
 
         {/* MEMBRES : UNE personne = UN rond (liseré de chacun de ses rôles),
             rond de groupe à la couleur dominante. Clic = fiche du bas. */}
@@ -838,15 +1042,29 @@ export default function PoiMap({
             const caption = liveLabels && Number.isFinite(seenMs)
               ? (now - seenMs < 60000 ? liveLabels.seenNow : liveLabels.seenAgo.replace("{ago}", liveLabels.ago(now - seenMs)))
               : null;
-            return <Marker key={`friend-${m.id}`} position={pt} icon={friendProfileIcon(m, prem, roles, caption)} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: () => flyToFriend(m) }} />;
+            const fBubble = memberBubble(roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency);
+            const fOpen = () => flyToFriend(m);
+            return <Marker key={`friend-${m.id}`} position={pt} icon={friendProfileIcon(m, prem, roles, caption, fBubble)} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: () => { const f = personFocus(m, roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fOpen, true); if (f) tapFocus(f); else fOpen(); } }} />;
           }
+          const r0 = roles[0];
+          const pFrom = r0.priceFrom ?? m.priceFrom;
+          const pCur = r0.currency ?? m.currency;
           return (
-            <Marker key={`member-${m.id}`} position={pt} icon={memberIcon(m, memberCaption({ ...m, role: roles[0].role, priceFrom: roles[0].priceFrom ?? m.priceFrom, currency: roles[0].currency ?? m.currency }), roles)} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: open }} />
+            <Marker key={`member-${m.id}`} position={pt} icon={memberIcon(m, memberCaption({ ...m, role: r0.role }), roles, memberBubble(r0.role, pFrom, pCur), dark)} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: () => { const f = personFocus(m, r0.role, pFrom, pCur, open, false); if (f) tapFocus(f); else open(); } }} />
           );
         })}
 
         {/* AMIS en direct : photo + anneau rose ; tracé violet du suivi. */}
-        {trail.length > 1 && <Polyline positions={trail} pathOptions={{ color: PAWFOLLOW_VIOLET, weight: 5, opacity: 0.85, lineCap: "round" }} />}
+        {trail.length > 1 && walkTrail.length < 2 && <Polyline positions={trail} pathOptions={{ color: PAWFOLLOW_VIOLET, weight: 5, opacity: 0.85, lineCap: "round" }} />}
+        {/* 590 (§5) — balade en direct : halo blanc 7 px + trait du rôle
+            3,5 px en pas qui avancent (pointillés animés), départ = rond blanc. */}
+        {walkTrail.length > 1 && (
+          <>
+            <Polyline key={`wh-${walkId}`} positions={walkTrail} pathOptions={{ color: "#FFFFFF", weight: 7, opacity: 1, lineCap: "round", lineJoin: "round" }} />
+            <Polyline key={`wt-${walkId}`} positions={walkTrail} pathOptions={{ color: walkColor, weight: 3.5, opacity: 1, lineCap: "round", lineJoin: "round", dashArray: "1 9", className: "hps-walk-trail" }} />
+            <CircleMarker key={`ws-${walkId}`} center={walkTrail[0]} radius={5} pathOptions={{ color: walkColor, weight: 3, fillColor: "#FFFFFF", fillOpacity: 1 }} />
+          </>
+        )}
         {friendPositions.map((p) => (
           <LiveFriendMarker
             key={`live-${p.userId}`}
@@ -855,7 +1073,24 @@ export default function PoiMap({
             isPremium={premiumSet.has(p.userId)}
             followed={followHaloId === p.userId}
             labels={liveLabels}
-            onOpen={() => { if (onFriendFocus) { setSheet(null); onFriendFocus(p); } else openSheet({ kind: "live", p }, [p.lat, p.lng]); }}
+            onOpen={() => {
+              const open = () => { if (onFriendFocus) { setSheet(null); onFriendFocus(p); } else openSheet({ kind: "live", p }, [p.lat, p.lng]); };
+              const km = kmFrom([p.lat, p.lng]);
+              tapFocus({
+                key: `live:${p.userId}`,
+                lat: p.lat,
+                lng: p.lng,
+                name: p.name,
+                role: roleKey(p.role),
+                avatar: p.avatar,
+                info: [p.state === "lost" ? liveLabels?.lost : focusLabels?.walking, km].filter(Boolean).join(" · "),
+                live: p.state !== "lost",
+                friend: true,
+                icon: "paw",
+                liveId: p.userId,
+                open,
+              });
+            }}
           />
         ))}
 
@@ -874,6 +1109,10 @@ export default function PoiMap({
               </CircleMarker>
             ))}
       </MapContainer>
+
+      {focus && focusLabels && (
+        <FocusCard key={focus.key} f={focus} labels={focusLabels} dark={dark} top={focusTop} faded={uiFade} onClose={closeFocus} onOpen={() => { const o = focus.open; setFocus(null); prevViewRef.current = null; o(); }} />
+      )}
 
       {/* 25/09 (585) — FICHE DU BAS : choix du rôle, fiche du bon rôle, liste
           d'un groupe superposé, ami en direct. Au-dessus des rails, jamais
@@ -895,12 +1134,79 @@ export default function PoiMap({
           onMessage={onMessage}
           onMessageMember={onMessageMember}
           onFollow={onFriendFocus ? (p) => { setSheet(null); onFriendFocus(p); } : undefined}
+          viewerRole={userRole}
         />
       )}
     </div>
   );
 }
 
+
+// ── 26/09/2026 (PawMap 590, §4) — la CARTE FOCUS ─────────────────────────────
+// Fixe en haut de la carte (elle ne zoome pas), entre les deux barres : mini
+// photo à l'anneau du rôle, nom (+ point vert en balade), info, « Profil › »
+// en dégradé du rôle, ✕ qui ramène la carte au cadrage d'avant. Même verre
+// que les barres (clair / sombre), mêmes tailles que l'app.
+function FocusCard({ f, labels, dark, top, faded, onClose, onOpen }: { f: Focus; labels: FocusLabels; dark: boolean; top: number; faded: boolean; onClose: () => void; onOpen: () => void }) {
+  const pal = JEWEL_ROLE[f.friend ? "friend" : roleKey(f.role)];
+  const ink = dark ? "#F6F1EE" : "#1B1616";
+  const sub = dark ? "#A39A97" : "#7A6F6C";
+  const [imgOk, setImgOk] = useState(true);
+  const glyph = f.icon === "walk" ? ROLE_GLYPH.walker : f.icon === "home" ? ROLE_GLYPH.sitter : ROLE_GLYPH.owner;
+  return (
+    <div className="pointer-events-none absolute inset-x-0 z-[1065] flex justify-center px-[62px] sm:px-[72px]" style={{ top, opacity: faded ? 0.2 : 1, transition: "opacity 300ms ease" }}>
+      <div
+        key={f.key}
+        role="group"
+        aria-label={`${f.name}. ${f.info}`}
+        className="pointer-events-auto flex w-full max-w-[440px] items-center gap-2 rounded-[22px] p-2"
+        style={{
+          background: dark ? "linear-gradient(180deg,rgba(46,40,38,.94),rgba(26,23,29,.92))" : "linear-gradient(180deg,rgba(255,255,255,.96),rgba(252,244,240,.92))",
+          boxShadow: `inset 0 0 0 1px ${dark ? "rgba(255,255,255,.08)" : "rgba(120,40,30,.08)"}, 0 14px 30px -14px rgba(35,18,12,.5)`,
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          animation: "hps-focus-in 320ms cubic-bezier(.2,.8,.2,1)",
+        }}
+      >
+        <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+          <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full p-[2.5px]" style={{ background: jewelGrad(pal) }}>
+            <span className="relative block h-full w-full overflow-hidden rounded-full border-[1.5px] border-white" style={{ background: jewelGrad(pal) }}>
+              <span className="absolute inset-[22%] block" dangerouslySetInnerHTML={{ __html: glyph }} />
+              {f.avatar && imgOk ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={f.avatar} alt="" className="absolute inset-0 h-full w-full object-cover" onError={() => setImgOk(false)} />
+              ) : null}
+            </span>
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-[14px] font-bold leading-tight" style={{ color: ink, fontFamily: POPPINS }}>{f.name}</span>
+              {f.live && <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: "#2E9E48" }} />}
+            </span>
+            {f.info && <span className="block truncate text-[11.5px] font-medium leading-snug" style={{ color: sub, fontFamily: POPPINS }}>{f.info}</span>}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={labels.profile}
+          className="relative inline-flex h-[34px] shrink-0 items-center overflow-hidden rounded-full px-2 text-[12px] font-bold text-white transition-transform duration-150 hover:-translate-y-px active:scale-95 min-[420px]:pl-3 min-[420px]:pr-1.5"
+          style={{ background: jewelGrad(pal), boxShadow: `0 5px 10px -4px ${pal[1]}, inset 0 0 0 1.5px rgba(255,255,255,.3)`, fontFamily: POPPINS }}
+        >
+          <span aria-hidden="true" className="pointer-events-none absolute inset-x-2 top-[2px] h-[45%] rounded-full" style={{ background: "linear-gradient(180deg,rgba(255,255,255,.45),rgba(255,255,255,0))" }} />
+          {/* Téléphone étroit : le chevron seul (le nom garde la place). */}
+          <span className="relative hidden min-[420px]:inline">{labels.profile}</span>
+          <svg className="relative" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 7l5 5-5 5" /></svg>
+        </button>
+        <button type="button" onClick={onClose} aria-label={labels.close} title={labels.close} className="group grid h-11 w-9 shrink-0 place-items-center">
+          <span className="grid h-[30px] w-[30px] place-items-center rounded-full transition-colors" style={{ background: dark ? "#2A2321" : "#FFFFFF", boxShadow: `inset 0 0 0 1px ${dark ? "rgba(255,255,255,.12)" : "rgba(120,40,30,.14)"}` }}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true" className="transition-colors" style={{ stroke: sub }}><path d="M7 7l10 10M17 7 7 17" /></svg>
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ── 25/09/2026 (PawMap 585) — la FICHE DU BAS ────────────────────────────────
 // Remplace les bulles Leaflet des membres : à 375 px elles passaient sous les
@@ -933,7 +1239,7 @@ function firstName(name: string): string {
   return (name || "").trim().split(/\s+/)[0] || name;
 }
 
-function PersonSheet({ sheet, setSheet, labels, roleLabels, wantedRoles, distanceFrom, friendSet, friendSeen, now, liveLabels, onAddFriend, onDirections, onMessage, onMessageMember, onFollow }: {
+function PersonSheet({ sheet, setSheet, labels, roleLabels, wantedRoles, distanceFrom, friendSet, friendSeen, now, liveLabels, onAddFriend, onDirections, onMessage, onMessageMember, onFollow, viewerRole }: {
   sheet: Sheet;
   setSheet: (s: Sheet | null) => void;
   labels: CardLabels;
@@ -949,6 +1255,8 @@ function PersonSheet({ sheet, setSheet, labels, roleLabels, wantedRoles, distanc
   onMessage?: (who: { id: string; role: string; name: string }) => void;
   onMessageMember?: (m: NearbyMember) => (() => void) | null;
   onFollow?: (p: FriendLivePosition) => void;
+  /** 590 (§1) — prix de l'autre côté du marché seulement dans les listes. */
+  viewerRole?: string;
 }) {
   const dist = (m: NearbyMember) => {
     const d = formatKm(distanceKmTo(m, distanceFrom), labels.lang);
@@ -969,7 +1277,7 @@ function PersonSheet({ sheet, setSheet, labels, roleLabels, wantedRoles, distanc
   // Une ligne « photo · prénom · rôle coloré · distance · Voir ».
   const RoleRow = ({ m, r, friend, onSee }: { m: NearbyMember; r: PersonRole; friend: boolean; onSee: () => void }) => {
     const k = roleKey(r.role);
-    const price = k !== "owner" ? formatPrice(r.priceFrom, r.currency) : null;
+    const price = k !== "owner" && showsPriceBubble(viewerRole, k) ? formatPrice(r.priceFrom, r.currency) : null;
     return (
       <li>
         <button type="button" onClick={onSee} className="flex min-h-[60px] w-full items-center gap-3 rounded-2xl bg-[#FDF8F7] px-2.5 py-2 text-left transition hover:bg-[#FAF1EC]">

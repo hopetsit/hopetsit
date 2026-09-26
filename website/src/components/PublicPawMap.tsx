@@ -32,7 +32,7 @@ import { safeFly } from "@/lib/safeFly";
 import { AppIcon } from "@/components/AppIcon";
 import { PawMapLegendModal } from "@/components/PawMapLegendModal";
 
-function memberIcon(p: PublicProvider, caption: string | null): L.DivIcon {
+function memberIcon(p: PublicProvider, caption: string | null, bubble: string | null): L.DivIcon {
   return L.divIcon({
     className: "",
     html: memberPinHtml({
@@ -40,6 +40,8 @@ function memberIcon(p: PublicProvider, caption: string | null): L.DivIcon {
       boosted: p.boosted,
       avatar: p.avatar || null,
       caption,
+      // 590 (§1) — visiteur = côté propriétaire : tarif dans une bulle au-dessus.
+      priceBubble: bubble,
       size: 46,
     }),
     iconSize: [46, 46],
@@ -182,8 +184,9 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
   const captionOf = (p: PublicProvider) => {
     if (!showCaption) return null;
     const first = (p.name || "").trim().split(/\s+/)[0];
-    return [first, roleLabel[p.role], formatPrice(p.priceFrom, p.currency)].filter(Boolean).join(" · ");
+    return first || roleLabel[p.role] || null;
   };
+  const bubbleOf = (p: PublicProvider) => (showCaption ? formatPrice(p.priceFrom, p.currency) : null);
 
   return (
     <div className="relative w-full overflow-hidden rounded-[28px]" style={{ height }}>
@@ -207,7 +210,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
           const bookHref = `/book/${p.role}/${p.id}`;
           const href = ready && user ? bookHref : `/signup?next=${encodeURIComponent(bookHref)}`;
           return (
-            <Marker key={`p-${p.id}`} position={[p.lat, p.lng]} icon={memberIcon(p, captionOf(p))} zIndexOffset={p.boosted ? PIN_Z.memberBoosted : PIN_Z.member}>
+            <Marker key={`p-${p.id}`} position={[p.lat, p.lng]} icon={memberIcon(p, captionOf(p), bubbleOf(p))} zIndexOffset={p.boosted ? PIN_Z.memberBoosted : PIN_Z.member}>
               <Popup autoPan>
                 <div style={{ minWidth: 200 }}>
                   <div className="flex items-center gap-3">

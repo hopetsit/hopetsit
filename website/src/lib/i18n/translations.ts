@@ -9772,3 +9772,7 @@ for (const code of Object.keys(BUDGET587) as Lang[]) Object.assign(t[code], BUDG
 // 26/09/2026 — PawMap 589 (site) : roue « Options de la carte », Actualiser, panneau en cartes, annonces, aide.
 import { PAWMAP589 } from "./pawmap589";
 for (const code of Object.keys(PAWMAP589) as Lang[]) Object.assign(t[code], PAWMAP589[code]);
+
+// 26/09/2026 — PawMap 590 (site) : carte focus, demande, pilule Direct off / En balade.
+import { MAP590 } from "./map590";
+for (const code of Object.keys(MAP590) as Lang[]) Object.assign(t[code], MAP590[code]);

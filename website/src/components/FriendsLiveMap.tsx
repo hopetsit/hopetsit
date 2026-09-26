@@ -134,6 +134,8 @@ export type FriendLivePosition = {
   state?: "live" | "lost";
   /** Dernier signe de vie du partage (ISO). */
   lastSeenAt?: string | null;
+  /** v590 — tracé de la balade en cours ([[lat, lng], …], serveur + socket). */
+  trail?: [number, number][];
 };
 
 function FitBoundsOnChange({

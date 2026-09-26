@@ -1,0 +1,19 @@
+// 26/09/2026 — PawMap 590 (site) : carte focus (Profil › / ✕), demande,
+// pilule « Direct off » / « En balade ». 9 langues, fusionné dans
+// translations.ts (même mécanisme que pawmap589.ts). Mêmes textes que l'app
+// (frontend/lib/localization/v565/pawmap590_i18n.dart).
+import type { Lang } from "./translations";
+
+type D = Record<string, string>;
+
+export const MAP590: Record<Lang, D> = {
+  fr: { m590_focus_profile: "Profil", m590_focus_close: "Fermer", m590_request: "Demande", m590_on_walk: "En balade", m590_direct_off: "Direct off", legend_spot_body: "Goutte noire, patte or, contour or et halo doré : un lieu marqué par la communauté. Toujours devant les autres lieux.", legend_spot_gold_body: "Goutte or, patte noire, contour blanc et petit éclat : un spot validé par la communauté." },
+  en: { m590_focus_profile: "Profile", m590_focus_close: "Close", m590_request: "Request", m590_on_walk: "On a walk", m590_direct_off: "Live off", legend_spot_body: "Black drop, gold paw, gold border and golden halo: a place tagged by the community. Always shown above other places.", legend_spot_gold_body: "Gold drop, black paw, white border and a small sparkle: a spot validated by the community." },
+  es: { m590_focus_profile: "Perfil", m590_focus_close: "Cerrar", m590_request: "Solicitud", m590_on_walk: "De paseo", m590_direct_off: "Directo off", legend_spot_body: "Gota negra, huella dorada, borde dorado y halo dorado: un lugar marcado por la comunidad. Siempre por delante de los demás lugares.", legend_spot_gold_body: "Gota dorada, huella negra, borde blanco y un pequeño destello: un spot validado por la comunidad." },
+  de: { m590_focus_profile: "Profil", m590_focus_close: "Schließen", m590_request: "Anfrage", m590_on_walk: "Unterwegs", m590_direct_off: "Live aus", legend_spot_body: "Schwarzer Tropfen, goldene Pfote, goldener Rand und goldener Schein: ein von der Community markierter Ort. Immer vor den anderen Orten.", legend_spot_gold_body: "Goldener Tropfen, schwarze Pfote, weißer Rand und kleiner Glanz: ein von der Community bestätigter Spot." },
+  it: { m590_focus_profile: "Profilo", m590_focus_close: "Chiudi", m590_request: "Richiesta", m590_on_walk: "In passeggiata", m590_direct_off: "Diretta off", legend_spot_body: "Goccia nera, zampa oro, bordo oro e alone dorato: un luogo segnalato dalla community. Sempre davanti agli altri luoghi.", legend_spot_gold_body: "Goccia oro, zampa nera, bordo bianco e piccolo bagliore: uno spot validato dalla community." },
+  pt: { m590_focus_profile: "Perfil", m590_focus_close: "Fechar", m590_request: "Pedido", m590_on_walk: "A passear", m590_direct_off: "Direto off", legend_spot_body: "Gota preta, pata dourada, contorno dourado e halo dourado: um lugar marcado pela comunidade. Sempre à frente dos outros lugares.", legend_spot_gold_body: "Gota dourada, pata preta, contorno branco e um pequeno brilho: um spot validado pela comunidade." },
+  ko: { m590_focus_profile: "프로필", m590_focus_close: "닫기", m590_request: "요청", m590_on_walk: "산책 중", m590_direct_off: "라이브 꺼짐", legend_spot_body: "검은 물방울, 금색 발자국, 금색 테두리와 금빛 후광: 커뮤니티가 표시한 장소. 다른 장소보다 항상 위에 표시돼요.", legend_spot_gold_body: "금색 물방울, 검은 발자국, 흰 테두리와 작은 반짝임: 커뮤니티가 인증한 스팟." },
+  ja: { m590_focus_profile: "プロフィール", m590_focus_close: "閉じる", m590_request: "依頼", m590_on_walk: "散歩中", m590_direct_off: "ライブオフ", legend_spot_body: "黒いしずく、金の肉球、金の縁と金色の光：コミュニティが登録した場所。ほかの場所より常に手前に表示。", legend_spot_gold_body: "金のしずく、黒い肉球、白い縁と小さなきらめき：コミュニティ認定スポット。" },
+  pl: { m590_focus_profile: "Profil", m590_focus_close: "Zamknij", m590_request: "Zlecenie", m590_on_walk: "Na spacerze", m590_direct_off: "Na żywo wył.", legend_spot_body: "Czarna kropla, złota łapa, złote obramowanie i złota poświata: miejsce oznaczone przez społeczność. Zawsze przed innymi miejscami.", legend_spot_gold_body: "Złota kropla, czarna łapa, białe obramowanie i mały błysk: spot potwierdzony przez społeczność." },
+};
