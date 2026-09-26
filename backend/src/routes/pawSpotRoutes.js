@@ -375,7 +375,9 @@ router.get('/nearby', requireAuth, async (req, res) => {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       return res.status(400).json({ error: 'lat & lng required.' });
     }
-    const maxDistance = Math.min(Number(req.query.radius) || 25000, 100000);
+    // v591 — l'app demande désormais la zone visible (jusqu'à 300 km) pour que
+    // les PawSpots restent visibles au dézoom ; les 200 plus proches ($near).
+    const maxDistance = Math.min(Number(req.query.radius) || 25000, 300000);
     const spots = await PawSpot.find({
       ...VISIBLE,
       location: {
