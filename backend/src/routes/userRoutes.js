@@ -94,6 +94,18 @@ const upload = multer({
  */
 router.get('/me/profile', requireAuth, getOwnerProfile);
 
+// v594 — profil PUBLIC d'un propriétaire (page ouverte depuis la PawMap).
+router.get('/owners/:id/public', requireAuth, async (req, res) => {
+  try {
+    const { ownerPublicProfile } = require('../utils/ownerPublic594');
+    const owner = await ownerPublicProfile(req.params.id);
+    if (!owner) return res.status(404).json({ error: 'Profil introuvable.' });
+    return res.json({ owner });
+  } catch (e) {
+    return res.status(500).json({ error: 'Profil indisponible.' });
+  }
+});
+
 // v414 — parité site web : le site PUT /users/me/profile (role-agnostic) pour
 // enregistrer nom/bio/préférences/2FA. Sans cette route, la requête tombait sur
 // `/:id/profile` avec id='me' → CastError → 400 "Invalid user id." On résout
