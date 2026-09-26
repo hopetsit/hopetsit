@@ -456,6 +456,11 @@ describe('amis — une amitié appartient à la personne', () => {
     const r = await request(app).get('/friends/requests');
     expect(r.body.outgoing).toHaveLength(1);
     expect(r.body.incoming).toHaveLength(0);
+    // v590 — la demande porte les ids des profils de la personne : l'app
+    // affiche « demande envoyée » sur ses autres profils aussi.
+    const ids = r.body.outgoing[0].other.personIds || [];
+    expect(ids.length).toBeGreaterThan(1);
+    expect(ids).toEqual(expect.arrayContaining([String(ID.ownerL), String(ID.walkerL)]));
   });
 
   test('retirer un ami marche depuis n’importe lequel de mes profils', async () => {

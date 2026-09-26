@@ -1687,6 +1687,11 @@ router.get('/requests', requireAuth, async (req, res) => {
         e.other.activeRole = entry.activeRole
           || String(e.other.model || '').toLowerCase();
         e.other.roles = entry.roles;
+        // v590 — Daniel : « une fois la demande d'ami envoyée à la personne,
+        // ça inclut les 3 rôles ». Sans ces ids, l'app ne reconnaissait la
+        // demande que sur le profil visé et reproposait « Ajouter en ami » sur
+        // ses autres profils (FriendProfile.matchesId lit `personIds`).
+        e.other.personIds = entry.ids;
       }
     }
 
