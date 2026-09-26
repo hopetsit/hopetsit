@@ -1962,7 +1962,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         // _userPosition reste toujours MA position (overlay perso).
         _userPosition = myCenter;
         // _currentCenter ne bouge que si on n'a pas de focus explicite.
-        if (!hasInitialFocus) {
+        if (!hasInitialFocus && !_userMovedMap) {
           _currentCenter = myCenter;
           _saveLastCamera(myCenter, _zoomLevel);
         }
@@ -1973,7 +1973,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       // the map widget never builds (e.g. user switched tabs immediately).
       // v240 — on anime la camera vers MA position UNIQUEMENT si pas de
       // focus initial (sinon on reste sur le sitter/walker/ami).
-      if (!hasInitialFocus) {
+      if (!hasInitialFocus && !_userMovedMap) {
         try {
           final ctl = await _mapCtl.future.timeout(
             const Duration(seconds: 6),
@@ -5167,8 +5167,16 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v587 — vrai geste sur la carte (glisser > 12 px, pincer).
   final PawMapDragWatch _dragWatch = PawMapDragWatch();
 
+  /// v593 — Daniel : « quand je zoome et je cherche un point, ça me renvoie à
+  /// ma position ». Le 1er fix GPS peut arriver jusqu'à ~23 s après
+  /// l'ouverture (_bootstrap) et recentrait la carte même si l'utilisateur
+  /// l'avait déjà déplacée ou zoomée. Dès le 1er geste, plus de recentrage
+  /// automatique au démarrage.
+  bool _userMovedMap = false;
+
   void _onMapPointerDown(PointerDownEvent e) {
     if (_dragWatch.down(e.position)) {
+      _userMovedMap = true;
       _pauseFollow();
       if (_focusCard.value != null) _clearFocus();
     }
@@ -5177,6 +5185,7 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   void _onMapPointerMove(PointerMoveEvent e) {
     if (_dragWatch.move(e.position)) {
+      _userMovedMap = true;
       _pauseFollow();
       // v590 — début de déplacement : le focus s'annule (handoff §2).
       if (_focusCard.value != null) _clearFocus();
@@ -6151,6 +6160,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   Future<void> _zoomIn() async {
     final ctl = await _activeMapCtl();
     if (ctl == null) return;
+    _userMovedMap = true;
     // Zoomer ne coupe pas le suivi (seul un vrai geste le met en pause).
     _fade.pulse();
     await ctl.animateCamera(CameraUpdate.zoomBy(0.8));
@@ -6159,6 +6169,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   Future<void> _zoomOut() async {
     final ctl = await _activeMapCtl();
     if (ctl == null) return;
+    _userMovedMap = true;
     _fade.pulse();
     await ctl.animateCamera(CameraUpdate.zoomBy(-0.8));
   }
