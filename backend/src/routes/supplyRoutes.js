@@ -156,5 +156,88 @@ router.get('/city', async (req, res) => {
   }
 });
 
+/**
+ * 26/09/2026 (SAM, carte blanche de Daniel) — DES VISAGES, PAS SEULEMENT UN NOMBRE.
+ *
+ * Mesure : /garde-animaux/paris, 224 visiteurs en 7 jours (pub Meta) → 3 clics
+ * « Publier ma demande ». La phrase « 9 gardiens déjà inscrits » ne suffit pas :
+ * on montre 3 vrais prestataires autour de la ville.
+ *
+ * Vie privée : on ne renvoie QUE ce que la fiche publique /p/<rôle>/<id>
+ * (GET /sitters/:id, /walkers/:id) montre déjà à tout le monde : prénom,
+ * photo, ville déclarée, note. Jamais le nom de famille, l'e-mail, la date de
+ * naissance ni une position. Mêmes exclusions que le comptage, et seulement
+ * les profils AVEC une photo (sans photo, une carte ne prouve rien).
+ *
+ * GET /api/v1/supply/city/faces?city=Paris[&limit=3]
+ *   → { city, faces: [{ id, role, firstName, photo, city, rating, verified }] }
+ */
+router.get('/city/faces', async (req, res) => {
+  try {
+    const city = baseCityName(String(req.query.city || '').trim().slice(0, 80));
+    if (!city) return res.status(400).json({ error: 'city required' });
+    const limit = Math.min(6, Math.max(1, parseInt(req.query.limit, 10) || 3));
+    const key = `faces|${city.toLowerCase()}|${limit}`;
+    const cached = _cacheGet(key);
+    if (cached) return res.json(cached);
+
+    const Sitter = require('../models/Sitter');
+    const Walker = require('../models/Walker');
+    const rx = cityRegex(city);
+    const or = [];
+    if (rx) or.push({ 'location.city': rx }, { city: rx }, { coverageCity: rx });
+    const g = await geocodeCity(city).catch(() => null);
+    if (g && Number.isFinite(g.lat) && Number.isFinite(g.lng)) {
+      or.push({ location: { $geoWithin: { $centerSphere: [[g.lng, g.lat], DEFAULT_RADIUS_KM / 6371] } } });
+    }
+    const filtre = { ...EXCLUS, 'avatar.url': { $regex: /^https:\/\// }, $or: or };
+    const champs = 'firstName name avatar city location.city coverageCity averageRating rating kycStatus verified createdAt';
+
+    const lire = async (Model, role) => {
+      let docs;
+      try {
+        docs = await Model.find(filtre).select(champs).sort({ kycStatus: -1, averageRating: -1, createdAt: 1 }).limit(12).lean();
+      } catch (e) {
+        // Index géographique absent : on retombe sur le nom de ville seul.
+        if (!rx) return [];
+        docs = await Model.find({ ...EXCLUS, 'avatar.url': { $regex: /^https:\/\// }, $or: or.filter((o) => !o.location) })
+          .select(champs).sort({ averageRating: -1, createdAt: 1 }).limit(12).lean();
+      }
+      return docs.map((d) => ({
+        id: String(d._id),
+        role,
+        firstName: String(d.firstName || d.name || '').trim().split(/\s+/)[0].slice(0, 24),
+        photo: d.avatar && d.avatar.url,
+        city: String((d.location && d.location.city) || d.city || d.coverageCity || city).slice(0, 40),
+        rating: Math.round((Number(d.averageRating || d.rating) || 0) * 10) / 10,
+        verified: d.kycStatus === 'verified',
+      })).filter((f) => f.firstName && f.photo);
+    };
+
+    const [s, w] = await Promise.all([lire(Sitter, 'sitter'), lire(Walker, 'walker')]);
+    // Vérifiés d'abord, puis en alternant gardiens et promeneurs.
+    const rang = (f) => (f.verified ? 0 : 1);
+    s.sort((a, b) => rang(a) - rang(b)); w.sort((a, b) => rang(a) - rang(b));
+    const faces = [];
+    const vus = new Set();
+    for (let i = 0; faces.length < limit && (i < s.length || i < w.length); i += 1) {
+      for (const f of [s[i], w[i]]) {
+        if (!f || faces.length >= limit) continue;
+        const k = `${f.firstName.toLowerCase()}|${f.photo}`;
+        if (vus.has(k)) continue; // la même personne peut avoir 2 rôles
+        vus.add(k);
+        faces.push(f);
+      }
+    }
+    const out = { city, faces };
+    _cacheSet(key, out);
+    res.set('Cache-Control', 'public, max-age=600');
+    return res.json(out);
+  } catch (e) {
+    logger.error('[supply/city/faces]', e);
+    return res.status(500).json({ error: 'Unable to load providers.' });
+  }
+});
+
 module.exports = router;
 module.exports.cityRegex = cityRegex;
