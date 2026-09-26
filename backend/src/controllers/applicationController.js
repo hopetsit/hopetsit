@@ -473,6 +473,20 @@ const createApplication = async (req, res) => {
     if (typeof postId === 'string' && /^[a-fA-F0-9]{24}$/.test(postId.trim())) {
       normalizedPostId = postId.trim();
     }
+    // v591 — audit du 26/09 : on pouvait candidater sur une annonce déjà
+    // réservée ou terminée. Refus clair (l'app affiche le message d'erreur).
+    if (normalizedPostId) {
+      try {
+        const target = await require('../models/Post').findById(normalizedPostId)
+          .select('status reservedBy').lean();
+        if (target && (target.status === 'closed' || (target.reservedBy && target.reservedBy.bookingId))) {
+          return res.status(409).json({
+            error: 'This request has already been booked.',
+            code: 'POST_UNAVAILABLE',
+          });
+        }
+      } catch (_) { /* non bloquant */ }
+    }
 
     // v587 (point 8) — le lieu choisi par le propriétaire dans son annonce
     // (chez moi / chez le gardien / récupérer chez moi / point de rendez-vous)

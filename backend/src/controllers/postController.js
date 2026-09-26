@@ -237,6 +237,19 @@ const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner
               postLat = g.lat;
               postLng = g.lng;
               hasPostCoords = true;
+              // v591 — audit du 26/09 : ces coordonnées n'étaient gardées que
+              // pour la notification ; l'annonce « ville seule » (tout le site,
+              // l'app quand la ville est tapée à la main) n'apparaissait sur
+              // AUCUNE carte et partait chez des prestataires du monde entier.
+              // On les enregistre dans l'annonce.
+              if (newPost && newPost._id) {
+                try {
+                  await require('../models/Post').updateOne(
+                    { _id: newPost._id },
+                    { $set: { 'location.lat': g.lat, 'location.lng': g.lng, 'location.geocoded': true } },
+                  );
+                } catch (_) { /* non bloquant */ }
+              }
             }
           } catch (_) { /* non bloquant : on garde le nom de ville */ }
         }
@@ -1143,6 +1156,9 @@ const getNearbyRequestPosts = async (req, res) => {
     // status est absent sur les anciennes annonces → toujours affichées ; seules
     // celles fermées par completeBooking sont masquées.
     const filter = { postType: 'request', hidden: { $ne: true }, status: { $ne: 'closed' } };
+    // v591 — audit du 26/09 : une annonce déjà réservée restait proposée comme
+    // libre sur la PawMap (l'accueil, lui, affiche le badge « réservé »).
+    filter['reservedBy.bookingId'] = { $in: [null] };
 
     // Sitter service-preference filter (mirrors getRequestPosts).
     if (req.user?.role === 'sitter') {
@@ -1780,9 +1796,11 @@ const createPostWithMedia = async (req, res) => {
       postPayload.houseSittingVenue = normalizedVenue;
     }
 
-    if (Array.isArray(petIds) && petIds.length > 0) {
-      postPayload.petIds = petIds;
-      postPayload.petId = petIds[0];
+    // v591 — audit du 26/09 : `petIds` peut arriver en texte JSON (multipart).
+    const petIdList = require('../utils/petIdList591').parsePetIds(petIds);
+    if (petIdList.length > 0) {
+      postPayload.petIds = petIdList;
+      postPayload.petId = petIdList[0];
     } else if (petId) {
       postPayload.petId = petId;
       postPayload.petIds = [petId];
