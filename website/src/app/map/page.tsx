@@ -1461,7 +1461,7 @@ export default function MapPage() {
         <div className="flex min-w-0 items-center gap-3">
           <BackLink href="/dashboard" label={t("nav_dashboard")} />
           <h1 className="flex items-center gap-2.5 font-display text-2xl font-bold tracking-[-0.02em] text-[#231715] md:text-3xl">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style={{ background: "linear-gradient(165deg,#F26A46 0%,#DD4430 45%,#C7311F 100%)", boxShadow: "0 6px 16px rgba(221,68,48,0.32)" }}>
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style={{ background: "linear-gradient(165deg,#F26A46 0%,#C92A12 45%,#C7311F 100%)", boxShadow: "0 6px 16px rgba(221,68,48,0.32)" }}>
               <PawMapLogo size={30} title={null} />
             </span>
             <span className="truncate">PawMap</span>
@@ -1776,7 +1776,7 @@ export default function MapPage() {
               {isOwner ? (
                 <Link href="/posts/create" title={t("m586_publish_long")} aria-label={t("m586_publish_long")} className="hps-jewel flex flex-col items-center">
                   <span className="grid h-11 w-11 place-items-center">
-                    <span className="hps-jewel-disc relative grid h-10 w-10 place-items-center rounded-full" style={{ background: "linear-gradient(170deg,#FF8A66 -20%,#E8452F 40%,#B8231A 100%)", boxShadow: "inset 0 0 0 1.5px rgba(255,255,255,.3), inset 0 -3px 5px rgba(23,12,8,.22), 0 0 0 1px rgba(23,12,8,.12), 0 6px 12px -5px #E8452FCC" }}>
+                    <span className="hps-jewel-disc relative grid h-10 w-10 place-items-center rounded-full" style={{ background: "linear-gradient(170deg,#D9442C -20%,#C92A12 40%,#B8231A 100%)", boxShadow: "inset 0 0 0 1.5px rgba(255,255,255,.3), inset 0 -3px 5px rgba(23,12,8,.22), 0 0 0 1px rgba(23,12,8,.12), 0 6px 12px -5px #C92A12CC" }}>
                       <span aria-hidden="true" className="pointer-events-none absolute" style={{ left: 5, right: 5, top: 3, height: "45%", borderRadius: "50% 50% 45% 45%", background: "linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0))" }} />
                       <span className="relative grid place-items-center"><PawSymbol name="campaign" size={21} gradient /></span>
                       <span aria-hidden="true" className="absolute -right-1 -top-1 grid h-[17px] w-[17px] place-items-center rounded-full bg-white" style={{ boxShadow: "inset 0 0 0 1.4px #D8352A, 0 2px 5px -1px rgba(146,31,11,0.45)" }}>
@@ -1909,7 +1909,7 @@ export default function MapPage() {
             « Mes abonnements sur la carte », puis les listes. Aucune fonction
             retirée. */}
         <aside
-          className={`fixed inset-x-0 bottom-0 z-[1500] flex flex-col rounded-t-[28px] bg-[#FFF8F4] shadow-[0_-10px_40px_-10px_rgba(35,23,21,0.35)] transition-[height,box-shadow] duration-300 ${sheetH} lg:static lg:z-auto lg:h-[calc(100vh-230px)] lg:min-h-[560px] lg:rounded-[28px] lg:bg-[#FAF1EC] ${optionsFlash ? "lg:shadow-[0_0_0_3px_#D83C28,0_18px_40px_-18px_rgba(185,36,37,0.6)]" : "lg:shadow-none"}`}
+          className={`fixed inset-x-0 bottom-0 z-[1500] flex flex-col rounded-t-[28px] bg-[#FFF8F4] shadow-[0_-10px_40px_-10px_rgba(35,23,21,0.35)] transition-[height,box-shadow] duration-300 ${sheetH} lg:static lg:z-auto lg:h-[calc(100vh-230px)] lg:min-h-[560px] lg:rounded-[28px] lg:bg-[#FAF1EC] ${optionsFlash ? "lg:shadow-[0_0_0_3px_#C92A12,0_18px_40px_-18px_rgba(185,36,37,0.6)]" : "lg:shadow-none"}`}
          style={fitH && typeof window !== "undefined" && window.innerWidth >= 1024 ? { height: fitH } : undefined}>
           {/* Poignée (téléphone, tablette) : glisser vers le bas = ranger,
               vers le haut = agrandir ; un clic alterne moitié / plein écran. */}
@@ -1925,7 +1925,7 @@ export default function MapPage() {
           </button>
           {/* En-tête : roue orange + « Options de la carte » + croix. */}
           <div className="flex shrink-0 items-center gap-3 px-4 pb-2 pt-2 lg:px-5 lg:pt-5">
-            <span className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full" style={{ background: "linear-gradient(165deg,#E2503A 0%,#D83C28 50%,#B92425 100%)", border: "1.5px solid #FFFFFF", boxShadow: "0 6px 14px -6px rgba(185,36,37,0.8)" }}>
+            <span className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full" style={{ background: "linear-gradient(165deg,#C92A12 0%,#C92A12 50%,#9E1F0B 100%)", border: "1.5px solid #FFFFFF", boxShadow: "0 6px 14px -6px rgba(185,36,37,0.8)" }}>
               <GearIcon size={20} />
             </span>
             <h2 className="min-w-0 flex-1 font-display text-[18px] font-bold leading-tight tracking-[-0.01em] text-[#231715]">{t("p589_options")}</h2>
@@ -1938,7 +1938,7 @@ export default function MapPage() {
             {/* BOUTON PRINCIPAL : propriétaire → « Publier » ; les 3 profils →
                 la ligne du direct (il se lance dans l'app). */}
             {isOwner && (
-              <Link href="/posts/create" className="mb-2.5 flex min-h-[52px] items-center gap-3 rounded-2xl p-2.5 pr-3 text-left text-white transition hover:brightness-105" style={{ background: "linear-gradient(90deg,#E2503A,#D83C28 55%,#B92425)", boxShadow: "0 12px 24px -14px #B92425" }}>
+              <Link href="/posts/create" className="mb-2.5 flex min-h-[52px] items-center gap-3 rounded-2xl p-2.5 pr-3 text-left text-white transition hover:brightness-105" style={{ background: "linear-gradient(90deg,#C92A12,#C92A12 55%,#9E1F0B)", boxShadow: "0 12px 24px -14px #9E1F0B" }}>
                 <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "rgba(255,255,255,0.18)", border: "1.5px solid #FFFFFF" }}><AppIcon name="megaphone" size={18} color="#fff" /></span>
                 <span className="min-w-0 flex-1 text-sm font-bold">{t("m586_publish_long")}</span>
                 <AppIcon name="arrow-right" size={16} color="#FFFFFF" />
@@ -2484,7 +2484,7 @@ function glassStyle(dark: boolean): React.CSSProperties {
   return barGlass(dark);
 }
 const ROLE_GRAD_BTN: Record<string, string> = {
-  owner: "linear-gradient(165deg,#E0553F,#B92425)",
+  owner: "linear-gradient(165deg,#E0553F,#9E1F0B)",
   sitter: "linear-gradient(165deg,#3B7BE6,#1E4FB0)",
   walker: "linear-gradient(165deg,#34B857,#15803D)",
 };

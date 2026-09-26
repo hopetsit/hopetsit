@@ -440,7 +440,7 @@ type Focus = {
 
 // §9 — palettes « bijou » des rôles (clair, moyen, foncé) + rose ami.
 const JEWEL_ROLE: Record<string, [string, string, string]> = {
-  owner: ["#FF8A66", "#E8452F", "#B8231A"],
+  owner: ["#D9442C", "#C92A12", "#B8231A"],
   sitter: ["#8AB8FF", "#3B78E8", "#1F4FBF"],
   walker: ["#7FE39A", "#2E9E48", "#1D7A34"],
   friend: ["#F47BB2", "#E35A9A", "#D6377F"],
@@ -1012,7 +1012,7 @@ export default function PoiMap({
               {openReq.locationLabel && <div className="mt-0.5 text-xs font-semibold text-ink">📍 {openReq.locationLabel}</div>}
               {openReq.body && <div className="mt-1 line-clamp-3 text-xs text-ink-muted">{openReq.body}</div>}
               {!openReq.mine && onOfferService && requestLabels && (
-                <button type="button" onClick={() => onOfferService(openReq.id)} className="mt-2 flex min-h-[40px] w-full items-center justify-center rounded-full px-3 text-xs font-bold text-white" style={{ background: `linear-gradient(90deg, #D83C28, #B92425)` }}>
+                <button type="button" onClick={() => onOfferService(openReq.id)} className="mt-2 flex min-h-[40px] w-full items-center justify-center rounded-full px-3 text-xs font-bold text-white" style={{ background: `linear-gradient(90deg, #C92A12, #9E1F0B)` }}>
                   {requestLabels.offer}
                 </button>
               )}
@@ -1215,7 +1215,7 @@ function FocusCard({ f, labels, dark, top, faded, onClose, onOpen }: { f: Focus;
 
 const ROLE_DARK: Record<string, string> = { owner: "#9E1F0B", sitter: "#1E4FB0", walker: "#15803D" };
 const ROLE_GRAD: Record<string, string> = {
-  owner: "linear-gradient(90deg,#D83C28,#B92425)",
+  owner: "linear-gradient(90deg,#C92A12,#9E1F0B)",
   sitter: "linear-gradient(90deg,#2F6FD6,#1E4FB0)",
   walker: "linear-gradient(90deg,#2FAE4E,#15803D)",
 };

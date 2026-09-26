@@ -25,7 +25,7 @@ export type SignatureTone = "owner" | "sitter" | "walker" | "follow" | "boost" |
 export type SignatureKind = "primary" | "secondary" | "link";
 
 const TONES: Record<SignatureTone, { a: string; b: string; ink: string; pale: string; text?: string }> = {
-  owner:   { a: "#D83C28", b: "#B92425", ink: "#8A1D0C", pale: "#FCE4DC" },
+  owner:   { a: "#C92A12", b: "#9E1F0B", ink: "#8A1D0C", pale: "#FCE4DC" },
   sitter:  { a: "#2F6FD6", b: "#1E4FB0", ink: "#173F8F", pale: "#DDEAFB" },
   walker:  { a: "#2FAE4E", b: "#15803D", ink: "#0F6B33", pale: "#DCEFE3" },
   follow:  { a: "#8F5CF2", b: "#6A2FD6", ink: "#4C1FA3", pale: "#E9DDFB" },

@@ -90,7 +90,7 @@ export function AppRoutePage({
             <button
               type="button"
               onClick={openApp}
-              className="w-full rounded-full bg-[#D83C28] px-6 py-3 text-sm font-semibold text-white transition hover:brightness-105"
+              className="w-full rounded-full bg-[#C92A12] px-6 py-3 text-sm font-semibold text-white transition hover:brightness-105"
             >
               {t("approute_open")}
             </button>

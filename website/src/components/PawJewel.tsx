@@ -27,12 +27,12 @@ export const JEWEL = {
   route: ["#5FCC79", "#2E9E48", "#1D7A34"],
   around: ["#B08CFF", "#7B4DE0", "#5A30BF"],
   /** Les 4 boutons du haut à droite : rouges pour les 3 rôles. */
-  header: ["#FF8A66", "#E8452F", "#B8231A"],
+  header: ["#D9442C", "#C92A12", "#B8231A"],
 } as const satisfies Record<string, JewelPalette>;
 
 /** §9 — couleurs des rôles (viseur, flèches, bouton principal). */
 export const JEWEL_ROLE: Record<"owner" | "sitter" | "walker", JewelPalette> = {
-  owner: ["#FF8A66", "#E8452F", "#B8231A"],
+  owner: ["#D9442C", "#C92A12", "#B8231A"],
   sitter: ["#8AB8FF", "#3B78E8", "#1F4FBF"],
   walker: ["#7FE39A", "#2E9E48", "#1D7A34"],
 };

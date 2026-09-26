@@ -159,7 +159,7 @@ export default async function AlertPage({
             style={
               report.isSos
                 ? { background: "#FBEAE8", color: "#CE3B2C" }
-                : { background: "#FCEDE4", color: "#D83C28" }
+                : { background: "#FCEDE4", color: "#C92A12" }
             }
           >
             <span>{emoji}</span>

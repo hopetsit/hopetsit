@@ -306,7 +306,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
       {compact && (
         <Link
           href="/pawmap"
-          className="absolute bottom-3 right-3 z-[1000] inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#D83C28] px-5 text-sm font-bold text-white shadow-lg transition hover:bg-[#B92425]"
+          className="absolute bottom-3 right-3 z-[1000] inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#C92A12] px-5 text-sm font-bold text-white shadow-lg transition hover:bg-[#9E1F0B]"
         >
           {t("cta_open_pawmap")}
           <AppIcon name="arrow-right" size={16} color="#fff" />

@@ -46,8 +46,8 @@ export function PawMapCTA({
       aria-label={t("cta_open_pawmap")}
       className={
         "inline-flex items-center justify-center whitespace-nowrap rounded-full " +
-        "bg-[#D83C28] font-bold text-white shadow-lg transition " +
-        "hover:bg-[#B92425] hover:-translate-y-0.5 hover:shadow-xl " +
+        "bg-[#C92A12] font-bold text-white shadow-lg transition " +
+        "hover:bg-[#9E1F0B] hover:-translate-y-0.5 hover:shadow-xl " +
         sizeCls +
         (className ? " " + className : "")
       }

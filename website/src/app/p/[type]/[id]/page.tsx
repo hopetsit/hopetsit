@@ -81,7 +81,7 @@ function OwnerSharePage({ id }: { id: string }) {
   return (
     <div className="mx-auto max-w-lg px-4 py-8 md:py-14">
       <section className="rounded-[28px] bg-white p-6 text-center shadow-[0_18px_50px_-22px_rgba(35,23,21,0.35)] ring-1 ring-[#F3E6E1]">
-        <span className="mx-auto grid h-20 w-20 place-items-center rounded-full" style={{ background: "linear-gradient(160deg,#D83C28,#B92425)", boxShadow: "0 0 0 3px #fff, 0 0 0 6px #C92A12" }}>
+        <span className="mx-auto grid h-20 w-20 place-items-center rounded-full" style={{ background: "linear-gradient(160deg,#C92A12,#9E1F0B)", boxShadow: "0 0 0 3px #fff, 0 0 0 6px #C92A12" }}>
           <AppIcon name="paw" size={34} color="#fff" />
         </span>
         <h1 className="mt-4 font-display text-[1.5rem] font-bold leading-tight tracking-[-0.02em] text-[#231715]">{t("m586_owner_title")}</h1>

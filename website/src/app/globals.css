@@ -220,7 +220,7 @@ html[data-wp="auto"][data-pet="mix"]    body::before { --wp-mask: var(--wp-dog);
   padding: 6px 10px; border-radius: 10px; pointer-events: none;
 }
 .hps-pill { background: #FCE4DC; }
-.hps-pill[aria-pressed="true"] { background: linear-gradient(90deg, #D83C28, #B92425); }
+.hps-pill[aria-pressed="true"] { background: linear-gradient(90deg, #C92A12, #9E1F0B); }
 .hps-pill[data-tone="sitter"] { background: #DDEAFB; color: #173F8F; }
 .hps-pill[data-tone="sitter"][aria-pressed="true"] { background: linear-gradient(90deg, #2F6FD6, #1E4FB0); color: #fff; }
 .hps-pill[data-tone="walker"] { background: #DCEFE3; color: #0F6B33; }

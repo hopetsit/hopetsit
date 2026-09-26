@@ -81,7 +81,7 @@ export function PawMapAnnouncement({ enabled, dark = false }: { enabled: boolean
         onClick={(e) => e.stopPropagation()}
       >
         {/* Bandeau orange dégradé + icône. */}
-        <div className="relative flex items-center gap-3 px-5 pb-4 pt-5" style={{ background: "linear-gradient(90deg,#E2503A 0%,#D83C28 55%,#B92425 100%)" }}>
+        <div className="relative flex items-center gap-3 px-5 pb-4 pt-5" style={{ background: "linear-gradient(90deg,#C92A12 0%,#C92A12 55%,#9E1F0B 100%)" }}>
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full" style={{ background: "rgba(255,255,255,0.18)", border: "1.5px solid #FFFFFF", boxShadow: "0 8px 18px -8px rgba(80,14,6,0.7)" }}>
             {isLink ? (
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -106,7 +106,7 @@ export function PawMapAnnouncement({ enabled, dark = false }: { enabled: boolean
             type="button"
             onClick={primary}
             className="relative mt-5 inline-flex min-h-[50px] w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] px-5 text-[15px] font-bold text-white transition hover:brightness-105 active:scale-[0.98]"
-            style={{ background: "linear-gradient(90deg,#E2503A,#D83C28 55%,#B92425)", boxShadow: "0 12px 24px -12px #B92425" }}
+            style={{ background: "linear-gradient(90deg,#C92A12,#C92A12 55%,#9E1F0B)", boxShadow: "0 12px 24px -12px #9E1F0B" }}
           >
             {isLink ? t("p589_announce_open") : t("p589_announce_ok")}
             {isLink && <AppIcon name="arrow-right" size={17} color="#FFFFFF" />}

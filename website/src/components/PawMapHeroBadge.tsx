@@ -8,7 +8,7 @@ import { PawMapLogo } from "@/components/PawMapLogo";
  *
  * Reprend la scène de l'écran d'ouverture de l'app
  * (`docs/design_handoff_pawmap_tab_bar/Splash Screen.dc.html`) : tuile au
- * dégradé orange 165° #F26A46 → #DD4430 → #C7311F, la patte-pin qui surgit
+ * dégradé orange 165° #F26A46 → #C92A12 → #C7311F, la patte-pin qui surgit
  * (pinIn), ses 4 doigts qui sortent en cascade, puis un flottement lent. Deux
  * ondes blanches partent de l'épingle, comme un radar. Tout est coupé si le
  * visiteur demande moins d'animations.
@@ -19,7 +19,7 @@ export function PawMapHeroBadge({ className = "" }: { className?: string }) {
 @keyframes pmh-float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
 @keyframes pmh-ring { 0% { transform: scale(.55); opacity: .55 } 100% { transform: scale(1.25); opacity: 0 } }
 @keyframes pmh-glow { 0%,100% { box-shadow: 0 24px 60px rgba(221,68,48,.35) } 50% { box-shadow: 0 30px 80px rgba(221,68,48,.55) } }
-.pmh-tile { background: linear-gradient(165deg,#F26A46 0%,#DD4430 45%,#C7311F 100%); box-shadow: 0 24px 60px rgba(221,68,48,.35); }
+.pmh-tile { background: linear-gradient(165deg,#F26A46 0%,#C92A12 45%,#C7311F 100%); box-shadow: 0 24px 60px rgba(221,68,48,.35); }
 .pmh-ring { opacity: 0; }
 @media (prefers-reduced-motion: no-preference) {
   .pmh-tile { animation: pmh-glow 3.2s ease-in-out 1.6s infinite; }
