@@ -8,6 +8,30 @@ const logger = require('./logger');
 
 const SESSION_GAP_MS = 30 * 60 * 1000;
 const _seen = new Map(); // userId → dernier passage (ms)
+// v594 — Daniel (26/09) : son frère, actif le jour même, restait « Vu il y a
+// 5 j » sur la PawMap. `lastSeenAt` n'était écrit qu'à la déconnexion du
+// socket de chat — jamais quand le serveur redémarre (chaque mise en ligne)
+// ni quand le téléphone coupe l'app. On le pose aussi sur l'activité réelle,
+// sur les 3 profils de la personne, au plus toutes les 5 minutes.
+const TOUCH_GAP_MS = 5 * 60 * 1000;
+const _touched = new Map(); // userId → dernière écriture de lastSeenAt (ms)
+
+async function touchLastSeen(id, now) {
+  const last = _touched.get(id);
+  if (last && now - last < TOUCH_GAP_MS) return;
+  _touched.set(id, now);
+  if (_touched.size > 50000) _touched.clear();
+  try {
+    const { identityGroup } = require('./identityGroup');
+    const g = await identityGroup(id);
+    const ids = g && Array.isArray(g.ids) && g.ids.length ? g.ids : [id];
+    const at = new Date(now);
+    await Promise.all(Object.values(MODEL_PATH).map((mp) =>
+      require(mp).updateMany({ _id: { $in: ids } }, { $set: { lastSeenAt: at } })));
+  } catch (e) {
+    logger.warn(`[activity] lastSeenAt ${e?.message || e}`);
+  }
+}
 
 const MODEL_PATH = { owner: '../models/Owner', sitter: '../models/Sitter', walker: '../models/Walker' };
 
@@ -24,6 +48,7 @@ function isNewSession(last, now, gap = SESSION_GAP_MS) {
 async function recordActivity(req, userId, role, now = Date.now()) {
   const id = String(userId || '');
   if (!id || !MODEL_PATH[role]) return null;
+  touchLastSeen(id, now).catch(() => {});
   const last = _seen.get(id);
   _seen.set(id, now);
   if (!isNewSession(last, now)) return null;
@@ -97,4 +122,4 @@ async function userSessions(userId, limit = 30) {
   return ActivityEvent.find({ userId: String(userId) }).sort({ at: -1 }).limit(limit).lean();
 }
 
-module.exports = { recordActivity, activitySummary, userSessions, isNewSession, SESSION_GAP_MS, _seen };
+module.exports = { recordActivity, touchLastSeen, activitySummary, userSessions, isNewSession, SESSION_GAP_MS, _seen };
