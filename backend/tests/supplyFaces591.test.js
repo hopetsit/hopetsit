@@ -51,3 +51,19 @@ test('ville absente → 400', async () => {
   const r = await request(app).get('/supply/city/faces');
   expect(r.status).toBe(400);
 });
+
+test('jamais un identifiant ni un nom de famille probable comme prénom ; la ville même d abord', async () => {
+  await Sitter.deleteMany({}); await Walker.deleteMany({});
+  await creer(Walker, { name: 'liliachehri', firstName: '' });
+  await creer(Sitter, { name: 'fievet', firstName: '', city: 'Courbevoie', location: { type: 'Point', coordinates: [2.25, 48.9], city: 'Courbevoie' } });
+  await creer(Sitter, { name: 'Savin', firstName: '', city: 'Bois-d Arcy', location: { type: 'Point', coordinates: [2.03, 48.8], city: 'Bois-d Arcy' } });
+  await creer(Walker, { name: 'christine dupont', firstName: '' });
+  await creer(Sitter, { name: 'Sasha', firstName: '' });
+  const r = await request(app).get('/supply/city/faces?city=Paris&limit=6');
+  const noms = r.body.faces.map((f) => f.firstName);
+  expect(noms).not.toContain('liliachehri');
+  expect(noms).not.toContain('fievet');
+  expect(noms).toContain('Christine');
+  expect(noms.slice(0, 2).sort()).toEqual(['Christine', 'Sasha']);
+  expect(JSON.stringify(r.body)).not.toMatch(/_memeVille|_prenomSur|dupont/i);
+});

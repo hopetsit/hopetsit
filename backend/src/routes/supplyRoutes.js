@@ -172,6 +172,24 @@ router.get('/city', async (req, res) => {
  * GET /api/v1/supply/city/faces?city=Paris[&limit=3]
  *   → { city, faces: [{ id, role, firstName, photo, city, rating, verified }] }
  */
+/**
+ * Le prénom à afficher, ou '' si on n'en a pas de fiable. Beaucoup de comptes
+ * n'ont que `name` : « liliachehri » (identifiant collé) ou « fievet » (nom de
+ * famille probable) ne doivent pas s'afficher comme prénom.
+ */
+function prenomAffichable(d) {
+  const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  const propre = (t) => /^[A-Za-zÀ-ÖØ-öø-ÿ'-]{2,20}$/.test(t);
+  const fn = String(d.firstName || '').trim().split(/\s+/)[0];
+  if (fn && propre(fn)) return cap(fn);
+  const mots = String(d.name || '').trim().split(/\s+/).filter(Boolean);
+  if (mots.length >= 2 && propre(mots[0])) return cap(mots[0]);
+  // Un seul mot : accepté seulement s'il a été écrit avec une majuscule
+  // (« Sasha »), jamais un identifiant tout en minuscules.
+  if (mots.length === 1 && propre(mots[0]) && /^[A-ZÀ-Ö]/.test(mots[0]) && mots[0].length <= 12) return mots[0];
+  return '';
+}
+
 router.get('/city/faces', async (req, res) => {
   try {
     const city = baseCityName(String(req.query.city || '').trim().slice(0, 80));
@@ -196,27 +214,34 @@ router.get('/city/faces', async (req, res) => {
     const lire = async (Model, role) => {
       let docs;
       try {
-        docs = await Model.find(filtre).select(champs).sort({ kycStatus: -1, averageRating: -1, createdAt: 1 }).limit(12).lean();
+        docs = await Model.find(filtre).select(champs).sort({ kycStatus: -1, averageRating: -1, createdAt: 1 }).limit(30).lean();
       } catch (e) {
         // Index géographique absent : on retombe sur le nom de ville seul.
         if (!rx) return [];
         docs = await Model.find({ ...EXCLUS, 'avatar.url': { $regex: /^https:\/\// }, $or: or.filter((o) => !o.location) })
-          .select(champs).sort({ averageRating: -1, createdAt: 1 }).limit(12).lean();
+          .select(champs).sort({ averageRating: -1, createdAt: 1 }).limit(30).lean();
       }
-      return docs.map((d) => ({
-        id: String(d._id),
-        role,
-        firstName: String(d.firstName || d.name || '').trim().split(/\s+/)[0].slice(0, 24),
-        photo: d.avatar && d.avatar.url,
-        city: String((d.location && d.location.city) || d.city || d.coverageCity || city).slice(0, 40),
-        rating: Math.round((Number(d.averageRating || d.rating) || 0) * 10) / 10,
-        verified: d.kycStatus === 'verified',
-      })).filter((f) => f.firstName && f.photo);
+      return docs.map((d) => {
+        const prenom = prenomAffichable(d);
+        const ville = String((d.location && d.location.city) || d.city || d.coverageCity || city).slice(0, 40);
+        return {
+          id: String(d._id),
+          role,
+          firstName: prenom,
+          photo: d.avatar && d.avatar.url,
+          city: ville,
+          rating: Math.round((Number(d.averageRating || d.rating) || 0) * 10) / 10,
+          verified: d.kycStatus === 'verified',
+          _memeVille: rx ? rx.test(ville) : false,
+          _prenomSur: !!String(d.firstName || '').trim(),
+        };
+      }).filter((f) => f.firstName && f.photo);
     };
 
     const [s, w] = await Promise.all([lire(Sitter, 'sitter'), lire(Walker, 'walker')]);
-    // Vérifiés d'abord, puis en alternant gardiens et promeneurs.
-    const rang = (f) => (f.verified ? 0 : 1);
+    // Vérifiés d'abord, puis les gens de la ville même (un Parisien veut un
+    // voisin, pas quelqu'un de Bois-d'Arcy), puis ceux qui ont saisi un prénom.
+    const rang = (f) => (f.verified ? 0 : 4) + (f._memeVille ? 0 : 2) + (f._prenomSur ? 0 : 1);
     s.sort((a, b) => rang(a) - rang(b)); w.sort((a, b) => rang(a) - rang(b));
     const faces = [];
     const vus = new Set();
@@ -229,7 +254,7 @@ router.get('/city/faces', async (req, res) => {
         faces.push(f);
       }
     }
-    const out = { city, faces };
+    const out = { city, faces: faces.map(({ _memeVille, _prenomSur, ...f }) => f) };
     _cacheSet(key, out);
     res.set('Cache-Control', 'public, max-age=600');
     return res.json(out);
