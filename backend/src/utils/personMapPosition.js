@@ -173,7 +173,11 @@ function groupByPerson(tagged) {
     const k = personKeyOf(t.d);
     if (!map.has(k)) map.set(k, []);
     const arr = map.get(k);
-    if (!arr.some((x) => String(x.d._id) === String(t.d._id))) arr.push(t);
+    // v594 — même _id possible pour 2 rôles d'une personne (propriétaire et
+    // promeneur du frère de Daniel) : le doublon se juge sur rôle + _id, sinon
+    // le 2e rôle (celui qui portait le PawBoost) était jeté.
+    if (!arr.some((x) => String(x.d._id) === String(t.d._id)
+      && String(x.role || '') === String(t.role || ''))) arr.push(t);
   }
   return map;
 }
