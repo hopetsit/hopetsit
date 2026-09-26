@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { API_BASE } from "@/lib/api";
+import { trackSiteEvent } from "@/components/SiteAnalytics";
 
 // 22/09/2026 — PREUVE D'OFFRE RÉELLE sur les pages villes propriétaires.
 //
@@ -23,6 +24,20 @@ import { API_BASE } from "@/lib/api";
 //     inventé, et la page reste exactement comme avant ;
 //   - rendu côté client uniquement : le HTML servi à Google ne change pas.
 type N = { sitters: number; walkers: number; city: string };
+
+// 26/09/2026 (SAM) — 3 VRAIS VISAGES au-dessus du nombre. Route publique
+// /supply/city/faces : prénom, photo, ville, note — exactement ce que la fiche
+// publique /p/<rôle>/<id> montre déjà. Pas de photo → pas de carte ; erreur
+// ou lenteur → rien ne s'affiche (la page reste comme avant).
+type Face = { id: string; role: "sitter" | "walker"; firstName: string; photo: string; city: string; rating: number; verified: boolean };
+const ROLE: Record<string, { sitter: string; walker: string; verified: string }> = {
+  fr: { sitter: "Gardien·ne", walker: "Promeneur·se", verified: "Identité vérifiée" },
+  en: { sitter: "Pet sitter", walker: "Dog walker", verified: "ID verified" },
+  es: { sitter: "Cuidador/a", walker: "Paseador/a", verified: "Identidad verificada" },
+  de: { sitter: "Tiersitter", walker: "Gassigeher", verified: "Identität geprüft" },
+  it: { sitter: "Pet sitter", walker: "Dog walker", verified: "Identità verificata" },
+  pt: { sitter: "Cuidador/a", walker: "Passeador/a", verified: "Identidade verificada" },
+};
 
 // Les 9 langues du site. Ces textes vivent ICI et pas dans OwnerCityPage :
 // Next.js interdit de passer une fonction d'un composant serveur à un
@@ -101,6 +116,26 @@ export function CitySupplyProof({
   lang: string;
 }) {
   const [n, setN] = useState<{ sitters: number; walkers: number } | null>(null);
+  const [faces, setFaces] = useState<Face[]>([]);
+
+  useEffect(() => {
+    let vivant = true;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 6000);
+    fetch(`${API_BASE}/supply/city/faces?${new URLSearchParams({ city, limit: "3" })}`, { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!vivant || !d || !Array.isArray(d.faces)) return;
+        setFaces(d.faces.filter((f: Face) => f && f.id && f.photo && f.firstName).slice(0, 3));
+      })
+      .catch(() => {})
+      .finally(() => clearTimeout(t));
+    return () => {
+      vivant = false;
+      ctrl.abort();
+      clearTimeout(t);
+    };
+  }, [city]);
 
   useEffect(() => {
     let vivant = true;
@@ -131,9 +166,44 @@ export function CitySupplyProof({
   }, [city, lat, lng]);
 
   const label = LIGNE[lang] || LIGNE.en;
-  if (!n) return null;
+  const roles = ROLE[lang] || ROLE.en;
+  if (!n && !faces.length) return null;
 
   return (
+    <>
+    {faces.length > 0 && (
+      <ul className="mt-4 grid grid-cols-3 gap-2" aria-label={n ? label({ ...n, city }) : undefined}>
+        {faces.map((f) => (
+          <li key={`${f.role}-${f.id}`}>
+            <a
+              href={`/p/${f.role}/${f.id}`}
+              onClick={() => trackSiteEvent("cta_click", { label: `face_${f.role}` })}
+              className="flex h-full flex-col items-center rounded-2xl bg-white px-1.5 pb-2.5 pt-3 text-center shadow-[0_2px_10px_rgba(35,23,21,0.08)] ring-1 ring-owner/10 transition active:scale-[0.97]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={f.photo}
+                alt={f.firstName}
+                width={56}
+                height={56}
+                loading="eager"
+                className={`h-14 w-14 rounded-full object-cover ring-2 ${f.role === "walker" ? "ring-walker" : "ring-sitter"}`}
+              />
+              <span className="mt-1.5 block max-w-full truncate text-[13px] font-bold leading-tight text-ink">{f.firstName}</span>
+              <span className={`block text-[11px] font-semibold leading-tight ${f.role === "walker" ? "text-walker-dark" : "text-sitter-dark"}`}>
+                {f.role === "walker" ? roles.walker : roles.sitter}
+              </span>
+              {f.verified ? (
+                <span className="mt-0.5 block text-[10px] font-semibold leading-tight text-[#0F5C2B]">✓ {roles.verified}</span>
+              ) : f.rating > 0 ? (
+                <span className="mt-0.5 block text-[10px] font-semibold leading-tight text-[#7A5200]">★ {f.rating.toFixed(1)}</span>
+              ) : null}
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+    {n && (
     <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-owner-dark">
       <span
         aria-hidden
@@ -141,6 +211,8 @@ export function CitySupplyProof({
       />
       {label({ ...n, city })}
     </p>
+    )}
+    </>
   );
 }
 

@@ -195,7 +195,11 @@ export function trackSiteEvent(type: SiteEventType, extra: Extra = {}) {
   if (type === "store_click" && extra.store) body.s = extra.store;
   if (type === "cta_click" && extra.label) body.lb = extra.label.slice(0, 60);
 
-  if (type === "pageview") whenIdle(() => post(body));
+  // 26/09/2026 (SAM) — la langue se relit AU MOMENT de l'envoi : au montage,
+  // <html lang> vaut encore « en » (valeur du serveur) tant que
+  // LanguageProvider ne l'a pas posée → 444 visiteurs comptés « en » pour 73
+  // « fr » sur une semaine où la pub était 100 % française.
+  if (type === "pageview") whenIdle(() => post({ ...body, l: langOfPage() }));
   else post(body);
 }
 

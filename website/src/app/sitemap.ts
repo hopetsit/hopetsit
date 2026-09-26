@@ -55,7 +55,14 @@ const PUBLIC_PATHS = [
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const lastModified = new Date();
+  // 26/09/2026 (SAM) — plus de « date du jour » sur les 654 URL à chaque mise
+  // en ligne : Google finit par ignorer un lastmod qui change sans que la page
+  // change. On ne date que les pages dont on connaît la vraie dernière
+  // modification (pages propriétaires Paris : cartes de gardiens le 26/09).
+  const PAGES_DATEES: Array<[RegExp, Date]> = [
+    [/^\/garde-animaux\//, new Date("2026-09-26T18:00:00Z")],
+  ];
+  const dateDe = (path: string) => PAGES_DATEES.find(([rx]) => rx.test(path))?.[1];
   // v547 — pages « devenir pet sitter à <ville> » (FR/EN/PL/KO) générées
   // depuis lib/recruit-cities.ts : une ligne de données = une URL indexable.
   // v560 — + pages « trouver un pet sitter à <ville> » (côté propriétaire).
@@ -73,7 +80,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   };
   return all.map((path) => ({
     url: `${BASE}${path}`,
-    lastModified,
+    ...(dateDe(path) ? { lastModified: dateDe(path) } : {}),
     changeFrequency: path === "" || path.startsWith("/blog") ? "weekly" : "monthly",
     priority: prio(path),
   }));
