@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -54,6 +55,8 @@ import 'package:hopetsit/views/map/pawmap_rates.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheets.dart';
 import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_rail.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_jewel.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_focus_card.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheet.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_discreet.dart';
@@ -1026,17 +1029,57 @@ class _PawMapScreenState extends State<PawMapScreen>
         _focusTapAt != null &&
         now.difference(_focusTapAt!) < const Duration(seconds: 30);
     if (fromMarker && !secondTap && lat != null && lng != null) {
-      final LatLng target = LatLng(lat, lng);
-      _focusTapId = id;
-      _focusTapAt = now;
+      // v590 — handoff §2/§4 : zoom + CARTE FOCUS (Profil › / ✕).
+      final String dist = approx ? '' : _distanceLabelTo(lat, lng);
+      final String price = (role == 'sitter' || role == 'walker') &&
+              priceFrom > 0 &&
+              pawMapShowsPriceBubble(_role, role)
+          ? CurrencyHelper.formatCompact(currency, priceFrom)
+          : '';
+      final bool walking = liveState == PawFollowState.live;
+      final String info = [
+        if (walking) 'pawmap590_focus_walking'.tr,
+        if (price.isNotEmpty) price,
+        if (dist.isNotEmpty) dist,
+        if (!walking && price.isEmpty && dist.isEmpty)
+          'pawmap590_role_$role'.tr,
+      ].join(' · ');
       _selectedNearbyId = id;
-      if (mounted) setState(() {});
-      unawaited(() async {
-        final ctl = await _activeMapCtl();
-        if (ctl == null) return;
-        final z = math.max(_zoomLevel, 16.0);
-        await ctl.animateCamera(CameraUpdate.newLatLngZoom(target, z));
-      }());
+      _focusFirstTap(
+        LatLng(lat, lng),
+        PawFocusInfo(
+          key: id,
+          name: name,
+          role: role,
+          info: info,
+          avatar: avatar,
+          live: walking,
+          friend: isFriend,
+          onOpen: () => _onNearbyTap(
+            id: id,
+            role: role,
+            name: name,
+            online: online,
+            premium: premium,
+            lat: lat,
+            lng: lng,
+            avatar: avatar,
+            approx: approx,
+            approxKm: approxKm,
+            rating: rating,
+            reviewsCount: reviewsCount,
+            priceFrom: priceFrom,
+            currency: currency,
+            verified: verified,
+            boosted: boosted,
+            availableToday: availableToday,
+            isFriend: isFriend,
+            personIds: personIds,
+            liveState: liveState,
+            lastSeenAt: lastSeenAt,
+          ),
+        ),
+      );
       if (!_focusHintShown && mounted) {
         _focusHintShown = true;
         PawSignal.show(context, isFriend ? PawSignalKind.friends : PawSignalKind.all,
@@ -1044,6 +1087,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       }
       return;
     }
+    _clearFocus();
     _focusTapId = null;
     _focusTapAt = null;
     _selectedNearbyId = id;
@@ -1403,7 +1447,38 @@ class _PawMapScreenState extends State<PawMapScreen>
   bool _visibilitySaving = false;
 
   /// Tap sur MON rond → « Qui me voit sur la carte ? ».
-  void _onMeTap() => _openVisibilitySheet();
+  // v590 — handoff §2 : « Moi » suit la même logique (1er appui = zoom sur
+  // moi / ma balade, 2e appui = ma fiche de visibilité, comme avant).
+  void _onMeTap() {
+    final me = _userPosition;
+    if (me == null || _isSecondTap('me')) {
+      _clearFocus();
+      _openVisibilitySheet();
+      return;
+    }
+    final live = _liveMap.broadcasting.value;
+    final n = live ? _liveMap.myFollowers.value : 0;
+    _focusFirstTap(
+      me,
+      PawFocusInfo(
+        key: 'me',
+        name: 'pawmap590_focus_me'.tr,
+        role: _role.isEmpty ? 'owner' : _role,
+        info: live
+            ? [
+                'pawmap590_focus_walking'.tr,
+                if (n > 0) 'pawmap590_followers'.tr.replaceAll('{n}', '$n'),
+              ].join(' · ')
+            : 'pawmap590_direct_off'.tr,
+        avatar: _myAvatarUrl(),
+        live: live,
+        onOpen: () {
+          _clearFocus();
+          _openVisibilitySheet();
+        },
+      ),
+    );
+  }
 
   void _openVisibilitySheet() {
     showPawMapSheet<void>(
@@ -1502,7 +1577,11 @@ class _PawMapScreenState extends State<PawMapScreen>
               distanceLabel: it.d < 1
                   ? '${(it.d * 1000).round()} m'
                   : '${it.d.toStringAsFixed(1)} km',
-              priceLabel: _priceLabelFor(it.p),
+              // v590 — handoff §1 : prix de l'autre côté du marché.
+              priceLabel: pawMapShowsPriceBubble(
+                      _role, (it.p['_role'] ?? '').toString())
+                  ? _priceLabelFor(it.p)
+                  : '',
               premium: it.p['isPremium'] == true,
               verified: it.p['kycVerified'] == true,
               availableToday: it.p['availableToday'] == true,
@@ -1627,6 +1706,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       w.dispose();
     }
     _haloTimer?.cancel();
+    _walkTimer?.cancel(); // v590
+    _walkTimer = null;
     _followWorker?.dispose();
     _followEndWorker?.dispose();
     _myFollowWorker?.dispose();
@@ -1737,6 +1818,15 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
   }
 
+  /// v590 — une fois par ouverture : voir `POST /users/me/home-position`.
+  Future<void> _sendHomePosition(LatLng p) async {
+    try {
+      if (!Get.isRegistered<ApiClient>()) return;
+      await Get.find<ApiClient>().post('/users/me/home-position',
+          body: {'lat': p.latitude, 'lng': p.longitude}, requiresAuth: true);
+    } catch (_) {/* jamais bloquant */}
+  }
+
   Future<void> _bootstrap() async {
     // v23.1.148 — Daniel : "fais que la paw map souvre sur notre geoloc pas a
     // paris". Avant : on attendait que `_mapCtl.isCompleted` soit true au
@@ -1767,6 +1857,10 @@ class _PawMapScreenState extends State<PawMapScreen>
       if (loc == null) return;
       final myCenter = LatLng(loc.latitude, loc.longitude);
       if (!mounted) return;
+      // v590 — « mon frère vit vers Murcia et ça le met vers Valencia » :
+      // le serveur déplace la position de profil si le téléphone est à plus
+      // de 50 km (déménagement) ; dans la même ville rien ne change.
+      if (_viewerLoggedIn) unawaited(_sendHomePosition(myCenter));
 
       // v23.1 part 240 — Daniel : "et tu sur que dans le chat qd je met
       // voir carte sa me met sur le map sur la geoloco du sitter ou
@@ -3341,17 +3435,22 @@ class _PawMapScreenState extends State<PawMapScreen>
     IconData fallbackIcon = Icons.pets_rounded,
     Color fallbackTint = PawMapLegend.owner,
     List<Color>? ringColors,
+    // v590 — handoff §1 : bulle de prix AU-DESSUS du rond, couleur du service.
+    String? priceBubble,
+    String priceRole = 'sitter',
   }) {
     final avatar = _pins.avatarFor(avatarUrl);
+    final bool withBubble = priceBubble != null && priceBubble.isNotEmpty;
     final ringsKey = (ringColors ?? const <Color>[])
         .map((c) => c.toARGB32())
         .join('-');
     final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
     final withLabel = label != null && label.isNotEmpty;
     final key =
-        '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}:$ringsKey';
+        '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}:$ringsKey:${withBubble ? '$priceBubble/$priceRole' : ''}';
     final w = PawMapPinPainter.photoBitmapSize(size);
-    final h = PawMapPinPainter.photoBitmapSize(size, withLabel: withLabel);
+    final h = PawMapPinPainter.photoBitmapSize(size, withLabel: withLabel) +
+        (withBubble ? PawMapPinPainter.priceBubbleZone : 0);
     return _pins.getOrBuild(
           key,
           w,
@@ -3374,14 +3473,18 @@ class _PawMapScreenState extends State<PawMapScreen>
             dimmed: dimmed,
             fallbackIcon: fallbackIcon,
             fallbackTint: fallbackTint,
+            priceBubble: withBubble ? priceBubble : null,
+            priceRole: priceRole,
           ),
         ) ??
         BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose);
   }
 
-  Offset _photoAnchor(double size, {bool withLabel = false}) {
-    final h = PawMapPinPainter.photoBitmapSize(size, withLabel: withLabel);
-    return Offset(0.5, (PawMapPinPainter.photoMargin + size / 2) / h);
+  Offset _photoAnchor(double size,
+      {bool withLabel = false, bool withBubble = false}) {
+    final double zone = withBubble ? PawMapPinPainter.priceBubbleZone : 0;
+    final h = PawMapPinPainter.photoBitmapSize(size, withLabel: withLabel) + zone;
+    return Offset(0.5, (zone + PawMapPinPainter.photoMargin + size / 2) / h);
   }
 
   BitmapDescriptor _memberClusterIcon(int count, Map<String, int> roleCounts) {
@@ -3479,6 +3582,18 @@ class _PawMapScreenState extends State<PawMapScreen>
     return Offset(0.5, (8 + PawMapLegend.requestBubbleHeight + 7) / h);
   }
 
+  /// v590 — ma photo (profil en cache), pour la carte focus « Moi ».
+  String _myAvatarUrl() {
+    try {
+      final profile =
+          GetStorage().read<Map<String, dynamic>>(StorageKeys.userProfile);
+      final raw = profile?['avatar'];
+      return raw is Map ? (raw['url'] ?? '').toString() : (raw ?? '').toString();
+    } catch (_) {
+      return '';
+    }
+  }
+
   String _priceLabelFor(Map<String, dynamic> p) {
     final price = (p['priceFrom'] as num?)?.toDouble() ?? 0;
     if (price <= 0) return '';
@@ -3527,6 +3642,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             ),
             anchor: _photoAnchor(PawMapLegend.meSize, withLabel: true),
             zIndexInt: 10,
+            consumeTapEvents: true, // v590 — zoom géré par la carte focus
             onTap: _onMeTap,
           ),
         );
@@ -3638,8 +3754,16 @@ class _PawMapScreenState extends State<PawMapScreen>
       }
 
       // Idée 4 — filtre « Disponible aujourd'hui » (drapeau serveur).
-      bool availableOk(Map<String, dynamic> p) =>
-          !_availableTodayOnly.value || p['availableToday'] == true;
+      // v590 — Daniel : « ma mère ne voit aucun utilisateur ni ami ». Le
+      // filtre « Disponible aujourd'hui » cachait TOUT le monde sans
+      // disponibilité du jour, amis et propriétaires compris. Il ne vise
+      // désormais que les gardiens et promeneurs qui ne sont pas des amis.
+      bool availableOk(Map<String, dynamic> p) {
+        if (!_availableTodayOnly.value || p['availableToday'] == true) return true;
+        if (isFriendMember(p)) return true;
+        final r = (p['_role'] ?? p['role'] ?? '').toString().toLowerCase();
+        return r != 'sitter' && r != 'walker';
+      }
 
       final placeable = combined
           .where((p) => posOfMember(p) != null && familyOk(p) && availableOk(p))
@@ -3744,18 +3868,31 @@ class _PawMapScreenState extends State<PawMapScreen>
         // personne), l'ancienne comparaison d'ids reste en secours.
         final bool isFriend = p['isFriend'] == true ||
             _friendController.isFriendWithAny(pawMapPersonIds(p));
-        final priceLabel = role == 'owner' || !showPrice ? '' : _priceLabelFor(p);
+        // v590 — handoff §1 : prix de l'autre côté du marché seulement.
+        final priceLabel = role == 'owner' ||
+                !showPrice ||
+                !pawMapShowsPriceBubble(_role, role)
+            ? ''
+            : _priceLabelFor(p);
         // v584 (25/09) — au zoom rue : « Prénom · 25 € » sous le rond.
         final String firstName = pawMapShortName(name);
         // v589 — rond touché une fois (zoom) : « Prénom · Voir le profil › »,
         // la mini bulle invite au 2e toucher.
         final bool focused = _focusTapId != null &&
             pawMapPersonIds(p).contains(_focusTapId);
+        // v590 — la carte focus remplace l'étiquette « · Voir le profil ›»
+        // qui débordait au zoom : le rond touché garde juste son prénom.
         final String streetLabel = focused
-            ? '${firstName.isEmpty ? name : firstName} · ${'pawmap589_see_profile'.tr} ›'
+            ? (firstName.isEmpty ? name : firstName)
             : (!showPrice
                 ? ''
                 : (priceLabel.isEmpty ? firstName : '$firstName · $priceLabel'));
+        // v590 — rond AVEC photo : le prix part dans la bulle colorée
+        // au-dessus, l'étiquette ne garde que le prénom.
+        final String? bubble = priceLabel.isEmpty ? null : priceLabel;
+        final String photoLabel = focused || !showPrice
+            ? streetLabel
+            : (firstName.isEmpty ? name : firstName);
         final BitmapDescriptor icon;
         final Offset anchor;
         if (isFriend) {
@@ -3764,7 +3901,9 @@ class _PawMapScreenState extends State<PawMapScreen>
             avatarUrl: avatar,
             ring: PawMapLegend.friend,
             size: PawMapLegend.friendSize,
-            label: streetLabel.isEmpty ? null : streetLabel,
+            label: photoLabel.isEmpty ? null : photoLabel,
+            priceBubble: bubble,
+            priceRole: role,
             labelColor: PawMapLegend.darken(PawMapLegend.friend, 0.25),
             crown: premium && _showPremiumLayer.value,
             online: online && !approx,
@@ -3773,7 +3912,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             fallbackTint: PawMapLegend.roleColor(role),
           );
           anchor = _photoAnchor(PawMapLegend.friendSize,
-              withLabel: streetLabel.isNotEmpty);
+              withLabel: photoLabel.isNotEmpty, withBubble: bubble != null);
         } else if (personRoles.length > 1) {
           // v585 (25/09, Daniel : « la pastille 2 zoome et c'est tout ») — UN
           // rond pour la personne, liseré partagé entre ses rôles.
@@ -3786,7 +3925,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                 PawMapLegend.roleColor((r['_role'] ?? '').toString()),
             ],
             size: PawMapLegend.memberSize,
-            label: streetLabel.isEmpty ? null : streetLabel,
+            label: photoLabel.isEmpty ? null : photoLabel,
+            priceBubble: bubble,
+            priceRole: role,
             labelColor: PawMapLegend.darken(PawMapLegend.roleColor(role), 0.25),
             crown: premium && _showPremiumLayer.value,
             crownSize: PawMapLegend.crownMember,
@@ -3796,7 +3937,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             fallbackTint: PawMapLegend.roleColor(role),
           );
           anchor = _photoAnchor(PawMapLegend.memberSize,
-              withLabel: streetLabel.isNotEmpty);
+              withLabel: photoLabel.isNotEmpty, withBubble: bubble != null);
         } else if (avatar.startsWith('http')) {
           // v584 (25/09, Daniel : « mets plus en valeur les utilisateurs ») —
           // la PHOTO du membre dans un rond à la couleur de son rôle.
@@ -3805,7 +3946,9 @@ class _PawMapScreenState extends State<PawMapScreen>
             avatarUrl: avatar,
             ring: PawMapLegend.roleColor(role),
             size: PawMapLegend.memberSize,
-            label: streetLabel.isEmpty ? null : streetLabel,
+            label: photoLabel.isEmpty ? null : photoLabel,
+            priceBubble: bubble,
+            priceRole: role,
             labelColor: PawMapLegend.darken(PawMapLegend.roleColor(role), 0.25),
             crown: premium && _showPremiumLayer.value,
             crownSize: PawMapLegend.crownMember,
@@ -3815,7 +3958,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             fallbackTint: PawMapLegend.roleColor(role),
           );
           anchor = _photoAnchor(PawMapLegend.memberSize,
-              withLabel: streetLabel.isNotEmpty);
+              withLabel: photoLabel.isNotEmpty, withBubble: bubble != null);
         } else {
           icon = _memberIcon(
             role: role,
@@ -3837,7 +3980,9 @@ class _PawMapScreenState extends State<PawMapScreen>
             anchor: anchor,
             // v584 — boosté = visible en premier (point 16).
             zIndexInt: selected ? 9 : (isFriend ? 8 : (boosted ? 7 : 6)),
-            consumeTapEvents: personRoles.length > 1,
+            // v590 — handoff §2 : on gère nous-mêmes le zoom (sinon Google
+            // Maps recentre aussi la carte et les deux animations se battent).
+            consumeTapEvents: true,
             onTap: () => personRoles.length > 1
                 ? _openClusterList(
                     members: personRoles, places: const [], spots: const [])
@@ -3939,7 +4084,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               position: target,
               icon: _spotClusterIcon(group.length),
               anchor: const Offset(0.5, 0.5),
-              zIndexInt: 4,
+              zIndexInt: 5,
               consumeTapEvents: true,
               onTap: () => _zoomToCluster(target, spots: group),
             ),
@@ -3954,7 +4099,8 @@ class _PawMapScreenState extends State<PawMapScreen>
             markerId: MarkerId('pawspot_${spot.id}'),
             position: LatLng(spot.lat, spot.lng),
             anchor: _dropAnchor(size),
-            zIndexInt: spot.isGolden ? 5 : 4,
+            // v590 — handoff §6 : au-dessus des lieux et des signalements.
+            zIndexInt: spot.isGolden ? 6 : 5,
             icon: _spotIcon(spot.type, spot.isGolden),
             infoWindow: InfoWindow(
               title: spot.name,
@@ -4057,14 +4203,15 @@ class _PawMapScreenState extends State<PawMapScreen>
                           _followUserId!.trim().toLowerCase() == normPosId
                       ? 0
                       : -1),
-              label: _focusTapId == pos.userId
-                  ? '${pawMapShortName(displayName)} · ${'pawmap589_see_profile'.tr} ›'
-                  : (_zoomLevel >= _priceZoom ? pawMapShortName(displayName) : null),
+              label: _focusTapId == pos.userId || _zoomLevel >= _priceZoom
+                  ? pawMapShortName(displayName)
+                  : null,
               fallbackTint: PawMapLegend.roleColor(role),
             ),
             anchor: _photoAnchor(PawMapLegend.friendSize,
                 withLabel: _zoomLevel >= _priceZoom || _focusTapId == pos.userId),
             zIndexInt: 9, // v587 — le direct au-dessus de tout (sauf Moi)
+            consumeTapEvents: true, // v590 — zoom géré par la carte focus
             // v584 (25/09, point 14) — taper un ami ouvre SA FICHE, avec
             // « Suivre la balade · en direct » en bouton principal (plus de
             // suivi lancé à l'insu de l'utilisateur).
@@ -4101,7 +4248,10 @@ class _PawMapScreenState extends State<PawMapScreen>
               ),
               anchor: _requestAnchor,
               zIndexInt: 7,
-              onTap: () => _showRequestBottomSheet(req),
+              // v590 — handoff : 1er appui = zoom + carte focus
+              // (« 2 nuits · 30 € »), 2e appui = la fiche de la demande.
+              consumeTapEvents: true,
+              onTap: () => _onRequestMarkerTap(req),
             ),
           );
         }
@@ -4126,6 +4276,35 @@ class _PawMapScreenState extends State<PawMapScreen>
       }
     }
     return markers;
+  }
+
+  void _onRequestMarkerTap(NearbyRequestPost req) {
+    final key = 'req:${req.id}';
+    if (_isSecondTap(key)) {
+      _clearFocus();
+      _showRequestBottomSheet(req);
+      return;
+    }
+    final String dates = _requestDateLabel(req);
+    final String budget = req.budgetLabel;
+    _focusFirstTap(
+      LatLng(req.lat, req.lng),
+      PawFocusInfo(
+        key: key,
+        name: '${pawMapShortName(req.ownerName)} · ${'pawmap590_request'.tr}',
+        role: 'owner',
+        info: [
+          if (dates.isNotEmpty) dates,
+          if (budget.isNotEmpty) budget,
+        ].join(' · '),
+        avatar: req.ownerAvatar,
+        icon: PawSymbols.home,
+        onOpen: () {
+          _clearFocus();
+          _showRequestBottomSheet(req);
+        },
+      ),
+    );
   }
 
   /// Candidatures déjà envoyées depuis la carte (postId → état), pour ne pas
@@ -4716,8 +4895,83 @@ class _PawMapScreenState extends State<PawMapScreen>
                                 })),
                               ),
                             ),
+                          // v590 — « ma mère ne voit personne » : des filtres
+                          // enregistrés sur son compte cachaient les gens sans
+                          // rien dire. Dès qu'un filtre cache des personnes :
+                          // « Filtres actifs · Tout afficher », un appui remet tout.
+                          Obx(() {
+                            final hidden = _memberRoles.length < 3 ||
+                                !_showFriends.value ||
+                                !_showProviders.value ||
+                                _availableTodayOnly.value;
+                            if (!hidden || !_viewerLoggedIn) return const SizedBox.shrink();
+                            return Align(
+                              alignment: Alignment.centerLeft,
+                              child: Padding(
+                                padding: EdgeInsets.fromLTRB(12.w, 6.h, 12.w, 0),
+                                child: _fading(PawPressable(
+                                  key: const ValueKey<String>('pawmap_filters_active'),
+                                  label: 'pawmap590_filters_active'.tr,
+                                  onTap: () {
+                                    _availableTodayOnly.value = false;
+                                    _setAllSee(true);
+                                  },
+                                  child: Container(
+                                    padding: EdgeInsets.fromLTRB(10.w, 6.h, 12.w, 6.h),
+                                    decoration: BoxDecoration(
+                                      color: PawMapTheme.panelOn(context),
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(color: PawMapTheme.accent, width: 1.4),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: PawMapTheme.accent.withValues(alpha: 0.22),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.filter_alt_rounded,
+                                            size: 15.sp, color: PawMapTheme.accent),
+                                        SizedBox(width: 5.w),
+                                        Text(
+                                          'pawmap590_filters_active'.tr,
+                                          style: PawMapTheme.fontOn(context,
+                                              size: 11.5.sp, weight: FontWeight.w700),
+                                        ),
+                                        SizedBox(width: 6.w),
+                                        Text(
+                                          'pawmap590_show_all'.tr,
+                                          style: PawMapTheme.font(
+                                              size: 11.5.sp,
+                                              weight: FontWeight.w800,
+                                              color: PawMapTheme.accent),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )),
+                              ),
+                            );
+                          }),
                         ],
                       ),
+                      // v590 — handoff §4 : la CARTE FOCUS, fixe en haut entre
+                      // les deux barres (hors de la zone mesurée : les barres
+                      // ne rétrécissent pas quand elle apparaît).
+                      Obx(() {
+                        final f = _focusCard.value;
+                        if (f == null) return const SizedBox.shrink();
+                        return Padding(
+                          padding: EdgeInsets.fromLTRB(66.w, 8.h, 66.w, 0),
+                          child: _fading(PawFocusCard(
+                            info: f,
+                            onClose: () => _clearFocus(restore: true),
+                          )),
+                        );
+                      }),
                     ],
                   ),
                 ),
@@ -4745,7 +4999,9 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   // ─── v586 — la carte s'efface quand on la manipule (point 5) ────────────
 
-  final PawChromeFade _fade = PawChromeFade();
+  // v590 — handoff §7 : retour 250 ms après la fin du geste.
+  final PawChromeFade _fade =
+      PawChromeFade(returnAfter: const Duration(milliseconds: 250));
 
   /// Jamais pendant un placement (viseur) ni un suivi.
   bool get _fadeAllowed =>
@@ -4758,12 +5014,19 @@ class _PawMapScreenState extends State<PawMapScreen>
   final PawMapDragWatch _dragWatch = PawMapDragWatch();
 
   void _onMapPointerDown(PointerDownEvent e) {
-    if (_dragWatch.down(e.position)) _pauseFollow();
+    if (_dragWatch.down(e.position)) {
+      _pauseFollow();
+      if (_focusCard.value != null) _clearFocus();
+    }
     _fade.down(e.position, allowed: _fadeAllowed);
   }
 
   void _onMapPointerMove(PointerMoveEvent e) {
-    if (_dragWatch.move(e.position)) _pauseFollow();
+    if (_dragWatch.move(e.position)) {
+      _pauseFollow();
+      // v590 — début de déplacement : le focus s'annule (handoff §2).
+      if (_focusCard.value != null) _clearFocus();
+    }
     _fade.move(e.position, allowed: _fadeAllowed);
   }
 
@@ -4775,9 +5038,10 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   /// Enveloppe d'une commande posée sur la carte : 35 % pendant un geste
   /// (fondu 150 ms), 100 % sinon. Reste touchable.
+  // v590 — handoff §7 : opacité 0,2 pendant un geste, fondu 300 ms.
   Widget _fading(Widget child) => Obx(() => AnimatedOpacity(
-        opacity: _fade.faded.value ? 0.35 : 1,
-        duration: const Duration(milliseconds: 150),
+        opacity: _fade.faded.value ? 0.2 : 1,
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
         child: child,
       ));
@@ -4804,17 +5068,64 @@ class _PawMapScreenState extends State<PawMapScreen>
       padding: EdgeInsets.fromLTRB(12.w, 6.h, 12.w, 0),
       child: Row(
         children: [
-          PawMapHeaderBadge(size: 38.w),
-          SizedBox(width: 10.w),
-          // v589 — Daniel : en sombre, « PawMap » en blanc se voyait mal →
-          // orange lumineux (couleur de la marque, lisible sur la carte sombre).
-          PoppinsText(
-            text: 'PawMap',
-            fontSize: 20.sp,
-            fontWeight: FontWeight.w800,
-            color: PawMapTheme.isDark(context)
-                ? const Color(0xFFFF8A5B)
-                : PawMapTheme.inkOn(context),
+          // v590 — handoff §3.5 : l'icône de l'app (et ses doigts animés)
+          // dans une pastille de verre, « Paw » à la couleur du texte et
+          // « Map » en dégradé rouge-orange.
+          Container(
+            height: 50,
+            padding: const EdgeInsets.fromLTRB(5, 5, 14, 5),
+            decoration: BoxDecoration(
+              color: PawMapTheme.isDark(context)
+                  ? const Color(0xE01C191F)
+                  : const Color(0xE6FFFAF7),
+              borderRadius: BorderRadius.circular(25),
+              border: Border.all(
+                color: PawMapTheme.isDark(context)
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : const Color(0xFF78281E).withValues(alpha: 0.08),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.30),
+                  blurRadius: 22,
+                  spreadRadius: -10,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const PawMapHeaderBadge(size: 40),
+                const SizedBox(width: 8),
+                Text(
+                  'Paw',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.6,
+                    color: PawMapTheme.isDark(context)
+                        ? const Color(0xFFF6F1EE)
+                        : const Color(0xFF1B1616),
+                  ),
+                ),
+                ShaderMask(
+                  blendMode: BlendMode.srcIn,
+                  shaderCallback: (r) => const LinearGradient(
+                    colors: [Color(0xFFF0684A), Color(0xFFC9281B)],
+                  ).createShader(r),
+                  child: Text(
+                    'Map',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.6,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const Spacer(),
           // v23.1.189 — recherche de ville (loupe) + mettre à jour (v554 :
@@ -4823,18 +5134,18 @@ class _PawMapScreenState extends State<PawMapScreen>
           // comprennent ce qu'ils font »).
           _headerRoundButton(
             key: const ValueKey<String>('pawmap_header_legend'),
-            icon: Icons.question_mark_rounded,
+            icon: PawSymbols.help,
             label: 'pawmap_legend_btn'.tr,
             onTap: _openLegend,
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 2.w),
           _headerRoundButton(
             key: const ValueKey<String>('pawmap_header_search'),
-            icon: Icons.search_rounded,
+            icon: PawSymbols.search,
             label: 'pawmap_search_city'.tr,
             onTap: _onSearchCity,
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 2.w),
           Obx(() => _refreshing.value
               ? SizedBox(
                   width: 42.w,
@@ -4852,17 +5163,17 @@ class _PawMapScreenState extends State<PawMapScreen>
                 )
               : _headerRoundButton(
                   key: const ValueKey<String>('pawmap_header_refresh'),
-                  icon: Icons.refresh_rounded,
+                  icon: PawSymbols.refresh,
                   label: 'pawmap_appbar_refresh'.tr,
                   onTap: _manualRefresh,
                 )),
           // v589 — Daniel : « le bouton flottant Options gêne quand on dézoome,
           // il est au milieu : le mettre en haut à droite, icône paramètres
           // style iPhone, même orange, à droite du bouton actualiser ».
-          SizedBox(width: 8.w),
+          SizedBox(width: 2.w),
           _headerRoundButton(
             key: const ValueKey<String>('pawmap_header_options'),
-            icon: CupertinoIcons.gear_alt_fill,
+            icon: PawSymbols.settings,
             label: 'pawmap589_options'.tr,
             onTap: () => unawaited(_sheetTo(PawSheetStop.high)),
           ),
@@ -4879,53 +5190,16 @@ class _PawMapScreenState extends State<PawMapScreen>
     required String label,
     required VoidCallback onTap,
   }) {
-    // v585 (bugs 13 + Daniel : « les 3 petites icônes peuvent être plus en
-    // valeur ») — bouton signature : disque 42 dp au dégradé de l'accent
-    // PawMap (#D83C28 → #B92425), reflet en haut, icône BLANCHE pleine,
-    // liseré blanc, ombre teintée hors découpe (plus jamais rogné).
-    return PawPressable(
+    // v590 — handoff §3.1/§3.2 : les 4 boutons du haut à droite sont des
+    // « bijoux » rouges de 40 dp pour les 3 rôles (?, loupe, actualiser,
+    // réglages), icônes Material Symbols pleines.
+    return PawJewel(
       key: key,
+      palette: kJewelHeader,
+      icon: icon,
       label: label,
+      size: 40,
       onTap: onTap,
-      child: Container(
-        width: 42.w,
-        height: 42.w,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFE2503A), Color(0xFFD83C28), Color(0xFFB92425)],
-            stops: [0.0, 0.45, 1.0],
-          ),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 1.6),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFB92425).withValues(alpha: 0.35),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Positioned(
-              top: 3.w,
-              left: 8.w,
-              right: 8.w,
-              height: 14.w,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(999),
-                  color: Colors.white.withValues(alpha: 0.22),
-                ),
-              ),
-            ),
-            Icon(icon, size: 21.sp, color: Colors.white),
-          ],
-        ),
-      ),
     );
   }
 
@@ -4958,6 +5232,11 @@ class _PawMapScreenState extends State<PawMapScreen>
       _pins.rev.value;
       _myRequests.length;
       _availableTodayOnly.value;
+      // v590 — tracé de balade animé (focus + ma balade).
+      _walkPhase.value;
+      _focusCard.value;
+      _liveMap.myTrail.length;
+      _liveMap.friendTrails.length;
       // v552 — mode nuit.
       final night = _nightMode.value;
       return GoogleMap(
@@ -4993,7 +5272,10 @@ class _PawMapScreenState extends State<PawMapScreen>
               _pickingReportPos.value ||
               _pickingRoutePos.value) {
             setState(() => _pickedSpotPos = latLng);
+            return;
           }
+          // v590 — appui sur la carte vide : le focus s'annule.
+          if (_focusCard.value != null) _clearFocus();
         },
         onCameraMove: _onCameraMove,
         // v23.1.263 — un geste MANUEL coupe le suivi (sauf si c'est nous qui
@@ -5023,10 +5305,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         markers: _routeStepMarkers.isEmpty
             ? _getMarkersFromCache()
             : {..._getMarkersFromCache(), ..._routeStepMarkers},
-        circles: _buildHaloCircles(),
+        circles: {..._buildHaloCircles(), ..._walkStartCircles()},
         // v23.1.353 — polyline de l'itinéraire "Y aller" ; v584 — tracé
         // violet du suivi.
-        polylines: {..._routePolylines, ..._followPolylines()},
+        polylines: {..._routePolylines, ..._followPolylines(), ..._walkPolylines()},
       );
     });
   }
@@ -5045,7 +5327,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     // membres), bouton actif teinté (satellite = orange de la marque).
     // Mêmes actions, même ordre, même largeur utile qu'avant.
     return PawGlassCapsule(
-      width: PawMapTheme.railButtonSize + 10,
+      // v590 — barres symétriques de 50 dp (handoff §3.3).
+      width: 50,
       children: [
         PawCapsuleButton(
           icon: Icons.my_location_rounded,
@@ -5080,8 +5363,52 @@ class _PawMapScreenState extends State<PawMapScreen>
           icon: Icons.groups_rounded,
           label: 'v565_live_friends_fit'.tr,
           secondary: true,
+          // v590 — handoff §3.3 : « Voir tout le monde » en rose.
+          tint: PawMapTheme.rose,
           onTap: _fitAllFriends,
         ),
+        // v590 — handoff §3.4 : bouton BALADE (3 rôles). Même action que la
+        // pilule Direct (démarrer / arrêter le partage en direct) : gris à
+        // l'arrêt, vert en direct avec le nombre de personnes qui me suivent.
+        if (_viewerLoggedIn)
+          Obx(() {
+            final live = _liveMap.broadcasting.value;
+            final n = live ? _liveMap.myFollowers.value : 0;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                PawJewel(
+                  key: const ValueKey<String>('pawmap_walk_btn'),
+                  palette: live ? kJewelWalkOn : kJewelWalkOff,
+                  icon: PawSymbols.walk,
+                  label: live
+                      ? 'pawmap590_walk_live'.tr
+                      : 'pawmap590_walk'.tr,
+                  size: 38,
+                  active: live,
+                  badge: n > 0 ? PawFollowersBadge(count: n) : null,
+                  onTap: () => unawaited(_toggleDirect()),
+                  onLongPress: () => _showCapsuleHelp('direct'),
+                ),
+                Transform.translate(
+                  offset: const Offset(0, -4),
+                  child: Text(
+                    live ? 'pawmap590_walk_live'.tr : 'pawmap590_walk'.tr,
+                    maxLines: 1,
+                    style: GoogleFonts.poppins(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      color: live
+                          ? const Color(0xFF2A9A48)
+                          : (PawMapTheme.isDark(context)
+                              ? const Color(0xFFD2C4BE)
+                              : const Color(0xFF6F5C55)),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }),
         // v586 — l'ŒIL : qui me voit (Tous · Amis seulement · Masqué), la
         // même vérité que Profil › Préférences et le site.
         Obx(() => PawCapsuleEyeButton(
@@ -5506,6 +5833,115 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   /// Tracé violet PawFollow derrière la personne suivie.
+  // ── v590 — handoff §5 : TRACÉ DE BALADE ANIMÉ ──
+  // Trait blanc de 7 (halo) sous un trait couleur du rôle de 3,5, en
+  // pointillés qui AVANCENT (décalage animé sur 1,6 s, en boucle). Affiché
+  // pour la personne sur laquelle on a zoomé (carte focus) si elle est en
+  // balade, et pour MA balade tant que je suis en direct. Le tracé suit la
+  // carte (il zoome avec elle) ; le marqueur reste de taille constante.
+  final RxInt _walkPhase = 0.obs;
+  Timer? _walkTimer;
+  static const int _walkSteps = 8; // 8 × 200 ms = 1,6 s
+
+  /// Tracés à dessiner : (id, points, couleur du rôle).
+  List<(String, List<LatLng>, Color)> _walkTrails() {
+    final out = <(String, List<LatLng>, Color)>[];
+    final focus = _focusCard.value;
+    if (_liveMap.broadcasting.value && _liveMap.myTrail.length >= 2) {
+      out.add(('me', _liveMap.myTrail.toList(),
+          pawRoleSolid(_role.isEmpty ? 'owner' : _role)));
+    }
+    if (focus != null && focus.key != 'me') {
+      final k = focus.key.trim().toLowerCase();
+      for (final e in _liveMap.friendTrails.entries) {
+        final fp = _liveMap.friendPositions[e.key];
+        final match = e.key.trim().toLowerCase() == k ||
+            (fp != null && fp.allIds.contains(k));
+        if (match && e.value.length >= 2) {
+          out.add(('f_${e.key}', e.value, pawRoleSolid(fp?.role ?? focus.role)));
+          break;
+        }
+      }
+    }
+    return out;
+  }
+
+  void _syncWalkTimer(bool needed) {
+    if (needed && !_reduceMotion) {
+      _walkTimer ??= Timer.periodic(const Duration(milliseconds: 200), (_) {
+        if (!mounted) return;
+        _walkPhase.value = (_walkPhase.value + 1) % _walkSteps;
+      });
+    } else if (!needed && _walkTimer != null) {
+      _walkTimer?.cancel();
+      _walkTimer = null;
+    }
+  }
+
+  Set<Polyline> _walkPolylines() {
+    final trails = _walkTrails();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncWalkTimer(trails.isNotEmpty);
+    });
+    if (trails.isEmpty) return const {};
+    // Pointillés « 1 9 » à l'échelle du trait (3,5) → 4 px / 36 px ; le
+    // décalage avance de 1/8 de période à chaque pas.
+    const double period = 16;
+    const double dash = 4;
+    final double off = period * (_walkPhase.value / _walkSteps);
+    final pattern = <PatternItem>[
+      PatternItem.gap(off <= 0 ? 0.1 : off),
+      PatternItem.dash(dash),
+      PatternItem.gap(period - dash - off <= 0 ? 0.1 : period - dash - off),
+    ];
+    final set = <Polyline>{};
+    for (final t in trails) {
+      set.add(Polyline(
+        polylineId: PolylineId('walk_halo_${t.$1}'),
+        points: t.$2,
+        color: Colors.white,
+        width: 7,
+        zIndex: 1,
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
+        jointType: JointType.round,
+      ));
+      set.add(Polyline(
+        polylineId: PolylineId('walk_${t.$1}'),
+        points: t.$2,
+        color: t.$3,
+        width: 4,
+        zIndex: 2,
+        patterns: _reduceMotion ? const <PatternItem>[] : pattern,
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
+        jointType: JointType.round,
+      ));
+    }
+    return set;
+  }
+
+  /// Point de départ : cercle blanc (≈ 5 px), contour 3 px couleur du rôle.
+  Set<Circle> _walkStartCircles() {
+    final trails = _walkTrails();
+    if (trails.isEmpty) return const {};
+    final double mpp = 156543.03392 *
+        math.cos(_currentCenter.latitude * math.pi / 180) /
+        math.pow(2, _zoomLevel);
+    return {
+      for (final t in trails)
+        Circle(
+          circleId: CircleId('walk_start_${t.$1}'),
+          center: t.$2.first,
+          radius: math.max(2.0, mpp * 5),
+          fillColor: Colors.white,
+          strokeColor: t.$3,
+          strokeWidth: 3,
+          zIndex: 3,
+        ),
+    };
+  }
+
   Set<Polyline> _followPolylines() {
     if (_followUserId == null || _followTrail.length < 2) return const {};
     return {
@@ -5532,6 +5968,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   @visibleForTesting
   Future<GoogleMapController?> activeMapCtlForTest() => _activeMapCtl();
 
+  /// v590 — sonde d'intégration : un 1er appui simulé (les marqueurs natifs
+  /// de Google Maps ne se touchent pas depuis un test).
+  @visibleForTesting
+  void focusForTest(PawFocusInfo info, LatLng target) =>
+      _focusFirstTap(target, info);
+
   Future<GoogleMapController?> _activeMapCtl() async {
     if (!_mapCtl.isCompleted) return null;
     return _mapCtl.future;
@@ -5541,12 +5983,14 @@ class _PawMapScreenState extends State<PawMapScreen>
     final ctl = await _activeMapCtl();
     if (ctl == null) return;
     // Zoomer ne coupe pas le suivi (seul un vrai geste le met en pause).
+    _fade.pulse();
     await ctl.animateCamera(CameraUpdate.zoomBy(0.8));
   }
 
   Future<void> _zoomOut() async {
     final ctl = await _activeMapCtl();
     if (ctl == null) return;
+    _fade.pulse();
     await ctl.animateCamera(CameraUpdate.zoomBy(-0.8));
   }
 
@@ -7410,8 +7854,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
     final night = p.nightMode;
     if (night != null) _nightMode.value = night;
-    final avail = p.availableTodayOnly;
-    if (avail != null) _availableTodayOnly.value = avail;
+    // v590 — « Disponible aujourd'hui » n'est plus restauré d'une ouverture
+    // à l'autre (un filtre oublié laissait la carte vide sans explication).
+    
     final mode = p.routeMode;
     if (mode != null && _routeColors.containsKey(mode)) _routeMode = mode;
     final radius = p.aroundRadiusKm;
@@ -7473,6 +7918,59 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   /// v589 — toucher en deux temps (zoom puis fiche) : dernier rond touché.
   String? _focusTapId;
+
+  // v590 — handoff §2/§4 : la carte focus et le cadrage d'avant le zoom.
+  final Rxn<PawFocusInfo> _focusCard = Rxn<PawFocusInfo>();
+  CameraPosition? _focusSavedCam;
+
+  /// 1er appui sur un marqueur : la carte vole dessus (marqueur ~60 px
+  /// au-dessus du centre, +1,5 niveau de zoom), la carte focus apparaît.
+  /// Le cadrage d'avant est retenu pour ✕.
+  void _focusFirstTap(LatLng target, PawFocusInfo info) {
+    _focusSavedCam ??= CameraPosition(target: _currentCenter, zoom: _zoomLevel);
+    _focusTapId = info.key;
+    _focusTapAt = DateTime.now();
+    _focusCard.value = info;
+    if (mounted) setState(() {});
+    _fade.pulse();
+    unawaited(() async {
+      final ctl = await _activeMapCtl();
+      if (ctl == null) return;
+      final double z = math.min(math.max(_zoomLevel + 1.5, 15.0), 18.0);
+      // Mètres par pixel à ce zoom ; 60 px vers le sud pour que le marqueur
+      // reste un peu au-dessus du centre (la carte focus est en haut).
+      final double mpp = 156543.03392 *
+          math.cos(target.latitude * math.pi / 180) /
+          math.pow(2, z);
+      final double dLat = (60 * mpp) / 111320.0;
+      await ctl.animateCamera(CameraUpdate.newLatLngZoom(
+          LatLng(target.latitude - dLat, target.longitude), z));
+    }());
+  }
+
+  /// Ferme la carte focus ; [restore] = ✕ → retour au cadrage d'avant.
+  void _clearFocus({bool restore = false}) {
+    final saved = _focusSavedCam;
+    final had = _focusCard.value != null || _focusTapId != null;
+    _focusSavedCam = null;
+    _focusTapId = null;
+    _focusTapAt = null;
+    _focusCard.value = null;
+    if (restore && saved != null) {
+      _fade.pulse();
+      unawaited(() async {
+        final ctl = await _activeMapCtl();
+        await ctl?.animateCamera(CameraUpdate.newCameraPosition(saved));
+      }());
+    }
+    if (had && mounted) setState(() {});
+  }
+
+  /// Vrai si [key] vient d'être touché une 1re fois (≤ 30 s) : 2e appui.
+  bool _isSecondTap(String key) =>
+      _focusTapId == key &&
+      _focusTapAt != null &&
+      DateTime.now().difference(_focusTapAt!) < const Duration(seconds: 30);
   DateTime? _focusTapAt;
   static bool _focusHintShown = false;
   int _coachStep = -1;
@@ -7737,15 +8235,17 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// resserré jusqu'à 4 pour que la barre COMPLÈTE tienne sans défiler (un
   /// bouton coupé à moitié en haut, c'est laid). En dessous, elle défile.
   double _railGapFor(int buttons) {
-    final double size = PawMapTheme.railButtonSize.h;
-    final double edit = PawMapTheme.railButtonSize * 0.8;
+    // v590 — bijoux de 38 dp dans une zone tactile de 44 dp (fixe), bouton
+    // « Modifier » de 38×28 : écart standard 4 dp (≈ 10 dp visibles).
+    const double size = 44;
+    final double edit = 28.w;
     final double glass = 6.h + 4; // marge basse du verre + liseré
-    final double natural = buttons * (size + PawMapTheme.railGap.h) +
-        edit.h + PawMapTheme.railGap.h + glass;
+    final double std = 4.h;
+    final double natural = buttons * (size + std) + edit + std + glass;
     final double avail = _railAvailableHeight();
-    if (natural <= avail) return PawMapTheme.railGap.h;
-    final double g = (avail - buttons * size - edit.h - glass) / (buttons + 1);
-    return g.clamp(4.0, PawMapTheme.railGap.h).toDouble();
+    if (natural <= avail) return std;
+    final double g = (avail - buttons * size - edit - glass) / (buttons + 1);
+    return g.clamp(0.0, std).toDouble();
   }
 
   Widget _railScroller(Widget column) {

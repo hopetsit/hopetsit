@@ -216,7 +216,7 @@ void main() {
       expect(PawMapLegend.friendSize, 50);
       expect(PawMapLegend.memberSize, 46);
       expect(PawMapLegend.placeSize, 30);
-      expect(PawMapLegend.spotSize, 36);
+      expect(PawMapLegend.spotSize, 40); // v590 — handoff §6
       expect(PawMapLegend.spotGoldSize, 44);
       // Les membres sont les plus visibles, puis les PawSpots, puis les lieux.
       expect(PawMapLegend.memberSize, greaterThan(PawMapLegend.spotSize));

@@ -70,7 +70,7 @@ class PawMapLegend {
   static const double memberClusterHeight = 36;
   static const double placeSize = 30;
   static const double placeClusterSize = 34;
-  static const double spotSize = 36;
+  static const double spotSize = 40; // v590 — handoff §6 : goutte 40
   static const double spotGoldSize = 44;
   static const double spotClusterSize = 36;
   static const double requestBubbleHeight = 34;
@@ -88,6 +88,16 @@ class PawMapLegend {
       default:
         return owner;
     }
+  }
+
+  /// v590 — handoff §4 : dégradé de l'anneau (clair → foncé) par couleur de
+  /// rôle ; une autre couleur → sa version éclaircie / assombrie.
+  static (Color, Color) ringGradient(Color c) {
+    if (c == sitter) return (const Color(0xFF4A86F0), const Color(0xFF2458C9));
+    if (c == walker) return (const Color(0xFF43B862), const Color(0xFF1F7A37));
+    if (c == owner) return (const Color(0xFFFFA94D), const Color(0xFFD63D1F));
+    if (c == friend) return (const Color(0xFFF47BB2), const Color(0xFFD6377F));
+    return (lighten(c, 0.14), darken(c, 0.12));
   }
 
   /// Icône blanche par rôle (daltoniens, idée 5 validée) : propriétaire =
@@ -502,7 +512,139 @@ class PawMapPinPainter {
 
   /// Rond PHOTO : Moi (56, anneau à la couleur de mon rôle, étiquette « Moi »)
   /// ou un ami (44, anneau rose). [avatar] null → patte blanche sur la teinte.
+  /// v590 — handoff §1 : hauteur réservée AU-DESSUS du rond pour la bulle
+  /// de prix (22 de bulle + 6 de pointe + marges).
+  static const double priceBubbleZone = 32;
+
+  /// Couleurs de la bulle par service (dégradé clair → foncé ; pointe =
+  /// foncé) : gardien bleu, promeneur vert, demande de propriétaire orange.
+  static (Color, Color) priceBubbleColors(String role) {
+    switch (role.toLowerCase()) {
+      case 'sitter':
+        return (const Color(0xFF4A86F0), const Color(0xFF2458C9));
+      case 'walker':
+        return (const Color(0xFF43B862), const Color(0xFF1F7A37));
+      default:
+        return (const Color(0xFFFFA94D), const Color(0xFFD63D1F));
+    }
+  }
+
+  /// Bulle de prix centrée en [cx], bas de la pointe en [bottom].
+  static void drawPriceBubble(Canvas canvas,
+      {required double cx,
+      required double bottom,
+      required String text,
+      required String role}) {
+    final (light, dark) = priceBubbleColors(role);
+    final IconData icon = role.toLowerCase() == 'walker'
+        ? Icons.directions_walk_rounded
+        : Icons.home_rounded;
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+          fontFamily: 'Poppins',
+          height: 1,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    const double h = 22;
+    const double iconS = 11;
+    const double gap = 4;
+    final double w = 8 + iconS + gap + tp.width + 8;
+    final double top = bottom - 6 - 1 - h;
+    final rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(cx - w / 2, top, w, h), const Radius.circular(8));
+    // Ombre 0 5 10 −4 rgba(0,0,0,.4).
+    canvas.drawRRect(
+      rect.shift(const Offset(0, 3)),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.30)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
+    // Contour blanc 2 px.
+    canvas.drawRRect(rect.inflate(2), Paint()..color = Colors.white);
+    // Pointe 10 × 6, couleur foncée, 1 px sous la bulle.
+    final tip = Path()
+      ..moveTo(cx - 5, top + h + 1)
+      ..lineTo(cx + 5, top + h + 1)
+      ..lineTo(cx, top + h + 7)
+      ..close();
+    canvas.drawPath(tip, Paint()..color = dark);
+    canvas.drawRRect(
+      rect,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(cx - w * 0.1, top),
+          Offset(cx + w * 0.1, top + h),
+          [light, dark],
+        ),
+    );
+    drawIcon(canvas, icon, Offset(cx - w / 2 + 8 + iconS / 2, top + h / 2),
+        iconS, Colors.white);
+    tp.paint(canvas, Offset(cx - w / 2 + 8 + iconS + gap, top + (h - tp.height) / 2));
+  }
+
   static void paintPhotoDot(
+    Canvas canvas, {
+    required ui.Image? avatar,
+    required Color ringColor,
+    required double size,
+    String? label,
+    Color? labelColor,
+    bool crown = false,
+    double crownSize = PawMapLegend.crownFriend,
+    bool online = false,
+    bool dashedRing = false,
+    bool eyeOff = false,
+    double? boostPhase,
+    double? followPhase,
+    bool dimmed = false,
+    IconData fallbackIcon = Icons.pets_rounded,
+    Color fallbackTint = PawMapLegend.owner,
+    List<Color>? ringColors,
+    // v590 — bulle de prix au-dessus du rond (null = aucune).
+    String? priceBubble,
+    String priceRole = 'sitter',
+  }) {
+    final bool withBubble = priceBubble != null && priceBubble.isNotEmpty;
+    if (withBubble) {
+      drawPriceBubble(canvas,
+          cx: photoMargin + size / 2,
+          bottom: priceBubbleZone + photoMargin - 3,
+          text: priceBubble,
+          role: priceRole);
+      canvas.save();
+      canvas.translate(0, priceBubbleZone);
+    }
+    _paintPhotoDotBody(
+      canvas,
+      avatar: avatar,
+      ringColor: ringColor,
+      size: size,
+      label: label,
+      labelColor: labelColor,
+      crown: crown,
+      crownSize: crownSize,
+      online: online,
+      dashedRing: dashedRing,
+      eyeOff: eyeOff,
+      boostPhase: boostPhase,
+      followPhase: followPhase,
+      dimmed: dimmed,
+      fallbackIcon: fallbackIcon,
+      fallbackTint: fallbackTint,
+      ringColors: ringColors,
+    );
+    if (withBubble) canvas.restore();
+  }
+
+  static void _paintPhotoDotBody(
     Canvas canvas, {
     required ui.Image? avatar,
     required Color ringColor,
@@ -572,7 +714,23 @@ class PawMapPinPainter {
         );
       }
     } else {
-      canvas.drawCircle(c, r, Paint()..color = ringPaint);
+      // v590 — handoff §4 : anneau en DÉGRADÉ de la couleur du rôle.
+      final pair = PawMapLegend.ringGradient(ringColor);
+      canvas.drawCircle(
+        c,
+        r,
+        Paint()
+          ..shader = ui.Gradient.linear(
+            c + Offset(-r * 0.17, -r),
+            c + Offset(r * 0.17, r),
+            dimmed
+                ? [
+                    Color.lerp(pair.$1, Colors.white, 0.45)!,
+                    Color.lerp(pair.$2, Colors.white, 0.45)!,
+                  ]
+                : [pair.$1, pair.$2],
+          ),
+      );
     }
     canvas.drawCircle(c, r - ring, Paint()..color = Colors.white);
     final photoR = r - ring - white;
@@ -701,14 +859,25 @@ class PawMapPinPainter {
   /// Doré : goutte OR plus grande, patte noire, bord noir.
   static void paintPawSpotDrop(Canvas canvas,
       {required String type, bool golden = false}) {
+    // v590 — handoff §6 : PawSpots plus visibles. Halo or autour de la tête
+    // de la goutte ; PawSpot = fond noir, patte or, contour or ; PawSpot
+    // doré (validé) = fond or, patte noire, contour blanc.
+    final double w = golden ? PawMapLegend.spotGoldSize : PawMapLegend.spotSize;
+    const m = dropMargin;
+    final c = Offset(m + w / 2, m + w / 2);
+    canvas.drawCircle(
+      c,
+      w / 2 + m - 0.5,
+      Paint()..color = const Color(0xFFF0B323).withValues(alpha: golden ? 0.30 : 0.25),
+    );
     if (golden) {
       _paintDrop(
         canvas,
-        width: PawMapLegend.spotGoldSize,
-        body: PawMapLegend.gold,
-        rim: PawMapLegend.ink,
+        width: w,
+        body: const Color(0xFFF0B323),
+        rim: Colors.white,
         icon: Icons.pets_rounded,
-        iconColor: PawMapLegend.ink,
+        iconColor: const Color(0xFF171212),
         disc: null,
         sparkle: true,
       );
@@ -716,30 +885,13 @@ class PawMapPinPainter {
     }
     _paintDrop(
       canvas,
-      width: PawMapLegend.spotSize,
-      body: PawMapLegend.ink,
-      rim: _spotTypeColor(type),
-      icon: PawMapLegend.spotIcon(type),
-      iconColor: Colors.white,
+      width: w,
+      body: const Color(0xFF282121),
+      rim: const Color(0xFFF0B323),
+      icon: Icons.pets_rounded,
+      iconColor: const Color(0xFFF0B323),
       disc: null,
     );
-  }
-
-  static Color _spotTypeColor(String t) {
-    switch (t) {
-      case 'path_walk':
-        return const Color(0xFF16A34A);
-      case 'chill':
-        return const Color(0xFF2563EB);
-      case 'playground':
-        return const Color(0xFFEF4444);
-      case 'swimming':
-        return const Color(0xFF14B8A6);
-      case 'food_cafe':
-        return const Color(0xFFE8A00A);
-      default:
-        return const Color(0xFFEC4899);
-    }
   }
 
   static double dropHeight(double width) => width * 1.32 + 2 * dropMargin;

@@ -97,6 +97,7 @@ function touchLiveSession({ userId, role, lat, lng, city, duration, heartbeat })
   if (hasPos) {
     s.lat = lat; s.lng = lng; s.at = now;
     if (city) s.city = String(city);
+    pushTrailPoint(s, lat, lng, now);
   }
   s.lastSeenAt = now;
   const d = normalizeDuration(duration);
@@ -108,6 +109,36 @@ function touchLiveSession({ userId, role, lat, lng, city, duration, heartbeat })
   }
   void heartbeat;
   return s;
+}
+
+/**
+ * v590 — TRACÉ DE LA BALADE (handoff design §5). Les derniers points de la
+ * session en direct, en mémoire vive seulement (rien en base) : un point
+ * gardé si l'on a bougé d'au moins 8 m, 240 points au plus (les plus
+ * anciens tombent). Disparaît avec la session.
+ */
+const TRAIL_MAX = 240;
+const TRAIL_MIN_M = 8;
+function _metersBetween(aLat, aLng, bLat, bLng) {
+  const R = 6371000;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const x = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(x)));
+}
+function pushTrailPoint(s, lat, lng, now = Date.now()) {
+  if (!Array.isArray(s.trail)) s.trail = [];
+  const last = s.trail[s.trail.length - 1];
+  if (last && _metersBetween(last[0], last[1], lat, lng) < TRAIL_MIN_M) return;
+  s.trail.push([Number(lat), Number(lng), now]);
+  if (s.trail.length > TRAIL_MAX) s.trail.splice(0, s.trail.length - TRAIL_MAX);
+}
+/** Tracé public : [[lat, lng], …] arrondis à ~10 cm. */
+function trailOf(s) {
+  if (!s || !Array.isArray(s.trail)) return [];
+  return s.trail.map((p) => [Math.round(p[0] * 1e6) / 1e6, Math.round(p[1] * 1e6) / 1e6]);
 }
 
 function getLiveSession(userId) {
@@ -749,5 +780,8 @@ module.exports.getLiveSessionForIds = getLiveSessionForIds;
 module.exports.clearLiveSession = clearLiveSession;
 module.exports.describeLiveSession = describeLiveSession;
 module.exports.tickLiveShare = tickLiveShare;
+module.exports.trailOf = trailOf;
+module.exports.pushTrailPoint = pushTrailPoint;
+module.exports.TRAIL_MAX = TRAIL_MAX;
 module.exports.isLiveStale = isLiveStale;
 module.exports.LIVE_STALE_MS = LIVE_STALE_MS;

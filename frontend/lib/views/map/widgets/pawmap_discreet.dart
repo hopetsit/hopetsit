@@ -21,6 +21,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -57,6 +58,19 @@ bool pawMap586ShowLabels(int launches) => launches <= 3;
 /// profils ») — la pilule « ● Direct » est affichée pour le propriétaire, le
 /// gardien et le promeneur (un propriétaire promène aussi son chien) ; pas
 /// sans compte.
+/// v590 — handoff §1 : chaque rôle ne voit que les prix de l'AUTRE côté du
+/// marché. Propriétaire (ou visiteur) → tarifs des gardiens / promeneurs ;
+/// gardien / promeneur → budgets des demandes des propriétaires, jamais les
+/// tarifs des autres prestataires. Les marqueurs restent visibles pour tous.
+bool pawMapShowsPriceBubble(String viewerRole, String targetRole) {
+  final v = viewerRole.toLowerCase();
+  final t = targetRole.toLowerCase();
+  final bool viewerProvider = v == 'sitter' || v == 'walker';
+  if (t == 'owner') return viewerProvider;
+  if (t == 'sitter' || t == 'walker') return !viewerProvider;
+  return false;
+}
+
 bool pawMapShowsDirectPill(String role) =>
     const <String>{'owner', 'sitter', 'walker'}.contains(role.trim().toLowerCase());
 
@@ -184,6 +198,17 @@ class PawChromeFade {
     if (!faded.value) return;
     _timer?.cancel();
     _timer = Timer(returnAfter, () {
+      if (_pointers == 0) faded.value = false;
+    });
+  }
+
+  /// v590 — handoff §7 : zoom par bouton → l'UI s'efface puis revient
+  /// [hold] plus tard (650 ms).
+  void pulse({Duration hold = const Duration(milliseconds: 650)}) {
+    if (_pointers > 0) return;
+    faded.value = true;
+    _timer?.cancel();
+    _timer = Timer(hold, () {
       if (_pointers == 0) faded.value = false;
     });
   }
@@ -705,14 +730,15 @@ class _PawCapsuleRoleActionState extends State<PawCapsuleRoleAction>
               if (widget.showLabel || publish || requests) ...[
                 SizedBox(height: 3.h),
                 SizedBox(
-                  width: 50.w,
+                  // v590 — barre de 50 dp : le libellé tient à l'intérieur.
+                  width: 42,
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
                       label,
                       maxLines: 1,
                       style: PawMapTheme.font(
-                        size: 10.5.sp,
+                        size: 9.5,
                         weight: FontWeight.w800,
                         color: PawMapTheme.toneOn(context, glow),
                       ),
@@ -1080,31 +1106,35 @@ class _PawMapDirectPillState extends State<PawMapDirectPill>
   Widget build(BuildContext context) {
     final bool reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final DateTime now = (widget.now ?? DateTime.now)();
-    final String label = pawDirectPillLabel(
+    final String baseLabel = pawDirectPillLabel(
       live: widget.live,
       startedAt: widget.startedAt,
       now: now,
       noGps: widget.noGps,
       elsewhere: widget.elsewhere,
     );
-    // v589 — « autre téléphone » : vert du direct, mais la pilule ne respire
-    // pas (ce téléphone-ci n'envoie rien).
+    // v590 — handoff §3.4 : « Direct off » à l'arrêt, « En balade » en
+    // direct (les cas « sans GPS » et « autre téléphone » gardent leur texte).
     final bool greenLook = widget.live || widget.elsewhere;
-    final Color base = !greenLook
-        ? PawMapDirectPill.ink
-        : (widget.noGps ? PawMapDirectPill.amber : PawMapDirectPill.green);
+    final bool lit = widget.live && !widget.noGps;
+    // La durée reste affichée : « En balade · 12 min ».
+    final int dot = baseLabel.indexOf(' · ');
+    final String label = lit
+        ? 'pawmap590_on_walk'.tr +
+            (dot > 0 ? baseLabel.substring(dot) : '')
+        : (!greenLook ? 'pawmap590_direct_off'.tr : baseLabel);
     final Gradient gradient = !greenLook
         ? const LinearGradient(
-            colors: [Color(0xFF33214A), PawMapDirectPill.ink],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            colors: [Color(0xFF2C2540), Color(0xFF17121F)],
+            begin: Alignment(-0.17, -1),
+            end: Alignment(0.17, 1),
           )
         : LinearGradient(
             colors: widget.noGps
                 ? const [Color(0xFFF5A524), PawMapDirectPill.amber]
-                : const [Color(0xFF22C55E), PawMapDirectPill.green],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+                : const [Color(0xFF43B862), Color(0xFF1F7A37)],
+            begin: const Alignment(-0.17, -1),
+            end: const Alignment(0.17, 1),
           );
     return Semantics(
       button: true,
@@ -1119,86 +1149,99 @@ class _PawMapDirectPillState extends State<PawMapDirectPill>
           widget.onTap();
         },
         onLongPress: widget.onLongPress,
-        child: AnimatedBuilder(
-          animation: _breath,
-          builder: (ctx, child) {
-            final double t = reduce ? 0.5 : _breath.value;
-            final bool lit = widget.live && !widget.noGps;
-            return Container(
-              constraints: BoxConstraints(minHeight: 34.h),
-              padding: EdgeInsets.fromLTRB(10.w, 6.h, 13.w, 6.h),
-              decoration: BoxDecoration(
-                gradient: gradient,
-                borderRadius: BorderRadius.circular(40),
-                border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.9), width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: base.withValues(alpha: lit ? 0.32 + 0.33 * t : 0.26),
-                    blurRadius: lit ? 10 + 10 * t : 10,
-                    spreadRadius: lit ? 1 + 2.5 * t : 0,
-                    offset: lit ? Offset.zero : const Offset(0, 3),
-                  ),
-                ],
+        child: Container(
+          height: 34,
+          padding: const EdgeInsets.fromLTRB(11, 0, 5, 0),
+          decoration: BoxDecoration(
+            gradient: gradient,
+            borderRadius: BorderRadius.circular(17),
+            boxShadow: [
+              // Contour blanc 2 px (box-shadow 0 0 0 2px #fff).
+              const BoxShadow(color: Colors.white, spreadRadius: 2),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.28),
+                blurRadius: 12,
+                spreadRadius: -4,
+                offset: const Offset(0, 6),
               ),
-              child: child,
-            );
-          },
+            ],
+          ),
+          foregroundDecoration: BoxDecoration(
+            // Reflet intérieur en haut.
+            borderRadius: BorderRadius.circular(17),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.center,
+              colors: [
+                Colors.white.withValues(alpha: 0.22),
+                Colors.white.withValues(alpha: 0),
+              ],
+            ),
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 9.w,
-                height: 9.w,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: greenLook ? Colors.white : const Color(0xFFFF4D3D),
-                  border: greenLook
-                      ? null
-                      : Border.all(color: Colors.white, width: 1.2),
-                ),
+              // Point : rouge à l'arrêt, blanc qui pulse (1,6 s) en direct.
+              AnimatedBuilder(
+                animation: _breath,
+                builder: (ctx, _) {
+                  final double t = reduce ? 0.5 : _breath.value;
+                  return Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: greenLook ? Colors.white : const Color(0xFFE8402C),
+                      boxShadow: lit
+                          ? [
+                              BoxShadow(
+                                color: Colors.white.withValues(alpha: 0.55 * (1 - t)),
+                                spreadRadius: 1 + 5 * t,
+                              ),
+                            ]
+                          : null,
+                    ),
+                  );
+                },
               ),
-              SizedBox(width: 7.w),
+              const SizedBox(width: 7),
               Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.1,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                      right: widget.live && widget.followers > 0 ? 6 : 7),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.1,
+                    ),
                   ),
                 ),
               ),
-              // v589 — « qui suit mon direct » : un œil et le nombre.
-              if (widget.live && widget.followers > 0) ...[
-                SizedBox(width: 7.w),
+              // v590 — « 👥 3 te suivent » dans une puce blanche.
+              if (widget.live && widget.followers > 0)
                 Container(
                   key: const ValueKey<String>('pawmap_direct_followers'),
-                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                  height: 24,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(999),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.visibility_rounded, size: 13.sp, color: Colors.white),
-                      SizedBox(width: 3.w),
-                      Text(
-                        '${widget.followers}',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    '👥 ${'pawmap590_followers'.tr.replaceAll('{n}', '${widget.followers}')}',
+                    style: GoogleFonts.poppins(
+                      color: Color(0xFF1F7A37),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ],
             ],
           ),
         ),

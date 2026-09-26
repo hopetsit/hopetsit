@@ -23,6 +23,7 @@ import 'package:get/get.dart';
 import '../../../utils/pawmap_theme.dart';
 import 'paw_rail_button.dart';
 import 'pawmap_buttons.dart';
+import 'pawmap_jewel.dart';
 
 // v561 — handoff « Paw Buttons » (Daniel, 12/09) : icônes SVG blanches
 // pleines des boutons ronds (dégradé 165°, bord blanc, aucun libellé visible).
@@ -165,6 +166,21 @@ const List<PawRailSpec> kPawRailSpecs = <PawRailSpec>[
   ),
 ];
 
+/// v590 — handoff design : palette « bijou » (§3.2) et icône Material
+/// Symbols de chaque bouton du rail. Mêmes actions, mêmes ids.
+const Map<String, (PawJewelPalette, IconData)> kPawRailJewels =
+    <String, (PawJewelPalette, IconData)>{
+  'around': (kJewelAround, PawSymbols.around),
+  'directions': (kJewelRoute, PawSymbols.route),
+  'live_friends': (kJewelFriends, PawSymbols.friends),
+  'chat': (kJewelChat, PawSymbols.chat),
+  'photo': (kJewelPhoto, PawSymbols.photo),
+  'spots': (kJewelSpots, PawSymbols.spots),
+  'tag': (kJewelTag, PawSymbols.tag),
+  'report': (kJewelReport, PawSymbols.report),
+  'feed': (kJewelFeed, PawSymbols.feed),
+};
+
 /// Ordre par défaut (tous les boutons, dans l'ordre d'origine).
 List<String> get kPawRailDefaultOrder =>
     kPawRailSpecs.map((s) => s.id).toList(growable: false);
@@ -295,16 +311,19 @@ class PawMapRail extends StatelessWidget {
         for (final id in order)
           if (pawRailSpecOf(id) case final PawRailSpec spec)
             Padding(
-              padding: EdgeInsets.only(top: gap ?? PawMapTheme.railGap.h),
-              child: PawRailButton(
+              // v590 — bijoux de 38 dans une zone tactile de 44 : l'écart
+              // visuel reste ~10 dp comme la maquette.
+              padding: EdgeInsets.only(top: gap ?? 4.h),
+              // v590 — bouton « bijou » (handoff design §3.1/§3.2).
+              child: PawJewel(
                 key: ValueKey<String>('rail_$id'),
-                color: spec.color,
+                palette: kPawRailJewels[id]?.$1 ??
+                    PawJewelPalette(spec.g1, spec.color, spec.g2),
+                icon: kPawRailJewels[id]?.$2 ?? spec.icon,
                 label: spec.label,
-                icon: spec.icon,
-                svg: spec.svg,
-                gradientTop: spec.g1,
-                gradientBottom: spec.g2,
+                size: 38,
                 active: active.contains(id),
+                badge: id == 'feed' ? const PawJewelDot() : null,
                 onTap: () => onTap(id),
                 onLongPress: () => onLongPress(id),
               ),
@@ -341,8 +360,9 @@ class PawRailEditButton extends StatelessWidget {
       onTap: onTap,
       onLongPress: onTap,
       child: Container(
-        width: PawMapTheme.railButtonSize.w,
-        height: (PawMapTheme.railButtonSize * 0.8).w,
+        // v590 — handoff §3.3 : 38×28, rayon 14, liseré 1,5 #d8352a.
+        width: 38.w,
+        height: 28.w,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -352,7 +372,7 @@ class PawRailEditButton extends StatelessWidget {
                 : const [Colors.white, Color(0xFFFFEDE7)],
           ),
           borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(color: accent, width: 1.6),
+          border: Border.all(color: const Color(0xFFD8352A), width: 1.5),
           boxShadow: [
             BoxShadow(
               color: accent.withValues(alpha: 0.28),
@@ -386,8 +406,9 @@ class PawRailGlass extends StatelessWidget {
   Widget build(BuildContext context) {
     // v587 (point 7) — même matière que la capsule droite (celle du site).
     return Container(
+      // v590 — barre de 50 dp : zone tactile 44 + 3 dp de chaque côté.
       padding: padding ??
-          EdgeInsets.fromLTRB(5.w, 0, 5.w, 6.h),
+          EdgeInsets.fromLTRB(3, 4.h, 3, 8.h),
       decoration: pawSiteGlass(context),
       child: child,
     );

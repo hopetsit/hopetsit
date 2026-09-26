@@ -193,6 +193,32 @@ FriendLiveState friendLiveState({
 FriendPosition applyLiveEvent(FriendPosition fp, DateTime receivedAt) =>
     fp.copyWith(stale: false, lastSeenAt: receivedAt, sharing: true);
 
+/// v590 — tracé de balade (handoff design §5) : ajoute [p] si l'on a bougé
+/// d'au moins [minM] mètres, garde les [max] derniers points. Pure, testée.
+List<LatLng> appendTrailPoint(List<LatLng> trail, LatLng p,
+    {int max = 240, double minM = 8}) {
+  if (trail.isNotEmpty) {
+    final last = trail.last;
+    final d = Geolocator.distanceBetween(
+        last.latitude, last.longitude, p.latitude, p.longitude);
+    if (d < minM) return trail;
+  }
+  final out = <LatLng>[...trail, p];
+  return out.length > max ? out.sublist(out.length - max) : out;
+}
+
+/// v590 — tracé renvoyé par le serveur : [[lat, lng], …].
+List<LatLng> parseTrail(dynamic raw) {
+  if (raw is! List) return const <LatLng>[];
+  final out = <LatLng>[];
+  for (final e in raw) {
+    if (e is List && e.length >= 2 && e[0] is num && e[1] is num) {
+      out.add(LatLng((e[0] as num).toDouble(), (e[1] as num).toDouble()));
+    }
+  }
+  return out;
+}
+
 /// v565 — durées de partage proposées au démarrage (contrat §8).
 /// Défaut : jusqu'à l'arrêt manuel.
 enum LiveShareDuration { oneHour, fourHours, untilStop }
@@ -284,6 +310,12 @@ class LiveMapService extends GetxService {
   /// userId → latest FriendPosition from the socket
   final RxMap<String, FriendPosition> friendPositions =
       <String, FriendPosition>{}.obs;
+
+  /// v590 — tracés de balade : ceux des amis (clé = celle de
+  /// [friendPositions]) et le mien pendant que je suis en direct.
+  final RxMap<String, List<LatLng>> friendTrails =
+      <String, List<LatLng>>{}.obs;
+  final RxList<LatLng> myTrail = <LatLng>[].obs;
 
   /// Has the user agreed to broadcast their position at all.
   final RxBool broadcasting = false.obs;
@@ -377,6 +409,16 @@ class LiveMapService extends GetxService {
   @override
   void onInit() {
     super.onInit();
+    // v590 — mon tracé suit ma position en direct ; effacé à l'arrêt.
+    ever<LatLng?>(myLivePosition, (p) {
+      if (p == null) {
+        if (myTrail.isNotEmpty) myTrail.clear();
+        return;
+      }
+      final cur = myTrail.toList();
+      final next = appendTrailPoint(cur, p);
+      if (!identical(next, cur)) myTrail.assignAll(next);
+    });
     try {
       final svc = Get.find<SocketService>();
       if (!_hookRegistered) {
@@ -513,6 +555,10 @@ class LiveMapService extends GetxService {
         final merged = fp.copyWith(
             userId: key, personIds: mergedPersonIds(friendPositions[key], fp));
         friendPositions[key] = applyLiveEvent(merged, DateTime.now());
+        // v590 — le tracé de l'ami avance avec son direct.
+        friendTrails[key] = appendTrailPoint(
+            friendTrails[key] ?? const <LatLng>[],
+            LatLng(fp.latitude, fp.longitude));
       } catch (e) {
         debugPrint('[LiveMap] friend-position parse error: $e');
       }
@@ -707,6 +753,16 @@ class LiveMapService extends GetxService {
         // v589 — rangée PAR PERSONNE (voir friendPositionKey).
         final key = friendPositionKey(friendPositions, raw);
         final cur = friendPositions[key];
+        // v590 — tracé de la balade renvoyé par le serveur (session en
+        // direct) : il fait foi ; vide = plus de balade en cours.
+        if (item['trail'] is List) {
+          final t = parseTrail(item['trail']);
+          if (t.isEmpty) {
+            friendTrails.remove(key);
+          } else {
+            friendTrails[key] = t;
+          }
+        }
         final fp = raw.copyWith(
             userId: key, personIds: mergedPersonIds(cur, raw));
         if (cur == null) {

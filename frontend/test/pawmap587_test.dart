@@ -173,7 +173,8 @@ void main() {
       await t.tap(find.byKey(const ValueKey('pawmap_direct_pill_off')));
       await t.pump(const Duration(milliseconds: 100));
       expect(find.byKey(const ValueKey('pawmap_direct_pill_on')), findsOneWidget);
-      expect(find.text('En direct · 12 min'), findsOneWidget);
+      // v590 — handoff §3.4 : « En balade » (la durée reste).
+      expect(find.text('En balade · 12 min'), findsOneWidget);
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
     });

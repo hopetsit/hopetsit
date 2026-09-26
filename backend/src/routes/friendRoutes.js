@@ -2360,6 +2360,16 @@ router.get('/:id/last-position', requireAuth, async (req, res) => {
   }
 });
 
+/** v590 — tracé de la balade d'une session en direct (vide si indisponible). */
+function _trail590(sess) {
+  try {
+    const { trailOf } = require('../sockets/mapSocket');
+    return typeof trailOf === 'function' ? trailOf(sess) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
 /**
  * GET /friends/live-positions
  *
@@ -2553,6 +2563,8 @@ router.get('/live-positions', requireAuth, async (req, res) => {
         // son téléphone (une horloge en avance de 2 min affichait « signal
         // perdu » à un direct parfaitement vivant).
         ageMs: lastSeenMs == null ? null : Math.max(0, now - lastSeenMs),
+        // v590 — tracé de la balade (session en direct seulement).
+        trail: live ? _trail590(live) : [],
       });
     }
 
@@ -2587,6 +2599,7 @@ router.get('/live-positions', requireAuth, async (req, res) => {
             state,
             live: state === 'live',
             ageMs: Math.max(0, now - lastSeen.getTime()),
+            trail: _trail590(sess),
             personIds: gIds,
             bookingId: pv.bookingId,
             booking: true,

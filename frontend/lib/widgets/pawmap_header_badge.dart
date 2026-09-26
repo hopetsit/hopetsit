@@ -26,7 +26,8 @@ class _PawMapHeaderBadgeState extends State<PawMapHeaderBadge>
     with SingleTickerProviderStateMixin {
   late final AnimationController _loop = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 6000),
+    // v590 — handoff §3.5 : cycle de 3,8 s.
+    duration: const Duration(milliseconds: 3800),
   )..repeat();
 
   @override
@@ -35,14 +36,17 @@ class _PawMapHeaderBadgeState extends State<PawMapHeaderBadge>
     super.dispose();
   }
 
-  /// Vague : chaque doigt se rétracte d'un rien (1 → 0,82 → 1) à son tour,
-  /// entre 8 % et 40 % du cycle. Le reste du temps : immobile.
+  /// v590 — handoff §3.5 : les 4 doigts SAUTENT l'un après l'autre (délais
+  /// 0 / 0,25 / 0,5 / 0,75 s sur un cycle de 3,8 s) : montée jusqu'à 18 % du
+  /// saut (le doigt sort un peu plus : 1 → 1,18), retour à 55 %, puis repos.
   static double _toe(double t, int i) {
-    final double start = 0.08 + 0.06 * i;
-    const double len = 0.14;
-    if (t < start || t > start + len) return 1;
-    final double u = (t - start) / len; // 0 → 1
-    return 1 - 0.18 * math.sin(u * math.pi);
+    double u = t - (0.25 * i) / 3.8;
+    if (u < 0) u += 1;
+    if (u <= 0.18) return 1 + 0.18 * math.sin((u / 0.18) * math.pi / 2);
+    if (u <= 0.55) {
+      return 1 + 0.18 * math.cos(((u - 0.18) / 0.37) * math.pi / 2);
+    }
+    return 1;
   }
 
   @override
@@ -53,7 +57,7 @@ class _PawMapHeaderBadgeState extends State<PawMapHeaderBadge>
       width: s,
       height: s,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(s * 0.32),
+        borderRadius: BorderRadius.circular(s * 0.30),
         gradient: const LinearGradient(
           begin: Alignment(-0.6, -1),
           end: Alignment(0.6, 1),
@@ -77,8 +81,7 @@ class _PawMapHeaderBadgeState extends State<PawMapHeaderBadge>
           animation: _loop,
           builder: (BuildContext context, Widget? _) {
             final double t = still ? 0.6 : _loop.value;
-            final double breath =
-                still ? 0 : 0.5 - 0.5 * math.cos(t * 2 * math.pi);
+            final double breath = 0;
             final List<double> toes =
                 List<double>.generate(4, (int i) => _toe(t, i));
             return Center(
