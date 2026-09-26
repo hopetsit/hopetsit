@@ -60,7 +60,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // change. On ne date que les pages dont on connaît la vraie dernière
   // modification (pages propriétaires Paris : cartes de gardiens le 26/09).
   const PAGES_DATEES: Array<[RegExp, Date]> = [
-    [/^\/garde-animaux\//, new Date("2026-09-26T18:00:00Z")],
+    [/^\/garde-animaux\//, new Date("2026-09-26T12:00:00Z")],
   ];
   const dateDe = (path: string) => PAGES_DATEES.find(([rx]) => rx.test(path))?.[1];
   // v547 — pages « devenir pet sitter à <ville> » (FR/EN/PL/KO) générées
