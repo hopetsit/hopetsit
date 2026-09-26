@@ -23,13 +23,55 @@ const TIMEOUT_MS = 4000;
 const CACHE_MAX = 500;
 
 const _cache = new Map();
+// v594 — un échec Photon n'est retenu qu'une heure (avant : 24 h sans ancre).
+const MISS_TTL_MS = 60 * 60 * 1000;
+
+function _cacheSet(key, v, perm = false) {
+  if (_cache.size >= CACHE_MAX) _cache.delete(_cache.keys().next().value);
+  _cache.set(key, { t: Date.now(), v, perm });
+}
+
+function _persist(key, v) {
+  try {
+    const CityAnchor = require('../models/CityAnchor');
+    CityAnchor.updateOne({ key }, { $set: { lat: v.lat, lng: v.lng, at: new Date() } }, { upsert: true })
+      .catch((e) => logger.warn(`[geocodeCity] sauvegarde « ${key} » : ${e?.message || e}`));
+  } catch (_) { /* modèle indisponible (tests sans base) */ }
+}
+
+/**
+ * v594 — recharge UNE fois par processus les centres-villes gardés en base
+ * (après chaque redémarrage du serveur, le floutage retombe au même endroit).
+ */
+let _loading = null;
+function ensureAnchorsLoaded() {
+  if (_loading) return _loading;
+  // Base pas (encore) connectée : on n'attend jamais, on réessaiera plus tard.
+  try {
+    if (require('mongoose').connection.readyState !== 1) return Promise.resolve();
+  } catch (_) { return Promise.resolve(); }
+  _loading = (async () => {
+    try {
+      const CityAnchor = require('../models/CityAnchor');
+      const rows = await CityAnchor.find({}).select('key lat lng').limit(CACHE_MAX)
+        .maxTimeMS(1500).lean();
+      for (const r of rows) {
+        if (Number.isFinite(r.lat) && Number.isFinite(r.lng)) _cacheSet(r.key, { lat: r.lat, lng: r.lng }, true);
+      }
+    } catch (e) {
+      logger.warn(`[geocodeCity] lecture des centres-villes : ${e?.message || e}`);
+      _loading = null; // on réessaiera au prochain appel
+    }
+  })();
+  return _loading;
+}
 
 async function geocodeCity(city) {
   const nom = String(city || '').trim();
   if (!nom) return null;
   const key = nom.toLowerCase();
   const hit = _cache.get(key);
-  if (hit && Date.now() - hit.t < TTL_MS) return hit.v;
+  if (hit && (hit.perm || Date.now() - hit.t < (hit.v ? TTL_MS : MISS_TTL_MS))) return hit.v;
 
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
@@ -46,13 +88,12 @@ async function geocodeCity(city) {
     const lat = Number(c[1]);
     const lng = Number(c[0]);
     const v = Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
-    if (_cache.size >= CACHE_MAX) _cache.delete(_cache.keys().next().value);
-    _cache.set(key, { t: Date.now(), v });
+    _cacheSet(key, v, !!v);
+    if (v) _persist(key, v);
     return v;
   } catch (e) {
     logger.warn(`[geocodeCity] indisponible pour « ${nom} » : ${e && e.message ? e.message : e}`);
-    if (_cache.size >= CACHE_MAX) _cache.delete(_cache.keys().next().value);
-    _cache.set(key, { t: Date.now(), v: null });
+    _cacheSet(key, null);
     return null;
   } finally {
     clearTimeout(timer);
@@ -90,7 +131,8 @@ function peekCity(city) {
   const key = String(city || '').trim().toLowerCase();
   if (!key) return undefined;
   const hit = _cache.get(key);
-  if (!hit || Date.now() - hit.t >= TTL_MS) return undefined;
+  if (!hit) return undefined;
+  if (!hit.perm && Date.now() - hit.t >= (hit.v ? TTL_MS : MISS_TTL_MS)) return undefined;
   return hit.v;
 }
 
@@ -116,4 +158,7 @@ function warmCities(cities, max = 40) {
   })();
 }
 
-module.exports = { geocodeCity, baseCityName, peekCity, warmCities };
+/** Tests uniquement : vide la mémoire (simule un redémarrage). */
+function _resetForTest() { _cache.clear(); _loading = null; }
+
+module.exports = { geocodeCity, baseCityName, peekCity, warmCities, ensureAnchorsLoaded, _resetForTest };

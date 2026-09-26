@@ -85,6 +85,9 @@ async function friendPositionsFor(idLists) {
   });
   if (!all.length) return lists.map(none);
   try {
+    // v594 — centres-villes gardés en base : même point après un redémarrage.
+    const { ensureAnchorsLoaded, peekCity, warmCities } = require('./geocodeCity');
+    await ensureAnchorsLoaded();
     const models = {
       Owner: require('../models/Owner'),
       Sitter: require('../models/Sitter'),
@@ -97,10 +100,14 @@ async function friendPositionsFor(idLists) {
       .then((r) => (r || []).map((d) => ({ d, role: ROLE_BY_MODEL[name] })))
       .catch(() => [])))).flat();
     const byId = new Map(rows.map((x) => [String(x.d._id), x]));
-    return lists.map((ids) => {
+    const out = lists.map((ids) => {
       const entries = ids.map((id) => byId.get(id)).filter(Boolean);
       return entries.length ? friendPositionOf(entries) : none();
     });
+    // Villes encore inconnues : résolues en tâche de fond pour la suite.
+    const unknown = out.map((p) => p.city).filter((c) => c && peekCity(c) === undefined);
+    if (unknown.length && process.env.NODE_ENV !== 'test') warmCities(unknown);
+    return out;
   } catch (e) {
     logger.warn(`[friendPosition587] lecture impossible : ${e?.message || e}`);
     return lists.map(none);

@@ -516,6 +516,7 @@ async function _withHiddenFriends(req, payload) {
       .filter((ids) => !ids.some((id) => already.has(id)))
       .flat();
     if (!missing.length) return payload;
+    await require('../utils/geocodeCity').ensureAnchorsLoaded();
     const sel = 'name avatar profilePicture location preferences.hideFromMap preferences.mapVisibility +homeLocation city updatedAt createdAt email';
     const docs = (await Promise.all([
       Owner.find({ _id: { $in: missing } }).select(sel).lean()
@@ -570,6 +571,8 @@ async function _withHiddenFriends(req, payload) {
 
 router.get('/members/world', requireAuth, async (req, res) => {
   try {
+    // v594 — centres-villes gardés en base (floutage stable après redémarrage).
+    await require('../utils/geocodeCity').ensureAnchorsLoaded();
     const now = Date.now();
     if (_worldCache.payload && now - _worldCache.at < WORLD_TTL_MS) {
       return res.json(await _withHiddenFriends(req, _worldCache.payload));
