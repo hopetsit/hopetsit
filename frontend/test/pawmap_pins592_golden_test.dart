@@ -161,6 +161,23 @@ void main() {
                 label: 'Melina', priceBubble: '18 €', priceRole: 'walker',
                 online: true, fallbackTint: PawMapLegend.walker)
           ),
+          (
+            // v594 — gardien + promeneur : bulle DUO, rond élargi et centré.
+            'Duo gardien/promeneur',
+            math.max(pp, PawMapPinPainter.priceBubbleWidth('20 €|12 €') + 8),
+            PawMapPinPainter.photoBitmapSize(ms, withLabel: true) + PawMapPinPainter.priceBubbleZone,
+            (c) {
+              final dx = (math.max(pp, PawMapPinPainter.priceBubbleWidth('20 €|12 €') + 8) - pp) / 2;
+              c.save();
+              c.translate(dx, 0);
+              PawMapPinPainter.paintPhotoDot(c,
+                  avatar: photoA, ringColor: PawMapLegend.sitter, size: ms,
+                  ringColors: const [PawMapLegend.sitter, PawMapLegend.walker],
+                  label: 'Saray', priceBubble: '20 €|12 €', priceRole: 'duo',
+                  fallbackTint: PawMapLegend.sitter);
+              c.restore();
+            }
+          ),
           ('Sans photo', pp, pp,
               (c) => PawMapPinPainter.paintPhotoDot(c,
                   avatar: null, ringColor: PawMapLegend.walker, size: ms,

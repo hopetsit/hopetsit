@@ -77,6 +77,23 @@ PawJewelPalette pawJewelForRole(String role) {
   }
 }
 
+/// v594 — Daniel (26/09) : bouton « Profil » aux couleurs des rôles de la
+/// personne, ordre fixe orange → bleu → vert : 1 rôle = son dégradé, 2 =
+/// bicolore, 3 = tricolore (dégradé horizontal).
+LinearGradient pawRolesGradient(List<String> roles) {
+  const order = <String>['owner', 'sitter', 'walker'];
+  final set = roles.map((r) => r.trim().toLowerCase()).toSet();
+  final list = [for (final r in order) if (set.contains(r)) r];
+  if (list.length < 2) {
+    return pawJewelForRole(list.isEmpty ? 'owner' : list.first).gradient;
+  }
+  return LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [for (final r in list) pawJewelForRole(r).mid],
+  );
+}
+
 /// Couleur « solide » du rôle (§9) : libellés, liserés, chevrons.
 Color pawRoleSolid(String role) {
   switch (role.toLowerCase()) {

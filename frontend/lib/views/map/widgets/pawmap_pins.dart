@@ -992,11 +992,105 @@ class PawMapPinPainter {
   /// `priceBubbleHtml`) : 22 px, rayon 8, dégradé 170° du service, contour
   /// blanc 2, ombre 0 5 10 −4, icône 11 + texte Poppins 700 11,5, pointe
   /// 10 × 6 foncée 1 px sous la bulle.
+  /// v594 — largeur d'une bulle de prix ; « A|B » = bulle DUO gardien/promeneur.
+  static double priceBubbleWidth(String text) {
+    double w = 0;
+    for (final part in text.split('|')) {
+      final tp = TextPainter(
+        text: TextSpan(
+            text: part, style: _pinStyle(11.5, FontWeight.w700, Colors.white)),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      )..layout();
+      w += 8 + 11 + 4 + tp.width + 8;
+    }
+    return w;
+  }
+
+  /// v594 — Daniel (26/09) : beaucoup créent gardien + promeneur. UNE bulle,
+  /// moitié bleue « maison · prix gardien », moitié verte « balade · prix
+  /// promeneur ». [text] = « 20 €|12 € ».
+  static void _drawDuoPriceBubble(Canvas canvas,
+      {required double cx, required double bottom, required String text}) {
+    final parts = text.split('|');
+    final tps = [
+      for (final part in parts.take(2))
+        TextPainter(
+          text: TextSpan(
+              text: part,
+              style: _pinStyle(11.5, FontWeight.w700, Colors.white)),
+          textDirection: TextDirection.ltr,
+          maxLines: 1,
+        )..layout(),
+    ];
+    const double h = 22;
+    const double iconS = 11;
+    const double gap = 4;
+    final widths = [for (final tp in tps) 8 + iconS + gap + tp.width + 8];
+    final double w = widths.fold(0.0, (a, b) => a + b);
+    final double top = bottom - 6 - 1 - h;
+    final body = Rect.fromLTWH(cx - w / 2, top, w, h);
+    final rect = RRect.fromRectAndRadius(body, const Radius.circular(8));
+    cssShadow(canvas, Path()..addRRect(rect.inflate(2)),
+        dy: 5,
+        blur: 10,
+        spread: -4,
+        color: PawMapLegend.ink.withValues(alpha: 0.45));
+    canvas.drawRRect(rect.inflate(2), Paint()..color = Colors.white);
+    final (sl, sd) = priceBubbleColors('sitter');
+    final (wl, wd) = priceBubbleColors('walker');
+    // Pointe sous le milieu : moitié bleue, moitié verte.
+    canvas.drawPath(
+        Path()
+          ..moveTo(cx - 5, top + h + 1)
+          ..lineTo(cx, top + h + 1)
+          ..lineTo(cx, top + h + 7)
+          ..close(),
+        Paint()..color = sd);
+    canvas.drawPath(
+        Path()
+          ..moveTo(cx, top + h + 1)
+          ..lineTo(cx + 5, top + h + 1)
+          ..lineTo(cx, top + h + 7)
+          ..close(),
+        Paint()..color = wd);
+    canvas.save();
+    canvas.clipRRect(rect);
+    final left = Rect.fromLTWH(body.left, top, widths[0], h);
+    final right = Rect.fromLTWH(body.left + widths[0], top, w - widths[0], h);
+    canvas.drawRect(left, Paint()..shader = cssLinear(left, 170, [sl, sd]));
+    canvas.drawRect(right, Paint()..shader = cssLinear(right, 170, [wl, wd]));
+    canvas.restore();
+    // Filet blanc entre les deux moitiés.
+    canvas.drawLine(Offset(right.left, top + 4), Offset(right.left, top + h - 4),
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.7)
+          ..strokeWidth = 1);
+    final icons = [PawGlyphs.msHome, PawGlyphs.msWalk];
+    double x = body.left;
+    for (var i = 0; i < tps.length; i++) {
+      drawSvg(
+          canvas,
+          icons[i],
+          Rect.fromCenter(
+              center: Offset(x + 8 + iconS / 2, top + h / 2),
+              width: iconS,
+              height: iconS),
+          Colors.white);
+      tps[i].paint(canvas, Offset(x + 8 + iconS + gap, top + (h - tps[i].height) / 2));
+      x += widths[i];
+    }
+  }
+
   static void drawPriceBubble(Canvas canvas,
       {required double cx,
       required double bottom,
       required String text,
       required String role}) {
+    if (text.contains('|')) {
+      _drawDuoPriceBubble(canvas, cx: cx, bottom: bottom, text: text);
+      return;
+    }
     final (light, dark) = priceBubbleColors(role);
     final String icon =
         role.toLowerCase() == 'walker' ? PawGlyphs.msWalk : PawGlyphs.msHome;
@@ -1151,6 +1245,11 @@ class PawMapPinPainter {
     } else if (pawFollowGlow) {
       drawCssGlow(canvas, c, r, maxR, PawMapLegend.pawFollow,
           [(4, 0, 0.35), (5, 16, 0.55)]);
+    } else if (isFriend) {
+      // v594 — Daniel (26/09) : « le halo rose oui » (l'or non, la couronne
+      // suffit). Lueur rose FIXE autour de chaque ami, sous PawBoost/suivi.
+      drawCssGlow(canvas, c, r, maxR, PawMapLegend.friend,
+          [(4, 0, 0.42), (6, 16, 0.62)]);
     } else if (isMe) {
       // Le site fait « pulser » un anneau autour de moi (`hps-pulse`) : sur
       // un bitmap fixe, un halo doux de la couleur de mon rôle.
@@ -1720,15 +1819,25 @@ class PawMapPinCache extends GetxService {
     String key,
     double logicalW,
     double logicalH,
-    void Function(Canvas canvas) paint,
-  ) {
+    void Function(Canvas canvas) paint, {
+    // v594 — « les bulles de prix s'affichent une fois sur deux » : en
+    // passant le seuil de zoom, chaque épingle change d'image et, le temps
+    // du dessin, la carte montrait une épingle Google rose. Avec [slot]
+    // (un marqueur), on garde sa DERNIÈRE image jusqu'à la nouvelle.
+    String? slot,
+  }) {
     final cached = _cache[key];
-    if (cached != null) return cached;
+    if (cached != null) {
+      if (slot != null) _lastBySlot[slot] = cached;
+      return cached;
+    }
     if (_building.add(key)) {
       unawaited(_build(key, logicalW, logicalH, paint));
     }
-    return null;
+    return slot == null ? null : _lastBySlot[slot];
   }
+
+  final Map<String, BitmapDescriptor> _lastBySlot = {};
 
   Future<void> _build(String key, double w, double h,
       void Function(Canvas canvas) paint) async {

@@ -29,6 +29,7 @@ import '../../../utils/app_colors.dart';
 import '../../../utils/bottom_inset.dart';
 import '../../../utils/pawmap_theme.dart';
 import 'pawmap_buttons.dart';
+import 'pawmap_jewel.dart';
 import 'pawmap_pins.dart';
 
 /// Conteneur commun des feuilles de la carte : carte flottante, coins 24,
@@ -84,6 +85,86 @@ Future<T?> showPawMapSheet<T>(BuildContext context, Widget child,
     isScrollControlled: true,
     builder: (_) => PawMapSheetShell(maxHeightFactor: maxHeightFactor, child: child),
   );
+}
+
+/// v594 — Daniel (26/09) : une personne gardienne ET promeneuse apparaissait
+/// en « 2 membres ici ». UNE fiche, avec un onglet par rôle (ordre fixe
+/// orange → bleu → vert), le rôle affiché en dégradé plein.
+class PawRoleTabs extends StatelessWidget {
+  const PawRoleTabs({
+    super.key,
+    required this.roles,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final List<String> roles;
+  final String selected;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    const order = <String>['owner', 'sitter', 'walker'];
+    final set = roles.map((r) => r.toLowerCase()).toSet();
+    final list = [for (final r in order) if (set.contains(r)) r];
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 0),
+      child: Row(
+        children: [
+          for (var i = 0; i < list.length; i++) ...[
+            if (i > 0) SizedBox(width: 8.w),
+            Expanded(child: _tab(context, list[i])),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _tab(BuildContext context, String role) {
+    final pal = pawJewelForRole(role);
+    final bool on = role == selected.toLowerCase();
+    return Semantics(
+      button: true,
+      selected: on,
+      label: 'pawmap590_role_$role'.tr,
+      child: GestureDetector(
+        key: ValueKey<String>('pawmap_role_tab_$role'),
+        behavior: HitTestBehavior.opaque,
+        onTap: on ? null : () => onSelect(role),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 38.h,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            gradient: on ? pal.gradient : null,
+            color: on ? null : pal.mid.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(19.r),
+            border: Border.all(
+                color: on ? Colors.white.withValues(alpha: 0.6) : pal.mid,
+                width: on ? 1 : 1.4),
+            boxShadow: on
+                ? [
+                    BoxShadow(
+                      color: pal.mid.withValues(alpha: 0.45),
+                      blurRadius: 10,
+                      spreadRadius: -4,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            'pawmap590_role_$role'.tr,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: PawMapTheme.fontOn(context,
+                    size: 13.sp, weight: FontWeight.w700)
+                .copyWith(color: on ? Colors.white : pal.dark),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // ── MEMBRE ─────────────────────────────────────────────────────────────────

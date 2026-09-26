@@ -126,3 +126,68 @@ PawFriendState pawMapRelationState({
   if (incoming) return PawFriendState.incoming;
   return PawFriendState.idle;
 }
+
+/// v594 — Daniel (26/09) : couleurs des rôles dans un ordre FIXE, jamais
+/// l'ordre de création : orange (propriétaire) → bleu (gardien) → vert
+/// (promeneur). Deux personnes aux mêmes rôles ont le même liseré / bouton.
+const List<String> kPawMapRoleOrder = <String>['owner', 'sitter', 'walker'];
+
+/// Rôles connus, sans doublon, dans l'ordre fixe.
+List<String> pawMapOrderedRoles(Iterable<String> roles) {
+  final set = roles.map((r) => r.trim().toLowerCase()).toSet();
+  return [for (final r in kPawMapRoleOrder) if (set.contains(r)) r];
+}
+
+/// Rôles d'une personne (`roles` du serveur, sinon son rôle seul), ordre fixe.
+List<String> pawMapPersonRoles(Map p) {
+  final out = <String>[];
+  final roles = p['roles'];
+  if (roles is List) {
+    for (final r in roles) {
+      if (r is Map) out.add((r['role'] ?? '').toString());
+    }
+  }
+  if (out.isEmpty) out.add((p['_role'] ?? p['role'] ?? '').toString());
+  return pawMapOrderedRoles(out);
+}
+
+/// v594 — bulle de prix d'une personne. Gardien ET promeneur visibles avec
+/// un prix : bulle DUO « prixGardien|prixPromeneur » (rôle `duo`). Sinon le
+/// prix du seul rôle visible, à sa couleur. null = pas de bulle.
+/// [shows] (rôle du spectateur, rôle du membre) = règle du marché
+/// (`pawMapShowsPriceBubble`) ; [shownRoles] = filtre de rôles de la carte.
+({String text, String role})? pawMapPersonPriceBubble(
+  List<Map<String, dynamic>> personRoles, {
+  required bool Function(String targetRole) shows,
+  required Set<String> shownRoles,
+  required String Function(String currency, double price) format,
+}) {
+  final byRole = <String, String>{};
+  for (final r in personRoles) {
+    final role = (r['_role'] ?? r['role'] ?? '').toString().toLowerCase();
+    if (role != 'sitter' && role != 'walker') continue;
+    if (shownRoles.isNotEmpty && !shownRoles.contains(role)) continue;
+    if (!shows(role)) continue;
+    final price = (r['priceFrom'] as num?)?.toDouble() ?? 0;
+    if (price <= 0 || byRole.containsKey(role)) continue;
+    byRole[role] = format((r['currency'] ?? 'EUR').toString(), price);
+  }
+  if (byRole.containsKey('sitter') && byRole.containsKey('walker')) {
+    return (text: '${byRole['sitter']}|${byRole['walker']}', role: 'duo');
+  }
+  if (byRole.isEmpty) return null;
+  final e = byRole.entries.first;
+  return (text: e.value, role: e.key);
+}
+
+/// v594 — distance à vol d'oiseau (km) entre deux points.
+double pawMapDistanceKm(LatLng a, LatLng b) {
+  const r = 6371.0;
+  final dLat = (b.latitude - a.latitude) * math.pi / 180;
+  final dLng = (b.longitude - a.longitude) * math.pi / 180;
+  final la1 = a.latitude * math.pi / 180;
+  final la2 = b.latitude * math.pi / 180;
+  final h = math.sin(dLat / 2) * math.sin(dLat / 2) +
+      math.cos(la1) * math.cos(la2) * math.sin(dLng / 2) * math.sin(dLng / 2);
+  return 2 * r * math.asin(math.min(1.0, math.sqrt(h)));
+}

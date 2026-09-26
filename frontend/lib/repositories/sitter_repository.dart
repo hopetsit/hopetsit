@@ -309,6 +309,24 @@ class SitterRepository {
     );
   }
 
+  /// v594 — profil PUBLIC d'un propriétaire (bio, ville, animaux) pour la
+  /// page ouverte depuis la PawMap. null si introuvable.
+  Future<Map<String, dynamic>?> getOwnerPublicProfile(String ownerId) async {
+    try {
+      final r = await _apiClient.get(
+        '/users/owners/$ownerId/public',
+        requiresAuth: true,
+      );
+      if (r is Map && r['owner'] is Map) {
+        return Map<String, dynamic>.from(r['owner'] as Map);
+      }
+      return null;
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
+    }
+  }
+
   /// v565 (point 24) — `GET /bookings/:id` : même forme qu'un élément de la
   /// liste + `handover` + `timeline`. Renvoie null si le backend ne connaît
   /// pas encore la route (404) : l'écran garde alors la réservation reçue.

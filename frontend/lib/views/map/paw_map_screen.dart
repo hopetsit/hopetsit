@@ -63,7 +63,7 @@ import 'package:hopetsit/views/map/widgets/pawmap_sheet.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_discreet.dart';
 import 'package:hopetsit/views/service_provider/widgets/book_as_owner.dart';
 import 'package:hopetsit/services/map_prefs_service.dart';
-import 'package:hopetsit/widgets/paw_tab_bar.dart' show pawTabBarTotalHeight;
+import 'package:hopetsit/widgets/paw_tab_bar.dart' show pawTabBarTotalHeight, pawTabBarUsefulHeight, kPawTabBarSideMargin;
 import 'package:hopetsit/views/map/pawmap_friend_focus.dart';
 import 'package:hopetsit/views/map/pawmap_friends_layer.dart';
 import 'package:hopetsit/views/map/pawmap_person.dart';
@@ -464,6 +464,24 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Drives Circle radius (50..160m) and opacity (0.45→0) so the marker
   /// looks like a beacon pulsing outward.
   Timer? _haloTimer;
+
+  /// v594 — Oppo A40 (frère de Daniel) : chaque tick reconstruisait TOUTE la
+  /// GoogleMap 1,7×/s, même sans rien d'animé. Le tick ne bat vite que si
+  /// quelque chose respire (mon partage en direct, un PawBoost à l'écran, un
+  /// suivi) ; sinon une fois toutes les 3 s, en filet de sécurité.
+  int _idleTicks = 0;
+  bool _haloTickDue() {
+    final bool animating = _liveMap.broadcasting.value ||
+        _anyBoosted ||
+        _followUserId != null;
+    if (animating) return true;
+    _idleTicks = (_idleTicks + 1) % 5;
+    return _idleTicks == 0;
+  }
+
+  /// v594 — la caméra s'arrête → les marqueurs se recalculent tout de suite
+  /// (prix au zoom rue, étiquettes), sans attendre un tick.
+  final RxInt _camIdleRev = 0.obs;
   /// v552 — workers qui forcent le recalcul de `canPop` (retour Android).
   List<Worker> _backGuardWorkers = const [];
   final RxDouble _haloPhase = 0.0.obs;
@@ -744,7 +762,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     // par les rebuilds Google Maps Circle. Aussi : 12 → 8 steps pour
     // un cycle complet plus court (visuellement equivalent).
     _haloTimer = Timer.periodic(const Duration(milliseconds: 600), (_) {
-      if (!mounted || _cameraMoving) return;
+      if (!mounted || _cameraMoving || !_haloTickDue()) return;
       _haloPhase.value = (_haloPhase.value + 1.0 / 8.0) % 1.0;
     });
 
@@ -784,6 +802,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     // Paris fallback is the initial value — the map renders immediately
     // and _bootstrap() upgrades to real location in the background.
     _bootstrap();
+    // v594 — jamais de voile bloqué : retiré au plus tard 8 s après l'ouverture.
+    Future<void>.delayed(const Duration(seconds: 8), () {
+      if (mounted) _mapPainted.value = true;
+    });
 
     // v23.1.190 — pre-warm le cache emoji markers en background. Quand
     // pret, setState force le rebuild des markers map.
@@ -946,24 +968,30 @@ class _PawMapScreenState extends State<PawMapScreen>
     required List<PawSpotModel> spots,
   }) {
     final items = <PawMapClusterItem>[];
-    // v585 — une ligne PAR RÔLE pour une personne à plusieurs rôles.
-    members = [for (final m in members) ...pawMapExpandRoles(m)];
-    for (final p in members) {
-      final role = (p['_role'] ?? '').toString().toLowerCase();
+    // v594 — Daniel (26/09) : « 2 membres ici » pour UNE personne gardienne +
+    // promeneuse. Une ligne PAR PERSONNE (ses rôles en sous-titre) ; la
+    // fiche s'ouvre avec un onglet par rôle.
+    String roleLabel(String role) => role == 'walker'
+        ? 'pawmap_legend_walker'.tr
+        : (role == 'owner' ? 'pawmap_legend_owner'.tr : 'pawmap_legend_sitter'.tr);
+    for (var i = 0; i < members.length; i++) {
+      final p = members[i];
+      final roles = pawMapPersonRoles(p);
+      final first = roles.isNotEmpty
+          ? roles.first
+          : (p['_role'] ?? p['role'] ?? '').toString().toLowerCase();
       items.add(PawMapClusterItem(
-        id: 'm:${p['id'] ?? p['_id'] ?? ''}',
+        id: 'm:$i',
         title: (p['name'] ?? '').toString(),
         subtitle: () {
-          final roleLabel = role == 'walker'
-              ? 'pawmap_legend_walker'.tr
-              : (role == 'owner' ? 'pawmap_legend_owner'.tr : 'pawmap_legend_sitter'.tr);
+          final labels = roles.map(roleLabel).join(' · ');
           final ll = pawMapMemberLatLng(p);
           final d = _distanceLabelTo(ll?.latitude, ll?.longitude);
-          return d.isEmpty ? roleLabel : '$roleLabel · $d';
+          return d.isEmpty ? labels : '$labels · $d';
         }(),
-        color: PawMapLegend.roleColor(role),
+        color: PawMapLegend.roleColor(first),
         avatar: (p['avatar'] ?? '').toString(),
-        icon: PawMapLegend.roleIcon(role),
+        icon: PawMapLegend.roleIcon(first),
       ));
     }
     for (final poi in places) {
@@ -996,10 +1024,24 @@ class _PawMapScreenState extends State<PawMapScreen>
         onOpen: (it) {
           Navigator.of(context).pop();
           if (it.id.startsWith('m:')) {
-            final id = it.id.substring(2);
-            final p = members.firstWhereOrNull(
-                (m) => (m['id'] ?? m['_id'] ?? '').toString() == id);
-            if (p == null) return;
+            final idx = int.tryParse(it.id.substring(2)) ?? -1;
+            if (idx < 0 || idx >= members.length) return;
+            final person = members[idx];
+            final entries = pawMapExpandRoles(person);
+            final ll = pawMapMemberLatLng(person);
+            final bool friend = person['isFriend'] == true ||
+                _friendController.isFriendWithAny(pawMapPersonIds(person));
+            if (entries.length > 1) {
+              _tapMemberEntry(_defaultRoleEntry(entries),
+                  roleEntries: entries,
+                  fromMarker: false,
+                  isFriend: friend,
+                  lat: ll?.latitude,
+                  lng: ll?.longitude);
+              return;
+            }
+            final p = entries.first;
+            final id = (p['id'] ?? p['_id'] ?? '').toString();
             final loc = p['location'] is Map ? p['location'] as Map : null;
             final c = loc != null && loc['coordinates'] is List ? loc['coordinates'] as List : null;
             _onNearbyTap(
@@ -1020,7 +1062,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               verified: p['kycVerified'] == true,
               boosted: p['isBoosted'] == true,
               availableToday: p['availableToday'] == true,
-              isFriend: p['isFriend'] == true,
+              isFriend: friend,
               personIds: pawMapPersonIds(p),
             );
           } else if (it.id.startsWith('p:')) {
@@ -1100,7 +1142,14 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v589 — vrai quand l'appel vient d'un ROND de la carte (toucher en deux
     // temps) ; depuis une liste, la fiche s'ouvre tout de suite.
     bool fromMarker = false,
+    // v594 — une personne à plusieurs rôles : une entrée par rôle (onglets
+    // de la fiche, bouton « Profil » multicolore, bulle duo).
+    List<Map<String, dynamic>> roleEntries = const [],
   }) {
+    final List<String> personRoleList = roleEntries.length > 1
+        ? pawMapOrderedRoles(roleEntries
+            .map((e) => (e['_role'] ?? e['role'] ?? '').toString()))
+        : <String>[role];
     // v589 — Daniel : « quand je clique sur un ami ou un utilisateur, ça
     // zoome sur lui (pour le suivre par exemple), et si je retouche, voir le
     // profil sort ». 1er toucher = la carte vole sur lui (zoom rue) et le
@@ -1112,11 +1161,21 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (fromMarker && !secondTap && lat != null && lng != null) {
       // v590 — handoff §2/§4 : zoom + CARTE FOCUS (Profil › / ✕).
       final String dist = approx ? '' : _distanceLabelTo(lat, lng);
-      final String price = (role == 'sitter' || role == 'walker') &&
-              priceFrom > 0 &&
-              pawMapShowsPriceBubble(_role, role)
-          ? CurrencyHelper.formatCompact(currency, priceFrom)
-          : '';
+      final duo = roleEntries.length > 1
+          ? pawMapPersonPriceBubble(
+              roleEntries,
+              shows: (r) => pawMapShowsPriceBubble(_role, r),
+              shownRoles: const <String>{},
+              format: CurrencyHelper.formatCompact,
+            )
+          : null;
+      final String price = duo != null
+          ? duo.text.replaceAll('|', ' · ')
+          : ((role == 'sitter' || role == 'walker') &&
+                  priceFrom > 0 &&
+                  pawMapShowsPriceBubble(_role, role)
+              ? CurrencyHelper.formatCompact(currency, priceFrom)
+              : '');
       final bool walking = liveState == PawFollowState.live;
       final String info = [
         if (walking) 'pawmap590_focus_walking'.tr,
@@ -1136,6 +1195,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           avatar: avatar,
           live: walking,
           friend: isFriend,
+          roles: personRoleList,
           onOpen: () => _onNearbyTap(
             id: id,
             role: role,
@@ -1158,6 +1218,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             personIds: personIds,
             liveState: liveState,
             lastSeenAt: lastSeenAt,
+            roleEntries: roleEntries,
           ),
         ),
       );
@@ -1237,7 +1298,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               }));
             }
           }
-          return PawMapMemberSheet(
+          final sheet = PawMapMemberSheet(
             member: member,
             viewerRole: _role,
             viewerLoggedIn: _viewerLoggedIn,
@@ -1322,6 +1383,31 @@ class _PawMapScreenState extends State<PawMapScreen>
                     title: 'common_error'.tr, message: err);
               }
             },
+          );
+          if (roleEntries.length < 2) return sheet;
+          // v594 — un onglet par rôle : changer d'onglet rouvre la fiche du
+          // rôle choisi (tarifs, réservation, profil de CE rôle).
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              PawRoleTabs(
+                roles: personRoleList,
+                selected: role,
+                onSelect: (r) {
+                  final e = roleEntries.firstWhereOrNull((x) =>
+                      (x['_role'] ?? x['role'] ?? '').toString().toLowerCase() == r);
+                  if (e == null) return;
+                  Navigator.of(ctx).pop();
+                  _tapMemberEntry(e,
+                      roleEntries: roleEntries,
+                      fromMarker: false,
+                      isFriend: friendNow,
+                      lat: lat,
+                      lng: lng);
+                },
+              ),
+              Flexible(child: sheet),
+            ],
           );
         },
       ),
@@ -1789,6 +1875,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       w.dispose();
     }
     _haloTimer?.cancel();
+    _mapPaintedFallback?.cancel();
     _walkTimer?.cancel(); // v590
     _walkTimer = null;
     _followWorker?.dispose();
@@ -1832,7 +1919,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       }
       if (_haloTimer == null || !(_haloTimer!.isActive)) {
         _haloTimer = Timer.periodic(const Duration(milliseconds: 600), (_) {
-          if (!mounted || _cameraMoving) return;
+          if (!mounted || _cameraMoving || !_haloTickDue()) return;
           _haloPhase.value = (_haloPhase.value + 1.0 / 8.0) % 1.0;
         });
       }
@@ -1983,21 +2070,31 @@ class _PawMapScreenState extends State<PawMapScreen>
       // the map widget never builds (e.g. user switched tabs immediately).
       // v240 — on anime la camera vers MA position UNIQUEMENT si pas de
       // focus initial (sinon on reste sur le sitter/walker/ami).
-      if (!hasInitialFocus && !_userMovedMap) {
+      if (!hasInitialFocus &&
+          !_userMovedMap &&
+          shouldAutoRecenter(myCenter)) {
         try {
           final ctl = await _mapCtl.future.timeout(
             const Duration(seconds: 6),
             onTimeout: () => throw TimeoutException('map controller not ready'),
           );
-          // v584 — ma position, au ZOOM retenu (plus un 13 en dur).
-          await ctl.animateCamera(
-              CameraUpdate.newLatLngZoom(
-                  myCenter, PawMapCameraMemory.launchZoom(_zoomLevel)));
+          // Geste pendant l'attente de la carte : on ne vole plus.
+          if (!_userMovedMap && mounted) {
+            _autoRecenterAt = DateTime.now();
+            _autoRecenterTarget = myCenter;
+            // v584 — ma position, au ZOOM retenu (plus un 13 en dur).
+            await ctl.animateCamera(
+                CameraUpdate.newLatLngZoom(
+                    myCenter, PawMapCameraMemory.launchZoom(_zoomLevel)));
+          }
         } catch (_) {
           // Controller never came up — _currentCenter is updated so the
           // next frame's initialCameraPosition is correct anyway.
         }
-      } else {
+      } else if (hasInitialFocus) {
+        // v594 — avant, ce bloc tournait AUSSI quand j'avais bougé la carte
+        // (ou après un recentrage déjà fait) : la carte revolait sur le
+        // centre courant au zoom 14. Réservé au focus demandé.
         // Focus mode : on anime vers la position du sitter/ami. v23.1.270 —
         // Daniel : "le suivi doit zoomer FORT sur la personne". En mode SUIVI
         // (_followUserId), on zoome à _followZoom (18) au lieu de 14 — avant,
@@ -2610,6 +2707,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// POI / report / request layers refresh after the user stops panning.
   void _scheduleReload() {
     _cameraMoving = false; // v550 — geste terminé : le halo repulse.
+    _camIdleRev.value++;
     // v593 — Daniel : « quand tu zoomes trop vite, on voit la carte d'en
     // dessous ». Les tuiles OSM du zoom voisin sont préchargées (zone
     // centrale, avec modération : règles d'usage d'OpenStreetMap).
@@ -3506,6 +3604,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     double rating = 0,
     // v592 — comme le web : prénom dessous, prix dans la bulle colorée au-dessus.
     String? priceBubble,
+    String? slot,
   }) {
     final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
     final size = PawMapLegend.memberSize;
@@ -3534,6 +3633,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             rating: r1,
             priceBubble: withBubble ? priceBubble : null,
           ),
+          slot: slot,
         ) ??
         BitmapDescriptor.defaultMarkerWithHue(role == 'sitter'
             ? BitmapDescriptor.hueAzure
@@ -3581,14 +3681,24 @@ class _PawMapScreenState extends State<PawMapScreen>
     final withLabel = label != null && label.isNotEmpty;
     final key =
         '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}:$ringsKey:${withBubble ? '$priceBubble/$priceRole' : ''}';
-    final w = PawMapPinPainter.photoBitmapSize(size);
+    // v594 — la bulle duo gardien/promeneur est plus large que le rond : le
+    // bitmap s'élargit des deux côtés (le rond reste centré, ancre x = 0,5).
+    final baseW = PawMapPinPainter.photoBitmapSize(size);
+    final double bubbleW = withBubble
+        ? PawMapPinPainter.priceBubbleWidth(priceBubble) + 8
+        : 0;
+    final double w = math.max(baseW, bubbleW);
+    final double dx = (w - baseW) / 2;
     final h = PawMapPinPainter.photoBitmapSize(size, withLabel: withLabel) +
         (withBubble ? PawMapPinPainter.priceBubbleZone : 0);
     return _pins.getOrBuild(
           key,
           w,
           h,
-          (c) => PawMapPinPainter.paintPhotoDot(
+          (c) {
+            c.save();
+            c.translate(dx, 0);
+            PawMapPinPainter.paintPhotoDot(
             c,
             avatar: avatar,
             ringColor: ring,
@@ -3608,7 +3718,10 @@ class _PawMapScreenState extends State<PawMapScreen>
             fallbackTint: fallbackTint,
             priceBubble: withBubble ? priceBubble : null,
             priceRole: priceRole,
-          ),
+          );
+            c.restore();
+          },
+          slot: keyPrefix,
         ) ??
         BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose);
   }
@@ -3726,6 +3839,79 @@ class _PawMapScreenState extends State<PawMapScreen>
     } catch (_) {
       return '';
     }
+  }
+
+  /// v594 — ouvre la personne à partir d'UNE de ses entrées de rôle
+  /// (`pawMapExpandRoles`), avec toutes ses entrées pour les onglets.
+  void _tapMemberEntry(
+    Map<String, dynamic> e, {
+    required List<Map<String, dynamic>> roleEntries,
+    required bool fromMarker,
+    required bool isFriend,
+    double? lat,
+    double? lng,
+  }) {
+    final role = (e['_role'] ?? e['role'] ?? '').toString().toLowerCase();
+    final bool approx = e['approx'] == true;
+    _onNearbyTap(
+      fromMarker: fromMarker,
+      id: (e['id'] ?? e['_id'] ?? '').toString(),
+      role: role,
+      name: (e['name'] ?? '').toString(),
+      online: e['isOnline'] != false && e['online'] != false,
+      premium: e['isPremium'] == true,
+      lat: lat,
+      lng: lng,
+      avatar: (e['avatar'] ?? '').toString(),
+      approx: approx,
+      approxKm: (e['approxKm'] as num?)?.toDouble() ?? 1.0,
+      rating: (e['rating'] as num?)?.toDouble() ?? 0,
+      reviewsCount: (e['reviewsCount'] as num?)?.toInt() ?? 0,
+      priceFrom: (e['priceFrom'] as num?)?.toDouble() ?? 0,
+      currency: (e['currency'] ?? 'EUR').toString(),
+      verified: e['kycVerified'] == true,
+      boosted: e['isBoosted'] == true,
+      availableToday: e['availableToday'] == true,
+      isFriend: isFriend,
+      personIds: pawMapPersonIds(e),
+      roleEntries: roleEntries,
+    );
+  }
+
+  /// Rôle ouvert d'abord : l'autre côté du marché (un propriétaire voit
+  /// d'abord le gardien / promeneur, un prestataire le propriétaire).
+  Map<String, dynamic> _defaultRoleEntry(List<Map<String, dynamic>> entries) {
+    final bool viewerProvider = _role == 'sitter' || _role == 'walker';
+    final pref = viewerProvider
+        ? const ['owner', 'sitter', 'walker']
+        : const ['sitter', 'walker', 'owner'];
+    for (final r in pref) {
+      final e = entries.firstWhereOrNull((x) =>
+          (x['_role'] ?? x['role'] ?? '').toString().toLowerCase() == r);
+      if (e != null) return e;
+    }
+    return entries.first;
+  }
+
+  /// v594 — vrai si [p] est à moins de [px] pixels de mon rond au zoom actuel.
+  bool _nearMeOnScreen(LatLng p, double px) {
+    final me = _userPosition;
+    if (me == null) return false;
+    final double mpp = 156543.03392 *
+        math.cos(me.latitude * math.pi / 180) /
+        math.pow(2, _zoomLevel);
+    return pawMapDistanceKm(me, p) * 1000 / mpp < px;
+  }
+
+  /// v594 — la personne portant l'id [id] (n'importe lequel de ses rôles)
+  /// a-t-elle un PawBoost actif ? Lu sur les couches membres déjà chargées.
+  bool _personBoosted(String id) {
+    final k = id.trim().toLowerCase();
+    if (k.isEmpty) return false;
+    bool hit(Map p) =>
+        p['isBoosted'] == true &&
+        pawMapPersonIds(p).any((x) => x.trim().toLowerCase() == k);
+    return _worldMembers.any(hit) || _nearbyProviders.any(hit);
   }
 
   String _priceLabelFor(Map<String, dynamic> p) {
@@ -4007,11 +4193,23 @@ class _PawMapScreenState extends State<PawMapScreen>
         final bool isFriend = p['isFriend'] == true ||
             _friendController.isFriendWithAny(pawMapPersonIds(p));
         // v590 — handoff §1 : prix de l'autre côté du marché seulement.
-        final priceLabel = role == 'owner' ||
-                !showPrice ||
-                !pawMapShowsPriceBubble(_role, role)
+        // v594 — gardien + promeneur : UNE bulle duo bleu/vert (Daniel 26/09).
+        final priceBub = !showPrice
+            ? null
+            : pawMapPersonPriceBubble(
+                personRoles,
+                shows: (r) => pawMapShowsPriceBubble(_role, r),
+                shownRoles: _memberRoles.toSet(),
+                format: CurrencyHelper.formatCompact,
+              );
+        final String priceLabel = priceBub == null
             ? ''
-            : _priceLabelFor(p);
+            : priceBub.text.replaceAll('|', ' · ');
+        final String priceRole = priceBub?.role ?? role;
+        // v594 — anneaux des rôles dans l'ordre fixe orange → bleu → vert.
+        final List<Color> roleRings = [
+          for (final r in pawMapPersonRoles(p)) PawMapLegend.roleColor(r)
+        ];
         // v584 (25/09) — au zoom rue : « Prénom · 25 € » sous le rond.
         final String firstName = pawMapShortName(name);
         // v589 — rond touché une fois (zoom) : « Prénom · Voir le profil › »,
@@ -4027,7 +4225,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 : (priceLabel.isEmpty ? firstName : '$firstName · $priceLabel'));
         // v590 — rond AVEC photo : le prix part dans la bulle colorée
         // au-dessus, l'étiquette ne garde que le prénom.
-        final String? bubble = priceLabel.isEmpty ? null : priceLabel;
+        final String? bubble = priceBub?.text;
         final String photoLabel = focused || !showPrice
             ? streetLabel
             : (firstName.isEmpty ? name : firstName);
@@ -4036,8 +4234,11 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (isFriend) {
           // v592 — Daniel : « comme le web, la petite bulle Vu il y a 5 j ».
           // Hors zoom rue, un ami porte sa dernière activité sous son rond.
-          final String friendLabel =
-              photoLabel.isNotEmpty ? photoLabel : _friendSeenCaption(p);
+          // v594 — « Vu il y a 1 j » chevauchait « Moi » quand l'ami est
+          // juste à côté de moi : sous 70 px de mon rond, pas de légende.
+          final String friendLabel = photoLabel.isNotEmpty
+              ? photoLabel
+              : (_nearMeOnScreen(pos, 70) ? '' : _friendSeenCaption(p));
           icon = _photoIcon(
             keyPrefix: 'friend:$id',
             avatarUrl: avatar,
@@ -4045,14 +4246,9 @@ class _PawMapScreenState extends State<PawMapScreen>
             size: PawMapLegend.friendSize,
             label: friendLabel.isEmpty ? null : friendLabel,
             // v592 — ami à plusieurs rôles : rose puis les anneaux de ses rôles (web).
-            ringColors: personRoles.length > 1
-                ? [
-                    for (final r in personRoles)
-                      PawMapLegend.roleColor((r['_role'] ?? '').toString())
-                  ]
-                : null,
+            ringColors: roleRings.length > 1 ? roleRings : null,
             priceBubble: bubble,
-            priceRole: role,
+            priceRole: priceRole,
             labelColor: PawMapLegend.darken(PawMapLegend.friend, 0.25),
             crown: premium && _showPremiumLayer.value,
             online: online && !approx,
@@ -4068,22 +4264,19 @@ class _PawMapScreenState extends State<PawMapScreen>
           icon = _photoIcon(
             keyPrefix: 'multi:$id',
             avatarUrl: avatar,
-            ring: PawMapLegend.roleColor(role),
-            ringColors: [
-              for (final r in personRoles)
-                PawMapLegend.roleColor((r['_role'] ?? '').toString()),
-            ],
+            ring: roleRings.isNotEmpty ? roleRings.first : PawMapLegend.roleColor(role),
+            ringColors: roleRings,
             size: PawMapLegend.memberSize,
             label: photoLabel.isEmpty ? null : photoLabel,
             priceBubble: bubble,
-            priceRole: role,
-            labelColor: PawMapLegend.darken(PawMapLegend.roleColor(role), 0.25),
+            priceRole: priceRole,
+            labelColor: PawMapLegend.darken(roleRings.isNotEmpty ? roleRings.first : PawMapLegend.roleColor(role), 0.25),
             crown: premium && _showPremiumLayer.value,
             crownSize: PawMapLegend.crownMember,
             online: online && !approx,
             boosted: boosted,
             fallbackIcon: PawMapLegend.roleIcon(role),
-            fallbackTint: PawMapLegend.roleColor(role),
+            fallbackTint: roleRings.isNotEmpty ? roleRings.first : PawMapLegend.roleColor(role),
           );
           anchor = _photoAnchor(PawMapLegend.memberSize,
               withLabel: photoLabel.isNotEmpty, withBubble: bubble != null);
@@ -4097,7 +4290,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             size: PawMapLegend.memberSize,
             label: photoLabel.isEmpty ? null : photoLabel,
             priceBubble: bubble,
-            priceRole: role,
+            priceRole: priceRole,
             labelColor: PawMapLegend.darken(PawMapLegend.roleColor(role), 0.25),
             crown: premium && _showPremiumLayer.value,
             crownSize: PawMapLegend.crownMember,
@@ -4119,6 +4312,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             priceLabel: photoLabel,
             rating: (p['rating'] as num?)?.toDouble() ?? 0,
             priceBubble: bubble,
+            slot: 'nearby_$id',
           );
           anchor = Offset(
               0.5,
@@ -4137,8 +4331,12 @@ class _PawMapScreenState extends State<PawMapScreen>
             // Maps recentre aussi la carte et les deux animations se battent).
             consumeTapEvents: true,
             onTap: () => personRoles.length > 1
-                ? _openClusterList(
-                    members: personRoles, places: const [], spots: const [])
+                ? _tapMemberEntry(_defaultRoleEntry(personRoles),
+                    roleEntries: personRoles,
+                    fromMarker: true,
+                    isFriend: isFriend,
+                    lat: pos.latitude,
+                    lng: pos.longitude)
                 : _onNearbyTap(
               fromMarker: true,
               id: id,
@@ -4326,6 +4524,10 @@ class _PawMapScreenState extends State<PawMapScreen>
             (famAvatar.isNotEmpty ? famAvatar : '');
         final normPosId = pos.userId.trim().toLowerCase();
         final isPremiumMember = premiumMemberIds.contains(normPosId);
+        // v594 — Daniel : « en balade, mon halo PawBoost disparaît ». Le rond
+        // « direct » ne savait pas que la personne est boostée.
+        final bool liveBoosted = _personBoosted(pos.userId);
+        if (liveBoosted) _anyBoosted = true;
         markers.add(
           Marker(
             markerId: MarkerId('friend_${pos.userId}'),
@@ -4339,6 +4541,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               online: pos.isLive,
               // Signal perdu : rond « éteint » à la couleur du rôle, jamais gris.
               dimmed: pos.isLost,
+              boosted: liveBoosted && !pos.isLost,
               // v584 — auréole violette qui respire sur la personne SUIVIE.
               followPhase: _followUserId != null &&
                       _followUserId!.trim().toLowerCase() == normPosId &&
@@ -4822,6 +5025,24 @@ class _PawMapScreenState extends State<PawMapScreen>
                 child: _buildGoogleMap(),
               ),
             ),
+            // v594 — Oppo A40 (frère de Daniel) : fond vide sombre pendant
+            // que Google dessine ses premières tuiles. Voile PawMap clair (ou
+            // nuit) avec la patte, retiré en fondu dès la carte posée.
+            Positioned.fill(
+              key: const ValueKey<String>('pawmap_load_veil'),
+              child: Obx(() {
+                final bool shown = !_mapPainted.value;
+                return IgnorePointer(
+                  ignoring: !shown,
+                  child: AnimatedOpacity(
+                    opacity: shown ? 1 : 0,
+                    duration: const Duration(milliseconds: 380),
+                    curve: Curves.easeOut,
+                    child: _buildLoadVeil(),
+                  ),
+                );
+              }),
+            ),
             // v592 — mention légale d'OpenStreetMap (obligatoire) quand le
             // fond détaillé est affiché : discrète, au-dessus du logo Google.
             Positioned(
@@ -5210,9 +5431,32 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// automatique au démarrage.
   bool _userMovedMap = false;
 
+  /// v594 — Daniel : « au début, quand je me connecte, ça revient DEUX fois
+  /// sur ma position si je ne touche pas l'écran 5 s ». Après la connexion,
+  /// l'écran PawMap est reconstruit (nouvel état → 2e `_bootstrap`) : le
+  /// drapeau `_userMovedMap` repartait à faux et la carte revolait sur moi.
+  /// Mémoire de l'APPLI (pas de l'écran) : dernier recentrage automatique et
+  /// dernier geste. Un recentrage automatique a lieu une fois ; on ne le
+  /// refait que si je suis à plus de 300 m de là et sans geste depuis.
+  static DateTime? _autoRecenterAt;
+  static LatLng? _autoRecenterTarget;
+  static DateTime? _lastGestureAt;
+
+  static bool shouldAutoRecenter(LatLng target, {DateTime? now}) {
+    final t = now ?? DateTime.now();
+    final at = _autoRecenterAt;
+    final prev = _autoRecenterTarget;
+    if (at == null || prev == null) return true;
+    if (t.difference(at) > const Duration(minutes: 10)) return true;
+    final g = _lastGestureAt;
+    if (g != null && g.isAfter(at)) return false;
+    return pawMapDistanceKm(prev, target) > 0.3;
+  }
+
   void _onMapPointerDown(PointerDownEvent e) {
     if (_dragWatch.down(e.position)) {
       _userMovedMap = true;
+      _lastGestureAt = DateTime.now();
       _pauseFollow();
       if (_focusCard.value != null) _clearFocus();
     }
@@ -5222,6 +5466,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   void _onMapPointerMove(PointerMoveEvent e) {
     if (_dragWatch.move(e.position)) {
       _userMovedMap = true;
+      _lastGestureAt = DateTime.now();
       _pauseFollow();
       // v590 — début de déplacement : le focus s'annule (handoff §2).
       if (_focusCard.value != null) _clearFocus();
@@ -5411,6 +5656,46 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v584 — LA GoogleMap unique (voir `build`). Un seul contrôleur
   /// (`_mapCtl`), un seul jeu de rappels, mêmes couches quel que soit le
   /// mode (normal / agrandi).
+  /// v594 — vrai dès que la carte Google a posé son premier cadrage.
+  final RxBool _mapPainted = false.obs;
+  Timer? _mapPaintedFallback;
+
+  void _markMapPainted({Duration delay = const Duration(milliseconds: 250)}) {
+    if (_mapPainted.value) return;
+    Future<void>.delayed(delay, () {
+      if (mounted) _mapPainted.value = true;
+    });
+  }
+
+  Widget _buildLoadVeil() {
+    final bool dark = PawMapTheme.isDark(context) || _nightMode.value;
+    return ColoredBox(
+      color: dark ? PawMapTheme.bgDark : PawMapTheme.mapBg,
+      child: Center(
+        child: SizedBox(
+          width: 64,
+          height: 64,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              const SizedBox(
+                width: 64,
+                height: 64,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFC92A12)),
+                ),
+              ),
+              Icon(Icons.pets_rounded,
+                  size: 28,
+                  color: const Color(0xFFC92A12).withValues(alpha: 0.9)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildGoogleMap() {
     return Obx(() {
       // Dépendances observées : la carte se reconstruit quand une couche
@@ -5421,6 +5706,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       _showReports.value;
       // v23.1 part 123 — tick halo (~1,7 fps) : la pulsation reste fluide.
       _haloPhase.value;
+      _camIdleRev.value;
       // v23.1.163 — providers + interrupteur (sinon aucun halo à l'arrivée).
       _nearbyProviders.length;
       _showProviders.value;
@@ -5454,6 +5740,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         ),
         onMapCreated: (c) {
           if (!_mapCtl.isCompleted) _mapCtl.complete(c);
+          // v594 — filet : le voile part au plus tard 4 s après la création.
+          _mapPaintedFallback ??= Timer(const Duration(seconds: 4), () {
+            if (mounted) _mapPainted.value = true;
+          });
           // v23.1 part 213 — centre initial demandé (alerte, ami, lien) :
           // on y va tout de suite, avant le recentrage GPS.
           final lat = widget.initialLat;
@@ -5490,7 +5780,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         // rond de l'ami, marge qui change) n'est pas un geste et mettait le
         // suivi « en pause » tout seul. La pause vient du VRAI geste (glisser
         // > 12 px ou pincer), lu par `_onMapPointer*` (PawMapDragWatch).
-        onCameraIdle: _scheduleReload,
+        onCameraIdle: () {
+          _markMapPainted();
+          _scheduleReload();
+        },
         myLocationEnabled: true,
         // v23.1 part 68 — nos propres commandes (capsule droite).
         myLocationButtonEnabled: false,
@@ -5507,9 +5800,17 @@ class _PawMapScreenState extends State<PawMapScreen>
         // menu (la réserve `_sheetPeekPx` de l'ancienne languette ne sert plus).
         // (la barre de gauche descend jusqu'au menu : le logo se place juste
         // à sa droite, vérifié au banc d'essai.)
+        // v594 — Daniel : « Google en bas à gauche, sous le menu ». Sous la
+        // pilule il n'y a que 6 dp : le logo y serait caché (interdit par
+        // Google, qui exige qu'il reste visible). Il se pose donc au plus
+        // bas possible : juste au-dessus du BORD GAUCHE de la pilule (la
+        // patte ne dépasse qu'au centre), sous la barre de gauche.
         padding: EdgeInsets.only(
-            left: 70.w,
-            bottom: _menuInset(context) + 6.h),
+            left: kPawTabBarSideMargin + 4,
+            bottom: (_tabBarLift(context) > 0
+                    ? _systemBottomInset(context)
+                    : pawTabBarUsefulHeight(_systemBottomInset(context))) +
+                4),
         mapType: _mapType,
         // v593 — sous les tuiles OSM, la carte Google dessinait ENCORE ses
         // noms, icônes de lieux et stations PAR-DESSUS (vu au banc d'essai) :

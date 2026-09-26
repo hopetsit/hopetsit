@@ -25,7 +25,11 @@ class PawFocusInfo {
     this.live = false,
     this.friend = false,
     this.icon,
+    this.roles = const <String>[],
   });
+
+  /// v594 — tous les rôles de la personne (bouton « Profil » multicolore).
+  final List<String> roles;
 
   /// Identifiant du marqueur (id de la personne, `req:<id>`, `me`).
   final String key;
@@ -162,7 +166,9 @@ class PawFocusCard extends StatelessWidget {
                     height: 34,
                     padding: const EdgeInsets.fromLTRB(12, 0, 6, 0),
                     decoration: BoxDecoration(
-                      gradient: pal.gradient,
+                      gradient: info.roles.length > 1
+                          ? pawRolesGradient(info.roles)
+                          : pawJewelForRole(info.role).gradient,
                       borderRadius: BorderRadius.circular(17),
                       boxShadow: [
                         BoxShadow(

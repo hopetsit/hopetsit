@@ -60,7 +60,11 @@ class OwnerProfileViewScreen extends StatefulWidget {
     this.pets = const <PostPet>[],
     this.requestsLoader,
     this.proposer,
+    this.profileLoader,
   });
+
+  /// v594 — injection pour les tests : lecture du profil public (null = réseau).
+  final Future<Map<String, dynamic>?> Function(String ownerId)? profileLoader;
 
   /// v586 (point 9) — injection pour les tests : lecture des demandes
   /// actives et envoi de la candidature (null = réseau réel).
@@ -97,6 +101,14 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
       <String, OwnerRequestApplyState>{};
   bool _startingChat = false;
 
+  // v594 — Daniel : « ma grande page de profil est vide ». Depuis la PawMap
+  // la page ne recevait que nom + photo : on charge le profil public (bio,
+  // ville, animaux) et on complète ce que l'appelant n'a pas fourni.
+  String? _bio;
+  String? _city;
+  String? _avatar;
+  List<PostPet> _pets = const <PostPet>[];
+
   /// Rôle du spectateur : seul un gardien / promeneur connecté, qui ne regarde
   /// pas sa propre fiche, voit les demandes, la candidature et « Message ».
   String get _viewerRole => viewerRoleNow();
@@ -114,7 +126,42 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
   void initState() {
     super.initState();
     if (_providerViewer) _loadRequests();
+    _loadPublicProfile();
   }
+
+  Future<void> _loadPublicProfile() async {
+    final String id = widget.ownerId.trim();
+    if (id.isEmpty) return;
+    try {
+      Map<String, dynamic>? m;
+      if (widget.profileLoader != null) {
+        m = await widget.profileLoader!(id);
+      } else {
+        if ((SecureTokenStore.currentToken() ?? '').isEmpty) return;
+        if (!Get.isRegistered<SitterRepository>()) return;
+        m = await Get.find<SitterRepository>().getOwnerPublicProfile(id);
+      }
+      if (m == null || !mounted) return;
+      final pets = (m['pets'] is List)
+          ? (m['pets'] as List)
+              .whereType<Map>()
+              .map((e) => PostPet.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : const <PostPet>[];
+      setState(() {
+        _bio = (m!['bio'] ?? '').toString();
+        _city = (m['city'] ?? '').toString();
+        _avatar = (m['avatar'] ?? '').toString();
+        _pets = pets;
+      });
+    } catch (e) {
+      // La page reste lisible avec ce que l'appelant a fourni.
+      AppLogger.logError('[owner profile] profil public', error: e);
+    }
+  }
+
+  List<PostPet> get _shownPets =>
+      widget.pets.isNotEmpty ? widget.pets : _pets;
 
   Future<void> _loadRequests() async {
     try {
@@ -228,8 +275,18 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String bio = (widget.ownerBio ?? '').trim();
-    final String city = (widget.ownerCity ?? '').trim();
+    final String bio = ((widget.ownerBio ?? '').trim().isNotEmpty
+            ? widget.ownerBio!
+            : (_bio ?? ''))
+        .trim();
+    final String city = ((widget.ownerCity ?? '').trim().isNotEmpty
+            ? widget.ownerCity!
+            : (_city ?? ''))
+        .trim();
+    final List<PostPet> pets = _shownPets;
+    final String? avatar = (widget.ownerAvatar ?? '').trim().isNotEmpty
+        ? widget.ownerAvatar
+        : ((_avatar ?? '').isNotEmpty ? _avatar : null);
     final String memberSince = (widget.memberSince ?? '').trim();
     final String name = widget.ownerName.trim().isNotEmpty
         ? widget.ownerName.trim()
@@ -271,7 +328,7 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
                           palette: _palette,
                           role: 'owner',
                           name: name,
-                          imageUrl: widget.ownerAvatar,
+                          imageUrl: avatar,
                           location: city,
                           subtitle: memberSince,
                         ),
@@ -293,13 +350,13 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
                                 ),
                                 SizedBox(height: 14.h),
                               ],
-                              if (widget.pets.isNotEmpty) ...<Widget>[
+                              if (pets.isNotEmpty) ...<Widget>[
                                 PublicProfileStatsRow(
                                   accent: _palette.accent,
                                   stats: <PublicProfileStat>[
                                     PublicProfileStat(
                                       icon: Icons.pets_rounded,
-                                      value: '${widget.pets.length}',
+                                      value: '${pets.length}',
                                       label: 'profiles573_stat_pets'.tr,
                                     ),
                                   ],
@@ -310,13 +367,13 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
                                 _buildAboutCard(context, bio),
                                 SizedBox(height: 14.h),
                               ],
-                              if (widget.pets.isNotEmpty)
+                              if (pets.isNotEmpty)
                                 PublicProfileSection(
                                   accent: _palette.accent,
                                   icon: Icons.pets_rounded,
                                   title: 'owner_profile_pets'.tr,
                                   trailing: InterText(
-                                    text: '${widget.pets.length}',
+                                    text: '${pets.length}',
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.textSecondary(context),
@@ -325,11 +382,11 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
                                     children: <Widget>[
                                       for (
                                         int i = 0;
-                                        i < widget.pets.length;
+                                        i < pets.length;
                                         i++
                                       ) ...<Widget>[
                                         if (i > 0) SizedBox(height: 10.h),
-                                        _buildPetCard(context, widget.pets[i]),
+                                        _buildPetCard(context, pets[i]),
                                       ],
                                     ],
                                   ),

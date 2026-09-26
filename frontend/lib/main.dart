@@ -1,4 +1,6 @@
-import 'dart:async' show TimeoutException;
+import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
+import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
+import 'dart:async' show TimeoutException, unawaited;
 import 'package:hopetsit/widgets/paw_button_kit.dart';
 import 'dart:io'
     show HttpException, SocketException, TlsException, WebSocketException;
@@ -122,6 +124,11 @@ void main() async {
 
   await GetStorage.init();
   await dotenv.load(fileName: ".env");
+
+  // v594 — Daniel (26/09) : sur l'Oppo A40 de son frère, écran vide avant la
+  // PawMap. Le moteur Google Maps ne démarrait qu'à la première carte (lent
+  // sur ces puces). On le prépare dès le lancement, sans attendre.
+  unawaited(_warmUpMaps());
 
   // v530 — Daniel : « dates en anglais (Jul 9, 2026) alors que l'app est en
   // français ». Les DateFormat SANS locale explicite suivent Intl.defaultLocale
@@ -558,3 +565,15 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
+/// v594 — prépare le moteur de rendu Google Maps (Android) avant la 1re
+/// carte. Sans effet ailleurs ; une erreur ici ne bloque jamais l'app.
+Future<void> _warmUpMaps() async {
+  try {
+    final impl = GoogleMapsFlutterPlatform.instance;
+    if (impl is GoogleMapsFlutterAndroid) {
+      await impl.initializeWithRenderer(AndroidMapRenderer.latest);
+    }
+  } catch (_) {/* déjà initialisé ou indisponible : la carte le fera */}
+}
+
