@@ -42,6 +42,7 @@ import { PawMapLogo } from "@/components/PawMapLogo";
 import { AppIcon, type AppIconName } from "@/components/AppIcon";
 import { PageTitle } from "@/components/PageTitle";
 import { PawMapLegendModal } from "@/components/PawMapLegendModal";
+import { PawMapAnnouncement } from "@/components/PawMapAnnouncement";
 import { StatusToast, type StatusToastKind } from "@/components/StatusToast";
 import { SelectMenu } from "@/components/SelectMenu";
 import StoreBadges from "@/components/StoreBadges";
@@ -181,16 +182,6 @@ export default function MapPage() {
   useEffect(() => {
     if (!getStoredUser()) return;
     getMapVisibility().then(setVisibility).catch(() => { /* repli : visible par tous */ });
-  }, []);
-  // 25/09 (586) — libellés d'aide (« Options », « Publier » / « Direct ») aux
-  // 3 premières visites de la carte, puis icônes seules (title/aria gardés).
-  const [showHelpLabels, setShowHelpLabels] = useState(false);
-  useEffect(() => {
-    try {
-      const n = (parseInt(localStorage.getItem("hopetsit:pawmap586Visits") || "0", 10) || 0) + 1;
-      localStorage.setItem("hopetsit:pawmap586Visits", String(n));
-      setShowHelpLabels(n <= 3);
-    } catch { setShowHelpLabels(true); }
   }, []);
   const [liveInfoOpen, setLiveInfoOpen] = useState(false);
   // 25/09 (587, point 1a) — MON direct : le site n'envoie pas de GPS, il lit
@@ -407,6 +398,76 @@ export default function MapPage() {
   const [showRequests, setShowRequests] = useState(true);
   const [requests, setRequests] = useState<MapRequest[]>([]);
   const [catsOpen, setCatsOpen] = useState(false);
+  // 26/09 (589) — rond « Actualiser » de l'en-tête : un clic relance TOUTES
+  // les couches (lieux, membres, monde, PawSpots, signalements, demandes,
+  // amis) ; petit cercle qui tourne pendant le chargement.
+  const [reloadTick, setReloadTick] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  // 26/09 (589) — roue « Options de la carte » : sur ordinateur le panneau est
+  // déjà là, la roue le remonte en haut et le fait briller un instant.
+  const [optionsFlash, setOptionsFlash] = useState(false);
+  const panelScrollRef = useRef<HTMLDivElement | null>(null);
+  // 26/09 (589, point 3) — le rail gauche ne touche JAMAIS la rangée du haut
+  // (« Direct », « Amis ») : écart entre boutons resserré (10 → 4 px), puis
+  // boutons réduits (44 → 36 px) si la carte est basse.
+  const topRowRef = useRef<HTMLDivElement | null>(null);
+  const [railFit, setRailFit] = useState<{ gap: number; btn: number }>({ gap: 10, btn: 44 });
+  // Carte très basse et rangée du haut sur 2 lignes : « Amis » passe en rond
+  // (icône seule, nom en info-bulle) pour que tout tienne sur UNE ligne.
+  const [compactTop, setCompactTop] = useState(false);
+  // Même règle pour la capsule droite : jamais sur les ronds orange du haut
+  // (réduite d'un bloc, jusqu'à 72 %, si la carte est très basse).
+  const capsuleRef = useRef<HTMLDivElement | null>(null);
+  const [capsuleScale, setCapsuleScale] = useState(1);
+  const [shareToast, setShareToast] = useState(false);
+  useEffect(() => {
+    if (loading) return;
+    const N = 8; // boutons du rail gauche (même ordre que l'app)
+    const measure = () => {
+      const col = mapColRef.current;
+      if (!col) return;
+      const h = col.getBoundingClientRect().height;
+      const row = topRowRef.current;
+      const topReserve = row ? row.getBoundingClientRect().bottom - col.getBoundingClientRect().top + 10 : 66;
+      // bas du rail = 16 px ; capsule de verre = 2 × 6 px de marge intérieure.
+      const fit = (room: number) => {
+        let b = 44;
+        let g = Math.floor((room - N * b) / (N - 1));
+        if (g >= 10) g = 10;
+        else if (g < 4) {
+          g = 4;
+          b = Math.max(34, Math.floor((room - (N - 1) * g) / N));
+        }
+        return { gap: g, btn: b };
+      };
+      const avail = h - topReserve - 16 - 12;
+      const { gap, btn } = fit(avail);
+      setRailFit((p) => (p.gap === gap && p.btn === btn ? p : { gap, btn }));
+      const cap = capsuleRef.current;
+      if (cap) {
+        const natural = cap.offsetHeight;
+        const room = h - (12 + 44 + 10) - 16;
+        const sc = natural > room ? Math.max(0.72, Math.floor((room / natural) * 100) / 100) : 1;
+        setCapsuleScale((p) => (p === sc ? p : sc));
+      }
+      const rowH = row ? row.getBoundingClientRect().height : 44;
+      setCompactTop((c) => {
+        if (!c && rowH > 60 && btn < 40) return true;
+        // Retour au nom écrit seulement s'il reste LARGEMENT la place (pas de va-et-vient).
+        if (c && fit(avail - 60).btn >= 44) return false;
+        return c;
+      });
+    };
+    measure();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    if (ro) {
+      if (mapColRef.current) ro.observe(mapColRef.current);
+      if (topRowRef.current) ro.observe(topRowRef.current);
+      if (capsuleRef.current) ro.observe(capsuleRef.current);
+    }
+    window.addEventListener("resize", measure);
+    return () => { ro?.disconnect(); window.removeEventListener("resize", measure); };
+  }, [loading, fitH]);
 
   const formatOpenStatus = useCallback(
     (raw: string): { label: string; open: boolean } | null => {
@@ -640,7 +701,7 @@ export default function MapPage() {
   useEffect(() => {
     if (loading) return;
     fetchPois(center[0], center[1], "all");
-  }, [loading, fetchPois, center]);
+  }, [loading, fetchPois, center, reloadTick]);
 
   useEffect(() => {
     if (loading || !showSpots) return;
@@ -652,7 +713,7 @@ export default function MapPage() {
       }
     }, 400);
     return () => clearTimeout(tid);
-  }, [loading, showSpots, center, router]);
+  }, [loading, showSpots, center, router, reloadTick]);
 
   useEffect(() => {
     if (loading || !showReports) return;
@@ -665,7 +726,7 @@ export default function MapPage() {
       }
     }, 400);
     return () => clearTimeout(tid);
-  }, [loading, showReports, center, router]);
+  }, [loading, showReports, center, router, reloadTick]);
 
   const membersSubscribed = !!(benefits?.pawspotActive || benefits?.premiumActive || benefits?.isPremium);
   useEffect(() => {
@@ -680,14 +741,14 @@ export default function MapPage() {
       }
     }, 400);
     return () => clearTimeout(tid);
-  }, [loading, center, router]);
+  }, [loading, center, router, reloadTick]);
 
   useEffect(() => {
     if (loading) return;
     let cancelled = false;
     getWorldMembers().then((list) => { if (!cancelled) setWorldMembers(list); }).catch(() => {});
     return () => { cancelled = true; };
-  }, [loading]);
+  }, [loading, reloadTick]);
 
   // 24/09 — demandes des propriétaires (bulle orange) : le prestataire voit
   // celles autour de lui (feed /posts/requests), le propriétaire les siennes
@@ -728,7 +789,7 @@ export default function MapPage() {
       } catch { /* couche vide, la carte reste utilisable */ }
     })();
     return () => { cancelled = true; };
-  }, [loading, showRequests, isProviderRole, lang]);
+  }, [loading, showRequests, isProviderRole, lang, reloadTick]);
 
   // 25/09 (PawMap 585) — UNE personne = UN point, même quand « proches » et
   // « monde » ont retenu deux profils différents (lib/memberPersons.ts). Une
@@ -1092,6 +1153,44 @@ export default function MapPage() {
   function handleZoomChange(z: number) {
     try { localStorage.setItem("hopetsit:lastMapZoom", String(z)); } catch { /* ignore */ }
   }
+  // 26/09 (589) — Actualiser : toutes les couches repartent du serveur.
+  function manualRefresh() {
+    if (refreshing) return;
+    setRefreshing(true);
+    setReloadTick((n) => n + 1);
+    void loadFriends().catch(() => {});
+    setTimeout(() => setRefreshing(false), 1400);
+  }
+  // 26/09 (589) — roue « Options de la carte ».
+  function openOptions() {
+    revealControls();
+    const desktop = typeof window !== "undefined" && window.innerWidth >= 1024;
+    if (!desktop) { setSheet("full"); return; }
+    try { panelScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }); } catch { /* */ }
+    setOptionsFlash(true);
+    setTimeout(() => setOptionsFlash(false), 1300);
+  }
+  // 26/09 (589) — « Partager la carte » : lien /map?lat&lng&z (déjà lu à
+  // l'ouverture), feuille de partage du système sinon copie + pastille.
+  async function shareMap() {
+    let lat = center[0], lng = center[1], z = 13;
+    try {
+      const m = mapRef.current;
+      if (m) { const c = m.getCenter(); lat = c.lat; lng = c.lng; z = m.getZoom(); }
+    } catch { /* */ }
+    const url = `https://www.hopetsit.com/map?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}&z=${Math.round(z)}`;
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        await navigator.share({ title: "PawMap · HoPetSit", url });
+        return;
+      }
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") return;
+    }
+    try { await navigator.clipboard.writeText(url); } catch { /* */ }
+    setShareToast(true);
+    setTimeout(() => setShareToast(false), 2600);
+  }
   function toggleDark() {
     setDark((d) => {
       try { localStorage.setItem("hopetsit:mapDark", d ? "0" : "1"); } catch { /* ignore */ }
@@ -1311,7 +1410,6 @@ export default function MapPage() {
   }
 
   const sheetH = sheet === "closed" ? "max-lg:hidden" : sheet === "half" ? "h-[50vh]" : "h-[86vh]";
-  const cycleSheet = () => setSheet((s) => (s === "half" ? "full" : "closed"));
   // Glisser la poignée / l'en-tête de la feuille : vers le haut = ouvrir ou
   // agrandir, vers le bas = réduire puis fermer (seuil 24 px).
   const dragY = sheetDragRef;
@@ -1365,7 +1463,7 @@ export default function MapPage() {
           {/* 25/09 (587, point 1a) — coin haut-gauche, juste sous le titre
               PawMap : pilule « ● Direct » (gardien / promeneur), puis « Amis ».
               Rangée qui passe à la ligne plutôt que de chevaucher « ? ». */}
-          <div className={`pointer-events-none absolute left-3 right-[68px] top-3 z-[1000] flex flex-wrap items-start gap-2 ${fadeCls}`}>
+          <div ref={topRowRef} className={`pointer-events-none absolute left-3 right-[168px] top-3 z-[1000] flex flex-wrap items-start gap-2 ${fadeCls}`}>
             {/* 587 — pilule « ● Direct » pour les 3 profils (propriétaire compris). */}
             {getStoredUser() && (
               <button
@@ -1385,20 +1483,28 @@ export default function MapPage() {
                   : t("m586_live")}
               </button>
             )}
-            <Link href="/friends" onPointerDown={revealControls} className="pointer-events-auto inline-flex min-h-[44px] items-center gap-2 whitespace-nowrap rounded-full py-1 pl-1.5 pr-4 text-sm font-bold hover:scale-[1.03]" style={{ ...glassStyle(dark), color: dark ? "#FBEFE6" : "#231715" }}>
+            <Link href="/friends" onPointerDown={revealControls} title={t("map_friends_btn")} aria-label={t("map_friends_btn")} className={`pointer-events-auto inline-flex min-h-[44px] items-center gap-2 whitespace-nowrap rounded-full py-1 text-sm font-bold hover:scale-[1.03] ${compactTop ? "px-1.5" : "pl-1.5 pr-4"}`} style={{ ...glassStyle(dark), color: dark ? "#FBEFE6" : "#231715" }}>
               <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#F48AB4,#E0568B)", border: "1.5px solid #fff" }}><AppIcon name="friends" size={17} color="#fff" /></span>
-              {t("map_friends_btn")}
+              {!compactTop && t("map_friends_btn")}
             </Link>
           </div>
 
-          {/* Coin haut-droit : « ? » légende et mode nuit, même verre que les rails. */}
-          <div onPointerDown={revealControls} className={`absolute right-3 top-3 z-[1000] flex flex-col gap-2.5 ${fadeCls}`}>
-            <GlassRound dark={dark} onClick={() => setLegendOpen(true)} label={t("legend_btn")}>
-              <AppIcon name="question" size={21} color={dark ? "#FBEFE6" : "#3B2A26"} />
-            </GlassRound>
-            <GlassRound dark={dark} onClick={toggleDark} label={t("map_dark_mode")} pressed={dark}>
-              <AppIcon name={dark ? "sun" : "moon"} size={20} color={dark ? "#FBD38D" : "#3B2A26"} />
-            </GlassRound>
+          {/* 26/09 (589) — coin haut-droit, comme l'app : TROIS ronds orange
+              signature, « ? » (légende), Actualiser, puis la ROUE « Options de
+              la carte » (elle remplace la pilule « Options » du bas). Le mode
+              nuit est passé dans les outils du panneau (Raccourcis). */}
+          <div onPointerDown={revealControls} className={`absolute right-3 top-3 z-[1000] flex items-center gap-2 ${fadeCls}`}>
+            <OrangeRound onClick={() => setLegendOpen(true)} label={t("legend_btn")}>
+              <AppIcon name="question" size={21} color="#FFFFFF" />
+            </OrangeRound>
+            <OrangeRound onClick={manualRefresh} label={t("p589_refresh")} busy={refreshing}>
+              {refreshing
+                ? <span className="h-5 w-5 animate-spin rounded-full border-[2.5px] border-white border-t-transparent" />
+                : <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.35-5.65" /><path d="M20.5 3.5v5h-5" /></svg>}
+            </OrangeRound>
+            <OrangeRound onClick={openOptions} label={t("p589_options")}>
+              <GearIcon size={22} />
+            </OrangeRound>
           </div>
           {locateMsg && (
             <div className="absolute bottom-[270px] right-[72px] z-[1100] max-w-[230px] rounded-2xl bg-white px-3 py-2 text-[12px] font-medium text-[#231715] shadow-[0_10px_26px_-10px_rgba(120,53,15,0.45)]">
@@ -1411,7 +1517,7 @@ export default function MapPage() {
               calcul en cours, résultat (mode, distance, durée), refus
               « abonnement requis » ou erreur — jamais un clic sans effet. */}
           {(routeLoading || route || directionsLocked || directionsError) && (
-            <div className="absolute left-3 right-[64px] top-3 z-[1060] rounded-[18px] bg-white p-2.5 shadow-[0_10px_28px_-10px_rgba(35,23,21,0.45)] sm:right-auto sm:w-[340px]" role="status">
+            <div className="absolute left-3 right-3 top-[64px] z-[1060] rounded-[18px] bg-white p-2.5 shadow-[0_10px_28px_-10px_rgba(35,23,21,0.45)] sm:right-auto sm:top-3 sm:w-[340px]" role="status">
               <div className="flex items-center gap-2">
                 <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={{ background: `${routeColor}1f` }}>
                   {routeLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: routeColor, borderTopColor: "transparent" }} /> : <AppIcon name="route" size={17} color={directionsLocked ? "#6B21A8" : directionsError ? "#9E1F0B" : routeColor} />}
@@ -1458,7 +1564,7 @@ export default function MapPage() {
               direct · 12 s », chevron) ; un clic ouvre une petite feuille
               Recentrer / Itinéraire / Message / Arrêter de suivre. */}
           {followed && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-[68px] z-[1050] flex flex-col items-center gap-2 px-[72px] lg:bottom-6">
+            <div className="pointer-events-none absolute inset-x-0 bottom-5 z-[1050] flex flex-col items-center gap-2 px-[72px]">
               {followSheet && (
                 <div className="pointer-events-auto w-full max-w-[300px] rounded-[20px] bg-white p-2 shadow-[0_12px_32px_-8px_rgba(76,29,149,0.45)]" role="dialog" aria-label={t("live_sheet_title")}>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -1507,7 +1613,7 @@ export default function MapPage() {
             </div>
           )}
           {(liveToast || friendsOnlyMsg) && (
-            <div className={`pointer-events-none absolute inset-x-0 z-[1060] flex justify-center px-[72px] ${followed ? "bottom-[124px] lg:bottom-[76px]" : "bottom-[68px] lg:bottom-6"}`}>
+            <div className={`pointer-events-none absolute inset-x-0 z-[1060] flex justify-center px-[72px] ${followed ? "bottom-[76px]" : "bottom-5"}`}>
               {liveToast
                 ? <StatusToast key={`lt-${liveToast}`} kind={liveToast === t("route_pick_target") ? "follow" : "liveOff"} text={liveToast} dark={dark} />
                 : friendsOnlyMsg && <StatusToast key={`vt-${friendsOnlyMsg.kind}-${friendsOnlyMsg.text}`} kind={friendsOnlyMsg.kind} text={friendsOnlyMsg.text} dark={dark} />}
@@ -1527,9 +1633,9 @@ export default function MapPage() {
               ombre chaude — jamais de gris), boutons 44 px espacés de 10 px,
               chacun un disque dégradé de sa couleur + reflet + icône blanche ;
               actif = anneau blanc + léger agrandissement. Même ordre que l'app. */}
-          <div className="absolute bottom-6 left-3 z-[1000]" style={{ transform: railCollapsed ? "translateX(calc(-100% - 12px))" : "translateX(0)", transition: "transform 200ms cubic-bezier(.2,.8,.2,1)" }}>
+          <div className="absolute bottom-4 left-3 z-[1000]" style={{ transform: railCollapsed ? "translateX(calc(-100% - 12px))" : "translateX(0)", transition: "transform 200ms cubic-bezier(.2,.8,.2,1)" }}>
           <div onPointerDown={revealControls} className={fadeCls} {...inertIf(railCollapsed)}>
-            <div className="flex flex-col gap-2.5 rounded-[30px] p-[6px]" style={glassStyle(dark)}>
+            <div className="flex flex-col rounded-[30px] p-[6px]" style={{ ...glassStyle(dark), gap: railFit.gap }}>
               {(
                 [
                   { k: "around", g1: "#A076FF", g2: "#7040D6", label: t("map_around_title"), on: () => { setSheet("full"); document.getElementById("around-list")?.scrollIntoView({ behavior: "smooth", block: "start" }); } },
@@ -1566,8 +1672,10 @@ export default function MapPage() {
                   aria-label={b.label}
                   aria-pressed={b.active}
                   onClick={b.on}
-                  className="relative grid h-11 w-11 place-items-center overflow-hidden rounded-full transition-transform duration-300 ease-[cubic-bezier(.3,1.5,.4,1)] hover:scale-[1.06] active:scale-95 active:duration-100"
+                  className="relative grid place-items-center overflow-hidden rounded-full transition-transform duration-300 ease-[cubic-bezier(.3,1.5,.4,1)] hover:scale-[1.06] active:scale-95 active:duration-100"
                   style={{
+                    width: railFit.btn,
+                    height: railFit.btn,
                     background: `linear-gradient(165deg, ${b.g1}, ${b.g2})`,
                     border: "1.5px solid #FFFFFF",
                     transform: b.active ? "scale(1.08)" : undefined,
@@ -1587,9 +1695,9 @@ export default function MapPage() {
 
           {/* CAPSULE DROITE (même verre) : zoom, ma position (accent du rôle),
               satellite, membres. Alignée en bas sur le rail gauche. */}
-          <div className="absolute bottom-6 right-3 z-[1000]" style={{ transform: capsuleCollapsed ? "translateX(calc(100% + 12px))" : "translateX(0)", transition: "transform 200ms cubic-bezier(.2,.8,.2,1)" }}>
-          <div onPointerDown={revealControls} className={fadeCls} {...inertIf(capsuleCollapsed)}>
-            <div className="flex flex-col items-center rounded-[30px] p-[6px]" style={glassStyle(dark)}>
+          <div className="absolute bottom-4 right-3 z-[1000]" style={{ transform: capsuleCollapsed ? "translateX(calc(100% + 12px))" : "translateX(0)", transition: "transform 200ms cubic-bezier(.2,.8,.2,1)" }}>
+          <div onPointerDown={revealControls} className={fadeCls} style={capsuleScale < 1 ? { transform: `scale(${capsuleScale})`, transformOrigin: "bottom right" } : undefined} {...inertIf(capsuleCollapsed)}>
+            <div ref={capsuleRef} className="flex flex-col items-center rounded-[30px] p-[6px]" style={glassStyle(dark)}>
               <CapsuleBtn dark={dark} label={t("map_zoom_in")} onClick={() => { try { mapRef.current?.zoomIn(); } catch { /* */ } }}>
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
               </CapsuleBtn>
@@ -1639,20 +1747,24 @@ export default function MapPage() {
               {isOwner && (
                 <>
                   <span aria-hidden="true" className="my-1.5 block h-[2px] w-7 rounded-full" style={{ background: dark ? "#6B4F57" : "#E4C7B8" }} />
+                  {/* 26/09 (589) — mégaphone + petit « + » (créer une annonce),
+                      et « Publier » TOUJOURS écrit dessous, comme l'app. */}
                   <Link
                     href="/posts/create"
                     title={t("m586_publish_long")}
                     aria-label={t("m586_publish_long")}
-                    className="grid h-11 w-11 place-items-center rounded-full text-white transition-transform duration-200 hover:scale-[1.05] active:scale-95"
-                    style={{ background: "linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)", border: "1.5px solid #FFFFFF", boxShadow: "0 6px 14px -6px #C92A12" }}
+                    className="flex flex-col items-center transition-transform duration-200 hover:scale-[1.04] active:scale-95"
                   >
-                    <AppIcon name="megaphone" size={21} color="#fff" />
-                  </Link>
-                  {showHelpLabels && (
-                    <span className="mt-1 whitespace-nowrap px-1 text-[10px] font-bold leading-none" style={{ color: dark ? "#FBEFE6" : "#9E1F0B" }}>
+                    <span className="relative grid h-11 w-11 place-items-center rounded-full text-white" style={{ background: "linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)", border: "1.5px solid #FFFFFF", boxShadow: "0 6px 14px -6px #C92A12" }}>
+                      <AppIcon name="megaphone" size={21} color="#fff" />
+                      <span aria-hidden="true" className="absolute -right-1 -top-1 grid h-[17px] w-[17px] place-items-center rounded-full bg-white" style={{ border: "1.4px solid #C92A12", boxShadow: "0 2px 5px -1px rgba(146,31,11,0.45)" }}>
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#C92A12" strokeWidth="3.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13" /></svg>
+                      </span>
+                    </span>
+                    <span className="mt-1 whitespace-nowrap px-1 text-[10.5px] font-extrabold leading-none" style={{ color: dark ? "#FFB39E" : "#9E1F0B" }}>
                       {t("m586_publish")}
                     </span>
-                  )}
+                  </Link>
                 </>
               )}
             </div>
@@ -1660,30 +1772,12 @@ export default function MapPage() {
           <BarTab side="right" collapsed={capsuleCollapsed} dark={dark} className={fadeCls} label={capsuleCollapsed ? t("m587_caps_show") : t("m587_caps_hide")} onClick={() => { revealControls(); toggleBar("capsuleCollapsed"); }} />
           </div>
 
-          {/* 25/09 (586, point 1) — POIGNÉE « Options » (téléphone, tablette) :
-              la feuille disparaît au repos ; un clic ou un glissement vers le
-              haut ouvre le panneau complet. */}
-          {sheet === "closed" && (
-            <div className={`pointer-events-none absolute inset-x-0 bottom-6 z-[1040] flex justify-center lg:hidden ${fadeCls}`}>
-              <button
-                type="button"
-                onClick={() => { revealControls(); setSheet("half"); }}
-                onPointerDown={(e) => { revealControls(); onSheetPointerDown(e); }}
-                onPointerUp={(e) => { if (sheetSwipe(e) === "up") setSheet("half"); }}
-                aria-expanded={false}
-                aria-label={t("m586_options_open")}
-                title={t("m586_options_open")}
-                className="pointer-events-auto inline-flex h-8 min-w-[120px] touch-none items-center justify-center gap-1.5 rounded-full px-3.5 transition-transform duration-200 hover:scale-[1.03] active:scale-95"
-                style={{
-                  background: dark ? "linear-gradient(180deg,#2C2533,#1E1A26)" : "linear-gradient(180deg,#FFFCF8,#FFF3EA)",
-                  border: dark ? "1px solid #4A3A40" : "1px solid #FFFFFF",
-                  boxShadow: `0 8px 20px -8px ${roleColor}, 0 2px 6px -2px ${roleColor}66`,
-                }}
-              >
-                <AppIcon name="paw" size={16} color={roleColor} />
-                {showHelpLabels && <span className="whitespace-nowrap text-[12px] font-bold" style={{ color: dark ? "#FBEFE6" : ROLE_TEXT_DARK[roleColor] || "#231715" }}>{t("m586_options")}</span>}
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke={roleColor} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6" /></svg>
-              </button>
+          {/* 26/09 (589) — la pilule « Options » du bas est SUPPRIMÉE (elle
+              gênait au milieu de la carte) : la roue orange en haut à droite
+              ouvre le panneau. */}
+          {shareToast && (
+            <div className="pointer-events-none absolute inset-x-0 top-[64px] z-[1070] flex justify-center px-4" role="status">
+              <span className="rounded-full bg-white px-4 py-2 text-[13px] font-bold text-[#9E1F0B] shadow-[0_10px_26px_-10px_rgba(120,53,15,0.5)]">{t("p589_link_copied")}</span>
             </div>
           )}
 
@@ -1775,118 +1869,196 @@ export default function MapPage() {
           />
         </div>
 
-        {/* ── PANNEAU : colonne droite sur ordinateur, feuille glissante sur téléphone ── */}
+        {/* ── PANNEAU « Options de la carte » : colonne droite sur ordinateur,
+            feuille glissante sur téléphone (ouverte par la roue orange). ── */}
+        {/* 26/09 (589) — rangé en CARTES comme l'app : en-tête (roue + titre +
+            croix), bouton principal, « Ce que je veux voir », « Raccourcis »,
+            « Mes abonnements sur la carte », puis les listes. Aucune fonction
+            retirée. */}
         <aside
-          className={`fixed inset-x-0 bottom-0 z-[1500] flex flex-col rounded-t-[28px] bg-white shadow-[0_-10px_40px_-10px_rgba(35,23,21,0.35)] transition-[height] duration-300 ${sheetH} lg:static lg:z-auto lg:h-[calc(100vh-230px)] lg:min-h-[560px] lg:rounded-[28px] lg:bg-[#FAF1EC] lg:shadow-none`}
+          className={`fixed inset-x-0 bottom-0 z-[1500] flex flex-col rounded-t-[28px] bg-[#FFF8F4] shadow-[0_-10px_40px_-10px_rgba(35,23,21,0.35)] transition-[height,box-shadow] duration-300 ${sheetH} lg:static lg:z-auto lg:h-[calc(100vh-230px)] lg:min-h-[560px] lg:rounded-[28px] lg:bg-[#FAF1EC] ${optionsFlash ? "lg:shadow-[0_0_0_3px_#D83C28,0_18px_40px_-18px_rgba(185,36,37,0.6)]" : "lg:shadow-none"}`}
          style={fitH && typeof window !== "undefined" && window.innerWidth >= 1024 ? { height: fitH } : undefined}>
-          {/* En-tête de la feuille (téléphone, tablette) : un clic = agrandir
-              puis refermer ; glisser vers le bas = refermer ; « × » = refermer
-              (il ne reste alors que la poignée sur la carte). */}
-          <div className="flex h-[52px] w-full shrink-0 items-center lg:hidden">
-            <button
-              type="button"
-              onClick={cycleSheet}
-              onPointerDown={onSheetPointerDown}
-              onPointerUp={(e) => { const d = sheetSwipe(e); if (d === "down") setSheet((v) => (v === "full" ? "half" : "closed")); else if (d === "up") setSheet("full"); }}
-              aria-expanded={sheet !== "closed"}
-              className="flex h-full min-w-0 flex-1 touch-none flex-col items-center justify-center gap-1 pl-12"
-              aria-label={sheet === "full" ? t("map_sheet_less") : t("map_sheet_more")}
-            >
-              <span className="block h-1.5 w-12 rounded-full" style={{ background: roleColor }} />
-              <span className="text-[11px] font-semibold text-[#6E4F48]">
-                {sheet === "full" ? t("map_sheet_less") : t("map_sheet_more")}
-                {membersAround > 0 ? ` · ${t("map_members_around").replace("{count}", String(membersAround))}` : ""}
-              </span>
-            </button>
-            <button type="button" onClick={() => setSheet("closed")} aria-label={t("m586_options_close")} title={t("m586_options_close")} className="mr-2 grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#231715]">
-              <span className="grid h-8 w-8 place-items-center rounded-full bg-[#FAF1EC]"><AppIcon name="close" size={15} color="#231715" /></span>
+          {/* Poignée (téléphone, tablette) : glisser vers le bas = ranger,
+              vers le haut = agrandir ; un clic alterne moitié / plein écran. */}
+          <button
+            type="button"
+            onClick={() => setSheet((v) => (v === "full" ? "half" : "full"))}
+            onPointerDown={onSheetPointerDown}
+            onPointerUp={(e) => { const d = sheetSwipe(e); if (d === "down") setSheet((v) => (v === "full" ? "half" : "closed")); else if (d === "up") setSheet("full"); }}
+            aria-label={sheet === "full" ? t("map_sheet_less") : t("map_sheet_more")}
+            className="flex h-5 w-full shrink-0 touch-none items-end justify-center lg:hidden"
+          >
+            <span className="block h-1.5 w-12 rounded-full" style={{ background: "#E4B5A6" }} />
+          </button>
+          {/* En-tête : roue orange + « Options de la carte » + croix. */}
+          <div className="flex shrink-0 items-center gap-3 px-4 pb-2 pt-2 lg:px-5 lg:pt-5">
+            <span className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full" style={{ background: "linear-gradient(165deg,#E2503A 0%,#D83C28 50%,#B92425 100%)", border: "1.5px solid #FFFFFF", boxShadow: "0 6px 14px -6px rgba(185,36,37,0.8)" }}>
+              <GearIcon size={20} />
+            </span>
+            <h2 className="min-w-0 flex-1 font-display text-[18px] font-bold leading-tight tracking-[-0.01em] text-[#231715]">{t("p589_options")}</h2>
+            <button type="button" onClick={() => setSheet("closed")} aria-label={t("m586_options_close")} title={t("m586_options_close")} className="grid h-11 w-11 shrink-0 place-items-center rounded-full lg:hidden">
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-[#FBE3DC]"><AppIcon name="close" size={15} color="#9E1F0B" /></span>
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 lg:px-5 lg:pt-5">
-            {/* « Je cherche » : une seule rangée de pilules. */}
-            {/* 25/09 (point 12) — « amis seulement » : badge discret dans la
-                feuille (plus de pastille qui recouvre les boutons de la carte) ;
-                mon rond garde l'anneau pointillé + l'œil barré. */}
-            {/* 25/09 (586, point 2) — l'action du rôle a quitté le panneau pour
-                la capsule de la carte ; elle garde ici une ligne équivalente. */}
-            {/* 587 — propriétaire : « Publier » ET la ligne du direct (3 profils). */}
+          <div ref={panelScrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 lg:px-5">
+            {/* BOUTON PRINCIPAL : propriétaire → « Publier » ; les 3 profils →
+                la ligne du direct (il se lance dans l'app). */}
             {isOwner && (
-              <Link href="/posts/create" className="mb-3 flex min-h-[48px] items-center gap-3 rounded-2xl bg-white p-2.5 pr-3 text-left transition hover:bg-[#FDF8F7]">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)" }}><AppIcon name="megaphone" size={18} color="#fff" /></span>
-                <span className="min-w-0 flex-1 text-sm font-bold text-[#9E1F0B]">{t("m586_publish_long")}</span>
-                <AppIcon name="arrow-right" size={16} color="#C92A12" />
+              <Link href="/posts/create" className="mb-2.5 flex min-h-[52px] items-center gap-3 rounded-2xl p-2.5 pr-3 text-left text-white transition hover:brightness-105" style={{ background: "linear-gradient(90deg,#E2503A,#D83C28 55%,#B92425)", boxShadow: "0 12px 24px -14px #B92425" }}>
+                <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "rgba(255,255,255,0.18)", border: "1.5px solid #FFFFFF" }}><AppIcon name="megaphone" size={18} color="#fff" /></span>
+                <span className="min-w-0 flex-1 text-sm font-bold">{t("m586_publish_long")}</span>
+                <AppIcon name="arrow-right" size={16} color="#FFFFFF" />
               </Link>
             )}
-            {(
-              <button type="button" onClick={() => setLiveInfoOpen(true)} className="mb-3 flex min-h-[48px] w-full items-center gap-3 rounded-2xl bg-white p-2.5 pr-3 text-left transition hover:bg-[#FDF8F7]">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: myLive.on ? "linear-gradient(165deg,#22C55E,#16A34A 55%,#15803D)" : "linear-gradient(165deg,#2C2533,#17141F)" }}><LiveIcon size={18} /></span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-bold" style={{ color: myLive.on ? "#15803D" : "#17141F" }}>{myLive.on ? (myLive.startedAt ? t("m587_live_since").replace("{d}", formatAgo(nowTs - myLive.startedAt, t)) : t("m586_live_on")) : t("m586_live")}</span>
-                  <span className="block text-[11px] leading-snug text-[#6E4F48]">{myLive.on ? t("m587_live_on_title") : t("m587_live_app_title")}</span>
-                </span>
-                <AppIcon name="arrow-right" size={16} color="#17141F" />
-              </button>
-            )}
-            {/* 25/09 (586, point 7) — « Ce que je veux voir ». */}
-            <section className="rounded-2xl bg-white p-3" aria-labelledby="see-title">
+            <button type="button" onClick={() => setLiveInfoOpen(true)} className="mb-3 flex min-h-[52px] w-full items-center gap-3 rounded-2xl bg-white p-2.5 pr-3 text-left shadow-[0_6px_18px_-14px_rgba(120,53,15,0.6)] transition hover:bg-[#FFFBF9]">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: myLive.on ? "linear-gradient(165deg,#22C55E,#16A34A 55%,#15803D)" : "linear-gradient(165deg,#2C2533,#17141F)" }}><LiveIcon size={18} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold" style={{ color: myLive.on ? "#15803D" : "#17141F" }}>{myLive.on ? (myLive.startedAt ? t("m587_live_since").replace("{d}", formatAgo(nowTs - myLive.startedAt, t)) : t("m586_live_on")) : t("m586_live")}</span>
+                <span className="block text-[11px] leading-snug text-[#6E4F48]">{myLive.on ? t("m587_live_on_title") : t("m587_live_app_title")}</span>
+              </span>
+              <AppIcon name="arrow-right" size={16} color="#17141F" />
+            </button>
+
+            {/* « Ce que je veux voir » : pastilles d'égale largeur, 2 colonnes. */}
+            <section className="rounded-2xl bg-white p-3 shadow-[0_6px_18px_-14px_rgba(120,53,15,0.6)]" aria-labelledby="see-title">
               <div className="flex items-center gap-2">
                 <h2 id="see-title" className="min-w-0 flex-1 font-display text-[15px] font-bold text-[#231715]">{t("m586_see_title")}</h2>
                 <button type="button" onClick={() => seeAll(true)} className="min-h-[34px] rounded-xl px-3 text-[12px] font-bold text-[#17141F] transition hover:bg-[#FAF1EC]" style={{ boxShadow: "inset 0 0 0 1.5px #E4C7B8" }}>{t("m586_see_all")}</button>
                 <button type="button" onClick={() => seeAll(false)} className="min-h-[34px] rounded-xl px-3 text-[12px] font-bold text-[#17141F] transition hover:bg-[#FAF1EC]" style={{ boxShadow: "inset 0 0 0 1.5px #E4C7B8" }}>{t("m586_see_none")}</button>
               </div>
-              <div className="mt-2.5 flex flex-wrap gap-2">
+              <div className="mt-2.5 grid grid-cols-2 gap-2">
                 {seeChips.map((c) => (
                   <button
                     key={c.k}
                     type="button"
                     onClick={c.toggle}
                     aria-pressed={c.on}
-                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl py-1 pl-1.5 pr-3 text-[12px] font-bold transition-all duration-200 ease-out active:scale-[0.97]"
+                    className="flex min-h-[40px] min-w-0 items-center gap-1.5 rounded-xl py-1 pl-1.5 pr-2 text-left text-[12px] font-bold leading-tight transition-all duration-200 ease-out active:scale-[0.97]"
                     style={c.on
                       ? { background: c.bg, color: c.fg, boxShadow: `0 6px 14px -8px ${c.bg}, inset 0 1px 0 rgba(255,255,255,0.25)` }
                       : { background: "#FFFFFF", color: c.k === "spots" ? "#17141F" : c.bg, boxShadow: `inset 0 0 0 1.5px ${c.bg}` }}
                   >
-                    <span className="grid h-6 w-6 place-items-center rounded-full" style={c.on ? { background: "rgba(255,255,255,0.22)" } : { background: c.k === "spots" ? "#FFF3D1" : `${c.bg}1A` }}>{c.icon}</span>
-                    {c.label}
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full" style={c.on ? { background: "rgba(255,255,255,0.22)" } : { background: c.k === "spots" ? "#FFF3D1" : `${c.bg}1A` }}>{c.icon}</span>
+                    <span className="min-w-0 [overflow-wrap:anywhere]">{c.label}</span>
                   </button>
                 ))}
               </div>
               <p className="mt-2 text-[11px] leading-snug text-[#6E4F48]">{t("m586_see_hint")}</p>
             </section>
 
-            {/* Compteur cliquable → liste des membres. */}
-            <button
-              type="button"
-              onClick={() => { setSidePanel(sidePanel === "members" ? null : "members"); setSheet("full"); }}
-              className={`mt-3 flex w-full items-center gap-3 rounded-2xl p-3 text-left transition ${sidePanel === "members" ? roleLight : "bg-white hover:bg-[#FDF8F7] lg:bg-white"}`}
-            >
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white" style={{ background: roleColor }}><AppIcon name="people" size={20} color="#fff" /></span>
-              <span className="min-w-0 flex-1">
-                <span className={`block text-sm font-bold ${roleTextDark}`}>{t("map_members_around").replace("{count}", String(membersAround))}</span>
-                <span className="block text-xs text-[#6E4F48]">{t("map_panel_members_title")}</span>
-              </span>
-              <AppIcon name="arrow-right" size={18} color={roleColor} />
-            </button>
-
-            {/* Carte vide = une action (idée 1). */}
-            {membersInView === 0 && (
-              <div className="mt-3 rounded-2xl bg-white p-4 lg:bg-white">
-                <p className="text-sm font-bold text-[#231715]">{t("map_empty_title")}</p>
-                {myRole === "owner" ? (
-                  <Link href="/posts/create" className="mt-2 flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] bg-owner px-4 text-sm font-bold text-white transition hover:bg-owner-dark">
-                    <AppIcon name="megaphone" size={16} color="#fff" />{t("map_empty_owner_cta")}
-                  </Link>
-                ) : (
-                  <Link href="/profile" className="mt-2 flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-bold text-white transition" style={{ background: roleColor }}>
-                    <AppIcon name={myRole === "walker" ? "walker" : "home"} size={16} color="#fff" />{t("map_empty_provider_cta")}
-                  </Link>
-                )}
+            {/* RACCOURCIS : Amis et Mes abonnements (tuiles), puis les actions,
+                puis les outils en rangée d'icônes colorées. */}
+            <section className="mt-3 rounded-2xl bg-white p-3 shadow-[0_6px_18px_-14px_rgba(120,53,15,0.6)]" aria-labelledby="shortcuts-title">
+              <h2 id="shortcuts-title" className="px-0.5 font-display text-[15px] font-bold text-[#231715]">{t("p589_shortcuts")}</h2>
+              <div className="mt-2.5 grid grid-cols-2 gap-2">
+                <Link href="/friends" className="flex min-h-[48px] min-w-0 items-center gap-2 rounded-xl bg-[#FDEBF3] px-2.5 text-[13px] font-bold text-[#9D174D] transition hover:brightness-[0.98]">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#F48AB4,#E0568B)", border: "1.5px solid #fff" }}><AppIcon name="friends" size={16} color="#fff" /></span>
+                  <span className="min-w-0 leading-tight">{t("map_friends_btn")}</span>
+                </Link>
+                <Link href="/subscription" className="flex min-h-[48px] min-w-0 items-center gap-2 rounded-xl bg-[#EFE8FD] px-2.5 text-[13px] font-bold text-[#5B21B6] transition hover:brightness-[0.98]">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#9B6BFF,#6A34E0)", border: "1.5px solid #fff" }}><AppIcon name="crown" size={16} color="#fff" /></span>
+                  <span className="min-w-0 leading-tight">{t("profile_subs_title")}</span>
+                </Link>
               </div>
-            )}
+
+              {/* Compteur cliquable → liste des membres. */}
+              <button
+                type="button"
+                onClick={() => { setSidePanel(sidePanel === "members" ? null : "members"); setSheet("full"); }}
+                className={`mt-2 flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition ${sidePanel === "members" ? roleLight : "bg-[#FDF8F7] hover:bg-[#FAF1EC]"}`}
+              >
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white" style={{ background: roleColor }}><AppIcon name="people" size={18} color="#fff" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className={`block text-sm font-bold ${roleTextDark}`}>{t("map_members_around").replace("{count}", String(membersAround))}</span>
+                  <span className="block text-xs text-[#6E4F48]">{t("map_panel_members_title")}</span>
+                </span>
+                <AppIcon name="arrow-right" size={18} color={roleColor} />
+              </button>
+
+              {/* Carte vide = une action (idée 1). */}
+              {membersInView === 0 && (
+                <div className="mt-2 rounded-xl bg-[#FDF8F7] p-3">
+                  <p className="text-sm font-bold text-[#231715]">{t("map_empty_title")}</p>
+                  {myRole === "owner" ? (
+                    <Link href="/posts/create" className="mt-2 flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] bg-owner px-4 text-sm font-bold text-white transition hover:bg-owner-dark">
+                      <AppIcon name="megaphone" size={16} color="#fff" />{t("map_empty_owner_cta")}
+                    </Link>
+                  ) : (
+                    <Link href="/profile" className="mt-2 flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-bold text-white transition" style={{ background: roleColor }}>
+                      <AppIcon name={myRole === "walker" ? "walker" : "home"} size={16} color="#fff" />{t("map_empty_provider_cta")}
+                    </Link>
+                  )}
+                </div>
+              )}
+
+              {/* Outils : icône colorée + nom dessous. */}
+              <div className="mt-3 grid grid-cols-3 gap-1.5">
+                {([
+                  { k: "share", label: t("p589_share_map"), g1: "#5B9DFF", g2: "#2358D6", on: () => { void shareMap(); }, pressed: undefined as boolean | undefined,
+                    icon: <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 15V3.5M7.5 8 12 3.5 16.5 8" /><path d="M5 12.5v6A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5v-6" /></svg> },
+                  { k: "layers", label: t("p589_layers"), g1: "#3DBF6C", g2: "#188A42", pressed: satellite, on: () => setSatellite((v) => { try { localStorage.setItem("hopetsit:mapSat", v ? "0" : "1"); } catch { /* */ } return !v; }),
+                    icon: <AppIcon name="layers" size={19} color="#fff" /> },
+                  { k: "night", label: t("p589_night"), g1: "#4B3F63", g2: "#17141F", pressed: dark, on: toggleDark,
+                    icon: <AppIcon name={dark ? "sun" : "moon"} size={19} color={dark ? "#FBD38D" : "#fff"} /> },
+                ]).map((o) => (
+                  <button key={o.k} type="button" onClick={o.on} aria-pressed={o.pressed} className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-1.5 transition hover:bg-[#FDF8F7] active:scale-95">
+                    <span className="grid h-11 w-11 place-items-center rounded-full" style={{ background: `linear-gradient(165deg,${o.g1},${o.g2})`, border: "1.5px solid #FFFFFF", boxShadow: o.pressed ? `0 0 0 3px #FFFFFF, 0 0 0 5px ${o.g1}` : `0 6px 14px -7px ${o.g2}` }}>{o.icon}</span>
+                    <span className="w-full text-center text-[11px] font-bold leading-tight text-[#3B2A26] [overflow-wrap:anywhere]">{o.label}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* 25/09 (585, lot 2 — bug 15) — MES ABONNEMENTS SUR LA CARTE : une
+                ligne par abonnement (icône, nom, ce que ça active sur la carte),
+                interrupteur à la couleur de l'abonnement s'il est possédé,
+                sinon « Découvrir » vers la boutique. */}
+            {(() => {
+              const premiumOwned = benefits?.premiumActive === true || benefits?.isPremium === true || premiumDays !== null || isStaffSub;
+              const followOwned = premiumOwned || benefits?.pawFollowActive === true || benefits?.familyActive === true;
+              const spotOwned = premiumOwned || benefits?.pawspotActive === true;
+              const rows: { k: string; logo: string; name: string; sub: string; owned: boolean; on: boolean; color: string; toggle: () => void; shop: string }[] = [
+                { k: "follow", logo: "/pawfollow_logo.svg", name: "PawFollow", sub: t("map_sub_follow_sub"), owned: followOwned, on: showFriends, color: "#7C3AED", shop: "/boutique?tab=pawfollow",
+                  toggle: () => { const v = !showFriends; setFriendsLayer(v); saveLayers({ friends: v }); } },
+                { k: "spot", logo: "/pawspot_logo.svg", name: "PawSpot", sub: t("map_sub_spot_sub"), owned: spotOwned, on: showSpots, color: "#E8920A", shop: "/boutique?tab=pawspot",
+                  toggle: () => { const v = !showSpots; setShowSpots(v); saveLayers({ pawspots: v }); } },
+                { k: "premium", logo: "/pawpremium_logo.svg", name: "PawPremium",
+                  sub: isStaffSub ? t("map_premium_active_staff") : premiumDays !== null ? t("map_premium_active_days").replace("{days}", String(premiumDays)) : t("map_sub_premium_sub"),
+                  owned: premiumOwned, on: showFriends && showSpots, color: "#17141F", shop: "/boutique?tab=premium",
+                  toggle: () => { const v = !(showFriends && showSpots); setFriendsLayer(v); setShowSpots(v); saveLayers({ friends: v, pawspots: v, premium: v }); } },
+              ];
+              return (
+                <section className="mt-3 rounded-2xl bg-white p-3 shadow-[0_6px_18px_-14px_rgba(120,53,15,0.6)]" aria-labelledby="map-subs-title">
+                  <h2 id="map-subs-title" className="px-1 font-display text-[15px] font-bold text-[#231715]">{t("map_subs_title")}</h2>
+                  <ul className="mt-2 space-y-1.5">
+                    {rows.map((r) => (
+                      <li key={r.k} className="flex min-h-[56px] items-center gap-3 rounded-xl bg-[#FDF8F7] px-2.5 py-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={r.logo} alt="" width={36} height={36} className="h-9 w-9 shrink-0" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-bold text-[#231715]">{r.name}</span>
+                          <span className="block text-[11px] leading-snug text-[#6E4F48]">{r.sub}</span>
+                        </span>
+                        {r.owned ? (
+                          <button type="button" role="switch" aria-checked={r.on} aria-label={r.name} onClick={r.toggle} className="relative inline-block h-7 w-12 shrink-0 rounded-full transition" style={{ background: r.on ? r.color : "#F0E3DF" }}>
+                            <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${r.on ? "left-6" : "left-1"}`} style={r.k === "premium" && r.on ? { background: "#F4C04A" } : undefined} />
+                          </button>
+                        ) : (
+                          <Link href={r.shop} className="inline-flex min-h-[36px] shrink-0 items-center rounded-full px-3 text-xs font-bold" style={{ color: r.k === "premium" ? "#8A5A00" : r.color, background: r.k === "premium" ? "#FFF3D1" : r.k === "follow" ? "#EDE9FE" : "#FFF1DC" }}>
+                            {t("map_sub_discover")}
+                          </Link>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  {layersLocalOnly && <p className="mt-2 px-1 text-[11px] font-semibold text-[#9A3412]">{t("map_sub_saved_local")}</p>}
+                </section>
+              );
+            })()}
 
             {/* Amis en direct. */}
-            <div className="mt-3 rounded-2xl bg-white p-3">
+            <div className="mt-3 rounded-2xl bg-white p-3 shadow-[0_6px_18px_-14px_rgba(120,53,15,0.6)]">
               <button type="button" onClick={toggleFriendsLayer} className="flex w-full items-center gap-2 text-left">
                 <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#16A34A] opacity-75" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#16A34A]" /></span>
                 <span className="text-sm font-semibold text-[#231715]">{t("map_live_friends")}</span>
@@ -1927,53 +2099,6 @@ export default function MapPage() {
               <p className="flex items-center gap-2 text-sm font-semibold text-[#231715]"><span className="text-[#17141F]"><EyeIcon state={visibility} size={18} /></span>{t("m586_vis_title")}</p>
               <VisibilityPills value={visibility} busy={friendsOnlyBusy} onChange={(v) => { void changeVisibility(v); }} labels={{ all: t("v587_all_t"), friends: t("v587_friends_t"), hidden: t("v587_hidden_t") }} descs={{ all: t("v587_all_d"), friends: t("v587_friends_d"), hidden: t("v587_hidden_d") }} notes={[t("v587_live"), t("v587_where")]} />
             </div>
-
-            {/* 25/09 (585, lot 2 — bug 15) — MES ABONNEMENTS SUR LA CARTE : une
-                ligne par abonnement (icône, nom, ce que ça active sur la carte),
-                interrupteur à la couleur de l'abonnement s'il est possédé,
-                sinon « Découvrir » vers la boutique. */}
-            {(() => {
-              const premiumOwned = benefits?.premiumActive === true || benefits?.isPremium === true || premiumDays !== null || isStaffSub;
-              const followOwned = premiumOwned || benefits?.pawFollowActive === true || benefits?.familyActive === true;
-              const spotOwned = premiumOwned || benefits?.pawspotActive === true;
-              const rows: { k: string; logo: string; name: string; sub: string; owned: boolean; on: boolean; color: string; toggle: () => void; shop: string }[] = [
-                { k: "follow", logo: "/pawfollow_logo.svg", name: "PawFollow", sub: t("map_sub_follow_sub"), owned: followOwned, on: showFriends, color: "#7C3AED", shop: "/boutique?tab=pawfollow",
-                  toggle: () => { const v = !showFriends; setFriendsLayer(v); saveLayers({ friends: v }); } },
-                { k: "spot", logo: "/pawspot_logo.svg", name: "PawSpot", sub: t("map_sub_spot_sub"), owned: spotOwned, on: showSpots, color: "#E8920A", shop: "/boutique?tab=pawspot",
-                  toggle: () => { const v = !showSpots; setShowSpots(v); saveLayers({ pawspots: v }); } },
-                { k: "premium", logo: "/pawpremium_logo.svg", name: "PawPremium",
-                  sub: isStaffSub ? t("map_premium_active_staff") : premiumDays !== null ? t("map_premium_active_days").replace("{days}", String(premiumDays)) : t("map_sub_premium_sub"),
-                  owned: premiumOwned, on: showFriends && showSpots, color: "#17141F", shop: "/boutique?tab=premium",
-                  toggle: () => { const v = !(showFriends && showSpots); setFriendsLayer(v); setShowSpots(v); saveLayers({ friends: v, pawspots: v, premium: v }); } },
-              ];
-              return (
-                <section className="mt-3 rounded-2xl bg-white p-3" aria-labelledby="map-subs-title">
-                  <h2 id="map-subs-title" className="px-1 font-display text-[15px] font-bold text-[#231715]">{t("map_subs_title")}</h2>
-                  <ul className="mt-2 space-y-1.5">
-                    {rows.map((r) => (
-                      <li key={r.k} className="flex min-h-[56px] items-center gap-3 rounded-xl bg-[#FDF8F7] px-2.5 py-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={r.logo} alt="" width={36} height={36} className="h-9 w-9 shrink-0" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-bold text-[#231715]">{r.name}</span>
-                          <span className="block text-[11px] leading-snug text-[#6E4F48]">{r.sub}</span>
-                        </span>
-                        {r.owned ? (
-                          <button type="button" role="switch" aria-checked={r.on} aria-label={r.name} onClick={r.toggle} className="relative inline-block h-7 w-12 shrink-0 rounded-full transition" style={{ background: r.on ? r.color : "#F0E3DF" }}>
-                            <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${r.on ? "left-6" : "left-1"}`} style={r.k === "premium" && r.on ? { background: "#F4C04A" } : undefined} />
-                          </button>
-                        ) : (
-                          <Link href={r.shop} className="inline-flex min-h-[36px] shrink-0 items-center rounded-full px-3 text-xs font-bold" style={{ color: r.k === "premium" ? "#8A5A00" : r.color, background: r.k === "premium" ? "#FFF3D1" : r.k === "follow" ? "#EDE9FE" : "#FFF1DC" }}>
-                            {t("map_sub_discover")}
-                          </Link>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                  {layersLocalOnly && <p className="mt-2 px-1 text-[11px] font-semibold text-[#9A3412]">{t("map_sub_saved_local")}</p>}
-                </section>
-              );
-            })()}
 
             {/* Itinéraire en cours. */}
             {route && (
@@ -2212,6 +2337,8 @@ export default function MapPage() {
       {/* 25/09 (587) — lueur verte qui respire de la pilule « En direct » (fixe si « réduire les animations »). */}
       <style>{`@keyframes hps-live-breathe{0%,100%{box-shadow:0 0 0 3px rgba(22,163,74,.28),0 0 14px 3px rgba(22,163,74,.45)}50%{box-shadow:0 0 0 6px rgba(22,163,74,.22),0 0 26px 9px rgba(22,163,74,.62)}}.hps-live-breathe{animation:hps-live-breathe 1.6s ease-in-out infinite}@media (prefers-reduced-motion: reduce){.hps-live-breathe{animation:none}}`}</style>
       <PawMapLegendModal open={legendOpen} onClose={() => setLegendOpen(false)} role={roleKey(myRole)} />
+      {/* 26/09 (589) — fenêtre d'annonce (une fois par navigateur). */}
+      <PawMapAnnouncement enabled={!loading} dark={dark} />
       {/* 25/09 (586, point 2) — le site n'émet pas de position GPS en direct :
           le rond « Direct » explique qu'il se lance depuis l'app. */}
       {liveInfoOpen && (
@@ -2352,12 +2479,37 @@ const ROLE_GRAD_BTN: Record<string, string> = {
   sitter: "linear-gradient(165deg,#3B7BE6,#1E4FB0)",
   walker: "linear-gradient(165deg,#34B857,#15803D)",
 };
-/** Rond de verre (« ? », mode nuit) : même matière que les capsules. */
-function GlassRound({ dark, onClick, label, pressed, children }: { dark: boolean; onClick: () => void; label: string; pressed?: boolean; children: React.ReactNode }) {
+/**
+ * 26/09 (589) — rond orange SIGNATURE de l'en-tête de la carte (« ? »,
+ * Actualiser, roue Options) : dégradé #E2503A → #D83C28 → #B92425, liseré
+ * blanc, reflet, icône blanche — le même que l'app (_headerRoundButton).
+ */
+function OrangeRound({ onClick, label, busy, children }: { onClick: () => void; label: string; busy?: boolean; children: React.ReactNode }) {
   return (
-    <button type="button" onClick={onClick} aria-label={label} title={label} aria-pressed={pressed} className="grid h-11 w-11 place-items-center rounded-full transition-transform duration-200 hover:scale-[1.05] active:scale-95" style={glassStyle(dark)}>
-      {children}
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      aria-busy={busy || undefined}
+      className="relative grid h-11 w-11 place-items-center overflow-hidden rounded-full transition-transform duration-200 hover:scale-[1.05] active:scale-95"
+      style={{ background: "linear-gradient(165deg,#E2503A 0%,#D83C28 50%,#B92425 100%)", border: "1.5px solid #FFFFFF", boxShadow: "0 8px 18px -8px rgba(185,36,37,0.85)" }}
+    >
+      <span aria-hidden="true" className="pointer-events-none absolute inset-x-[5px] top-[2px] h-[46%] rounded-full" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.45), rgba(255,255,255,0))" }} />
+      <span className="relative grid place-items-center">{children}</span>
     </button>
+  );
+}
+/** 26/09 (589) — roue « réglages » pleine, style iPhone (8 dents, moyeu creux). */
+function GearIcon({ size = 22, color = "#FFFFFF" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+      <path
+        fill={color}
+        fillRule="evenodd"
+        d="M10.3 2.2h3.4l.5 2.5c.6.2 1.2.5 1.7.8l2.2-1.3 2.4 2.4-1.3 2.2c.3.5.6 1.1.8 1.7l2.5.5v3.4l-2.5.5c-.2.6-.5 1.2-.8 1.7l1.3 2.2-2.4 2.4-2.2-1.3c-.5.3-1.1.6-1.7.8l-.5 2.5h-3.4l-.5-2.5c-.6-.2-1.2-.5-1.7-.8l-2.2 1.3-2.4-2.4 1.3-2.2c-.3-.5-.6-1.1-.8-1.7l-2.5-.5v-3.4l2.5-.5c.2-.6.5-1.2.8-1.7L3.5 6.6l2.4-2.4 2.2 1.3c.5-.3 1.1-.6 1.7-.8zM12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2z"
+      />
+    </svg>
   );
 }
 /** Barre rangée hors écran : ni focus clavier ni lecteur d'écran (React 18 : `inert` en attribut texte). */
@@ -2379,7 +2531,7 @@ function BarTab({ side, collapsed, dark, label, onClick, className = "" }: { sid
       aria-label={label}
       title={label}
       aria-expanded={!collapsed}
-      className={`absolute top-1/2 grid h-12 w-11 -translate-y-1/2 ${side === "left" ? "left-full justify-items-start pl-1" : "right-full justify-items-end pr-1"} items-center ${className}`}
+      className={`absolute bottom-1 grid h-12 w-11 ${side === "left" ? "left-full justify-items-start pl-1" : "right-full justify-items-end pr-1"} items-center ${className}`}
     >
       <span className="grid h-11 w-6 place-items-center rounded-[12px] transition-transform duration-200 hover:scale-[1.06] active:scale-95" style={glassStyle(dark)}>
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke={dark ? "#FBEFE6" : "#3B2A26"} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

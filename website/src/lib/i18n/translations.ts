@@ -9768,3 +9768,7 @@ for (const code of Object.keys(VIS587) as Lang[]) Object.assign(t[code], VIS587[
 // 25/09/2026 — PawMap 587 : budget facultatif d'une demande (option A de Daniel).
 import { BUDGET587 } from "./budget587";
 for (const code of Object.keys(BUDGET587) as Lang[]) Object.assign(t[code], BUDGET587[code]);
+
+// 26/09/2026 — PawMap 589 (site) : roue « Options de la carte », Actualiser, panneau en cartes, annonces, aide.
+import { PAWMAP589 } from "./pawmap589";
+for (const code of Object.keys(PAWMAP589) as Lang[]) Object.assign(t[code], PAWMAP589[code]);

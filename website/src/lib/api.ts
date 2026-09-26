@@ -3192,3 +3192,26 @@ export async function startConversationWithOwner(role: "sitter" | "walker", owne
   const raw = await request<{ conversation?: { id?: string; _id?: string } }>(`/conversations/start-by-${role}?ownerId=${encodeURIComponent(ownerId)}`, { method: "POST", body: JSON.stringify({}) });
   return String(raw?.conversation?.id || raw?.conversation?._id || "");
 }
+
+// v589 (26/09/2026) — fenêtres d'annonce de la PawMap (écrites dans l'admin
+// « Annonces PawMap »). Le serveur filtre : actives, dates, rôle, plateforme
+// (X-App-Platform: web), langue. Le site ignore « update » (pas de mise à jour
+// d'un site) : filtré dans components/PawMapAnnouncement.tsx.
+export type MapAnnouncement = { id: string; title: string; body: string; kind: "info" | "update" | "link" | string; url: string };
+export async function getMapAnnouncements(lang: string): Promise<MapAnnouncement[]> {
+  const raw = await request<{ announcements?: unknown[] }>(
+    `/app-config/announcements?lang=${encodeURIComponent(lang)}&platform=web`,
+    { headers: { "X-App-Platform": "web" } },
+  );
+  const out: MapAnnouncement[] = [];
+  for (const a of raw?.announcements || []) {
+    if (!a || typeof a !== "object") continue;
+    const o = a as Record<string, unknown>;
+    const id = String(o.id ?? "").trim();
+    const title = String(o.title ?? "").trim();
+    const body = String(o.body ?? "").trim();
+    if (!id || (!title && !body)) continue;
+    out.push({ id, title, body, kind: String(o.kind ?? "info"), url: String(o.url ?? "").trim() });
+  }
+  return out;
+}

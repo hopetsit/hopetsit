@@ -33,10 +33,6 @@ import { AppIcon, type AppIconName } from "@/components/AppIcon";
 
 // 25/09 (586) — dessins des nouveaux contrôles de la carte (poignée, Publier,
 // Direct, œil), mêmes couleurs que sur /map.
-const PAW_PATH = "M12 13.2c-2.6 0-4.8 2.5-4.8 4.5 0 1.3 1 2.1 2.3 2.1 1 0 1.7-.5 2.5-.5s1.5.5 2.5.5c1.3 0 2.3-.8 2.3-2.1 0-2-2.2-4.5-4.8-4.5zM6.2 12.4a2 2.4 0 1 0 0-4.8 2 2.4 0 0 0 0 4.8zM17.8 12.4a2 2.4 0 1 0 0-4.8 2 2.4 0 0 0 0 4.8zM9.6 8.6a2.1 2.6 0 1 0 0-5.2 2.1 2.6 0 0 0 0 5.2zM14.4 8.6a2.1 2.6 0 1 0 0-5.2 2.1 2.6 0 0 0 0 5.2z";
-function handleHtml(color: string) {
-  return `<span style="display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 9px;border-radius:999px;background:linear-gradient(180deg,#FFFCF8,#FFF3EA);border:1px solid #fff;box-shadow:0 6px 14px -6px ${color}"><svg viewBox="0 0 24 24" width="14" height="14" fill="${color}"><path d="${PAW_PATH}"/></svg><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="${color}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></span>`;
-}
 function roundHtml(bg: string, inner: string, shadow: string, size = 40) {
   return `<span style="display:grid;place-items:center;width:${size}px;height:${size}px;border-radius:999px;background:${bg};border:1.5px solid #fff;box-shadow:0 6px 14px -6px ${shadow}">${inner}</span>`;
 }
@@ -52,6 +48,16 @@ function eyesHtml() {
 function barTabHtml(side: "left" | "right") {
   const d = side === "left" ? "M14 7l-5 5 5 5" : "M10 7l5 5-5 5";
   return `<span style="display:grid;place-items:center;width:22px;height:38px;border-radius:12px;background:linear-gradient(180deg,#FFFBF7,#FFF2E8);border:1px solid #fff;box-shadow:0 6px 14px -8px rgba(146,64,14,.55)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#3B2A26" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg></span>`;
+}
+
+/** 589 — rond orange signature de l'en-tête (« ? », Actualiser, roue Options). */
+const ORANGE_BG = "linear-gradient(165deg,#E2503A 0%,#D83C28 50%,#B92425 100%)";
+const QMARK = '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9.3 9.2a2.8 2.8 0 0 1 5.4 1c0 1.9-2.7 2.5-2.7 4.3"/><circle cx="12" cy="18" r="1.1" fill="#fff" stroke="none"/></svg>';
+const REFRESH = '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.35-5.65"/><path d="M20.5 3.5v5h-5"/></svg>';
+const GEAR = '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="#fff" fill-rule="evenodd" d="M10.3 2.2h3.4l.5 2.5c.6.2 1.2.5 1.7.8l2.2-1.3 2.4 2.4-1.3 2.2c.3.5.6 1.1.8 1.7l2.5.5v3.4l-2.5.5c-.2.6-.5 1.2-.8 1.7l1.3 2.2-2.4 2.4-2.2-1.3c-.5.3-1.1.6-1.7.8l-.5 2.5h-3.4l-.5-2.5c-.6-.2-1.2-.5-1.7-.8l-2.2 1.3-2.4-2.4 1.3-2.2c-.3-.5-.6-1.1-.8-1.7l-2.5-.5v-3.4l2.5-.5c.2-.6.5-1.2.8-1.7L3.5 6.6l2.4-2.4 2.2 1.3c.5-.3 1.1-.6 1.7-.8zM12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2z"/></svg>';
+/** 589 — bouton « Personnaliser » de l'app : pastille blanche, liseré orange, flèches + crayon. */
+function customHtml() {
+  return `<span style="display:grid;place-items:center;width:40px;height:40px;border-radius:999px;background:#fff;border:1.8px solid #D83C28;box-shadow:0 6px 14px -8px #D83C28"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#D83C28" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v11M4 7l3-3 3 3M4 12l3 3 3-3"/><path d="M13.5 19.5l.6-2.6 5.6-5.6a1.4 1.4 0 0 1 2 2l-5.6 5.6z"/></svg></span>`;
 }
 
 function seeChipsHtml() {
@@ -146,6 +152,9 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
         {
           id: "find", title: t("h587_sec_find"), example: t("h587_ex_find"),
           rows: [
+            // 589 — les ronds orange de l'en-tête : « ? » puis Actualiser.
+            { html: roundHtml(ORANGE_BG, QMARK, "rgba(185,36,37,0.85)"), title: t("p589_t_legendbtn"), body: t("p589_b_legendbtn"), color: "#D83C28" },
+            { html: roundHtml(ORANGE_BG, REFRESH, "rgba(185,36,37,0.85)"), title: t("p589_refresh"), body: t("p589_b_refresh"), color: "#D83C28" },
             { node: <RoundIcon name="pin" color="#C92A12" />, title: t("h587_t_pins"), body: t("h587_b_pins") },
             ...pins,
             { node: <RoundIcon name="locate" color={roleColor} filled />, title: t("map_locate_btn"), body: t("h587_b_locate"), color: roleColor },
@@ -175,7 +184,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
             // 587 — Daniel : les 3 réglages en clair, mêmes phrases que le réglage (vis587).
             { html: eyesHtml(), title: t("v587_title"), body: visExplained, color: "#17141F" },
             // 587 — le Direct existe pour les 3 profils (propriétaire compris).
-            { html: `<span style="display:flex;gap:4px">${roundHtml("linear-gradient(165deg,#2C2533,#17141F)", LIVE, "rgba(23,20,31,0.7)", 30)}${roundHtml("linear-gradient(165deg,#34B857,#16A34A)", LIVE, "#16A34A", 30)}</span>`, title: t("m586_live"), body: t("h587_b_direct"), color: "#17141F" },
+            { html: `<span style="display:flex;gap:4px">${roundHtml("linear-gradient(165deg,#2C2533,#17141F)", LIVE, "rgba(23,20,31,0.7)", 30)}${roundHtml("linear-gradient(165deg,#34B857,#16A34A)", LIVE, "#16A34A", 30)}</span>`, title: t("m586_live"), body: `${t("h587_b_direct")} ${t("p589_direct_account")}`, color: "#17141F" },
           ],
         },
         {
@@ -193,10 +202,13 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
         {
           id: "set", title: t("h587_sec_set"), example: t("h587_ex_set"),
           rows: [
-            { html: handleHtml(roleColor), title: t("m586_leg_handle_t"), body: t("h587_b_handle") },
+            // 589 — la roue « Options de la carte » remplace la pilule du bas.
+            { html: roundHtml(ORANGE_BG, GEAR, "rgba(185,36,37,0.85)"), title: t("p589_options"), body: t("p589_b_options"), color: "#D83C28" },
             { html: `<span style="display:flex;gap:4px">${barTabHtml("left")}${barTabHtml("right")}</span>`, title: t("m587_leg_bars_t"), body: t("m587_leg_bars_b"), color: "#17141F" },
-            { node: <RoundIcon name="moon" color="#17141F" />, title: t("map_dark_mode"), body: t("h587_b_night") },
+            { node: <RoundIcon name="moon" color="#17141F" />, title: t("p589_night"), body: t("p589_b_night") },
             { node: <RoundIcon name="crown" color="#7C3AED" />, title: t("map_subs_title"), body: t("h587_b_subs"), color: "#7C3AED" },
+            // 589 — « Modifier ma barre » n'existe que dans l'app : dit clairement.
+            { html: customHtml(), title: `${t("p589_custom_t")} · ${t("p589_in_app")}`, body: t("p589_b_custom"), color: "#D83C28" },
           ],
         },
       ]
