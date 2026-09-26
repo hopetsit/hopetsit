@@ -63,13 +63,13 @@ class _PawMapHeaderBadgeState extends State<PawMapHeaderBadge>
           end: Alignment(0.6, 1),
           colors: <Color>[
             Color(0xFFF26A46),
-            Color(0xFFDD4430),
+            Color(0xFFC92A12),
             Color(0xFFC7311F),
           ],
         ),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: const Color(0xFFDD4430).withValues(alpha: 0.32),
+            color: const Color(0xFFC92A12).withValues(alpha: 0.32),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

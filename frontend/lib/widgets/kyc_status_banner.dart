@@ -14,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
-import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/kyc/kyc_verification_screen.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
@@ -36,6 +35,10 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
   @override
   void initState() {
     super.initState();
+    // v592 — réponse déjà connue (en-tête du profil) → bandeau affiché dès la
+    // 1re image, sans apparaître après coup (la page sautait).
+    final known = ActiveBenefitsRow.sessionBenefits;
+    if (known != null) _apply(known);
     _load();
     // Refresh when ActiveBenefitsRow.notifyChanged() is called (après KYC).
     _tickWorker = ever<int>(
@@ -51,23 +54,26 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
     super.dispose();
   }
 
+  void _apply(Map<String, dynamic> r) {
+    _kycStatus = (r['kycStatus'] as String?) ?? 'none';
+    _identityVerificationStatus =
+        (r['identityVerificationStatus'] as String?) ?? 'none';
+    _loaded = true;
+  }
+
+  /// v592 — même requête partagée que l'en-tête (ActiveBenefitsRow) : une
+  /// seule réponse /users/me/benefits pour les deux.
   Future<void> _load() async {
-    try {
-      if (!Get.isRegistered<ApiClient>()) return;
-      final api = Get.find<ApiClient>();
-      final r = await api.get('/users/me/benefits', requiresAuth: true);
-      if (!mounted) return;
-      if (r is Map) {
-        setState(() {
-          _kycStatus = (r['kycStatus'] as String?) ?? 'none';
-          _identityVerificationStatus =
-              (r['identityVerificationStatus'] as String?) ?? 'none';
-          _loaded = true;
-        });
+    await ActiveBenefitsRow.refreshBoostState();
+    if (!mounted) return;
+    final r = ActiveBenefitsRow.sessionBenefits;
+    setState(() {
+      if (r != null) {
+        _apply(r);
+      } else {
+        _loaded = true;
       }
-    } catch (_) {
-      if (mounted) setState(() => _loaded = true);
-    }
+    });
   }
 
   @override

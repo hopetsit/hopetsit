@@ -40,7 +40,7 @@ export function roleKey(role: string | undefined | null): RoleKey {
 export const RING_GRAD: Record<RoleKey | "friend", [string, string]> = {
   sitter: ["#4A86F0", "#2458C9"],
   walker: ["#43B862", "#1F7A37"],
-  owner: ["#FFA94D", "#D63D1F"],
+  owner: ["#C92A12", "#9E1F0B"],
   friend: ["#F47BB2", "#D6377F"],
 };
 export function ringGradient(k: RoleKey | "friend"): string {

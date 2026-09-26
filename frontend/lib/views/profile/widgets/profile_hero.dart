@@ -264,10 +264,20 @@ class ProfileHero extends StatelessWidget {
                       ),
                     )
                   : url.isNotEmpty
+                      // v592 — « ça clignote sur mon profil » : par défaut la
+                      // photo arrive en fondu de 0,5 s pendant que l'icône
+                      // s'efface en 1 s (deux images superposées qui
+                      // « tremblent »), et un changement d'adresse repassait
+                      // par l'icône. Fondu court, UNE fois ; l'ancienne photo
+                      // reste affichée tant que la nouvelle n'est pas prête.
                       ? CachedNetworkImage(
                           imageUrl: url,
                           fit: BoxFit.cover,
                           memCacheWidth: 300,
+                          fadeInDuration: const Duration(milliseconds: 180),
+                          fadeOutDuration: Duration.zero,
+                          placeholderFadeInDuration: Duration.zero,
+                          useOldImageOnUrlChange: true,
                           placeholder: (_, __) => _avatarFallback(),
                           errorWidget: (_, __, ___) => _avatarFallback(),
                         )
@@ -361,21 +371,28 @@ class ProfileHero extends StatelessWidget {
         : Get.put(FriendController(), permanent: true);
     return Row(
       children: [
-        Obx(() => _StatTile(
-              label: 'hero_stat_pets'.tr,
-              value: '${petsCtl.pets.length}',
-              onTap: () => Get.to(() => const MyPetsScreen()),
-            )),
+        // v592 — « — » tant que la 1re réponse n'est pas là (au lieu d'un
+        // faux « 0 » qui saute ensuite à la vraie valeur).
+        Obx(() {
+          final waiting = _firstLoadPending(petsCtl.isLoading, petsCtl.pets.isEmpty);
+          return _StatTile(
+            label: 'hero_stat_pets'.tr,
+            value: waiting ? '—' : '${petsCtl.pets.length}',
+            onTap: () => Get.to(() => const MyPetsScreen()),
+          );
+        }),
         SizedBox(width: 8.w),
         _CompletedBookingsTile(role: role, profile: profile),
         SizedBox(width: 8.w),
         Obx(() {
+          final waiting =
+              _firstLoadPending(friendsCtl.isLoading, friendsCtl.friends.isEmpty);
           final n = friendsCtl.friends
               .where((f) => f.status.toLowerCase() == 'accepted')
               .length;
           return _StatTile(
             label: 'hero_stat_friends'.tr,
-            value: '$n',
+            value: waiting ? '—' : '$n',
             onTap: () => Get.to(() => const FriendsScreen()),
           );
         }),
@@ -388,6 +405,18 @@ class ProfileHero extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: Colors.white.withValues(alpha: 0.30)),
       );
+}
+
+/// v592 — vrai tant que la PREMIÈRE réponse d'une liste n'est pas arrivée
+/// (liste vide + chargement en cours). Une fois un chargement terminé, les
+/// rechargements suivants ne repassent plus par l'attente : une liste
+/// réellement vide ne clignote pas « — » / « 0 » à chaque rafraîchissement.
+/// Lit toujours `loading.value` (abonnement de l'Obx appelant).
+final Expando<bool> _loadedOnce = Expando<bool>('hero_loaded_once');
+bool _firstLoadPending(RxBool loading, bool isEmpty) {
+  final busy = loading.value;
+  if (!busy) _loadedOnce[loading] = true;
+  return busy && isEmpty && _loadedOnce[loading] != true;
 }
 
 /// Jours actifs réels depuis l'inscription ; `null` si la date est inconnue
@@ -416,17 +445,28 @@ class _CompletedBookingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     RxList<BookingModel>? list;
+    RxBool? loading;
     if (role == 'sitter' && Get.isRegistered<SitterBookingsController>()) {
-      list = Get.find<SitterBookingsController>().bookings;
+      final c = Get.find<SitterBookingsController>();
+      list = c.bookings;
+      loading = c.isLoading;
     } else if (role == 'walker' && Get.isRegistered<WalkerBookingsController>()) {
-      list = Get.find<WalkerBookingsController>().bookings;
+      final c = Get.find<WalkerBookingsController>();
+      list = c.bookings;
+      loading = c.isLoading;
     } else if (role == 'owner' && Get.isRegistered<BookingsController>()) {
-      list = Get.find<BookingsController>().bookings;
+      final c = Get.find<BookingsController>();
+      list = c.bookings;
+      loading = c.isLoading;
     }
     return Obx(() {
       int? n;
       if (list != null) {
-        n = list.where(_isCompleted).length;
+        // v592 — « — » pendant le 1er chargement de la liste plutôt qu'un
+        // faux « 0 » qui saute ensuite à la vraie valeur.
+        final waiting =
+            loading != null && _firstLoadPending(loading, list.isEmpty);
+        if (!waiting) n = list.where(_isCompleted).length;
       } else {
         final p = profile.value;
         if (p != null) {
@@ -631,6 +671,15 @@ class _OwnerPetPill extends StatelessWidget {
         : Get.put(MyPetsController());
     return Obx(() {
       final pets = petsCtl.pets;
+      // v592 — « Ajouter un animal » s'affichait le temps que la liste
+      // arrive, puis laissait place à « Rex · Golden » : faux contenu + saut.
+      // Pendant la 1re réponse, une pilule de verre VIDE de même hauteur.
+      if (_firstLoadPending(petsCtl.isLoading, pets.isEmpty)) {
+        return _HeroPill(
+          leading: SizedBox(width: 14.sp, height: 14.sp),
+          text: '            ',
+        );
+      }
       if (pets.isEmpty) {
         return _HeroPill(
           leading: Icon(Icons.add_rounded, size: 14.sp, color: Colors.white),

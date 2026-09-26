@@ -15,6 +15,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 class ActiveBenefitsRow extends StatefulWidget {
@@ -74,47 +75,114 @@ class ActiveBenefitsRow extends StatefulWidget {
   /// SEULEMENT boostExpiry → si Daniel avait juste un PawSpot Gold actif,
   /// le cadre doré ne s'affichait jamais. Maintenant on prend l'OR :
   /// _boostActive = (boostExpiry > now) OU (mapBoostExpiry > now).
-  static Future<void> refreshBoostState() async {
+  static Future<void> refreshBoostState() => _fetch();
+
+  // v592 — Daniel (26/09) : « quand je me connecte, ça clignote, ça tremble
+  // sur mon profil le temps que ça s'installe ». Cause mesurée : cette rangée
+  // ne rendait RIEN tant que /users/me/benefits n'avait pas répondu, puis une
+  // pilule (+28 px) ou une rangée de badges avec marge (+40 px) → tout
+  // l'en-tête du profil grandissait d'un coup et la page sautait. Et chaque
+  // montage (changement d'onglet, de rôle) refaisait l'aller-retour.
+  // Désormais : UNE seule réponse partagée (mémoire, liée à la session), une
+  // seule requête à la fois, et en mode hero une hauteur identique dans tous
+  // les états (attente, aucun abonnement, badges).
+  static final Rxn<Map<String, dynamic>> _shared = Rxn<Map<String, dynamic>>();
+  static String? _sharedSession;
+  static Future<void>? _inflight;
+
+  static String? _sessionNow() {
+    try {
+      return SecureTokenStore.currentToken();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Dernière réponse connue pour la session EN COURS (jamais celle d'un
+  /// autre compte après une déconnexion).
+  static Map<String, dynamic>? _cachedForSession() {
+    final data = _shared.value;
+    if (data == null) return null;
+    return _sharedSession == _sessionNow() ? data : null;
+  }
+
+  /// Dernier échec de /users/me/benefits sans aucune donnée pour la session.
+  static final RxBool _lastFailed = false.obs;
+
+  /// v592 — réponse /users/me/benefits de la session en cours (partagée avec
+  /// KycStatusBanner : une seule requête, un seul affichage).
+  static Map<String, dynamic>? get sessionBenefits => _cachedForSession();
+
+  /// v592 — vrai quand la réponse est connue (ou a échoué) : les pages Profil
+  /// attendent ce moment pour afficher leur contenu d'un seul coup. À lire
+  /// dans un Obx (lit deux Rx).
+  static bool get settledForSession {
+    final failed = _lastFailed.value;
+    _shared.value;
+    return _cachedForSession() != null || failed;
+  }
+
+  @visibleForTesting
+  static void debugResetCache() {
+    _shared.value = null;
+    _sharedSession = null;
+    _inflight = null;
+    _lastFailed.value = false;
+  }
+
+  static Future<void> _fetch() {
+    return _inflight ??= _doFetch();
+  }
+
+  static Future<void> _doFetch() async {
     try {
       if (!Get.isRegistered<ApiClient>()) return;
       final api = Get.find<ApiClient>();
       final r = await api.get('/users/me/benefits', requiresAuth: true);
       if (r is Map) {
         final benefits = Map<String, dynamic>.from(r);
-        DateTime? parseExpiry(dynamic raw) {
-          if (raw is String && raw.isNotEmpty) return DateTime.tryParse(raw);
-          if (raw is num) {
-            return DateTime.fromMillisecondsSinceEpoch(raw.toInt());
-          }
-          return null;
-        }
-
-        final boostExpiry = parseExpiry(benefits['boostExpiry']);
-        final mapBoostExpiry = parseExpiry(benefits['mapBoostExpiry']);
-        final now = DateTime.now();
-        final boostActive =
-            boostExpiry != null && boostExpiry.isAfter(now);
-        final mapBoostActive =
-            mapBoostExpiry != null && mapBoostExpiry.isAfter(now);
-        // v23.1.182 — Daniel : "le cadre urgent boost naparait tjr pa"
-        // (10e fois). VRAIE cause racine : Daniel a une sub Famille
-        // (isPremium=true) mais ni Boost annonce ni PawSpot/MapBoost.
-        // L'accessor _boostActive ignorait isPremium → frontend fallback
-        // stayed false → ruban URGENT never appeared on his own posts.
-        // Fix : tout abo Premium actif déclenche aussi le cadre URGENT
-        // (= "compte premium, post mis en avant"). Aligné sur la logique
-        // backend postController.js isSubscriptionActive.
-        final isPremium = benefits['isPremium'] == true;
-        _boostActive.value = boostActive || mapBoostActive || isPremium;
-        _profileBoost.value = boostActive;
+        _sharedSession = _sessionNow();
+        _shared.value = benefits;
+        _lastFailed.value = false;
+        _applyFlags(benefits);
+      } else if (_cachedForSession() == null) {
+        _lastFailed.value = true;
       }
-    } catch (_) {/* defensive */}
+    } catch (_) {
+      if (_cachedForSession() == null) _lastFailed.value = true;
+    } finally {
+      _inflight = null;
+    }
+  }
+
+  static void _applyFlags(Map<String, dynamic> benefits) {
+    DateTime? parseExpiry(dynamic raw) {
+      if (raw is String && raw.isNotEmpty) return DateTime.tryParse(raw);
+      if (raw is num) {
+        return DateTime.fromMillisecondsSinceEpoch(raw.toInt());
+      }
+      return null;
+    }
+
+    final boostExpiry = parseExpiry(benefits['boostExpiry']);
+    final mapBoostExpiry = parseExpiry(benefits['mapBoostExpiry']);
+    final now = DateTime.now();
+    final boostActive = boostExpiry != null && boostExpiry.isAfter(now);
+    final mapBoostActive =
+        mapBoostExpiry != null && mapBoostExpiry.isAfter(now);
+    // v23.1.182 — tout abo Premium actif déclenche aussi le cadre URGENT
+    // (aligné sur le backend postController.js isSubscriptionActive).
+    // v23.1.175 fix #2 — boostExpiry OU mapBoostExpiry (PawSpot/MapBoost).
+    final isPremium = benefits['isPremium'] == true;
+    _boostActive.value = boostActive || mapBoostActive || isPremium;
+    _profileBoost.value = boostActive;
   }
 }
 
 class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
-  Map<String, dynamic> _benefits = const {};
-  bool _loaded = false;
+  /// Réponse en échec sans aucune donnée connue : on montre l'état « vide »
+  /// (comme avant) plutôt qu'une attente sans fin.
+  bool _failed = false;
   Worker? _tickWorker;
 
   @override
@@ -131,39 +199,59 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
   }
 
   Future<void> _load() async {
-    try {
-      if (!Get.isRegistered<ApiClient>()) return;
-      final api = Get.find<ApiClient>();
-      final r = await api.get('/users/me/benefits', requiresAuth: true);
-      if (!mounted) return;
-      if (r is Map) {
-        setState(() {
-          _benefits = Map<String, dynamic>.from(r);
-          _loaded = true;
-        });
-        // v23.1.149 — synchronise le Rx<bool> boostActive partagé.
-        // v23.1.175 fix #2 — Daniel "cadre boost napparait toujours pas
-        // sur profile owner". On regarde maintenant boostExpiry OU
-        // mapBoostExpiry (PawSpot/MapBoost) pour activer le cadre doré.
-        final expiry = _toDate(_benefits['boostExpiry']);
-        final mapExpiry = _toDate(_benefits['mapBoostExpiry']);
-        final now = DateTime.now();
-        final boostActive = expiry != null && expiry.isAfter(now);
-        final mapActive = mapExpiry != null && mapExpiry.isAfter(now);
-        // v23.1.182 — inclut isPremium dans l'accessor (10e fix demandé).
-        final isPremium = _benefits['isPremium'] == true;
-        ActiveBenefitsRow._boostActive.value = boostActive || mapActive || isPremium;
-      }
-    } catch (_) {
-      // best-effort, on cache simplement la row.
-      if (mounted) setState(() => _loaded = true);
+    await ActiveBenefitsRow._fetch();
+    if (!mounted) return;
+    if (ActiveBenefitsRow._cachedForSession() == null && !_failed) {
+      setState(() => _failed = true);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_loaded) return const SizedBox.shrink();
-    final p = _benefits;
+    return Obx(() {
+      // Lecture de l'Rx DANS la closure (règle d'or GetX).
+      ActiveBenefitsRow._shared.value;
+      final data = ActiveBenefitsRow._cachedForSession();
+      if (data == null && !_failed) {
+        // Attente : en mode hero, la place exacte d'une pilule est RÉSERVÉE
+        // (invisible) → l'en-tête ne change jamais de hauteur.
+        if (!widget.hero) return const SizedBox.shrink();
+        return _heroSlot(
+          key: const ValueKey<String>('benefits_wait'),
+          child: Visibility(
+            visible: false,
+            maintainSize: true,
+            maintainAnimation: true,
+            maintainState: true,
+            child: _heroPill(
+              leading: Icon(Icons.workspace_premium_outlined, size: 13.sp),
+              text: 'hero_no_subscription'.tr,
+              muted: true,
+            ),
+          ),
+        );
+      }
+      return _content(context, data ?? const <String, dynamic>{});
+    });
+  }
+
+  /// Mode hero : la rangée occupe toujours la hauteur d'UNE pilule, et le
+  /// passage de l'attente au contenu est un simple fondu (jamais un saut).
+  Widget _heroSlot({required Key key, required Widget child}) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      layoutBuilder: (current, previous) => Stack(
+        alignment: Alignment.centerLeft,
+        children: <Widget>[...previous, if (current != null) current],
+      ),
+      child: KeyedSubtree(
+        key: key,
+        child: Align(alignment: Alignment.centerLeft, child: child),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context, Map<String, dynamic> p) {
     final now = DateTime.now();
     final boostExpiry = _toDate(p['boostExpiry']);
     final mapBoostExpiry = _toDate(p['mapBoostExpiry']);
@@ -253,8 +341,8 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
       // v565 — en mode hero, un badge discret « Aucun abonnement » (les
       // autres modes restent invisibles quand il n'y a rien à montrer).
       if (!widget.hero) return const SizedBox.shrink();
-      return Align(
-        alignment: Alignment.centerLeft,
+      return _heroSlot(
+        key: const ValueKey<String>('benefits_none'),
         child: _heroPill(
           leading: Icon(Icons.workspace_premium_outlined,
               size: 13.sp, color: Colors.white.withValues(alpha: 0.85)),
@@ -263,24 +351,31 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
         ),
       );
     }
+    final row = SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (int i = 0; i < children.length; i++) ...[
+            if (i > 0) SizedBox(width: 6.w),
+            children[i],
+          ],
+        ],
+      ),
+    );
+    // v592 — en mode hero, PAS de marge verticale en plus : la rangée de
+    // badges a exactement la hauteur de la pilule « Aucun abonnement » et de
+    // la place réservée pendant l'attente.
+    if (widget.hero) {
+      return _heroSlot(key: const ValueKey<String>('benefits_badges'), child: row);
+    }
     // v444 — Daniel : « les petits badges du cadre orange/vert/bleu, mets-les
     // HORIZONTAUX ». Avant : grille 2 colonnes (LayoutBuilder demi-largeur).
     // Maintenant : une seule LIGNE horizontale, défilable si trop de badges
     // pour la largeur du header (jamais de débordement ni de wrap en colonnes).
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 6.h),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (int i = 0; i < children.length; i++) ...[
-              if (i > 0) SizedBox(width: 6.w),
-              children[i],
-            ],
-          ],
-        ),
-      ),
+      child: row,
     );
   }
 

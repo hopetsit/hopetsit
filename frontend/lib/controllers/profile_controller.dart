@@ -24,6 +24,7 @@ import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/utils/profile_display_cache.dart';
 import 'package:hopetsit/views/auth/login_screen.dart';
 import 'package:hopetsit/views/profile/add_card_screen.dart';
 import 'package:hopetsit/views/profile/change_password_screen.dart';
@@ -88,6 +89,11 @@ class ProfileController extends GetxController implements ProfileSettingsHost {
     final token = SecureTokenStore.currentToken();
     if (token != null && token.isNotEmpty) {
       applyStoredUserProfileDisplay();
+      // v592 — Daniel : « ça clignote, ça tremble sur mon profil le temps que
+      // ça s'installe ». Le dernier profil connu de CE compte est affiché tout
+      // de suite ; la réponse serveur le remplace ensuite en place, sans que
+      // la page change de forme.
+      _restoreCachedProfile();
       loadMyProfile();
       loadBlockedUsers();
     }
@@ -111,6 +117,36 @@ class ProfileController extends GetxController implements ProfileSettingsHost {
         profileImageUrl.value = url.trim();
       }
     }
+  }
+
+  String _storedUserId() {
+    final raw = _storage.read(StorageKeys.userProfile);
+    if (raw is! Map) return '';
+    return (raw['id'] ?? raw['_id'] ?? '').toString();
+  }
+
+  String _storedRole() =>
+      (_storage.read(StorageKeys.userRole) ?? '').toString().toLowerCase();
+
+  /// v592 — profil en cache (même compte, même rôle) → affichage immédiat.
+  void _restoreCachedProfile() {
+    try {
+      if (profile.value != null) return;
+      final cached = ProfileDisplayCache.read(
+        _storage,
+        role: _storedRole(),
+        userId: _storedUserId(),
+      );
+      if (cached == null) return;
+      final p = ProfileModel.fromJson(cached);
+      profile.value = p;
+      if (userName.value.isEmpty && p.name.trim().isNotEmpty) {
+        userName.value = p.name;
+      }
+      if (profileImageUrl.value.isEmpty && p.avatar.url.trim().isNotEmpty) {
+        profileImageUrl.value = p.avatar.url;
+      }
+    } catch (_) {/* cache illisible : on attend simplement le serveur */}
   }
 
   /// Loads `/users/me/profile` when we have a token but no display name yet
@@ -146,10 +182,27 @@ class ProfileController extends GetxController implements ProfileSettingsHost {
         PawWallpaperPrefs.syncFromAccount(profileData.preferences.wallpaperKnown
             ? profileData.preferences.wallpaper
             : null);
-        userName.value = profileData.name;
+        // v592 — jamais de retour en arrière vers du vide : une réponse sans
+        // nom ou sans photo (réponse partielle) faisait repasser l'en-tête
+        // par l'initiale puis de nouveau par la photo — le « clignotement ».
+        if (profileData.name.trim().isNotEmpty || userName.value.isEmpty) {
+          userName.value = profileData.name;
+        }
         email.value = profileData.email;
         phoneNumber.value = profileData.mobile;
-        profileImageUrl.value = profileData.avatar.url;
+        if (profileData.avatar.url.trim().isNotEmpty ||
+            profileImageUrl.value.isEmpty) {
+          profileImageUrl.value = profileData.avatar.url;
+        }
+        final rawProfile = userController.userProfile['profile'];
+        if (rawProfile is Map) {
+          ProfileDisplayCache.write(
+            _storage,
+            role: _storedRole(),
+            userId: _storedUserId(),
+            data: Map<String, dynamic>.from(rawProfile),
+          );
+        }
         // v420 — Daniel : "photo profil grise sur la map" + "profil pas à
         // jour dans les onglets". Cause : le profil PERSISTANT (GetStorage
         // userProfile), lu par le marqueur PawMap et plusieurs écrans,

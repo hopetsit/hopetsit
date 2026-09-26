@@ -1,3 +1,5 @@
+import 'package:hopetsit/widgets/active_benefits_row.dart';
+import 'package:hopetsit/views/profile/widgets/profile_load_reveal.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -54,7 +56,16 @@ class SitterProfileScreen extends StatelessWidget {
               onCamera: controller.editProfile,
             ),
 
-            Padding(
+            // v592 — le contenu sous l'en-tête apparaît d'UN seul fondu, déjà
+            // à sa forme finale (voir ProfileLoadReveal).
+            ProfileLoadReveal(
+              // Le bandeau KYC dépend de /users/me/benefits : on l'attend
+              // aussi, sinon il apparaîtrait après coup et pousserait la page.
+              isReady: () =>
+                  (controller.profile.value != null ||
+                      !controller.isLoading.value) &&
+                  ActiveBenefitsRow.settledForSession,
+              child: Padding(
               // v468 — dégage le bas au-dessus du menu pleine largeur
               padding: EdgeInsets.fromLTRB(
                   // v488 — Daniel : « Se déconnecter toujours trop bas » → on
@@ -119,6 +130,7 @@ class SitterProfileScreen extends StatelessWidget {
             ],
           ),
         ),
+            ),
           ],
         ),
       ),

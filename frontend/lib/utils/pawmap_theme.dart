@@ -20,7 +20,7 @@ class PawMapTheme {
   static const Color bg = Color(0xFFFAF7F2);
   static const Color mapBg = Color(0xFFF0EBE1);
   static const Color border = Color(0x1218100E); // rgba(23,19,15,.07)
-  static const Color accent = Color(0xFFD83C28); // v559 — orange de l'icône (Daniel), ex-E8551C
+  static const Color accent = Color(0xFFC92A12); // v592 — Daniel : « l'orange foncé, pas clair » (ex-D83C28)
   static const Color rose = Color(0xFFE0397F); // agrandir, actif, onglets
   static const Color roseDark = Color(0xFFC72A6C);
   static const Color ok = Color(0xFF26A65B);

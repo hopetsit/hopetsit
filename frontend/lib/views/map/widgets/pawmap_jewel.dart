@@ -51,7 +51,7 @@ const PawJewelPalette kJewelAround =
     PawJewelPalette(Color(0xFFB08CFF), Color(0xFF7B4DE0), Color(0xFF5A30BF));
 /// Les 4 boutons du haut à droite : rouges pour les 3 rôles.
 const PawJewelPalette kJewelHeader =
-    PawJewelPalette(Color(0xFFFF8A66), Color(0xFFE8452F), Color(0xFFB8231A));
+    PawJewelPalette(Color(0xFFD9442C), Color(0xFFC92A12), Color(0xFF9E1F0B)); // v592 — orange foncé
 /// §3.4 — Balade arrêtée (gris) / en direct (vert).
 const PawJewelPalette kJewelWalkOff =
     PawJewelPalette(Color(0xFFC4B3AC), Color(0xFF978279), Color(0xFF6F5C55));
@@ -60,7 +60,7 @@ const PawJewelPalette kJewelWalkOn =
 
 // §9 — couleurs par rôle (viseur, flèches, marqueur Moi, bouton principal).
 const PawJewelPalette kJewelOwner =
-    PawJewelPalette(Color(0xFFFF8A66), Color(0xFFE8452F), Color(0xFFB8231A));
+    PawJewelPalette(Color(0xFFD9442C), Color(0xFFC92A12), Color(0xFF9E1F0B)); // v592 — orange foncé
 const PawJewelPalette kJewelSitter =
     PawJewelPalette(Color(0xFF8AB8FF), Color(0xFF3B78E8), Color(0xFF1F4FBF));
 const PawJewelPalette kJewelWalker =

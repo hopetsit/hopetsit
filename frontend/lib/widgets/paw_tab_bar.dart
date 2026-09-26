@@ -44,9 +44,9 @@ class PawTabBarPalette {
 const Map<PawNavRole, PawTabBarPalette> kPawTabBarPalettes =
     <PawNavRole, PawTabBarPalette>{
   PawNavRole.owner: PawTabBarPalette(
-    top: Color(0xFFD83C28),
-    bottom: Color(0xFFB92425),
-    shadow: Color(0x66D83C28), // rgba(216,60,40,.4)
+    top: Color(0xFFC92A12), // v592 — orange foncé (ex-D83C28)
+    bottom: Color(0xFF9E1F0B),
+    shadow: Color(0x66C92A12), // rgba(216,60,40,.4)
   ),
   PawNavRole.sitter: PawTabBarPalette(
     top: Color(0xFF2F6FD6),
@@ -169,7 +169,7 @@ class PawGlyphSpec {
 }
 
 const Color _kToeRedLight = Color(0xFFFF7A66);
-const Color _kToeRedDark = Color(0xFFD83C28);
+const Color _kToeRedDark = Color(0xFFC92A12);
 const Color _kToeBlueLight = Color(0xFF6FA0FF);
 const Color _kToeBlueDark = Color(0xFF2F6FD6);
 const Color _kToeGreenLight = Color(0xFF7FD66F);

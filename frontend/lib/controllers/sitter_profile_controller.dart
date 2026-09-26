@@ -19,6 +19,7 @@ import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart'
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/utils/profile_display_cache.dart';
 import 'package:hopetsit/views/auth/login_screen.dart';
 import 'package:hopetsit/views/profile/add_card_screen.dart';
 import 'package:hopetsit/views/profile/change_password_screen.dart';
@@ -69,8 +70,45 @@ class SitterProfileController extends GetxController implements ProfileSettingsH
   @override
   void onInit() {
     super.onInit();
+    // v592 — Daniel : « ça clignote, ça tremble sur mon profil le temps que ça
+    // s'installe ». Le gardien partait d'un en-tête VIDE (libellé du rôle à la
+    // place du nom, silhouette à la place de la photo) jusqu'à la réponse de
+    // GET /sitters/{id}. On affiche d'abord ce que l'appareil connaît déjà.
+    _seedFromStorage();
     loadMyProfile();
     loadBlockedUsers();
+  }
+
+  String _storedUserId() {
+    final raw = _storage.read(StorageKeys.userProfile);
+    if (raw is! Map) return '';
+    return (raw['id'] ?? raw['_id'] ?? '').toString();
+  }
+
+  /// v592 — nom + photo du profil persistant, puis le dernier profil complet
+  /// reçu pour CE compte (cache par rôle) : l'onglet Profil a sa forme finale
+  /// dès la première image.
+  void _seedFromStorage() {
+    try {
+      final raw = _storage.read(StorageKeys.userProfile);
+      if (raw is Map) {
+        final name = (raw['name'] ?? '').toString().trim();
+        if (userName.value.isEmpty && name.isNotEmpty) userName.value = name;
+        final avatar = raw['avatar'];
+        final url = (avatar is Map ? avatar['url'] : avatar)?.toString().trim() ?? '';
+        if (profileImageUrl.value.isEmpty && url.isNotEmpty) {
+          profileImageUrl.value = url;
+        }
+      }
+      if (profile.value == null) {
+        final cached = ProfileDisplayCache.read(
+          _storage,
+          role: 'sitter',
+          userId: _storedUserId(),
+        );
+        if (cached != null) profile.value = ProfileModel.fromJson(cached);
+      }
+    } catch (_) {/* rien en cache : on attend le serveur */}
   }
 
   /// Loads the current sitter's profile from the API.
@@ -173,6 +211,12 @@ class SitterProfileController extends GetxController implements ProfileSettingsH
       // Store the full profile data
       try {
         profile.value = ProfileModel.fromJson(profileData);
+        ProfileDisplayCache.write(
+          _storage,
+          role: 'sitter',
+          userId: _storedUserId(),
+          data: profileData,
+        );
         // v586 — « Mon fond » : le compte fait foi (3 profils, site).
         final pr = profile.value!.preferences;
         PawWallpaperPrefs.syncFromAccount(pr.wallpaperKnown ? pr.wallpaper : null);
@@ -218,7 +262,11 @@ class SitterProfileController extends GetxController implements ProfileSettingsH
       }
 
       // Update observable variables for backward compatibility
-      userName.value = profileData['name']?.toString() ?? '';
+      // v592 — jamais de retour vers du vide (en-tête qui clignote).
+      final freshName = profileData['name']?.toString() ?? '';
+      if (freshName.trim().isNotEmpty || userName.value.isEmpty) {
+        userName.value = freshName;
+      }
       email.value = profileData['email']?.toString() ?? '';
       phoneNumber.value =
           profileData['mobile']?.toString() ??
@@ -229,12 +277,16 @@ class SitterProfileController extends GetxController implements ProfileSettingsH
 
       // Extract profile image
       final avatar = profileData['avatar'];
+      String freshUrl = '';
       if (avatar is Map<String, dynamic>) {
-        profileImageUrl.value = avatar['url']?.toString() ?? '';
+        freshUrl = avatar['url']?.toString() ?? '';
       } else if (avatar is String) {
-        profileImageUrl.value = avatar;
+        freshUrl = avatar;
       } else if (profileData['profileImage'] != null) {
-        profileImageUrl.value = profileData['profileImage'].toString();
+        freshUrl = profileData['profileImage'].toString();
+      }
+      if (freshUrl.trim().isNotEmpty || profileImageUrl.value.isEmpty) {
+        profileImageUrl.value = freshUrl;
       }
     } on ApiException catch (error) {
       AppLogger.logError('Failed to load sitter profile', error: error.message);

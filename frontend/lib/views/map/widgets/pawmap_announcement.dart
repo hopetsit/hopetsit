@@ -173,7 +173,7 @@ Future<void> showPawAnnouncement(BuildContext context, PawAnnouncement a) {
                         gradient: LinearGradient(
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
-                          colors: [Color(0xFFE2503A), Color(0xFFB92425)],
+                          colors: [Color(0xFFC92A12), Color(0xFF9E1F0B)],
                         ),
                       ),
                       child: Row(

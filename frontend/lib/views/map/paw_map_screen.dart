@@ -43,6 +43,7 @@ import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/friends/people_live_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_chat_screen.dart';
+import 'package:hopetsit/views/map/pawmap_osm_tiles.dart';
 import 'package:hopetsit/views/map/alerts_screen.dart';
 import 'package:hopetsit/views/map/pawmap_camera_memory.dart';
 import 'package:hopetsit/views/map/pawspot_sheets.dart';
@@ -323,6 +324,14 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v552 — mode nuit de la CARTE (spec v3, dock bas). N'affecte que le style
   /// Google Maps, pas le thème de l'app (qui a son propre réglage).
   final RxBool _nightMode = false.obs;
+  // v592 — fond de carte détaillé du site (OpenStreetMap) par-dessus Google.
+  // Activé par défaut ; interrupteur dans « Calques ». Nuit et satellite
+  // gardent Google (les tuiles OSM sont claires et sans vue aérienne).
+  final RxBool _osmBase =
+      (GetStorage().read('pawmap_osm_base') as bool? ?? true).obs;
+  static final PawOsmTileProvider _osmTiles = PawOsmTileProvider();
+  bool get _osmActive =>
+      _osmBase.value && !_nightMode.value && _mapType == MapType.normal;
 
   /// Nearby reservation requests for the sitter/walker layer. Fetched in
   /// `_reloadAtCenter()` via `/posts/requests/nearby`. Empty for owner role.
@@ -889,6 +898,34 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
     final ctl = await _activeMapCtl();
     if (ctl == null) return;
+    // v592 — un toucher doit SUFFIRE à séparer le groupe : on cadre la carte
+    // sur tous ses points (avant : +2,2 niveaux, il fallait toucher 3-4 fois).
+    final pts = <LatLng>[
+      ...members.map(pawMapMemberLatLng).whereType<LatLng>(),
+      ...places.map((p) => LatLng(p.latitude, p.longitude)),
+      ...spots.map((s) => LatLng(s.lat, s.lng)),
+    ];
+    if (pts.length >= 2) {
+      double s0 = pts.first.latitude, n0 = s0, w0 = pts.first.longitude, e0 = w0;
+      for (final p in pts) {
+        s0 = math.min(s0, p.latitude);
+        n0 = math.max(n0, p.latitude);
+        w0 = math.min(w0, p.longitude);
+        e0 = math.max(e0, p.longitude);
+      }
+      // Points (quasi) superposés : la liste plutôt qu'un zoom inutile.
+      if ((n0 - s0).abs() < 0.00005 && (e0 - w0).abs() < 0.00005) {
+        _openClusterList(members: members, places: places, spots: spots);
+        return;
+      }
+      try {
+        await ctl.animateCamera(CameraUpdate.newLatLngBounds(
+          LatLngBounds(southwest: LatLng(s0, w0), northeast: LatLng(n0, e0)),
+          90,
+        ));
+        return;
+      } catch (_) {/* carte pas encore mesurée : repli ci-dessous */}
+    }
     final z = math.min(_zoomLevel + 2.2, 19.0);
     await ctl.animateCamera(CameraUpdate.newLatLngZoom(target, z));
   }
@@ -3436,15 +3473,19 @@ class _PawMapScreenState extends State<PawMapScreen>
     required bool selected,
     String? priceLabel,
     double rating = 0,
+    // v592 — comme le web : prénom dessous, prix dans la bulle colorée au-dessus.
+    String? priceBubble,
   }) {
     final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
     final size = PawMapLegend.memberSize;
     final withLabel = priceLabel != null && priceLabel.isNotEmpty;
+    final withBubble = priceBubble != null && priceBubble.isNotEmpty;
     final r1 = withLabel ? (rating * 10).round() / 10 : 0.0;
     final key =
-        'member:$role:${crown ? 1 : 0}:$phase:${verified ? 1 : 0}:${online ? 1 : 0}:${selected ? 1 : 0}:${priceLabel ?? ''}:$r1';
+        'member:$role:${crown ? 1 : 0}:$phase:${verified ? 1 : 0}:${online ? 1 : 0}:${selected ? 1 : 0}:${priceLabel ?? ''}:$r1:${priceBubble ?? ''}';
     final w = PawMapPinPainter.memberBitmapSize(size);
-    final h = PawMapPinPainter.memberBitmapSize(size, withLabel: withLabel);
+    final h = PawMapPinPainter.memberBitmapSize(size,
+        withLabel: withLabel, withBubble: withBubble);
     return _pins.getOrBuild(
           key,
           w,
@@ -3460,6 +3501,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             boostPhase: boosted ? phase / kBoostPhases : null,
             priceLabel: priceLabel,
             rating: r1,
+            priceBubble: withBubble ? priceBubble : null,
           ),
         ) ??
         BitmapDescriptor.defaultMarkerWithHue(role == 'sitter'
@@ -3547,18 +3589,19 @@ class _PawMapScreenState extends State<PawMapScreen>
     return Offset(0.5, (zone + PawMapPinPainter.photoMargin + size / 2) / h);
   }
 
-  BitmapDescriptor _memberClusterIcon(int count, Map<String, int> roleCounts) {
+  BitmapDescriptor _memberClusterIcon(int count, Map<String, int> roleCounts,
+      {bool hasFriend = false}) {
     final sig = ['owner', 'sitter', 'walker']
         .map((k) => '${k[0]}${roleCounts[k] ?? 0}')
         .join();
     final w = PawMapPinPainter.memberClusterWidth(count > 99 ? 100 : count) + 12;
     final h = PawMapLegend.memberClusterHeight + 12;
     return _pins.getOrBuild(
-          'mcluster:${count > 99 ? 100 : count}:$sig',
+          'mcluster:${count > 99 ? 100 : count}:$sig:${hasFriend ? 1 : 0}',
           w,
           h,
           (c) => PawMapPinPainter.paintMemberCluster(c, count,
-              roleCounts: roleCounts),
+              roleCounts: roleCounts, hasFriend: hasFriend),
         ) ??
         BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose);
   }
@@ -3887,7 +3930,11 @@ class _PawMapScreenState extends State<PawMapScreen>
               markerId: MarkerId('mcluster_${target.latitude.toStringAsFixed(4)}'
                   '_${target.longitude.toStringAsFixed(4)}_${group.length}'),
               position: target,
-              icon: _memberClusterIcon(group.length, roleCounts),
+              // v592 — un groupe qui contient un ami porte l'anneau rose (web).
+              icon: _memberClusterIcon(group.length, roleCounts,
+                  hasFriend: group.any((m) =>
+                      m['isFriend'] == true ||
+                      _friendController.isFriendWithAny(pawMapPersonIds(m)))),
               anchor: const Offset(0.5, 0.5),
               zIndexInt: 7,
               consumeTapEvents: true,
@@ -3956,12 +4003,23 @@ class _PawMapScreenState extends State<PawMapScreen>
         final BitmapDescriptor icon;
         final Offset anchor;
         if (isFriend) {
+          // v592 — Daniel : « comme le web, la petite bulle Vu il y a 5 j ».
+          // Hors zoom rue, un ami porte sa dernière activité sous son rond.
+          final String friendLabel =
+              photoLabel.isNotEmpty ? photoLabel : _friendSeenCaption(p);
           icon = _photoIcon(
             keyPrefix: 'friend:$id',
             avatarUrl: avatar,
             ring: PawMapLegend.friend,
             size: PawMapLegend.friendSize,
-            label: photoLabel.isEmpty ? null : photoLabel,
+            label: friendLabel.isEmpty ? null : friendLabel,
+            // v592 — ami à plusieurs rôles : rose puis les anneaux de ses rôles (web).
+            ringColors: personRoles.length > 1
+                ? [
+                    for (final r in personRoles)
+                      PawMapLegend.roleColor((r['_role'] ?? '').toString())
+                  ]
+                : null,
             priceBubble: bubble,
             priceRole: role,
             labelColor: PawMapLegend.darken(PawMapLegend.friend, 0.25),
@@ -3972,7 +4030,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             fallbackTint: PawMapLegend.roleColor(role),
           );
           anchor = _photoAnchor(PawMapLegend.friendSize,
-              withLabel: photoLabel.isNotEmpty, withBubble: bubble != null);
+              withLabel: friendLabel.isNotEmpty, withBubble: bubble != null);
         } else if (personRoles.length > 1) {
           // v585 (25/09, Daniel : « la pastille 2 zoome et c'est tout ») — UN
           // rond pour la personne, liseré partagé entre ses rôles.
@@ -4027,10 +4085,14 @@ class _PawMapScreenState extends State<PawMapScreen>
             verified: verified,
             online: online && !approx,
             selected: selected,
-            priceLabel: streetLabel,
+            priceLabel: photoLabel,
             rating: (p['rating'] as num?)?.toDouble() ?? 0,
+            priceBubble: bubble,
           );
-          anchor = _memberAnchor(withLabel: streetLabel.isNotEmpty);
+          anchor = Offset(
+              0.5,
+              PawMapPinPainter.memberAnchorY(PawMapLegend.memberSize,
+                  withLabel: photoLabel.isNotEmpty, withBubble: bubble != null));
         }
         markers.add(
           Marker(
@@ -4114,12 +4176,6 @@ class _PawMapScreenState extends State<PawMapScreen>
             icon: _placeIcon(poi.category),
             anchor: _dropAnchor(PawMapLegend.placeSize),
             zIndexInt: 3,
-            infoWindow: InfoWindow(
-              title: poi.title,
-              snippet: poi.address.isNotEmpty
-                  ? poi.address
-                  : PoiCategories.label(poi.category),
-            ),
             onTap: () => _showPoiBottomSheet(poi),
           ),
         );
@@ -4129,9 +4185,13 @@ class _PawMapScreenState extends State<PawMapScreen>
     // ── PAWSPOTS : goutte noire liserée du type, dorée si golden ; groupe =
     // carré noir chiffre or ──
     if (_showPawSpots.value) {
+      // v592 — Daniel : « les PawSpots, surtout en groupe, je dois ultra
+      // zoomer ». Cellule plus petite (44 px) et, dès le zoom quartier (13),
+      // seuls les spots quasi superposés (18 px) restent groupés.
       final spotGroups = _clusterize<PawSpotModel>(
         _pawSpotController.spots.toList(),
         (s) => LatLng(s.lat, s.lng),
+        cellPx: _zoomLevel >= 13 ? 18 : 44,
       );
       for (final group in spotGroups) {
         if (group.length > 1) {
@@ -4162,10 +4222,9 @@ class _PawMapScreenState extends State<PawMapScreen>
             // v590 — handoff §6 : au-dessus des lieux et des signalements.
             zIndexInt: spot.isGolden ? 6 : 5,
             icon: _spotIcon(spot.type, spot.isGolden),
-            infoWindow: InfoWindow(
-              title: spot.name,
-              snippet: PawSpotTypes.label(spot.type),
-            ),
+            // v592 — Daniel (capture) : la bulle Google « nom / type » restait
+            // ouverte et cachait le PawSpot voisin ; la fiche s'ouvre déjà au
+            // toucher, la bulle est retirée.
             onTap: () => _showPawSpotDetail(spot),
           ),
         );
@@ -4184,11 +4243,6 @@ class _PawMapScreenState extends State<PawMapScreen>
             position: LatLng(r.latitude, r.longitude),
             icon: emojiIcon ??
                 BitmapDescriptor.defaultMarkerWithHue(_hueForReport(r.type)),
-            infoWindow: InfoWindow(
-              title: '${ReportTypes.emoji(r.type)} ${ReportTypes.labelFr(r.type)}',
-              snippet:
-                  '${'pawmap_remaining_hours_label'.trParams({'hours': r.liveHoursRemaining.toStringAsFixed(0)})} · ${'pawmap_confirmations'.trParams({'count': r.confirmationsCount.toString()})}',
-            ),
             onTap: () => _showReportBottomSheet(r),
           ),
         );
@@ -4570,6 +4624,25 @@ class _PawMapScreenState extends State<PawMapScreen>
       debugPrint('[PawMap] mes demandes : $e');
     }
   }
+  /// v592 — « Vu il y a 5 j » sous le rond d'un ami (dernier signe de vie
+  /// connu, `lastSeenAt` de la liste d'amis, tous ses profils). « En ligne »
+  /// s'il a été vu il y a moins d'une minute. Vide si inconnu.
+  String _friendSeenCaption(Map<String, dynamic> p) {
+    final ids = pawMapPersonIds(p);
+    DateTime? seen;
+    for (final f in _friendController.friends) {
+      final o = f.other;
+      if (o == null || o.lastSeenAt == null) continue;
+      if (!ids.any(o.matchesId)) continue;
+      if (seen == null || o.lastSeenAt!.isAfter(seen)) seen = o.lastSeenAt;
+    }
+    if (seen == null) return '';
+    if (DateTime.now().difference(seen).inMinutes < 1) {
+      return 'pawmap_time_just_now'.tr;
+    }
+    return 'pawmap_seen_ago'.tr.replaceAll('{ago}', _timeAgo(seen));
+  }
+
   String _timeAgo(DateTime at) {
     final diff = DateTime.now().difference(at);
     if (diff.inMinutes < 1) return 'pawmap_time_just_now'.tr;
@@ -4717,6 +4790,27 @@ class _PawMapScreenState extends State<PawMapScreen>
                 onPointerCancel: _onMapPointerEnd,
                 child: _buildGoogleMap(),
               ),
+            ),
+            // v592 — mention légale d'OpenStreetMap (obligatoire) quand le
+            // fond détaillé est affiché : discrète, au-dessus du logo Google.
+            Positioned(
+              left: 72.w,
+              bottom: _menuInset(context) + _sheetPeekPx + 30.h,
+              child: Obx(() => !_osmActive
+                  ? const SizedBox.shrink()
+                  : IgnorePointer(
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.h),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.72),
+                          borderRadius: BorderRadius.circular(4.r),
+                        ),
+                        child: Text('pawmap592_osm_credit'.tr,
+                            style: TextStyle(
+                                fontSize: 8.5.sp,
+                                color: PawMapTheme.ink)),
+                      ),
+                    )),
             ),
 
 
@@ -5367,6 +5461,15 @@ class _PawMapScreenState extends State<PawMapScreen>
             bottom: _menuInset(context) + _sheetPeekPx + 6.h),
         mapType: _mapType,
         style: night ? _nightMapStyle : null,
+        tileOverlays: _osmActive
+            ? <TileOverlay>{
+                TileOverlay(
+                  tileOverlayId: const TileOverlayId('pawmap_osm'),
+                  tileProvider: _osmTiles,
+                  zIndex: 0,
+                ),
+              }
+            : const <TileOverlay>{},
         // v23.1 part 243 round 3 — marqueurs mémoïsés (_getMarkersFromCache).
         markers: _routeStepMarkers.isEmpty
             ? _getMarkersFromCache()
@@ -7383,7 +7486,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFFE2503A), Color(0xFFB92425)],
+              colors: [Color(0xFFC92A12), Color(0xFF9E1F0B)],
             ),
           ),
           child: Icon(Icons.settings_rounded, size: 18.sp, color: Colors.white),
@@ -8451,6 +8554,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                   Icons.pets_rounded, PawMapTheme.pawSpot),
               row('PawFollow', _showLiveLayer.value, _togglePawFollow,
                   Icons.share_location_rounded, PawMapTheme.pawFollow),
+              row('pawmap592_osm_base'.tr, _osmBase.value, () {
+                _osmBase.value = !_osmBase.value;
+                GetStorage().write('pawmap_osm_base', _osmBase.value);
+                if (mounted) setState(() {});
+              }, Icons.map_rounded, PawMapTheme.accent),
             ],
           ));
         }),

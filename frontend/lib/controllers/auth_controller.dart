@@ -26,6 +26,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/utils/profile_display_cache.dart';
 import 'package:hopetsit/utils/app_constants.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:hopetsit/controllers/home_controller.dart';
@@ -1810,6 +1811,8 @@ class AuthController extends GetxController {
     await SecureTokenStore.instance.clear();
     await _storage.remove(StorageKeys.authToken);
     await _storage.remove(StorageKeys.userProfile);
+    // v592 — le profil affiché en cache (onglet Profil) part avec la session.
+    ProfileDisplayCache.clear(_storage);
     await _storage.remove(StorageKeys.userRole);
     // v449 — purge le tint de rôle (sinon le thème resterait teinté du
     // dernier rôle après déconnexion).

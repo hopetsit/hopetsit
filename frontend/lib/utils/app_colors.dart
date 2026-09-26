@@ -139,7 +139,7 @@ class AppColors {
 
   // Gradient
   static const LinearGradient linearGradient = LinearGradient(
-    colors: [Color(0xFFC92A12), Color(0xFFFF6B4A)],
+    colors: [Color(0xFFC92A12), Color(0xFF9E1F0B)], // v592 — orange foncé
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
