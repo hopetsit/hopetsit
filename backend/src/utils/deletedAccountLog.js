@@ -14,7 +14,15 @@ const logDeletedAccount = async ({ role, doc, source }) => {
     try {
       email = decrypt(doc?.email || '') || '';
     } catch (_) { /* email illisible → champ vide */ }
+    let snapshot;
+    if (source === 'admin') {
+      // v590 — restauration possible 30 jours (bouton « Restaurer » de l'admin).
+      try {
+        snapshot = require('./accountRestore590').snapshotOf(doc) || undefined;
+      } catch (_) { snapshot = undefined; }
+    }
     await DeletedAccount.create({
+      ...(snapshot ? { snapshot } : {}),
       role: role || '',
       name: doc?.name || '',
       email,

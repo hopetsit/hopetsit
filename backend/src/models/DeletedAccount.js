@@ -13,6 +13,12 @@ const deletedAccountSchema = new mongoose.Schema(
     userId: { type: String, default: '' },
     source: { type: String, default: 'user' }, // 'user' (app/site) | 'admin'
     deletedAt: { type: Date, default: Date.now },
+    // v590 — copie brute du doc, UNIQUEMENT pour une suppression faite depuis
+    // l'admin, effacée après 30 jours ou à la restauration (utils/accountRestore590).
+    snapshot: { type: mongoose.Schema.Types.Mixed, select: false },
+    restoredAt: { type: Date, default: null },
+    restoredMode: { type: String, default: '' },
+    restoredBy: { type: String, default: '' },
   },
   { timestamps: true },
 );

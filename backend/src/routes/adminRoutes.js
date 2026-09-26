@@ -786,13 +786,50 @@ router.delete('/owners/:id', requireAdmin, async (req, res) => {
 router.get('/deleted-accounts', requireAdmin, async (req, res) => {
   try {
     const DeletedAccount = require('../models/DeletedAccount');
+    const { purgeOldSnapshots, restoreBlocker } = require('../utils/accountRestore590');
+    await purgeOldSnapshots().catch(() => {});
     const limit = Math.min(Number(req.query.limit) || 50, 200);
     const deletions = await DeletedAccount.find({})
+      .select('+snapshot')
       .sort({ deletedAt: -1 })
       .limit(limit)
       .lean();
+    // v590 — la copie ne sort jamais du serveur : seulement « restaurable ? ».
+    for (const d of deletions) {
+      d.hasSnapshot = Boolean(d.snapshot);
+      delete d.snapshot;
+      d.restorable = restoreBlocker({ ...d, snapshot: d.hasSnapshot }) === null;
+    }
     res.json({ deletions });
   } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// v590 — Daniel : « un bouton restaurer le compte, j'ai effacé un compte sans
+// vouloir ». Suppressions faites depuis l'admin uniquement (voir accountRestore590).
+router.post('/deleted-accounts/:id/restore', requireAdmin, async (req, res) => {
+  try {
+    const { restoreDeletedAccount } = require('../utils/accountRestore590');
+    const adminId = (req.user && req.user.id) || null;
+    const r = await restoreDeletedAccount(req.params.id, { adminId });
+    if (!r.ok) return res.status(r.status || 409).json({ error: r.error });
+    try {
+      const AdminAuditLog = require('../models/AdminAuditLog');
+      await AdminAuditLog.create({
+        adminId,
+        action: 'account_restore',
+        targetType: { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' }[r.role] || '',
+        targetId: r.userId,
+        method: 'POST',
+        path: req.originalUrl,
+        params: { mode: r.mode },
+        createdAt: new Date(),
+      });
+    } catch (_) { /* journal d'audit best-effort */ }
+    res.json(r);
+  } catch (e) {
+    if (e && e.code === 11000) return res.status(409).json({ error: 'e-mail ou identifiant déjà utilisé' });
     res.status(500).json({ error: e.message });
   }
 });
@@ -1424,6 +1461,38 @@ router.post('/users/:id/ban', requireAdmin, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found.' });
     logger.info(`[admin] banned ${role} ${req.params.id} by ${req.user?.id} — reason: ${reason}`);
     res.json(user);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// v590 — Daniel : « Bloquer dans Utilisateurs + onglet Profils bloqués, contre
+// les spams et les robots ». Bloque/débloque les 3 profils de la personne.
+router.post('/users/:id/block', requireAdmin, async (req, res) => {
+  try {
+    const { setBlocked } = require('../utils/userBlock590');
+    const { role, reason = '' } = req.body || {};
+    const r = await setBlocked(role, req.params.id, true, reason);
+    if (!r.ok) return res.status(r.status).json({ error: r.error });
+    logger.info(`[admin] blocked ${role} ${req.params.id} (${r.profiles.length} profil(s)) by ${req.user?.id}`);
+    res.json(r);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/users/:id/unblock', requireAdmin, async (req, res) => {
+  try {
+    const { setBlocked } = require('../utils/userBlock590');
+    const { role } = req.body || {};
+    const r = await setBlocked(role, req.params.id, false);
+    if (!r.ok) return res.status(r.status).json({ error: r.error });
+    logger.info(`[admin] unblocked ${role} ${req.params.id} (${r.profiles.length} profil(s)) by ${req.user?.id}`);
+    res.json(r);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/blocked-users', requireAdmin, async (req, res) => {
+  try {
+    const { listBlocked } = require('../utils/userBlock590');
+    const users = (await listBlocked()).map((u) => ({ ...u, email: _plainEmail(u.email) }));
+    res.json({ users });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
