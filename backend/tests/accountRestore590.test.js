@@ -137,3 +137,17 @@ test('journal d\'activité : une session par tranche de 30 min, lieu du profil',
   const s = (await activitySummary({ days: 1 })).find((u) => u.userId === String(o._id));
   expect(s).toMatchObject({ sessions: 2, platform: 'ios', appVersion: '590', city: 'Paris', country: 'FR', name: 'Actif' });
 });
+
+// v590 — le badge staff suit la personne sur tous ses profils, même créés plus tard.
+test('staff : un rôle ajouté plus tard hérite du badge ; rattrapage global', async () => {
+  const { propagateStaffForPerson, propagateAllStaff } = require('../src/utils/staffSync590');
+  const o = await Owner.create({ name: 'Maman', email: 'staff590@example.test', password: 'MotDePasse590!', isStaff: true });
+  const s = await Sitter.create({ name: 'Maman', email: 'staff590@example.test', password: 'MotDePasse590!' });
+  expect(await propagateStaffForPerson(o._id)).toBe(1);
+  expect((await Sitter.findById(s._id).lean()).isStaff).toBe(true);
+  const w = await Walker.create({ name: 'Maman', email: 'staff590@example.test', password: 'MotDePasse590!' });
+  expect(await propagateAllStaff()).toBeGreaterThanOrEqual(1);
+  expect((await Walker.findById(w._id).lean()).isStaff).toBe(true);
+  const other = await Walker.create({ name: 'Pas staff', email: 'nostaff590@example.test', password: 'MotDePasse590!' });
+  expect(await propagateStaffForPerson(other._id)).toBe(0);
+});

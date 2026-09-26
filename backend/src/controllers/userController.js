@@ -1274,6 +1274,8 @@ const switchRole = async (req, res) => {
       try {
         const { syncSubscriptionAcrossRoles } = require('../models/UserSubscription');
         await syncSubscriptionAcrossRoles(userId, capRole(currentRole));
+        // v590 — le badge staff suit la personne sur le rôle réactivé.
+        await require('../utils/staffSync590').propagateStaffForPerson(userId);
       } catch (e) {
         logger.warn('[switchRole] synchro abonnement échouée (non bloquant)', e);
       }
@@ -1358,6 +1360,10 @@ const switchRole = async (req, res) => {
     try {
       const { syncSubscriptionAcrossRoles } = require('../models/UserSubscription');
       await syncSubscriptionAcrossRoles(userId, capRole(currentRole));
+      // v590 — le badge staff suit la personne sur le rôle créé.
+      if (await require('../utils/staffSync590').propagateStaffForPerson(userId)) {
+        newUser = await TargetModel.findById(newUser._id);
+      }
     } catch (subErr) {
       logger.warn('[switchRole] copie abonnement échouée (non bloquant)', subErr);
     }

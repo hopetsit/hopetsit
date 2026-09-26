@@ -1505,6 +1505,14 @@ router.get('/activity/:userId', requireAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// v590 — rattrapage : badge staff posé sur les 3 profils de chaque personne staff.
+router.post('/staff/sync', requireAdmin, async (req, res) => {
+  try {
+    const { propagateAllStaff } = require('../utils/staffSync590');
+    res.json({ fixed: await propagateAllStaff() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/blocked-users', requireAdmin, async (req, res) => {
   try {
     const { listBlocked } = require('../utils/userBlock590');
